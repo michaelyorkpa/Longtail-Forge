@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Clients &amp; Projects | Raymond Tec Time Tracker</title>
+    <link rel="stylesheet" href="styles/time-tracker.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Primary">
+        <a class="site-brand" href="home.html">Raymond Tec</a>
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="primary-menu"
+          aria-label="Toggle navigation"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div class="nav-links" id="primary-menu">
+          <a href="home.html">Home</a>
+          <a href="index.html">Time Tracker</a>
+          <a href="clients-projects.html" aria-current="page">Clients &amp; Projects</a>
+          <a href="view-hours.html">View Hours</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="wide-page">
+      <div class="page-heading">
+        <h1>Clients &amp; Projects</h1>
+        <button type="button" data-add-client>Add Client</button>
+      </div>
+
+      <p data-client-project-status role="status" aria-live="polite"></p>
+      <section class="client-list" data-client-list aria-label="Clients and projects"></section>
+
+      <dialog data-client-modal>
+        <form method="dialog" data-client-form>
+          <h2>Add Client</h2>
+
+          <label>
+            Client Name
+            <input type="text" data-new-client-name required>
+          </label>
+
+          <label>
+            First Project Name
+            <input type="text" data-new-project-name required>
+          </label>
+
+          <label>
+            First Project Billing Rate ($/hour)
+            <input type="text" inputmode="decimal" data-new-project-billing-rate>
+          </label>
+
+          <label>
+            First Project Status
+            <select data-new-project-status>
+              <option>Active</option>
+              <option>Inactive</option>
+              <option>Completed</option>
+            </select>
+          </label>
+
+          <div class="form-actions">
+            <button type="button" data-cancel-client>Cancel</button>
+            <button type="submit">Save</button>
+          </div>
+        </form>
+      </dialog>
+    </main>
+
+    <script src="navigation.js"></script>
+    <script src="clients-projects.js"></script>
+  </body>
+</html>

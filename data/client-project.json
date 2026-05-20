@@ -1,0 +1,192 @@
+{
+  "clients": [
+    {
+      "id": "dr_jennifer_weeks",
+      "name": "Dr. Jennifer Weeks",
+      "billing_rate": "75",
+      "billing_contact": {
+        "name": "Jennifer Weeks",
+        "email": "jweeks@satshealing.com",
+        "alternate_name": "",
+        "alternate_email": "drjenniferweeks@gmail.com",
+        "phone_number": "908-892-5877",
+        "alternate_phone_number": "610-844-7180",
+        "street_address_1": "190 Brodhead Road",
+        "street_address_2": "Suite 107",
+        "city": "Bethlehem",
+        "state": "Pennsylvania",
+        "zip_code": "18017"
+      },
+      "projects": [
+        {
+          "id": "sats-email-marketing",
+          "name": "SATS Email Marketing",
+          "billing_rate": "75",
+          "status": "Active"
+        },
+        {
+          "id": "security-hardening",
+          "name": "Security Hardening",
+          "billing_rate": "75",
+          "status": "Active"
+        },
+        {
+          "id": "djrr-content-creation",
+          "name": "DJRR Content Creation",
+          "billing_rate": "75",
+          "status": "Active"
+        },
+        {
+          "id": "ma_content_creation",
+          "name": "MA Content Creation",
+          "billing_rate": "75",
+          "status": "Active"
+        },
+        {
+          "id": "sats_website_updates",
+          "name": "SATS Website Updates",
+          "billing_rate": "75",
+          "status": "Active"
+        }
+      ]
+    },
+    {
+      "id": "wesellperformance",
+      "name": "WeSellPerformance.com",
+      "billing_rate": "45.50",
+      "billing_contact": {
+        "name": "Steven Spohn",
+        "email": "spohnperformance1@gmail.com",
+        "alternate_name": "",
+        "alternate_email": "hello@wesellperformance.com",
+        "phone_number": "",
+        "alternate_phone_number": "",
+        "street_address_1": "494 E Lincoln Ave",
+        "street_address_2": "",
+        "city": "Myerstown",
+        "state": "PA",
+        "zip_code": "17067"
+      },
+      "projects": [
+        {
+          "id": "blog-content",
+          "name": "Blog Content",
+          "billing_rate": "45.50",
+          "status": "Active"
+        },
+        {
+          "id": "shopify-maintenance",
+          "name": "Shopify Maintenance",
+          "billing_rate": "45.50",
+          "status": "Active"
+        },
+        {
+          "id": "ebay-product-additions",
+          "name": "eBay Product Additions",
+          "billing_rate": "45.50",
+          "status": "Active"
+        },
+        {
+          "id": "other_maintenance",
+          "name": "Other Maintenance",
+          "billing_rate": "45.50",
+          "status": "Active"
+        }
+      ]
+    },
+    {
+      "id": "custom-trucks-unlimited",
+      "name": "Custom Trucks Unlimited",
+      "billing_rate": "85",
+      "billing_contact": {
+        "name": "",
+        "email": "",
+        "alternate_name": "",
+        "alternate_email": "",
+        "phone_number": "",
+        "alternate_phone_number": "",
+        "street_address_1": "",
+        "street_address_2": "",
+        "city": "",
+        "state": "",
+        "zip_code": ""
+      },
+      "projects": [
+        {
+          "id": "phase_1_discoverylaunch_audit",
+          "name": "Phase 1 | Discovery/Launch Audit",
+          "billing_rate": "",
+          "status": "Active"
+        },
+        {
+          "id": "phase_1_collection_optimization",
+          "name": "Phase 1 | Collection Optimization",
+          "billing_rate": "",
+          "status": "Active"
+        },
+        {
+          "id": "phase_1_front_endtheme_fixes",
+          "name": "Phase 1 | Front End/Theme Fixes",
+          "billing_rate": "",
+          "status": "Active"
+        },
+        {
+          "id": "phase_1_slingshot_catalog_audit",
+          "name": "Phase 1 | Slingshot Catalog Audit",
+          "billing_rate": "",
+          "status": "Active"
+        },
+        {
+          "id": "phase_2_fitment_category_setup",
+          "name": "Phase 2 | Fitment Category Setup",
+          "billing_rate": "",
+          "status": "Inactive"
+        },
+        {
+          "id": "phase_2_title_enhancement",
+          "name": "Phase 2 | Title Enhancement",
+          "billing_rate": "",
+          "status": "Inactive"
+        }
+      ]
+    },
+    {
+      "id": "middle_creek_mountain",
+      "name": "Middle Creek Mountain",
+      "billing_rate": "45.50",
+      "billing_contact": {
+        "name": "Steven Spohn",
+        "email": "sjspohn@gmail.com",
+        "alternate_name": "",
+        "alternate_email": "",
+        "phone_number": "717-587-0568",
+        "alternate_phone_number": "",
+        "street_address_1": "60 Fredrick Ln",
+        "street_address_2": "",
+        "city": "Newmanstown",
+        "state": "PA",
+        "zip_code": "17073"
+      },
+      "projects": [
+        {
+          "id": "network_maintenance",
+          "name": "Network Maintenance",
+          "billing_rate": "75",
+          "status": "Active"
+        },
+        {
+          "id": "automation_maintenance",
+          "name": "Automation Maintenance",
+          "billing_rate": "75",
+          "status": "Active"
+        },
+        {
+          "id": "solar_project",
+          "name": "Solar Project",
+          "billing_rate": "75",
+          "status": "Inactive"
+        }
+      ]
+    }
+  ]
+}

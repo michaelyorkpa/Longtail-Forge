@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Raymond Tec Time Tracker</title>
+    <link rel="stylesheet" href="styles/time-tracker.css?v=4">
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Primary">
+        <a class="site-brand" href="home.html">Raymond Tec</a>
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="primary-menu"
+          aria-label="Toggle navigation"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div class="nav-links" id="primary-menu">
+          <a href="home.html">Home</a>
+          <a href="index.html" aria-current="page">Time Tracker</a>
+          <a href="clients-projects.html">Clients &amp; Projects</a>
+          <a href="view-hours.html">View Hours</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="timer-page">
+      <div class="timer-page-heading">
+        <h1>Raymond Tec Time Tracker</h1>
+        <label class="timer-count-control">
+          Timers
+          <select data-timer-count>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="timer-grid" data-timer-grid>
+        <section id="stopwatch" class="timer-card" aria-label="Timer 1">
+          <h2 data-stopwatch-title>Timer 1</h2>
+          <div data-stopwatch-details>
+            <label>
+              Client
+              <select data-stopwatch-client>
+                <option value="">Select a client</option>
+              </select>
+            </label>
+
+            <label>
+              Project
+              <select data-stopwatch-project disabled>
+                <option value="">Select a project</option>
+              </select>
+            </label>
+
+            <label>
+              Description
+              <input
+                type="text"
+                data-stopwatch-description
+                placeholder="What are you working on?"
+              >
+            </label>
+          </div>
+
+          <output data-stopwatch-display aria-live="polite">00:00:00</output>
+          <div data-stopwatch-controls>
+            <button type="button" data-stopwatch-start>Start</button>
+            <button type="button" data-stopwatch-pause>Pause</button>
+            <button type="button" data-stopwatch-stop>Stop</button>
+            <button type="button" data-stopwatch-reset>Reset</button>
+          </div>
+          <label class="reset-option">
+            <input type="checkbox" data-stopwatch-clear-on-reset>
+            Clear Info when Reset
+          </label>
+          <p data-stopwatch-status role="status" aria-live="polite"></p>
+        </section>
+      </div>
+    </main>
+
+    <script src="navigation.js"></script>
+    <script src="stop-watch.js?v=6"></script>
+  </body>
+</html>

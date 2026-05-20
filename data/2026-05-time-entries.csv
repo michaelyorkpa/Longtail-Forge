@@ -1,0 +1,8 @@
+entry_id,client_id,client_name,project_id,project_name,description,start_time,end_time,duration_seconds,duration_hours,billable,invoice_status
+2026-05-18-001,dr-jennifer-weeks,Dr. Jennifer Weeks,sats-email-marketing,SATS Email Marketing,Checking stats and emailing them to Jen,2026-05-18T17:07:46.446Z,2026-05-18T17:09:46.893Z,120,0.0333,yes,unbilled
+2026-05-18-002,wesellperformance,WeSellPerformance.com,ebay-product-additions,eBay Product Additions,Turn 14 products for WS 5/18,2026-05-18T17:41:57.241Z,2026-05-18T17:43:34.530Z,97,0.0269,yes,unbilled
+2026-05-18-003,custom-trucks-unlimited,Custom Trucks Unlimited,discovery-launch-audit,Discovery/Launch Audit,"Confirming updated access, sending follow up email, and determining other questions",2026-05-18T17:53:51.728Z,2026-05-18T18:01:27.296Z,456,0.1267,yes,unbilled
+2026-05-18-004,wesellperformance,WeSellPerformance.com,ebay-product-additions,eBay Product Additions,T14 Products for WS 5/18,2026-05-18T18:01:53.712Z,2026-05-18T18:13:47.303Z,714,0.1983,yes,unbilled
+2026-05-18-005,wesellperformance,WeSellPerformance.com,ebay-product-additions,eBay Product Additions,T14 for WS 5/18,2026-05-18T19:58:44.259Z,2026-05-18T21:05:17.628Z,3993,1.1092,yes,unbilled
+2026-05-19-001,custom-trucks-unlimited,Custom Trucks Unlimited,phase_1_front_endtheme_fixes,Phase 1 | Front End/Theme Fixes,Fixing white on white mega menu,2026-05-19T20:28:03.648Z,2026-05-19T20:59:22.893Z,1879,0.5219,yes,unbilled
+2026-05-20-001,custom-trucks-unlimited,Custom Trucks Unlimited,phase_1_discoverylaunch_audit,Phase 1 | Discovery/Launch Audit,Creating a comprehensive list of front end adjustments and list of front end collections/categories,2026-05-20T10:58:54.873Z,2026-05-20T11:21:06.336Z,1328,0.3689,yes,unbilled
