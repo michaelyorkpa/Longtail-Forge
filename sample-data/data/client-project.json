@@ -1,0 +1,136 @@
+{
+  "clients": [
+    {
+      "id": "acme_artisans",
+      "name": "Acme Artisans",
+      "status": "Active",
+      "billing_rate": "95",
+      "billing_period": null,
+      "billing_rounding": null,
+      "billing_contact": {
+        "name": "Jordan Lee",
+        "email": "jordan@example.com",
+        "alternate_name": "",
+        "alternate_email": "billing@example.com",
+        "phone_number": "555-0101",
+        "alternate_phone_number": "",
+        "street_address_1": "123 Market Street",
+        "street_address_2": "Suite 200",
+        "city": "Lancaster",
+        "state": "PA",
+        "zip_code": "17603"
+      },
+      "projects": [
+        {
+          "id": "website_maintenance",
+          "name": "Website Maintenance",
+          "billing_rate": "95",
+          "billing_period": null,
+          "billing_rounding": null,
+          "status": "Active"
+        },
+        {
+          "id": "email_campaigns",
+          "name": "Email Campaigns",
+          "billing_rate": "110",
+          "billing_period": {
+            "type": "custom",
+            "startDay": 15
+          },
+          "billing_rounding": {
+            "enabled": true,
+            "increment": "nearestHalfHour"
+          },
+          "status": "Active"
+        },
+        {
+          "id": "legacy_theme_cleanup",
+          "name": "Legacy Theme Cleanup",
+          "billing_rate": "95",
+          "billing_period": null,
+          "billing_rounding": null,
+          "status": "Completed"
+        }
+      ]
+    },
+    {
+      "id": "northstar_coaching",
+      "name": "Northstar Coaching",
+      "status": "Active",
+      "billing_rate": "125",
+      "billing_period": {
+        "type": "custom",
+        "startDay": 10
+      },
+      "billing_rounding": {
+        "enabled": false,
+        "increment": "nearestQuarterHour"
+      },
+      "billing_contact": {
+        "name": "Morgan Patel",
+        "email": "morgan@example.net",
+        "alternate_name": "",
+        "alternate_email": "",
+        "phone_number": "555-0142",
+        "alternate_phone_number": "",
+        "street_address_1": "45 Pine Avenue",
+        "street_address_2": "",
+        "city": "Asheville",
+        "state": "NC",
+        "zip_code": "28801"
+      },
+      "projects": [
+        {
+          "id": "brand_strategy",
+          "name": "Brand Strategy",
+          "billing_rate": "150",
+          "billing_period": null,
+          "billing_rounding": null,
+          "status": "Active"
+        },
+        {
+          "id": "content_calendar",
+          "name": "Content Calendar",
+          "billing_rate": "",
+          "billing_period": null,
+          "billing_rounding": {
+            "enabled": true,
+            "increment": "nearestQuarterHour"
+          },
+          "status": "Active"
+        }
+      ]
+    },
+    {
+      "id": "summit_bikes",
+      "name": "Summit Bikes",
+      "status": "Inactive",
+      "billing_rate": "85",
+      "billing_period": null,
+      "billing_rounding": null,
+      "billing_contact": {
+        "name": "Casey Brooks",
+        "email": "casey@example.org",
+        "alternate_name": "",
+        "alternate_email": "",
+        "phone_number": "555-0188",
+        "alternate_phone_number": "",
+        "street_address_1": "800 Trail Road",
+        "street_address_2": "",
+        "city": "Boulder",
+        "state": "CO",
+        "zip_code": "80302"
+      },
+      "projects": [
+        {
+          "id": "shopify_tuneup",
+          "name": "Shopify Tuneup",
+          "billing_rate": "85",
+          "billing_period": null,
+          "billing_rounding": null,
+          "status": "Inactive"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+entry_id,client_id,client_name,project_id,project_name,description,start_time,end_time,duration_seconds,duration_hours,billable,invoice_status
+2026-05-01-001,acme_artisans,Acme Artisans,website_maintenance,Website Maintenance,Plugin updates and QA pass,2026-05-01T13:00:00.000Z,2026-05-01T14:18:00.000Z,4680,1.3000,yes,unbilled
+2026-05-02-001,acme_artisans,Acme Artisans,email_campaigns,Email Campaigns,Newsletter layout and test sends,2026-05-02T15:10:00.000Z,2026-05-02T16:02:30.000Z,3150,0.8750,yes,unbilled
+2026-05-03-001,northstar_coaching,Northstar Coaching,brand_strategy,Brand Strategy,Positioning notes and competitor review,2026-05-03T17:00:00.000Z,2026-05-03T18:45:00.000Z,6300,1.7500,yes,billed
+2026-05-05-001,northstar_coaching,Northstar Coaching,content_calendar,Content Calendar,June content calendar draft,2026-05-05T14:30:00.000Z,2026-05-05T15:07:29.000Z,2249,0.6247,yes,unbilled
+2026-05-08-001,acme_artisans,Acme Artisans,website_maintenance,Website Maintenance,Homepage copy updates,2026-05-08T19:00:00.000Z,2026-05-08T19:22:30.000Z,1350,0.3750,yes,unbilled
+2026-05-10-001,acme_artisans,Acme Artisans,legacy_theme_cleanup,Legacy Theme Cleanup,Archive old templates,2026-05-10T12:00:00.000Z,2026-05-10T12:40:00.000Z,2400,0.6667,no,paid
+2026-05-15-001,acme_artisans,Acme Artisans,email_campaigns,Email Campaigns,Segment cleanup and report notes,2026-05-15T16:00:00.000Z,2026-05-15T16:22:29.000Z,1349,0.3747,yes,unbilled
+2026-05-16-001,northstar_coaching,Northstar Coaching,brand_strategy,Brand Strategy,Review call and follow-up summary,2026-05-16T18:00:00.000Z,2026-05-16T19:05:00.000Z,3900,1.0833,yes,billed
+2026-05-18-001,summit_bikes,Summit Bikes,shopify_tuneup,Shopify Tuneup,Final handoff notes,2026-05-18T13:15:00.000Z,2026-05-18T13:45:00.000Z,1800,0.5000,yes,paid
+2026-05-20-001,acme_artisans,Acme Artisans,website_maintenance,Website Maintenance,Accessibility fixes and smoke test,2026-05-20T13:30:00.000Z,2026-05-20T14:06:00.000Z,2160,0.6000,yes,unbilled

@@ -6,9 +6,10 @@ const HOST = "127.0.0.1";
 const PORT = Number(process.env.PORT) || 8001;
 const ROOT = __dirname;
 const DATA_DIR = path.join(ROOT, "data");
+const LOG_DIR = path.join(ROOT, "logs");
 const CLIENT_PROJECT_FILE = path.join(DATA_DIR, "client-project.json");
 const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
-const APP_LOG_FILE = path.join(DATA_DIR, "app-events.csv");
+const APP_LOG_FILE = path.join(LOG_DIR, "app-events.csv");
 const TIME_ENTRIES_FILE = path.join(DATA_DIR, "time-entries.csv");
 const TIME_ENTRIES_FILE_NAME = "time-entries.csv";
 const CSV_HEADER =
@@ -439,7 +440,7 @@ async function appendAppLog(event) {
     .map(toCsvValue)
     .join(",");
 
-  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.mkdir(LOG_DIR, { recursive: true });
   await fs.appendFile(APP_LOG_FILE, buildAppLogAppend(existingLog, row), "utf8");
 }
 
