@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Home | Raymond Tec Time Tracker</title>
+    <title>Home | Time Tracker</title>
     <link rel="stylesheet" href="styles/time-tracker.css">
   </head>
-  <body>
+  <body data-page-title="Home">
     <header class="site-header">
       <nav class="site-nav" aria-label="Primary">
-        <a class="site-brand" href="home.html">Raymond Tec</a>
+        <a class="site-brand" href="home.html" data-organization-name>Organization</a>
         <button
           class="nav-toggle"
           type="button"
@@ -23,9 +23,22 @@
         </button>
         <div class="nav-links" id="primary-menu">
           <a href="home.html" aria-current="page">Home</a>
-          <a href="index.html">Time Tracker</a>
-          <a href="clients-projects.html">Clients &amp; Projects</a>
-          <a href="view-hours.html">View Hours</a>
+          <details class="nav-menu">
+            <summary>Time Keeping</summary>
+            <div class="nav-menu-links">
+              <a href="index.html">Time Tracker</a>
+              <a href="manual-entry.html">Create Manual Entry</a>
+              <a href="edit-entries.html">Edit Entries</a>
+            </div>
+          </details>
+          <a href="reporting.html">Reporting</a>
+          <details class="nav-menu">
+            <summary>Settings</summary>
+            <div class="nav-menu-links">
+              <a href="clients-projects.html">Projects &amp; Clients</a>
+              <a href="app-settings.html">App Settings</a>
+            </div>
+          </details>
         </div>
       </nav>
     </header>

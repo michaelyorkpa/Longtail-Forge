@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>App Settings | Time Tracker</title>
+    <link rel="stylesheet" href="styles/time-tracker.css">
+  </head>
+  <body data-page-title="App Settings">
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Primary">
+        <a class="site-brand" href="home.html" data-organization-name>Organization</a>
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="primary-menu"
+          aria-label="Toggle navigation"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div class="nav-links" id="primary-menu">
+          <a href="home.html">Home</a>
+          <details class="nav-menu">
+            <summary>Time Keeping</summary>
+            <div class="nav-menu-links">
+              <a href="index.html">Time Tracker</a>
+              <a href="manual-entry.html">Create Manual Entry</a>
+              <a href="edit-entries.html">Edit Entries</a>
+            </div>
+          </details>
+          <a href="reporting.html">Reporting</a>
+          <details class="nav-menu">
+            <summary>Settings</summary>
+            <div class="nav-menu-links">
+              <a href="clients-projects.html">Projects &amp; Clients</a>
+              <a href="app-settings.html" aria-current="page">App Settings</a>
+            </div>
+          </details>
+        </div>
+      </nav>
+    </header>
+
+    <main class="settings-page">
+      <h1>App Settings</h1>
+
+      <form class="settings-form" data-app-settings-form>
+        <label>
+          Organization Name
+          <input type="text" data-organization-name-input required>
+        </label>
+
+        <fieldset class="settings-fieldset">
+          <legend>Fiscal Year</legend>
+
+          <label>
+            Start Month
+            <select data-fiscal-year-start-month></select>
+          </label>
+
+          <label>
+            Start Day
+            <select data-fiscal-year-start-day></select>
+          </label>
+        </fieldset>
+
+        <fieldset class="settings-fieldset">
+          <legend>Billing Settings</legend>
+
+          <label>
+            Default Billing Rate ($/hour)
+            <input type="text" inputmode="decimal" data-default-billing-rate-input>
+          </label>
+
+          <label>
+            Billing Period
+            <select data-billing-period-type>
+              <option value="calendarMonth">Calendar month</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+
+          <label>
+            Start Day
+            <select data-billing-period-start-day></select>
+          </label>
+
+          <label class="inline-option">
+            <input type="checkbox" data-billing-rounding-enabled>
+            Round?
+          </label>
+
+          <label>
+            Rounding Increment
+            <select data-billing-rounding-increment disabled>
+              <option value="nearestQuarterHour">Nearest quarter hour</option>
+              <option value="nearestHalfHour">Nearest half hour</option>
+              <option value="nearestHour">Nearest hour</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <button type="submit" data-save-settings>Save Settings</button>
+      </form>
+
+      <p data-app-settings-status role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="navigation.js"></script>
+    <script src="app-settings.js"></script>
+  </body>
+</html>

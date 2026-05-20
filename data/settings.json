@@ -1,0 +1,16 @@
+{
+  "organizationName": "Raymond Tec",
+  "fiscalYear": {
+    "startMonth": 1,
+    "startDay": 1
+  },
+  "defaultBillingRate": "85",
+  "billingPeriod": {
+    "type": "calendarMonth",
+    "startDay": 1
+  },
+  "billingRounding": {
+    "enabled": true,
+    "increment": "nearestQuarterHour"
+  }
+}

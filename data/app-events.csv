@@ -26,3 +26,20 @@ timestamp,username,action,client_id,client_name,project_id,project_name,details
 2026-05-20T10:55:52.169Z,,client_billing_updated,custom-trucks-unlimited,Custom Trucks Unlimited,,,billing_rate=85
 2026-05-20T10:56:09.760Z,,client_billing_updated,middle_creek_mountain,Middle Creek Mountain,,,billing_rate=45.50
 2026-05-20T11:21:06.375Z,,time_entry_created,custom-trucks-unlimited,Custom Trucks Unlimited,phase_1_discoverylaunch_audit,Phase 1 | Discovery/Launch Audit,entry_id=2026-05-20-001;duration_seconds=1328;file=data/2026-05-time-entries.csv
+2026-05-20T14:24:36.434Z,,time_entry_created,wesellperformance,WeSellPerformance.com,shopify-maintenance,Shopify Maintenance,entry_id=2026-05-20-002;duration_seconds=778;file=data/2026-05-time-entries.csv
+2026-05-20T14:33:57.959Z,,app_settings_updated,,,,,organization_name=Raymond Tec;default_billing_rate=
+2026-05-20T14:42:22.778Z,,app_settings_updated,,,,,organization_name=Raymond Tec;default_billing_rate=85
+2026-05-20T14:50:52.675Z,,app_settings_updated,,,,,organization_name=Raymond Tec;default_billing_rate=85
+2026-05-20T17:16:53.332Z,,app_settings_updated,,,,,organization_name=Raymond Tec;default_billing_rate=85;billing_period_type=calendarMonth;billing_period_start_day=1
+2026-05-20T17:17:01.185Z,,client_project_file_saved,,,,,No action details provided
+2026-05-20T17:20:13.191Z,,app_settings_updated,,,,,organization_name=Raymond Tec;default_billing_rate=85;billing_period_type=calendarMonth;billing_period_start_day=1
+2026-05-20T17:43:23.185Z,,time_entry_created,custom-trucks-unlimited,Custom Trucks Unlimited,phase_1_discoverylaunch_audit,Phase 1 | Discovery/Launch Audit,entry_id=2026-05-18-006;duration_seconds=1800;file=data/time-entries.csv
+2026-05-20T17:51:25.440Z,,app_settings_updated,,,,,organization_name=Raymond Tec;default_billing_rate=85;billing_period_type=calendarMonth;billing_period_start_day=1;rounding_enabled=false;rounding_increment=nearestQuarterHour
+2026-05-20T17:51:25.515Z,,client_project_file_saved,,,,,No action details provided
+2026-05-20T17:52:53.657Z,,app_settings_updated,,,,,organization_name=Raymond Tec;default_billing_rate=85;billing_period_type=calendarMonth;billing_period_start_day=1;rounding_enabled=true;rounding_increment=nearestQuarterHour
+2026-05-20T18:16:12.239Z,,client_project_file_saved,,,,,No action details provided
+2026-05-20T19:09:37.575Z,,time_entry_updated,dr_jennifer_weeks,Dr. Jennifer Weeks,sats-email-marketing,SATS Email Marketing,entry_id=2026-05-18-001;old_client_id=dr-jennifer-weeks;old_project_id=sats-email-marketing;old_duration_seconds=120;new_duration_seconds=1920
+2026-05-20T19:10:01.580Z,,time_entry_updated,dr_jennifer_weeks,Dr. Jennifer Weeks,sats-email-marketing,SATS Email Marketing,entry_id=2026-05-18-001;old_client_id=dr_jennifer_weeks;old_project_id=sats-email-marketing;old_duration_seconds=1920;new_duration_seconds=120
+2026-05-20T19:23:32.227Z,,app_settings_updated,,,,,organization_name=Raymond Tec;fiscal_year_start_month=1;fiscal_year_start_day=1;default_billing_rate=85;billing_period_type=calendarMonth;billing_period_start_day=1;rounding_enabled=true;rounding_increment=nearestQuarterHour
+2026-05-20T19:23:54.149Z,,app_settings_updated,,,,,organization_name=Raymond Tec;fiscal_year_start_month=1;fiscal_year_start_day=5;default_billing_rate=85;billing_period_type=calendarMonth;billing_period_start_day=1;rounding_enabled=true;rounding_increment=nearestQuarterHour
+2026-05-20T19:23:59.606Z,,app_settings_updated,,,,,organization_name=Raymond Tec;fiscal_year_start_month=1;fiscal_year_start_day=1;default_billing_rate=85;billing_period_type=calendarMonth;billing_period_start_day=1;rounding_enabled=true;rounding_increment=nearestQuarterHour

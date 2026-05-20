@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Create Manual Entry | Time Tracker</title>
+    <link rel="stylesheet" href="styles/time-tracker.css">
+  </head>
+  <body data-page-title="Create Manual Entry">
+    <header class="site-header">
+      <nav class="site-nav" aria-label="Primary">
+        <a class="site-brand" href="home.html" data-organization-name>Organization</a>
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="primary-menu"
+          aria-label="Toggle navigation"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <div class="nav-links" id="primary-menu">
+          <a href="home.html">Home</a>
+          <details class="nav-menu">
+            <summary>Time Keeping</summary>
+            <div class="nav-menu-links">
+              <a href="index.html">Time Tracker</a>
+              <a href="manual-entry.html" aria-current="page">Create Manual Entry</a>
+              <a href="edit-entries.html">Edit Entries</a>
+            </div>
+          </details>
+          <a href="reporting.html">Reporting</a>
+          <details class="nav-menu">
+            <summary>Settings</summary>
+            <div class="nav-menu-links">
+              <a href="clients-projects.html">Projects &amp; Clients</a>
+              <a href="app-settings.html">App Settings</a>
+            </div>
+          </details>
+        </div>
+      </nav>
+    </header>
+
+    <main class="entry-page">
+      <h1>Create Manual Entry</h1>
+
+      <form class="entry-form" data-manual-entry-form>
+        <label>
+          Client
+          <select data-entry-client required>
+            <option value="">Select a client</option>
+          </select>
+        </label>
+
+        <label>
+          Project
+          <select data-entry-project required disabled>
+            <option value="">Select a project</option>
+          </select>
+        </label>
+
+        <label>
+          Date
+          <input type="date" data-entry-date required>
+        </label>
+
+        <label>
+          Start Time
+          <input type="time" data-entry-start-time required>
+        </label>
+
+        <label>
+          End Time
+          <input type="time" data-entry-end-time required>
+        </label>
+
+        <label class="entry-description">
+          Description
+          <textarea data-entry-description rows="4" placeholder="What did you work on?"></textarea>
+        </label>
+
+        <label>
+          Billable
+          <select data-entry-billable>
+            <option value="yes">Yes</option>
+            <option value="no">No</option>
+          </select>
+        </label>
+
+        <label>
+          Invoice Status
+          <select data-entry-invoice-status>
+            <option value="unbilled">Unbilled</option>
+            <option value="billed">Billed</option>
+            <option value="paid">Paid</option>
+          </select>
+        </label>
+
+        <div class="form-actions entry-actions">
+          <button type="reset">Reset</button>
+          <button type="submit" data-save-entry>Save Entry</button>
+        </div>
+      </form>
+
+      <p data-entry-status role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="navigation.js"></script>
+    <script src="manual-entry.js"></script>
+  </body>
+</html>

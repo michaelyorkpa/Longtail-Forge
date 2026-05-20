@@ -3,7 +3,10 @@
     {
       "id": "dr_jennifer_weeks",
       "name": "Dr. Jennifer Weeks",
+      "status": "Active",
       "billing_rate": "75",
+      "billing_period": null,
+      "billing_rounding": null,
       "billing_contact": {
         "name": "Jennifer Weeks",
         "email": "jweeks@satshealing.com",
@@ -22,30 +25,40 @@
           "id": "sats-email-marketing",
           "name": "SATS Email Marketing",
           "billing_rate": "75",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "security-hardening",
           "name": "Security Hardening",
           "billing_rate": "75",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "djrr-content-creation",
           "name": "DJRR Content Creation",
           "billing_rate": "75",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "ma_content_creation",
           "name": "MA Content Creation",
           "billing_rate": "75",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "sats_website_updates",
           "name": "SATS Website Updates",
           "billing_rate": "75",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         }
       ]
@@ -53,7 +66,10 @@
     {
       "id": "wesellperformance",
       "name": "WeSellPerformance.com",
+      "status": "Active",
       "billing_rate": "45.50",
+      "billing_period": null,
+      "billing_rounding": null,
       "billing_contact": {
         "name": "Steven Spohn",
         "email": "spohnperformance1@gmail.com",
@@ -72,24 +88,32 @@
           "id": "blog-content",
           "name": "Blog Content",
           "billing_rate": "45.50",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "shopify-maintenance",
           "name": "Shopify Maintenance",
           "billing_rate": "45.50",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "ebay-product-additions",
           "name": "eBay Product Additions",
           "billing_rate": "45.50",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "other_maintenance",
           "name": "Other Maintenance",
           "billing_rate": "45.50",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         }
       ]
@@ -97,7 +121,10 @@
     {
       "id": "custom-trucks-unlimited",
       "name": "Custom Trucks Unlimited",
+      "status": "Active",
       "billing_rate": "85",
+      "billing_period": null,
+      "billing_rounding": null,
       "billing_contact": {
         "name": "",
         "email": "",
@@ -116,36 +143,48 @@
           "id": "phase_1_discoverylaunch_audit",
           "name": "Phase 1 | Discovery/Launch Audit",
           "billing_rate": "",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "phase_1_collection_optimization",
           "name": "Phase 1 | Collection Optimization",
           "billing_rate": "",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "phase_1_front_endtheme_fixes",
           "name": "Phase 1 | Front End/Theme Fixes",
           "billing_rate": "",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "phase_1_slingshot_catalog_audit",
           "name": "Phase 1 | Slingshot Catalog Audit",
           "billing_rate": "",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "phase_2_fitment_category_setup",
           "name": "Phase 2 | Fitment Category Setup",
           "billing_rate": "",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Inactive"
         },
         {
           "id": "phase_2_title_enhancement",
           "name": "Phase 2 | Title Enhancement",
           "billing_rate": "",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Inactive"
         }
       ]
@@ -153,7 +192,10 @@
     {
       "id": "middle_creek_mountain",
       "name": "Middle Creek Mountain",
+      "status": "Active",
       "billing_rate": "45.50",
+      "billing_period": null,
+      "billing_rounding": null,
       "billing_contact": {
         "name": "Steven Spohn",
         "email": "sjspohn@gmail.com",
@@ -172,18 +214,24 @@
           "id": "network_maintenance",
           "name": "Network Maintenance",
           "billing_rate": "75",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "automation_maintenance",
           "name": "Automation Maintenance",
           "billing_rate": "75",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Active"
         },
         {
           "id": "solar_project",
           "name": "Solar Project",
           "billing_rate": "75",
+          "billing_period": null,
+          "billing_rounding": null,
           "status": "Inactive"
         }
       ]
