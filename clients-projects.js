@@ -473,7 +473,7 @@ function createAddProjectForm(client) {
 
   const billingRateInput = document.createElement("input");
   billingRateInput.inputMode = "decimal";
-  billingRateInput.value = appSettings.defaultBillingRate;
+  billingRateInput.value = getEffectiveClientBillingRate(client);
   billingRateLabel.appendChild(billingRateInput);
 
   const billingDetails = document.createElement("details");
@@ -860,6 +860,10 @@ function populateBillingPeriodStartDays(select) {
 
 function getEffectiveClientBillingPeriod(client) {
   return client.billing_period || appSettings.billingPeriod;
+}
+
+function getEffectiveClientBillingRate(client) {
+  return client.billing_rate || appSettings.defaultBillingRate;
 }
 
 function getEffectiveProjectBillingPeriod(client, project) {
