@@ -1,4 +1,8 @@
 # Longtail Forge
+Plan the Project. Track the work. Preserve the knowledge.
+
+## Background
+Longtail Forge started off as a simple, flat file time tracker and has become a project hub for me.
 
 ## Phase One
 - [x] One stop watch
