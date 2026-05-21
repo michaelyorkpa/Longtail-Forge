@@ -43,11 +43,55 @@
       </nav>
     </header>
 
-    <main>
+    <main class="home-page">
       <h1>Home</h1>
-      <p class="placeholder-copy">Dashboard placeholder.</p>
+
+      <section class="home-summary-grid" aria-label="Dashboard summary">
+        <article class="dashboard-panel active-client-panel">
+          <details class="home-client-details">
+            <summary>
+              <span>Active Clients</span>
+              <span class="metric-value" data-active-client-count>0</span>
+            </summary>
+            <fieldset class="client-radio-list" data-client-report-options>
+              <legend>Client Reporting</legend>
+            </fieldset>
+            <button type="button" data-open-client-report disabled>Open Reporting</button>
+          </details>
+        </article>
+      </section>
+
+      <section class="dashboard-panel">
+        <h2>Current Month Billables</h2>
+        <p data-home-status role="status" aria-live="polite"></p>
+        <div class="report-table-wrap">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th scope="col">Client</th>
+                <th scope="col">Hours</th>
+                <th scope="col">Billable Amount</th>
+              </tr>
+            </thead>
+            <tbody data-current-month-billables></tbody>
+            <tfoot>
+              <tr>
+                <th scope="row">Totals</th>
+                <td data-current-month-hours></td>
+                <td data-current-month-amount></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </section>
+
+      <section class="dashboard-panel">
+        <h2>Billables by Month</h2>
+        <div class="billables-chart" data-billables-chart aria-label="Previous 12 months and current month billables"></div>
+      </section>
     </main>
 
     <script src="navigation.js"></script>
+    <script src="home.js"></script>
   </body>
 </html>

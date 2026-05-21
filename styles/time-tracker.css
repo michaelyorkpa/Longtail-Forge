@@ -235,6 +235,120 @@ h1 {
     text-align: left;
 }
 
+.home-page {
+    width: min(94vw, 1120px);
+    text-align: left;
+}
+
+.home-summary-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 360px);
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.dashboard-panel {
+    margin-top: 16px;
+    padding: 16px;
+    border: 1px solid #d8deea;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.dashboard-panel h2 {
+    margin: 0 0 16px;
+    font-size: 18px;
+}
+
+.active-client-panel {
+    margin-top: 0;
+}
+
+.home-client-details summary {
+    color: #172033;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.home-client-details summary span {
+    margin-left: 8px;
+}
+
+.metric-value {
+    margin: 0;
+    color: #172033;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.client-radio-list {
+    display: grid;
+    gap: 10px;
+    margin: 16px 0;
+    padding: 0;
+    border: 0;
+}
+
+.client-radio-list legend {
+    margin-bottom: 8px;
+    color: #39465f;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.client-radio-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.client-radio-option input {
+    width: auto;
+    margin: 0;
+}
+
+.billables-chart {
+    overflow-x: auto;
+}
+
+.billables-chart svg {
+    min-width: 760px;
+    width: 100%;
+    height: auto;
+    color: #39465f;
+    font-size: 12px;
+}
+
+.chart-axis {
+    stroke: #9aa7bd;
+    stroke-width: 1;
+}
+
+.chart-axis-label,
+.chart-legend {
+    fill: #39465f;
+    font-weight: 700;
+}
+
+.report-table a {
+    color: #172033;
+    text-decoration-color: #9aa7bd;
+    text-underline-offset: 3px;
+}
+
+.report-table a:hover {
+    color: #2f6fdd;
+}
+
+.chart-hours {
+    fill: #2f6fdd;
+}
+
+.chart-amount {
+    fill: #1f8f4d;
+}
+
 .entry-page {
     width: min(94vw, 720px);
     text-align: left;
@@ -301,6 +415,13 @@ h1 {
 }
 
 [data-report-status] {
+    min-height: 20px;
+    margin: 0 0 16px;
+    color: #516078;
+    font-size: 14px;
+}
+
+[data-home-status] {
     min-height: 20px;
     margin: 0 0 16px;
     color: #516078;

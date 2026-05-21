@@ -60,11 +60,25 @@ async function loadReportData() {
       : [];
 
     renderClientFilter();
+    applyReportQueryParams();
     setReportStatus("");
   } catch (error) {
     setReportStatus("Report data could not be loaded.");
     console.error(error);
   }
+}
+
+function applyReportQueryParams() {
+  const params = new URLSearchParams(window.location.search);
+  const clientId = params.get("client");
+
+  if (!clientId || !reportClients.some((client) => client.id === clientId)) {
+    return;
+  }
+
+  reportClientSelect.value = clientId;
+  renderProjectFilter();
+  renderReport();
 }
 
 function renderClientFilter() {

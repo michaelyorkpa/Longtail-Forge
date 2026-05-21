@@ -68,6 +68,15 @@ function pauseOtherTimers(activeTimer) {
   });
 }
 
+window.addEventListener("beforeunload", (event) => {
+  if (!timers.some((timer) => timer.hasElapsedTime())) {
+    return;
+  }
+
+  event.preventDefault();
+  event.returnValue = "";
+});
+
 async function loadClientProjectData() {
   try {
     const response = await fetch("data/client-project.json");
@@ -125,19 +134,22 @@ class StopwatchTimer {
     this.timerId = null;
     this.clients = [];
     this.isSaving = false;
+    this.confirmedClientId = this.clientSelect.value;
+    this.confirmedProjectId = this.projectSelect.value;
 
     this.startTimeTracker = this.startTimeTracker.bind(this);
     this.pause = this.pause.bind(this);
     this.stopTimeTracker = this.stopTimeTracker.bind(this);
     this.resetTimeTracker = this.resetTimeTracker.bind(this);
     this.handleClientChange = this.handleClientChange.bind(this);
+    this.handleProjectChange = this.handleProjectChange.bind(this);
 
     this.startButton.addEventListener("click", this.startTimeTracker);
     this.pauseButton.addEventListener("click", this.pause);
     this.stopButton.addEventListener("click", this.stopTimeTracker);
     this.resetButton.addEventListener("click", this.resetTimeTracker);
     this.clientSelect.addEventListener("change", this.handleClientChange);
-    this.projectSelect.addEventListener("change", this.resetTimeTracker);
+    this.projectSelect.addEventListener("change", this.handleProjectChange);
 
     this.updateDisplay();
     this.updateButtons();
@@ -150,7 +162,7 @@ class StopwatchTimer {
     this.stopButton.removeEventListener("click", this.stopTimeTracker);
     this.resetButton.removeEventListener("click", this.resetTimeTracker);
     this.clientSelect.removeEventListener("change", this.handleClientChange);
-    this.projectSelect.removeEventListener("change", this.resetTimeTracker);
+    this.projectSelect.removeEventListener("change", this.handleProjectChange);
   }
 
   setClients(clients) {
@@ -213,6 +225,14 @@ class StopwatchTimer {
   }
 
   resetTimeTracker() {
+    if (!this.confirmTimerReset("Resetting the timer")) {
+      return;
+    }
+
+    this.resetTimeTrackerWithoutConfirmation();
+  }
+
+  resetTimeTrackerWithoutConfirmation() {
     window.clearInterval(this.timerId);
     this.timerId = null;
     this.elapsedMilliseconds = 0;
@@ -318,19 +338,62 @@ class StopwatchTimer {
   }
 
   handleClientChange(options = {}) {
+    const shouldReset = options.shouldReset !== false;
+
+    if (shouldReset && !this.confirmTimerReset("Changing the client")) {
+      this.clientSelect.value = this.confirmedClientId;
+      const restoredClient = this.getSelectedClient();
+      this.populateProjectOptions(
+        restoredClient ? restoredClient.projects : [],
+        this.confirmedProjectId,
+      );
+      this.updateButtons();
+      return;
+    }
+
     const selectedClient = this.clients.find(
       (client) => client.id === this.clientSelect.value,
     );
 
     this.populateProjectOptions(selectedClient ? selectedClient.projects : []);
 
-    if (options.shouldReset !== false) {
-      this.resetTimeTracker();
+    if (shouldReset) {
+      this.resetTimeTrackerWithoutConfirmation();
     }
+
+    this.confirmedClientId = this.clientSelect.value;
+    this.confirmedProjectId = this.projectSelect.value;
   }
 
-  populateProjectOptions(projects) {
-    const previousProjectId = this.projectSelect.value;
+  handleProjectChange() {
+    if (!this.confirmTimerReset("Changing the project")) {
+      this.projectSelect.value = this.confirmedProjectId;
+      this.updateButtons();
+      return;
+    }
+
+    this.resetTimeTrackerWithoutConfirmation();
+    this.confirmedClientId = this.clientSelect.value;
+    this.confirmedProjectId = this.projectSelect.value;
+  }
+
+  confirmTimerReset(actionLabel) {
+    if (!this.hasElapsedTime()) {
+      return true;
+    }
+
+    const shouldContinue = window.confirm(
+      `${actionLabel} will stop and reset this timer. Continue?`,
+    );
+
+    if (!shouldContinue) {
+      this.setStatus("Timer change canceled.");
+    }
+
+    return shouldContinue;
+  }
+
+  populateProjectOptions(projects, previousProjectId = this.projectSelect.value) {
     this.projectSelect.innerHTML = "";
     this.projectSelect.appendChild(createOption("", "Select a project"));
 

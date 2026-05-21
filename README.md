@@ -5,7 +5,7 @@
 - [x] Clients are saved in a custom, writeable YAML or JSON file
 - [x] Each Client has Projects
 - [x] These last two points are pulled into drop downs in stop watches
-- [ ] ~Changing the client/project resets the stop watch~
+- [ ] ~Changing the client/project warns then resets the stop watch~
 - [x] Each time a stop watch stops, a line is written to a CSV file for reporting
     - [x] Each line should include: 
         - [x] Current date
@@ -24,27 +24,43 @@
 - [x] Client/project editing on the front end
 - [x] Time editing on the front end
 - [x] Manual time entry
-- [ ] Home Screen
-    - [ ] Active Clients 
+- [x] Home Screen
+    - [x] Active Clients 
         - Shows total number with drop down to go to clients reporting
-    - [ ] Active Projects
-        - Shows total number with drop down to go to projects reporting
-    - [ ] Table with current month billables
-    - [ ] Chart showing previous month versus current month billables
+    - [x] Table with current month's billables
+        - Only shows clients with billables for the month
+    - [x] Bar graph showing previous 12 months' billables versus current month's billables
+        - Left side is hours
+        - Right side is dollars
+        - Bottom is MM/YY with current month at far right, -12 months at far left
 
 ## Phase Three
+- [ ] Break project and client UI apart
+- [ ] Create nested clients
+- [ ] Create nested projects
 - [ ] Migrate to SQLite database
 - [ ] Add users and full login with passwords
+    - [ ] 
 - [ ] Add roles
-    - [ ] Administrator
+    - [ ] Super Admin
+    - [ ] Organization Administrator
     - [ ] Client Administrator
     - [ ] Project Administrator
     - [ ] User
-    - [ ] Add ability to assign each to a specific client/project, as appropriate
+        - [ ] Add ability to assign each user to a specific client/project, with granular control
+    - [ ] Client Users
+        - This is for clients to collaborate with users within organizations
+- [ ] Two Factor Authentication (TOTP)
+- [ ] Passkeys
+- [ ] SSO
+
+## Road Map
+- [ ] Project Management
 - [ ] Add tasks
     - [ ] Tasks are assignable to Clients & Projects
     - [ ] Add personal task list functionality as unique client
     - [ ] Give tasks reminders, due dates, recurrence
-- [ ] Two Factor Authentication (TOTP)
-- [ ] Passkeys
-- [ ] SSO
+    - [ ] Task assignment in multi-user organizations
+- [ ] Notes
+- [ ] Support Tickets
+    - [ ] Integrated per client
