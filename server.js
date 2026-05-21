@@ -15,10 +15,8 @@ const DATABASE_FILE = path.join(DATA_DIR, "time-tracker.db");
 const SQLITE_COMMAND = process.env.SQLITE_COMMAND || "sqlite3";
 const APP_LOG_FILE = path.join(LOG_DIR, "app-events.csv");
 const TIME_ENTRIES_FILE = path.join(DATA_DIR, "time-entries.csv");
-const TIME_ENTRIES_FILE_NAME = "time-entries.csv";
 const DEFAULT_ORGANIZATION_NAME = "Raymond Tec";
-const CSV_HEADER =
-  "entry_id,client_id,client_name,project_id,project_name,description,start_time,end_time,duration_seconds,duration_hours,billable,invoice_status";
+const DEFAULT_USER_ID = "local_user";
 const APP_LOG_HEADER =
   "timestamp,username,action,client_id,client_name,project_id,project_name,details";
 
@@ -39,6 +37,11 @@ const server = http.createServer(async (request, response) => {
 
     if (request.method === "PUT" && request.url.startsWith("/api/time-entries/")) {
       await handleTimeEntryUpdate(request, response);
+      return;
+    }
+
+    if (request.method === "GET" && request.url === "/api/time-entries") {
+      await handleTimeEntriesRead(response);
       return;
     }
 
@@ -92,10 +95,12 @@ async function startServer() {
 async function handleTimeEntry(request, response) {
   const entry = await readJsonBody(request);
   const endDate = new Date(entry.end_time);
-  const existingCsv = await readExistingCsv(TIME_ENTRIES_FILE);
-  const entryId = getNextEntryId(existingCsv, endDate);
-  const row = toCsvRow({
+  const organizationId = await getDefaultOrganizationId();
+  const entryId = await getNextEntryId(organizationId, endDate);
+  const data = normalizeTimeEntry({
     entry_id: entryId,
+    organization_id: organizationId,
+    user_id: entry.user_id || DEFAULT_USER_ID,
     client_id: entry.client_id,
     client_name: entry.client_name,
     project_id: entry.project_id,
@@ -109,48 +114,37 @@ async function handleTimeEntry(request, response) {
     invoice_status: entry.invoice_status || "unbilled",
   });
 
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.appendFile(TIME_ENTRIES_FILE, buildCsvAppend(existingCsv, row), "utf8");
+  await saveTimeEntry(data);
   await appendAppLog({
     action: "time_entry_created",
     client_id: entry.client_id,
     client_name: entry.client_name,
     project_id: entry.project_id,
     project_name: entry.project_name,
-    details: `entry_id=${entryId};duration_seconds=${entry.duration_seconds};file=data/${TIME_ENTRIES_FILE_NAME}`,
+    details: `entry_id=${entryId};duration_seconds=${entry.duration_seconds};storage=database`,
   });
-  sendJson(response, 201, { entry_id: entryId, file: `data/${TIME_ENTRIES_FILE_NAME}` });
+  sendJson(response, 201, { entry_id: entryId, storage: "database" });
 }
 
 async function handleTimeEntryUpdate(request, response) {
   const entryId = decodeURIComponent(request.url.split("/").pop() || "");
   const payload = await readJsonBody(request);
-  const existingCsv = await readExistingCsv(TIME_ENTRIES_FILE);
-  const rows = parseCsvRows(existingCsv.trim());
+  const organizationId = await getDefaultOrganizationId();
+  const previousEntry = await readTimeEntry(organizationId, entryId);
 
-  if (!entryId || rows.length < 2) {
+  if (!entryId || !previousEntry) {
     sendJson(response, 404, { error: "Time entry not found" });
     return;
   }
 
-  const headers = rows[0];
-  const entryIdIndex = headers.indexOf("entry_id");
-  const rowIndex = rows.findIndex((row, index) => index > 0 && row[entryIdIndex] === entryId);
-
-  if (rowIndex === -1) {
-    sendJson(response, 404, { error: "Time entry not found" });
-    return;
-  }
-
-  const previousEntry = rowToObject(headers, rows[rowIndex]);
   const updatedEntry = normalizeTimeEntry({
     ...payload,
     entry_id: entryId,
+    organization_id: organizationId,
+    user_id: payload.user_id || previousEntry.user_id || DEFAULT_USER_ID,
   });
-  rows[rowIndex] = headers.map((header) => updatedEntry[header] || "");
 
-  const csv = rows.map((row) => row.map(toCsvValue).join(",")).join("\n");
-  await fs.writeFile(TIME_ENTRIES_FILE, `${csv}\n`, "utf8");
+  await updateTimeEntry(updatedEntry);
   await appendAppLog({
     action: "time_entry_updated",
     client_id: updatedEntry.client_id,
@@ -160,7 +154,12 @@ async function handleTimeEntryUpdate(request, response) {
     details: `entry_id=${entryId};old_client_id=${previousEntry.client_id};old_project_id=${previousEntry.project_id};old_duration_seconds=${previousEntry.duration_seconds};new_duration_seconds=${updatedEntry.duration_seconds}`,
   });
 
-  sendJson(response, 200, { entry: updatedEntry, file: `data/${TIME_ENTRIES_FILE_NAME}` });
+  sendJson(response, 200, { entry: updatedEntry, storage: "database" });
+}
+
+async function handleTimeEntriesRead(response) {
+  const entries = await readTimeEntries();
+  sendJson(response, 200, { entries });
 }
 
 async function handleClientProjectsSave(request, response) {
@@ -273,6 +272,26 @@ CREATE TABLE IF NOT EXISTS projects (
   FOREIGN KEY (organization_id) REFERENCES organizations(id),
   FOREIGN KEY (organization_id, client_id) REFERENCES clients(organization_id, id)
 );
+CREATE TABLE IF NOT EXISTS time_entries (
+  entry_id TEXT NOT NULL,
+  organization_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  client_name TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  project_name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  duration_seconds INTEGER NOT NULL,
+  duration_hours TEXT NOT NULL,
+  billable TEXT NOT NULL,
+  invoice_status TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (organization_id, entry_id),
+  FOREIGN KEY (organization_id) REFERENCES organizations(id)
+);
 `);
 
   const organizations = await querySql("SELECT id FROM organizations ORDER BY created_at LIMIT 1;");
@@ -352,6 +371,7 @@ VALUES (
   }
 
   await seedClientProjectData(organizationId);
+  await seedTimeEntryData(organizationId);
 }
 
 async function readSeedSettings() {
@@ -537,6 +557,213 @@ async function saveClientProjectData(data, organizationId = "") {
 
   statements.push("COMMIT;");
   await runSql(statements.join("\n"));
+}
+
+async function seedTimeEntryData(organizationId) {
+  const existingEntries = await querySql(
+    `SELECT entry_id FROM time_entries WHERE organization_id = ${sqlText(organizationId)} LIMIT 1;`,
+  );
+
+  if (existingEntries.length > 0) {
+    return;
+  }
+
+  const entries = await readSeedTimeEntries(organizationId);
+
+  if (entries.length === 0) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const statements = ["BEGIN TRANSACTION;"];
+
+  entries.forEach((entry) => {
+    statements.push(createTimeEntryInsertSql(entry, now));
+  });
+
+  statements.push("COMMIT;");
+  await runSql(statements.join("\n"));
+}
+
+async function readSeedTimeEntries(organizationId) {
+  const existingCsv = await readExistingCsv(TIME_ENTRIES_FILE);
+  const rows = parseCsvRows(existingCsv.trim());
+
+  if (rows.length < 2) {
+    return [];
+  }
+
+  const headers = rows[0];
+  return rows.slice(1).map((row) => {
+    const entry = Object.fromEntries(headers.map((header, index) => [header, row[index] || ""]));
+
+    return normalizeTimeEntry({
+      ...entry,
+      organization_id: organizationId,
+      user_id: entry.user_id || DEFAULT_USER_ID,
+    });
+  });
+}
+
+async function readTimeEntries() {
+  await ensureDatabase();
+  const organizationId = await getDefaultOrganizationId();
+  const rows = await querySql(`
+SELECT
+  entry_id,
+  organization_id,
+  user_id,
+  client_id,
+  client_name,
+  project_id,
+  project_name,
+  description,
+  start_time,
+  end_time,
+  duration_seconds,
+  duration_hours,
+  billable,
+  invoice_status
+FROM time_entries
+WHERE organization_id = ${sqlText(organizationId)}
+ORDER BY end_time;
+`);
+
+  return rows.map(timeEntryRowToAppValue);
+}
+
+async function readTimeEntry(organizationId, entryId) {
+  const rows = await querySql(`
+SELECT
+  entry_id,
+  organization_id,
+  user_id,
+  client_id,
+  client_name,
+  project_id,
+  project_name,
+  description,
+  start_time,
+  end_time,
+  duration_seconds,
+  duration_hours,
+  billable,
+  invoice_status
+FROM time_entries
+WHERE organization_id = ${sqlText(organizationId)}
+  AND entry_id = ${sqlText(entryId)}
+LIMIT 1;
+`);
+
+  return rows[0] ? timeEntryRowToAppValue(rows[0]) : null;
+}
+
+async function saveTimeEntry(entry) {
+  const now = new Date().toISOString();
+  await runSql(createTimeEntryInsertSql(entry, now));
+}
+
+async function updateTimeEntry(entry) {
+  const now = new Date().toISOString();
+  await runSql(`
+UPDATE time_entries
+SET
+  user_id = ${sqlText(entry.user_id)},
+  client_id = ${sqlText(entry.client_id)},
+  client_name = ${sqlText(entry.client_name)},
+  project_id = ${sqlText(entry.project_id)},
+  project_name = ${sqlText(entry.project_name)},
+  description = ${sqlText(entry.description)},
+  start_time = ${sqlText(entry.start_time)},
+  end_time = ${sqlText(entry.end_time)},
+  duration_seconds = ${sqlInteger(entry.duration_seconds)},
+  duration_hours = ${sqlText(entry.duration_hours)},
+  billable = ${sqlText(entry.billable)},
+  invoice_status = ${sqlText(entry.invoice_status)},
+  updated_at = ${sqlText(now)}
+WHERE organization_id = ${sqlText(entry.organization_id)}
+  AND entry_id = ${sqlText(entry.entry_id)};
+`);
+}
+
+async function getNextEntryId(organizationId, date) {
+  const datePrefix = formatDate(date);
+  const rows = await querySql(`
+SELECT entry_id
+FROM time_entries
+WHERE organization_id = ${sqlText(organizationId)};
+`);
+  const largestEntryNumber = rows.reduce((largest, row) => {
+    const entryId = String(row.entry_id || "");
+
+    if (!entryId.startsWith(`${datePrefix}-`)) {
+      return largest;
+    }
+
+    const entryNumber = Number(entryId.slice(-3));
+    return Number.isFinite(entryNumber) ? Math.max(largest, entryNumber) : largest;
+  }, 0);
+
+  return `${datePrefix}-${String(largestEntryNumber + 1).padStart(3, "0")}`;
+}
+
+function createTimeEntryInsertSql(entry, now) {
+  return `
+INSERT INTO time_entries (
+  entry_id,
+  organization_id,
+  user_id,
+  client_id,
+  client_name,
+  project_id,
+  project_name,
+  description,
+  start_time,
+  end_time,
+  duration_seconds,
+  duration_hours,
+  billable,
+  invoice_status,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(entry.entry_id)},
+  ${sqlText(entry.organization_id)},
+  ${sqlText(entry.user_id)},
+  ${sqlText(entry.client_id)},
+  ${sqlText(entry.client_name)},
+  ${sqlText(entry.project_id)},
+  ${sqlText(entry.project_name)},
+  ${sqlText(entry.description)},
+  ${sqlText(entry.start_time)},
+  ${sqlText(entry.end_time)},
+  ${sqlInteger(entry.duration_seconds)},
+  ${sqlText(entry.duration_hours)},
+  ${sqlText(entry.billable)},
+  ${sqlText(entry.invoice_status)},
+  ${sqlText(now)},
+  ${sqlText(now)}
+);`;
+}
+
+function timeEntryRowToAppValue(row) {
+  return normalizeTimeEntry({
+    entry_id: row.entry_id,
+    organization_id: row.organization_id,
+    user_id: row.user_id,
+    client_id: row.client_id,
+    client_name: row.client_name,
+    project_id: row.project_id,
+    project_name: row.project_name,
+    description: row.description,
+    start_time: row.start_time,
+    end_time: row.end_time,
+    duration_seconds: row.duration_seconds,
+    duration_hours: row.duration_hours,
+    billable: row.billable,
+    invoice_status: row.invoice_status,
+  });
 }
 
 async function getDefaultOrganizationId() {
@@ -820,6 +1047,8 @@ function readJsonBody(request) {
 function normalizeTimeEntry(entry) {
   return {
     entry_id: String(entry.entry_id || "").trim(),
+    organization_id: String(entry.organization_id || "").trim(),
+    user_id: String(entry.user_id || DEFAULT_USER_ID).trim() || DEFAULT_USER_ID,
     client_id: String(entry.client_id || "").trim(),
     client_name: String(entry.client_name || "").trim(),
     project_id: String(entry.project_id || "").trim(),
@@ -1012,16 +1241,6 @@ async function readExistingCsv(filePath) {
   }
 }
 
-function buildCsvAppend(existingCsv, row) {
-  const trimmedCsv = existingCsv.trimEnd();
-
-  if (!trimmedCsv) {
-    return `${CSV_HEADER}\n${row}\n`;
-  }
-
-  return `${existingCsv.endsWith("\n") ? "" : "\n"}${row}\n`;
-}
-
 async function appendAppLog(event) {
   const existingLog = await readExistingCsv(APP_LOG_FILE);
   const row = [
@@ -1047,42 +1266,6 @@ function buildAppLogAppend(existingLog, row) {
   }
 
   return `${existingLog.endsWith("\n") ? "" : "\n"}${row}\n`;
-}
-
-function getNextEntryId(existingCsv, date) {
-  const datePrefix = formatDate(date);
-  const lines = existingCsv.split(/\r?\n/).slice(1);
-  const largestEntryNumber = lines.reduce((largest, line) => {
-    const [entryId] = line.split(",");
-
-    if (!entryId || !entryId.startsWith(`${datePrefix}-`)) {
-      return largest;
-    }
-
-    const entryNumber = Number(entryId.slice(-3));
-    return Number.isFinite(entryNumber) ? Math.max(largest, entryNumber) : largest;
-  }, 0);
-
-  return `${datePrefix}-${String(largestEntryNumber + 1).padStart(3, "0")}`;
-}
-
-function toCsvRow(entry) {
-  return [
-    entry.entry_id,
-    entry.client_id,
-    entry.client_name,
-    entry.project_id,
-    entry.project_name,
-    entry.description,
-    entry.start_time,
-    entry.end_time,
-    entry.duration_seconds,
-    entry.duration_hours,
-    entry.billable,
-    entry.invoice_status,
-  ]
-    .map(toCsvValue)
-    .join(",");
 }
 
 function toCsvValue(value) {

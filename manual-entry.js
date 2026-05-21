@@ -131,7 +131,7 @@ async function saveManualEntry() {
     setDefaultEntryDate();
     populateProjectOptions();
     flashSavedButton();
-    setEntryStatus(`Saved ${result.entry_id} to ${result.file}.`);
+    setEntryStatus(`Saved ${result.entry_id} to the database.`);
   } catch (error) {
     setEntryStatus("Time entry was not saved. Start the local server and try again.");
     console.error(error);

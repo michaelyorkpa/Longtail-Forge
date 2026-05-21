@@ -37,7 +37,7 @@ async function loadHomeData() {
     const [settingsResponse, clientsResponse, entriesResponse] = await Promise.all([
       fetch("/api/settings", { cache: "no-store" }),
       fetch("/api/client-projects", { cache: "no-store" }),
-      fetch("data/time-entries.csv", { cache: "no-store" }),
+      fetch("/api/time-entries", { cache: "no-store" }),
     ]);
 
     if (!clientsResponse.ok) {
@@ -49,7 +49,7 @@ async function loadHomeData() {
       : normalizeSettings({});
     homeClients = normalizeClients(await clientsResponse.json());
     homeEntries = entriesResponse.ok
-      ? parseTimeEntriesCsv(await entriesResponse.text())
+      ? normalizeTimeEntries(await entriesResponse.json())
       : [];
 
     renderActiveClients();
@@ -270,6 +270,20 @@ function parseTimeEntriesCsv(csvText) {
       billable: entry.billable === "no" ? "no" : "yes",
     };
   });
+}
+
+function normalizeTimeEntries(data) {
+  return Array.isArray(data?.entries)
+    ? data.entries.map((entry) => ({
+        clientId: entry.client_id,
+        clientName: entry.client_name,
+        projectId: entry.project_id,
+        projectName: entry.project_name,
+        endTime: new Date(entry.end_time),
+        durationSeconds: Number(entry.duration_seconds) || 0,
+        billable: entry.billable === "no" ? "no" : "yes",
+      }))
+    : [];
 }
 
 function parseCsvRows(csvText) {

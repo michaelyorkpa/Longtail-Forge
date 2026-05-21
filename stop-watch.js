@@ -302,7 +302,7 @@ class StopwatchTimer {
       }
 
       const result = await response.json();
-      this.setStatus(`Saved ${result.entry_id} to ${result.file}.`);
+      this.setStatus(`Saved ${result.entry_id} to the database.`);
       saved = true;
     } catch (error) {
       this.setStatus(

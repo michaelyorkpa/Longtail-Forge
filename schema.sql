@@ -64,3 +64,24 @@ CREATE TABLE IF NOT EXISTS projects (
   FOREIGN KEY (organization_id) REFERENCES organizations(id),
   FOREIGN KEY (organization_id, client_id) REFERENCES clients(organization_id, id)
 );
+
+CREATE TABLE IF NOT EXISTS time_entries (
+  entry_id TEXT NOT NULL,
+  organization_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  client_name TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  project_name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  duration_seconds INTEGER NOT NULL,
+  duration_hours TEXT NOT NULL,
+  billable TEXT NOT NULL,
+  invoice_status TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (organization_id, entry_id),
+  FOREIGN KEY (organization_id) REFERENCES organizations(id)
+);

@@ -2,9 +2,50 @@
 Plan the Project. Track the work. Preserve the knowledge.
 
 ## Background
-Longtail Forge started off as a simple, flat file time tracker and has become a project hub for me.
+Longtail Forge started off as a simple, flat file time tracker and has become a project hub for me. I feel like it can be useful for others as well, so I'm building it out with more funcitonality.
 
-## Phase One
+The name is derived from the 
+
+## Early Release Roadmap
+
+### Phase 1 - Version 0.1
+  - [x] Single codebase
+    - [x] Time tracking
+    - [x] Clients
+    - [x] Projects
+  - [ ] SQLite
+  - [x] One default workspace
+  - [ ] Users/roles
+  - [ ] Docker-friendly config
+
+### Phase 2 - Version 0.2
+  - [ ] Add workspace_id everywhere
+  - [ ] Add PostgreSQL support
+  - [ ] Add migrations
+  - [ ] Add backups/export/import
+  - [ ] Tasks
+  - [ ] Support Tickets
+  - [ ] Notes/Knowledge Base
+  - [ ] Calendars
+
+### Phase 3 - Version 0.3
+  - [ ] Self-hosted release
+  - [ ] Docker Compose
+  - [ ] Setup wizard
+  - [ ] Admin docs
+  - [ ] Expand Project Management
+
+### Phase 4 - Version 0.4
+  - [ ] SaaS wrapper
+  - [ ] hosted PostgreSQL
+  - [ ] tenant signup
+  - [ ] billing
+  - [ ] email delivery
+  - [ ] monitoring
+
+## Version-Specific Updates
+
+### Version 0.1
 - [x] One stop watch
 - [x] Clients are saved in a custom, writeable YAML or JSON file
 - [x] Each Client has Projects
@@ -19,7 +60,7 @@ Longtail Forge started off as a simple, flat file time tracker and has become a 
         - [x] Description
         - [ ] ~User (this can be hard coded in phase 1)~
 
-## Phase Two
+### Version 0.11
 - [x] Multiple stop watches on screen (3)
     - [x] Each stop watch can be started, stopped, paused, and reset independently
     - [x] When one stop watch starts, the others stop automatically
@@ -38,13 +79,16 @@ Longtail Forge started off as a simple, flat file time tracker and has become a 
         - Right side is dollars
         - Bottom is MM/YY with current month at far right, -12 months at far left
 
-## Phase Three
-- [ ] Migrate to SQLite database
+### Version 0.12
+- [x] Migrate to SQLite database
 - [ ] Break project and client UI apart
+- [ ] Add billable flag to time tracker
+- [ ] Add billable flag to client UI
+- [ ] Add billable flag to project UI
+- [ ] Have reporting respect billable flag
 - [ ] Create nested clients
 - [ ] Create nested projects
 - [ ] Add users and full login with passwords
-    - [ ] 
 - [ ] Add roles
     - [ ] Super Admin
     - [ ] Organization Administrator
@@ -52,19 +96,17 @@ Longtail Forge started off as a simple, flat file time tracker and has become a 
     - [ ] Project Administrator
     - [ ] User
         - [ ] Add ability to assign each user to a specific client/project, with granular control
-    - [ ] Client Users
-        - This is for clients to collaborate with users within organizations
 - [ ] Two Factor Authentication (TOTP)
 - [ ] Passkeys
 - [ ] SSO
 
-## Road Map
-- [ ] Add tasks
-    - [ ] Tasks are assignable to Clients & Projects
-    - [ ] Add personal task list functionality as unique client
-    - [ ] Give tasks reminders, due dates, recurrence
-    - [ ] Task assignment in multi-user organizations
-- [ ] Notes
+### Version 0.20
+- [ ] Tasks
 - [ ] Support Tickets
-    - [ ] Integrated per client
-- [ ] More Project Management
+- [ ] Expand Reporting
+- [ ] Invoicing
+
+
+### Version 0.30
+- [ ] Client Users
+    - This is for clients to collaborate with users within organizations

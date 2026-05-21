@@ -41,7 +41,7 @@ async function loadEditEntryData() {
   try {
     const [clientsResponse, entriesResponse] = await Promise.all([
       fetch("/api/client-projects", { cache: "no-store" }),
-      fetch("data/time-entries.csv", { cache: "no-store" }),
+      fetch("/api/time-entries", { cache: "no-store" }),
     ]);
 
     if (!clientsResponse.ok) {
@@ -50,7 +50,7 @@ async function loadEditEntryData() {
 
     editClients = normalizeClients(await clientsResponse.json());
     timeEntries = entriesResponse.ok
-      ? parseTimeEntriesCsv(await entriesResponse.text())
+      ? normalizeTimeEntries(await entriesResponse.json())
       : [];
 
     populateClientOptions(filterClientSelect, "All clients");
@@ -273,6 +273,25 @@ function parseTimeEntriesCsv(csvText) {
       invoiceStatus: entry.invoice_status || "unbilled",
     };
   });
+}
+
+function normalizeTimeEntries(data) {
+  return Array.isArray(data?.entries)
+    ? data.entries.map((entry) => ({
+        entryId: entry.entry_id,
+        userId: entry.user_id,
+        clientId: entry.client_id,
+        clientName: entry.client_name,
+        projectId: entry.project_id,
+        projectName: entry.project_name,
+        description: entry.description,
+        startTime: new Date(entry.start_time),
+        endTime: new Date(entry.end_time),
+        durationSeconds: Number(entry.duration_seconds) || 0,
+        billable: entry.billable === "no" ? "no" : "yes",
+        invoiceStatus: entry.invoice_status || "unbilled",
+      }))
+    : [];
 }
 
 function parseCsvRows(csvText) {
