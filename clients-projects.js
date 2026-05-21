@@ -67,7 +67,7 @@ async function loadPageData() {
 
   try {
     const [settingsResponse, clientsResponse] = await Promise.all([
-      fetch("data/settings.json", { cache: "no-store" }),
+      fetch("/api/settings", { cache: "no-store" }),
       fetch("data/client-project.json"),
     ]);
 
@@ -281,7 +281,7 @@ function createClientBillingSettingsEditor(client) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    client.billing_rate = billingRateInput.value.trim();
+    client.billing_rate = normalizeBillingRate(billingRateInput.value);
     client.billing_period = billingPeriodEditor.getValue();
     client.billing_rounding = billingRoundingEditor.getValue();
 
@@ -397,7 +397,7 @@ function createProjectEditor(client, project) {
     const oldProject = { ...project };
     project.name = nameInput.value.trim();
     project.status = statusSelect.value;
-    project.billing_rate = billingRateInput.value.trim();
+    project.billing_rate = normalizeBillingRate(billingRateInput.value);
     project.billing_period = billingPeriodEditor.getValue();
     project.billing_rounding = billingRoundingEditor.getValue();
     project.id = createUniqueId(project.name, getOtherProjectIds(project.id));
@@ -523,7 +523,7 @@ function createAddProjectForm(client) {
     const project = {
       id: createUniqueId(nameInput.value, getProjectIds()),
       name: nameInput.value.trim(),
-      billing_rate: billingRateInput.value.trim(),
+      billing_rate: normalizeBillingRate(billingRateInput.value),
       billing_period: billingPeriodEditor.getValue(),
       billing_rounding: billingRoundingEditor.getValue(),
       status: statusSelect.value,
@@ -567,7 +567,7 @@ async function addClient() {
       {
         id: createUniqueId(projectName, getProjectIds()),
         name: projectName,
-        billing_rate: newProjectBillingRateInput.value.trim(),
+        billing_rate: normalizeBillingRate(newProjectBillingRateInput.value),
         billing_period: null,
         billing_rounding: null,
         status: newProjectStatusSelect.value,
@@ -655,7 +655,7 @@ function normalizeData(data) {
           id: client.id,
           name: client.name,
           status: clientStatuses.includes(client.status) ? client.status : "Active",
-          billing_rate: client.billing_rate || "",
+          billing_rate: normalizeBillingRate(client.billing_rate),
           billing_period: normalizeOptionalBillingPeriod(client.billing_period),
           billing_rounding: normalizeOptionalBillingRounding(client.billing_rounding),
           billing_contact: normalizeBillingContact(client.billing_contact),
@@ -663,7 +663,7 @@ function normalizeData(data) {
             ? client.projects.map((project) => ({
                 id: project.id,
                 name: project.name,
-                billing_rate: project.billing_rate || "",
+                billing_rate: normalizeBillingRate(project.billing_rate),
                 billing_period: normalizeOptionalBillingPeriod(project.billing_period),
                 billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
                 status: projectStatuses.includes(project.status)
@@ -682,6 +682,11 @@ function normalizeSettings(settings) {
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
   };
+}
+
+function normalizeBillingRate(value) {
+  const text = String(value ?? "").trim();
+  return text || null;
 }
 
 function normalizeBillingPeriod(period) {

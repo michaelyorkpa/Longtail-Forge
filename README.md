@@ -1,4 +1,4 @@
-# Time Tracking and Reporting
+# Longtail Forge
 
 ## Phase One
 - [x] One stop watch
@@ -35,10 +35,10 @@
         - Bottom is MM/YY with current month at far right, -12 months at far left
 
 ## Phase Three
+- [ ] Migrate to SQLite database
 - [ ] Break project and client UI apart
 - [ ] Create nested clients
 - [ ] Create nested projects
-- [ ] Migrate to SQLite database
 - [ ] Add users and full login with passwords
     - [ ] 
 - [ ] Add roles
@@ -55,7 +55,6 @@
 - [ ] SSO
 
 ## Road Map
-- [ ] Project Management
 - [ ] Add tasks
     - [ ] Tasks are assignable to Clients & Projects
     - [ ] Add personal task list functionality as unique client
@@ -64,3 +63,4 @@
 - [ ] Notes
 - [ ] Support Tickets
     - [ ] Integrated per client
+- [ ] More Project Management

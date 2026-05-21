@@ -15,6 +15,7 @@ const reportTotalBillableAmount = document.querySelector(
 let reportClients = [];
 let reportEntries = [];
 let reportSettings = {
+  defaultBillingRate: 0,
   billingPeriod: { type: "calendarMonth", startDay: 1 },
   billingRounding: { enabled: false, increment: "nearestQuarterHour" },
 };
@@ -42,7 +43,7 @@ async function loadReportData() {
 
   try {
     const [settingsResponse, clientsResponse, entriesResponse] = await Promise.all([
-      fetch("data/settings.json", { cache: "no-store" }),
+      fetch("/api/settings", { cache: "no-store" }),
       fetch("data/client-project.json", { cache: "no-store" }),
       fetch("data/time-entries.csv", { cache: "no-store" }),
     ]);
@@ -191,14 +192,14 @@ function normalizeClients(data) {
         .map((client) => ({
           id: String(client.id || "").trim(),
           name: String(client.name || "").trim(),
-          billingRate: parseMoney(client.billing_rate),
+          billingRate: parseOptionalMoney(client.billing_rate),
           billingPeriod: normalizeOptionalBillingPeriod(client.billing_period),
           billingRounding: normalizeOptionalBillingRounding(client.billing_rounding),
           projects: Array.isArray(client.projects)
             ? client.projects.map((project) => ({
                 id: String(project.id || "").trim(),
                 name: String(project.name || "").trim(),
-                billingRate: parseMoney(project.billing_rate),
+                billingRate: parseOptionalMoney(project.billing_rate),
                 billingPeriod: normalizeOptionalBillingPeriod(project.billing_period),
                 billingRounding: normalizeOptionalBillingRounding(project.billing_rounding),
               }))
@@ -290,7 +291,7 @@ function getReportProjects(client) {
       const project = {
         id: entry.projectId || normalizeKey(entry.projectName),
         name: entry.projectName || entry.projectId || "Untitled Project",
-        billingRate: 0,
+        billingRate: null,
         billingPeriod: null,
         billingRounding: null,
       };
@@ -305,7 +306,7 @@ function getReportProjects(client) {
 }
 
 function getProjectBillingRate(client, project) {
-  return project.billingRate || client.billingRate || 0;
+  return project.billingRate ?? client.billingRate ?? reportSettings.defaultBillingRate;
 }
 
 function getSelectedDateRange(client, project) {
@@ -416,8 +417,20 @@ function parseMoney(value) {
   return Number.isFinite(amount) ? amount : 0;
 }
 
+function parseOptionalMoney(value) {
+  const text = String(value ?? "").trim();
+
+  if (!text) {
+    return null;
+  }
+
+  const amount = Number(text.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(amount) ? amount : null;
+}
+
 function normalizeSettings(settings) {
   return {
+    defaultBillingRate: parseMoney(settings?.defaultBillingRate),
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
   };

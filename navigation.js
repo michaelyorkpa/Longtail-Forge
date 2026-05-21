@@ -15,7 +15,7 @@ loadAppSettings();
 
 async function loadAppSettings() {
   try {
-    const response = await fetch("data/settings.json", { cache: "no-store" });
+    const response = await fetch("/api/settings", { cache: "no-store" });
 
     if (!response.ok) {
       throw new Error("Settings were unavailable.");

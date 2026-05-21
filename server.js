@@ -1,4 +1,6 @@
 const fs = require("node:fs/promises");
+const { execFile } = require("node:child_process");
+const { randomUUID } = require("node:crypto");
 const http = require("node:http");
 const path = require("node:path");
 
@@ -9,9 +11,12 @@ const DATA_DIR = path.join(ROOT, "data");
 const LOG_DIR = path.join(ROOT, "logs");
 const CLIENT_PROJECT_FILE = path.join(DATA_DIR, "client-project.json");
 const SETTINGS_FILE = path.join(DATA_DIR, "settings.json");
+const DATABASE_FILE = path.join(DATA_DIR, "time-tracker.db");
+const SQLITE_COMMAND = process.env.SQLITE_COMMAND || "sqlite3";
 const APP_LOG_FILE = path.join(LOG_DIR, "app-events.csv");
 const TIME_ENTRIES_FILE = path.join(DATA_DIR, "time-entries.csv");
 const TIME_ENTRIES_FILE_NAME = "time-entries.csv";
+const DEFAULT_ORGANIZATION_NAME = "Raymond Tec";
 const CSV_HEADER =
   "entry_id,client_id,client_name,project_id,project_name,description,start_time,end_time,duration_seconds,duration_hours,billable,invoice_status";
 const APP_LOG_HEADER =
@@ -47,6 +52,11 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === "GET" && request.url === "/api/settings") {
+      await handleSettingsRead(response);
+      return;
+    }
+
     if (request.method === "GET") {
       await serveStaticFile(request, response);
       return;
@@ -59,9 +69,20 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(PORT, HOST, () => {
-  console.log(`Time tracker running at http://${HOST}:${PORT}/index.html`);
-});
+startServer();
+
+async function startServer() {
+  try {
+    await ensureDatabase();
+    server.listen(PORT, HOST, () => {
+      console.log(`Time tracker running at http://${HOST}:${PORT}/index.html`);
+    });
+  } catch (error) {
+    console.error("The local database could not be initialized.");
+    console.error(error.message || error);
+    process.exitCode = 1;
+  }
+}
 
 async function handleTimeEntry(request, response) {
   const entry = await readJsonBody(request);
@@ -163,14 +184,243 @@ async function handleSettingsSave(request, response) {
   const payload = await readJsonBody(request);
   const data = normalizeSettings(payload);
 
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(SETTINGS_FILE, `${JSON.stringify(data, null, 2)}\n`, "utf8");
+  await saveOrganizationSettings(data);
   await appendAppLog({
     action: "app_settings_updated",
     details: `organization_name=${data.organizationName};fiscal_year_start_month=${data.fiscalYear.startMonth};fiscal_year_start_day=${data.fiscalYear.startDay};default_billing_rate=${data.defaultBillingRate};billing_period_type=${data.billingPeriod.type};billing_period_start_day=${data.billingPeriod.startDay};rounding_enabled=${data.billingRounding.enabled};rounding_increment=${data.billingRounding.increment}`,
   });
 
   sendJson(response, 200, { data });
+}
+
+async function handleSettingsRead(response) {
+  const data = await readOrganizationSettings();
+  sendJson(response, 200, data);
+}
+
+async function ensureDatabase() {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await runSql(`
+CREATE TABLE IF NOT EXISTS organizations (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS organization_settings (
+  organization_id TEXT PRIMARY KEY,
+  fiscal_year_start_month INTEGER NOT NULL,
+  fiscal_year_start_day INTEGER NOT NULL,
+  default_billing_rate TEXT NOT NULL,
+  billing_period_type TEXT NOT NULL,
+  billing_period_start_day INTEGER NOT NULL,
+  rounding_enabled INTEGER NOT NULL,
+  rounding_increment TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (organization_id) REFERENCES organizations(id)
+);
+`);
+
+  const organizations = await querySql("SELECT id FROM organizations ORDER BY created_at LIMIT 1;");
+
+  if (organizations.length === 0) {
+    const seedSettings = await readSeedSettings();
+    const now = new Date().toISOString();
+    const organizationId = randomUUID();
+
+    await runSql(`
+INSERT INTO organizations (id, name, status, created_at, updated_at)
+VALUES (${sqlText(organizationId)}, ${sqlText(seedSettings.organizationName)}, 'Active', ${sqlText(now)}, ${sqlText(now)});
+INSERT INTO organization_settings (
+  organization_id,
+  fiscal_year_start_month,
+  fiscal_year_start_day,
+  default_billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  rounding_enabled,
+  rounding_increment,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(organizationId)},
+  ${sqlInteger(seedSettings.fiscalYear.startMonth)},
+  ${sqlInteger(seedSettings.fiscalYear.startDay)},
+  ${sqlText(seedSettings.defaultBillingRate)},
+  ${sqlText(seedSettings.billingPeriod.type)},
+  ${sqlInteger(seedSettings.billingPeriod.startDay)},
+  ${sqlInteger(seedSettings.billingRounding.enabled ? 1 : 0)},
+  ${sqlText(seedSettings.billingRounding.increment)},
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+`);
+    return;
+  }
+
+  const settings = await querySql(
+    `SELECT organization_id FROM organization_settings WHERE organization_id = ${sqlText(organizations[0].id)} LIMIT 1;`,
+  );
+
+  if (settings.length === 0) {
+    const seedSettings = await readSeedSettings();
+    const now = new Date().toISOString();
+
+    await runSql(`
+INSERT INTO organization_settings (
+  organization_id,
+  fiscal_year_start_month,
+  fiscal_year_start_day,
+  default_billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  rounding_enabled,
+  rounding_increment,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(organizations[0].id)},
+  ${sqlInteger(seedSettings.fiscalYear.startMonth)},
+  ${sqlInteger(seedSettings.fiscalYear.startDay)},
+  ${sqlText(seedSettings.defaultBillingRate)},
+  ${sqlText(seedSettings.billingPeriod.type)},
+  ${sqlInteger(seedSettings.billingPeriod.startDay)},
+  ${sqlInteger(seedSettings.billingRounding.enabled ? 1 : 0)},
+  ${sqlText(seedSettings.billingRounding.increment)},
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+`);
+  }
+}
+
+async function readSeedSettings() {
+  try {
+    const settingsJson = await fs.readFile(SETTINGS_FILE, "utf8");
+    return normalizeSettings(JSON.parse(settingsJson));
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return normalizeSettings({ organizationName: DEFAULT_ORGANIZATION_NAME });
+    }
+
+    throw error;
+  }
+}
+
+async function readOrganizationSettings() {
+  await ensureDatabase();
+  const rows = await querySql(`
+SELECT
+  organizations.name AS organization_name,
+  organization_settings.fiscal_year_start_month,
+  organization_settings.fiscal_year_start_day,
+  organization_settings.default_billing_rate,
+  organization_settings.billing_period_type,
+  organization_settings.billing_period_start_day,
+  organization_settings.rounding_enabled,
+  organization_settings.rounding_increment
+FROM organizations
+INNER JOIN organization_settings ON organization_settings.organization_id = organizations.id
+ORDER BY organizations.created_at
+LIMIT 1;
+`);
+
+  if (rows.length === 0) {
+    return normalizeSettings({ organizationName: DEFAULT_ORGANIZATION_NAME });
+  }
+
+  return settingsRowToAppSettings(rows[0]);
+}
+
+async function saveOrganizationSettings(settings) {
+  await ensureDatabase();
+  const organizations = await querySql("SELECT id FROM organizations ORDER BY created_at LIMIT 1;");
+
+  if (organizations.length === 0) {
+    throw new Error("No organization exists for app settings.");
+  }
+
+  const organizationId = organizations[0].id;
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE organizations
+SET name = ${sqlText(settings.organizationName)}, updated_at = ${sqlText(now)}
+WHERE id = ${sqlText(organizationId)};
+UPDATE organization_settings
+SET
+  fiscal_year_start_month = ${sqlInteger(settings.fiscalYear.startMonth)},
+  fiscal_year_start_day = ${sqlInteger(settings.fiscalYear.startDay)},
+  default_billing_rate = ${sqlText(settings.defaultBillingRate)},
+  billing_period_type = ${sqlText(settings.billingPeriod.type)},
+  billing_period_start_day = ${sqlInteger(settings.billingPeriod.startDay)},
+  rounding_enabled = ${sqlInteger(settings.billingRounding.enabled ? 1 : 0)},
+  rounding_increment = ${sqlText(settings.billingRounding.increment)},
+  updated_at = ${sqlText(now)}
+WHERE organization_id = ${sqlText(organizationId)};
+`);
+}
+
+function settingsRowToAppSettings(row) {
+  return normalizeSettings({
+    organizationName: row.organization_name,
+    fiscalYear: {
+      startMonth: row.fiscal_year_start_month,
+      startDay: row.fiscal_year_start_day,
+    },
+    defaultBillingRate: row.default_billing_rate,
+    billingPeriod: {
+      type: row.billing_period_type,
+      startDay: row.billing_period_start_day,
+    },
+    billingRounding: {
+      enabled: Number(row.rounding_enabled) === 1,
+      increment: row.rounding_increment,
+    },
+  });
+}
+
+function runSql(sql) {
+  return new Promise((resolve, reject) => {
+    execFile(SQLITE_COMMAND, [DATABASE_FILE, sql], { windowsHide: true }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(stderr.trim() || error.message));
+        return;
+      }
+
+      resolve(stdout);
+    });
+  });
+}
+
+function querySql(sql) {
+  return new Promise((resolve, reject) => {
+    execFile(SQLITE_COMMAND, ["-json", DATABASE_FILE, sql], { windowsHide: true }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(stderr.trim() || error.message));
+        return;
+      }
+
+      try {
+        resolve(stdout.trim() ? JSON.parse(stdout) : []);
+      } catch (parseError) {
+        reject(parseError);
+      }
+    });
+  });
+}
+
+function sqlText(value) {
+  return `'${String(value ?? "").replaceAll("'", "''")}'`;
+}
+
+function sqlInteger(value) {
+  const numberValue = Number.parseInt(value, 10);
+  return Number.isFinite(numberValue) ? String(numberValue) : "0";
 }
 
 async function serveStaticFile(request, response) {
@@ -296,7 +546,7 @@ function normalizeClientProjectData(data) {
       id: String(client.id || "").trim(),
       name: String(client.name || "").trim(),
       status: normalizeClientStatus(client.status),
-      billing_rate: String(client.billing_rate || "").trim(),
+      billing_rate: normalizeBillingRate(client.billing_rate),
       billing_period: normalizeOptionalBillingPeriod(client.billing_period),
       billing_rounding: normalizeOptionalBillingRounding(client.billing_rounding),
       billing_contact: normalizeBillingContact(client.billing_contact),
@@ -304,7 +554,7 @@ function normalizeClientProjectData(data) {
         ? client.projects.map((project) => ({
             id: String(project.id || "").trim(),
             name: String(project.name || "").trim(),
-            billing_rate: String(project.billing_rate || "").trim(),
+            billing_rate: normalizeBillingRate(project.billing_rate),
             billing_period: normalizeOptionalBillingPeriod(project.billing_period),
             billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
             status: normalizeStatus(project.status),
@@ -322,6 +572,11 @@ function normalizeSettings(settings) {
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
   };
+}
+
+function normalizeBillingRate(value) {
+  const text = String(value ?? "").trim();
+  return text || null;
 }
 
 function normalizeFiscalYear(fiscalYear) {
