@@ -19,3 +19,48 @@ CREATE TABLE IF NOT EXISTS organization_settings (
   updated_at TEXT NOT NULL,
   FOREIGN KEY (organization_id) REFERENCES organizations(id)
 );
+
+CREATE TABLE IF NOT EXISTS clients (
+  id TEXT NOT NULL,
+  organization_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  billing_rate TEXT,
+  billing_period_type TEXT,
+  billing_period_start_day INTEGER,
+  billing_rounding_enabled INTEGER,
+  billing_rounding_increment TEXT,
+  billing_contact_name TEXT NOT NULL,
+  billing_contact_email TEXT NOT NULL,
+  billing_contact_alternate_name TEXT NOT NULL,
+  billing_contact_alternate_email TEXT NOT NULL,
+  billing_contact_phone_number TEXT NOT NULL,
+  billing_contact_alternate_phone_number TEXT NOT NULL,
+  billing_contact_street_address_1 TEXT NOT NULL,
+  billing_contact_street_address_2 TEXT NOT NULL,
+  billing_contact_city TEXT NOT NULL,
+  billing_contact_state TEXT NOT NULL,
+  billing_contact_zip_code TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (organization_id, id),
+  FOREIGN KEY (organization_id) REFERENCES organizations(id)
+);
+
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT NOT NULL,
+  organization_id TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  billing_rate TEXT,
+  billing_period_type TEXT,
+  billing_period_start_day INTEGER,
+  billing_rounding_enabled INTEGER,
+  billing_rounding_increment TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (organization_id, id),
+  FOREIGN KEY (organization_id) REFERENCES organizations(id),
+  FOREIGN KEY (organization_id, client_id) REFERENCES clients(organization_id, id)
+);

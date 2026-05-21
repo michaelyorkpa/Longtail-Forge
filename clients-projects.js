@@ -68,7 +68,7 @@ async function loadPageData() {
   try {
     const [settingsResponse, clientsResponse] = await Promise.all([
       fetch("/api/settings", { cache: "no-store" }),
-      fetch("data/client-project.json"),
+      fetch("/api/client-projects", { cache: "no-store" }),
     ]);
 
     if (!clientsResponse.ok) {

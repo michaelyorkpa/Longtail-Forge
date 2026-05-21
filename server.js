@@ -47,6 +47,11 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    if (request.method === "GET" && request.url === "/api/client-projects") {
+      await handleClientProjectsRead(response);
+      return;
+    }
+
     if (request.method === "PUT" && request.url === "/api/settings") {
       await handleSettingsSave(request, response);
       return;
@@ -163,8 +168,7 @@ async function handleClientProjectsSave(request, response) {
   const data = normalizeClientProjectData(payload.data);
   const actions = Array.isArray(payload.actions) ? payload.actions : [];
 
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(CLIENT_PROJECT_FILE, `${JSON.stringify(data, null, 2)}\n`, "utf8");
+  await saveClientProjectData(data);
 
   if (actions.length === 0) {
     await appendAppLog({
@@ -178,6 +182,11 @@ async function handleClientProjectsSave(request, response) {
   }
 
   sendJson(response, 200, { data });
+}
+
+async function handleClientProjectsRead(response) {
+  const data = await readClientProjectData();
+  sendJson(response, 200, data);
 }
 
 async function handleSettingsSave(request, response) {
@@ -221,14 +230,58 @@ CREATE TABLE IF NOT EXISTS organization_settings (
   updated_at TEXT NOT NULL,
   FOREIGN KEY (organization_id) REFERENCES organizations(id)
 );
+CREATE TABLE IF NOT EXISTS clients (
+  id TEXT NOT NULL,
+  organization_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  billing_rate TEXT,
+  billing_period_type TEXT,
+  billing_period_start_day INTEGER,
+  billing_rounding_enabled INTEGER,
+  billing_rounding_increment TEXT,
+  billing_contact_name TEXT NOT NULL,
+  billing_contact_email TEXT NOT NULL,
+  billing_contact_alternate_name TEXT NOT NULL,
+  billing_contact_alternate_email TEXT NOT NULL,
+  billing_contact_phone_number TEXT NOT NULL,
+  billing_contact_alternate_phone_number TEXT NOT NULL,
+  billing_contact_street_address_1 TEXT NOT NULL,
+  billing_contact_street_address_2 TEXT NOT NULL,
+  billing_contact_city TEXT NOT NULL,
+  billing_contact_state TEXT NOT NULL,
+  billing_contact_zip_code TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (organization_id, id),
+  FOREIGN KEY (organization_id) REFERENCES organizations(id)
+);
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT NOT NULL,
+  organization_id TEXT NOT NULL,
+  client_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  status TEXT NOT NULL,
+  billing_rate TEXT,
+  billing_period_type TEXT,
+  billing_period_start_day INTEGER,
+  billing_rounding_enabled INTEGER,
+  billing_rounding_increment TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (organization_id, id),
+  FOREIGN KEY (organization_id) REFERENCES organizations(id),
+  FOREIGN KEY (organization_id, client_id) REFERENCES clients(organization_id, id)
+);
 `);
 
   const organizations = await querySql("SELECT id FROM organizations ORDER BY created_at LIMIT 1;");
+  let organizationId = "";
 
   if (organizations.length === 0) {
     const seedSettings = await readSeedSettings();
     const now = new Date().toISOString();
-    const organizationId = randomUUID();
+    organizationId = randomUUID();
 
     await runSql(`
 INSERT INTO organizations (id, name, status, created_at, updated_at)
@@ -258,11 +311,12 @@ VALUES (
   ${sqlText(now)}
 );
 `);
-    return;
+  } else {
+    organizationId = organizations[0].id;
   }
 
   const settings = await querySql(
-    `SELECT organization_id FROM organization_settings WHERE organization_id = ${sqlText(organizations[0].id)} LIMIT 1;`,
+    `SELECT organization_id FROM organization_settings WHERE organization_id = ${sqlText(organizationId)} LIMIT 1;`,
   );
 
   if (settings.length === 0) {
@@ -283,7 +337,7 @@ INSERT INTO organization_settings (
   updated_at
 )
 VALUES (
-  ${sqlText(organizations[0].id)},
+  ${sqlText(organizationId)},
   ${sqlInteger(seedSettings.fiscalYear.startMonth)},
   ${sqlInteger(seedSettings.fiscalYear.startDay)},
   ${sqlText(seedSettings.defaultBillingRate)},
@@ -296,6 +350,8 @@ VALUES (
 );
 `);
   }
+
+  await seedClientProjectData(organizationId);
 }
 
 async function readSeedSettings() {
@@ -365,6 +421,277 @@ WHERE organization_id = ${sqlText(organizationId)};
 `);
 }
 
+async function seedClientProjectData(organizationId) {
+  const existingClients = await querySql(
+    `SELECT id FROM clients WHERE organization_id = ${sqlText(organizationId)} LIMIT 1;`,
+  );
+
+  if (existingClients.length > 0) {
+    return;
+  }
+
+  const seedData = await readSeedClientProjectData();
+
+  if (seedData.clients.length === 0) {
+    return;
+  }
+
+  await saveClientProjectData(seedData, organizationId);
+}
+
+async function readSeedClientProjectData() {
+  try {
+    const clientProjectJson = await fs.readFile(CLIENT_PROJECT_FILE, "utf8");
+    return normalizeClientProjectData(JSON.parse(clientProjectJson));
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return normalizeClientProjectData({});
+    }
+
+    throw error;
+  }
+}
+
+async function readClientProjectData() {
+  await ensureDatabase();
+  const organizationId = await getDefaultOrganizationId();
+  const clientRows = await querySql(`
+SELECT
+  id,
+  name,
+  status,
+  billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  billing_rounding_enabled,
+  billing_rounding_increment,
+  billing_contact_name,
+  billing_contact_email,
+  billing_contact_alternate_name,
+  billing_contact_alternate_email,
+  billing_contact_phone_number,
+  billing_contact_alternate_phone_number,
+  billing_contact_street_address_1,
+  billing_contact_street_address_2,
+  billing_contact_city,
+  billing_contact_state,
+  billing_contact_zip_code
+FROM clients
+WHERE organization_id = ${sqlText(organizationId)}
+ORDER BY name;
+`);
+  const projectRows = await querySql(`
+SELECT
+  id,
+  client_id,
+  name,
+  status,
+  billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  billing_rounding_enabled,
+  billing_rounding_increment
+FROM projects
+WHERE organization_id = ${sqlText(organizationId)}
+ORDER BY name;
+`);
+  const projectsByClientId = projectRows.reduce((projectsByClient, row) => {
+    const project = projectRowToAppProject(row);
+
+    if (!projectsByClient.has(row.client_id)) {
+      projectsByClient.set(row.client_id, []);
+    }
+
+    projectsByClient.get(row.client_id).push(project);
+    return projectsByClient;
+  }, new Map());
+
+  return normalizeClientProjectData({
+    clients: clientRows.map((row) => ({
+      ...clientRowToAppClient(row),
+      projects: projectsByClientId.get(row.id) || [],
+    })),
+  });
+}
+
+async function saveClientProjectData(data, organizationId = "") {
+  if (!organizationId) {
+    await ensureDatabase();
+    organizationId = await getDefaultOrganizationId();
+  }
+
+  const normalizedData = normalizeClientProjectData(data);
+  const now = new Date().toISOString();
+  const statements = [
+    "BEGIN TRANSACTION;",
+    `DELETE FROM projects WHERE organization_id = ${sqlText(organizationId)};`,
+    `DELETE FROM clients WHERE organization_id = ${sqlText(organizationId)};`,
+  ];
+
+  normalizedData.clients.forEach((client) => {
+    statements.push(createClientInsertSql(organizationId, client, now));
+    client.projects.forEach((project) => {
+      statements.push(createProjectInsertSql(organizationId, client.id, project, now));
+    });
+  });
+
+  statements.push("COMMIT;");
+  await runSql(statements.join("\n"));
+}
+
+async function getDefaultOrganizationId() {
+  const organizations = await querySql("SELECT id FROM organizations ORDER BY created_at LIMIT 1;");
+
+  if (organizations.length === 0) {
+    throw new Error("No default organization exists.");
+  }
+
+  return organizations[0].id;
+}
+
+function createClientInsertSql(organizationId, client, now) {
+  const contact = normalizeBillingContact(client.billing_contact);
+
+  return `
+INSERT INTO clients (
+  id,
+  organization_id,
+  name,
+  status,
+  billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  billing_rounding_enabled,
+  billing_rounding_increment,
+  billing_contact_name,
+  billing_contact_email,
+  billing_contact_alternate_name,
+  billing_contact_alternate_email,
+  billing_contact_phone_number,
+  billing_contact_alternate_phone_number,
+  billing_contact_street_address_1,
+  billing_contact_street_address_2,
+  billing_contact_city,
+  billing_contact_state,
+  billing_contact_zip_code,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(client.id)},
+  ${sqlText(organizationId)},
+  ${sqlText(client.name)},
+  ${sqlText(client.status)},
+  ${sqlNullableText(client.billing_rate)},
+  ${sqlNullableText(client.billing_period?.type)},
+  ${sqlNullableInteger(client.billing_period?.startDay)},
+  ${sqlNullableInteger(client.billing_rounding ? (client.billing_rounding.enabled ? 1 : 0) : null)},
+  ${sqlNullableText(client.billing_rounding?.increment)},
+  ${sqlText(contact.name)},
+  ${sqlText(contact.email)},
+  ${sqlText(contact.alternate_name)},
+  ${sqlText(contact.alternate_email)},
+  ${sqlText(contact.phone_number)},
+  ${sqlText(contact.alternate_phone_number)},
+  ${sqlText(contact.street_address_1)},
+  ${sqlText(contact.street_address_2)},
+  ${sqlText(contact.city)},
+  ${sqlText(contact.state)},
+  ${sqlText(contact.zip_code)},
+  ${sqlText(now)},
+  ${sqlText(now)}
+);`;
+}
+
+function createProjectInsertSql(organizationId, clientId, project, now) {
+  return `
+INSERT INTO projects (
+  id,
+  organization_id,
+  client_id,
+  name,
+  status,
+  billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  billing_rounding_enabled,
+  billing_rounding_increment,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(project.id)},
+  ${sqlText(organizationId)},
+  ${sqlText(clientId)},
+  ${sqlText(project.name)},
+  ${sqlText(project.status)},
+  ${sqlNullableText(project.billing_rate)},
+  ${sqlNullableText(project.billing_period?.type)},
+  ${sqlNullableInteger(project.billing_period?.startDay)},
+  ${sqlNullableInteger(project.billing_rounding ? (project.billing_rounding.enabled ? 1 : 0) : null)},
+  ${sqlNullableText(project.billing_rounding?.increment)},
+  ${sqlText(now)},
+  ${sqlText(now)}
+);`;
+}
+
+function clientRowToAppClient(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    status: row.status,
+    billing_rate: normalizeBillingRate(row.billing_rate),
+    billing_period: billingPeriodRowToAppValue(row),
+    billing_rounding: billingRoundingRowToAppValue(row),
+    billing_contact: {
+      name: row.billing_contact_name,
+      email: row.billing_contact_email,
+      alternate_name: row.billing_contact_alternate_name,
+      alternate_email: row.billing_contact_alternate_email,
+      phone_number: row.billing_contact_phone_number,
+      alternate_phone_number: row.billing_contact_alternate_phone_number,
+      street_address_1: row.billing_contact_street_address_1,
+      street_address_2: row.billing_contact_street_address_2,
+      city: row.billing_contact_city,
+      state: row.billing_contact_state,
+      zip_code: row.billing_contact_zip_code,
+    },
+  };
+}
+
+function projectRowToAppProject(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    billing_rate: normalizeBillingRate(row.billing_rate),
+    billing_period: billingPeriodRowToAppValue(row),
+    billing_rounding: billingRoundingRowToAppValue(row),
+    status: row.status,
+  };
+}
+
+function billingPeriodRowToAppValue(row) {
+  if (!row.billing_period_type) {
+    return null;
+  }
+
+  return normalizeBillingPeriod({
+    type: row.billing_period_type,
+    startDay: row.billing_period_start_day,
+  });
+}
+
+function billingRoundingRowToAppValue(row) {
+  if (row.billing_rounding_enabled === null || row.billing_rounding_enabled === undefined) {
+    return null;
+  }
+
+  return normalizeBillingRounding({
+    enabled: Number(row.billing_rounding_enabled) === 1,
+    increment: row.billing_rounding_increment,
+  });
+}
+
 function settingsRowToAppSettings(row) {
   return normalizeSettings({
     organizationName: row.organization_name,
@@ -418,9 +745,24 @@ function sqlText(value) {
   return `'${String(value ?? "").replaceAll("'", "''")}'`;
 }
 
+function sqlNullableText(value) {
+  return value === null || value === undefined || String(value).trim() === ""
+    ? "NULL"
+    : sqlText(value);
+}
+
 function sqlInteger(value) {
   const numberValue = Number.parseInt(value, 10);
   return Number.isFinite(numberValue) ? String(numberValue) : "0";
+}
+
+function sqlNullableInteger(value) {
+  if (value === null || value === undefined || value === "") {
+    return "NULL";
+  }
+
+  const numberValue = Number.parseInt(value, 10);
+  return Number.isFinite(numberValue) ? String(numberValue) : "NULL";
 }
 
 async function serveStaticFile(request, response) {

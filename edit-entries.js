@@ -40,7 +40,7 @@ async function loadEditEntryData() {
 
   try {
     const [clientsResponse, entriesResponse] = await Promise.all([
-      fetch("data/client-project.json", { cache: "no-store" }),
+      fetch("/api/client-projects", { cache: "no-store" }),
       fetch("data/time-entries.csv", { cache: "no-store" }),
     ]);
 

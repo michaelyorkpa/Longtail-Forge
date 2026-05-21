@@ -36,7 +36,7 @@ async function loadHomeData() {
   try {
     const [settingsResponse, clientsResponse, entriesResponse] = await Promise.all([
       fetch("/api/settings", { cache: "no-store" }),
-      fetch("data/client-project.json", { cache: "no-store" }),
+      fetch("/api/client-projects", { cache: "no-store" }),
       fetch("data/time-entries.csv", { cache: "no-store" }),
     ]);
 

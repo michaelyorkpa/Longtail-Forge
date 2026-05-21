@@ -36,7 +36,7 @@ async function loadEntryClients() {
   setEntryStatus("Loading clients and projects...");
 
   try {
-    const response = await fetch("data/client-project.json", { cache: "no-store" });
+    const response = await fetch("/api/client-projects", { cache: "no-store" });
 
     if (!response.ok) {
       throw new Error(`Could not load client data: ${response.status}`);
