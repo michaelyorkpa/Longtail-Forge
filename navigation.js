@@ -15,8 +15,8 @@ const NAV_ITEMS = [
     label: "Settings",
     items: [
       { label: "Projects & Clients", href: "clients-projects.html" },
-      { label: "User Settings", href: "user-settings.html" },
       { label: "Organization Settings", href: "organization-settings.html" },
+      { label: "User Settings", href: "user-settings.html" },      
     ],
   },
 ];
