@@ -158,7 +158,6 @@ function createClientNameEditor(client) {
     const oldClient = { ...client };
     client.name = input.value.trim();
     client.status = statusSelect.value;
-    client.id = createUniqueId(client.name, getOtherClientIds(client.id));
 
     await saveClientProjectData({
       action: "client_updated",
@@ -404,7 +403,6 @@ function createProjectEditor(client, project) {
     project.billing_rate = normalizeBillingRate(billingRateInput.value);
     project.billing_period = billingPeriodEditor.getValue();
     project.billing_rounding = billingRoundingEditor.getValue();
-    project.id = createUniqueId(project.name, getOtherProjectIds(project.id));
 
     await saveClientProjectData({
       action: "project_updated",
@@ -525,7 +523,7 @@ function createAddProjectForm(client) {
     event.preventDefault();
 
     const project = {
-      id: createUniqueId(nameInput.value, getProjectIds()),
+      id: createUuid(),
       name: nameInput.value.trim(),
       billing_rate: normalizeBillingRate(billingRateInput.value),
       billing_period: billingPeriodEditor.getValue(),
@@ -561,7 +559,7 @@ async function addClient() {
   }
 
   const client = {
-    id: createUniqueId(clientName, getClientIds()),
+    id: createUuid(),
     name: clientName,
     billing_rate: organizationSettings.defaultBillingRate,
     billing_period: null,
@@ -569,7 +567,7 @@ async function addClient() {
     billing_contact: createEmptyBillingContact(),
     projects: [
       {
-        id: createUniqueId(projectName, getProjectIds()),
+        id: createUuid(),
         name: projectName,
         billing_rate: normalizeBillingRate(newProjectBillingRateInput.value),
         billing_period: null,
@@ -973,53 +971,17 @@ function sortByName(items) {
   );
 }
 
-function createUniqueId(name, existingIds) {
-  // IDs stay readable and deterministic, with numeric suffixes for collisions.
-  const baseId = createId(name);
-  let candidate = baseId;
-  let nextNumber = 2;
-
-  while (existingIds.includes(candidate)) {
-    candidate = `${baseId}_${nextNumber}`;
-    nextNumber += 1;
+function createUuid() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
   }
 
-  return candidate;
-}
-
-function createId(name) {
-  const id = name
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "_")
-    .replace(/[^a-z0-9_]/g, "")
-    .replace(/_+/g, "_")
-    .replace(/^_+|_+$/g, "");
-
-  return id || "item";
-}
-
-function getClientIds() {
-  return clientProjectData.clients.map((client) => client.id);
-}
-
-function getOtherClientIds(clientId) {
-  return clientProjectData.clients
-    .filter((client) => client.id !== clientId)
-    .map((client) => client.id);
-}
-
-function getProjectIds() {
-  return clientProjectData.clients.flatMap((client) =>
-    client.projects.map((project) => project.id),
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (character) =>
+    (
+      Number(character) ^
+      (window.crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (Number(character) / 4)))
+    ).toString(16),
   );
-}
-
-function getOtherProjectIds(projectId) {
-  return clientProjectData.clients
-    .flatMap((client) => client.projects)
-    .filter((project) => project.id !== projectId)
-    .map((project) => project.id);
 }
 
 function isAddClientFormDirty() {

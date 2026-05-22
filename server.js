@@ -231,10 +231,9 @@ async function handlePasswordChange(request, response, session) {
 
 async function handleTimeEntry(request, response) {
   const entry = await readJsonBody(request);
-  const endDate = new Date(entry.end_time);
   const organizationId = await getDefaultOrganizationId();
   const userId = entry.user_id || (await getDefaultUserId(organizationId));
-  const entryId = await getNextEntryId(organizationId, endDate);
+  const entryId = randomUUID();
   const data = normalizeTimeEntry({
     entry_id: entryId,
     organization_id: organizationId,
@@ -876,27 +875,6 @@ SET
 WHERE organization_id = ${sqlText(entry.organization_id)}
   AND entry_id = ${sqlText(entry.entry_id)};
 `);
-}
-
-async function getNextEntryId(organizationId, date) {
-  const datePrefix = formatDate(date);
-  const rows = await querySql(`
-SELECT entry_id
-FROM time_entries
-WHERE organization_id = ${sqlText(organizationId)};
-`);
-  const largestEntryNumber = rows.reduce((largest, row) => {
-    const entryId = String(row.entry_id || "");
-
-    if (!entryId.startsWith(`${datePrefix}-`)) {
-      return largest;
-    }
-
-    const entryNumber = Number(entryId.slice(-3));
-    return Number.isFinite(entryNumber) ? Math.max(largest, entryNumber) : largest;
-  }, 0);
-
-  return `${datePrefix}-${String(largestEntryNumber + 1).padStart(3, "0")}`;
 }
 
 function createTimeEntryInsertSql(entry, now) {

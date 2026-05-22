@@ -4,9 +4,21 @@ Plan the Project. Track the work. Preserve the knowledge.
 ## Background
 Longtail Forge started off as a simple, flat file time tracker and has become a project hub for me. I feel like it can be useful for others as well, so I'm building it out with more funcitonality.
 
-The name is derived from the Wired article, and later book, *The Long Tail* by Chris Andersen. The basic concept is that high volume purchases are good for large companies, but as large companies focus on high volume items, they create an increasing value for low volume things.
+The name is derived from the Wired article, and later book, *The Long Tail* by Chris Anderson. The concept is that the big, obvious stuff is only part of the story. In business, a few popular products or projects get most of the attention, but there's a "long tail" of smaller, niche, less obvious things that collectively matter a lot.
 
-I couldn't find a good, all-in-one tool that met my needs for time tracking, reporting, tasks, notes and management that integrated together in a way I found useful. So, I built a tool to do it. 
+Freelancers and small agencies (web design & development, graphics design, etc.) tend to fill the gaps left behind by larger agencies/companies. The big project is easy. It has a start, an end, and a clearly visualized middle. The long tail of that is the stuff that comes after the launch, the redesign, or the overhaul.
+
+- Small fixes
+- Support requests
+- Maintenance Notes
+- Weird, client-specific settings
+- Old decisions nobody remembers (don't turn off that box, it connects the database server to the file server)
+- Recurring tasks
+- Tiny updates that keep everything running
+
+### Why I built this tool
+
+I couldn't find a good, all-in-one tool that met my needs for time tracking, reporting, tasks, notes, and project management that integrated together in a way I found useful.
 
 ## Early Release Roadmap
 
