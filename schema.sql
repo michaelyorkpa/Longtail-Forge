@@ -20,6 +20,16 @@ CREATE TABLE IF NOT EXISTS organization_settings (
   FOREIGN KEY (organization_id) REFERENCES organizations(id)
 );
 
+CREATE TABLE IF NOT EXISTS users (
+  user_id TEXT NOT NULL,
+  organization_id TEXT NOT NULL,
+  username TEXT NOT NULL,
+  password TEXT NOT NULL,
+  PRIMARY KEY (organization_id, user_id),
+  UNIQUE (organization_id, username),
+  FOREIGN KEY (organization_id) REFERENCES organizations(id)
+);
+
 CREATE TABLE IF NOT EXISTS clients (
   id TEXT NOT NULL,
   organization_id TEXT NOT NULL,

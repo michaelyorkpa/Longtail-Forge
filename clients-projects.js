@@ -1,3 +1,4 @@
+// Clients & Projects is the main editor for client, project, and billing metadata.
 const clientList = document.querySelector("[data-client-list]");
 const addClientButton = document.querySelector("[data-add-client]");
 const clientStatusFilter = document.querySelector("[data-client-status-filter]");
@@ -28,7 +29,7 @@ const billingContactFields = [
 ];
 
 let clientProjectData = { clients: [] };
-let appSettings = {
+let organizationSettings = {
   defaultBillingRate: "",
   billingPeriod: { type: "calendarMonth", startDay: 1 },
   billingRounding: { enabled: false, increment: "nearestQuarterHour" },
@@ -43,7 +44,7 @@ clientStatusFilter.addEventListener("change", renderClients);
 
 addClientButton.addEventListener("click", () => {
   clientForm.reset();
-  newProjectBillingRateInput.value = appSettings.defaultBillingRate;
+  newProjectBillingRateInput.value = organizationSettings.defaultBillingRate;
   clientModal.showModal();
   newClientNameInput.focus();
 });
@@ -75,7 +76,7 @@ async function loadPageData() {
       throw new Error(`Could not load client data: ${clientsResponse.status}`);
     }
 
-    appSettings = settingsResponse.ok
+    organizationSettings = settingsResponse.ok
       ? normalizeSettings(await settingsResponse.json())
       : normalizeSettings({});
     clientProjectData = normalizeData(await clientsResponse.json());
@@ -88,6 +89,7 @@ async function loadPageData() {
 }
 
 function renderClients() {
+  // Rendering is state-driven; save operations can set open IDs before calling this.
   clientList.innerHTML = "";
 
   const visibleClients = sortByName(clientProjectData.clients).filter((client) =>
@@ -234,6 +236,7 @@ function createBillingContactEditor(client) {
 }
 
 function createClientBillingSettingsEditor(client) {
+  // Client billing values override app defaults but can still inherit period/rounding.
   const details = document.createElement("details");
   details.className = "billing-details";
   details.open = client.id === openClientBillingSettingsId;
@@ -254,16 +257,16 @@ function createClientBillingSettingsEditor(client) {
 
   const billingPeriodEditor = createBillingPeriodEditor({
     legend: "Billing Period",
-    inheritLabel: `Use app billing period (${formatBillingPeriod(appSettings.billingPeriod)})`,
+    inheritLabel: `Use organization billing period (${formatBillingPeriod(organizationSettings.billingPeriod)})`,
     value: client.billing_period,
-    inheritedPeriod: appSettings.billingPeriod,
+    inheritedPeriod: organizationSettings.billingPeriod,
   });
 
   const billingRoundingEditor = createBillingRoundingEditor({
     legend: "Rounding",
-    inheritLabel: `Use app rounding (${formatBillingRounding(appSettings.billingRounding)})`,
+    inheritLabel: `Use organization rounding (${formatBillingRounding(organizationSettings.billingRounding)})`,
     value: client.billing_rounding,
-    inheritedRounding: appSettings.billingRounding,
+    inheritedRounding: organizationSettings.billingRounding,
   });
 
   const saveButton = document.createElement("button");
@@ -320,6 +323,7 @@ function createProjectList(client) {
 }
 
 function createProjectEditor(client, project) {
+  // Project settings sit closest to the work and override client/app defaults.
   const details = document.createElement("details");
   details.className = "project-item";
   details.dataset.projectId = project.id;
@@ -559,7 +563,7 @@ async function addClient() {
   const client = {
     id: createUniqueId(clientName, getClientIds()),
     name: clientName,
-    billing_rate: appSettings.defaultBillingRate,
+    billing_rate: organizationSettings.defaultBillingRate,
     billing_period: null,
     billing_rounding: null,
     billing_contact: createEmptyBillingContact(),
@@ -593,6 +597,7 @@ async function addClient() {
 }
 
 async function saveClientProjectData(action, viewState = {}) {
+  // The server persists the full normalized tree and records structured audit actions.
   setStatus("Saving clients and projects...");
 
   try {
@@ -628,6 +633,7 @@ async function saveClientProjectData(action, viewState = {}) {
 }
 
 function flashSavedButton(selector) {
+  // Keep success feedback attached to the button that initiated the save.
   if (!selector) {
     return;
   }
@@ -649,6 +655,7 @@ function flashSavedButton(selector) {
 }
 
 function normalizeData(data) {
+  // Normalize immediately after every load/save so render code can trust field shapes.
   return {
     clients: Array.isArray(data.clients)
       ? data.clients.map((client) => ({
@@ -728,6 +735,7 @@ function normalizeOptionalBillingRounding(rounding) {
 }
 
 function createBillingPeriodEditor({ legend, inheritLabel, value, inheritedPeriod }) {
+  // Reusable editor used at both client and project levels with an explicit inherit mode.
   const fieldset = document.createElement("fieldset");
   fieldset.className = "billing-period-editor";
 
@@ -791,6 +799,7 @@ function createBillingPeriodEditor({ legend, inheritLabel, value, inheritedPerio
 }
 
 function createBillingRoundingEditor({ legend, inheritLabel, value, inheritedRounding }) {
+  // Rounding follows the same inheritance model as billing period.
   const fieldset = document.createElement("fieldset");
   fieldset.className = "billing-period-editor";
 
@@ -859,11 +868,11 @@ function populateBillingPeriodStartDays(select) {
 }
 
 function getEffectiveClientBillingPeriod(client) {
-  return client.billing_period || appSettings.billingPeriod;
+  return client.billing_period || organizationSettings.billingPeriod;
 }
 
 function getEffectiveClientBillingRate(client) {
-  return client.billing_rate || appSettings.defaultBillingRate;
+  return client.billing_rate || organizationSettings.defaultBillingRate;
 }
 
 function getEffectiveProjectBillingPeriod(client, project) {
@@ -871,7 +880,7 @@ function getEffectiveProjectBillingPeriod(client, project) {
 }
 
 function getEffectiveClientBillingRounding(client) {
-  return client.billing_rounding || appSettings.billingRounding;
+  return client.billing_rounding || organizationSettings.billingRounding;
 }
 
 function getEffectiveProjectBillingRounding(client, project) {
@@ -965,6 +974,7 @@ function sortByName(items) {
 }
 
 function createUniqueId(name, existingIds) {
+  // IDs stay readable and deterministic, with numeric suffixes for collisions.
   const baseId = createId(name);
   let candidate = baseId;
   let nextNumber = 2;

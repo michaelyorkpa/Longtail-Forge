@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login | Longtail Forge</title>
+    <link rel="stylesheet" href="styles/longtail-forge.css?v=5">
+  </head>
+  <body>
+    <main class="login-page">
+      <form class="login-form" data-login-form>
+        <h1>Longtail Forge</h1>
+
+        <label>
+          Username
+          <input
+            type="text"
+            name="username"
+            autocomplete="username"
+            required
+            autofocus
+          >
+        </label>
+
+        <label>
+          Password
+          <input
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            required
+          >
+        </label>
+
+        <button type="submit">Log In</button>
+        <p data-login-status role="status" aria-live="polite"></p>
+      </form>
+    </main>
+
+    <script src="login.js"></script>
+    <script src="footer.js"></script>
+  </body>
+</html>

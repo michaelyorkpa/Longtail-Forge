@@ -15,13 +15,14 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
     - [x] Time tracking
     - [x] Clients
     - [x] Projects
-  - [ ] SQLite
+  - [x] SQLite
   - [x] One default workspace
-  - [ ] Users/roles
+  - [x] Users
+  - [ ] Roles
   - [ ] Docker-friendly config
 
 ### Phase 2 - Version 0.2
-  - [ ] Add workspace_id everywhere
+  - [ ] Add organiztion_id everywhere
   - [ ] Add PostgreSQL support
   - [ ] Add migrations
   - [ ] Add backups/export/import
@@ -90,7 +91,9 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
 - [ ] Have reporting respect billable flag
 - [ ] Create nested clients
 - [ ] Create nested projects
-- [ ] Add users and full login with passwords
+- [x] Add users and full login with passwords
+    - [x] Secure the app so that only the login page are accessible without login
+    - [x] Create a splash page with link to login
 - [ ] Add roles
     - [ ] Super Admin
     - [ ] Organization Administrator
@@ -112,3 +115,15 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
 ### Version 0.30
 - [ ] Client Users
     - This is for clients to collaborate with users within organizations
+
+## License
+
+Longtail Forge is licensed under the GNU Affero General Public License v3.0 or later.
+
+You may use, study, modify, and self-host Longtail Forge under the terms of the AGPL. If you modify Longtail Forge and make it available to users over a network, you must make the corresponding source code for your modified version available under the AGPL.
+
+Commercial licensing may be available separately.
+
+## Trademark
+
+“Longtail Forge” and the Longtail Forge logo are trademarks of Michael York DBA Raymond Tec. You may use the name to refer to the original project, but you may not use the name, logo, or confusingly similar branding for a competing hosted service or modified distribution without permission.

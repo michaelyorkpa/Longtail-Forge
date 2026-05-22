@@ -1,3 +1,4 @@
+// Reporting combines settings, client/project data, and time entries into billable totals.
 const reportPeriodSelect = document.querySelector("[data-report-period]");
 const reportCustomDates = document.querySelector("[data-report-custom-dates]");
 const reportStartDateInput = document.querySelector("[data-report-start-date]");
@@ -107,6 +108,7 @@ function renderProjectFilter() {
 }
 
 function renderReport() {
+  // This render path is intentionally derived from the current controls each time.
   const client = getSelectedClient();
   reportTableBody.innerHTML = "";
   reportTableWrap.hidden = true;
@@ -186,6 +188,7 @@ function createReportRow(project, rate, seconds, billableAmount) {
 }
 
 function normalizeClients(data) {
+  // Inactive clients are hidden from reports, but historic entry projects can still be added below.
   return Array.isArray(data?.clients)
     ? data.clients
         .filter((client) => client.status !== "Inactive")
@@ -209,6 +212,7 @@ function normalizeClients(data) {
 }
 
 function parseTimeEntriesCsv(csvText) {
+  // Kept as a small migration fallback for old CSV exports; live reads use /api/time-entries.
   const rows = parseCsvRows(csvText.trim());
 
   if (rows.length < 2) {
@@ -292,6 +296,7 @@ function getSelectedProjectIds() {
 }
 
 function getReportProjects(client) {
+  // Include projects found only in historic entries so older time remains reportable.
   const projectsByKey = new Map();
 
   client.projects.forEach((project) => {
@@ -340,6 +345,7 @@ function getCustomDateRange() {
   }
 
   const exclusiveEndDate = new Date(endDate);
+  // Make the end date inclusive for the user by using an exclusive midnight boundary.
   exclusiveEndDate.setDate(exclusiveEndDate.getDate() + 1);
   return { start: startDate, end: exclusiveEndDate };
 }
@@ -488,6 +494,7 @@ function normalizeOptionalBillingRounding(rounding) {
 }
 
 function roundSeconds(seconds, rounding) {
+  // Rounding is applied after project totals are summed, not per individual entry.
   const normalizedRounding = normalizeBillingRounding(rounding);
 
   if (!normalizedRounding.enabled) {

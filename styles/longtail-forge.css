@@ -1,3 +1,4 @@
+/* Base page shell */
 body {
     min-height: 100vh;
     margin: 0;
@@ -39,7 +40,8 @@ body {
 }
 
 .nav-links a,
-.nav-menu summary {
+.nav-menu summary,
+.nav-logout {
     padding: 8px 10px;
     border-radius: 6px;
     color: #39465f;
@@ -52,9 +54,16 @@ body {
 .nav-links a[aria-current="page"],
 .nav-menu summary:hover,
 .nav-menu[open] summary,
-.nav-menu:has(a[aria-current="page"]) summary {
+.nav-menu:has(a[aria-current="page"]) summary,
+.nav-logout:hover {
     background: #e9eef8;
     color: #172033;
+}
+
+.nav-logout {
+    min-width: 0;
+    border: 0;
+    background: transparent;
 }
 
 .nav-menu {
@@ -120,10 +129,43 @@ body {
     background: #172033;
 }
 
+.site-footer {
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 40px;
+    padding: 18px 0;
+    border-top: 1px solid #d8deea;
+    background: #ffffff;
+    color: #516078;
+    line-height: 1.35;
+    text-align: right;
+}
+
+.site-footer-inner {
+    width: min(1120px, calc(100% - 32px));
+    margin: 0 auto;
+}
+
+.site-footer p {
+    margin: 0;
+    white-space: pre-line;
+}
+
+.site-footer-brand {
+    color: #39465f;
+    font-size: 13px;
+}
+
+.site-footer-license {
+    margin-top: 14px;
+    font-size: 11px;
+}
+
+/* Default card-like page container. Wider pages override this with page-specific classes. */
 main {
     box-sizing: border-box;
     width: min(90vw, 360px);
-    margin: auto;
+    margin: auto auto 48px;
     padding: 24px;
     background: #ffffff;
     border: 1px solid #d8deea;
@@ -187,6 +229,7 @@ h1 {
     color: #516078;
 }
 
+/* Status text blocks reserve space so messages do not shift the page layout. */
 [data-client-project-status] {
     min-height: 20px;
     margin: 0 0 16px;
@@ -194,16 +237,91 @@ h1 {
     font-size: 14px;
 }
 
-[data-app-settings-status] {
+[data-organization-settings-status] {
     min-height: 20px;
     margin: 16px 0 0;
     color: #516078;
     font-size: 14px;
 }
 
+[data-user-settings-status] {
+    min-height: 20px;
+    margin: 16px 0 0;
+    color: #516078;
+    font-size: 14px;
+}
+
+[data-user-settings-status].is-error {
+    color: #8f2f2d;
+}
+
 .settings-page {
     width: min(90vw, 480px);
     text-align: left;
+}
+
+.login-page {
+    width: min(90vw, 380px);
+    text-align: left;
+}
+
+.splash-page {
+    width: min(90vw, 520px);
+    text-align: left;
+}
+
+.splash-kicker {
+    margin: 0 0 12px;
+    color: #516078;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.splash-copy {
+    margin: 0 0 24px;
+    color: #39465f;
+    line-height: 1.55;
+}
+
+.button-link {
+    display: inline-flex;
+    min-width: 80px;
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border: 1px solid #9aa7bd;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #172033;
+    font: inherit;
+    text-decoration: none;
+}
+
+.button-link:hover {
+    background: #e9eef8;
+}
+
+/* Shared settings forms */
+.login-form {
+    display: grid;
+    gap: 16px;
+}
+
+.login-form h1 {
+    margin-bottom: 4px;
+    text-align: center;
+}
+
+.login-form button {
+    justify-self: end;
+}
+
+[data-login-status] {
+    min-height: 20px;
+    margin: 0;
+    color: #8f2f2d;
+    font-size: 14px;
 }
 
 .settings-form {
@@ -230,6 +348,7 @@ h1 {
     font-weight: 700;
 }
 
+/* Dashboard */
 .reporting-page {
     width: min(94vw, 920px);
     text-align: left;
@@ -349,6 +468,7 @@ h1 {
     fill: #1f8f4d;
 }
 
+/* Manual entry, edit-entry, and reporting forms/tables */
 .entry-page {
     width: min(94vw, 720px);
     text-align: left;
@@ -464,6 +584,7 @@ h1 {
     font-weight: 700;
 }
 
+/* Client/project editor */
 .client-list {
     display: grid;
     gap: 12px;
@@ -634,6 +755,7 @@ h1 {
     font-size: 13px;
 }
 
+/* Modal used by the Add Client flow */
 dialog {
     width: min(92vw, 420px);
     padding: 0;
@@ -663,6 +785,7 @@ dialog::backdrop {
     gap: 8px;
 }
 
+/* Timer cards */
 .timer-card,
 #stopwatch {
     display: grid;
@@ -792,6 +915,7 @@ button:disabled {
 }
 
 @media (max-width: 700px) {
+    /* Collapse the shared nav and single-column the dense editor/report layouts on phones. */
     .site-nav {
         min-height: auto;
         padding: 12px 0;
@@ -816,8 +940,10 @@ button:disabled {
     }
 
     .nav-links a,
-    .nav-menu summary {
+    .nav-menu summary,
+    .nav-logout {
         padding: 10px;
+        text-align: left;
     }
 
     .nav-menu-links {
@@ -828,7 +954,7 @@ button:disabled {
 
     main {
         width: min(90vw, 360px);
-        margin: 32px auto;
+        margin: 32px auto 48px;
         padding: 20px;
     }
 
@@ -881,7 +1007,8 @@ button:disabled {
     .edit-row button,
     .project-editor button,
     .add-project-form button,
-    .billing-editor button {
+    .billing-editor button,
+    .login-form button {
         width: 100%;
     }
 

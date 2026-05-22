@@ -1,4 +1,5 @@
-const settingsForm = document.querySelector("[data-app-settings-form]");
+// Organization settings are shared defaults used by navigation, reports, and billing.
+const settingsForm = document.querySelector("[data-organization-settings-form]");
 const organizationNameInput = document.querySelector("[data-organization-name-input]");
 const fiscalYearStartMonthSelect = document.querySelector("[data-fiscal-year-start-month]");
 const fiscalYearStartDaySelect = document.querySelector("[data-fiscal-year-start-day]");
@@ -7,7 +8,7 @@ const billingPeriodTypeSelect = document.querySelector("[data-billing-period-typ
 const billingPeriodStartDaySelect = document.querySelector("[data-billing-period-start-day]");
 const billingRoundingEnabledInput = document.querySelector("[data-billing-rounding-enabled]");
 const billingRoundingIncrementSelect = document.querySelector("[data-billing-rounding-increment]");
-const appSettingsStatus = document.querySelector("[data-app-settings-status]");
+const organizationSettingsStatus = document.querySelector("[data-organization-settings-status]");
 const saveSettingsButton = document.querySelector("[data-save-settings]");
 
 populateFiscalYearStartMonths();
@@ -27,7 +28,7 @@ settingsForm.addEventListener("submit", async (event) => {
 });
 
 async function loadSettingsForm() {
-  setAppSettingsStatus("Loading app settings...");
+  setOrganizationSettingsStatus("Loading organization settings...");
 
   try {
     const response = await fetch("/api/settings", { cache: "no-store" });
@@ -47,14 +48,15 @@ async function loadSettingsForm() {
     billingRoundingIncrementSelect.value = settings.billingRounding.increment;
     updateBillingPeriodStartDayState();
     updateBillingRoundingState();
-    setAppSettingsStatus("");
+    setOrganizationSettingsStatus("");
   } catch (error) {
-    setAppSettingsStatus("App settings could not be loaded.");
+    setOrganizationSettingsStatus("Organization settings could not be loaded.");
     console.error(error);
   }
 }
 
 async function saveSettings() {
+  // Normalize before saving so the server receives the same shape the UI expects back.
   const settings = normalizeSettings({
     organizationName: organizationNameInput.value,
     fiscalYear: {
@@ -73,12 +75,12 @@ async function saveSettings() {
   });
 
   if (!settings.organizationName) {
-    setAppSettingsStatus("Organization name is required.");
+    setOrganizationSettingsStatus("Organization name is required.");
     return;
   }
 
   saveSettingsButton.disabled = true;
-  setAppSettingsStatus("Saving app settings...");
+  setOrganizationSettingsStatus("Saving organization settings...");
 
   try {
     const response = await fetch("/api/settings", {
@@ -112,7 +114,7 @@ async function saveSettings() {
 
     flashSavedState();
   } catch (error) {
-    setAppSettingsStatus("App settings were not saved. Start the local server and try again.");
+    setOrganizationSettingsStatus("Organization settings were not saved. Start the local server and try again.");
     console.error(error);
   } finally {
     saveSettingsButton.disabled = false;
@@ -120,6 +122,7 @@ async function saveSettings() {
 }
 
 function normalizeSettings(settings) {
+  // Keep one canonical client-side settings shape even when the API omits older fields.
   return {
     organizationName: String(settings?.organizationName || "").trim(),
     fiscalYear: normalizeFiscalYear(settings?.fiscalYear),
@@ -154,6 +157,7 @@ function populateFiscalYearStartMonths() {
 }
 
 function populateFiscalYearStartDays(selectedDay = fiscalYearStartDaySelect.value) {
+  // The day list depends on the selected start month, so rebuild it whenever the month changes.
   const maxDay = getDaysInFiscalYearMonth(Number(fiscalYearStartMonthSelect.value) || 1);
   const normalizedDay = Math.min(maxDay, Math.max(1, Number.parseInt(selectedDay, 10) || 1));
 
@@ -174,6 +178,7 @@ function getDaysInFiscalYearMonth(month) {
 }
 
 function normalizeBillingPeriod(period) {
+  // Custom periods are capped at day 28 so every month can contain the configured day.
   const type = period?.type === "custom" ? "custom" : "calendarMonth";
   const startDay = Math.min(28, Math.max(1, Number.parseInt(period?.startDay, 10) || 1));
 
@@ -233,7 +238,7 @@ function flashSavedState() {
   const originalText = saveSettingsButton.textContent;
   saveSettingsButton.textContent = "Saved.";
   saveSettingsButton.classList.add("is-saved");
-  setAppSettingsStatus("");
+  setOrganizationSettingsStatus("");
 
   window.setTimeout(() => {
     saveSettingsButton.textContent = originalText;
@@ -241,6 +246,6 @@ function flashSavedState() {
   }, 1600);
 }
 
-function setAppSettingsStatus(message) {
-  appSettingsStatus.textContent = message;
+function setOrganizationSettingsStatus(message) {
+  organizationSettingsStatus.textContent = message;
 }

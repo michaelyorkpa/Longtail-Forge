@@ -1,3 +1,4 @@
+// Edit Entries reuses the reporting data sources, then writes changes back by entry ID.
 const filterClientSelect = document.querySelector("[data-edit-filter-client]");
 const filterProjectSelect = document.querySelector("[data-edit-filter-project]");
 const editEntryStatus = document.querySelector("[data-edit-entry-status]");
@@ -102,6 +103,7 @@ function populateEditProjects(projectId = "") {
 }
 
 function renderEntries() {
+  // The table is rebuilt from state after every filter change or save.
   editEntryTable.innerHTML = "";
   const entries = getFilteredEntries();
 
@@ -147,6 +149,7 @@ function createActionsCell(entry) {
 }
 
 function openEditForm(entryId) {
+  // Entries may have old client/project names, so IDs are resolved through helper matching.
   const entry = timeEntries.find((currentEntry) => currentEntry.entryId === entryId);
 
   if (!entry) {
@@ -174,6 +177,7 @@ async function saveEditedEntry() {
   const startTime = createLocalDateTime(editEntryDateInput.value, editEntryStartTimeInput.value);
   const endTime = createLocalDateTime(editEntryDateInput.value, editEntryEndTimeInput.value);
 
+  // Keep client/project names in the saved entry so reports do not need extra joins.
   if (!client || !project) {
     setEditEntryStatus("Select a client and project.");
     return;
@@ -249,6 +253,7 @@ function normalizeClients(data) {
 }
 
 function parseTimeEntriesCsv(csvText) {
+  // Fallback parser for older CSV-shaped exports; normal operation uses /api/time-entries.
   const rows = parseCsvRows(csvText.trim());
 
   if (rows.length < 2) {
@@ -362,6 +367,7 @@ function matchesProject(entry, project) {
 }
 
 function createLocalDateTime(dateValue, timeValue) {
+  // Build local dates manually so editing does not shift times through UTC parsing.
   if (!dateValue || !timeValue) {
     return null;
   }

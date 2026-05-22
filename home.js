@@ -1,3 +1,4 @@
+// Home is a dashboard view built from the same API data used by reporting.
 const activeClientCount = document.querySelector("[data-active-client-count]");
 const clientReportOptions = document.querySelector("[data-client-report-options]");
 const openClientReportButton = document.querySelector("[data-open-client-report]");
@@ -75,6 +76,7 @@ function renderActiveClients() {
 }
 
 function renderCurrentMonthBillables() {
+  // The table shows only clients with current-month billable time.
   const range = getMonthRange(new Date());
   const rows = getClientBillablesForRange(range).filter((row) => row.seconds > 0);
   currentMonthBillables.innerHTML = "";
@@ -168,6 +170,7 @@ function getClientBillablesForRange(range) {
 }
 
 function createBillablesSvg(points) {
+  // Inline SVG keeps the dashboard self-contained and avoids a chart dependency.
   const width = 900;
   const height = 340;
   const padding = { top: 64, right: 122, bottom: 48, left: 96 };
@@ -250,6 +253,7 @@ function normalizeClients(data) {
 }
 
 function parseTimeEntriesCsv(csvText) {
+  // Kept for older CSV-shaped data during migrations; current data comes from /api/time-entries.
   const rows = parseCsvRows(csvText.trim());
 
   if (rows.length < 2) {
@@ -327,6 +331,7 @@ function parseCsvRows(csvText) {
 }
 
 function getReportProjects(client) {
+  // Reconcile configured projects with historic entry names so old work is not dropped.
   const projectsByKey = new Map();
 
   client.projects.forEach((project) => {
@@ -448,6 +453,7 @@ function normalizeOptionalBillingRounding(rounding) {
 }
 
 function roundSeconds(seconds, rounding) {
+  // Match reporting: round after aggregating project seconds.
   const normalizedRounding = normalizeBillingRounding(rounding);
 
   if (!normalizedRounding.enabled) {

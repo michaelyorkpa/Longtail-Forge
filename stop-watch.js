@@ -1,3 +1,4 @@
+// Multi-timer setup: each timer card owns its own state, while this module coordinates counts.
 const timerGrid =
   document.querySelector("[data-timer-grid]") || createTimerGrid();
 const timerCountSelect = document.querySelector("[data-timer-count]");
@@ -9,6 +10,7 @@ let clients = [];
 let timers = [];
 
 function setTimerCount(timerCount) {
+  // Rebuild timer cards from a template so every timer starts with clean DOM listeners.
   const nextTimerCount = clampTimerCount(timerCount);
 
   timers.forEach((timer) => timer.dispose());
@@ -35,6 +37,7 @@ function handleTimerCountChange() {
   }
 
   if (nextCount < timers.length && hasDiscardableTimers(nextCount)) {
+    // Shrinking the grid can hide unsaved elapsed time, so ask before discarding it.
     const shouldDiscard = window.confirm(
       "Reducing timers will discard time in the hidden timers. Continue?",
     );
@@ -61,6 +64,7 @@ function hasDiscardableTimers(nextCount) {
 }
 
 function pauseOtherTimers(activeTimer) {
+  // Only one timer should actively run at a time.
   timers.forEach((timer) => {
     if (timer !== activeTimer) {
       timer.pause();
@@ -69,6 +73,7 @@ function pauseOtherTimers(activeTimer) {
 }
 
 window.addEventListener("beforeunload", (event) => {
+  // Warn before leaving with unsaved elapsed time.
   if (!timers.some((timer) => timer.hasElapsedTime())) {
     return;
   }
@@ -96,6 +101,7 @@ async function loadClientProjectData() {
 
 class StopwatchTimer {
   constructor(root, timerNumber) {
+    // Existing markup is preferred, but missing controls are created for resilience.
     this.root = root;
     this.timerNumber = timerNumber;
     this.clientSelect =
@@ -156,6 +162,7 @@ class StopwatchTimer {
   }
 
   dispose() {
+    // Timer cards are rebuilt when count changes, so remove listeners before dropping DOM.
     window.clearInterval(this.timerId);
     this.startButton.removeEventListener("click", this.startTimeTracker);
     this.pauseButton.removeEventListener("click", this.pause);
@@ -185,6 +192,7 @@ class StopwatchTimer {
 
     pauseOtherTimers(this);
 
+    // A fresh run gets a new start timestamp; paused runs continue from elapsed time.
     if (this.elapsedMilliseconds === 0 || !this.activeStartTime) {
       this.elapsedMilliseconds = 0;
       this.activeStartTime = new Date();
@@ -206,6 +214,7 @@ class StopwatchTimer {
     }
 
     if (this.timerId) {
+      // Pause first so the saved duration is stable while the request is in flight.
       this.pause();
     }
 
@@ -243,6 +252,7 @@ class StopwatchTimer {
   }
 
   clearDetailsIfRequested() {
+    // Resetting time is always allowed; clearing form details is opt-in per timer.
     if (!this.clearOnResetInput.checked) {
       return;
     }
@@ -271,6 +281,7 @@ class StopwatchTimer {
     this.setStatus("Saving time entry...");
 
     const endTime = new Date();
+    // The API stores ISO timestamps plus calculated seconds/hours for reporting.
     const durationSeconds = Math.round(this.elapsedMilliseconds / 1000);
     const entry = {
       client_id: selectedClient.id,
@@ -341,6 +352,7 @@ class StopwatchTimer {
     const shouldReset = options.shouldReset !== false;
 
     if (shouldReset && !this.confirmTimerReset("Changing the client")) {
+      // Restore the last confirmed values when the user cancels a destructive change.
       this.clientSelect.value = this.confirmedClientId;
       const restoredClient = this.getSelectedClient();
       this.populateProjectOptions(
@@ -465,6 +477,7 @@ if (timerCountSelect) {
 }
 
 window.timeTrackerDebug = () => ({
+  // Handy manual check from the browser console after changing timer rendering.
   selectedTimerCount: timerCountSelect ? timerCountSelect.value : "",
   timerInstances: timers.length,
   renderedTimerCards: timerGrid.querySelectorAll(".timer-card").length,

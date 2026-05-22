@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>User Settings | Longtail Forge</title>
+    <link rel="stylesheet" href="styles/longtail-forge.css?v=5">
+  </head>
+  <body data-page-title="User Settings">
+    <main class="settings-page">
+      <h1>User Settings</h1>
+
+      <form class="settings-form" data-user-password-form>
+        <fieldset class="settings-fieldset">
+          <legend>Password</legend>
+
+          <label>
+            Current Password
+            <input type="password" autocomplete="current-password" data-current-password required>
+          </label>
+
+          <label>
+            New Password
+            <input type="password" autocomplete="new-password" data-new-password required minlength="8">
+          </label>
+
+          <label>
+            Confirm New Password
+            <input type="password" autocomplete="new-password" data-confirm-password required minlength="8">
+          </label>
+        </fieldset>
+
+        <button type="submit" data-save-password>Change Password</button>
+      </form>
+
+      <p data-user-settings-status role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="navigation.js"></script>
+    <script src="user-settings.js"></script>
+    <script src="footer.js"></script>
+  </body>
+</html>

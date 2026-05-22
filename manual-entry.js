@@ -1,3 +1,4 @@
+// Manual entries use the same time-entry API as the timer, but collect times from form fields.
 const manualEntryForm = document.querySelector("[data-manual-entry-form]");
 const entryClientSelect = document.querySelector("[data-entry-client]");
 const entryProjectSelect = document.querySelector("[data-entry-project]");
@@ -80,6 +81,7 @@ async function saveManualEntry() {
   const startTime = createLocalDateTime(entryDateInput.value, entryStartTimeInput.value);
   const endTime = createLocalDateTime(entryDateInput.value, entryEndTimeInput.value);
 
+  // Validate before calculating duration so bad inputs never reach the API.
   if (!client || !project) {
     setEntryStatus("Select a client and project.");
     return;
@@ -141,6 +143,7 @@ async function saveManualEntry() {
 }
 
 function normalizeClients(data) {
+  // The selectors only need IDs and names; billing details stay on reporting/editor screens.
   return Array.isArray(data?.clients)
     ? data.clients.map((client) => ({
         id: String(client.id || "").trim(),
@@ -164,6 +167,7 @@ function getSelectedProject(client) {
 }
 
 function createLocalDateTime(dateValue, timeValue) {
+  // Date inputs are parsed manually to preserve the user's local time zone.
   if (!dateValue || !timeValue) {
     return null;
   }

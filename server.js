@@ -1,6 +1,7 @@
+// Small local HTTP server for Longtail Forge. It serves static files and JSON APIs.
 const fs = require("node:fs/promises");
 const { execFile } = require("node:child_process");
-const { randomUUID } = require("node:crypto");
+const { pbkdf2Sync, randomBytes, randomUUID, timingSafeEqual } = require("node:crypto");
 const http = require("node:http");
 const path = require("node:path");
 
@@ -16,7 +17,12 @@ const SQLITE_COMMAND = process.env.SQLITE_COMMAND || "sqlite3";
 const APP_LOG_FILE = path.join(LOG_DIR, "app-events.csv");
 const TIME_ENTRIES_FILE = path.join(DATA_DIR, "time-entries.csv");
 const DEFAULT_ORGANIZATION_NAME = "Raymond Tec";
-const DEFAULT_USER_ID = "local_user";
+const DEFAULT_SUPER_ADMIN_USERNAME = "sadmin";
+const SUPER_ADMIN_PASSWORD_ENV = "SUPER_ADMIN_PASSWORD";
+const SESSION_COOKIE_NAME = "time_tracker_session";
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
+const sessions = new Map();
+// App event logs remain CSV for easy inspection while app data lives in SQLite.
 const APP_LOG_HEADER =
   "timestamp,username,action,client_id,client_name,project_id,project_name,details";
 
@@ -30,38 +36,69 @@ const contentTypes = {
 
 const server = http.createServer(async (request, response) => {
   try {
-    if (request.method === "POST" && request.url === "/api/time-entries") {
+    const requestUrl = new URL(request.url, `http://${HOST}:${PORT}`);
+    const pathname = requestUrl.pathname;
+
+    if (request.method === "POST" && pathname === "/api/login") {
+      await handleLogin(request, response);
+      return;
+    }
+
+    if (request.method === "POST" && pathname === "/api/logout") {
+      await handleLogout(request, response);
+      return;
+    }
+
+    if (request.method === "GET" && pathname === "/api/session") {
+      await handleSessionRead(request, response);
+      return;
+    }
+
+    // Public routes are handled above; everything below this point requires a session.
+    const session = getRequestSession(request);
+
+    if (!session) {
+      await handleUnauthenticatedRequest(request, response, pathname);
+      return;
+    }
+
+    if (request.method === "POST" && pathname === "/api/time-entries") {
       await handleTimeEntry(request, response);
       return;
     }
 
-    if (request.method === "PUT" && request.url.startsWith("/api/time-entries/")) {
+    if (request.method === "PUT" && pathname.startsWith("/api/time-entries/")) {
       await handleTimeEntryUpdate(request, response);
       return;
     }
 
-    if (request.method === "GET" && request.url === "/api/time-entries") {
+    if (request.method === "GET" && pathname === "/api/time-entries") {
       await handleTimeEntriesRead(response);
       return;
     }
 
-    if (request.method === "PUT" && request.url === "/api/client-projects") {
+    if (request.method === "PUT" && pathname === "/api/client-projects") {
       await handleClientProjectsSave(request, response);
       return;
     }
 
-    if (request.method === "GET" && request.url === "/api/client-projects") {
+    if (request.method === "GET" && pathname === "/api/client-projects") {
       await handleClientProjectsRead(response);
       return;
     }
 
-    if (request.method === "PUT" && request.url === "/api/settings") {
+    if (request.method === "PUT" && pathname === "/api/settings") {
       await handleSettingsSave(request, response);
       return;
     }
 
-    if (request.method === "GET" && request.url === "/api/settings") {
+    if (request.method === "GET" && pathname === "/api/settings") {
       await handleSettingsRead(response);
+      return;
+    }
+
+    if (request.method === "PUT" && pathname === "/api/user/password") {
+      await handlePasswordChange(request, response, session);
       return;
     }
 
@@ -83,7 +120,7 @@ async function startServer() {
   try {
     await ensureDatabase();
     server.listen(PORT, HOST, () => {
-      console.log(`Time tracker running at http://${HOST}:${PORT}/index.html`);
+      console.log(`Longtail Forge running at http://${HOST}:${PORT}/index.html`);
     });
   } catch (error) {
     console.error("The local database could not be initialized.");
@@ -92,15 +129,116 @@ async function startServer() {
   }
 }
 
+async function handleLogin(request, response) {
+  const payload = await readJsonBody(request);
+  const username = String(payload.username || "").trim();
+  const password = String(payload.password || "");
+
+  if (!username || !password) {
+    sendJson(response, 400, { error: "Username and password are required." });
+    return;
+  }
+
+  const user = await readUserByUsername(username);
+
+  if (!user || !verifyPassword(password, user.password)) {
+    sendJson(response, 401, { error: "Invalid username or password." });
+    return;
+  }
+
+  const sessionId = randomBytes(32).toString("base64url");
+  const expiresAt = Date.now() + SESSION_MAX_AGE_SECONDS * 1000;
+
+  sessions.set(sessionId, {
+    expiresAt,
+    organization_id: user.organization_id,
+    user_id: user.user_id,
+    username: user.username,
+  });
+
+  response.setHeader("Set-Cookie", buildSessionCookie(sessionId, SESSION_MAX_AGE_SECONDS));
+  sendJson(response, 200, {
+    user: {
+      organization_id: user.organization_id,
+      user_id: user.user_id,
+      username: user.username,
+    },
+  });
+}
+
+async function handleLogout(request, response) {
+  const sessionId = getSessionIdFromRequest(request);
+
+  if (sessionId) {
+    sessions.delete(sessionId);
+  }
+
+  response.setHeader("Set-Cookie", buildExpiredSessionCookie());
+  sendJson(response, 200, { ok: true });
+}
+
+async function handleSessionRead(request, response) {
+  const session = getRequestSession(request);
+
+  if (!session) {
+    sendJson(response, 401, { error: "Not logged in." });
+    return;
+  }
+
+  sendJson(response, 200, {
+    user: {
+      organization_id: session.organization_id,
+      user_id: session.user_id,
+      username: session.username,
+    },
+  });
+}
+
+async function handlePasswordChange(request, response, session) {
+  const payload = await readJsonBody(request);
+  const currentPassword = String(payload.currentPassword || "");
+  const newPassword = String(payload.newPassword || "");
+
+  if (!currentPassword || !newPassword) {
+    sendJson(response, 400, { error: "Current password and new password are required." });
+    return;
+  }
+
+  const user = await readUserById(session.organization_id, session.user_id);
+
+  if (!user || !verifyPassword(currentPassword, user.password)) {
+    sendJson(response, 400, { error: "Current password is incorrect." });
+    return;
+  }
+
+  if (verifyPassword(newPassword, user.password)) {
+    sendJson(response, 400, { error: "New password must be different from the current password." });
+    return;
+  }
+
+  const validation = validatePassword(newPassword, user.username);
+
+  if (!validation.valid) {
+    sendJson(response, 400, {
+      error: `New password must ${validation.errors.join(", ")}.`,
+    });
+    return;
+  }
+
+  await updateUserPassword(user.organization_id, user.user_id, hashPassword(newPassword));
+  sendJson(response, 200, { ok: true });
+}
+
 async function handleTimeEntry(request, response) {
   const entry = await readJsonBody(request);
   const endDate = new Date(entry.end_time);
   const organizationId = await getDefaultOrganizationId();
+  const userId = entry.user_id || (await getDefaultUserId(organizationId));
   const entryId = await getNextEntryId(organizationId, endDate);
   const data = normalizeTimeEntry({
     entry_id: entryId,
     organization_id: organizationId,
-    user_id: entry.user_id || DEFAULT_USER_ID,
+    user_id: userId,
     client_id: entry.client_id,
     client_name: entry.client_name,
     project_id: entry.project_id,
@@ -141,7 +279,7 @@ async function handleTimeEntryUpdate(request, response) {
     ...payload,
     entry_id: entryId,
     organization_id: organizationId,
-    user_id: payload.user_id || previousEntry.user_id || DEFAULT_USER_ID,
+    user_id: payload.user_id || previousEntry.user_id || (await getDefaultUserId(organizationId)),
   });
 
   await updateTimeEntry(updatedEntry);
@@ -194,7 +332,7 @@ async function handleSettingsSave(request, response) {
 
   await saveOrganizationSettings(data);
   await appendAppLog({
-    action: "app_settings_updated",
+    action: "organization_settings_updated",
     details: `organization_name=${data.organizationName};fiscal_year_start_month=${data.fiscalYear.startMonth};fiscal_year_start_day=${data.fiscalYear.startDay};default_billing_rate=${data.defaultBillingRate};billing_period_type=${data.billingPeriod.type};billing_period_start_day=${data.billingPeriod.startDay};rounding_enabled=${data.billingRounding.enabled};rounding_increment=${data.billingRounding.increment}`,
   });
 
@@ -207,6 +345,7 @@ async function handleSettingsRead(response) {
 }
 
 async function ensureDatabase() {
+  // Schema creation is idempotent so starting the server also repairs a missing database.
   await fs.mkdir(DATA_DIR, { recursive: true });
   await runSql(`
 CREATE TABLE IF NOT EXISTS organizations (
@@ -227,6 +366,15 @@ CREATE TABLE IF NOT EXISTS organization_settings (
   rounding_increment TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
+  FOREIGN KEY (organization_id) REFERENCES organizations(id)
+);
+CREATE TABLE IF NOT EXISTS users (
+  user_id TEXT NOT NULL,
+  organization_id TEXT NOT NULL,
+  username TEXT NOT NULL,
+  password TEXT NOT NULL,
+  PRIMARY KEY (organization_id, user_id),
+  UNIQUE (organization_id, username),
   FOREIGN KEY (organization_id) REFERENCES organizations(id)
 );
 CREATE TABLE IF NOT EXISTS clients (
@@ -298,6 +446,7 @@ CREATE TABLE IF NOT EXISTS time_entries (
   let organizationId = "";
 
   if (organizations.length === 0) {
+    // Bootstrap the first organization from legacy settings when available.
     const seedSettings = await readSeedSettings();
     const now = new Date().toISOString();
     organizationId = randomUUID();
@@ -371,6 +520,7 @@ VALUES (
   }
 
   await seedClientProjectData(organizationId);
+  await seedSuperAdminUser(organizationId);
   await seedTimeEntryData(organizationId);
 }
 
@@ -409,7 +559,7 @@ LIMIT 1;
     return normalizeSettings({ organizationName: DEFAULT_ORGANIZATION_NAME });
   }
 
-  return settingsRowToAppSettings(rows[0]);
+  return settingsRowToOrganizationSettings(rows[0]);
 }
 
 async function saveOrganizationSettings(settings) {
@@ -417,7 +567,7 @@ async function saveOrganizationSettings(settings) {
   const organizations = await querySql("SELECT id FROM organizations ORDER BY created_at LIMIT 1;");
 
   if (organizations.length === 0) {
-    throw new Error("No organization exists for app settings.");
+    throw new Error("No organization exists for organization settings.");
   }
 
   const organizationId = organizations[0].id;
@@ -457,6 +607,47 @@ async function seedClientProjectData(organizationId) {
   }
 
   await saveClientProjectData(seedData, organizationId);
+}
+
+async function seedSuperAdminUser(organizationId) {
+  const existingUsers = await querySql(`
+SELECT user_id
+FROM users
+WHERE organization_id = ${sqlText(organizationId)}
+  AND username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)}
+LIMIT 1;
+`);
+
+  let userId = existingUsers[0]?.user_id || "";
+
+  if (!userId) {
+    const passwordSetup = getSuperAdminPassword();
+    userId = randomUUID();
+
+    await runSql(`
+INSERT INTO users (user_id, organization_id, username, password)
+VALUES (
+  ${sqlText(userId)},
+  ${sqlText(organizationId)},
+  ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)},
+  ${sqlText(hashPassword(passwordSetup.password))}
+);
+`);
+
+    if (passwordSetup.generated) {
+      console.log(
+        `Created super administrator '${DEFAULT_SUPER_ADMIN_USERNAME}' with generated password: ${passwordSetup.password}`,
+      );
+      console.log(`Set ${SUPER_ADMIN_PASSWORD_ENV} before first launch to choose a different initial password.`);
+    }
+  }
+
+  await runSql(`
+UPDATE time_entries
+SET user_id = ${sqlText(userId)}
+WHERE organization_id = ${sqlText(organizationId)}
+  AND (user_id = 'local_user' OR user_id = '');
+`);
 }
 
 async function readSeedClientProjectData() {
@@ -568,7 +759,8 @@ async function seedTimeEntryData(organizationId) {
     return;
   }
 
-  const entries = await readSeedTimeEntries(organizationId);
+  const userId = await getDefaultUserId(organizationId);
+  const entries = await readSeedTimeEntries(organizationId, userId);
 
   if (entries.length === 0) {
     return;
@@ -585,7 +777,7 @@ async function seedTimeEntryData(organizationId) {
   await runSql(statements.join("\n"));
 }
 
-async function readSeedTimeEntries(organizationId) {
+async function readSeedTimeEntries(organizationId, userId) {
   const existingCsv = await readExistingCsv(TIME_ENTRIES_FILE);
   const rows = parseCsvRows(existingCsv.trim());
 
@@ -600,7 +792,7 @@ async function readSeedTimeEntries(organizationId) {
     return normalizeTimeEntry({
       ...entry,
       organization_id: organizationId,
-      user_id: entry.user_id || DEFAULT_USER_ID,
+      user_id: entry.user_id || userId,
     });
   });
 }
@@ -776,6 +968,65 @@ async function getDefaultOrganizationId() {
   return organizations[0].id;
 }
 
+async function getDefaultUserId(organizationId) {
+  const users = await querySql(`
+SELECT user_id
+FROM users
+WHERE organization_id = ${sqlText(organizationId)}
+  AND username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)}
+LIMIT 1;
+`);
+
+  if (users.length === 0) {
+    throw new Error("No default user exists.");
+  }
+
+  return users[0].user_id;
+}
+
+async function readUserByUsername(username) {
+  await ensureDatabase();
+  const rows = await querySql(`
+SELECT
+  user_id,
+  organization_id,
+  username,
+  password
+FROM users
+WHERE username = ${sqlText(username)}
+ORDER BY username
+LIMIT 1;
+`);
+
+  return rows[0] || null;
+}
+
+async function readUserById(organizationId, userId) {
+  await ensureDatabase();
+  const rows = await querySql(`
+SELECT
+  user_id,
+  organization_id,
+  username,
+  password
+FROM users
+WHERE organization_id = ${sqlText(organizationId)}
+  AND user_id = ${sqlText(userId)}
+LIMIT 1;
+`);
+
+  return rows[0] || null;
+}
+
+async function updateUserPassword(organizationId, userId, passwordHash) {
+  await runSql(`
+UPDATE users
+SET password = ${sqlText(passwordHash)}
+WHERE organization_id = ${sqlText(organizationId)}
+  AND user_id = ${sqlText(userId)};
+`);
+}
+
 function createClientInsertSql(organizationId, client, now) {
   const contact = normalizeBillingContact(client.billing_contact);
 
@@ -919,7 +1170,7 @@ function billingRoundingRowToAppValue(row) {
   });
 }
 
-function settingsRowToAppSettings(row) {
+function settingsRowToOrganizationSettings(row) {
   return normalizeSettings({
     organizationName: row.organization_name,
     fiscalYear: {
@@ -939,6 +1190,7 @@ function settingsRowToAppSettings(row) {
 }
 
 function runSql(sql) {
+  // SQLite is accessed through the CLI to keep the server dependency-free for now.
   return new Promise((resolve, reject) => {
     execFile(SQLITE_COMMAND, [DATABASE_FILE, sql], { windowsHide: true }, (error, stdout, stderr) => {
       if (error) {
@@ -952,6 +1204,7 @@ function runSql(sql) {
 }
 
 function querySql(sql) {
+  // The sqlite3 CLI can emit JSON, which keeps row parsing small and predictable.
   return new Promise((resolve, reject) => {
     execFile(SQLITE_COMMAND, ["-json", DATABASE_FILE, sql], { windowsHide: true }, (error, stdout, stderr) => {
       if (error) {
@@ -969,6 +1222,7 @@ function querySql(sql) {
 }
 
 function sqlText(value) {
+  // Escape single quotes before interpolating into the local SQLite command string.
   return `'${String(value ?? "").replaceAll("'", "''")}'`;
 }
 
@@ -997,6 +1251,7 @@ async function serveStaticFile(request, response) {
   const relativePath = requestPath === "/" ? "index.html" : requestPath.slice(1);
   const filePath = path.resolve(ROOT, relativePath);
 
+  // Prevent URLs like /../secret.txt from escaping the project directory.
   if (!filePath.startsWith(ROOT)) {
     response.writeHead(403);
     response.end("Forbidden");
@@ -1021,7 +1276,43 @@ async function serveStaticFile(request, response) {
   }
 }
 
+async function handleUnauthenticatedRequest(request, response, pathname) {
+  // Splash/login assets stay public; the actual app shell and APIs stay protected.
+  if (request.method === "GET" && isLoginAssetPath(pathname)) {
+    await serveStaticFile(request, response);
+    return;
+  }
+
+  if (pathname.startsWith("/api/")) {
+    sendJson(response, 401, { error: "Login required." });
+    return;
+  }
+
+  if (request.method === "GET") {
+    response.writeHead(302, {
+      Location: "/login.html",
+      "Cache-Control": "no-store",
+    });
+    response.end();
+    return;
+  }
+
+  sendJson(response, 401, { error: "Login required." });
+}
+
+function isLoginAssetPath(pathname) {
+  return (
+    pathname === "/" ||
+    pathname === "/index.html" ||
+    pathname === "/login.html" ||
+    pathname === "/footer.js" ||
+    pathname === "/login.js" ||
+    pathname === "/styles/longtail-forge.css"
+  );
+}
+
 function readJsonBody(request) {
+  // A tiny JSON body reader is enough for this app's local API payloads.
   return new Promise((resolve, reject) => {
     let body = "";
 
@@ -1045,10 +1336,11 @@ function readJsonBody(request) {
 }
 
 function normalizeTimeEntry(entry) {
+  // Store a stable API shape even as callers send browser form values.
   return {
     entry_id: String(entry.entry_id || "").trim(),
     organization_id: String(entry.organization_id || "").trim(),
-    user_id: String(entry.user_id || DEFAULT_USER_ID).trim() || DEFAULT_USER_ID,
+    user_id: String(entry.user_id || "").trim(),
     client_id: String(entry.client_id || "").trim(),
     client_name: String(entry.client_name || "").trim(),
     project_id: String(entry.project_id || "").trim(),
@@ -1063,6 +1355,117 @@ function normalizeTimeEntry(entry) {
       ? entry.invoice_status
       : "unbilled",
   };
+}
+
+function getSuperAdminPassword() {
+  // SUPER_ADMIN_PASSWORD should be set outside development; generated passwords are a fallback.
+  const configuredPassword = process.env[SUPER_ADMIN_PASSWORD_ENV];
+  const password = configuredPassword || createGeneratedPassword();
+  const validation = validatePassword(password, DEFAULT_SUPER_ADMIN_USERNAME);
+
+  if (!validation.valid) {
+    throw new Error(
+      `${SUPER_ADMIN_PASSWORD_ENV} does not meet password requirements: ${validation.errors.join("; ")}`,
+    );
+  }
+
+  return {
+    password,
+    generated: !configuredPassword,
+  };
+}
+
+function createGeneratedPassword() {
+  return `Aa1!${randomBytes(18).toString("base64url")}`;
+}
+
+function validatePassword(password, username) {
+  const text = String(password || "");
+  const lowerText = text.toLowerCase();
+  const lowerUsername = String(username || "").toLowerCase();
+  const commonPasswords = new Set([
+    "password",
+    "password1",
+    "password123",
+    "admin1234",
+    "letmein123",
+    "changeme",
+    "qwerty123",
+  ]);
+  const errors = [];
+
+  if (text.length < 8) {
+    errors.push("use at least 8 characters");
+  }
+
+  if (!/[a-z]/.test(text)) {
+    errors.push("include a lowercase letter");
+  }
+
+  if (!/[A-Z]/.test(text)) {
+    errors.push("include an uppercase letter");
+  }
+
+  if (!/[0-9]/.test(text)) {
+    errors.push("include a number");
+  }
+
+  if (!/[^A-Za-z0-9]/.test(text)) {
+    errors.push("include a symbol");
+  }
+
+  if (/\s/.test(text)) {
+    errors.push("do not use spaces");
+  }
+
+  if (lowerUsername && lowerText.includes(lowerUsername)) {
+    errors.push("do not include the username");
+  }
+
+  if (commonPasswords.has(lowerText)) {
+    errors.push("avoid common passwords");
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString("base64url");
+  const iterations = 310000;
+  const digest = "sha256";
+  const keyLength = 32;
+  const hash = pbkdf2Sync(password, salt, iterations, keyLength, digest).toString("base64url");
+
+  return `pbkdf2_${digest}$${iterations}$${salt}$${hash}`;
+}
+
+function verifyPassword(password, storedPassword) {
+  const [algorithm, iterationsText, salt, storedHash] = String(storedPassword || "").split("$");
+  const digest = algorithm === "pbkdf2_sha256" ? "sha256" : "";
+  const iterations = Number.parseInt(iterationsText, 10);
+
+  if (!digest || !Number.isFinite(iterations) || !salt || !storedHash) {
+    return false;
+  }
+
+  const keyLength = Math.max(32, Buffer.from(storedHash, "base64url").length);
+  const hash = pbkdf2Sync(password, salt, iterations, keyLength, digest).toString("base64url");
+
+  return timingSafeEqualText(hash, storedHash);
+}
+
+function timingSafeEqualText(left, right) {
+  const leftBuffer = Buffer.from(String(left));
+  const rightBuffer = Buffer.from(String(right));
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
 function rowToObject(headers, row) {
@@ -1110,6 +1513,7 @@ function parseCsvRows(csvText) {
 }
 
 function normalizeClientProjectData(data) {
+  // This is the persistence gate for client/project fields; add new fields here when the UI grows.
   const clients = Array.isArray(data?.clients) ? data.clients : [];
 
   return {
@@ -1168,6 +1572,7 @@ function getDaysInFiscalYearMonth(month) {
 }
 
 function normalizeBillingPeriod(period) {
+  // Custom billing periods are capped to day 28 so every month can contain the start day.
   const type = period?.type === "custom" ? "custom" : "calendarMonth";
   const startDay = Math.min(28, Math.max(1, Number.parseInt(period?.startDay, 10) || 1));
 
@@ -1242,6 +1647,7 @@ async function readExistingCsv(filePath) {
 }
 
 async function appendAppLog(event) {
+  // Append-only logs make front-end actions inspectable without querying the database.
   const existingLog = await readExistingCsv(APP_LOG_FILE);
   const row = [
     new Date().toISOString(),
@@ -1271,6 +1677,61 @@ function buildAppLogAppend(existingLog, row) {
 function toCsvValue(value) {
   const text = String(value ?? "");
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function getRequestSession(request) {
+  // Sessions are intentionally in-memory; restarting the local server logs everyone out.
+  const sessionId = getSessionIdFromRequest(request);
+
+  if (!sessionId) {
+    return null;
+  }
+
+  const session = sessions.get(sessionId);
+
+  if (!session) {
+    return null;
+  }
+
+  if (session.expiresAt <= Date.now()) {
+    sessions.delete(sessionId);
+    return null;
+  }
+
+  return session;
+}
+
+function getSessionIdFromRequest(request) {
+  const cookies = parseCookieHeader(request.headers.cookie || "");
+  return cookies[SESSION_COOKIE_NAME] || "";
+}
+
+function parseCookieHeader(cookieHeader) {
+  return String(cookieHeader || "")
+    .split(";")
+    .map((cookie) => cookie.trim())
+    .filter(Boolean)
+    .reduce((cookies, cookie) => {
+      const separatorIndex = cookie.indexOf("=");
+
+      if (separatorIndex === -1) {
+        return cookies;
+      }
+
+      const name = cookie.slice(0, separatorIndex).trim();
+      const value = cookie.slice(separatorIndex + 1).trim();
+
+      cookies[name] = decodeURIComponent(value);
+      return cookies;
+    }, {});
+}
+
+function buildSessionCookie(sessionId, maxAgeSeconds) {
+  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}; Max-Age=${maxAgeSeconds}; Path=/; HttpOnly; SameSite=Lax`;
+}
+
+function buildExpiredSessionCookie() {
+  return `${SESSION_COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`;
 }
 
 function sendJson(response, statusCode, body) {

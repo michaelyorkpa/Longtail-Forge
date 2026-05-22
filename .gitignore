@@ -6,4 +6,7 @@ data/*
 logs/*
 !logs/.gitkeep
 
+# Archived local data
+archive/
+
 .node-server.pid
