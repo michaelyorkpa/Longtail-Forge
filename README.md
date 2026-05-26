@@ -178,7 +178,7 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
 - [ ] src/config.js has unneccessary config values, including:
     - [ ] config.settingsFile
     - [ ] config.clientProjectFile
-    - [ ] config.tiemEntriesFile
+    - [ ] config.timeEntriesFile
     - [ ] Please ensure these are unnecessary and remove them
 - [ ] The Express error handler in src/app.js currently returns 500 for every error
 - [ ] Clients/projects and settings still use the default organization
