@@ -1,6 +1,9 @@
 # Don't upload the PID file for the node server
 .node-server.pid
 
+# Dependencies
+node_modules/
+
 # Local runtime data
 data/*
 !data/.gitkeep

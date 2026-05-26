@@ -109,21 +109,11 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
 - [x] Dark mode
 - [x] Add user admin screen for adding users
     - [x] Include buttons for Edit, Delete, Deactivate, Reactivate, and Reset Password
-    - [ ] Make the edit user modal real
-- [ ] Create nested clients
-- [ ] Create nested projects
-- [ ] Add roles
-    - [ ] Super Admin
-    - [ ] Organization Administrator
-    - [ ] Client Administrator
-    - [ ] Project Administrator
-    - [ ] Client User
-    - [ ] Project User
-    - [ ] Add ability to assign each user to a specific client/project, with granular CRUD control
+    - [x] Make the edit user modal real
 
 ### Version 0.20
-- [ ] Refactor server.js
-    - [ ] Use src/app.js style structure as in
+- [x] Refactor server.js
+    - [x] Use src/app.js style structure as in
         - src/
             - app.js
             - config.js
@@ -151,9 +141,35 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
                     - 001_initial_schema.sql
                     - 002_add_tasks.sql
                     - etc.
-- [ ] Incorporate Express or Fastify
+- [x] Incorporate Express or Fastify
+- [x] Move browser JavaScript and styles into public assets
 
-### Version 0.25
+### Version 0.30
+- [ ] Add roles
+    - [ ] Super Admin 
+        - Controls all organizations within the app; Can also edit clients, projects, and users in each organization
+        - Super admins have full access to assign anyone to anything, but cannot break the limits set below
+    - [ ] Organization Administrator 
+        - Controls all clients, projects, and users within the organization
+        - Cannot see any clients/projects that belong to other organizations
+    - [ ] Client Administrator 
+        - Controls all client details and projects and users for a specific client
+    - [ ] Project Administrator 
+        - Controls all projects and project details for a specific client, can assign users to projects within client
+    - [ ] Client User 
+        - Can contribute time to any projects within a client 
+    - [ ] Project User 
+        - Can contribute time to a specific project
+    - [ ] Assign users to roles and specific clients/projects from within the edit user modal window
+    - [ ] Add granular CRUD control once a user is assigned to a client or project
+        - [ ] Client admins can be restricted from editing billing details by the org admin
+        - [ ] Project admins can be restricted from editing billing details by the client/org admins
+        - [ ] Also add ability to control access to manual time entry and edit time entries
+        - [ ] For client user and project user roles, they can only access their own times
+- [ ] Create nested clients
+- [ ] Create nested projects
+
+### Version 0.40
 - [ ] Tasks
 - [ ] Support Tickets
 - [ ] Expand Reporting
@@ -162,7 +178,7 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
 - [ ] Passkeys
 - [ ] SSO
 
-### Version 0.30
+### Version 0.50
 - [ ] Client Users
     - This is for clients to collaborate with users within organizations
 
