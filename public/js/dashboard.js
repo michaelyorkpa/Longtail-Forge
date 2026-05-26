@@ -167,13 +167,18 @@ function getClientHoursAndBillablesForRange(range) {
           return;
         }
 
+        const projectRounding = getEffectiveProjectBillingRounding(client, project);
+        const isBillableProject = getEffectiveProjectBillable(client, project);
+        const displaySeconds = isBillableProject
+          ? projectSeconds
+          : roundSeconds(projectSeconds, projectRounding);
         const roundedBillableSeconds = roundSeconds(
-          projectBillableSeconds,
-          getEffectiveProjectBillingRounding(client, project),
+          isBillableProject ? projectBillableSeconds : 0,
+          projectRounding,
         );
         const rate = getProjectBillingRate(client, project);
 
-        seconds += projectSeconds;
+        seconds += displaySeconds;
         billableSeconds += roundedBillableSeconds;
         amount += (roundedBillableSeconds / 3600) * rate;
       });
@@ -251,12 +256,14 @@ function normalizeClients(data) {
         id: String(client.id || "").trim(),
         name: String(client.name || "").trim(),
         status: client.status === "Inactive" ? "Inactive" : "Active",
+        billable: normalizeBillableFlag(client.billable),
         billingRate: parseOptionalMoney(client.billing_rate),
         billingRounding: normalizeOptionalBillingRounding(client.billing_rounding),
         projects: Array.isArray(client.projects)
           ? client.projects.map((project) => ({
               id: String(project.id || "").trim(),
               name: String(project.name || "").trim(),
+              billable: normalizeBillableFlag(project.billable, client.billable),
               billingRate: parseOptionalMoney(project.billing_rate),
               billingRounding: normalizeOptionalBillingRounding(project.billing_rounding),
             }))
@@ -295,6 +302,7 @@ function getReportProjects(client) {
         name: entry.projectName || entry.projectId || "Untitled Project",
         billingRate: null,
         billingRounding: null,
+        billable: client.billable,
       };
       const key = getProjectMatchKey(project);
 
@@ -316,6 +324,10 @@ function getEffectiveClientBillingRounding(client) {
 
 function getEffectiveProjectBillingRounding(client, project) {
   return project.billingRounding || getEffectiveClientBillingRounding(client);
+}
+
+function getEffectiveProjectBillable(client, project) {
+  return normalizeBillableFlag(project.billable, client.billable) === "yes";
 }
 
 function getMonthRange(date) {
@@ -379,6 +391,18 @@ function parseOptionalMoney(value) {
 
   const amount = Number(text.replace(/[^0-9.-]/g, ""));
   return Number.isFinite(amount) ? amount : null;
+}
+
+function normalizeBillableFlag(value, fallback = "yes") {
+  if (value === false || value === "no") {
+    return "no";
+  }
+
+  if (value === true || value === "yes") {
+    return "yes";
+  }
+
+  return fallback === "no" ? "no" : "yes";
 }
 
 function normalizeBillingRounding(rounding) {

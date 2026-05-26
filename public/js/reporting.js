@@ -149,19 +149,24 @@ function renderReport() {
       return;
     }
 
+    const projectRounding = getEffectiveProjectBillingRounding(client, project);
+    const isBillableProject = getEffectiveProjectBillable(client, project);
+    const displaySeconds = isBillableProject
+      ? projectSeconds
+      : roundSeconds(projectSeconds, projectRounding);
     const roundedBillableSeconds = roundSeconds(
-      projectBillableSeconds,
-      getEffectiveProjectBillingRounding(client, project),
+      isBillableProject ? projectBillableSeconds : 0,
+      projectRounding,
     );
     const rate = getProjectBillingRate(client, project);
     const billableAmount = (roundedBillableSeconds / 3600) * rate;
 
-    totalSeconds += projectSeconds;
+    totalSeconds += displaySeconds;
     totalBillableAmount += billableAmount;
     reportTableBody.appendChild(createReportRow(
       project,
       rate,
-      projectSeconds,
+      displaySeconds,
       roundedBillableSeconds,
       billableAmount,
     ));
@@ -204,6 +209,7 @@ function normalizeClients(data) {
         .map((client) => ({
           id: String(client.id || "").trim(),
           name: String(client.name || "").trim(),
+          billable: normalizeBillableFlag(client.billable),
           billingRate: parseOptionalMoney(client.billing_rate),
           billingPeriod: normalizeOptionalBillingPeriod(client.billing_period),
           billingRounding: normalizeOptionalBillingRounding(client.billing_rounding),
@@ -211,6 +217,7 @@ function normalizeClients(data) {
             ? client.projects.map((project) => ({
                 id: String(project.id || "").trim(),
                 name: String(project.name || "").trim(),
+                billable: normalizeBillableFlag(project.billable, client.billable),
                 billingRate: parseOptionalMoney(project.billing_rate),
                 billingPeriod: normalizeOptionalBillingPeriod(project.billing_period),
                 billingRounding: normalizeOptionalBillingRounding(project.billing_rounding),
@@ -259,6 +266,7 @@ function getReportProjects(client) {
         billingRate: null,
         billingPeriod: null,
         billingRounding: null,
+        billable: client.billable,
       };
       const key = getProjectMatchKey(project);
 
@@ -357,6 +365,10 @@ function getEffectiveProjectBillingRounding(client, project) {
   return project.billingRounding || getEffectiveClientBillingRounding(client);
 }
 
+function getEffectiveProjectBillable(client, project) {
+  return normalizeBillableFlag(project.billable, client.billable) === "yes";
+}
+
 function matchesClient(entry, client) {
   return normalizeKey(entry.clientId) === normalizeKey(client.id) ||
     normalizeKey(entry.clientName) === normalizeKey(client.name);
@@ -392,6 +404,18 @@ function parseOptionalMoney(value) {
 
   const amount = Number(text.replace(/[^0-9.-]/g, ""));
   return Number.isFinite(amount) ? amount : null;
+}
+
+function normalizeBillableFlag(value, fallback = "yes") {
+  if (value === false || value === "no") {
+    return "no";
+  }
+
+  if (value === true || value === "yes") {
+    return "yes";
+  }
+
+  return fallback === "no" ? "no" : "yes";
 }
 
 function normalizeSettings(settings) {

@@ -1,7 +1,5 @@
 # Longtail Forge Roadmap
 
-Last updated for roadmap version 0.22.1.
-
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
 ## Version 0.1
@@ -223,12 +221,20 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ## Version 0.22.2
 
-- [ ] Hours on reporting screen do not round when a client is not billable
-- [ ] If a client/project is marked as "Unbillable" in settings screen, allow a checkbox below "Rounding" heading that says "Round hours?"
-- [ ] Adjust reporting and Dashboard information so that it respects the "Round hours?" selection
+- [x] Hours on reporting screen do not round when a client is not billable
+- [x] If a client/project is marked as "Unbillable" in settings screen, allow a checkbox below "Rounding" heading that says "Round hours?"
+- [x] Adjust reporting and Dashboard information so that it respects the "Round hours?" selection
+
+## Version 0.22.2.1
+
+- In Client Settings
+  - [x] Get rid of the "Save Client" button next to Status
+  - [x] Get rid of the "Save Contact" button and wire the "Save Client" button to save everything each time
+  - [x] Get rid of the "Save Billing" button and wire the "Save Client" button to save everything each time
 
 ## Version 0.22.3
 
+- [ ] Increase the size to 80% of desktop viewport for the Reporting screen
 - [ ] Add filters to the edit entries screen for:
   - [ ] Entry status (Billed/Unbilled)
   - [ ] Dates (Last billing period, current billing period, custom)

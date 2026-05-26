@@ -138,9 +138,9 @@ function renderClients() {
       );
     } else if (isClientsPage) {
       editor.append(
-        createClientNameEditor(client),
-        createBillingContactEditor(client),
-        createClientBillingSettingsEditor(client),
+        createClientNameEditor(client, { showSaveButton: false }),
+        createBillingContactEditor(client, { showSaveButton: false }),
+        createClientBillingSettingsEditor(client, { showSaveButton: false }),
         createClientPageActions(client),
       );
     } else {
@@ -158,7 +158,8 @@ function renderClients() {
   });
 }
 
-function createClientNameEditor(client) {
+function createClientNameEditor(client, options = {}) {
+  const showSaveButton = options.showSaveButton !== false;
   const wrapper = document.createElement("div");
   wrapper.className = "edit-row client-name-row";
 
@@ -167,40 +168,32 @@ function createClientNameEditor(client) {
 
   const input = document.createElement("input");
   input.value = client.name;
+  input.dataset.clientNameInput = client.id;
   label.appendChild(input);
 
   const statusLabel = document.createElement("label");
   statusLabel.textContent = "Status";
 
   const statusSelect = createClientStatusSelect(client.status);
+  statusSelect.dataset.clientStatusInput = client.id;
   statusLabel.appendChild(statusSelect);
 
-  const saveButton = document.createElement("button");
-  saveButton.type = "button";
-  saveButton.textContent = "Save Client";
-  saveButton.dataset.saveClientButton = client.id;
-  saveButton.addEventListener("click", async () => {
-    if (!input.value.trim()) {
-      setStatus("Client name is required.");
-      return;
-    }
+  wrapper.append(label, statusLabel);
 
-    const oldClient = { ...client };
-    client.name = input.value.trim();
-    client.status = statusSelect.value;
-
-    await saveClientProjectData({
-      action: "client_updated",
-      client_id: client.id,
-      client_name: client.name,
-      details: `old_client_id=${oldClient.id};old_client_name=${oldClient.name};old_status=${oldClient.status};new_status=${client.status}`,
-    }, {
-      openClientId: client.id,
-      flashSelector: `[data-save-client-button="${client.id}"]`,
+  if (showSaveButton) {
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.textContent = "Save Client";
+    saveButton.dataset.saveClientButton = client.id;
+    saveButton.addEventListener("click", async () => {
+      await saveClientSettings(client, wrapper, {
+        action: "client_updated",
+        flashSelector: `[data-save-client-button="${client.id}"]`,
+      });
     });
-  });
+    wrapper.appendChild(saveButton);
+  }
 
-  wrapper.append(label, statusLabel, saveButton);
   return wrapper;
 }
 
@@ -211,8 +204,14 @@ function createClientPageActions(client) {
   const saveButton = document.createElement("button");
   saveButton.type = "button";
   saveButton.textContent = "Save Client";
-  saveButton.addEventListener("click", () => {
-    document.querySelector(`[data-save-client-button="${client.id}"]`)?.click();
+  saveButton.dataset.saveClientSettingsButton = client.id;
+  saveButton.addEventListener("click", async () => {
+    await saveClientSettings(client, wrapper.closest(".client-editor"), {
+      action: "client_settings_updated",
+      openBillingClientId: client.id,
+      openClientBillingSettingsId: client.id,
+      flashSelector: `[data-save-client-settings-button="${client.id}"]`,
+    });
   });
 
   const editProjectsButton = document.createElement("button");
@@ -241,7 +240,8 @@ function createProjectClientActions(client) {
   return wrapper;
 }
 
-function createBillingContactEditor(client) {
+function createBillingContactEditor(client, options = {}) {
+  const showSaveButton = options.showSaveButton !== false;
   const details = document.createElement("details");
   details.className = "billing-details";
   details.open = client.id === openBillingClientId;
@@ -260,6 +260,7 @@ function createBillingContactEditor(client) {
 
     const input = document.createElement("input");
     input.value = client.billing_contact[fieldName];
+    input.dataset.billingContactField = fieldName;
 
     if (fieldName.includes("email")) {
       input.type = "email";
@@ -272,14 +273,26 @@ function createBillingContactEditor(client) {
     form.appendChild(label);
   });
 
-  const saveButton = document.createElement("button");
-  saveButton.type = "submit";
-  saveButton.textContent = "Save Contact";
-  saveButton.dataset.saveBillingContactButton = client.id;
-  form.appendChild(saveButton);
+  if (showSaveButton) {
+    const saveButton = document.createElement("button");
+    saveButton.type = "submit";
+    saveButton.textContent = "Save Contact";
+    saveButton.dataset.saveBillingContactButton = client.id;
+    form.appendChild(saveButton);
+  }
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+
+    if (!showSaveButton) {
+      await saveClientSettings(client, form.closest(".client-editor"), {
+        action: "client_settings_updated",
+        openBillingClientId: client.id,
+        openClientBillingSettingsId: client.id,
+        flashSelector: `[data-save-client-settings-button="${client.id}"]`,
+      });
+      return;
+    }
 
     billingContactFields.forEach(([fieldName]) => {
       client.billing_contact[fieldName] = inputs.get(fieldName).value.trim();
@@ -301,8 +314,9 @@ function createBillingContactEditor(client) {
   return details;
 }
 
-function createClientBillingSettingsEditor(client) {
+function createClientBillingSettingsEditor(client, options = {}) {
   // Client billing values override app defaults but can still inherit period/rounding.
+  const showSaveButton = options.showSaveButton !== false;
   const details = document.createElement("details");
   details.className = "billing-details";
   details.open = client.id === openClientBillingSettingsId;
@@ -319,10 +333,12 @@ function createClientBillingSettingsEditor(client) {
   const billingRateInput = document.createElement("input");
   billingRateInput.inputMode = "decimal";
   billingRateInput.value = client.billing_rate;
+  billingRateInput.dataset.clientBillingRateInput = client.id;
   billingRateLabel.appendChild(billingRateInput);
 
   const billableLabel = createBillableCheckbox(client.billable);
   const billableInput = billableLabel.querySelector("input");
+  billableInput.dataset.clientBillableInput = client.id;
 
   const billingPeriodEditor = createBillingPeriodEditor({
     legend: "Billing Period",
@@ -338,16 +354,20 @@ function createClientBillingSettingsEditor(client) {
     inheritedRounding: organizationSettings.billingRounding,
   });
 
-  const saveButton = document.createElement("button");
-  saveButton.type = "submit";
-  saveButton.textContent = "Save Billing Settings";
-  saveButton.dataset.saveBillingSettingsButton = client.id;
+  let saveButton = null;
+
+  if (showSaveButton) {
+    saveButton = document.createElement("button");
+    saveButton.type = "submit";
+    saveButton.textContent = "Save Billing Settings";
+    saveButton.dataset.saveBillingSettingsButton = client.id;
+  }
 
   const updateBillableState = () => {
     const isBillable = billableInput.checked;
     billingRateInput.disabled = !isBillable;
     billingPeriodEditor.setDisabled(!isBillable);
-    billingRoundingEditor.setDisabled(!isBillable);
+    billingRoundingEditor.setBillableMode(isBillable);
   };
 
   billableInput.addEventListener("change", updateBillableState);
@@ -358,11 +378,24 @@ function createClientBillingSettingsEditor(client) {
     billingRateLabel,
     billingPeriodEditor.element,
     billingRoundingEditor.element,
-    saveButton,
   );
+
+  if (saveButton) {
+    form.appendChild(saveButton);
+  }
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+
+    if (!showSaveButton) {
+      await saveClientSettings(client, form.closest(".client-editor"), {
+        action: "client_settings_updated",
+        openBillingClientId: client.id,
+        openClientBillingSettingsId: client.id,
+        flashSelector: `[data-save-client-settings-button="${client.id}"]`,
+      });
+      return;
+    }
 
     client.billing_rate = normalizeBillingRate(billingRateInput.value);
     client.billing_period = billingPeriodEditor.getValue();
@@ -373,7 +406,7 @@ function createClientBillingSettingsEditor(client) {
       action: "client_billing_settings_updated",
       client_id: client.id,
       client_name: client.name,
-      details: `billable=${client.billable};billing_rate=${client.billing_rate};billing_period=${formatBillingPeriod(getEffectiveClientBillingPeriod(client))};rounding=${formatBillingRounding(getEffectiveClientBillingRounding(client))}`,
+      details: `billable=${client.billable};billing_rate=${client.billing_rate};billing_period=${formatBillingPeriod(getEffectiveClientBillingPeriod(client))};rounding=${formatBillingRounding(getEffectiveClientBillingRounding(client))};round_hours=${getEffectiveClientBillingRounding(client).enabled ? "yes" : "no"}`,
     }, {
       openClientId: client.id,
       openClientBillingSettingsId: client.id,
@@ -383,6 +416,60 @@ function createClientBillingSettingsEditor(client) {
 
   details.append(summary, form);
   return details;
+}
+
+async function saveClientSettings(client, container, options = {}) {
+  const nameInput = container?.querySelector("[data-client-name-input]");
+  const statusSelect = container?.querySelector("[data-client-status-input]");
+  const billingRateInput = container?.querySelector("[data-client-billing-rate-input]");
+  const billableInput = container?.querySelector("[data-client-billable-input]");
+
+  if (!nameInput?.value.trim()) {
+    setStatus("Client name is required.");
+    return false;
+  }
+
+  const oldClient = { ...client };
+  client.name = nameInput.value.trim();
+  client.status = statusSelect?.value || client.status;
+
+  container?.querySelectorAll("[data-billing-contact-field]").forEach((input) => {
+    client.billing_contact[input.dataset.billingContactField] = input.value.trim();
+  });
+
+  if (billingRateInput && billableInput) {
+    client.billing_rate = normalizeBillingRate(billingRateInput.value);
+    client.billable = normalizeBillableFlag(billableInput.checked);
+    client.billing_period = container.querySelector("[data-billing-period-editor]")
+      ?.billingPeriodEditor?.getValue() ?? client.billing_period;
+    client.billing_rounding = container.querySelector("[data-billing-rounding-editor]")
+      ?.billingRoundingEditor?.getValue() ?? client.billing_rounding;
+  }
+
+  const action = options.action || "client_settings_updated";
+
+  return saveClientProjectData({
+    action,
+    client_id: client.id,
+    client_name: client.name,
+    details: [
+      `old_client_id=${oldClient.id}`,
+      `old_client_name=${oldClient.name}`,
+      `old_status=${oldClient.status}`,
+      `new_status=${client.status}`,
+      "billing_contact_updated=true",
+      `billable=${client.billable}`,
+      `billing_rate=${client.billing_rate}`,
+      `billing_period=${formatBillingPeriod(getEffectiveClientBillingPeriod(client))}`,
+      `rounding=${formatBillingRounding(getEffectiveClientBillingRounding(client))}`,
+      `round_hours=${getEffectiveClientBillingRounding(client).enabled ? "yes" : "no"}`,
+    ].join(";"),
+  }, {
+    openClientId: client.id,
+    openBillingClientId: options.openBillingClientId || "",
+    openClientBillingSettingsId: options.openClientBillingSettingsId || "",
+    flashSelector: options.flashSelector,
+  });
 }
 
 function createProjectList(client) {
@@ -493,7 +580,7 @@ function createProjectEditor(client, project) {
     const isBillable = billableInput.checked;
     billingRateInput.disabled = !isBillable;
     billingPeriodEditor.setDisabled(!isBillable);
-    billingRoundingEditor.setDisabled(!isBillable);
+    billingRoundingEditor.setBillableMode(isBillable);
   };
 
   billableInput.addEventListener("change", updateBillableState);
@@ -526,7 +613,7 @@ function createProjectEditor(client, project) {
       client_name: client.name,
       project_id: project.id,
       project_name: project.name,
-      details: `old_project_id=${oldProject.id};old_project_name=${oldProject.name};old_status=${oldProject.status};old_billable=${oldProject.billable};old_billing_rate=${oldProject.billing_rate};new_status=${project.status};new_billable=${project.billable};new_billing_rate=${project.billing_rate};billing_period=${formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project))};rounding=${formatBillingRounding(getEffectiveProjectBillingRounding(client, project))}`,
+      details: `old_project_id=${oldProject.id};old_project_name=${oldProject.name};old_status=${oldProject.status};old_billable=${oldProject.billable};old_billing_rate=${oldProject.billing_rate};new_status=${project.status};new_billable=${project.billable};new_billing_rate=${project.billing_rate};billing_period=${formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project))};rounding=${formatBillingRounding(getEffectiveProjectBillingRounding(client, project))};round_hours=${getEffectiveProjectBillingRounding(client, project).enabled ? "yes" : "no"}`,
     }, {
       openClientId: client.id,
       flashSelector: `[data-save-project-button="${project.id}"]`,
@@ -904,6 +991,7 @@ function createBillingPeriodEditor({ legend, inheritLabel, value, inheritedPerio
   // Reusable editor used at both client and project levels with an explicit inherit mode.
   const fieldset = document.createElement("fieldset");
   fieldset.className = "billing-period-editor";
+  fieldset.dataset.billingPeriodEditor = "";
 
   const legendElement = document.createElement("legend");
   legendElement.textContent = legend;
@@ -949,7 +1037,7 @@ function createBillingPeriodEditor({ legend, inheritLabel, value, inheritedPerio
 
   fieldset.append(legendElement, typeLabel, startDayLabel, inheritedHint);
 
-  return {
+  const editor = {
     element: fieldset,
     setDisabled(isDisabled) {
       fieldset.disabled = Boolean(isDisabled);
@@ -965,12 +1053,17 @@ function createBillingPeriodEditor({ legend, inheritLabel, value, inheritedPerio
       });
     },
   };
+
+  fieldset.billingPeriodEditor = editor;
+  return editor;
 }
 
 function createBillingRoundingEditor({ legend, inheritLabel, value, inheritedRounding }) {
   // Rounding follows the same inheritance model as billing period.
   const fieldset = document.createElement("fieldset");
   fieldset.className = "billing-period-editor";
+  fieldset.dataset.billingRoundingEditor = "";
+  let isBillableMode = true;
 
   const legendElement = document.createElement("legend");
   legendElement.textContent = legend;
@@ -987,6 +1080,17 @@ function createBillingRoundingEditor({ legend, inheritLabel, value, inheritedRou
   modeSelect.value = value ? (value.enabled ? "round" : "exact") : "inherit";
   modeLabel.appendChild(modeSelect);
 
+  const roundHoursLabel = document.createElement("label");
+  roundHoursLabel.className = "inline-option";
+
+  const roundHoursInput = document.createElement("input");
+  roundHoursInput.type = "checkbox";
+  roundHoursInput.checked = value ? value.enabled : normalizeBillingRounding(inheritedRounding).enabled;
+  roundHoursLabel.append(
+    roundHoursInput,
+    document.createTextNode("Round hours?"),
+  );
+
   const incrementLabel = document.createElement("label");
   incrementLabel.textContent = "Rounding Increment";
 
@@ -1002,35 +1106,53 @@ function createBillingRoundingEditor({ legend, inheritLabel, value, inheritedRou
   const inheritedHint = document.createElement("p");
   inheritedHint.className = "inherited-setting";
 
+  const getSelectedMode = () => isBillableMode
+    ? modeSelect.value
+    : (roundHoursInput.checked ? "round" : "exact");
+
   const updateState = () => {
-    incrementLabel.hidden = modeSelect.value !== "round";
-    incrementSelect.disabled = modeSelect.value !== "round";
-    inheritedHint.textContent = modeSelect.value === "inherit"
+    const selectedMode = getSelectedMode();
+    modeLabel.hidden = !isBillableMode;
+    roundHoursLabel.hidden = isBillableMode;
+    incrementLabel.hidden = selectedMode !== "round";
+    incrementSelect.disabled = selectedMode !== "round";
+    inheritedHint.textContent = selectedMode === "inherit"
       ? `Effective rounding: ${formatBillingRounding(inheritedRounding)}`
       : "";
   };
 
   modeSelect.addEventListener("change", updateState);
+  roundHoursInput.addEventListener("change", updateState);
   updateState();
 
-  fieldset.append(legendElement, modeLabel, incrementLabel, inheritedHint);
+  fieldset.append(legendElement, roundHoursLabel, modeLabel, incrementLabel, inheritedHint);
 
-  return {
+  const editor = {
     element: fieldset,
     setDisabled(isDisabled) {
       fieldset.disabled = Boolean(isDisabled);
     },
+    setBillableMode(isBillable) {
+      isBillableMode = Boolean(isBillable);
+      fieldset.disabled = false;
+      updateState();
+    },
     getValue() {
-      if (modeSelect.value === "inherit") {
+      const selectedMode = getSelectedMode();
+
+      if (selectedMode === "inherit") {
         return null;
       }
 
       return normalizeBillingRounding({
-        enabled: modeSelect.value === "round",
+        enabled: selectedMode === "round",
         increment: incrementSelect.value,
       });
     },
   };
+
+  fieldset.billingRoundingEditor = editor;
+  return editor;
 }
 
 function populateBillingPeriodStartDays(select) {
