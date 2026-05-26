@@ -1,18 +1,17 @@
-import { getDefaultOrganizationId } from "../db/index.js";
 import { clientsRepository } from "../repositories/clients.repo.js";
 import { projectsRepository } from "../repositories/projects.repo.js";
 import { appendAppLog } from "../utils/app-log.js";
 import { normalizeClientProjectData } from "../utils/normalizers.js";
 
-async function readClientProjects() {
-  return readClientProjectData();
+async function readClientProjects(session) {
+  return readClientProjectData(session.organization_id);
 }
 
-async function saveClientProjects(payload) {
+async function saveClientProjects(payload, session) {
   const data = normalizeClientProjectData(payload.data);
   const actions = Array.isArray(payload.actions) ? payload.actions : [];
 
-  await saveClientProjectData(data);
+  await saveClientProjectData(data, session.organization_id);
 
   if (actions.length === 0) {
     await appendAppLog({
@@ -28,8 +27,7 @@ async function saveClientProjects(payload) {
   return { data };
 }
 
-async function readClientProjectData() {
-  const organizationId = await getDefaultOrganizationId();
+async function readClientProjectData(organizationId) {
   const clients = await clientsRepository.readAll(organizationId);
   const projects = await projectsRepository.readAll(organizationId);
   const projectsByClientId = projects.reduce((projectsByClient, project) => {
@@ -52,8 +50,7 @@ async function readClientProjectData() {
   });
 }
 
-async function saveClientProjectData(data) {
-  const organizationId = await getDefaultOrganizationId();
+async function saveClientProjectData(data, organizationId) {
   const normalizedData = normalizeClientProjectData(data);
 
   await clientsRepository.replaceAll(organizationId, normalizedData.clients);

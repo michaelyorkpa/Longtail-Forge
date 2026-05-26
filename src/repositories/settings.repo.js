@@ -1,9 +1,10 @@
 import { querySql, runSql, sqlInteger, sqlText } from "../db/index.js";
+import { AppError } from "../utils/app-error.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 
 const DEFAULT_ORGANIZATION_NAME = "Raymond Tec";
 
-async function readOrganizationSettings() {
+async function readOrganizationSettings(organizationId) {
   const rows = await querySql(`
 SELECT
   organizations.name AS organization_name,
@@ -16,7 +17,7 @@ SELECT
   organization_settings.rounding_increment
 FROM organizations
 INNER JOIN organization_settings ON organization_settings.organization_id = organizations.id
-ORDER BY organizations.created_at
+WHERE organizations.id = ${sqlText(organizationId)}
 LIMIT 1;
 `);
 
@@ -27,14 +28,18 @@ LIMIT 1;
   return settingsRowToOrganizationSettings(rows[0]);
 }
 
-async function saveOrganizationSettings(settings) {
-  const organizations = await querySql("SELECT id FROM organizations ORDER BY created_at LIMIT 1;");
+async function saveOrganizationSettings(organizationId, settings) {
+  const organizations = await querySql(`
+SELECT id
+FROM organizations
+WHERE id = ${sqlText(organizationId)}
+LIMIT 1;
+`);
 
   if (organizations.length === 0) {
-    throw new Error("No organization exists for organization settings.");
+    throw new AppError("No organization exists for organization settings.", 404);
   }
 
-  const organizationId = organizations[0].id;
   const now = new Date().toISOString();
 
   await runSql(`

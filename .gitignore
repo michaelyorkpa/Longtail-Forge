@@ -25,3 +25,6 @@ images/logo-concepts.png
 *.sqlite
 *.sqlite-wal
 *.sqlite-shm
+
+AGENTS.md
+DECISIONS.md
