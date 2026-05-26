@@ -7,7 +7,6 @@ Longtail Forge started off as a simple, flat file time tracker and has become a 
 The name is derived from the Wired article, and later book, *The Long Tail* by Chris Anderson. The concept is that the big, obvious stuff is only part of the story. In business, a few popular products or projects get most of the attention, but there's a "long tail" of smaller, niche, less obvious things that collectively matter a lot.
 
 Freelancers and small agencies (web design & development, graphics design, etc.) tend to fill the gaps left behind by larger agencies/companies. The big project is easy. It has a start, an end, and a clearly visualized middle. The long tail of that is the stuff that comes after the launch:
-
 - Small fixes
 - Support requests
 - Maintenance Notes
@@ -30,26 +29,33 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
 - [x] SQLite
 - [x] One default workspace
 - [x] Users
-- [ ] Roles
+- [x] Add organiztion_id everywhere
 
 ### Phase 2 - Version 0.2
-- [ ] Add organiztion_id everywhere
-- [ ] Add PostgreSQL support
+- [x] Full server.js refactor
+- [ ] Start handling this like a real app and get rid of legacy spaghetti code
 - [ ] Add migrations
+
+
+### Phase 3 - Version 0.3
+- [ ] Roles
 - [ ] Add backups/export/import
+
+### Phase 4 - Version 0.4
 - [ ] Tasks
 - [ ] Support Tickets
 - [ ] Notes/Knowledge Base
 - [ ] Calendars
 
-### Phase 3 - Version 0.3
+### Phase 5 - Version 0.5
+- [ ] Add PostgreSQL support
 - [ ] Docker Compose
 - [ ] Setup wizard
 - [ ] Admin docs
 - [ ] Self-hosted release
 - [ ] Expand Project Management Tools
 
-### Phase 4 - Version 0.4
+### Phase 6 - Version 0.6
 - [ ] SaaS wrapper
 - [ ] hosted PostgreSQL
 - [ ] tenant signup
@@ -113,39 +119,99 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
 
 ### Version 0.20
 - [x] Refactor server.js
-    - [x] Use src/app.js style structure as in
-        - src/
-            - app.js
-            - config.js
-            - routes/
-                - auth.routes.js
-                - clients.routes.js
-                - projects.routes.js
-                - time-entries.routes.js
-                - settings.routes.js
-            - middleware/
-                - require-auth.js
-                - require-role.js
-            - services/
-                - auth.service.js
-                - billing.service.js
-                - reporting.service.js
-            - repositories/
-                - users.repo.js
-                - clients.repo.js
-                - projects.repo.js
-                - time-entries.repo.js
-            - db/
-                - index.js
-                - migrations/
-                    - 001_initial_schema.sql
-                    - 002_add_tasks.sql
-                    - etc.
-- [x] Incorporate Express or Fastify
+    - [x] Use src/app.js style structure
+- [x] Incorporate Express ~or Fastify~
 - [x] Move browser JavaScript and styles into public assets
+
+### Version 0.20.1
+- [x] Move database logic out of legacy/handler.js into appropriate repos
+    - src/db/
+        - [x] index.js
+        - [x] sqlite.js
+        - [x] migrations.js
+    - src/repositories/
+        - [x] users.repo.js
+        - [x] clients.repo.js
+        - [x] projects.repo.js
+        - [x] settings.repo.js
+        - [x] time-entries.repo.js
+    - [x] Move these first:
+        - [x] querySql()
+        - [x] runSql()
+        - [x] ensureDatabase()
+        - [x] ensurecolumnExists()
+        - [x] readUserById()
+        - [x] readUsers()
+        - [x] readTimeEntries()
+        - [x] saveTimeEntry()
+        - [x] updateTimeEntry()
+        - [x] readClientProjectData()
+        - [x] saveClientProjectData()
+
+### Version 0.20.2
+- [x] Replace inline schema creation with migrations
+    - Move towards:
+        - [x] src/db/migrations/
+            - [x] 001_initial_schema.sql
+            - [x] 002_add_user_theme_status_protection.sql
+            - [x] 003_add_billable_flags.sql
+            - [ ] etc.
+    - [x] Add schema_migrations tracking table
+    - [x] Baseline existing database without replaying destructive changes
+
+### Version 0.20.3
+- [x] Pull session/auth into a real auth module
+    - [x] Move password helpers into src/security/passwords.js
+    - [x] Move in-memory session helpers into src/security/sessions.js
+    - [x] Make them database backed sessions, rather than in-memory maps (This will require an additonal migration)
+
+### Version 0.20.4
+- [x] Stop using legacy URL parsing inside Express routes
+    - Replace 
+        usersService.action(request, response, request.session, request.url) 
+    with:
+        usersService.action ({
+            session: request.session,
+            userId: request.params.userId,
+            action: request.params.action,
+            body: request.body
+        })
+    - [x] User routes now pass request.params user/action values
+    - [x] Time-entry update route now passes request.params.entryId
+
+### Version 0.20.5
+- [x] Move response handling out of services
+    - [x] Services return data or throw errors
+    - [x] Routes parse request bodies, set cookies/status codes, and send HTTP responses
+    - [x] Remove legacy handler delegation from active API routes
+
+### Version 0.20.6
+- [x] Add real error types / central API error handling
+    - To make error reporting/logging clearer, add something like: 
+        - [x] src/utils/app-error.js
+        - [x] src/middleware/error-handler.js
+    - This will give services the ability to send:
+        throw new AppError("User not found", 404);
+
+### Version 0.20.7
+- [x] Fix the npm run check script
+    - [x] Replace "node --check server.js" with a project-wide JavaScript syntax check
+    - [x] Add scripts/check-js.mjs
+
+### Version 0.20.8
+- [x] Decide whether cookie-parser is needed
+    - [x] package.json includes cookie-parser. Cookies are being handled by the legacy handler.
+    - [x] Use cookie-parser in Express and simplify cookie/session parsing
+
+### Version 0.20.9
+- [ ] Update the Edit time entires screen to fit within content columns
+- [ ] Update Edit time entries screen to show Status "N/A" when billable flag is not set
+- [ ] Change saved message on time tracker; a simple "Saved." in green is sufficient.
 
 ### Version 0.30
 - [ ] Add roles
+    - [ ] Users can be assigned multiple roles
+        - e.g. User 1 can be a client administrator for a client, project administrator for a different client, and a project user for another client
     - [ ] Super Admin 
         - Controls all organizations within the app; Can also edit clients, projects, and users in each organization
         - Super admins have full access to assign anyone to anything, but cannot break the limits set below

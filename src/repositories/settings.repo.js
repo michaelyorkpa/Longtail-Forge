@@ -1,3 +1,80 @@
-// Settings persistence is currently delegated through src/legacy/handlers.js.
-// Move organization/user settings SQL here as the next extraction step.
-export const settingsRepository = {};
+import { querySql, runSql, sqlInteger, sqlText } from "../db/index.js";
+import { normalizeSettings } from "../utils/normalizers.js";
+
+const DEFAULT_ORGANIZATION_NAME = "Raymond Tec";
+
+async function readOrganizationSettings() {
+  const rows = await querySql(`
+SELECT
+  organizations.name AS organization_name,
+  organization_settings.fiscal_year_start_month,
+  organization_settings.fiscal_year_start_day,
+  organization_settings.default_billing_rate,
+  organization_settings.billing_period_type,
+  organization_settings.billing_period_start_day,
+  organization_settings.rounding_enabled,
+  organization_settings.rounding_increment
+FROM organizations
+INNER JOIN organization_settings ON organization_settings.organization_id = organizations.id
+ORDER BY organizations.created_at
+LIMIT 1;
+`);
+
+  if (rows.length === 0) {
+    return normalizeSettings({ organizationName: DEFAULT_ORGANIZATION_NAME });
+  }
+
+  return settingsRowToOrganizationSettings(rows[0]);
+}
+
+async function saveOrganizationSettings(settings) {
+  const organizations = await querySql("SELECT id FROM organizations ORDER BY created_at LIMIT 1;");
+
+  if (organizations.length === 0) {
+    throw new Error("No organization exists for organization settings.");
+  }
+
+  const organizationId = organizations[0].id;
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE organizations
+SET name = ${sqlText(settings.organizationName)}, updated_at = ${sqlText(now)}
+WHERE id = ${sqlText(organizationId)};
+UPDATE organization_settings
+SET
+  fiscal_year_start_month = ${sqlInteger(settings.fiscalYear.startMonth)},
+  fiscal_year_start_day = ${sqlInteger(settings.fiscalYear.startDay)},
+  default_billing_rate = ${sqlText(settings.defaultBillingRate)},
+  billing_period_type = ${sqlText(settings.billingPeriod.type)},
+  billing_period_start_day = ${sqlInteger(settings.billingPeriod.startDay)},
+  rounding_enabled = ${sqlInteger(settings.billingRounding.enabled ? 1 : 0)},
+  rounding_increment = ${sqlText(settings.billingRounding.increment)},
+  updated_at = ${sqlText(now)}
+WHERE organization_id = ${sqlText(organizationId)};
+`);
+}
+
+function settingsRowToOrganizationSettings(row) {
+  return normalizeSettings({
+    organizationName: row.organization_name,
+    fiscalYear: {
+      startMonth: row.fiscal_year_start_month,
+      startDay: row.fiscal_year_start_day,
+    },
+    defaultBillingRate: row.default_billing_rate,
+    billingPeriod: {
+      type: row.billing_period_type,
+      startDay: row.billing_period_start_day,
+    },
+    billingRounding: {
+      enabled: Number(row.rounding_enabled) === 1,
+      increment: row.rounding_increment,
+    },
+  });
+}
+
+export const settingsRepository = {
+  readOrganizationSettings,
+  saveOrganizationSettings,
+};

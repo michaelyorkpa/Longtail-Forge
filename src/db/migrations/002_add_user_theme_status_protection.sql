@@ -1,0 +1,3 @@
+ALTER TABLE users ADD COLUMN theme_mode TEXT NOT NULL DEFAULT 'light';
+ALTER TABLE users ADD COLUMN user_status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE users ADD COLUMN protected_user TEXT NOT NULL DEFAULT 'no';

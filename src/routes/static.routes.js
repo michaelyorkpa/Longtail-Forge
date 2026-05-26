@@ -1,9 +1,16 @@
 import { Router } from "express";
 import { staticService } from "../services/static.service.js";
-import { legacyRoute } from "./route-utils.js";
+import { asyncRoute } from "../utils/http.js";
 
 const staticRoutes = Router();
 
-staticRoutes.get("*", legacyRoute((request, response) => staticService.serve(request, response)));
+staticRoutes.get("*", asyncRoute(async (request, response) => {
+  const result = await staticService.read(request.url);
+
+  response.writeHead(result.statusCode, {
+    "Content-Type": result.contentType,
+  });
+  response.end(result.contents);
+}));
 
 export { staticRoutes };

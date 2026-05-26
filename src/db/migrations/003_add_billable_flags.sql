@@ -1,0 +1,3 @@
+ALTER TABLE clients ADD COLUMN billable TEXT NOT NULL DEFAULT 'yes';
+ALTER TABLE projects ADD COLUMN billable TEXT NOT NULL DEFAULT 'yes';
+ALTER TABLE time_entries ADD COLUMN billable TEXT NOT NULL DEFAULT 'yes';

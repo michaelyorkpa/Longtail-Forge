@@ -1,8 +1,10 @@
 import express from "express";
+import cookieParser from "cookie-parser";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
 import { initializeDatabase } from "./db/index.js";
+import { errorHandler } from "./middleware/error-handler.js";
 import { requireAuth } from "./middleware/require-auth.js";
 import { authRoutes } from "./routes/auth.routes.js";
 import { clientsRoutes } from "./routes/clients.routes.js";
@@ -16,6 +18,7 @@ function createApp() {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
   app.disable("x-powered-by");
+  app.use(cookieParser());
   app.use(express.static(path.join(root, "public")));
   app.use("/api", authRoutes);
   app.use(requireAuth);
@@ -33,16 +36,7 @@ function createApp() {
   });
   app.use(staticRoutes);
 
-  app.use((error, request, response, next) => {
-    console.error(error);
-
-    if (response.headersSent) {
-      next(error);
-      return;
-    }
-
-    response.status(500).json({ error: "Internal server error" });
-  });
+  app.use(errorHandler);
 
   return app;
 }

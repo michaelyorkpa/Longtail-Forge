@@ -1,36 +1,58 @@
 import { Router } from "express";
+import { buildThemeCookie } from "../security/sessions.js";
 import { authService } from "../services/auth.service.js";
 import { usersService } from "../services/users.service.js";
-import { legacyRoute } from "./route-utils.js";
+import { asyncRoute, readJsonBody } from "../utils/http.js";
 
 const usersRoutes = Router();
 
-usersRoutes.get("/users", legacyRoute((request, response) =>
-    usersService.list(response, request.session),
-));
+usersRoutes.get("/users", asyncRoute(async (request, response) => {
+  const result = await usersService.list(request.session);
+  response.status(200).json(result);
+}));
 
-usersRoutes.post("/users", legacyRoute((request, response) =>
-    usersService.create(request, response, request.session),
-));
+usersRoutes.post("/users", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await usersService.create(payload, request.session);
+  response.status(201).json(result);
+}));
 
-usersRoutes.put("/users/:userId/:action", legacyRoute((request, response) =>
-    usersService.action(request, response, request.session, request.url),
-));
+usersRoutes.put("/users/:userId/:action", asyncRoute(async (request, response) => {
+  const payload = request.params.action === "update" ? await readJsonBody(request) : {};
+  const result = await usersService.action({
+    payload,
+    session: request.session,
+    userId: request.params.userId,
+    action: request.params.action,
+  });
 
-usersRoutes.delete("/users/:userId", legacyRoute((request, response) =>
-    usersService.delete(response, request.session, request.url),
-));
+  response.status(200).json(result);
+}));
 
-usersRoutes.get("/user/settings", legacyRoute((request, response) =>
-    usersService.readSettings(response, request.session),
-));
+usersRoutes.delete("/users/:userId", asyncRoute(async (request, response) => {
+  const result = await usersService.delete(request.session, request.params.userId);
+  response.status(200).json(result);
+}));
 
-usersRoutes.put("/user/settings", legacyRoute((request, response) =>
-    usersService.saveSettings(request, response, request.session),
-));
+usersRoutes.get("/user/settings", asyncRoute(async (request, response) => {
+  const result = await usersService.readSettings(request.session);
 
-usersRoutes.put("/user/password", legacyRoute((request, response) =>
-    authService.changePassword(request, response, request.session),
-));
+  response.setHeader("Set-Cookie", buildThemeCookie(result.themeMode));
+  response.status(200).json(result);
+}));
+
+usersRoutes.put("/user/settings", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await usersService.saveSettings(payload, request.session);
+
+  response.setHeader("Set-Cookie", buildThemeCookie(result.themeMode));
+  response.status(200).json(result);
+}));
+
+usersRoutes.put("/user/password", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await authService.changePassword(payload, request.session);
+  response.status(200).json(result);
+}));
 
 export { usersRoutes };

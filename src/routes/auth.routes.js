@@ -1,13 +1,43 @@
 import { Router } from "express";
+import {
+  buildExpiredSessionCookie,
+  buildExpiredThemeCookie,
+  buildSessionCookie,
+  buildThemeCookie,
+  getRequestSession,
+  getSessionIdFromRequest,
+} from "../security/sessions.js";
 import { authService } from "../services/auth.service.js";
-import { legacyRoute } from "./route-utils.js";
+import { asyncRoute, readJsonBody } from "../utils/http.js";
 
 const authRoutes = Router();
 
-authRoutes.post("/login", legacyRoute((request, response) => authService.login(request, response)));
+authRoutes.post("/login", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await authService.login(payload);
 
-authRoutes.post("/logout", legacyRoute((request, response) => authService.logout(request, response)));
+  response.setHeader("Set-Cookie", [
+    buildSessionCookie(result.session.sessionId, result.session.maxAgeSeconds),
+    buildThemeCookie(result.themeMode),
+  ]);
+  response.status(200).json({ user: result.user });
+}));
 
-authRoutes.get("/session", legacyRoute((request, response) => authService.readSession(request, response)));
+authRoutes.post("/logout", asyncRoute(async (request, response) => {
+  const result = await authService.logout(getSessionIdFromRequest(request));
+
+  response.setHeader("Set-Cookie", [
+    buildExpiredSessionCookie(),
+    buildExpiredThemeCookie(),
+  ]);
+  response.status(200).json(result);
+}));
+
+authRoutes.get("/session", asyncRoute(async (request, response) => {
+  const session = await getRequestSession(request);
+  const result = authService.readSession(session);
+
+  response.status(200).json(result);
+}));
 
 export { authRoutes };

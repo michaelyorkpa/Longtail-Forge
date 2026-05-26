@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js"
+    "check": "node scripts/check-js.mjs"
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
