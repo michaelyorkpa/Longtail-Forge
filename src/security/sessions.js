@@ -1,9 +1,8 @@
 import { randomBytes } from "node:crypto";
+import { config } from "../config.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { normalizeThemeMode } from "../utils/normalizers.js";
 
-const SESSION_COOKIE_NAME = "time_tracker_session";
-const THEME_COOKIE_NAME = "lf_theme";
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 
 async function createSession(user) {
@@ -65,12 +64,12 @@ async function getRequestSession(request) {
 }
 
 function getSessionIdFromRequest(request) {
-  if (request.cookies?.[SESSION_COOKIE_NAME]) {
-    return request.cookies[SESSION_COOKIE_NAME];
+  if (request.cookies?.[config.cookies.sessionName]) {
+    return request.cookies[config.cookies.sessionName];
   }
 
   const cookies = parseCookieHeader(request.headers.cookie || "");
-  return cookies[SESSION_COOKIE_NAME] || "";
+  return cookies[config.cookies.sessionName] || "";
 }
 
 function parseCookieHeader(cookieHeader) {
@@ -94,19 +93,51 @@ function parseCookieHeader(cookieHeader) {
 }
 
 function buildSessionCookie(sessionId, maxAgeSeconds) {
-  return `${SESSION_COOKIE_NAME}=${encodeURIComponent(sessionId)}; Max-Age=${maxAgeSeconds}; Path=/; HttpOnly; SameSite=Lax`;
+  return buildCookie(config.cookies.sessionName, sessionId, {
+    httpOnly: config.cookies.httpOnly,
+    maxAgeSeconds,
+    sameSite: config.cookies.sameSite,
+  });
 }
 
 function buildExpiredSessionCookie() {
-  return `${SESSION_COOKIE_NAME}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`;
+  return buildCookie(config.cookies.sessionName, "", {
+    httpOnly: config.cookies.httpOnly,
+    maxAgeSeconds: 0,
+    sameSite: config.cookies.sameSite,
+  });
 }
 
 function buildThemeCookie(themeMode) {
-  return `${THEME_COOKIE_NAME}=${encodeURIComponent(normalizeThemeMode(themeMode))}; Max-Age=${SESSION_MAX_AGE_SECONDS}; Path=/; SameSite=Lax`;
+  return buildCookie(config.cookies.themeName, normalizeThemeMode(themeMode), {
+    maxAgeSeconds: SESSION_MAX_AGE_SECONDS,
+    sameSite: config.cookies.sameSite,
+  });
 }
 
 function buildExpiredThemeCookie() {
-  return `${THEME_COOKIE_NAME}=; Max-Age=0; Path=/; SameSite=Lax`;
+  return buildCookie(config.cookies.themeName, "", {
+    maxAgeSeconds: 0,
+    sameSite: config.cookies.sameSite,
+  });
+}
+
+function buildCookie(name, value, options = {}) {
+  const segments = [
+    `${name}=${encodeURIComponent(value)}`,
+    `Max-Age=${options.maxAgeSeconds}`,
+    "Path=/",
+  ];
+
+  if (options.httpOnly) {
+    segments.push("HttpOnly");
+  }
+
+  if (options.sameSite) {
+    segments.push(`SameSite=${options.sameSite}`);
+  }
+
+  return segments.join("; ");
 }
 
 export {

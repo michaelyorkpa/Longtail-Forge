@@ -33,6 +33,12 @@ const config = {
   timeEntriesFile: path.join(root, "data", "time-entries.csv"),
   appLogFile: path.join(root, "logs", "app-events.csv"),
   sqliteCommand: process.env.SQLITE_COMMAND || "sqlite3",
+  cookies: {
+    sessionName: "longtail_forge_session",
+    themeName: "lf_theme",
+    httpOnly: true,
+    sameSite: "Lax",
+  },
 };
 
 export { config };

@@ -1,6 +1,6 @@
 # Longtail Forge Roadmap
 
-Last updated for roadmap version 0.21.2.
+Last updated for roadmap version 0.21.3.
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
@@ -199,11 +199,11 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ## Version 0.21.3
 
-- [ ] Add checksums to database migrations to avoid older migrations being silently changed after being applied
-- [ ] Rename the session cookie to longtail_forge_session
-- [ ] Add config-driven cookie behavior
-  - [ ] HttpOnly
-  - [ ] SameSite=Lax
+- [x] Add checksums to database migrations to avoid older migrations being silently changed after being applied
+- [x] Rename the session cookie to longtail_forge_session
+- [x] Add config-driven cookie behavior
+  - [x] HttpOnly
+  - [x] SameSite=Lax
 
 ## Version 0.21.4
 

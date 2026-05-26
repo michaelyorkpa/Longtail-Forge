@@ -1,0 +1,2 @@
+- [ ] Adding timer stops/deletes running timers
+- [ ] Create timer persistence (navigating away doesn't stop the timer, timer can be restarted/reloaded)
