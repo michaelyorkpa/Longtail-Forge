@@ -26,7 +26,7 @@ const config = {
   dataDir: path.join(root, "data"),
   logsDir: path.join(root, "logs"),
   logDir: path.join(root, "logs"),
-  databaseFile: path.join(root, "data", "time-tracker.db"),
+  databaseFile: path.join(root, "data", "longtail-forge.db"),
   migrationsDir: path.join(root, "src", "db", "migrations"),
   settingsFile: path.join(root, "data", "settings.json"),
   clientProjectFile: path.join(root, "data", "client-project.json"),

@@ -1,2 +1,6 @@
 - [ ] Adding timer stops/deletes running timers
 - [ ] Create timer persistence (navigating away doesn't stop the timer, timer can be restarted/reloaded)
+- [ ] Dashboard should become the hub for managing projects
+    - [ ] Add "Past Due/Due Soon" section that shows past due and upcoming tasks sorted by client and project
+    - [ ] Add "Latest Updates" section which shows newest clients, newest projects, newest notes, newest support tickets
+    - [ ] 

@@ -1,6 +1,6 @@
 # Longtail Forge Roadmap
 
-Last updated for roadmap version 0.21.3.
+Last updated for roadmap version 0.21.4.
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
@@ -207,33 +207,60 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ## Version 0.21.4
 
-- [ ] Add real LICENSE file per description in README and footer
-- [ ] Add "Getting Started" section to README
-  - [ ] Requirements
-  - [ ] Setup
-  - [ ] Optional environment variables
-  - [ ] Start
-  - [ ] Open
-- [ ] Change database file name to longtail-forge.db
+- [x] Add real LICENSE file per description in README and footer
+- [x] Add "Getting Started" section to README
+  - [x] Requirements
+  - [x] Setup
+  - [x] Optional environment variables
+  - [x] Start
+  - [x] Open
+- [x] Change database file name to longtail-forge.db
 
-## Version 0.22.1 - Final Tweaks to 0.2x Branch
+## Version 0.22.1
 
-- [ ] Move all app logging to database
-  - Server/error logging should still be written to files in the logs/ directory
-  - Include the following fields:
-    - [ ] Datetime
-    - [ ] Action
-    - [ ] User doing the change
-    - [ ] Record type affected (time entry, organization setting, client setting, project setting)
-    - [ ] Record affected (clickable link)
-    - [ ] Change type (Create, Update, Delete)
-    - [ ] Previous record value (stored as JSON)
+- [ ] Login username and password box are aligned near the bottom (not at the bottom) instead of the middle of the screen
+- [ ] Rename all instances of "Home" to "Dashboard"
 
 ## Version 0.22.2
 
-- [ ] Add logging settings options box to Organization settings below billing settings
-  - [ ] Allow app logging to be turned off
-  - [ ] Add period dropdown selector with options for:
+- [ ] Hours on reporting screen do not round when a client is not billable
+- [ ] If a client/project is marked as "Unbillable" allow a checkbox below "Rounding" heading that says "Round hours?"
+- [ ] Adjust reporting and Dashboard information so that it respects the "Round hours?" selection
+
+## Version 0.22.3
+
+- [ ] Add filters to the edit entries screen for:
+  - [ ] Entry status (Billed/Unbilled)
+  - [ ] Dates (Last billing period, current billing period, custom)
+  - [ ] User(s)
+
+## Version 0.22.4
+
+- [ ] On the Edit Entries screen, add a delete button next to the edit-entry button in the columned display
+- [ ] Update the columned section of the Edit Entries screen to fit within content columns
+- [ ] Update Edit Entries screen to show status "N/A" when billable flag is not set
+- [ ] Change saved message on time tracker to a simple green "Saved."
+
+## Version 0.23.1 - Final Tweaks to 0.2x Branch
+
+- [ ] Move audit logging to database
+  - Server/error logging should still be written to files in the logs/ directory
+  - Include the following fields:
+    - audit_id
+    - organization_id (Foreign Key)
+    - created_at
+    - actor_user_id
+    - actor_user_name <- On the front end, I want to make this clickable
+    - action, change_type
+    - record_type, record_id, record_label, record_url <- On the front end, I want to make this clickable
+    - previous_value_json, new_value_json, metadata_json
+
+## Version 0.23.2
+
+- [ ] Add aduit log settings to Organization settings below billing settings
+  - [ ] App audit logging checkbox (checked = on)
+    - Log when audit logging is turned off and on
+  - [ ] Retention period:
     - 7 days
     - 14 days
     - 30 days
@@ -243,32 +270,9 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     - 1 year
   - [ ] Default logging period to 30 days
 
-## Version 0.22.3
-
-- [ ] Hours on reporting screen do not round when a client is not billable
-- [ ] Decide what the intended non-billable rounding behavior should be
-
-## Version 0.22.4
-
-- [ ] Add filters to the edit entries screen for:
-  - [ ] Entry status (Billed/Unbilled)
-  - [ ] Dates (Last billing period, current billing period, custom)
-  - [ ] User(s)
-
-## Version 0.22.5
-
-- [ ] On the Edit Entries screen, add a delete button next to the edit-entry button in the columned display
-- [ ] Update the columned section of the Edit Entries screen to fit within content columns
-- [ ] Update Edit Entries screen to show status "N/A" when billable flag is not set
-- [ ] Change saved message on time tracker to a simple green "Saved."
-
-## Version 0.22.6
-
-- [ ] Login username and password box are aligned near the bottom (not at the bottom) instead of the middle of the screen
-- [ ] Rename all instances of "Home" to "Dashboard"
-
 ## Version 0.30 - Final Time Tracker Only Version
 
+- [ ] Add timer persistence
 - [ ] Add roles
   - [ ] Users can be assigned multiple roles
     - Example: User 1 can be a client administrator for one client, project administrator for a different client, and a project user for another client
@@ -324,6 +328,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 - [ ] Calendars
 - [ ] Invoicing
 - [ ] Add production cookie flags
+- [ ] Add in-app messaging between users
 - [ ] Two Factor Authentication (TOTP)
 - [ ] Passkeys
 - [ ] SSO
@@ -332,6 +337,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 - [ ] Move to a demo production environment
 - [ ] Add PostgreSQL support
+- [ ] Add file attachment abilities to notes/tasks/support tickets
 - [ ] Docker Compose
 - [ ] Setup wizard
 - [ ] Admin docs

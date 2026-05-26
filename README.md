@@ -46,6 +46,40 @@ The detailed per-version changelog and future plan live in [ROADMAP.md](ROADMAP.
 - `0.22.x` focuses on logging, reporting, edit-entry polish, and final time-tracker branch refinements.
 - `0.30+` expands toward roles, tasks, notes, calendars, production packaging, personal use, and SaaS capabilities.
 
+## Getting Started
+
+### Requirements
+
+- Node.js 20 or newer
+- npm
+- SQLite command-line tool available as `sqlite3`, or set `SQLITE_COMMAND`
+
+### Setup
+
+Install dependencies:
+
+```sh
+npm install
+```
+
+The app stores local runtime data in `data/`, including the SQLite database at `data/longtail-forge.db`. Database migrations run automatically when the server starts.
+
+### Optional Environment Variables
+
+- `HOST`: server host, defaults to `127.0.0.1`
+- `PORT`: server port, defaults to `8001`
+- `SQLITE_COMMAND`: SQLite executable, defaults to `sqlite3`
+
+### Start
+
+```sh
+npm run start
+```
+
+### Open
+
+Open `http://127.0.0.1:8001/index.html` in your browser, adjusting the port if you set `PORT`.
+
 ## License
 
 Longtail Forge is licensed under the GNU Affero General Public License v3.0 or later.
