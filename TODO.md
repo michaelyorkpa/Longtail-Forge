@@ -6,6 +6,7 @@ This is a place for me to jot down fixes and a "Wishlist" for things I'd like to
 
 - [ ] Fix this: Adding timer stops/deletes running timers
 - [ ] Convert warning pop-ups to in-app modal windows, rather than browser alert modals
+- [ ] Edit entries screen needs to have a duration editing box, not just a start & end time
 
 ## Tweaks
 
