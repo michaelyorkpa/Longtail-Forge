@@ -39,7 +39,7 @@ I could not find a good, all-in-one tool that met my needs for time tracking, re
 The detailed per-version changelog and future plan live in [ROADMAP.md](ROADMAP.md).
 
 - `0.1` established the original flat-file stopwatch workflow.
-- `0.11` added multiple timers, reporting, front-end editing, manual entry, and the home screen.
+- `0.11` added multiple timers, reporting, front-end editing, manual entry, and the dashboard screen.
 - `0.12` moved the app to SQLite, added login, separated client/project UI, added billable flags, added a fourth timer, and introduced user administration.
 - `0.20.x` modernized the server around Express, repositories, migrations, services, central error handling, and public assets.
 - `0.21.x` finishes the legacy refactor and begins app version/footer and front-end organization cleanup.

@@ -36,7 +36,7 @@ async function updateSplashAction() {
     const response = await fetch("/api/session", { cache: "no-store" });
 
     if (response.ok) {
-      splashAction.href = "/home.html";
+      splashAction.href = "/dashboard.html";
       splashAction.textContent = "Open App";
     }
   } catch {

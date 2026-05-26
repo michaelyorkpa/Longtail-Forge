@@ -33,7 +33,7 @@ if (loginForm) {
         ? body.user.themeMode
         : "light";
       window.localStorage.setItem("lf_theme", themeMode);
-      window.location.assign("/home.html");
+      window.location.assign("/dashboard.html");
     } catch (error) {
       setLoginStatus(error.message || "Login failed.");
     } finally {
@@ -48,7 +48,7 @@ async function redirectIfLoggedIn() {
     const response = await fetch("/api/session", { cache: "no-store" });
 
     if (response.ok) {
-      window.location.replace("/home.html");
+      window.location.replace("/dashboard.html");
     }
   } catch {
     // The login page is the fallback when session lookup fails.

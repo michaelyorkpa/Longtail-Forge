@@ -1,6 +1,6 @@
 # Longtail Forge Roadmap
 
-Last updated for roadmap version 0.21.4.
+Last updated for roadmap version 0.22.1.
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
@@ -29,7 +29,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 - [x] Client/project editing on the front end
 - [x] Time editing on the front end
 - [x] Manual time entry
-- [x] Home screen
+- [x] Dashboard screen
   - [x] Active clients
     - Shows total number with dropdown to go to clients reporting
   - [x] Table with current month's billables
@@ -218,13 +218,13 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ## Version 0.22.1
 
-- [ ] Login username and password box are aligned near the bottom (not at the bottom) instead of the middle of the screen
-- [ ] Rename all instances of "Home" to "Dashboard"
+- [x] Login username and password box are aligned near the bottom (not at the bottom) instead of the middle of the screen
+- [x] Rename the main summary screen to "Dashboard" everywhere
 
 ## Version 0.22.2
 
 - [ ] Hours on reporting screen do not round when a client is not billable
-- [ ] If a client/project is marked as "Unbillable" allow a checkbox below "Rounding" heading that says "Round hours?"
+- [ ] If a client/project is marked as "Unbillable" in settings screen, allow a checkbox below "Rounding" heading that says "Round hours?"
 - [ ] Adjust reporting and Dashboard information so that it respects the "Round hours?" selection
 
 ## Version 0.22.3
@@ -269,6 +269,20 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     - 180 days
     - 1 year
   - [ ] Default logging period to 30 days
+
+  ## Version 0.23.3 - Admin Audit Log Viewer
+
+  - [ ] Add admin page for audit log (Settings menu, below User)
+  - [ ] Show columns Date, User, Client, Project, Record Type, Change Type
+  - [ ] Filter by date, user, record type, change type
+  - [ ] Link each row to modal that displays full audit data
+    - [ ] Clean up JSON display to be human readable
+  
+  ## Version 0.23.3.1 - Admin Audit Log Viewer Refinements
+  - [ ] Clicking on a user in the column view filters by user automatically
+  - [ ] Clicking on a record in the modal view takes admin to edit page for that record
+  - [ ] Full audit log export (CSV?)
+  - [ ] Filtered audit log export (CSV?)
 
 ## Version 0.30 - Final Time Tracker Only Version
 
@@ -318,13 +332,16 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Tasks appear on calendars
   - [ ] Tasks are assignable to users/admins within client/project as appropriate per user permissions
 - [ ] Support tickets
+  - [ ] Consult with existing support ticket solutions for best path here
 - [ ] Expanded reporting
 - [ ] Notes/knowledge base
   - [ ] Notes should be linkable with either markdown or wiki-style linking
   - [ ] Notes should form the basis of the knowledge base
-  - [ ] Knowledge base should build automatically
+  - [ ] Knowledge base should build automatically from notes, tasks, and support tickets
+    - Knowledge base will be a self-building "site" like SharePoint for working on tasks
   - [ ] Notes can be marked as specific to a client, project, or entire org
-  - [ ] Notes should be marked as internal only or external
+  - [ ] Notes should be marked as internal only or external visible
+  - [ ] Notes should have a changelog table, can be reused from the audit log, but remains persistent
 - [ ] Calendars
 - [ ] Invoicing
 - [ ] Add production cookie flags

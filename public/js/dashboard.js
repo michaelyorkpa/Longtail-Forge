@@ -1,4 +1,4 @@
-// Home is a dashboard view built from the same API data used by reporting.
+// Dashboard is a dashboard view built from the same API data used by reporting.
 const activeClientCount = document.querySelector("[data-active-client-count]");
 const clientReportOptions = document.querySelector("[data-client-report-options]");
 const openClientReportButton = document.querySelector("[data-open-client-report]");
@@ -6,16 +6,16 @@ const currentMonthBillables = document.querySelector("[data-current-month-billab
 const currentMonthHours = document.querySelector("[data-current-month-hours]");
 const currentMonthAmount = document.querySelector("[data-current-month-amount]");
 const billablesChart = document.querySelector("[data-billables-chart]");
-const homeStatus = document.querySelector("[data-home-status]");
+const dashboardStatus = document.querySelector("[data-dashboard-status]");
 
-let homeSettings = {
+let dashboardSettings = {
   defaultBillingRate: 0,
   billingRounding: { enabled: false, increment: "nearestQuarterHour" },
 };
-let homeClients = [];
-let homeEntries = [];
+let dashboardClients = [];
+let dashboardEntries = [];
 
-loadHomeData();
+loadDashboardData();
 
 clientReportOptions.addEventListener("change", () => {
   openClientReportButton.disabled = !getSelectedReportClientId();
@@ -31,8 +31,8 @@ openClientReportButton.addEventListener("click", () => {
   window.location.href = `reporting.html?client=${encodeURIComponent(clientId)}`;
 });
 
-async function loadHomeData() {
-  setHomeStatus("Loading dashboard...");
+async function loadDashboardData() {
+  setDashboardStatus("Loading dashboard...");
 
   try {
     const [settingsResponse, clientsResponse, entriesResponse] = await Promise.all([
@@ -45,26 +45,26 @@ async function loadHomeData() {
       throw new Error(`Could not load client data: ${clientsResponse.status}`);
     }
 
-    homeSettings = settingsResponse.ok
+    dashboardSettings = settingsResponse.ok
       ? normalizeSettings(await settingsResponse.json())
       : normalizeSettings({});
-    homeClients = normalizeClients(await clientsResponse.json());
-    homeEntries = entriesResponse.ok
+    dashboardClients = normalizeClients(await clientsResponse.json());
+    dashboardEntries = entriesResponse.ok
       ? normalizeTimeEntries(await entriesResponse.json())
       : [];
 
     renderActiveClients();
     renderCurrentMonthBillables();
     renderBillablesChart();
-    setHomeStatus("");
+    setDashboardStatus("");
   } catch (error) {
-    setHomeStatus("Dashboard data could not be loaded.");
+    setDashboardStatus("Dashboard data could not be loaded.");
     console.error(error);
   }
 }
 
 function renderActiveClients() {
-  const activeClients = sortByName(homeClients.filter((client) => client.status === "Active"));
+  const activeClients = sortByName(dashboardClients.filter((client) => client.status === "Active"));
   activeClientCount.textContent = String(activeClients.length);
   clientReportOptions.replaceChildren(createLegend("Client Reporting"));
 
@@ -142,10 +142,10 @@ function getClientBillablesForRange(range) {
 }
 
 function getClientHoursAndBillablesForRange(range) {
-  return sortByName(homeClients)
+  return sortByName(dashboardClients)
     .filter((client) => client.status === "Active")
     .map((client) => {
-      const clientEntries = homeEntries.filter((entry) =>
+      const clientEntries = dashboardEntries.filter((entry) =>
         matchesClient(entry, client) &&
         isEntryInRange(entry, range),
       );
@@ -235,7 +235,7 @@ function createBillablesSvg(points) {
 }
 
 function getSelectedReportClientId() {
-  return clientReportOptions.querySelector("input[name='home-report-client']:checked")?.value || "";
+  return clientReportOptions.querySelector("input[name='dashboard-report-client']:checked")?.value || "";
 }
 
 function normalizeSettings(settings) {
@@ -287,7 +287,7 @@ function getReportProjects(client) {
     projectsByKey.set(getProjectMatchKey(project), project);
   });
 
-  homeEntries
+  dashboardEntries
     .filter((entry) => matchesClient(entry, client))
     .forEach((entry) => {
       const project = {
@@ -307,11 +307,11 @@ function getReportProjects(client) {
 }
 
 function getProjectBillingRate(client, project) {
-  return project.billingRate ?? client.billingRate ?? homeSettings.defaultBillingRate;
+  return project.billingRate ?? client.billingRate ?? dashboardSettings.defaultBillingRate;
 }
 
 function getEffectiveClientBillingRounding(client) {
-  return client.billingRounding || homeSettings.billingRounding;
+  return client.billingRounding || dashboardSettings.billingRounding;
 }
 
 function getEffectiveProjectBillingRounding(client, project) {
@@ -445,7 +445,7 @@ function createClientRadio(client) {
 
   const input = document.createElement("input");
   input.type = "radio";
-  input.name = "home-report-client";
+  input.name = "dashboard-report-client";
   input.value = client.id;
 
   label.append(input, document.createTextNode(client.name));
@@ -476,6 +476,6 @@ function sortByName(items) {
   );
 }
 
-function setHomeStatus(message) {
-  homeStatus.textContent = message;
+function setDashboardStatus(message) {
+  dashboardStatus.textContent = message;
 }

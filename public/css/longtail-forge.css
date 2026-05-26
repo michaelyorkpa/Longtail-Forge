@@ -315,6 +315,7 @@ h1 {
 
 .login-page {
     width: min(90vw, 380px);
+    margin: auto auto clamp(96px, 18vh, 180px);
     text-align: left;
 }
 
@@ -498,12 +499,12 @@ button.danger-button {
     text-align: left;
 }
 
-.home-page {
+.dashboard-page {
     width: min(94vw, 1120px);
     text-align: left;
 }
 
-.home-summary-grid {
+.dashboard-summary-grid {
     display: grid;
     grid-template-columns: minmax(0, 360px);
     gap: 16px;
@@ -527,13 +528,13 @@ button.danger-button {
     margin-top: 0;
 }
 
-.home-client-details summary {
+.dashboard-client-details summary {
     color: var(--color-text);
     font-weight: 700;
     cursor: pointer;
 }
 
-.home-client-details summary span {
+.dashboard-client-details summary span {
     margin-left: 8px;
 }
 
@@ -685,7 +686,7 @@ button.danger-button {
     font-size: 14px;
 }
 
-[data-home-status] {
+[data-dashboard-status] {
     min-height: 20px;
     margin: 0 0 16px;
     color: var(--color-muted);

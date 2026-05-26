@@ -1,7 +1,7 @@
 // Shared authenticated app shell. Add/remove menu items here instead of editing every page.
 const DEFAULT_ORGANIZATION_NAME = "Organization";
 const NAV_ITEMS = [
-  { label: "Home", href: "home.html" },
+  { label: "Dashboard", href: "dashboard.html" },
   {
     label: "Time Keeping",
     items: [
@@ -54,7 +54,7 @@ function buildSiteHeader() {
   nav.setAttribute("aria-label", "Primary");
 
   brand.className = "site-brand";
-  brand.href = "home.html";
+  brand.href = "dashboard.html";
   brand.dataset.organizationName = "";
   brand.textContent = DEFAULT_ORGANIZATION_NAME;
 
@@ -136,7 +136,7 @@ function getCurrentPage() {
   const pathParts = window.location.pathname.split("/");
   const page = pathParts[pathParts.length - 1];
 
-  return page || "home.html";
+  return page || "dashboard.html";
 }
 
 async function loadOrganizationSettings() {
