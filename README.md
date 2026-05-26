@@ -174,7 +174,23 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
     - [x] Add ESLint
     - [x] Run JavaScript syntax checks and ESLint from npm run check
 
-### Version 0.21.0.1 - Frontend organization
+### Version 0.21.0.1
+- [ ] src/config.js has unneccessary config values, including:
+    - [ ] config.settingsFile
+    - [ ] config.clientProjectFile
+    - [ ] config.tiemEntriesFile
+    - [ ] Please ensure these are unnecessary and remove them
+- [ ] The Express error handler in src/app.js currently returns 500 for every error
+- [ ] Clients/projects and settings still use the default organization
+    - [ ] clients.routes.js  doesn't pass request.session before calling: 
+        - [ ] clientsService.readClientProjects()
+        - [ ] saveClientProjects()
+    - [ ] clients.service.js still uses 
+- [ ] Same general issue as above with organization settings
+    - [ ] Routes don't pass the session
+    - [ ] Repository reads/saves the first organization by "ORDER BY created_at LIMIT 1"
+
+### Version 0.21.0. - Frontend organization
 - [ ] Clean up loose .html files in root
 - [ ] Move toward:
     - public/
@@ -185,13 +201,46 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
     - The latter is for protected HTML
 
 ### Version 0.21.1
+- [ ] Add app version display to the shared footer
+- [ ] Use package.json version as the single source of truth
+- [ ] Add appName and appVersion to src/config.js by reading package.json 
+- [ ] While updating config.js, preserve/add the existing path settings needed by db/static services: root, dataDir, logsDir, migrationsDir, sqliteCommand, databaseFile, settingsFile, clientProjectFile, and timeEntriesFile.
+- [ ] Create src/routes/app-info.routes.js with GET /api/app-info returning { name, version } and Cache-Control: no-store. Mount it in src/app.js before requireAuth so the footer can load on public and authenticated pages.
+- [ ] Update public/js/footer.js so the brand line displays "Longtail Forge vX.Y.Z" using /api/app-info, with a graceful fallback to "Longtail Forge" if the request fails.
+- [ ] Do not hard-code the version in footer.js. Do not change unrelated behavior.
+
+### Version 0.21.2
+- [ ] Move all app logging to database
+    - Server/error logging should still be written to files in the logs/ directory
+    - Include the following fields
+    - [ ] Datetime
+    - [ ] Action
+    - [ ] User doing the change
+    - [ ] Record type affected (Time entry, organization setting, client setting, project setting)
+    - [ ] Record affected (clickable link)
+    - [ ] Change type (Create, Update, Delete)
+    - [ ] Previous record value (stored as JSON?)
+
+### Version 0.21.3
+- [ ] Add logging settings options box to Organization settings (below billing settings)
+    - [ ] Allow app logging to be turned off
+    - [ ] Add period drop down selector with options for:
+        - 7 Days
+        - 14 Days
+        - 30 Days
+        - 60 Days
+        - 90 Days
+        - 180 Days
+        - 1 year
+
+### Version 0.21.4
+- [ ] Add checksums to database migrations to avoid older migrations being silenetly changed after being applied
 - [ ] Rename the session cookie to longtail_forge_session
 - [ ] Add config-driven cookie behavior
     - [ ] HttpOnly
     - [ ] SameSite=Lax
-- [ ] Add checksums to database migrations to avoid older migrations being silenetly changed after being applied
 
-### Version 0.21.2
+### Version 0.21.5
 - [ ] Add real LICENSE file per description here and in footer in root
 - [ ] Add "Getting Started" section to Readme
     - [ ] Requirements
@@ -201,12 +250,15 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
     - [ ] Open
 - [ ] Change database file name to longtail-forge.db
 
-### Version 0.22
-- [ ] Add filter to the edit entries screen for entry status
-- [ ] Add filter to the edit entries screen for dates
-- [ ] Add filter to the edit entries screen for users
-- [ ] Add delete button to the columned display, next to edit entry
-- [ ] Update the Edit time entires screen to fit within content columns 
+### Version 0.22 - Final Tweaks to 0.2x Branch
+- [ ] Hours on reporting screen doesn't round when a client isn't "billable"
+    - Think about what the behavior SHOULD be
+- [ ] Add filters to the edit entries screen for:
+    - [ ] Entry status (Billed/Unbilled)
+    - [ ] Dates (Last billing period, current billing period, custom)
+    - [ ] By user(s)
+- [ ] On the "Edit Entries" screen, add a delete button to the columned display, next to edit entry button
+- [ ] Update the columned section of the Edit time entires screen to fit within content columns 
 - [ ] Update Edit time entries screen to show Status "N/A" when billable flag is not set
 - [ ] Change saved message on time tracker; a simple "Saved." in green is sufficient
 
