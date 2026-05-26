@@ -155,7 +155,7 @@ async function loadOrganizationSettings() {
 
     const settings = await response.json();
     applyOrganizationName(settings.organizationName);
-  } catch (error) {
+  } catch {
     applyOrganizationName(DEFAULT_ORGANIZATION_NAME);
   }
 }

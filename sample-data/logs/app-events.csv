@@ -1,6 +1,0 @@
-timestamp,username,action,client_id,client_name,project_id,project_name,details
-2026-05-01T12:55:00.000Z,sample-admin,app_settings_updated,,,,,organization_name=Freelance Studio;default_billing_rate=95
-2026-05-01T13:00:00.000Z,sample-admin,client_project_file_saved,,,,,Sample clients and projects created
-2026-05-01T14:18:00.000Z,sample-admin,time_entry_created,acme_artisans,Acme Artisans,website_maintenance,Website Maintenance,entry_id=2026-05-01-001;duration_seconds=4680;file=data/time-entries.csv
-2026-05-02T16:02:30.000Z,sample-admin,time_entry_created,acme_artisans,Acme Artisans,email_campaigns,Email Campaigns,entry_id=2026-05-02-001;duration_seconds=3150;file=data/time-entries.csv
-2026-05-03T18:45:00.000Z,sample-admin,time_entry_created,northstar_coaching,Northstar Coaching,brand_strategy,Brand Strategy,entry_id=2026-05-03-001;duration_seconds=6300;file=data/time-entries.csv

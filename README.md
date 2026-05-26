@@ -19,50 +19,6 @@ Freelancers and small agencies (web design & development, graphics design, etc.)
 
 I couldn't find a good, all-in-one tool that met my needs for time tracking, reporting, tasks, notes, and project management that integrated together in a way I found useful.
 
-## Early Release 50,000-Foot Roadmap
-
-### Phase 1 - Version 0.1
-- [x] Single codebase
-    - [x] Time tracking
-    - [x] Clients
-    - [x] Projects
-- [x] SQLite
-- [x] One default workspace
-- [x] Users
-- [x] Add organiztion_id everywhere
-
-### Phase 2 - Version 0.2
-- [x] Full server.js refactor
-- [ ] Start handling this like a real app and get rid of legacy spaghetti code
-- [ ] Add migrations
-
-
-### Phase 3 - Version 0.3
-- [ ] Roles
-- [ ] Add backups/export/import
-
-### Phase 4 - Version 0.4
-- [ ] Tasks
-- [ ] Support Tickets
-- [ ] Notes/Knowledge Base
-- [ ] Calendars
-
-### Phase 5 - Version 0.5
-- [ ] Add PostgreSQL support
-- [ ] Docker Compose
-- [ ] Setup wizard
-- [ ] Admin docs
-- [ ] Self-hosted release
-- [ ] Expand Project Management Tools
-
-### Phase 6 - Version 0.6
-- [ ] SaaS wrapper
-- [ ] hosted PostgreSQL
-- [ ] tenant signup
-- [ ] billing
-- [ ] email delivery
-- [ ] monitoring
-
 ## Detailed Road Map
 
 ### Version 0.1
@@ -203,12 +159,58 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
     - [x] package.json includes cookie-parser. Cookies are being handled by the legacy handler.
     - [x] Use cookie-parser in Express and simplify cookie/session parsing
 
-### Version 0.20.9
-- [ ] Update the Edit time entires screen to fit within content columns
-- [ ] Update Edit time entries screen to show Status "N/A" when billable flag is not set
-- [ ] Change saved message on time tracker; a simple "Saved." in green is sufficient.
+### Version 0.21.0 - Final Legacy Refactor
+- [x] Fix require-auth.js
+    - [x] Refactor require-auth.js to import directly from src/security/sessions.js and await the session lookup.
+- [x] Stop defaulting time entries to the default org/user
+    - [x] Pass request.session into time-entry routes
+    - [x] Create/list/update time entries using the authenticated session organization_id
+    - [x] Create time entries using the authenticated session user_id
+- [x] Finish killing the legacy bridge
+    - [x] Remove legacy auth/session imports
+    - [x] Remove route-utils
+    - [x] Delete src/legacy once nothing imports it
+- [x] Fix npm run check
+    - [x] Add ESLint
+    - [x] Run JavaScript syntax checks and ESLint from npm run check
 
-### Version 0.30
+### Version 0.21.0.1 - Frontend organization
+- [ ] Clean up loose .html files in root
+- [ ] Move toward:
+    - public/
+        - css/
+        - js/
+        - assets/
+    - views/
+    - The latter is for protected HTML
+
+### Version 0.21.1
+- [ ] Rename the session cookie to longtail_forge_session
+- [ ] Add config-driven cookie behavior
+    - [ ] HttpOnly
+    - [ ] SameSite=Lax
+- [ ] Add checksums to database migrations to avoid older migrations being silenetly changed after being applied
+
+### Version 0.21.2
+- [ ] Add real LICENSE file per description here and in footer in root
+- [ ] Add "Getting Started" section to Readme
+    - [ ] Requirements
+    - [ ] Setup
+    - [ ] Optional environment variables
+    - [ ] Start
+    - [ ] Open
+- [ ] Change database file name to longtail-forge.db
+
+### Version 0.22
+- [ ] Add filter to the edit entries screen for entry status
+- [ ] Add filter to the edit entries screen for dates
+- [ ] Add filter to the edit entries screen for users
+- [ ] Add delete button to the columned display, next to edit entry
+- [ ] Update the Edit time entires screen to fit within content columns 
+- [ ] Update Edit time entries screen to show Status "N/A" when billable flag is not set
+- [ ] Change saved message on time tracker; a simple "Saved." in green is sufficient
+
+### Version 0.30 - Final Time Tracker ONLY version
 - [ ] Add roles
     - [ ] Users can be assigned multiple roles
         - e.g. User 1 can be a client administrator for a client, project administrator for a different client, and a project user for another client
@@ -232,21 +234,63 @@ I couldn't find a good, all-in-one tool that met my needs for time tracking, rep
         - [ ] Project admins can be restricted from editing billing details by the client/org admins
         - [ ] Also add ability to control access to manual time entry and edit time entries
         - [ ] For client user and project user roles, they can only access their own times
+        - Granular controls should be put behind "Advanced" button
+    - [ ] Client Users (External)
+        - This is for clients to collaborate with users within organizations
 - [ ] Create nested clients
 - [ ] Create nested projects
+- [ ] Add backups/export/import
+- [ ] Email delivery
+- [ ] Invite links
 
 ### Version 0.40
 - [ ] Tasks
+    - [ ] Tasks are assigned to projects and clients
+    - [ ] Tasks should offer due dates with adjustable reminders
+        - [ ] Reminders should default to x days prior, can be configurable at the client and project levels
+    - [ ] Tasks should offer recurrence
+    - [ ] Tasks should appear on calendars
+    - [ ] Tasks should be assignable to all users/admins within client/project as appropriate per user permissions
 - [ ] Support Tickets
-- [ ] Expand Reporting
+    - [ ] Support tickets are 
+- [ ] Expanded Reporting
+- [ ] Notes/Knowledge Base
+    - [ ] Notes should be linkable with either markdown or wiki-style, allowing linking
+    - [ ] Notes should then form the basis of the knowledge base
+    - [ ] Knowledge base should build automatically
+    - [ ] Notes can be marked as specific to a client, project, or entire org
+    - [ ] Notes should be marked as internal only or external
+- [ ] Calendars
 - [ ] Invoicing
+- [ ] Add production cookie flags
 - [ ] Two Factor Authentication (TOTP)
 - [ ] Passkeys
 - [ ] SSO
 
 ### Version 0.50
-- [ ] Client Users
-    - This is for clients to collaborate with users within organizations
+- [ ] Move to a demo production environment
+- [ ] Add PostgreSQL support
+- [ ] Docker Compose
+- [ ] Setup wizard
+- [ ] Admin docs
+- [ ] Self-hosted release
+- [ ] Expand Project Management Tools
+
+### Version 0.55
+- [ ] Create 'Personal' version
+    - Will allow "Family" organizations
+    - No clients
+    - Unlimited projects, tasks, notes/knowledge base, calendars
+    - Will include 2FA, passkeys, and SSO
+    - Will allow "Collaborators," similar to client users
+- [ ] Incorporate "Personal" or "Private" per user tasks/projects/etc. for organization users
+
+### Version 0.60
+- [ ] SaaS wrapper
+- [ ] hosted PostgreSQL
+- [ ] tenant signup
+- [ ] billing
+- [ ] monitoring
 
 ## License
 

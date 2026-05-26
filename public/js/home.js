@@ -265,30 +265,6 @@ function normalizeClients(data) {
     : [];
 }
 
-function parseTimeEntriesCsv(csvText) {
-  // Kept for older CSV-shaped data during migrations; current data comes from /api/time-entries.
-  const rows = parseCsvRows(csvText.trim());
-
-  if (rows.length < 2) {
-    return [];
-  }
-
-  const headers = rows[0];
-  return rows.slice(1).map((row) => {
-    const entry = Object.fromEntries(headers.map((header, index) => [header, row[index] || ""]));
-
-    return {
-      clientId: entry.client_id,
-      clientName: entry.client_name,
-      projectId: entry.project_id,
-      projectName: entry.project_name,
-      endTime: new Date(entry.end_time),
-      durationSeconds: Number(entry.duration_seconds) || 0,
-      billable: entry.billable === "no" ? "no" : "yes",
-    };
-  });
-}
-
 function normalizeTimeEntries(data) {
   return Array.isArray(data?.entries)
     ? data.entries.map((entry) => ({
@@ -301,46 +277,6 @@ function normalizeTimeEntries(data) {
         billable: entry.billable === "no" ? "no" : "yes",
       }))
     : [];
-}
-
-function parseCsvRows(csvText) {
-  const rows = [];
-  let row = [];
-  let value = "";
-  let inQuotes = false;
-
-  for (let index = 0; index < csvText.length; index += 1) {
-    const character = csvText[index];
-    const nextCharacter = csvText[index + 1];
-
-    if (character === '"' && inQuotes && nextCharacter === '"') {
-      value += '"';
-      index += 1;
-    } else if (character === '"') {
-      inQuotes = !inQuotes;
-    } else if (character === "," && !inQuotes) {
-      row.push(value);
-      value = "";
-    } else if ((character === "\n" || character === "\r") && !inQuotes) {
-      if (character === "\r" && nextCharacter === "\n") {
-        index += 1;
-      }
-
-      row.push(value);
-      rows.push(row);
-      row = [];
-      value = "";
-    } else {
-      value += character;
-    }
-  }
-
-  if (value || row.length) {
-    row.push(value);
-    rows.push(row);
-  }
-
-  return rows;
 }
 
 function getReportProjects(client) {

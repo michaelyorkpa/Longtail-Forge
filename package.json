@@ -5,10 +5,14 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node scripts/check-js.mjs"
+    "check": "node scripts/check-js.mjs && eslint .",
+    "lint": "eslint ."
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
     "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "eslint": "^9.27.0"
   }
 }

@@ -17,3 +17,11 @@ archive/
 
 # Ignore the logo concepts image file
 images/logo-concepts.png
+
+.env
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

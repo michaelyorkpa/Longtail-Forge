@@ -108,8 +108,8 @@ async function saveSettings() {
     updateBillingPeriodStartDayState();
     updateBillingRoundingState();
 
-    if (typeof applyOrganizationName === "function") {
-      applyOrganizationName(savedSettings.organizationName);
+    if (typeof window.applyOrganizationName === "function") {
+      window.applyOrganizationName(savedSettings.organizationName);
     }
 
     flashSavedState();

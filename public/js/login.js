@@ -50,7 +50,7 @@ async function redirectIfLoggedIn() {
     if (response.ok) {
       window.location.replace("/home.html");
     }
-  } catch (error) {
+  } catch {
     // The login page is the fallback when session lookup fails.
   }
 }

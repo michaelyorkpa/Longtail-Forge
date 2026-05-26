@@ -327,7 +327,7 @@ async function copyGeneratedPassword() {
 
   try {
     await navigator.clipboard.writeText(generatedPasswordInput.value);
-  } catch (error) {
+  } catch {
     generatedPasswordInput.select();
     document.execCommand("copy");
   }

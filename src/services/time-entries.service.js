@@ -1,18 +1,15 @@
 import { randomUUID } from "node:crypto";
-import { getDefaultOrganizationId, getDefaultUserId } from "../db/index.js";
 import { timeEntriesRepository } from "../repositories/time-entries.repo.js";
 import { appendAppLog } from "../utils/app-log.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeTimeEntry } from "../utils/normalizers.js";
 
-async function create(entry) {
-  const organizationId = await getDefaultOrganizationId();
-  const userId = entry.user_id || (await getDefaultUserId(organizationId));
+async function create(entry, session) {
   const entryId = randomUUID();
   const data = normalizeTimeEntry({
     entry_id: entryId,
-    organization_id: organizationId,
-    user_id: userId,
+    organization_id: session.organization_id,
+    user_id: session.user_id,
     client_id: entry.client_id,
     client_name: entry.client_name,
     project_id: entry.project_id,
@@ -39,10 +36,9 @@ async function create(entry) {
   return { entry_id: entryId, storage: "database" };
 }
 
-async function update(payload, entryId) {
+async function update(payload, entryId, session) {
   const decodedEntryId = decodeURIComponent(entryId || "");
-  const organizationId = await getDefaultOrganizationId();
-  const previousEntry = await timeEntriesRepository.readById(organizationId, decodedEntryId);
+  const previousEntry = await timeEntriesRepository.readById(session.organization_id, decodedEntryId);
 
   if (!decodedEntryId || !previousEntry) {
     throw new AppError("Time entry not found", 404);
@@ -51,8 +47,8 @@ async function update(payload, entryId) {
   const updatedEntry = normalizeTimeEntry({
     ...payload,
     entry_id: decodedEntryId,
-    organization_id: organizationId,
-    user_id: payload.user_id || previousEntry.user_id || (await getDefaultUserId(organizationId)),
+    organization_id: session.organization_id,
+    user_id: payload.user_id || previousEntry.user_id,
   });
 
   await timeEntriesRepository.update(updatedEntry);
@@ -68,9 +64,8 @@ async function update(payload, entryId) {
   return { entry: updatedEntry, storage: "database" };
 }
 
-async function list() {
-  const organizationId = await getDefaultOrganizationId();
-  const entries = await timeEntriesRepository.readAll(organizationId);
+async function list(session) {
+  const entries = await timeEntriesRepository.readAll(session.organization_id);
   return { entries };
 }
 
