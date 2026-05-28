@@ -13,7 +13,7 @@ The app currently focuses on:
 - Billable and non-billable reporting
 - Manual time entry and time-entry editing
 - User login and administration
-- Organization settings
+- Workspace settings
 - SQLite-backed local storage
 
 ## Background
