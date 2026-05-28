@@ -17,8 +17,6 @@ This is a place for me to jot down fixes and a "Wishlist" for things I'd like to
 - [ ] Add timezone to User settings
 - [ ] Store all dates as UTC
 
-- [ ] Add tags to time entries
-
 - [ ] Add "display name" to User Settings, user admin, and user table
 - [ ] Repurpose the existing user name field to be the user's email address
         - [ ] Add validation to ensure it's a valid email address (not sending emails yet)
@@ -46,6 +44,7 @@ Caveat: For self-hosted installs, create the ability to limit workspaces to busi
 
 - [ ] Workspace type added to database
     - [ ] Business
+        - Workspace name default to organization name
         - Full suite of project tools available
             - Tasks
             - Notes/KB
@@ -55,7 +54,7 @@ Caveat: For self-hosted installs, create the ability to limit workspaces to busi
             - Team Members
             - Permissions
     - [ ] Personal
-        - Personal workspaces can be named anything, but default to 
+        - Personal workspaces can be named anything, but default to "Personal"
         - What's available in Personal Workspaces:
             - Tasks
             - Notes/Knowledge Base
@@ -63,12 +62,14 @@ Caveat: For self-hosted installs, create the ability to limit workspaces to busi
             - Projects
             - Owner-only permissions (cannot add users to a personal workspace)
     - [ ] Family
-        - Tasks
-        - Notes/KB
-        - Time tracking (Optional)
-        - Projects
-        - Team members
-        - Permissions (Family-focused, Child vs Adult accounts, number of users is limited)
+        - Family workspaces can be named anyhting, but default to "Family"
+        - What's available in Family Workspaces:
+            - Tasks
+            - Notes/KB
+            - Time tracking (Optional)
+            - Projects
+            - Team members
+            - Permissions (Family-focused, Child vs Adult accounts, number of users is limited)
 
 - [ ] Update user admin screen
     - [ ] For the super administrator, creating new users should allow you to assign them to workspaces
@@ -81,11 +82,75 @@ Caveat: For self-hosted installs, create the ability to limit workspaces to busi
     - [ ] Update sessions for users to have an active_workspace_id field
     - [ ] Add workspace swtiching funcitonality
 
+- [ ] Shift projects away from being assigned a client_id
+    - Projects must still have a workspace_id
+    - Make client_id NULL
+    - Update UI elements for Project settings
+        - Convert settings screen to be a single list of all projects
+        - Add "Filter by: Client" as a drop down above the single list of projects
+        - Add "Filter by: Status" as a drop down next to the client drop down
+        - Add field to optionally assign project to a client
+    - Eventually, make a multi-select for projects where certain fields can be bulk edited
+
+- [ ] Shift time etnries away from being assigned a client_id
+    - Have client be an optional field on stop watches
+    - Have project be a required field
+    - 
+
 - [ ] Add buttons on the User Settings screen to create new workspaces
     - [ ] For SaaS use, this will need to be grounded in "account type"
         - Personal users can only create a single personal workspace
         - Family users can create a single personal workspace and use the shared family workspace
         - Business users can create all of the above, plus Business Workspaces
+
+## Tagging Foundation
+
+- [ ] Replace “Add tags to time entries” with a shared tagging foundation
+  - Tags should be workspace-scoped, using the current `organization_id` until the Workspace rename happens
+  - Tags should not be stored as comma-separated text on records
+  - Create a shared `tags` table for the tag definitions
+  - Create a shared `tag_assignments` table for assigning tags to records
+  - `tag_assignments` should support:
+    - `organization_id` / future `workspace_id`
+    - `tag_id`
+    - `target_type`
+    - `target_id`
+    - `created_by_user_id`
+    - `source` such as manual, system, import, rule
+    - `created_at`
+  - Supported initial `target_type` values:
+    - `time_entry`
+    - `client`
+    - `project`
+  - Future `target_type` values:
+    - `task`
+    - `note`
+    - `support_ticket`
+    - `invoice`
+
+- [ ] Phase 1: Time entry tagging
+  - Add tags to time entries first
+  - Add tag picker/search UI to time tracker, manual time entry, and edit-entry screens
+  - Add reporting filters by direct time-entry tags
+  - Add basic tag management inside workspace settings or a simple admin page
+
+- [ ] Phase 2: Client/project tagging
+  - Allow clients and projects to be tagged as records
+  - Show client/project tags as context on time entries
+  - Do not automatically copy client/project tags onto time entries
+  - Later reporting can optionally include records under clients/projects with matching tags
+
+- [ ] Phase 3: Shared tagging service
+  - Create shared tag repository/service methods
+  - Validate that tagged records belong to the active workspace
+  - Audit log tag create/update/delete and tag assignment changes
+  - Keep tag logic reusable for future tasks, notes, tickets, and invoices
+
+- [ ] Phase 4: System/automatic tags
+  - Add optional system tags only after manual tagging works
+  - Use real fields for behavior/security, then optionally expose them as system tags
+  - Example: note visibility should be stored as `visibility`, not enforced by `#public`
+  - System tags should be locked or protected from accidental deletion
 
 ## In-App Messaging
 
@@ -114,18 +179,6 @@ Caveat: For self-hosted installs, create the ability to limit workspaces to busi
     - [ ] Task notifications
     - [ ] Task reminders
     - [ ] Future integrations (Slack, Discord, Teams, etc.)
-
-- [ ] Auto-create a client with the workspace name for internal needs/tasks during setup, but allow this to be selectable
-    - Should be marked as non-billable by default
-    - [ ] Auto-create some template projects (selectable)
-        - Administrative work
-        - Sales/prospecting
-        - Bookkeeping
-        - Internal Maintenance
-        - Website work
-        - Tooling/dev work
-        - Agency notes
-        - Internal SOPs
 
 ## Team tools
 
@@ -161,8 +214,8 @@ Caveat: For self-hosted installs, create the ability to limit workspaces to busi
 
 - [ ] Task title
 - [ ] Task description
-- [ ] workspace link
-- [ ] Client link
+- [ ] Workspace link
+- [ ] Optional client link
 - [ ] Optional project link
 - [ ] Creator user ID
 - [ ] Status
