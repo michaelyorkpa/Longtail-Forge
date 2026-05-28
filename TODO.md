@@ -12,7 +12,8 @@ _No unroadmapped fixes at the moment._
 
 ## Tweaks
 
-_No unroadmapped tweaks at the moment._
+- [ ] Change "Clear Info when Reset" to "Clear Info when Stopped/Reset"
+    - This change only affects the behavior of the stop button, specifically, if this box is checked when stop is pressed, client, project, and description are cleared.
 
 # Medium Term
 

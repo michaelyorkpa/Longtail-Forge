@@ -24,7 +24,8 @@ authRoutes.post("/login", asyncRoute(async (request, response) => {
 }));
 
 authRoutes.post("/logout", asyncRoute(async (request, response) => {
-  const result = await authService.logout(getSessionIdFromRequest(request));
+  const session = await getRequestSession(request);
+  const result = await authService.logout(getSessionIdFromRequest(request), session);
 
   response.setHeader("Set-Cookie", [
     buildExpiredSessionCookie(),

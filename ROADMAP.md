@@ -348,93 +348,93 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ## Version 0.23.1 - Database Audit Logging
 
-- [ ] Move audit logging to database
-  - Server/error logging should still be written to files in the logs/ directory
-  - Replace app-event CSV logging with a database-backed audit log for application-level changes
-  - Treat audit logging as core app infrastructure, not as a time-tracking-specific feature
-  - Include the following fields:
-    - audit_id
-    - organization_id (Foreign Key)
-    - created_at
-    - actor_user_id
-    - actor_user_name <- On the front end, I want to make this clickable
-    - action, change_type
-    - record_type, record_id, record_label, record_url <- On the front end, I want to make this clickable
-    - previous_value_json, new_value_json, metadata_json
-- [ ] Create an `audit_logs` table
-  - [ ] `audit_id TEXT PRIMARY KEY`
-  - [ ] `organization_id TEXT NOT NULL`
-  - [ ] `created_at TEXT NOT NULL`
-  - [ ] `actor_user_id TEXT`
-  - [ ] `actor_user_name TEXT`
-  - [ ] `action TEXT NOT NULL`
-  - [ ] `change_type TEXT NOT NULL`
-  - [ ] `record_type TEXT NOT NULL`
-  - [ ] `record_id TEXT`
-  - [ ] `record_label TEXT`
-  - [ ] `record_url TEXT`
-  - [ ] `previous_value_json TEXT`
-  - [ ] `new_value_json TEXT`
-  - [ ] `metadata_json TEXT`
-- [ ] Add audit-log indexes
-  - [ ] `organization_id, created_at`
-  - [ ] `organization_id, actor_user_id`
-  - [ ] `organization_id, record_type`
-  - [ ] `organization_id, change_type`
-  - [ ] `organization_id, record_id`
-- [ ] Create a shared `auditService.record()` function
-  - [ ] Services call `auditService.record()` after successful create/update/delete/archive actions
-  - [ ] Routes should not manually assemble audit rows unless there is no better service layer location
-  - [ ] Audit service should accept structured values and stringify JSON internally
-  - [ ] Audit service should gracefully handle null previous/new values for create/delete events
-- [ ] Use consistent audit `change_type` values
-  - [ ] `create`
-  - [ ] `update`
-  - [ ] `delete`
-  - [ ] `archive`
-  - [ ] `restore`
-  - [ ] `login`
-  - [ ] `logout`
-  - [ ] `settings_change`
-- [ ] Use consistent audit `record_type` values
-  - [ ] `organization`
-  - [ ] `organization_setting`
-  - [ ] `user`
-  - [ ] `client`
-  - [ ] `project`
-  - [ ] `time_entry`
+- [x] Move audit logging to database
+  - [x] Server/error logging should still be written to files in the logs/ directory
+  - [x] Replace app-event CSV logging with a database-backed audit log for application-level changes
+  - [x] Treat audit logging as core app infrastructure, not as a time-tracking-specific feature
+  - [x] Include the following fields:
+    - [x] audit_id
+    - [x] organization_id (Foreign Key)
+    - [x] created_at
+    - [x] actor_user_id
+    - [x] actor_user_name <- On the front end, I want to make this clickable
+    - [x] action, change_type
+    - [x] record_type, record_id, record_label, record_url <- On the front end, I want to make this clickable
+    - [x] previous_value_json, new_value_json, metadata_json
+- [x] Create an `audit_logs` table
+  - [x] `audit_id TEXT PRIMARY KEY`
+  - [x] `organization_id TEXT NOT NULL`
+  - [x] `created_at TEXT NOT NULL`
+  - [x] `actor_user_id TEXT`
+  - [x] `actor_user_name TEXT`
+  - [x] `action TEXT NOT NULL`
+  - [x] `change_type TEXT NOT NULL`
+  - [x] `record_type TEXT NOT NULL`
+  - [x] `record_id TEXT`
+  - [x] `record_label TEXT`
+  - [x] `record_url TEXT`
+  - [x] `previous_value_json TEXT`
+  - [x] `new_value_json TEXT`
+  - [x] `metadata_json TEXT`
+- [x] Add audit-log indexes
+  - [x] `organization_id, created_at`
+  - [x] `organization_id, actor_user_id`
+  - [x] `organization_id, record_type`
+  - [x] `organization_id, change_type`
+  - [x] `organization_id, record_id`
+- [x] Create a shared `auditService.record()` function
+  - [x] Services call `auditService.record()` after successful create/update/delete/archive actions
+  - [x] Routes should not manually assemble audit rows unless there is no better service layer location
+  - [x] Audit service should accept structured values and stringify JSON internally
+  - [x] Audit service should gracefully handle null previous/new values for create/delete events
+- [x] Use consistent audit `change_type` values
+  - [x] `create`
+  - [x] `update`
+  - [x] `delete`
+  - [x] `archive`
+  - [x] `restore`
+  - [x] `login`
+  - [x] `logout`
+  - [x] `settings_change`
+- [x] Use consistent audit `record_type` values
+  - [x] `organization`
+  - [x] `organization_setting`
+  - [x] `user`
+  - [x] `client`
+  - [x] `project`
+  - [x] `time_entry`
   - [ ] Future:
     - [ ] `task`
     - [ ] `note`
     - [ ] `support_ticket`
     - [ ] `invoice`
     - [ ] `api_key`
-- [ ] Add audit logging for current app records
-  - [ ] Time entries:
-    - [ ] Create
-    - [ ] Update
-    - [ ] Delete when delete exists
-  - [ ] Organization settings:
-    - [ ] Update
-  - [ ] Users:
-    - [ ] Create
-    - [ ] Username update
-    - [ ] Password reset
-    - [ ] Deactivate
-    - [ ] Reactivate
-    - [ ] Delete
-  - [ ] Clients:
-    - [ ] Create
-    - [ ] Update
-    - [ ] Archive/delete
-  - [ ] Projects:
-    - [ ] Create
-    - [ ] Update
-    - [ ] Archive/delete
-- [ ] Keep audit log and activity feed conceptually separate
-  - [ ] Audit log is for admin/security/history/verification
-  - [ ] Activity feed is for dashboard-friendly “latest updates”
-  - [ ] The activity feed may use audit events as a source, but should not force the audit table to become a general UX feed forever
+- [x] Add audit logging for current app records
+  - [x] Time entries:
+    - [x] Create
+    - [x] Update
+    - [x] Delete when delete exists
+  - [x] Organization settings:
+    - [x] Update
+  - [x] Users:
+    - [x] Create
+    - [x] Username update
+    - [x] Password reset
+    - [x] Deactivate
+    - [x] Reactivate
+    - [x] Delete
+  - [x] Clients:
+    - [x] Create
+    - [x] Update
+    - [x] Archive/delete
+  - [x] Projects:
+    - [x] Create
+    - [x] Update
+    - [x] Archive/delete
+- [x] Keep audit log and activity feed conceptually separate
+  - [x] Audit log is for admin/security/history/verification
+  - [x] Activity feed is for dashboard-friendly "latest updates"
+  - [x] The activity feed may use audit events as a source, but should not force the audit table to become a general UX feed forever
 
 ## Version 0.23.2 - Audit Log Settings
 

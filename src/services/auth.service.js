@@ -1,6 +1,7 @@
 import { usersRepository } from "../repositories/users.repo.js";
 import { createSession, deleteSession } from "../security/sessions.js";
 import { hashPassword, validatePassword, verifyPassword } from "../security/passwords.js";
+import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeThemeMode, normalizeUserStatus } from "../utils/normalizers.js";
 
@@ -23,6 +24,22 @@ async function login(payload) {
   }
 
   const session = await createSession(user);
+  await auditService.record({
+    organizationId: user.organization_id,
+    actorUserId: user.user_id,
+    actorUserName: user.username,
+    action: "user_login",
+    changeType: "login",
+    recordType: "user",
+    recordId: user.user_id,
+    recordLabel: user.username,
+    recordUrl: "user-settings.html",
+    previousValue: null,
+    newValue: { logged_in: true },
+    metadata: {
+      session_created: true,
+    },
+  });
 
   return {
     session,
@@ -36,8 +53,26 @@ async function login(payload) {
   };
 }
 
-async function logout(sessionId) {
+async function logout(sessionId, session = null) {
   await deleteSession(sessionId);
+
+  if (session) {
+    await auditService.record({
+      session,
+      action: "user_logout",
+      changeType: "logout",
+      recordType: "user",
+      recordId: session.user_id,
+      recordLabel: session.username,
+      recordUrl: "user-settings.html",
+      previousValue: { logged_in: true },
+      newValue: { logged_in: false },
+      metadata: {
+        session_deleted: Boolean(sessionId),
+      },
+    });
+  }
+
   return { ok: true };
 }
 
@@ -80,6 +115,21 @@ async function changePassword(payload, session) {
   }
 
   await usersRepository.updatePassword(user.organization_id, user.user_id, hashPassword(newPassword));
+  await auditService.record({
+    session,
+    action: "user_password_changed",
+    changeType: "update",
+    recordType: "user",
+    recordId: user.user_id,
+    recordLabel: user.username,
+    recordUrl: "user-settings.html",
+    previousValue: { password_changed_at: null },
+    newValue: { password_changed_at: new Date().toISOString() },
+    metadata: {
+      changed_own_password: true,
+    },
+  });
+
   return { ok: true };
 }
 
