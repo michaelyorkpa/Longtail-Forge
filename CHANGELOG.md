@@ -1,3 +1,11 @@
+## Version 0.23.1
+
+- Added the `audit_logs` database table with indexes for organization, date, actor, record type, change type, and record ID.
+- Added shared audit-log repository and `auditService.record()` infrastructure.
+- Replaced active app-event CSV writes with structured database audit records.
+- Added audit records for time entries, organization settings, users, clients, projects, login, logout, and password changes.
+- Kept audit logs separate from future dashboard activity-feed behavior.
+
 ## Version 0.23.0
 
 - Added granular authenticated client and project CRUD endpoints.

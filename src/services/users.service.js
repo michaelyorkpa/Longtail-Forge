@@ -1,5 +1,6 @@
 import { usersRepository } from "../repositories/users.repo.js";
 import { createGeneratedPassword, hashPassword, validatePassword } from "../security/passwords.js";
+import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
 import {
   normalizeProtectedUserFlag,
@@ -34,6 +35,22 @@ async function create(payload, session) {
   }
 
   const user = await usersRepository.create(session.organization_id, username, hashPassword(initialPassword));
+  await auditService.record({
+    session,
+    action: "user_created",
+    changeType: "create",
+    recordType: "user",
+    recordId: user.user_id,
+    recordLabel: user.username,
+    recordUrl: "user-admin.html",
+    previousValue: null,
+    newValue: user,
+    metadata: {
+      created_user_id: user.user_id,
+      created_username: user.username,
+    },
+  });
+
   const users = await usersRepository.readAll(session.organization_id);
 
   return {
@@ -86,12 +103,29 @@ async function update(payload, session, userId) {
   }
 
   await usersRepository.updateUsername(session.organization_id, userId, username);
+  const updatedUser = {
+    ...userRowToAppValue(user),
+    username,
+  };
+
+  await auditService.record({
+    session,
+    action: "user_username_updated",
+    changeType: "update",
+    recordType: "user",
+    recordId: userId,
+    recordLabel: username,
+    recordUrl: "user-admin.html",
+    previousValue: userRowToAppValue(user),
+    newValue: updatedUser,
+    metadata: {
+      old_username: user.username,
+      new_username: username,
+    },
+  });
 
   return {
-    user: {
-      ...userRowToAppValue(user),
-      username,
-    },
+    user: updatedUser,
     users: await usersRepository.readAll(session.organization_id),
   };
 }
@@ -111,6 +145,21 @@ async function resetPassword(session, userId) {
   }
 
   await usersRepository.updatePassword(session.organization_id, userId, hashPassword(initialPassword));
+  await auditService.record({
+    session,
+    action: "user_password_reset",
+    changeType: "update",
+    recordType: "user",
+    recordId: userId,
+    recordLabel: user.username,
+    recordUrl: "user-admin.html",
+    previousValue: { password_reset_at: null },
+    newValue: { password_reset_at: new Date().toISOString() },
+    metadata: {
+      reset_user_id: userId,
+      reset_username: user.username,
+    },
+  });
 
   return {
     user: userRowToAppValue(user),
@@ -131,12 +180,29 @@ async function deactivate(session, userId) {
   }
 
   await usersRepository.updateStatus(session.organization_id, userId, "inactive");
+  const updatedUser = {
+    ...userRowToAppValue(user),
+    userStatus: "inactive",
+  };
+
+  await auditService.record({
+    session,
+    action: "user_deactivated",
+    changeType: "archive",
+    recordType: "user",
+    recordId: userId,
+    recordLabel: user.username,
+    recordUrl: "user-admin.html",
+    previousValue: userRowToAppValue(user),
+    newValue: updatedUser,
+    metadata: {
+      old_status: user.user_status,
+      new_status: "inactive",
+    },
+  });
 
   return {
-    user: {
-      ...userRowToAppValue(user),
-      userStatus: "inactive",
-    },
+    user: updatedUser,
     users: await usersRepository.readAll(session.organization_id),
   };
 }
@@ -149,12 +215,29 @@ async function reactivate(session, userId) {
   }
 
   await usersRepository.updateStatus(session.organization_id, userId, "active");
+  const updatedUser = {
+    ...userRowToAppValue(user),
+    userStatus: "active",
+  };
+
+  await auditService.record({
+    session,
+    action: "user_reactivated",
+    changeType: "restore",
+    recordType: "user",
+    recordId: userId,
+    recordLabel: user.username,
+    recordUrl: "user-admin.html",
+    previousValue: userRowToAppValue(user),
+    newValue: updatedUser,
+    metadata: {
+      old_status: user.user_status,
+      new_status: "active",
+    },
+  });
 
   return {
-    user: {
-      ...userRowToAppValue(user),
-      userStatus: "active",
-    },
+    user: updatedUser,
     users: await usersRepository.readAll(session.organization_id),
   };
 }
@@ -175,6 +258,22 @@ async function remove(session, userId) {
   }
 
   await usersRepository.remove(session.organization_id, userId);
+  await auditService.record({
+    session,
+    action: "user_deleted",
+    changeType: "delete",
+    recordType: "user",
+    recordId: userId,
+    recordLabel: user.username,
+    recordUrl: "user-admin.html",
+    previousValue: userRowToAppValue(user),
+    newValue: null,
+    metadata: {
+      deleted_user_id: userId,
+      deleted_username: user.username,
+    },
+  });
+
   return { users: await usersRepository.readAll(session.organization_id) };
 }
 
@@ -192,6 +291,22 @@ async function saveSettings(payload, session) {
   const themeMode = normalizeThemeMode(payload.themeMode);
 
   await usersRepository.updateThemeMode(session.organization_id, session.user_id, themeMode);
+  await auditService.record({
+    session,
+    action: "user_settings_updated",
+    changeType: "settings_change",
+    recordType: "user",
+    recordId: session.user_id,
+    recordLabel: session.username,
+    recordUrl: "user-settings.html",
+    previousValue: null,
+    newValue: { themeMode },
+    metadata: {
+      setting_group: "user",
+      setting_name: "themeMode",
+    },
+  });
+
   return { themeMode };
 }
 

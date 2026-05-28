@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { clientsRepository } from "../repositories/clients.repo.js";
 import { projectsRepository } from "../repositories/projects.repo.js";
-import { appendAppLog } from "../utils/app-log.js";
+import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeClientProjectData } from "../utils/normalizers.js";
 
@@ -58,11 +58,17 @@ async function createClient(payload, session) {
   const client = normalizeClientPayload(payload, { id: payload?.id || randomUUID() });
 
   await clientsRepository.create(session.organization_id, client);
-  await logAction(payload?.action, {
+  await recordAudit(payload?.action, {
+    session,
     action: "client_created",
-    client_id: client.id,
-    client_name: client.name,
-    details: `status=${client.status};billable=${client.billable};billing_rate=${client.billing_rate}`,
+    changeType: "create",
+    recordType: "client",
+    recordId: client.id,
+    recordLabel: client.name,
+    recordUrl: `clients.html?client=${encodeURIComponent(client.id)}`,
+    previousValue: null,
+    newValue: client,
+    metadata: clientMetadata(client),
   });
 
   return { client };
@@ -82,11 +88,22 @@ async function updateClient(clientId, payload, session) {
   });
 
   await clientsRepository.update(session.organization_id, client);
-  await logAction(payload?.action, {
+  await recordAudit(payload?.action, {
+    session,
     action: "client_updated",
-    client_id: client.id,
-    client_name: client.name,
-    details: `old_client_name=${previousClient.name};old_status=${previousClient.status};new_status=${client.status};billable=${client.billable};billing_rate=${client.billing_rate}`,
+    changeType: "update",
+    recordType: "client",
+    recordId: client.id,
+    recordLabel: client.name,
+    recordUrl: `clients.html?client=${encodeURIComponent(client.id)}`,
+    previousValue: previousClient,
+    newValue: client,
+    metadata: {
+      old_client_name: previousClient.name,
+      old_status: previousClient.status,
+      new_status: client.status,
+      ...clientMetadata(client),
+    },
   });
 
   return { client };
@@ -101,11 +118,23 @@ async function archiveClient(clientId, payload, session) {
   }
 
   await clientsRepository.archive(session.organization_id, decodedClientId);
-  await logAction(payload?.action, {
+  await recordAudit(payload?.action, {
+    session,
     action: "client_archived",
-    client_id: previousClient.id,
-    client_name: previousClient.name,
-    details: `old_status=${previousClient.status};new_status=Inactive`,
+    changeType: "archive",
+    recordType: "client",
+    recordId: previousClient.id,
+    recordLabel: previousClient.name,
+    recordUrl: `clients.html?client=${encodeURIComponent(previousClient.id)}`,
+    previousValue: previousClient,
+    newValue: {
+      ...previousClient,
+      status: "Inactive",
+    },
+    metadata: {
+      old_status: previousClient.status,
+      new_status: "Inactive",
+    },
   });
 
   return { client_id: decodedClientId, archived: true };
@@ -154,13 +183,17 @@ async function createProject(clientId, payload, session) {
   }, client.billable);
 
   await projectsRepository.create(session.organization_id, decodedClientId, project);
-  await logAction(payload?.action, {
+  await recordAudit(payload?.action, {
+    session,
     action: "project_created",
-    client_id: client.id,
-    client_name: client.name,
-    project_id: project.id,
-    project_name: project.name,
-    details: `status=${project.status};billable=${project.billable};billing_rate=${project.billing_rate}`,
+    changeType: "create",
+    recordType: "project",
+    recordId: project.id,
+    recordLabel: project.name,
+    recordUrl: `projects.html?client=${encodeURIComponent(client.id)}`,
+    previousValue: null,
+    newValue: project,
+    metadata: projectMetadata(client, project),
   });
 
   return { project };
@@ -188,13 +221,24 @@ async function updateProject(projectId, payload, session) {
   }, client.billable);
 
   await projectsRepository.update(session.organization_id, project);
-  await logAction(payload?.action, {
+  await recordAudit(payload?.action, {
+    session,
     action: "project_updated",
-    client_id: client.id,
-    client_name: client.name,
-    project_id: project.id,
-    project_name: project.name,
-    details: `old_project_name=${previousProject.name};old_status=${previousProject.status};new_status=${project.status};old_billable=${previousProject.billable};new_billable=${project.billable};billing_rate=${project.billing_rate}`,
+    changeType: "update",
+    recordType: "project",
+    recordId: project.id,
+    recordLabel: project.name,
+    recordUrl: `projects.html?client=${encodeURIComponent(client.id)}`,
+    previousValue: previousProject,
+    newValue: project,
+    metadata: {
+      old_project_name: previousProject.name,
+      old_status: previousProject.status,
+      new_status: project.status,
+      old_billable: previousProject.billable,
+      new_billable: project.billable,
+      ...projectMetadata(client, project),
+    },
   });
 
   return { project };
@@ -211,13 +255,25 @@ async function archiveProject(projectId, payload, session) {
   const client = await clientsRepository.readById(session.organization_id, previousProject.client_id);
 
   await projectsRepository.archive(session.organization_id, decodedProjectId);
-  await logAction(payload?.action, {
+  await recordAudit(payload?.action, {
+    session,
     action: "project_archived",
-    client_id: previousProject.client_id,
-    client_name: client?.name || "",
-    project_id: previousProject.id,
-    project_name: previousProject.name,
-    details: `old_status=${previousProject.status};new_status=Inactive`,
+    changeType: "archive",
+    recordType: "project",
+    recordId: previousProject.id,
+    recordLabel: previousProject.name,
+    recordUrl: `projects.html?client=${encodeURIComponent(previousProject.client_id)}`,
+    previousValue: previousProject,
+    newValue: {
+      ...previousProject,
+      status: "Inactive",
+    },
+    metadata: {
+      client_id: previousProject.client_id,
+      client_name: client?.name || "",
+      old_status: previousProject.status,
+      new_status: "Inactive",
+    },
   });
 
   return { project_id: decodedProjectId, archived: true };
@@ -263,8 +319,37 @@ function normalizeProjectPayload(payload, fallback = {}, fallbackBillable = "yes
   };
 }
 
-async function logAction(providedAction, fallbackAction) {
-  await appendAppLog(providedAction || fallbackAction);
+async function recordAudit(providedAction, auditEvent) {
+  await auditService.record({
+    ...auditEvent,
+    action: providedAction?.action || auditEvent.action,
+    metadata: {
+      ...(auditEvent.metadata || {}),
+      provided_action: providedAction || null,
+    },
+  });
+}
+
+function clientMetadata(client) {
+  return {
+    client_id: client.id,
+    client_name: client.name,
+    status: client.status,
+    billable: client.billable,
+    billing_rate: client.billing_rate,
+  };
+}
+
+function projectMetadata(client, project) {
+  return {
+    client_id: client.id,
+    client_name: client.name,
+    project_id: project.id,
+    project_name: project.name,
+    status: project.status,
+    billable: project.billable,
+    billing_rate: project.billing_rate,
+  };
 }
 
 export const clientsService = {

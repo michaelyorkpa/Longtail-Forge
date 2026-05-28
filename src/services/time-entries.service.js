@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { timeEntriesRepository } from "../repositories/time-entries.repo.js";
-import { appendAppLog } from "../utils/app-log.js";
+import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeTimeEntry } from "../utils/normalizers.js";
 
@@ -24,13 +24,23 @@ async function create(entry, session) {
   });
 
   await timeEntriesRepository.create(data);
-  await appendAppLog({
+  await auditService.record({
+    session,
     action: "time_entry_created",
-    client_id: entry.client_id,
-    client_name: entry.client_name,
-    project_id: entry.project_id,
-    project_name: entry.project_name,
-    details: `entry_id=${entryId};duration_seconds=${entry.duration_seconds};storage=database`,
+    changeType: "create",
+    recordType: "time_entry",
+    recordId: entryId,
+    recordLabel: `${data.client_name} / ${data.project_name}`,
+    recordUrl: `edit-entries.html?entry=${encodeURIComponent(entryId)}`,
+    previousValue: null,
+    newValue: data,
+    metadata: {
+      client_id: data.client_id,
+      client_name: data.client_name,
+      project_id: data.project_id,
+      project_name: data.project_name,
+      storage: "database",
+    },
   });
 
   return { entry_id: entryId, storage: "database" };
@@ -52,13 +62,22 @@ async function update(payload, entryId, session) {
   });
 
   await timeEntriesRepository.update(updatedEntry);
-  await appendAppLog({
+  await auditService.record({
+    session,
     action: "time_entry_updated",
-    client_id: updatedEntry.client_id,
-    client_name: updatedEntry.client_name,
-    project_id: updatedEntry.project_id,
-    project_name: updatedEntry.project_name,
-    details: `entry_id=${decodedEntryId};old_client_id=${previousEntry.client_id};old_project_id=${previousEntry.project_id};old_duration_seconds=${previousEntry.duration_seconds};new_duration_seconds=${updatedEntry.duration_seconds}`,
+    changeType: "update",
+    recordType: "time_entry",
+    recordId: decodedEntryId,
+    recordLabel: `${updatedEntry.client_name} / ${updatedEntry.project_name}`,
+    recordUrl: `edit-entries.html?entry=${encodeURIComponent(decodedEntryId)}`,
+    previousValue: previousEntry,
+    newValue: updatedEntry,
+    metadata: {
+      old_client_id: previousEntry.client_id,
+      old_project_id: previousEntry.project_id,
+      old_duration_seconds: previousEntry.duration_seconds,
+      new_duration_seconds: updatedEntry.duration_seconds,
+    },
   });
 
   return { entry: updatedEntry, storage: "database" };
@@ -73,13 +92,20 @@ async function remove(entryId, session) {
   }
 
   await timeEntriesRepository.remove(session.organization_id, decodedEntryId);
-  await appendAppLog({
+  await auditService.record({
+    session,
     action: "time_entry_deleted",
-    client_id: previousEntry.client_id,
-    client_name: previousEntry.client_name,
-    project_id: previousEntry.project_id,
-    project_name: previousEntry.project_name,
-    details: `entry_id=${decodedEntryId};duration_seconds=${previousEntry.duration_seconds};invoice_status=${previousEntry.invoice_status}`,
+    changeType: "delete",
+    recordType: "time_entry",
+    recordId: decodedEntryId,
+    recordLabel: `${previousEntry.client_name} / ${previousEntry.project_name}`,
+    recordUrl: `edit-entries.html?entry=${encodeURIComponent(decodedEntryId)}`,
+    previousValue: previousEntry,
+    newValue: null,
+    metadata: {
+      duration_seconds: previousEntry.duration_seconds,
+      invoice_status: previousEntry.invoice_status,
+    },
   });
 
   return { entry_id: decodedEntryId, deleted: true };

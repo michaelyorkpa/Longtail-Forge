@@ -31,7 +31,6 @@ const config = {
   settingsFile: path.join(root, "data", "settings.json"),
   clientProjectFile: path.join(root, "data", "client-project.json"),
   timeEntriesFile: path.join(root, "data", "time-entries.csv"),
-  appLogFile: path.join(root, "logs", "app-events.csv"),
   sqliteCommand: process.env.SQLITE_COMMAND || "sqlite3",
   cookies: {
     sessionName: "longtail_forge_session",

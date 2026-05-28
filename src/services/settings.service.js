@@ -1,5 +1,5 @@
 import { settingsRepository } from "../repositories/settings.repo.js";
-import { appendAppLog } from "../utils/app-log.js";
+import { auditService } from "./audit.service.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 
 async function read(session) {
@@ -8,11 +8,22 @@ async function read(session) {
 
 async function save(payload, session) {
   const data = normalizeSettings(payload);
+  const previousSettings = await settingsRepository.readOrganizationSettings(session.organization_id);
 
   await settingsRepository.saveOrganizationSettings(session.organization_id, data);
-  await appendAppLog({
+  await auditService.record({
+    session,
     action: "organization_settings_updated",
-    details: `organization_name=${data.organizationName};fiscal_year_start_month=${data.fiscalYear.startMonth};fiscal_year_start_day=${data.fiscalYear.startDay};default_billing_rate=${data.defaultBillingRate};billing_period_type=${data.billingPeriod.type};billing_period_start_day=${data.billingPeriod.startDay};rounding_enabled=${data.billingRounding.enabled};rounding_increment=${data.billingRounding.increment}`,
+    changeType: "settings_change",
+    recordType: "organization_setting",
+    recordId: session.organization_id,
+    recordLabel: data.organizationName,
+    recordUrl: "organization-settings.html",
+    previousValue: previousSettings,
+    newValue: data,
+    metadata: {
+      setting_group: "organization",
+    },
   });
 
   return { data };
