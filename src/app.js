@@ -5,9 +5,12 @@ import { initializeDatabase } from "./db/index.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { requireAuth } from "./middleware/require-auth.js";
 import { appInfoRoutes } from "./routes/app-info.routes.js";
+import { apiKeysRoutes } from "./routes/api-keys.routes.js";
 import { auditRoutes } from "./routes/audit.routes.js";
 import { authRoutes } from "./routes/auth.routes.js";
 import { clientsRoutes } from "./routes/clients.routes.js";
+import { publicApiRoutes } from "./routes/public-api.routes.js";
+import { permissionsRoutes } from "./routes/permissions.routes.js";
 import { settingsRoutes } from "./routes/settings.routes.js";
 import { staticRoutes } from "./routes/static.routes.js";
 import { timeEntriesRoutes } from "./routes/time-entries.routes.js";
@@ -21,10 +24,13 @@ function createApp() {
   app.use(express.static(config.publicDir));
   app.use("/api", appInfoRoutes);
   app.use("/api", authRoutes);
+  app.use(publicApiRoutes);
   app.use(requireAuth);
+  app.use("/api", apiKeysRoutes);
   app.use("/api", auditRoutes);
   app.use("/api", timeEntriesRoutes);
   app.use("/api", clientsRoutes);
+  app.use("/api", permissionsRoutes);
   app.use("/api", settingsRoutes);
   app.use("/api", usersRoutes);
   app.use("/api", (request, response, next) => {

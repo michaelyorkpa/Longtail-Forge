@@ -20,6 +20,8 @@ const RECORD_TYPES = new Set([
   "client",
   "project",
   "time_entry",
+  "user_role_assignment",
+  "api_key",
 ]);
 
 async function record(event) {

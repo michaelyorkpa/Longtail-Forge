@@ -1,10 +1,18 @@
 import { randomUUID } from "node:crypto";
 import { timeEntriesRepository } from "../repositories/time-entries.repo.js";
 import { auditService } from "./audit.service.js";
+import { permissionsService } from "./permissions.service.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeTimeEntry } from "../utils/normalizers.js";
 
 async function create(entry, session) {
+  await permissionsService.assertCan(session, "time_entries.create", {
+    organization_id: session.organization_id,
+    client_id: entry.client_id,
+    project_id: entry.project_id,
+    operation: "create",
+  });
+
   const entryId = randomUUID();
   const data = normalizeTimeEntry({
     entry_id: entryId,
@@ -54,6 +62,14 @@ async function update(payload, entryId, session) {
     throw new AppError("Time entry not found", 404);
   }
 
+  const action = previousEntry.user_id === session.user_id ? "time_entries.edit_own" : "time_entries.edit_all";
+  await permissionsService.assertCan(session, action, {
+    organization_id: session.organization_id,
+    client_id: previousEntry.client_id,
+    project_id: previousEntry.project_id,
+    operation: "update",
+  });
+
   const updatedEntry = normalizeTimeEntry({
     ...payload,
     entry_id: decodedEntryId,
@@ -91,6 +107,14 @@ async function remove(entryId, session) {
     throw new AppError("Time entry not found", 404);
   }
 
+  const action = previousEntry.user_id === session.user_id ? "time_entries.edit_own" : "time_entries.edit_all";
+  await permissionsService.assertCan(session, action, {
+    organization_id: session.organization_id,
+    client_id: previousEntry.client_id,
+    project_id: previousEntry.project_id,
+    operation: "delete",
+  });
+
   await timeEntriesRepository.remove(session.organization_id, decodedEntryId);
   await auditService.record({
     session,
@@ -113,7 +137,7 @@ async function remove(entryId, session) {
 
 async function list(session) {
   const entries = await timeEntriesRepository.readAll(session.organization_id);
-  return { entries };
+  return { entries: await permissionsService.filterReadableTimeEntries(session, entries) };
 }
 
 export const timeEntriesService = {

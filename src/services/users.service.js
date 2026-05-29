@@ -1,6 +1,7 @@
 import { usersRepository } from "../repositories/users.repo.js";
 import { createGeneratedPassword, hashPassword, validatePassword } from "../security/passwords.js";
 import { auditService } from "./audit.service.js";
+import { permissionsService } from "./permissions.service.js";
 import { AppError } from "../utils/app-error.js";
 import {
   normalizeProtectedUserFlag,
@@ -10,11 +11,13 @@ import {
 } from "../utils/normalizers.js";
 
 async function list(session) {
+  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "read" });
   const users = await usersRepository.readAll(session.organization_id);
   return { users };
 }
 
 async function create(payload, session) {
+  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "create" });
   const username = normalizeUsername(payload.username);
 
   if (!username) {
@@ -85,6 +88,7 @@ async function action({ payload = {}, session, userId, action: userAction }) {
 }
 
 async function update(payload, session, userId) {
+  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "update" });
   const username = normalizeUsername(payload.username);
   const user = await usersRepository.readById(session.organization_id, userId);
 
@@ -131,6 +135,7 @@ async function update(payload, session, userId) {
 }
 
 async function resetPassword(session, userId) {
+  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "update" });
   const user = await usersRepository.readById(session.organization_id, userId);
 
   if (!user) {
@@ -169,6 +174,7 @@ async function resetPassword(session, userId) {
 }
 
 async function deactivate(session, userId) {
+  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "update" });
   const user = await usersRepository.readById(session.organization_id, userId);
 
   if (!user) {
@@ -208,6 +214,7 @@ async function deactivate(session, userId) {
 }
 
 async function reactivate(session, userId) {
+  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "update" });
   const user = await usersRepository.readById(session.organization_id, userId);
 
   if (!user) {
@@ -243,6 +250,7 @@ async function reactivate(session, userId) {
 }
 
 async function remove(session, userId) {
+  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "delete" });
   if (!userId) {
     throw new AppError("User was not found.", 404);
   }

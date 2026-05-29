@@ -57,10 +57,48 @@
             <input type="text" data-edit-user-username required autocomplete="off">
           </label>
 
+          <fieldset class="settings-fieldset role-assignment-editor">
+            <legend>Role Assignments</legend>
+
+            <div class="role-assignment-stack">
+              <label>
+                Role
+                <select data-role-assignment-role></select>
+              </label>
+
+              <label>
+                Scope
+                <select data-role-assignment-scope></select>
+              </label>
+
+              <button type="button" data-add-role-assignment>Add Role</button>
+            </div>
+
+            <button type="button" class="secondary-button" data-configure-draft-permissions>
+              Configure Permissions
+            </button>
+
+            <ul class="role-assignment-list" data-role-assignment-list></ul>
+          </fieldset>
+
           <div class="form-actions">
             <button type="button" data-cancel-edit-user>Cancel</button>
             <button type="button" data-reset-edit-user-password>Reset Password</button>
             <button type="submit" data-save-edit-user>Save User</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog data-role-permissions-dialog>
+        <form class="role-permissions-form" data-role-permissions-form>
+          <h2>Assignment Permissions</h2>
+          <p class="muted-text" data-role-permissions-summary></p>
+
+          <div class="permission-matrix" data-permission-matrix></div>
+
+          <div class="form-actions">
+            <button type="button" data-cancel-role-permissions>Cancel</button>
+            <button type="submit" data-save-role-permissions>Apply</button>
           </div>
         </form>
       </dialog>

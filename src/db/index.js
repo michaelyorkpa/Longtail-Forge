@@ -26,6 +26,7 @@ async function ensureDatabase() {
   const organizationId = await ensureDefaultOrganization();
   await ensureOrganizationSettings(organizationId);
   await seedSuperAdminUser(organizationId);
+  await ensureProtectedUserRoles(organizationId);
 }
 
 async function ensureDefaultOrganization() {
@@ -157,6 +158,59 @@ SET user_id = ${sqlText(userId)}
 WHERE organization_id = ${sqlText(organizationId)}
   AND (user_id = 'local_user' OR user_id = '');
 `);
+}
+
+async function ensureProtectedUserRoles(organizationId) {
+  await runSql(`
+UPDATE user_role_assignments
+SET scope_type = 'all',
+    scope_id = 'all',
+    updated_at = ${sqlText(new Date().toISOString())}
+WHERE organization_id = ${sqlText(organizationId)}
+  AND role_id = 'super_admin'
+  AND scope_type = 'organization';
+`);
+
+  const rows = await querySql(`
+SELECT user_id
+FROM users
+WHERE organization_id = ${sqlText(organizationId)}
+  AND protected_user = 'yes';
+`);
+
+  const now = new Date().toISOString();
+  const inserts = rows.map((row) => `
+INSERT OR IGNORE INTO user_role_assignments (
+  assignment_id,
+  organization_id,
+  user_id,
+  role_id,
+  scope_type,
+  scope_id,
+  client_id,
+  project_id,
+  permission_overrides_json,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(randomUUID())},
+  ${sqlText(organizationId)},
+  ${sqlText(row.user_id)},
+  'super_admin',
+  'all',
+  'all',
+  NULL,
+  NULL,
+  NULL,
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+`).join("\n");
+
+  if (inserts) {
+    await runSql(inserts);
+  }
 }
 
 function getSuperAdminPassword() {

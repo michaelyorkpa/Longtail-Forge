@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>API Keys | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=5">
+  </head>
+  <body data-page-title="API Keys">
+    <main class="settings-page">
+      <h1>API Keys</h1>
+
+      <form class="settings-form" data-api-key-form>
+        <fieldset class="settings-fieldset">
+          <legend>Create Key</legend>
+
+          <label>
+            Name
+            <input type="text" data-api-key-name required autocomplete="off">
+          </label>
+
+          <div class="scope-grid" data-api-key-scopes></div>
+        </fieldset>
+
+        <button type="submit" data-create-api-key>Create API Key</button>
+      </form>
+
+      <section class="generated-password-panel" data-api-key-secret-panel hidden>
+        <h2>New API Key</h2>
+        <p class="muted-text">This key is shown once.</p>
+        <div class="copy-field">
+          <input type="text" data-api-key-secret readonly>
+          <button type="button" data-copy-api-key>Copy</button>
+        </div>
+      </section>
+
+      <p data-api-key-status role="status" aria-live="polite"></p>
+
+      <div class="report-table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Prefix</th>
+              <th scope="col">Scopes</th>
+              <th scope="col">Status</th>
+              <th scope="col">Created</th>
+              <th scope="col">Last Used</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody data-api-key-list></tbody>
+        </table>
+      </div>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/shared/modal.js"></script>
+    <script src="js/shared/api-client.js"></script>
+    <script src="js/api-keys.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

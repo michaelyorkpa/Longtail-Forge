@@ -19,6 +19,7 @@ const NAV_ITEMS = [
       { label: "Organization", href: "organization-settings.html" },
       { label: "User Admin", href: "user-admin.html" },
       { label: "User", href: "user-settings.html" },
+      { label: "API Keys", href: "api-keys.html" },
       { label: "Audit Log", href: "audit-log.html" },
     ],
   },

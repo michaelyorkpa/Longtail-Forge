@@ -2,11 +2,31 @@ import { randomUUID } from "node:crypto";
 import { clientsRepository } from "../repositories/clients.repo.js";
 import { projectsRepository } from "../repositories/projects.repo.js";
 import { auditService } from "./audit.service.js";
+import { permissionsService } from "./permissions.service.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeClientProjectData } from "../utils/normalizers.js";
 
 async function readClientProjects(session) {
-  return readClientProjectData(session.organization_id);
+  const data = await readClientProjectData(session.organization_id);
+  const allProjects = data.clients.flatMap((client) => (
+    client.projects.map((project) => ({ ...project, client_id: client.id }))
+  ));
+  const readableClients = await permissionsService.filterReadableClients(session, data.clients);
+  const readableProjects = await permissionsService.filterReadableProjects(session, allProjects);
+  const readableClientIds = new Set(readableClients.map((client) => client.id));
+  const readableProjectClientIds = new Set(readableProjects.map((project) => project.client_id));
+  const readableProjectIds = new Set(readableProjects.map((project) => project.id));
+
+  return {
+    clients: data.clients
+      .filter((client) => readableClientIds.has(client.id) || readableProjectClientIds.has(client.id))
+      .map((client) => ({
+        ...client,
+        projects: client.projects.filter((project) => (
+          readableClientIds.has(client.id) || readableProjectIds.has(project.id)
+        )),
+      })),
+  };
 }
 
 async function saveClientProjects() {
@@ -40,7 +60,8 @@ async function readClientProjectData(organizationId) {
 }
 
 async function listClients(session) {
-  return { clients: await clientsRepository.readAll(session.organization_id) };
+  const clients = await clientsRepository.readAll(session.organization_id);
+  return { clients: await permissionsService.filterReadableClients(session, clients) };
 }
 
 async function readClient(clientId, session) {
@@ -51,10 +72,20 @@ async function readClient(clientId, session) {
     throw new AppError("Client not found", 404);
   }
 
+  await permissionsService.assertCan(session, "clients.manage", {
+    organization_id: session.organization_id,
+    client_id: decodedClientId,
+    operation: "read",
+  });
+
   return { client };
 }
 
 async function createClient(payload, session) {
+  await permissionsService.assertCan(session, "clients.manage", {
+    organization_id: session.organization_id,
+    operation: "create",
+  });
   const client = normalizeClientPayload(payload, { id: payload?.id || randomUUID() });
 
   await clientsRepository.create(session.organization_id, client);
@@ -80,6 +111,19 @@ async function updateClient(clientId, payload, session) {
 
   if (!decodedClientId || !previousClient) {
     throw new AppError("Client not found", 404);
+  }
+
+  await permissionsService.assertCan(session, "clients.manage", {
+    organization_id: session.organization_id,
+    client_id: decodedClientId,
+    operation: "update",
+  });
+
+  if (billingDetailsChanged(previousClient, payload)) {
+    await permissionsService.assertCan(session, "billing.manage", {
+      organization_id: session.organization_id,
+      client_id: decodedClientId,
+    });
   }
 
   const client = normalizeClientPayload(payload, {
@@ -117,6 +161,12 @@ async function archiveClient(clientId, payload, session) {
     throw new AppError("Client not found", 404);
   }
 
+  await permissionsService.assertCan(session, "clients.manage", {
+    organization_id: session.organization_id,
+    client_id: decodedClientId,
+    operation: "delete",
+  });
+
   await clientsRepository.archive(session.organization_id, decodedClientId);
   await recordAudit(payload?.action, {
     session,
@@ -141,7 +191,8 @@ async function archiveClient(clientId, payload, session) {
 }
 
 async function listProjects(session) {
-  return { projects: await projectsRepository.readAll(session.organization_id) };
+  const projects = await projectsRepository.readAll(session.organization_id);
+  return { projects: await permissionsService.filterReadableProjects(session, projects) };
 }
 
 async function listClientProjects(clientId, session) {
@@ -151,6 +202,12 @@ async function listClientProjects(clientId, session) {
   if (!decodedClientId || !client) {
     throw new AppError("Client not found", 404);
   }
+
+  await permissionsService.assertCan(session, "projects.manage", {
+    organization_id: session.organization_id,
+    client_id: decodedClientId,
+    operation: "read",
+  });
 
   return {
     client,
@@ -166,6 +223,13 @@ async function readProject(projectId, session) {
     throw new AppError("Project not found", 404);
   }
 
+  await permissionsService.assertCan(session, "projects.manage", {
+    organization_id: session.organization_id,
+    client_id: project.client_id,
+    project_id: decodedProjectId,
+    operation: "read",
+  });
+
   return { project };
 }
 
@@ -176,6 +240,12 @@ async function createProject(clientId, payload, session) {
   if (!decodedClientId || !client) {
     throw new AppError("Client not found", 404);
   }
+
+  await permissionsService.assertCan(session, "projects.manage", {
+    organization_id: session.organization_id,
+    client_id: decodedClientId,
+    operation: "create",
+  });
 
   const project = normalizeProjectPayload(payload, {
     id: payload?.id || randomUUID(),
@@ -212,6 +282,21 @@ async function updateProject(projectId, payload, session) {
 
   if (!client) {
     throw new AppError("Client not found", 404);
+  }
+
+  await permissionsService.assertCan(session, "projects.manage", {
+    organization_id: session.organization_id,
+    client_id: client.id,
+    project_id: decodedProjectId,
+    operation: "update",
+  });
+
+  if (billingDetailsChanged(previousProject, payload)) {
+    await permissionsService.assertCan(session, "billing.manage", {
+      organization_id: session.organization_id,
+      client_id: client.id,
+      project_id: decodedProjectId,
+    });
   }
 
   const project = normalizeProjectPayload(payload, {
@@ -251,6 +336,13 @@ async function archiveProject(projectId, payload, session) {
   if (!decodedProjectId || !previousProject) {
     throw new AppError("Project not found", 404);
   }
+
+  await permissionsService.assertCan(session, "projects.manage", {
+    organization_id: session.organization_id,
+    client_id: previousProject.client_id,
+    project_id: decodedProjectId,
+    operation: "delete",
+  });
 
   const client = await clientsRepository.readById(session.organization_id, previousProject.client_id);
 
@@ -350,6 +442,22 @@ function projectMetadata(client, project) {
     billable: project.billable,
     billing_rate: project.billing_rate,
   };
+}
+
+function billingDetailsChanged(previousRecord, payload = {}) {
+  const billingFields = [
+    "billable",
+    "billing_rate",
+    "billingPeriod",
+    "billing_period_type",
+    "billing_period_start_day",
+    "billingRounding",
+    "billing_rounding",
+    "billing_rounding_enabled",
+    "billing_rounding_increment",
+  ];
+
+  return billingFields.some((field) => Object.hasOwn(payload, field) && payload[field] !== previousRecord[field]);
 }
 
 export const clientsService = {
