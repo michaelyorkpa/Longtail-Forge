@@ -13,8 +13,7 @@ const saveEntryButton = document.querySelector("[data-save-entry]");
 
 let entryClients = [];
 
-setDefaultEntryDate();
-loadEntryClients();
+initializeManualEntry();
 
 entryClientSelect.addEventListener("change", () => {
   populateProjectOptions();
@@ -35,6 +34,12 @@ manualEntryForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await saveManualEntry();
 });
+
+async function initializeManualEntry() {
+  await window.LongtailForge.timezones.loadSessionTimezone();
+  setDefaultEntryDate();
+  await loadEntryClients();
+}
 
 async function loadEntryClients() {
   setEntryStatus("Loading clients and projects...");
@@ -83,8 +88,8 @@ function populateProjectOptions() {
 async function saveManualEntry() {
   const client = getSelectedClient();
   const project = getSelectedProject(client);
-  const startTime = createLocalDateTime(entryDateInput.value, entryStartTimeInput.value);
-  const endTime = createLocalDateTime(entryDateInput.value, entryEndTimeInput.value);
+  const startTime = createZonedDateTime(entryDateInput.value, entryStartTimeInput.value);
+  const endTime = createZonedDateTime(entryDateInput.value, entryEndTimeInput.value);
 
   // Validate before calculating duration so bad inputs never reach the API.
   if (!client || !project) {
@@ -191,26 +196,18 @@ function normalizeBillableFlag(value, fallback = "yes") {
   return fallback === "no" ? "no" : "yes";
 }
 
-function createLocalDateTime(dateValue, timeValue) {
-  // Date inputs are parsed manually to preserve the user's local time zone.
+function createZonedDateTime(dateValue, timeValue) {
   if (!dateValue || !timeValue) {
     return null;
   }
 
-  const [year, month, day] = dateValue.split("-").map(Number);
-  const [hours, minutes] = timeValue.split(":").map(Number);
-  const date = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  const date = new Date(window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateValue, timeValue));
 
   return Number.isFinite(date.getTime()) ? date : null;
 }
 
 function setDefaultEntryDate() {
-  const today = new Date();
-  entryDateInput.value = [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, "0"),
-    String(today.getDate()).padStart(2, "0"),
-  ].join("-");
+  entryDateInput.value = window.LongtailForge.timezones.formatDateInput(new Date());
 }
 
 function flashSavedButton() {

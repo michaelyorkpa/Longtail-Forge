@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { auditLogsRepository } from "../repositories/audit-logs.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
+import { localDateBoundToUtcIso, normalizeUtcIso } from "../utils/timezones.js";
 
 const CHANGE_TYPES = new Set([
   "create",
@@ -44,7 +45,7 @@ async function record(event) {
   const entry = {
     audit_id: event.auditId || randomUUID(),
     organization_id: organizationId,
-    created_at: event.createdAt || new Date().toISOString(),
+    created_at: normalizeUtcIso(event.createdAt, event.session?.timezone),
     actor_user_id: event.actorUserId ?? event.session?.user_id ?? null,
     actor_user_name: event.actorUserName ?? event.session?.username ?? null,
     action,
@@ -67,7 +68,10 @@ async function list(session, filters = {}) {
   await cleanupExpired(session.organization_id, settings.retentionDays);
 
   return {
-    auditLogs: await auditLogsRepository.search(session.organization_id, normalizeFilters(filters)),
+    auditLogs: await auditLogsRepository.search(session.organization_id, normalizeFilters({
+      ...filters,
+      timezone: session.timezone,
+    })),
   };
 }
 
@@ -102,14 +106,14 @@ function normalizeFilters(filters) {
   return {
     actorUserId: nullableString(filters.actorUserId),
     changeType: nullableString(filters.changeType),
-    dateFrom: normalizeDateBound(filters.dateFrom, "start"),
-    dateTo: normalizeDateBound(filters.dateTo, "end"),
+    dateFrom: normalizeDateBound(filters.dateFrom, filters.timezone, "start"),
+    dateTo: normalizeDateBound(filters.dateTo, filters.timezone, "end"),
     limit: filters.limit,
     recordType: nullableString(filters.recordType),
   };
 }
 
-function normalizeDateBound(value, edge) {
+function normalizeDateBound(value, timezone, edge) {
   const text = nullableString(value);
 
   if (!text) {
@@ -117,10 +121,10 @@ function normalizeDateBound(value, edge) {
   }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    return edge === "end" ? `${text}T23:59:59.999Z` : `${text}T00:00:00.000Z`;
+    return localDateBoundToUtcIso(text, timezone, edge);
   }
 
-  return text;
+  return normalizeUtcIso(text, timezone);
 }
 
 function csvValue(value) {

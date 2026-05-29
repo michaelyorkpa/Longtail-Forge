@@ -103,6 +103,10 @@ function applyProfile(profile) {
   profileDisplayNameInput.value = profile.displayName || "";
   profileAltEmailInput.value = profile.altEmail || "";
   setTimezoneValue(profile.timezone || "America/New_York");
+
+  if (window.LongtailForge?.timezones) {
+    window.LongtailForge.timezones.setUserTimezone(profile.timezone || "America/New_York");
+  }
 }
 
 function setTimezoneValue(timezone) {

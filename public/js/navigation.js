@@ -186,6 +186,7 @@ async function logOut() {
     });
   } finally {
     window.localStorage.removeItem("lf_theme");
+    window.localStorage.removeItem("lf_timezone");
     window.location.replace("/login.html");
   }
 }

@@ -9,6 +9,7 @@ INSERT INTO sessions (
   organization_id,
   user_id,
   username,
+  timezone,
   expires_at,
   created_at,
   updated_at
@@ -18,6 +19,7 @@ VALUES (
   ${sqlText(session.organization_id)},
   ${sqlText(session.user_id)},
   ${sqlText(session.username)},
+  ${sqlText(session.timezone)},
   ${sqlText(session.expires_at)},
   ${sqlText(now)},
   ${sqlText(now)}
@@ -32,6 +34,7 @@ SELECT
   organization_id,
   user_id,
   username,
+  timezone,
   expires_at
 FROM sessions
 WHERE session_id = ${sqlText(sessionId)}
@@ -64,10 +67,20 @@ WHERE organization_id = ${sqlText(organizationId)}
 `);
 }
 
+async function updateTimezoneForUser(organizationId, userId, timezone) {
+  await runSql(`
+UPDATE sessions
+SET timezone = ${sqlText(timezone)}
+WHERE organization_id = ${sqlText(organizationId)}
+  AND user_id = ${sqlText(userId)};
+`);
+}
+
 export const sessionsRepository = {
   create,
   readById,
   remove,
   removeExpired,
+  updateTimezoneForUser,
   updateUsernameForUser,
 };

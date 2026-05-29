@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { config } from "../config.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
-import { normalizeThemeMode } from "../utils/normalizers.js";
+import { normalizeThemeMode, normalizeTimezone } from "../utils/normalizers.js";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
 
@@ -15,6 +15,7 @@ async function createSession(user) {
     organization_id: user.organization_id,
     user_id: user.user_id,
     username: user.username,
+    timezone: normalizeTimezone(user.timezone),
     expires_at: expiresAt.toISOString(),
   });
 
@@ -60,6 +61,7 @@ async function getRequestSession(request) {
     organization_id: session.organization_id,
     user_id: session.user_id,
     username: session.username,
+    timezone: normalizeTimezone(session.timezone),
   };
 }
 

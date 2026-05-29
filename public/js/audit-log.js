@@ -12,7 +12,7 @@ const auditLogBody = document.querySelector("[data-audit-log-body]");
 
 let auditLogs = [];
 
-loadAuditLogs();
+initializeAuditLog();
 
 auditFilterForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -47,6 +47,11 @@ async function loadAuditLogs() {
     setStatus("Audit log could not be loaded.");
     console.error(error);
   }
+}
+
+async function initializeAuditLog() {
+  await window.LongtailForge.timezones.loadSessionTimezone();
+  await loadAuditLogs();
 }
 
 function populateFilterOptions() {
@@ -145,8 +150,12 @@ function createAuditRow(log) {
 }
 
 function filterAuditLogs() {
-  const dateFrom = dateFromInput.value ? `${dateFromInput.value}T00:00:00.000Z` : "";
-  const dateTo = dateToInput.value ? `${dateToInput.value}T23:59:59.999Z` : "";
+  const dateFrom = dateFromInput.value
+    ? window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateFromInput.value, "00:00:00")
+    : "";
+  const dateTo = dateToInput.value
+    ? window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateToInput.value, "23:59:59")
+    : "";
 
   return auditLogs.filter((log) =>
     (!dateFrom || log.created_at >= dateFrom) &&
@@ -161,11 +170,11 @@ function buildFilterParams() {
   const params = new URLSearchParams();
 
   if (dateFromInput.value) {
-    params.set("dateFrom", dateFromInput.value);
+    params.set("dateFrom", window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateFromInput.value, "00:00:00"));
   }
 
   if (dateToInput.value) {
-    params.set("dateTo", dateToInput.value);
+    params.set("dateTo", window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateToInput.value, "23:59:59"));
   }
 
   if (userFilterSelect.value) {
@@ -408,13 +417,7 @@ function formatEnum(value) {
 }
 
 function formatDateTime(value) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "None";
-  }
-
-  return date.toLocaleString();
+  return window.LongtailForge.timezones.formatDateTime(value) || "None";
 }
 
 function setStatus(message) {

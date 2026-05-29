@@ -5,7 +5,7 @@ const timeTrackingModule = {
   name: "Time Tracking",
   description: "Timers, manual entries, editable time entries, and billable time capture.",
   category: "core-workflow",
-  version: "0.28.0",
+  version: "0.28.2",
   enabledByDefault: true,
   browserApiRoutes: [timeEntriesRoutes],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),

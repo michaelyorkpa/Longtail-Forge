@@ -95,6 +95,7 @@ function readSession(session) {
       organization_id: session.organization_id,
       user_id: session.user_id,
       username: session.username,
+      timezone: normalizeTimezone(session.timezone),
     },
   };
 }

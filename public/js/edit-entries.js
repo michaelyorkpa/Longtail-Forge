@@ -33,7 +33,7 @@ let timeEntries = [];
 let editUsers = [];
 let selectedEntryId = "";
 
-loadEditEntryData();
+initializeEditEntries();
 
 filterStatusSelect.addEventListener("change", renderEntries);
 filterPeriodSelect.addEventListener("change", () => {
@@ -102,6 +102,11 @@ async function loadEditEntryData() {
     setEditEntryStatus("Entries could not be loaded.");
     console.error(error);
   }
+}
+
+async function initializeEditEntries() {
+  await window.LongtailForge.timezones.loadSessionTimezone();
+  await loadEditEntryData();
 }
 
 function populateClientOptions(select, placeholder) {
@@ -232,7 +237,7 @@ function openEditForm(entryId) {
 async function saveEditedEntry() {
   const client = getClient(editEntryClientSelect.value);
   const project = getProject(editEntryClientSelect.value, editEntryProjectSelect.value);
-  const startTime = createLocalDateTime(editEntryDateInput.value, editEntryStartTimeInput.value);
+  const startTime = createZonedDateTime(editEntryDateInput.value, editEntryStartTimeInput.value);
   const durationSeconds = getDurationInputSeconds();
 
   // Keep client/project names in the saved entry so reports do not need extra joins.
@@ -428,9 +433,21 @@ function getCustomDateRange() {
     return { invalid: true };
   }
 
-  const exclusiveEndDate = new Date(endDate);
-  exclusiveEndDate.setDate(exclusiveEndDate.getDate() + 1);
+  const exclusiveEndDate = new Date(
+    window.LongtailForge.timezones.zonedDateTimeToUtcIso(addDateInputDays(filterEndDateInput.value, 1), "00:00:00"),
+  );
   return { start: startDate, end: exclusiveEndDate };
+}
+
+function addDateInputDays(value, dayCount) {
+  const [year, month, day] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + dayCount));
+
+  return [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, "0"),
+    String(date.getUTCDate()).padStart(2, "0"),
+  ].join("-");
 }
 
 function getBillingPeriodRange(period, mode) {
@@ -530,15 +547,12 @@ function matchesProject(entry, project) {
   return window.LongtailForge.records.matchesProject(entry, project);
 }
 
-function createLocalDateTime(dateValue, timeValue) {
-  // Build local dates manually so editing does not shift times through UTC parsing.
+function createZonedDateTime(dateValue, timeValue) {
   if (!dateValue || !timeValue) {
     return null;
   }
 
-  const [year, month, day] = dateValue.split("-").map(Number);
-  const [hours, minutes, seconds = 0] = timeValue.split(":").map(Number);
-  const date = new Date(year, month - 1, day, hours, minutes, seconds, 0);
+  const date = new Date(window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateValue, timeValue));
 
   return Number.isFinite(date.getTime()) ? date : null;
 }
@@ -548,15 +562,14 @@ function parseDateInput(value) {
     return null;
   }
 
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
+  const date = new Date(window.LongtailForge.timezones.zonedDateTimeToUtcIso(value, "00:00:00"));
 
   return Number.isFinite(date.getTime()) ? date : null;
 }
 
 function formatDate(date) {
   return Number.isFinite(date.getTime())
-    ? date.toLocaleDateString()
+    ? window.LongtailForge.timezones.formatDate(date)
     : "";
 }
 
@@ -603,15 +616,11 @@ function normalizeEntryBillable(value) {
 }
 
 function formatDateInput(date) {
-  return window.LongtailForge.formatters.dateInput(date);
+  return window.LongtailForge.timezones.formatDateInput(date);
 }
 
 function formatTimeInput(date) {
-  return [
-    String(date.getHours()).padStart(2, "0"),
-    String(date.getMinutes()).padStart(2, "0"),
-    String(date.getSeconds()).padStart(2, "0"),
-  ].join(":");
+  return window.LongtailForge.timezones.formatTimeInput(date);
 }
 
 function setDurationInputs(totalSeconds) {
@@ -641,8 +650,8 @@ function clampDurationPart(value) {
 }
 
 function updateDurationFromTimeRange() {
-  const startTime = createLocalDateTime(editEntryDateInput.value, editEntryStartTimeInput.value);
-  const endTime = createLocalDateTime(editEntryDateInput.value, editEntryEndTimeInput.value);
+  const startTime = createZonedDateTime(editEntryDateInput.value, editEntryStartTimeInput.value);
+  const endTime = createZonedDateTime(editEntryDateInput.value, editEntryEndTimeInput.value);
 
   if (!startTime || !endTime || endTime <= startTime) {
     return;
@@ -652,7 +661,7 @@ function updateDurationFromTimeRange() {
 }
 
 function updateEndTimeFromDuration() {
-  const startTime = createLocalDateTime(editEntryDateInput.value, editEntryStartTimeInput.value);
+  const startTime = createZonedDateTime(editEntryDateInput.value, editEntryStartTimeInput.value);
   const durationSeconds = getDurationInputSeconds();
 
   if (!startTime || durationSeconds <= 0) {

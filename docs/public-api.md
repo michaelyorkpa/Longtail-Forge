@@ -64,3 +64,5 @@ Error responses:
 - `POST /api/v1/time-entries` requires `time_entries:write`
 
 List endpoints accept `limit` and `offset`. `limit` defaults to `50` and is capped at `100`.
+
+Time-entry timestamps should be sent as ISO 8601 UTC strings, such as `2026-05-29T13:00:00.000Z`. Values with an explicit offset are normalized to UTC before storage.

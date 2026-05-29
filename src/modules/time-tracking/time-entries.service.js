@@ -4,6 +4,7 @@ import { auditService } from "../../core/audit.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { normalizeTimeEntry } from "../../utils/normalizers.js";
+import { normalizeUtcIso } from "../../utils/timezones.js";
 
 async function create(entry, session) {
   await permissionsService.assertCan(session, "time_entries.create", {
@@ -23,8 +24,8 @@ async function create(entry, session) {
     project_id: entry.project_id,
     project_name: entry.project_name,
     description: entry.description,
-    start_time: entry.start_time,
-    end_time: entry.end_time,
+    start_time: normalizeUtcIso(entry.start_time, session.timezone),
+    end_time: normalizeUtcIso(entry.end_time, session.timezone),
     duration_seconds: entry.duration_seconds,
     duration_hours: entry.duration_hours,
     billable: entry.billable ?? "yes",
@@ -72,6 +73,8 @@ async function update(payload, entryId, session) {
 
   const updatedEntry = normalizeTimeEntry({
     ...payload,
+    start_time: normalizeUtcIso(payload.start_time, session.timezone),
+    end_time: normalizeUtcIso(payload.end_time, session.timezone),
     entry_id: decodedEntryId,
     organization_id: session.organization_id,
     user_id: payload.user_id || previousEntry.user_id,

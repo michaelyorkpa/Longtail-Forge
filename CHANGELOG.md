@@ -1,3 +1,11 @@
+## Version 0.28.2
+
+- Added shared UTC/timezone helpers for server-side timestamp normalization and browser-side local time display.
+- Added startup repair for legacy database timestamps that do not include an explicit timezone.
+- Added session timezone storage so authenticated requests can use the user's IANA timezone without re-querying the user row.
+- Updated Manual Entry and Edit Entries to collect user-local wall-clock times and save UTC ISO timestamps.
+- Updated Audit Log filtering, exports, and display to use the signed-in user's timezone while keeping stored audit rows in UTC.
+
 ## Version 0.28.1
 
 - Added `display_name`, nullable `alt_email`, and IANA `timezone` profile fields to users.
