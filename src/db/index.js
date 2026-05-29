@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { normalizeSettings } from "../utils/normalizers.js";
+import { DEFAULT_TIMEZONE, normalizeUtcIso } from "../utils/timezones.js";
 import { hashPassword, createGeneratedPassword, validatePassword } from "../security/passwords.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { runMigrations } from "./migrations.js";
@@ -15,7 +16,6 @@ import {
 const DEFAULT_ORGANIZATION_NAME = "Raymond Tec";
 const DEFAULT_SUPER_ADMIN_USERNAME = "[REDACTED]";
 const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = "Super Admin";
-const DEFAULT_TIMEZONE = "America/New_York";
 const SUPER_ADMIN_PASSWORD_ENV = "SUPER_ADMIN_PASSWORD";
 
 async function initializeDatabase() {
@@ -24,6 +24,7 @@ async function initializeDatabase() {
 
 async function ensureDatabase() {
   await runMigrations();
+  await standardizeStoredTimesToUtc();
   await protectFirstUser();
 
   const organizationId = await ensureDefaultOrganization();
@@ -31,6 +32,86 @@ async function ensureDatabase() {
   await modulesService.syncModuleRegistry(organizationId);
   await seedSuperAdminUser(organizationId);
   await ensureProtectedUserRoles(organizationId);
+}
+
+async function standardizeStoredTimesToUtc() {
+  await standardizeTableColumns("time_entries", "entry_id", [
+    "start_time",
+    "end_time",
+    "created_at",
+    "updated_at",
+  ]);
+  await standardizeTableColumns("audit_logs", "audit_id", ["created_at"]);
+
+  if (await tableExists("active_timers")) {
+    await standardizeTableColumns("active_timers", "active_timer_id", [
+      "last_active_start_time",
+      "created_at",
+      "updated_at",
+    ]);
+  }
+}
+
+async function standardizeTableColumns(tableName, idColumn, columns) {
+  if (!(await tableExists(tableName))) {
+    return;
+  }
+
+  const rows = await querySql(`
+SELECT rowid AS __rowid, ${[idColumn, ...columns].join(", ")}
+FROM ${tableName};
+`);
+  const updates = rows
+    .map((row) => createUtcRepairSql(tableName, idColumn, columns, row))
+    .filter(Boolean);
+
+  if (updates.length > 0) {
+    await runSql(updates.join("\n"));
+  }
+}
+
+function createUtcRepairSql(tableName, idColumn, columns, row) {
+  const assignments = columns
+    .map((column) => {
+      const currentValue = row[column];
+      const nextValue = normalizeStoredTime(currentValue);
+
+      return nextValue !== currentValue ? `${column} = ${sqlText(nextValue)}` : "";
+    })
+    .filter(Boolean);
+
+  if (assignments.length === 0) {
+    return "";
+  }
+
+  return `
+UPDATE ${tableName}
+SET ${assignments.join(", ")}
+WHERE ${idColumn} = ${sqlText(row[idColumn])}
+  AND rowid = ${sqlText(row.__rowid)};
+`;
+}
+
+function normalizeStoredTime(value) {
+  const text = String(value || "").trim();
+
+  if (!text || /z$/i.test(text)) {
+    return text;
+  }
+
+  return normalizeUtcIso(text, DEFAULT_TIMEZONE);
+}
+
+async function tableExists(tableName) {
+  const rows = await querySql(`
+SELECT name
+FROM sqlite_master
+WHERE type = 'table'
+  AND name = ${sqlText(tableName)}
+LIMIT 1;
+`);
+
+  return rows.length > 0;
 }
 
 async function ensureDefaultOrganization() {

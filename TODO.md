@@ -15,6 +15,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - [ ] Change "Clear Info when Reset" to "Clear Info when Stopped/Reset"
     - This change only affects the behavior of the stop button, specifically, if this box is checked when stop is pressed, client, project, and description are cleared.
 
+- [ ] Allow export of reports/audit logs via CSV in either local timezone or UTC
+
 # Medium Term
 
   - [ ] Add self-hosted install setting to limit workspace types

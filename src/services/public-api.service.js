@@ -5,6 +5,7 @@ import { timeEntriesRepository } from "../repositories/time-entries.repo.js";
 import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeTimeEntry } from "../utils/normalizers.js";
+import { normalizeUtcIso } from "../utils/timezones.js";
 
 async function listClients(context, query) {
   const clients = await clientsRepository.readAll(context.organization_id);
@@ -63,8 +64,8 @@ async function createTimeEntry(context, payload) {
     project_id: project.id,
     project_name: project.name,
     description: payload.description,
-    start_time: payload.start_time,
-    end_time: payload.end_time,
+    start_time: normalizeUtcIso(payload.start_time, context.timezone),
+    end_time: normalizeUtcIso(payload.end_time, context.timezone),
     duration_seconds: payload.duration_seconds,
     duration_hours: payload.duration_hours,
     billable: payload.billable ?? project.billable ?? client.billable ?? "yes",

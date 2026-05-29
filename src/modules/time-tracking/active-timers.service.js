@@ -3,6 +3,7 @@ import { activeTimersRepository } from "./active-timers.repo.js";
 import { timeEntriesService } from "./time-entries.service.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
+import { normalizeUtcIso } from "../../utils/timezones.js";
 
 async function list(session) {
   return {
@@ -110,13 +111,7 @@ function normalizeTimerSlot(timerSlot) {
 }
 
 function normalizeIsoDate(value) {
-  const date = value ? new Date(value) : new Date();
-
-  if (!Number.isFinite(date.getTime())) {
-    return new Date().toISOString();
-  }
-
-  return date.toISOString();
+  return normalizeUtcIso(value);
 }
 
 function stringOrEmpty(value) {

@@ -124,6 +124,7 @@ async function update(payload, session, userId) {
 
   await usersRepository.updateProfile(session.organization_id, userId, profile);
   await sessionsRepository.updateUsernameForUser(session.organization_id, userId, profile.username);
+  await sessionsRepository.updateTimezoneForUser(session.organization_id, userId, profile.timezone);
   const updatedUser = {
     ...userRowToAppValue(user),
     username: profile.username,
@@ -369,6 +370,7 @@ async function saveSettings(payload, session) {
 
     await usersRepository.updateProfile(session.organization_id, session.user_id, profile);
     await sessionsRepository.updateUsernameForUser(session.organization_id, session.user_id, profile.username);
+    await sessionsRepository.updateTimezoneForUser(session.organization_id, session.user_id, profile.timezone);
     nextValue = {
       ...nextValue,
       username: profile.username,

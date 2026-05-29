@@ -1,3 +1,5 @@
+import { DEFAULT_TIMEZONE, normalizeUtcIso } from "./timezones.js";
+
 function normalizeTimeEntry(entry) {
   return {
     entry_id: String(entry.entry_id || "").trim(),
@@ -8,8 +10,8 @@ function normalizeTimeEntry(entry) {
     project_id: String(entry.project_id || "").trim(),
     project_name: String(entry.project_name || "").trim(),
     description: String(entry.description || "").trim(),
-    start_time: String(entry.start_time || "").trim(),
-    end_time: String(entry.end_time || "").trim(),
+    start_time: normalizeUtcIso(entry.start_time),
+    end_time: normalizeUtcIso(entry.end_time),
     duration_seconds: String(entry.duration_seconds || "0").trim(),
     duration_hours: String(entry.duration_hours || "0").trim(),
     billable: normalizeTimeEntryBillable(entry.billable),
@@ -54,13 +56,13 @@ function normalizeDisplayName(value, fallback = "") {
 }
 
 function normalizeTimezone(value) {
-  const timezone = String(value || "").trim() || "America/New_York";
+  const timezone = String(value || "").trim() || DEFAULT_TIMEZONE;
 
   try {
     new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date());
     return timezone;
   } catch {
-    return "America/New_York";
+    return DEFAULT_TIMEZONE;
   }
 }
 
