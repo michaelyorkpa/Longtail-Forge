@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { config } from "../config.js";
+import { listModuleMigrationSources } from "../core/modules/registry.js";
 import { querySql, runSql, sqlText } from "./sqlite.js";
 
 const MIGRATIONS_TABLE = "schema_migrations";
@@ -49,25 +51,60 @@ CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
   if (!(await columnsExist(MIGRATIONS_TABLE, ["checksum"]))) {
     await runSql(`ALTER TABLE ${MIGRATIONS_TABLE} ADD COLUMN checksum TEXT;`);
   }
+
+  if (!(await columnsExist(MIGRATIONS_TABLE, ["module_id"]))) {
+    await runSql(`ALTER TABLE ${MIGRATIONS_TABLE} ADD COLUMN module_id TEXT NOT NULL DEFAULT 'core';`);
+  }
 }
 
 async function readMigrationFiles() {
-  const migrationsDir = config.migrationsDir;
-  const entries = await fs.readdir(migrationsDir, { withFileTypes: true });
+  const migrationSources = [
+    { moduleId: "core", migrationsDir: config.migrationsDir },
+    ...listModuleMigrationSources(),
+  ];
+  const migrationGroups = await Promise.all(migrationSources.map(readMigrationSource));
+
+  return migrationGroups.flat();
+}
+
+async function readMigrationSource(source) {
+  const migrationsDir = normalizeMigrationsDir(source.migrationsDir);
+  const entries = await readMigrationDirEntries(migrationsDir);
   const files = entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".sql"))
     .map((entry) => entry.name)
     .sort();
 
-  return Promise.all(files.map(readMigrationFile));
+  return Promise.all(files.map((fileName) => readMigrationFile(fileName, source.moduleId, migrationsDir)));
 }
 
-async function readMigrationFile(fileName) {
-  const sql = await fs.readFile(path.join(config.migrationsDir, fileName), "utf8");
+async function readMigrationDirEntries(migrationsDir) {
+  try {
+    return await fs.readdir(migrationsDir, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+function normalizeMigrationsDir(migrationsDir) {
+  if (migrationsDir instanceof URL) {
+    return fileURLToPath(migrationsDir);
+  }
+
+  return migrationsDir;
+}
+
+async function readMigrationFile(fileName, moduleId = "core", migrationsDir = config.migrationsDir) {
+  const sql = await fs.readFile(path.join(migrationsDir, fileName), "utf8");
 
   return {
     checksum: createMigrationChecksum(sql),
     fileName,
+    moduleId,
     name: fileName.replace(/^\d+_/, "").replace(/\.sql$/, ""),
     sql,
     version: fileName.split("_")[0],
@@ -100,7 +137,8 @@ async function backfillMissingChecksums(migrations) {
 
     await runSql(`
 UPDATE ${MIGRATIONS_TABLE}
-SET checksum = ${sqlText(migration.checksum)}
+SET checksum = ${sqlText(migration.checksum)},
+    module_id = ${sqlText(migration.moduleId)}
 WHERE version = ${sqlText(migration.version)};
 `);
   }
@@ -131,7 +169,7 @@ async function validateAppliedMigrationChecksums(migrations) {
 
 async function readAppliedMigrations() {
   return querySql(`
-SELECT version, checksum
+SELECT version, module_id, checksum
 FROM ${MIGRATIONS_TABLE};
 `);
 }
@@ -155,7 +193,16 @@ WHERE type = 'table'
 }
 
 async function baselineExistingSchema(migrations) {
-  const statements = migrations.map((migration) => createRecordMigrationSql(migration));
+  const statements = [];
+
+  for (const migration of migrations) {
+    if (migration.version === "010" && !(await isMigrationAlreadySatisfied(migration))) {
+      await applyMigration(migration);
+      continue;
+    }
+
+    statements.push(createRecordMigrationSql(migration));
+  }
 
   if (statements.length === 0) {
     return;
@@ -179,8 +226,8 @@ async function recordMigration(migration) {
 
 function createRecordMigrationSql(migration) {
   return `
-INSERT OR IGNORE INTO ${MIGRATIONS_TABLE} (version, name, checksum, applied_at)
-VALUES (${sqlText(migration.version)}, ${sqlText(migration.name)}, ${sqlText(migration.checksum)}, ${sqlText(new Date().toISOString())});
+INSERT OR IGNORE INTO ${MIGRATIONS_TABLE} (version, module_id, name, checksum, applied_at)
+VALUES (${sqlText(migration.version)}, ${sqlText(migration.moduleId)}, ${sqlText(migration.name)}, ${sqlText(migration.checksum)}, ${sqlText(new Date().toISOString())});
 `;
 }
 
@@ -205,6 +252,15 @@ async function isMigrationAlreadySatisfied(migration) {
 
   if (migration.fileName === "004_add_sessions.sql") {
     return tableExists("sessions");
+  }
+
+  if (migration.fileName === "010_add_module_registry.sql") {
+    const [modulesTableExists, organizationModulesTableExists] = await Promise.all([
+      tableExists("modules"),
+      tableExists("organization_modules"),
+    ]);
+
+    return modulesTableExists && organizationModulesTableExists;
   }
 
   return false;

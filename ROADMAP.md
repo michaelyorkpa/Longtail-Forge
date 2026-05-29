@@ -613,62 +613,62 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ## Version 0.26.0 - Module-Ready Architecture
 
-- [ ] Create module-ready backend structure
-  - [ ] Goal is not full plugin install/uninstall yet
-  - [ ] Goal is to prevent the app from becoming one giant time-tracker-shaped codebase before notes, tasks, support tickets, invoicing, and integrations are added
-- [ ] Introduce a `src/core/` area for shared infrastructure
-  - [ ] App creation/bootstrap
-  - [ ] Database helpers
-  - [ ] Migration runner
-  - [ ] Auth/session helpers
-  - [ ] Permission helpers
-  - [ ] Audit service
-  - [ ] API key auth
-  - [ ] Shared AppError/error handling
-- [ ] Introduce a `src/modules/` area
-  - [ ] `src/modules/time-tracking/`
-  - [ ] `src/modules/clients/` or `src/modules/client-projects/`
-  - [ ] `src/modules/users/`
-  - [ ] Future:
-    - [ ] `src/modules/tasks/`
-    - [ ] `src/modules/notes/`
-    - [ ] `src/modules/support-tickets/`
-    - [ ] `src/modules/invoicing/`
-    - [ ] `src/modules/integrations/`
-- [ ] Each module should be able to own:
-  - [ ] Routes
-  - [ ] Services
-  - [ ] Repositories
-  - [ ] Normalizers/validators
-  - [ ] Migrations
-  - [ ] Public/browser JS where appropriate
-  - [ ] Protected views where appropriate
-  - [ ] Seed/default data where appropriate
-- [ ] Add a module registry
-  - [ ] The app should know which modules exist
-  - [ ] The app should know which modules are enabled for an organization
-  - [ ] The registry can be simple at first, for example a static JavaScript module exporting module definitions
-- [ ] Add database support for enabled modules
-  - [ ] `modules` table or equivalent
-  - [ ] `organization_modules` table or equivalent
-  - [ ] Track enabled/disabled state per organization when the app supports organization-level modules
-- [ ] Make migrations module-aware
-  - [ ] Core migrations should still run first
-  - [ ] Module migrations should run after core migrations
-  - [ ] Migration checksums should continue to work
-  - [ ] Applied migrations should record enough information to identify the owning module
-- [ ] Move existing code gradually
-  - [ ] Do not do a risky all-at-once restructure
-  - [ ] Move time tracking into a module first
-  - [ ] Move clients/projects into a module or shared domain module
-  - [ ] Keep route behavior unchanged while moving files
-  - [ ] Run `npm run check` after each move
-- [ ] Prepare for installable modules later
-  - [ ] Time-tracking/billing/invoicing module
-  - [ ] Notes/knowledge base module
-  - [ ] Support tickets module
-  - [ ] Tasks module
-  - [ ] Integrations module
+- [x] Create module-ready backend structure
+  - [x] Goal is not full plugin install/uninstall yet
+  - [x] Goal is to prevent the app from becoming one giant time-tracker-shaped codebase before notes, tasks, support tickets, invoicing, and integrations are added
+- [x] Introduce a `src/core/` area for shared infrastructure
+  - [x] App creation/bootstrap
+  - [x] Database helpers
+  - [x] Migration runner
+  - [x] Auth/session helpers
+  - [x] Permission helpers
+  - [x] Audit service
+  - [x] API key auth
+  - [x] Shared AppError/error handling
+- [x] Introduce a `src/modules/` area
+  - [x] `src/modules/time-tracking/`
+  - [x] `src/modules/clients/` or `src/modules/client-projects/`
+  - [x] `src/modules/users/`
+  - [x] Future:
+    - [x] `src/modules/tasks/`
+    - [x] `src/modules/notes/`
+    - [x] `src/modules/support-tickets/`
+    - [x] `src/modules/invoicing/`
+    - [x] `src/modules/integrations/`
+- [x] Each module should be able to own:
+  - [x] Routes
+  - [x] Services
+  - [x] Repositories
+  - [x] Normalizers/validators
+  - [x] Migrations
+  - [x] Public/browser JS where appropriate
+  - [x] Protected views where appropriate
+  - [x] Seed/default data where appropriate
+- [x] Add a module registry
+  - [x] The app should know which modules exist
+  - [x] The app should know which modules are enabled for an organization
+  - [x] The registry can be simple at first, for example a static JavaScript module exporting module definitions
+- [x] Add database support for enabled modules
+  - [x] `modules` table or equivalent
+  - [x] `organization_modules` table or equivalent
+  - [x] Track enabled/disabled state per organization when the app supports organization-level modules
+- [x] Make migrations module-aware
+  - [x] Core migrations should still run first
+  - [x] Module migrations should run after core migrations
+  - [x] Migration checksums should continue to work
+  - [x] Applied migrations should record enough information to identify the owning module
+- [x] Move existing code gradually
+  - [x] Do not do a risky all-at-once restructure
+  - [x] Move time tracking into a module first
+  - [x] Move clients/projects into a module or shared domain module
+  - [x] Keep route behavior unchanged while moving files
+  - [x] Run `npm run check` after each move
+- [x] Prepare for installable modules later
+  - [x] Time-tracking/billing/invoicing module
+  - [x] Notes/knowledge base module
+  - [x] Support tickets module
+  - [x] Tasks module
+  - [x] Integrations module
 
 ## Version 0.27.0 - Shared Billing and Reporting Services
 
