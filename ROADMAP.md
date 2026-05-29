@@ -672,42 +672,306 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ## Version 0.27.0 - Shared Billing and Reporting Services
 
-- [ ] Consolidate billing, rounding, and date-range calculations
-  - [ ] Reporting and Dashboard should not maintain separate versions of the same billing logic
-  - [ ] Create shared browser helper first if staying frontend-only
-  - [ ] Consider moving billing calculations server-side later for API consistency
-- [ ] Shared billing logic should support:
-  - [ ] Organization defaults
-  - [ ] Client overrides
-  - [ ] Project overrides
-  - [ ] Billable/non-billable status
-  - [ ] Round-hours setting for unbillable clients/projects
-  - [ ] Billing periods
-  - [ ] Custom date ranges
-- [ ] Reporting and Dashboard should use the same calculation source
-  - [ ] Current month billables
-  - [ ] Previous 12 months chart
-  - [ ] Client report
-  - [ ] Future invoice calculations
-  - [ ] Future API reporting endpoints
+- [x] Consolidate billing, rounding, and date-range calculations
+  - [x] Reporting and Dashboard should not maintain separate versions of the same billing logic
+  - [x] Create shared browser helper first if staying frontend-only
+  - [x] Consider moving billing calculations server-side later for API consistency
+- [x] Shared billing logic should support:
+  - [x] Organization defaults
+  - [x] Client overrides
+  - [x] Project overrides
+  - [x] Billable/non-billable status
+  - [x] Round-hours setting for unbillable clients/projects
+  - [x] Billing periods
+  - [x] Custom date ranges
+- [x] Reporting and Dashboard should use the same calculation source
+  - [x] Current month billables
+  - [x] Previous 12 months chart
+  - [x] Client report
+  - [x] Future invoice calculations
+  - [x] Future API reporting endpoints
 
-## Version 0.30.0 - Core Time Tracking Maturity
+## Version 0.28.0 - Core Time Tracking Maturity
 
-- [ ] Add timer persistence
-  - [ ] Timers should survive page refresh where reasonable
-  - [ ] Timers should survive accidental navigation where reasonable
-  - [ ] Store enough state to restore:
-    - [ ] Client
-    - [ ] Project
-    - [ ] Description
-    - [ ] Billable flag
-    - [ ] Elapsed time
-    - [ ] Active start time
-    - [ ] Running/paused state
-  - [ ] Timer persistence should build on the timer state refactor from Version 0.22.5
-  - [ ] Timers receive additional drop downs to pull in stored timers
+- [x] Add database-backed timer persistence
+  - [x] Create `active_timers` table for running/paused timer state
+  - [x] Do not store in-progress timers directly as completed `time_entries`
+  - [x] Create active timer row when a timer starts
+  - [x] Update active timer row when timer is paused, resumed, edited, or reset
+  - [x] Do not update the database every second
+  - [x] Store enough state to restore:
+    - [x] User
+    - [x] Workspace/organization
+    - [x] Timer slot/card identity
+    - [x] Client, optional
+    - [x] Project, required
+    - [x] Description
+    - [x] Billable flag
+    - [x] Accumulated elapsed seconds
+    - [x] Last active start time
+    - [x] Running/paused state
+  - [x] On page load, restore active timers for the authenticated user and active workspace
+  - [x] If timer was running, calculate displayed time from accumulated elapsed seconds plus time since last active start
+  - [x] If timer was paused, display accumulated elapsed seconds only
+  - [x] On stop, create final `time_entries` row and remove/archive the active timer row
+  - [x] Starting one timer should pause any other running timer for that user/workspace
+  - [x] Timer persistence should build on the timer state refactor from Version 0.22.5
+  - [x] Update the README file to reflect an accurate roadmap summary (I previously overwrote the README by accident)
+
+## Version 0.28.1
+
+Shift usernames to email addresses, add display name and timezone to users table
+
+- [ ] Require that validates as email address
+- [ ] Add display_name column to users table for use in the app
+- [ ] Add alternate email address column to users table (alt_email, Can be NULL)
+- [ ] Add timezone column
+  - Use IANA timezone values (e.g. "America/New_York")
+- [ ] Update existing usernames
+  - There's currently 2 users in the database
+    - For current username "sadmin": 
+      - change username to "[REDACTED]" 
+      - add display_name of "Super Admin"
+      - set timezone to "America/New_York"
+    - For current username "Mike"
+      - change username to "[REDACTED]" 
+      - add display_name of "Mike York"
+      - add alternate email address of "[REDACTED]"
+      - set timezone to "America/New_York"
+  - After completing this task, delete these lines and replace with: "   - [x] Update existing usernames"
+- [ ] Add relevant fields to User settings (all of these BELOW the password box)
+  - [ ] Add relevant checks to username field to ensure valid email addresses (no emails sent yet, just validate it could be a valid email address)
+  - [ ] Add Display Name field and wire it to display_name column
+  - [ ] Add Alternate email address field and wire it to the user table's "alt_email" column
+  - [ ] Add Timezone field and wire it to the user table's "timezone" column
+- [ ] Add relevant fields to User Admin settings
+  - [ ] Put them in the "Edit User" modal below Username
+  - [ ] Same as for the User settings
+
+## Version 0.28.2 - Time standardization
+
+- [ ] Convert all dates/times stored in database to UTC (They are currently in my PC's timezone of "America/New_York")
+  - [ ] Update all time_entries to use UTC in the database
+  - [ ] Update all audit logs to UTC in the database
+  - [ ] Update all active_timers to UTC in the database
+  - [ ] Update any other time references in the database
+- [ ] Update time display on the front end to record in UTC but display in user's timezone
+  - [ ] On Create Manual Entry screen, user should input local time and it should be converted to UTC
+  - [ ] Same thing for the edit entry screen
+  - [ ] Audit log should record and be stored in UTC but the Audit Log viewer in Settings should be in local user's timezone
+
+## Version 0.30.0 - Workspace Model Shift
+
+This update and all of 0.30.x marks a shift from referring to "Organizations" to "Workspaces" to allow for expansion of the system to be useful in business and personal contexts. Users no longer belong to a single organization. Users will shift to being independent entities within the overall framework.
+
+Users are then assigned to workspaces via a separate table in the database.
+
+Super Admins retain control and access to all workspaces within the app.
+
+Groundwork is laid for users to create their own workspaces of various types. This includes business, personal, and family workspaces.
+
+Business workspaces include clients, projects, and multiple users.
+
+Personal workspaces are single user, owner-only spaces.
+
+Family workspaces are multi-user workspaces with granular permissions and roles aimed at "Adult" and "Child" roles.
+
+- [ ] Rename Organization/organization to Workspace/workspace everywhere
+  - [ ] Rename user-facing labels from Organization to Workspace
+  - [ ] Rename Organization Settings to Workspace Settings
+  - [ ] Rename organization-related route names, service names, repository names, and helper names
+  - [ ] Update database references where practical
+    - [ ] Existing `organization_id` columns may remain temporarily during migration if needed
+    - [ ] Long-term naming should become `workspace_id`
+  - [ ] Update audit log record types and labels from organization-focused language to workspace-focused language
+  - [ ] Update public API documentation and browser/API response field names where appropriate
+  - [ ] Preserve backward compatibility where needed until existing screens and services are fully migrated
+
+## Version 0.30.1
+
+- [ ] Add workspace ownership and user/workspace membership foundation
+  - [ ] Create `user_workspaces` table to track which users can access which workspaces
+    - [ ] `user_workspace_id`
+    - [ ] `user_id`
+    - [ ] `workspace_id`
+    - [ ] `status`
+    - [ ] `created_at`
+    - [ ] `updated_at`
+  - [ ] Dissociate users from belonging to only one workspace
+    - [ ] Users become independent app-level records
+    - [ ] Users can belong to multiple workspaces
+    - [ ] Remove or deprecate direct `users.organization_id` / `users.workspace_id` behavior
+  - [ ] Add `owner_user_id` or similar field to the `workspaces` table
+    - [ ] Identifies the primary administrator/owner of the workspace
+    - [ ] Supports future ownership transfer for business use cases
+  - [ ] Make sure workspace membership changes are audit logged
+
+## Version 0.30.2
+
+- [ ] Add workspace type support
+  - [ ] Add `workspace_type` to the workspace table
+    - [ ] `business`
+    - [ ] `personal`
+    - [ ] `family`
+  - [ ] Business workspaces
+    - [ ] Default workspace name should use the organization/business name
+    - [ ] Full project/client/business tool suite available:
+      - [ ] Tasks
+      - [ ] Notes/knowledge base
+      - [ ] Time tracking
+      - [ ] Clients/projects
+      - [ ] Billing/invoicing/reporting
+      - [ ] Team members
+      - [ ] Permissions
+  - [ ] Personal workspaces
+    - [ ] Default workspace name should be `Personal`
+    - [ ] User can rename the workspace
+    - [ ] Available tools:
+      - [ ] Tasks
+      - [ ] Notes/knowledge base
+      - [ ] Time tracking, optional
+      - [ ] Projects
+    - [ ] Owner-only permissions
+    - [ ] Personal workspaces cannot add other users
+  - [ ] Family workspaces
+    - [ ] Default workspace name should be `Family`
+    - [ ] Workspace admin can rename the workspace
+    - [ ] Available tools:
+      - [ ] Tasks
+      - [ ] Notes/knowledge base
+      - [ ] Time tracking, optional
+      - [ ] Projects
+      - [ ] Team members
+      - [ ] Family-focused permissions
+    - [ ] Add family-focused account concepts
+      - [ ] Adult accounts
+      - [ ] Child accounts
+      - [ ] Limited number of users (20)
+
+- [ ] Update sessions for active workspace support
+  - [ ] Add `active_workspace_id` to authenticated session data
+  - [ ] Replace session assumptions that use one fixed organization/workspace
+  - [ ] Load user workspace memberships during login/session refresh
+  - [ ] Add workspace switching functionality
+    - [ ] User can switch active workspace from the UI
+    - [ ] App reloads workspace-scoped data after switching
+    - [ ] User cannot switch into a workspace they do not belong to
+  - [ ] Update authorization checks to use `active_workspace_id`
+
+- [ ] Update user administration for workspace membership
+  - [ ] Super administrator user creation/editing
+    - [ ] Can assign users to one or more workspaces
+    - [ ] Can assign workspace roles during user setup
+    - [ ] Can move users between workspaces
+  - [ ] Workspace administrator user creation/editing
+    - [ ] Can create users within the active workspace, if permitted
+    - [ ] Can assign groups/teams/roles
+    - [ ] Can use an Advanced button for granular permissions
+    - [ ] Cannot assign users to unrelated workspaces
+  - [ ] User edit modal should show workspace memberships
+  - [ ] User edit modal should show roles/permissions within the selected workspace
+
+- [ ] Update roles and permissions for workspace scope
+  - [ ] Rename Organization Administrator to Workspace Administrator
+  - [ ] Update permission checks from organization scope to workspace scope
+  - [ ] Ensure existing client/project/time-entry permissions are evaluated inside the active workspace
+  - [ ] Add workspace type limits to permission checks
+    - [ ] Personal workspace users cannot add team members
+    - [ ] Family workspace permissions use family-focused role rules
+    - [ ] Business workspaces use full role/permission rules
+
+- [ ] Shift clients to workspace scope
+  - [ ] Clients should continue to require a `workspace_id`
+  - [ ] Business workspaces use clients normally
+  - [ ] Personal and family workspaces may hide or disable clients by default
+  - [ ] Existing clients must migrate from `organization_id` to `workspace_id`
+  - [ ] Client screens should only show clients for the active workspace
+
+- [ ] Shift projects away from requiring a client
+  - [ ] Projects must still require a `workspace_id`
+  - [ ] Make `client_id` nullable
+  - [ ] Projects can exist directly under a workspace without a client
+  - [ ] Update project settings UI
+    - [ ] Convert the project settings screen to a single list of all projects in the active workspace
+    - [ ] Add `Filter by: Client` dropdown above the project list
+    - [ ] Add `Filter by: Status` dropdown next to the client filter
+    - [ ] Add field to optionally assign a project to a client
+  - [ ] Preserve client/project relationships for existing projects during migration
+  - [ ] Prepare for future bulk project editing
+    - [ ] Multi-select projects
+    - [ ] Bulk edit status
+    - [ ] Bulk assign client
+    - [ ] Bulk update other shared fields where safe
+
+- [ ] Shift time entries away from requiring a client
+  - [ ] Time entries must require a `workspace_id`
+  - [ ] Time entries must require a `project_id`
+  - [ ] Make `client_id` optional
+  - [ ] Stopwatch UI should require project selection
+  - [ ] Stopwatch UI should allow optional client selection when relevant
+  - [ ] If selected project belongs to a client, client may auto-fill
+  - [ ] Reporting should handle:
+    - [ ] Workspace-only projects
+    - [ ] Client-linked projects
+    - [ ] Time entries with no client
+  - [ ] Preserve historical client/project display names for old time entries
+
+- [ ] Add workspace creation buttons to User Settings
+  - [ ] Add button to create a new workspace
+  - [ ] Available workspace types should depend on install mode and account type
+  - [ ] SaaS account type rules:
+    - [ ] Personal users can create one personal workspace
+    - [ ] Family users can create one personal workspace and use one shared family workspace
+    - [ ] Business users can create personal, family, and business workspaces as allowed by plan
+  - [ ] Self-hosted rules:
+    - [ ] Allow all workspace types by default unless limited by config/setup
+    - [ ] Support business-only installs
+
+- [ ] Update workspace-aware navigation and UI behavior
+  - [ ] Add active workspace selector to the app shell/header
+  - [ ] Clearly show which workspace the user is currently using
+  - [ ] Hide unavailable modules based on workspace type
+  - [ ] Hide unavailable actions based on workspace permissions
+  - [ ] Make empty states workspace-aware
+    - [ ] Personal workspace project/task messaging should not mention clients by default
+    - [ ] Business workspace messaging can continue to reference clients/projects
+
+- [ ] Update database migrations and data migration path
+  - [ ] Rename or create workspace table from existing organization table
+  - [ ] Migrate existing organization records into workspaces
+  - [ ] Migrate existing organization settings into workspace settings
+  - [ ] Migrate existing users into `user_workspaces`
+  - [ ] Set existing users' active/default workspace based on current organization membership
+  - [ ] Migrate existing clients, projects, time entries, audit logs, API keys, roles, and settings to workspace scope
+  - [ ] Add indexes for common workspace lookups
+    - [ ] `workspace_id`
+    - [ ] `user_id, workspace_id`
+    - [ ] `workspace_type`
+    - [ ] `owner_user_id`
+
+- [ ] Update public API and API key behavior for workspaces
+  - [ ] API keys should be scoped to a workspace
+  - [ ] API responses should use workspace language
+  - [ ] Existing organization-scoped API behavior should either migrate cleanly or remain temporarily backward-compatible
+  - [ ] API documentation should explain workspace scoping
+  - [ ] API audit logs should record workspace context
+
+- [ ] Update tests/checks for workspace behavior
+  - [ ] User with one workspace logs in normally
+  - [ ] User with multiple workspaces can switch active workspace
+  - [ ] User cannot access records from a workspace they do not belong to
+  - [ ] Business workspace supports clients/projects/time tracking/reporting
+  - [ ] Personal workspace supports projects without clients
+  - [ ] Family workspace supports limited team members and family permissions
+  - [ ] Time entries require project but not client
+  - [ ] Projects require workspace but not client
+  - [ ] Existing migrated data remains visible after migration
+  - [ ] `npm run check` passes after migration
 
 ## Version 0.31.0 - User, client, and project functionality expansion
+
+With
+
 - [ ] Create nested clients
 - [ ] Create nested projects
 - [ ] Add backups/export/import

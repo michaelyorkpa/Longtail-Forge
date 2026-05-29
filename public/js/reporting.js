@@ -15,11 +15,7 @@ const reportTotalBillableAmount = document.querySelector(
 
 let reportClients = [];
 let reportEntries = [];
-let reportSettings = {
-  defaultBillingRate: 0,
-  billingPeriod: { type: "calendarMonth", startDay: 1 },
-  billingRounding: { enabled: false, increment: "nearestQuarterHour" },
-};
+let reportSettings = window.LongtailForge.billing.normalizeSettings({});
 
 setDefaultCustomDates();
 updateCustomDateState();
@@ -54,11 +50,11 @@ async function loadReportData() {
     }
 
     reportSettings = settingsResponse.ok
-      ? normalizeSettings(await settingsResponse.json())
-      : normalizeSettings({});
-    reportClients = normalizeClients(await clientsResponse.json());
+      ? window.LongtailForge.billing.normalizeSettings(await settingsResponse.json())
+      : window.LongtailForge.billing.normalizeSettings({});
+    reportClients = window.LongtailForge.billing.normalizeClients(await clientsResponse.json());
     reportEntries = entriesResponse.ok
-      ? normalizeTimeEntries(await entriesResponse.json())
+      ? window.LongtailForge.billing.normalizeTimeEntries(await entriesResponse.json())
       : [];
 
     renderClientFilter();
@@ -100,7 +96,7 @@ function renderProjectFilter() {
     return;
   }
 
-  sortByName(getReportProjects(client)).forEach((project) => {
+  sortByName(window.LongtailForge.billing.getReportProjects(client, reportEntries)).forEach((project) => {
     const option = createOption(project.id, project.name);
     option.selected = true;
     reportProjectSelect.appendChild(option);
@@ -108,7 +104,6 @@ function renderProjectFilter() {
 }
 
 function renderReport() {
-  // This render path is intentionally derived from the current controls each time.
   const client = getSelectedClient();
   reportTableBody.innerHTML = "";
   reportTableWrap.hidden = true;
@@ -118,68 +113,55 @@ function renderReport() {
     return;
   }
 
+  if (reportPeriodSelect.value === "custom" && !getCustomDateRange()) {
+    setReportStatus("Choose a valid custom start and end date.");
+    return;
+  }
+
   const selectedProjectIds = getSelectedProjectIds();
-  const projects = sortByName(getReportProjects(client)).filter((project) =>
-    selectedProjectIds.includes(project.id),
-  );
+  const projects = sortByName(window.LongtailForge.billing.getReportProjects(client, reportEntries))
+    .filter((project) => selectedProjectIds.includes(project.id));
 
   if (projects.length === 0) {
     setReportStatus("Select at least one project.");
     return;
   }
 
-  const clientEntries = reportEntries.filter((entry) => matchesClient(entry, client));
-  let totalSeconds = 0;
-  let totalBillableAmount = 0;
-
-  projects.forEach((project) => {
-    const range = getSelectedDateRange(client, project);
-    const projectEntries = clientEntries
-      .filter((entry) =>
-        matchesProject(entry, project) &&
-        isEntryInRange(entry, range),
-      );
-    const projectSeconds = projectEntries
-      .reduce((seconds, entry) => seconds + entry.durationSeconds, 0);
-    const projectBillableSeconds = projectEntries
-      .filter((entry) => entry.billable === "yes")
-      .reduce((seconds, entry) => seconds + entry.durationSeconds, 0);
-
-    if (projectSeconds === 0) {
-      return;
-    }
-
-    const projectRounding = getEffectiveProjectBillingRounding(client, project);
-    const roundedBillableSeconds = roundSeconds(projectBillableSeconds, projectRounding);
-    const displaySeconds = projectBillableSeconds > 0
-      ? roundedBillableSeconds
-      : roundSeconds(projectSeconds, projectRounding);
-    const rate = getProjectBillingRate(client, project);
-    const billableAmount = (roundedBillableSeconds / 3600) * rate;
-
-    totalSeconds += displaySeconds;
-    totalBillableAmount += billableAmount;
-    reportTableBody.appendChild(createReportRow(
+  const clientEntries = reportEntries.filter((entry) =>
+    window.LongtailForge.records.matchesClient(entry, client),
+  );
+  const summaries = projects
+    .map((project) => window.LongtailForge.billing.summarizeProject(
+      reportSettings,
+      client,
       project,
-      rate,
-      displaySeconds,
-      roundedBillableSeconds,
-      billableAmount,
-    ));
-  });
+      clientEntries,
+      getSelectedDateRange(client, project),
+    ))
+    .filter(Boolean);
 
-  if (reportPeriodSelect.value === "custom" && !getCustomDateRange()) {
-    setReportStatus("Choose a valid custom start and end date.");
-    return;
-  }
-
-  if (!reportTableBody.children.length) {
+  if (!summaries.length) {
     setReportStatus("No time entries match these filters.");
     return;
   }
 
-  reportTotalTime.textContent = formatHours(totalSeconds);
-  reportTotalBillableAmount.textContent = formatCurrency(totalBillableAmount);
+  const totals = summaries.reduce((summary, projectSummary) => ({
+    amount: summary.amount + projectSummary.amount,
+    seconds: summary.seconds + projectSummary.displaySeconds,
+  }), { amount: 0, seconds: 0 });
+
+  summaries.forEach((summary) => {
+    reportTableBody.appendChild(createReportRow(
+      summary.project,
+      summary.rate,
+      summary.displaySeconds,
+      summary.billableSeconds,
+      summary.amount,
+    ));
+  });
+
+  reportTotalTime.textContent = formatHours(totals.seconds);
+  reportTotalBillableAmount.textContent = formatCurrency(totals.amount);
   reportTableWrap.hidden = false;
   setReportStatus("");
 }
@@ -197,46 +179,6 @@ function createReportRow(project, rate, seconds, billableSeconds, billableAmount
   return row;
 }
 
-function normalizeClients(data) {
-  // Inactive clients are hidden from reports, but historic entry projects can still be added below.
-  return Array.isArray(data?.clients)
-    ? data.clients
-        .filter((client) => client.status !== "Inactive")
-        .map((client) => ({
-          id: String(client.id || "").trim(),
-          name: String(client.name || "").trim(),
-          billable: normalizeBillableFlag(client.billable),
-          billingRate: parseOptionalMoney(client.billing_rate),
-          billingPeriod: normalizeOptionalBillingPeriod(client.billing_period),
-          billingRounding: normalizeOptionalBillingRounding(client.billing_rounding),
-          projects: Array.isArray(client.projects)
-            ? client.projects.map((project) => ({
-                id: String(project.id || "").trim(),
-                name: String(project.name || "").trim(),
-                billable: normalizeBillableFlag(project.billable, client.billable),
-                billingRate: parseOptionalMoney(project.billing_rate),
-                billingPeriod: normalizeOptionalBillingPeriod(project.billing_period),
-                billingRounding: normalizeOptionalBillingRounding(project.billing_rounding),
-              }))
-            : [],
-        }))
-    : [];
-}
-
-function normalizeTimeEntries(data) {
-  return Array.isArray(data?.entries)
-    ? data.entries.map((entry) => ({
-        clientId: entry.client_id,
-        clientName: entry.client_name,
-        projectId: entry.project_id,
-        projectName: entry.project_name,
-        endTime: new Date(entry.end_time),
-        durationSeconds: Number(entry.duration_seconds) || 0,
-        billable: entry.billable === "no" ? "no" : "yes",
-      }))
-    : [];
-}
-
 function getSelectedClient() {
   return reportClients.find((client) => client.id === reportClientSelect.value);
 }
@@ -245,46 +187,17 @@ function getSelectedProjectIds() {
   return [...reportProjectSelect.selectedOptions].map((option) => option.value);
 }
 
-function getReportProjects(client) {
-  // Include projects found only in historic entries so older time remains reportable.
-  const projectsByKey = new Map();
-
-  client.projects.forEach((project) => {
-    projectsByKey.set(getProjectMatchKey(project), project);
-  });
-
-  reportEntries
-    .filter((entry) => matchesClient(entry, client))
-    .forEach((entry) => {
-      const project = {
-        id: entry.projectId || normalizeKey(entry.projectName),
-        name: entry.projectName || entry.projectId || "Untitled Project",
-        billingRate: null,
-        billingPeriod: null,
-        billingRounding: null,
-        billable: client.billable,
-      };
-      const key = getProjectMatchKey(project);
-
-      if (!projectsByKey.has(key)) {
-        projectsByKey.set(key, project);
-      }
-    });
-
-  return [...projectsByKey.values()];
-}
-
-function getProjectBillingRate(client, project) {
-  return project.billingRate ?? client.billingRate ?? reportSettings.defaultBillingRate;
-}
-
 function getSelectedDateRange(client, project) {
   if (reportPeriodSelect.value === "custom") {
     return getCustomDateRange();
   }
 
-  const billingPeriod = getEffectiveProjectBillingPeriod(client, project);
-  return getBillingPeriodRange(billingPeriod, reportPeriodSelect.value);
+  const billingPeriod = window.LongtailForge.billing.getEffectiveProjectBillingPeriod(
+    reportSettings,
+    client,
+    project,
+  );
+  return window.LongtailForge.billing.getBillingPeriodRange(billingPeriod, reportPeriodSelect.value);
 }
 
 function getCustomDateRange() {
@@ -299,91 +212,6 @@ function getCustomDateRange() {
   // Make the end date inclusive for the user by using an exclusive midnight boundary.
   exclusiveEndDate.setDate(exclusiveEndDate.getDate() + 1);
   return { start: startDate, end: exclusiveEndDate };
-}
-
-function getBillingPeriodRange(period, mode) {
-  return window.LongtailForge.billing.getBillingPeriodRange(period, mode);
-}
-
-function isEntryInRange(entry, range) {
-  return Boolean(
-    range &&
-    Number.isFinite(entry.endTime.getTime()) &&
-    entry.endTime >= range.start &&
-    entry.endTime < range.end,
-  );
-}
-
-function getEffectiveClientBillingPeriod(client) {
-  return client.billingPeriod || reportSettings.billingPeriod;
-}
-
-function getEffectiveProjectBillingPeriod(client, project) {
-  return project.billingPeriod || getEffectiveClientBillingPeriod(client);
-}
-
-function getEffectiveClientBillingRounding(client) {
-  return client.billingRounding || reportSettings.billingRounding;
-}
-
-function getEffectiveProjectBillingRounding(client, project) {
-  return project.billingRounding || getEffectiveClientBillingRounding(client);
-}
-
-function matchesClient(entry, client) {
-  return window.LongtailForge.records.matchesClient(entry, client);
-}
-
-function matchesProject(entry, project) {
-  return window.LongtailForge.records.matchesProject(entry, project);
-}
-
-function getProjectMatchKey(project) {
-  return window.LongtailForge.records.getProjectMatchKey(project);
-}
-
-function normalizeKey(value) {
-  return window.LongtailForge.records.normalizeKey(value);
-}
-
-function parseMoney(value) {
-  return window.LongtailForge.billing.parseMoney(value);
-}
-
-function parseOptionalMoney(value) {
-  return window.LongtailForge.billing.parseOptionalMoney(value);
-}
-
-function normalizeBillableFlag(value, fallback = "yes") {
-  return window.LongtailForge.billing.normalizeBillableFlag(value, fallback);
-}
-
-function normalizeSettings(settings) {
-  return {
-    defaultBillingRate: parseMoney(settings?.defaultBillingRate),
-    billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
-    billingRounding: normalizeBillingRounding(settings?.billingRounding),
-  };
-}
-
-function normalizeBillingPeriod(period) {
-  return window.LongtailForge.billing.normalizeBillingPeriod(period);
-}
-
-function normalizeOptionalBillingPeriod(period) {
-  return window.LongtailForge.billing.normalizeOptionalBillingPeriod(period);
-}
-
-function normalizeBillingRounding(rounding) {
-  return window.LongtailForge.billing.normalizeBillingRounding(rounding);
-}
-
-function normalizeOptionalBillingRounding(rounding) {
-  return window.LongtailForge.billing.normalizeOptionalBillingRounding(rounding);
-}
-
-function roundSeconds(seconds, rounding) {
-  return window.LongtailForge.billing.roundSeconds(seconds, rounding);
 }
 
 function updateCustomDateState() {

@@ -1,4 +1,4 @@
-// Dashboard is a dashboard view built from the same API data used by reporting.
+// Dashboard is a summary view built from the same shared billing source as Reporting.
 const activeClientCount = document.querySelector("[data-active-client-count]");
 const clientReportOptions = document.querySelector("[data-client-report-options]");
 const openClientReportButton = document.querySelector("[data-open-client-report]");
@@ -8,10 +8,7 @@ const currentMonthAmount = document.querySelector("[data-current-month-amount]")
 const billablesChart = document.querySelector("[data-billables-chart]");
 const dashboardStatus = document.querySelector("[data-dashboard-status]");
 
-let dashboardSettings = {
-  defaultBillingRate: 0,
-  billingRounding: { enabled: false, increment: "nearestQuarterHour" },
-};
+let dashboardSettings = window.LongtailForge.billing.normalizeSettings({});
 let dashboardClients = [];
 let dashboardEntries = [];
 
@@ -46,11 +43,13 @@ async function loadDashboardData() {
     }
 
     dashboardSettings = settingsResponse.ok
-      ? normalizeSettings(await settingsResponse.json())
-      : normalizeSettings({});
-    dashboardClients = normalizeClients(await clientsResponse.json());
+      ? window.LongtailForge.billing.normalizeSettings(await settingsResponse.json())
+      : window.LongtailForge.billing.normalizeSettings({});
+    dashboardClients = window.LongtailForge.billing.normalizeClients(await clientsResponse.json(), {
+      includeInactive: true,
+    });
     dashboardEntries = entriesResponse.ok
-      ? normalizeTimeEntries(await entriesResponse.json())
+      ? window.LongtailForge.billing.normalizeTimeEntries(await entriesResponse.json())
       : [];
 
     renderActiveClients();
@@ -76,9 +75,10 @@ function renderActiveClients() {
 }
 
 function renderCurrentMonthBillables() {
-  // The table shows only clients with current-month billable time.
-  const range = getMonthRange(new Date());
-  const rows = getClientBillablesForRange(range).filter((row) => row.seconds > 0);
+  const range = window.LongtailForge.billing.getMonthRange(new Date());
+  const rows = window.LongtailForge.billing
+    .summarizeClientsForRange(dashboardSettings, dashboardClients, dashboardEntries, range)
+    .filter((row) => row.billableSeconds > 0);
   currentMonthBillables.innerHTML = "";
 
   if (!rows.length) {
@@ -93,35 +93,36 @@ function renderCurrentMonthBillables() {
     return;
   }
 
-  let totalSeconds = 0;
-  let totalAmount = 0;
+  const totals = rows.reduce((summary, row) => ({
+    amount: summary.amount + row.amount,
+    seconds: summary.seconds + row.billableSeconds,
+  }), { amount: 0, seconds: 0 });
 
   rows.forEach((billableRow) => {
-    totalSeconds += billableRow.seconds;
-    totalAmount += billableRow.amount;
-
     const row = document.createElement("tr");
     row.append(
       createClientLinkCell(billableRow.client),
-      createTableCell(formatHours(billableRow.seconds)),
+      createTableCell(formatHours(billableRow.billableSeconds)),
       createTableCell(formatCurrency(billableRow.amount)),
     );
     row.firstElementChild.scope = "row";
     currentMonthBillables.appendChild(row);
   });
 
-  currentMonthHours.textContent = formatHours(totalSeconds);
-  currentMonthAmount.textContent = formatCurrency(totalAmount);
+  currentMonthHours.textContent = formatHours(totals.seconds);
+  currentMonthAmount.textContent = formatCurrency(totals.amount);
 }
 
 function renderBillablesChart() {
-  const months = getTrailingMonths(12);
+  const months = window.LongtailForge.billing.getTrailingMonthStarts(12);
   const points = months.map((monthStart) => {
-    const range = getMonthRange(monthStart);
-    const totals = getClientHoursAndBillablesForRange(range).reduce((summary, row) => ({
-      seconds: summary.seconds + row.seconds,
-      amount: summary.amount + row.amount,
-    }), { seconds: 0, amount: 0 });
+    const range = window.LongtailForge.billing.getMonthRange(monthStart);
+    const totals = window.LongtailForge.billing
+      .summarizeClientsForRange(dashboardSettings, dashboardClients, dashboardEntries, range)
+      .reduce((summary, row) => ({
+        amount: summary.amount + row.amount,
+        seconds: summary.seconds + row.displaySeconds,
+      }), { amount: 0, seconds: 0 });
 
     return {
       label: formatMonthLabel(monthStart),
@@ -131,56 +132,6 @@ function renderBillablesChart() {
   });
 
   billablesChart.innerHTML = createBillablesSvg(points);
-}
-
-function getClientBillablesForRange(range) {
-  return getClientHoursAndBillablesForRange(range)
-    .map((row) => ({
-      ...row,
-      seconds: row.billableSeconds,
-    }));
-}
-
-function getClientHoursAndBillablesForRange(range) {
-  return sortByName(dashboardClients)
-    .filter((client) => client.status === "Active")
-    .map((client) => {
-      const clientEntries = dashboardEntries.filter((entry) =>
-        matchesClient(entry, client) &&
-        isEntryInRange(entry, range),
-      );
-      const projects = getReportProjects(client);
-      let seconds = 0;
-      let billableSeconds = 0;
-      let amount = 0;
-
-      projects.forEach((project) => {
-        const projectEntries = clientEntries
-          .filter((entry) => matchesProject(entry, project));
-        const projectSeconds = projectEntries
-          .reduce((total, entry) => total + entry.durationSeconds, 0);
-        const projectBillableSeconds = projectEntries
-          .filter((entry) => entry.billable === "yes")
-          .reduce((total, entry) => total + entry.durationSeconds, 0);
-
-        if (projectSeconds === 0) {
-          return;
-        }
-
-        const projectRounding = getEffectiveProjectBillingRounding(client, project);
-        const roundedBillableSeconds = roundSeconds(projectBillableSeconds, projectRounding);
-        const displaySeconds = projectBillableSeconds > 0
-          ? roundedBillableSeconds
-          : roundSeconds(projectSeconds, projectRounding);
-        const rate = getProjectBillingRate(client, project);
-
-        seconds += displaySeconds;
-        billableSeconds += roundedBillableSeconds;
-        amount += (roundedBillableSeconds / 3600) * rate;
-      });
-
-      return { client, seconds, billableSeconds, amount };
-    });
 }
 
 function createBillablesSvg(points) {
@@ -237,155 +188,6 @@ function createBillablesSvg(points) {
 
 function getSelectedReportClientId() {
   return clientReportOptions.querySelector("input[name='dashboard-report-client']:checked")?.value || "";
-}
-
-function normalizeSettings(settings) {
-  return {
-    defaultBillingRate: parseMoney(settings?.defaultBillingRate),
-    billingRounding: normalizeBillingRounding(settings?.billingRounding),
-  };
-}
-
-function normalizeClients(data) {
-  return Array.isArray(data?.clients)
-    ? data.clients.map((client) => ({
-        id: String(client.id || "").trim(),
-        name: String(client.name || "").trim(),
-        status: client.status === "Inactive" ? "Inactive" : "Active",
-        billable: normalizeBillableFlag(client.billable),
-        billingRate: parseOptionalMoney(client.billing_rate),
-        billingRounding: normalizeOptionalBillingRounding(client.billing_rounding),
-        projects: Array.isArray(client.projects)
-          ? client.projects.map((project) => ({
-              id: String(project.id || "").trim(),
-              name: String(project.name || "").trim(),
-              billable: normalizeBillableFlag(project.billable, client.billable),
-              billingRate: parseOptionalMoney(project.billing_rate),
-              billingRounding: normalizeOptionalBillingRounding(project.billing_rounding),
-            }))
-          : [],
-      }))
-    : [];
-}
-
-function normalizeTimeEntries(data) {
-  return Array.isArray(data?.entries)
-    ? data.entries.map((entry) => ({
-        clientId: entry.client_id,
-        clientName: entry.client_name,
-        projectId: entry.project_id,
-        projectName: entry.project_name,
-        endTime: new Date(entry.end_time),
-        durationSeconds: Number(entry.duration_seconds) || 0,
-        billable: entry.billable === "no" ? "no" : "yes",
-      }))
-    : [];
-}
-
-function getReportProjects(client) {
-  // Reconcile configured projects with historic entry names so old work is not dropped.
-  const projectsByKey = new Map();
-
-  client.projects.forEach((project) => {
-    projectsByKey.set(getProjectMatchKey(project), project);
-  });
-
-  dashboardEntries
-    .filter((entry) => matchesClient(entry, client))
-    .forEach((entry) => {
-      const project = {
-        id: entry.projectId || normalizeKey(entry.projectName),
-        name: entry.projectName || entry.projectId || "Untitled Project",
-        billingRate: null,
-        billingRounding: null,
-        billable: client.billable,
-      };
-      const key = getProjectMatchKey(project);
-
-      if (!projectsByKey.has(key)) {
-        projectsByKey.set(key, project);
-      }
-    });
-
-  return [...projectsByKey.values()];
-}
-
-function getProjectBillingRate(client, project) {
-  return project.billingRate ?? client.billingRate ?? dashboardSettings.defaultBillingRate;
-}
-
-function getEffectiveClientBillingRounding(client) {
-  return client.billingRounding || dashboardSettings.billingRounding;
-}
-
-function getEffectiveProjectBillingRounding(client, project) {
-  return project.billingRounding || getEffectiveClientBillingRounding(client);
-}
-
-function getMonthRange(date) {
-  return {
-    start: new Date(date.getFullYear(), date.getMonth(), 1),
-    end: new Date(date.getFullYear(), date.getMonth() + 1, 1),
-  };
-}
-
-function getTrailingMonths(monthsBack) {
-  const today = new Date();
-  const months = [];
-
-  for (let offset = monthsBack; offset >= 0; offset -= 1) {
-    months.push(new Date(today.getFullYear(), today.getMonth() - offset, 1));
-  }
-
-  return months;
-}
-
-function isEntryInRange(entry, range) {
-  return Boolean(
-    Number.isFinite(entry.endTime.getTime()) &&
-    entry.endTime >= range.start &&
-    entry.endTime < range.end,
-  );
-}
-
-function matchesClient(entry, client) {
-  return window.LongtailForge.records.matchesClient(entry, client);
-}
-
-function matchesProject(entry, project) {
-  return window.LongtailForge.records.matchesProject(entry, project);
-}
-
-function getProjectMatchKey(project) {
-  return window.LongtailForge.records.getProjectMatchKey(project);
-}
-
-function normalizeKey(value) {
-  return window.LongtailForge.records.normalizeKey(value);
-}
-
-function parseMoney(value) {
-  return window.LongtailForge.billing.parseMoney(value);
-}
-
-function parseOptionalMoney(value) {
-  return window.LongtailForge.billing.parseOptionalMoney(value);
-}
-
-function normalizeBillableFlag(value, fallback = "yes") {
-  return window.LongtailForge.billing.normalizeBillableFlag(value, fallback);
-}
-
-function normalizeBillingRounding(rounding) {
-  return window.LongtailForge.billing.normalizeBillingRounding(rounding);
-}
-
-function normalizeOptionalBillingRounding(rounding) {
-  return window.LongtailForge.billing.normalizeOptionalBillingRounding(rounding);
-}
-
-function roundSeconds(seconds, rounding) {
-  return window.LongtailForge.billing.roundSeconds(seconds, rounding);
 }
 
 function formatHours(seconds) {

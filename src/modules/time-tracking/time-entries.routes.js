@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { activeTimersService } from "./active-timers.service.js";
 import { timeEntriesService } from "./time-entries.service.js";
 import { asyncRoute, readJsonBody } from "../../core/http.js";
 
@@ -23,6 +24,28 @@ timeEntriesRoutes.put("/time-entries/:entryId", asyncRoute(async (request, respo
 
 timeEntriesRoutes.delete("/time-entries/:entryId", asyncRoute(async (request, response) => {
   const result = await timeEntriesService.remove(request.params.entryId, request.session);
+  response.status(200).json(result);
+}));
+
+timeEntriesRoutes.get("/active-timers", asyncRoute(async (request, response) => {
+  const result = await activeTimersService.list(request.session);
+  response.status(200).json(result);
+}));
+
+timeEntriesRoutes.put("/active-timers/:timerSlot", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await activeTimersService.save(request.params.timerSlot, payload, request.session);
+  response.status(200).json(result);
+}));
+
+timeEntriesRoutes.post("/active-timers/:timerSlot/finalize", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await activeTimersService.finalize(request.params.timerSlot, payload, request.session);
+  response.status(201).json(result);
+}));
+
+timeEntriesRoutes.delete("/active-timers/:timerSlot", asyncRoute(async (request, response) => {
+  const result = await activeTimersService.remove(request.params.timerSlot, request.session);
   response.status(200).json(result);
 }));
 

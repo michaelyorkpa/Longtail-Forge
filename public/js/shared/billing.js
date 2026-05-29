@@ -83,6 +83,212 @@
     return Math.round(seconds / incrementSeconds) * incrementSeconds;
   }
 
+  function normalizeSettings(settings) {
+    return {
+      defaultBillingRate: parseMoney(settings?.defaultBillingRate),
+      billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
+      billingRounding: normalizeBillingRounding(settings?.billingRounding),
+    };
+  }
+
+  function normalizeClients(data, options = {}) {
+    const includeInactive = Boolean(options.includeInactive);
+
+    return Array.isArray(data?.clients)
+      ? data.clients
+          .filter((client) => includeInactive || client.status !== "Inactive")
+          .map((client) => normalizeClient(client))
+      : [];
+  }
+
+  function normalizeClient(client) {
+    const billable = normalizeBillableFlag(client?.billable);
+
+    return {
+      id: String(client?.id || "").trim(),
+      name: String(client?.name || "").trim(),
+      status: client?.status === "Inactive" ? "Inactive" : "Active",
+      billable,
+      billingRate: parseOptionalMoney(client?.billing_rate),
+      billingPeriod: normalizeOptionalBillingPeriod(client?.billing_period),
+      billingRounding: normalizeOptionalBillingRounding(client?.billing_rounding),
+      projects: Array.isArray(client?.projects)
+        ? client.projects.map((project) => normalizeProject(project, billable))
+        : [],
+    };
+  }
+
+  function normalizeProject(project, fallbackBillable = "yes") {
+    return {
+      id: String(project?.id || "").trim(),
+      name: String(project?.name || "").trim(),
+      billable: normalizeBillableFlag(project?.billable, fallbackBillable),
+      billingRate: parseOptionalMoney(project?.billing_rate),
+      billingPeriod: normalizeOptionalBillingPeriod(project?.billing_period),
+      billingRounding: normalizeOptionalBillingRounding(project?.billing_rounding),
+    };
+  }
+
+  function normalizeTimeEntries(data) {
+    return Array.isArray(data?.entries)
+      ? data.entries.map((entry) => ({
+          clientId: entry.client_id,
+          clientName: entry.client_name,
+          projectId: entry.project_id,
+          projectName: entry.project_name,
+          endTime: new Date(entry.end_time),
+          durationSeconds: Number(entry.duration_seconds) || 0,
+          billable: entry.billable === "no" ? "no" : "yes",
+        }))
+      : [];
+  }
+
+  function getReportProjects(client, entries) {
+    const records = window.LongtailForge.records;
+    const projectsByKey = new Map();
+
+    client.projects.forEach((project) => {
+      projectsByKey.set(records.getProjectMatchKey(project), project);
+    });
+
+    entries
+      .filter((entry) => records.matchesClient(entry, client))
+      .forEach((entry) => {
+        const project = {
+          id: entry.projectId || records.normalizeKey(entry.projectName),
+          name: entry.projectName || entry.projectId || "Untitled Project",
+          billingRate: null,
+          billingPeriod: null,
+          billingRounding: null,
+          billable: client.billable,
+        };
+        const key = records.getProjectMatchKey(project);
+
+        if (!projectsByKey.has(key)) {
+          projectsByKey.set(key, project);
+        }
+      });
+
+    return [...projectsByKey.values()];
+  }
+
+  function getProjectBillingRate(settings, client, project) {
+    return project.billingRate ?? client.billingRate ?? settings.defaultBillingRate;
+  }
+
+  function getEffectiveClientBillingPeriod(settings, client) {
+    return client.billingPeriod || settings.billingPeriod;
+  }
+
+  function getEffectiveProjectBillingPeriod(settings, client, project) {
+    return project.billingPeriod || getEffectiveClientBillingPeriod(settings, client);
+  }
+
+  function getEffectiveClientBillingRounding(settings, client) {
+    return client.billingRounding || settings.billingRounding;
+  }
+
+  function getEffectiveProjectBillingRounding(settings, client, project) {
+    return project.billingRounding || getEffectiveClientBillingRounding(settings, client);
+  }
+
+  function getMonthRange(date) {
+    return {
+      start: new Date(date.getFullYear(), date.getMonth(), 1),
+      end: new Date(date.getFullYear(), date.getMonth() + 1, 1),
+    };
+  }
+
+  function getTrailingMonthStarts(monthsBack, today = new Date()) {
+    const months = [];
+
+    for (let offset = monthsBack; offset >= 0; offset -= 1) {
+      months.push(new Date(today.getFullYear(), today.getMonth() - offset, 1));
+    }
+
+    return months;
+  }
+
+  function isEntryInRange(entry, range) {
+    return Boolean(
+      range &&
+      Number.isFinite(entry.endTime.getTime()) &&
+      entry.endTime >= range.start &&
+      entry.endTime < range.end,
+    );
+  }
+
+  function summarizeProject(settings, client, project, entries, range) {
+    const records = window.LongtailForge.records;
+    const projectEntries = entries
+      .filter((entry) =>
+        records.matchesProject(entry, project) &&
+        isEntryInRange(entry, range),
+      );
+    const rawSeconds = projectEntries
+      .reduce((seconds, entry) => seconds + entry.durationSeconds, 0);
+    const rawBillableSeconds = projectEntries
+      .filter((entry) => entry.billable === "yes")
+      .reduce((seconds, entry) => seconds + entry.durationSeconds, 0);
+
+    if (rawSeconds === 0) {
+      return null;
+    }
+
+    const rounding = getEffectiveProjectBillingRounding(settings, client, project);
+    const roundedBillableSeconds = roundSeconds(rawBillableSeconds, rounding);
+    const displaySeconds = rawBillableSeconds > 0
+      ? roundedBillableSeconds
+      : roundSeconds(rawSeconds, rounding);
+    const rate = getProjectBillingRate(settings, client, project);
+    const amount = (roundedBillableSeconds / 3600) * rate;
+
+    return {
+      amount,
+      billableSeconds: roundedBillableSeconds,
+      displaySeconds,
+      entries: projectEntries,
+      project,
+      rate,
+      rawBillableSeconds,
+      rawSeconds,
+    };
+  }
+
+  function summarizeClientForRange(settings, client, entries, range) {
+    const records = window.LongtailForge.records;
+    const clientEntries = entries.filter((entry) => records.matchesClient(entry, client));
+    const projectSummaries = getReportProjects(client, entries)
+      .map((project) => summarizeProject(settings, client, project, clientEntries, range))
+      .filter(Boolean);
+    const totals = projectSummaries.reduce((summary, projectSummary) => ({
+      amount: summary.amount + projectSummary.amount,
+      billableSeconds: summary.billableSeconds + projectSummary.billableSeconds,
+      displaySeconds: summary.displaySeconds + projectSummary.displaySeconds,
+      rawSeconds: summary.rawSeconds + projectSummary.rawSeconds,
+    }), {
+      amount: 0,
+      billableSeconds: 0,
+      displaySeconds: 0,
+      rawSeconds: 0,
+    });
+
+    return {
+      ...totals,
+      client,
+      projectSummaries,
+    };
+  }
+
+  function summarizeClientsForRange(settings, clients, entries, range, options = {}) {
+    const includeInactive = Boolean(options.includeInactive);
+    const records = window.LongtailForge.records;
+
+    return records.sortByName(clients)
+      .filter((client) => includeInactive || client.status === "Active")
+      .map((client) => summarizeClientForRange(settings, client, entries, range));
+  }
+
   function getBillingPeriodRange(period, mode, today = new Date()) {
     const normalizedPeriod = normalizeBillingPeriod(period);
     let start;
@@ -121,14 +327,29 @@
     addMonths,
     getBillingPeriodRange,
     getCurrentCustomPeriodStart,
+    getEffectiveClientBillingPeriod,
+    getEffectiveClientBillingRounding,
+    getEffectiveProjectBillingPeriod,
+    getEffectiveProjectBillingRounding,
+    getMonthRange,
+    getProjectBillingRate,
+    getReportProjects,
+    getTrailingMonthStarts,
+    isEntryInRange,
     normalizeBillableFlag,
     normalizeBillingPeriod,
     normalizeBillingRounding,
+    normalizeClients,
     normalizeOptionalBillingPeriod,
     normalizeOptionalBillingRounding,
+    normalizeSettings,
+    normalizeTimeEntries,
     parseMoney,
     parseOptionalMoney,
     roundSeconds,
+    summarizeClientForRange,
+    summarizeClientsForRange,
+    summarizeProject,
   };
   window.LongtailForge = namespace;
 }());
