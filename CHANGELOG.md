@@ -1,3 +1,19 @@
+## Version 0.23.3
+
+- Added a protected Audit Log page under Settings.
+- Added audit-log filters for date range, user, record type, and change type.
+- Added audit detail and JSON viewer modals with readable previous, new, and metadata values.
+- Added full and filtered audit-log CSV export routes and buttons.
+- Added user-click filtering from the audit table and record links from the audit detail modal.
+
+## Version 0.23.2
+
+- Added audit-log settings to Organization Settings with logging enablement and retention period controls.
+- Stored audit logging enablement, retention days, and audit-settings update timestamps in `organization_settings`.
+- Made `auditService.record()` respect per-organization audit logging settings.
+- Logged audit logging off/on transitions with forced audit records at the required point in the toggle flow.
+- Added organization-scoped audit retention cleanup based on each organization's configured retention period.
+
 ## Version 0.23.1
 
 - Added the `audit_logs` database table with indexes for organization, date, actor, record type, change type, and record ID.

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { auditLogsRepository } from "../repositories/audit-logs.repo.js";
+import { settingsRepository } from "../repositories/settings.repo.js";
 
 const CHANGE_TYPES = new Set([
   "create",
@@ -31,6 +32,13 @@ async function record(event) {
     return null;
   }
 
+  const auditSettings = await readAuditSettings(organizationId);
+  await cleanupExpired(organizationId, auditSettings.retentionDays);
+
+  if (!event.force && !auditSettings.loggingEnabled) {
+    return null;
+  }
+
   const entry = {
     audit_id: event.auditId || randomUUID(),
     organization_id: organizationId,
@@ -50,6 +58,83 @@ async function record(event) {
 
   await auditLogsRepository.create(entry);
   return entry;
+}
+
+async function list(session, filters = {}) {
+  const settings = await readAuditSettings(session.organization_id);
+  await cleanupExpired(session.organization_id, settings.retentionDays);
+
+  return {
+    auditLogs: await auditLogsRepository.search(session.organization_id, normalizeFilters(filters)),
+  };
+}
+
+async function exportCsv(session, filters = {}) {
+  const result = await list(session, {
+    ...filters,
+    limit: 1000,
+  });
+  const headers = [
+    "created_at",
+    "actor_user_name",
+    "action",
+    "change_type",
+    "record_type",
+    "record_id",
+    "record_label",
+    "record_url",
+  ];
+  const rows = result.auditLogs.map((log) => headers.map((header) => csvValue(log[header] || "")).join(","));
+
+  return `${headers.join(",")}\n${rows.join("\n")}${rows.length > 0 ? "\n" : ""}`;
+}
+
+async function cleanupExpired(organizationId, retentionDays) {
+  const days = Number.parseInt(retentionDays, 10) || 30;
+  const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  await auditLogsRepository.removeBefore(organizationId, cutoff);
+}
+
+function normalizeFilters(filters) {
+  return {
+    actorUserId: nullableString(filters.actorUserId),
+    changeType: nullableString(filters.changeType),
+    dateFrom: normalizeDateBound(filters.dateFrom, "start"),
+    dateTo: normalizeDateBound(filters.dateTo, "end"),
+    limit: filters.limit,
+    recordType: nullableString(filters.recordType),
+  };
+}
+
+function normalizeDateBound(value, edge) {
+  const text = nullableString(value);
+
+  if (!text) {
+    return "";
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return edge === "end" ? `${text}T23:59:59.999Z` : `${text}T00:00:00.000Z`;
+  }
+
+  return text;
+}
+
+function csvValue(value) {
+  const text = String(value ?? "");
+
+  if (/[",\n\r]/.test(text)) {
+    return `"${text.replaceAll("\"", "\"\"")}"`;
+  }
+
+  return text;
+}
+
+async function readAuditSettings(organizationId) {
+  const settings = await settingsRepository.readOrganizationSettings(organizationId);
+
+  return settings.audit;
 }
 
 function normalizeEnum(value, allowedValues, fallback) {
@@ -75,5 +160,8 @@ function stringifyNullableJson(value) {
 }
 
 export const auditService = {
+  cleanupExpired,
+  exportCsv,
+  list,
   record,
 };

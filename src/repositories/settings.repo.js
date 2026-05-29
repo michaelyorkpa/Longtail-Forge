@@ -14,7 +14,10 @@ SELECT
   organization_settings.billing_period_type,
   organization_settings.billing_period_start_day,
   organization_settings.rounding_enabled,
-  organization_settings.rounding_increment
+  organization_settings.rounding_increment,
+  organization_settings.audit_logging_enabled,
+  organization_settings.audit_retention_days,
+  organization_settings.audit_settings_updated_at
 FROM organizations
 INNER JOIN organization_settings ON organization_settings.organization_id = organizations.id
 WHERE organizations.id = ${sqlText(organizationId)}
@@ -55,6 +58,9 @@ SET
   billing_period_start_day = ${sqlInteger(settings.billingPeriod.startDay)},
   rounding_enabled = ${sqlInteger(settings.billingRounding.enabled ? 1 : 0)},
   rounding_increment = ${sqlText(settings.billingRounding.increment)},
+  audit_logging_enabled = ${sqlInteger(settings.audit.loggingEnabled ? 1 : 0)},
+  audit_retention_days = ${sqlInteger(settings.audit.retentionDays)},
+  audit_settings_updated_at = ${sqlText(now)},
   updated_at = ${sqlText(now)}
 WHERE organization_id = ${sqlText(organizationId)};
 `);
@@ -75,6 +81,12 @@ function settingsRowToOrganizationSettings(row) {
     billingRounding: {
       enabled: Number(row.rounding_enabled) === 1,
       increment: row.rounding_increment,
+    },
+    audit: {
+      loggingEnabled: row.audit_logging_enabled === undefined
+        ? true
+        : Number(row.audit_logging_enabled) === 1,
+      retentionDays: row.audit_retention_days,
     },
   });
 }

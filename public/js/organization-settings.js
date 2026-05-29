@@ -8,6 +8,8 @@ const billingPeriodTypeSelect = document.querySelector("[data-billing-period-typ
 const billingPeriodStartDaySelect = document.querySelector("[data-billing-period-start-day]");
 const billingRoundingEnabledInput = document.querySelector("[data-billing-rounding-enabled]");
 const billingRoundingIncrementSelect = document.querySelector("[data-billing-rounding-increment]");
+const auditLoggingEnabledInput = document.querySelector("[data-audit-logging-enabled]");
+const auditRetentionDaysSelect = document.querySelector("[data-audit-retention-days]");
 const organizationSettingsStatus = document.querySelector("[data-organization-settings-status]");
 const saveSettingsButton = document.querySelector("[data-save-settings]");
 
@@ -46,6 +48,8 @@ async function loadSettingsForm() {
     billingPeriodStartDaySelect.value = String(settings.billingPeriod.startDay);
     billingRoundingEnabledInput.checked = settings.billingRounding.enabled;
     billingRoundingIncrementSelect.value = settings.billingRounding.increment;
+    auditLoggingEnabledInput.checked = settings.audit.loggingEnabled;
+    auditRetentionDaysSelect.value = String(settings.audit.retentionDays);
     updateBillingPeriodStartDayState();
     updateBillingRoundingState();
     setOrganizationSettingsStatus("");
@@ -71,6 +75,10 @@ async function saveSettings() {
     billingRounding: {
       enabled: billingRoundingEnabledInput.checked,
       increment: billingRoundingIncrementSelect.value,
+    },
+    audit: {
+      loggingEnabled: auditLoggingEnabledInput.checked,
+      retentionDays: auditRetentionDaysSelect.value,
     },
   });
 
@@ -105,6 +113,8 @@ async function saveSettings() {
     billingPeriodStartDaySelect.value = String(savedSettings.billingPeriod.startDay);
     billingRoundingEnabledInput.checked = savedSettings.billingRounding.enabled;
     billingRoundingIncrementSelect.value = savedSettings.billingRounding.increment;
+    auditLoggingEnabledInput.checked = savedSettings.audit.loggingEnabled;
+    auditRetentionDaysSelect.value = String(savedSettings.audit.retentionDays);
     updateBillingPeriodStartDayState();
     updateBillingRoundingState();
 
@@ -129,6 +139,7 @@ function normalizeSettings(settings) {
     defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
+    audit: normalizeAuditSettings(settings?.audit),
   };
 }
 
@@ -215,6 +226,16 @@ function normalizeBillingRounding(rounding) {
   return {
     enabled: Boolean(rounding?.enabled),
     increment,
+  };
+}
+
+function normalizeAuditSettings(audit) {
+  const retentionOptions = [7, 14, 30, 60, 90, 180, 365];
+  const retentionDays = Number.parseInt(audit?.retentionDays, 10);
+
+  return {
+    loggingEnabled: audit?.loggingEnabled === false ? false : true,
+    retentionDays: retentionOptions.includes(retentionDays) ? retentionDays : 30,
   };
 }
 

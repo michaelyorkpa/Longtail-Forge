@@ -438,12 +438,12 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ## Version 0.23.2 - Audit Log Settings
 
-- [ ] Add audit log settings to Organization settings below billing settings
-  - [ ] App audit logging checkbox (checked = on)
-    - [ ] Log when audit logging is turned off and on
-    - [ ] The act of turning audit logging off should still create an audit record before logging is disabled
-    - [ ] The act of turning audit logging back on should create an audit record after logging is enabled
-  - [ ] Retention period:
+- [x] Add audit log settings to Organization settings below billing settings
+  - [x] App audit logging checkbox (checked = on)
+    - [x] Log when audit logging is turned off and on
+    - [x] The act of turning audit logging off should still create an audit record before logging is disabled
+    - [x] The act of turning audit logging back on should create an audit record after logging is enabled
+  - [x] Retention period:
     - 7 days
     - 14 days
     - 30 days
@@ -451,35 +451,35 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     - 90 days
     - 180 days
     - 1 year
-  - [ ] Default logging period to 30 days
-- [ ] Store audit settings in the database
-  - [ ] Add fields to `organization_settings` or create a dedicated `organization_audit_settings` table
-  - [ ] Recommended fields:
-    - [ ] `audit_logging_enabled`
-    - [ ] `audit_retention_days`
-    - [ ] `audit_settings_updated_at`
-- [ ] Add audit retention cleanup
-  - [ ] Cleanup should be organization-scoped
-  - [ ] Cleanup should respect each organization's configured retention period
-  - [ ] Cleanup may run on app startup, on a scheduled/admin-triggered path, or before audit-log reads
-  - [ ] Do not delete logs newer than the configured retention period
+  - [x] Default logging period to 30 days
+- [x] Store audit settings in the database
+  - [x] Add fields to `organization_settings` or create a dedicated `organization_audit_settings` table
+  - [x] Recommended fields:
+    - [x] `audit_logging_enabled`
+    - [x] `audit_retention_days`
+    - [x] `audit_settings_updated_at`
+- [x] Add audit retention cleanup
+  - [x] Cleanup should be organization-scoped
+  - [x] Cleanup should respect each organization's configured retention period
+  - [x] Cleanup may run on app startup, on a scheduled/admin-triggered path, or before audit-log reads
+  - [x] Do not delete logs newer than the configured retention period
 
 ## Version 0.23.3 - Admin Audit Log Viewer
 
-- [ ] Add admin page for audit log (Settings menu, below User)
-- [ ] Show columns Date, User, Client, Project, Record Type, Change Type
-- [ ] Filter by date, user, record type, change type
-- [ ] Link each row to modal that displays full audit data, except JSON details
-- [ ] Create JSON modal viewer (make the JSON human readable)
-  - [ ] Pretty-print `previous_value_json`
-  - [ ] Pretty-print `new_value_json`
-  - [ ] Pretty-print `metadata_json`
-  - [ ] Collapse/expand large JSON objects
-  - [ ] Show empty/null JSON fields as “None”
-- [ ] Clicking on a user in the column view filters by user automatically
-- [ ] Clicking on a record in the modal view takes admin to edit page for that record
-- [ ] Full audit log export (CSV?)
-- [ ] Filtered audit log export (CSV?)
+- [x] Add admin page for audit log (Settings menu, below User)
+- [x] Show columns Date, User, Client, Project, Record Type, Change Type
+- [x] Filter by date, user, record type, change type
+- [x] Link each row to modal that displays full audit data, except JSON details
+- [x] Create JSON modal viewer (make the JSON human readable)
+  - [x] Pretty-print `previous_value_json`
+  - [x] Pretty-print `new_value_json`
+  - [x] Pretty-print `metadata_json`
+  - [x] Collapse/expand large JSON objects
+  - [x] Show empty/null JSON fields as “None”
+- [x] Clicking on a user in the column view filters by user automatically
+- [x] Clicking on a record in the modal view takes admin to edit page for that record
+- [x] Full audit log export (CSV?)
+- [x] Filtered audit log export (CSV?)
 
 ## Version 0.24.0 - Roles and Permissions Foundation
 

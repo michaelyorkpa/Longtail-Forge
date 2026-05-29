@@ -625,6 +625,11 @@ button.danger-button {
     width: min(94vw, 1120px);
 }
 
+.audit-log-page {
+    width: min(94vw, 1120px);
+    text-align: left;
+}
+
 .entry-form {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -652,6 +657,109 @@ button.danger-button {
     grid-column: 1 / -1;
     margin: 0;
     font-size: 20px;
+}
+
+.audit-log-filters {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.audit-log-actions {
+    display: flex;
+    flex-wrap: wrap;
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+[data-audit-status] {
+    min-height: 20px;
+    margin: 0 0 16px;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+.audit-log-table th:nth-child(1),
+.audit-log-table td:nth-child(1) {
+    min-width: 168px;
+}
+
+.audit-log-table th:not(:first-child),
+.audit-log-table td:not(:first-child) {
+    text-align: left;
+    white-space: normal;
+}
+
+.link-button {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-accent);
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.link-button:hover:not(:disabled) {
+    background: transparent;
+    color: var(--color-text);
+}
+
+.audit-detail-dialog,
+.audit-json-dialog {
+    width: min(92vw, 760px);
+}
+
+.audit-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 16px;
+}
+
+.audit-detail-grid div {
+    min-width: 0;
+}
+
+.audit-detail-grid dt {
+    margin-bottom: 4px;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.audit-detail-grid dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.audit-json-body {
+    display: grid;
+    gap: 12px;
+}
+
+.audit-json-body details {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.audit-json-body summary {
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.audit-json-body pre {
+    max-height: 360px;
+    overflow: auto;
+    margin: 12px 0 0;
+    padding: 12px;
+    border-radius: 6px;
+    background: var(--color-border-subtle);
+    font-size: 13px;
+    white-space: pre-wrap;
 }
 
 .duration-editor {
@@ -1190,6 +1298,7 @@ button:disabled {
     .billing-editor,
     .entry-form,
     .entry-filters,
+    .audit-log-filters,
     .duration-editor {
         grid-template-columns: 1fr;
     }
