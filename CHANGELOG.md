@@ -1,3 +1,20 @@
+## Version 0.28.0
+
+- Added `active_timers` database support for running and paused timer state.
+- Added authenticated `/api/active-timers` endpoints for listing, saving, finalizing, and clearing active timers.
+- Updated Time Tracker timers to persist on start/resume, pause, edit, reset, timer removal, and stop without writing every second.
+- Restored active timers on page load for the authenticated user and organization, including running elapsed-time reconstruction.
+- Made starting one timer pause other persisted running timers for the same user and organization.
+- Finalized persisted timers by creating a completed time entry and removing the active timer row.
+- Cleaned up the README roadmap summary after the accidental README/ROADMAP overwrite.
+
+## Version 0.27.0
+
+- Expanded `public/js/shared/billing.js` into the shared calculation source for billing/reporting normalization, billing periods, effective rates, effective rounding, historic project reconciliation, date ranges, and client/project summaries.
+- Reworked Dashboard current-month billables and trailing-month chart totals to use shared billing summaries.
+- Reworked Reporting client/project report rows and totals to use shared billing summaries while preserving project billing-period overrides and custom date ranges.
+- Kept the release frontend-first so future server-side invoice/API reporting can reuse the same calculation shape deliberately.
+
 ## Version 0.26.0
 
 - Added `src/core/` as the shared backend infrastructure area for app bootstrap, database helpers, HTTP helpers, security exports, permissions, audit, API-key auth, and shared error handling.

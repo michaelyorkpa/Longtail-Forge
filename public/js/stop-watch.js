@@ -9,6 +9,10 @@ const timerTemplate = (
 let clients = [];
 let timers = [];
 
+const timerPersistence = {
+  loaded: false,
+};
+
 function setTimerCount(timerCount) {
   const nextTimerCount = clampTimerCount(timerCount);
 
@@ -66,6 +70,7 @@ function removeTimers(nextTimerCount) {
   const removedTimers = timers.splice(nextTimerCount);
 
   removedTimers.forEach((timer) => {
+    timer.discardPersistedState();
     timer.dispose();
     timer.root.remove();
   });
@@ -113,13 +118,14 @@ function confirmTimerRemoval(removedTimers) {
   });
 }
 
-function pauseOtherTimers(activeTimer) {
+async function pauseOtherTimers(activeTimer) {
   // Only one timer should actively run at a time.
-  timers.forEach((timer) => {
+  await Promise.all(timers.map((timer) => {
     if (timer !== activeTimer) {
-      timer.pause();
+      return timer.pause();
     }
-  });
+    return Promise.resolve();
+  }));
 }
 
 window.addEventListener("beforeunload", (event) => {
@@ -143,6 +149,40 @@ async function loadClientProjectData() {
     timers.forEach((timer) => timer.disableClientData());
     console.error(error);
   }
+}
+
+async function loadActiveTimers() {
+  try {
+    const data = await window.LongtailForge.api.getJson("/api/active-timers", {
+      cache: "no-store",
+    });
+    const activeTimers = Array.isArray(data.timers) ? data.timers : [];
+    const maxTimerSlot = activeTimers.reduce((maxSlot, timer) => {
+      const timerSlot = Number.parseInt(timer.timer_slot, 10);
+      return Number.isFinite(timerSlot) ? Math.max(maxSlot, timerSlot) : maxSlot;
+    }, 1);
+
+    setTimerCount(clampTimerCount(maxTimerSlot));
+
+    activeTimers.forEach((timerData) => {
+      const timerSlot = Number.parseInt(timerData.timer_slot, 10);
+      const timer = timers[timerSlot - 1];
+
+      if (timer) {
+        timer.restoreFromPersistedTimer(timerData);
+      }
+    });
+  } catch (error) {
+    console.error(error);
+  } finally {
+    timerPersistence.loaded = true;
+  }
+}
+
+async function initializeTimeTracker() {
+  setTimerCount(1);
+  await loadClientProjectData();
+  await loadActiveTimers();
 }
 
 class StopwatchTimer {
@@ -191,6 +231,8 @@ class StopwatchTimer {
     this.isSaving = false;
     this.confirmedClientId = this.clientSelect.value;
     this.confirmedProjectId = this.projectSelect.value;
+    this.persistedActiveTimerId = "";
+    this.isRestoring = false;
 
     this.startTimeTracker = this.startTimeTracker.bind(this);
     this.pause = this.pause.bind(this);
@@ -198,6 +240,7 @@ class StopwatchTimer {
     this.resetTimeTracker = this.resetTimeTracker.bind(this);
     this.handleClientChange = this.handleClientChange.bind(this);
     this.handleProjectChange = this.handleProjectChange.bind(this);
+    this.persistEditedTimer = this.persistEditedTimer.bind(this);
 
     this.startButton.addEventListener("click", this.startTimeTracker);
     this.pauseButton.addEventListener("click", this.pause);
@@ -205,6 +248,8 @@ class StopwatchTimer {
     this.resetButton.addEventListener("click", this.resetTimeTracker);
     this.clientSelect.addEventListener("change", this.handleClientChange);
     this.projectSelect.addEventListener("change", this.handleProjectChange);
+    this.descriptionInput.addEventListener("change", this.persistEditedTimer);
+    this.billableInput.addEventListener("change", this.persistEditedTimer);
 
     this.updateDisplay();
     this.updateButtons();
@@ -219,6 +264,8 @@ class StopwatchTimer {
     this.resetButton.removeEventListener("click", this.resetTimeTracker);
     this.clientSelect.removeEventListener("change", this.handleClientChange);
     this.projectSelect.removeEventListener("change", this.handleProjectChange);
+    this.descriptionInput.removeEventListener("change", this.persistEditedTimer);
+    this.billableInput.removeEventListener("change", this.persistEditedTimer);
   }
 
   setClients(clients) {
@@ -234,12 +281,12 @@ class StopwatchTimer {
     this.updateButtons();
   }
 
-  startTimeTracker() {
+  async startTimeTracker() {
     if (this.timerId) {
       return;
     }
 
-    pauseOtherTimers(this);
+    await pauseOtherTimers(this);
 
     // A fresh run gets a new start timestamp; paused runs continue from elapsed time.
     if (this.elapsedMilliseconds === 0 || !this.activeStartTime) {
@@ -252,6 +299,7 @@ class StopwatchTimer {
     this.timerId = window.setInterval(() => this.updateElapsedTime(), 100);
     this.updateElapsedTime();
     this.updateButtons();
+    await this.persistActiveTimer("running");
   }
 
   async stopTimeTracker() {
@@ -264,22 +312,28 @@ class StopwatchTimer {
 
     if (this.timerId) {
       // Pause first so the saved duration is stable while the request is in flight.
-      this.pause();
+      await this.pause({ persist: false });
     }
 
     this.updateButtons();
     await this.saveTimeEntry();
   }
 
-  pause() {
+  async pause(options = {}) {
     if (!this.timerId) {
       return;
     }
+
+    const shouldPersist = options.persist !== false;
 
     window.clearInterval(this.timerId);
     this.timerId = null;
     this.updateElapsedTime();
     this.updateButtons();
+
+    if (shouldPersist) {
+      await this.persistActiveTimer("paused");
+    }
   }
 
   async resetTimeTracker() {
@@ -287,17 +341,24 @@ class StopwatchTimer {
       return;
     }
 
-    this.resetTimeTrackerWithoutConfirmation();
+    await this.resetTimeTrackerWithoutConfirmation();
   }
 
-  resetTimeTrackerWithoutConfirmation() {
+  async resetTimeTrackerWithoutConfirmation(options = {}) {
+    const shouldPersist = options.persist !== false;
+
     window.clearInterval(this.timerId);
     this.timerId = null;
     this.elapsedMilliseconds = 0;
     this.activeStartTime = null;
+    this.persistedActiveTimerId = "";
     this.clearDetailsIfRequested();
     this.updateDisplay();
     this.updateButtons();
+
+    if (shouldPersist) {
+      await this.discardPersistedState();
+    }
   }
 
   clearDetailsIfRequested() {
@@ -330,16 +391,17 @@ class StopwatchTimer {
     this.updateButtons();
     this.setStatus("Saving time entry...");
 
-    const endTime = new Date();
     // The API stores ISO timestamps plus calculated seconds/hours for reporting.
     const durationSeconds = Math.round(this.elapsedMilliseconds / 1000);
+    const endTime = new Date();
+    const startTime = new Date(endTime.getTime() - durationSeconds * 1000);
     const entry = {
       client_id: selectedClient.id,
       client_name: selectedClient.name,
       project_id: selectedProject.id,
       project_name: selectedProject.name,
       description: this.descriptionInput.value.trim(),
-      start_time: this.activeStartTime.toISOString(),
+      start_time: startTime.toISOString(),
       end_time: endTime.toISOString(),
       duration_seconds: durationSeconds,
       duration_hours: (durationSeconds / 3600).toFixed(4),
@@ -350,7 +412,14 @@ class StopwatchTimer {
     let saved = false;
 
     try {
-      await window.LongtailForge.api.postJson("/api/time-entries", entry);
+      if (this.persistedActiveTimerId) {
+        await window.LongtailForge.api.postJson(
+          `/api/active-timers/${encodeURIComponent(this.timerNumber)}/finalize`,
+          entry,
+        );
+      } else {
+        await window.LongtailForge.api.postJson("/api/time-entries", entry);
+      }
       this.setStatus("Saved.", "saved");
       saved = true;
     } catch (error) {
@@ -361,7 +430,7 @@ class StopwatchTimer {
     } finally {
       this.isSaving = false;
       if (saved) {
-        this.resetTimeTrackerWithoutConfirmation();
+        await this.resetTimeTrackerWithoutConfirmation({ persist: false });
       }
       this.updateButtons();
     }
@@ -408,7 +477,7 @@ class StopwatchTimer {
     this.populateProjectOptions(selectedClient ? selectedClient.projects : []);
 
     if (shouldReset) {
-      this.resetTimeTrackerWithoutConfirmation();
+      await this.resetTimeTrackerWithoutConfirmation();
     }
 
     this.confirmedClientId = this.clientSelect.value;
@@ -422,7 +491,7 @@ class StopwatchTimer {
       return;
     }
 
-    this.resetTimeTrackerWithoutConfirmation();
+    await this.resetTimeTrackerWithoutConfirmation();
     this.updateBillableDefault();
     this.confirmedClientId = this.clientSelect.value;
     this.confirmedProjectId = this.projectSelect.value;
@@ -523,10 +592,110 @@ class StopwatchTimer {
 
     this.billableInput.checked = billableSource?.billable !== "no";
   }
+
+  restoreFromPersistedTimer(timerData) {
+    this.isRestoring = true;
+    this.persistedActiveTimerId = timerData.active_timer_id || "";
+    this.clientSelect.value = timerData.client_id || "";
+
+    const selectedClient = this.getSelectedClient();
+    this.populateProjectOptions(selectedClient ? selectedClient.projects : [], timerData.project_id);
+    this.projectSelect.value = timerData.project_id || "";
+    this.descriptionInput.value = timerData.description || "";
+    this.billableInput.checked = timerData.billable !== "no";
+    this.confirmedClientId = this.clientSelect.value;
+    this.confirmedProjectId = this.projectSelect.value;
+
+    const accumulatedMilliseconds =
+      (Number(timerData.accumulated_elapsed_seconds) || 0) * 1000;
+
+    if (timerData.timer_status === "running") {
+      const lastActiveStartTime = new Date(timerData.last_active_start_time || Date.now());
+      const runningMilliseconds = Number.isFinite(lastActiveStartTime.getTime())
+        ? Date.now() - lastActiveStartTime.getTime()
+        : 0;
+
+      this.elapsedMilliseconds = Math.max(0, accumulatedMilliseconds + runningMilliseconds);
+      this.startedAt = Date.now() - this.elapsedMilliseconds;
+      this.activeStartTime = lastActiveStartTime;
+      this.timerId = window.setInterval(() => this.updateElapsedTime(), 100);
+    } else {
+      this.elapsedMilliseconds = accumulatedMilliseconds;
+      this.startedAt = Date.now() - this.elapsedMilliseconds;
+      this.activeStartTime = timerData.last_active_start_time
+        ? new Date(timerData.last_active_start_time)
+        : new Date(Date.now() - this.elapsedMilliseconds);
+    }
+
+    this.updateDisplay();
+    this.updateButtons();
+    this.setStatus("Restored unsaved timer.");
+    this.isRestoring = false;
+  }
+
+  async persistEditedTimer() {
+    if (this.isRestoring || !this.hasElapsedTime()) {
+      return;
+    }
+
+    await this.persistActiveTimer(this.timerId ? "running" : "paused");
+  }
+
+  async persistActiveTimer(timerStatus) {
+    const selectedClient = this.getSelectedClient();
+    const selectedProject = this.getSelectedProject(selectedClient);
+
+    if (!selectedProject || this.isSaving) {
+      return;
+    }
+
+    const now = new Date();
+    const elapsedSeconds = Math.max(0, Math.round(this.elapsedMilliseconds / 1000));
+    const payload = {
+      active_timer_id: this.persistedActiveTimerId,
+      timer_slot: String(this.timerNumber),
+      client_id: selectedClient?.id || "",
+      client_name: selectedClient?.name || "",
+      project_id: selectedProject.id,
+      project_name: selectedProject.name,
+      description: this.descriptionInput.value.trim(),
+      billable: this.billableInput.checked ? "yes" : "no",
+      accumulated_elapsed_seconds: elapsedSeconds,
+      last_active_start_time: timerStatus === "running" ? now.toISOString() : null,
+      timer_status: timerStatus,
+    };
+
+    try {
+      const result = await window.LongtailForge.api.putJson(
+        `/api/active-timers/${encodeURIComponent(this.timerNumber)}`,
+        payload,
+      );
+      this.persistedActiveTimerId = result?.timer?.active_timer_id || this.persistedActiveTimerId;
+      timerPersistence.loaded = true;
+    } catch (error) {
+      this.setStatus("Timer is running locally, but persistence failed.");
+      console.error(error);
+    }
+  }
+
+  async discardPersistedState() {
+    if (!this.persistedActiveTimerId && !timerPersistence.loaded) {
+      return;
+    }
+
+    try {
+      await window.LongtailForge.api.deleteJson(
+        `/api/active-timers/${encodeURIComponent(this.timerNumber)}`,
+      );
+    } catch (error) {
+      console.error(error);
+    } finally {
+      this.persistedActiveTimerId = "";
+    }
+  }
 }
 
-setTimerCount(1);
-loadClientProjectData();
+initializeTimeTracker();
 
 if (timerCountSelect) {
   timerCountSelect.addEventListener("input", handleTimerCountChange);

@@ -17,13 +17,32 @@ _No unroadmapped fixes at the moment._
 
 # Medium Term
 
-_No unroadmapped medium-term items at the moment._
+  - [ ] Add self-hosted install setting to limit workspace types
+    - [ ] Allow self-hosted installs to be business-only, personal, or personal and family only if desired
+    - [ ] This can start as a config value or setup-wizard option
+
+- [ ] Allow moving of projects from personal workspaces to family workspaces, provided user has sufficient permissions
 
 # Long Term
 
 ## Parking Lot / Open Questions
 
 - [ ] What other team tools would be beneficial beyond groups/permissions, assignments, messaging/comments, notifications, and activity feeds?
+
+- [ ] Architecture decision guide: when should Longtail Forge outgrow the current simple stack?
+  - [ ] Database:
+    - Stay on SQLite while the app is single-server, low-concurrency, and still changing quickly.
+    - Before serious multi-user/hosted use, replace the current SQLite command-wrapper approach with a proper database adapter and parameterized queries.
+    - Revisit PostgreSQL/MySQL when the app has real multi-organization use, public API usage, background jobs, heavier reporting, concurrent writes, or multiple app instances.
+    - Prefer PostgreSQL long term unless MySQL is chosen for operational familiarity.
+  - [ ] Front end:
+    - Keep plain browser JavaScript for now.
+    - Revisit React/Vue/Next only after roles, API foundation, module-ready structure, tasks, tickets, notes, and project-management screens make the UI hard to maintain.
+    - Prefer React + Vite or Vue + Vite before considering NextJS, unless server-rendered public pages become important.
+  - [ ] Search:
+    - Start with normal indexed database search.
+    - Use SQLite FTS5 or PostgreSQL full-text search before adding a separate search server.
+    - Revisit Elasticsearch/OpenSearch only if search becomes a major feature with advanced relevance, fuzzy matching, synonyms, huge text volume, or cross-object search at scale.
 
 # Notes for Maintaining This File
 
