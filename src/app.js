@@ -5,6 +5,7 @@ import { initializeDatabase } from "./db/index.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { requireAuth } from "./middleware/require-auth.js";
 import { appInfoRoutes } from "./routes/app-info.routes.js";
+import { auditRoutes } from "./routes/audit.routes.js";
 import { authRoutes } from "./routes/auth.routes.js";
 import { clientsRoutes } from "./routes/clients.routes.js";
 import { settingsRoutes } from "./routes/settings.routes.js";
@@ -21,6 +22,7 @@ function createApp() {
   app.use("/api", appInfoRoutes);
   app.use("/api", authRoutes);
   app.use(requireAuth);
+  app.use("/api", auditRoutes);
   app.use("/api", timeEntriesRoutes);
   app.use("/api", clientsRoutes);
   app.use("/api", settingsRoutes);

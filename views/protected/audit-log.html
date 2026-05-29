@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Audit Log | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=5">
+  </head>
+  <body data-page-title="Audit Log">
+    <main class="audit-log-page">
+      <h1>Audit Log</h1>
+
+      <form class="audit-log-filters" data-audit-filters>
+        <label>
+          From
+          <input type="date" data-audit-date-from>
+        </label>
+
+        <label>
+          To
+          <input type="date" data-audit-date-to>
+        </label>
+
+        <label>
+          User
+          <select data-audit-user-filter>
+            <option value="">All users</option>
+          </select>
+        </label>
+
+        <label>
+          Record Type
+          <select data-audit-record-type-filter>
+            <option value="">All record types</option>
+          </select>
+        </label>
+
+        <label>
+          Change Type
+          <select data-audit-change-type-filter>
+            <option value="">All change types</option>
+          </select>
+        </label>
+
+        <div class="audit-log-actions">
+          <button type="submit">Apply</button>
+          <button type="button" data-audit-reset>Reset</button>
+          <button type="button" data-audit-export-filtered>Export Filtered</button>
+          <button type="button" data-audit-export-all>Export All</button>
+        </div>
+      </form>
+
+      <p data-audit-status role="status" aria-live="polite"></p>
+
+      <div class="report-table-wrap">
+        <table class="report-table audit-log-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>User</th>
+              <th>Client</th>
+              <th>Project</th>
+              <th>Record Type</th>
+              <th>Change Type</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody data-audit-log-body></tbody>
+        </table>
+      </div>
+    </main>
+
+    <script src="js/shared/api-client.js"></script>
+    <script src="js/navigation.js"></script>
+    <script src="js/audit-log.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

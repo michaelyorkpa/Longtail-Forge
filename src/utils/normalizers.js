@@ -96,6 +96,7 @@ function normalizeSettings(settings) {
     defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
+    audit: normalizeAuditSettings(settings?.audit),
   };
 }
 
@@ -157,6 +158,16 @@ function normalizeBillingRounding(rounding) {
   return {
     enabled: Boolean(rounding?.enabled),
     increment,
+  };
+}
+
+function normalizeAuditSettings(audit) {
+  const retentionOptions = [7, 14, 30, 60, 90, 180, 365];
+  const retentionDays = Number.parseInt(audit?.retentionDays, 10);
+
+  return {
+    loggingEnabled: audit?.loggingEnabled === false ? false : true,
+    retentionDays: retentionOptions.includes(retentionDays) ? retentionDays : 30,
   };
 }
 
