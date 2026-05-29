@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { normalizeSettings } from "../utils/normalizers.js";
 import { hashPassword, createGeneratedPassword, validatePassword } from "../security/passwords.js";
+import { modulesService } from "../core/modules/modules.service.js";
 import { runMigrations } from "./migrations.js";
 import {
   querySql,
@@ -25,6 +26,7 @@ async function ensureDatabase() {
 
   const organizationId = await ensureDefaultOrganization();
   await ensureOrganizationSettings(organizationId);
+  await modulesService.syncModuleRegistry(organizationId);
   await seedSuperAdminUser(organizationId);
   await ensureProtectedUserRoles(organizationId);
 }

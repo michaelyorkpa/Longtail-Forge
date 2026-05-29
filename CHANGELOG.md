@@ -1,3 +1,13 @@
+## Version 0.26.0
+
+- Added `src/core/` as the shared backend infrastructure area for app bootstrap, database helpers, HTTP helpers, security exports, permissions, audit, API-key auth, and shared error handling.
+- Added static module definitions and a module registry under `src/core/modules/`.
+- Added `modules` and `organization_modules` tables with startup synchronization for default enabled modules.
+- Made the migration runner module-aware while preserving existing checksum validation.
+- Moved time-entry routes, service, and repository into `src/modules/time-tracking/`.
+- Moved client/project routes, service, and repositories into `src/modules/client-projects/`.
+- Added compatibility re-export shims for the old route, service, repository, and `src/app.js` paths so current behavior remains unchanged.
+
 ## Version 0.25.0
 
 - Added stable public API routes under `/api/v1` while keeping browser routes under `/api`.
