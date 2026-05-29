@@ -13,7 +13,9 @@ import {
 } from "./sqlite.js";
 
 const DEFAULT_ORGANIZATION_NAME = "Raymond Tec";
-const DEFAULT_SUPER_ADMIN_USERNAME = "sadmin";
+const DEFAULT_SUPER_ADMIN_USERNAME = "[REDACTED]";
+const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = "Super Admin";
+const DEFAULT_TIMEZONE = "America/New_York";
 const SUPER_ADMIN_PASSWORD_ENV = "SUPER_ADMIN_PASSWORD";
 
 async function initializeDatabase() {
@@ -134,11 +136,25 @@ LIMIT 1;
     userId = randomUUID();
 
     await runSql(`
-INSERT INTO users (user_id, organization_id, username, password, theme_mode, user_status, protected_user)
+INSERT INTO users (
+  user_id,
+  organization_id,
+  username,
+  display_name,
+  alt_email,
+  timezone,
+  password,
+  theme_mode,
+  user_status,
+  protected_user
+)
 VALUES (
   ${sqlText(userId)},
   ${sqlText(organizationId)},
   ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)},
+  ${sqlText(DEFAULT_SUPER_ADMIN_DISPLAY_NAME)},
+  NULL,
+  ${sqlText(DEFAULT_TIMEZONE)},
   ${sqlText(hashPassword(passwordSetup.password))},
   'light',
   'active',

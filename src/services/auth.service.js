@@ -3,20 +3,26 @@ import { createSession, deleteSession } from "../security/sessions.js";
 import { hashPassword, validatePassword, verifyPassword } from "../security/passwords.js";
 import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
-import { normalizeThemeMode, normalizeUserStatus } from "../utils/normalizers.js";
+import {
+  normalizeOptionalEmail,
+  normalizeThemeMode,
+  normalizeTimezone,
+  normalizeUserStatus,
+  normalizeUsername,
+} from "../utils/normalizers.js";
 
 async function login(payload) {
-  const username = String(payload.username || "").trim();
+  const username = normalizeUsername(payload.username);
   const password = String(payload.password || "");
 
   if (!username || !password) {
-    throw new AppError("Username and password are required.", 400);
+    throw new AppError("Email address and password are required.", 400);
   }
 
   const user = await usersRepository.readByUsername(username);
 
   if (!user || !verifyPassword(password, user.password)) {
-    throw new AppError("Invalid username or password.", 401);
+    throw new AppError("Invalid email address or password.", 401);
   }
 
   if (normalizeUserStatus(user.user_status) !== "active") {
@@ -48,6 +54,9 @@ async function login(payload) {
       organization_id: user.organization_id,
       user_id: user.user_id,
       username: user.username,
+      displayName: user.display_name || user.username,
+      altEmail: normalizeOptionalEmail(user.alt_email),
+      timezone: normalizeTimezone(user.timezone),
       themeMode: normalizeThemeMode(user.theme_mode),
     },
   };

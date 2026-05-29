@@ -32,7 +32,51 @@ function normalizeTimeEntryBillable(value) {
 }
 
 function normalizeUsername(value) {
-  return String(value || "").trim();
+  return normalizeEmail(value);
+}
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizeOptionalEmail(value) {
+  const email = normalizeEmail(value);
+  return email || null;
+}
+
+function isValidEmail(value) {
+  const email = normalizeEmail(value);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function normalizeDisplayName(value, fallback = "") {
+  return String(value || "").trim() || fallback;
+}
+
+function normalizeTimezone(value) {
+  const timezone = String(value || "").trim() || "America/New_York";
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date());
+    return timezone;
+  } catch {
+    return "America/New_York";
+  }
+}
+
+function isValidTimezone(value) {
+  const timezone = String(value || "").trim();
+
+  if (!timezone) {
+    return false;
+  }
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function normalizeUserStatus(value) {
@@ -51,6 +95,9 @@ function userRowToAppValue(row) {
   return {
     user_id: row.user_id,
     username: row.username,
+    displayName: normalizeDisplayName(row.display_name, row.username),
+    altEmail: normalizeOptionalEmail(row.alt_email),
+    timezone: normalizeTimezone(row.timezone),
     themeMode: normalizeThemeMode(row.theme_mode),
     userStatus: normalizeUserStatus(row.user_status),
     protectedUser: normalizeProtectedUserFlag(row.protected_user),
@@ -210,11 +257,17 @@ export {
   normalizeBillingRate,
   normalizeBillingRounding,
   normalizeClientProjectData,
+  normalizeDisplayName,
+  normalizeEmail,
+  normalizeOptionalEmail,
   normalizeProtectedUserFlag,
   normalizeSettings,
   normalizeThemeMode,
   normalizeTimeEntry,
+  normalizeTimezone,
   normalizeUserStatus,
   normalizeUsername,
+  isValidEmail,
+  isValidTimezone,
   userRowToAppValue,
 };

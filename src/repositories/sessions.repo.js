@@ -55,9 +55,19 @@ WHERE expires_at <= ${sqlText(now.toISOString())};
 `);
 }
 
+async function updateUsernameForUser(organizationId, userId, username) {
+  await runSql(`
+UPDATE sessions
+SET username = ${sqlText(username)}
+WHERE organization_id = ${sqlText(organizationId)}
+  AND user_id = ${sqlText(userId)};
+`);
+}
+
 export const sessionsRepository = {
   create,
   readById,
   remove,
   removeExpired,
+  updateUsernameForUser,
 };

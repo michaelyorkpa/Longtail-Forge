@@ -8,7 +8,7 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
-_No unroadmapped fixes at the moment._
+- [ ] The form for edit entries still displays UUID instead of a friendly name
 
 ## Tweaks
 

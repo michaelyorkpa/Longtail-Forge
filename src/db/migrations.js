@@ -196,7 +196,7 @@ async function baselineExistingSchema(migrations) {
   const statements = [];
 
   for (const migration of migrations) {
-    if (["010", "011"].includes(migration.version) && !(await isMigrationAlreadySatisfied(migration))) {
+    if (["010", "011", "012"].includes(migration.version) && !(await isMigrationAlreadySatisfied(migration))) {
       await applyMigration(migration);
       continue;
     }
@@ -265,6 +265,10 @@ async function isMigrationAlreadySatisfied(migration) {
 
   if (migration.fileName === "011_add_active_timers.sql") {
     return tableExists("active_timers");
+  }
+
+  if (migration.fileName === "012_add_user_profile_fields.sql") {
+    return columnsExist("users", ["display_name", "alt_email", "timezone"]);
   }
 
   return false;

@@ -1,3 +1,12 @@
+## Version 0.28.1
+
+- Added `display_name`, nullable `alt_email`, and IANA `timezone` profile fields to users.
+- Migrated the existing `sadmin` and `Mike` usernames to email addresses with display names and timezone defaults.
+- Added email validation for usernames in user creation, user profile saves, and User Admin edits.
+- Added editable profile fields below the password form on User Settings.
+- Added matching profile fields to the User Admin edit modal and surfaced display names in the user table.
+- Kept user settings saves partial so appearance and profile updates do not overwrite each other.
+
 ## Version 0.28.0
 
 - Added `active_timers` database support for running and paused timer state.

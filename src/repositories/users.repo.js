@@ -1,21 +1,31 @@
 import { randomUUID } from "node:crypto";
 import { querySql, runSql, sqlText } from "../db/index.js";
 import {
+  normalizeDisplayName,
+  normalizeOptionalEmail,
   normalizeThemeMode,
+  normalizeTimezone,
   normalizeUserStatus,
   userRowToAppValue,
 } from "../utils/normalizers.js";
 
-async function readByUsername(username) {
-  const rows = await querySql(`
-SELECT
+const USER_SELECT_COLUMNS = `
   user_id,
   organization_id,
   username,
+  display_name,
+  alt_email,
+  timezone,
   password,
   theme_mode,
   user_status,
   protected_user
+`;
+
+async function readByUsername(username) {
+  const rows = await querySql(`
+SELECT
+${USER_SELECT_COLUMNS}
 FROM users
 WHERE username = ${sqlText(username)}
 ORDER BY username
@@ -28,13 +38,7 @@ LIMIT 1;
 async function readByUsernameForOrganization(organizationId, username) {
   const rows = await querySql(`
 SELECT
-  user_id,
-  organization_id,
-  username,
-  password,
-  theme_mode,
-  user_status,
-  protected_user
+${USER_SELECT_COLUMNS}
 FROM users
 WHERE organization_id = ${sqlText(organizationId)}
   AND username = ${sqlText(username)}
@@ -47,13 +51,7 @@ LIMIT 1;
 async function readById(organizationId, userId) {
   const rows = await querySql(`
 SELECT
-  user_id,
-  organization_id,
-  username,
-  password,
-  theme_mode,
-  user_status,
-  protected_user
+${USER_SELECT_COLUMNS}
 FROM users
 WHERE organization_id = ${sqlText(organizationId)}
   AND user_id = ${sqlText(userId)}
@@ -68,6 +66,9 @@ async function readAll(organizationId) {
 SELECT
   user_id,
   username,
+  display_name,
+  alt_email,
+  timezone,
   theme_mode,
   user_status,
   protected_user
@@ -79,15 +80,33 @@ ORDER BY username;
   return rows.map(userRowToAppValue);
 }
 
-async function create(organizationId, username, passwordHash) {
+async function create(organizationId, profile, passwordHash) {
   const userId = randomUUID();
+  const username = profile.username;
+  const displayName = normalizeDisplayName(profile.displayName, username);
+  const altEmail = normalizeOptionalEmail(profile.altEmail);
+  const timezone = normalizeTimezone(profile.timezone);
 
   await runSql(`
-INSERT INTO users (user_id, organization_id, username, password, theme_mode, user_status, protected_user)
+INSERT INTO users (
+  user_id,
+  organization_id,
+  username,
+  display_name,
+  alt_email,
+  timezone,
+  password,
+  theme_mode,
+  user_status,
+  protected_user
+)
 VALUES (
   ${sqlText(userId)},
   ${sqlText(organizationId)},
   ${sqlText(username)},
+  ${sqlText(displayName)},
+  ${altEmail === null ? "NULL" : sqlText(altEmail)},
+  ${sqlText(timezone)},
   ${sqlText(passwordHash)},
   'light',
   'active',
@@ -98,6 +117,9 @@ VALUES (
   return {
     user_id: userId,
     username,
+    displayName,
+    altEmail,
+    timezone,
     themeMode: "light",
     userStatus: "active",
     protectedUser: false,
@@ -113,10 +135,15 @@ WHERE organization_id = ${sqlText(organizationId)}
 `);
 }
 
-async function updateUsername(organizationId, userId, username) {
+async function updateProfile(organizationId, userId, profile) {
+  const altEmail = normalizeOptionalEmail(profile.altEmail);
+
   await runSql(`
 UPDATE users
-SET username = ${sqlText(username)}
+SET username = ${sqlText(profile.username)},
+    display_name = ${sqlText(normalizeDisplayName(profile.displayName, profile.username))},
+    alt_email = ${altEmail === null ? "NULL" : sqlText(altEmail)},
+    timezone = ${sqlText(normalizeTimezone(profile.timezone))}
 WHERE organization_id = ${sqlText(organizationId)}
   AND user_id = ${sqlText(userId)};
 `);
@@ -156,7 +183,7 @@ export const usersRepository = {
   readByUsernameForOrganization,
   remove,
   updatePassword,
+  updateProfile,
   updateStatus,
   updateThemeMode,
-  updateUsername,
 };

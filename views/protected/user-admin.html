@@ -16,8 +16,8 @@
           <legend>Add User</legend>
 
           <label>
-            Username
-            <input type="text" data-new-user-username required autocomplete="off">
+            Email Address
+            <input type="email" data-new-user-username required autocomplete="email">
           </label>
         </fieldset>
 
@@ -39,6 +39,7 @@
           <thead>
             <tr>
               <th scope="col">Username</th>
+              <th scope="col">Display Name</th>
               <th scope="col">Status</th>
               <th scope="col">Actions</th>
             </tr>
@@ -53,8 +54,32 @@
           <input type="hidden" data-edit-user-id>
 
           <label>
-            Username
-            <input type="text" data-edit-user-username required autocomplete="off">
+            Email Address
+            <input type="email" data-edit-user-username required autocomplete="email">
+          </label>
+
+          <label>
+            Display Name
+            <input type="text" data-edit-user-display-name required autocomplete="name">
+          </label>
+
+          <label>
+            Alternate Email Address
+            <input type="email" data-edit-user-alt-email autocomplete="email">
+          </label>
+
+          <label>
+            Timezone
+            <select data-edit-user-timezone required>
+              <option value="America/New_York">America/New_York</option>
+              <option value="America/Chicago">America/Chicago</option>
+              <option value="America/Denver">America/Denver</option>
+              <option value="America/Phoenix">America/Phoenix</option>
+              <option value="America/Los_Angeles">America/Los_Angeles</option>
+              <option value="America/Anchorage">America/Anchorage</option>
+              <option value="Pacific/Honolulu">Pacific/Honolulu</option>
+              <option value="UTC">UTC</option>
+            </select>
           </label>
 
           <fieldset class="settings-fieldset role-assignment-editor">

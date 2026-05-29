@@ -47,6 +47,43 @@
         <button type="submit" data-save-password>Change Password</button>
       </form>
 
+      <form class="settings-form" data-user-profile-form>
+        <fieldset class="settings-fieldset">
+          <legend>Profile</legend>
+
+          <label>
+            Email Address
+            <input type="email" data-profile-username required autocomplete="email">
+          </label>
+
+          <label>
+            Display Name
+            <input type="text" data-profile-display-name required autocomplete="name">
+          </label>
+
+          <label>
+            Alternate Email Address
+            <input type="email" data-profile-alt-email autocomplete="email">
+          </label>
+
+          <label>
+            Timezone
+            <select data-profile-timezone required>
+              <option value="America/New_York">America/New_York</option>
+              <option value="America/Chicago">America/Chicago</option>
+              <option value="America/Denver">America/Denver</option>
+              <option value="America/Phoenix">America/Phoenix</option>
+              <option value="America/Los_Angeles">America/Los_Angeles</option>
+              <option value="America/Anchorage">America/Anchorage</option>
+              <option value="Pacific/Honolulu">Pacific/Honolulu</option>
+              <option value="UTC">UTC</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <button type="submit" data-save-profile>Save Profile</button>
+      </form>
+
       <p data-user-settings-status role="status" aria-live="polite"></p>
     </main>
 

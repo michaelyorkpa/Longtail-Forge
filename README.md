@@ -49,7 +49,7 @@ The detailed per-version changelog and future plan live in [ROADMAP.md](ROADMAP.
 - `0.25.x` adds the public API and API key foundation.
 - `0.26.x` introduces module-ready backend architecture.
 - `0.27.x` consolidates shared billing and reporting calculations.
-- `0.28.x` finishes core time-tracking maturity with database-backed active timer persistence.
+- `0.28.x` finishes core time-tracking maturity with database-backed active timer persistence and starts richer real-user profiles.
 - `0.30+` expands toward workspaces, tasks, notes, calendars, production packaging, personal use, and SaaS capabilities.
 
 ## Getting Started

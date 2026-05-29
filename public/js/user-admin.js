@@ -10,6 +10,9 @@ const editUserDialog = document.querySelector("[data-edit-user-dialog]");
 const editUserForm = document.querySelector("[data-edit-user-form]");
 const editUserIdInput = document.querySelector("[data-edit-user-id]");
 const editUserUsernameInput = document.querySelector("[data-edit-user-username]");
+const editUserDisplayNameInput = document.querySelector("[data-edit-user-display-name]");
+const editUserAltEmailInput = document.querySelector("[data-edit-user-alt-email]");
+const editUserTimezoneSelect = document.querySelector("[data-edit-user-timezone]");
 const cancelEditUserButton = document.querySelector("[data-cancel-edit-user]");
 const resetEditUserPasswordButton = document.querySelector("[data-reset-edit-user-password]");
 const saveEditUserButton = document.querySelector("[data-save-edit-user]");
@@ -121,10 +124,10 @@ async function loadUsers() {
 }
 
 async function createUser() {
-  const username = newUserUsernameInput.value.trim();
+  const username = newUserUsernameInput.value.trim().toLowerCase();
 
-  if (!username) {
-    setUserAdminStatus("Username is required.", true);
+  if (!isValidEmail(username)) {
+    setUserAdminStatus("Enter a valid email address.", true);
     return;
   }
 
@@ -173,7 +176,7 @@ function renderUserRows(users) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
 
-    cell.colSpan = 3;
+    cell.colSpan = 4;
     cell.textContent = "No users yet.";
     row.appendChild(cell);
     userList.appendChild(row);
@@ -185,6 +188,7 @@ function renderUserRows(users) {
 
     row.append(
       createTableCell(formatUsername(user)),
+      createTableCell(user.displayName || ""),
       createTableCell(formatUserStatus(user.userStatus)),
       createActionsCell(user),
     );
@@ -236,6 +240,9 @@ function createUserActionButton(label, onClick, disabled = false, className = ""
 async function openEditUserDialog(user) {
   editUserIdInput.value = user.user_id;
   editUserUsernameInput.value = user.username;
+  editUserDisplayNameInput.value = user.displayName || user.username;
+  editUserAltEmailInput.value = user.altEmail || "";
+  setEditUserTimezoneValue(user.timezone || "America/New_York");
   pendingRoleAssignments = [];
   draftPermissionOverrides = createDefaultPermissionOverrides();
   renderPendingRoleAssignments();
@@ -269,10 +276,23 @@ function getEditingUser() {
 
 async function saveEditedUser() {
   const user = getEditingUser();
-  const username = editUserUsernameInput.value.trim();
+  const username = editUserUsernameInput.value.trim().toLowerCase();
+  const displayName = editUserDisplayNameInput.value.trim();
+  const altEmail = editUserAltEmailInput.value.trim().toLowerCase();
+  const timezone = editUserTimezoneSelect.value;
 
-  if (!user || !username) {
-    setUserAdminStatus("Username is required.", true);
+  if (!user || !isValidEmail(username)) {
+    setUserAdminStatus("Enter a valid email address.", true);
+    return;
+  }
+
+  if (!displayName) {
+    setUserAdminStatus("Display name is required.", true);
+    return;
+  }
+
+  if (altEmail && !isValidEmail(altEmail)) {
+    setUserAdminStatus("Enter a valid alternate email address or leave it blank.", true);
     return;
   }
 
@@ -282,7 +302,12 @@ async function saveEditedUser() {
   try {
     const body = await window.LongtailForge.api.putJson(
       `/api/users/${encodeURIComponent(user.user_id)}/update`,
-      { username },
+      {
+        username,
+        displayName,
+        altEmail,
+        timezone,
+      },
     );
     await window.LongtailForge.api.putJson(
       `/api/users/${encodeURIComponent(user.user_id)}/role-assignments`,
@@ -752,6 +777,24 @@ function formatUsername(user) {
 
 function formatUserStatus(userStatus) {
   return userStatus === "inactive" ? "Inactive" : "Active";
+}
+
+function setEditUserTimezoneValue(timezone) {
+  const matchingOption = [...editUserTimezoneSelect.options].find((option) => option.value === timezone);
+
+  if (!matchingOption) {
+    const option = document.createElement("option");
+
+    option.value = timezone;
+    option.textContent = timezone;
+    editUserTimezoneSelect.appendChild(option);
+  }
+
+  editUserTimezoneSelect.value = timezone;
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 }
 
 function setUserAdminStatus(message, isError = false) {

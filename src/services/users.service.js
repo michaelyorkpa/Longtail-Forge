@@ -1,11 +1,17 @@
 import { usersRepository } from "../repositories/users.repo.js";
+import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { createGeneratedPassword, hashPassword, validatePassword } from "../security/passwords.js";
 import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 import { AppError } from "../utils/app-error.js";
 import {
+  isValidEmail,
+  isValidTimezone,
+  normalizeDisplayName,
+  normalizeOptionalEmail,
   normalizeProtectedUserFlag,
   normalizeThemeMode,
+  normalizeTimezone,
   normalizeUsername,
   userRowToAppValue,
 } from "../utils/normalizers.js";
@@ -21,13 +27,17 @@ async function create(payload, session) {
   const username = normalizeUsername(payload.username);
 
   if (!username) {
-    throw new AppError("Username is required.", 400);
+    throw new AppError("Email address is required.", 400);
+  }
+
+  if (!isValidEmail(username)) {
+    throw new AppError("Enter a valid email address for the username.", 400);
   }
 
   const existingUser = await usersRepository.readByUsernameForOrganization(session.organization_id, username);
 
   if (existingUser) {
-    throw new AppError("A user with that username already exists.", 409);
+    throw new AppError("A user with that email address already exists.", 409);
   }
 
   const initialPassword = createGeneratedPassword();
@@ -37,7 +47,16 @@ async function create(payload, session) {
     throw new AppError("Generated password did not meet password requirements.", 500);
   }
 
-  const user = await usersRepository.create(session.organization_id, username, hashPassword(initialPassword));
+  const user = await usersRepository.create(
+    session.organization_id,
+    {
+      username,
+      displayName: normalizeDisplayName(payload.displayName, username),
+      altEmail: normalizeOptionalEmail(payload.altEmail),
+      timezone: normalizeTimezone(payload.timezone),
+    },
+    hashPassword(initialPassword),
+  );
   await auditService.record({
     session,
     action: "user_created",
@@ -89,42 +108,49 @@ async function action({ payload = {}, session, userId, action: userAction }) {
 
 async function update(payload, session, userId) {
   await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "update" });
-  const username = normalizeUsername(payload.username);
   const user = await usersRepository.readById(session.organization_id, userId);
 
   if (!user) {
     throw new AppError("User was not found.", 404);
   }
 
-  if (!username) {
-    throw new AppError("Username is required.", 400);
-  }
+  const profile = normalizeUserProfilePayload(payload, user);
 
-  const existingUser = await usersRepository.readByUsernameForOrganization(session.organization_id, username);
+  const existingUser = await usersRepository.readByUsernameForOrganization(session.organization_id, profile.username);
 
   if (existingUser && existingUser.user_id !== userId) {
-    throw new AppError("A user with that username already exists.", 409);
+    throw new AppError("A user with that email address already exists.", 409);
   }
 
-  await usersRepository.updateUsername(session.organization_id, userId, username);
+  await usersRepository.updateProfile(session.organization_id, userId, profile);
+  await sessionsRepository.updateUsernameForUser(session.organization_id, userId, profile.username);
   const updatedUser = {
     ...userRowToAppValue(user),
-    username,
+    username: profile.username,
+    displayName: profile.displayName,
+    altEmail: profile.altEmail,
+    timezone: profile.timezone,
   };
 
   await auditService.record({
     session,
-    action: "user_username_updated",
+    action: "user_profile_updated",
     changeType: "update",
     recordType: "user",
     recordId: userId,
-    recordLabel: username,
+    recordLabel: profile.username,
     recordUrl: "user-admin.html",
     previousValue: userRowToAppValue(user),
     newValue: updatedUser,
     metadata: {
       old_username: user.username,
-      new_username: username,
+      new_username: profile.username,
+      old_display_name: user.display_name,
+      new_display_name: profile.displayName,
+      old_alt_email: user.alt_email,
+      new_alt_email: profile.altEmail,
+      old_timezone: user.timezone,
+      new_timezone: profile.timezone,
     },
   });
 
@@ -292,30 +318,130 @@ async function readSettings(session) {
     throw new AppError("User was not found.", 404);
   }
 
-  return { themeMode: normalizeThemeMode(user.theme_mode) };
+  const appUser = userRowToAppValue(user);
+
+  return {
+    username: appUser.username,
+    displayName: appUser.displayName,
+    altEmail: appUser.altEmail,
+    timezone: appUser.timezone,
+    themeMode: appUser.themeMode,
+  };
 }
 
 async function saveSettings(payload, session) {
-  const themeMode = normalizeThemeMode(payload.themeMode);
+  const user = await usersRepository.readById(session.organization_id, session.user_id);
 
-  await usersRepository.updateThemeMode(session.organization_id, session.user_id, themeMode);
-  await auditService.record({
-    session,
-    action: "user_settings_updated",
-    changeType: "settings_change",
-    recordType: "user",
-    recordId: session.user_id,
-    recordLabel: session.username,
-    recordUrl: "user-settings.html",
-    previousValue: null,
-    newValue: { themeMode },
-    metadata: {
-      setting_group: "user",
-      setting_name: "themeMode",
-    },
-  });
+  if (!user) {
+    throw new AppError("User was not found.", 404);
+  }
 
-  return { themeMode };
+  const previousValue = userRowToAppValue(user);
+  let nextValue = previousValue;
+  let themeMode = previousValue.themeMode;
+  const metadata = {
+    setting_group: "user",
+    setting_names: [],
+  };
+
+  if (Object.hasOwn(payload, "themeMode")) {
+    themeMode = normalizeThemeMode(payload.themeMode);
+    await usersRepository.updateThemeMode(session.organization_id, session.user_id, themeMode);
+    nextValue = {
+      ...nextValue,
+      themeMode,
+    };
+    metadata.setting_names.push("themeMode");
+  }
+
+  if (
+    Object.hasOwn(payload, "username") ||
+    Object.hasOwn(payload, "displayName") ||
+    Object.hasOwn(payload, "altEmail") ||
+    Object.hasOwn(payload, "timezone")
+  ) {
+    const profile = normalizeUserProfilePayload(payload, user);
+    const existingUser = await usersRepository.readByUsernameForOrganization(session.organization_id, profile.username);
+
+    if (existingUser && existingUser.user_id !== session.user_id) {
+      throw new AppError("A user with that email address already exists.", 409);
+    }
+
+    await usersRepository.updateProfile(session.organization_id, session.user_id, profile);
+    await sessionsRepository.updateUsernameForUser(session.organization_id, session.user_id, profile.username);
+    nextValue = {
+      ...nextValue,
+      username: profile.username,
+      displayName: profile.displayName,
+      altEmail: profile.altEmail,
+      timezone: profile.timezone,
+    };
+    metadata.setting_names.push("profile");
+  }
+
+  if (metadata.setting_names.length > 0) {
+    await auditService.record({
+      session: {
+        ...session,
+        username: nextValue.username,
+      },
+      action: "user_settings_updated",
+      changeType: "settings_change",
+      recordType: "user",
+      recordId: session.user_id,
+      recordLabel: nextValue.username,
+      recordUrl: "user-settings.html",
+      previousValue,
+      newValue: nextValue,
+      metadata,
+    });
+  }
+
+  return {
+    username: nextValue.username,
+    displayName: nextValue.displayName,
+    altEmail: nextValue.altEmail,
+    timezone: nextValue.timezone,
+    themeMode,
+  };
+}
+
+function normalizeUserProfilePayload(payload, fallbackUser = {}) {
+  const username = normalizeUsername(
+    Object.hasOwn(payload, "username") ? payload.username : fallbackUser.username,
+  );
+
+  if (!username) {
+    throw new AppError("Email address is required.", 400);
+  }
+
+  if (!isValidEmail(username)) {
+    throw new AppError("Enter a valid email address for the username.", 400);
+  }
+
+  const altEmail = normalizeOptionalEmail(
+    Object.hasOwn(payload, "altEmail") ? payload.altEmail : fallbackUser.alt_email,
+  );
+
+  if (altEmail && !isValidEmail(altEmail)) {
+    throw new AppError("Enter a valid alternate email address or leave it blank.", 400);
+  }
+
+  const timezoneInput = Object.hasOwn(payload, "timezone") ? payload.timezone : fallbackUser.timezone;
+
+  if (!isValidTimezone(timezoneInput)) {
+    throw new AppError("Choose a valid IANA timezone.", 400);
+  }
+
+  return {
+    username,
+    displayName: normalizeDisplayName(
+      Object.hasOwn(payload, "displayName") ? payload.displayName : fallbackUser.display_name,
+      username,
+    ),
+    altEmail,
+    timezone: normalizeTimezone(timezoneInput),
+  };
 }
 
 export const usersService = {

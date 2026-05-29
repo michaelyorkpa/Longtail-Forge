@@ -7,6 +7,12 @@ const currentPasswordInput = document.querySelector("[data-current-password]");
 const newPasswordInput = document.querySelector("[data-new-password]");
 const confirmPasswordInput = document.querySelector("[data-confirm-password]");
 const savePasswordButton = document.querySelector("[data-save-password]");
+const profileForm = document.querySelector("[data-user-profile-form]");
+const profileUsernameInput = document.querySelector("[data-profile-username]");
+const profileDisplayNameInput = document.querySelector("[data-profile-display-name]");
+const profileAltEmailInput = document.querySelector("[data-profile-alt-email]");
+const profileTimezoneSelect = document.querySelector("[data-profile-timezone]");
+const saveProfileButton = document.querySelector("[data-save-profile]");
 const userSettingsStatus = document.querySelector("[data-user-settings-status]");
 
 loadUserSettings();
@@ -20,6 +26,11 @@ themeForm.addEventListener("change", async (event) => {
 passwordForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await changePassword();
+});
+
+profileForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await saveProfile();
 });
 
 async function loadUserSettings() {
@@ -37,6 +48,7 @@ async function loadUserSettings() {
     }
 
     applyThemeMode(body.themeMode);
+    applyProfile(body);
     setUserSettingsStatus("");
   } catch (error) {
     setUserSettingsStatus(error.message || "User settings could not be loaded.", true);
@@ -86,12 +98,94 @@ function applyThemeMode(themeMode) {
   themeModeToggle.checked = normalizedThemeMode === "dark";
 }
 
+function applyProfile(profile) {
+  profileUsernameInput.value = profile.username || "";
+  profileDisplayNameInput.value = profile.displayName || "";
+  profileAltEmailInput.value = profile.altEmail || "";
+  setTimezoneValue(profile.timezone || "America/New_York");
+}
+
+function setTimezoneValue(timezone) {
+  const matchingOption = [...profileTimezoneSelect.options].find((option) => option.value === timezone);
+
+  if (!matchingOption) {
+    const option = document.createElement("option");
+
+    option.value = timezone;
+    option.textContent = timezone;
+    profileTimezoneSelect.appendChild(option);
+  }
+
+  profileTimezoneSelect.value = timezone;
+}
+
+async function saveProfile() {
+  const username = profileUsernameInput.value.trim().toLowerCase();
+  const displayName = profileDisplayNameInput.value.trim();
+  const altEmail = profileAltEmailInput.value.trim().toLowerCase();
+  const timezone = profileTimezoneSelect.value;
+
+  if (!isValidEmail(username)) {
+    setUserSettingsStatus("Enter a valid email address.", true);
+    return;
+  }
+
+  if (!displayName) {
+    setUserSettingsStatus("Display name is required.", true);
+    return;
+  }
+
+  if (altEmail && !isValidEmail(altEmail)) {
+    setUserSettingsStatus("Enter a valid alternate email address or leave it blank.", true);
+    return;
+  }
+
+  saveProfileButton.disabled = true;
+  setUserSettingsStatus("Saving profile...");
+
+  try {
+    const response = await fetch("/api/user/settings", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        username,
+        displayName,
+        altEmail,
+        timezone,
+      }),
+    });
+    const body = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      window.location.replace("/login.html");
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(body.error || "Profile was not saved.");
+    }
+
+    applyProfile(body);
+    flashButtonSavedState(saveProfileButton, "Profile saved.");
+  } catch (error) {
+    setUserSettingsStatus(error.message || "Profile was not saved.", true);
+  } finally {
+    saveProfileButton.disabled = false;
+  }
+}
+
 function getSelectedThemeMode() {
   return themeModeToggle.checked ? "dark" : "light";
 }
 
 function normalizeThemeMode(value) {
   return value === "dark" ? "dark" : "light";
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 }
 
 function resolveThemeMode(themeMode) {
@@ -136,7 +230,7 @@ async function changePassword() {
     }
 
     passwordForm.reset();
-    flashSavedState();
+    flashButtonSavedState(savePasswordButton, "Password changed.");
   } catch (error) {
     setUserSettingsStatus(error.message || "Password was not changed.", true);
   } finally {
@@ -144,16 +238,16 @@ async function changePassword() {
   }
 }
 
-function flashSavedState() {
-  // Match the app's button-local save feedback pattern.
-  const originalText = savePasswordButton.textContent;
-  savePasswordButton.textContent = "Saved.";
-  savePasswordButton.classList.add("is-saved");
-  setUserSettingsStatus("Password changed.");
+function flashButtonSavedState(button, message) {
+  const originalText = button.textContent;
+
+  button.textContent = "Saved.";
+  button.classList.add("is-saved");
+  setUserSettingsStatus(message);
 
   window.setTimeout(() => {
-    savePasswordButton.textContent = originalText;
-    savePasswordButton.classList.remove("is-saved");
+    button.textContent = originalText;
+    button.classList.remove("is-saved");
     setUserSettingsStatus("");
   }, 1600);
 }
