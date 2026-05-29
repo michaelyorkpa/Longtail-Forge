@@ -1,3 +1,23 @@
+## Version 0.25.0
+
+- Added stable public API routes under `/api/v1` while keeping browser routes under `/api`.
+- Added API key storage with hashed keys, prefixes, active/revoked status, last-used timestamps, and separate scope rows.
+- Added API key authentication for public API requests using `Authorization: Bearer` or `X-API-Key`.
+- Added scoped public endpoints for clients, projects, and time entries with versioned response envelopes and pagination metadata.
+- Added API key administration under Settings with create, one-time key display, scope selection, prefix display, last-used tracking, and revoke.
+- Added audit records for API key creation, revocation, and public API time-entry creation.
+- Added `docs/public-api.md` as the first public API contract reference.
+
+## Version 0.24.0
+
+- Added role, permission, role-permission, and scoped user-role-assignment database tables.
+- Seeded Super Admin, Organization Administrator, Client Administrator, Project Administrator, Client User, Project User, and external Client User roles.
+- Added `permissionsService` for session/action/resource permission checks and scoped client, project, and time-entry filtering.
+- Applied permission checks across user administration, organization settings saves, client/project management, time entry creation/editing, reporting data reads, and audit-log viewing.
+- Added role assignment management to the edit user modal with scoped client/project assignments, advanced controls, and audit logging.
+- Widened the edit user modal, stacked role assignment controls, and moved per-assignment CRUD restrictions into a dedicated permissions modal.
+- Changed Super Admin assignments to use `all` scope instead of an organization-specific scope.
+
 ## Version 0.23.3
 
 - Added a protected Audit Log page under Settings.

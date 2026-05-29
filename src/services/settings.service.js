@@ -1,5 +1,6 @@
 import { settingsRepository } from "../repositories/settings.repo.js";
 import { auditService } from "./audit.service.js";
+import { permissionsService } from "./permissions.service.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 
 async function read(session) {
@@ -7,6 +8,11 @@ async function read(session) {
 }
 
 async function save(payload, session) {
+  await permissionsService.assertCan(session, "organization_settings.manage", {
+    organization_id: session.organization_id,
+    operation: "update",
+  });
+
   const data = normalizeSettings(payload);
   const previousSettings = await settingsRepository.readOrganizationSettings(session.organization_id);
   const auditSettingChanged = previousSettings.audit.loggingEnabled !== data.audit.loggingEnabled ||

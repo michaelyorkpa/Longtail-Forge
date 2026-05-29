@@ -1065,6 +1065,14 @@ dialog::backdrop {
     padding: 24px;
 }
 
+dialog[data-edit-user-dialog] {
+    width: min(92vw, 720px);
+}
+
+dialog[data-role-permissions-dialog] {
+    width: min(92vw, 760px);
+}
+
 [data-client-form] h2,
 .user-edit-form h2 {
     margin: 0;
@@ -1075,6 +1083,106 @@ dialog::backdrop {
     display: grid;
     gap: 16px;
     padding: 24px;
+}
+
+.role-assignment-editor {
+    padding: 14px;
+}
+
+.role-assignment-stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+}
+
+.role-assignment-stack button {
+    justify-self: start;
+}
+
+.role-permissions-form {
+    display: grid;
+    gap: 16px;
+    padding: 24px;
+}
+
+.role-permissions-form h2,
+.role-permissions-form p {
+    margin: 0;
+}
+
+.permission-matrix {
+    display: grid;
+    gap: 12px;
+    max-height: min(58vh, 520px);
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.permission-resource {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.permission-resource legend {
+    padding: 0 4px;
+    font-weight: 700;
+}
+
+.permission-operation-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    gap: 8px 12px;
+}
+
+.permission-operation-list label,
+.permission-standalone {
+    min-height: 32px;
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: center;
+    gap: 10px;
+}
+
+.permission-standalone {
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.scope-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px 14px;
+}
+
+.role-assignment-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.role-assignment-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.role-assignment-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
 }
 
 .form-actions {

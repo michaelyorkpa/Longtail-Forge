@@ -483,132 +483,133 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ## Version 0.24.0 - Roles and Permissions Foundation
 
-- [ ] Add roles
-  - [ ] Users can be assigned multiple roles
+- [x] Add roles
+  - [x] Users can be assigned multiple roles
     - Example: User 1 can be a client administrator for one client, project administrator for a different client, and a project user for another client
-  - [ ] Super Admin
+  - [x] Super Admin
     - Controls all organizations within the app
     - Can edit clients, projects, and users in each organization
     - Has full access to assign anyone to anything, while respecting role limits below
-  - [ ] Organization Administrator
+  - [x] Organization Administrator
     - Controls all clients, projects, and users within the organization
     - Cannot see clients/projects that belong to other organizations
-  - [ ] Client Administrator
+  - [x] Client Administrator
     - Controls all client details, projects, and users for a specific client
-  - [ ] Project Administrator
+  - [x] Project Administrator
     - Controls all projects and project details for a specific client
     - Can assign users to projects within the client
-  - [ ] Client User
+  - [x] Client User
     - Can contribute time to any projects within a client
-  - [ ] Project User
+  - [x] Project User
     - Can contribute time to a specific project
-  - [ ] Client Users (External)
+  - [x] Client Users (External)
     - For clients to collaborate with users within organizations
-- [ ] Add database tables for roles and scoped assignments
-  - [ ] `roles`
-  - [ ] `permissions`
-  - [ ] `role_permissions`
-  - [ ] `user_role_assignments`
-  - [ ] `user_role_assignments` should support scope fields:
-    - [ ] `organization_id`
-    - [ ] `client_id`
-    - [ ] `project_id`
-    - [ ] `scope_type`
-    - [ ] `scope_id`
-- [ ] Add permission-checking service
-  - [ ] Create a shared permission helper, for example `permissionsService.can(session, action, resource)`
-  - [ ] Services should call permission checks before changing data
-  - [ ] Routes may use middleware for broad permission checks, but record-specific checks should live close to the service logic
-- [ ] Add granular CRUD control once a user is assigned to a client or project
-  - [ ] Client admins can be restricted from editing billing details by the org admin
-  - [ ] Project admins can be restricted from editing billing details by the client/org admins
-  - [ ] Add ability to control access to manual time entry and edit time entries
-  - [ ] For client user and project user roles, users can only access their own times
-  - [ ] Put granular controls behind an Advanced button
-- [ ] Assign users to roles and specific clients/projects from within the edit user modal window
-  - [ ] The edit user modal should show existing role assignments
-  - [ ] Admins should be able to add/remove assignments without deleting the user
-  - [ ] Role assignments should be audit logged
-- [ ] Apply permissions to existing areas
-  - [ ] User administration
-  - [ ] Organization settings
-  - [ ] Client management
-  - [ ] Project management
-  - [ ] Time tracking
-  - [ ] Manual time entry
-  - [ ] Edit entries
-  - [ ] Reporting
-  - [ ] Audit log viewer
-- [ ] Prepare role checks for future areas
-  - [ ] Tasks
-  - [ ] Notes/knowledge base
-  - [ ] Support tickets
-  - [ ] Invoicing
-  - [ ] Public API keys
+- [x] Add database tables for roles and scoped assignments
+  - [x] `roles`
+  - [x] `permissions`
+  - [x] `role_permissions`
+  - [x] `user_role_assignments`
+  - [x] `user_role_assignments` should support scope fields:
+    - [x] `organization_id`
+    - [x] `client_id`
+    - [x] `project_id`
+    - [x] `scope_type`
+    - [x] `scope_id`
+- [x] Add permission-checking service
+  - [x] Create a shared permission helper, for example `permissionsService.can(session, action, resource)`
+  - [x] Services should call permission checks before changing data
+  - [x] Routes may use middleware for broad permission checks, but record-specific checks should live close to the service logic
+- [x] Add granular CRUD control once a user is assigned to a client or project
+  - [x] Client admins can be restricted from editing billing details by the org admin
+  - [x] Project admins can be restricted from editing billing details by the client/org admins
+  - [x] Add ability to control access to manual time entry and edit time entries
+  - [x] For client user and project user roles, users can only access their own times
+  - [x] Put granular controls behind an Advanced button
+- [x] Assign users to roles and specific clients/projects from within the edit user modal window
+  - [x] The edit user modal should show existing role assignments
+  - [x] Admins should be able to add/remove assignments without deleting the user
+  - [x] Role assignments should be audit logged
+- [x] Apply permissions to existing areas
+  - [x] User administration
+  - [x] Organization settings
+  - [x] Client management
+  - [x] Project management
+  - [x] Time tracking
+  - [x] Manual time entry
+  - [x] Edit entries
+  - [x] Reporting
+  - [x] Audit log viewer
+- [x] Prepare role checks for future areas
+  - [x] Tasks
+  - [x] Notes/knowledge base
+  - [x] Support tickets
+  - [x] Invoicing
+  - [x] Public API keys
 
 ## Version 0.25.0 - Public API and API Key Foundation
 
-- [ ] Create public-facing API foundation
-  - [ ] Do not expose the current browser `/api` routes as the long-term public API
-  - [ ] Keep browser/internal routes under `/api`
-  - [ ] Add stable external routes under `/api/v1`
-  - [ ] Public API responses should be consistent, documented, and versioned
-- [ ] Add API key database support
-  - [ ] `api_keys` table
-    - [ ] `api_key_id`
-    - [ ] `organization_id`
-    - [ ] `created_by_user_id`
-    - [ ] `name`
-    - [ ] `key_hash`
-    - [ ] `key_prefix`
-    - [ ] `status`
-    - [ ] `created_at`
-    - [ ] `last_used_at`
-    - [ ] `revoked_at`
-  - [ ] Store only hashed API keys
-  - [ ] Show the raw API key only once at creation time
-- [ ] Add API key scopes
-  - [ ] `api_key_scopes` table or JSON scope field
+- [x] Create public-facing API foundation
+  - [x] Do not expose the current browser `/api` routes as the long-term public API
+  - [x] Keep browser/internal routes under `/api`
+  - [x] Add stable external routes under `/api/v1`
+  - [x] Public API responses should be consistent, documented, and versioned
+  - [x] Document the first public API contract in `docs/public-api.md`
+- [x] Add API key database support
+  - [x] `api_keys` table
+    - [x] `api_key_id`
+    - [x] `organization_id`
+    - [x] `created_by_user_id`
+    - [x] `name`
+    - [x] `key_hash`
+    - [x] `key_prefix`
+    - [x] `status`
+    - [x] `created_at`
+    - [x] `last_used_at`
+    - [x] `revoked_at`
+  - [x] Store only hashed API keys
+  - [x] Show the raw API key only once at creation time
+- [x] Add API key scopes
+  - [x] `api_key_scopes` table or JSON scope field
   - [ ] Scopes should map to high-level permissions, for example:
-    - [ ] `clients:read`
-    - [ ] `clients:write`
-    - [ ] `projects:read`
-    - [ ] `projects:write`
-    - [ ] `time_entries:read`
-    - [ ] `time_entries:write`
-    - [ ] `tasks:read`
-    - [ ] `tasks:write`
-    - [ ] `notes:read`
-    - [ ] `notes:write`
-    - [ ] `tickets:read`
-    - [ ] `tickets:write`
-- [ ] Add API key authentication middleware
-  - [ ] API key auth should be separate from browser session cookie auth
-  - [ ] API key auth should resolve organization context
-  - [ ] API key auth should enforce scopes
-  - [ ] API key use should update `last_used_at`
-  - [ ] API key create/revoke/use failures should be audit logged where appropriate
-- [ ] Add first public API endpoints
-  - [ ] `GET /api/v1/clients`
-  - [ ] `GET /api/v1/clients/:clientId`
-  - [ ] `GET /api/v1/projects`
-  - [ ] `GET /api/v1/projects/:projectId`
-  - [ ] `GET /api/v1/time-entries`
-  - [ ] `POST /api/v1/time-entries`
-- [ ] Add API response basics
-  - [ ] Pagination for list endpoints
-  - [ ] Consistent error response shape
-  - [ ] Stable IDs
-  - [ ] ISO timestamps
-  - [ ] Organization scoping
-  - [ ] Permission/scope checks
-- [ ] Add API key admin UI
-  - [ ] Create key
-  - [ ] Name key
-  - [ ] Select scopes
-  - [ ] Revoke key
-  - [ ] Show created date and last-used date
-  - [ ] Show only key prefix after creation
+    - [x] `clients:read`
+    - [x] `clients:write`
+    - [x] `projects:read`
+    - [x] `projects:write`
+    - [x] `time_entries:read`
+    - [x] `time_entries:write`
+    - [x] `tasks:read`
+    - [x] `tasks:write`
+    - [x] `notes:read`
+    - [x] `notes:write`
+    - [x] `tickets:read`
+    - [x] `tickets:write`
+- [x] Add API key authentication middleware
+  - [x] API key auth should be separate from browser session cookie auth
+  - [x] API key auth should resolve organization context
+  - [x] API key auth should enforce scopes
+  - [x] API key use should update `last_used_at`
+  - [x] API key create/revoke/use failures should be audit logged where appropriate
+- [x] Add first public API endpoints
+  - [x] `GET /api/v1/clients`
+  - [x] `GET /api/v1/clients/:clientId`
+  - [x] `GET /api/v1/projects`
+  - [x] `GET /api/v1/projects/:projectId`
+  - [x] `GET /api/v1/time-entries`
+  - [x] `POST /api/v1/time-entries`
+- [x] Add API response basics
+  - [x] Pagination for list endpoints
+  - [x] Consistent error response shape
+  - [x] Stable IDs
+  - [x] ISO timestamps
+  - [x] Organization scoping
+  - [x] Permission/scope checks
+- [x] Add API key admin UI
+  - [x] Create key
+  - [x] Name key
+  - [x] Select scopes
+  - [x] Revoke key
+  - [x] Show created date and last-used date
+  - [x] Show only key prefix after creation
 
 ## Version 0.26.0 - Module-Ready Architecture
 
@@ -696,7 +697,6 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Timers should survive page refresh where reasonable
   - [ ] Timers should survive accidental navigation where reasonable
   - [ ] Store enough state to restore:
-    - [ ] Timer number
     - [ ] Client
     - [ ] Project
     - [ ] Description
@@ -705,6 +705,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     - [ ] Active start time
     - [ ] Running/paused state
   - [ ] Timer persistence should build on the timer state refactor from Version 0.22.5
+  - [ ] Timers receive additional drop downs to pull in stored timers
 
 ## Version 0.31.0 - User, client, and project functionality expansion
 - [ ] Create nested clients
