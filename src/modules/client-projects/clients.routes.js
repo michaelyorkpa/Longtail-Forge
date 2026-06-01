@@ -46,6 +46,12 @@ clientsRoutes.get("/projects", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+clientsRoutes.post("/projects", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await clientsService.createProject("", payload, request.session);
+  response.status(201).json(result);
+}));
+
 clientsRoutes.get("/clients/:clientId/projects", asyncRoute(async (request, response) => {
   const result = await clientsService.listClientProjects(request.params.clientId, request.session);
   response.status(200).json(result);

@@ -18,6 +18,7 @@ async function readAll(organizationId) {
   const rows = await querySql(`
 SELECT
   id,
+  workspace_id,
   name,
   status,
   billable,
@@ -49,6 +50,7 @@ async function readById(organizationId, clientId) {
   const rows = await querySql(`
 SELECT
   id,
+  workspace_id,
   name,
   status,
   billable,
@@ -89,6 +91,7 @@ async function update(organizationId, client) {
   await runSql(`
 UPDATE clients
 SET
+  workspace_id = ${sqlText(organizationId)},
   name = ${sqlText(client.name)},
   status = ${sqlText(client.status)},
   billable = ${sqlText(client.billable)},
@@ -159,6 +162,7 @@ function createClientInsertSql(organizationId, client, now) {
 INSERT INTO clients (
   id,
   organization_id,
+  workspace_id,
   name,
   status,
   billable,
@@ -183,6 +187,7 @@ INSERT INTO clients (
 )
 VALUES (
   ${sqlText(client.id)},
+  ${sqlText(organizationId)},
   ${sqlText(organizationId)},
   ${sqlText(client.name)},
   ${sqlText(client.status)},
@@ -211,6 +216,7 @@ VALUES (
 function clientRowToAppClient(row) {
   return {
     id: row.id,
+    workspace_id: row.workspace_id || row.organization_id || "",
     name: row.name,
     status: row.status,
     billable: normalizeBillableFlag(row.billable),

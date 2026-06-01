@@ -1,4 +1,5 @@
 import { permissionsRepository } from "../repositories/permissions.repo.js";
+import { settingsRepository } from "../repositories/settings.repo.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
@@ -35,6 +36,9 @@ const ROLE_SCOPE_TYPES = {
   project_user: "project",
   client_external_user: "client",
 };
+
+const FAMILY_ROLE_LIMITS = new Set(["organization_admin", "project_user"]);
+const PERSONAL_ROLE_LIMITS = new Set(["organization_admin"]);
 
 let rolePermissionsCache = null;
 
@@ -170,6 +174,8 @@ async function normalizeAssignments(session, assignments) {
       throw new AppError("You cannot assign that role.", 403);
     }
 
+    await assertWorkspaceTypeAllowsRole(session, roleId);
+
     if (scopeType !== ROLE_SCOPE_TYPES[roleId]) {
       throw new AppError("Role assignment scope does not match the selected role.", 400);
     }
@@ -189,6 +195,24 @@ async function normalizeAssignments(session, assignments) {
   }
 
   return normalizedAssignments;
+}
+
+async function assertWorkspaceTypeAllowsRole(session, roleId) {
+  const settings = await settingsRepository.readOrganizationSettings(session.organization_id);
+
+  if (settings.workspaceType === "business") {
+    return;
+  }
+
+  if (settings.workspaceType === "family" && FAMILY_ROLE_LIMITS.has(roleId)) {
+    return;
+  }
+
+  if (settings.workspaceType === "personal" && PERSONAL_ROLE_LIMITS.has(roleId)) {
+    return;
+  }
+
+  throw new AppError("That role is not available for this workspace type.", 403);
 }
 
 async function canAssignRole(session, roleId) {
@@ -262,7 +286,8 @@ function assignmentMatchesResource(assignment, resource, session) {
   }
 
   if (assignment.scope_type === "organization") {
-    return !resource.organization_id || resource.organization_id === session.organization_id;
+    const resourceWorkspaceId = resource.workspace_id || resource.organization_id;
+    return !resourceWorkspaceId || resourceWorkspaceId === session.organization_id;
   }
 
   if (assignment.scope_type === "client") {

@@ -17,6 +17,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - [ ] Allow export of reports/audit logs via CSV in either local timezone or UTC
 
+- [ ] Deprecate browser warning when navigating away/refreshing page while active timers are running
+
 # Medium Term
 
   - [ ] Add self-hosted install setting to limit workspace types

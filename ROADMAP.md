@@ -846,73 +846,73 @@ This group of updates also separates clients and projects. Projects now only ret
 
 ### Version 0.30.3
 
-- [ ] Update sessions for active workspace support
-  - [ ] Add `active_workspace_id` to authenticated session data
-  - [ ] Replace session assumptions that use one fixed organization/workspace
-  - [ ] Load user workspace memberships during login/session refresh
-  - [ ] Add workspace switching functionality
-    - [ ] User can switch active workspace from the UI
-    - [ ] App reloads workspace-scoped data after switching
-    - [ ] User cannot switch into a workspace they do not belong to
-  - [ ] Update authorization checks to use `active_workspace_id`
+- [x] Update sessions for active workspace support
+  - [x] Add `active_workspace_id` to authenticated session data
+  - [x] Replace session assumptions that use one fixed organization/workspace
+  - [x] Load user workspace memberships during login/session refresh
+  - [x] Add workspace switching functionality
+    - [x] User can switch active workspace from the UI
+    - [x] App reloads workspace-scoped data after switching
+    - [x] User cannot switch into a workspace they do not belong to
+  - [x] Update authorization checks to use `active_workspace_id`
 
-- [ ] Update user administration for workspace membership
-  - [ ] Super administrator user creation/editing
-    - [ ] Can assign users to one or more workspaces
-    - [ ] Can assign workspace roles during user setup
-    - [ ] Can move users between workspaces
-  - [ ] Workspace administrator user creation/editing
-    - [ ] Can create users within the active workspace, if permitted
-    - [ ] Can assign groups/teams/roles
-    - [ ] Can use an Advanced button for granular permissions
-    - [ ] Cannot assign users to unrelated workspaces
-  - [ ] User edit modal should show workspace memberships
-  - [ ] User edit modal should show roles/permissions within the selected workspace
+- [x] Update user administration for workspace membership
+  - [x] Super administrator user creation/editing
+    - [x] Can assign users to one or more workspaces
+    - [x] Can assign workspace roles during user setup
+    - [x] Can move users between workspaces
+  - [x] Workspace administrator user creation/editing
+    - [x] Can create users within the active workspace, if permitted
+    - [x] Can assign groups/teams/roles
+    - [x] Can use an Advanced button for granular permissions
+    - [x] Cannot assign users to unrelated workspaces
+  - [x] User edit modal should show workspace memberships
+  - [x] User edit modal should show roles/permissions within the selected workspace
 
-- [ ] Update roles and permissions for workspace scope
-  - [ ] Rename Organization Administrator to Workspace Administrator
-  - [ ] Update permission checks from organization scope to workspace scope
-  - [ ] Ensure existing client/project/time-entry permissions are evaluated inside the active workspace
-  - [ ] Add workspace type limits to permission checks
-    - [ ] Personal workspace users cannot add team members
-    - [ ] Family workspace permissions use family-focused role rules
-    - [ ] Business workspaces use full role/permission rules
+- [x] Update roles and permissions for workspace scope
+  - [x] Rename Organization Administrator to Workspace Administrator
+  - [x] Update permission checks from organization scope to workspace scope
+  - [x] Ensure existing client/project/time-entry permissions are evaluated inside the active workspace
+  - [x] Add workspace type limits to permission checks
+    - [x] Personal workspace users cannot add team members
+    - [x] Family workspace permissions use family-focused role rules
+    - [x] Business workspaces use full role/permission rules
 
-- [ ] Shift clients to workspace scope
-  - [ ] Clients should continue to require a `workspace_id`
-  - [ ] Business workspaces use clients normally
-  - [ ] Personal and family workspaces may hide or disable clients by default
-  - [ ] Existing clients must migrate from `organization_id` to `workspace_id`
-  - [ ] Client screens should only show clients for the active workspace
+- [x] Shift clients to workspace scope
+  - [x] Clients should continue to require a `workspace_id`
+  - [x] Business workspaces use clients normally
+  - [x] Personal and family workspaces may hide or disable clients by default
+  - [x] Existing clients must migrate from `organization_id` to `workspace_id`
+  - [x] Client screens should only show clients for the active workspace
 
-- [ ] Shift projects away from requiring a client
-  - [ ] Projects must still require a `workspace_id`
-  - [ ] Make `client_id` nullable
-  - [ ] Projects can exist directly under a workspace without a client
-  - [ ] Update project settings UI
-    - [ ] Convert the project settings screen to a single list of all projects in the active workspace
-    - [ ] Add `Filter by: Client` dropdown above the project list
-    - [ ] Add `Filter by: Status` dropdown next to the client filter
-    - [ ] Add field to optionally assign a project to a client
-  - [ ] Preserve client/project relationships for existing projects during migration
-  - [ ] Prepare for future bulk project editing
-    - [ ] Multi-select projects
-    - [ ] Bulk edit status
-    - [ ] Bulk assign client
-    - [ ] Bulk update other shared fields where safe
+- [x] Shift projects away from requiring a client
+  - [x] Projects must still require a `workspace_id`
+  - [x] Make `client_id` nullable
+  - [x] Projects can exist directly under a workspace without a client
+  - [x] Update project settings UI
+    - [x] Convert the project settings screen to a single list of all projects in the active workspace
+    - [x] Add `Filter by: Client` dropdown above the project list
+    - [x] Add `Filter by: Status` dropdown next to the client filter
+    - [x] Add field to optionally assign a project to a client
+  - [x] Preserve client/project relationships for existing projects during migration
+  - [x] Prepare for future bulk project editing
+    - [x] Multi-select projects
+    - [x] Bulk edit status
+    - [x] Bulk assign client
+    - [x] Bulk update other shared fields where safe
 
-- [ ] Shift time entries away from requiring a client
-  - [ ] Time entries must require a `workspace_id`
-  - [ ] Time entries must require a `project_id`
-  - [ ] Make `client_id` optional
-  - [ ] Stopwatch UI should require project selection
-  - [ ] Stopwatch UI should allow optional client selection when relevant
-  - [ ] If selected project belongs to a client, client may auto-fill
-  - [ ] Reporting should handle:
-    - [ ] Workspace-only projects
-    - [ ] Client-linked projects
-    - [ ] Time entries with no client
-  - [ ] Preserve historical client/project display names for old time entries
+- [x] Shift time entries away from requiring a client
+  - [x] Time entries must require a `workspace_id`
+  - [x] Time entries must require a `project_id`
+  - [x] Make `client_id` optional
+  - [x] Stopwatch UI should require project selection
+  - [x] Stopwatch UI should allow optional client selection when relevant
+  - [x] If selected project belongs to a client, client may auto-fill
+  - [x] Reporting should handle:
+    - [x] Workspace-only projects
+    - [x] Client-linked projects
+    - [x] Time entries with no client
+  - [x] Preserve historical client/project display names for old time entries
 
 ### Version 0.30.4
 

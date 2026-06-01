@@ -69,6 +69,8 @@ List endpoints accept `limit` and `offset`. `limit` defaults to `50` and is capp
 
 Time-entry timestamps should be sent as ISO 8601 UTC strings, such as `2026-05-29T13:00:00.000Z`. Values with an explicit offset are normalized to UTC before storage.
 
+`POST /api/v1/time-entries` requires `project_id`. `client_id` is optional in version 0.30.3 and later; when the project is linked to a client, the API uses that client automatically. Workspace-level projects can create time entries without a client.
+
 ## Workspace Compatibility
 
-Version 0.30.0 begins the public language shift from organizations to workspaces. New integrations should read `workspace_id` when it is present. Existing `organization_id` fields remain temporarily available until the deeper membership and migration work in later 0.30.x releases is complete.
+Version 0.30.0 begins the public language shift from organizations to workspaces. Version 0.30.3 adds active workspace sessions and project-first time entry creation. New integrations should read `workspace_id` when it is present. Existing `organization_id` fields remain temporarily available until the deeper storage rename work in later 0.30.x releases is complete.

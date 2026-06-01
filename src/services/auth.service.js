@@ -1,4 +1,6 @@
 import { usersRepository } from "../repositories/users.repo.js";
+import { sessionsRepository } from "../repositories/sessions.repo.js";
+import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
 import { createSession, deleteSession } from "../security/sessions.js";
 import { hashPassword, validatePassword, verifyPassword } from "../security/passwords.js";
 import { auditService } from "./audit.service.js";
@@ -30,6 +32,7 @@ async function login(payload) {
   }
 
   const session = await createSession(user);
+  const workspaceMemberships = await userWorkspacesRepository.readForUser(user.user_id);
   await auditService.record({
     organizationId: user.organization_id,
     actorUserId: user.user_id,
@@ -52,6 +55,8 @@ async function login(payload) {
     themeMode: normalizeThemeMode(user.theme_mode),
     user: {
       organization_id: user.organization_id,
+      active_workspace_id: user.organization_id,
+      workspaces: normalizeWorkspaceMemberships(workspaceMemberships),
       user_id: user.user_id,
       username: user.username,
       displayName: user.display_name || user.username,
@@ -85,18 +90,61 @@ async function logout(sessionId, session = null) {
   return { ok: true };
 }
 
-function readSession(session) {
+async function readSession(session) {
   if (!session) {
     throw new AppError("Not logged in.", 401);
   }
 
+  const workspaceMemberships = await userWorkspacesRepository.readForUser(session.user_id);
+
   return {
     user: {
       organization_id: session.organization_id,
+      active_workspace_id: session.active_workspace_id || session.organization_id,
+      workspaces: normalizeWorkspaceMemberships(workspaceMemberships),
       user_id: session.user_id,
       username: session.username,
       timezone: normalizeTimezone(session.timezone),
     },
+  };
+}
+
+async function switchWorkspace(sessionId, session, payload) {
+  if (!session) {
+    throw new AppError("Not logged in.", 401);
+  }
+
+  const workspaceId = String(payload.workspaceId || payload.workspace_id || "").trim();
+
+  if (!workspaceId) {
+    throw new AppError("Workspace is required.", 400);
+  }
+
+  const membership = await userWorkspacesRepository.readByUserAndWorkspace(session.user_id, workspaceId);
+
+  if (!membership || membership.status !== "active") {
+    throw new AppError("You cannot switch to that workspace.", 403);
+  }
+
+  await sessionsRepository.updateActiveWorkspace(sessionId, workspaceId);
+  await auditService.record({
+    session,
+    action: "active_workspace_switched",
+    changeType: "update",
+    recordType: "workspace_membership",
+    recordId: membership.user_workspace_id,
+    recordLabel: session.username,
+    recordUrl: "user-settings.html",
+    previousValue: { active_workspace_id: session.active_workspace_id || session.organization_id },
+    newValue: { active_workspace_id: workspaceId },
+    metadata: {
+      workspace_id: workspaceId,
+    },
+  });
+
+  return {
+    ok: true,
+    active_workspace_id: workspaceId,
   };
 }
 
@@ -143,9 +191,20 @@ async function changePassword(payload, session) {
   return { ok: true };
 }
 
+function normalizeWorkspaceMemberships(memberships) {
+  return memberships
+    .filter((membership) => membership.status === "active")
+    .map((membership) => ({
+      workspace_id: membership.workspace_id,
+      workspaceName: membership.workspace_name,
+      status: membership.status,
+    }));
+}
+
 export const authService = {
   changePassword,
   login,
   logout,
   readSession,
+  switchWorkspace,
 };

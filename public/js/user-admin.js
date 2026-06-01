@@ -1,5 +1,6 @@
 const userAdminForm = document.querySelector("[data-user-admin-form]");
 const newUserUsernameInput = document.querySelector("[data-new-user-username]");
+const newUserRoleSelect = document.querySelector("[data-new-user-role]");
 const createUserButton = document.querySelector("[data-create-user]");
 const generatedPasswordPanel = document.querySelector("[data-generated-password-panel]");
 const generatedPasswordInput = document.querySelector("[data-generated-password]");
@@ -16,6 +17,7 @@ const editUserTimezoneSelect = document.querySelector("[data-edit-user-timezone]
 const cancelEditUserButton = document.querySelector("[data-cancel-edit-user]");
 const resetEditUserPasswordButton = document.querySelector("[data-reset-edit-user-password]");
 const saveEditUserButton = document.querySelector("[data-save-edit-user]");
+const workspaceMembershipList = document.querySelector("[data-workspace-membership-list]");
 const roleAssignmentRoleSelect = document.querySelector("[data-role-assignment-role]");
 const roleAssignmentScopeSelect = document.querySelector("[data-role-assignment-scope]");
 const addRoleAssignmentButton = document.querySelector("[data-add-role-assignment]");
@@ -44,6 +46,7 @@ const PERMISSION_RESOURCES = [
 let users = [];
 let roles = [];
 let clients = [];
+let workspaces = [];
 let pendingRoleAssignments = [];
 let draftPermissionOverrides = createDefaultPermissionOverrides();
 let editingPermissionTarget = null;
@@ -102,14 +105,16 @@ async function loadUsers() {
   setUserAdminStatus("Loading users...");
 
   try {
-    const [usersBody, rolesBody, clientProjectBody] = await Promise.all([
+    const [usersBody, rolesBody, clientProjectBody, workspacesBody] = await Promise.all([
       window.LongtailForge.api.getJson("/api/users", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/roles", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/client-projects", { cache: "no-store" }),
+      window.LongtailForge.api.getJson("/api/workspaces", { cache: "no-store" }),
     ]);
 
     roles = rolesBody.roles || [];
     clients = clientProjectBody.clients || [];
+    workspaces = workspacesBody.workspaces || [];
     renderRoleOptions();
     renderUsers(usersBody.users || []);
     setUserAdminStatus("");
@@ -131,6 +136,16 @@ async function createUser() {
     return;
   }
 
+  const initialRoleId = newUserRoleSelect?.value || "";
+  const assignments = initialRoleId
+    ? [{
+        role_id: initialRoleId,
+        scope_type: initialRoleId === "super_admin" ? "all" : "organization",
+        scope_id: initialRoleId === "super_admin" ? "all" : "organization",
+        permission_overrides: createDefaultPermissionOverrides(),
+      }]
+    : [];
+
   createUserButton.disabled = true;
   setUserAdminStatus("Creating user...");
 
@@ -140,7 +155,7 @@ async function createUser() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ username }),
+      body: JSON.stringify({ username, assignments }),
     });
     const body = await response.json().catch(() => ({}));
 
@@ -243,6 +258,7 @@ async function openEditUserDialog(user) {
   editUserDisplayNameInput.value = user.displayName || user.username;
   editUserAltEmailInput.value = user.altEmail || "";
   setEditUserTimezoneValue(user.timezone || "America/New_York");
+  renderWorkspaceMemberships(user.workspaceMemberships || []);
   pendingRoleAssignments = [];
   draftPermissionOverrides = createDefaultPermissionOverrides();
   renderPendingRoleAssignments();
@@ -268,6 +284,7 @@ function closeEditUserDialog() {
   }
 
   editUserForm.reset();
+  renderWorkspaceMemberships([]);
 }
 
 function getEditingUser() {
@@ -307,6 +324,7 @@ async function saveEditedUser() {
         displayName,
         altEmail,
         timezone,
+        workspaceMemberships: readSelectedWorkspaceMemberships(),
       },
     );
     await window.LongtailForge.api.putJson(
@@ -341,7 +359,25 @@ function renderRoleOptions() {
     roleAssignmentRoleSelect.appendChild(option);
   });
 
+  if (newUserRoleSelect) {
+    newUserRoleSelect.replaceChildren(createRoleOption("", "No initial role"));
+
+    roles
+      .filter((role) => ["organization", "global"].includes(role.assignable_scope_type))
+      .forEach((role) => {
+        newUserRoleSelect.appendChild(createRoleOption(role.role_id, role.role_name));
+      });
+  }
+
   renderScopeOptions();
+}
+
+function createRoleOption(value, label) {
+  const option = document.createElement("option");
+
+  option.value = value;
+  option.textContent = label;
+  return option;
 }
 
 function renderScopeOptions() {
@@ -468,6 +504,47 @@ function renderPendingRoleAssignments() {
     item.append(label, controls);
     roleAssignmentList.appendChild(item);
   });
+}
+
+function renderWorkspaceMemberships(memberships) {
+  workspaceMembershipList.replaceChildren();
+
+  if (!workspaces.length) {
+    const item = document.createElement("li");
+
+    item.textContent = "No assignable workspaces.";
+    workspaceMembershipList.appendChild(item);
+    return;
+  }
+
+  const activeWorkspaceIds = new Set(memberships
+    .filter((membership) => membership.status !== "inactive")
+    .map((membership) => membership.workspaceId));
+
+  workspaces.forEach((workspace) => {
+    const item = document.createElement("li");
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    const status = document.createElement("span");
+
+    checkbox.type = "checkbox";
+    checkbox.dataset.workspaceMembership = workspace.workspaceId;
+    checkbox.checked = activeWorkspaceIds.has(workspace.workspaceId);
+    label.append(
+      checkbox,
+      document.createTextNode(workspace.workspaceName || workspace.workspaceId || "Workspace"),
+    );
+    status.className = "membership-status";
+    status.textContent = activeWorkspaceIds.has(workspace.workspaceId) ? "Active" : "Inactive";
+    item.append(label, status);
+    workspaceMembershipList.appendChild(item);
+  });
+}
+
+function readSelectedWorkspaceMemberships() {
+  return [...workspaceMembershipList.querySelectorAll("[data-workspace-membership]")]
+    .filter((checkbox) => checkbox.checked)
+    .map((checkbox) => checkbox.dataset.workspaceMembership);
 }
 
 function formatRoleAssignment(assignment) {

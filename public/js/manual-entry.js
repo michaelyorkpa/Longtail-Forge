@@ -92,8 +92,8 @@ async function saveManualEntry() {
   const endTime = createZonedDateTime(entryDateInput.value, entryEndTimeInput.value);
 
   // Validate before calculating duration so bad inputs never reach the API.
-  if (!client || !project) {
-    setEntryStatus("Select a client and project.");
+  if (!project) {
+    setEntryStatus("Select a project.");
     return;
   }
 
@@ -109,8 +109,8 @@ async function saveManualEntry() {
 
   const durationSeconds = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
   const entry = {
-    client_id: client.id,
-    client_name: client.name,
+    client_id: client.isWorkspaceScope ? "" : client.id,
+    client_name: client.isWorkspaceScope ? "" : client.name,
     project_id: project.id,
     project_name: project.name,
     description: entryDescriptionInput.value.trim(),
@@ -154,7 +154,7 @@ async function saveManualEntry() {
 
 function normalizeClients(data) {
   // The selectors only need IDs and names; billing details stay on reporting/editor screens.
-  return Array.isArray(data?.clients)
+  const clients = Array.isArray(data?.clients)
     ? data.clients.map((client) => ({
         id: String(client.id || "").trim(),
         name: String(client.name || "").trim(),
@@ -168,6 +168,23 @@ function normalizeClients(data) {
           : [],
       }))
     : [];
+  const workspaceProjects = Array.isArray(data?.workspaceProjects) ? data.workspaceProjects : [];
+
+  if (workspaceProjects.length > 0) {
+    clients.unshift({
+      id: "__workspace_projects__",
+      name: "Workspace Projects",
+      billable: "yes",
+      isWorkspaceScope: true,
+      projects: workspaceProjects.map((project) => ({
+        id: String(project.id || "").trim(),
+        name: String(project.name || "").trim(),
+        billable: normalizeBillableFlag(project.billable),
+      })),
+    });
+  }
+
+  return clients;
 }
 
 function getSelectedClient() {

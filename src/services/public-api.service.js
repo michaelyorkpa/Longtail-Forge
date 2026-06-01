@@ -43,14 +43,23 @@ async function listTimeEntries(context, query) {
 }
 
 async function createTimeEntry(context, payload) {
-  const client = await clientsRepository.readById(context.organization_id, payload.client_id);
   const project = await projectsRepository.readById(context.organization_id, payload.project_id);
 
-  if (!client) {
+  if (!project) {
+    throw new AppError("Project was not found.", 404);
+  }
+
+  const requestedClientId = String(payload.client_id || "").trim();
+  const effectiveClientId = project.client_id || requestedClientId;
+  const client = effectiveClientId
+    ? await clientsRepository.readById(context.organization_id, effectiveClientId)
+    : null;
+
+  if (effectiveClientId && !client) {
     throw new AppError("Client was not found.", 404);
   }
 
-  if (!project || project.client_id !== client.id) {
+  if (requestedClientId && project.client_id && requestedClientId !== project.client_id) {
     throw new AppError("Project was not found.", 404);
   }
 
@@ -59,8 +68,8 @@ async function createTimeEntry(context, payload) {
     entry_id: entryId,
     organization_id: context.organization_id,
     user_id: payload.user_id || context.user_id,
-    client_id: client.id,
-    client_name: client.name,
+    client_id: client?.id || "",
+    client_name: client?.name || "",
     project_id: project.id,
     project_name: project.name,
     description: payload.description,
@@ -68,7 +77,7 @@ async function createTimeEntry(context, payload) {
     end_time: normalizeUtcIso(payload.end_time, context.timezone),
     duration_seconds: payload.duration_seconds,
     duration_hours: payload.duration_hours,
-    billable: payload.billable ?? project.billable ?? client.billable ?? "yes",
+    billable: payload.billable ?? project.billable ?? client?.billable ?? "yes",
     invoice_status: payload.invoice_status || "unbilled",
   });
 
@@ -79,7 +88,7 @@ async function createTimeEntry(context, payload) {
     changeType: "create",
     recordType: "time_entry",
     recordId: entryId,
-    recordLabel: `${entry.client_name} / ${entry.project_name}`,
+    recordLabel: entry.client_name ? `${entry.client_name} / ${entry.project_name}` : entry.project_name,
     recordUrl: `edit-entries.html?entry=${encodeURIComponent(entryId)}`,
     previousValue: null,
     newValue: entry,

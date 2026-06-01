@@ -241,8 +241,8 @@ async function saveEditedEntry() {
   const durationSeconds = getDurationInputSeconds();
 
   // Keep client/project names in the saved entry so reports do not need extra joins.
-  if (!client || !project) {
-    setEditEntryStatus("Select a client and project.");
+  if (!project) {
+    setEditEntryStatus("Select a project.");
     return;
   }
 
@@ -253,8 +253,8 @@ async function saveEditedEntry() {
 
   const endTime = new Date(startTime.getTime() + (durationSeconds * 1000));
   const entry = {
-    client_id: client.id,
-    client_name: client.name,
+    client_id: client.isWorkspaceScope ? "" : client.id,
+    client_name: client.isWorkspaceScope ? "" : client.name,
     project_id: project.id,
     project_name: project.name,
     description: editEntryDescriptionInput.value.trim(),
@@ -290,7 +290,7 @@ async function saveEditedEntry() {
 async function deleteEntry(entry) {
   const shouldDelete = await window.LongtailForge.modal.confirm({
     title: "Delete entry?",
-    message: `Delete the ${formatDate(entry.endTime)} entry for ${entry.clientName}?`,
+    message: `Delete the ${formatDate(entry.endTime)} entry for ${entry.clientName || entry.projectName}?`,
     confirmLabel: "Delete",
     cancelLabel: "Cancel",
     danger: true,
@@ -326,7 +326,7 @@ function closeEditForm() {
 }
 
 function normalizeClients(data) {
-  return Array.isArray(data?.clients)
+  const clients = Array.isArray(data?.clients)
     ? data.clients.map((client) => ({
         id: String(client.id || "").trim(),
         name: String(client.name || "").trim(),
@@ -340,6 +340,23 @@ function normalizeClients(data) {
           : [],
       }))
     : [];
+  const workspaceProjects = Array.isArray(data?.workspaceProjects) ? data.workspaceProjects : [];
+
+  if (workspaceProjects.length > 0) {
+    clients.unshift({
+      id: "__workspace_projects__",
+      name: "Workspace Projects",
+      billable: "yes",
+      isWorkspaceScope: true,
+      projects: workspaceProjects.map((project) => ({
+        id: String(project.id || "").trim(),
+        name: String(project.name || "").trim(),
+        billable: normalizeEntryBillable(project.billable) || "yes",
+      })),
+    });
+  }
+
+  return clients;
 }
 
 function normalizeTimeEntries(data) {

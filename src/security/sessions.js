@@ -16,6 +16,7 @@ async function createSession(user) {
     user_id: user.user_id,
     username: user.username,
     timezone: normalizeTimezone(user.timezone),
+    active_workspace_id: user.organization_id,
     expires_at: expiresAt.toISOString(),
   });
 
@@ -57,8 +58,12 @@ async function getRequestSession(request) {
     return null;
   }
 
+  const activeWorkspaceId = session.active_workspace_id || session.organization_id;
+
   return {
-    organization_id: session.organization_id,
+    organization_id: activeWorkspaceId,
+    active_workspace_id: activeWorkspaceId,
+    home_organization_id: session.organization_id,
     user_id: session.user_id,
     username: session.username,
     timezone: normalizeTimezone(session.timezone),

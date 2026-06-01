@@ -93,12 +93,30 @@
 
   function normalizeClients(data, options = {}) {
     const includeInactive = Boolean(options.includeInactive);
-
-    return Array.isArray(data?.clients)
+    const clients = Array.isArray(data?.clients)
       ? data.clients
           .filter((client) => includeInactive || client.status !== "Inactive")
           .map((client) => normalizeClient(client))
       : [];
+    const workspaceProjects = Array.isArray(data?.workspaceProjects)
+      ? data.workspaceProjects.map((project) => normalizeProject(project, "yes"))
+      : [];
+
+    if (workspaceProjects.length > 0) {
+      clients.unshift({
+        id: "__workspace_projects__",
+        name: "Workspace Projects",
+        status: "Active",
+        billable: "yes",
+        billingRate: null,
+        billingPeriod: null,
+        billingRounding: null,
+        isWorkspaceScope: true,
+        projects: workspaceProjects,
+      });
+    }
+
+    return clients;
   }
 
   function normalizeClient(client) {

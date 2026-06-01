@@ -2,6 +2,11 @@
 const clientList = document.querySelector("[data-client-list]");
 const addClientButton = document.querySelector("[data-add-client]");
 const clientStatusFilter = document.querySelector("[data-client-status-filter]");
+const projectClientFilter = document.querySelector("[data-project-client-filter]");
+const bulkProjectStatusSelect = document.querySelector("[data-bulk-project-status]");
+const bulkProjectClientSelect = document.querySelector("[data-bulk-project-client]");
+const bulkProjectBillableSelect = document.querySelector("[data-bulk-project-billable]");
+const applyProjectBulkButton = document.querySelector("[data-apply-project-bulk]");
 const statusMessage = document.querySelector("[data-client-project-status]");
 const clientModal = document.querySelector("[data-client-modal]");
 const clientForm = document.querySelector("[data-client-form]");
@@ -36,6 +41,7 @@ let organizationSettings = {
   defaultBillingRate: "",
   billingPeriod: { type: "calendarMonth", startDay: 1 },
   billingRounding: { enabled: false, increment: "nearestQuarterHour" },
+  workspaceType: "business",
 };
 let openClientId = "";
 let openBillingClientId = "";
@@ -44,6 +50,14 @@ let openClientBillingSettingsId = "";
 loadPageData();
 
 clientStatusFilter.addEventListener("change", renderClients);
+
+if (projectClientFilter) {
+  projectClientFilter.addEventListener("change", renderClients);
+}
+
+if (applyProjectBulkButton) {
+  applyProjectBulkButton.addEventListener("click", applyBulkProjectUpdate);
+}
 
 if (addClientButton) {
   addClientButton.addEventListener("click", () => {
@@ -96,6 +110,7 @@ async function loadPageData() {
 
     organizationSettings = normalizeSettings(settingsData);
     clientProjectData = normalizeData(clientsData);
+    renderProjectClientFilter();
     applyInitialClientParam();
     renderClients();
     setStatus("");
@@ -108,6 +123,27 @@ async function loadPageData() {
 function renderClients() {
   // Rendering is state-driven; save operations can set open IDs before calling this.
   clientList.innerHTML = "";
+
+  if (isClientsPage && !clientsEnabledForWorkspace()) {
+    if (addClientButton) {
+      addClientButton.hidden = true;
+    }
+
+    const emptyMessage = document.createElement("p");
+    emptyMessage.className = "placeholder-copy";
+    emptyMessage.textContent = "Clients are disabled for this workspace type.";
+    clientList.appendChild(emptyMessage);
+    return;
+  }
+
+  if (isClientsPage && addClientButton) {
+    addClientButton.hidden = false;
+  }
+
+  if (isProjectsPage) {
+    renderProjectsPage();
+    return;
+  }
 
   const visibleClients = sortByName(clientProjectData.clients).filter((client) =>
     clientStatusFilter.value === "All" || client.status === clientStatusFilter.value,
@@ -159,6 +195,174 @@ function renderClients() {
     clientItem.append(summary, editor);
     clientList.appendChild(clientItem);
   });
+}
+
+function renderProjectsPage() {
+  const projects = getAllProjects()
+    .filter(({ project }) => clientStatusFilter.value === "All" || project.status === clientStatusFilter.value)
+    .filter(({ client }) => (
+      !projectClientFilter ||
+      projectClientFilter.value === "All" ||
+      client.id === projectClientFilter.value
+    ));
+  const workspaceClient = getWorkspaceProjectClient();
+  const addProjectPanel = document.createElement("details");
+  const addProjectSummary = document.createElement("summary");
+  const projectList = document.createElement("div");
+
+  addProjectPanel.className = "client-item";
+  addProjectSummary.textContent = "Add Workspace Project";
+  addProjectPanel.append(addProjectSummary, createAddProjectForm(workspaceClient));
+  projectList.className = "project-list project-list-flat";
+  clientList.appendChild(addProjectPanel);
+
+  if (projects.length === 0) {
+    const emptyMessage = document.createElement("p");
+
+    emptyMessage.className = "placeholder-copy";
+    emptyMessage.textContent = "No projects match this filter.";
+    clientList.appendChild(emptyMessage);
+    return;
+  }
+
+  sortByName(projects.map(({ project }) => project)).forEach((project) => {
+    const projectClient = projects.find((item) => item.project.id === project.id)?.client || workspaceClient;
+    projectList.appendChild(createProjectEditor(projectClient, project));
+  });
+  clientList.appendChild(projectList);
+}
+
+async function applyBulkProjectUpdate() {
+  const selectedProjectIds = [...document.querySelectorAll("[data-project-bulk-select]:checked")]
+    .map((checkbox) => checkbox.dataset.projectBulkSelect);
+  const status = bulkProjectStatusSelect?.value || "";
+  const clientId = bulkProjectClientSelect?.value === "__workspace__" ? "" : bulkProjectClientSelect?.value || "";
+  const billable = bulkProjectBillableSelect?.value || "";
+  const shouldChangeClient = bulkProjectClientSelect && bulkProjectClientSelect.selectedIndex > 0;
+
+  if (selectedProjectIds.length === 0) {
+    setStatus("Select at least one project.");
+    return;
+  }
+
+  if (!status && !shouldChangeClient && !billable) {
+    setStatus("Choose a bulk change before applying.");
+    return;
+  }
+
+  setStatus("Updating selected projects...");
+  applyProjectBulkButton.disabled = true;
+
+  try {
+    for (const projectId of selectedProjectIds) {
+      const project = findProjectById(projectId);
+
+      if (!project) {
+        continue;
+      }
+
+      const nextProject = {
+        ...project,
+        status: status || project.status,
+        client_id: shouldChangeClient ? clientId : project.client_id,
+        billable: billable || project.billable,
+        action: {
+          action: "projects_bulk_updated",
+          project_id: project.id,
+          project_name: project.name,
+          client_id: shouldChangeClient ? clientId : project.client_id,
+          client_name: shouldChangeClient ? getProjectClientName(clientId) : getProjectClientName(project.client_id),
+          details: `bulk_status=${status || "unchanged"};bulk_client=${shouldChangeClient ? clientId || "workspace" : "unchanged"};bulk_billable=${billable || "unchanged"}`,
+        },
+      };
+
+      await window.LongtailForge.api.putJson(
+        `/api/projects/${encodeURIComponent(project.id)}`,
+        nextProject,
+      );
+    }
+
+    await refreshClientProjectData();
+    renderClients();
+    setStatus("Updated selected projects.");
+  } catch (error) {
+    setStatus("Selected projects were not updated.");
+    console.error(error);
+  } finally {
+    applyProjectBulkButton.disabled = false;
+  }
+}
+
+function findProjectById(projectId) {
+  return getAllProjects().find(({ project }) => project.id === projectId)?.project || null;
+}
+
+function renderProjectClientFilter() {
+  if (!projectClientFilter) {
+    return;
+  }
+
+  projectClientFilter.closest("label").hidden = !clientsEnabledForWorkspace();
+
+  const previousValue = projectClientFilter.value || "All";
+  projectClientFilter.replaceChildren(createOption("All", "All clients"));
+  projectClientFilter.appendChild(createOption("__workspace_projects__", "Workspace Projects"));
+
+  getRealClients().forEach((client) => {
+    projectClientFilter.appendChild(createOption(client.id, client.name));
+  });
+
+  projectClientFilter.value = [...projectClientFilter.options].some((option) => option.value === previousValue)
+    ? previousValue
+    : "All";
+
+  renderBulkClientOptions();
+}
+
+function renderBulkClientOptions() {
+  if (!bulkProjectClientSelect) {
+    return;
+  }
+
+  const previousValue = bulkProjectClientSelect.value || "";
+  bulkProjectClientSelect.replaceChildren(
+    createOption("", "No client change"),
+    createOption("__workspace__", "Workspace project"),
+  );
+
+  getRealClients().forEach((client) => {
+    bulkProjectClientSelect.appendChild(createOption(client.id, client.name));
+  });
+  bulkProjectClientSelect.closest("label").hidden = !clientsEnabledForWorkspace();
+
+  bulkProjectClientSelect.value = [...bulkProjectClientSelect.options].some((option) => option.value === previousValue)
+    ? previousValue
+    : "";
+}
+
+function getAllProjects() {
+  return clientProjectData.clients.flatMap((client) => (
+    (client.projects || []).map((project) => ({ client, project }))
+  ));
+}
+
+function getRealClients() {
+  return clientProjectData.clients.filter((client) => !client.isWorkspaceScope);
+}
+
+function getWorkspaceProjectClient() {
+  return clientProjectData.clients.find((client) => client.isWorkspaceScope) || {
+    id: "__workspace_projects__",
+    name: "Workspace Projects",
+    status: "Active",
+    billable: "yes",
+    billing_rate: normalizeBillingRate(organizationSettings.defaultBillingRate),
+    billing_period: normalizeOptionalBillingPeriod(organizationSettings.billingPeriod),
+    billing_rounding: normalizeOptionalBillingRounding(organizationSettings.billingRounding),
+    billing_contact: normalizeBillingContact({}),
+    isWorkspaceScope: true,
+    projects: [],
+  };
 }
 
 function createClientNameEditor(client, options = {}) {
@@ -231,6 +435,10 @@ function createClientPageActions(client) {
 function createProjectClientActions(client) {
   const wrapper = document.createElement("div");
   wrapper.className = "form-actions project-client-actions";
+
+  if (client.isWorkspaceScope) {
+    return wrapper;
+  }
 
   const editClientButton = document.createElement("button");
   editClientButton.type = "button";
@@ -528,7 +736,20 @@ function createProjectEditor(client, project) {
   details.dataset.projectId = project.id;
 
   const summary = document.createElement("summary");
-  summary.textContent = project.name;
+  const summaryLabel = document.createElement("span");
+
+  summaryLabel.textContent = project.name;
+
+  if (isProjectsPage) {
+    const bulkCheckbox = document.createElement("input");
+
+    bulkCheckbox.type = "checkbox";
+    bulkCheckbox.dataset.projectBulkSelect = project.id;
+    bulkCheckbox.addEventListener("click", (event) => event.stopPropagation());
+    summary.append(bulkCheckbox, summaryLabel);
+  } else {
+    summary.appendChild(summaryLabel);
+  }
 
   const wrapper = document.createElement("div");
   wrapper.className = "project-editor";
@@ -556,6 +777,7 @@ function createProjectEditor(client, project) {
 
   const billableLabel = createBillableCheckbox(project.billable);
   const billableInput = billableLabel.querySelector("input");
+  const clientAssignmentLabel = createProjectClientAssignment(project);
 
   const billingDetails = document.createElement("details");
   billingDetails.className = "project-billing-details";
@@ -614,6 +836,7 @@ function createProjectEditor(client, project) {
 
     const oldProject = { ...project };
     project.name = nameInput.value.trim();
+    project.client_id = clientAssignmentLabel.querySelector("select").value;
     project.status = statusSelect.value;
     project.billable = normalizeBillableFlag(billableInput.checked);
     project.billing_rate = normalizeBillingRate(billingRateInput.value);
@@ -622,13 +845,13 @@ function createProjectEditor(client, project) {
 
     await saveProjectRecord(project, {
       action: "project_updated",
-      client_id: client.id,
-      client_name: client.name,
+      client_id: project.client_id,
+      client_name: getProjectClientName(project.client_id),
       project_id: project.id,
       project_name: project.name,
       details: `old_project_id=${oldProject.id};old_project_name=${oldProject.name};old_status=${oldProject.status};old_billable=${oldProject.billable};old_billing_rate=${oldProject.billing_rate};new_status=${project.status};new_billable=${project.billable};new_billing_rate=${project.billing_rate};billing_period=${formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project))};rounding=${formatBillingRounding(getEffectiveProjectBillingRounding(client, project))};round_hours=${getEffectiveProjectBillingRounding(client, project).enabled ? "yes" : "no"}`,
     }, {
-      openClientId: client.id,
+      openClientId: project.client_id || "__workspace_projects__",
       flashSelector: `[data-save-project-button="${project.id}"]`,
     });
   });
@@ -652,8 +875,8 @@ function createProjectEditor(client, project) {
 
     await archiveProjectRecord(project, {
       action: "project_archived",
-      client_id: client.id,
-      client_name: client.name,
+      client_id: client.isWorkspaceScope ? "" : client.id,
+      client_name: client.isWorkspaceScope ? "" : client.name,
       project_id: project.id,
       project_name: project.name,
       details: `status=${project.status};billable=${project.billable};billing_rate=${project.billing_rate}`,
@@ -665,12 +888,36 @@ function createProjectEditor(client, project) {
   actionGroup.append(saveButton, deleteButton);
   wrapper.append(
     nameLabel,
+    clientAssignmentLabel,
     statusLabel,
     billingDetails,
     actionGroup,
   );
   details.append(summary, wrapper);
   return details;
+}
+
+function createProjectClientAssignment(project) {
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+
+  label.textContent = "Client";
+  label.hidden = !clientsEnabledForWorkspace();
+  select.appendChild(createOption("", "Workspace project"));
+  getRealClients().forEach((client) => {
+    select.appendChild(createOption(client.id, client.name));
+  });
+  select.value = project.client_id || "";
+  label.appendChild(select);
+  return label;
+}
+
+function getProjectClientName(clientId) {
+  if (!clientId) {
+    return "";
+  }
+
+  return getRealClients().find((client) => client.id === clientId)?.name || "";
 }
 
 function createAddProjectForm(client) {
@@ -759,6 +1006,7 @@ function createAddProjectForm(client) {
 
     const project = {
       id: createUuid(),
+      client_id: client.isWorkspaceScope ? "" : client.id,
       name: nameInput.value.trim(),
       billable: normalizeBillableFlag(billableInput.checked),
       billing_rate: normalizeBillingRate(billingRateInput.value),
@@ -771,8 +1019,8 @@ function createAddProjectForm(client) {
 
     await createProjectRecord(client, project, {
       action: "project_created",
-      client_id: client.id,
-      client_name: client.name,
+      client_id: client.isWorkspaceScope ? "" : client.id,
+      client_name: client.isWorkspaceScope ? "" : client.name,
       project_id: project.id,
       project_name: project.name,
       details: `status=${project.status};billable=${project.billable};billing_rate=${project.billing_rate}`,
@@ -881,8 +1129,12 @@ async function saveClientRecord(client, action, viewState = {}) {
 
 async function createProjectRecord(client, project, action, viewState = {}) {
   return persistClientProjectChange(action, viewState, async () => {
+    const url = client.isWorkspaceScope
+      ? "/api/projects"
+      : `/api/clients/${encodeURIComponent(client.id)}/projects`;
+
     await window.LongtailForge.api.postJson(
-      `/api/clients/${encodeURIComponent(client.id)}/projects`,
+      url,
       {
         ...project,
         action,
@@ -938,6 +1190,7 @@ async function refreshClientProjectData() {
   });
 
   clientProjectData = normalizeData(result);
+  renderProjectClientFilter();
 }
 
 function flashSavedButton(selector) {
@@ -972,37 +1225,60 @@ function applyInitialClientParam() {
 
 function normalizeData(data) {
   // Normalize immediately after every load/save so render code can trust field shapes.
-  return {
-    clients: Array.isArray(data.clients)
-      ? data.clients.map((client) => {
-          const clientBillable = normalizeBillableFlag(client.billable);
+  const workspaceProjects = normalizeProjects(data.workspaceProjects || [], "yes", "");
+  const clients = Array.isArray(data.clients)
+    ? data.clients.map((client) => {
+        const clientBillable = normalizeBillableFlag(client.billable);
 
-          return {
-            id: client.id,
-            name: client.name,
-            status: clientStatuses.includes(client.status) ? client.status : "Active",
-            billable: clientBillable,
-            billing_rate: normalizeBillingRate(client.billing_rate),
-            billing_period: normalizeOptionalBillingPeriod(client.billing_period),
-            billing_rounding: normalizeOptionalBillingRounding(client.billing_rounding),
-            billing_contact: normalizeBillingContact(client.billing_contact),
-            projects: Array.isArray(client.projects)
-              ? client.projects.map((project) => ({
-                  id: project.id,
-                  name: project.name,
-                  billable: normalizeBillableFlag(project.billable, clientBillable),
-                  billing_rate: normalizeBillingRate(project.billing_rate),
-                  billing_period: normalizeOptionalBillingPeriod(project.billing_period),
-                  billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
-                  status: projectStatuses.includes(project.status)
-                    ? project.status
-                    : "Active",
-                }))
-              : [],
-          };
-        })
-      : [],
+        return {
+          id: client.id,
+          name: client.name,
+          status: clientStatuses.includes(client.status) ? client.status : "Active",
+          billable: clientBillable,
+          billing_rate: normalizeBillingRate(client.billing_rate),
+          billing_period: normalizeOptionalBillingPeriod(client.billing_period),
+          billing_rounding: normalizeOptionalBillingRounding(client.billing_rounding),
+          billing_contact: normalizeBillingContact(client.billing_contact),
+          projects: normalizeProjects(client.projects || [], clientBillable, client.id),
+        };
+      })
+    : [];
+
+  if (isProjectsPage && (workspaceProjects.length > 0 || clients.length === 0)) {
+    clients.unshift({
+      id: "__workspace_projects__",
+      name: "Workspace Projects",
+      status: "Active",
+      billable: "yes",
+      billing_rate: normalizeBillingRate(organizationSettings.defaultBillingRate),
+      billing_period: normalizeOptionalBillingPeriod(organizationSettings.billingPeriod),
+      billing_rounding: normalizeOptionalBillingRounding(organizationSettings.billingRounding),
+      billing_contact: normalizeBillingContact({}),
+      isWorkspaceScope: true,
+      projects: workspaceProjects,
+    });
+  }
+
+  return {
+    clients,
   };
+}
+
+function normalizeProjects(projects, clientBillable, clientId) {
+  return Array.isArray(projects)
+    ? projects.map((project) => ({
+        id: project.id,
+        client_id: project.client_id || clientId || "",
+        name: project.name,
+        billable: normalizeBillableFlag(project.billable, clientBillable),
+        billing_rate: normalizeBillingRate(project.billing_rate),
+        billing_period: normalizeOptionalBillingPeriod(project.billing_period),
+        billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
+        status: projectStatuses.includes(project.status)
+          ? project.status
+          : "Active",
+      }))
+    : [];
 }
 
 function normalizeSettings(settings) {
@@ -1010,7 +1286,14 @@ function normalizeSettings(settings) {
     defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
+    workspaceType: ["business", "personal", "family"].includes(settings?.workspaceType)
+      ? settings.workspaceType
+      : "business",
   };
+}
+
+function clientsEnabledForWorkspace() {
+  return organizationSettings.workspaceType === "business";
 }
 
 function normalizeBillingRate(value) {

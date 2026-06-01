@@ -88,7 +88,7 @@ async function update(organizationId, project) {
   await runSql(`
 UPDATE projects
 SET
-  client_id = ${sqlText(project.client_id)},
+  client_id = ${sqlNullableText(project.client_id)},
   name = ${sqlText(project.name)},
   status = ${sqlText(project.status)},
   billable = ${sqlText(project.billable)},
@@ -135,7 +135,7 @@ INSERT INTO projects (
 VALUES (
   ${sqlText(project.id)},
   ${sqlText(organizationId)},
-  ${sqlText(clientId)},
+  ${sqlNullableText(clientId)},
   ${sqlText(project.name)},
   ${sqlText(project.status)},
   ${sqlText(project.billable)},
@@ -152,7 +152,7 @@ VALUES (
 function projectRowToAppProject(row) {
   return {
     id: row.id,
-    client_id: row.client_id,
+    client_id: row.client_id || "",
     name: row.name,
     billable: normalizeBillableFlag(row.billable),
     billing_rate: normalizeBillingRate(row.billing_rate),

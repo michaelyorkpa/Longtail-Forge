@@ -20,8 +20,15 @@ import {
 
 async function list(session) {
   await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "read" });
-  const users = await usersRepository.readAll(session.organization_id);
-  return { users };
+  return { users: await readUsersWithMemberships(session) };
+}
+
+async function listWorkspaces(session) {
+  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "read" });
+
+  return {
+    workspaces: await readAssignableWorkspaces(session),
+  };
 }
 
 async function create(payload, session) {
@@ -90,10 +97,16 @@ async function create(payload, session) {
     newValue: membership,
   });
 
-  const users = await usersRepository.readAll(session.organization_id);
+  if (Array.isArray(payload.assignments) && payload.assignments.length > 0) {
+    await permissionsService.replaceUserAssignments(session, user.user_id, {
+      assignments: payload.assignments,
+    });
+  }
+
+  const users = await readUsersWithMemberships(session);
 
   return {
-    user,
+    user: await decorateUserWithMemberships(user),
     users,
     initialPassword,
   };
@@ -172,9 +185,17 @@ async function update(payload, session, userId) {
     },
   });
 
+  if (Object.hasOwn(payload, "workspaceMemberships")) {
+    await replaceWorkspaceMemberships({
+      session,
+      user: updatedUser,
+      requestedWorkspaceIds: payload.workspaceMemberships,
+    });
+  }
+
   return {
-    user: updatedUser,
-    users: await usersRepository.readAll(session.organization_id),
+    user: await decorateUserWithMemberships(updatedUser),
+    users: await readUsersWithMemberships(session),
   };
 }
 
@@ -212,7 +233,7 @@ async function resetPassword(session, userId) {
 
   return {
     user: userRowToAppValue(user),
-    users: await usersRepository.readAll(session.organization_id),
+    users: await readUsersWithMemberships(session),
     initialPassword,
   };
 }
@@ -263,7 +284,7 @@ async function deactivate(session, userId) {
 
   return {
     user: updatedUser,
-    users: await usersRepository.readAll(session.organization_id),
+    users: await readUsersWithMemberships(session),
   };
 }
 
@@ -313,7 +334,7 @@ async function reactivate(session, userId) {
 
   return {
     user: updatedUser,
-    users: await usersRepository.readAll(session.organization_id),
+    users: await readUsersWithMemberships(session),
   };
 }
 
@@ -360,7 +381,7 @@ async function remove(session, userId) {
     newValue: null,
   });
 
-  return { users: await usersRepository.readAll(session.organization_id) };
+  return { users: await readUsersWithMemberships(session) };
 }
 
 async function readSettings(session) {
@@ -485,6 +506,107 @@ async function recordWorkspaceMembershipChange({
   });
 }
 
+async function readUsersWithMemberships(session) {
+  const users = await usersRepository.readAll(session.organization_id);
+  return Promise.all(users.map((user) => decorateUserWithMemberships(user)));
+}
+
+async function readAssignableWorkspaces(session) {
+  if (await isProtectedSessionUser(session)) {
+    return (await userWorkspacesRepository.readAllWorkspaces()).map(workspaceToAppValue);
+  }
+
+  const settings = await settingsRepository.readOrganizationSettings(session.organization_id);
+  return [{
+    workspaceId: session.organization_id,
+    workspaceName: settings.workspaceName || settings.organizationName,
+    workspaceType: settings.workspaceType,
+  }];
+}
+
+async function replaceWorkspaceMemberships({ session, user, requestedWorkspaceIds }) {
+  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "update" });
+
+  const assignableWorkspaces = await readAssignableWorkspaces(session);
+  const assignableWorkspaceIds = new Set(assignableWorkspaces.map((workspace) => workspace.workspaceId));
+  const selectedWorkspaceIds = [...new Set((requestedWorkspaceIds || []).map((workspaceId) => String(workspaceId || "").trim()))]
+    .filter(Boolean);
+
+  if (selectedWorkspaceIds.some((workspaceId) => !assignableWorkspaceIds.has(workspaceId))) {
+    throw new AppError("You cannot assign users to unrelated workspaces.", 403);
+  }
+
+  if (selectedWorkspaceIds.length === 0) {
+    throw new AppError("Choose at least one workspace membership.", 400);
+  }
+
+  const previousMemberships = await userWorkspacesRepository.readForUser(user.user_id);
+  const previousActiveWorkspaceIds = new Set(
+    previousMemberships
+      .filter((membership) => membership.status === "active")
+      .map((membership) => membership.workspace_id),
+  );
+
+  for (const workspace of assignableWorkspaces) {
+    const shouldBeActive = selectedWorkspaceIds.includes(workspace.workspaceId);
+    const previousMembership = previousMemberships.find((membership) => membership.workspace_id === workspace.workspaceId) || null;
+    const nextMembership = shouldBeActive
+      ? await userWorkspacesRepository.upsert({
+          userId: user.user_id,
+          workspaceId: workspace.workspaceId,
+          status: "active",
+        })
+      : previousActiveWorkspaceIds.has(workspace.workspaceId)
+        ? await userWorkspacesRepository.updateStatus(user.user_id, workspace.workspaceId, "inactive")
+        : previousMembership;
+
+    if (Boolean(previousActiveWorkspaceIds.has(workspace.workspaceId)) === shouldBeActive) {
+      continue;
+    }
+
+    await recordWorkspaceMembershipChange({
+      session: {
+        ...session,
+        organization_id: workspace.workspaceId,
+      },
+      action: shouldBeActive ? "workspace_membership_added" : "workspace_membership_deactivated",
+      changeType: shouldBeActive ? "create" : "archive",
+      user,
+      previousValue: previousMembership,
+      newValue: nextMembership,
+    });
+  }
+}
+
+async function isProtectedSessionUser(session) {
+  const user = await usersRepository.readById(session.organization_id, session.user_id);
+  return normalizeProtectedUserFlag(user?.protected_user);
+}
+
+function workspaceToAppValue(workspace) {
+  return {
+    workspaceId: workspace.workspace_id,
+    workspaceName: workspace.workspace_name,
+    workspaceType: workspace.workspace_type,
+  };
+}
+
+async function decorateUserWithMemberships(user) {
+  const memberships = await userWorkspacesRepository.readForUser(user.user_id);
+
+  return {
+    ...user,
+    workspaceMemberships: memberships.map((membership) => ({
+      userWorkspaceId: membership.user_workspace_id,
+      workspaceId: membership.workspace_id,
+      workspaceName: membership.workspace_name,
+      status: membership.status,
+      createdAt: membership.created_at,
+      updatedAt: membership.updated_at,
+    })),
+  };
+}
+
 async function assertWorkspaceCanAddUser(session) {
   const settings = await settingsRepository.readOrganizationSettings(session.organization_id);
 
@@ -546,6 +668,7 @@ export const usersService = {
   create,
   delete: remove,
   list,
+  listWorkspaces,
   readSettings,
   saveSettings,
 };

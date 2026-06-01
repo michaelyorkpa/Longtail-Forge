@@ -1,3 +1,17 @@
+## Version 0.30.3
+
+- Added active workspace session storage, membership-backed session responses, and a workspace switch endpoint/UI that rejects unauthorized workspace changes.
+- Scoped existing workspace reads and permission checks through the active workspace while preserving compatibility `organization_id` storage names.
+- Exposed workspace memberships in User Admin and kept role/permission editing focused on the selected active workspace.
+- Added assignable workspace membership controls to User Admin, allowing protected Super Admins to assign users to available workspaces while workspace admins remain limited to the active workspace.
+- Added initial workspace-role assignment during user creation and workspace-type role limits for family/personal workspaces.
+- Made project and time-entry client links nullable with a migration that preserves existing client/project relationships.
+- Converted the Projects page to a flat workspace project list with client and status filters plus optional client assignment per project.
+- Added a client `workspace_id` compatibility alias/backfill and disabled client-centric UI by default for personal and family workspaces.
+- Added project multi-select bulk controls for status, client assignment, and billable state.
+- Added workspace-level project creation/read support and updated Manual Entry, Time Tracker, Edit Entries, Reporting, and the public API to require projects while allowing clientless time entries.
+- Bumped package metadata and roadmap/decision/API docs for the 0.30.3 release.
+
 ## Version 0.30.2
 
 - Added `workspace_type` to the existing workspace-compatible `organizations` table with `business`, `personal`, and `family` support.

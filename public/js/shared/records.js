@@ -9,6 +9,10 @@
   }
 
   function matchesClient(entry, client) {
+    if (client?.isWorkspaceScope) {
+      return !normalizeKey(entry?.clientId) && !normalizeKey(entry?.clientName);
+    }
+
     return normalizeKey(entry?.clientId) === normalizeKey(client?.id) ||
       normalizeKey(entry?.clientName) === normalizeKey(client?.name);
   }

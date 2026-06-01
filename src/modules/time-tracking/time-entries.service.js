@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { clientsRepository } from "../client-projects/clients.repo.js";
+import { projectsRepository } from "../client-projects/projects.repo.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 import { auditService } from "../../core/audit.js";
 import { AppError } from "../../core/errors.js";
@@ -7,10 +9,12 @@ import { normalizeTimeEntry } from "../../utils/normalizers.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 
 async function create(entry, session) {
+  const scope = await resolveTimeEntryScope(session.organization_id, entry);
+
   await permissionsService.assertCan(session, "time_entries.create", {
     organization_id: session.organization_id,
-    client_id: entry.client_id,
-    project_id: entry.project_id,
+    client_id: scope.client?.id || "",
+    project_id: scope.project.id,
     operation: "create",
   });
 
@@ -19,16 +23,16 @@ async function create(entry, session) {
     entry_id: entryId,
     organization_id: session.organization_id,
     user_id: session.user_id,
-    client_id: entry.client_id,
-    client_name: entry.client_name,
-    project_id: entry.project_id,
-    project_name: entry.project_name,
+    client_id: scope.client?.id || "",
+    client_name: scope.client?.name || "",
+    project_id: scope.project.id,
+    project_name: scope.project.name,
     description: entry.description,
     start_time: normalizeUtcIso(entry.start_time, session.timezone),
     end_time: normalizeUtcIso(entry.end_time, session.timezone),
     duration_seconds: entry.duration_seconds,
     duration_hours: entry.duration_hours,
-    billable: entry.billable ?? "yes",
+    billable: entry.billable ?? scope.project.billable ?? scope.client?.billable ?? "yes",
     invoice_status: entry.invoice_status || "unbilled",
   });
 
@@ -39,7 +43,7 @@ async function create(entry, session) {
     changeType: "create",
     recordType: "time_entry",
     recordId: entryId,
-    recordLabel: `${data.client_name} / ${data.project_name}`,
+    recordLabel: data.client_name ? `${data.client_name} / ${data.project_name}` : data.project_name,
     recordUrl: `edit-entries.html?entry=${encodeURIComponent(entryId)}`,
     previousValue: null,
     newValue: data,
@@ -71,6 +75,10 @@ async function update(payload, entryId, session) {
     operation: "update",
   });
 
+  const scope = await resolveTimeEntryScope(session.organization_id, {
+    ...previousEntry,
+    ...payload,
+  });
   const updatedEntry = normalizeTimeEntry({
     ...payload,
     start_time: normalizeUtcIso(payload.start_time, session.timezone),
@@ -78,6 +86,10 @@ async function update(payload, entryId, session) {
     entry_id: decodedEntryId,
     organization_id: session.organization_id,
     user_id: payload.user_id || previousEntry.user_id,
+    client_id: scope.client?.id || "",
+    client_name: scope.client?.name || "",
+    project_id: scope.project.id,
+    project_name: scope.project.name,
   });
 
   await timeEntriesRepository.update(updatedEntry);
@@ -87,7 +99,9 @@ async function update(payload, entryId, session) {
     changeType: "update",
     recordType: "time_entry",
     recordId: decodedEntryId,
-    recordLabel: `${updatedEntry.client_name} / ${updatedEntry.project_name}`,
+    recordLabel: updatedEntry.client_name
+      ? `${updatedEntry.client_name} / ${updatedEntry.project_name}`
+      : updatedEntry.project_name,
     recordUrl: `edit-entries.html?entry=${encodeURIComponent(decodedEntryId)}`,
     previousValue: previousEntry,
     newValue: updatedEntry,
@@ -125,7 +139,9 @@ async function remove(entryId, session) {
     changeType: "delete",
     recordType: "time_entry",
     recordId: decodedEntryId,
-    recordLabel: `${previousEntry.client_name} / ${previousEntry.project_name}`,
+    recordLabel: previousEntry.client_name
+      ? `${previousEntry.client_name} / ${previousEntry.project_name}`
+      : previousEntry.project_name,
     recordUrl: `edit-entries.html?entry=${encodeURIComponent(decodedEntryId)}`,
     previousValue: previousEntry,
     newValue: null,
@@ -141,6 +157,31 @@ async function remove(entryId, session) {
 async function list(session) {
   const entries = await timeEntriesRepository.readAll(session.organization_id);
   return { entries: await permissionsService.filterReadableTimeEntries(session, entries) };
+}
+
+async function resolveTimeEntryScope(organizationId, entry) {
+  const projectId = String(entry.project_id || "").trim();
+  const project = projectId ? await projectsRepository.readById(organizationId, projectId) : null;
+
+  if (!project) {
+    throw new AppError("Project not found", 404);
+  }
+
+  const requestedClientId = String(entry.client_id || "").trim();
+  const effectiveClientId = project.client_id || requestedClientId;
+  const client = effectiveClientId
+    ? await clientsRepository.readById(organizationId, effectiveClientId)
+    : null;
+
+  if (effectiveClientId && !client) {
+    throw new AppError("Client not found", 404);
+  }
+
+  if (requestedClientId && project.client_id && requestedClientId !== project.client_id) {
+    throw new AppError("Project not found", 404);
+  }
+
+  return { client, project };
 }
 
 export const timeEntriesService = {

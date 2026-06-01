@@ -36,7 +36,15 @@ authRoutes.post("/logout", asyncRoute(async (request, response) => {
 
 authRoutes.get("/session", asyncRoute(async (request, response) => {
   const session = await getRequestSession(request);
-  const result = authService.readSession(session);
+  const result = await authService.readSession(session);
+
+  response.status(200).json(result);
+}));
+
+authRoutes.post("/session/workspace", asyncRoute(async (request, response) => {
+  const session = await getRequestSession(request);
+  const payload = await readJsonBody(request);
+  const result = await authService.switchWorkspace(getSessionIdFromRequest(request), session, payload);
 
   response.status(200).json(result);
 }));

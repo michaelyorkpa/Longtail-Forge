@@ -196,7 +196,7 @@ async function baselineExistingSchema(migrations) {
   const statements = [];
 
   for (const migration of migrations) {
-    if (["010", "011", "012", "013", "014", "015"].includes(migration.version) && !(await isMigrationAlreadySatisfied(migration))) {
+    if (["010", "011", "012", "013", "014", "015", "016", "017", "018"].includes(migration.version) && !(await isMigrationAlreadySatisfied(migration))) {
       await applyMigration(migration);
       continue;
     }
@@ -288,6 +288,23 @@ async function isMigrationAlreadySatisfied(migration) {
     return columnsExist("organizations", ["workspace_type"]);
   }
 
+  if (migration.fileName === "016_add_active_workspace_sessions.sql") {
+    return columnsExist("sessions", ["active_workspace_id"]);
+  }
+
+  if (migration.fileName === "017_make_client_links_optional.sql") {
+    const [projectClientNullable, timeEntryClientNullable] = await Promise.all([
+      columnIsNullable("projects", "client_id"),
+      columnIsNullable("time_entries", "client_id"),
+    ]);
+
+    return projectClientNullable && timeEntryClientNullable;
+  }
+
+  if (migration.fileName === "018_add_client_workspace_alias.sql") {
+    return columnsExist("clients", ["workspace_id"]);
+  }
+
   return false;
 }
 
@@ -308,6 +325,13 @@ async function columnsExist(tableName, columnNames) {
   const existingColumnNames = new Set(columns.map((column) => column.name));
 
   return columnNames.every((columnName) => existingColumnNames.has(columnName));
+}
+
+async function columnIsNullable(tableName, columnName) {
+  const columns = await querySql(`PRAGMA table_info(${tableName});`);
+  const column = columns.find((item) => item.name === columnName);
+
+  return Boolean(column) && Number(column.notnull) === 0;
 }
 
 export { runMigrations };

@@ -1,4 +1,4 @@
-import { querySql, runSql, sqlInteger, sqlText } from "../../core/database.js";
+import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../../core/database.js";
 import { normalizeTimeEntry } from "../../utils/normalizers.js";
 
 async function readAll(organizationId) {
@@ -63,7 +63,7 @@ async function update(entry) {
 UPDATE time_entries
 SET
   user_id = ${sqlText(entry.user_id)},
-  client_id = ${sqlText(entry.client_id)},
+  client_id = ${sqlNullableText(entry.client_id)},
   client_name = ${sqlText(entry.client_name)},
   project_id = ${sqlText(entry.project_id)},
   project_name = ${sqlText(entry.project_name)},
@@ -112,7 +112,7 @@ VALUES (
   ${sqlText(entry.entry_id)},
   ${sqlText(entry.organization_id)},
   ${sqlText(entry.user_id)},
-  ${sqlText(entry.client_id)},
+  ${sqlNullableText(entry.client_id)},
   ${sqlText(entry.client_name)},
   ${sqlText(entry.project_id)},
   ${sqlText(entry.project_name)},

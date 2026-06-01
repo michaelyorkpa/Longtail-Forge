@@ -15,17 +15,54 @@
 
       <div class="client-filters">
         <label>
-          Client Status
+          Client
+          <select data-project-client-filter>
+            <option value="All" selected>All clients</option>
+          </select>
+        </label>
+
+        <label>
+          Status
           <select data-client-status-filter>
             <option value="Active" selected>Active</option>
             <option value="Inactive">Inactive</option>
+            <option value="Completed">Completed</option>
             <option value="All">All</option>
           </select>
         </label>
       </div>
 
       <p data-client-project-status role="status" aria-live="polite"></p>
-      <section class="client-list" data-client-list aria-label="Projects by client"></section>
+      <div class="client-filters" data-project-bulk-actions>
+        <label>
+          Bulk Status
+          <select data-bulk-project-status>
+            <option value="">No status change</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </label>
+
+        <label>
+          Bulk Client
+          <select data-bulk-project-client>
+            <option value="">No client change</option>
+          </select>
+        </label>
+
+        <label>
+          Bulk Billable
+          <select data-bulk-project-billable>
+            <option value="">No billing change</option>
+            <option value="yes">Billable</option>
+            <option value="no">Non-billable</option>
+          </select>
+        </label>
+
+        <button type="button" data-apply-project-bulk>Apply to Selected</button>
+      </div>
+      <section class="client-list" data-client-list aria-label="Projects"></section>
     </main>
 
     <script src="js/navigation.js"></script>

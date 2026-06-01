@@ -10,7 +10,7 @@ async function readClientProjects(session) {
   const data = await readClientProjectData(session.organization_id);
   const allProjects = data.clients.flatMap((client) => (
     client.projects.map((project) => ({ ...project, client_id: client.id }))
-  ));
+  )).concat(data.workspaceProjects || []);
   const readableClients = await permissionsService.filterReadableClients(session, data.clients);
   const readableProjects = await permissionsService.filterReadableProjects(session, allProjects);
   const readableClientIds = new Set(readableClients.map((client) => client.id));
@@ -18,6 +18,7 @@ async function readClientProjects(session) {
   const readableProjectIds = new Set(readableProjects.map((project) => project.id));
 
   return {
+    workspaceProjects: (data.workspaceProjects || []).filter((project) => readableProjectIds.has(project.id)),
     clients: data.clients
       .filter((client) => readableClientIds.has(client.id) || readableProjectClientIds.has(client.id))
       .map((client) => ({
@@ -39,9 +40,15 @@ async function saveClientProjects() {
 async function readClientProjectData(organizationId) {
   const clients = await clientsRepository.readAll(organizationId);
   const projects = await projectsRepository.readAll(organizationId);
+  const workspaceProjects = [];
   const projectsByClientId = projects.reduce((projectsByClient, project) => {
     const projectValue = { ...project };
     delete projectValue.client_id;
+
+    if (!project.client_id) {
+      workspaceProjects.push(project);
+      return projectsByClient;
+    }
 
     if (!projectsByClient.has(project.client_id)) {
       projectsByClient.set(project.client_id, []);
@@ -51,12 +58,15 @@ async function readClientProjectData(organizationId) {
     return projectsByClient;
   }, new Map());
 
-  return normalizeClientProjectData({
+  return {
+    ...normalizeClientProjectData({
     clients: clients.map((client) => ({
       ...client,
       projects: projectsByClientId.get(client.id) || [],
     })),
-  });
+    }),
+    workspaceProjects,
+  };
 }
 
 async function listClients(session) {
@@ -234,23 +244,25 @@ async function readProject(projectId, session) {
 }
 
 async function createProject(clientId, payload, session) {
-  const decodedClientId = decodeURIComponent(clientId || "");
-  const client = await clientsRepository.readById(session.organization_id, decodedClientId);
+  const decodedClientId = decodeURIComponent(clientId || payload?.client_id || "");
+  const client = decodedClientId
+    ? await clientsRepository.readById(session.organization_id, decodedClientId)
+    : null;
 
-  if (!decodedClientId || !client) {
+  if (decodedClientId && !client) {
     throw new AppError("Client not found", 404);
   }
 
   await permissionsService.assertCan(session, "projects.manage", {
     organization_id: session.organization_id,
-    client_id: decodedClientId,
+    client_id: decodedClientId || "",
     operation: "create",
   });
 
   const project = normalizeProjectPayload(payload, {
     id: payload?.id || randomUUID(),
     client_id: decodedClientId,
-  }, client.billable);
+  }, client?.billable || "yes");
 
   await projectsRepository.create(session.organization_id, decodedClientId, project);
   await recordAudit(payload?.action, {
@@ -260,7 +272,7 @@ async function createProject(clientId, payload, session) {
     recordType: "project",
     recordId: project.id,
     recordLabel: project.name,
-    recordUrl: `projects.html?client=${encodeURIComponent(client.id)}`,
+    recordUrl: client ? `projects.html?client=${encodeURIComponent(client.id)}` : "projects.html",
     previousValue: null,
     newValue: project,
     metadata: projectMetadata(client, project),
@@ -277,16 +289,18 @@ async function updateProject(projectId, payload, session) {
     throw new AppError("Project not found", 404);
   }
 
-  const clientId = payload?.client_id || previousProject.client_id;
-  const client = await clientsRepository.readById(session.organization_id, clientId);
+  const clientId = Object.hasOwn(payload || {}, "client_id")
+    ? String(payload.client_id || "").trim()
+    : previousProject.client_id;
+  const client = clientId ? await clientsRepository.readById(session.organization_id, clientId) : null;
 
-  if (!client) {
+  if (clientId && !client) {
     throw new AppError("Client not found", 404);
   }
 
   await permissionsService.assertCan(session, "projects.manage", {
     organization_id: session.organization_id,
-    client_id: client.id,
+    client_id: client?.id || "",
     project_id: decodedProjectId,
     operation: "update",
   });
@@ -294,7 +308,7 @@ async function updateProject(projectId, payload, session) {
   if (billingDetailsChanged(previousProject, payload)) {
     await permissionsService.assertCan(session, "billing.manage", {
       organization_id: session.organization_id,
-      client_id: client.id,
+      client_id: client?.id || "",
       project_id: decodedProjectId,
     });
   }
@@ -302,8 +316,8 @@ async function updateProject(projectId, payload, session) {
   const project = normalizeProjectPayload(payload, {
     ...previousProject,
     id: decodedProjectId,
-    client_id: client.id,
-  }, client.billable);
+    client_id: client?.id || "",
+  }, client?.billable || previousProject.billable || "yes");
 
   await projectsRepository.update(session.organization_id, project);
   await recordAudit(payload?.action, {
@@ -313,7 +327,7 @@ async function updateProject(projectId, payload, session) {
     recordType: "project",
     recordId: project.id,
     recordLabel: project.name,
-    recordUrl: `projects.html?client=${encodeURIComponent(client.id)}`,
+    recordUrl: client ? `projects.html?client=${encodeURIComponent(client.id)}` : "projects.html",
     previousValue: previousProject,
     newValue: project,
     metadata: {
@@ -354,7 +368,7 @@ async function archiveProject(projectId, payload, session) {
     recordType: "project",
     recordId: previousProject.id,
     recordLabel: previousProject.name,
-    recordUrl: `projects.html?client=${encodeURIComponent(previousProject.client_id)}`,
+    recordUrl: previousProject.client_id ? `projects.html?client=${encodeURIComponent(previousProject.client_id)}` : "projects.html",
     previousValue: previousProject,
     newValue: {
       ...previousProject,
@@ -407,7 +421,9 @@ function normalizeProjectPayload(payload, fallback = {}, fallbackBillable = "yes
 
   return {
     ...project,
-    client_id: fallback.client_id,
+    client_id: Object.hasOwn(payload || {}, "client_id")
+      ? String(payload.client_id || "").trim()
+      : String(fallback.client_id || "").trim(),
   };
 }
 
@@ -434,8 +450,8 @@ function clientMetadata(client) {
 
 function projectMetadata(client, project) {
   return {
-    client_id: client.id,
-    client_name: client.name,
+    client_id: client?.id || "",
+    client_name: client?.name || "",
     project_id: project.id,
     project_name: project.name,
     status: project.status,

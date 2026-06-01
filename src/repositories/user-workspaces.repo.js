@@ -36,6 +36,17 @@ ORDER BY organizations.name;
 `);
 }
 
+async function readAllWorkspaces() {
+  return querySql(`
+SELECT
+  id AS workspace_id,
+  name AS workspace_name,
+  workspace_type
+FROM organizations
+ORDER BY name;
+`);
+}
+
 async function countActiveForWorkspace(workspaceId) {
   const rows = await querySql(`
 SELECT COUNT(1) AS count
@@ -102,6 +113,7 @@ function normalizeStatus(status) {
 }
 
 export const userWorkspacesRepository = {
+  readAllWorkspaces,
   readByUserAndWorkspace,
   readForUser,
   countActiveForWorkspace,

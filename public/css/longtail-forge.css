@@ -1180,7 +1180,8 @@ dialog[data-role-permissions-dialog] {
     gap: 10px 14px;
 }
 
-.role-assignment-list {
+.role-assignment-list,
+.workspace-membership-list {
     display: grid;
     gap: 8px;
     margin: 0;
@@ -1188,7 +1189,8 @@ dialog[data-role-permissions-dialog] {
     list-style: none;
 }
 
-.role-assignment-list li {
+.role-assignment-list li,
+.workspace-membership-list li {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1197,6 +1199,10 @@ dialog[data-role-permissions-dialog] {
     border: 1px solid var(--color-border);
     border-radius: 8px;
     background: var(--color-surface);
+}
+
+.membership-status {
+    color: var(--color-muted);
 }
 
 .role-assignment-actions {

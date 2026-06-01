@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { clientsRepository } from "../client-projects/clients.repo.js";
+import { projectsRepository } from "../client-projects/projects.repo.js";
 import { activeTimersRepository } from "./active-timers.repo.js";
 import { timeEntriesService } from "./time-entries.service.js";
 import { AppError } from "../../core/errors.js";
@@ -14,6 +16,12 @@ async function list(session) {
 async function save(timerSlot, payload, session) {
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
   const timer = normalizeTimerPayload(payload, normalizedTimerSlot, session);
+  const scope = await resolveTimerScope(session.organization_id, timer);
+  timer.client_id = scope.client?.id || "";
+  timer.client_name = scope.client?.name || "";
+  timer.project_id = scope.project.id;
+  timer.project_name = scope.project.name;
+  timer.billable = (payload?.billable ?? scope.project.billable ?? scope.client?.billable) === "no" ? "no" : "yes";
 
   await assertCanUseProjectTimer(session, timer, "save");
 
@@ -98,6 +106,31 @@ async function assertCanUseProjectTimer(session, timer, operation) {
     project_id: timer.project_id,
     operation,
   });
+}
+
+async function resolveTimerScope(organizationId, timer) {
+  const projectId = stringOrEmpty(timer.project_id);
+  const project = projectId ? await projectsRepository.readById(organizationId, projectId) : null;
+
+  if (!project) {
+    throw new AppError("Project is required before persisting a timer.", 400);
+  }
+
+  const requestedClientId = stringOrEmpty(timer.client_id);
+  const effectiveClientId = project.client_id || requestedClientId;
+  const client = effectiveClientId
+    ? await clientsRepository.readById(organizationId, effectiveClientId)
+    : null;
+
+  if (effectiveClientId && !client) {
+    throw new AppError("Client not found", 404);
+  }
+
+  if (requestedClientId && project.client_id && requestedClientId !== project.client_id) {
+    throw new AppError("Project not found", 404);
+  }
+
+  return { client, project };
 }
 
 function normalizeTimerSlot(timerSlot) {

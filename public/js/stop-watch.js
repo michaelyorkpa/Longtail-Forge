@@ -143,7 +143,7 @@ async function loadClientProjectData() {
     const data = await window.LongtailForge.api.getJson("/api/client-projects", {
       cache: "no-store",
     });
-    clients = Array.isArray(data.clients) ? data.clients : [];
+    clients = normalizeClientProjectOptions(data);
     timers.forEach((timer) => timer.setClients(clients));
   } catch (error) {
     timers.forEach((timer) => timer.disableClientData());
@@ -382,8 +382,8 @@ class StopwatchTimer {
       return;
     }
 
-    if (!selectedClient || !selectedProject) {
-      this.setStatus("Select a client and project before saving time.");
+    if (!selectedProject) {
+      this.setStatus("Select a project before saving time.");
       return;
     }
 
@@ -396,8 +396,8 @@ class StopwatchTimer {
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - durationSeconds * 1000);
     const entry = {
-      client_id: selectedClient.id,
-      client_name: selectedClient.name,
+      client_id: selectedClient?.isWorkspaceScope ? "" : selectedClient.id,
+      client_name: selectedClient?.isWorkspaceScope ? "" : selectedClient.name,
       project_id: selectedProject.id,
       project_name: selectedProject.name,
       description: this.descriptionInput.value.trim(),
@@ -596,7 +596,7 @@ class StopwatchTimer {
   restoreFromPersistedTimer(timerData) {
     this.isRestoring = true;
     this.persistedActiveTimerId = timerData.active_timer_id || "";
-    this.clientSelect.value = timerData.client_id || "";
+    this.clientSelect.value = timerData.client_id || this.findClientIdForProject(timerData.project_id) || "";
 
     const selectedClient = this.getSelectedClient();
     this.populateProjectOptions(selectedClient ? selectedClient.projects : [], timerData.project_id);
@@ -633,6 +633,16 @@ class StopwatchTimer {
     this.isRestoring = false;
   }
 
+  findClientIdForProject(projectId) {
+    const projectKey = String(projectId || "").trim();
+    const matchingClient = this.clients.find((client) => (
+      Array.isArray(client.projects) &&
+      client.projects.some((project) => String(project.id || "").trim() === projectKey)
+    ));
+
+    return matchingClient?.id || "";
+  }
+
   async persistEditedTimer() {
     if (this.isRestoring || !this.hasElapsedTime()) {
       return;
@@ -654,8 +664,8 @@ class StopwatchTimer {
     const payload = {
       active_timer_id: this.persistedActiveTimerId,
       timer_slot: String(this.timerNumber),
-      client_id: selectedClient?.id || "",
-      client_name: selectedClient?.name || "",
+      client_id: selectedClient?.isWorkspaceScope ? "" : selectedClient?.id || "",
+      client_name: selectedClient?.isWorkspaceScope ? "" : selectedClient?.name || "",
       project_id: selectedProject.id,
       project_name: selectedProject.name,
       description: this.descriptionInput.value.trim(),
@@ -914,6 +924,26 @@ function sortByName(items) {
       sensitivity: "base",
     }),
   );
+}
+
+function normalizeClientProjectOptions(data) {
+  const normalizedClients = Array.isArray(data.clients) ? data.clients : [];
+  const workspaceProjects = Array.isArray(data.workspaceProjects) ? data.workspaceProjects : [];
+
+  if (workspaceProjects.length === 0) {
+    return normalizedClients;
+  }
+
+  return [
+    {
+      id: "__workspace_projects__",
+      name: "Workspace Projects",
+      billable: "yes",
+      isWorkspaceScope: true,
+      projects: workspaceProjects,
+    },
+    ...normalizedClients,
+  ];
 }
 
 function createOption(value, label) {

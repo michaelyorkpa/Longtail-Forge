@@ -11,6 +11,11 @@ usersRoutes.get("/users", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+usersRoutes.get("/workspaces", asyncRoute(async (request, response) => {
+  const result = await usersService.listWorkspaces(request.session);
+  response.status(200).json(result);
+}));
+
 usersRoutes.post("/users", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await usersService.create(payload, request.session);
