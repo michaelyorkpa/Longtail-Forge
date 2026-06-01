@@ -17,6 +17,8 @@ const CHANGE_TYPES = new Set([
 const RECORD_TYPES = new Set([
   "organization",
   "organization_setting",
+  "workspace",
+  "workspace_setting",
   "user",
   "client",
   "project",
@@ -29,7 +31,7 @@ async function record(event) {
   const organizationId = event.organizationId || event.session?.organization_id || "";
   const action = String(event.action || "").trim();
   const changeType = normalizeEnum(event.changeType, CHANGE_TYPES, "update");
-  const recordType = normalizeEnum(event.recordType, RECORD_TYPES, "organization");
+  const recordType = normalizeEnum(event.recordType, RECORD_TYPES, "workspace");
 
   if (!organizationId || !action) {
     return null;

@@ -9,7 +9,7 @@ import { normalizeUtcIso } from "../utils/timezones.js";
 
 async function listClients(context, query) {
   const clients = await clientsRepository.readAll(context.organization_id);
-  return paged(clients, query);
+  return paged(clients.map((client) => withWorkspaceAlias(client, context)), query);
 }
 
 async function readClient(context, clientId) {
@@ -19,12 +19,12 @@ async function readClient(context, clientId) {
     throw new AppError("Client was not found.", 404);
   }
 
-  return client;
+  return withWorkspaceAlias(client, context);
 }
 
 async function listProjects(context, query) {
   const projects = await projectsRepository.readAll(context.organization_id);
-  return paged(projects, query);
+  return paged(projects.map((project) => withWorkspaceAlias(project, context)), query);
 }
 
 async function readProject(context, projectId) {
@@ -34,12 +34,12 @@ async function readProject(context, projectId) {
     throw new AppError("Project was not found.", 404);
   }
 
-  return project;
+  return withWorkspaceAlias(project, context);
 }
 
 async function listTimeEntries(context, query) {
   const entries = await timeEntriesRepository.readAll(context.organization_id);
-  return paged(entries, query);
+  return paged(entries.map((entry) => withWorkspaceAlias(entry, context)), query);
 }
 
 async function createTimeEntry(context, payload) {
@@ -89,7 +89,23 @@ async function createTimeEntry(context, payload) {
     },
   });
 
-  return entry;
+  return withWorkspaceAlias(entry, context);
+}
+
+function withWorkspaceAlias(record, context) {
+  if (!record || typeof record !== "object") {
+    return record;
+  }
+
+  const workspaceId = record.workspace_id || record.organization_id || context.workspace_id || context.organization_id;
+
+  return {
+    ...record,
+    workspace_id: workspaceId,
+    projects: Array.isArray(record.projects)
+      ? record.projects.map((project) => withWorkspaceAlias(project, context))
+      : record.projects,
+  };
 }
 
 function paged(items, query) {

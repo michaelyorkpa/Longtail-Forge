@@ -75,10 +75,30 @@ body {
 }
 
 .site-brand {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    min-width: 0;
+}
+
+.site-brand a {
     color: var(--color-text);
     font-size: 18px;
     font-weight: 700;
     text-decoration: none;
+    white-space: nowrap;
+}
+
+.workspace-selector {
+    width: min(220px, 34vw);
+    min-width: 136px;
+    padding: 7px 9px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-background);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 14px;
 }
 
 .nav-links {
@@ -285,7 +305,8 @@ h1 {
     font-size: 14px;
 }
 
-[data-organization-settings-status] {
+[data-organization-settings-status],
+[data-workspace-settings-status] {
     min-height: 20px;
     margin: 16px 0 0;
     color: var(--color-muted);

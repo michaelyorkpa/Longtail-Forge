@@ -25,6 +25,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - [ ] Allow moving of projects from personal workspaces to family workspaces, provided user has sufficient permissions
 
+- [ ] Create about page
+
+- [ ] Fix splash page box sitting low on screen
+
 # Long Term
 
 ## Parking Lot / Open Questions

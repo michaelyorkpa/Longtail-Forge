@@ -2,11 +2,23 @@ import { randomUUID } from "node:crypto";
 import { querySql, runSql, sqlText, sqlNullableText } from "../db/index.js";
 
 async function readRoles() {
-  return querySql(`
+  const roles = await querySql(`
 SELECT role_id, role_name, description, assignable_scope_type
 FROM roles
 ORDER BY sort_order, role_name;
 `);
+
+  return roles.map((role) => {
+    if (role.role_id !== "organization_admin") {
+      return role;
+    }
+
+    return {
+      ...role,
+      role_name: "Workspace Administrator",
+      description: "Controls users, settings, clients, projects, time, reporting, and audit logs inside one workspace.",
+    };
+  });
 }
 
 async function readRolePermissions() {

@@ -29,7 +29,7 @@ const cancelRolePermissionsButton = document.querySelector("[data-cancel-role-pe
 
 const PERMISSION_RESOURCES = [
   { id: "time_entries", label: "Time Entries", operations: ["create", "read", "update", "delete"] },
-  { id: "organization_settings", label: "Organization Settings", operations: ["read", "update"] },
+  { id: "organization_settings", label: "Workspace Settings", operations: ["read", "update"] },
   { id: "clients", label: "Client Settings", operations: ["create", "read", "update", "delete"] },
   { id: "projects", label: "Project Settings", operations: ["create", "read", "update", "delete"] },
   { id: "users", label: "Users", operations: ["create", "read", "update", "delete"] },
@@ -357,7 +357,7 @@ function renderScopeOptions() {
   }
 
   if (scopeType === "organization") {
-    appendScopeOption("organization", "Organization");
+    appendScopeOption("organization", "Workspace");
     return;
   }
 
@@ -497,7 +497,7 @@ function formatScopeLabel(assignment) {
   }
 
   if (assignment.scope_type === "organization") {
-    return "Organization";
+    return "Workspace";
   }
 
   if (assignment.scope_type === "client") {

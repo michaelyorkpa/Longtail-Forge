@@ -22,16 +22,17 @@ async function save(payload, session) {
 
   const auditEvent = {
     session,
-    action: "organization_settings_updated",
+    action: "workspace_settings_updated",
     changeType: "settings_change",
-    recordType: "organization_setting",
+    recordType: "workspace_setting",
     recordId: session.organization_id,
-    recordLabel: data.organizationName,
-    recordUrl: "organization-settings.html",
+    recordLabel: data.workspaceName,
+    recordUrl: "workspace-settings.html",
     previousValue: previousSettings,
     newValue: data,
     metadata: {
-      setting_group: "organization",
+      setting_group: "workspace",
+      legacy_setting_group: "organization",
       audit_setting_changed: auditSettingChanged,
     },
   };

@@ -768,20 +768,20 @@ Family workspaces are multi-user workspaces with granular permissions and roles 
 
 This group of updates also separates clients and projects. Projects now only retain a workspace_id (formerly, organization_id). This allows the primary workspace to have projects, tasks, tickets, and notes assigned, treating them like "internal" entitites for business clients.
 
-- [ ] Rename Organization/organization to Workspace/workspace everywhere
-  - [ ] Rename user-facing labels from Organization to Workspace
-  - [ ] Rename Organization Settings to Workspace Settings
-  - [ ] Rename organization-related route names, service names, repository names, and helper names
-  - [ ] Update database references where practical
-    - [ ] Existing `organization_id` columns may remain temporarily during migration if needed
-    - [ ] Long-term naming should become `workspace_id`
-  - [ ] Update audit log record types and labels from organization-focused language to workspace-focused language
-  - [ ] Update public API documentation and browser/API response field names where appropriate
-  - [ ] Preserve backward compatibility where needed until existing screens and services are fully migrated
+- [x] Rename Organization/organization to Workspace/workspace for the 0.30.0 compatibility foundation
+  - [x] Rename user-facing labels from Organization to Workspace
+  - [x] Rename Organization Settings to Workspace Settings
+  - [x] Add the `workspace-settings.html` route while keeping `organization-settings.html` as a compatibility redirect
+  - [x] Update database references where practical
+    - [x] Existing `organization_id` columns remain temporarily during migration
+    - [x] Long-term naming should become `workspace_id`
+  - [x] Update audit log record types and labels from organization-focused language to workspace-focused language
+  - [x] Update public API documentation and browser/API response field names where appropriate
+  - [x] Preserve backward compatibility where needed until existing screens and services are fully migrated
 
-- [ ] Update "Organization Name" display on front end to be "Workspace Name" as drop-down
-  - for now this selector only needs to be the initial organization
-  - in future 0.30 updates, this will be a listing of all user workspaces (this is the workspace switcher)
+- [x] Update "Organization Name" display on front end to be "Workspace Name" as drop-down
+  - [x] for now this selector only needs to be the initial organization
+  - [ ] in future 0.30 updates, this will be a listing of all user workspaces (this is the workspace switcher)
 
 ### Version 0.30.1
 

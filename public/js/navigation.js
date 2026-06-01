@@ -1,5 +1,5 @@
 // Shared authenticated app shell. Add/remove menu items here instead of editing every page.
-const DEFAULT_ORGANIZATION_NAME = "Organization";
+const DEFAULT_WORKSPACE_NAME = "Workspace";
 const NAV_ITEMS = [
   { label: "Dashboard", href: "dashboard.html" },
   {
@@ -16,7 +16,7 @@ const NAV_ITEMS = [
     items: [
       { label: "Projects", href: "projects.html" },
       { label: "Clients", href: "clients.html" },
-      { label: "Organization", href: "organization-settings.html" },
+      { label: "Workspace", href: "workspace-settings.html" },
       { label: "User Admin", href: "user-admin.html" },
       { label: "User", href: "user-settings.html" },
       { label: "API Keys", href: "api-keys.html" },
@@ -40,13 +40,15 @@ if (navToggle && navLinks) {
   });
 }
 
-loadOrganizationSettings();
+loadWorkspaceSettings();
 
 function buildSiteHeader() {
   // Build the header at runtime so page HTML can stay focused on page-specific content.
   const header = document.createElement("header");
   const nav = document.createElement("nav");
-  const brand = document.createElement("a");
+  const brand = document.createElement("div");
+  const homeLink = document.createElement("a");
+  const workspaceSelect = document.createElement("select");
   const toggle = document.createElement("button");
   const links = document.createElement("div");
   const currentPage = getCurrentPage();
@@ -56,9 +58,17 @@ function buildSiteHeader() {
   nav.setAttribute("aria-label", "Primary");
 
   brand.className = "site-brand";
-  brand.href = "dashboard.html";
-  brand.dataset.organizationName = "";
-  brand.textContent = DEFAULT_ORGANIZATION_NAME;
+
+  homeLink.href = "dashboard.html";
+  homeLink.textContent = "Longtail Forge";
+
+  workspaceSelect.className = "workspace-selector";
+  workspaceSelect.dataset.workspaceSelector = "";
+  workspaceSelect.setAttribute("aria-label", "Active workspace");
+  workspaceSelect.disabled = true;
+  workspaceSelect.append(createWorkspaceOption(DEFAULT_WORKSPACE_NAME));
+
+  brand.append(homeLink, workspaceSelect);
 
   toggle.className = "nav-toggle";
   toggle.type = "button";
@@ -141,7 +151,7 @@ function getCurrentPage() {
   return page || "dashboard.html";
 }
 
-async function loadOrganizationSettings() {
+async function loadWorkspaceSettings() {
   try {
     const response = await fetch("/api/settings", { cache: "no-store" });
 
@@ -156,28 +166,43 @@ async function loadOrganizationSettings() {
     }
 
     const settings = await response.json();
-    applyOrganizationName(settings.organizationName);
+    applyWorkspaceName(settings.workspaceName || settings.organizationName);
   } catch {
-    applyOrganizationName(DEFAULT_ORGANIZATION_NAME);
+    applyWorkspaceName(DEFAULT_WORKSPACE_NAME);
   }
 }
 
-function applyOrganizationName(value) {
-  const organizationName = String(value || "").trim() || DEFAULT_ORGANIZATION_NAME;
+function createWorkspaceOption(value) {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = value;
+  return option;
+}
 
-  document.querySelectorAll("[data-organization-name]").forEach((element) => {
-    element.textContent = organizationName;
+function applyWorkspaceName(value) {
+  const workspaceName = String(value || "").trim() || DEFAULT_WORKSPACE_NAME;
+
+  document.querySelectorAll("[data-organization-name], [data-workspace-name]").forEach((element) => {
+    element.textContent = workspaceName;
+  });
+
+  document.querySelectorAll("[data-workspace-selector]").forEach((select) => {
+    select.replaceChildren(createWorkspaceOption(workspaceName));
+    select.value = workspaceName;
   });
 
   if (document.body.dataset.titleMode === "app") {
-    document.title = `${organizationName} Longtail Forge`;
+    document.title = `${workspaceName} Longtail Forge`;
     return;
   }
 
   if (document.body.dataset.pageTitle) {
-    document.title = `${document.body.dataset.pageTitle} | ${organizationName} Longtail Forge`;
+    document.title = `${document.body.dataset.pageTitle} | ${workspaceName} Longtail Forge`;
   }
 }
+
+window.applyOrganizationName = applyWorkspaceName;
+window.applyWorkspaceName = applyWorkspaceName;
 
 async function logOut() {
   try {

@@ -345,14 +345,14 @@ function createClientBillingSettingsEditor(client, options = {}) {
 
   const billingPeriodEditor = createBillingPeriodEditor({
     legend: "Billing Period",
-    inheritLabel: `Use organization billing period (${formatBillingPeriod(organizationSettings.billingPeriod)})`,
+    inheritLabel: `Use workspace billing period (${formatBillingPeriod(organizationSettings.billingPeriod)})`,
     value: client.billing_period,
     inheritedPeriod: organizationSettings.billingPeriod,
   });
 
   const billingRoundingEditor = createBillingRoundingEditor({
     legend: "Rounding",
-    inheritLabel: `Use organization rounding (${formatBillingRounding(organizationSettings.billingRounding)})`,
+    inheritLabel: `Use workspace rounding (${formatBillingRounding(organizationSettings.billingRounding)})`,
     value: client.billing_rounding,
     inheritedRounding: organizationSettings.billingRounding,
   });

@@ -13,7 +13,7 @@ The app currently focuses on:
 - Billable and non-billable reporting
 - Manual time entry and time-entry editing
 - User login and administration
-- Organization settings
+- Workspace settings
 - SQLite-backed local storage
 
 ## Background
@@ -50,7 +50,7 @@ The detailed per-version changelog and future plan live in [ROADMAP.md](ROADMAP.
 - `0.26.x` introduces module-ready backend architecture.
 - `0.27.x` consolidates shared billing and reporting calculations.
 - `0.28.x` finishes core time-tracking maturity with database-backed active timer persistence, richer real-user profiles, and UTC-backed time handling.
-- `0.30+` expands toward workspaces, tasks, notes, calendars, production packaging, personal use, and SaaS capabilities.
+- `0.30.x` shifts the app language and compatibility layer from organizations toward workspaces before membership, switching, and workspace-type work continues.
 
 ## Getting Started
 

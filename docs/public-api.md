@@ -16,6 +16,8 @@ X-API-Key: ltf_live_...
 
 API keys are created from the protected API Keys settings page. Raw keys are shown once at creation time; after that, only the key prefix is displayed.
 
+API keys are scoped to the active workspace. During the 0.30.x workspace migration, responses include `workspace_id` aliases while legacy `organization_id` fields may still appear for backward compatibility.
+
 ## Response Shape
 
 Single-record responses:
@@ -66,3 +68,7 @@ Error responses:
 List endpoints accept `limit` and `offset`. `limit` defaults to `50` and is capped at `100`.
 
 Time-entry timestamps should be sent as ISO 8601 UTC strings, such as `2026-05-29T13:00:00.000Z`. Values with an explicit offset are normalized to UTC before storage.
+
+## Workspace Compatibility
+
+Version 0.30.0 begins the public language shift from organizations to workspaces. New integrations should read `workspace_id` when it is present. Existing `organization_id` fields remain temporarily available until the deeper membership and migration work in later 0.30.x releases is complete.

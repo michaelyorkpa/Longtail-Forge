@@ -139,8 +139,11 @@ function normalizeClientProjectData(data) {
 }
 
 function normalizeSettings(settings) {
+  const workspaceName = String(settings?.workspaceName || settings?.organizationName || "Workspace").trim() || "Workspace";
+
   return {
-    organizationName: String(settings?.organizationName || "Organization").trim() || "Organization",
+    workspaceName,
+    organizationName: workspaceName,
     fiscalYear: normalizeFiscalYear(settings?.fiscalYear),
     defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),

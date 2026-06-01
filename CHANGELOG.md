@@ -1,3 +1,12 @@
+## Version 0.30.0
+
+- Shifted the user-facing app language from organizations to workspaces for navigation, settings, billing inheritance labels, role scopes, and permission labels.
+- Added `workspace-settings.html` as the Workspace Settings page while keeping `organization-settings.html` as a compatibility redirect.
+- Added a disabled single-workspace selector to the authenticated app shell as the foundation for future workspace switching.
+- Added `workspaceName` settings aliases and public API `workspace_id` response aliases while preserving legacy organization fields during migration.
+- Updated workspace settings audit events to use workspace-focused record types and labels.
+- Updated package metadata, README, roadmap, decisions, changelog, and public API docs for the 0.30.0 foundation release.
+
 ## Version 0.28.2
 
 - Added shared UTC/timezone helpers for server-side timestamp normalization and browser-side local time display.

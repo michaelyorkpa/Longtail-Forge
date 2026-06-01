@@ -1,6 +1,6 @@
-// Organization settings are shared defaults used by navigation, reports, and billing.
-const settingsForm = document.querySelector("[data-organization-settings-form]");
-const organizationNameInput = document.querySelector("[data-organization-name-input]");
+// Workspace settings are shared defaults used by navigation, reports, and billing.
+const settingsForm = document.querySelector("[data-workspace-settings-form], [data-organization-settings-form]");
+const workspaceNameInput = document.querySelector("[data-workspace-name-input], [data-organization-name-input]");
 const fiscalYearStartMonthSelect = document.querySelector("[data-fiscal-year-start-month]");
 const fiscalYearStartDaySelect = document.querySelector("[data-fiscal-year-start-day]");
 const defaultBillingRateInput = document.querySelector("[data-default-billing-rate-input]");
@@ -10,7 +10,7 @@ const billingRoundingEnabledInput = document.querySelector("[data-billing-roundi
 const billingRoundingIncrementSelect = document.querySelector("[data-billing-rounding-increment]");
 const auditLoggingEnabledInput = document.querySelector("[data-audit-logging-enabled]");
 const auditRetentionDaysSelect = document.querySelector("[data-audit-retention-days]");
-const organizationSettingsStatus = document.querySelector("[data-organization-settings-status]");
+const workspaceSettingsStatus = document.querySelector("[data-workspace-settings-status], [data-organization-settings-status]");
 const saveSettingsButton = document.querySelector("[data-save-settings]");
 
 populateFiscalYearStartMonths();
@@ -30,7 +30,7 @@ settingsForm.addEventListener("submit", async (event) => {
 });
 
 async function loadSettingsForm() {
-  setOrganizationSettingsStatus("Loading organization settings...");
+  setWorkspaceSettingsStatus("Loading workspace settings...");
 
   try {
     const response = await fetch("/api/settings", { cache: "no-store" });
@@ -40,7 +40,7 @@ async function loadSettingsForm() {
     }
 
     const settings = normalizeSettings(await response.json());
-    organizationNameInput.value = settings.organizationName;
+    workspaceNameInput.value = settings.workspaceName;
     fiscalYearStartMonthSelect.value = String(settings.fiscalYear.startMonth);
     populateFiscalYearStartDays(settings.fiscalYear.startDay);
     defaultBillingRateInput.value = settings.defaultBillingRate;
@@ -52,9 +52,9 @@ async function loadSettingsForm() {
     auditRetentionDaysSelect.value = String(settings.audit.retentionDays);
     updateBillingPeriodStartDayState();
     updateBillingRoundingState();
-    setOrganizationSettingsStatus("");
+    setWorkspaceSettingsStatus("");
   } catch (error) {
-    setOrganizationSettingsStatus("Organization settings could not be loaded.");
+    setWorkspaceSettingsStatus("Workspace settings could not be loaded.");
     console.error(error);
   }
 }
@@ -62,7 +62,7 @@ async function loadSettingsForm() {
 async function saveSettings() {
   // Normalize before saving so the server receives the same shape the UI expects back.
   const settings = normalizeSettings({
-    organizationName: organizationNameInput.value,
+    workspaceName: workspaceNameInput.value,
     fiscalYear: {
       startMonth: fiscalYearStartMonthSelect.value,
       startDay: fiscalYearStartDaySelect.value,
@@ -82,13 +82,13 @@ async function saveSettings() {
     },
   });
 
-  if (!settings.organizationName) {
-    setOrganizationSettingsStatus("Organization name is required.");
+  if (!settings.workspaceName) {
+    setWorkspaceSettingsStatus("Workspace name is required.");
     return;
   }
 
   saveSettingsButton.disabled = true;
-  setOrganizationSettingsStatus("Saving organization settings...");
+  setWorkspaceSettingsStatus("Saving workspace settings...");
 
   try {
     const response = await fetch("/api/settings", {
@@ -105,7 +105,7 @@ async function saveSettings() {
 
     const result = await response.json();
     const savedSettings = normalizeSettings(result.data);
-    organizationNameInput.value = savedSettings.organizationName;
+    workspaceNameInput.value = savedSettings.workspaceName;
     fiscalYearStartMonthSelect.value = String(savedSettings.fiscalYear.startMonth);
     populateFiscalYearStartDays(savedSettings.fiscalYear.startDay);
     defaultBillingRateInput.value = savedSettings.defaultBillingRate;
@@ -118,13 +118,13 @@ async function saveSettings() {
     updateBillingPeriodStartDayState();
     updateBillingRoundingState();
 
-    if (typeof window.applyOrganizationName === "function") {
-      window.applyOrganizationName(savedSettings.organizationName);
+    if (typeof window.applyWorkspaceName === "function") {
+      window.applyWorkspaceName(savedSettings.workspaceName);
     }
 
     flashSavedState();
   } catch (error) {
-    setOrganizationSettingsStatus("Organization settings were not saved. Start the local server and try again.");
+    setWorkspaceSettingsStatus("Workspace settings were not saved. Start the local server and try again.");
     console.error(error);
   } finally {
     saveSettingsButton.disabled = false;
@@ -133,8 +133,11 @@ async function saveSettings() {
 
 function normalizeSettings(settings) {
   // Keep one canonical client-side settings shape even when the API omits older fields.
+  const workspaceName = String(settings?.workspaceName || settings?.organizationName || "").trim();
+
   return {
-    organizationName: String(settings?.organizationName || "").trim(),
+    workspaceName,
+    organizationName: workspaceName,
     fiscalYear: normalizeFiscalYear(settings?.fiscalYear),
     defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
@@ -259,7 +262,7 @@ function flashSavedState() {
   const originalText = saveSettingsButton.textContent;
   saveSettingsButton.textContent = "Saved.";
   saveSettingsButton.classList.add("is-saved");
-  setOrganizationSettingsStatus("");
+  setWorkspaceSettingsStatus("");
 
   window.setTimeout(() => {
     saveSettingsButton.textContent = originalText;
@@ -267,6 +270,6 @@ function flashSavedState() {
   }, 1600);
 }
 
-function setOrganizationSettingsStatus(message) {
-  organizationSettingsStatus.textContent = message;
+function setWorkspaceSettingsStatus(message) {
+  workspaceSettingsStatus.textContent = message;
 }

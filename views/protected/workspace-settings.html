@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workspace Settings | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=6">
+  </head>
+  <body data-page-title="Workspace Settings">
+    <main class="settings-page">
+      <h1>Workspace Settings</h1>
+
+      <form class="settings-form" data-workspace-settings-form>
+        <label>
+          Workspace Name
+          <input type="text" data-workspace-name-input required>
+        </label>
+
+        <fieldset class="settings-fieldset">
+          <legend>Fiscal Year</legend>
+
+          <label>
+            Start Month
+            <select data-fiscal-year-start-month></select>
+          </label>
+
+          <label>
+            Start Day
+            <select data-fiscal-year-start-day></select>
+          </label>
+        </fieldset>
+
+        <fieldset class="settings-fieldset">
+          <legend>Billing Settings</legend>
+
+          <label>
+            Default Billing Rate ($/hour)
+            <input type="text" inputmode="decimal" data-default-billing-rate-input>
+          </label>
+
+          <label>
+            Billing Period
+            <select data-billing-period-type>
+              <option value="calendarMonth">Calendar month</option>
+              <option value="custom">Custom</option>
+            </select>
+          </label>
+
+          <label>
+            Start Day
+            <select data-billing-period-start-day></select>
+          </label>
+
+          <label class="inline-option">
+            <input type="checkbox" data-billing-rounding-enabled>
+            Round?
+          </label>
+
+          <label>
+            Rounding Increment
+            <select data-billing-rounding-increment disabled>
+              <option value="nearestQuarterHour">Nearest quarter hour</option>
+              <option value="nearestHalfHour">Nearest half hour</option>
+              <option value="nearestHour">Nearest hour</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <fieldset class="settings-fieldset">
+          <legend>Audit Log</legend>
+
+          <label class="inline-option">
+            <input type="checkbox" data-audit-logging-enabled>
+            App Audit Logging
+          </label>
+
+          <label>
+            Retention Period
+            <select data-audit-retention-days>
+              <option value="7">7 days</option>
+              <option value="14">14 days</option>
+              <option value="30">30 days</option>
+              <option value="60">60 days</option>
+              <option value="90">90 days</option>
+              <option value="180">180 days</option>
+              <option value="365">1 year</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <button type="submit" data-save-settings>Save Settings</button>
+      </form>
+
+      <p data-workspace-settings-status role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/organization-settings.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

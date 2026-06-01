@@ -2,7 +2,7 @@ import { querySql, runSql, sqlInteger, sqlText } from "../db/index.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 
-const DEFAULT_ORGANIZATION_NAME = "Raymond Tec";
+const DEFAULT_WORKSPACE_NAME = "Raymond Tec";
 
 async function readOrganizationSettings(organizationId) {
   const rows = await querySql(`
@@ -25,7 +25,7 @@ LIMIT 1;
 `);
 
   if (rows.length === 0) {
-    return normalizeSettings({ organizationName: DEFAULT_ORGANIZATION_NAME });
+    return normalizeSettings({ workspaceName: DEFAULT_WORKSPACE_NAME });
   }
 
   return settingsRowToOrganizationSettings(rows[0]);
@@ -40,7 +40,7 @@ LIMIT 1;
 `);
 
   if (organizations.length === 0) {
-    throw new AppError("No organization exists for organization settings.", 404);
+    throw new AppError("No workspace exists for workspace settings.", 404);
   }
 
   const now = new Date().toISOString();
