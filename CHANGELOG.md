@@ -1,3 +1,12 @@
+## Version 0.30.2
+
+- Added `workspace_type` to the existing workspace-compatible `organizations` table with `business`, `personal`, and `family` support.
+- Added workspace capability metadata for business, personal, and family tool availability and permission models.
+- Exposed `workspaceType` and `workspaceCapabilities` from `/api/settings`.
+- Added a Workspace Type selector to Workspace Settings.
+- Enforced initial user-add rules so personal workspaces cannot add users and family workspaces are limited to 20 active users.
+- Bumped package metadata and roadmap/decision bookkeeping for the 0.30.2 release.
+
 ## Version 0.30.1
 
 - Added the `user_workspaces` membership table with app-level user IDs, workspace IDs, status, and timestamps.

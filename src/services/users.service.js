@@ -1,5 +1,6 @@
 import { usersRepository } from "../repositories/users.repo.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
+import { settingsRepository } from "../repositories/settings.repo.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
 import { createGeneratedPassword, hashPassword, validatePassword } from "../security/passwords.js";
 import { auditService } from "./audit.service.js";
@@ -40,6 +41,8 @@ async function create(payload, session) {
   if (existingUser) {
     throw new AppError("A user with that email address already exists.", 409);
   }
+
+  await assertWorkspaceCanAddUser(session);
 
   const initialPassword = createGeneratedPassword();
   const validation = validatePassword(initialPassword, username);
@@ -480,6 +483,24 @@ async function recordWorkspaceMembershipChange({
       workspace_id: session.organization_id,
     },
   });
+}
+
+async function assertWorkspaceCanAddUser(session) {
+  const settings = await settingsRepository.readOrganizationSettings(session.organization_id);
+
+  if (settings.workspaceType === "personal") {
+    throw new AppError("Personal workspaces cannot add other users.", 400);
+  }
+
+  if (settings.workspaceType !== "family") {
+    return;
+  }
+
+  const activeMembershipCount = await userWorkspacesRepository.countActiveForWorkspace(session.organization_id);
+
+  if (activeMembershipCount >= 20) {
+    throw new AppError("Family workspaces are limited to 20 users.", 400);
+  }
 }
 
 function normalizeUserProfilePayload(payload, fallbackUser = {}) {

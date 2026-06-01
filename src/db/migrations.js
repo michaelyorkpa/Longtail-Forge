@@ -196,7 +196,7 @@ async function baselineExistingSchema(migrations) {
   const statements = [];
 
   for (const migration of migrations) {
-    if (["010", "011", "012", "013", "014"].includes(migration.version) && !(await isMigrationAlreadySatisfied(migration))) {
+    if (["010", "011", "012", "013", "014", "015"].includes(migration.version) && !(await isMigrationAlreadySatisfied(migration))) {
       await applyMigration(migration);
       continue;
     }
@@ -282,6 +282,10 @@ async function isMigrationAlreadySatisfied(migration) {
     ]);
 
     return userWorkspacesExists && ownerColumnExists;
+  }
+
+  if (migration.fileName === "015_add_workspace_type.sql") {
+    return columnsExist("organizations", ["workspace_type"]);
   }
 
   return false;

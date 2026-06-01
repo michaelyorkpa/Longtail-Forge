@@ -1,4 +1,5 @@
 import { DEFAULT_TIMEZONE, normalizeUtcIso } from "./timezones.js";
+import { getWorkspaceCapabilities, normalizeWorkspaceType } from "./workspaces.js";
 
 function normalizeTimeEntry(entry) {
   return {
@@ -140,10 +141,13 @@ function normalizeClientProjectData(data) {
 
 function normalizeSettings(settings) {
   const workspaceName = String(settings?.workspaceName || settings?.organizationName || "Workspace").trim() || "Workspace";
+  const workspaceType = normalizeWorkspaceType(settings?.workspaceType || settings?.workspace_type);
 
   return {
     workspaceName,
     organizationName: workspaceName,
+    workspaceType,
+    workspaceCapabilities: getWorkspaceCapabilities(workspaceType),
     fiscalYear: normalizeFiscalYear(settings?.fiscalYear),
     defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
@@ -268,6 +272,7 @@ export {
   normalizeProtectedUserFlag,
   normalizeSettings,
   normalizeThemeMode,
+  normalizeWorkspaceType,
   normalizeTimeEntry,
   normalizeTimezone,
   normalizeUserStatus,

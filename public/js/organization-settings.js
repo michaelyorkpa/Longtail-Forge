@@ -1,6 +1,7 @@
 // Workspace settings are shared defaults used by navigation, reports, and billing.
 const settingsForm = document.querySelector("[data-workspace-settings-form], [data-organization-settings-form]");
 const workspaceNameInput = document.querySelector("[data-workspace-name-input], [data-organization-name-input]");
+const workspaceTypeSelect = document.querySelector("[data-workspace-type-input]");
 const fiscalYearStartMonthSelect = document.querySelector("[data-fiscal-year-start-month]");
 const fiscalYearStartDaySelect = document.querySelector("[data-fiscal-year-start-day]");
 const defaultBillingRateInput = document.querySelector("[data-default-billing-rate-input]");
@@ -41,6 +42,7 @@ async function loadSettingsForm() {
 
     const settings = normalizeSettings(await response.json());
     workspaceNameInput.value = settings.workspaceName;
+    setWorkspaceTypeValue(settings.workspaceType);
     fiscalYearStartMonthSelect.value = String(settings.fiscalYear.startMonth);
     populateFiscalYearStartDays(settings.fiscalYear.startDay);
     defaultBillingRateInput.value = settings.defaultBillingRate;
@@ -63,6 +65,7 @@ async function saveSettings() {
   // Normalize before saving so the server receives the same shape the UI expects back.
   const settings = normalizeSettings({
     workspaceName: workspaceNameInput.value,
+    workspaceType: workspaceTypeSelect?.value,
     fiscalYear: {
       startMonth: fiscalYearStartMonthSelect.value,
       startDay: fiscalYearStartDaySelect.value,
@@ -106,6 +109,7 @@ async function saveSettings() {
     const result = await response.json();
     const savedSettings = normalizeSettings(result.data);
     workspaceNameInput.value = savedSettings.workspaceName;
+    setWorkspaceTypeValue(savedSettings.workspaceType);
     fiscalYearStartMonthSelect.value = String(savedSettings.fiscalYear.startMonth);
     populateFiscalYearStartDays(savedSettings.fiscalYear.startDay);
     defaultBillingRateInput.value = savedSettings.defaultBillingRate;
@@ -134,16 +138,29 @@ async function saveSettings() {
 function normalizeSettings(settings) {
   // Keep one canonical client-side settings shape even when the API omits older fields.
   const workspaceName = String(settings?.workspaceName || settings?.organizationName || "").trim();
+  const workspaceType = normalizeWorkspaceType(settings?.workspaceType || settings?.workspace_type);
 
   return {
     workspaceName,
     organizationName: workspaceName,
+    workspaceType,
     fiscalYear: normalizeFiscalYear(settings?.fiscalYear),
     defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
     audit: normalizeAuditSettings(settings?.audit),
   };
+}
+
+function normalizeWorkspaceType(value) {
+  const workspaceType = String(value || "").trim();
+  return ["business", "personal", "family"].includes(workspaceType) ? workspaceType : "business";
+}
+
+function setWorkspaceTypeValue(workspaceType) {
+  if (workspaceTypeSelect) {
+    workspaceTypeSelect.value = normalizeWorkspaceType(workspaceType);
+  }
 }
 
 function normalizeFiscalYear(fiscalYear) {

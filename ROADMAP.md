@@ -804,45 +804,45 @@ This group of updates also separates clients and projects. Projects now only ret
 
 ### Version 0.30.2
 
-- [ ] Add workspace type support
-  - [ ] Add `workspace_type` to the workspace table
-    - [ ] `business`
-    - [ ] `personal`
-    - [ ] `family`
-  - [ ] Business workspaces
-    - [ ] Default workspace name should use the organization/business name
-    - [ ] Full project/client/business tool suite available:
-      - [ ] Tasks
-      - [ ] Notes/knowledge base
-      - [ ] Time tracking
-      - [ ] Clients/projects
-      - [ ] Billing/invoicing/reporting
-      - [ ] Team members
-      - [ ] Permissions
-  - [ ] Personal workspaces
-    - [ ] Default workspace name should be `Personal`
-    - [ ] User can rename the workspace
-    - [ ] Available tools:
-      - [ ] Tasks
-      - [ ] Notes/knowledge base
-      - [ ] Time tracking, optional
-      - [ ] Projects
-    - [ ] Owner-only permissions
-    - [ ] Personal workspaces cannot add other users
-  - [ ] Family workspaces
-    - [ ] Default workspace name should be `Family`
-    - [ ] Workspace admin can rename the workspace
-    - [ ] Available tools:
-      - [ ] Tasks
-      - [ ] Notes/knowledge base
-      - [ ] Time tracking, optional
-      - [ ] Projects
-      - [ ] Team members
-      - [ ] Family-focused permissions
-    - [ ] Add family-focused account concepts
-      - [ ] Adult accounts
-      - [ ] Child accounts
-      - [ ] Limited number of users (20)
+- [x] Add workspace type support
+  - [x] Add `workspace_type` to the workspace table
+    - [x] `business`
+    - [x] `personal`
+    - [x] `family`
+  - [x] Business workspaces
+    - [x] Default workspace name should use the organization/business name
+    - [x] Full project/client/business tool suite available:
+      - [x] Tasks
+      - [x] Notes/knowledge base
+      - [x] Time tracking
+      - [x] Clients/projects
+      - [x] Billing/invoicing/reporting
+      - [x] Team members
+      - [x] Permissions
+  - [x] Personal workspaces
+    - [x] Default workspace name should be `Personal`
+    - [x] User can rename the workspace
+    - [x] Available tools:
+      - [x] Tasks
+      - [x] Notes/knowledge base
+      - [x] Time tracking, optional
+      - [x] Projects
+    - [x] Owner-only permissions
+    - [x] Personal workspaces cannot add other users
+  - [x] Family workspaces
+    - [x] Default workspace name should be `Family`
+    - [x] Workspace admin can rename the workspace
+    - [x] Available tools:
+      - [x] Tasks
+      - [x] Notes/knowledge base
+      - [x] Time tracking, optional
+      - [x] Projects
+      - [x] Team members
+      - [x] Family-focused permissions
+    - [x] Add family-focused account concepts
+      - [x] Adult accounts
+      - [x] Child accounts
+      - [x] Limited number of users (20)
 
 ### Version 0.30.3
 

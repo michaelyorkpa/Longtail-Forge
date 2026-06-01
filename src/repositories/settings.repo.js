@@ -8,6 +8,7 @@ async function readOrganizationSettings(organizationId) {
   const rows = await querySql(`
 SELECT
   organizations.name AS organization_name,
+  organizations.workspace_type,
   organization_settings.fiscal_year_start_month,
   organization_settings.fiscal_year_start_day,
   organization_settings.default_billing_rate,
@@ -47,7 +48,9 @@ LIMIT 1;
 
   await runSql(`
 UPDATE organizations
-SET name = ${sqlText(settings.organizationName)}, updated_at = ${sqlText(now)}
+SET name = ${sqlText(settings.organizationName)},
+    workspace_type = ${sqlText(settings.workspaceType)},
+    updated_at = ${sqlText(now)}
 WHERE id = ${sqlText(organizationId)};
 UPDATE organization_settings
 SET
@@ -69,6 +72,7 @@ WHERE organization_id = ${sqlText(organizationId)};
 function settingsRowToOrganizationSettings(row) {
   return normalizeSettings({
     organizationName: row.organization_name,
+    workspaceType: row.workspace_type,
     fiscalYear: {
       startMonth: row.fiscal_year_start_month,
       startDay: row.fiscal_year_start_day,

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { normalizeSettings } from "../utils/normalizers.js";
 import { DEFAULT_TIMEZONE, normalizeUtcIso } from "../utils/timezones.js";
+import { DEFAULT_WORKSPACE_TYPE } from "../utils/workspaces.js";
 import { hashPassword, createGeneratedPassword, validatePassword } from "../security/passwords.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { runMigrations } from "./migrations.js";
@@ -32,6 +33,7 @@ async function ensureDatabase() {
   await modulesService.syncModuleRegistry(organizationId);
   await seedSuperAdminUser(organizationId);
   await ensureWorkspaceMemberships(organizationId);
+  await ensureWorkspaceType(organizationId);
   await ensureProtectedUserRoles(organizationId);
 }
 
@@ -323,6 +325,19 @@ SET owner_user_id = COALESCE(
   )
 )
 WHERE id = ${sqlText(organizationId)};
+`);
+}
+
+async function ensureWorkspaceType(organizationId) {
+  if (!(await columnsExist("organizations", ["workspace_type"]))) {
+    return;
+  }
+
+  await runSql(`
+UPDATE organizations
+SET workspace_type = ${sqlText(DEFAULT_WORKSPACE_TYPE)}
+WHERE id = ${sqlText(organizationId)}
+  AND workspace_type NOT IN ('business', 'personal', 'family');
 `);
 }
 

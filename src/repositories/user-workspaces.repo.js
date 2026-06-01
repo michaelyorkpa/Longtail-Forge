@@ -36,6 +36,17 @@ ORDER BY organizations.name;
 `);
 }
 
+async function countActiveForWorkspace(workspaceId) {
+  const rows = await querySql(`
+SELECT COUNT(1) AS count
+FROM user_workspaces
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND status = 'active';
+`);
+
+  return Number(rows[0]?.count) || 0;
+}
+
 async function upsert({ userId, workspaceId, status = "active" }) {
   const now = new Date().toISOString();
 
@@ -93,6 +104,7 @@ function normalizeStatus(status) {
 export const userWorkspacesRepository = {
   readByUserAndWorkspace,
   readForUser,
+  countActiveForWorkspace,
   remove,
   updateStatus,
   upsert,
