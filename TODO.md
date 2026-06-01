@@ -10,6 +10,13 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - [ ] The form for edit entries still displays UUID instead of a friendly name
 
+- [ ] Client shows up for personal/family workspaces on the following pages where it should be hidden:
+  - [ ] Time Tracker
+  - [ ] Create Manual Entry
+  - [ ] Edit Entries
+
+- [ ] If time tracking is turned on for Personal/Family workspaces, reporting should be turned on
+
 ## Tweaks
 
 - [ ] Change "Clear Info when Reset" to "Clear Info when Stopped/Reset"
@@ -18,6 +25,14 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - [ ] Allow export of reports/audit logs via CSV in either local timezone or UTC
 
 - [ ] Deprecate browser warning when navigating away/refreshing page while active timers are running
+
+- [ ] Convert client & project details to a list of clients & projects, respectively, to multi-column table with bulk editing abilities and button to edit
+
+- [ ] Add setting to turn on/off time keeping module in both workspace creation and workspace settings
+  - all existing time tracking entries should be immutable
+  - if turned off, the top-level time tracking menu option should also disappear
+
+- [ ] Add "All Clients" or "Total Workspace Hours/Billables" in reporting for business workspaces
 
 # Medium Term
 

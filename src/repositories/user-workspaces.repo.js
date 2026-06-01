@@ -41,7 +41,8 @@ async function readAllWorkspaces() {
 SELECT
   id AS workspace_id,
   name AS workspace_name,
-  workspace_type
+  workspace_type,
+  owner_user_id
 FROM organizations
 ORDER BY name;
 `);

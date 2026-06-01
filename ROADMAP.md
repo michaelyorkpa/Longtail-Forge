@@ -974,28 +974,107 @@ This group of updates also separates clients and projects. Projects now only ret
 
 #### Project Page Tweaks
 
-- [ ] Clients selection/sort shows up on projects page for personal workspaces (There are no clients in personal/family workspaces)
-- [ ] No spacing above "Apply to Selected" on Projects page
-- [ ] Personal projects do NOT need billing details and cannot be billable, but rounding needs to be kept for personal workspace projects
-- [ ] Project rounding needs to default to workspace rounding unless the project is assigned to a client
-- [ ] Client rounding should not be an option in personal/family workspaces
-- [ ] Layout is awkward
-  - [ ] Move client and status filters next to 
-  - [ ] Bulk edit should be moved to a modal window
-    - [ ] Add a filter by client drop down to modal (Include workspace projects)
-    - [ ] "Bulk Status" "Bulk Client" "Bulke Billable" should be added to the top of modal below the filter, side-by-side
-    - [ ] Add a list of all projects (and filtered projects) with check boxes next to them below those buttons
-  - [ ] Keep "Add Project" at the top
-  - [ ] Keep list of openable projects at bottom, filtered appropriately
+- [x] Clients selection/sort shows up on projects page for personal workspaces (There are no clients in personal/family workspaces)
+- [x] No spacing above "Apply to Selected" on Projects page
+- [x] Personal projects do NOT need billing details and cannot be billable, but rounding needs to be kept for personal workspace projects
+- [x] Project rounding needs to default to workspace rounding unless the project is assigned to a client
+- [x] Client rounding should not be an option in personal/family workspaces
+- [x] Layout is awkward
+  - [x] Move client and status filters next to each other (side-by-side)
+  - [x] Bulk edit should be moved to a modal window (button should be to the right of the client/status filters)
+    - [x] Add a filter by client and filter by status drop down to modal (Include workspace projects)
+      - if filters already selected on main projects screen, that should be carried into the modal
+    - [x] "Bulk Status" "Bulk Client" "Bulke Billable" should be added to the top of modal below the filter, side-by-side
+    - [x] Add a list of all projects (and filtered projects) with check boxes next to them below those buttons
+  - [x] Keep "Add Project" at the top
+  - [x] Keep list of openable projects at bottom, filtered appropriately
+
+- [x] Move "Add Workspace Project" to a modal
+  - button for "add project" should be centered at the top of the list of the projects
+- [x] Rename "Edit selected" button to "Bulk Edit"
+- [x] Projects page window renders near the bottom instead of in the center to start
+  - When I Select a client/workspace projects option and there's very few/no projecst, the window renders near the bottom. Regardless of the number of projects, the window needs to remain centered, until there are so many that it's taller than the viewport.
+
+- [x] In the Bulk Edit Projects modal, the list of projects is two columns, as it should be
+  - [x] It seems project names are right justified and the checkboxes are not in line
+  - [x] I need an "All projects" checkbox that auto-selects/deselects all projects in the table just below the bulk change drop downs
+
+- [x] Add Project modal is laid out awkwardly
+  - [x] "New Project" should say "New Project Name" and should be below "Add Project" heading
+  - [x] "Status" drop-down should be next to the New Project name field
+  - [x] "Billing Setttings" portion of modal should remain untouched
+  - [x] "Add Project" and "Cancel" buttons need to be side-by-side in the bottom center of the modal window
+
+- [x] Projects details are a bit awkward
+  - [x] "Client" should be moved side-by-side with "Status"
+    - client should be first
+  - "Project Billing Settings" should remain untouched
+
+- [x] Add Project modal needs to have "Status" and its drop-down left aligned
+- [x] Add Project modal has no Client selection drop down
+  - [x] "Add Project" modal should have an "Add Client" button next to the client selection drop-down, to take you to the Clients page with the "Add Client" modal already open
+- [x] Project details should have an "Add client" button that functions the same as the "Add Project" modal
+  - this button can be between the Client/Status row and the "Project Billing Settings" dialog
+
+- [x] Let's go back to lists and checkboxes for projects
+  - [x] Client and Status filters remain where they are
+  - [x] Un-selectable (until at least one checkbox is selected) bulk status, bulk client, and bulk billable drop downs are below that
+  - [x] Then comes a single table
+    - [x] Only one project per row
+    - [x] First column should be the checkboxes
+    - [x] Second column should be the project name
+    - [x] Third column should be the edit button, which opens the project detail modal window
+      - [x] Project detail modal window should be laid out exactly like the project details are now (visually)
+    - [x] Bulk edit button goes away
+    - [x] Selecting a checkbox next to a project allows you to bulk status, bulk client, bulk billable
+  
+- [x] Add "Edit Client" Button, left justified below the Client and Status drop downs to the Edit Project modal window (Where Add Client currently is)
+- [x] Move "Add Client" button right justified, side-by-side with the "Edit Client" button
+
+- [x] "Clients" filter still shows up in personal workspace types
+
+#### General UI updates
+
+- [x] Adjust window titles on all pages to be "{{activeModule}} | {{workspaceName}} | Longtail Forge"
+  - For example:
+    - Clients
+    - Projects
+    - User
+    - User Admin
+    - Time Tracking
+    - Reporting
+    - etc.
+
+#### Clients settings
+
+- [x] Client details has "Edit Projects" button
+  - This button currently takes you to Project settings, which is good
+    - [x] I want the projects to be pre-filtered by the client where "Edit Projects" button was clicked
+    - [x] e.g. If I open "Adventure Adjacent" client details and click projects, it should open the Project Settings page with the clients filter pre-selected to "Adventure Adjacent"
+
+- [x] Let's shift the clients to lists and checkboxes for clients now
+  - [x] Status filter remains where it is
+  - [x] Un-selectable (until at least one checkbox is selected) bulk status and bulk billable drop downs are below that
+  - [x] Then comes a single table
+    - [x] Only one client per row
+    - [x] First column should be the checkboxes
+    - [x] Second column should be the client name
+    - [x] Third column should be the edit button, which opens the client detail modal window
+      - [x] Client detail modal window should be laid out exactly like the client details are now (visually)
+    - [x] Selecting a checkbox next to a client allows you to edit bulk status or bulk billable
+
+#### User Permissions
+- [x] Personal workspaces can ONLY have a single user, the creator
+  - currently, Super Admin has a personal workspace that can add users, this needs to be adjusted
 
 ### Version 0.30.5.2
 
 #### Workspace page/settings tweaks (Personal/Family Workspace)
 
-- [ ] Billing Settings can be removed from this area 
-- [ ] Rounding should be left (for rounding hours only)
-- [ ] Add setting to turn on/off time keeping module in both workspace creation and workspace settings
-  - all existing time tracking entries should be immutable
+- [ ] Workspace Settings window needs to be the same width as all the others are now, it's still very narrow
+- [ ] Billing Settings should be condensed for Personal/Family workspaces to only include rounding as its own header
+- [ ] Add modal for seeing users assigned to a workspace. Within modal:
+  - [ ] A list of users should be displayed for editing the user's permissions within the workspace ("Edit Permissions" button)
 
 ### Version 0.30.5.3
 
@@ -1008,7 +1087,11 @@ This group of updates also separates clients and projects. Projects now only ret
 
 ### Version 0.30.5.4
 
+#### User page tweaks
 
+- [ ] Workspace name doesn't update when Workspace type is changed under "Create Workspace"
+- [ ] Add modal within user settings to allow removal
+- [ ] User Settings page needs to be the same width as all the other pages
 
 ### Verion 0.30.6
 

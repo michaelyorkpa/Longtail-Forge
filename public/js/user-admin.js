@@ -47,6 +47,7 @@ let users = [];
 let roles = [];
 let clients = [];
 let workspaces = [];
+let activeWorkspaceType = "business";
 let pendingRoleAssignments = [];
 let draftPermissionOverrides = createDefaultPermissionOverrides();
 let editingPermissionTarget = null;
@@ -105,16 +106,19 @@ async function loadUsers() {
   setUserAdminStatus("Loading users...");
 
   try {
-    const [usersBody, rolesBody, clientProjectBody, workspacesBody] = await Promise.all([
+    const [usersBody, rolesBody, clientProjectBody, workspacesBody, settingsBody] = await Promise.all([
       window.LongtailForge.api.getJson("/api/users", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/roles", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/client-projects", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/workspaces", { cache: "no-store" }),
+      window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
     ]);
 
     roles = rolesBody.roles || [];
     clients = clientProjectBody.clients || [];
     workspaces = workspacesBody.workspaces || [];
+    activeWorkspaceType = normalizeWorkspaceType(settingsBody.workspaceType);
+    applyUserCreationAvailability();
     renderRoleOptions();
     renderUsers(usersBody.users || []);
     setUserAdminStatus("");
@@ -129,6 +133,11 @@ async function loadUsers() {
 }
 
 async function createUser() {
+  if (activeWorkspaceType === "personal") {
+    setUserAdminStatus("Personal workspaces can only have the creator as a user.", true);
+    return;
+  }
+
   const username = newUserUsernameInput.value.trim().toLowerCase();
 
   if (!isValidEmail(username)) {
@@ -177,6 +186,24 @@ async function createUser() {
   } finally {
     createUserButton.disabled = false;
   }
+}
+
+function applyUserCreationAvailability() {
+  const canCreateUsers = activeWorkspaceType !== "personal";
+
+  createUserButton.disabled = !canCreateUsers;
+  newUserUsernameInput.disabled = !canCreateUsers;
+  newUserRoleSelect.disabled = !canCreateUsers;
+
+  if (!canCreateUsers) {
+    newUserUsernameInput.value = "";
+  }
+}
+
+function normalizeWorkspaceType(workspaceType) {
+  return ["business", "personal", "family"].includes(workspaceType)
+    ? workspaceType
+    : "business";
 }
 
 function renderUsers(nextUsers) {
@@ -258,7 +285,7 @@ async function openEditUserDialog(user) {
   editUserDisplayNameInput.value = user.displayName || user.username;
   editUserAltEmailInput.value = user.altEmail || "";
   setEditUserTimezoneValue(user.timezone || "America/New_York");
-  renderWorkspaceMemberships(user.workspaceMemberships || []);
+  renderWorkspaceMemberships(user.workspaceMemberships || [], user);
   pendingRoleAssignments = [];
   draftPermissionOverrides = createDefaultPermissionOverrides();
   renderPendingRoleAssignments();
@@ -284,7 +311,7 @@ function closeEditUserDialog() {
   }
 
   editUserForm.reset();
-  renderWorkspaceMemberships([]);
+  renderWorkspaceMemberships([], null);
 }
 
 function getEditingUser() {
@@ -506,7 +533,7 @@ function renderPendingRoleAssignments() {
   });
 }
 
-function renderWorkspaceMemberships(memberships) {
+function renderWorkspaceMemberships(memberships, user = getEditingUser()) {
   workspaceMembershipList.replaceChildren();
 
   if (!workspaces.length) {
@@ -526,16 +553,22 @@ function renderWorkspaceMemberships(memberships) {
     const label = document.createElement("label");
     const checkbox = document.createElement("input");
     const status = document.createElement("span");
+    const isPersonalOwnerOnly = workspace.workspaceType === "personal" &&
+      workspace.ownerUserId &&
+      workspace.ownerUserId !== user?.user_id;
 
     checkbox.type = "checkbox";
     checkbox.dataset.workspaceMembership = workspace.workspaceId;
-    checkbox.checked = activeWorkspaceIds.has(workspace.workspaceId);
+    checkbox.checked = !isPersonalOwnerOnly && activeWorkspaceIds.has(workspace.workspaceId);
+    checkbox.disabled = isPersonalOwnerOnly;
     label.append(
       checkbox,
       document.createTextNode(workspace.workspaceName || workspace.workspaceId || "Workspace"),
     );
     status.className = "membership-status";
-    status.textContent = activeWorkspaceIds.has(workspace.workspaceId) ? "Active" : "Inactive";
+    status.textContent = isPersonalOwnerOnly
+      ? "Owner only"
+      : activeWorkspaceIds.has(workspace.workspaceId) ? "Active" : "Inactive";
     item.append(label, status);
     workspaceMembershipList.appendChild(item);
   });

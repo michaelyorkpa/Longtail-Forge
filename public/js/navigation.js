@@ -230,12 +230,12 @@ function applyWorkspaceName(value) {
   applyActiveWorkspaceLabel(workspaceName);
 
   if (document.body.dataset.titleMode === "app") {
-    document.title = `${workspaceName} Longtail Forge`;
+    document.title = `${workspaceName} | Longtail Forge`;
     return;
   }
 
   if (document.body.dataset.pageTitle) {
-    document.title = `${document.body.dataset.pageTitle} | ${workspaceName} Longtail Forge`;
+    document.title = `${document.body.dataset.pageTitle} | ${workspaceName} | Longtail Forge`;
   }
 }
 

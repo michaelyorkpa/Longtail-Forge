@@ -1,3 +1,23 @@
+## Version 0.30.5.1
+
+- Reworked the Projects page top controls so client and status filters sit side-by-side above inline bulk dropdowns.
+- Moved Add Project into a centered top-list button and modal instead of an inline `Add Workspace Project` panel.
+- Tightened Add Project modal layout so the name/status fields sit under the heading, billing settings stay intact, and Add/Cancel actions are centered together.
+- Added a business-workspace Client selector to the Add Project modal, with Status left-aligned and an Add Client shortcut that opens the Clients page add-client modal.
+- Adjusted project details so Client and Status sit side-by-side with Client first.
+- Added an Add Client shortcut inside project details between the Client/Status row and Project Billing Settings.
+- Made client detail Edit Projects links open the Projects page with that client preselected in the client filter.
+- Reworked Projects into a checkbox table with inline bulk Status/Client/Billable dropdowns and modal-based project detail editing.
+- Reworked Clients into a checkbox table with inline bulk Status/Billable dropdowns and modal-based client detail editing.
+- Removed the standalone project Bulk Edit trigger after moving bulk project actions back onto the main Projects page.
+- Added Edit Client and Add Client shortcuts to the project detail modal, and made client-detail URLs open the matching client editor modal.
+- Updated protected page titles to use the active module and workspace name format.
+- Hid client controls from personal and family workspaces while keeping status filtering available.
+- Enforced personal workspaces as owner-only spaces in user creation and workspace membership assignment flows, including Super Admin assignment paths.
+- Added startup repair to deactivate non-owner active memberships in existing personal workspaces.
+- Simplified personal and family project billing to force non-billable projects, hide billing rate/period controls, and keep project-level rounding.
+- Updated project rounding inheritance so workspace projects inherit workspace rounding while client-linked projects inherit client rounding.
+
 ## Version 0.30.5
 
 - Scoped API key reads, revocation, authentication, and public API sessions to the key's workspace while keeping legacy organization fields backward-compatible.

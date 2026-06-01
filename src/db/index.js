@@ -34,6 +34,7 @@ async function ensureDatabase() {
   await seedSuperAdminUser(organizationId);
   await ensureWorkspaceMemberships(organizationId);
   await ensureWorkspaceType(organizationId);
+  await repairPersonalWorkspaceMemberships();
   await ensureProtectedUserRoles(organizationId);
 }
 
@@ -338,6 +339,33 @@ UPDATE organizations
 SET workspace_type = ${sqlText(DEFAULT_WORKSPACE_TYPE)}
 WHERE id = ${sqlText(organizationId)}
   AND workspace_type NOT IN ('business', 'personal', 'family');
+`);
+}
+
+async function repairPersonalWorkspaceMemberships() {
+  if (
+    !(await tableExists("user_workspaces")) ||
+    !(await columnsExist("organizations", ["owner_user_id", "workspace_type"]))
+  ) {
+    return;
+  }
+
+  await runSql(`
+UPDATE user_workspaces
+SET status = 'inactive',
+    updated_at = ${sqlText(new Date().toISOString())}
+WHERE status = 'active'
+  AND workspace_id IN (
+    SELECT id
+    FROM organizations
+    WHERE workspace_type = 'personal'
+      AND owner_user_id IS NOT NULL
+  )
+  AND user_id != (
+    SELECT owner_user_id
+    FROM organizations
+    WHERE organizations.id = user_workspaces.workspace_id
+  );
 `);
 }
 

@@ -3,10 +3,7 @@ const clientList = document.querySelector("[data-client-list]");
 const addClientButton = document.querySelector("[data-add-client]");
 const clientStatusFilter = document.querySelector("[data-client-status-filter]");
 const projectClientFilter = document.querySelector("[data-project-client-filter]");
-const bulkProjectStatusSelect = document.querySelector("[data-bulk-project-status]");
-const bulkProjectClientSelect = document.querySelector("[data-bulk-project-client]");
-const bulkProjectBillableSelect = document.querySelector("[data-bulk-project-billable]");
-const applyProjectBulkButton = document.querySelector("[data-apply-project-bulk]");
+const openProjectBulkButton = document.querySelector("[data-open-project-bulk]");
 const statusMessage = document.querySelector("[data-client-project-status]");
 const clientModal = document.querySelector("[data-client-modal]");
 const clientForm = document.querySelector("[data-client-form]");
@@ -46,6 +43,8 @@ let organizationSettings = {
 let openClientId = "";
 let openBillingClientId = "";
 let openClientBillingSettingsId = "";
+let openedAddClientFromQuery = false;
+let openedClientDetailFromQuery = false;
 
 loadPageData();
 
@@ -55,21 +54,12 @@ if (projectClientFilter) {
   projectClientFilter.addEventListener("change", renderClients);
 }
 
-if (applyProjectBulkButton) {
-  applyProjectBulkButton.addEventListener("click", applyBulkProjectUpdate);
+if (openProjectBulkButton) {
+  openProjectBulkButton.addEventListener("click", openProjectBulkEditor);
 }
 
 if (addClientButton) {
-  addClientButton.addEventListener("click", () => {
-    clientForm.reset();
-
-    if (newProjectBillingRateInput) {
-      newProjectBillingRateInput.value = organizationSettings.defaultBillingRate;
-    }
-
-    clientModal.showModal();
-    newClientNameInput.focus();
-  });
+  addClientButton.addEventListener("click", openAddClientModal);
 }
 
 if (cancelClientButton) {
@@ -113,6 +103,8 @@ async function loadPageData() {
     renderProjectClientFilter();
     applyInitialClientParam();
     renderClients();
+    openAddClientModalFromQuery();
+    openClientDetailModalFromQuery();
     setStatus("");
   } catch (error) {
     setStatus("Client and project data could not be loaded.");
@@ -142,6 +134,11 @@ function renderClients() {
 
   if (isProjectsPage) {
     renderProjectsPage();
+    return;
+  }
+
+  if (isClientsPage) {
+    renderClientsPage();
     return;
   }
 
@@ -198,23 +195,18 @@ function renderClients() {
 }
 
 function renderProjectsPage() {
-  const projects = getAllProjects()
-    .filter(({ project }) => clientStatusFilter.value === "All" || project.status === clientStatusFilter.value)
-    .filter(({ client }) => (
-      !projectClientFilter ||
-      projectClientFilter.value === "All" ||
-      client.id === projectClientFilter.value
-    ));
+  const projects = getProjectsForCurrentFilters();
   const workspaceClient = getWorkspaceProjectClient();
-  const addProjectPanel = document.createElement("details");
-  const addProjectSummary = document.createElement("summary");
-  const projectList = document.createElement("div");
+  const addProjectActions = document.createElement("div");
+  const addProjectButton = document.createElement("button");
 
-  addProjectPanel.className = "client-item";
-  addProjectSummary.textContent = "Add Workspace Project";
-  addProjectPanel.append(addProjectSummary, createAddProjectForm(workspaceClient));
-  projectList.className = "project-list project-list-flat";
-  clientList.appendChild(addProjectPanel);
+  addProjectActions.className = "project-list-actions";
+  addProjectButton.type = "button";
+  addProjectButton.textContent = "Add Project";
+  addProjectButton.addEventListener("click", () => openAddProjectDialog(workspaceClient));
+  addProjectActions.appendChild(addProjectButton);
+  clientList.appendChild(addProjectActions);
+  clientList.appendChild(createProjectInlineBulkControls());
 
   if (projects.length === 0) {
     const emptyMessage = document.createElement("p");
@@ -225,34 +217,751 @@ function renderProjectsPage() {
     return;
   }
 
-  sortByName(projects.map(({ project }) => project)).forEach((project) => {
-    const projectClient = projects.find((item) => item.project.id === project.id)?.client || workspaceClient;
-    projectList.appendChild(createProjectEditor(projectClient, project));
-  });
-  clientList.appendChild(projectList);
+  clientList.appendChild(createProjectTable(projects));
 }
 
-async function applyBulkProjectUpdate() {
-  const selectedProjectIds = [...document.querySelectorAll("[data-project-bulk-select]:checked")]
-    .map((checkbox) => checkbox.dataset.projectBulkSelect);
-  const status = bulkProjectStatusSelect?.value || "";
-  const clientId = bulkProjectClientSelect?.value === "__workspace__" ? "" : bulkProjectClientSelect?.value || "";
-  const billable = bulkProjectBillableSelect?.value || "";
-  const shouldChangeClient = bulkProjectClientSelect && bulkProjectClientSelect.selectedIndex > 0;
+function createProjectInlineBulkControls() {
+  const wrapper = document.createElement("div");
+  const bulkStatusSelect = createBulkStatusSelect();
+  const bulkClientSelect = createBulkClientSelect();
+  const bulkBillableSelect = createBulkBillableSelect();
+
+  wrapper.className = "inline-bulk-controls";
+  bulkStatusSelect.label.classList.add("inline-bulk-field");
+  bulkStatusSelect.select.disabled = true;
+  bulkStatusSelect.select.addEventListener("change", async () => {
+    if (!bulkStatusSelect.select.value) {
+      return;
+    }
+
+    await applyProjectTableBulkUpdate({
+      status: bulkStatusSelect.select.value,
+      clientId: "",
+      shouldChangeClient: false,
+      billable: "",
+    });
+    bulkStatusSelect.select.value = "";
+  });
+  wrapper.appendChild(bulkStatusSelect.label);
+
+  if (bulkClientSelect) {
+    bulkClientSelect.label.classList.add("inline-bulk-field");
+    bulkClientSelect.select.disabled = true;
+    bulkClientSelect.select.addEventListener("change", async () => {
+      if (bulkClientSelect.select.selectedIndex === 0) {
+        return;
+      }
+
+      await applyProjectTableBulkUpdate({
+        status: "",
+        clientId: bulkClientSelect.select.value,
+        shouldChangeClient: true,
+        billable: "",
+      });
+      bulkClientSelect.select.value = "";
+    });
+    wrapper.appendChild(bulkClientSelect.label);
+  }
+
+  if (bulkBillableSelect) {
+    bulkBillableSelect.label.classList.add("inline-bulk-field");
+    bulkBillableSelect.select.disabled = true;
+    bulkBillableSelect.select.addEventListener("change", async () => {
+      if (!bulkBillableSelect.select.value) {
+        return;
+      }
+
+      await applyProjectTableBulkUpdate({
+        status: "",
+        clientId: "",
+        shouldChangeClient: false,
+        billable: bulkBillableSelect.select.value,
+      });
+      bulkBillableSelect.select.value = "";
+    });
+    wrapper.appendChild(bulkBillableSelect.label);
+  }
+
+  return wrapper;
+}
+
+async function applyProjectTableBulkUpdate({ status, clientId, shouldChangeClient, billable }) {
+  await applyBulkProjectUpdate({
+    selectedProjectIds: getSelectedProjectIds(),
+    status,
+    clientId,
+    shouldChangeClient,
+    billable,
+  });
+}
+
+function createProjectTable(projects) {
+  const tableWrap = document.createElement("div");
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const tbody = document.createElement("tbody");
+
+  tableWrap.className = "list-table-wrap";
+  table.className = "list-table";
+  thead.innerHTML = "<tr><th>Select</th><th>Project</th><th>Edit</th></tr>";
+  sortProjectRows(projects).forEach(({ client, project }) => {
+    const row = document.createElement("tr");
+    const selectCell = document.createElement("td");
+    const nameCell = document.createElement("td");
+    const editCell = document.createElement("td");
+    const checkbox = document.createElement("input");
+    const editButton = document.createElement("button");
+    const clientName = client.isWorkspaceScope ? "Workspace Project" : client.name;
+
+    checkbox.type = "checkbox";
+    checkbox.dataset.projectTableSelect = project.id;
+    checkbox.addEventListener("change", updateProjectTableBulkState);
+    nameCell.textContent = clientsEnabledForWorkspace()
+      ? `${project.name} (${clientName})`
+      : project.name;
+    editButton.type = "button";
+    editButton.textContent = "Edit";
+    editButton.addEventListener("click", () => openProjectDetailDialog(client, project));
+    selectCell.appendChild(checkbox);
+    editCell.appendChild(editButton);
+    row.append(selectCell, nameCell, editCell);
+    tbody.appendChild(row);
+  });
+
+  table.append(thead, tbody);
+  tableWrap.appendChild(table);
+  return tableWrap;
+}
+
+function sortProjectRows(projects) {
+  return [...projects].sort((left, right) =>
+    left.project.name.localeCompare(right.project.name, undefined, { sensitivity: "base" }),
+  );
+}
+
+function getSelectedProjectIds() {
+  return [...clientList.querySelectorAll("[data-project-table-select]:checked")]
+    .map((checkbox) => checkbox.dataset.projectTableSelect);
+}
+
+function updateProjectTableBulkState() {
+  const hasSelection = getSelectedProjectIds().length > 0;
+
+  clientList.querySelectorAll(".inline-bulk-controls select").forEach((select) => {
+    select.disabled = !hasSelection;
+  });
+}
+
+function openProjectDetailDialog(client, project) {
+  const dialog = document.createElement("dialog");
+  const projectEditor = createProjectEditor(client, project);
+  const closeActions = document.createElement("div");
+  const closeButton = document.createElement("button");
+
+  dialog.className = "project-form-dialog detail-edit-dialog";
+  projectEditor.open = true;
+  closeActions.className = "form-actions detail-modal-actions";
+  closeButton.type = "button";
+  closeButton.textContent = "Close";
+  closeButton.addEventListener("click", () => dialog.close());
+  closeActions.appendChild(closeButton);
+  dialog.append(projectEditor, closeActions);
+  document.body.appendChild(dialog);
+  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+  } else {
+    dialog.setAttribute("open", "");
+  }
+}
+
+function renderClientsPage() {
+  const visibleClients = getVisibleClientsForClientPage();
+
+  clientList.appendChild(createClientInlineBulkControls());
+
+  if (visibleClients.length === 0) {
+    const emptyMessage = document.createElement("p");
+
+    emptyMessage.className = "placeholder-copy";
+    emptyMessage.textContent = "No clients match this filter.";
+    clientList.appendChild(emptyMessage);
+    return;
+  }
+
+  clientList.appendChild(createClientTable(visibleClients));
+}
+
+function getVisibleClientsForClientPage() {
+  return sortByName(getRealClients()).filter((client) =>
+    clientStatusFilter.value === "All" || client.status === clientStatusFilter.value,
+  );
+}
+
+function createClientInlineBulkControls() {
+  const wrapper = document.createElement("div");
+  const statusField = createClientBulkStatusSelect();
+  const billableField = createClientBulkBillableSelect();
+
+  wrapper.className = "inline-bulk-controls";
+  statusField.label.classList.add("inline-bulk-field");
+  statusField.select.disabled = true;
+  statusField.select.addEventListener("change", async () => {
+    if (!statusField.select.value) {
+      return;
+    }
+
+    await applyBulkClientUpdate({
+      selectedClientIds: getSelectedClientIds(),
+      status: statusField.select.value,
+      billable: "",
+    });
+    statusField.select.value = "";
+  });
+  wrapper.appendChild(statusField.label);
+
+  billableField.label.classList.add("inline-bulk-field");
+  billableField.select.disabled = true;
+  billableField.select.addEventListener("change", async () => {
+    if (!billableField.select.value) {
+      return;
+    }
+
+    await applyBulkClientUpdate({
+      selectedClientIds: getSelectedClientIds(),
+      status: "",
+      billable: billableField.select.value,
+    });
+    billableField.select.value = "";
+  });
+  wrapper.appendChild(billableField.label);
+
+  return wrapper;
+}
+
+function createClientBulkStatusSelect() {
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+
+  label.textContent = "Bulk Status";
+  select.append(
+    createOption("", "No status change"),
+    createOption("Active", "Active"),
+    createOption("Inactive", "Inactive"),
+  );
+  label.appendChild(select);
+  return { label, select };
+}
+
+function createClientBulkBillableSelect() {
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+
+  label.textContent = "Bulk Billable";
+  select.append(
+    createOption("", "No billing change"),
+    createOption("yes", "Billable"),
+    createOption("no", "Non-billable"),
+  );
+  label.appendChild(select);
+  return { label, select };
+}
+
+function createClientTable(clients) {
+  const tableWrap = document.createElement("div");
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const tbody = document.createElement("tbody");
+
+  tableWrap.className = "list-table-wrap";
+  table.className = "list-table";
+  thead.innerHTML = "<tr><th>Select</th><th>Client</th><th>Edit</th></tr>";
+  clients.forEach((client) => {
+    const row = document.createElement("tr");
+    const selectCell = document.createElement("td");
+    const nameCell = document.createElement("td");
+    const editCell = document.createElement("td");
+    const checkbox = document.createElement("input");
+    const editButton = document.createElement("button");
+
+    checkbox.type = "checkbox";
+    checkbox.dataset.clientTableSelect = client.id;
+    checkbox.addEventListener("change", updateClientTableBulkState);
+    nameCell.textContent = client.name;
+    editButton.type = "button";
+    editButton.textContent = "Edit";
+    editButton.addEventListener("click", () => openClientDetailDialog(client));
+    selectCell.appendChild(checkbox);
+    editCell.appendChild(editButton);
+    row.append(selectCell, nameCell, editCell);
+    tbody.appendChild(row);
+  });
+
+  table.append(thead, tbody);
+  tableWrap.appendChild(table);
+  return tableWrap;
+}
+
+function getSelectedClientIds() {
+  return [...clientList.querySelectorAll("[data-client-table-select]:checked")]
+    .map((checkbox) => checkbox.dataset.clientTableSelect);
+}
+
+function updateClientTableBulkState() {
+  const hasSelection = getSelectedClientIds().length > 0;
+
+  clientList.querySelectorAll(".inline-bulk-controls select").forEach((select) => {
+    select.disabled = !hasSelection;
+  });
+}
+
+function openClientDetailDialog(client) {
+  const dialog = document.createElement("dialog");
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  const editor = document.createElement("div");
+  const closeActions = document.createElement("div");
+  const closeButton = document.createElement("button");
+
+  dialog.className = "client-detail-dialog detail-edit-dialog";
+  details.className = "client-item";
+  details.open = true;
+  summary.textContent = client.name;
+  editor.className = "client-editor";
+  editor.append(
+    createClientNameEditor(client, { showSaveButton: false }),
+    createBillingContactEditor(client, { showSaveButton: false }),
+    createClientBillingSettingsEditor(client, { showSaveButton: false }),
+    createClientPageActions(client),
+  );
+  closeActions.className = "form-actions detail-modal-actions";
+  closeButton.type = "button";
+  closeButton.textContent = "Close";
+  closeButton.addEventListener("click", () => dialog.close());
+  closeActions.appendChild(closeButton);
+  details.append(summary, editor);
+  dialog.append(details, closeActions);
+  document.body.appendChild(dialog);
+  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+  } else {
+    dialog.setAttribute("open", "");
+  }
+}
+
+async function applyBulkClientUpdate({ selectedClientIds, status, billable }) {
+  if (selectedClientIds.length === 0) {
+    setStatus("Select at least one client.");
+    return;
+  }
+
+  if (!status && !billable) {
+    setStatus("Choose a bulk change before applying.");
+    return;
+  }
+
+  setStatus("Updating selected clients...");
+  try {
+    for (const clientId of selectedClientIds) {
+      const client = getRealClients().find((item) => item.id === clientId);
+
+      if (!client) {
+        continue;
+      }
+
+      const nextClient = {
+        ...client,
+        status: status || client.status,
+        billable: billable || client.billable,
+        action: {
+          action: "clients_bulk_updated",
+          client_id: client.id,
+          client_name: client.name,
+          details: `bulk_status=${status || "unchanged"};bulk_billable=${billable || "unchanged"}`,
+        },
+      };
+
+      await window.LongtailForge.api.putJson(
+        `/api/clients/${encodeURIComponent(client.id)}`,
+        nextClient,
+      );
+    }
+
+    await refreshClientProjectData();
+    renderClients();
+    setStatus("Updated selected clients.");
+  } catch (error) {
+    setStatus("Selected clients were not updated.");
+    console.error(error);
+  }
+}
+
+function openAddProjectDialog(client) {
+  const dialog = document.createElement("dialog");
+  const form = createAddProjectForm(client, {
+    onSaved: () => dialog.close(),
+    showClientAssignment: true,
+  });
+  const heading = document.createElement("h2");
+  const closeButton = document.createElement("button");
+  const actions = document.createElement("div");
+
+  dialog.className = "project-form-dialog";
+  form.classList.add("project-modal-form");
+  heading.textContent = "Add Project";
+  closeButton.type = "button";
+  closeButton.textContent = "Cancel";
+  actions.className = "form-actions";
+  actions.classList.add("project-modal-actions");
+  closeButton.addEventListener("click", () => dialog.close());
+  const submitButton = form.querySelector("[data-add-project-button]") || createAddProjectSubmitButton(client.id);
+  submitButton.remove();
+  actions.append(submitButton, closeButton);
+  form.prepend(heading);
+  form.appendChild(actions);
+  dialog.appendChild(form);
+  document.body.appendChild(dialog);
+  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+  } else {
+    dialog.setAttribute("open", "");
+  }
+}
+
+function openAddClientModal() {
+  if (!clientForm || !clientModal) {
+    return;
+  }
+
+  clientForm.reset();
+
+  if (newProjectBillingRateInput) {
+    newProjectBillingRateInput.value = organizationSettings.defaultBillingRate;
+  }
+
+  clientModal.showModal();
+  newClientNameInput?.focus();
+}
+
+function openAddClientModalFromQuery() {
+  if (!isClientsPage || openedAddClientFromQuery || !clientsEnabledForWorkspace()) {
+    return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("addClient") !== "true") {
+    return;
+  }
+
+  openedAddClientFromQuery = true;
+  openAddClientModal();
+}
+
+function openClientDetailModalFromQuery() {
+  if (!isClientsPage || openedClientDetailFromQuery || !clientsEnabledForWorkspace()) {
+    return;
+  }
+
+  const clientId = new URLSearchParams(window.location.search).get("client") || "";
+  const client = getRealClients().find((item) => item.id === clientId);
+
+  if (!client) {
+    return;
+  }
+
+  openedClientDetailFromQuery = true;
+  openClientDetailDialog(client);
+}
+
+function getProjectsForCurrentFilters() {
+  return getAllProjects()
+    .filter(({ project }) => clientStatusFilter.value === "All" || project.status === clientStatusFilter.value)
+    .filter(({ client }) => (
+      !projectClientFilter ||
+      !clientsEnabledForWorkspace() ||
+      projectClientFilter.value === "All" ||
+      client.id === projectClientFilter.value
+    ));
+}
+
+function openProjectBulkEditor() {
+  const dialog = document.createElement("dialog");
+  const form = document.createElement("form");
+  const title = document.createElement("h2");
+  const projectFilterRow = document.createElement("div");
+  const actionRow = document.createElement("div");
+  const selectAllRow = document.createElement("label");
+  const selectAllCheckbox = document.createElement("input");
+  const projectList = document.createElement("div");
+  const actions = document.createElement("div");
+  const cancelButton = document.createElement("button");
+  const applyButton = document.createElement("button");
+  const modalClientFilter = createBulkClientFilter();
+  const modalStatusFilter = createBulkStatusFilter();
+  const bulkStatusSelect = createBulkStatusSelect();
+  const bulkClientSelect = createBulkClientSelect();
+  const bulkBillableSelect = createBulkBillableSelect();
+
+  dialog.className = "project-bulk-dialog";
+  form.method = "dialog";
+  form.className = "project-bulk-form";
+  title.textContent = "Bulk Edit Projects";
+  projectFilterRow.className = "project-bulk-filter-row";
+  actionRow.className = "project-bulk-action-row";
+  selectAllRow.className = "project-bulk-select-all";
+  projectList.className = "project-bulk-list";
+  actions.className = "form-actions";
+  cancelButton.type = "button";
+  cancelButton.textContent = "Cancel";
+  applyButton.type = "submit";
+  applyButton.textContent = "Apply to Selected";
+  selectAllCheckbox.type = "checkbox";
+  selectAllCheckbox.dataset.projectBulkSelectAll = "";
+  selectAllRow.append(
+    selectAllCheckbox,
+    document.createTextNode("All projects"),
+  );
+
+  if (modalClientFilter) {
+    projectFilterRow.appendChild(modalClientFilter.label);
+  }
+
+  projectFilterRow.appendChild(modalStatusFilter.label);
+
+  actionRow.appendChild(bulkStatusSelect.label);
+
+  if (bulkClientSelect) {
+    actionRow.appendChild(bulkClientSelect.label);
+  }
+
+  if (bulkBillableSelect) {
+    actionRow.appendChild(bulkBillableSelect.label);
+  }
+
+  const renderBulkProjects = () => {
+    renderBulkProjectList(
+      projectList,
+      modalClientFilter?.select?.value || "All",
+      modalStatusFilter.select.value,
+    );
+    updateBulkSelectAllState(projectList, selectAllCheckbox);
+  };
+
+  modalClientFilter?.select?.addEventListener("change", renderBulkProjects);
+  modalStatusFilter.select.addEventListener("change", renderBulkProjects);
+  selectAllCheckbox.addEventListener("change", () => {
+    projectList.querySelectorAll("[data-project-bulk-select]").forEach((checkbox) => {
+      checkbox.checked = selectAllCheckbox.checked;
+    });
+    updateBulkSelectAllState(projectList, selectAllCheckbox);
+  });
+  projectList.addEventListener("change", (event) => {
+    if (event.target.matches("[data-project-bulk-select]")) {
+      updateBulkSelectAllState(projectList, selectAllCheckbox);
+    }
+  });
+  renderBulkProjects();
+
+  cancelButton.addEventListener("click", () => dialog.close());
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    applyButton.disabled = true;
+
+    try {
+      await applyBulkProjectUpdate({
+        selectedProjectIds: [...projectList.querySelectorAll("[data-project-bulk-select]:checked")]
+          .map((checkbox) => checkbox.dataset.projectBulkSelect),
+        status: bulkStatusSelect.select.value,
+        clientId: bulkClientSelect?.select.selectedIndex > 0
+          ? bulkClientSelect.select.value
+          : "",
+        shouldChangeClient: Boolean(bulkClientSelect && bulkClientSelect.select.selectedIndex > 0),
+        billable: bulkBillableSelect?.select.value || "",
+      });
+      dialog.close();
+    } finally {
+      applyButton.disabled = false;
+    }
+  });
+
+  actions.append(cancelButton, applyButton);
+  form.append(title, projectFilterRow, actionRow, selectAllRow, projectList, actions);
+  dialog.appendChild(form);
+  document.body.appendChild(dialog);
+  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+  } else {
+    dialog.setAttribute("open", "");
+  }
+}
+
+function updateBulkSelectAllState(projectList, selectAllCheckbox) {
+  const checkboxes = [...projectList.querySelectorAll("[data-project-bulk-select]")];
+  const checkedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+
+  selectAllCheckbox.disabled = checkboxes.length === 0;
+  selectAllCheckbox.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+  selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+}
+
+function createBulkStatusFilter() {
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+
+  label.textContent = "Filter by Status";
+  select.append(
+    createOption("All", "All statuses"),
+    createOption("Active", "Active"),
+    createOption("Inactive", "Inactive"),
+    createOption("Completed", "Completed"),
+  );
+  select.value = [...select.options].some((option) => option.value === clientStatusFilter.value)
+    ? clientStatusFilter.value
+    : "All";
+  label.appendChild(select);
+  return { label, select };
+}
+
+function createBulkClientFilter() {
+  if (!clientsEnabledForWorkspace()) {
+    return null;
+  }
+
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+
+  label.textContent = "Filter by Client";
+  select.append(
+    createOption("All", "All projects"),
+    createOption("__workspace_projects__", "Workspace Projects"),
+  );
+  getRealClients().forEach((client) => {
+    select.appendChild(createOption(client.id, client.name));
+  });
+  select.value = [...select.options].some((option) => option.value === projectClientFilter?.value)
+    ? projectClientFilter.value
+    : "All";
+  label.appendChild(select);
+  return { label, select };
+}
+
+function createBulkStatusSelect() {
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+
+  label.textContent = "Bulk Status";
+  select.append(
+    createOption("", "No status change"),
+    createOption("Active", "Active"),
+    createOption("Inactive", "Inactive"),
+    createOption("Completed", "Completed"),
+  );
+  label.appendChild(select);
+  return { label, select };
+}
+
+function createBulkClientSelect() {
+  if (!clientsEnabledForWorkspace()) {
+    return null;
+  }
+
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+
+  label.textContent = "Bulk Client";
+  select.append(
+    createOption("", "No client change"),
+    createOption("__workspace__", "Workspace project"),
+  );
+  getRealClients().forEach((client) => {
+    select.appendChild(createOption(client.id, client.name));
+  });
+  label.appendChild(select);
+  return { label, select };
+}
+
+function createBulkBillableSelect() {
+  if (!clientsEnabledForWorkspace()) {
+    return null;
+  }
+
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+
+  label.textContent = "Bulk Billable";
+  select.append(
+    createOption("", "No billing change"),
+    createOption("yes", "Billable"),
+    createOption("no", "Non-billable"),
+  );
+  label.appendChild(select);
+  return { label, select };
+}
+
+function renderBulkProjectList(container, clientFilterValue, statusFilterValue) {
+  const projects = getAllProjects()
+    .filter(({ project }) => statusFilterValue === "All" || project.status === statusFilterValue)
+    .filter(({ client }) => (
+      !clientsEnabledForWorkspace() ||
+      clientFilterValue === "All" ||
+      client.id === clientFilterValue
+    ));
+
+  container.replaceChildren();
+
+  if (projects.length === 0) {
+    const emptyMessage = document.createElement("p");
+
+    emptyMessage.className = "placeholder-copy";
+    emptyMessage.textContent = "No projects match this filter.";
+    container.appendChild(emptyMessage);
+    return;
+  }
+
+  sortByName(projects.map(({ project }) => project)).forEach((project) => {
+    const row = document.createElement("label");
+    const checkbox = document.createElement("input");
+    const projectName = document.createElement("span");
+    const projectClient = projects.find((item) => item.project.id === project.id)?.client;
+    const clientName = projectClient?.isWorkspaceScope ? "Workspace Project" : projectClient?.name || "";
+
+    row.className = "project-bulk-row";
+    checkbox.type = "checkbox";
+    checkbox.dataset.projectBulkSelect = project.id;
+    projectName.textContent = clientName ? `${project.name} (${clientName})` : project.name;
+    row.append(checkbox, projectName);
+    container.appendChild(row);
+  });
+}
+
+async function applyBulkProjectUpdate({
+  selectedProjectIds,
+  status,
+  clientId,
+  shouldChangeClient,
+  billable,
+}) {
+  const nextClientId = clientId === "__workspace__" ? "" : clientId || "";
+  const nextBillable = clientsEnabledForWorkspace() ? billable : "no";
 
   if (selectedProjectIds.length === 0) {
     setStatus("Select at least one project.");
     return;
   }
 
-  if (!status && !shouldChangeClient && !billable) {
+  if (!status && !shouldChangeClient && !billable && clientsEnabledForWorkspace()) {
     setStatus("Choose a bulk change before applying.");
     return;
   }
 
   setStatus("Updating selected projects...");
-  applyProjectBulkButton.disabled = true;
-
   try {
     for (const projectId of selectedProjectIds) {
       const project = findProjectById(projectId);
@@ -264,15 +973,15 @@ async function applyBulkProjectUpdate() {
       const nextProject = {
         ...project,
         status: status || project.status,
-        client_id: shouldChangeClient ? clientId : project.client_id,
-        billable: billable || project.billable,
+        client_id: shouldChangeClient ? nextClientId : project.client_id,
+        billable: nextBillable || project.billable,
         action: {
           action: "projects_bulk_updated",
           project_id: project.id,
           project_name: project.name,
-          client_id: shouldChangeClient ? clientId : project.client_id,
-          client_name: shouldChangeClient ? getProjectClientName(clientId) : getProjectClientName(project.client_id),
-          details: `bulk_status=${status || "unchanged"};bulk_client=${shouldChangeClient ? clientId || "workspace" : "unchanged"};bulk_billable=${billable || "unchanged"}`,
+          client_id: shouldChangeClient ? nextClientId : project.client_id,
+          client_name: shouldChangeClient ? getProjectClientName(nextClientId) : getProjectClientName(project.client_id),
+          details: `bulk_status=${status || "unchanged"};bulk_client=${shouldChangeClient ? nextClientId || "workspace" : "unchanged"};bulk_billable=${nextBillable || "unchanged"}`,
         },
       };
 
@@ -288,8 +997,6 @@ async function applyBulkProjectUpdate() {
   } catch (error) {
     setStatus("Selected projects were not updated.");
     console.error(error);
-  } finally {
-    applyProjectBulkButton.disabled = false;
   }
 }
 
@@ -302,7 +1009,11 @@ function renderProjectClientFilter() {
     return;
   }
 
-  projectClientFilter.closest("label").hidden = !clientsEnabledForWorkspace();
+  const clientFilterLabel = projectClientFilter.closest("label");
+  const shouldShowClientFilter = clientsEnabledForWorkspace();
+  clientFilterLabel.hidden = !shouldShowClientFilter;
+  projectClientFilter.hidden = !shouldShowClientFilter;
+  projectClientFilter.disabled = !shouldShowClientFilter;
 
   const previousValue = projectClientFilter.value || "All";
   projectClientFilter.replaceChildren(createOption("All", "All clients"));
@@ -312,32 +1023,9 @@ function renderProjectClientFilter() {
     projectClientFilter.appendChild(createOption(client.id, client.name));
   });
 
-  projectClientFilter.value = [...projectClientFilter.options].some((option) => option.value === previousValue)
+  projectClientFilter.value = clientsEnabledForWorkspace() && [...projectClientFilter.options].some((option) => option.value === previousValue)
     ? previousValue
     : "All";
-
-  renderBulkClientOptions();
-}
-
-function renderBulkClientOptions() {
-  if (!bulkProjectClientSelect) {
-    return;
-  }
-
-  const previousValue = bulkProjectClientSelect.value || "";
-  bulkProjectClientSelect.replaceChildren(
-    createOption("", "No client change"),
-    createOption("__workspace__", "Workspace project"),
-  );
-
-  getRealClients().forEach((client) => {
-    bulkProjectClientSelect.appendChild(createOption(client.id, client.name));
-  });
-  bulkProjectClientSelect.closest("label").hidden = !clientsEnabledForWorkspace();
-
-  bulkProjectClientSelect.value = [...bulkProjectClientSelect.options].some((option) => option.value === previousValue)
-    ? previousValue
-    : "";
 }
 
 function getAllProjects() {
@@ -351,13 +1039,15 @@ function getRealClients() {
 }
 
 function getWorkspaceProjectClient() {
+  const simplifiedBilling = usesProjectRoundingOnly();
+
   return clientProjectData.clients.find((client) => client.isWorkspaceScope) || {
     id: "__workspace_projects__",
     name: "Workspace Projects",
     status: "Active",
-    billable: "yes",
-    billing_rate: normalizeBillingRate(organizationSettings.defaultBillingRate),
-    billing_period: normalizeOptionalBillingPeriod(organizationSettings.billingPeriod),
+    billable: simplifiedBilling ? "no" : "yes",
+    billing_rate: simplifiedBilling ? null : normalizeBillingRate(organizationSettings.defaultBillingRate),
+    billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(organizationSettings.billingPeriod),
     billing_rounding: normalizeOptionalBillingRounding(organizationSettings.billingRounding),
     billing_contact: normalizeBillingContact({}),
     isWorkspaceScope: true,
@@ -523,6 +1213,15 @@ function createBillingContactEditor(client, options = {}) {
 
   details.append(summary, form);
   return details;
+}
+
+function createAddProjectSubmitButton(clientId) {
+  const button = document.createElement("button");
+
+  button.type = "submit";
+  button.textContent = "Add Project";
+  button.dataset.addProjectButton = clientId;
+  return button;
 }
 
 function createClientBillingSettingsEditor(client, options = {}) {
@@ -737,24 +1436,16 @@ function createProjectEditor(client, project) {
 
   const summary = document.createElement("summary");
   const summaryLabel = document.createElement("span");
+  const usesSimplifiedBilling = usesProjectRoundingOnly();
 
   summaryLabel.textContent = project.name;
-
-  if (isProjectsPage) {
-    const bulkCheckbox = document.createElement("input");
-
-    bulkCheckbox.type = "checkbox";
-    bulkCheckbox.dataset.projectBulkSelect = project.id;
-    bulkCheckbox.addEventListener("click", (event) => event.stopPropagation());
-    summary.append(bulkCheckbox, summaryLabel);
-  } else {
-    summary.appendChild(summaryLabel);
-  }
+  summary.appendChild(summaryLabel);
 
   const wrapper = document.createElement("div");
   wrapper.className = "project-editor";
 
   const nameLabel = document.createElement("label");
+  nameLabel.className = "project-name-field";
   nameLabel.textContent = "Project Name";
 
   const nameInput = document.createElement("input");
@@ -762,6 +1453,7 @@ function createProjectEditor(client, project) {
   nameLabel.appendChild(nameInput);
 
   const statusLabel = document.createElement("label");
+  statusLabel.className = "project-status-field";
   statusLabel.textContent = "Status";
 
   const statusSelect = createStatusSelect(project.status);
@@ -778,44 +1470,53 @@ function createProjectEditor(client, project) {
   const billableLabel = createBillableCheckbox(project.billable);
   const billableInput = billableLabel.querySelector("input");
   const clientAssignmentLabel = createProjectClientAssignment(project);
+  const clientActions = createProjectClientShortcutActions(project);
 
   const billingDetails = document.createElement("details");
   billingDetails.className = "project-billing-details";
 
   const billingSummary = document.createElement("summary");
-  billingSummary.textContent = "Project Billing Settings";
+  billingSummary.textContent = usesSimplifiedBilling ? "Project Rounding" : "Project Billing Settings";
 
   const billingSettings = document.createElement("div");
   billingSettings.className = "project-billing-settings";
 
   const billingPeriodEditor = createBillingPeriodEditor({
     legend: "Billing Period",
-    inheritLabel: `Use client billing period (${formatBillingPeriod(getEffectiveClientBillingPeriod(client))})`,
+    inheritLabel: getProjectBillingPeriodInheritLabel(client),
     value: project.billing_period,
     inheritedPeriod: getEffectiveClientBillingPeriod(client),
   });
 
   const billingRoundingEditor = createBillingRoundingEditor({
     legend: "Rounding",
-    inheritLabel: `Use client rounding (${formatBillingRounding(getEffectiveClientBillingRounding(client))})`,
+    inheritLabel: getProjectRoundingInheritLabel(client, project),
     value: project.billing_rounding,
-    inheritedRounding: getEffectiveClientBillingRounding(client),
+    inheritedRounding: project.client_id ? getEffectiveClientBillingRounding(client) : organizationSettings.billingRounding,
     showModeWhenUnbillable: true,
   });
 
   billingSettings.append(
-    billableLabel,
-    billingRateLabel,
-    billingPeriodEditor.element,
     billingRoundingEditor.element,
   );
+
+  if (!usesSimplifiedBilling) {
+    billingSettings.prepend(
+      billableLabel,
+      billingRateLabel,
+      billingPeriodEditor.element,
+    );
+  }
+
   billingDetails.append(billingSummary, billingSettings);
 
   const updateBillableState = () => {
-    const isBillable = billableInput.checked;
+    const isBillable = usesSimplifiedBilling ? false : billableInput.checked;
+
+    billableInput.checked = !usesSimplifiedBilling && isBillable;
     billingRateInput.disabled = !isBillable;
     billingPeriodEditor.setDisabled(!isBillable);
-    billingRoundingEditor.setBillableMode(isBillable);
+    billingRoundingEditor.setBillableMode(usesSimplifiedBilling ? false : isBillable);
   };
 
   billableInput.addEventListener("change", updateBillableState);
@@ -838,9 +1539,9 @@ function createProjectEditor(client, project) {
     project.name = nameInput.value.trim();
     project.client_id = clientAssignmentLabel.querySelector("select").value;
     project.status = statusSelect.value;
-    project.billable = normalizeBillableFlag(billableInput.checked);
-    project.billing_rate = normalizeBillingRate(billingRateInput.value);
-    project.billing_period = billingPeriodEditor.getValue();
+    project.billable = usesSimplifiedBilling ? "no" : normalizeBillableFlag(billableInput.checked);
+    project.billing_rate = usesSimplifiedBilling ? null : normalizeBillingRate(billingRateInput.value);
+    project.billing_period = usesSimplifiedBilling ? null : billingPeriodEditor.getValue();
     project.billing_rounding = billingRoundingEditor.getValue();
 
     await saveProjectRecord(project, {
@@ -886,10 +1587,14 @@ function createProjectEditor(client, project) {
   });
 
   actionGroup.append(saveButton, deleteButton);
+  if (clientAssignmentLabel.hidden) {
+    wrapper.classList.add("project-editor-no-client");
+  }
   wrapper.append(
     nameLabel,
     clientAssignmentLabel,
     statusLabel,
+    clientActions,
     billingDetails,
     actionGroup,
   );
@@ -901,6 +1606,7 @@ function createProjectClientAssignment(project) {
   const label = document.createElement("label");
   const select = document.createElement("select");
 
+  label.className = "project-client-field";
   label.textContent = "Client";
   label.hidden = !clientsEnabledForWorkspace();
   select.appendChild(createOption("", "Workspace project"));
@@ -912,6 +1618,89 @@ function createProjectClientAssignment(project) {
   return label;
 }
 
+function createAddProjectClientAssignment(client) {
+  const wrapper = document.createElement("div");
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+
+  wrapper.className = "project-add-client-field";
+  wrapper.hidden = !clientsEnabledForWorkspace();
+  label.textContent = "Client";
+  select.appendChild(createOption("", "Workspace project"));
+  getRealClients().forEach((realClient) => {
+    select.appendChild(createOption(realClient.id, realClient.name));
+  });
+  select.value = getDefaultProjectClientId(client);
+  label.appendChild(select);
+  wrapper.append(label, createAddClientShortcutButton());
+
+  return { element: wrapper, select };
+}
+
+function createProjectClientShortcutActions(project) {
+  const wrapper = document.createElement("div");
+
+  wrapper.className = "project-add-client-actions";
+  wrapper.hidden = !clientsEnabledForWorkspace();
+  const editClientButton = createEditClientShortcutButton(project.client_id);
+
+  if (editClientButton) {
+    wrapper.appendChild(editClientButton);
+  }
+
+  wrapper.appendChild(createAddClientShortcutButton());
+  return wrapper;
+}
+
+function createEditClientShortcutButton(clientId) {
+  if (!clientId || !clientsEnabledForWorkspace()) {
+    return null;
+  }
+
+  const button = document.createElement("button");
+
+  button.type = "button";
+  button.textContent = "Edit Client";
+  button.addEventListener("click", () => {
+    window.location.href = `clients.html?client=${encodeURIComponent(clientId)}`;
+  });
+  return button;
+}
+
+function createAddClientShortcutButton() {
+  const button = document.createElement("button");
+
+  button.type = "button";
+  button.textContent = "Add Client";
+  button.addEventListener("click", () => {
+    window.location.href = "clients.html?addClient=true";
+  });
+  return button;
+}
+
+function getDefaultProjectClientId(client) {
+  if (!clientsEnabledForWorkspace()) {
+    return "";
+  }
+
+  if (!client.isWorkspaceScope) {
+    return client.id;
+  }
+
+  const filteredClientId = projectClientFilter?.value || "";
+  return getRealClients().some((realClient) => realClient.id === filteredClientId)
+    ? filteredClientId
+    : "";
+}
+
+function getProjectTargetClient(clientId) {
+  if (!clientId) {
+    return getWorkspaceProjectClient();
+  }
+
+  return getRealClients().find((client) => client.id === clientId) || getWorkspaceProjectClient();
+}
+
 function getProjectClientName(clientId) {
   if (!clientId) {
     return "";
@@ -920,18 +1709,24 @@ function getProjectClientName(clientId) {
   return getRealClients().find((client) => client.id === clientId)?.name || "";
 }
 
-function createAddProjectForm(client) {
+function createAddProjectForm(client, { onSaved = null, showClientAssignment = false } = {}) {
   const form = document.createElement("form");
   form.className = "add-project-form";
+  const usesSimplifiedBilling = usesProjectRoundingOnly();
+  const clientAssignment = showClientAssignment
+    ? createAddProjectClientAssignment(client)
+    : null;
 
   const nameLabel = document.createElement("label");
-  nameLabel.textContent = "New Project";
+  nameLabel.className = "project-name-field";
+  nameLabel.textContent = "New Project Name";
 
   const nameInput = document.createElement("input");
   nameInput.required = true;
   nameLabel.appendChild(nameInput);
 
   const statusLabel = document.createElement("label");
+  statusLabel.className = "project-status-field";
   statusLabel.textContent = "Status";
 
   const statusSelect = createStatusSelect("Active");
@@ -952,51 +1747,64 @@ function createAddProjectForm(client) {
   billingDetails.className = "project-billing-details";
 
   const billingSummary = document.createElement("summary");
-  billingSummary.textContent = "Project Billing Settings";
+  billingSummary.textContent = usesSimplifiedBilling ? "Project Rounding" : "Project Billing Settings";
 
   const billingSettings = document.createElement("div");
   billingSettings.className = "project-billing-settings";
 
   const billingPeriodEditor = createBillingPeriodEditor({
     legend: "Billing Period",
-    inheritLabel: `Use client billing period (${formatBillingPeriod(getEffectiveClientBillingPeriod(client))})`,
+    inheritLabel: getProjectBillingPeriodInheritLabel(client),
     value: null,
     inheritedPeriod: getEffectiveClientBillingPeriod(client),
   });
 
   const billingRoundingEditor = createBillingRoundingEditor({
     legend: "Rounding",
-    inheritLabel: `Use client rounding (${formatBillingRounding(getEffectiveClientBillingRounding(client))})`,
+    inheritLabel: getProjectRoundingInheritLabel(client, { client_id: client.isWorkspaceScope ? "" : client.id }),
     value: null,
-    inheritedRounding: getEffectiveClientBillingRounding(client),
+    inheritedRounding: client.isWorkspaceScope ? organizationSettings.billingRounding : getEffectiveClientBillingRounding(client),
     showModeWhenUnbillable: true,
   });
 
   billingSettings.append(
-    billableLabel,
-    billingRateLabel,
-    billingPeriodEditor.element,
     billingRoundingEditor.element,
   );
+
+  if (!usesSimplifiedBilling) {
+    billingSettings.prepend(
+      billableLabel,
+      billingRateLabel,
+      billingPeriodEditor.element,
+    );
+  }
+
   billingDetails.append(billingSummary, billingSettings);
 
   const updateBillableState = () => {
-    const isBillable = billableInput.checked;
+    const isBillable = usesSimplifiedBilling ? false : billableInput.checked;
+
+    billableInput.checked = !usesSimplifiedBilling && isBillable;
     billingRateInput.disabled = !isBillable;
     billingPeriodEditor.setDisabled(!isBillable);
-    billingRoundingEditor.setDisabled(!isBillable);
+    billingRoundingEditor.setDisabled(false);
+    billingRoundingEditor.setBillableMode(!usesSimplifiedBilling && isBillable);
   };
 
   billableInput.addEventListener("change", updateBillableState);
   updateBillableState();
 
-  const saveButton = document.createElement("button");
-  saveButton.type = "submit";
-  saveButton.textContent = "Add Project";
-  saveButton.dataset.addProjectButton = client.id;
+  const saveButton = createAddProjectSubmitButton(client.id);
+  const formFields = [
+    nameLabel,
+  ];
+
+  if (clientAssignment) {
+    formFields.push(clientAssignment.element);
+  }
 
   form.append(
-    nameLabel,
+    ...formFields,
     statusLabel,
     billingDetails,
     saveButton,
@@ -1004,30 +1812,33 @@ function createAddProjectForm(client) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
 
+    const selectedClientId = clientAssignment?.select.value ?? (client.isWorkspaceScope ? "" : client.id);
+    const targetClient = getProjectTargetClient(selectedClientId);
     const project = {
       id: createUuid(),
-      client_id: client.isWorkspaceScope ? "" : client.id,
+      client_id: targetClient.isWorkspaceScope ? "" : targetClient.id,
       name: nameInput.value.trim(),
-      billable: normalizeBillableFlag(billableInput.checked),
-      billing_rate: normalizeBillingRate(billingRateInput.value),
-      billing_period: billingPeriodEditor.getValue(),
+      billable: usesSimplifiedBilling ? "no" : normalizeBillableFlag(billableInput.checked),
+      billing_rate: usesSimplifiedBilling ? null : normalizeBillingRate(billingRateInput.value),
+      billing_period: usesSimplifiedBilling ? null : billingPeriodEditor.getValue(),
       billing_rounding: billingRoundingEditor.getValue(),
       status: statusSelect.value,
     };
 
-    client.projects.push(project);
+    targetClient.projects.push(project);
 
-    await createProjectRecord(client, project, {
+    await createProjectRecord(targetClient, project, {
       action: "project_created",
-      client_id: client.isWorkspaceScope ? "" : client.id,
-      client_name: client.isWorkspaceScope ? "" : client.name,
+      client_id: targetClient.isWorkspaceScope ? "" : targetClient.id,
+      client_name: targetClient.isWorkspaceScope ? "" : targetClient.name,
       project_id: project.id,
       project_name: project.name,
       details: `status=${project.status};billable=${project.billable};billing_rate=${project.billing_rate}`,
     }, {
-      openClientId: client.id,
+      openClientId: targetClient.id,
       flashSelector: `[data-add-project-button="${client.id}"]`,
     });
+    onSaved?.();
   });
 
   return form;
@@ -1220,6 +2031,9 @@ function applyInitialClientParam() {
 
   if (clientProjectData.clients.some((client) => client.id === clientId)) {
     openClientId = clientId;
+    if (isProjectsPage && projectClientFilter) {
+      projectClientFilter.value = clientId;
+    }
   }
 }
 
@@ -1245,13 +2059,15 @@ function normalizeData(data) {
     : [];
 
   if (isProjectsPage && (workspaceProjects.length > 0 || clients.length === 0)) {
+    const simplifiedBilling = usesProjectRoundingOnly();
+
     clients.unshift({
       id: "__workspace_projects__",
       name: "Workspace Projects",
       status: "Active",
-      billable: "yes",
-      billing_rate: normalizeBillingRate(organizationSettings.defaultBillingRate),
-      billing_period: normalizeOptionalBillingPeriod(organizationSettings.billingPeriod),
+      billable: simplifiedBilling ? "no" : "yes",
+      billing_rate: simplifiedBilling ? null : normalizeBillingRate(organizationSettings.defaultBillingRate),
+      billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(organizationSettings.billingPeriod),
       billing_rounding: normalizeOptionalBillingRounding(organizationSettings.billingRounding),
       billing_contact: normalizeBillingContact({}),
       isWorkspaceScope: true,
@@ -1270,9 +2086,9 @@ function normalizeProjects(projects, clientBillable, clientId) {
         id: project.id,
         client_id: project.client_id || clientId || "",
         name: project.name,
-        billable: normalizeBillableFlag(project.billable, clientBillable),
-        billing_rate: normalizeBillingRate(project.billing_rate),
-        billing_period: normalizeOptionalBillingPeriod(project.billing_period),
+        billable: usesProjectRoundingOnly() ? "no" : normalizeBillableFlag(project.billable, clientBillable),
+        billing_rate: usesProjectRoundingOnly() ? null : normalizeBillingRate(project.billing_rate),
+        billing_period: usesProjectRoundingOnly() ? null : normalizeOptionalBillingPeriod(project.billing_period),
         billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
         status: projectStatuses.includes(project.status)
           ? project.status
@@ -1294,6 +2110,10 @@ function normalizeSettings(settings) {
 
 function clientsEnabledForWorkspace() {
   return organizationSettings.workspaceType === "business";
+}
+
+function usesProjectRoundingOnly() {
+  return !clientsEnabledForWorkspace();
 }
 
 function normalizeBillingRate(value) {
@@ -1559,12 +2379,32 @@ function getEffectiveProjectBillingPeriod(client, project) {
   return project.billing_period || getEffectiveClientBillingPeriod(client);
 }
 
+function getProjectBillingPeriodInheritLabel(client) {
+  const label = client.isWorkspaceScope ? "workspace" : "client";
+
+  return `Use ${label} billing period (${formatBillingPeriod(getEffectiveClientBillingPeriod(client))})`;
+}
+
 function getEffectiveClientBillingRounding(client) {
   return client.billing_rounding || organizationSettings.billingRounding;
 }
 
 function getEffectiveProjectBillingRounding(client, project) {
+  if (!project?.client_id) {
+    return project.billing_rounding || organizationSettings.billingRounding;
+  }
+
   return project.billing_rounding || getEffectiveClientBillingRounding(client);
+}
+
+function getProjectRoundingInheritLabel(client, project) {
+  const inheritsWorkspace = client.isWorkspaceScope || !project?.client_id;
+  const inheritedRounding = inheritsWorkspace
+    ? organizationSettings.billingRounding
+    : getEffectiveClientBillingRounding(client);
+  const label = inheritsWorkspace ? "workspace" : "client";
+
+  return `Use ${label} rounding (${formatBillingRounding(inheritedRounding)})`;
 }
 
 function formatBillingPeriod(period) {

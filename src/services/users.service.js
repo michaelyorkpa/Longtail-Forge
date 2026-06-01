@@ -581,11 +581,19 @@ async function readAssignableWorkspaces(session) {
     return (await userWorkspacesRepository.readAllWorkspaces()).map(workspaceToAppValue);
   }
 
+  const workspace = (await userWorkspacesRepository.readAllWorkspaces())
+    .find((item) => item.workspace_id === session.organization_id);
+
+  if (workspace) {
+    return [workspaceToAppValue(workspace)];
+  }
+
   const settings = await settingsRepository.readOrganizationSettings(session.organization_id);
   return [{
     workspaceId: session.organization_id,
     workspaceName: settings.workspaceName || settings.organizationName,
     workspaceType: settings.workspaceType,
+    ownerUserId: session.user_id,
   }];
 }
 
@@ -651,6 +659,16 @@ async function replaceWorkspaceMemberships({ session, user, requestedWorkspaceId
     throw new AppError("Choose at least one workspace membership.", 400);
   }
 
+  const invalidPersonalWorkspace = assignableWorkspaces.find((workspace) =>
+    selectedWorkspaceIds.includes(workspace.workspaceId) &&
+    workspace.workspaceType === "personal" &&
+    workspace.ownerUserId !== user.user_id,
+  );
+
+  if (invalidPersonalWorkspace) {
+    throw new AppError("Personal workspaces can only belong to their creator.", 400);
+  }
+
   const previousMemberships = await userWorkspacesRepository.readForUser(user.user_id);
   const previousActiveWorkspaceIds = new Set(
     previousMemberships
@@ -699,6 +717,7 @@ function workspaceToAppValue(workspace) {
     workspaceId: workspace.workspace_id,
     workspaceName: workspace.workspace_name,
     workspaceType: workspace.workspace_type,
+    ownerUserId: workspace.owner_user_id,
   };
 }
 

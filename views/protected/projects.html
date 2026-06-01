@@ -13,7 +13,7 @@
         <h1>Projects</h1>
       </div>
 
-      <div class="client-filters">
+      <div class="project-page-toolbar">
         <label>
           Client
           <select data-project-client-filter>
@@ -30,38 +30,10 @@
             <option value="All">All</option>
           </select>
         </label>
+
       </div>
 
       <p data-client-project-status role="status" aria-live="polite"></p>
-      <div class="client-filters" data-project-bulk-actions>
-        <label>
-          Bulk Status
-          <select data-bulk-project-status>
-            <option value="">No status change</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-            <option value="Completed">Completed</option>
-          </select>
-        </label>
-
-        <label>
-          Bulk Client
-          <select data-bulk-project-client>
-            <option value="">No client change</option>
-          </select>
-        </label>
-
-        <label>
-          Bulk Billable
-          <select data-bulk-project-billable>
-            <option value="">No billing change</option>
-            <option value="yes">Billable</option>
-            <option value="no">Non-billable</option>
-          </select>
-        </label>
-
-        <button type="button" data-apply-project-bulk>Apply to Selected</button>
-      </div>
       <section class="client-list" data-client-list aria-label="Projects"></section>
     </main>
 

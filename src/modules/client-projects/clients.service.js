@@ -4,6 +4,7 @@ import { projectsRepository } from "./projects.repo.js";
 import { auditService } from "../../core/audit.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
+import { settingsRepository } from "../../repositories/settings.repo.js";
 import { normalizeClientProjectData } from "../../utils/normalizers.js";
 
 async function readClientProjects(session) {
@@ -244,7 +245,12 @@ async function readProject(projectId, session) {
 }
 
 async function createProject(clientId, payload, session) {
-  const decodedClientId = decodeURIComponent(clientId || payload?.client_id || "");
+  const workspaceSettings = await settingsRepository.readOrganizationSettings(session.organization_id);
+  const usesProjectRoundingOnly = workspaceUsesProjectRoundingOnly(workspaceSettings.workspaceType);
+  const normalizedPayload = normalizeProjectPayloadForWorkspace(payload, usesProjectRoundingOnly);
+  const decodedClientId = usesProjectRoundingOnly
+    ? ""
+    : decodeURIComponent(clientId || normalizedPayload?.client_id || "");
   const client = decodedClientId
     ? await clientsRepository.readById(session.organization_id, decodedClientId)
     : null;
@@ -259,13 +265,14 @@ async function createProject(clientId, payload, session) {
     operation: "create",
   });
 
-  const project = normalizeProjectPayload(payload, {
-    id: payload?.id || randomUUID(),
+  const project = normalizeProjectPayload(normalizedPayload, {
+    id: normalizedPayload?.id || randomUUID(),
     client_id: decodedClientId,
   }, client?.billable || "yes");
+  project.workspace_id = session.organization_id;
 
   await projectsRepository.create(session.organization_id, decodedClientId, project);
-  await recordAudit(payload?.action, {
+  await recordAudit(normalizedPayload?.action, {
     session,
     action: "project_created",
     changeType: "create",
@@ -282,6 +289,9 @@ async function createProject(clientId, payload, session) {
 }
 
 async function updateProject(projectId, payload, session) {
+  const workspaceSettings = await settingsRepository.readOrganizationSettings(session.organization_id);
+  const usesProjectRoundingOnly = workspaceUsesProjectRoundingOnly(workspaceSettings.workspaceType);
+  const normalizedPayload = normalizeProjectPayloadForWorkspace(payload, usesProjectRoundingOnly);
   const decodedProjectId = decodeURIComponent(projectId || "");
   const previousProject = await projectsRepository.readById(session.organization_id, decodedProjectId);
 
@@ -289,8 +299,8 @@ async function updateProject(projectId, payload, session) {
     throw new AppError("Project not found", 404);
   }
 
-  const clientId = Object.hasOwn(payload || {}, "client_id")
-    ? String(payload.client_id || "").trim()
+  const clientId = Object.hasOwn(normalizedPayload || {}, "client_id")
+    ? String(normalizedPayload.client_id || "").trim()
     : previousProject.client_id;
   const client = clientId ? await clientsRepository.readById(session.organization_id, clientId) : null;
 
@@ -305,7 +315,7 @@ async function updateProject(projectId, payload, session) {
     operation: "update",
   });
 
-  if (billingDetailsChanged(previousProject, payload)) {
+  if (!usesProjectRoundingOnly && billingDetailsChanged(previousProject, normalizedPayload)) {
     await permissionsService.assertCan(session, "billing.manage", {
       organization_id: session.organization_id,
       client_id: client?.id || "",
@@ -313,14 +323,15 @@ async function updateProject(projectId, payload, session) {
     });
   }
 
-  const project = normalizeProjectPayload(payload, {
+  const project = normalizeProjectPayload(normalizedPayload, {
     ...previousProject,
     id: decodedProjectId,
     client_id: client?.id || "",
   }, client?.billable || previousProject.billable || "yes");
+  project.workspace_id = session.organization_id;
 
   await projectsRepository.update(session.organization_id, project);
-  await recordAudit(payload?.action, {
+  await recordAudit(normalizedPayload?.action, {
     session,
     action: "project_updated",
     changeType: "update",
@@ -425,6 +436,25 @@ function normalizeProjectPayload(payload, fallback = {}, fallbackBillable = "yes
       ? String(payload.client_id || "").trim()
       : String(fallback.client_id || "").trim(),
   };
+}
+
+function normalizeProjectPayloadForWorkspace(payload = {}, usesProjectRoundingOnly = false) {
+  if (!usesProjectRoundingOnly) {
+    return payload;
+  }
+
+  return {
+    ...payload,
+    client_id: "",
+    billable: "no",
+    billing_rate: null,
+    billing_period: null,
+    billingPeriod: null,
+  };
+}
+
+function workspaceUsesProjectRoundingOnly(workspaceType) {
+  return workspaceType === "personal" || workspaceType === "family";
 }
 
 async function recordAudit(providedAction, auditEvent) {

@@ -896,6 +896,82 @@ button.danger-button {
     margin-bottom: 16px;
 }
 
+.project-page-toolbar {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(180px, 240px)) auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 16px;
+}
+
+.project-page-toolbar button {
+    justify-self: start;
+}
+
+.project-list-actions {
+    display: flex;
+    justify-content: center;
+}
+
+.inline-bulk-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: end;
+}
+
+.inline-bulk-field select:disabled {
+    opacity: 0.68;
+}
+
+.list-table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.list-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.list-table th,
+.list-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--color-border-subtle);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.list-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.list-table th {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+
+.list-table th:first-child,
+.list-table td:first-child {
+    width: 72px;
+    text-align: center;
+}
+
+.list-table th:last-child,
+.list-table td:last-child {
+    width: 116px;
+    text-align: right;
+}
+
+.list-table input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+}
+
 .client-item {
     border: 1px solid var(--color-border);
     border-radius: 8px;
@@ -929,6 +1005,35 @@ button.danger-button {
     grid-template-columns: minmax(0, 1fr) 180px;
     padding-top: 12px;
     border-top: 1px solid var(--color-border-subtle);
+}
+
+.project-name-field,
+.project-billing-details,
+.project-actions,
+.project-add-client-actions {
+    grid-column: 1 / -1;
+}
+
+.project-client-field {
+    grid-column: 1;
+}
+
+.project-status-field {
+    grid-column: 2;
+}
+
+.project-editor-no-client .project-status-field {
+    grid-column: 1 / -1;
+}
+
+.project-add-client-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+}
+
+.project-add-client-actions button:only-child {
+    margin-left: auto;
 }
 
 .client-name-row {
@@ -1041,8 +1146,6 @@ button.danger-button {
     grid-column: 1 / -1;
 }
 
-.project-billing-details,
-.project-actions,
 .add-project-form > button {
     grid-column: 1 / -1;
 }
@@ -1067,13 +1170,114 @@ button.danger-button {
     font-size: 13px;
 }
 
+.project-bulk-dialog {
+    width: min(92vw, 840px);
+}
+
+.project-form-dialog {
+    width: min(92vw, 640px);
+}
+
+.client-detail-dialog {
+    width: min(92vw, 880px);
+}
+
+.detail-edit-dialog {
+    padding: 16px;
+}
+
+.detail-modal-actions {
+    justify-content: flex-end;
+    padding-top: 12px;
+}
+
+.project-bulk-form {
+    display: grid;
+    gap: 16px;
+    padding: 24px;
+}
+
+.project-modal-form {
+    grid-template-columns: minmax(0, 1fr) minmax(180px, 220px);
+    padding: 24px;
+}
+
+.project-modal-form h2,
+.project-modal-form .project-name-field,
+.project-add-client-field,
+.project-modal-actions {
+    grid-column: 1 / -1;
+}
+
+.project-add-client-field {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.project-modal-form .project-status-field {
+    grid-column: 1;
+}
+
+.project-modal-actions {
+    justify-content: center;
+}
+
+.project-bulk-filter-row,
+.project-bulk-action-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: end;
+}
+
+.project-bulk-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    max-height: min(52vh, 420px);
+    overflow: auto;
+    padding: 4px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+}
+
+.project-bulk-select-all,
+.project-bulk-row {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    border-radius: 6px;
+    color: var(--color-text-secondary);
+    font-weight: 700;
+    text-align: left;
+}
+
+.project-bulk-select-all input,
+.project-bulk-row input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    justify-self: center;
+}
+
+.project-bulk-row:hover {
+    background: var(--color-hover);
+}
+
 /* Modal used by the Add Client flow */
 dialog {
     width: min(92vw, 420px);
+    max-height: min(86vh, 900px);
+    margin: auto;
     padding: 0;
     border: 1px solid var(--color-border);
     border-radius: 8px;
     box-shadow: var(--shadow-modal);
+    overflow: auto;
 }
 
 dialog::backdrop {
@@ -1431,6 +1635,11 @@ button:disabled {
     .project-editor,
     .add-project-form,
     .billing-editor,
+    .project-page-toolbar,
+    .inline-bulk-controls,
+    .project-bulk-filter-row,
+    .project-bulk-action-row,
+    .project-bulk-list,
     .entry-form,
     .entry-filters,
     .audit-log-filters,
@@ -1473,6 +1682,7 @@ button:disabled {
     }
 
     .page-heading button,
+    .project-page-toolbar button,
     .edit-row button,
     .project-editor button,
     .add-project-form button,
@@ -1483,5 +1693,20 @@ button:disabled {
 
     .project-actions {
         display: grid;
+    }
+
+    .project-name-field,
+    .project-client-field,
+    .project-status-field,
+    .project-add-client-field,
+    .project-billing-details,
+    .project-actions,
+    .project-add-client-actions,
+    .project-modal-actions {
+        grid-column: 1 / -1;
+    }
+
+    .project-add-client-field {
+        grid-template-columns: 1fr;
     }
 }
