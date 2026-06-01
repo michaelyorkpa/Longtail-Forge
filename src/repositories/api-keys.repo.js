@@ -14,6 +14,7 @@ BEGIN TRANSACTION;
 INSERT INTO api_keys (
   api_key_id,
   organization_id,
+  workspace_id,
   created_by_user_id,
   name,
   key_hash,
@@ -25,6 +26,7 @@ INSERT INTO api_keys (
 )
 VALUES (
   ${sqlText(apiKeyId)},
+  ${sqlText(organizationId)},
   ${sqlText(organizationId)},
   ${sqlText(createdByUserId)},
   ${sqlText(name)},
@@ -47,6 +49,7 @@ async function readByHash(keyHash) {
 SELECT
   api_key_id,
   organization_id,
+  workspace_id,
   created_by_user_id,
   name,
   key_hash,
@@ -75,6 +78,7 @@ async function readById(organizationId, apiKeyId) {
 SELECT
   api_key_id,
   organization_id,
+  workspace_id,
   created_by_user_id,
   name,
   key_prefix,
@@ -83,7 +87,7 @@ SELECT
   last_used_at,
   revoked_at
 FROM api_keys
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE (workspace_id = ${sqlText(organizationId)} OR organization_id = ${sqlText(organizationId)})
   AND api_key_id = ${sqlText(apiKeyId)}
 LIMIT 1;
 `);
@@ -103,6 +107,7 @@ async function readAll(organizationId) {
 SELECT
   api_key_id,
   organization_id,
+  workspace_id,
   created_by_user_id,
   name,
   key_prefix,
@@ -111,7 +116,7 @@ SELECT
   last_used_at,
   revoked_at
 FROM api_keys
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE (workspace_id = ${sqlText(organizationId)} OR organization_id = ${sqlText(organizationId)})
 ORDER BY created_at DESC;
 `);
   const scopes = await querySql(`
@@ -120,7 +125,7 @@ FROM api_key_scopes
 WHERE api_key_id IN (
   SELECT api_key_id
   FROM api_keys
-  WHERE organization_id = ${sqlText(organizationId)}
+  WHERE workspace_id = ${sqlText(organizationId)} OR organization_id = ${sqlText(organizationId)}
 )
 ORDER BY scope;
 `);
@@ -154,7 +159,7 @@ async function revoke(organizationId, apiKeyId) {
 UPDATE api_keys
 SET status = 'revoked',
     revoked_at = ${sqlText(now)}
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE (workspace_id = ${sqlText(organizationId)} OR organization_id = ${sqlText(organizationId)})
   AND api_key_id = ${sqlText(apiKeyId)}
   AND status != 'revoked';
 `);

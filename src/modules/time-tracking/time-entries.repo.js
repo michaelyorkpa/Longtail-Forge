@@ -6,6 +6,7 @@ async function readAll(organizationId) {
 SELECT
   entry_id,
   organization_id,
+  workspace_id,
   user_id,
   client_id,
   client_name,
@@ -31,6 +32,7 @@ async function readById(organizationId, entryId) {
 SELECT
   entry_id,
   organization_id,
+  workspace_id,
   user_id,
   client_id,
   client_name,
@@ -62,6 +64,7 @@ async function update(entry) {
   await runSql(`
 UPDATE time_entries
 SET
+  workspace_id = ${sqlText(entry.organization_id)},
   user_id = ${sqlText(entry.user_id)},
   client_id = ${sqlNullableText(entry.client_id)},
   client_name = ${sqlText(entry.client_name)},
@@ -93,6 +96,7 @@ function createTimeEntryInsertSql(entry, now) {
 INSERT INTO time_entries (
   entry_id,
   organization_id,
+  workspace_id,
   user_id,
   client_id,
   client_name,
@@ -110,6 +114,7 @@ INSERT INTO time_entries (
 )
 VALUES (
   ${sqlText(entry.entry_id)},
+  ${sqlText(entry.organization_id)},
   ${sqlText(entry.organization_id)},
   ${sqlText(entry.user_id)},
   ${sqlNullableText(entry.client_id)},
@@ -132,6 +137,7 @@ function timeEntryRowToAppValue(row) {
   return normalizeTimeEntry({
     entry_id: row.entry_id,
     organization_id: row.organization_id,
+    workspace_id: row.workspace_id || row.organization_id,
     user_id: row.user_id,
     client_id: row.client_id,
     client_name: row.client_name,

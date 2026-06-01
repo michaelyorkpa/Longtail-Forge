@@ -14,9 +14,11 @@ Authorization: Bearer ltf_live_...
 X-API-Key: ltf_live_...
 ```
 
-API keys are created from the protected API Keys settings page. Raw keys are shown once at creation time; after that, only the key prefix is displayed.
+API keys are created from the protected API Keys settings page while the intended workspace is active. Raw keys are shown once at creation time; after that, only the key prefix is displayed.
 
-API keys are scoped to the active workspace. During the 0.30.x workspace migration, responses include `workspace_id` aliases while legacy `organization_id` fields may still appear for backward compatibility.
+API keys are scoped to the workspace that was active when the key was created. Public API requests run inside that workspace, even if the user later switches workspaces in the browser.
+
+During the 0.30.x workspace migration, responses include `workspace_id` and may still include legacy `organization_id` fields for backward compatibility.
 
 ## Response Shape
 
@@ -25,6 +27,7 @@ Single-record responses:
 ```json
 {
   "apiVersion": "v1",
+  "workspace_id": "workspace-id",
   "data": {}
 }
 ```
@@ -34,6 +37,7 @@ List responses:
 ```json
 {
   "apiVersion": "v1",
+  "workspace_id": "workspace-id",
   "data": [],
   "pagination": {
     "limit": 50,
@@ -73,4 +77,8 @@ Time-entry timestamps should be sent as ISO 8601 UTC strings, such as `2026-05-2
 
 ## Workspace Compatibility
 
-Version 0.30.0 begins the public language shift from organizations to workspaces. Version 0.30.3 adds active workspace sessions and project-first time entry creation. New integrations should read `workspace_id` when it is present. Existing `organization_id` fields remain temporarily available until the deeper storage rename work in later 0.30.x releases is complete.
+Version 0.30.0 begins the public language shift from organizations to workspaces. Version 0.30.3 adds active workspace sessions and project-first time entry creation. Version 0.30.5 scopes API keys and public API envelopes to workspaces.
+
+New integrations should use `workspace_id` for workspace context. Existing `organization_id` fields remain temporarily available until the deeper storage rename work in later 0.30.x releases is complete.
+
+API audit log records include the workspace context for key creation, revocation, and public API writes.

@@ -95,6 +95,7 @@ async function createTimeEntry(context, payload) {
     metadata: {
       api_key_id: context.api_key_id,
       public_api_version: "v1",
+      workspace_id: context.workspace_id,
     },
   });
 

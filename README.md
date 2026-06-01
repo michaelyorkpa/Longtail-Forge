@@ -50,7 +50,7 @@ The detailed per-version changelog and future plan live in [ROADMAP.md](ROADMAP.
 - `0.26.x` introduces module-ready backend architecture.
 - `0.27.x` consolidates shared billing and reporting calculations.
 - `0.28.x` finishes core time-tracking maturity with database-backed active timer persistence, richer real-user profiles, and UTC-backed time handling.
-- `0.30.x` shifts the app from organization language toward workspace sessions, memberships, workspace types, and project-first time tracking with optional client links.
+- `0.30.x` shifts the app from organization language toward workspace sessions, memberships, workspace types, workspace creation, migration aliases, workspace-scoped API keys, and project-first time tracking with optional client links.
 
 ## Getting Started
 
@@ -75,6 +75,8 @@ The app stores local runtime data in `data/`, including the SQLite database at `
 - `HOST`: server host, defaults to `127.0.0.1`
 - `PORT`: server port, defaults to `8001`
 - `SQLITE_COMMAND`: SQLite executable, defaults to `sqlite3`
+- `WORKSPACE_INSTALL_MODE`: workspace creation mode, defaults to `self_hosted`; use `saas` for account-type creation limits
+- `WORKSPACE_TYPE_LIMIT`: optional workspace type limit; use `business` for business-only installs
 
 ### Start
 

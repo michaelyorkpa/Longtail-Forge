@@ -1,3 +1,20 @@
+## Version 0.30.5
+
+- Scoped API key reads, revocation, authentication, and public API sessions to the key's workspace while keeping legacy organization fields backward-compatible.
+- Added `workspace_id` to public API response envelopes and API key admin responses.
+- Added workspace context to public API time-entry audit metadata and API key create/revoke audit metadata.
+- Updated public API documentation for workspace-scoped API keys, workspace response envelopes, and compatibility expectations.
+- Completed the 0.30.5 workspace behavior verification pass for API key scoping, public API workspace isolation, migrated data visibility, project-first time entries, and release checks.
+
+## Version 0.30.4
+
+- Added User Settings workspace creation with install-mode/type-limit rules for personal, family, and business workspace options.
+- Added a workspace creation API that creates compatibility `organizations` and new `workspaces` records, settings rows, owner membership, owner role assignment, and module defaults.
+- Added the `workspaces` and `workspace_settings` compatibility tables with backfills from existing organization records/settings.
+- Added `workspace_id` compatibility columns/backfills and lookup indexes for projects, time entries, audit logs, API keys, role assignments, and workspace modules.
+- Updated the app shell workspace selector to show the active workspace and hide unavailable navigation actions based on workspace capabilities.
+- Updated package metadata, roadmap, decisions, and README bookkeeping for the 0.30.4 release.
+
 ## Version 0.30.3
 
 - Added active workspace session storage, membership-backed session responses, and a workspace switch endpoint/UI that rejects unauthorized workspace changes.

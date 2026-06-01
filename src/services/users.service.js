@@ -2,10 +2,16 @@ import { usersRepository } from "../repositories/users.repo.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
+import { workspacesRepository } from "../repositories/workspaces.repo.js";
+import { config } from "../config.js";
 import { createGeneratedPassword, hashPassword, validatePassword } from "../security/passwords.js";
 import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 import { AppError } from "../utils/app-error.js";
+import {
+  getWorkspaceCapabilities,
+  normalizeWorkspaceType,
+} from "../utils/workspaces.js";
 import {
   isValidEmail,
   isValidTimezone,
@@ -399,6 +405,65 @@ async function readSettings(session) {
     altEmail: appUser.altEmail,
     timezone: appUser.timezone,
     themeMode: appUser.themeMode,
+    workspaceCreation: await readWorkspaceCreationOptions(session),
+  };
+}
+
+async function createWorkspace(payload, session, sessionId = "") {
+  const workspaceType = normalizeWorkspaceType(payload.workspaceType || payload.workspace_type);
+  const options = await readWorkspaceCreationOptions(session);
+
+  if (!options.availableTypes.some((type) => type.workspaceType === workspaceType)) {
+    throw new AppError("That workspace type is not available for this account.", 403);
+  }
+
+  const ownerUser = await usersRepository.readById(session.organization_id, session.user_id);
+
+  if (!ownerUser) {
+    throw new AppError("User was not found.", 404);
+  }
+
+  const capabilities = getWorkspaceCapabilities(workspaceType);
+  const workspaceName = String(payload.workspaceName || payload.workspace_name || capabilities.defaultName || "Workspace").trim();
+
+  if (!workspaceName) {
+    throw new AppError("Workspace name is required.", 400);
+  }
+
+  const workspace = await workspacesRepository.createWorkspace({
+    ownerUser,
+    workspaceName,
+    workspaceType,
+  });
+
+  if (sessionId) {
+    await sessionsRepository.updateActiveWorkspace(sessionId, workspace.workspaceId);
+  }
+
+  await auditService.record({
+    session: {
+      ...session,
+      organization_id: workspace.workspaceId,
+      active_workspace_id: workspace.workspaceId,
+    },
+    action: "workspace_created",
+    changeType: "create",
+    recordType: "workspace",
+    recordId: workspace.workspaceId,
+    recordLabel: workspace.workspaceName,
+    recordUrl: "workspace-settings.html",
+    previousValue: null,
+    newValue: workspace,
+    metadata: {
+      created_from_workspace_id: session.organization_id,
+      workspace_type: workspace.workspaceType,
+    },
+  });
+
+  return {
+    workspace,
+    active_workspace_id: workspace.workspaceId,
+    workspaces: await workspacesRepository.readForUser(session.user_id),
   };
 }
 
@@ -522,6 +587,52 @@ async function readAssignableWorkspaces(session) {
     workspaceName: settings.workspaceName || settings.organizationName,
     workspaceType: settings.workspaceType,
   }];
+}
+
+async function readWorkspaceCreationOptions(session) {
+  const installMode = config.workspaceInstallMode === "saas" ? "saas" : "self_hosted";
+  const typeLimit = String(config.workspaceTypeLimit || "").trim().toLowerCase();
+  const baseTypes = typeLimit === "business"
+    ? ["business"]
+    : ["business", "personal", "family"];
+  const availableTypeIds = installMode === "self_hosted"
+    ? baseTypes
+    : await readSaasWorkspaceTypes(session, baseTypes);
+
+  return {
+    installMode,
+    availableTypes: availableTypeIds.map((workspaceType) => ({
+      workspaceType,
+      label: formatWorkspaceType(workspaceType),
+      defaultName: getWorkspaceCapabilities(workspaceType).defaultName || "",
+    })),
+  };
+}
+
+async function readSaasWorkspaceTypes(session, baseTypes) {
+  const settings = await settingsRepository.readOrganizationSettings(session.organization_id);
+  const personalCount = await workspacesRepository.countUserWorkspacesByType(session.user_id, "personal");
+
+  if (settings.workspaceType === "business") {
+    return baseTypes.filter((type) => type !== "personal" || personalCount === 0);
+  }
+
+  if (settings.workspaceType === "family") {
+    return baseTypes.filter((type) => (
+      (type === "personal" && personalCount === 0) ||
+      type === "family"
+    ));
+  }
+
+  return baseTypes.filter((type) => type === "personal" && personalCount === 0);
+}
+
+function formatWorkspaceType(workspaceType) {
+  return {
+    business: "Business",
+    personal: "Personal",
+    family: "Family",
+  }[workspaceType] || "Workspace";
 }
 
 async function replaceWorkspaceMemberships({ session, user, requestedWorkspaceIds }) {
@@ -666,6 +777,7 @@ function normalizeUserProfilePayload(payload, fallbackUser = {}) {
 export const usersService = {
   action,
   create,
+  createWorkspace,
   delete: remove,
   list,
   listWorkspaces,

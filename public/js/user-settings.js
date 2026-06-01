@@ -13,7 +13,12 @@ const profileDisplayNameInput = document.querySelector("[data-profile-display-na
 const profileAltEmailInput = document.querySelector("[data-profile-alt-email]");
 const profileTimezoneSelect = document.querySelector("[data-profile-timezone]");
 const saveProfileButton = document.querySelector("[data-save-profile]");
+const workspaceCreateForm = document.querySelector("[data-workspace-create-form]");
+const newWorkspaceTypeSelect = document.querySelector("[data-new-workspace-type]");
+const newWorkspaceNameInput = document.querySelector("[data-new-workspace-name]");
+const createWorkspaceButton = document.querySelector("[data-create-workspace]");
 const userSettingsStatus = document.querySelector("[data-user-settings-status]");
+let workspaceCreationTypes = [];
 
 loadUserSettings();
 
@@ -33,6 +38,19 @@ profileForm.addEventListener("submit", async (event) => {
   await saveProfile();
 });
 
+workspaceCreateForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await createWorkspace();
+});
+
+newWorkspaceTypeSelect.addEventListener("change", () => {
+  const selectedType = workspaceCreationTypes.find((type) => type.workspaceType === newWorkspaceTypeSelect.value);
+
+  if (!newWorkspaceNameInput.value.trim()) {
+    newWorkspaceNameInput.value = selectedType?.defaultName || selectedType?.label || "Workspace";
+  }
+});
+
 async function loadUserSettings() {
   try {
     const response = await fetch("/api/user/settings", { cache: "no-store" });
@@ -49,6 +67,7 @@ async function loadUserSettings() {
 
     applyThemeMode(body.themeMode);
     applyProfile(body);
+    applyWorkspaceCreation(body.workspaceCreation);
     setUserSettingsStatus("");
   } catch (error) {
     setUserSettingsStatus(error.message || "User settings could not be loaded.", true);
@@ -96,6 +115,32 @@ function applyThemeMode(themeMode) {
   document.documentElement.style.colorScheme = effectiveTheme;
   window.localStorage.setItem(THEME_STORAGE_KEY, normalizedThemeMode);
   themeModeToggle.checked = normalizedThemeMode === "dark";
+}
+
+function applyWorkspaceCreation(workspaceCreation) {
+  workspaceCreationTypes = Array.isArray(workspaceCreation?.availableTypes)
+    ? workspaceCreation.availableTypes
+    : [];
+
+  newWorkspaceTypeSelect.replaceChildren(...workspaceCreationTypes.map((type) => {
+    const option = document.createElement("option");
+
+    option.value = type.workspaceType;
+    option.textContent = type.label || type.workspaceType;
+    option.dataset.defaultName = type.defaultName || "";
+    return option;
+  }));
+
+  const hasAvailableTypes = workspaceCreationTypes.length > 0;
+  workspaceCreateForm.hidden = !hasAvailableTypes;
+  newWorkspaceTypeSelect.disabled = !hasAvailableTypes;
+  newWorkspaceNameInput.disabled = !hasAvailableTypes;
+  createWorkspaceButton.disabled = !hasAvailableTypes;
+
+  if (hasAvailableTypes) {
+    newWorkspaceTypeSelect.value = workspaceCreationTypes[0].workspaceType;
+    newWorkspaceNameInput.value = workspaceCreationTypes[0].defaultName || workspaceCreationTypes[0].label || "Workspace";
+  }
 }
 
 function applyProfile(profile) {
@@ -177,6 +222,53 @@ async function saveProfile() {
     setUserSettingsStatus(error.message || "Profile was not saved.", true);
   } finally {
     saveProfileButton.disabled = false;
+  }
+}
+
+async function createWorkspace() {
+  const workspaceType = newWorkspaceTypeSelect.value;
+  const workspaceName = newWorkspaceNameInput.value.trim();
+
+  if (!workspaceType) {
+    setUserSettingsStatus("Choose a workspace type.", true);
+    return;
+  }
+
+  if (!workspaceName) {
+    setUserSettingsStatus("Workspace name is required.", true);
+    return;
+  }
+
+  createWorkspaceButton.disabled = true;
+  setUserSettingsStatus("Creating workspace...");
+
+  try {
+    const response = await fetch("/api/workspaces", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        workspaceType,
+        workspaceName,
+      }),
+    });
+    const body = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      window.location.replace("/login.html");
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(body.error || "Workspace was not created.");
+    }
+
+    setUserSettingsStatus("Workspace created.");
+    window.location.replace("/workspace-settings.html");
+  } catch (error) {
+    setUserSettingsStatus(error.message || "Workspace was not created.", true);
+    createWorkspaceButton.disabled = false;
   }
 }
 

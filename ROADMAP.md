@@ -916,72 +916,118 @@ This group of updates also separates clients and projects. Projects now only ret
 
 ### Version 0.30.4
 
-- [ ] Add workspace creation buttons to User Settings
-  - [ ] Add button to create a new workspace
-  - [ ] Available workspace types should depend on install mode and account type
-  - [ ] SaaS account type rules:
-    - [ ] Personal users can create one personal workspace
-    - [ ] Family users can create one personal workspace and use one shared family workspace
-    - [ ] Business users can create personal, family, and business workspaces as allowed by plan
-  - [ ] Self-hosted rules:
-    - [ ] Allow all workspace types by default unless limited by config/setup
-    - [ ] Support business-only installs
+- [x] Add workspace creation buttons to User Settings
+  - [x] Add button to create a new workspace
+  - [x] Available workspace types should depend on install mode and account type
+  - [x] SaaS account type rules:
+    - [x] Personal users can create one personal workspace
+    - [x] Family users can create one personal workspace and use one shared family workspace
+    - [x] Business users can create personal, family, and business workspaces as allowed by plan
+  - [x] Self-hosted rules:
+    - [x] Allow all workspace types by default unless limited by config/setup
+    - [x] Support business-only installs
 
-- [ ] Update workspace-aware navigation and UI behavior
-  - [ ] Add active workspace selector to the app shell/header
-  - [ ] Clearly show which workspace the user is currently using
-  - [ ] Hide unavailable modules based on workspace type
-  - [ ] Hide unavailable actions based on workspace permissions
-  - [ ] Make empty states workspace-aware
-    - [ ] Personal workspace project/task messaging should not mention clients by default
-    - [ ] Business workspace messaging can continue to reference clients/projects
+- [x] Update workspace-aware navigation and UI behavior
+  - [x] Add active workspace selector to the app shell/header
+  - [x] Clearly show which workspace the user is currently using
+  - [x] Hide unavailable modules based on workspace type
+  - [x] Hide unavailable actions based on workspace permissions
+  - [x] Make empty states workspace-aware
+    - [x] Personal workspace project/task messaging should not mention clients by default
+    - [x] Business workspace messaging can continue to reference clients/projects
 
-- [ ] Update database migrations and data migration path
-  - [ ] Rename or create workspace table from existing organization table
-  - [ ] Migrate existing organization records into workspaces
-  - [ ] Migrate existing organization settings into workspace settings
-  - [ ] Migrate existing users into `user_workspaces`
-  - [ ] Set existing users' active/default workspace based on current organization membership
-  - [ ] Migrate existing clients, projects, time entries, audit logs, API keys, roles, and settings to workspace scope
-  - [ ] Add indexes for common workspace lookups
-    - [ ] `workspace_id`
-    - [ ] `user_id, workspace_id`
-    - [ ] `workspace_type`
-    - [ ] `owner_user_id`
+- [x] Update database migrations and data migration path
+  - [x] Rename or create workspace table from existing organization table
+  - [x] Migrate existing organization records into workspaces
+  - [x] Migrate existing organization settings into workspace settings
+  - [x] Migrate existing users into `user_workspaces`
+  - [x] Set existing users' active/default workspace based on current organization membership
+  - [x] Migrate existing clients, projects, time entries, audit logs, API keys, roles, and settings to workspace scope
+  - [x] Add indexes for common workspace lookups
+    - [x] `workspace_id`
+    - [x] `user_id, workspace_id`
+    - [x] `workspace_type`
+    - [x] `owner_user_id`
 
 ### Version 0.30.5
 
-- [ ] Update public API and API key behavior for workspaces
-  - [ ] API keys should be scoped to a workspace
-  - [ ] API responses should use workspace language
-  - [ ] Existing organization-scoped API behavior should either migrate cleanly or remain temporarily backward-compatible
-  - [ ] API documentation should explain workspace scoping
-  - [ ] API audit logs should record workspace context
+- [x] Update public API and API key behavior for workspaces
+  - [x] API keys should be scoped to a workspace
+  - [x] API responses should use workspace language
+  - [x] Existing organization-scoped API behavior should either migrate cleanly or remain temporarily backward-compatible
+  - [x] API documentation should explain workspace scoping
+  - [x] API audit logs should record workspace context
 
-- [ ] Update tests/checks for workspace behavior
-  - [ ] User with one workspace logs in normally
-  - [ ] User with multiple workspaces can switch active workspace
-  - [ ] User cannot access records from a workspace they do not belong to
-  - [ ] Business workspace supports clients/projects/time tracking/reporting
-  - [ ] Personal workspace supports projects without clients
-  - [ ] Family workspace supports limited team members and family permissions
-  - [ ] Time entries require project but not client
-  - [ ] Projects require workspace but not client
-  - [ ] Existing migrated data remains visible after migration
-  - [ ] `npm run check` passes after migration
+- [x] Update tests/checks for workspace behavior
+  - [x] User with one workspace logs in normally
+  - [x] User with multiple workspaces can switch active workspace
+  - [x] User cannot access records from a workspace they do not belong to
+  - [x] Business workspace supports clients/projects/time tracking/reporting
+  - [x] Personal workspace supports projects without clients
+  - [x] Family workspace supports limited team members and family permissions
+  - [x] Time entries require project but not client
+  - [x] Projects require workspace but not client
+  - [x] Existing migrated data remains visible after migration
+  - [x] `npm run check` passes after migration
 
-## Version 0.35.0 - User, client, and project functionality expansion
+### Version 0.30.5.1
+
+#### Project Page Tweaks
+
+- [ ] Clients selection/sort shows up on projects page for personal workspaces (There are no clients in personal/family workspaces)
+- [ ] No spacing above "Apply to Selected" on Projects page
+- [ ] Personal projects do NOT need billing details and cannot be billable, but rounding needs to be kept for personal workspace projects
+- [ ] Project rounding needs to default to workspace rounding unless the project is assigned to a client
+- [ ] Client rounding should not be an option in personal/family workspaces
+- [ ] Layout is awkward
+  - [ ] Move client and status filters next to 
+  - [ ] Bulk edit should be moved to a modal window
+    - [ ] Add a filter by client drop down to modal (Include workspace projects)
+    - [ ] "Bulk Status" "Bulk Client" "Bulke Billable" should be added to the top of modal below the filter, side-by-side
+    - [ ] Add a list of all projects (and filtered projects) with check boxes next to them below those buttons
+  - [ ] Keep "Add Project" at the top
+  - [ ] Keep list of openable projects at bottom, filtered appropriately
+
+### Version 0.30.5.2
+
+#### Workspace page/settings tweaks (Personal/Family Workspace)
+
+- [ ] Billing Settings can be removed from this area 
+- [ ] Rounding should be left (for rounding hours only)
+- [ ] Add setting to turn on/off time keeping module in both workspace creation and workspace settings
+  - all existing time tracking entries should be immutable
+
+### Version 0.30.5.3
+
+#### Audit log page tweaks (All workspaces)
+
+- [ ] Add pagination
+- [ ] Add selectable drop down that defaults to 50 entries for number of records per page
+  - this drop down should be to the right of "Export All" button
+  - Should include options for 25, 50, 100, 250, 500
+
+### Version 0.30.5.4
+
+
+
+### Verion 0.30.6
+
+Complete a code review to ensure all items necessary are in place to continue moving forward with modularization and necessary user changes.
+
+Finish modularization before integrating new task, notes, kb, and tickets modules.
+
+## Version 0.30.10 - User, client, and project functionality expansion
 
 Now that clients and projects are separated, there is a need to create nested clients and nested projects
 
 - [ ] Create nested clients
 - [ ] Create nested projects
 
-### Version 0.35.1
+### Version 0.30.11
 
 - [ ] Add backups/export/import from user interface for users
 
-## Version 0.40.0 - Tasks, Notes, Tickets, and Collaboration
+## Version 0.31.0 - Tasks
 
 This update includes the beginnings of project functionality. By the end of 0.40 there will be integrated modules for task tracking, notes, tickets, and collaboration.
 
@@ -995,7 +1041,7 @@ This update includes the beginnings of project functionality. By the end of 0.40
   - [ ] Tasks are assignable to users/admins within client/project as appropriate per user permissions
   - [ ] Task visibility and edit access should respect the roles/permissions system
 
-## Version 0.41.0 - Support Tickets
+## Version 0.32.0 - Support Tickets
 
 - [ ] Support tickets
   - [ ] Consult with existing support ticket solutions for best path here
@@ -1004,7 +1050,7 @@ This update includes the beginnings of project functionality. By the end of 0.40
   - [ ] Tickets should support external/client-visible responses later
   - [ ] Ticket visibility and edit access should respect the roles/permissions system
 
-## Version 0.42.0 - Notes/Knowledge Base foundations
+## Version 0.33.0 - Notes/Knowledge Base foundations
 
 - [ ] Notes/knowledge base
   - [ ] Notes should be linkable with either markdown or wiki-style linking
@@ -1016,21 +1062,21 @@ This update includes the beginnings of project functionality. By the end of 0.40
   - [ ] Notes should have a changelog table, can be reused from the audit log, but remains persistent
   - [ ] Note visibility and edit access should respect the roles/permissions system
 
-## Version 0.43.0 - Calendars and Calendar Views
+## Version 0.34.0 - Calendars and Calendar Views
 
 - [ ] Calendars
 
-## Version 0.44.0 - Expanded Reporting and Invoicing
+## Version 0.35.0 - Expanded Reporting and Invoicing
 
 - [ ] Expanded reporting
 - [ ] Invoicing
 
-## Version 0.45.0 - Collaboration Tools
+## Version 0.36.0 - Collaboration Tools
 
 - [ ] Add in-app messaging between users
 - [ ] UI Notifications (Toast? Bell at top?)
 
-## Version 0.46.0 - Dashboard as Project Hub
+## Version 0.37.0 - Dashboard as Project Hub
 
 - [ ] Dashboard should become the hub for managing projects
   - [ ] Add "Past Due/Due Soon" section that shows past due and upcoming tasks sorted by client and project
@@ -1050,15 +1096,15 @@ This update includes the beginnings of project functionality. By the end of 0.40
   - [ ] Users should only see clients/projects/tasks/notes/tickets they are allowed to see
   - [ ] External client users should not see internal-only notes or admin-only audit details
 
-## Version 0.47.0 - User Account Security Upgrades
+## Version 0.38.0 - User Account Security Upgrades
 
 - [ ] Two Factor Authentication (TOTP)
 
-### Version 0.47.1
+### Version 0.38.1
 
 - [ ] Passkeys
 
-### Version 0.47.2
+### Version 0.38.2
 
 - [ ] SSO
 

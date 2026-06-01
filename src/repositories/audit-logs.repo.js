@@ -10,6 +10,7 @@ async function create(entry) {
 INSERT INTO audit_logs (
   audit_id,
   organization_id,
+  workspace_id,
   created_at,
   actor_user_id,
   actor_user_name,
@@ -26,6 +27,7 @@ INSERT INTO audit_logs (
 VALUES (
   ${sqlText(entry.audit_id)},
   ${sqlText(entry.organization_id)},
+  ${sqlText(entry.workspace_id || entry.organization_id)},
   ${sqlText(entry.created_at)},
   ${sqlNullableText(entry.actor_user_id)},
   ${sqlNullableText(entry.actor_user_name)},

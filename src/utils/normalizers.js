@@ -5,6 +5,7 @@ function normalizeTimeEntry(entry) {
   return {
     entry_id: String(entry.entry_id || "").trim(),
     organization_id: String(entry.organization_id || "").trim(),
+    workspace_id: String(entry.workspace_id || entry.organization_id || "").trim(),
     user_id: String(entry.user_id || "").trim(),
     client_id: String(entry.client_id || "").trim(),
     client_name: String(entry.client_name || "").trim(),

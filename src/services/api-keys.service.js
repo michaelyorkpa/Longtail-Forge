@@ -72,6 +72,7 @@ async function create(payload, session) {
     newValue: toPublicApiKey(apiKey),
     metadata: {
       key_prefix: apiKey.key_prefix,
+      workspace_id: apiKey.workspace_id || apiKey.organization_id,
       scopes,
     },
   });
@@ -109,6 +110,7 @@ async function revoke(apiKeyId, session) {
     newValue: toPublicApiKey(apiKey),
     metadata: {
       key_prefix: previousKey.key_prefix,
+      workspace_id: previousKey.workspace_id || previousKey.organization_id,
     },
   });
 
@@ -160,6 +162,8 @@ function hashApiKey(rawKey) {
 function toPublicApiKey(apiKey) {
   return {
     api_key_id: apiKey.api_key_id,
+    workspace_id: apiKey.workspace_id || apiKey.organization_id,
+    organization_id: apiKey.organization_id,
     name: apiKey.name,
     key_prefix: apiKey.key_prefix,
     status: apiKey.status,

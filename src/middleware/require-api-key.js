@@ -24,10 +24,13 @@ function requireApiKey(requiredScope) {
       }
 
       await apiKeysService.markUsed(apiKey);
+      const workspaceId = apiKey.workspace_id || apiKey.organization_id;
+
       request.apiKey = apiKey;
       request.apiSession = {
-        organization_id: apiKey.organization_id,
-        workspace_id: apiKey.organization_id,
+        organization_id: workspaceId,
+        workspace_id: workspaceId,
+        legacy_organization_id: apiKey.organization_id,
         user_id: apiKey.created_by_user_id,
         username: `api:${apiKey.key_prefix}`,
         api_key_id: apiKey.api_key_id,

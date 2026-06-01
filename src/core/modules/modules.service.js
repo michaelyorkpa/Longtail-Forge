@@ -40,6 +40,11 @@ VALUES (
   ${sqlText(now)}
 )
 ON CONFLICT(organization_id, module_id) DO NOTHING;
+UPDATE organization_modules
+SET workspace_id = ${sqlText(organizationId)}
+WHERE organization_id = ${sqlText(organizationId)}
+  AND module_id = ${sqlText(moduleDefinition.id)}
+  AND workspace_id IS NULL;
 `,
     ];
   });

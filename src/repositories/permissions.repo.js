@@ -76,6 +76,7 @@ async function replaceUserAssignments(organizationId, userId, assignments) {
 INSERT INTO user_role_assignments (
   assignment_id,
   organization_id,
+  workspace_id,
   user_id,
   role_id,
   scope_type,
@@ -88,6 +89,7 @@ INSERT INTO user_role_assignments (
 )
 VALUES (
   ${sqlText(randomUUID())},
+  ${sqlText(organizationId)},
   ${sqlText(organizationId)},
   ${sqlText(userId)},
   ${sqlText(assignment.role_id)},

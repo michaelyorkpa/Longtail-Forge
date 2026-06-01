@@ -126,6 +126,7 @@ function createNavLink(item, currentPage) {
 
   link.href = item.href;
   link.textContent = item.label;
+  link.dataset.navHref = item.href;
 
   if (item.href === currentPage) {
     // Keeps current-page styling and screen reader context in sync with the URL.
@@ -169,6 +170,7 @@ async function loadWorkspaceSettings() {
 
     const settings = await response.json();
     applyWorkspaceName(settings.workspaceName || settings.organizationName);
+    applyWorkspaceCapabilities(settings);
   } catch {
     applyWorkspaceName(DEFAULT_WORKSPACE_NAME);
   }
@@ -199,6 +201,7 @@ async function loadSessionWorkspaces() {
     ));
     workspaceSelector.value = user.active_workspace_id || user.organization_id || workspaces[0].workspace_id;
     workspaceSelector.disabled = workspaces.length < 2;
+    applyActiveWorkspaceLabel();
   } catch {
     workspaceSelector.disabled = true;
   }
@@ -224,6 +227,7 @@ function applyWorkspaceName(value) {
       select.value = workspaceName;
     }
   });
+  applyActiveWorkspaceLabel(workspaceName);
 
   if (document.body.dataset.titleMode === "app") {
     document.title = `${workspaceName} Longtail Forge`;
@@ -237,6 +241,43 @@ function applyWorkspaceName(value) {
 
 window.applyOrganizationName = applyWorkspaceName;
 window.applyWorkspaceName = applyWorkspaceName;
+
+function applyActiveWorkspaceLabel(fallbackName = DEFAULT_WORKSPACE_NAME) {
+  if (!workspaceSelector) {
+    return;
+  }
+
+  const selectedOption = workspaceSelector.selectedOptions[0];
+  const workspaceName = selectedOption?.textContent || fallbackName;
+
+  workspaceSelector.title = `Active workspace: ${workspaceName}`;
+}
+
+function applyWorkspaceCapabilities(settings) {
+  const capabilities = settings.workspaceCapabilities || {};
+  const workspaceType = settings.workspaceType || capabilities.workspaceType || "business";
+  const availableTools = new Set(Array.isArray(capabilities.availableTools) ? capabilities.availableTools : []);
+
+  siteHeader.dataset.workspaceType = workspaceType;
+  setNavLinkVisible("clients.html", availableTools.has("clients_projects"));
+  setNavLinkVisible("api-keys.html", workspaceType === "business");
+  setNavLinkVisible("user-admin.html", availableTools.has("team_members"));
+  setNavLinkVisible("reporting.html", availableTools.has("billing_invoicing_reporting") || availableTools.has("time_tracking"));
+  setNavLinkVisible("time-tracker.html", availableTools.has("time_tracking") || availableTools.has("time_tracking_optional"));
+  setNavLinkVisible("manual-entry.html", availableTools.has("time_tracking") || availableTools.has("time_tracking_optional"));
+  setNavLinkVisible("edit-entries.html", availableTools.has("time_tracking") || availableTools.has("time_tracking_optional"));
+
+  document.querySelectorAll(".nav-menu").forEach((menu) => {
+    const visibleLinks = [...menu.querySelectorAll("a")].filter((link) => !link.hidden);
+    menu.hidden = visibleLinks.length === 0;
+  });
+}
+
+function setNavLinkVisible(href, isVisible) {
+  document.querySelectorAll(`[data-nav-href="${href}"]`).forEach((link) => {
+    link.hidden = !isVisible;
+  });
+}
 
 if (workspaceSelector) {
   workspaceSelector.addEventListener("change", async () => {
@@ -261,6 +302,7 @@ if (workspaceSelector) {
         throw new Error("Workspace switch failed.");
       }
 
+      applyActiveWorkspaceLabel();
       window.location.reload();
     } catch {
       await loadSessionWorkspaces();

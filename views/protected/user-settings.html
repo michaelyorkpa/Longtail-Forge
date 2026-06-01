@@ -84,6 +84,24 @@
         <button type="submit" data-save-profile>Save Profile</button>
       </form>
 
+      <form class="settings-form" data-workspace-create-form>
+        <fieldset class="settings-fieldset">
+          <legend>Workspaces</legend>
+
+          <label>
+            Workspace Type
+            <select data-new-workspace-type required></select>
+          </label>
+
+          <label>
+            Workspace Name
+            <input type="text" data-new-workspace-name required autocomplete="organization">
+          </label>
+        </fieldset>
+
+        <button type="submit" data-create-workspace>Create Workspace</button>
+      </form>
+
       <p data-user-settings-status role="status" aria-live="polite"></p>
     </main>
 

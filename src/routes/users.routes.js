@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { buildThemeCookie } from "../security/sessions.js";
+import { buildThemeCookie, getSessionIdFromRequest } from "../security/sessions.js";
 import { authService } from "../services/auth.service.js";
 import { usersService } from "../services/users.service.js";
 import { asyncRoute, readJsonBody } from "../utils/http.js";
@@ -14,6 +14,12 @@ usersRoutes.get("/users", asyncRoute(async (request, response) => {
 usersRoutes.get("/workspaces", asyncRoute(async (request, response) => {
   const result = await usersService.listWorkspaces(request.session);
   response.status(200).json(result);
+}));
+
+usersRoutes.post("/workspaces", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await usersService.createWorkspace(payload, request.session, getSessionIdFromRequest(request));
+  response.status(201).json(result);
 }));
 
 usersRoutes.post("/users", asyncRoute(async (request, response) => {

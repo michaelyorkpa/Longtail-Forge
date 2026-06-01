@@ -196,7 +196,7 @@ async function baselineExistingSchema(migrations) {
   const statements = [];
 
   for (const migration of migrations) {
-    if (["010", "011", "012", "013", "014", "015", "016", "017", "018"].includes(migration.version) && !(await isMigrationAlreadySatisfied(migration))) {
+    if (["010", "011", "012", "013", "014", "015", "016", "017", "018", "019"].includes(migration.version) && !(await isMigrationAlreadySatisfied(migration))) {
       await applyMigration(migration);
       continue;
     }
@@ -303,6 +303,22 @@ async function isMigrationAlreadySatisfied(migration) {
 
   if (migration.fileName === "018_add_client_workspace_alias.sql") {
     return columnsExist("clients", ["workspace_id"]);
+  }
+
+  if (migration.fileName === "019_add_workspace_alias_tables.sql") {
+    const [workspaceTablesExist, workspaceColumnsExist] = await Promise.all([
+      tableExists("workspaces"),
+      Promise.all([
+        columnsExist("projects", ["workspace_id"]),
+        columnsExist("time_entries", ["workspace_id"]),
+        columnsExist("audit_logs", ["workspace_id"]),
+        columnsExist("api_keys", ["workspace_id"]),
+        columnsExist("user_role_assignments", ["workspace_id"]),
+        columnsExist("organization_modules", ["workspace_id"]),
+      ]),
+    ]);
+
+    return workspaceTablesExist && workspaceColumnsExist.every(Boolean);
   }
 
   return false;

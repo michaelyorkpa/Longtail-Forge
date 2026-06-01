@@ -32,6 +32,8 @@ const config = {
   clientProjectFile: path.join(root, "data", "client-project.json"),
   timeEntriesFile: path.join(root, "data", "time-entries.csv"),
   sqliteCommand: process.env.SQLITE_COMMAND || "sqlite3",
+  workspaceInstallMode: process.env.WORKSPACE_INSTALL_MODE || "self_hosted",
+  workspaceTypeLimit: process.env.WORKSPACE_TYPE_LIMIT || "",
   cookies: {
     sessionName: "longtail_forge_session",
     themeName: "lf_theme",
