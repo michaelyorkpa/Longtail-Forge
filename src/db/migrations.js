@@ -196,7 +196,7 @@ async function baselineExistingSchema(migrations) {
   const statements = [];
 
   for (const migration of migrations) {
-    if (["010", "011", "012", "013"].includes(migration.version) && !(await isMigrationAlreadySatisfied(migration))) {
+    if (["010", "011", "012", "013", "014"].includes(migration.version) && !(await isMigrationAlreadySatisfied(migration))) {
       await applyMigration(migration);
       continue;
     }
@@ -273,6 +273,15 @@ async function isMigrationAlreadySatisfied(migration) {
 
   if (migration.fileName === "013_add_session_timezone.sql") {
     return columnsExist("sessions", ["timezone"]);
+  }
+
+  if (migration.fileName === "014_add_workspace_memberships.sql") {
+    const [userWorkspacesExists, ownerColumnExists] = await Promise.all([
+      tableExists("user_workspaces"),
+      columnsExist("organizations", ["owner_user_id"]),
+    ]);
+
+    return userWorkspacesExists && ownerColumnExists;
   }
 
   return false;

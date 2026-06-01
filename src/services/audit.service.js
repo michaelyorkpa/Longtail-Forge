@@ -18,6 +18,7 @@ const RECORD_TYPES = new Set([
   "organization",
   "organization_setting",
   "workspace",
+  "workspace_membership",
   "workspace_setting",
   "user",
   "client",

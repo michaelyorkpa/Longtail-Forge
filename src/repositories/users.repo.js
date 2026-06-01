@@ -35,6 +35,20 @@ LIMIT 1;
   return rows[0] || null;
 }
 
+async function readByUsernameExcludingUser(username, userId) {
+  const rows = await querySql(`
+SELECT
+${USER_SELECT_COLUMNS}
+FROM users
+WHERE username = ${sqlText(username)}
+  AND user_id != ${sqlText(userId)}
+ORDER BY username
+LIMIT 1;
+`);
+
+  return rows[0] || null;
+}
+
 async function readByUsernameForOrganization(organizationId, username) {
   const rows = await querySql(`
 SELECT
@@ -180,6 +194,7 @@ export const usersRepository = {
   readAll,
   readById,
   readByUsername,
+  readByUsernameExcludingUser,
   readByUsernameForOrganization,
   remove,
   updatePassword,

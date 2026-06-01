@@ -785,22 +785,22 @@ This group of updates also separates clients and projects. Projects now only ret
 
 ### Version 0.30.1
 
-- [ ] Add workspace ownership and user/workspace membership foundation
-  - [ ] Create `user_workspaces` table to track which users can access which workspaces
-    - [ ] `user_workspace_id`
-    - [ ] `user_id`
-    - [ ] `workspace_id`
-    - [ ] `status`
-    - [ ] `created_at`
-    - [ ] `updated_at`
-  - [ ] Dissociate users from belonging to only one workspace
-    - [ ] Users become independent app-level records
-    - [ ] Users can belong to multiple workspaces
-    - [ ] Remove or deprecate direct `users.organization_id` / `users.workspace_id` behavior
-  - [ ] Add `owner_user_id` or similar field to the `workspaces` table
-    - [ ] Identifies the primary administrator/owner of the workspace
-    - [ ] Supports future ownership transfer for business use cases
-  - [ ] Make sure workspace membership changes are audit logged
+- [x] Add workspace ownership and user/workspace membership foundation
+  - [x] Create `user_workspaces` table to track which users can access which workspaces
+    - [x] `user_workspace_id`
+    - [x] `user_id`
+    - [x] `workspace_id`
+    - [x] `status`
+    - [x] `created_at`
+    - [x] `updated_at`
+  - [x] Dissociate users from belonging to only one workspace
+    - [x] Users become independent app-level records
+    - [x] Users can belong to multiple workspaces
+    - [x] Remove or deprecate direct `users.organization_id` / `users.workspace_id` behavior
+  - [x] Add `owner_user_id` or similar field to the `workspaces` table
+    - [x] Identifies the primary administrator/owner of the workspace
+    - [x] Supports future ownership transfer for business use cases
+  - [x] Make sure workspace membership changes are audit logged
 
 ### Version 0.30.2
 

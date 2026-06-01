@@ -31,6 +31,7 @@ async function ensureDatabase() {
   await ensureOrganizationSettings(organizationId);
   await modulesService.syncModuleRegistry(organizationId);
   await seedSuperAdminUser(organizationId);
+  await ensureWorkspaceMemberships(organizationId);
   await ensureProtectedUserRoles(organizationId);
 }
 
@@ -259,6 +260,72 @@ WHERE organization_id = ${sqlText(organizationId)}
 `);
 }
 
+async function ensureWorkspaceMemberships(organizationId) {
+  const membershipTable = await tableExists("user_workspaces");
+  const hasOwnerColumn = await columnsExist("organizations", ["owner_user_id"]);
+
+  if (!membershipTable) {
+    return;
+  }
+
+  const users = await querySql(`
+SELECT user_id, user_status
+FROM users
+WHERE organization_id = ${sqlText(organizationId)};
+`);
+
+  const now = new Date().toISOString();
+  const membershipInserts = users.map((user) => `
+INSERT OR IGNORE INTO user_workspaces (
+  user_workspace_id,
+  user_id,
+  workspace_id,
+  status,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(randomUUID())},
+  ${sqlText(user.user_id)},
+  ${sqlText(organizationId)},
+  ${sqlText(user.user_status === "inactive" ? "inactive" : "active")},
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+`).join("\n");
+
+  if (membershipInserts) {
+    await runSql(membershipInserts);
+  }
+
+  if (!hasOwnerColumn) {
+    return;
+  }
+
+  await runSql(`
+UPDATE organizations
+SET owner_user_id = COALESCE(
+  owner_user_id,
+  (
+    SELECT user_id
+    FROM users
+    WHERE organization_id = ${sqlText(organizationId)}
+      AND protected_user = 'yes'
+    ORDER BY username
+    LIMIT 1
+  ),
+  (
+    SELECT user_id
+    FROM users
+    WHERE organization_id = ${sqlText(organizationId)}
+    ORDER BY username
+    LIMIT 1
+  )
+)
+WHERE id = ${sqlText(organizationId)};
+`);
+}
+
 async function ensureProtectedUserRoles(organizationId) {
   await runSql(`
 UPDATE user_role_assignments
@@ -340,6 +407,13 @@ WHERE rowid = (
   LIMIT 1
 );
 `);
+}
+
+async function columnsExist(tableName, columnNames) {
+  const columns = await querySql(`PRAGMA table_info(${tableName});`);
+  const existingColumnNames = new Set(columns.map((column) => column.name));
+
+  return columnNames.every((columnName) => existingColumnNames.has(columnName));
 }
 
 export {

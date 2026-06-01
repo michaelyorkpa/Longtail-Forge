@@ -1,5 +1,6 @@
 import { usersRepository } from "../repositories/users.repo.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
+import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
 import { createGeneratedPassword, hashPassword, validatePassword } from "../security/passwords.js";
 import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
@@ -34,7 +35,7 @@ async function create(payload, session) {
     throw new AppError("Enter a valid email address for the username.", 400);
   }
 
-  const existingUser = await usersRepository.readByUsernameForOrganization(session.organization_id, username);
+  const existingUser = await usersRepository.readByUsername(username);
 
   if (existingUser) {
     throw new AppError("A user with that email address already exists.", 409);
@@ -57,6 +58,11 @@ async function create(payload, session) {
     },
     hashPassword(initialPassword),
   );
+  const membership = await userWorkspacesRepository.upsert({
+    userId: user.user_id,
+    workspaceId: session.organization_id,
+    status: "active",
+  });
   await auditService.record({
     session,
     action: "user_created",
@@ -71,6 +77,14 @@ async function create(payload, session) {
       created_user_id: user.user_id,
       created_username: user.username,
     },
+  });
+  await recordWorkspaceMembershipChange({
+    session,
+    action: "workspace_membership_added",
+    changeType: "create",
+    user,
+    previousValue: null,
+    newValue: membership,
   });
 
   const users = await usersRepository.readAll(session.organization_id);
@@ -116,7 +130,7 @@ async function update(payload, session, userId) {
 
   const profile = normalizeUserProfilePayload(payload, user);
 
-  const existingUser = await usersRepository.readByUsernameForOrganization(session.organization_id, profile.username);
+  const existingUser = await usersRepository.readByUsernameExcludingUser(profile.username, userId);
 
   if (existingUser && existingUser.user_id !== userId) {
     throw new AppError("A user with that email address already exists.", 409);
@@ -213,6 +227,8 @@ async function deactivate(session, userId) {
   }
 
   await usersRepository.updateStatus(session.organization_id, userId, "inactive");
+  const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.organization_id);
+  const nextMembership = await userWorkspacesRepository.updateStatus(userId, session.organization_id, "inactive");
   const updatedUser = {
     ...userRowToAppValue(user),
     userStatus: "inactive",
@@ -233,6 +249,14 @@ async function deactivate(session, userId) {
       new_status: "inactive",
     },
   });
+  await recordWorkspaceMembershipChange({
+    session,
+    action: "workspace_membership_deactivated",
+    changeType: "archive",
+    user: updatedUser,
+    previousValue: previousMembership,
+    newValue: nextMembership,
+  });
 
   return {
     user: updatedUser,
@@ -249,6 +273,12 @@ async function reactivate(session, userId) {
   }
 
   await usersRepository.updateStatus(session.organization_id, userId, "active");
+  const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.organization_id);
+  const nextMembership = await userWorkspacesRepository.upsert({
+    userId,
+    workspaceId: session.organization_id,
+    status: "active",
+  });
   const updatedUser = {
     ...userRowToAppValue(user),
     userStatus: "active",
@@ -268,6 +298,14 @@ async function reactivate(session, userId) {
       old_status: user.user_status,
       new_status: "active",
     },
+  });
+  await recordWorkspaceMembershipChange({
+    session,
+    action: "workspace_membership_reactivated",
+    changeType: "restore",
+    user: updatedUser,
+    previousValue: previousMembership,
+    newValue: nextMembership,
   });
 
   return {
@@ -292,6 +330,8 @@ async function remove(session, userId) {
     throw new AppError("Protected users cannot be deleted.", 400);
   }
 
+  const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.organization_id);
+  await userWorkspacesRepository.remove(userId, session.organization_id);
   await usersRepository.remove(session.organization_id, userId);
   await auditService.record({
     session,
@@ -307,6 +347,14 @@ async function remove(session, userId) {
       deleted_user_id: userId,
       deleted_username: user.username,
     },
+  });
+  await recordWorkspaceMembershipChange({
+    session,
+    action: "workspace_membership_removed",
+    changeType: "delete",
+    user: userRowToAppValue(user),
+    previousValue: previousMembership,
+    newValue: null,
   });
 
   return { users: await usersRepository.readAll(session.organization_id) };
@@ -362,7 +410,7 @@ async function saveSettings(payload, session) {
     Object.hasOwn(payload, "timezone")
   ) {
     const profile = normalizeUserProfilePayload(payload, user);
-    const existingUser = await usersRepository.readByUsernameForOrganization(session.organization_id, profile.username);
+    const existingUser = await usersRepository.readByUsernameExcludingUser(profile.username, session.user_id);
 
     if (existingUser && existingUser.user_id !== session.user_id) {
       throw new AppError("A user with that email address already exists.", 409);
@@ -406,6 +454,32 @@ async function saveSettings(payload, session) {
     timezone: nextValue.timezone,
     themeMode,
   };
+}
+
+async function recordWorkspaceMembershipChange({
+  session,
+  action,
+  changeType,
+  user,
+  previousValue,
+  newValue,
+}) {
+  await auditService.record({
+    session,
+    action,
+    changeType,
+    recordType: "workspace_membership",
+    recordId: newValue?.user_workspace_id || previousValue?.user_workspace_id || `${session.organization_id}:${user.user_id}`,
+    recordLabel: user.username,
+    recordUrl: "user-admin.html",
+    previousValue,
+    newValue,
+    metadata: {
+      user_id: user.user_id,
+      username: user.username,
+      workspace_id: session.organization_id,
+    },
+  });
 }
 
 function normalizeUserProfilePayload(payload, fallbackUser = {}) {

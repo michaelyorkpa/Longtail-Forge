@@ -1,3 +1,12 @@
+## Version 0.30.1
+
+- Added the `user_workspaces` membership table with app-level user IDs, workspace IDs, status, and timestamps.
+- Added `owner_user_id` to the existing workspace-compatible `organizations` table.
+- Backfilled existing users into workspace memberships and added startup repair so seeded users receive membership and workspaces receive an owner.
+- Updated user creation, deactivation, reactivation, and deletion to keep workspace membership in sync.
+- Added `workspace_membership` audit records for membership add, status, and removal changes.
+- Shifted username conflict checks to app-level uniqueness in preparation for users belonging to multiple workspaces.
+
 ## Version 0.30.0
 
 - Shifted the user-facing app language from organizations to workspaces for navigation, settings, billing inheritance labels, role scopes, and permission labels.
