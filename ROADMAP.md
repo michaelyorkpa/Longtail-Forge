@@ -1071,17 +1071,24 @@ This group of updates also separates clients and projects. Projects now only ret
 
 #### Workspace page/settings tweaks (Personal/Family Workspace)
 
-- [ ] Workspace Settings window needs to be the same width as all the others are now, it's still very narrow
-- [ ] Billing Settings should be condensed for Personal/Family workspaces to only include rounding as its own header
-- [ ] Add modal for seeing users assigned to a workspace. Within modal:
-  - [ ] A list of users should be displayed for editing the user's permissions within the workspace ("Edit Permissions" button)
+- [x] Workspace Settings window needs to be the same width as all the others are now, it's still very narrow
+- [x] Billing Settings should be condensed for Personal/Family workspaces to only include rounding as its own header
+- [x] Add modal for seeing users assigned to a workspace. Within modal:
+  - [x] A list of users should be displayed for editing the user's permissions within the workspace ("Edit Permissions" button)
+- [x] Add setting to turn on/off time keeping module in both workspace creation and workspace settings
+  - all existing time tracking entries should be immutable
+  - if turned off, the top-level time tracking menu option should also disappear
+
+- [x] Make Workspace page 2 columns
+  - [x] Put Modules and Audit logs on the left
+  - [x] Put Fiscal Year and Billing settings on the right
 
 ### Version 0.30.5.3
 
 #### Audit log page tweaks (All workspaces)
 
-- [ ] Add pagination
-- [ ] Add selectable drop down that defaults to 50 entries for number of records per page
+- [x] Add pagination
+- [x] Add selectable drop down that defaults to 50 entries for number of records per page
   - this drop down should be to the right of "Export All" button
   - Should include options for 25, 50, 100, 250, 500
 
@@ -1089,9 +1096,37 @@ This group of updates also separates clients and projects. Projects now only ret
 
 #### User page tweaks
 
-- [ ] Workspace name doesn't update when Workspace type is changed under "Create Workspace"
-- [ ] Add modal within user settings to allow removal
-- [ ] User Settings page needs to be the same width as all the other pages
+- [x] User Settings page needs to be the same width as all the other pages
+- [x] Workspace name doesn't update when Workspace type is changed under "Create Workspace"
+- [x] Add modal within user settings to allow removal 
+
+### Version 0.30.5.5
+
+#### Respect Personal/Family Workspace limitations
+
+- [ ] Client shows up for personal/family workspaces on the following pages where it should be hidden:
+  - [ ] Time Tracker
+  - [ ] Create Manual Entry
+  - [ ] Edit Entries
+
+#### Time Tracker Tweaks
+
+- [ ] Change "Clear Info when Reset" to "Clear Info when Stopped/Reset"
+    - This change only affects the behavior of the stop button, specifically, if this box is checked when stop is pressed, client, project, and description are cleared.
+- [ ] Deprecate browser alerts when navigating away/refreshing page while active timers are running
+
+#### Audit Log/Reporting Tweaks
+
+- [ ] Allow export of reports/audit logs via CSV in either local timezone or UTC
+- [ ] Add "All Clients" or "Total Workspace Hours/Billables" in reporting for business workspaces
+
+#### Edit entry screen tweaks
+
+- [ ] The form for edit entries still displays UUID instead of a friendly name
+
+#### Menu tweak
+
+- [ ] Move Log Out to the bottom of the Settings menu
 
 ### Verion 0.30.6
 

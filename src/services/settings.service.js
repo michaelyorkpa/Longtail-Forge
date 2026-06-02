@@ -1,10 +1,16 @@
 import { settingsRepository } from "../repositories/settings.repo.js";
+import { modulesService } from "../core/modules/modules.service.js";
 import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 
+const TIME_TRACKING_MODULE_ID = "time-tracking";
+
 async function read(session) {
-  return settingsRepository.readOrganizationSettings(session.organization_id);
+  return decorateSettingsWithModules(
+    await settingsRepository.readOrganizationSettings(session.organization_id),
+    session.organization_id,
+  );
 }
 
 async function save(payload, session) {
@@ -14,9 +20,12 @@ async function save(payload, session) {
   });
 
   const data = normalizeSettings(payload);
-  const previousSettings = await settingsRepository.readOrganizationSettings(session.organization_id);
+  const previousSettings = await read(session);
+  const timeTrackingEnabled = payload.timeTrackingEnabled !== false;
+  data.timeTrackingEnabled = timeTrackingEnabled;
   const auditSettingChanged = previousSettings.audit.loggingEnabled !== data.audit.loggingEnabled ||
     previousSettings.audit.retentionDays !== data.audit.retentionDays;
+  const moduleSettingChanged = previousSettings.timeTrackingEnabled !== timeTrackingEnabled;
   const auditDisabled = previousSettings.audit.loggingEnabled && !data.audit.loggingEnabled;
   const auditEnabled = !previousSettings.audit.loggingEnabled && data.audit.loggingEnabled;
 
@@ -34,6 +43,7 @@ async function save(payload, session) {
       setting_group: "workspace",
       legacy_setting_group: "organization",
       audit_setting_changed: auditSettingChanged,
+      module_setting_changed: moduleSettingChanged,
     },
   };
 
@@ -46,6 +56,7 @@ async function save(payload, session) {
   }
 
   await settingsRepository.saveOrganizationSettings(session.organization_id, data);
+  await modulesService.setModuleStatus(session.organization_id, TIME_TRACKING_MODULE_ID, timeTrackingEnabled);
 
   if (auditEnabled) {
     await auditService.record({
@@ -59,7 +70,19 @@ async function save(payload, session) {
 
   await auditService.cleanupExpired(session.organization_id, data.audit.retentionDays);
 
-  return { data };
+  return { data: await decorateSettingsWithModules(data, session.organization_id) };
+}
+
+async function decorateSettingsWithModules(settings, organizationId) {
+  const timeTrackingEnabled = await modulesService.readModuleStatus(organizationId, TIME_TRACKING_MODULE_ID) === "enabled";
+
+  return {
+    ...settings,
+    workspaceId: organizationId,
+    workspace_id: organizationId,
+    timeTrackingEnabled,
+    enabledModules: await modulesService.readEnabledModuleIds(organizationId),
+  };
 }
 
 export const settingsService = {

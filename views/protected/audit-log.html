@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Audit Log | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=5">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=7">
   </head>
   <body data-page-title="Audit Log">
     <main class="audit-log-page">
@@ -48,6 +48,16 @@
           <button type="button" data-audit-reset>Reset</button>
           <button type="button" data-audit-export-filtered>Export Filtered</button>
           <button type="button" data-audit-export-all>Export All</button>
+          <label class="audit-page-size-control">
+            Rows
+            <select data-audit-page-size>
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="250">250</option>
+              <option value="500">500</option>
+            </select>
+          </label>
         </div>
       </form>
 
@@ -69,6 +79,12 @@
           <tbody data-audit-log-body></tbody>
         </table>
       </div>
+
+      <nav class="audit-pagination" aria-label="Audit log pages">
+        <button type="button" data-audit-previous-page>Previous</button>
+        <span data-audit-page-summary>Page 1 of 1</span>
+        <button type="button" data-audit-next-page>Next</button>
+      </nav>
     </main>
 
     <script src="js/shared/api-client.js"></script>

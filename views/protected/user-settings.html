@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>User Settings | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=6">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=7">
   </head>
   <body data-page-title="User Settings">
-    <main class="settings-page">
+    <main class="settings-page user-settings-page">
       <h1>User Settings</h1>
 
       <form class="settings-form" data-user-theme-form>
@@ -97,12 +97,31 @@
             Workspace Name
             <input type="text" data-new-workspace-name required autocomplete="organization">
           </label>
+
+          <label class="inline-option">
+            <input type="checkbox" data-new-workspace-time-tracking checked>
+            Time Tracking
+          </label>
         </fieldset>
 
         <button type="submit" data-create-workspace>Create Workspace</button>
       </form>
 
+      <div class="settings-secondary-actions">
+        <button type="button" data-open-workspace-removal>Remove Workspace</button>
+      </div>
+
       <p data-user-settings-status role="status" aria-live="polite"></p>
+
+      <dialog class="workspace-removal-dialog" data-workspace-removal-dialog>
+        <form method="dialog" class="app-dialog-form">
+          <h2>Remove Workspace</h2>
+          <div class="workspace-removal-list" data-workspace-removal-list></div>
+          <div class="form-actions">
+            <button type="button" data-close-workspace-removal>Close</button>
+          </div>
+        </form>
+      </dialog>
     </main>
 
     <script src="js/navigation.js"></script>

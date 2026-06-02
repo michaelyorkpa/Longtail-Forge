@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { clientsRepository } from "../client-projects/clients.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
+import { modulesService } from "../../core/modules/modules.service.js";
 import { auditService } from "../../core/audit.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
@@ -9,6 +10,7 @@ import { normalizeTimeEntry } from "../../utils/normalizers.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 
 async function create(entry, session) {
+  await assertTimeTrackingEnabled(session);
   const scope = await resolveTimeEntryScope(session.organization_id, entry);
 
   await permissionsService.assertCan(session, "time_entries.create", {
@@ -60,6 +62,7 @@ async function create(entry, session) {
 }
 
 async function update(payload, entryId, session) {
+  await assertTimeTrackingEnabled(session);
   const decodedEntryId = decodeURIComponent(entryId || "");
   const previousEntry = await timeEntriesRepository.readById(session.organization_id, decodedEntryId);
 
@@ -117,6 +120,7 @@ async function update(payload, entryId, session) {
 }
 
 async function remove(entryId, session) {
+  await assertTimeTrackingEnabled(session);
   const decodedEntryId = decodeURIComponent(entryId || "");
   const previousEntry = await timeEntriesRepository.readById(session.organization_id, decodedEntryId);
 
@@ -182,6 +186,14 @@ async function resolveTimeEntryScope(organizationId, entry) {
   }
 
   return { client, project };
+}
+
+async function assertTimeTrackingEnabled(session) {
+  const status = await modulesService.readModuleStatus(session.organization_id, "time-tracking");
+
+  if (status !== "enabled") {
+    throw new AppError("Time tracking is turned off for this workspace.", 403);
+  }
 }
 
 export const timeEntriesService = {

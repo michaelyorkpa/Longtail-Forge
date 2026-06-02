@@ -66,7 +66,41 @@ ORDER BY module_id;
   return rows.map((row) => row.module_id);
 }
 
+async function readModuleStatus(organizationId, moduleId) {
+  const rows = await querySql(`
+SELECT status
+FROM organization_modules
+WHERE organization_id = ${sqlText(organizationId)}
+  AND module_id = ${sqlText(moduleId)}
+LIMIT 1;
+`);
+
+  return rows[0]?.status === "enabled" ? "enabled" : "disabled";
+}
+
+async function setModuleStatus(organizationId, moduleId, enabled) {
+  const now = new Date().toISOString();
+  const status = enabled ? "enabled" : "disabled";
+
+  await runSql(`
+UPDATE organization_modules
+SET status = ${sqlText(status)},
+    enabled_at = CASE WHEN ${sqlText(status)} = 'enabled' THEN COALESCE(enabled_at, ${sqlText(now)}) ELSE enabled_at END,
+    disabled_at = CASE WHEN ${sqlText(status)} = 'disabled' THEN ${sqlText(now)} ELSE NULL END,
+    updated_at = ${sqlText(now)}
+WHERE organization_id = ${sqlText(organizationId)}
+  AND module_id = ${sqlText(moduleId)};
+UPDATE organization_modules
+SET workspace_id = ${sqlText(organizationId)}
+WHERE organization_id = ${sqlText(organizationId)}
+  AND module_id = ${sqlText(moduleId)}
+  AND workspace_id IS NULL;
+`);
+}
+
 export const modulesService = {
   readEnabledModuleIds,
+  readModuleStatus,
+  setModuleStatus,
   syncModuleRegistry,
 };

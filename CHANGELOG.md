@@ -1,3 +1,24 @@
+## Version 0.30.5.4
+
+- Widened User Settings to match the broader settings pages.
+- Fixed Create Workspace name suggestions so changing the workspace type updates the generated name until the user enters a custom name.
+- Added a User Settings removal modal for removing non-current workspace memberships from the signed-in user's workspace list.
+
+## Version 0.30.5.3
+
+- Added Audit Log pagination with Previous/Next controls and visible row-count status.
+- Added a page-size selector beside Export All that defaults to 50 rows and supports 25, 50, 100, 250, and 500 rows per page.
+- Kept audit filter dropdowns populated from the full workspace audit history while table rows load page-by-page.
+
+## Version 0.30.5.2
+
+- Widened Workspace Settings to match the broader settings/editor pages.
+- Reworked Workspace Settings into two columns with Modules and Audit Log on the left and Fiscal Year and Billing Settings on the right.
+- Condensed personal and family workspace billing settings to rounding-only controls.
+- Added a Workspace Users modal with Edit Permissions shortcuts into User Admin.
+- Added Time Tracking module toggles to workspace creation and Workspace Settings.
+- Threaded Time Tracking module status through `/api/settings`, navigation visibility, and time-entry/active-timer mutation guards so disabled timekeeping keeps existing entries readable but immutable.
+
 ## Version 0.30.5.1
 
 - Reworked the Projects page top controls so client and status filters sit side-by-side above inline bulk dropdowns.

@@ -22,6 +22,11 @@ usersRoutes.post("/workspaces", asyncRoute(async (request, response) => {
   response.status(201).json(result);
 }));
 
+usersRoutes.delete("/user/workspaces/:workspaceId", asyncRoute(async (request, response) => {
+  const result = await usersService.removeOwnWorkspaceMembership(request.session, request.params.workspaceId);
+  response.status(200).json(result);
+}));
+
 usersRoutes.post("/users", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await usersService.create(payload, request.session);

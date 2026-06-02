@@ -3,6 +3,7 @@ import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
 import { workspacesRepository } from "../repositories/workspaces.repo.js";
+import { modulesService } from "../core/modules/modules.service.js";
 import { config } from "../config.js";
 import { createGeneratedPassword, hashPassword, validatePassword } from "../security/passwords.js";
 import { auditService } from "./audit.service.js";
@@ -406,6 +407,8 @@ async function readSettings(session) {
     timezone: appUser.timezone,
     themeMode: appUser.themeMode,
     workspaceCreation: await readWorkspaceCreationOptions(session),
+    activeWorkspaceId: session.active_workspace_id || session.organization_id,
+    workspaces: await workspacesRepository.readForUser(session.user_id),
   };
 }
 
@@ -435,6 +438,9 @@ async function createWorkspace(payload, session, sessionId = "") {
     workspaceName,
     workspaceType,
   });
+  const timeTrackingEnabled = payload.timeTrackingEnabled !== false;
+
+  await modulesService.setModuleStatus(workspace.workspaceId, "time-tracking", timeTrackingEnabled);
 
   if (sessionId) {
     await sessionsRepository.updateActiveWorkspace(sessionId, workspace.workspaceId);
@@ -457,12 +463,65 @@ async function createWorkspace(payload, session, sessionId = "") {
     metadata: {
       created_from_workspace_id: session.organization_id,
       workspace_type: workspace.workspaceType,
+      time_tracking_enabled: timeTrackingEnabled,
     },
   });
 
   return {
     workspace,
     active_workspace_id: workspace.workspaceId,
+    workspaces: await workspacesRepository.readForUser(session.user_id),
+  };
+}
+
+async function removeOwnWorkspaceMembership(session, workspaceId) {
+  const targetWorkspaceId = String(workspaceId || "").trim();
+
+  if (!targetWorkspaceId) {
+    throw new AppError("Workspace is required.", 400);
+  }
+
+  if (targetWorkspaceId === session.organization_id) {
+    throw new AppError("Switch to a different workspace before removing this one.", 400);
+  }
+
+  const memberships = await workspacesRepository.readForUser(session.user_id);
+  const targetMembership = memberships.find((membership) => membership.workspace_id === targetWorkspaceId);
+
+  if (!targetMembership) {
+    throw new AppError("Workspace membership was not found.", 404);
+  }
+
+  const activeMemberships = memberships.filter((membership) => membership.status === "active");
+
+  if (targetMembership.status === "active" && activeMemberships.length <= 1) {
+    throw new AppError("You must keep at least one active workspace.", 400);
+  }
+
+  const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(session.user_id, targetWorkspaceId);
+  await userWorkspacesRepository.remove(session.user_id, targetWorkspaceId);
+  await auditService.record({
+    session: {
+      ...session,
+      organization_id: targetWorkspaceId,
+    },
+    action: "own_workspace_membership_removed",
+    changeType: "delete",
+    recordType: "workspace_membership",
+    recordId: previousMembership?.user_workspace_id || `${targetWorkspaceId}:${session.user_id}`,
+    recordLabel: targetMembership.workspace_name || targetWorkspaceId,
+    recordUrl: "user-settings.html",
+    previousValue: previousMembership,
+    newValue: null,
+    metadata: {
+      user_id: session.user_id,
+      workspace_id: targetWorkspaceId,
+      removed_from_user_settings: true,
+    },
+  });
+
+  return {
+    activeWorkspaceId: session.organization_id,
     workspaces: await workspacesRepository.readForUser(session.user_id),
   };
 }
@@ -801,5 +860,6 @@ export const usersService = {
   list,
   listWorkspaces,
   readSettings,
+  removeOwnWorkspaceMembership,
   saveSettings,
 };

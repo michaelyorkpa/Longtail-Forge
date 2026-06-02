@@ -16,9 +16,18 @@ const saveProfileButton = document.querySelector("[data-save-profile]");
 const workspaceCreateForm = document.querySelector("[data-workspace-create-form]");
 const newWorkspaceTypeSelect = document.querySelector("[data-new-workspace-type]");
 const newWorkspaceNameInput = document.querySelector("[data-new-workspace-name]");
+const newWorkspaceTimeTrackingInput = document.querySelector("[data-new-workspace-time-tracking]");
 const createWorkspaceButton = document.querySelector("[data-create-workspace]");
+const openWorkspaceRemovalButton = document.querySelector("[data-open-workspace-removal]");
+const workspaceRemovalDialog = document.querySelector("[data-workspace-removal-dialog]");
+const workspaceRemovalList = document.querySelector("[data-workspace-removal-list]");
+const closeWorkspaceRemovalButton = document.querySelector("[data-close-workspace-removal]");
 const userSettingsStatus = document.querySelector("[data-user-settings-status]");
 let workspaceCreationTypes = [];
+let currentWorkspaces = [];
+let activeWorkspaceId = "";
+let lastSuggestedWorkspaceName = "";
+let workspaceNameEditedByUser = false;
 
 loadUserSettings();
 
@@ -43,13 +52,14 @@ workspaceCreateForm.addEventListener("submit", async (event) => {
   await createWorkspace();
 });
 
-newWorkspaceTypeSelect.addEventListener("change", () => {
-  const selectedType = workspaceCreationTypes.find((type) => type.workspaceType === newWorkspaceTypeSelect.value);
-
-  if (!newWorkspaceNameInput.value.trim()) {
-    newWorkspaceNameInput.value = selectedType?.defaultName || selectedType?.label || "Workspace";
-  }
+newWorkspaceNameInput.addEventListener("input", () => {
+  workspaceNameEditedByUser = newWorkspaceNameInput.value.trim() !== lastSuggestedWorkspaceName;
 });
+
+newWorkspaceTypeSelect.addEventListener("change", updateSuggestedWorkspaceName);
+
+openWorkspaceRemovalButton?.addEventListener("click", openWorkspaceRemovalDialog);
+closeWorkspaceRemovalButton?.addEventListener("click", () => workspaceRemovalDialog?.close());
 
 async function loadUserSettings() {
   try {
@@ -68,6 +78,7 @@ async function loadUserSettings() {
     applyThemeMode(body.themeMode);
     applyProfile(body);
     applyWorkspaceCreation(body.workspaceCreation);
+    applyWorkspaceAccess(body);
     setUserSettingsStatus("");
   } catch (error) {
     setUserSettingsStatus(error.message || "User settings could not be loaded.", true);
@@ -135,11 +146,26 @@ function applyWorkspaceCreation(workspaceCreation) {
   workspaceCreateForm.hidden = !hasAvailableTypes;
   newWorkspaceTypeSelect.disabled = !hasAvailableTypes;
   newWorkspaceNameInput.disabled = !hasAvailableTypes;
+  if (newWorkspaceTimeTrackingInput) {
+    newWorkspaceTimeTrackingInput.disabled = !hasAvailableTypes;
+    newWorkspaceTimeTrackingInput.checked = true;
+  }
   createWorkspaceButton.disabled = !hasAvailableTypes;
 
   if (hasAvailableTypes) {
     newWorkspaceTypeSelect.value = workspaceCreationTypes[0].workspaceType;
-    newWorkspaceNameInput.value = workspaceCreationTypes[0].defaultName || workspaceCreationTypes[0].label || "Workspace";
+    setSuggestedWorkspaceName(getWorkspaceTypeSuggestedName(workspaceCreationTypes[0]));
+  }
+}
+
+function applyWorkspaceAccess(settings) {
+  activeWorkspaceId = String(settings?.activeWorkspaceId || settings?.active_workspace_id || "");
+  currentWorkspaces = Array.isArray(settings?.workspaces)
+    ? settings.workspaces.map(normalizeWorkspaceAccess).filter((workspace) => workspace.workspaceId)
+    : [];
+
+  if (openWorkspaceRemovalButton) {
+    openWorkspaceRemovalButton.disabled = currentWorkspaces.length === 0;
   }
 }
 
@@ -251,6 +277,7 @@ async function createWorkspace() {
       body: JSON.stringify({
         workspaceType,
         workspaceName,
+        timeTrackingEnabled: newWorkspaceTimeTrackingInput?.checked !== false,
       }),
     });
     const body = await response.json().catch(() => ({}));
@@ -270,6 +297,145 @@ async function createWorkspace() {
     setUserSettingsStatus(error.message || "Workspace was not created.", true);
     createWorkspaceButton.disabled = false;
   }
+}
+
+function updateSuggestedWorkspaceName() {
+  const selectedType = workspaceCreationTypes.find((type) => type.workspaceType === newWorkspaceTypeSelect.value);
+  const nextSuggestion = getWorkspaceTypeSuggestedName(selectedType);
+  const currentName = newWorkspaceNameInput.value.trim();
+
+  if (!workspaceNameEditedByUser || !currentName || currentName === lastSuggestedWorkspaceName) {
+    setSuggestedWorkspaceName(nextSuggestion);
+    return;
+  }
+
+  lastSuggestedWorkspaceName = nextSuggestion;
+}
+
+function setSuggestedWorkspaceName(workspaceName) {
+  lastSuggestedWorkspaceName = workspaceName || "Workspace";
+  newWorkspaceNameInput.value = lastSuggestedWorkspaceName;
+  workspaceNameEditedByUser = false;
+}
+
+function getWorkspaceTypeSuggestedName(workspaceType) {
+  return workspaceType?.defaultName || workspaceType?.label || "Workspace";
+}
+
+function openWorkspaceRemovalDialog() {
+  if (!workspaceRemovalDialog || !workspaceRemovalList) {
+    return;
+  }
+
+  renderWorkspaceRemovalList();
+
+  if (typeof workspaceRemovalDialog.showModal === "function") {
+    workspaceRemovalDialog.showModal();
+  } else {
+    workspaceRemovalDialog.setAttribute("open", "");
+  }
+}
+
+function renderWorkspaceRemovalList() {
+  workspaceRemovalList.replaceChildren();
+
+  if (currentWorkspaces.length === 0) {
+    workspaceRemovalList.appendChild(createWorkspaceRemovalPlaceholder("No workspaces are available."));
+    return;
+  }
+
+  currentWorkspaces.forEach((workspace) => {
+    workspaceRemovalList.appendChild(createWorkspaceRemovalRow(workspace));
+  });
+}
+
+function createWorkspaceRemovalRow(workspace) {
+  const row = document.createElement("div");
+  const details = document.createElement("div");
+  const name = document.createElement("strong");
+  const meta = document.createElement("p");
+  const button = document.createElement("button");
+  const activeWorkspaceCount = currentWorkspaces.filter((item) => item.status === "active").length;
+  const isCurrentWorkspace = workspace.workspaceId === activeWorkspaceId;
+  const isLastActiveWorkspace = workspace.status === "active" && activeWorkspaceCount <= 1;
+
+  row.className = "workspace-removal-row";
+  name.textContent = workspace.workspaceName || "Workspace";
+  meta.textContent = [
+    formatWorkspaceType(workspace.workspaceType),
+    workspace.status === "inactive" ? "Inactive" : "Active",
+    isCurrentWorkspace ? "Current" : "",
+  ].filter(Boolean).join(" - ");
+
+  button.type = "button";
+  button.textContent = isCurrentWorkspace ? "Current Workspace" : "Remove";
+  button.disabled = isCurrentWorkspace || isLastActiveWorkspace;
+  button.addEventListener("click", () => removeWorkspaceMembership(workspace.workspaceId));
+
+  if (isLastActiveWorkspace && !isCurrentWorkspace) {
+    button.textContent = "Last Workspace";
+  }
+
+  details.append(name, meta);
+  row.append(details, button);
+  return row;
+}
+
+function createWorkspaceRemovalPlaceholder(message) {
+  const placeholder = document.createElement("p");
+
+  placeholder.textContent = message;
+  return placeholder;
+}
+
+async function removeWorkspaceMembership(workspaceId) {
+  const workspace = currentWorkspaces.find((item) => item.workspaceId === workspaceId);
+
+  if (!workspace) {
+    return;
+  }
+
+  setUserSettingsStatus(`Removing ${workspace.workspaceName || "workspace"}...`);
+
+  try {
+    const response = await fetch(`/api/user/workspaces/${encodeURIComponent(workspaceId)}`, {
+      method: "DELETE",
+    });
+    const body = await response.json().catch(() => ({}));
+
+    if (response.status === 401) {
+      window.location.replace("/login.html");
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error(body.error || "Workspace was not removed.");
+    }
+
+    applyWorkspaceAccess(body);
+    renderWorkspaceRemovalList();
+    setUserSettingsStatus("Workspace removed.");
+    window.setTimeout(() => setUserSettingsStatus(""), 1600);
+  } catch (error) {
+    setUserSettingsStatus(error.message || "Workspace was not removed.", true);
+  }
+}
+
+function normalizeWorkspaceAccess(workspace) {
+  return {
+    status: String(workspace.status || "active"),
+    workspaceId: String(workspace.workspaceId || workspace.workspace_id || ""),
+    workspaceName: String(workspace.workspaceName || workspace.workspace_name || "Workspace"),
+    workspaceType: String(workspace.workspaceType || workspace.workspace_type || "business"),
+  };
+}
+
+function formatWorkspaceType(workspaceType) {
+  return {
+    business: "Business",
+    personal: "Personal",
+    family: "Family",
+  }[workspaceType] || "Workspace";
 }
 
 function getSelectedThemeMode() {

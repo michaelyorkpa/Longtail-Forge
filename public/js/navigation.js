@@ -257,15 +257,17 @@ function applyWorkspaceCapabilities(settings) {
   const capabilities = settings.workspaceCapabilities || {};
   const workspaceType = settings.workspaceType || capabilities.workspaceType || "business";
   const availableTools = new Set(Array.isArray(capabilities.availableTools) ? capabilities.availableTools : []);
+  const enabledModules = new Set(Array.isArray(settings.enabledModules) ? settings.enabledModules : []);
+  const timeTrackingEnabled = settings.timeTrackingEnabled !== false && enabledModules.has("time-tracking");
 
   siteHeader.dataset.workspaceType = workspaceType;
   setNavLinkVisible("clients.html", availableTools.has("clients_projects"));
   setNavLinkVisible("api-keys.html", workspaceType === "business");
   setNavLinkVisible("user-admin.html", availableTools.has("team_members"));
-  setNavLinkVisible("reporting.html", availableTools.has("billing_invoicing_reporting") || availableTools.has("time_tracking"));
-  setNavLinkVisible("time-tracker.html", availableTools.has("time_tracking") || availableTools.has("time_tracking_optional"));
-  setNavLinkVisible("manual-entry.html", availableTools.has("time_tracking") || availableTools.has("time_tracking_optional"));
-  setNavLinkVisible("edit-entries.html", availableTools.has("time_tracking") || availableTools.has("time_tracking_optional"));
+  setNavLinkVisible("reporting.html", availableTools.has("billing_invoicing_reporting") || timeTrackingEnabled);
+  setNavLinkVisible("time-tracker.html", timeTrackingEnabled);
+  setNavLinkVisible("manual-entry.html", timeTrackingEnabled);
+  setNavLinkVisible("edit-entries.html", timeTrackingEnabled);
 
   document.querySelectorAll(".nav-menu").forEach((menu) => {
     const visibleLinks = [...menu.querySelectorAll("a")].filter((link) => !link.hidden);

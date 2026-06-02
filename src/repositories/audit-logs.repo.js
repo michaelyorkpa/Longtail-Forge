@@ -71,8 +71,96 @@ LIMIT ${Math.max(1, Math.min(200, Number.parseInt(limit, 10) || 50))};
 }
 
 async function search(organizationId, filters = {}) {
+  const clauses = buildSearchClauses(organizationId, filters);
+  const limit = normalizeLimit(filters.limit);
+  const offset = normalizeOffset(filters.offset);
+
+  const rows = await querySql(`
+SELECT
+  audit_id,
+  organization_id,
+  created_at,
+  actor_user_id,
+  actor_user_name,
+  action,
+  change_type,
+  record_type,
+  record_id,
+  record_label,
+  record_url,
+  previous_value_json,
+  new_value_json,
+  metadata_json
+FROM audit_logs
+WHERE ${clauses.join("\n  AND ")}
+ORDER BY created_at DESC
+LIMIT ${limit}
+OFFSET ${offset};
+`);
+
+  return rows;
+}
+
+async function countSearch(organizationId, filters = {}) {
+  const clauses = buildSearchClauses(organizationId, filters);
+  const rows = await querySql(`
+SELECT COUNT(*) AS total
+FROM audit_logs
+WHERE ${clauses.join("\n  AND ")};
+`);
+
+  return Number.parseInt(rows[0]?.total, 10) || 0;
+}
+
+async function readFilterOptions(organizationId) {
+  const [users, recordTypes, changeTypes] = await Promise.all([
+    querySql(`
+SELECT actor_user_id, actor_user_name
+FROM audit_logs
+WHERE organization_id = ${sqlText(organizationId)}
+  AND actor_user_id IS NOT NULL
+  AND actor_user_id != ''
+GROUP BY actor_user_id, actor_user_name
+ORDER BY actor_user_name COLLATE NOCASE, actor_user_id COLLATE NOCASE;
+`),
+    querySql(`
+SELECT DISTINCT record_type
+FROM audit_logs
+WHERE organization_id = ${sqlText(organizationId)}
+  AND record_type IS NOT NULL
+  AND record_type != ''
+ORDER BY record_type COLLATE NOCASE;
+`),
+    querySql(`
+SELECT DISTINCT change_type
+FROM audit_logs
+WHERE organization_id = ${sqlText(organizationId)}
+  AND change_type IS NOT NULL
+  AND change_type != ''
+ORDER BY change_type COLLATE NOCASE;
+`),
+  ]);
+
+  return {
+    changeTypes: changeTypes.map((row) => row.change_type),
+    recordTypes: recordTypes.map((row) => row.record_type),
+    users: users.map((row) => ({
+      label: row.actor_user_name || row.actor_user_id,
+      value: row.actor_user_id,
+    })),
+  };
+}
+
+async function removeBefore(organizationId, cutoffIso) {
+  await runSql(`
+DELETE FROM audit_logs
+WHERE organization_id = ${sqlText(organizationId)}
+  AND created_at < ${sqlText(cutoffIso)};
+`);
+}
+
+function buildSearchClauses(organizationId, filters = {}) {
   const clauses = [`organization_id = ${sqlText(organizationId)}`];
-  const limit = Math.max(1, Math.min(1000, Number.parseInt(filters.limit, 10) || 500));
 
   if (filters.dateFrom) {
     clauses.push(`created_at >= ${sqlText(filters.dateFrom)}`);
@@ -94,42 +182,22 @@ async function search(organizationId, filters = {}) {
     clauses.push(`change_type = ${sqlText(filters.changeType)}`);
   }
 
-  const rows = await querySql(`
-SELECT
-  audit_id,
-  organization_id,
-  created_at,
-  actor_user_id,
-  actor_user_name,
-  action,
-  change_type,
-  record_type,
-  record_id,
-  record_label,
-  record_url,
-  previous_value_json,
-  new_value_json,
-  metadata_json
-FROM audit_logs
-WHERE ${clauses.join("\n  AND ")}
-ORDER BY created_at DESC
-LIMIT ${limit};
-`);
-
-  return rows;
+  return clauses;
 }
 
-async function removeBefore(organizationId, cutoffIso) {
-  await runSql(`
-DELETE FROM audit_logs
-WHERE organization_id = ${sqlText(organizationId)}
-  AND created_at < ${sqlText(cutoffIso)};
-`);
+function normalizeLimit(value) {
+  return Math.max(1, Math.min(1000, Number.parseInt(value, 10) || 500));
+}
+
+function normalizeOffset(value) {
+  return Math.max(0, Number.parseInt(value, 10) || 0);
 }
 
 export const auditLogsRepository = {
+  countSearch,
   create,
   readRecent,
+  readFilterOptions,
   removeBefore,
   search,
 };

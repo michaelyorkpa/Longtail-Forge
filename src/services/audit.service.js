@@ -69,12 +69,26 @@ async function record(event) {
 async function list(session, filters = {}) {
   const settings = await readAuditSettings(session.organization_id);
   await cleanupExpired(session.organization_id, settings.retentionDays);
+  const normalizedFilters = normalizeFilters({
+    ...filters,
+    timezone: session.timezone,
+  });
+  const [auditLogs, total, filterOptions] = await Promise.all([
+    auditLogsRepository.search(session.organization_id, normalizedFilters),
+    auditLogsRepository.countSearch(session.organization_id, normalizedFilters),
+    auditLogsRepository.readFilterOptions(session.organization_id),
+  ]);
+  const limit = normalizeLimit(normalizedFilters.limit);
+  const offset = normalizeOffset(normalizedFilters.offset);
 
   return {
-    auditLogs: await auditLogsRepository.search(session.organization_id, normalizeFilters({
-      ...filters,
-      timezone: session.timezone,
-    })),
+    auditLogs,
+    filterOptions,
+    pagination: {
+      limit,
+      offset,
+      total,
+    },
   };
 }
 
@@ -112,8 +126,17 @@ function normalizeFilters(filters) {
     dateFrom: normalizeDateBound(filters.dateFrom, filters.timezone, "start"),
     dateTo: normalizeDateBound(filters.dateTo, filters.timezone, "end"),
     limit: filters.limit,
+    offset: filters.offset,
     recordType: nullableString(filters.recordType),
   };
+}
+
+function normalizeLimit(value) {
+  return Math.max(1, Math.min(1000, Number.parseInt(value, 10) || 500));
+}
+
+function normalizeOffset(value) {
+  return Math.max(0, Number.parseInt(value, 10) || 0);
 }
 
 function normalizeDateBound(value, timezone, edge) {

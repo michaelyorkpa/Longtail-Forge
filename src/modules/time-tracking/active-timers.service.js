@@ -3,6 +3,7 @@ import { clientsRepository } from "../client-projects/clients.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
 import { activeTimersRepository } from "./active-timers.repo.js";
 import { timeEntriesService } from "./time-entries.service.js";
+import { modulesService } from "../../core/modules/modules.service.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
@@ -14,6 +15,7 @@ async function list(session) {
 }
 
 async function save(timerSlot, payload, session) {
+  await assertTimeTrackingEnabled(session);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
   const timer = normalizeTimerPayload(payload, normalizedTimerSlot, session);
   const scope = await resolveTimerScope(session.organization_id, timer);
@@ -31,6 +33,7 @@ async function save(timerSlot, payload, session) {
 }
 
 async function remove(timerSlot, session) {
+  await assertTimeTrackingEnabled(session);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
 
   await activeTimersRepository.remove(session.organization_id, session.user_id, normalizedTimerSlot);
@@ -38,6 +41,7 @@ async function remove(timerSlot, session) {
 }
 
 async function finalize(timerSlot, payload, session) {
+  await assertTimeTrackingEnabled(session);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
   const activeTimer = await activeTimersRepository.readBySlot(
     session.organization_id,
@@ -149,6 +153,14 @@ function normalizeIsoDate(value) {
 
 function stringOrEmpty(value) {
   return String(value || "").trim();
+}
+
+async function assertTimeTrackingEnabled(session) {
+  const status = await modulesService.readModuleStatus(session.organization_id, "time-tracking");
+
+  if (status !== "enabled") {
+    throw new AppError("Time tracking is turned off for this workspace.", 403);
+  }
 }
 
 export const activeTimersService = {

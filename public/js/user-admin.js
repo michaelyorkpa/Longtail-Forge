@@ -51,6 +51,7 @@ let activeWorkspaceType = "business";
 let pendingRoleAssignments = [];
 let draftPermissionOverrides = createDefaultPermissionOverrides();
 let editingPermissionTarget = null;
+let openedUserFromQuery = false;
 
 loadUsers();
 
@@ -121,6 +122,7 @@ async function loadUsers() {
     applyUserCreationAvailability();
     renderRoleOptions();
     renderUsers(usersBody.users || []);
+    openUserFromQuery();
     setUserAdminStatus("");
   } catch (error) {
     if (error.status === 401) {
@@ -209,6 +211,22 @@ function normalizeWorkspaceType(workspaceType) {
 function renderUsers(nextUsers) {
   users = Array.isArray(nextUsers) ? nextUsers : [];
   renderUserRows(users);
+}
+
+function openUserFromQuery() {
+  if (openedUserFromQuery) {
+    return;
+  }
+
+  const userId = new URLSearchParams(window.location.search).get("user") || "";
+  const user = users.find((item) => item.user_id === userId);
+
+  if (!user) {
+    return;
+  }
+
+  openedUserFromQuery = true;
+  openEditUserDialog(user);
 }
 
 function renderUserRows(users) {

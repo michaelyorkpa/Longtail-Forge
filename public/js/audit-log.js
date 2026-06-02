@@ -7,21 +7,29 @@ const changeTypeFilterSelect = document.querySelector("[data-audit-change-type-f
 const resetButton = document.querySelector("[data-audit-reset]");
 const exportFilteredButton = document.querySelector("[data-audit-export-filtered]");
 const exportAllButton = document.querySelector("[data-audit-export-all]");
+const pageSizeSelect = document.querySelector("[data-audit-page-size]");
+const previousPageButton = document.querySelector("[data-audit-previous-page]");
+const nextPageButton = document.querySelector("[data-audit-next-page]");
+const pageSummary = document.querySelector("[data-audit-page-summary]");
 const auditStatus = document.querySelector("[data-audit-status]");
 const auditLogBody = document.querySelector("[data-audit-log-body]");
 
 let auditLogs = [];
+let currentPage = 1;
+let totalAuditLogs = 0;
 
 initializeAuditLog();
 
 auditFilterForm.addEventListener("submit", (event) => {
   event.preventDefault();
-  renderAuditLogs();
+  currentPage = 1;
+  loadAuditLogs();
 });
 
 resetButton.addEventListener("click", () => {
   auditFilterForm.reset();
-  renderAuditLogs();
+  currentPage = 1;
+  loadAuditLogs();
 });
 
 exportFilteredButton.addEventListener("click", () => {
@@ -32,17 +40,48 @@ exportAllButton.addEventListener("click", () => {
   window.location.href = "/api/audit-logs/export.csv";
 });
 
+pageSizeSelect.addEventListener("change", () => {
+  currentPage = 1;
+  loadAuditLogs();
+});
+
+previousPageButton.addEventListener("click", () => {
+  if (currentPage <= 1) {
+    return;
+  }
+
+  currentPage -= 1;
+  loadAuditLogs();
+});
+
+nextPageButton.addEventListener("click", () => {
+  if (currentPage >= getTotalPages()) {
+    return;
+  }
+
+  currentPage += 1;
+  loadAuditLogs();
+});
+
 async function loadAuditLogs() {
   setStatus("Loading audit log...");
 
   try {
-    const result = await window.LongtailForge.api.getJson("/api/audit-logs?limit=1000", {
+    const result = await window.LongtailForge.api.getJson(`/api/audit-logs?${buildPageParams().toString()}`, {
       cache: "no-store",
     });
     auditLogs = Array.isArray(result.auditLogs) ? result.auditLogs.map(normalizeAuditLog) : [];
-    populateFilterOptions();
+    totalAuditLogs = Number.parseInt(result.pagination?.total, 10) || 0;
+    const normalizedPage = normalizeCurrentPage();
+
+    if (normalizedPage !== currentPage) {
+      currentPage = normalizedPage;
+      await loadAuditLogs();
+      return;
+    }
+
+    populateFilterOptions(result.filterOptions);
     renderAuditLogs();
-    setStatus("");
   } catch (error) {
     setStatus("Audit log could not be loaded.");
     console.error(error);
@@ -54,30 +93,10 @@ async function initializeAuditLog() {
   await loadAuditLogs();
 }
 
-function populateFilterOptions() {
-  replaceSelectOptions(userFilterSelect, "All users", collectUsers());
-  replaceSelectOptions(recordTypeFilterSelect, "All record types", collectValues("record_type"));
-  replaceSelectOptions(changeTypeFilterSelect, "All change types", collectValues("change_type"));
-}
-
-function collectUsers() {
-  const users = new Map();
-
-  auditLogs.forEach((log) => {
-    if (log.actor_user_id) {
-      users.set(log.actor_user_id, log.actor_user_name || log.actor_user_id);
-    }
-  });
-
-  return [...users.entries()]
-    .map(([value, label]) => ({ value, label }))
-    .sort((first, second) => first.label.localeCompare(second.label));
-}
-
-function collectValues(fieldName) {
-  return [...new Set(auditLogs.map((log) => log[fieldName]).filter(Boolean))]
-    .sort()
-    .map((value) => ({ value, label: formatEnum(value) }));
+function populateFilterOptions(filterOptions = {}) {
+  replaceSelectOptions(userFilterSelect, "All users", normalizeOptions(filterOptions.users));
+  replaceSelectOptions(recordTypeFilterSelect, "All record types", normalizeEnumOptions(filterOptions.recordTypes));
+  replaceSelectOptions(changeTypeFilterSelect, "All change types", normalizeEnumOptions(filterOptions.changeTypes));
 }
 
 function replaceSelectOptions(select, allLabel, options) {
@@ -93,10 +112,10 @@ function replaceSelectOptions(select, allLabel, options) {
 }
 
 function renderAuditLogs() {
-  const visibleLogs = filterAuditLogs();
   auditLogBody.replaceChildren();
+  updatePagination();
 
-  if (visibleLogs.length === 0) {
+  if (auditLogs.length === 0) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
 
@@ -104,12 +123,15 @@ function renderAuditLogs() {
     cell.textContent = "No audit log entries match these filters.";
     row.appendChild(cell);
     auditLogBody.appendChild(row);
+    setStatus("");
     return;
   }
 
-  visibleLogs.forEach((log) => {
+  auditLogs.forEach((log) => {
     auditLogBody.appendChild(createAuditRow(log));
   });
+
+  updateStatus();
 }
 
 function createAuditRow(log) {
@@ -125,7 +147,8 @@ function createAuditRow(log) {
     userButton.textContent = log.actor_user_name || log.actor_user_id;
     userButton.addEventListener("click", () => {
       userFilterSelect.value = log.actor_user_id;
-      renderAuditLogs();
+      currentPage = 1;
+      loadAuditLogs();
     });
     userCell.appendChild(userButton);
   } else {
@@ -147,23 +170,6 @@ function createAuditRow(log) {
   );
 
   return row;
-}
-
-function filterAuditLogs() {
-  const dateFrom = dateFromInput.value
-    ? window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateFromInput.value, "00:00:00")
-    : "";
-  const dateTo = dateToInput.value
-    ? window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateToInput.value, "23:59:59")
-    : "";
-
-  return auditLogs.filter((log) =>
-    (!dateFrom || log.created_at >= dateFrom) &&
-    (!dateTo || log.created_at <= dateTo) &&
-    (!userFilterSelect.value || log.actor_user_id === userFilterSelect.value) &&
-    (!recordTypeFilterSelect.value || log.record_type === recordTypeFilterSelect.value) &&
-    (!changeTypeFilterSelect.value || log.change_type === changeTypeFilterSelect.value),
-  );
 }
 
 function buildFilterParams() {
@@ -190,6 +196,68 @@ function buildFilterParams() {
   }
 
   return params;
+}
+
+function buildPageParams() {
+  const params = buildFilterParams();
+  const pageSize = getPageSize();
+
+  params.set("limit", String(pageSize));
+  params.set("offset", String((currentPage - 1) * pageSize));
+  return params;
+}
+
+function normalizeOptions(options) {
+  return Array.isArray(options)
+    ? options
+      .filter((option) => option && option.value)
+      .map((option) => ({
+        label: String(option.label || option.value),
+        value: String(option.value),
+      }))
+    : [];
+}
+
+function normalizeEnumOptions(values) {
+  return Array.isArray(values)
+    ? values
+      .filter(Boolean)
+      .map((value) => String(value))
+      .map((value) => ({ value, label: formatEnum(value) }))
+    : [];
+}
+
+function updatePagination() {
+  const totalPages = getTotalPages();
+
+  previousPageButton.disabled = currentPage <= 1;
+  nextPageButton.disabled = currentPage >= totalPages;
+  pageSummary.textContent = `Page ${Math.min(currentPage, totalPages)} of ${totalPages}`;
+}
+
+function updateStatus() {
+  if (totalAuditLogs === 0) {
+    setStatus("");
+    return;
+  }
+
+  const pageSize = getPageSize();
+  const start = (currentPage - 1) * pageSize + 1;
+  const end = Math.min(start + auditLogs.length - 1, totalAuditLogs);
+
+  setStatus(`Showing ${start}-${end} of ${totalAuditLogs} audit log entries.`);
+}
+
+function getTotalPages() {
+  return Math.max(1, Math.ceil(totalAuditLogs / getPageSize()));
+}
+
+function normalizeCurrentPage() {
+  return Math.min(Math.max(1, currentPage), getTotalPages());
+}
+
+function getPageSize() {
+  return Number.parseInt(pageSizeSelect.value, 10) || 50;
 }
 
 function openAuditDetailDialog(log) {

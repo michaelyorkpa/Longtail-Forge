@@ -8,35 +8,18 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
-- [ ] The form for edit entries still displays UUID instead of a friendly name
-
-- [ ] Client shows up for personal/family workspaces on the following pages where it should be hidden:
-  - [ ] Time Tracker
-  - [ ] Create Manual Entry
-  - [ ] Edit Entries
-
 - [ ] If time tracking is turned on for Personal/Family workspaces, reporting should be turned on
+
+- [ ] Add hover over for value on bargraph on dashboard
+
+- [ ] When projects are moved to a different client, or just assigned as a workspace project, the time entries no longer show up in reporting
+  - It would appear that reporting of time entries needs to be decoupled from clients for reporting. Allow the client to select the projects, and the projects to select the time entries
 
 ## Tweaks
 
-- [ ] Change "Clear Info when Reset" to "Clear Info when Stopped/Reset"
-    - This change only affects the behavior of the stop button, specifically, if this box is checked when stop is pressed, client, project, and description are cleared.
-
-- [ ] Allow export of reports/audit logs via CSV in either local timezone or UTC
-
-- [ ] Deprecate browser warning when navigating away/refreshing page while active timers are running
-
-- [ ] Convert client & project details to a list of clients & projects, respectively, to multi-column table with bulk editing abilities and button to edit
-
-- [ ] Add setting to turn on/off time keeping module in both workspace creation and workspace settings
-  - all existing time tracking entries should be immutable
-  - if turned off, the top-level time tracking menu option should also disappear
-
-- [ ] Add "All Clients" or "Total Workspace Hours/Billables" in reporting for business workspaces
-
 # Medium Term
 
-  - [ ] Add self-hosted install setting to limit workspace types
+  - [ ] Add self-hosted install setting to limit/select workspace types
     - [ ] Allow self-hosted installs to be business-only, personal, or personal and family only if desired
     - [ ] This can start as a config value or setup-wizard option
 

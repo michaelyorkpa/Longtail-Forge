@@ -329,6 +329,26 @@ h1 {
     text-align: left;
 }
 
+.workspace-settings-page {
+    width: min(94vw, 920px);
+}
+
+.user-settings-page {
+    width: min(94vw, 920px);
+}
+
+.workspace-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
+}
+
+.workspace-settings-column {
+    display: grid;
+    gap: 16px;
+}
+
 .user-admin-page {
     width: min(94vw, 760px);
     text-align: left;
@@ -406,6 +426,12 @@ h1 {
 
 .settings-form button {
     justify-self: end;
+}
+
+.settings-secondary-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
 }
 
 .settings-fieldset {
@@ -695,9 +721,35 @@ button.danger-button {
     gap: 8px;
 }
 
+.audit-page-size-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 8px;
+}
+
+.audit-page-size-control select {
+    width: auto;
+    min-width: 84px;
+}
+
 [data-audit-status] {
     min-height: 20px;
     margin: 0 0 16px;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+.audit-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.audit-pagination [data-audit-page-summary] {
     color: var(--color-muted);
     font-size: 14px;
 }
@@ -894,6 +946,35 @@ button.danger-button {
 .client-filters {
     width: min(100%, 240px);
     margin-bottom: 16px;
+}
+
+.workspace-users-dialog,
+.workspace-removal-dialog {
+    width: min(92vw, 720px);
+}
+
+.workspace-users-list,
+.workspace-removal-list {
+    display: grid;
+    gap: 8px;
+}
+
+.workspace-user-row,
+.workspace-removal-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.workspace-removal-row p {
+    margin: 4px 0 0;
+    color: var(--color-muted);
+    font-size: 14px;
 }
 
 .project-page-toolbar {
@@ -1640,6 +1721,7 @@ button:disabled {
     .project-bulk-filter-row,
     .project-bulk-action-row,
     .project-bulk-list,
+    .workspace-settings-grid,
     .entry-form,
     .entry-filters,
     .audit-log-filters,
