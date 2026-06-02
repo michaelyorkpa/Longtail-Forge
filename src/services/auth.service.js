@@ -4,6 +4,8 @@ import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.j
 import { createSession, deleteSession } from "../security/sessions.js";
 import { hashPassword, validatePassword, verifyPassword } from "../security/passwords.js";
 import { auditService } from "./audit.service.js";
+import { permissionsService } from "./permissions.service.js";
+import { settingsService } from "./settings.service.js";
 import { AppError } from "../utils/app-error.js";
 import {
   normalizeOptionalEmail,
@@ -31,8 +33,19 @@ async function login(payload) {
     throw new AppError("This user is inactive.", 401);
   }
 
-  const session = await createSession(user);
   const workspaceMemberships = await userWorkspacesRepository.readForUser(user.user_id);
+  const activeWorkspaceId = resolveActiveWorkspaceId(user, workspaceMemberships);
+  const session = await createSession({
+    ...user,
+    active_workspace_id: activeWorkspaceId,
+  });
+  const sessionContext = {
+    organization_id: activeWorkspaceId,
+    active_workspace_id: activeWorkspaceId,
+    user_id: user.user_id,
+    username: user.username,
+    timezone: normalizeTimezone(user.timezone),
+  };
   await auditService.record({
     organizationId: user.organization_id,
     actorUserId: user.user_id,
@@ -54,8 +67,10 @@ async function login(payload) {
     session,
     themeMode: normalizeThemeMode(user.theme_mode),
     user: {
-      organization_id: user.organization_id,
-      active_workspace_id: user.organization_id,
+      organization_id: activeWorkspaceId,
+      active_workspace_id: activeWorkspaceId,
+      isSuperAdmin: await permissionsService.isSuperAdmin(sessionContext),
+      workspaceContext: await settingsService.readWorkspaceBootstrap(sessionContext),
       workspaces: normalizeWorkspaceMemberships(workspaceMemberships),
       user_id: user.user_id,
       username: user.username,
@@ -96,11 +111,14 @@ async function readSession(session) {
   }
 
   const workspaceMemberships = await userWorkspacesRepository.readForUser(session.user_id);
+  const workspaceContext = await settingsService.readWorkspaceBootstrap(session);
 
   return {
     user: {
       organization_id: session.organization_id,
       active_workspace_id: session.active_workspace_id || session.organization_id,
+      isSuperAdmin: await permissionsService.isSuperAdmin(session),
+      workspaceContext,
       workspaces: normalizeWorkspaceMemberships(workspaceMemberships),
       user_id: session.user_id,
       username: session.username,
@@ -127,6 +145,7 @@ async function switchWorkspace(sessionId, session, payload) {
   }
 
   await sessionsRepository.updateActiveWorkspace(sessionId, workspaceId);
+  await usersRepository.updateActiveWorkspace(session.user_id, workspaceId);
   await auditService.record({
     session,
     action: "active_workspace_switched",
@@ -199,6 +218,21 @@ function normalizeWorkspaceMemberships(memberships) {
       workspaceName: membership.workspace_name,
       status: membership.status,
     }));
+}
+
+function resolveActiveWorkspaceId(user, memberships) {
+  const activeMemberships = memberships.filter((membership) => membership.status === "active");
+  const preferredWorkspaceId = String(user.active_workspace_id || "").trim();
+
+  if (activeMemberships.some((membership) => membership.workspace_id === preferredWorkspaceId)) {
+    return preferredWorkspaceId;
+  }
+
+  if (activeMemberships.some((membership) => membership.workspace_id === user.organization_id)) {
+    return user.organization_id;
+  }
+
+  return activeMemberships[0]?.workspace_id || user.organization_id;
 }
 
 export const authService = {

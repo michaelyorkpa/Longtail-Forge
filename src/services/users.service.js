@@ -433,6 +433,14 @@ async function createWorkspace(payload, session, sessionId = "") {
     throw new AppError("Workspace name is required.", 400);
   }
 
+  const existingWorkspaceNames = await workspacesRepository.readForUser(session.user_id);
+
+  if (existingWorkspaceNames.some((workspace) =>
+    String(workspace.workspace_name || "").trim().toLowerCase() === workspaceName.toLowerCase()
+  )) {
+    throw new AppError("Workspace name already exists.", 409);
+  }
+
   const workspace = await workspacesRepository.createWorkspace({
     ownerUser,
     workspaceName,
@@ -636,15 +644,34 @@ async function readUsersWithMemberships(session) {
 }
 
 async function readAssignableWorkspaces(session) {
-  if (await isProtectedSessionUser(session)) {
-    return (await userWorkspacesRepository.readAllWorkspaces()).map(workspaceToAppValue);
+  const allWorkspaces = await userWorkspacesRepository.readAllWorkspaces();
+
+  if (await permissionsService.isSuperAdmin(session)) {
+    return allWorkspaces.map(workspaceToAppValue);
   }
 
-  const workspace = (await userWorkspacesRepository.readAllWorkspaces())
-    .find((item) => item.workspace_id === session.organization_id);
+  const currentUserMemberships = await userWorkspacesRepository.readForUser(session.user_id);
+  const currentUserWorkspaceIds = new Set(
+    currentUserMemberships
+      .filter((membership) => membership.status !== "inactive")
+      .map((membership) => membership.workspace_id),
+  );
+  const visibleWorkspaces = allWorkspaces.filter((workspace) => {
+    if (workspace.workspace_type === "personal") {
+      return workspace.owner_user_id === session.user_id || workspace.workspace_id === session.organization_id;
+    }
 
-  if (workspace) {
-    return [workspaceToAppValue(workspace)];
+    if (workspace.workspace_type === "family") {
+      return workspace.owner_user_id === session.user_id ||
+        currentUserWorkspaceIds.has(workspace.workspace_id) ||
+        workspace.workspace_id === session.organization_id;
+    }
+
+    return true;
+  });
+
+  if (visibleWorkspaces.length > 0) {
+    return visibleWorkspaces.map(workspaceToAppValue);
   }
 
   const settings = await settingsRepository.readOrganizationSettings(session.organization_id);
@@ -653,6 +680,7 @@ async function readAssignableWorkspaces(session) {
     workspaceName: settings.workspaceName || settings.organizationName,
     workspaceType: settings.workspaceType,
     ownerUserId: session.user_id,
+    ownerUsername: session.username,
   }];
 }
 
@@ -766,17 +794,13 @@ async function replaceWorkspaceMemberships({ session, user, requestedWorkspaceId
   }
 }
 
-async function isProtectedSessionUser(session) {
-  const user = await usersRepository.readById(session.organization_id, session.user_id);
-  return normalizeProtectedUserFlag(user?.protected_user);
-}
-
 function workspaceToAppValue(workspace) {
   return {
     workspaceId: workspace.workspace_id,
     workspaceName: workspace.workspace_name,
     workspaceType: workspace.workspace_type,
     ownerUserId: workspace.owner_user_id,
+    ownerUsername: workspace.owner_username,
   };
 }
 

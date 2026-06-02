@@ -37,6 +37,7 @@ manualEntryForm.addEventListener("submit", async (event) => {
 
 async function initializeManualEntry() {
   await window.LongtailForge.timezones.loadSessionTimezone();
+  await window.LongtailForge.workspaceContextReady;
   setDefaultEntryDate();
   await loadEntryClients();
 }
@@ -67,6 +68,8 @@ function populateClientOptions() {
   sortByName(entryClients).forEach((client) => {
     entryClientSelect.appendChild(createOption(client.id, client.name));
   });
+
+  selectWorkspaceScopeClientIfNeeded();
 }
 
 function populateProjectOptions() {
@@ -83,6 +86,19 @@ function populateProjectOptions() {
   });
 
   updateBillableDefault();
+}
+
+function selectWorkspaceScopeClientIfNeeded() {
+  if (workspaceShowsClientTools()) {
+    return;
+  }
+
+  const workspaceClient = entryClients.find((client) => client.isWorkspaceScope);
+
+  if (workspaceClient) {
+    entryClientSelect.value = workspaceClient.id;
+    populateProjectOptions();
+  }
 }
 
 async function saveManualEntry() {
@@ -251,6 +267,13 @@ function sortByName(items) {
       sensitivity: "base",
     }),
   );
+}
+
+function workspaceShowsClientTools() {
+  const context = window.LongtailForge?.workspaceContext || {};
+  const tools = context.workspaceCapabilities?.availableTools || [];
+
+  return Array.isArray(tools) && tools.includes("clients_projects");
 }
 
 function setEntryStatus(message) {

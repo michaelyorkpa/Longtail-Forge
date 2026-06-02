@@ -43,7 +43,18 @@
           </select>
         </label>
 
+        <label data-audit-workspace-filter-control hidden>
+          Workspace
+          <select data-audit-workspace-filter>
+            <option value="">Current workspace</option>
+          </select>
+        </label>
+
         <div class="audit-log-actions">
+          <label class="inline-option audit-timezone-control">
+            <input type="checkbox" data-audit-show-utc>
+            Show UTC
+          </label>
           <button type="submit">Apply</button>
           <button type="button" data-audit-reset>Reset</button>
           <button type="button" data-audit-export-filtered>Export Filtered</button>

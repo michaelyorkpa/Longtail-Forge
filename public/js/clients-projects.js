@@ -1989,7 +1989,7 @@ async function persistClientProjectChange(action, viewState = {}, request) {
     flashSavedButton(viewState.flashSelector);
     return true;
   } catch (error) {
-    setStatus("Clients and projects were not saved. Start the local server and try again.");
+    setStatus(error.message || "Clients and projects were not saved. Start the local server and try again.");
     console.error(error);
     return false;
   }

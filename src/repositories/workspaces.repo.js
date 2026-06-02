@@ -148,7 +148,8 @@ INSERT INTO users (
   password,
   theme_mode,
   user_status,
-  protected_user
+  protected_user,
+  active_workspace_id
 )
 VALUES (
   ${sqlText(ownerUser.user_id)},
@@ -160,7 +161,8 @@ VALUES (
   ${sqlText(ownerUser.password)},
   ${sqlText(ownerUser.theme_mode || "light")},
   ${sqlText(ownerUser.user_status || "active")},
-  ${sqlText(ownerUser.protected_user || "no")}
+  ${sqlText(ownerUser.protected_user || "no")},
+  ${sqlText(workspaceId)}
 );
 INSERT INTO user_workspaces (
   user_workspace_id,

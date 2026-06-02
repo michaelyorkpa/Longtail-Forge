@@ -19,7 +19,8 @@ const USER_SELECT_COLUMNS = `
   password,
   theme_mode,
   user_status,
-  protected_user
+  protected_user,
+  active_workspace_id
 `;
 
 async function readByUsername(username) {
@@ -112,7 +113,8 @@ INSERT INTO users (
   password,
   theme_mode,
   user_status,
-  protected_user
+  protected_user,
+  active_workspace_id
 )
 VALUES (
   ${sqlText(userId)},
@@ -124,7 +126,8 @@ VALUES (
   ${sqlText(passwordHash)},
   'light',
   'active',
-  'no'
+  'no',
+  ${sqlText(organizationId)}
 );
 `);
 
@@ -181,6 +184,14 @@ WHERE organization_id = ${sqlText(organizationId)}
 `);
 }
 
+async function updateActiveWorkspace(userId, workspaceId) {
+  await runSql(`
+UPDATE users
+SET active_workspace_id = ${sqlText(workspaceId)}
+WHERE user_id = ${sqlText(userId)};
+`);
+}
+
 async function remove(organizationId, userId) {
   await runSql(`
 DELETE FROM users
@@ -198,6 +209,7 @@ export const usersRepository = {
   readByUsernameForOrganization,
   remove,
   updatePassword,
+  updateActiveWorkspace,
   updateProfile,
   updateStatus,
   updateThemeMode,

@@ -67,7 +67,7 @@ async function createTimeEntry(context, payload) {
   const entry = normalizeTimeEntry({
     entry_id: entryId,
     organization_id: context.organization_id,
-    user_id: payload.user_id || context.user_id,
+    user_id: context.user_id,
     client_id: client?.id || "",
     client_name: client?.name || "",
     project_id: project.id,

@@ -88,7 +88,7 @@ async function update(payload, entryId, session) {
     end_time: normalizeUtcIso(payload.end_time, session.timezone),
     entry_id: decodedEntryId,
     organization_id: session.organization_id,
-    user_id: payload.user_id || previousEntry.user_id,
+    user_id: previousEntry.user_id,
     client_id: scope.client?.id || "",
     client_name: scope.client?.name || "",
     project_id: scope.project.id,

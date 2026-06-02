@@ -4,6 +4,9 @@ const dateToInput = document.querySelector("[data-audit-date-to]");
 const userFilterSelect = document.querySelector("[data-audit-user-filter]");
 const recordTypeFilterSelect = document.querySelector("[data-audit-record-type-filter]");
 const changeTypeFilterSelect = document.querySelector("[data-audit-change-type-filter]");
+const workspaceFilterControl = document.querySelector("[data-audit-workspace-filter-control]");
+const workspaceFilterSelect = document.querySelector("[data-audit-workspace-filter]");
+const showUtcInput = document.querySelector("[data-audit-show-utc]");
 const resetButton = document.querySelector("[data-audit-reset]");
 const exportFilteredButton = document.querySelector("[data-audit-export-filtered]");
 const exportAllButton = document.querySelector("[data-audit-export-all]");
@@ -28,6 +31,7 @@ auditFilterForm.addEventListener("submit", (event) => {
 
 resetButton.addEventListener("click", () => {
   auditFilterForm.reset();
+  setDefaultWorkspaceFilter();
   currentPage = 1;
   loadAuditLogs();
 });
@@ -41,6 +45,16 @@ exportAllButton.addEventListener("click", () => {
 });
 
 pageSizeSelect.addEventListener("change", () => {
+  currentPage = 1;
+  loadAuditLogs();
+});
+
+workspaceFilterSelect.addEventListener("change", () => {
+  currentPage = 1;
+  loadAuditLogs();
+});
+
+showUtcInput.addEventListener("change", () => {
   currentPage = 1;
   loadAuditLogs();
 });
@@ -80,7 +94,7 @@ async function loadAuditLogs() {
       return;
     }
 
-    populateFilterOptions(result.filterOptions);
+    populateFilterOptions(result.filterOptions, result.workspaceId);
     renderAuditLogs();
   } catch (error) {
     setStatus("Audit log could not be loaded.");
@@ -90,13 +104,15 @@ async function loadAuditLogs() {
 
 async function initializeAuditLog() {
   await window.LongtailForge.timezones.loadSessionTimezone();
+  await window.LongtailForge.workspaceContextReady;
   await loadAuditLogs();
 }
 
-function populateFilterOptions(filterOptions = {}) {
+function populateFilterOptions(filterOptions = {}, selectedWorkspaceId = "") {
   replaceSelectOptions(userFilterSelect, "All users", normalizeOptions(filterOptions.users));
   replaceSelectOptions(recordTypeFilterSelect, "All record types", normalizeEnumOptions(filterOptions.recordTypes));
   replaceSelectOptions(changeTypeFilterSelect, "All change types", normalizeEnumOptions(filterOptions.changeTypes));
+  populateWorkspaceOptions(filterOptions.workspaces, selectedWorkspaceId);
 }
 
 function replaceSelectOptions(select, allLabel, options) {
@@ -174,13 +190,14 @@ function createAuditRow(log) {
 
 function buildFilterParams() {
   const params = new URLSearchParams();
+  const timezone = showUtcInput.checked ? "UTC" : undefined;
 
   if (dateFromInput.value) {
-    params.set("dateFrom", window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateFromInput.value, "00:00:00"));
+    params.set("dateFrom", window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateFromInput.value, "00:00:00", timezone));
   }
 
   if (dateToInput.value) {
-    params.set("dateTo", window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateToInput.value, "23:59:59"));
+    params.set("dateTo", window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateToInput.value, "23:59:59", timezone));
   }
 
   if (userFilterSelect.value) {
@@ -193,6 +210,10 @@ function buildFilterParams() {
 
   if (changeTypeFilterSelect.value) {
     params.set("changeType", changeTypeFilterSelect.value);
+  }
+
+  if (workspaceFilterSelect.value) {
+    params.set("workspaceId", workspaceFilterSelect.value);
   }
 
   return params;
@@ -225,6 +246,30 @@ function normalizeEnumOptions(values) {
       .map((value) => String(value))
       .map((value) => ({ value, label: formatEnum(value) }))
     : [];
+}
+
+function populateWorkspaceOptions(workspaces, selectedWorkspaceId) {
+  const options = normalizeOptions(workspaces);
+
+  workspaceFilterControl.hidden = options.length === 0;
+
+  if (options.length === 0) {
+    workspaceFilterSelect.replaceChildren(createOption("", "Current workspace"));
+    return;
+  }
+
+  replaceSelectOptions(workspaceFilterSelect, "Current workspace", options);
+  workspaceFilterSelect.value = options.some((option) => option.value === selectedWorkspaceId)
+    ? selectedWorkspaceId
+    : workspaceFilterSelect.value;
+}
+
+function setDefaultWorkspaceFilter() {
+  const contextWorkspaceId = window.LongtailForge?.workspaceContext?.workspaceId || "";
+
+  if (contextWorkspaceId && [...workspaceFilterSelect.options].some((option) => option.value === contextWorkspaceId)) {
+    workspaceFilterSelect.value = contextWorkspaceId;
+  }
 }
 
 function updatePagination() {
@@ -485,7 +530,9 @@ function formatEnum(value) {
 }
 
 function formatDateTime(value) {
-  return window.LongtailForge.timezones.formatDateTime(value) || "None";
+  const timezone = showUtcInput.checked ? "UTC" : undefined;
+
+  return window.LongtailForge.timezones.formatDateTime(value, timezone) || "None";
 }
 
 function setStatus(message) {

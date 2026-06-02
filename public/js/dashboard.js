@@ -160,8 +160,12 @@ function createBillablesSvg(points) {
     const amountY = padding.top + chartHeight - amountHeight;
 
     return `
-      <rect class="chart-hours" x="${hourX}" y="${hourY}" width="${hourBarWidth}" height="${hourHeight}"></rect>
-      <rect class="chart-amount" x="${amountX}" y="${amountY}" width="${amountBarWidth}" height="${amountHeight}"></rect>
+      <rect class="chart-hours" x="${hourX}" y="${hourY}" width="${hourBarWidth}" height="${hourHeight}">
+        <title>${formatChartHours(point.hours)}</title>
+      </rect>
+      <rect class="chart-amount" x="${amountX}" y="${amountY}" width="${amountBarWidth}" height="${amountHeight}">
+        <title>${formatCurrency(point.amount)}</title>
+      </rect>
     `;
   }).join("");
 
@@ -200,6 +204,11 @@ function formatCurrency(amount) {
 
 function formatMonthLabel(date) {
   return window.LongtailForge.formatters.monthLabel(date);
+}
+
+function formatChartHours(hours) {
+  const value = Number(hours) || 0;
+  return `${value.toFixed(1)} hours`;
 }
 
 function createLegend(text) {

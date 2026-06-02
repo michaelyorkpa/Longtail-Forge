@@ -13,6 +13,19 @@ async function read(session) {
   );
 }
 
+async function readWorkspaceBootstrap(session) {
+  const settings = await read(session);
+
+  return {
+    enabledModules: settings.enabledModules,
+    timeTrackingEnabled: settings.timeTrackingEnabled,
+    workspaceCapabilities: settings.workspaceCapabilities,
+    workspaceId: settings.workspaceId,
+    workspaceName: settings.workspaceName,
+    workspaceType: settings.workspaceType,
+  };
+}
+
 async function save(payload, session) {
   await permissionsService.assertCan(session, "organization_settings.manage", {
     organization_id: session.organization_id,
@@ -87,5 +100,6 @@ async function decorateSettingsWithModules(settings, organizationId) {
 
 export const settingsService = {
   read,
+  readWorkspaceBootstrap,
   save,
 };

@@ -128,16 +128,6 @@ async function pauseOtherTimers(activeTimer) {
   }));
 }
 
-window.addEventListener("beforeunload", (event) => {
-  // Warn before leaving with unsaved elapsed time.
-  if (!timers.some((timer) => timer.hasElapsedTime())) {
-    return;
-  }
-
-  event.preventDefault();
-  event.returnValue = "";
-});
-
 async function loadClientProjectData() {
   try {
     const data = await window.LongtailForge.api.getJson("/api/client-projects", {
@@ -180,6 +170,7 @@ async function loadActiveTimers() {
 }
 
 async function initializeTimeTracker() {
+  await window.LongtailForge.workspaceContextReady;
   setTimerCount(1);
   await loadClientProjectData();
   await loadActiveTimers();
@@ -193,6 +184,8 @@ class StopwatchTimer {
     this.clientSelect =
       root.querySelector("[data-stopwatch-client]") ||
       createSelect(root, "Client", "client", "Select a client");
+    this.clientControl = this.clientSelect.closest("[data-client-workspace-control]") ||
+      this.clientSelect.closest("label");
     this.projectSelect =
       root.querySelector("[data-stopwatch-project]") ||
       createSelect(root, "Project", "project", "Select a project");
@@ -222,6 +215,9 @@ class StopwatchTimer {
     this.statusMessage =
       root.querySelector("[data-stopwatch-status]") ||
       createStatusMessage(root);
+    this.activeIndicator =
+      root.querySelector("[data-stopwatch-active-indicator]") ||
+      createActiveIndicator(root);
 
     this.elapsedMilliseconds = 0;
     this.startedAt = 0;
@@ -346,31 +342,21 @@ class StopwatchTimer {
 
   async resetTimeTrackerWithoutConfirmation(options = {}) {
     const shouldPersist = options.persist !== false;
+    const shouldClearElapsed = options.forceClearElapsed !== false &&
+      (options.ignoreClearPreference || this.clearOnResetInput.checked);
 
     window.clearInterval(this.timerId);
     this.timerId = null;
-    this.elapsedMilliseconds = 0;
-    this.activeStartTime = null;
-    this.persistedActiveTimerId = "";
-    this.clearDetailsIfRequested();
-    this.updateDisplay();
-    this.updateButtons();
-
-    if (shouldPersist) {
+    if (shouldPersist && shouldClearElapsed) {
       await this.discardPersistedState();
     }
-  }
-
-  clearDetailsIfRequested() {
-    // Resetting time is always allowed; clearing form details is opt-in per timer.
-    if (!this.clearOnResetInput.checked) {
-      return;
+    if (shouldClearElapsed) {
+      this.elapsedMilliseconds = 0;
     }
-
-    this.clientSelect.value = "";
-    this.populateProjectOptions([]);
-    this.descriptionInput.value = "";
-    this.billableInput.checked = true;
+    this.activeStartTime = null;
+    this.persistedActiveTimerId = "";
+    this.updateDisplay();
+    this.updateButtons();
   }
 
   async saveTimeEntry() {
@@ -450,9 +436,22 @@ class StopwatchTimer {
     )
       ? previousClientId
       : "";
+    this.selectWorkspaceScopeClientIfNeeded();
     this.clientSelect.disabled = this.clients.length === 0;
     this.handleClientChange({ shouldReset: false });
     this.updateButtons();
+  }
+
+  selectWorkspaceScopeClientIfNeeded() {
+    if (workspaceShowsClientTools()) {
+      return;
+    }
+
+    const workspaceClient = this.clients.find((client) => client.isWorkspaceScope);
+
+    if (workspaceClient) {
+      this.clientSelect.value = workspaceClient.id;
+    }
   }
 
   async handleClientChange(options = {}) {
@@ -570,6 +569,17 @@ class StopwatchTimer {
     this.pauseButton.disabled = !this.timerId || this.isSaving;
     this.stopButton.disabled = !hasSaveableTime || this.isSaving;
     this.resetButton.disabled = !hasElapsedTime || this.isSaving;
+    this.updateTimerStateLabel();
+  }
+
+  updateTimerStateLabel() {
+    const isActive = Boolean(this.timerId);
+    const isPaused = !isActive && Boolean(this.activeStartTime);
+    const state = isActive ? "active" : isPaused ? "paused" : "unused";
+
+    this.activeIndicator.hidden = false;
+    this.activeIndicator.textContent = isActive ? "Active" : isPaused ? "Paused" : "Unused";
+    this.activeIndicator.dataset.timerState = state;
   }
 
   hasElapsedTime() {
@@ -809,6 +819,10 @@ function createSelect(parent, labelText, fieldName, placeholder) {
   const label = document.createElement("label");
   const select = document.createElement("select");
 
+  if (fieldName === "client") {
+    label.dataset.clientWorkspaceControl = "";
+  }
+
   select.dataset[`stopwatch${capitalize(fieldName)}`] = "";
   select.appendChild(createOption("", placeholder));
 
@@ -866,7 +880,7 @@ function createClearOnResetInput(parent) {
 
   label.append(
     input,
-    document.createTextNode(" Clear Info when Reset"),
+    document.createTextNode(" Clear Info when Stopped/Reset"),
   );
   parent.appendChild(label);
 
@@ -897,6 +911,24 @@ function createDisplay(parent) {
   element.setAttribute("aria-live", "polite");
 
   parent.appendChild(element);
+  return element;
+}
+
+function createActiveIndicator(parent) {
+  const title = parent.querySelector("[data-stopwatch-title]");
+  const element = document.createElement("p");
+
+  element.className = "timer-active-indicator";
+  element.dataset.stopwatchActiveIndicator = "";
+  element.hidden = true;
+  element.textContent = "Active";
+
+  if (title) {
+    parent.insertBefore(element, title);
+  } else {
+    parent.prepend(element);
+  }
+
   return element;
 }
 
@@ -944,6 +976,13 @@ function normalizeClientProjectOptions(data) {
     },
     ...normalizedClients,
   ];
+}
+
+function workspaceShowsClientTools() {
+  const context = window.LongtailForge?.workspaceContext || {};
+  const tools = context.workspaceCapabilities?.availableTools || [];
+
+  return Array.isArray(tools) && tools.includes("clients_projects");
 }
 
 function createOption(value, label) {

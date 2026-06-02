@@ -39,11 +39,15 @@ ORDER BY organizations.name;
 async function readAllWorkspaces() {
   return querySql(`
 SELECT
-  id AS workspace_id,
-  name AS workspace_name,
-  workspace_type,
-  owner_user_id
+  organizations.id AS workspace_id,
+  organizations.name AS workspace_name,
+  organizations.workspace_type,
+  organizations.owner_user_id,
+  owner.username AS owner_username
 FROM organizations
+LEFT JOIN users AS owner
+  ON owner.user_id = organizations.owner_user_id
+  AND owner.organization_id = organizations.id
 ORDER BY name;
 `);
 }

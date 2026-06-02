@@ -16,7 +16,7 @@ async function createSession(user) {
     user_id: user.user_id,
     username: user.username,
     timezone: normalizeTimezone(user.timezone),
-    active_workspace_id: user.organization_id,
+    active_workspace_id: user.active_workspace_id || user.organization_id,
     expires_at: expiresAt.toISOString(),
   });
 

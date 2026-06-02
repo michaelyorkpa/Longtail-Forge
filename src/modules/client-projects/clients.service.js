@@ -271,6 +271,8 @@ async function createProject(clientId, payload, session) {
   }, client?.billable || "yes");
   project.workspace_id = session.organization_id;
 
+  await assertUniqueProjectNameInScope(session.organization_id, project.client_id, project.name);
+
   await projectsRepository.create(session.organization_id, decodedClientId, project);
   await recordAudit(normalizedPayload?.action, {
     session,
@@ -310,17 +312,34 @@ async function updateProject(projectId, payload, session) {
 
   await permissionsService.assertCan(session, "projects.manage", {
     organization_id: session.organization_id,
-    client_id: client?.id || "",
+    client_id: previousProject.client_id,
     project_id: decodedProjectId,
     operation: "update",
   });
 
-  if (!usesProjectRoundingOnly && billingDetailsChanged(previousProject, normalizedPayload)) {
-    await permissionsService.assertCan(session, "billing.manage", {
+  if ((client?.id || "") !== (previousProject.client_id || "")) {
+    await permissionsService.assertCan(session, "projects.manage", {
       organization_id: session.organization_id,
       client_id: client?.id || "",
       project_id: decodedProjectId,
+      operation: "update",
     });
+  }
+
+  if (!usesProjectRoundingOnly && billingDetailsChanged(previousProject, normalizedPayload)) {
+    await permissionsService.assertCan(session, "billing.manage", {
+      organization_id: session.organization_id,
+      client_id: previousProject.client_id,
+      project_id: decodedProjectId,
+    });
+
+    if ((client?.id || "") !== (previousProject.client_id || "")) {
+      await permissionsService.assertCan(session, "billing.manage", {
+        organization_id: session.organization_id,
+        client_id: client?.id || "",
+        project_id: decodedProjectId,
+      });
+    }
   }
 
   const project = normalizeProjectPayload(normalizedPayload, {
@@ -329,6 +348,8 @@ async function updateProject(projectId, payload, session) {
     client_id: client?.id || "",
   }, client?.billable || previousProject.billable || "yes");
   project.workspace_id = session.organization_id;
+
+  await assertUniqueProjectNameInScope(session.organization_id, project.client_id, project.name, decodedProjectId);
 
   await projectsRepository.update(session.organization_id, project);
   await recordAudit(normalizedPayload?.action, {
@@ -455,6 +476,19 @@ function normalizeProjectPayloadForWorkspace(payload = {}, usesProjectRoundingOn
 
 function workspaceUsesProjectRoundingOnly(workspaceType) {
   return workspaceType === "personal" || workspaceType === "family";
+}
+
+async function assertUniqueProjectNameInScope(organizationId, clientId, projectName, excludeProjectId = "") {
+  const existingProject = await projectsRepository.readByNameInScope(
+    organizationId,
+    clientId,
+    projectName,
+    excludeProjectId,
+  );
+
+  if (existingProject) {
+    throw new AppError("Project name already exists for this workspace/client.", 409);
+  }
 }
 
 async function recordAudit(providedAction, auditEvent) {

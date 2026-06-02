@@ -134,6 +134,11 @@ body {
     background: transparent;
 }
 
+.nav-menu-links .nav-logout {
+    width: 100%;
+    text-align: left;
+}
+
 .nav-menu {
     position: relative;
 }
@@ -176,6 +181,30 @@ body {
     border-radius: 8px;
     background: var(--color-surface);
     box-shadow: var(--shadow-card);
+}
+
+.nav-menu-links .nav-menu {
+    position: relative;
+}
+
+.nav-menu-links .nav-menu summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.nav-menu-links .nav-menu summary::after {
+    transform: rotate(-45deg);
+}
+
+.nav-menu-links .nav-menu[open] summary::after {
+    transform: rotate(135deg);
+}
+
+.nav-menu-links .nav-menu .nav-menu-links {
+    top: -7px;
+    right: calc(100% + 8px);
 }
 
 .nav-toggle {
@@ -280,6 +309,10 @@ main {
     width: 112px;
 }
 
+body[data-workspace-client-tools="disabled"] [data-client-workspace-control] {
+    display: none;
+}
+
 .timer-grid {
     display: grid;
     grid-template-columns: repeat(var(--timer-count, 1), minmax(0, 1fr));
@@ -335,6 +368,13 @@ h1 {
 
 .user-settings-page {
     width: min(94vw, 920px);
+}
+
+.user-settings-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    align-items: start;
 }
 
 .workspace-settings-grid {
@@ -1469,8 +1509,10 @@ dialog[data-role-permissions-dialog] {
 .workspace-membership-list {
     display: grid;
     gap: 8px;
+    max-height: 292px;
     margin: 0;
     padding: 0;
+    overflow-y: auto;
     list-style: none;
 }
 
@@ -1484,6 +1526,22 @@ dialog[data-role-permissions-dialog] {
     border: 1px solid var(--color-border);
     border-radius: 8px;
     background: var(--color-surface);
+}
+
+.workspace-membership-list li {
+    display: grid;
+    grid-template-columns: 24px minmax(0, 1fr) minmax(88px, auto);
+}
+
+.workspace-membership-list input {
+    width: auto;
+    margin: 0;
+    align-self: center;
+}
+
+.workspace-membership-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .membership-status {
@@ -1545,6 +1603,18 @@ dialog[data-role-permissions-dialog] {
     justify-self: start;
     font-size: 18px;
     line-height: 1.2;
+}
+
+.timer-active-indicator {
+    margin: 0 0 -10px;
+    color: var(--color-muted);
+    font-size: 13px;
+    font-weight: 700;
+    text-align: center;
+}
+
+.timer-active-indicator[data-timer-state="active"] {
+    color: var(--color-danger);
 }
 
 [data-stopwatch-details] {
@@ -1722,6 +1792,7 @@ button:disabled {
     .project-bulk-action-row,
     .project-bulk-list,
     .workspace-settings-grid,
+    .user-settings-grid,
     .entry-form,
     .entry-filters,
     .audit-log-filters,

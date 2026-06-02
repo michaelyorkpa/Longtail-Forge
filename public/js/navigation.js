@@ -1,26 +1,43 @@
 // Shared authenticated app shell. Add/remove menu items here instead of editing every page.
 const DEFAULT_WORKSPACE_NAME = "Workspace";
+const WORKSPACE_CONTEXT_STORAGE_KEY = "lf_workspace_context";
 const NAV_ITEMS = [
   { label: "Dashboard", href: "dashboard.html" },
   {
-    label: "Time Keeping",
+    label: "Projects",
     items: [
-      { label: "Time Tracker", href: "time-tracker.html" },
-      { label: "Create Manual Entry", href: "manual-entry.html" },
-      { label: "Edit Entries", href: "edit-entries.html" },
+      { label: "Projects", href: "projects.html" },
+      {
+        label: "Time Keeping",
+        items: [
+          { label: "Time Tracker", href: "time-tracker.html" },
+          { label: "Create Manual Entry", href: "manual-entry.html" },
+          { label: "Edit Entries", href: "edit-entries.html" },
+        ],
+      },
+      { label: "Tasks", href: "tasks.html" },
     ],
   },
-  { label: "Reporting", href: "reporting.html" },
+  {
+    label: "Reporting",
+    items: [
+      { label: "Time Reports", href: "reporting.html" },
+    ],
+  },
   {
     label: "Settings",
     items: [
-      { label: "Projects", href: "projects.html" },
       { label: "Clients", href: "clients.html" },
-      { label: "Workspace", href: "workspace-settings.html" },
-      { label: "User Admin", href: "user-admin.html" },
+      {
+        label: "Workspace",
+        items: [
+          { label: "Workspace Settings", href: "workspace-settings.html" },
+          { label: "User Admin", href: "user-admin.html" },
+          { label: "API Keys", href: "api-keys.html" },
+          { label: "Audit Log", href: "audit-log.html" },
+        ],
+      },
       { label: "User", href: "user-settings.html" },
-      { label: "API Keys", href: "api-keys.html" },
-      { label: "Audit Log", href: "audit-log.html" },
     ],
   },
 ];
@@ -32,6 +49,8 @@ const navToggle = siteHeader.querySelector(".nav-toggle");
 const navLinks = siteHeader.querySelector("#primary-menu");
 const workspaceSelector = siteHeader.querySelector("[data-workspace-selector]");
 
+applyCachedWorkspaceContext();
+
 if (navToggle && navLinks) {
   navToggle.addEventListener("click", () => {
     const isOpen = navToggle.getAttribute("aria-expanded") === "true";
@@ -41,7 +60,8 @@ if (navToggle && navLinks) {
   });
 }
 
-loadWorkspaceSettings();
+window.LongtailForge = window.LongtailForge || {};
+window.LongtailForge.workspaceContextReady = loadWorkspaceSettings();
 loadSessionWorkspaces();
 
 function buildSiteHeader() {
@@ -89,7 +109,6 @@ function buildSiteHeader() {
     links.append(createNavItem(item, currentPage));
   });
 
-  links.append(createLogoutButton());
   nav.append(brand, toggle, links);
   header.append(nav);
 
@@ -110,12 +129,17 @@ function createNavMenu(item, currentPage) {
   const menuLinks = document.createElement("div");
 
   menu.className = "nav-menu";
+  menu.dataset.navMenu = item.label;
   summary.textContent = item.label;
   menuLinks.className = "nav-menu-links";
 
   item.items.forEach((childItem) => {
-    menuLinks.append(createNavLink(childItem, currentPage));
+    menuLinks.append(createNavItem(childItem, currentPage));
   });
+
+  if (item.label === "Settings") {
+    menuLinks.append(createLogoutButton());
+  }
 
   menu.append(summary, menuLinks);
   return menu;
@@ -169,6 +193,7 @@ async function loadWorkspaceSettings() {
     }
 
     const settings = await response.json();
+    storeWorkspaceContext(settings);
     applyWorkspaceName(settings.workspaceName || settings.organizationName);
     applyWorkspaceCapabilities(settings);
   } catch {
@@ -190,6 +215,10 @@ async function loadSessionWorkspaces() {
 
     const body = await response.json();
     const user = body.user || {};
+    if (user.workspaceContext) {
+      storeWorkspaceContext(user.workspaceContext);
+      applyWorkspaceCapabilities(user.workspaceContext);
+    }
     const workspaces = Array.isArray(user.workspaces) ? user.workspaces : [];
 
     if (workspaces.length === 0) {
@@ -261,6 +290,9 @@ function applyWorkspaceCapabilities(settings) {
   const timeTrackingEnabled = settings.timeTrackingEnabled !== false && enabledModules.has("time-tracking");
 
   siteHeader.dataset.workspaceType = workspaceType;
+  document.body.dataset.workspaceType = workspaceType;
+  document.body.dataset.workspaceClientTools = availableTools.has("clients_projects") ? "enabled" : "disabled";
+  document.body.dataset.timeTrackingModule = timeTrackingEnabled ? "enabled" : "disabled";
   setNavLinkVisible("clients.html", availableTools.has("clients_projects"));
   setNavLinkVisible("api-keys.html", workspaceType === "business");
   setNavLinkVisible("user-admin.html", availableTools.has("team_members"));
@@ -268,11 +300,47 @@ function applyWorkspaceCapabilities(settings) {
   setNavLinkVisible("time-tracker.html", timeTrackingEnabled);
   setNavLinkVisible("manual-entry.html", timeTrackingEnabled);
   setNavLinkVisible("edit-entries.html", timeTrackingEnabled);
+  setNavLinkVisible("tasks.html", false);
 
   document.querySelectorAll(".nav-menu").forEach((menu) => {
     const visibleLinks = [...menu.querySelectorAll("a")].filter((link) => !link.hidden);
     menu.hidden = visibleLinks.length === 0;
   });
+}
+
+function applyCachedWorkspaceContext() {
+  const cachedContext = readWorkspaceContext();
+
+  if (!cachedContext) {
+    return;
+  }
+
+  applyWorkspaceName(cachedContext.workspaceName);
+  applyWorkspaceCapabilities(cachedContext);
+}
+
+function readWorkspaceContext() {
+  try {
+    const context = JSON.parse(window.localStorage.getItem(WORKSPACE_CONTEXT_STORAGE_KEY) || "null");
+    return context && typeof context === "object" ? context : null;
+  } catch {
+    return null;
+  }
+}
+
+function storeWorkspaceContext(settings) {
+  const context = {
+    enabledModules: Array.isArray(settings.enabledModules) ? settings.enabledModules : [],
+    timeTrackingEnabled: settings.timeTrackingEnabled !== false,
+    workspaceCapabilities: settings.workspaceCapabilities || {},
+    workspaceId: settings.workspaceId || settings.workspace_id || "",
+    workspaceName: settings.workspaceName || settings.organizationName || DEFAULT_WORKSPACE_NAME,
+    workspaceType: settings.workspaceType || settings.workspaceCapabilities?.workspaceType || "business",
+  };
+
+  window.localStorage.setItem(WORKSPACE_CONTEXT_STORAGE_KEY, JSON.stringify(context));
+  window.LongtailForge = window.LongtailForge || {};
+  window.LongtailForge.workspaceContext = context;
 }
 
 function setNavLinkVisible(href, isVisible) {
@@ -320,6 +388,7 @@ async function logOut() {
   } finally {
     window.localStorage.removeItem("lf_theme");
     window.localStorage.removeItem("lf_timezone");
+    window.localStorage.removeItem(WORKSPACE_CONTEXT_STORAGE_KEY);
     window.location.replace("/login.html");
   }
 }

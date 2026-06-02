@@ -568,7 +568,7 @@ function renderWorkspaceMemberships(memberships, user = getEditingUser()) {
 
   workspaces.forEach((workspace) => {
     const item = document.createElement("li");
-    const label = document.createElement("label");
+    const name = document.createElement("span");
     const checkbox = document.createElement("input");
     const status = document.createElement("span");
     const isPersonalOwnerOnly = workspace.workspaceType === "personal" &&
@@ -579,15 +579,13 @@ function renderWorkspaceMemberships(memberships, user = getEditingUser()) {
     checkbox.dataset.workspaceMembership = workspace.workspaceId;
     checkbox.checked = !isPersonalOwnerOnly && activeWorkspaceIds.has(workspace.workspaceId);
     checkbox.disabled = isPersonalOwnerOnly;
-    label.append(
-      checkbox,
-      document.createTextNode(workspace.workspaceName || workspace.workspaceId || "Workspace"),
-    );
+    name.textContent = formatWorkspaceMembershipName(workspace);
+    name.className = "workspace-membership-name";
     status.className = "membership-status";
     status.textContent = isPersonalOwnerOnly
       ? "Owner only"
       : activeWorkspaceIds.has(workspace.workspaceId) ? "Active" : "Inactive";
-    item.append(label, status);
+    item.append(checkbox, name, status);
     workspaceMembershipList.appendChild(item);
   });
 }
@@ -617,6 +615,17 @@ function formatRoleAssignment(assignment) {
   }
 
   return `${role?.role_name || assignment.role_id} - ${scopeLabel}${advanced.length ? ` (${advanced.join(", ")})` : ""}`;
+}
+
+function formatWorkspaceMembershipName(workspace) {
+  const workspaceName = workspace.workspaceName || workspace.workspaceId || "Workspace";
+  const ownerUsername = workspace.ownerUsername || "";
+
+  if (!ownerUsername || !["personal", "family"].includes(workspace.workspaceType)) {
+    return workspaceName;
+  }
+
+  return `${workspaceName} [${ownerUsername}]`;
 }
 
 function formatScopeLabel(assignment) {

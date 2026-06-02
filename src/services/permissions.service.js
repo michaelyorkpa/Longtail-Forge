@@ -241,6 +241,21 @@ async function canAssignRole(session, roleId) {
   return normalizeProtectedUserFlag(user?.protected_user) && ROLE_LIMITS.super_admin.has(roleId);
 }
 
+async function isSuperAdmin(session) {
+  if (!session?.organization_id || !session?.user_id) {
+    return false;
+  }
+
+  const user = await usersRepository.readById(session.organization_id, session.user_id);
+
+  if (normalizeProtectedUserFlag(user?.protected_user)) {
+    return true;
+  }
+
+  const assignments = await permissionsRepository.readAssignmentsForUser(session.organization_id, session.user_id);
+  return assignments.some((assignment) => assignment.role_id === "super_admin");
+}
+
 async function readReadableScopes(session) {
   const assignments = await permissionsRepository.readAssignmentsForUser(session.organization_id, session.user_id);
   const clientIds = new Set();
@@ -451,6 +466,7 @@ export const permissionsService = {
   filterReadableClients,
   filterReadableProjects,
   filterReadableTimeEntries,
+  isSuperAdmin,
   listRoleOptions,
   readUserAssignments,
   replaceUserAssignments,

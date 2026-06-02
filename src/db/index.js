@@ -33,6 +33,7 @@ async function ensureDatabase() {
   await modulesService.syncModuleRegistry(organizationId);
   await seedSuperAdminUser(organizationId);
   await ensureWorkspaceMemberships(organizationId);
+  await repairUserActiveWorkspaces();
   await ensureWorkspaceType(organizationId);
   await repairPersonalWorkspaceMemberships();
   await ensureProtectedUserRoles(organizationId);
@@ -231,7 +232,8 @@ INSERT INTO users (
   password,
   theme_mode,
   user_status,
-  protected_user
+  protected_user,
+  active_workspace_id
 )
 VALUES (
   ${sqlText(userId)},
@@ -243,7 +245,8 @@ VALUES (
   ${sqlText(hashPassword(passwordSetup.password))},
   'light',
   'active',
-  'yes'
+  'yes',
+  ${sqlText(organizationId)}
 );
 `);
 
@@ -327,6 +330,52 @@ SET owner_user_id = COALESCE(
 )
 WHERE id = ${sqlText(organizationId)};
 `);
+}
+
+async function repairUserActiveWorkspaces() {
+  if (
+    !(await tableExists("users")) ||
+    !(await tableExists("user_workspaces")) ||
+    !(await tableExists("sessions")) ||
+    !(await columnsExist("users", ["active_workspace_id"])) ||
+    !(await columnsExist("sessions", ["active_workspace_id"]))
+  ) {
+    return;
+  }
+
+  await runSql(`
+UPDATE users
+SET active_workspace_id = organization_id
+WHERE active_workspace_id IS NULL OR active_workspace_id = '';
+`);
+
+  const rows = await querySql(`
+SELECT sessions.user_id, sessions.active_workspace_id
+FROM sessions
+INNER JOIN (
+  SELECT user_id, MAX(updated_at) AS latest_updated_at
+  FROM sessions
+  WHERE active_workspace_id IS NOT NULL
+    AND active_workspace_id != ''
+  GROUP BY user_id
+) AS latest_session
+  ON latest_session.user_id = sessions.user_id
+  AND latest_session.latest_updated_at = sessions.updated_at
+INNER JOIN user_workspaces
+  ON user_workspaces.user_id = sessions.user_id
+  AND user_workspaces.workspace_id = sessions.active_workspace_id
+  AND user_workspaces.status = 'active';
+`);
+
+  const updates = rows.map((row) => `
+UPDATE users
+SET active_workspace_id = ${sqlText(row.active_workspace_id)}
+WHERE user_id = ${sqlText(row.user_id)};
+`).join("\n");
+
+  if (updates) {
+    await runSql(updates);
+  }
 }
 
 async function ensureWorkspaceType(organizationId) {

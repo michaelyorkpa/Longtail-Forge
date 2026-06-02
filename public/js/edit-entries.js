@@ -93,6 +93,9 @@ async function loadEditEntryData() {
 
     populateClientOptions(filterClientSelect, "All clients");
     populateClientOptions(editEntryClientSelect, "Select a client");
+    selectWorkspaceScopeClientIfNeeded(filterClientSelect);
+    selectWorkspaceScopeClientIfNeeded(editEntryClientSelect);
+    populateFilterProjects();
     populateUserOptions();
     setDefaultCustomDates();
     updateFilterDateState();
@@ -106,6 +109,7 @@ async function loadEditEntryData() {
 
 async function initializeEditEntries() {
   await window.LongtailForge.timezones.loadSessionTimezone();
+  await window.LongtailForge.workspaceContextReady;
   await loadEditEntryData();
 }
 
@@ -117,16 +121,27 @@ function populateClientOptions(select, placeholder) {
   });
 }
 
-function populateFilterProjects() {
-  const client = getClient(filterClientSelect.value);
-  filterProjectSelect.replaceChildren(createOption("", "All projects"));
-  filterProjectSelect.disabled = !client;
-
-  if (!client) {
+function selectWorkspaceScopeClientIfNeeded(select) {
+  if (workspaceShowsClientTools()) {
     return;
   }
 
-  sortByName(client.projects).forEach((project) => {
+  const workspaceClient = editClients.find((client) => client.isWorkspaceScope);
+
+  if (workspaceClient) {
+    select.value = workspaceClient.id;
+  }
+}
+
+function populateFilterProjects() {
+  const client = getClient(filterClientSelect.value);
+  filterProjectSelect.replaceChildren(createOption("", "All projects"));
+  const projects = client
+    ? client.projects
+    : getAllFilterProjects();
+  filterProjectSelect.disabled = projects.length === 0;
+
+  sortByName(projects).forEach((project) => {
     filterProjectSelect.appendChild(createOption(project.id, project.name));
   });
 }
@@ -220,7 +235,7 @@ function openEditForm(entryId) {
   }
 
   selectedEntryId = entry.entryId;
-  editEntryHeading.textContent = `Edit Entry ${entry.entryId}`;
+  editEntryHeading.textContent = `Edit Entry - ${getEntryHeadingLabel(entry)}`;
   editEntryClientSelect.value = findClientIdForEntry(entry);
   populateEditProjects(findProjectIdForEntry(entry));
   editEntryDateInput.value = formatDateInput(entry.startTime);
@@ -381,6 +396,7 @@ function normalizeTimeEntries(data) {
 function normalizeSettings(settings) {
   return {
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
+    workspaceCapabilities: settings?.workspaceCapabilities || {},
   };
 }
 
@@ -530,7 +546,15 @@ function getClient(clientId) {
 }
 
 function getProject(clientId, projectId) {
-  return getClient(clientId)?.projects.find((project) => project.id === projectId);
+  if (clientId) {
+    return getClient(clientId)?.projects.find((project) => project.id === projectId);
+  }
+
+  return getAllFilterProjects().find((project) => project.id === projectId);
+}
+
+function getAllFilterProjects() {
+  return editClients.flatMap((client) => client.projects || []);
 }
 
 function findClientIdForEntry(entry) {
@@ -748,4 +772,17 @@ function sortByName(items) {
 
 function setEditEntryStatus(message) {
   editEntryStatus.textContent = message;
+}
+
+function getEntryHeadingLabel(entry) {
+  return [
+    entry.projectName || "",
+    formatDate(entry.endTime),
+  ].filter(Boolean).join(" - ") || "Selected Entry";
+}
+
+function workspaceShowsClientTools() {
+  const tools = editSettings.workspaceCapabilities?.availableTools || [];
+
+  return Array.isArray(tools) && tools.includes("clients_projects");
 }

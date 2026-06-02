@@ -321,6 +321,10 @@ async function isMigrationAlreadySatisfied(migration) {
     return workspaceTablesExist && workspaceColumnsExist.every(Boolean);
   }
 
+  if (migration.fileName === "020_add_user_active_workspace.sql") {
+    return columnsExist("users", ["active_workspace_id"]);
+  }
+
   return false;
 }
 

@@ -5,110 +5,111 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>User Settings | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=7">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=8">
   </head>
   <body data-page-title="User Settings">
     <main class="settings-page user-settings-page">
       <h1>User Settings</h1>
 
-      <form class="settings-form" data-user-theme-form>
-        <fieldset class="settings-fieldset">
-          <legend>Appearance</legend>
+      <div class="user-settings-grid">
+        <form class="settings-form" data-user-theme-form>
+          <fieldset class="settings-fieldset">
+            <legend>Appearance</legend>
 
-          <label class="theme-mode-switch">
-            <span>Light</span>
-            <input type="checkbox" data-theme-mode-toggle>
-            <span class="theme-switch-track" aria-hidden="true"></span>
-            <span>Dark</span>
-          </label>
-        </fieldset>
-      </form>
+            <label class="theme-mode-switch">
+              <span>Light</span>
+              <input type="checkbox" data-theme-mode-toggle>
+              <span class="theme-switch-track" aria-hidden="true"></span>
+              <span>Dark</span>
+            </label>
+          </fieldset>
+        </form>
 
-      <form class="settings-form" data-user-password-form>
-        <fieldset class="settings-fieldset">
-          <legend>Password</legend>
+        <form class="settings-form" data-workspace-create-form>
+          <fieldset class="settings-fieldset">
+            <legend>Workspaces</legend>
 
-          <label>
-            Current Password
-            <input type="password" autocomplete="current-password" data-current-password required>
-          </label>
+            <label>
+              Workspace Type
+              <select data-new-workspace-type required></select>
+            </label>
 
-          <label>
-            New Password
-            <input type="password" autocomplete="new-password" data-new-password required minlength="8">
-          </label>
+            <label>
+              Workspace Name
+              <input type="text" data-new-workspace-name required autocomplete="organization">
+            </label>
 
-          <label>
-            Confirm New Password
-            <input type="password" autocomplete="new-password" data-confirm-password required minlength="8">
-          </label>
-        </fieldset>
+            <label class="inline-option">
+              <input type="checkbox" data-new-workspace-time-tracking checked>
+              Time Tracking
+            </label>
 
-        <button type="submit" data-save-password>Change Password</button>
-      </form>
+            <div class="form-actions">
+              <button type="button" data-open-workspace-removal>Remove Workspace</button>
+              <button type="submit" data-create-workspace>Create Workspace</button>
+            </div>
+          </fieldset>
+        </form>
 
-      <form class="settings-form" data-user-profile-form>
-        <fieldset class="settings-fieldset">
-          <legend>Profile</legend>
+        <form class="settings-form" data-user-password-form>
+          <fieldset class="settings-fieldset">
+            <legend>Password</legend>
 
-          <label>
-            Email Address
-            <input type="email" data-profile-username required autocomplete="email">
-          </label>
+            <label>
+              Current Password
+              <input type="password" autocomplete="current-password" data-current-password required>
+            </label>
 
-          <label>
-            Display Name
-            <input type="text" data-profile-display-name required autocomplete="name">
-          </label>
+            <label>
+              New Password
+              <input type="password" autocomplete="new-password" data-new-password required minlength="8">
+            </label>
 
-          <label>
-            Alternate Email Address
-            <input type="email" data-profile-alt-email autocomplete="email">
-          </label>
+            <label>
+              Confirm New Password
+              <input type="password" autocomplete="new-password" data-confirm-password required minlength="8">
+            </label>
 
-          <label>
-            Timezone
-            <select data-profile-timezone required>
-              <option value="America/New_York">America/New_York</option>
-              <option value="America/Chicago">America/Chicago</option>
-              <option value="America/Denver">America/Denver</option>
-              <option value="America/Phoenix">America/Phoenix</option>
-              <option value="America/Los_Angeles">America/Los_Angeles</option>
-              <option value="America/Anchorage">America/Anchorage</option>
-              <option value="Pacific/Honolulu">Pacific/Honolulu</option>
-              <option value="UTC">UTC</option>
-            </select>
-          </label>
-        </fieldset>
+            <button type="submit" data-save-password>Change Password</button>
+          </fieldset>
+        </form>
 
-        <button type="submit" data-save-profile>Save Profile</button>
-      </form>
+        <form class="settings-form" data-user-profile-form>
+          <fieldset class="settings-fieldset">
+            <legend>Profile</legend>
 
-      <form class="settings-form" data-workspace-create-form>
-        <fieldset class="settings-fieldset">
-          <legend>Workspaces</legend>
+            <label>
+              Email Address
+              <input type="email" data-profile-username required autocomplete="email">
+            </label>
 
-          <label>
-            Workspace Type
-            <select data-new-workspace-type required></select>
-          </label>
+            <label>
+              Display Name
+              <input type="text" data-profile-display-name required autocomplete="name">
+            </label>
 
-          <label>
-            Workspace Name
-            <input type="text" data-new-workspace-name required autocomplete="organization">
-          </label>
+            <label>
+              Alternate Email Address
+              <input type="email" data-profile-alt-email autocomplete="email">
+            </label>
 
-          <label class="inline-option">
-            <input type="checkbox" data-new-workspace-time-tracking checked>
-            Time Tracking
-          </label>
-        </fieldset>
+            <label>
+              Timezone
+              <select data-profile-timezone required>
+                <option value="America/New_York">America/New_York</option>
+                <option value="America/Chicago">America/Chicago</option>
+                <option value="America/Denver">America/Denver</option>
+                <option value="America/Phoenix">America/Phoenix</option>
+                <option value="America/Los_Angeles">America/Los_Angeles</option>
+                <option value="America/Anchorage">America/Anchorage</option>
+                <option value="Pacific/Honolulu">Pacific/Honolulu</option>
+                <option value="UTC">UTC</option>
+              </select>
+            </label>
 
-        <button type="submit" data-create-workspace>Create Workspace</button>
-      </form>
-
-      <div class="settings-secondary-actions">
-        <button type="button" data-open-workspace-removal>Remove Workspace</button>
+            <button type="submit" data-save-profile>Save Profile</button>
+          </fieldset>
+        </form>
       </div>
 
       <p data-user-settings-status role="status" aria-live="polite"></p>

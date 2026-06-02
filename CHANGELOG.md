@@ -1,3 +1,35 @@
+## Version 0.30.6 - 2026-06-02 12:52 -04:00
+
+- Completed the comprehensive code review pass and captured private findings plus drag-and-drop 0.30.7+ roadmap drafts in ignored `CODEREVIEW.md`.
+- Archived completed roadmap sections into ignored `ROADMAP-ARCHIVE.md`, leaving `ROADMAP.md` focused on active and future work.
+- Added `CODEREVIEW.md` and `ROADMAP-ARCHIVE.md` to `.gitignore`.
+- Fixed time-entry ownership hardening so browser updates and public API creates cannot spoof `user_id`.
+- Fixed project update authorization so source project scope is checked before any requested target-scope move.
+- Bumped the app version to `0.30.6`.
+
+## Version 0.30.5.6
+
+- Reworked navigation so Reporting has a Time Reports submenu, Projects owns Time Keeping and Tasks, and Settings nests workspace administration links.
+- Added permanent timer status labels for Unused, Active, and Paused states.
+- Added hover titles to dashboard bar chart values.
+- Reworked User Settings into two columns and moved section actions inside their fieldsets.
+- Enforced duplicate workspace-name rejection in User Settings and the workspace creation API.
+- Advanced workspace name suggestions to the next available per-user value and kept duplicate workspace checks scoped to the signed-in user's own workspace list.
+- Added scoped duplicate project-name enforcement for workspace projects and business client projects, with clearer Projects page error messages.
+- Tightened User Admin workspace membership visibility and labels, including owner email display for personal/family workspaces and a scrollable three-column membership list.
+- Made Edit Entries project filtering available before a business client is selected.
+- Persisted each user's last active workspace and restored it on login when the membership is still active.
+
+## Version 0.30.5.5
+
+- Added cached workspace bootstrap context from login/session/settings so workspace-dependent navigation and controls can draw with less first-paint flicker.
+- Hid business client selectors from Time Tracker, Create Manual Entry, and Edit Entries for personal/family workspaces while preserving workspace-project selection.
+- Renamed the Time Tracker checkbox to `Clear Info when Stopped/Reset` and limited it to the checked timer's elapsed-time clearing behavior.
+- Replaced the active-timer browser unload warning with a red centered `Active` indicator above each running timer title.
+- Added an explicit `Show UTC` Audit Log switch and a Super Admin-only workspace filter that also applies to filtered exports.
+- Replaced the Edit Entry form UUID heading with a friendly project/date label.
+- Moved `Log Out` to the bottom of the Settings menu.
+
 ## Version 0.30.5.4
 
 - Widened User Settings to match the broader settings pages.

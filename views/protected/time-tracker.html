@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Time Tracker | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=6">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=8">
   </head>
   <body data-page-title="Time Tracking">
     <main class="timer-page">
@@ -26,7 +26,7 @@
         <section id="stopwatch" class="timer-card" aria-label="Timer 1">
           <h2 data-stopwatch-title>Timer 1</h2>
           <div data-stopwatch-details>
-            <label>
+            <label data-client-workspace-control>
               Client
               <select data-stopwatch-client>
                 <option value="">Select a client</option>
@@ -59,7 +59,7 @@
           </div>
           <label class="reset-option">
             <input type="checkbox" data-stopwatch-clear-on-reset>
-            Clear Info when Reset
+            Clear Info when Stopped/Reset
           </label>
           <label class="reset-option">
             <input type="checkbox" data-stopwatch-billable checked>

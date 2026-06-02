@@ -77,8 +77,8 @@ async function loadUserSettings() {
 
     applyThemeMode(body.themeMode);
     applyProfile(body);
-    applyWorkspaceCreation(body.workspaceCreation);
     applyWorkspaceAccess(body);
+    applyWorkspaceCreation(body.workspaceCreation);
     setUserSettingsStatus("");
   } catch (error) {
     setUserSettingsStatus(error.message || "User settings could not be loaded.", true);
@@ -265,6 +265,11 @@ async function createWorkspace() {
     return;
   }
 
+  if (workspaceNameExists(workspaceName)) {
+    setUserSettingsStatus("Workspace name already exists.", true);
+    return;
+  }
+
   createWorkspaceButton.disabled = true;
   setUserSettingsStatus("Creating workspace...");
 
@@ -301,7 +306,7 @@ async function createWorkspace() {
 
 function updateSuggestedWorkspaceName() {
   const selectedType = workspaceCreationTypes.find((type) => type.workspaceType === newWorkspaceTypeSelect.value);
-  const nextSuggestion = getWorkspaceTypeSuggestedName(selectedType);
+  const nextSuggestion = getAvailableWorkspaceName(getWorkspaceTypeSuggestedName(selectedType));
   const currentName = newWorkspaceNameInput.value.trim();
 
   if (!workspaceNameEditedByUser || !currentName || currentName === lastSuggestedWorkspaceName) {
@@ -313,7 +318,7 @@ function updateSuggestedWorkspaceName() {
 }
 
 function setSuggestedWorkspaceName(workspaceName) {
-  lastSuggestedWorkspaceName = workspaceName || "Workspace";
+  lastSuggestedWorkspaceName = getAvailableWorkspaceName(workspaceName || "Workspace");
   newWorkspaceNameInput.value = lastSuggestedWorkspaceName;
   workspaceNameEditedByUser = false;
 }
@@ -428,6 +433,34 @@ function normalizeWorkspaceAccess(workspace) {
     workspaceName: String(workspace.workspaceName || workspace.workspace_name || "Workspace"),
     workspaceType: String(workspace.workspaceType || workspace.workspace_type || "business"),
   };
+}
+
+function workspaceNameExists(workspaceName) {
+  const normalizedName = normalizeWorkspaceName(workspaceName);
+
+  return currentWorkspaces.some((workspace) => normalizeWorkspaceName(workspace.workspaceName) === normalizedName);
+}
+
+function getAvailableWorkspaceName(baseName) {
+  const normalizedBaseName = String(baseName || "Workspace").trim() || "Workspace";
+
+  if (!workspaceNameExists(normalizedBaseName)) {
+    return normalizedBaseName;
+  }
+
+  let suffix = 2;
+  let suggestedName = `${normalizedBaseName}-${suffix}`;
+
+  while (workspaceNameExists(suggestedName)) {
+    suffix += 1;
+    suggestedName = `${normalizedBaseName}-${suffix}`;
+  }
+
+  return suggestedName;
+}
+
+function normalizeWorkspaceName(workspaceName) {
+  return String(workspaceName || "").trim().toLowerCase();
 }
 
 function formatWorkspaceType(workspaceType) {

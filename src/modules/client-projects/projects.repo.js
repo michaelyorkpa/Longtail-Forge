@@ -80,6 +80,38 @@ ORDER BY name;
   return rows.map(projectRowToAppProject);
 }
 
+async function readByNameInScope(organizationId, clientId, projectName, excludeProjectId = "") {
+  const normalizedClientId = String(clientId || "").trim();
+  const clientScopeSql = normalizedClientId
+    ? `client_id = ${sqlText(normalizedClientId)}`
+    : "(client_id IS NULL OR client_id = '')";
+  const excludeSql = excludeProjectId
+    ? `AND id <> ${sqlText(excludeProjectId)}`
+    : "";
+  const rows = await querySql(`
+SELECT
+  id,
+  workspace_id,
+  client_id,
+  name,
+  status,
+  billable,
+  billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  billing_rounding_enabled,
+  billing_rounding_increment
+FROM projects
+WHERE organization_id = ${sqlText(organizationId)}
+  AND ${clientScopeSql}
+  AND lower(trim(name)) = lower(trim(${sqlText(projectName)}))
+  ${excludeSql}
+LIMIT 1;
+`);
+
+  return rows[0] ? projectRowToAppProject(rows[0]) : null;
+}
+
 async function create(organizationId, clientId, project) {
   const now = new Date().toISOString();
   await runSql(createInsertSql(organizationId, clientId, project, now));
@@ -198,5 +230,6 @@ export const projectsRepository = {
   readAll,
   readByClientId,
   readById,
+  readByNameInScope,
   update,
 };
