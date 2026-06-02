@@ -1,16 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { clientsRepository } from "../client-projects/clients.repo.js";
-import { projectsRepository } from "../client-projects/projects.repo.js";
 import { timeEntriesRepository } from "./time-entries.repo.js";
-import { modulesService } from "../../core/modules/modules.service.js";
+import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
+import { resolveProjectRecordScope } from "../../core/record-scope.js";
 import { normalizeTimeEntry } from "../../utils/normalizers.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 
+const MODULE_ID = "time-tracking";
+
 async function create(entry, session) {
-  await assertTimeTrackingEnabled(session);
+  await assertModuleWriteEnabled(session, MODULE_ID);
   const scope = await resolveTimeEntryScope(session.organization_id, entry);
 
   await permissionsService.assertCan(session, "time_entries.create", {
@@ -62,7 +63,7 @@ async function create(entry, session) {
 }
 
 async function update(payload, entryId, session) {
-  await assertTimeTrackingEnabled(session);
+  await assertModuleWriteEnabled(session, MODULE_ID);
   const decodedEntryId = decodeURIComponent(entryId || "");
   const previousEntry = await timeEntriesRepository.readById(session.organization_id, decodedEntryId);
 
@@ -120,7 +121,7 @@ async function update(payload, entryId, session) {
 }
 
 async function remove(entryId, session) {
-  await assertTimeTrackingEnabled(session);
+  await assertModuleWriteEnabled(session, MODULE_ID);
   const decodedEntryId = decodeURIComponent(entryId || "");
   const previousEntry = await timeEntriesRepository.readById(session.organization_id, decodedEntryId);
 
@@ -164,36 +165,12 @@ async function list(session) {
 }
 
 async function resolveTimeEntryScope(organizationId, entry) {
-  const projectId = String(entry.project_id || "").trim();
-  const project = projectId ? await projectsRepository.readById(organizationId, projectId) : null;
-
-  if (!project) {
-    throw new AppError("Project not found", 404);
-  }
-
-  const requestedClientId = String(entry.client_id || "").trim();
-  const effectiveClientId = project.client_id || requestedClientId;
-  const client = effectiveClientId
-    ? await clientsRepository.readById(organizationId, effectiveClientId)
-    : null;
-
-  if (effectiveClientId && !client) {
-    throw new AppError("Client not found", 404);
-  }
-
-  if (requestedClientId && project.client_id && requestedClientId !== project.client_id) {
-    throw new AppError("Project not found", 404);
-  }
-
-  return { client, project };
-}
-
-async function assertTimeTrackingEnabled(session) {
-  const status = await modulesService.readModuleStatus(session.organization_id, "time-tracking");
-
-  if (status !== "enabled") {
-    throw new AppError("Time tracking is turned off for this workspace.", 403);
-  }
+  return resolveProjectRecordScope(organizationId, entry, {
+    archivedClientMessage: "Archived clients cannot receive new time entries.",
+    archivedProjectMessage: "Archived projects cannot receive new time entries.",
+    clientNotFoundMessage: "Client not found",
+    projectNotFoundMessage: "Project not found",
+  });
 }
 
 export const timeEntriesService = {

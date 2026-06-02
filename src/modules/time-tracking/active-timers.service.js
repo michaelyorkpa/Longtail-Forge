@@ -1,12 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { clientsRepository } from "../client-projects/clients.repo.js";
-import { projectsRepository } from "../client-projects/projects.repo.js";
 import { activeTimersRepository } from "./active-timers.repo.js";
 import { timeEntriesService } from "./time-entries.service.js";
-import { modulesService } from "../../core/modules/modules.service.js";
+import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
+import { resolveProjectRecordScope } from "../../core/record-scope.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
+
+const MODULE_ID = "time-tracking";
 
 async function list(session) {
   return {
@@ -15,7 +16,7 @@ async function list(session) {
 }
 
 async function save(timerSlot, payload, session) {
-  await assertTimeTrackingEnabled(session);
+  await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
   const timer = normalizeTimerPayload(payload, normalizedTimerSlot, session);
   const scope = await resolveTimerScope(session.organization_id, timer);
@@ -33,7 +34,7 @@ async function save(timerSlot, payload, session) {
 }
 
 async function remove(timerSlot, session) {
-  await assertTimeTrackingEnabled(session);
+  await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
 
   await activeTimersRepository.remove(session.organization_id, session.user_id, normalizedTimerSlot);
@@ -41,7 +42,7 @@ async function remove(timerSlot, session) {
 }
 
 async function finalize(timerSlot, payload, session) {
-  await assertTimeTrackingEnabled(session);
+  await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
   const activeTimer = await activeTimersRepository.readBySlot(
     session.organization_id,
@@ -113,28 +114,12 @@ async function assertCanUseProjectTimer(session, timer, operation) {
 }
 
 async function resolveTimerScope(organizationId, timer) {
-  const projectId = stringOrEmpty(timer.project_id);
-  const project = projectId ? await projectsRepository.readById(organizationId, projectId) : null;
-
-  if (!project) {
-    throw new AppError("Project is required before persisting a timer.", 400);
-  }
-
-  const requestedClientId = stringOrEmpty(timer.client_id);
-  const effectiveClientId = project.client_id || requestedClientId;
-  const client = effectiveClientId
-    ? await clientsRepository.readById(organizationId, effectiveClientId)
-    : null;
-
-  if (effectiveClientId && !client) {
-    throw new AppError("Client not found", 404);
-  }
-
-  if (requestedClientId && project.client_id && requestedClientId !== project.client_id) {
-    throw new AppError("Project not found", 404);
-  }
-
-  return { client, project };
+  return resolveProjectRecordScope(organizationId, timer, {
+    archivedClientMessage: "Archived clients cannot receive active timers.",
+    archivedProjectMessage: "Archived projects cannot receive active timers.",
+    clientNotFoundMessage: "Client not found",
+    projectNotFoundMessage: "Project is required before persisting a timer.",
+  });
 }
 
 function normalizeTimerSlot(timerSlot) {
@@ -153,14 +138,6 @@ function normalizeIsoDate(value) {
 
 function stringOrEmpty(value) {
   return String(value || "").trim();
-}
-
-async function assertTimeTrackingEnabled(session) {
-  const status = await modulesService.readModuleStatus(session.organization_id, "time-tracking");
-
-  if (status !== "enabled") {
-    throw new AppError("Time tracking is turned off for this workspace.", 403);
-  }
 }
 
 export const activeTimersService = {

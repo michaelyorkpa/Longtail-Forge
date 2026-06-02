@@ -9,7 +9,8 @@ const billingPeriodTypeSelect = document.querySelector("[data-billing-period-typ
 const billingPeriodStartDaySelect = document.querySelector("[data-billing-period-start-day]");
 const billingRoundingEnabledInput = document.querySelector("[data-billing-rounding-enabled]");
 const billingRoundingIncrementSelect = document.querySelector("[data-billing-rounding-increment]");
-const timeTrackingEnabledInput = document.querySelector("[data-time-tracking-enabled]");
+const moduleSettingsContainer = document.querySelector("[data-module-settings]");
+let timeTrackingEnabledInput = document.querySelector("[data-time-tracking-enabled]");
 const auditLoggingEnabledInput = document.querySelector("[data-audit-logging-enabled]");
 const auditRetentionDaysSelect = document.querySelector("[data-audit-retention-days]");
 const businessBillingControls = document.querySelectorAll("[data-business-billing-control]");
@@ -65,6 +66,7 @@ async function loadSettingsForm() {
     if (timeTrackingEnabledInput) {
       timeTrackingEnabledInput.checked = settings.timeTrackingEnabled;
     }
+    renderModuleSettings(settings);
     auditLoggingEnabledInput.checked = settings.audit.loggingEnabled;
     auditRetentionDaysSelect.value = String(settings.audit.retentionDays);
     updateBillingPeriodStartDayState();
@@ -95,7 +97,7 @@ async function saveSettings() {
       enabled: billingRoundingEnabledInput.checked,
       increment: billingRoundingIncrementSelect.value,
     },
-    timeTrackingEnabled: timeTrackingEnabledInput?.checked !== false,
+    timeTrackingEnabled: readModuleBooleanSetting("timeTrackingEnabled", true),
     audit: {
       loggingEnabled: auditLoggingEnabledInput.checked,
       retentionDays: auditRetentionDaysSelect.value,
@@ -137,6 +139,7 @@ async function saveSettings() {
     if (timeTrackingEnabledInput) {
       timeTrackingEnabledInput.checked = savedSettings.timeTrackingEnabled;
     }
+    renderModuleSettings(savedSettings);
     auditLoggingEnabledInput.checked = savedSettings.audit.loggingEnabled;
     auditRetentionDaysSelect.value = String(savedSettings.audit.retentionDays);
     updateBillingPeriodStartDayState();
@@ -172,8 +175,67 @@ function normalizeSettings(settings) {
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
     timeTrackingEnabled: settings?.timeTrackingEnabled === false ? false : true,
     enabledModules: Array.isArray(settings?.enabledModules) ? settings.enabledModules : [],
+    modules: Array.isArray(settings?.modules) ? settings.modules : [],
     audit: normalizeAuditSettings(settings?.audit),
   };
+}
+
+function renderModuleSettings(settings) {
+  if (!moduleSettingsContainer) {
+    return;
+  }
+
+  const moduleSettings = readRenderableModuleSettings(settings);
+  moduleSettingsContainer.replaceChildren();
+
+  if (moduleSettings.length === 0) {
+    const placeholder = document.createElement("p");
+    placeholder.className = "placeholder-copy";
+    placeholder.textContent = "No configurable modules are available for this workspace.";
+    moduleSettingsContainer.appendChild(placeholder);
+    return;
+  }
+
+  moduleSettings.forEach((setting) => {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+
+    label.className = "inline-option";
+    input.type = "checkbox";
+    input.checked = setting.value;
+    input.dataset.moduleSetting = setting.id;
+    input.dataset.moduleId = setting.moduleId;
+
+    if (setting.id === "timeTrackingEnabled") {
+      timeTrackingEnabledInput = input;
+    }
+
+    label.append(input, document.createTextNode(` ${setting.label}`));
+    moduleSettingsContainer.appendChild(label);
+  });
+}
+
+function readRenderableModuleSettings(settings) {
+  return (settings.modules || []).flatMap((moduleDefinition) => {
+    const moduleSettings = Array.isArray(moduleDefinition.settings) ? moduleDefinition.settings : [];
+
+    return moduleSettings
+      .filter((setting) => setting.type === "boolean")
+      .map((setting) => ({
+        id: setting.id,
+        label: setting.label || moduleDefinition.displayName || moduleDefinition.name || setting.id,
+        moduleId: moduleDefinition.id,
+        value: setting.id === "timeTrackingEnabled"
+          ? settings.timeTrackingEnabled !== false
+          : moduleDefinition.status === "enabled",
+      }));
+  });
+}
+
+function readModuleBooleanSetting(settingId, fallback) {
+  const input = document.querySelector(`[data-module-setting="${settingId}"]`);
+
+  return input ? input.checked : fallback;
 }
 
 function normalizeWorkspaceType(value) {

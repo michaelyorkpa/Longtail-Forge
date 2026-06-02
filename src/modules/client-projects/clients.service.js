@@ -4,8 +4,10 @@ import { projectsRepository } from "./projects.repo.js";
 import { auditService } from "../../core/audit.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
+import { readClientScope } from "../../core/record-scope.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
 import { normalizeClientProjectData } from "../../utils/normalizers.js";
+import { planProjectUpdate } from "./project-update-planner.js";
 
 async function readClientProjects(session) {
   const data = await readClientProjectData(session.organization_id);
@@ -252,12 +254,11 @@ async function createProject(clientId, payload, session) {
     ? ""
     : decodeURIComponent(clientId || normalizedPayload?.client_id || "");
   const client = decodedClientId
-    ? await clientsRepository.readById(session.organization_id, decodedClientId)
+    ? await readClientScope(session.organization_id, decodedClientId, {
+        archivedMessage: "Archived clients cannot receive new projects.",
+        notFoundMessage: "Client not found",
+      })
     : null;
-
-  if (decodedClientId && !client) {
-    throw new AppError("Client not found", 404);
-  }
 
   await permissionsService.assertCan(session, "projects.manage", {
     organization_id: session.organization_id,
@@ -295,20 +296,14 @@ async function updateProject(projectId, payload, session) {
   const usesProjectRoundingOnly = workspaceUsesProjectRoundingOnly(workspaceSettings.workspaceType);
   const normalizedPayload = normalizeProjectPayloadForWorkspace(payload, usesProjectRoundingOnly);
   const decodedProjectId = decodeURIComponent(projectId || "");
-  const previousProject = await projectsRepository.readById(session.organization_id, decodedProjectId);
-
-  if (!decodedProjectId || !previousProject) {
-    throw new AppError("Project not found", 404);
-  }
-
-  const clientId = Object.hasOwn(normalizedPayload || {}, "client_id")
-    ? String(normalizedPayload.client_id || "").trim()
-    : previousProject.client_id;
-  const client = clientId ? await clientsRepository.readById(session.organization_id, clientId) : null;
-
-  if (clientId && !client) {
-    throw new AppError("Client not found", 404);
-  }
+  const updatePlan = await planProjectUpdate({
+    workspaceId: session.organization_id,
+    projectId: decodedProjectId,
+    payload: normalizedPayload,
+    usesProjectRoundingOnly,
+  });
+  const previousProject = updatePlan.previousProject;
+  const client = updatePlan.targetClient;
 
   await permissionsService.assertCan(session, "projects.manage", {
     organization_id: session.organization_id,
@@ -317,10 +312,10 @@ async function updateProject(projectId, payload, session) {
     operation: "update",
   });
 
-  if ((client?.id || "") !== (previousProject.client_id || "")) {
+  if (updatePlan.move.isMove) {
     await permissionsService.assertCan(session, "projects.manage", {
       organization_id: session.organization_id,
-      client_id: client?.id || "",
+      client_id: updatePlan.move.toClientId,
       project_id: decodedProjectId,
       operation: "update",
     });
@@ -333,10 +328,10 @@ async function updateProject(projectId, payload, session) {
       project_id: decodedProjectId,
     });
 
-    if ((client?.id || "") !== (previousProject.client_id || "")) {
+    if (updatePlan.move.isMove) {
       await permissionsService.assertCan(session, "billing.manage", {
         organization_id: session.organization_id,
-        client_id: client?.id || "",
+        client_id: updatePlan.move.toClientId,
         project_id: decodedProjectId,
       });
     }
@@ -368,6 +363,7 @@ async function updateProject(projectId, payload, session) {
       new_status: project.status,
       old_billable: previousProject.billable,
       new_billable: project.billable,
+      downstream_records: updatePlan.downstreamRecords,
       ...projectMetadata(client, project),
     },
   });

@@ -1,11 +1,12 @@
 {
   "name": "longtail-forge",
-  "version": "0.30.6",
+  "version": "0.30.13",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node server.js",
     "check": "node scripts/check-js.mjs && eslint .",
+    "test:permissions": "node scripts/permission-regression.mjs",
     "lint": "eslint ."
   },
   "dependencies": {

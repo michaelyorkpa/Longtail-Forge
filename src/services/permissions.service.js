@@ -1,4 +1,6 @@
 import { permissionsRepository } from "../repositories/permissions.repo.js";
+import { clientsRepository } from "../repositories/clients.repo.js";
+import { projectsRepository } from "../repositories/projects.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { auditService } from "./audit.service.js";
@@ -184,6 +186,8 @@ async function normalizeAssignments(session, assignments) {
       throw new AppError("Client and project role assignments need a scope.", 400);
     }
 
+    await assertAssignmentScopeBelongsToWorkspace(session, scopeType, scopeId);
+
     normalizedAssignments.push({
       role_id: roleId,
       scope_type: scopeType,
@@ -195,6 +199,20 @@ async function normalizeAssignments(session, assignments) {
   }
 
   return normalizedAssignments;
+}
+
+async function assertAssignmentScopeBelongsToWorkspace(session, scopeType, scopeId) {
+  if (scopeType === "all" || scopeType === "organization") {
+    return;
+  }
+
+  const scopeBelongsToWorkspace = scopeType === "client"
+    ? await clientsRepository.readById(session.organization_id, scopeId)
+    : await projectsRepository.readById(session.organization_id, scopeId);
+
+  if (!scopeBelongsToWorkspace) {
+    throw new AppError("Role assignment scope does not belong to this workspace.", 400);
+  }
 }
 
 async function assertWorkspaceTypeAllowsRole(session, roleId) {

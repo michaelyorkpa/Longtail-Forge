@@ -60,16 +60,23 @@ Error responses:
 }
 ```
 
-## Endpoints
+## Endpoints By Module
+
+### Clients and Projects
 
 - `GET /api/v1/clients` requires `clients:read`
 - `GET /api/v1/clients/:clientId` requires `clients:read`
 - `GET /api/v1/projects` requires `projects:read`
 - `GET /api/v1/projects/:projectId` requires `projects:read`
+
+### Time Tracking
+
 - `GET /api/v1/time-entries` requires `time_entries:read`
 - `POST /api/v1/time-entries` requires `time_entries:write`
 
 List endpoints accept `limit` and `offset`. `limit` defaults to `50` and is capped at `100`.
+
+The Time Tracking public API routes are owned by the Time Tracking module. Disabled Time Tracking keeps historical read-only browser access; public API write behavior remains controlled by API key scope and the module route contract.
 
 Time-entry timestamps should be sent as ISO 8601 UTC strings, such as `2026-05-29T13:00:00.000Z`. Values with an explicit offset are normalized to UTC before storage.
 

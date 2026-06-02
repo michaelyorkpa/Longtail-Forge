@@ -16,6 +16,10 @@ function listBrowserApiRoutes() {
   return moduleDefinitions.flatMap((definition) => definition.browserApiRoutes || []);
 }
 
+function listPublicApiRoutes() {
+  return moduleDefinitions.flatMap((definition) => definition.publicApiRoutes || []);
+}
+
 function listModuleMigrationSources() {
   return moduleDefinitions
     .filter((definition) => definition.migrationsDir)
@@ -25,4 +29,4 @@ function listModuleMigrationSources() {
     }));
 }
 
-export { listBrowserApiRoutes, listModuleMigrationSources, listModules };
+export { listBrowserApiRoutes, listModuleMigrationSources, listModules, listPublicApiRoutes };

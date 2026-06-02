@@ -1,16 +1,65 @@
 import { timeEntriesRoutes } from "./time-entries.routes.js";
+import { timeTrackingPublicApiRoutes } from "./public-api.routes.js";
 
 const timeTrackingModule = {
   id: "time-tracking",
   name: "Time Tracking",
+  displayName: "Time Tracking",
   description: "Timers, manual entries, editable time entries, and billable time capture.",
   category: "core-workflow",
-  version: "0.28.2",
+  version: "0.30.8",
   enabledByDefault: true,
+  historicalReadAccess: true,
   browserApiRoutes: [timeEntriesRoutes],
+  publicApiRoutes: [timeTrackingPublicApiRoutes],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
   migrationsDir: new URL("./migrations/", import.meta.url),
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
+  seedHooks: [],
+  repairHooks: [],
+  navigation: [
+    { label: "Time Keeping", href: "time-tracker.html", parent: "projects.html" },
+    { label: "Manual Entry", href: "manual-entry.html", parent: "time-tracker.html" },
+    { label: "Edit Entries", href: "edit-entries.html", parent: "time-tracker.html" },
+    { label: "Time Reports", href: "reporting.html", parent: "reporting.html" },
+  ],
+  dashboard: [
+    { id: "active-timers", label: "Active Timers" },
+    { id: "recent-time", label: "Recent Time" },
+    { id: "billing-summary", label: "Billing Summary" },
+  ],
+  reporting: [
+    { id: "project-time-billing", label: "Project Time & Billing" },
+  ],
+  publicApiEndpoints: [
+    { method: "GET", path: "/api/v1/time-entries", scope: "time_entries:read" },
+    { method: "POST", path: "/api/v1/time-entries", scope: "time_entries:write" },
+  ],
+  requiredPermissions: [
+    "time_entries.create",
+    "time_entries.edit_own",
+    "time_entries.edit_all",
+    "reporting.view",
+  ],
+  workspaceCapabilityRequirements: ["time_tracking", "time_tracking_optional"],
+  settings: [
+    {
+      id: "timeTrackingEnabled",
+      label: "Time Tracking",
+      type: "boolean",
+      moduleStatus: true,
+    },
+  ],
+  frameworkDependencies: [
+    "api-key-auth",
+    "audit-service",
+    "billing-formatters",
+    "client-projects",
+    "module-access",
+    "permissions-service",
+    "timezone-normalization",
+    "workspace-settings",
+  ],
   seedData: [],
 };
 

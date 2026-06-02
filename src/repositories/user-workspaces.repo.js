@@ -36,6 +36,11 @@ ORDER BY organizations.name;
 `);
 }
 
+async function readActiveForUser(userId) {
+  const rows = await readForUser(userId);
+  return rows.filter((membership) => membership.status === "active");
+}
+
 async function readAllWorkspaces() {
   return querySql(`
 SELECT
@@ -119,6 +124,7 @@ function normalizeStatus(status) {
 
 export const userWorkspacesRepository = {
   readAllWorkspaces,
+  readActiveForUser,
   readByUserAndWorkspace,
   readForUser,
   countActiveForWorkspace,

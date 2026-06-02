@@ -4,6 +4,7 @@ import { DEFAULT_TIMEZONE, normalizeUtcIso } from "../utils/timezones.js";
 import { DEFAULT_WORKSPACE_TYPE } from "../utils/workspaces.js";
 import { hashPassword, createGeneratedPassword, validatePassword } from "../security/passwords.js";
 import { modulesService } from "../core/modules/modules.service.js";
+import { appSettingsRepository } from "../repositories/app-settings.repo.js";
 import { runMigrations } from "./migrations.js";
 import {
   querySql,
@@ -15,7 +16,8 @@ import {
 } from "./sqlite.js";
 
 const DEFAULT_ORGANIZATION_NAME = "Raymond Tec";
-const DEFAULT_SUPER_ADMIN_USERNAME = "[REDACTED]";
+const REDACTED_SEED_USERNAME = "[REDACTED]";
+const DEFAULT_SUPER_ADMIN_USERNAME = process.env.SUPER_ADMIN_USERNAME || "support@longtailforge.local";
 const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = "Super Admin";
 const SUPER_ADMIN_PASSWORD_ENV = "SUPER_ADMIN_PASSWORD";
 
@@ -26,17 +28,117 @@ async function initializeDatabase() {
 async function ensureDatabase() {
   await runMigrations();
   await standardizeStoredTimesToUtc();
+  await appSettingsRepository.ensureDefaults();
   await protectFirstUser();
 
   const organizationId = await ensureDefaultOrganization();
   await ensureOrganizationSettings(organizationId);
   await modulesService.syncModuleRegistry(organizationId);
+  await repairRedactedSeedUsers(organizationId);
   await seedSuperAdminUser(organizationId);
   await ensureWorkspaceMemberships(organizationId);
   await repairUserActiveWorkspaces();
   await ensureWorkspaceType(organizationId);
   await repairPersonalWorkspaceMemberships();
   await ensureProtectedUserRoles(organizationId);
+}
+
+async function repairRedactedSeedUsers(organizationId) {
+  if (!(await tableExists("users"))) {
+    return;
+  }
+
+  const redactedUsers = await querySql(`
+SELECT user_id
+FROM users
+WHERE organization_id = ${sqlText(organizationId)}
+  AND username = ${sqlText(REDACTED_SEED_USERNAME)};
+`);
+
+  if (redactedUsers.length === 0) {
+    return;
+  }
+
+  const defaultUsers = await querySql(`
+SELECT user_id
+FROM users
+WHERE organization_id = ${sqlText(organizationId)}
+  AND username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)}
+LIMIT 1;
+`);
+  const now = new Date().toISOString();
+
+  if (defaultUsers.length === 0) {
+    await runSql(`
+UPDATE users
+SET username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)},
+    display_name = ${sqlText(DEFAULT_SUPER_ADMIN_DISPLAY_NAME)}
+WHERE organization_id = ${sqlText(organizationId)}
+  AND username = ${sqlText(REDACTED_SEED_USERNAME)};
+
+UPDATE sessions
+SET username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)}
+WHERE organization_id = ${sqlText(organizationId)}
+  AND username = ${sqlText(REDACTED_SEED_USERNAME)};
+`);
+    return;
+  }
+
+  const statements = redactedUsers.map((user, index) => {
+    const retiredUsername = `retired-placeholder-${index + 1}-${user.user_id}@longtailforge.local`;
+
+    return `
+UPDATE users
+SET username = ${sqlText(retiredUsername)},
+    display_name = 'Retired Placeholder User',
+    user_status = 'inactive',
+    protected_user = 'no'
+WHERE organization_id = ${sqlText(organizationId)}
+  AND user_id = ${sqlText(user.user_id)}
+  AND username = ${sqlText(REDACTED_SEED_USERNAME)};
+
+DELETE FROM sessions
+WHERE organization_id = ${sqlText(organizationId)}
+  AND user_id = ${sqlText(user.user_id)};
+
+INSERT INTO audit_logs (
+  audit_id,
+  organization_id,
+  created_at,
+  actor_user_id,
+  actor_user_name,
+  action,
+  change_type,
+  record_type,
+  record_id,
+  record_label,
+  record_url,
+  previous_value_json,
+  new_value_json,
+  metadata_json,
+  workspace_id
+)
+VALUES (
+  ${sqlText(randomUUID())},
+  ${sqlText(organizationId)},
+  ${sqlText(now)},
+  'system',
+  'system',
+  'redacted_seed_user_repaired',
+  'repair',
+  'user',
+  ${sqlText(user.user_id)},
+  ${sqlText(retiredUsername)},
+  'user-admin.html',
+  ${sqlText(JSON.stringify({ username: REDACTED_SEED_USERNAME }))},
+  ${sqlText(JSON.stringify({ username: retiredUsername, user_status: "inactive" }))},
+  ${sqlText(JSON.stringify({ reason: "literal redaction placeholder was present in seed user data" }))},
+  ${sqlText(organizationId)}
+);
+`;
+  });
+
+  await runSql(statements.join("\n"));
 }
 
 async function standardizeStoredTimesToUtc() {

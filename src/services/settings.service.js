@@ -7,7 +7,7 @@ import { normalizeSettings } from "../utils/normalizers.js";
 const TIME_TRACKING_MODULE_ID = "time-tracking";
 
 async function read(session) {
-  return decorateSettingsWithModules(
+  return modulesService.decorateWorkspaceSettings(
     await settingsRepository.readOrganizationSettings(session.organization_id),
     session.organization_id,
   );
@@ -83,19 +83,7 @@ async function save(payload, session) {
 
   await auditService.cleanupExpired(session.organization_id, data.audit.retentionDays);
 
-  return { data: await decorateSettingsWithModules(data, session.organization_id) };
-}
-
-async function decorateSettingsWithModules(settings, organizationId) {
-  const timeTrackingEnabled = await modulesService.readModuleStatus(organizationId, TIME_TRACKING_MODULE_ID) === "enabled";
-
-  return {
-    ...settings,
-    workspaceId: organizationId,
-    workspace_id: organizationId,
-    timeTrackingEnabled,
-    enabledModules: await modulesService.readEnabledModuleIds(organizationId),
-  };
+  return { data: await modulesService.decorateWorkspaceSettings(data, session.organization_id) };
 }
 
 export const settingsService = {

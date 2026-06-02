@@ -31,6 +31,77 @@ WHERE user_workspaces.user_id = ${sqlText(userId)}
   return Number(rows[0]?.count) || 0;
 }
 
+async function readOwnedForUser(userId) {
+  return querySql(`
+SELECT
+  id AS workspace_id,
+  name AS workspace_name,
+  workspace_type
+FROM organizations
+WHERE owner_user_id = ${sqlText(userId)}
+ORDER BY name;
+`);
+}
+
+async function readById(workspaceId) {
+  const rows = await querySql(`
+SELECT
+  id AS workspace_id,
+  name AS workspace_name,
+  workspace_type,
+  owner_user_id
+FROM organizations
+WHERE id = ${sqlText(workspaceId)}
+LIMIT 1;
+`);
+
+  return rows[0] || null;
+}
+
+async function readOwnerTransferCandidate(workspaceId, previousOwnerUserId) {
+  const rows = await querySql(`
+SELECT
+  users.user_id,
+  users.username,
+  user_workspaces.created_at AS membership_created_at
+FROM user_workspaces
+INNER JOIN users
+  ON users.user_id = user_workspaces.user_id
+  AND users.organization_id = user_workspaces.workspace_id
+INNER JOIN user_role_assignments
+  ON user_role_assignments.user_id = user_workspaces.user_id
+  AND user_role_assignments.organization_id = user_workspaces.workspace_id
+  AND user_role_assignments.role_id = 'organization_admin'
+WHERE user_workspaces.workspace_id = ${sqlText(workspaceId)}
+  AND user_workspaces.status = 'active'
+  AND users.user_status = 'active'
+  AND user_workspaces.user_id <> ${sqlText(previousOwnerUserId)}
+ORDER BY
+  COALESCE(user_workspaces.created_at, '9999-12-31T23:59:59.999Z'),
+  users.rowid,
+  lower(users.username)
+LIMIT 1;
+`);
+
+  return rows[0] || null;
+}
+
+async function updateOwner(workspaceId, ownerUserId) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE organizations
+SET owner_user_id = ${sqlText(ownerUserId)},
+    updated_at = ${sqlText(now)}
+WHERE id = ${sqlText(workspaceId)};
+
+UPDATE workspaces
+SET owner_user_id = ${sqlText(ownerUserId)},
+    updated_at = ${sqlText(now)}
+WHERE workspace_id = ${sqlText(workspaceId)};
+`);
+}
+
 async function createWorkspace({ ownerUser, workspaceName, workspaceType }) {
   const workspaceId = randomUUID();
   const now = new Date().toISOString();
@@ -225,5 +296,9 @@ COMMIT;
 export const workspacesRepository = {
   countUserWorkspacesByType,
   createWorkspace,
+  readById,
   readForUser,
+  readOwnedForUser,
+  readOwnerTransferCandidate,
+  updateOwner,
 };

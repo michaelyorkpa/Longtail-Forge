@@ -76,6 +76,19 @@ LIMIT 1;
   return rows[0] || null;
 }
 
+async function readFirstByUserId(userId) {
+  const rows = await querySql(`
+SELECT
+${USER_SELECT_COLUMNS}
+FROM users
+WHERE user_id = ${sqlText(userId)}
+ORDER BY rowid
+LIMIT 1;
+`);
+
+  return rows[0] || null;
+}
+
 async function readAll(organizationId) {
   const rows = await querySql(`
 SELECT
@@ -204,6 +217,7 @@ export const usersRepository = {
   create,
   readAll,
   readById,
+  readFirstByUserId,
   readByUsername,
   readByUsernameExcludingUser,
   readByUsernameForOrganization,

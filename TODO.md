@@ -8,53 +8,17 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
-- [ ] How is the "Remove Workspace" button wired, currently on User Settings page
-
-- [ ] Adjust links in Audit log table
-
-- [ ] Clients still shows up on the time reporting page in Personal workspaces, instead of being hidden and defaulting to "Workspace Projects"
-
-- [ ] Move Projects Settings link from "Projects" under the "Projects" main menu heading back to "Projects" under Settings
-  - [ ] Move "Add Project" to be in-line with "Projects" heading on "Projects" settings page (right at the very top right)
-  - [ ] Add "Filter List" above the "Client" and "Status" filters
-  - [ ] Add "Bulk Changes" above the bulk status/bulk client/bulk billable boxes
-
-- Settings -> Workspaces -> User Admin -> Edit User modal
-  - [ ] "Configure Permissions" button needs to be above "Add Role" button
-  - [ ] "Add Role" button needs to be centered at bottom of "Role Assignments" box
-  - [ ] Current roles needs to be moved to its own box with "Current Assignments" as the heading
+- How is the "Remove Workspace" button wired, currently on User Settings page?
 
 - What happens when a user is removed from all workspaces?
 - What happens to a Workspace/project/client when the creator/owner is removed from it?
 
-### Audit Log UI
-
-- [ ] Logins are not tracked in the audit log
-- [ ] Truncate user, client, project, and record type to keep all columns on screen
-  - [ ] Add title to each of the above fields so when user hovers, it displays the full item
-- [ ] Add client filter (business workspaces only)
-  - [ ] Make client in list clickable to set filter
-- [ ] Add project filter 
-  - [ ] Make project in list clickable to set filter
-- [ ] Make Record Type in list clickable to set filter
-
-### Audit Log Functionality
-
-- [ ] Audit log needs to start tracking IP address of users on each log entry
-
 ## Tweaks
 
-### Records Maintenance
-
-- [ ] If a project is moved to a different client/becomes a workspace project
-  - [ ] All associated records should be updated to reflect this
-    - [ ] Time entries
-    - [ ] Tasks
-    - [ ] Notes
-    - [ ] Knowledge Base
-  - [ ] Users should be notified with in-app dialog with explicit confirmation before completing this
-
 - What should happen to records when a client/project becomes completed or archived?
+
+- Add Workspace option to set default screen when switching into that workspace.
+  - Current behavior keeps it on Time Tracker, for example, but perhaps a user would always want to default to the dashboard. So, make the starting page selectable and provide a "Stay on Current Workspace's page" option as well (so when a new workspace opens it remains in the time tracker, or tasks, or whatever)
 
 ### UI clean up/clarification
 
@@ -73,6 +37,13 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - What other things should be tracked/monitored to enhance security?
 
 # Medium Term
+
+- [ ] Create a dashboard/workspace that shows users all workspaces view
+
+- [ ] Lists (Shopping/Grocery)
+  - could be useful for physical project planning
+  - definitely useful in Personal/Family workspaces
+  - eventual functionality could include scanning barcodes to add items to lists
 
 - [ ] Add workspace creation permission per user in the User Admin settings modal
 
@@ -100,10 +71,15 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - Example: note visibility should be stored as `visibility`, not enforced by `#public`
   - System tags should be locked or protected from accidental deletion
 
-
 # Long Term
 
 ## Parking Lot / Open Questions
+
+- [ ] Add hotkeys for menus/functions
+
+- [ ] Should plugins/externally developed modules use the public API or internal/browser API?
+
+- [ ] Should I add a CRM module?
 
 - [ ] What other team tools would be beneficial beyond groups/permissions, assignments, messaging/comments, notifications, and activity feeds?
 

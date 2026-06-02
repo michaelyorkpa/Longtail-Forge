@@ -1,3 +1,69 @@
+## Version 0.30.13 - 2026-06-02 17:11 -04:00
+
+- Added app-level workspace creation settings tables for install-wide defaults and per-user workspace creation overrides.
+- Added workspace owner transfer rules that pick the oldest active Workspace Administrator membership and block owner removal when no replacement administrator exists.
+- Added Personal workspace fallback creation when membership changes leave a user with no active workspace.
+- Updated user and session active-workspace repair so affected users do not point at a removed workspace membership.
+- Extended the permission regression harness to cover owner transfer, owner-removal blocking, and no-workspace Personal fallback behavior.
+- Bumped the app version to `0.30.13`.
+
+## Version 0.30.12 - 2026-06-02 15:58 -04:00
+
+- Added authenticated Reporting and Dashboard API routes backed by `reportingService`.
+- Moved project/time/billing aggregation out of the Reporting and Dashboard browser controllers.
+- Made Reporting workspace-type aware so personal and family workspaces default to workspace projects and hide business client scope filters.
+- Converted Dashboard into a module-aware project/workspace hub while preserving Time Tracking current-month billable and chart widgets.
+- Added reporting/dashboard extension metadata so future modules can contribute panels without raw page-script coupling.
+- Fixed authenticated navigation so the lighter session workspace bootstrap cannot hide Time Tracking links after `/api/settings` exposes module navigation metadata.
+- Added startup repair for literal `[REDACTED]` seed usernames, replacing the placeholder with the configured super admin username without editing checksum-tracked migration history.
+- Bumped the app version to `0.30.12`.
+
+## Version 0.30.11 - 2026-06-02 15:13 -04:00
+
+- Added `public/js/shared/page-controller.js` with shared option, status, sorting, controller registration, and smoke-test helpers under `window.LongtailForge.pageController`.
+- Registered Clients/Projects, Time Tracker, User Admin, and Edit Entries page controllers under `window.LongtailForge.controllers`.
+- Added browser-console smoke and snapshot helpers for the four large frontend controllers.
+- Updated the relevant protected pages to load the shared page-controller helper directly without adding a frontend build step.
+- Bumped the app version to `0.30.11`.
+
+## Version 0.30.10 - 2026-06-02 15:03 -04:00
+
+- Formalized Projects as framework core and Clients as optional business context in roadmap and decisions.
+- Added shared record-scope helpers for workspace/client/project validation and archived-state checks.
+- Added a project update planner that centralizes move planning and downstream record behavior.
+- Blocked archived clients from receiving new projects or project moves and blocked archived projects from receiving time entries or active timers while preserving read access.
+- Added workspace owner lifecycle protection so owners cannot be deactivated or deleted before ownership transfer exists.
+- Updated Reporting language to separate workspace project reporting scopes from client-linked project scopes.
+- Extended the permission regression harness to cover archived downstream behavior and workspace owner lifecycle protection.
+- Bumped the app version to `0.30.10`.
+
+## Version 0.30.9 - 2026-06-02 14:14 -04:00
+
+- Moved Time Tracking public API routes and service logic for `/api/v1/time-entries` into the Time Tracking module.
+- Added module public API route mounting so module-owned public API paths load before browser session authentication.
+- Documented Time Tracking module ownership and framework dependencies in `docs/time-tracking-module.md`.
+- Updated navigation, Dashboard, and Workspace Settings to consume module metadata for Time Tracking links, dashboard panels, and module settings.
+- Updated public API docs to list endpoints by module.
+- Extended module-level smoke coverage for Time Tracking metadata, disabled historical reads, and disabled browser/public API write blocking.
+- Bumped the app version to `0.30.9`.
+
+## Version 0.30.8 - 2026-06-02 13:57 -04:00
+
+- Added `docs/module-contract.md` to define the module metadata, route, asset, migration, hook, navigation, dashboard, permission, and workspace capability contract.
+- Expanded existing module definitions with display names, public API placeholders, historical read policy, seed/repair hooks, navigation/dashboard contributions, required permissions, and workspace capability requirements.
+- Added shared module access helpers and moved Time Tracking write enforcement onto the reusable module write guard.
+- Moved workspace module decoration into `modulesService` so settings/bootstrap responses use shared framework module metadata.
+- Extended the permission regression harness to verify disabled Time Tracking keeps historical reads but blocks time-entry and active-timer writes.
+- Bumped the app version to `0.30.8`.
+
+## Version 0.30.7 - 2026-06-02 13:39 -04:00
+
+- Added a lightweight permission regression harness with fixtures for workspace admin, client admin, project admin, client user, project user, and external client user roles.
+- Covered unauthenticated browser/API guards, API-key failure modes, mutation permissions, active timers, user administration, role assignments, workspace settings, and ownership/scope regressions.
+- Added `LONGTAIL_DATABASE_FILE` for isolated test database runs and wired `npm run test:permissions`.
+- Hardened role assignment updates so client/project scope IDs must belong to the active workspace.
+- Bumped the app version to `0.30.7`.
+
 ## Version 0.30.6 - 2026-06-02 12:52 -04:00
 
 - Completed the comprehensive code review pass and captured private findings plus drag-and-drop 0.30.7+ roadmap drafts in ignored `CODEREVIEW.md`.

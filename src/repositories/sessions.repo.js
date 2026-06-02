@@ -88,12 +88,22 @@ WHERE session_id = ${sqlText(sessionId)};
 `);
 }
 
+async function updateActiveWorkspaceForUser(userId, workspaceId) {
+  await runSql(`
+UPDATE sessions
+SET active_workspace_id = ${sqlText(workspaceId)},
+    updated_at = ${sqlText(new Date().toISOString())}
+WHERE user_id = ${sqlText(userId)};
+`);
+}
+
 export const sessionsRepository = {
   create,
   readById,
   remove,
   removeExpired,
   updateActiveWorkspace,
+  updateActiveWorkspaceForUser,
   updateTimezoneForUser,
   updateUsernameForUser,
 };

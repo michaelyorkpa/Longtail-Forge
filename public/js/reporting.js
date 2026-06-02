@@ -1,21 +1,24 @@
-// Reporting combines settings, client/project data, and time entries into billable totals.
+// Reporting renders server-aggregated project/time/billing summaries.
 const reportPeriodSelect = document.querySelector("[data-report-period]");
 const reportCustomDates = document.querySelector("[data-report-custom-dates]");
 const reportStartDateInput = document.querySelector("[data-report-start-date]");
 const reportEndDateInput = document.querySelector("[data-report-end-date]");
+const reportScopeControl = document.querySelector("[data-report-scope-control]");
 const reportClientSelect = document.querySelector("[data-report-client]");
 const reportProjectSelect = document.querySelector("[data-report-projects]");
 const reportStatus = document.querySelector("[data-report-status]");
+const reportExtensionPanels = document.querySelector("[data-report-extension-panels]");
 const reportTableWrap = document.querySelector("[data-report-table-wrap]");
 const reportTableBody = document.querySelector("[data-report-table-body]");
 const reportTotalTime = document.querySelector("[data-report-total-time]");
-const reportTotalBillableAmount = document.querySelector(
-  "[data-report-total-billable-amount]",
-);
+const reportTotalBillableAmount = document.querySelector("[data-report-total-billable-amount]");
 
-let reportClients = [];
-let reportEntries = [];
-let reportSettings = window.LongtailForge.billing.normalizeSettings({});
+let reportBootstrap = {
+  clientFiltersVisible: true,
+  defaultScopeId: "",
+  reportPanels: [],
+  scopes: [],
+};
 
 setDefaultCustomDates();
 updateCustomDateState();
@@ -39,27 +42,18 @@ async function loadReportData() {
   setReportStatus("Loading report data...");
 
   try {
-    const [settingsResponse, clientsResponse, entriesResponse] = await Promise.all([
-      fetch("/api/settings", { cache: "no-store" }),
-      fetch("/api/client-projects", { cache: "no-store" }),
-      fetch("/api/time-entries", { cache: "no-store" }),
-    ]);
+    const response = await fetch("/api/reporting/bootstrap", { cache: "no-store" });
 
-    if (!clientsResponse.ok) {
-      throw new Error(`Could not load client data: ${clientsResponse.status}`);
+    if (!response.ok) {
+      throw new Error(`Could not load report data: ${response.status}`);
     }
 
-    reportSettings = settingsResponse.ok
-      ? window.LongtailForge.billing.normalizeSettings(await settingsResponse.json())
-      : window.LongtailForge.billing.normalizeSettings({});
-    reportClients = window.LongtailForge.billing.normalizeClients(await clientsResponse.json());
-    reportEntries = entriesResponse.ok
-      ? window.LongtailForge.billing.normalizeTimeEntries(await entriesResponse.json())
-      : [];
-
+    reportBootstrap = await response.json();
+    renderExtensionPanels();
     renderClientFilter();
     applyReportQueryParams();
-    setReportStatus("");
+    renderProjectFilter();
+    await renderReport();
   } catch (error) {
     setReportStatus("Report data could not be loaded.");
     console.error(error);
@@ -68,47 +62,53 @@ async function loadReportData() {
 
 function applyReportQueryParams() {
   const params = new URLSearchParams(window.location.search);
-  const clientId = params.get("client");
+  const scopeId = params.get("client") || params.get("scope") || "";
+  const fallbackScopeId = reportBootstrap.defaultScopeId || "";
+  const nextScopeId = reportBootstrap.scopes.some((scope) => scope.id === scopeId)
+    ? scopeId
+    : fallbackScopeId;
 
-  if (!clientId || !reportClients.some((client) => client.id === clientId)) {
-    return;
+  if (nextScopeId) {
+    reportClientSelect.value = nextScopeId;
   }
-
-  reportClientSelect.value = clientId;
-  renderProjectFilter();
-  renderReport();
 }
 
 function renderClientFilter() {
-  reportClientSelect.replaceChildren(createOption("", "Select a client"));
+  reportClientSelect.replaceChildren(createOption("", "Select a reporting scope"));
+  reportScopeControl.hidden = reportBootstrap.clientFiltersVisible === false;
 
-  sortByName(reportClients).forEach((client) => {
-    reportClientSelect.appendChild(createOption(client.id, client.name));
+  reportBootstrap.scopes.forEach((scope) => {
+    const optionLabel = scope.isWorkspaceScope ? "Workspace Projects" : scope.name;
+    reportClientSelect.appendChild(createOption(scope.id, optionLabel));
   });
+
+  if (reportBootstrap.defaultScopeId) {
+    reportClientSelect.value = reportBootstrap.defaultScopeId;
+  }
 }
 
 function renderProjectFilter() {
-  const client = getSelectedClient();
+  const scope = getSelectedScope();
   reportProjectSelect.replaceChildren();
-  reportProjectSelect.disabled = !client;
+  reportProjectSelect.disabled = !scope;
 
-  if (!client) {
+  if (!scope) {
     return;
   }
 
-  sortByName(window.LongtailForge.billing.getReportProjects(client, reportEntries)).forEach((project) => {
+  sortByName(scope.projects).forEach((project) => {
     const option = createOption(project.id, project.name);
     option.selected = true;
     reportProjectSelect.appendChild(option);
   });
 }
 
-function renderReport() {
-  const client = getSelectedClient();
+async function renderReport() {
+  const scope = getSelectedScope();
   reportTableBody.innerHTML = "";
   reportTableWrap.hidden = true;
 
-  if (!client) {
+  if (!scope) {
     setReportStatus("");
     return;
   }
@@ -119,49 +119,59 @@ function renderReport() {
   }
 
   const selectedProjectIds = getSelectedProjectIds();
-  const projects = sortByName(window.LongtailForge.billing.getReportProjects(client, reportEntries))
-    .filter((project) => selectedProjectIds.includes(project.id));
 
-  if (projects.length === 0) {
+  if (selectedProjectIds.length === 0) {
     setReportStatus("Select at least one project.");
     return;
   }
 
-  const clientEntries = reportEntries.filter((entry) =>
-    window.LongtailForge.records.matchesClient(entry, client),
-  );
-  const summaries = projects
-    .map((project) => window.LongtailForge.billing.summarizeProject(
-      reportSettings,
-      client,
-      project,
-      clientEntries,
-      getSelectedDateRange(client, project),
-    ))
-    .filter(Boolean);
+  setReportStatus("Loading report summary...");
 
-  if (!summaries.length) {
+  try {
+    const params = new URLSearchParams({
+      period: reportPeriodSelect.value,
+      scopeId: scope.id,
+      projectIds: selectedProjectIds.join(","),
+    });
+
+    if (reportPeriodSelect.value === "custom") {
+      params.set("startDate", reportStartDateInput.value);
+      params.set("endDate", reportEndDateInput.value);
+    }
+
+    const response = await fetch(`/api/reporting/project-summary?${params.toString()}`, { cache: "no-store" });
+
+    if (!response.ok) {
+      throw new Error(`Could not load report summary: ${response.status}`);
+    }
+
+    renderProjectSummary(await response.json());
+  } catch (error) {
+    setReportStatus("Report summary could not be loaded.");
+    console.error(error);
+  }
+}
+
+function renderProjectSummary(summary) {
+  if (!summary.rows?.length) {
+    reportTotalTime.textContent = formatHours(0);
+    reportTotalBillableAmount.textContent = formatCurrency(0);
     setReportStatus("No time entries match these filters.");
     return;
   }
 
-  const totals = summaries.reduce((summary, projectSummary) => ({
-    amount: summary.amount + projectSummary.amount,
-    seconds: summary.seconds + projectSummary.displaySeconds,
-  }), { amount: 0, seconds: 0 });
-
-  summaries.forEach((summary) => {
+  summary.rows.forEach((row) => {
     reportTableBody.appendChild(createReportRow(
-      summary.project,
-      summary.rate,
-      summary.displaySeconds,
-      summary.billableSeconds,
-      summary.amount,
+      row.project,
+      row.rate,
+      row.displaySeconds,
+      row.billableSeconds,
+      row.amount,
     ));
   });
 
-  reportTotalTime.textContent = formatHours(totals.seconds);
-  reportTotalBillableAmount.textContent = formatCurrency(totals.amount);
+  reportTotalTime.textContent = formatHours(summary.totals?.seconds || 0);
+  reportTotalBillableAmount.textContent = formatCurrency(summary.totals?.amount || 0);
   reportTableWrap.hidden = false;
   setReportStatus("");
 }
@@ -179,25 +189,29 @@ function createReportRow(project, rate, seconds, billableSeconds, billableAmount
   return row;
 }
 
-function getSelectedClient() {
-  return reportClients.find((client) => client.id === reportClientSelect.value);
+function renderExtensionPanels() {
+  reportExtensionPanels.replaceChildren();
+
+  if (!Array.isArray(reportBootstrap.reportPanels) || reportBootstrap.reportPanels.length === 0) {
+    reportExtensionPanels.hidden = true;
+    return;
+  }
+
+  reportBootstrap.reportPanels.forEach((panel) => {
+    const marker = document.createElement("div");
+    marker.dataset.reportPanel = panel.id;
+    marker.dataset.moduleId = panel.moduleId;
+    reportExtensionPanels.appendChild(marker);
+  });
+  reportExtensionPanels.hidden = false;
+}
+
+function getSelectedScope() {
+  return reportBootstrap.scopes.find((scope) => scope.id === reportClientSelect.value);
 }
 
 function getSelectedProjectIds() {
   return [...reportProjectSelect.selectedOptions].map((option) => option.value);
-}
-
-function getSelectedDateRange(client, project) {
-  if (reportPeriodSelect.value === "custom") {
-    return getCustomDateRange();
-  }
-
-  const billingPeriod = window.LongtailForge.billing.getEffectiveProjectBillingPeriod(
-    reportSettings,
-    client,
-    project,
-  );
-  return window.LongtailForge.billing.getBillingPeriodRange(billingPeriod, reportPeriodSelect.value);
 }
 
 function getCustomDateRange() {
@@ -208,10 +222,7 @@ function getCustomDateRange() {
     return null;
   }
 
-  const exclusiveEndDate = new Date(endDate);
-  // Make the end date inclusive for the user by using an exclusive midnight boundary.
-  exclusiveEndDate.setDate(exclusiveEndDate.getDate() + 1);
-  return { start: startDate, end: exclusiveEndDate };
+  return { start: startDate, end: endDate };
 }
 
 function updateCustomDateState() {
@@ -266,7 +277,11 @@ function createTableCell(text, tagName = "td") {
 }
 
 function sortByName(items) {
-  return window.LongtailForge.records.sortByName(items);
+  return [...items].sort((firstItem, secondItem) =>
+    String(firstItem.name || "").localeCompare(String(secondItem.name || ""), undefined, {
+      sensitivity: "base",
+    }),
+  );
 }
 
 function setReportStatus(message) {

@@ -935,6 +935,32 @@ function isValidEmail(value) {
 }
 
 function setUserAdminStatus(message, isError = false) {
-  userAdminStatus.textContent = message;
+  window.LongtailForge.pageController.setStatus(userAdminStatus, message, { isError });
   userAdminStatus.classList.toggle("is-error", isError);
 }
+
+window.LongtailForge.pageController.register("user-admin", {
+  snapshot: () => ({
+    activeWorkspaceType,
+    clientCount: clients.length,
+    pendingRoleAssignmentCount: pendingRoleAssignments.length,
+    roleCount: roles.length,
+    userCount: users.length,
+    workspaceCount: workspaces.length,
+  }),
+  runSmoke: () => {
+    const checks = [
+      { name: "user admin form exists", ok: Boolean(userAdminForm) },
+      { name: "user list exists", ok: Boolean(userList) },
+      { name: "roles array loaded", ok: Array.isArray(roles) },
+      { name: "users array loaded", ok: Array.isArray(users) },
+      { name: "permission resources configured", ok: PERMISSION_RESOURCES.length > 0 },
+    ];
+
+    return {
+      ok: checks.every((check) => check.ok),
+      pageId: "user-admin",
+      checks,
+    };
+  },
+});

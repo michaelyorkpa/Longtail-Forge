@@ -15,16 +15,18 @@
         <article class="dashboard-panel active-client-panel">
           <details class="dashboard-client-details">
             <summary>
-              <span>Active Clients</span>
+              <span data-dashboard-hub-count-label>Active Clients</span>
               <span class="metric-value" data-active-client-count>0</span>
             </summary>
             <fieldset class="client-radio-list" data-client-report-options>
-              <legend>Client Reporting</legend>
+              <legend data-dashboard-report-legend>Client Reporting</legend>
             </fieldset>
             <button type="button" data-open-client-report disabled>Open Reporting</button>
           </details>
         </article>
       </section>
+
+      <section hidden data-dashboard-extension-panels></section>
 
       <section class="dashboard-panel">
         <h2>Current Month Billables</h2>
@@ -58,8 +60,6 @@
 
     <script src="js/navigation.js"></script>
     <script src="js/shared/formatters.js"></script>
-    <script src="js/shared/billing.js"></script>
-    <script src="js/shared/records.js"></script>
     <script src="js/dashboard.js"></script>
     <script src="js/footer.js"></script>
   </body>

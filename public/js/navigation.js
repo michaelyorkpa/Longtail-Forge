@@ -1,6 +1,7 @@
 // Shared authenticated app shell. Add/remove menu items here instead of editing every page.
 const DEFAULT_WORKSPACE_NAME = "Workspace";
 const WORKSPACE_CONTEXT_STORAGE_KEY = "lf_workspace_context";
+const TIME_TRACKING_NAV_HREFS = new Set(["time-tracker.html", "manual-entry.html", "edit-entries.html", "reporting.html"]);
 const NAV_ITEMS = [
   { label: "Dashboard", href: "dashboard.html" },
   {
@@ -286,8 +287,11 @@ function applyWorkspaceCapabilities(settings) {
   const capabilities = settings.workspaceCapabilities || {};
   const workspaceType = settings.workspaceType || capabilities.workspaceType || "business";
   const availableTools = new Set(Array.isArray(capabilities.availableTools) ? capabilities.availableTools : []);
-  const enabledModules = new Set(Array.isArray(settings.enabledModules) ? settings.enabledModules : []);
-  const timeTrackingEnabled = settings.timeTrackingEnabled !== false && enabledModules.has("time-tracking");
+  const modules = Array.isArray(settings.modules) ? settings.modules : [];
+  const timeTrackingModule = modules.find((moduleDefinition) => moduleDefinition.id === "time-tracking");
+  const timeTrackingEnabled = moduleIsEnabled(timeTrackingModule, settings, "time-tracking");
+  const timeTrackingLinks = readModuleNavigationHrefs(timeTrackingModule);
+  const visibleTimeTrackingLinks = timeTrackingLinks.size > 0 ? timeTrackingLinks : TIME_TRACKING_NAV_HREFS;
 
   siteHeader.dataset.workspaceType = workspaceType;
   document.body.dataset.workspaceType = workspaceType;
@@ -296,15 +300,39 @@ function applyWorkspaceCapabilities(settings) {
   setNavLinkVisible("clients.html", availableTools.has("clients_projects"));
   setNavLinkVisible("api-keys.html", workspaceType === "business");
   setNavLinkVisible("user-admin.html", availableTools.has("team_members"));
-  setNavLinkVisible("reporting.html", availableTools.has("billing_invoicing_reporting") || timeTrackingEnabled);
-  setNavLinkVisible("time-tracker.html", timeTrackingEnabled);
-  setNavLinkVisible("manual-entry.html", timeTrackingEnabled);
-  setNavLinkVisible("edit-entries.html", timeTrackingEnabled);
+  setNavLinkVisible("reporting.html", availableTools.has("billing_invoicing_reporting") || (timeTrackingEnabled && visibleTimeTrackingLinks.has("reporting.html")));
+  setNavLinkVisible("time-tracker.html", timeTrackingEnabled && visibleTimeTrackingLinks.has("time-tracker.html"));
+  setNavLinkVisible("manual-entry.html", timeTrackingEnabled && visibleTimeTrackingLinks.has("manual-entry.html"));
+  setNavLinkVisible("edit-entries.html", timeTrackingEnabled && visibleTimeTrackingLinks.has("edit-entries.html"));
   setNavLinkVisible("tasks.html", false);
 
   document.querySelectorAll(".nav-menu").forEach((menu) => {
     const visibleLinks = [...menu.querySelectorAll("a")].filter((link) => !link.hidden);
     menu.hidden = visibleLinks.length === 0;
+  });
+}
+
+function moduleIsEnabled(moduleDefinition, settings, moduleId) {
+  if (moduleDefinition) {
+    return moduleDefinition.status === "enabled";
+  }
+
+  const enabledModules = new Set(Array.isArray(settings.enabledModules) ? settings.enabledModules : []);
+  return enabledModules.has(moduleId);
+}
+
+function readModuleNavigationHrefs(moduleDefinition) {
+  const navigation = Array.isArray(moduleDefinition?.navigation) ? moduleDefinition.navigation : [];
+
+  return new Set(readNavigationHrefs(navigation));
+}
+
+function readNavigationHrefs(items) {
+  return items.flatMap((item) => {
+    const hrefs = item.href ? [item.href] : [];
+    const childHrefs = Array.isArray(item.items) ? readNavigationHrefs(item.items) : [];
+
+    return [...hrefs, ...childHrefs];
   });
 }
 
@@ -329,8 +357,10 @@ function readWorkspaceContext() {
 }
 
 function storeWorkspaceContext(settings) {
+  const previousContext = readWorkspaceContext() || {};
   const context = {
-    enabledModules: Array.isArray(settings.enabledModules) ? settings.enabledModules : [],
+    enabledModules: Array.isArray(settings.enabledModules) ? settings.enabledModules : previousContext.enabledModules || [],
+    modules: Array.isArray(settings.modules) ? settings.modules : previousContext.modules || [],
     timeTrackingEnabled: settings.timeTrackingEnabled !== false,
     workspaceCapabilities: settings.workspaceCapabilities || {},
     workspaceId: settings.workspaceId || settings.workspace_id || "",

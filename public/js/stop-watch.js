@@ -951,11 +951,7 @@ function createButton(parent, label, action) {
 }
 
 function sortByName(items) {
-  return [...items].sort((firstItem, secondItem) =>
-    firstItem.name.localeCompare(secondItem.name, undefined, {
-      sensitivity: "base",
-    }),
-  );
+  return window.LongtailForge.pageController.sortByName(items);
 }
 
 function normalizeClientProjectOptions(data) {
@@ -986,10 +982,7 @@ function workspaceShowsClientTools() {
 }
 
 function createOption(value, label) {
-  const option = document.createElement("option");
-  option.value = value;
-  option.textContent = label;
-  return option;
+  return window.LongtailForge.pageController.createOption(value, label);
 }
 
 function formatTime(milliseconds) {
@@ -1008,3 +1001,26 @@ function pad(value) {
 function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
+
+window.LongtailForge.pageController.register("time-tracker", {
+  snapshot: () => ({
+    clientCount: clients.length,
+    persistedTimersLoaded: timerPersistence.loaded,
+    runningTimers: timers.filter((timer) => timer.isRunning).length,
+    timerCount: timers.length,
+  }),
+  runSmoke: () => {
+    const checks = [
+      { name: "timer grid exists", ok: Boolean(timerGrid) },
+      { name: "timer count select exists", ok: Boolean(timerCountSelect) },
+      { name: "at least one timer exists", ok: timers.length >= 1 },
+      { name: "timer count is within supported range", ok: timers.length >= 1 && timers.length <= 4 },
+    ];
+
+    return {
+      ok: checks.every((check) => check.ok),
+      pageId: "time-tracker",
+      checks,
+    };
+  },
+});

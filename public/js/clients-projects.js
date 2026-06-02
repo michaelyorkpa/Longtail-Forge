@@ -2495,18 +2495,11 @@ function createClientStatusSelect(value) {
 }
 
 function createOption(value, text) {
-  const option = document.createElement("option");
-  option.value = value;
-  option.textContent = text;
-  return option;
+  return window.LongtailForge.pageController.createOption(value, text);
 }
 
 function sortByName(items) {
-  return [...items].sort((firstItem, secondItem) =>
-    firstItem.name.localeCompare(secondItem.name, undefined, {
-      sensitivity: "base",
-    }),
-  );
+  return window.LongtailForge.pageController.sortByName(items);
 }
 
 function createUuid() {
@@ -2532,5 +2525,29 @@ function isAddClientFormDirty() {
 }
 
 function setStatus(message) {
-  statusMessage.textContent = message;
+  window.LongtailForge.pageController.setStatus(statusMessage, message);
 }
+
+window.LongtailForge.pageController.register("clients-projects", {
+  snapshot: () => ({
+    clientCount: clientProjectData.clients.length,
+    mode: pageMode,
+    openClientId,
+    workspaceProjectCount: clientProjectData.workspaceProjects?.length || 0,
+    workspaceType: organizationSettings.workspaceType,
+  }),
+  runSmoke: () => {
+    const checks = [
+      { name: "client list exists", ok: Boolean(clientList) },
+      { name: "status target exists", ok: Boolean(statusMessage) },
+      { name: "client data loaded", ok: Array.isArray(clientProjectData.clients) },
+      { name: "page mode known", ok: ["combined", "clients", "projects"].includes(pageMode) },
+    ];
+
+    return {
+      ok: checks.every((check) => check.ok),
+      pageId: "clients-projects",
+      checks,
+    };
+  },
+});

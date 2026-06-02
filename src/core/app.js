@@ -10,9 +10,10 @@ import { auditRoutes } from "../routes/audit.routes.js";
 import { authRoutes } from "../routes/auth.routes.js";
 import { publicApiRoutes } from "../routes/public-api.routes.js";
 import { permissionsRoutes } from "../routes/permissions.routes.js";
+import { reportingRoutes } from "../routes/reporting.routes.js";
 import { settingsRoutes } from "../routes/settings.routes.js";
 import { staticRoutes } from "../routes/static.routes.js";
-import { listBrowserApiRoutes } from "./modules/registry.js";
+import { listBrowserApiRoutes, listPublicApiRoutes } from "./modules/registry.js";
 
 function createApp() {
   const app = express();
@@ -23,10 +24,14 @@ function createApp() {
   app.use("/api", appInfoRoutes);
   app.use("/api", authRoutes);
   app.use(publicApiRoutes);
+  for (const moduleRoutes of listPublicApiRoutes()) {
+    app.use(moduleRoutes);
+  }
   app.use(requireAuth);
   app.use("/api", apiKeysRoutes);
   app.use("/api", auditRoutes);
   app.use("/api", permissionsRoutes);
+  app.use("/api", reportingRoutes);
   app.use("/api", settingsRoutes);
   for (const moduleRoutes of listBrowserApiRoutes()) {
     app.use("/api", moduleRoutes);

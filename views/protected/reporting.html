@@ -33,10 +33,10 @@
           </label>
         </div>
 
-        <label>
-          Client
+        <label data-report-scope-control>
+          Reporting Scope
           <select data-report-client>
-            <option value="">Select a client</option>
+            <option value="">Select a reporting scope</option>
           </select>
         </label>
 
@@ -47,6 +47,8 @@
       </section>
 
       <p data-report-status role="status" aria-live="polite"></p>
+
+      <section hidden data-report-extension-panels></section>
 
       <div class="report-table-wrap" hidden data-report-table-wrap>
         <table class="report-table">
@@ -72,8 +74,6 @@
 
     <script src="js/navigation.js"></script>
     <script src="js/shared/formatters.js"></script>
-    <script src="js/shared/billing.js"></script>
-    <script src="js/shared/records.js"></script>
     <script src="js/reporting.js"></script>
     <script src="js/footer.js"></script>
   </body>

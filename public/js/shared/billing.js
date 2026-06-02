@@ -88,6 +88,9 @@
       defaultBillingRate: parseMoney(settings?.defaultBillingRate),
       billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
       billingRounding: normalizeBillingRounding(settings?.billingRounding),
+      enabledModules: Array.isArray(settings?.enabledModules) ? settings.enabledModules : [],
+      modules: Array.isArray(settings?.modules) ? settings.modules : [],
+      timeTrackingEnabled: settings?.timeTrackingEnabled === false ? false : true,
     };
   }
 

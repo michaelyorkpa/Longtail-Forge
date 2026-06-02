@@ -41,98 +41,106 @@ Goals for remainder of 0.30.x:
 
 ### Version 0.30.7 - Permission Regression Hardening
 
-- [ ] Add a lightweight automated permission test harness
-  - [ ] Seed or fixture at least one workspace admin, client admin, project admin, client user, project user, and external client user
-  - [ ] Verify unauthenticated browser API requests return 401
-  - [ ] Verify protected HTML redirects unauthenticated users to login
-  - [ ] Verify API-key routes reject missing, invalid, revoked, and underscoped keys
-- [ ] Add mutation permission tests
-  - [ ] Clients create/update/archive
-  - [ ] Projects create/update/archive
-  - [ ] Project move across clients and workspace projects
-  - [ ] Time-entry create/update/delete
-  - [ ] Active timer save/finalize/remove
-  - [ ] User create/update/deactivate/reactivate/remove
-  - [ ] Role assignment update
-  - [ ] Workspace settings update
-  - [ ] API key create/revoke
-- [ ] Add ownership and scope regression tests
-  - [ ] Time-entry update cannot change `user_id`
-  - [ ] Public API time-entry create cannot spoof `user_id`
-  - [ ] Project update requires permission on the current project scope before checking the target scope
-  - [ ] Role assignment scope IDs must belong to the active workspace
+- [x] Add a lightweight automated permission test harness
+  - [x] Seed or fixture at least one workspace admin, client admin, project admin, client user, project user, and external client user
+  - [x] Verify unauthenticated browser API requests return 401
+  - [x] Verify protected HTML redirects unauthenticated users to login
+  - [x] Verify API-key routes reject missing, invalid, revoked, and underscoped keys
+- [x] Add mutation permission tests
+  - [x] Clients create/update/archive
+  - [x] Projects create/update/archive
+  - [x] Project move across clients and workspace projects
+  - [x] Time-entry create/update/delete
+  - [x] Active timer save/finalize/remove
+  - [x] User create/update/deactivate/reactivate/remove
+  - [x] Role assignment update
+  - [x] Workspace settings update
+  - [x] API key create/revoke
+- [x] Add ownership and scope regression tests
+  - [x] Time-entry update cannot change `user_id`
+  - [x] Public API time-entry create cannot spoof `user_id`
+  - [x] Project update requires permission on the current project scope before checking the target scope
+  - [x] Role assignment scope IDs must belong to the active workspace
 
 ### Version 0.30.8 - Module Contract Cleanup
 
-- [ ] Define a module contract document in code or docs
-  - [ ] Module id, display name, category, version
-  - [ ] Browser API routes
-  - [ ] Public API routes if any
-  - [ ] Protected views
-  - [ ] Browser assets
-  - [ ] Migrations
-  - [ ] Seed/repair hooks
-  - [ ] Navigation contributions
-  - [ ] Dashboard contributions
-  - [ ] Required permissions
-  - [ ] Workspace capability requirements
-- [ ] Move module status enforcement into reusable middleware/helper functions
-- [ ] Ensure disabled modules consistently block write paths and hide navigation
-- [ ] Decide whether disabled modules should allow historical read-only access per module
-- [ ] Move remaining module-aware bootstrap logic into shared framework services
+- [x] Define a module contract document in code or docs
+  - [x] Module id, display name, category, version
+  - [x] Browser API routes
+  - [x] Public API routes if any
+  - [x] Protected views
+  - [x] Browser assets
+  - [x] Migrations
+  - [x] Seed/repair hooks
+  - [x] Navigation contributions
+  - [x] Dashboard contributions
+  - [x] Required permissions
+  - [x] Workspace capability requirements
+- [x] Move module status enforcement into reusable middleware/helper functions
+- [x] Ensure disabled modules consistently block write paths and hide navigation
+- [x] Decide whether disabled modules should allow historical read-only access per module
+- [x] Move remaining module-aware bootstrap logic into shared framework services
 
 ### Version 0.30.9 - Time Tracking Module Boundary
 
-- [ ] Treat Time Tracking as the reference module
-  - [ ] Keep timers, manual entry, edit entries, time-entry repos/services/routes, active timers, and time-entry public API paths together
-  - [ ] Move time-tracking migrations fully under the module migration folder
-  - [ ] Document which framework services Time Tracking depends on
-- [ ] Remove time-tracking assumptions from framework surfaces
-  - [ ] Reporting menu and Dashboard should ask modules for available panels/links
-  - [ ] Workspace Settings should render module settings through a module metadata pattern
-  - [ ] Public API docs should list endpoints by module
-- [ ] Add module-level smoke checks for enabled/disabled Time Tracking behavior
+- [x] Treat Time Tracking as the reference module
+  - [x] Keep timers, manual entry, edit entries, time-entry repos/services/routes, active timers, and time-entry public API paths together
+  - [x] Move time-tracking migrations fully under the module migration folder
+  - [x] Document which framework services Time Tracking depends on
+- [x] Remove time-tracking assumptions from framework surfaces
+  - [x] Reporting menu and Dashboard should ask modules for available panels/links
+  - [x] Workspace Settings should render module settings through a module metadata pattern
+  - [x] Public API docs should list endpoints by module
+- [x] Add module-level smoke checks for enabled/disabled Time Tracking behavior
 
 ### Version 0.30.10 - Client/Project Domain Cleanup
 
-- [ ] Decide whether Clients/Projects is framework core or a first-class module
-- [ ] Extract shared record-scope helpers for workspace/client/project validation
-- [ ] Extract project move/update record propagation planning into one service
-- [ ] Add explicit behavior for archived clients/projects and downstream records
-- [ ] Add explicit behavior for removing/deactivating workspace owners and creators
-- [ ] Finish separating workspace projects from business client-linked projects in reporting and filters
+- [x] Decide whether Clients/Projects is framework core or a first-class module
+  - Projects are framework core. Clients are a business-domain module that can enrich projects with client ownership, billing defaults, and client reporting, but project existence and project-scoped module records do not depend on clients.
+  - Treat workspace_id as the required framework attachment point for future module records; project_id is optional, and client_id remains optional business context.
+- [x] Extract shared record-scope helpers for workspace/client/project validation
+- [x] Extract project move/update record propagation planning into one service
+- [x] Add explicit behavior for archived clients/projects and downstream records
+- [x] Add explicit behavior for removing/deactivating workspace owners and creators
+- [x] Finish separating workspace projects from business client-linked projects in reporting and filters
 
 ### Version 0.30.11 - Frontend Controller Split
 
-- [ ] Split large browser controllers into page controllers plus shared helpers
-  - [ ] `public/js/clients-projects.js`
-  - [ ] `public/js/stop-watch.js`
-  - [ ] `public/js/user-admin.js`
-  - [ ] `public/js/edit-entries.js`
-- [ ] Keep shared helpers as browser globals under `window.LongtailForge`
-- [ ] Avoid a frontend build step until the module structure is stable
-- [ ] Add page-level smoke tests or browser-console verification helpers for critical workflows
+- [x] Split large browser controllers into page controllers plus shared helpers
+  - [x] `public/js/clients-projects.js`
+  - [x] `public/js/stop-watch.js`
+  - [x] `public/js/user-admin.js`
+  - [x] `public/js/edit-entries.js`
+- [x] Keep shared helpers as browser globals under `window.LongtailForge`
+- [x] Avoid a frontend build step until the module structure is stable
+- [x] Add page-level smoke tests or browser-console verification helpers for critical workflows
 
 ### Version 0.30.12 - Reporting And Dashboard Framework Prep
 
-- [ ] Move report aggregation behind backend services
-- [ ] Make Reporting module-aware
-  - [ ] Hide business client filters for personal/family workspaces
-  - [ ] Default personal/family reporting to workspace projects
-  - [ ] Allow future modules to add report panels
-- [ ] Make Dashboard module-aware
-  - [ ] Convert Dashboard into a project/workspace hub
-  - [ ] Let Time Tracking contribute current-month/time/billing widgets
-  - [ ] Reserve extension points for tasks, notes, tickets, notifications, and activity feed
+- [x] Move report aggregation behind backend services
+- [x] Make Reporting module-aware
+  - [x] Hide business client filters for personal/family workspaces
+  - [x] Default personal/family reporting to workspace projects
+  - [x] Allow future modules to add report panels
+- [x] Make Dashboard module-aware
+  - [x] Convert Dashboard into a project/workspace hub
+  - [x] Let Time Tracking contribute current-month/time/billing widgets
+  - [x] Reserve extension points for tasks, notes, tickets, notifications, and activity feed
 
 ### Version 0.30.13 - Workspace Lifecycle Hardening
 
-- [ ] Define behavior when a user is removed from all workspaces
-- [ ] Define behavior when a workspace owner is deactivated or removed
-- [ ] Add owner transfer rules
-- [ ] Add workspace creation permission controls per user
-- [ ] Add self-hosted workspace type limit UI or setup guidance
-- [ ] Verify personal/family/business workspace rules through tests
+- [x] Define behavior when a user is removed from all workspaces
+  - For users who are removed from all workspaces, a Personal workspace will be created for them and set to their "active_workspace_id" in the users table
+- [x] Define behavior when a workspace owner is deactivated or removed
+  - When a workspace owner is removed, ownership is assigned to the next most senior Workspace Administrator
+    - If there are no other Workspace administrators
+- [x] Add owner transfer rules
+- [x] Add workspace creation permission controls per user
+  - Default self-hosted installation allows for any user to create any type of workspace
+- [x] Add self-hosted workspace type limit UI or setup guidance
+  - Create app settings to handle this for now, it can be just a table
+  - In the future, Super Admins will have access to an App Settings UI to control these settings
+- [x] Verify personal/family/business workspace rules through tests
 
 ### Version 0.30.14 - Storage Rename Plan
 
@@ -179,6 +187,54 @@ The preferred starting model is adjacency-list storage with `parent_client_id` o
   - [ ] Audit parent changes with old/new parent IDs and names
   - [ ] Decide whether moving a client/project updates historical records or only affects future rollups
   - [ ] Add explicit confirmation before applying any downstream record propagation
+
+### Version 0.30.16 - Final UI Tweaks in 0.30
+
+#### General UI Fixes
+
+- [ ] Clients still shows up on the time reporting page in Personal workspaces, instead of being hidden and defaulting to "Workspace Projects"
+
+- [ ] Move Projects Settings link from "Projects" under the "Projects" main menu heading back to "Projects" under Settings
+  - [ ] Move "Add Project" to be in-line with "Projects" heading on "Projects" settings page (right at the very top right)
+  - [ ] Add "Filter List" above the "Client" and "Status" filters
+  - [ ] Add "Bulk Changes" above the bulk status/bulk client/bulk billable boxes
+
+- Settings -> Workspaces -> User Admin -> Edit User modal
+  - [ ] "Configure Permissions" button needs to be above "Add Role" button
+  - [ ] "Add Role" button needs to be centered at bottom of "Role Assignments" box
+  - [ ] Current roles needs to be moved to its own box with "Current Assignments" as the heading
+
+- [ ] Previously clicked menus should close when a new menu is clicked
+  - e.g. If I open Reporting, and then click Settings, reporting doesn't close. It makes the interface messy.
+
+#### Audit Log UI
+
+- [ ] Logins are not tracked in the audit log
+- [ ] Truncate user, client, project, and record type to keep all columns on screen
+  - [ ] Add title to each of the above fields so when user hovers, it displays the full item
+- [ ] Add client filter (business workspaces only)
+  - [ ] Make client in list clickable to set filter
+- [ ] Add project filter 
+  - [ ] Make project in list clickable to set filter
+- [ ] Make Record Type in list clickable to set filter
+
+#### Audit Log Functionality
+
+- [ ] Audit log needs to start tracking IP address of users on each log entry
+
+#### Records Maintenance
+
+- [ ] If a project is moved to a different client/becomes a workspace project
+  - [ ] All associated records should be updated to reflect this
+    - [ ] Time entries
+    - [ ] Tasks
+    - [ ] Notes
+    - [ ] Knowledge Base
+  - [ ] Users should be notified with in-app dialog with explicit confirmation before completing this
+
+### Version 0.30.17 - Final 0.30 Code Review
+
+Perform a code review to ensure all changes from 0.30 have been implemented properly, securely, and with best practices.
 
 ## Version 0.31.0 - Tasks
 

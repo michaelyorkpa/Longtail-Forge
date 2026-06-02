@@ -1,5 +1,6 @@
 import { usersRepository } from "../repositories/users.repo.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
+import { appSettingsRepository } from "../repositories/app-settings.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
 import { workspacesRepository } from "../repositories/workspaces.repo.js";
@@ -257,6 +258,13 @@ async function deactivate(session, userId) {
     throw new AppError("Protected users cannot be deactivated.", 400);
   }
 
+  await transferOrBlockWorkspaceOwnership({
+    session,
+    workspaceId: session.organization_id,
+    ownerUserId: userId,
+    action: "deactivate",
+  });
+
   await usersRepository.updateStatus(session.organization_id, userId, "inactive");
   const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.organization_id);
   const nextMembership = await userWorkspacesRepository.updateStatus(userId, session.organization_id, "inactive");
@@ -361,8 +369,20 @@ async function remove(session, userId) {
     throw new AppError("Protected users cannot be deleted.", 400);
   }
 
+  await transferOrBlockWorkspaceOwnership({
+    session,
+    workspaceId: session.organization_id,
+    ownerUserId: userId,
+    action: "remove",
+  });
+
   const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.organization_id);
   await userWorkspacesRepository.remove(userId, session.organization_id);
+  await ensureUserHasActiveWorkspace({
+    session,
+    userId,
+    reason: "user_removed_from_workspace",
+  });
   await usersRepository.remove(session.organization_id, userId);
   await auditService.record({
     session,
@@ -506,6 +526,13 @@ async function removeOwnWorkspaceMembership(session, workspaceId) {
     throw new AppError("You must keep at least one active workspace.", 400);
   }
 
+  await transferOrBlockWorkspaceOwnership({
+    session,
+    workspaceId: targetWorkspaceId,
+    ownerUserId: session.user_id,
+    action: "remove",
+  });
+
   const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(session.user_id, targetWorkspaceId);
   await userWorkspacesRepository.remove(session.user_id, targetWorkspaceId);
   await auditService.record({
@@ -638,6 +665,124 @@ async function recordWorkspaceMembershipChange({
   });
 }
 
+async function deactivateWorkspaceMembershipWithLifecycle(session, user, workspace) {
+  await transferOrBlockWorkspaceOwnership({
+    session,
+    workspaceId: workspace.workspaceId,
+    ownerUserId: user.user_id,
+    action: "deactivate",
+  });
+
+  return userWorkspacesRepository.updateStatus(user.user_id, workspace.workspaceId, "inactive");
+}
+
+async function transferOrBlockWorkspaceOwnership({ session, workspaceId, ownerUserId, action }) {
+  const workspace = await workspacesRepository.readById(workspaceId);
+
+  if (!workspace || workspace.owner_user_id !== ownerUserId) {
+    return null;
+  }
+
+  const candidate = await workspacesRepository.readOwnerTransferCandidate(workspaceId, ownerUserId);
+
+  if (!candidate) {
+    throw new AppError("Assign another Workspace Administrator before removing this workspace owner.", 400);
+  }
+
+  await workspacesRepository.updateOwner(workspaceId, candidate.user_id);
+  await auditService.record({
+    session: {
+      ...session,
+      organization_id: workspaceId,
+    },
+    action: "workspace_owner_transferred",
+    changeType: "update",
+    recordType: "workspace",
+    recordId: workspaceId,
+    recordLabel: workspace.workspace_name,
+    recordUrl: "workspace-settings.html",
+    previousValue: {
+      owner_user_id: ownerUserId,
+    },
+    newValue: {
+      owner_user_id: candidate.user_id,
+      owner_username: candidate.username,
+    },
+    metadata: {
+      transfer_reason: `owner_${action}`,
+      previous_owner_user_id: ownerUserId,
+      next_owner_user_id: candidate.user_id,
+      next_owner_username: candidate.username,
+      selected_by: "oldest_active_workspace_admin_membership",
+    },
+  });
+
+  return candidate;
+}
+
+async function ensureUserHasActiveWorkspace({ session, userId, reason }) {
+  const activeMemberships = await userWorkspacesRepository.readActiveForUser(userId);
+
+  if (activeMemberships.length > 0) {
+    const activeWorkspaceId = activeMemberships[0].workspace_id;
+    await usersRepository.updateActiveWorkspace(userId, activeWorkspaceId);
+    await sessionsRepository.updateActiveWorkspaceForUser(userId, activeWorkspaceId);
+    return null;
+  }
+
+  const ownerUser = await usersRepository.readFirstByUserId(userId);
+
+  if (!ownerUser) {
+    return null;
+  }
+
+  const workspace = await workspacesRepository.createWorkspace({
+    ownerUser,
+    workspaceName: await createPersonalWorkspaceName(userId),
+    workspaceType: "personal",
+  });
+
+  await usersRepository.updateActiveWorkspace(userId, workspace.workspaceId);
+  await sessionsRepository.updateActiveWorkspaceForUser(userId, workspace.workspaceId);
+  await auditService.record({
+    session: {
+      ...session,
+      organization_id: workspace.workspaceId,
+    },
+    action: "personal_workspace_created_for_unassigned_user",
+    changeType: "create",
+    recordType: "workspace",
+    recordId: workspace.workspaceId,
+    recordLabel: workspace.workspaceName,
+    recordUrl: "workspace-settings.html",
+    previousValue: null,
+    newValue: workspace,
+    metadata: {
+      user_id: userId,
+      reason,
+    },
+  });
+
+  return workspace;
+}
+
+async function createPersonalWorkspaceName(userId) {
+  const existingNames = new Set(
+    (await workspacesRepository.readForUser(userId))
+      .map((workspace) => String(workspace.workspace_name || "").trim().toLowerCase())
+      .filter(Boolean),
+  );
+  let candidate = "Personal";
+  let suffix = 2;
+
+  while (existingNames.has(candidate.toLowerCase())) {
+    candidate = `Personal ${suffix}`;
+    suffix += 1;
+  }
+
+  return candidate;
+}
+
 async function readUsersWithMemberships(session) {
   const users = await usersRepository.readAll(session.organization_id);
   return Promise.all(users.map((user) => decorateUserWithMemberships(user)));
@@ -685,18 +830,29 @@ async function readAssignableWorkspaces(session) {
 }
 
 async function readWorkspaceCreationOptions(session) {
-  const installMode = config.workspaceInstallMode === "saas" ? "saas" : "self_hosted";
-  const typeLimit = String(config.workspaceTypeLimit || "").trim().toLowerCase();
+  const appSettings = await appSettingsRepository.readAll();
+  const userCreationPermission = await appSettingsRepository.readWorkspaceCreationPermission(session.user_id);
+  const configuredInstallMode = process.env.WORKSPACE_INSTALL_MODE || appSettings.workspace_install_mode || config.workspaceInstallMode;
+  const configuredTypeLimit = process.env.WORKSPACE_TYPE_LIMIT || appSettings.workspace_type_limit || config.workspaceTypeLimit;
+  const workspaceCreationEnabled = appSettings.workspace_creation_enabled !== "false";
+  const installMode = configuredInstallMode === "saas" ? "saas" : "self_hosted";
+  const typeLimit = String(configuredTypeLimit || "").trim().toLowerCase();
   const baseTypes = typeLimit === "business"
     ? ["business"]
     : ["business", "personal", "family"];
-  const availableTypeIds = installMode === "self_hosted"
+  const availableTypeIds = workspaceCreationEnabled && userCreationPermission.canCreateWorkspaces && installMode === "self_hosted"
     ? baseTypes
-    : await readSaasWorkspaceTypes(session, baseTypes);
+    : workspaceCreationEnabled && userCreationPermission.canCreateWorkspaces
+      ? await readSaasWorkspaceTypes(session, baseTypes)
+      : [];
+  const allowedByUser = new Set(userCreationPermission.allowedWorkspaceTypes);
+  const filteredTypeIds = availableTypeIds.filter((workspaceType) => allowedByUser.has(workspaceType));
 
   return {
     installMode,
-    availableTypes: availableTypeIds.map((workspaceType) => ({
+    workspaceCreationEnabled,
+    canCreateWorkspaces: userCreationPermission.canCreateWorkspaces,
+    availableTypes: filteredTypeIds.map((workspaceType) => ({
       workspaceType,
       label: formatWorkspaceType(workspaceType),
       defaultName: getWorkspaceCapabilities(workspaceType).defaultName || "",
@@ -742,10 +898,6 @@ async function replaceWorkspaceMemberships({ session, user, requestedWorkspaceId
     throw new AppError("You cannot assign users to unrelated workspaces.", 403);
   }
 
-  if (selectedWorkspaceIds.length === 0) {
-    throw new AppError("Choose at least one workspace membership.", 400);
-  }
-
   const invalidPersonalWorkspace = assignableWorkspaces.find((workspace) =>
     selectedWorkspaceIds.includes(workspace.workspaceId) &&
     workspace.workspaceType === "personal" &&
@@ -773,7 +925,7 @@ async function replaceWorkspaceMemberships({ session, user, requestedWorkspaceId
           status: "active",
         })
       : previousActiveWorkspaceIds.has(workspace.workspaceId)
-        ? await userWorkspacesRepository.updateStatus(user.user_id, workspace.workspaceId, "inactive")
+        ? await deactivateWorkspaceMembershipWithLifecycle(session, user, workspace)
         : previousMembership;
 
     if (Boolean(previousActiveWorkspaceIds.has(workspace.workspaceId)) === shouldBeActive) {
@@ -792,6 +944,12 @@ async function replaceWorkspaceMemberships({ session, user, requestedWorkspaceId
       newValue: nextMembership,
     });
   }
+
+  await ensureUserHasActiveWorkspace({
+    session,
+    userId: user.user_id,
+    reason: "user_removed_from_all_workspaces",
+  });
 }
 
 function workspaceToAppValue(workspace) {

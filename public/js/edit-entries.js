@@ -750,10 +750,7 @@ function flashSavedButton() {
 }
 
 function createOption(value, text) {
-  const option = document.createElement("option");
-  option.value = value;
-  option.textContent = text;
-  return option;
+  return window.LongtailForge.pageController.createOption(value, text);
 }
 
 function createTableCell(text) {
@@ -763,15 +760,11 @@ function createTableCell(text) {
 }
 
 function sortByName(items) {
-  return [...items].sort((firstItem, secondItem) =>
-    firstItem.name.localeCompare(secondItem.name, undefined, {
-      sensitivity: "base",
-    }),
-  );
+  return window.LongtailForge.pageController.sortByName(items);
 }
 
 function setEditEntryStatus(message) {
-  editEntryStatus.textContent = message;
+  window.LongtailForge.pageController.setStatus(editEntryStatus, message);
 }
 
 function getEntryHeadingLabel(entry) {
@@ -786,3 +779,27 @@ function workspaceShowsClientTools() {
 
   return Array.isArray(tools) && tools.includes("clients_projects");
 }
+
+window.LongtailForge.pageController.register("edit-entries", {
+  snapshot: () => ({
+    clientCount: editClients.length,
+    entryCount: timeEntries.length,
+    selectedEntryId,
+    userCount: editUsers.length,
+    workspaceShowsClientTools: workspaceShowsClientTools(),
+  }),
+  runSmoke: () => {
+    const checks = [
+      { name: "filter controls exist", ok: Boolean(filterStatusSelect && filterPeriodSelect && filterUsersSelect) },
+      { name: "entry table exists", ok: Boolean(editEntryTable) },
+      { name: "edit form exists", ok: Boolean(editEntryForm) },
+      { name: "entry data is an array", ok: Array.isArray(timeEntries) },
+    ];
+
+    return {
+      ok: checks.every((check) => check.ok),
+      pageId: "edit-entries",
+      checks,
+    };
+  },
+});
