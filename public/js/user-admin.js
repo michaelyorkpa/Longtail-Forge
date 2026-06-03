@@ -31,7 +31,7 @@ const cancelRolePermissionsButton = document.querySelector("[data-cancel-role-pe
 
 const PERMISSION_RESOURCES = [
   { id: "time_entries", label: "Time Entries", operations: ["create", "read", "update", "delete"] },
-  { id: "organization_settings", label: "Workspace Settings", operations: ["read", "update"] },
+  { id: "workspace_settings", label: "Workspace Settings", operations: ["read", "update"] },
   { id: "clients", label: "Client Settings", operations: ["create", "read", "update", "delete"] },
   { id: "projects", label: "Project Settings", operations: ["create", "read", "update", "delete"] },
   { id: "users", label: "Users", operations: ["create", "read", "update", "delete"] },
@@ -151,8 +151,8 @@ async function createUser() {
   const assignments = initialRoleId
     ? [{
         role_id: initialRoleId,
-        scope_type: initialRoleId === "super_admin" ? "all" : "organization",
-        scope_id: initialRoleId === "super_admin" ? "all" : "organization",
+        scope_type: initialRoleId === "super_admin" ? "all" : "workspace",
+        scope_id: initialRoleId === "super_admin" ? "all" : "workspace",
         permission_overrides: createDefaultPermissionOverrides(),
       }]
     : [];
@@ -408,7 +408,7 @@ function renderRoleOptions() {
     newUserRoleSelect.replaceChildren(createRoleOption("", "No initial role"));
 
     roles
-      .filter((role) => ["organization", "global"].includes(role.assignable_scope_type))
+      .filter((role) => ["workspace", "global"].includes(role.assignable_scope_type))
       .forEach((role) => {
         newUserRoleSelect.appendChild(createRoleOption(role.role_id, role.role_name));
       });
@@ -427,18 +427,18 @@ function createRoleOption(value, label) {
 
 function renderScopeOptions() {
   const role = roles.find((item) => item.role_id === roleAssignmentRoleSelect.value);
-  const scopeType = role?.assignable_scope_type || "organization";
+  const scopeType = role?.assignable_scope_type || "workspace";
 
   roleAssignmentScopeSelect.replaceChildren();
-  roleAssignmentScopeSelect.disabled = scopeType === "organization" || scopeType === "global";
+  roleAssignmentScopeSelect.disabled = scopeType === "workspace" || scopeType === "global";
 
   if (scopeType === "global") {
     appendScopeOption("all", "All");
     return;
   }
 
-  if (scopeType === "organization") {
-    appendScopeOption("organization", "Workspace");
+  if (scopeType === "workspace") {
+    appendScopeOption("workspace", "Workspace");
     return;
   }
 
@@ -474,7 +474,7 @@ function addPendingRoleAssignment() {
   const scopeType = draftAssignment.scope_type;
   const scopeId = draftAssignment.scope_id;
 
-  if (scopeType !== "organization" && !scopeId) {
+  if (scopeType !== "workspace" && !scopeId) {
     setUserAdminStatus("Choose a scope before adding an assignment.", true);
     return;
   }
@@ -633,7 +633,7 @@ function formatScopeLabel(assignment) {
     return "All";
   }
 
-  if (assignment.scope_type === "organization") {
+  if (assignment.scope_type === "workspace") {
     return "Workspace";
   }
 
@@ -658,7 +658,7 @@ function getDraftAssignment(role) {
   return {
     role_id: role.role_id,
     scope_type: scopeType,
-    scope_id: scopeType === "all" ? "all" : scopeType === "organization" ? "organization" : roleAssignmentScopeSelect.value,
+    scope_id: scopeType === "all" ? "all" : scopeType === "workspace" ? "workspace" : roleAssignmentScopeSelect.value,
   };
 }
 

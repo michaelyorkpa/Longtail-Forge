@@ -171,20 +171,26 @@ async function saveManualEntry() {
 function normalizeClients(data) {
   // The selectors only need IDs and names; billing details stay on reporting/editor screens.
   const clients = Array.isArray(data?.clients)
-    ? data.clients.map((client) => ({
-        id: String(client.id || "").trim(),
-        name: String(client.name || "").trim(),
-        billable: normalizeBillableFlag(client.billable),
-        projects: Array.isArray(client.projects)
-          ? client.projects.map((project) => ({
-              id: String(project.id || "").trim(),
-              name: String(project.name || "").trim(),
-              billable: normalizeBillableFlag(project.billable, client.billable),
-            }))
-          : [],
-      }))
+    ? data.clients
+        .filter((client) => !isInactiveRecord(client))
+        .map((client) => ({
+          id: String(client.id || "").trim(),
+          name: String(client.name || "").trim(),
+          billable: normalizeBillableFlag(client.billable),
+          projects: Array.isArray(client.projects)
+            ? client.projects
+                .filter((project) => !isInactiveRecord(project))
+                .map((project) => ({
+                  id: String(project.id || "").trim(),
+                  name: String(project.name || "").trim(),
+                  billable: normalizeBillableFlag(project.billable, client.billable),
+                }))
+            : [],
+        }))
     : [];
-  const workspaceProjects = Array.isArray(data?.workspaceProjects) ? data.workspaceProjects : [];
+  const workspaceProjects = Array.isArray(data?.workspaceProjects)
+    ? data.workspaceProjects.filter((project) => !isInactiveRecord(project))
+    : [];
 
   if (workspaceProjects.length > 0) {
     clients.unshift({
@@ -201,6 +207,10 @@ function normalizeClients(data) {
   }
 
   return clients;
+}
+
+function isInactiveRecord(record) {
+  return String(record?.status || "").trim().toLowerCase() === "inactive";
 }
 
 function getSelectedClient() {

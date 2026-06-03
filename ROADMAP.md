@@ -2,145 +2,280 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-### Version 0.30.15 - Client and project nesting expansion
+### Version 0.30.17 - Final Code Review of 0.30
 
-Now that clients and projects are separated, there is a need to create nested clients and nested projects.
+#### Final Review Goals
 
-The preferred starting model is adjacency-list storage with `parent_client_id` on clients and `parent_project_id` on projects. A join table is not necessary for single-parent trees. Use a closure table only if reporting queries become too slow or if multi-parent relationships become a real requirement. Multi-parent client/project graphs are not recommended for the first version because they make permissions, rollups, archival, and cycle prevention harder.
+- [x] Ensure organizations language is completely removed from the codebase in the backend, frontend, and database structures.
+- [x] Ensure projects can stand on their own with only hooks to workspace context.
+- [x] Ensure clients are a first-class module, only available in Business workspace contexts, and projects, reporting, audit logs, and time entries aren't required to have them to function.
+  - [x] The "Client Module" doesn't need to be separately checked or unchecked like time tracking, because it is only necessary in business workspace contexts. But I want it treated as a module based on whether the workspace is business or not.
+- [x] Ensure Personal/Family workspaces are functional and respect permissions boundaries.
+- [x] Verify permissions routing for both the site and API are functional per the permissions matrix in `docs/longtail_forge_permissions_matrix.md`.
+- [x] Verify all items are in place to begin adding Tasks module in 0.31.
 
-- [x] Add parent fields
-  - [x] Add nullable `parent_client_id` to clients
-  - [x] Add nullable `parent_project_id` to projects
-  - [x] Add indexes for workspace plus parent fields
-  - [x] Ensure parent and child records belong to the same workspace
-  - [x] For projects, ensure parent and child client relationships are compatible
-- [x] Prevent circular nesting
-  - [x] A client cannot become its own parent
-  - [x] A project cannot become its own parent
-  - [x] A parent cannot be assigned to one of its descendants
-  - [x] Validate cycles server-side before save
-  - [x] Keep UI safeguards as helpful hints only; server validation is authoritative
-- [x] Define nesting permissions
-  - [x] Moving a client requires permission on the current client scope and the target parent scope
-  - [x] Moving a project requires permission on the current project scope and the target parent/project/client scope
-  - [x] Workspace admins can manage all nesting inside a workspace
-  - [x] Client/project admins remain constrained to their assigned scope
-- [x] Update reporting rollups
-  - [x] Reports can include descendants of selected clients
-  - [x] Reports can include descendants of selected projects
-  - [x] Add filters for direct records only versus include descendants
-  - [x] Preserve historical time-entry client/project names while matching by stable IDs
-- [x] Update UI
-  - [x] Add parent selectors for clients and projects
-  - [x] Display nested records as indented lists or collapsible tree rows
-  - [x] Keep flat filters available for fast lookup
-  - [x] Show clear warnings before moving a client/project with existing records
-- [x] Update audit and downstream records
-  - [x] Audit parent changes with old/new parent IDs and names
-  - [x] Decide whether moving a client/project updates historical records or only affects future rollups
-  - [x] Add explicit confirmation before applying any downstream record propagation
+#### Code Review Findings
 
-### Version 0.30.16 - Final UI Tweaks in 0.30
+- [x] Update `docs/longtail_forge_permissions_matrix.md` to workspace-native role, scope, and permission names. The current matrix still uses `organization_admin`, `organization` scope, `organization_settings.manage`, and organization-scoped resource text even though 0.30.16.1 migrated active contracts to workspace naming.
+- [x] Enforce Business-only client access in backend services and module status, not just navigation. Client UI links are hidden by workspace capabilities, but `client-projects` is still enabled by default for every workspace and client create/update/read routes only check `clients.manage`, so Personal/Family workspace administrators can still reach client APIs directly.
+- [x] Add regression coverage for Personal/Family client denial and workspace-project allow paths. Personal/Family projects should remain available without clients, while client APIs should be unavailable outside Business workspace contexts.
+- [x] Fix scoped admin role-assignment routing. `client_admin` and `project_admin` are allowed by `ROLE_LIMITS` to assign lower roles, but role option/read/replace entrypoints assert `roles.assign` against workspace-only resources, so client/project-scoped admins cannot reach the role assignment flow.
+- [x] Decide and implement scoped admin user-management rules. The current users service checks `users.manage` against the workspace resource, while matrix notes imply client-scoped user management may be intended for `client_admin`.
+- [x] Fix scoped admin time-entry list visibility. Scoped admins with `time_entries.edit_all` can update someone else's scoped entry when they know its ID, but `filterReadableTimeEntries` only returns all entries for workspace-level `edit_all` and otherwise filters to the current user's entries.
+- [x] Enforce `reporting.view` explicitly on reporting and dashboard routes, or document the deliberate readable-scope-only rule. Current reporting reads are filtered through readable client/project/time scopes, but the route/service path does not assert `reporting.view`, so permission overrides cannot reliably deny reporting reads.
+- [x] Refresh `docs/longtail_forge_permissions_matrix.md` after fixes and mark the relevant permission scenarios tested instead of "Untested".
 
-#### General UI Fixes
+## Version 0.31.0 - Tasks Module Foundation
 
-- [ ] Clients still shows up on the time reporting page in Personal workspaces, instead of being hidden and defaulting to "Workspace Projects"
+0.31+ is the beginning of true project functionality. By the end of 0.3x there will be integrated modules for tasks, notes, tickets, calendars, and collaboration. The 0.31 branch should ship Tasks as a real first-party module while keeping later modules able to link into the same task foundation.
 
-- [ ] Move Projects Settings link from "Projects" under the "Projects" main menu heading back to "Projects" under Settings
-  - [ ] Move "Add Project" to be in-line with "Projects" heading on "Projects" settings page (right at the very top right)
-  - [ ] Add "Filter List" above the "Client" and "Status" filters
-  - [ ] Add "Bulk Changes" above the bulk status/bulk client/bulk billable boxes
+### Scope
 
-- Settings -> Workspaces -> User Admin -> Edit User modal
-  - [ ] "Configure Permissions" button needs to be above "Add Role" button
-  - [ ] "Add Role" button needs to be centered at bottom of "Role Assignments" box
-  - [ ] Current roles needs to be moved to its own box with "Current Assignments" as the heading
+0.31.0 should create the task module, persistence model, permissions, API surface, and first usable task list/detail experience. Later 0.31.x releases add richer task behavior in smaller slices.
 
-- [ ] Previously clicked menus should close when a new menu is clicked
-  - e.g. If I open Reporting, and then click Settings, reporting doesn't close. It makes the interface messy.
+### Data Model and Migration
 
-- [ ] Dark mode doesn't "stick"
-  - if I log out and log back in, it reverts to light mode
-  - I have to open "user settings" and then it realizes it should be dark mode
+- [ ] Create a first-party Tasks module definition with module metadata, navigation, settings metadata, browser routes, API routes, migrations, and permission declarations.
+- [ ] Add a `tasks` table with:
+  - [ ] `id`
+  - [ ] `workspace_id` as the required owning scope
+  - [ ] nullable `client_id` for Business workspace client-linked tasks
+  - [ ] nullable `project_id` for project-linked tasks
+  - [ ] nullable assignee user field or assignment join table, depending on the design decision below
+  - [ ] title, description, status, priority, due date, optional due time, completed timestamp, archived timestamp
+  - [ ] created/updated/completed user metadata and timestamps
+  - [ ] source fields for future tickets, templates, integrations, imports, and rules
+- [ ] Add indexes for workspace, client, project, assignee, status, due date, due date plus due time, and updated date.
+- [ ] Decide whether task assignment is one user per task or many users per task before writing the migration.
+  - tasks will need to be assignable to multiple users
+- [ ] Keep task due date and due time separable so date-only tasks remain first-class and do not silently become midnight tasks.
+- [ ] Store due date/time in a timezone-aware way consistent with the 0.28.2 UTC/session-timezone model.
+- [ ] Add startup/module seed and repair behavior needed for the Tasks module.
 
-#### Audit Log UI
+### Linking Rules
 
-- [ ] Logins are not tracked in the audit log
-- [ ] Truncate user, client, project, and record type to keep all columns on screen
-  - [ ] Add title to each of the above fields so when user hovers, it displays the full item
-- [ ] Add client filter (business workspaces only)
-  - [ ] Make client in list clickable to set filter
-- [ ] Add project filter 
-  - [ ] Make project in list clickable to set filter
-- [ ] Make Record Type in list clickable to set filter
+- [ ] Tasks always belong to exactly one workspace.
+- [ ] Tasks may be workspace-only.
+- [ ] Tasks may be linked directly to a project.
+- [ ] Tasks may be linked directly to a client in Business workspaces.
+- [ ] If a task is linked to a project that belongs to a client, the task inherits that client context from the project.
+- [ ] Do not allow a task to specify a client that conflicts with the selected project's client.
+- [ ] Personal and Family workspaces never expose client task controls and use workspace/project task scopes only.
+- [ ] Leave a stable linking hook for future tickets to create and link tasks automatically.
 
-#### Audit Log Functionality
+### Permissions
 
-- [ ] Audit log needs to start tracking IP address of users on each log entry
+- [ ] Add task permissions to the permission model:
+  - [ ] `tasks.create`
+  - [ ] `tasks.view`
+  - [ ] `tasks.edit_own`
+  - [ ] `tasks.edit_all`
+  - [ ] `tasks.assign`
+  - [ ] `tasks.complete`
+  - [ ] `tasks.delete` or `tasks.archive`
+- [ ] Map task permissions onto existing Super Admin, Workspace Administrator, Client Administrator, Project Administrator, Client User, Project User, and External Client User roles.
+- [ ] Task visibility must respect workspace/client/project scope assignments using the same resource-scope model as projects, reporting, and time entries.
+- [ ] Task assignment choices must be limited to users/admins who are active in the workspace and are allowed in the selected client/project scope.
+- [ ] External Client Users should not see internal-only task fields if external visibility is added later.
+- [ ] Update `docs/longtail_forge_permissions_matrix.md` with the task permission contract.
+- [ ] Extend `npm run test:permissions` for task visibility, creation, assignment, edit, complete, archive/delete, and Personal/Family client denial.
 
-#### Records Maintenance
+### Backend and API
 
-- [ ] If a project is moved to a different client/becomes a workspace project
-  - [ ] All associated records should be updated to reflect this
-    - [ ] Time entries
-    - [ ] Tasks
-    - [ ] Notes
-    - [ ] Knowledge Base
-  - [ ] Users should be notified with in-app dialog with explicit confirmation before completing this
+- [ ] Add task repository/service/route files under `src/modules/tasks/`.
+- [ ] Add browser API endpoints for task list, create, detail, update, complete/reopen, archive/delete, and assignment updates.
+- [ ] Keep service-layer validation authoritative for workspace type, project/client relationship, assignment eligibility, module enablement, and permissions.
+- [ ] Add audit log events for task create/update/complete/reopen/archive/delete/assignment changes.
+- [ ] Add `/api/settings` and session/bootstrap metadata so navigation can show Tasks only when available.
+- [ ] Decide whether public `/api/v1/tasks` belongs in 0.31.0 or should wait until the browser workflow is stable.
 
-### Version 0.30.17 - Final 0.30 Code Review
+### Browser UI
 
-Perform a code review to ensure all changes from 0.30 have been implemented properly, securely, and with best practices.
+- [ ] Add a Tasks page under Projects navigation.
+- [ ] Add task list filters for status, assignee, client/project scope, due date, and overdue/due soon.
+- [ ] Add task create/edit modal with workspace-aware client/project selectors.
+- [ ] Add task detail modal or detail panel with title, description, status, priority, assignee, due date, optional due time, linked client/project, and completion controls.
+- [ ] Add row actions for complete/reopen, edit, and archive/delete based on permissions.
+- [ ] Add empty/loading/error states and avoid visible controls the current user cannot use.
+- [ ] Make the page usable for Business, Personal, and Family workspaces.
 
-## Version 0.31.0 - Tasks
+### Verification
 
-0.31+ is the beginnings of true project functionality. By the end of 0.3x there will be integrated modules for tasks, notes, tickets, and collaboration.
+- [ ] Run `npm run check`.
+- [ ] Run `npm run test:permissions`.
+- [ ] Verify `/api/app-info` after restart.
+- [ ] Smoke task creation/list/update/complete/archive flows through HTTP or browser automation.
+- [ ] Smoke Personal/Family project-linked tasks and Business client/project-linked tasks.
+- [ ] Run SQLite `PRAGMA integrity_check`.
 
-- [ ] Tasks
-  - [ ] Tasks are assigned to workspaces
-    - [ ] Project assignation is optional
-    - [ ] Client assignation is optional, based on the project it's assigned to  (inherits client from project)
-  - [ ] Tasks offer due dates with adjustable reminders
-    - [ ] Time should be an optional (NULLable) field in due dates
-    - [ ] Reminder notifications default to a configurable number of days/hours prior
-    - [ ] Reminder defaults can be configurable at the workspace, client, and project levels
-      - [ ] These settings should respect default inheritence (Workspace, Client, Project for Business; Workspace, Project for Personal/Family)
-      - [ ] If unset, the defaults should be:
-        - If time is NOT NULL in the due date, default reminders are:
-          - [ ] 2 hours before
-          - [ ] 24 hours before
-        - If time is NULL in the due date, default reminders are:
-          - [ ] 3 days before
-          - [ ] 1 day before
-  - [ ] Tasks offer recurrence
-    - [ ] Recurrence fields should be in a separate modal window
-    - [ ] Tasks should have checkbox with "Recurring?" next to it
-    - [ ] Recurrence Detail modal is opened with button next to "Recurring?" checkbox
-      - [ ] "Detail" button should be grayed out until "Recurring?" is checked
-    - [ ] Task recurrence should conform to iCalendar-style RRULE logic
-    - [ ] UI displays user-friendly fields to build recurrence
-  - [ ] Tasks appear on calendars
-  - [ ] Tasks are assignable to users/admins within client/project as appropriate per user permissions
-  - [ ] Task visibility and edit access should respect the roles/permissions system
+## Version 0.31.1 - Task List, Detail, and Workflow Polish
 
-### Version 0.31.1 - Task Recurrence
+0.31.1 should make the first task module feel like a real working surface instead of a bare CRUD page.
 
-A task recurrence template table should be built.
+- [ ] Add saved user-facing sort defaults for due date, priority, status, and newest/oldest.
+- [ ] Add quick filters for My Tasks, Unassigned, Overdue, Due Today, Due This Week, Completed, and Archived.
+- [ ] Add bulk actions where permissions allow:
+  - [ ] status change
+  - [ ] assignee change
+  - [ ] priority change
+  - [ ] archive
+- [ ] Add task counts to navigation/dashboard module metadata for overdue and due-soon tasks.
+- [ ] Add task detail links that can be copied and opened directly.
+- [ ] Keep completed tasks readable but visually distinct and excluded from active default views.
+- [ ] Add frontend smoke helpers for task list and modal behavior under `window.LongtailForge.controllers`.
+- [ ] Expand audit details so task changes are readable in Audit Log without exposing noisy JSON by default.
 
-When a task is marked as recurring it should automatcally create a recurring task template
+## Version 0.31.2 - Task Due Dates and Reminder Defaults
 
-When a recurring task is marked complete, the recurring task template is consulted
+0.31.2 should store reminder intent and make due-date behavior configurable. Actual cross-module notification delivery can wait for the 0.35 notification system, but Tasks should be ready to feed it.
 
-Use iCalendar-style RRULE logic.
+### Due Date Rules
 
-- [ ] Recurrence table
-  - this will be where recurring tasks "live"
-  - when a task is completed, if it is marked as recurring, the recurring task template is consulted
-    - new task is then created automatically from template based on recurrence rules
-  - recurring tasks can have an optional end date, set as soon as the first instance of the recurring task and can be updated on any future task
-    - end dates can be removed
-  - recurring task templates can be modified at any point
-    - when changing a recurring task, after clicking "Save" user is prompted whether they want to change only this task or all future tasks. If all future tasks, recurring template is updated, otherwise only the current task is changed.
+- [ ] Date is required only when the user chooses a due date.
+- [ ] Time is optional and nullable.
+- [ ] Date-only tasks are displayed as date-only tasks.
+- [ ] Date-plus-time tasks are displayed in the user's session timezone.
+- [ ] Overdue logic should treat date-only tasks as overdue after the local day has passed, not at the start of the day.
+
+### Reminder Defaults
+
+- [ ] Add reminder-default settings at workspace level.
+- [ ] Add reminder-default settings at client level for Business workspaces.
+- [ ] Add reminder-default settings at project level.
+- [ ] Implement inheritance:
+  - [ ] Business: Workspace -> Client -> Project -> Task
+  - [ ] Personal/Family: Workspace -> Project -> Task
+- [ ] If no inherited or task-specific defaults exist, use:
+  - [ ] Date-plus-time due dates: 2 hours before and 24 hours before
+  - [ ] Date-only due dates: 3 days before and 1 day before
+- [ ] Let individual tasks override inherited reminder defaults.
+- [ ] Store reminder offsets in a normalized table rather than packed text.
+- [ ] Add service methods that return the effective reminder policy for a task.
+
+### Notification-Ready Records
+
+- [ ] Add task reminder occurrence rows or computed reminder-read helpers, depending on final delivery design.
+- [ ] Mark reminder records as pending/sent/dismissed/suppressed if occurrence rows are created.
+- [ ] Do not require every-minute cron behavior yet; document what the future notification dispatcher will need.
+
+### UI
+
+- [ ] Add reminder defaults to Workspace Settings.
+- [ ] Add client/project reminder defaults in the appropriate existing client/project settings surfaces.
+- [ ] Add task reminder override controls in the task detail modal.
+- [ ] Hide client reminder defaults outside Business workspaces.
+
+## Version 0.31.3 - Task Recurrence
+
+0.31.3 should add recurrence templates and recurring-instance creation using iCalendar-style RRULE logic.
+
+### Recurrence Model
+
+- [ ] Add a task recurrence template table where recurring tasks live.
+- [ ] Store:
+  - [ ] workspace/client/project scope
+  - [ ] task title/description/status/priority/assignment defaults
+  - [ ] due date/time pattern metadata
+  - [ ] RRULE string
+  - [ ] optional recurrence end date
+  - [ ] active/paused status
+  - [ ] created/updated metadata
+- [ ] Link generated task instances back to their recurrence template.
+- [ ] Let recurrence end dates be set when the first recurring task is created.
+- [ ] Let recurrence end dates be updated or removed on future tasks.
+- [ ] Use an iCalendar-style RRULE implementation or narrowly scoped RRULE parser/serializer rather than hand-rolled recurrence math where practical.
+
+### Completion Behavior
+
+- [ ] When a recurring task instance is completed, consult the recurrence template.
+- [ ] Automatically create the next task instance when the recurrence rule has a next occurrence.
+- [ ] Do not create a next instance after the recurrence end date.
+- [ ] Prevent duplicate next-instance creation if completion is retried.
+- [ ] Audit recurring instance creation and recurrence template changes.
+
+### UI
+
+- [ ] Add a `Recurring?` checkbox to the task modal.
+- [ ] Add a recurrence detail button next to `Recurring?`.
+- [ ] Keep the detail button disabled until `Recurring?` is checked.
+- [ ] Open recurrence settings in a separate modal.
+- [ ] Provide friendly recurrence fields that produce RRULE-compatible data.
+- [ ] On save of a recurring task, prompt whether changes apply only to this task or to all future tasks.
+- [ ] If all future tasks is selected, update the recurrence template.
+- [ ] If only this task is selected, update only the current task instance.
+
+## Version 0.31.4 - Task Calendar and Dashboard Hooks
+
+0.31.4 should make Tasks available to the future calendar/dashboard system without building the full 0.34 calendar product early.
+
+- [ ] Add backend task query helpers for calendar windows by due date.
+- [ ] Add Dashboard task panels for overdue, due soon, and assigned-to-me tasks.
+- [ ] Add module dashboard metadata so future dashboard sections can render task summaries without page-specific coupling.
+- [ ] Add a simple calendar-ready API payload for tasks with due dates.
+- [ ] Add task links from Dashboard rows into task detail.
+- [ ] Keep full calendar views scheduled for 0.34.0.
+- [ ] Ensure dashboard task sections respect task permissions and scope filtering.
+
+## Version 0.31.5 - Task Timers
+
+0.31.5 should connect Tasks to Time Tracking without making time tracking mandatory for every task.
+
+### Enablement Rules
+
+- [ ] Task timers require the Tasks module to be enabled.
+- [ ] Task timers require the Time Tracking module to be enabled.
+- [ ] Task timers should be a separate Tasks module sub-option in Workspace Settings.
+- [ ] Only tasks linked to a project and/or Business client can use task timers.
+- [ ] Personal/Family tasks can use task timers only when linked to workspace projects.
+- [ ] Tasks cannot be completed while they have active task timers.
+
+### Timer Persistence
+
+- [ ] Add an `active_task_timers` table for task timer persistence.
+- [ ] Model it after `active_timers`, with one active task timer per user per task.
+- [ ] Store the linked `task_id` and the project/client context needed to write a final time entry.
+- [ ] Pause or prevent conflicting timers using the existing time-tracking rule for one running timer per user.
+- [ ] Decide whether task timers and normal timers are mutually exclusive globally per user or only within their own timer type.
+
+### Time Entry Creation
+
+- [ ] Stopping/saving a task timer writes to the existing `time_entries` table.
+- [ ] The saved time entry includes `task_id` or a task-link metadata field for future reporting.
+- [ ] Time entry project/client labels are derived server-side from the task's current linked project/client scope.
+- [ ] Audit task timer start/pause/finalize/delete behavior at the same level as active timers where useful.
+
+### UI
+
+- [ ] Add task stopwatch controls to eligible task detail views.
+- [ ] Hide or disable task timer controls when Time Tracking is disabled, task timers are disabled, or the task is not linked to an eligible scope.
+- [ ] Show active task timer state on the task row/detail.
+- [ ] Add clear messaging when completion is blocked by an active task timer.
+
+## Version 0.31.6 - Task API, Reporting, and Documentation Hardening
+
+0.31.6 should close the Tasks branch with stable contracts and cleanup before Support Tickets begin.
+
+- [ ] Decide and add `/api/v1/tasks` endpoints if they were not shipped in 0.31.0.
+- [ ] Add public API scopes for task read/write if public task endpoints are added.
+- [ ] Add task-linked reporting filters for time entries created from task timers.
+- [ ] Update `docs/public-api.md` for task endpoints and scopes.
+- [ ] Update `docs/module-contract.md` with anything learned from adding the Tasks module.
+- [ ] Update `docs/longtail_forge_permissions_matrix.md` with final 0.31 task coverage and tested scenarios.
+- [ ] Add any task lifecycle decisions to `DECISIONS.md`.
+- [ ] Run a final 0.31 code review focused on permissions, module boundaries, timezone handling, recurrence, and timer linkage.
+- [ ] Archive completed 0.31 roadmap sections after the branch is complete, leaving 0.32+ active.
+
+## 0.31.x Open Design Decisions
+
+These are the decisions I should ask about before implementing the affected slice:
+
+- [ ] Should a task have exactly one assignee, or support multiple assignees from the start?
+- [ ] Should task assignment include groups/roles later, or only concrete users for 0.31.x?
+- [ ] Should task statuses start simple (`open`, `in_progress`, `blocked`, `complete`, `archived`) or match a more formal workflow?
+- [ ] Should priorities be a fixed set (`low`, `normal`, `high`, `urgent`) or user/workspace configurable?
+- [ ] Should task delete be true delete, soft archive, or both with different permissions?
+- [ ] Should public `/api/v1/tasks` launch with the first task release or wait until the browser task workflow stabilizes?
+- [ ] Should task timers be mutually exclusive with normal Time Tracking timers for a user?
 
 ## Version 0.32.0 - Support Tickets
 
@@ -268,6 +403,13 @@ Use iCalendar-style RRULE logic.
 
 - [ ] Passkeys
 
+### Version 0.39.2 - User Sessions
+
+- [ ] Sessions should expire after 1 day
+- [ ] Super Admins should have ability to log users out
+- [ ] Workspace admins should have ability to log users out
+
+
 ### Version 0.39.3
 
 Super Admins should have a backup/restore function on the dashboard that dumps the current database into a clean file with an app meta data file that has app version stamped and datetime (UTC) of backup in it and zips it into a zip file along with any physical settings files on disk (this will be necessary after packaging for self-hosting and may not yet be necessary, but I want uniform functions for backup/restore that can be easily modified in the future)
@@ -388,6 +530,12 @@ Below is a rough road map for all of the 0.40 branch, this is not finalized yet
 - [ ] Configuration files for initial configuration
 - [ ] Migration tools to switch between database backends
 - [ ] Export/Import database tools
+  - [ ] Allow users to export their workspaces
+
+### App Decisions
+
+- [ ] Define archival period
+- [ ] Define lifecycle of tasks, notes, tickets, etc.
 
 ## Version 0.50.0 - Production, Packaging, and Self-Hosting
 

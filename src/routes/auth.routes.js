@@ -14,7 +14,9 @@ const authRoutes = Router();
 
 authRoutes.post("/login", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
-  const result = await authService.login(payload);
+  const result = await authService.login(payload, {
+    ipAddress: readRequestIpAddress(request),
+  });
 
   response.setHeader("Set-Cookie", [
     buildSessionCookie(result.session.sessionId, result.session.maxAgeSeconds),
@@ -50,3 +52,9 @@ authRoutes.post("/session/workspace", asyncRoute(async (request, response) => {
 }));
 
 export { authRoutes };
+
+function readRequestIpAddress(request) {
+  const forwardedFor = String(request.headers["x-forwarded-for"] || "").split(",")[0].trim();
+
+  return forwardedFor || request.ip || request.socket?.remoteAddress || "";
+}

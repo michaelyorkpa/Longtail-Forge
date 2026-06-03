@@ -95,6 +95,10 @@
           <fieldset class="settings-fieldset role-assignment-editor">
             <legend>Role Assignments</legend>
 
+            <button type="button" class="secondary-button" data-configure-draft-permissions>
+              Configure Permissions
+            </button>
+
             <div class="role-assignment-stack">
               <label>
                 Role
@@ -109,11 +113,10 @@
               <button type="button" data-add-role-assignment>Add Role</button>
             </div>
 
-            <button type="button" class="secondary-button" data-configure-draft-permissions>
-              Configure Permissions
-            </button>
-
-            <ul class="role-assignment-list" data-role-assignment-list></ul>
+            <section class="current-role-assignments" aria-label="Current role assignments">
+              <h3>Current Assignments</h3>
+              <ul class="role-assignment-list" data-role-assignment-list></ul>
+            </section>
           </fieldset>
 
           <div class="form-actions">

@@ -4,8 +4,7 @@ import { getWorkspaceCapabilities, normalizeWorkspaceType } from "./workspaces.j
 function normalizeTimeEntry(entry) {
   return {
     entry_id: String(entry.entry_id || "").trim(),
-    organization_id: String(entry.organization_id || "").trim(),
-    workspace_id: String(entry.workspace_id || entry.organization_id || "").trim(),
+    workspace_id: String(entry.workspace_id || "").trim(),
     user_id: String(entry.user_id || "").trim(),
     client_id: String(entry.client_id || "").trim(),
     client_name: String(entry.client_name || "").trim(),
@@ -117,7 +116,7 @@ function normalizeClientProjectData(data) {
 
       return {
         id: String(client.id || "").trim(),
-        workspace_id: String(client.workspace_id || client.organization_id || "").trim(),
+        workspace_id: String(client.workspace_id || "").trim(),
         parent_client_id: String(client.parent_client_id || client.parentClientId || "").trim(),
         name: String(client.name || "").trim(),
         status: normalizeClientStatus(client.status),
@@ -131,7 +130,7 @@ function normalizeClientProjectData(data) {
             ? client.projects.map((project) => ({
                 id: String(project.id || "").trim(),
                 client_id: String(project.client_id || client.id || "").trim(),
-                workspace_id: String(project.workspace_id || project.organization_id || client.workspace_id || client.organization_id || "").trim(),
+                workspace_id: String(project.workspace_id || client.workspace_id || "").trim(),
                 parent_project_id: String(project.parent_project_id || project.parentProjectId || "").trim(),
                 name: String(project.name || "").trim(),
               billable: normalizeBillableFlag(project.billable, clientBillable),
@@ -147,12 +146,11 @@ function normalizeClientProjectData(data) {
 }
 
 function normalizeSettings(settings) {
-  const workspaceName = String(settings?.workspaceName || settings?.organizationName || "Workspace").trim() || "Workspace";
+  const workspaceName = String(settings?.workspaceName || "Workspace").trim() || "Workspace";
   const workspaceType = normalizeWorkspaceType(settings?.workspaceType || settings?.workspace_type);
 
   return {
     workspaceName,
-    organizationName: workspaceName,
     workspaceType,
     workspaceCapabilities: getWorkspaceCapabilities(workspaceType),
     fiscalYear: normalizeFiscalYear(settings?.fiscalYear),

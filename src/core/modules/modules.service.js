@@ -3,12 +3,12 @@ import { querySql, runSql, sqlText } from "../../db/sqlite.js";
 
 const TIME_TRACKING_MODULE_ID = "time-tracking";
 
-async function syncModuleRegistry(organizationId) {
+async function syncModuleRegistry(workspaceId) {
   const modules = listModules();
   const now = new Date().toISOString();
   const statements = modules.flatMap((moduleDefinition) => {
     const moduleStatus = "active";
-    const organizationStatus = moduleDefinition.enabledByDefault ? "enabled" : "disabled";
+    const workspaceStatus = moduleDefinition.enabledByDefault ? "enabled" : "disabled";
 
     return [
       `
@@ -32,21 +32,16 @@ ON CONFLICT(module_id) DO UPDATE SET
   updated_at = excluded.updated_at;
 `,
       `
-INSERT INTO organization_modules (organization_id, module_id, status, enabled_at, disabled_at, updated_at)
+INSERT INTO workspace_modules (workspace_id, module_id, status, enabled_at, disabled_at, updated_at)
 VALUES (
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlText(moduleDefinition.id)},
-  ${sqlText(organizationStatus)},
+  ${sqlText(workspaceStatus)},
   ${moduleDefinition.enabledByDefault ? sqlText(now) : "NULL"},
   ${moduleDefinition.enabledByDefault ? "NULL" : sqlText(now)},
   ${sqlText(now)}
 )
-ON CONFLICT(organization_id, module_id) DO NOTHING;
-UPDATE organization_modules
-SET workspace_id = ${sqlText(organizationId)}
-WHERE organization_id = ${sqlText(organizationId)}
-  AND module_id = ${sqlText(moduleDefinition.id)}
-  AND workspace_id IS NULL;
+ON CONFLICT(workspace_id, module_id) DO NOTHING;
 `,
     ];
   });
@@ -56,25 +51,25 @@ WHERE organization_id = ${sqlText(organizationId)}
   }
 }
 
-async function decorateWorkspaceSettings(settings, organizationId) {
-  const moduleContext = await readWorkspaceModuleContext(organizationId);
+async function decorateWorkspaceSettings(settings, workspaceId) {
+  const moduleContext = await readWorkspaceModuleContext(workspaceId);
 
   return {
     ...settings,
-    workspaceId: organizationId,
-    workspace_id: organizationId,
+    workspaceId,
+    workspace_id: workspaceId,
     timeTrackingEnabled: moduleContext.moduleStatusById[TIME_TRACKING_MODULE_ID] === "enabled",
     enabledModules: moduleContext.enabledModules,
     modules: moduleContext.modules,
   };
 }
 
-async function readWorkspaceModuleContext(organizationId) {
+async function readWorkspaceModuleContext(workspaceId) {
   const installedModules = listModules();
   const rows = await querySql(`
 SELECT module_id, status
-FROM organization_modules
-WHERE organization_id = ${sqlText(organizationId)}
+FROM workspace_modules
+WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY module_id;
 `);
   const statusById = rows.reduce((statusMap, row) => {
@@ -115,11 +110,11 @@ ORDER BY module_id;
   };
 }
 
-async function readEnabledModuleIds(organizationId) {
+async function readEnabledModuleIds(workspaceId) {
   const rows = await querySql(`
 SELECT module_id
-FROM organization_modules
-WHERE organization_id = ${sqlText(organizationId)}
+FROM workspace_modules
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND status = 'enabled'
 ORDER BY module_id;
 `);
@@ -127,7 +122,7 @@ ORDER BY module_id;
   return rows.map((row) => row.module_id);
 }
 
-async function canReadModule(organizationId, moduleId) {
+async function canReadModule(workspaceId, moduleId) {
   const moduleDefinition = listModules().find((definition) => definition.id === moduleId);
 
   if (!moduleDefinition) {
@@ -135,19 +130,19 @@ async function canReadModule(organizationId, moduleId) {
   }
 
   return moduleDefinition.historicalReadAccess !== false ||
-    await readModuleStatus(organizationId, moduleId) === "enabled";
+    await readModuleStatus(workspaceId, moduleId) === "enabled";
 }
 
-async function canWriteModule(organizationId, moduleId) {
-  return Boolean(organizationId && moduleId) &&
-    await readModuleStatus(organizationId, moduleId) === "enabled";
+async function canWriteModule(workspaceId, moduleId) {
+  return Boolean(workspaceId && moduleId) &&
+    await readModuleStatus(workspaceId, moduleId) === "enabled";
 }
 
-async function readModuleStatus(organizationId, moduleId) {
+async function readModuleStatus(workspaceId, moduleId) {
   const rows = await querySql(`
 SELECT status
-FROM organization_modules
-WHERE organization_id = ${sqlText(organizationId)}
+FROM workspace_modules
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND module_id = ${sqlText(moduleId)}
 LIMIT 1;
 `);
@@ -155,23 +150,19 @@ LIMIT 1;
   return rows[0]?.status === "enabled" ? "enabled" : "disabled";
 }
 
-async function setModuleStatus(organizationId, moduleId, enabled) {
+async function setModuleStatus(workspaceId, moduleId, enabled) {
   const now = new Date().toISOString();
   const status = enabled ? "enabled" : "disabled";
 
   await runSql(`
-UPDATE organization_modules
+UPDATE workspace_modules
 SET status = ${sqlText(status)},
     enabled_at = CASE WHEN ${sqlText(status)} = 'enabled' THEN COALESCE(enabled_at, ${sqlText(now)}) ELSE enabled_at END,
     disabled_at = CASE WHEN ${sqlText(status)} = 'disabled' THEN ${sqlText(now)} ELSE NULL END,
     updated_at = ${sqlText(now)}
-WHERE organization_id = ${sqlText(organizationId)}
-  AND module_id = ${sqlText(moduleId)};
-UPDATE organization_modules
-SET workspace_id = ${sqlText(organizationId)}
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND module_id = ${sqlText(moduleId)}
-  AND workspace_id IS NULL;
+;
 `);
 }
 

@@ -338,7 +338,6 @@ h1 {
     font-size: 14px;
 }
 
-[data-organization-settings-status],
 [data-workspace-settings-status] {
     min-height: 20px;
     margin: 16px 0 0;
@@ -748,7 +747,7 @@ button.danger-button {
 
 .audit-log-filters {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 16px;
     margin-bottom: 16px;
 }
@@ -803,6 +802,13 @@ button.danger-button {
 .audit-log-table td:not(:first-child) {
     text-align: left;
     white-space: normal;
+}
+
+.audit-truncate {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .link-button {
@@ -1019,14 +1025,16 @@ button.danger-button {
 
 .project-page-toolbar {
     display: grid;
-    grid-template-columns: repeat(2, minmax(180px, 240px)) auto;
+    grid-template-columns: repeat(2, minmax(180px, 240px));
     gap: 12px;
     align-items: end;
     margin-bottom: 16px;
 }
 
-.project-page-toolbar button {
-    justify-self: start;
+.project-page-toolbar h2 {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 16px;
 }
 
 .project-list-actions {
@@ -1039,6 +1047,13 @@ button.danger-button {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
     align-items: end;
+    margin-bottom: 16px;
+}
+
+.inline-bulk-controls h2 {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 16px;
 }
 
 .inline-bulk-field select:disabled {
@@ -1432,6 +1447,8 @@ dialog[data-role-permissions-dialog] {
 }
 
 .role-assignment-editor {
+    display: grid;
+    gap: 14px;
     padding: 14px;
 }
 
@@ -1442,7 +1459,25 @@ dialog[data-role-permissions-dialog] {
 }
 
 .role-assignment-stack button {
+    justify-self: center;
+}
+
+.role-assignment-editor > [data-configure-draft-permissions] {
     justify-self: start;
+}
+
+.current-role-assignments {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-background);
+}
+
+.current-role-assignments h3 {
+    margin: 0;
+    font-size: 16px;
 }
 
 .role-permissions-form {

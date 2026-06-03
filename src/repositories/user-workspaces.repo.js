@@ -25,14 +25,14 @@ SELECT
   user_workspaces.user_workspace_id,
   user_workspaces.user_id,
   user_workspaces.workspace_id,
-  organizations.name AS workspace_name,
+  workspaces.name AS workspace_name,
   user_workspaces.status,
   user_workspaces.created_at,
   user_workspaces.updated_at
 FROM user_workspaces
-INNER JOIN organizations ON organizations.id = user_workspaces.workspace_id
+INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
 WHERE user_workspaces.user_id = ${sqlText(userId)}
-ORDER BY organizations.name;
+ORDER BY workspaces.name;
 `);
 }
 
@@ -44,15 +44,14 @@ async function readActiveForUser(userId) {
 async function readAllWorkspaces() {
   return querySql(`
 SELECT
-  organizations.id AS workspace_id,
-  organizations.name AS workspace_name,
-  organizations.workspace_type,
-  organizations.owner_user_id,
+  workspaces.workspace_id,
+  workspaces.name AS workspace_name,
+  workspaces.workspace_type,
+  workspaces.owner_user_id,
   owner.username AS owner_username
-FROM organizations
+FROM workspaces
 LEFT JOIN users AS owner
-  ON owner.user_id = organizations.owner_user_id
-  AND owner.organization_id = organizations.id
+  ON owner.user_id = workspaces.owner_user_id
 ORDER BY name;
 `);
 }

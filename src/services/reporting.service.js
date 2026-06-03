@@ -2,6 +2,7 @@ import { clientsService } from "../modules/client-projects/clients.service.js";
 import { timeEntriesService } from "../modules/time-tracking/time-entries.service.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { AppError } from "../core/errors.js";
+import { permissionsService } from "../core/permissions.js";
 import { settingsService } from "./settings.service.js";
 
 const WORKSPACE_SCOPE_ID = "__workspace_projects__";
@@ -115,8 +116,12 @@ async function readDashboard(session) {
 }
 
 async function readReportContext(session, options = {}) {
+  await permissionsService.assertCanInAnyScope(session, "reporting.view", {
+    workspace_id: session.workspace_id,
+    operation: "read",
+  });
   const settings = await settingsService.read(session);
-  const moduleContext = await modulesService.readWorkspaceModuleContext(session.organization_id);
+  const moduleContext = await modulesService.readWorkspaceModuleContext(session.workspace_id);
   const clientProjectData = await clientsService.readClientProjects(session);
   const scopes = buildReportingScopes(clientProjectData, settings, options);
 
@@ -556,8 +561,8 @@ function readModulePanels(modules, panelGroup) {
 
 function workspaceSummary(session, settings) {
   return {
-    id: session.organization_id,
-    name: settings.workspaceName || settings.organizationName || "Workspace",
+    id: session.workspace_id,
+    name: settings.workspaceName || "Workspace",
     type: settings.workspaceType,
   };
 }

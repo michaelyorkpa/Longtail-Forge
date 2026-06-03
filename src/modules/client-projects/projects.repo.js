@@ -12,7 +12,7 @@ import {
   normalizeBillingRounding,
 } from "../../utils/normalizers.js";
 
-async function readAll(organizationId) {
+async function readAll(workspaceId) {
   const rows = await querySql(`
 SELECT
   id,
@@ -28,14 +28,14 @@ SELECT
   billing_rounding_enabled,
   billing_rounding_increment
 FROM projects
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY name;
 `);
 
   return rows.map(projectRowToAppProject);
 }
 
-async function readById(organizationId, projectId) {
+async function readById(workspaceId, projectId) {
   const rows = await querySql(`
 SELECT
   id,
@@ -51,7 +51,7 @@ SELECT
   billing_rounding_enabled,
   billing_rounding_increment
 FROM projects
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND id = ${sqlText(projectId)}
 LIMIT 1;
 `);
@@ -59,7 +59,7 @@ LIMIT 1;
   return rows[0] ? projectRowToAppProject(rows[0]) : null;
 }
 
-async function readByClientId(organizationId, clientId) {
+async function readByClientId(workspaceId, clientId) {
   const rows = await querySql(`
 SELECT
   id,
@@ -75,7 +75,7 @@ SELECT
   billing_rounding_enabled,
   billing_rounding_increment
 FROM projects
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND client_id = ${sqlText(clientId)}
 ORDER BY name;
 `);
@@ -83,7 +83,7 @@ ORDER BY name;
   return rows.map(projectRowToAppProject);
 }
 
-async function readByNameInScope(organizationId, clientId, projectName, excludeProjectId = "") {
+async function readByNameInScope(workspaceId, clientId, projectName, excludeProjectId = "") {
   const normalizedClientId = String(clientId || "").trim();
   const clientScopeSql = normalizedClientId
     ? `client_id = ${sqlText(normalizedClientId)}`
@@ -106,7 +106,7 @@ SELECT
   billing_rounding_enabled,
   billing_rounding_increment
 FROM projects
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND ${clientScopeSql}
   AND lower(trim(name)) = lower(trim(${sqlText(projectName)}))
   ${excludeSql}
@@ -116,18 +116,18 @@ LIMIT 1;
   return rows[0] ? projectRowToAppProject(rows[0]) : null;
 }
 
-async function create(organizationId, clientId, project) {
+async function create(workspaceId, clientId, project) {
   const now = new Date().toISOString();
-  await runSql(createInsertSql(organizationId, clientId, project, now));
+  await runSql(createInsertSql(workspaceId, clientId, project, now));
 }
 
-async function update(organizationId, project) {
+async function update(workspaceId, project) {
   const now = new Date().toISOString();
 
   await runSql(`
 UPDATE projects
 SET
-  workspace_id = ${sqlText(organizationId)},
+  workspace_id = ${sqlText(workspaceId)},
   client_id = ${sqlNullableText(project.client_id)},
   parent_project_id = ${sqlNullableText(project.parent_project_id)},
   name = ${sqlText(project.name)},
@@ -139,28 +139,27 @@ SET
   billing_rounding_enabled = ${sqlNullableInteger(project.billing_rounding ? (project.billing_rounding.enabled ? 1 : 0) : null)},
   billing_rounding_increment = ${sqlNullableText(project.billing_rounding?.increment)},
   updated_at = ${sqlText(now)}
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND id = ${sqlText(project.id)};
 `);
 }
 
-async function archive(organizationId, projectId) {
+async function archive(workspaceId, projectId) {
   const now = new Date().toISOString();
 
   await runSql(`
 UPDATE projects
 SET status = 'Inactive',
     updated_at = ${sqlText(now)}
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND id = ${sqlText(projectId)};
 `);
 }
 
-function createInsertSql(organizationId, clientId, project, now) {
+function createInsertSql(workspaceId, clientId, project, now) {
   return `
 INSERT INTO projects (
   id,
-  organization_id,
   workspace_id,
   client_id,
   parent_project_id,
@@ -177,8 +176,7 @@ INSERT INTO projects (
 )
 VALUES (
   ${sqlText(project.id)},
-  ${sqlText(organizationId)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlNullableText(clientId)},
   ${sqlNullableText(project.parent_project_id)},
   ${sqlText(project.name)},
@@ -197,7 +195,7 @@ VALUES (
 function projectRowToAppProject(row) {
   return {
     id: row.id,
-    workspace_id: row.workspace_id || row.organization_id || "",
+    workspace_id: row.workspace_id || "",
     client_id: row.client_id || "",
     parent_project_id: row.parent_project_id || "",
     name: row.name,

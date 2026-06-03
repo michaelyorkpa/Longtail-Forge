@@ -11,7 +11,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - [ ] Add Table of Contents to README.md
 - [ ] Add an about section to GitHub
 
-
 - How is the "Remove Workspace" button wired, currently on User Settings page?
 
 - What happens when a user is removed from all workspaces?
@@ -42,7 +41,16 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Medium Term
 
-- [ ] Create a dashboard/workspace that shows users all workspaces view
+- [ ] Create a dashboard/workspace view that shows users all workspaces view
+
+- [ ] Create app-level settings for:
+  - [ ] Total number of personal workspaces per users
+  - [ ] Total number of family workspaces per user
+  - [ ] Total number of business workspaces per user
+
+- [ ] Add delete option for workspaces
+
+- [ ] Add workspace transfer screens
 
 - [ ] Lists (Shopping/Grocery)
   - could be useful for physical project planning

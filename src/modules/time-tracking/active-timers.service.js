@@ -11,7 +11,7 @@ const MODULE_ID = "time-tracking";
 
 async function list(session) {
   return {
-    timers: await activeTimersRepository.readAll(session.organization_id, session.user_id),
+    timers: await activeTimersRepository.readAll(session.workspace_id, session.user_id),
   };
 }
 
@@ -19,7 +19,7 @@ async function save(timerSlot, payload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
   const timer = normalizeTimerPayload(payload, normalizedTimerSlot, session);
-  const scope = await resolveTimerScope(session.organization_id, timer);
+  const scope = await resolveTimerScope(session.workspace_id, timer);
   timer.client_id = scope.client?.id || "";
   timer.client_name = scope.client?.name || "";
   timer.project_id = scope.project.id;
@@ -37,7 +37,7 @@ async function remove(timerSlot, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
 
-  await activeTimersRepository.remove(session.organization_id, session.user_id, normalizedTimerSlot);
+  await activeTimersRepository.remove(session.workspace_id, session.user_id, normalizedTimerSlot);
   return { timer_slot: normalizedTimerSlot, removed: true };
 }
 
@@ -45,7 +45,7 @@ async function finalize(timerSlot, payload, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
   const activeTimer = await activeTimersRepository.readBySlot(
-    session.organization_id,
+    session.workspace_id,
     session.user_id,
     normalizedTimerSlot,
   );
@@ -68,7 +68,7 @@ async function finalize(timerSlot, payload, session) {
   }
 
   const result = await timeEntriesService.create(entry, session);
-  await activeTimersRepository.remove(session.organization_id, session.user_id, normalizedTimerSlot);
+  await activeTimersRepository.remove(session.workspace_id, session.user_id, normalizedTimerSlot);
 
   return {
     ...result,
@@ -87,7 +87,7 @@ function normalizeTimerPayload(payload, timerSlot, session) {
 
   return {
     active_timer_id: payload?.active_timer_id || randomUUID(),
-    organization_id: session.organization_id,
+    workspace_id: session.workspace_id,
     user_id: session.user_id,
     timer_slot: timerSlot,
     client_id: stringOrEmpty(payload?.client_id),
@@ -106,15 +106,15 @@ function normalizeTimerPayload(payload, timerSlot, session) {
 
 async function assertCanUseProjectTimer(session, timer, operation) {
   await permissionsService.assertCan(session, "time_entries.create", {
-    organization_id: session.organization_id,
+    workspace_id: session.workspace_id,
     client_id: timer.client_id,
     project_id: timer.project_id,
     operation,
   });
 }
 
-async function resolveTimerScope(organizationId, timer) {
-  return resolveProjectRecordScope(organizationId, timer, {
+async function resolveTimerScope(workspaceId, timer) {
+  return resolveProjectRecordScope(workspaceId, timer, {
     archivedClientMessage: "Archived clients cannot receive active timers.",
     archivedProjectMessage: "Archived projects cannot receive active timers.",
     clientNotFoundMessage: "Client not found",

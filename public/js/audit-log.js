@@ -2,6 +2,9 @@ const auditFilterForm = document.querySelector("[data-audit-filters]");
 const dateFromInput = document.querySelector("[data-audit-date-from]");
 const dateToInput = document.querySelector("[data-audit-date-to]");
 const userFilterSelect = document.querySelector("[data-audit-user-filter]");
+const clientFilterControl = document.querySelector("[data-audit-client-filter-control]");
+const clientFilterSelect = document.querySelector("[data-audit-client-filter]");
+const projectFilterSelect = document.querySelector("[data-audit-project-filter]");
 const recordTypeFilterSelect = document.querySelector("[data-audit-record-type-filter]");
 const changeTypeFilterSelect = document.querySelector("[data-audit-change-type-filter]");
 const workspaceFilterControl = document.querySelector("[data-audit-workspace-filter-control]");
@@ -110,6 +113,9 @@ async function initializeAuditLog() {
 
 function populateFilterOptions(filterOptions = {}, selectedWorkspaceId = "") {
   replaceSelectOptions(userFilterSelect, "All users", normalizeOptions(filterOptions.users));
+  replaceSelectOptions(clientFilterSelect, "All clients", normalizeOptions(filterOptions.clients));
+  replaceSelectOptions(projectFilterSelect, "All projects", normalizeOptions(filterOptions.projects));
+  clientFilterControl.hidden = clientFilterSelect.options.length <= 1;
   replaceSelectOptions(recordTypeFilterSelect, "All record types", normalizeEnumOptions(filterOptions.recordTypes));
   replaceSelectOptions(changeTypeFilterSelect, "All change types", normalizeEnumOptions(filterOptions.changeTypes));
   populateWorkspaceOptions(filterOptions.workspaces, selectedWorkspaceId);
@@ -178,9 +184,9 @@ function createAuditRow(log) {
   row.append(
     createCell(formatDateTime(log.created_at)),
     userCell,
-    createCell(getClientLabel(log, metadata)),
-    createCell(getProjectLabel(log, metadata)),
-    createCell(formatEnum(log.record_type)),
+    createCell(createFilterButton(getClientLabel(log, metadata), getClientId(log, metadata), clientFilterSelect)),
+    createCell(createFilterButton(getProjectLabel(log, metadata), getProjectId(log, metadata), projectFilterSelect)),
+    createCell(createFilterButton(formatEnum(log.record_type), log.record_type, recordTypeFilterSelect)),
     createCell(formatEnum(log.change_type)),
     createCell(detailsButton),
   );
@@ -202,6 +208,14 @@ function buildFilterParams() {
 
   if (userFilterSelect.value) {
     params.set("actorUserId", userFilterSelect.value);
+  }
+
+  if (clientFilterSelect.value) {
+    params.set("clientId", clientFilterSelect.value);
+  }
+
+  if (projectFilterSelect.value) {
+    params.set("projectId", projectFilterSelect.value);
   }
 
   if (recordTypeFilterSelect.value) {
@@ -318,6 +332,7 @@ function openAuditDetailDialog(log) {
   appendDetail(content, "Action", log.action);
   appendDetail(content, "Change Type", formatEnum(log.change_type));
   appendDetail(content, "Record Type", formatEnum(log.record_type));
+  appendDetail(content, "IP Address", log.ip_address);
   appendRecordDetail(content, log);
   appendDetail(content, "Audit ID", log.audit_id);
 
@@ -463,6 +478,7 @@ function normalizeAuditLog(log) {
     record_label: String(log.record_label || ""),
     record_type: String(log.record_type || ""),
     record_url: String(log.record_url || ""),
+    ip_address: String(log.ip_address || ""),
   };
 }
 
@@ -478,6 +494,14 @@ function getClientLabel(log, metadata) {
   return "None";
 }
 
+function getClientId(log, metadata) {
+  if (metadata?.client_id) {
+    return String(metadata.client_id);
+  }
+
+  return log.record_type === "client" ? log.record_id : "";
+}
+
 function getProjectLabel(log, metadata) {
   if (metadata?.project_name) {
     return metadata.project_name;
@@ -488,6 +512,34 @@ function getProjectLabel(log, metadata) {
   }
 
   return "None";
+}
+
+function getProjectId(log, metadata) {
+  if (metadata?.project_id) {
+    return String(metadata.project_id);
+  }
+
+  return log.record_type === "project" ? log.record_id : "";
+}
+
+function createFilterButton(label, value, select) {
+  const text = label || "None";
+
+  if (!value || text === "None" || !select || ![...select.options].some((option) => option.value === value)) {
+    return document.createTextNode(text);
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "link-button audit-truncate";
+  button.textContent = text;
+  button.title = text;
+  button.addEventListener("click", () => {
+    select.value = value;
+    currentPage = 1;
+    loadAuditLogs();
+  });
+  return button;
 }
 
 function parseJson(jsonText) {
@@ -509,6 +561,8 @@ function createCell(content) {
     cell.appendChild(content);
   } else {
     cell.textContent = content || "None";
+    cell.title = cell.textContent;
+    cell.classList.add("audit-truncate");
   }
 
   return cell;

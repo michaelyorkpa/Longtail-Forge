@@ -14,7 +14,7 @@ import {
   normalizeBillingRounding,
 } from "../../utils/normalizers.js";
 
-async function readAll(organizationId) {
+async function readAll(workspaceId) {
   const rows = await querySql(`
 SELECT
   id,
@@ -40,14 +40,14 @@ SELECT
   billing_contact_state,
   billing_contact_zip_code
 FROM clients
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY name;
 `);
 
   return rows.map(clientRowToAppClient);
 }
 
-async function readById(organizationId, clientId) {
+async function readById(workspaceId, clientId) {
   const rows = await querySql(`
 SELECT
   id,
@@ -73,7 +73,7 @@ SELECT
   billing_contact_state,
   billing_contact_zip_code
 FROM clients
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND id = ${sqlText(clientId)}
 LIMIT 1;
 `);
@@ -81,19 +81,19 @@ LIMIT 1;
   return rows[0] ? clientRowToAppClient(rows[0]) : null;
 }
 
-async function create(organizationId, client) {
+async function create(workspaceId, client) {
   const now = new Date().toISOString();
-  await runSql(createClientInsertSql(organizationId, client, now));
+  await runSql(createClientInsertSql(workspaceId, client, now));
 }
 
-async function update(organizationId, client) {
+async function update(workspaceId, client) {
   const now = new Date().toISOString();
   const contact = normalizeBillingContact(client.billing_contact);
 
   await runSql(`
 UPDATE clients
 SET
-  workspace_id = ${sqlText(organizationId)},
+  workspace_id = ${sqlText(workspaceId)},
   parent_client_id = ${sqlNullableText(client.parent_client_id)},
   name = ${sqlText(client.name)},
   status = ${sqlText(client.status)},
@@ -115,42 +115,42 @@ SET
   billing_contact_state = ${sqlText(contact.state)},
   billing_contact_zip_code = ${sqlText(contact.zip_code)},
   updated_at = ${sqlText(now)}
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND id = ${sqlText(client.id)};
 `);
 }
 
-async function archive(organizationId, clientId) {
+async function archive(workspaceId, clientId) {
   const now = new Date().toISOString();
 
   await runSql(`
 UPDATE clients
 SET status = 'Inactive',
     updated_at = ${sqlText(now)}
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND id = ${sqlText(clientId)};
 
 UPDATE projects
 SET status = 'Inactive',
     updated_at = ${sqlText(now)}
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND client_id = ${sqlText(clientId)}
   AND status != 'Completed';
 `);
 }
 
-async function replaceAll(organizationId, clients) {
+async function replaceAll(workspaceId, clients) {
   const now = new Date().toISOString();
   const statements = [
     "BEGIN TRANSACTION;",
-    `DELETE FROM projects WHERE organization_id = ${sqlText(organizationId)};`,
-    `DELETE FROM clients WHERE organization_id = ${sqlText(organizationId)};`,
+    `DELETE FROM projects WHERE workspace_id = ${sqlText(workspaceId)};`,
+    `DELETE FROM clients WHERE workspace_id = ${sqlText(workspaceId)};`,
   ];
 
   clients.forEach((client) => {
-    statements.push(createClientInsertSql(organizationId, client, now));
+    statements.push(createClientInsertSql(workspaceId, client, now));
     client.projects.forEach((project) => {
-      statements.push(projectsRepository.createInsertSql(organizationId, client.id, project, now));
+      statements.push(projectsRepository.createInsertSql(workspaceId, client.id, project, now));
     });
   });
 
@@ -158,13 +158,12 @@ async function replaceAll(organizationId, clients) {
   await runSql(statements.join("\n"));
 }
 
-function createClientInsertSql(organizationId, client, now) {
+function createClientInsertSql(workspaceId, client, now) {
   const contact = normalizeBillingContact(client.billing_contact);
 
   return `
 INSERT INTO clients (
   id,
-  organization_id,
   workspace_id,
   parent_client_id,
   name,
@@ -191,8 +190,7 @@ INSERT INTO clients (
 )
 VALUES (
   ${sqlText(client.id)},
-  ${sqlText(organizationId)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlNullableText(client.parent_client_id)},
   ${sqlText(client.name)},
   ${sqlText(client.status)},
@@ -221,7 +219,7 @@ VALUES (
 function clientRowToAppClient(row) {
   return {
     id: row.id,
-    workspace_id: row.workspace_id || row.organization_id || "",
+    workspace_id: row.workspace_id || "",
     parent_client_id: row.parent_client_id || "",
     name: row.name,
     status: row.status,

@@ -8,8 +8,8 @@ const TIME_TRACKING_MODULE_ID = "time-tracking";
 
 async function read(session) {
   return modulesService.decorateWorkspaceSettings(
-    await settingsRepository.readOrganizationSettings(session.organization_id),
-    session.organization_id,
+    await settingsRepository.readWorkspaceSettings(session.workspace_id),
+    session.workspace_id,
   );
 }
 
@@ -27,8 +27,8 @@ async function readWorkspaceBootstrap(session) {
 }
 
 async function save(payload, session) {
-  await permissionsService.assertCan(session, "organization_settings.manage", {
-    organization_id: session.organization_id,
+  await permissionsService.assertCan(session, "workspace_settings.manage", {
+    workspace_id: session.workspace_id,
     operation: "update",
   });
 
@@ -47,14 +47,13 @@ async function save(payload, session) {
     action: "workspace_settings_updated",
     changeType: "settings_change",
     recordType: "workspace_setting",
-    recordId: session.organization_id,
+    recordId: session.workspace_id,
     recordLabel: data.workspaceName,
     recordUrl: "workspace-settings.html",
     previousValue: previousSettings,
     newValue: data,
     metadata: {
       setting_group: "workspace",
-      legacy_setting_group: "organization",
       audit_setting_changed: auditSettingChanged,
       module_setting_changed: moduleSettingChanged,
     },
@@ -68,8 +67,8 @@ async function save(payload, session) {
     });
   }
 
-  await settingsRepository.saveOrganizationSettings(session.organization_id, data);
-  await modulesService.setModuleStatus(session.organization_id, TIME_TRACKING_MODULE_ID, timeTrackingEnabled);
+  await settingsRepository.saveWorkspaceSettings(session.workspace_id, data);
+  await modulesService.setModuleStatus(session.workspace_id, TIME_TRACKING_MODULE_ID, timeTrackingEnabled);
 
   if (auditEnabled) {
     await auditService.record({
@@ -81,9 +80,9 @@ async function save(payload, session) {
     await auditService.record(auditEvent);
   }
 
-  await auditService.cleanupExpired(session.organization_id, data.audit.retentionDays);
+  await auditService.cleanupExpired(session.workspace_id, data.audit.retentionDays);
 
-  return { data: await modulesService.decorateWorkspaceSettings(data, session.organization_id) };
+  return { data: await modulesService.decorateWorkspaceSettings(data, session.workspace_id) };
 }
 
 export const settingsService = {

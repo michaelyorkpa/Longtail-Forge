@@ -1,6 +1,6 @@
 // Workspace settings are shared defaults used by navigation, reports, and billing.
-const settingsForm = document.querySelector("[data-workspace-settings-form], [data-organization-settings-form]");
-const workspaceNameInput = document.querySelector("[data-workspace-name-input], [data-organization-name-input]");
+const settingsForm = document.querySelector("[data-workspace-settings-form]");
+const workspaceNameInput = document.querySelector("[data-workspace-name-input]");
 const workspaceTypeSelect = document.querySelector("[data-workspace-type-input]");
 const fiscalYearStartMonthSelect = document.querySelector("[data-fiscal-year-start-month]");
 const fiscalYearStartDaySelect = document.querySelector("[data-fiscal-year-start-day]");
@@ -19,7 +19,7 @@ const openWorkspaceUsersButton = document.querySelector("[data-open-workspace-us
 const workspaceUsersDialog = document.querySelector("[data-workspace-users-dialog]");
 const workspaceUsersList = document.querySelector("[data-workspace-users-list]");
 const closeWorkspaceUsersButton = document.querySelector("[data-close-workspace-users]");
-const workspaceSettingsStatus = document.querySelector("[data-workspace-settings-status], [data-organization-settings-status]");
+const workspaceSettingsStatus = document.querySelector("[data-workspace-settings-status]");
 const saveSettingsButton = document.querySelector("[data-save-settings]");
 let activeWorkspaceId = "";
 
@@ -161,13 +161,12 @@ async function saveSettings() {
 
 function normalizeSettings(settings) {
   // Keep one canonical client-side settings shape even when the API omits older fields.
-  const workspaceName = String(settings?.workspaceName || settings?.organizationName || "").trim();
+  const workspaceName = String(settings?.workspaceName || "").trim();
   const workspaceType = normalizeWorkspaceType(settings?.workspaceType || settings?.workspace_type);
 
   return {
     workspaceId: String(settings?.workspaceId || settings?.workspace_id || "").trim(),
     workspaceName,
-    organizationName: workspaceName,
     workspaceType,
     fiscalYear: normalizeFiscalYear(settings?.fiscalYear),
     defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),

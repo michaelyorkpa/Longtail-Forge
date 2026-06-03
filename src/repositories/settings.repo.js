@@ -4,24 +4,24 @@ import { normalizeSettings } from "../utils/normalizers.js";
 
 const DEFAULT_WORKSPACE_NAME = "Raymond Tec";
 
-async function readOrganizationSettings(organizationId) {
+async function readWorkspaceSettings(workspaceId) {
   const rows = await querySql(`
 SELECT
-  organizations.name AS organization_name,
-  organizations.workspace_type,
-  organization_settings.fiscal_year_start_month,
-  organization_settings.fiscal_year_start_day,
-  organization_settings.default_billing_rate,
-  organization_settings.billing_period_type,
-  organization_settings.billing_period_start_day,
-  organization_settings.rounding_enabled,
-  organization_settings.rounding_increment,
-  organization_settings.audit_logging_enabled,
-  organization_settings.audit_retention_days,
-  organization_settings.audit_settings_updated_at
-FROM organizations
-INNER JOIN organization_settings ON organization_settings.organization_id = organizations.id
-WHERE organizations.id = ${sqlText(organizationId)}
+  workspaces.name AS workspace_name,
+  workspaces.workspace_type,
+  workspace_settings.fiscal_year_start_month,
+  workspace_settings.fiscal_year_start_day,
+  workspace_settings.default_billing_rate,
+  workspace_settings.billing_period_type,
+  workspace_settings.billing_period_start_day,
+  workspace_settings.rounding_enabled,
+  workspace_settings.rounding_increment,
+  workspace_settings.audit_logging_enabled,
+  workspace_settings.audit_retention_days,
+  workspace_settings.audit_settings_updated_at
+FROM workspaces
+INNER JOIN workspace_settings ON workspace_settings.workspace_id = workspaces.workspace_id
+WHERE workspaces.workspace_id = ${sqlText(workspaceId)}
 LIMIT 1;
 `);
 
@@ -29,50 +29,29 @@ LIMIT 1;
     return normalizeSettings({ workspaceName: DEFAULT_WORKSPACE_NAME });
   }
 
-  return settingsRowToOrganizationSettings(rows[0]);
+  return settingsRowToWorkspaceSettings(rows[0]);
 }
 
-async function saveOrganizationSettings(organizationId, settings) {
-  const organizations = await querySql(`
-SELECT id
-FROM organizations
-WHERE id = ${sqlText(organizationId)}
+async function saveWorkspaceSettings(workspaceId, settings) {
+  const workspaces = await querySql(`
+SELECT workspace_id
+FROM workspaces
+WHERE workspace_id = ${sqlText(workspaceId)}
 LIMIT 1;
 `);
 
-  if (organizations.length === 0) {
+  if (workspaces.length === 0) {
     throw new AppError("No workspace exists for workspace settings.", 404);
   }
 
   const now = new Date().toISOString();
 
   await runSql(`
-UPDATE organizations
-SET name = ${sqlText(settings.organizationName)},
-    workspace_type = ${sqlText(settings.workspaceType)},
-    updated_at = ${sqlText(now)}
-WHERE id = ${sqlText(organizationId)};
-
 UPDATE workspaces
-SET name = ${sqlText(settings.organizationName)},
+SET name = ${sqlText(settings.workspaceName)},
     workspace_type = ${sqlText(settings.workspaceType)},
     updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(organizationId)};
-
-UPDATE organization_settings
-SET
-  fiscal_year_start_month = ${sqlInteger(settings.fiscalYear.startMonth)},
-  fiscal_year_start_day = ${sqlInteger(settings.fiscalYear.startDay)},
-  default_billing_rate = ${sqlText(settings.defaultBillingRate)},
-  billing_period_type = ${sqlText(settings.billingPeriod.type)},
-  billing_period_start_day = ${sqlInteger(settings.billingPeriod.startDay)},
-  rounding_enabled = ${sqlInteger(settings.billingRounding.enabled ? 1 : 0)},
-  rounding_increment = ${sqlText(settings.billingRounding.increment)},
-  audit_logging_enabled = ${sqlInteger(settings.audit.loggingEnabled ? 1 : 0)},
-  audit_retention_days = ${sqlInteger(settings.audit.retentionDays)},
-  audit_settings_updated_at = ${sqlText(now)},
-  updated_at = ${sqlText(now)}
-WHERE organization_id = ${sqlText(organizationId)};
+WHERE workspace_id = ${sqlText(workspaceId)};
 
 UPDATE workspace_settings
 SET
@@ -87,13 +66,13 @@ SET
   audit_retention_days = ${sqlInteger(settings.audit.retentionDays)},
   audit_settings_updated_at = ${sqlText(now)},
   updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(organizationId)};
+WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
-function settingsRowToOrganizationSettings(row) {
+function settingsRowToWorkspaceSettings(row) {
   return normalizeSettings({
-    organizationName: row.organization_name,
+    workspaceName: row.workspace_name,
     workspaceType: row.workspace_type,
     fiscalYear: {
       startMonth: row.fiscal_year_start_month,
@@ -118,6 +97,6 @@ function settingsRowToOrganizationSettings(row) {
 }
 
 export const settingsRepository = {
-  readOrganizationSettings,
-  saveOrganizationSettings,
+  readWorkspaceSettings,
+  saveWorkspaceSettings,
 };

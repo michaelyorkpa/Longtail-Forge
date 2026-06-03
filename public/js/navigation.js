@@ -7,7 +7,6 @@ const NAV_ITEMS = [
   {
     label: "Projects",
     items: [
-      { label: "Projects", href: "projects.html" },
       {
         label: "Time Keeping",
         items: [
@@ -29,6 +28,7 @@ const NAV_ITEMS = [
     label: "Settings",
     items: [
       { label: "Clients", href: "clients.html" },
+      { label: "Projects", href: "projects.html" },
       {
         label: "Workspace",
         items: [
@@ -60,6 +60,22 @@ if (navToggle && navLinks) {
     navLinks.classList.toggle("is-open", !isOpen);
   });
 }
+
+siteHeader.addEventListener("toggle", (event) => {
+  const openedMenu = event.target;
+
+  if (openedMenu?.tagName !== "DETAILS" || !openedMenu.open || !openedMenu.classList.contains("nav-menu")) {
+    return;
+  }
+
+  siteHeader.querySelectorAll(".nav-menu[open]").forEach((menu) => {
+    if (menu === openedMenu || menu.contains(openedMenu) || openedMenu.contains(menu)) {
+      return;
+    }
+
+    menu.open = false;
+  });
+}, true);
 
 window.LongtailForge = window.LongtailForge || {};
 window.LongtailForge.workspaceContextReady = loadWorkspaceSettings();
@@ -195,7 +211,7 @@ async function loadWorkspaceSettings() {
 
     const settings = await response.json();
     storeWorkspaceContext(settings);
-    applyWorkspaceName(settings.workspaceName || settings.organizationName);
+    applyWorkspaceName(settings.workspaceName);
     applyWorkspaceCapabilities(settings);
   } catch {
     applyWorkspaceName(DEFAULT_WORKSPACE_NAME);
@@ -220,6 +236,9 @@ async function loadSessionWorkspaces() {
       storeWorkspaceContext(user.workspaceContext);
       applyWorkspaceCapabilities(user.workspaceContext);
     }
+    if (user.themeMode) {
+      applyThemeMode(user.themeMode);
+    }
     const workspaces = Array.isArray(user.workspaces) ? user.workspaces : [];
 
     if (workspaces.length === 0) {
@@ -229,12 +248,21 @@ async function loadSessionWorkspaces() {
     workspaceSelector.replaceChildren(...workspaces.map((workspace) =>
       createWorkspaceOption(workspace.workspaceName || workspace.workspace_id, workspace.workspace_id),
     ));
-    workspaceSelector.value = user.active_workspace_id || user.organization_id || workspaces[0].workspace_id;
+    workspaceSelector.value = user.active_workspace_id || user.workspace_id || workspaces[0].workspace_id;
     workspaceSelector.disabled = workspaces.length < 2;
     applyActiveWorkspaceLabel();
   } catch {
     workspaceSelector.disabled = true;
   }
+}
+
+function applyThemeMode(themeMode) {
+  const normalizedThemeMode = themeMode === "dark" ? "dark" : "light";
+
+  window.localStorage.setItem("lf_theme", normalizedThemeMode);
+  document.documentElement.dataset.themeMode = normalizedThemeMode;
+  document.documentElement.dataset.theme = normalizedThemeMode;
+  document.documentElement.style.colorScheme = normalizedThemeMode;
 }
 
 function createWorkspaceOption(label, value = label) {
@@ -247,7 +275,7 @@ function createWorkspaceOption(label, value = label) {
 function applyWorkspaceName(value) {
   const workspaceName = String(value || "").trim() || DEFAULT_WORKSPACE_NAME;
 
-  document.querySelectorAll("[data-organization-name], [data-workspace-name]").forEach((element) => {
+  document.querySelectorAll("[data-workspace-name]").forEach((element) => {
     element.textContent = workspaceName;
   });
 
@@ -269,7 +297,6 @@ function applyWorkspaceName(value) {
   }
 }
 
-window.applyOrganizationName = applyWorkspaceName;
 window.applyWorkspaceName = applyWorkspaceName;
 
 function applyActiveWorkspaceLabel(fallbackName = DEFAULT_WORKSPACE_NAME) {
@@ -287,6 +314,7 @@ function applyWorkspaceCapabilities(settings) {
   const capabilities = settings.workspaceCapabilities || {};
   const workspaceType = settings.workspaceType || capabilities.workspaceType || "business";
   const availableTools = new Set(Array.isArray(capabilities.availableTools) ? capabilities.availableTools : []);
+  const projectsSettingsVisible = availableTools.has("projects") || availableTools.has("clients_projects");
   const modules = Array.isArray(settings.modules) ? settings.modules : [];
   const timeTrackingModule = modules.find((moduleDefinition) => moduleDefinition.id === "time-tracking");
   const timeTrackingEnabled = moduleIsEnabled(timeTrackingModule, settings, "time-tracking");
@@ -298,6 +326,7 @@ function applyWorkspaceCapabilities(settings) {
   document.body.dataset.workspaceClientTools = availableTools.has("clients_projects") ? "enabled" : "disabled";
   document.body.dataset.timeTrackingModule = timeTrackingEnabled ? "enabled" : "disabled";
   setNavLinkVisible("clients.html", availableTools.has("clients_projects"));
+  setNavLinkVisible("projects.html", projectsSettingsVisible);
   setNavLinkVisible("api-keys.html", workspaceType === "business");
   setNavLinkVisible("user-admin.html", availableTools.has("team_members"));
   setNavLinkVisible("reporting.html", availableTools.has("billing_invoicing_reporting") || (timeTrackingEnabled && visibleTimeTrackingLinks.has("reporting.html")));
@@ -364,7 +393,7 @@ function storeWorkspaceContext(settings) {
     timeTrackingEnabled: settings.timeTrackingEnabled !== false,
     workspaceCapabilities: settings.workspaceCapabilities || {},
     workspaceId: settings.workspaceId || settings.workspace_id || "",
-    workspaceName: settings.workspaceName || settings.organizationName || DEFAULT_WORKSPACE_NAME,
+    workspaceName: settings.workspaceName || DEFAULT_WORKSPACE_NAME,
     workspaceType: settings.workspaceType || settings.workspaceCapabilities?.workspaceType || "business",
   };
 

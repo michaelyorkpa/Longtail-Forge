@@ -27,12 +27,12 @@ import {
 } from "../utils/normalizers.js";
 
 async function list(session) {
-  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "read" });
+  await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "read" });
   return { users: await readUsersWithMemberships(session) };
 }
 
 async function listWorkspaces(session) {
-  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "read" });
+  await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "read" });
 
   return {
     workspaces: await readAssignableWorkspaces(session),
@@ -40,7 +40,7 @@ async function listWorkspaces(session) {
 }
 
 async function create(payload, session) {
-  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "create" });
+  await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "create" });
   const username = normalizeUsername(payload.username);
 
   if (!username) {
@@ -67,7 +67,7 @@ async function create(payload, session) {
   }
 
   const user = await usersRepository.create(
-    session.organization_id,
+    session.workspace_id,
     {
       username,
       displayName: normalizeDisplayName(payload.displayName, username),
@@ -78,7 +78,7 @@ async function create(payload, session) {
   );
   const membership = await userWorkspacesRepository.upsert({
     userId: user.user_id,
-    workspaceId: session.organization_id,
+    workspaceId: session.workspace_id,
     status: "active",
   });
   await auditService.record({
@@ -145,8 +145,8 @@ async function action({ payload = {}, session, userId, action: userAction }) {
 }
 
 async function update(payload, session, userId) {
-  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "update" });
-  const user = await usersRepository.readById(session.organization_id, userId);
+  await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "update" });
+  const user = await usersRepository.readById(session.workspace_id, userId);
 
   if (!user) {
     throw new AppError("User was not found.", 404);
@@ -160,9 +160,9 @@ async function update(payload, session, userId) {
     throw new AppError("A user with that email address already exists.", 409);
   }
 
-  await usersRepository.updateProfile(session.organization_id, userId, profile);
-  await sessionsRepository.updateUsernameForUser(session.organization_id, userId, profile.username);
-  await sessionsRepository.updateTimezoneForUser(session.organization_id, userId, profile.timezone);
+  await usersRepository.updateProfile(session.workspace_id, userId, profile);
+  await sessionsRepository.updateUsernameForUser(session.workspace_id, userId, profile.username);
+  await sessionsRepository.updateTimezoneForUser(session.workspace_id, userId, profile.timezone);
   const updatedUser = {
     ...userRowToAppValue(user),
     username: profile.username,
@@ -208,8 +208,8 @@ async function update(payload, session, userId) {
 }
 
 async function resetPassword(session, userId) {
-  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "update" });
-  const user = await usersRepository.readById(session.organization_id, userId);
+  await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "update" });
+  const user = await usersRepository.readById(session.workspace_id, userId);
 
   if (!user) {
     throw new AppError("User was not found.", 404);
@@ -222,7 +222,7 @@ async function resetPassword(session, userId) {
     throw new AppError("Generated password did not meet password requirements.", 500);
   }
 
-  await usersRepository.updatePassword(session.organization_id, userId, hashPassword(initialPassword));
+  await usersRepository.updatePassword(session.workspace_id, userId, hashPassword(initialPassword));
   await auditService.record({
     session,
     action: "user_password_reset",
@@ -247,8 +247,8 @@ async function resetPassword(session, userId) {
 }
 
 async function deactivate(session, userId) {
-  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "update" });
-  const user = await usersRepository.readById(session.organization_id, userId);
+  await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "update" });
+  const user = await usersRepository.readById(session.workspace_id, userId);
 
   if (!user) {
     throw new AppError("User was not found.", 404);
@@ -260,14 +260,14 @@ async function deactivate(session, userId) {
 
   await transferOrBlockWorkspaceOwnership({
     session,
-    workspaceId: session.organization_id,
+    workspaceId: session.workspace_id,
     ownerUserId: userId,
     action: "deactivate",
   });
 
-  await usersRepository.updateStatus(session.organization_id, userId, "inactive");
-  const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.organization_id);
-  const nextMembership = await userWorkspacesRepository.updateStatus(userId, session.organization_id, "inactive");
+  await usersRepository.updateStatus(session.workspace_id, userId, "inactive");
+  const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.workspace_id);
+  const nextMembership = await userWorkspacesRepository.updateStatus(userId, session.workspace_id, "inactive");
   const updatedUser = {
     ...userRowToAppValue(user),
     userStatus: "inactive",
@@ -304,18 +304,18 @@ async function deactivate(session, userId) {
 }
 
 async function reactivate(session, userId) {
-  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "update" });
-  const user = await usersRepository.readById(session.organization_id, userId);
+  await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "update" });
+  const user = await usersRepository.readById(session.workspace_id, userId);
 
   if (!user) {
     throw new AppError("User was not found.", 404);
   }
 
-  await usersRepository.updateStatus(session.organization_id, userId, "active");
-  const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.organization_id);
+  await usersRepository.updateStatus(session.workspace_id, userId, "active");
+  const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.workspace_id);
   const nextMembership = await userWorkspacesRepository.upsert({
     userId,
-    workspaceId: session.organization_id,
+    workspaceId: session.workspace_id,
     status: "active",
   });
   const updatedUser = {
@@ -354,12 +354,12 @@ async function reactivate(session, userId) {
 }
 
 async function remove(session, userId) {
-  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "delete" });
+  await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "delete" });
   if (!userId) {
     throw new AppError("User was not found.", 404);
   }
 
-  const user = await usersRepository.readById(session.organization_id, userId);
+  const user = await usersRepository.readById(session.workspace_id, userId);
 
   if (!user) {
     throw new AppError("User was not found.", 404);
@@ -371,19 +371,19 @@ async function remove(session, userId) {
 
   await transferOrBlockWorkspaceOwnership({
     session,
-    workspaceId: session.organization_id,
+    workspaceId: session.workspace_id,
     ownerUserId: userId,
     action: "remove",
   });
 
-  const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.organization_id);
-  await userWorkspacesRepository.remove(userId, session.organization_id);
+  const previousMembership = await userWorkspacesRepository.readByUserAndWorkspace(userId, session.workspace_id);
+  await userWorkspacesRepository.remove(userId, session.workspace_id);
   await ensureUserHasActiveWorkspace({
     session,
     userId,
     reason: "user_removed_from_workspace",
   });
-  await usersRepository.remove(session.organization_id, userId);
+  await usersRepository.remove(session.workspace_id, userId);
   await auditService.record({
     session,
     action: "user_deleted",
@@ -412,7 +412,7 @@ async function remove(session, userId) {
 }
 
 async function readSettings(session) {
-  const user = await usersRepository.readById(session.organization_id, session.user_id);
+  const user = await usersRepository.readById(session.workspace_id, session.user_id);
 
   if (!user) {
     throw new AppError("User was not found.", 404);
@@ -427,7 +427,7 @@ async function readSettings(session) {
     timezone: appUser.timezone,
     themeMode: appUser.themeMode,
     workspaceCreation: await readWorkspaceCreationOptions(session),
-    activeWorkspaceId: session.active_workspace_id || session.organization_id,
+    activeWorkspaceId: session.active_workspace_id || session.workspace_id,
     workspaces: await workspacesRepository.readForUser(session.user_id),
   };
 }
@@ -440,7 +440,7 @@ async function createWorkspace(payload, session, sessionId = "") {
     throw new AppError("That workspace type is not available for this account.", 403);
   }
 
-  const ownerUser = await usersRepository.readById(session.organization_id, session.user_id);
+  const ownerUser = await usersRepository.readById(session.workspace_id, session.user_id);
 
   if (!ownerUser) {
     throw new AppError("User was not found.", 404);
@@ -477,7 +477,7 @@ async function createWorkspace(payload, session, sessionId = "") {
   await auditService.record({
     session: {
       ...session,
-      organization_id: workspace.workspaceId,
+      workspace_id: workspace.workspaceId,
       active_workspace_id: workspace.workspaceId,
     },
     action: "workspace_created",
@@ -489,7 +489,7 @@ async function createWorkspace(payload, session, sessionId = "") {
     previousValue: null,
     newValue: workspace,
     metadata: {
-      created_from_workspace_id: session.organization_id,
+      created_from_workspace_id: session.workspace_id,
       workspace_type: workspace.workspaceType,
       time_tracking_enabled: timeTrackingEnabled,
     },
@@ -509,7 +509,7 @@ async function removeOwnWorkspaceMembership(session, workspaceId) {
     throw new AppError("Workspace is required.", 400);
   }
 
-  if (targetWorkspaceId === session.organization_id) {
+  if (targetWorkspaceId === session.workspace_id) {
     throw new AppError("Switch to a different workspace before removing this one.", 400);
   }
 
@@ -538,7 +538,7 @@ async function removeOwnWorkspaceMembership(session, workspaceId) {
   await auditService.record({
     session: {
       ...session,
-      organization_id: targetWorkspaceId,
+      workspace_id: targetWorkspaceId,
     },
     action: "own_workspace_membership_removed",
     changeType: "delete",
@@ -556,13 +556,13 @@ async function removeOwnWorkspaceMembership(session, workspaceId) {
   });
 
   return {
-    activeWorkspaceId: session.organization_id,
+    activeWorkspaceId: session.workspace_id,
     workspaces: await workspacesRepository.readForUser(session.user_id),
   };
 }
 
 async function saveSettings(payload, session) {
-  const user = await usersRepository.readById(session.organization_id, session.user_id);
+  const user = await usersRepository.readById(session.workspace_id, session.user_id);
 
   if (!user) {
     throw new AppError("User was not found.", 404);
@@ -578,7 +578,7 @@ async function saveSettings(payload, session) {
 
   if (Object.hasOwn(payload, "themeMode")) {
     themeMode = normalizeThemeMode(payload.themeMode);
-    await usersRepository.updateThemeMode(session.organization_id, session.user_id, themeMode);
+    await usersRepository.updateThemeMode(session.workspace_id, session.user_id, themeMode);
     nextValue = {
       ...nextValue,
       themeMode,
@@ -599,9 +599,9 @@ async function saveSettings(payload, session) {
       throw new AppError("A user with that email address already exists.", 409);
     }
 
-    await usersRepository.updateProfile(session.organization_id, session.user_id, profile);
-    await sessionsRepository.updateUsernameForUser(session.organization_id, session.user_id, profile.username);
-    await sessionsRepository.updateTimezoneForUser(session.organization_id, session.user_id, profile.timezone);
+    await usersRepository.updateProfile(session.workspace_id, session.user_id, profile);
+    await sessionsRepository.updateUsernameForUser(session.workspace_id, session.user_id, profile.username);
+    await sessionsRepository.updateTimezoneForUser(session.workspace_id, session.user_id, profile.timezone);
     nextValue = {
       ...nextValue,
       username: profile.username,
@@ -652,7 +652,7 @@ async function recordWorkspaceMembershipChange({
     action,
     changeType,
     recordType: "workspace_membership",
-    recordId: newValue?.user_workspace_id || previousValue?.user_workspace_id || `${session.organization_id}:${user.user_id}`,
+    recordId: newValue?.user_workspace_id || previousValue?.user_workspace_id || `${session.workspace_id}:${user.user_id}`,
     recordLabel: user.username,
     recordUrl: "user-admin.html",
     previousValue,
@@ -660,7 +660,7 @@ async function recordWorkspaceMembershipChange({
     metadata: {
       user_id: user.user_id,
       username: user.username,
-      workspace_id: session.organization_id,
+      workspace_id: session.workspace_id,
     },
   });
 }
@@ -693,7 +693,7 @@ async function transferOrBlockWorkspaceOwnership({ session, workspaceId, ownerUs
   await auditService.record({
     session: {
       ...session,
-      organization_id: workspaceId,
+      workspace_id: workspaceId,
     },
     action: "workspace_owner_transferred",
     changeType: "update",
@@ -747,7 +747,7 @@ async function ensureUserHasActiveWorkspace({ session, userId, reason }) {
   await auditService.record({
     session: {
       ...session,
-      organization_id: workspace.workspaceId,
+      workspace_id: workspace.workspaceId,
     },
     action: "personal_workspace_created_for_unassigned_user",
     changeType: "create",
@@ -784,7 +784,7 @@ async function createPersonalWorkspaceName(userId) {
 }
 
 async function readUsersWithMemberships(session) {
-  const users = await usersRepository.readAll(session.organization_id);
+  const users = await usersRepository.readAll(session.workspace_id);
   return Promise.all(users.map((user) => decorateUserWithMemberships(user)));
 }
 
@@ -803,13 +803,13 @@ async function readAssignableWorkspaces(session) {
   );
   const visibleWorkspaces = allWorkspaces.filter((workspace) => {
     if (workspace.workspace_type === "personal") {
-      return workspace.owner_user_id === session.user_id || workspace.workspace_id === session.organization_id;
+      return workspace.owner_user_id === session.user_id || workspace.workspace_id === session.workspace_id;
     }
 
     if (workspace.workspace_type === "family") {
       return workspace.owner_user_id === session.user_id ||
         currentUserWorkspaceIds.has(workspace.workspace_id) ||
-        workspace.workspace_id === session.organization_id;
+        workspace.workspace_id === session.workspace_id;
     }
 
     return true;
@@ -819,10 +819,10 @@ async function readAssignableWorkspaces(session) {
     return visibleWorkspaces.map(workspaceToAppValue);
   }
 
-  const settings = await settingsRepository.readOrganizationSettings(session.organization_id);
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   return [{
-    workspaceId: session.organization_id,
-    workspaceName: settings.workspaceName || settings.organizationName,
+    workspaceId: session.workspace_id,
+    workspaceName: settings.workspaceName,
     workspaceType: settings.workspaceType,
     ownerUserId: session.user_id,
     ownerUsername: session.username,
@@ -861,7 +861,7 @@ async function readWorkspaceCreationOptions(session) {
 }
 
 async function readSaasWorkspaceTypes(session, baseTypes) {
-  const settings = await settingsRepository.readOrganizationSettings(session.organization_id);
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   const personalCount = await workspacesRepository.countUserWorkspacesByType(session.user_id, "personal");
 
   if (settings.workspaceType === "business") {
@@ -887,7 +887,7 @@ function formatWorkspaceType(workspaceType) {
 }
 
 async function replaceWorkspaceMemberships({ session, user, requestedWorkspaceIds }) {
-  await permissionsService.assertCan(session, "users.manage", { organization_id: session.organization_id, operation: "update" });
+  await permissionsService.assertCan(session, "users.manage", { workspace_id: session.workspace_id, operation: "update" });
 
   const assignableWorkspaces = await readAssignableWorkspaces(session);
   const assignableWorkspaceIds = new Set(assignableWorkspaces.map((workspace) => workspace.workspaceId));
@@ -935,7 +935,7 @@ async function replaceWorkspaceMemberships({ session, user, requestedWorkspaceId
     await recordWorkspaceMembershipChange({
       session: {
         ...session,
-        organization_id: workspace.workspaceId,
+        workspace_id: workspace.workspaceId,
       },
       action: shouldBeActive ? "workspace_membership_added" : "workspace_membership_deactivated",
       changeType: shouldBeActive ? "create" : "archive",
@@ -979,7 +979,7 @@ async function decorateUserWithMemberships(user) {
 }
 
 async function assertWorkspaceCanAddUser(session) {
-  const settings = await settingsRepository.readOrganizationSettings(session.organization_id);
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
 
   if (settings.workspaceType === "personal") {
     throw new AppError("Personal workspaces cannot add other users.", 400);
@@ -989,7 +989,7 @@ async function assertWorkspaceCanAddUser(session) {
     return;
   }
 
-  const activeMembershipCount = await userWorkspacesRepository.countActiveForWorkspace(session.organization_id);
+  const activeMembershipCount = await userWorkspacesRepository.countActiveForWorkspace(session.workspace_id);
 
   if (activeMembershipCount >= 20) {
     throw new AppError("Family workspaces are limited to 20 users.", 400);

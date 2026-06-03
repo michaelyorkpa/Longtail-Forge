@@ -8,17 +8,7 @@ FROM roles
 ORDER BY sort_order, role_name;
 `);
 
-  return roles.map((role) => {
-    if (role.role_id !== "organization_admin") {
-      return role;
-    }
-
-    return {
-      ...role,
-      role_name: "Workspace Administrator",
-      description: "Controls users, settings, clients, projects, time, reporting, and audit logs inside one workspace.",
-    };
-  });
+  return roles;
 }
 
 async function readRolePermissions() {
@@ -29,11 +19,11 @@ ORDER BY role_id, permission_id;
 `);
 }
 
-async function readAssignmentsForOrganization(organizationId) {
+async function readAssignmentsForWorkspace(workspaceId) {
   return querySql(`
 SELECT
   assignment_id,
-  organization_id,
+  workspace_id,
   user_id,
   role_id,
   scope_type,
@@ -44,16 +34,16 @@ SELECT
   created_at,
   updated_at
 FROM user_role_assignments
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY updated_at DESC, assignment_id;
 `);
 }
 
-async function readAssignmentsForUser(organizationId, userId) {
+async function readAssignmentsForUser(workspaceId, userId) {
   return querySql(`
 SELECT
   assignment_id,
-  organization_id,
+  workspace_id,
   user_id,
   role_id,
   scope_type,
@@ -64,18 +54,17 @@ SELECT
   created_at,
   updated_at
 FROM user_role_assignments
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND user_id = ${sqlText(userId)}
 ORDER BY updated_at DESC, assignment_id;
 `);
 }
 
-async function replaceUserAssignments(organizationId, userId, assignments) {
+async function replaceUserAssignments(workspaceId, userId, assignments) {
   const now = new Date().toISOString();
   const inserts = assignments.map((assignment) => `
 INSERT INTO user_role_assignments (
   assignment_id,
-  organization_id,
   workspace_id,
   user_id,
   role_id,
@@ -89,8 +78,7 @@ INSERT INTO user_role_assignments (
 )
 VALUES (
   ${sqlText(randomUUID())},
-  ${sqlText(organizationId)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlText(userId)},
   ${sqlText(assignment.role_id)},
   ${sqlText(assignment.scope_type)},
@@ -106,7 +94,7 @@ VALUES (
   await runSql(`
 BEGIN TRANSACTION;
 DELETE FROM user_role_assignments
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND user_id = ${sqlText(userId)};
 ${inserts}
 COMMIT;
@@ -114,7 +102,7 @@ COMMIT;
 }
 
 export const permissionsRepository = {
-  readAssignmentsForOrganization,
+  readAssignmentsForWorkspace,
   readAssignmentsForUser,
   readRolePermissions,
   readRoles,

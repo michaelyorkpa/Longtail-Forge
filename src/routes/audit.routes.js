@@ -7,7 +7,7 @@ const auditRoutes = Router();
 
 auditRoutes.get("/audit-logs", asyncRoute(async (request, response) => {
   await permissionsService.assertCan(request.session, "audit_logs.view", {
-    organization_id: request.session.organization_id,
+    workspace_id: request.session.workspace_id,
     operation: "read",
   });
   const result = await auditService.list(request.session, request.query);
@@ -16,7 +16,7 @@ auditRoutes.get("/audit-logs", asyncRoute(async (request, response) => {
 
 auditRoutes.get("/audit-logs/export.csv", asyncRoute(async (request, response) => {
   await permissionsService.assertCan(request.session, "audit_logs.view", {
-    organization_id: request.session.organization_id,
+    workspace_id: request.session.workspace_id,
     operation: "read",
   });
   const csv = await auditService.exportCsv(request.session, request.query);

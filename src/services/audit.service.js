@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 import { auditLogsRepository } from "../repositories/audit-logs.repo.js";
 import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
+import { clientsRepository } from "../modules/client-projects/clients.repo.js";
+import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { permissionsService } from "./permissions.service.js";
 import { AppError } from "../utils/app-error.js";
 import { localDateBoundToUtcIso, normalizeUtcIso } from "../utils/timezones.js";
@@ -18,8 +20,6 @@ const CHANGE_TYPES = new Set([
 ]);
 
 const RECORD_TYPES = new Set([
-  "organization",
-  "organization_setting",
   "workspace",
   "workspace_membership",
   "workspace_setting",
@@ -32,17 +32,17 @@ const RECORD_TYPES = new Set([
 ]);
 
 async function record(event) {
-  const organizationId = event.organizationId || event.session?.organization_id || "";
+  const workspaceId = event.workspaceId || event.session?.workspace_id || "";
   const action = String(event.action || "").trim();
   const changeType = normalizeEnum(event.changeType, CHANGE_TYPES, "update");
   const recordType = normalizeEnum(event.recordType, RECORD_TYPES, "workspace");
 
-  if (!organizationId || !action) {
+  if (!workspaceId || !action) {
     return null;
   }
 
-  const auditSettings = await readAuditSettings(organizationId);
-  await cleanupExpired(organizationId, auditSettings.retentionDays);
+  const auditSettings = await readAuditSettings(workspaceId);
+  await cleanupExpired(workspaceId, auditSettings.retentionDays);
 
   if (!event.force && !auditSettings.loggingEnabled) {
     return null;
@@ -50,7 +50,7 @@ async function record(event) {
 
   const entry = {
     audit_id: event.auditId || randomUUID(),
-    organization_id: organizationId,
+    workspace_id: workspaceId,
     created_at: normalizeUtcIso(event.createdAt, event.session?.timezone),
     actor_user_id: event.actorUserId ?? event.session?.user_id ?? null,
     actor_user_name: event.actorUserName ?? event.session?.username ?? null,
@@ -63,6 +63,7 @@ async function record(event) {
     previous_value_json: stringifyNullableJson(event.previousValue),
     new_value_json: stringifyNullableJson(event.newValue),
     metadata_json: stringifyNullableJson(event.metadata),
+    ip_address: nullableString(event.ipAddress || event.session?.ip_address),
   };
 
   await auditLogsRepository.create(entry);
@@ -70,19 +71,23 @@ async function record(event) {
 }
 
 async function list(session, filters = {}) {
-  const workspaceId = await resolveAuditWorkspaceId(session, filters.workspaceId || filters.workspace_id);
-  const settings = await readAuditSettings(workspaceId);
-  await cleanupExpired(workspaceId, settings.retentionDays);
+  const workspaceScope = await resolveAuditWorkspaceScope(session, filters.workspaceId || filters.workspace_id);
+  await Promise.all(workspaceScope.workspaceIds.map(async (workspaceId) => {
+    const settings = await readAuditSettings(workspaceId);
+    await cleanupExpired(workspaceId, settings.retentionDays);
+  }));
   const normalizedFilters = normalizeFilters({
     ...filters,
     timezone: session.timezone,
   });
   const canFilterWorkspaces = await permissionsService.isSuperAdmin(session);
-  const [auditLogs, total, filterOptions, workspaceOptions] = await Promise.all([
-    auditLogsRepository.search(workspaceId, normalizedFilters),
-    auditLogsRepository.countSearch(workspaceId, normalizedFilters),
-    auditLogsRepository.readFilterOptions(workspaceId),
+  const [auditLogs, total, filterOptions, workspaceOptions, projectOptions, clientOptions] = await Promise.all([
+    auditLogsRepository.searchForScope(workspaceScope, normalizedFilters),
+    auditLogsRepository.countSearchForScope(workspaceScope, normalizedFilters),
+    auditLogsRepository.readFilterOptionsForScope(workspaceScope),
     canFilterWorkspaces ? readAuditWorkspaceOptions() : Promise.resolve([]),
+    readProjectOptionsForScope(workspaceScope),
+    readClientOptionsForScope(workspaceScope),
   ]);
   const limit = normalizeLimit(normalizedFilters.limit);
   const offset = normalizeOffset(normalizedFilters.offset);
@@ -91,6 +96,8 @@ async function list(session, filters = {}) {
     auditLogs,
     filterOptions: {
       ...filterOptions,
+      clients: clientOptions,
+      projects: projectOptions,
       workspaces: workspaceOptions,
     },
     pagination: {
@@ -98,7 +105,7 @@ async function list(session, filters = {}) {
       offset,
       total,
     },
-    workspaceId,
+    workspaceId: workspaceScope.selectedWorkspaceId,
   };
 }
 
@@ -116,38 +123,51 @@ async function exportCsv(session, filters = {}) {
     "record_id",
     "record_label",
     "record_url",
+    "ip_address",
   ];
   const rows = result.auditLogs.map((log) => headers.map((header) => csvValue(log[header] || "")).join(","));
 
   return `${headers.join(",")}\n${rows.join("\n")}${rows.length > 0 ? "\n" : ""}`;
 }
 
-async function cleanupExpired(organizationId, retentionDays) {
+async function cleanupExpired(workspaceId, retentionDays) {
   const days = Number.parseInt(retentionDays, 10) || 30;
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
 
-  await auditLogsRepository.removeBefore(organizationId, cutoff);
+  await auditLogsRepository.removeBefore(workspaceId, cutoff);
 }
 
-async function resolveAuditWorkspaceId(session, requestedWorkspaceId) {
-  const workspaceId = nullableString(requestedWorkspaceId) || session.organization_id;
+async function resolveAuditWorkspaceScope(session, requestedWorkspaceId) {
+  const workspaceId = nullableString(requestedWorkspaceId) || session.workspace_id;
 
-  if (workspaceId === session.organization_id) {
-    return workspaceId;
+  if (workspaceId === "all") {
+    return {
+      selectedWorkspaceId: "all",
+      workspaceIds: await readAccessibleAuditWorkspaceIds(session),
+    };
   }
 
-  if (await permissionsService.isSuperAdmin(session)) {
-    return workspaceId;
+  if (workspaceId === session.workspace_id || await permissionsService.isSuperAdmin(session)) {
+    return {
+      selectedWorkspaceId: workspaceId,
+      workspaceIds: [workspaceId],
+    };
   }
 
   throw new AppError("You cannot view audit logs for that workspace.", 403);
 }
 
 async function readAuditWorkspaceOptions() {
-  return (await userWorkspacesRepository.readAllWorkspaces()).map((workspace) => ({
+  return [
+    {
+      label: "All workspaces",
+      value: "all",
+    },
+    ...(await userWorkspacesRepository.readAllWorkspaces()).map((workspace) => ({
     label: workspace.workspace_name || workspace.workspace_id,
     value: workspace.workspace_id,
-  }));
+    })),
+  ];
 }
 
 function normalizeFilters(filters) {
@@ -158,9 +178,61 @@ function normalizeFilters(filters) {
     dateTo: normalizeDateBound(filters.dateTo, filters.timezone, "end"),
     limit: filters.limit,
     offset: filters.offset,
+    clientId: nullableString(filters.clientId || filters.client_id),
+    projectId: nullableString(filters.projectId || filters.project_id),
     recordType: nullableString(filters.recordType),
     workspaceId: nullableString(filters.workspaceId || filters.workspace_id),
   };
+}
+
+async function readAccessibleAuditWorkspaceIds(session) {
+  if (await permissionsService.isSuperAdmin(session)) {
+    return (await userWorkspacesRepository.readAllWorkspaces()).map((workspace) => workspace.workspace_id);
+  }
+
+  return (await userWorkspacesRepository.readForUser(session.user_id))
+    .filter((membership) => membership.status === "active")
+    .map((membership) => membership.workspace_id);
+}
+
+async function readClientOptionsForScope(workspaceScope) {
+  const options = await Promise.all(workspaceScope.workspaceIds.map(readClientOptions));
+
+  return options.flat();
+}
+
+async function readProjectOptionsForScope(workspaceScope) {
+  const options = await Promise.all(workspaceScope.workspaceIds.map(readProjectOptions));
+
+  return options.flat();
+}
+
+async function readClientOptions(workspaceId) {
+  const settings = await settingsRepository.readWorkspaceSettings(workspaceId);
+
+  if (settings.workspaceType !== "business") {
+    return [];
+  }
+
+  return (await clientsRepository.readAll(workspaceId))
+    .filter((client) => !isArchivedOption(client))
+    .map((client) => ({
+      label: client.name,
+      value: client.id,
+    }));
+}
+
+async function readProjectOptions(workspaceId) {
+  return (await projectsRepository.readAll(workspaceId))
+    .filter((project) => !isArchivedOption(project))
+    .map((project) => ({
+      label: project.name,
+      value: project.id,
+    }));
+}
+
+function isArchivedOption(record) {
+  return ["inactive", "archived", "completed"].includes(String(record?.status || "").trim().toLowerCase());
 }
 
 function normalizeLimit(value) {
@@ -195,8 +267,8 @@ function csvValue(value) {
   return text;
 }
 
-async function readAuditSettings(organizationId) {
-  const settings = await settingsRepository.readOrganizationSettings(organizationId);
+async function readAuditSettings(workspaceId) {
+  const settings = await settingsRepository.readWorkspaceSettings(workspaceId);
 
   return settings.audit;
 }

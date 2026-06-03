@@ -15,7 +15,7 @@ import {
   normalizeUsername,
 } from "../utils/normalizers.js";
 
-async function login(payload) {
+async function login(payload, context = {}) {
   const username = normalizeUsername(payload.username);
   const password = String(payload.password || "");
 
@@ -38,16 +38,18 @@ async function login(payload) {
   const session = await createSession({
     ...user,
     active_workspace_id: activeWorkspaceId,
+    ip_address: normalizeIpAddress(context.ipAddress),
   });
   const sessionContext = {
-    organization_id: activeWorkspaceId,
+    workspace_id: activeWorkspaceId,
     active_workspace_id: activeWorkspaceId,
     user_id: user.user_id,
     username: user.username,
     timezone: normalizeTimezone(user.timezone),
+    ip_address: normalizeIpAddress(context.ipAddress),
   };
   await auditService.record({
-    organizationId: user.organization_id,
+    workspaceId: activeWorkspaceId,
     actorUserId: user.user_id,
     actorUserName: user.username,
     action: "user_login",
@@ -61,13 +63,14 @@ async function login(payload) {
     metadata: {
       session_created: true,
     },
+    ipAddress: normalizeIpAddress(context.ipAddress),
   });
 
   return {
     session,
     themeMode: normalizeThemeMode(user.theme_mode),
     user: {
-      organization_id: activeWorkspaceId,
+      workspace_id: activeWorkspaceId,
       active_workspace_id: activeWorkspaceId,
       isSuperAdmin: await permissionsService.isSuperAdmin(sessionContext),
       workspaceContext: await settingsService.readWorkspaceBootstrap(sessionContext),
@@ -112,17 +115,19 @@ async function readSession(session) {
 
   const workspaceMemberships = await userWorkspacesRepository.readForUser(session.user_id);
   const workspaceContext = await settingsService.readWorkspaceBootstrap(session);
+  const user = await usersRepository.readById(session.home_workspace_id || session.workspace_id, session.user_id);
 
   return {
     user: {
-      organization_id: session.organization_id,
-      active_workspace_id: session.active_workspace_id || session.organization_id,
+      workspace_id: session.workspace_id,
+      active_workspace_id: session.active_workspace_id || session.workspace_id,
       isSuperAdmin: await permissionsService.isSuperAdmin(session),
       workspaceContext,
       workspaces: normalizeWorkspaceMemberships(workspaceMemberships),
       user_id: session.user_id,
       username: session.username,
       timezone: normalizeTimezone(session.timezone),
+      themeMode: normalizeThemeMode(user?.theme_mode),
     },
   };
 }
@@ -154,7 +159,7 @@ async function switchWorkspace(sessionId, session, payload) {
     recordId: membership.user_workspace_id,
     recordLabel: session.username,
     recordUrl: "user-settings.html",
-    previousValue: { active_workspace_id: session.active_workspace_id || session.organization_id },
+    previousValue: { active_workspace_id: session.active_workspace_id || session.workspace_id },
     newValue: { active_workspace_id: workspaceId },
     metadata: {
       workspace_id: workspaceId,
@@ -175,7 +180,7 @@ async function changePassword(payload, session) {
     throw new AppError("Current password and new password are required.", 400);
   }
 
-  const user = await usersRepository.readById(session.organization_id, session.user_id);
+  const user = await usersRepository.readById(session.workspace_id, session.user_id);
 
   if (!user || !verifyPassword(currentPassword, user.password)) {
     throw new AppError("Current password is incorrect.", 400);
@@ -191,7 +196,7 @@ async function changePassword(payload, session) {
     throw new AppError(`New password must ${validation.errors.join(", ")}.`, 400);
   }
 
-  await usersRepository.updatePassword(user.organization_id, user.user_id, hashPassword(newPassword));
+  await usersRepository.updatePassword(session.workspace_id, user.user_id, hashPassword(newPassword));
   await auditService.record({
     session,
     action: "user_password_changed",
@@ -220,6 +225,10 @@ function normalizeWorkspaceMemberships(memberships) {
     }));
 }
 
+function normalizeIpAddress(value) {
+  return String(value || "").replace(/^::ffff:/, "").trim().slice(0, 128);
+}
+
 function resolveActiveWorkspaceId(user, memberships) {
   const activeMemberships = memberships.filter((membership) => membership.status === "active");
   const preferredWorkspaceId = String(user.active_workspace_id || "").trim();
@@ -228,11 +237,11 @@ function resolveActiveWorkspaceId(user, memberships) {
     return preferredWorkspaceId;
   }
 
-  if (activeMemberships.some((membership) => membership.workspace_id === user.organization_id)) {
-    return user.organization_id;
+  if (activeMemberships.some((membership) => membership.workspace_id === user.home_workspace_id)) {
+    return user.home_workspace_id;
   }
 
-  return activeMemberships[0]?.workspace_id || user.organization_id;
+  return activeMemberships[0]?.workspace_id || user.home_workspace_id;
 }
 
 export const authService = {

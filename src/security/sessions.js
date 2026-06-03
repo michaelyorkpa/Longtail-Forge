@@ -12,11 +12,13 @@ async function createSession(user) {
   await sessionsRepository.removeExpired();
   await sessionsRepository.create({
     session_id: sessionId,
-    organization_id: user.organization_id,
+    home_workspace_id: user.home_workspace_id,
+    workspace_id: user.active_workspace_id || user.home_workspace_id,
     user_id: user.user_id,
     username: user.username,
     timezone: normalizeTimezone(user.timezone),
-    active_workspace_id: user.active_workspace_id || user.organization_id,
+    ip_address: user.ip_address || "",
+    active_workspace_id: user.active_workspace_id || user.home_workspace_id,
     expires_at: expiresAt.toISOString(),
   });
 
@@ -58,15 +60,16 @@ async function getRequestSession(request) {
     return null;
   }
 
-  const activeWorkspaceId = session.active_workspace_id || session.organization_id;
+  const activeWorkspaceId = session.active_workspace_id || session.home_workspace_id;
 
   return {
-    organization_id: activeWorkspaceId,
+    workspace_id: activeWorkspaceId,
     active_workspace_id: activeWorkspaceId,
-    home_organization_id: session.organization_id,
+    home_workspace_id: session.home_workspace_id,
     user_id: session.user_id,
     username: session.username,
     timezone: normalizeTimezone(session.timezone),
+    ip_address: session.ip_address || "",
   };
 }
 

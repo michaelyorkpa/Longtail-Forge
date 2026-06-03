@@ -64,7 +64,9 @@ async function readMigrationFiles() {
   ];
   const migrationGroups = await Promise.all(migrationSources.map(readMigrationSource));
 
-  return migrationGroups.flat();
+  return migrationGroups
+    .flat()
+    .sort((left, right) => left.version.localeCompare(right.version) || left.moduleId.localeCompare(right.moduleId));
 }
 
 async function readMigrationSource(source) {
@@ -180,6 +182,8 @@ SELECT name
 FROM sqlite_master
 WHERE type = 'table'
   AND name IN (
+    'workspaces',
+    'workspace_settings',
     'organizations',
     'organization_settings',
     'users',
@@ -332,6 +336,65 @@ async function isMigrationAlreadySatisfied(migration) {
     ]);
 
     return clientParentExists && projectParentExists;
+  }
+
+  if (migration.fileName === "023_add_audit_ip_address.sql") {
+    const [auditIpExists, sessionIpExists] = await Promise.all([
+      columnsExist("audit_logs", ["ip_address"]),
+      columnsExist("sessions", ["ip_address"]),
+    ]);
+
+    return auditIpExists && sessionIpExists;
+  }
+
+  if (migration.fileName === "024_complete_workspace_storage.sql") {
+    const [
+      workspaceModulesExists,
+      usersWorkspaceNative,
+      sessionsWorkspaceNative,
+      clientsWorkspaceNative,
+      projectsWorkspaceNative,
+      timeEntriesWorkspaceNative,
+      auditLogsWorkspaceNative,
+      apiKeysWorkspaceNative,
+      assignmentsWorkspaceNative,
+      activeTimersWorkspaceNative,
+    ] = await Promise.all([
+      tableExists("workspace_modules"),
+      columnsExist("users", ["home_workspace_id"]),
+      columnsExist("sessions", ["home_workspace_id", "active_workspace_id"]),
+      columnsExist("clients", ["workspace_id"]),
+      columnsExist("projects", ["workspace_id"]),
+      columnsExist("time_entries", ["workspace_id"]),
+      columnsExist("audit_logs", ["workspace_id"]),
+      columnsExist("api_keys", ["workspace_id"]),
+      columnsExist("user_role_assignments", ["workspace_id"]),
+      columnsExist("active_timers", ["workspace_id"]),
+    ]);
+
+    const [legacyTables, workspaceRole, workspacePermission] = await Promise.all([
+      Promise.all([
+        tableExists("organizations"),
+        tableExists("organization_settings"),
+        tableExists("organization_modules"),
+      ]),
+      querySql("SELECT role_id FROM roles WHERE role_id = 'workspace_admin' LIMIT 1;"),
+      querySql("SELECT permission_id FROM permissions WHERE permission_id = 'workspace_settings.manage' LIMIT 1;"),
+    ]);
+
+    return workspaceModulesExists &&
+      usersWorkspaceNative &&
+      sessionsWorkspaceNative &&
+      clientsWorkspaceNative &&
+      projectsWorkspaceNative &&
+      timeEntriesWorkspaceNative &&
+      auditLogsWorkspaceNative &&
+      apiKeysWorkspaceNative &&
+      assignmentsWorkspaceNative &&
+      activeTimersWorkspaceNative &&
+      legacyTables.every((exists) => !exists) &&
+      workspaceRole.length > 0 &&
+      workspacePermission.length > 0;
   }
 
   return false;

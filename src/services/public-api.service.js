@@ -1,14 +1,17 @@
 import { clientsRepository } from "../repositories/clients.repo.js";
 import { projectsRepository } from "../repositories/projects.repo.js";
+import { settingsRepository } from "../repositories/settings.repo.js";
 import { AppError } from "../utils/app-error.js";
 
 async function listClients(context, query) {
-  const clients = await clientsRepository.readAll(context.organization_id);
+  await assertBusinessWorkspace(context);
+  const clients = await clientsRepository.readAll(context.workspace_id);
   return paged(clients.map((client) => withWorkspaceAlias(client, context)), query);
 }
 
 async function readClient(context, clientId) {
-  const client = await clientsRepository.readById(context.organization_id, decodeURIComponent(clientId || ""));
+  await assertBusinessWorkspace(context);
+  const client = await clientsRepository.readById(context.workspace_id, decodeURIComponent(clientId || ""));
 
   if (!client) {
     throw new AppError("Client was not found.", 404);
@@ -17,13 +20,23 @@ async function readClient(context, clientId) {
   return withWorkspaceAlias(client, context);
 }
 
+async function assertBusinessWorkspace(context) {
+  const settings = await settingsRepository.readWorkspaceSettings(context.workspace_id);
+
+  if (settings.workspaceType === "business") {
+    return;
+  }
+
+  throw new AppError("Clients are only available in Business workspaces.", 403);
+}
+
 async function listProjects(context, query) {
-  const projects = await projectsRepository.readAll(context.organization_id);
+  const projects = await projectsRepository.readAll(context.workspace_id);
   return paged(projects.map((project) => withWorkspaceAlias(project, context)), query);
 }
 
 async function readProject(context, projectId) {
-  const project = await projectsRepository.readById(context.organization_id, decodeURIComponent(projectId || ""));
+  const project = await projectsRepository.readById(context.workspace_id, decodeURIComponent(projectId || ""));
 
   if (!project) {
     throw new AppError("Project was not found.", 404);
@@ -37,7 +50,7 @@ function withWorkspaceAlias(record, context) {
     return record;
   }
 
-  const workspaceId = record.workspace_id || record.organization_id || context.workspace_id || context.organization_id;
+  const workspaceId = record.workspace_id || context.workspace_id;
 
   return {
     ...record,

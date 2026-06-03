@@ -1,3 +1,37 @@
+## Version 0.30.17 - 2026-06-03 11:42 -04:00
+
+- Enforced Business-only client access in browser and public APIs while keeping workspace projects available for Personal and Family workspaces.
+- Made scoped role assignment work for Client Administrators and Project Administrators inside their assigned scope.
+- Kept user lifecycle management workspace-level only and repaired the seeded permission contracts accordingly.
+- Fixed scoped admin time-entry list visibility for team entries inside assigned scopes.
+- Added explicit `reporting.view` enforcement for reporting and dashboard reads.
+- Replaced the permissions matrix with a workspace-native 0.30.17 matrix and expanded permission regression coverage to 108 checks.
+- Bumped the app version to `0.30.17`.
+
+## Version 0.30.16.1 - 2026-06-03 07:48 -04:00
+
+- Added the workspace-native storage migration that promotes `workspaces`, `workspace_settings`, `workspace_modules`, and `workspace_id` keyed app tables to the active schema.
+- Migrated runtime sessions, settings, permissions, audit logs, API keys, clients/projects, time entries, active timers, public API context, and browser payloads to workspace-first contracts.
+- Replaced workspace compatibility role and permission identifiers with `workspace_admin`, `workspace` scope, and `workspace_settings.manage`.
+- Replaced the storage alias regression with a workspace-native storage regression and updated the permission regression harness.
+- Renamed the Workspace Settings browser controller to `workspace-settings.js` and removed browser-side organization aliases.
+- Fixed Time Tracker and Manual Entry selectors so inactive clients and inactive projects are not offered for new time work.
+- Bumped the app version to `0.30.16.1`.
+
+## Version 0.30.16 - 2026-06-02 23:54 -04:00
+
+- Moved Projects settings navigation back under Settings, added the top-right Add Project action, and labeled the Projects settings filters and bulk-change controls.
+- Updated the User Admin edit modal so Configure Permissions sits above Add Role, Add Role is centered, and current roles live in a Current Assignments box.
+- Closed previously opened navigation menus when a new peer menu opens and refreshed theme mode from session data after login/session bootstrap.
+- Added audit-log client/project filters, clickable client/project/record-type cells, truncation titles, and IP address storage/export/detail support.
+- Added session IP capture so login, logout, and later audit entries can include the user IP address.
+- Updated confirmed project moves to rewrite associated time-entry client/project labels and reject unconfirmed downstream updates.
+- Kept inactive/archived clients out of project reassignment controls while retaining server-side rejection for archived parent assignments.
+- Fixed workspace creation so it no longer inserts duplicate owner rows into `users`, added startup repair for existing duplicate `user_id` rows, and made user/session settings read the canonical user through workspace memberships.
+- Fixed Projects Settings navigation visibility for Personal and Family workspaces by treating project tools separately from business client tools.
+- Added an Audit Log "All workspaces" filter and made login/logout entries visible through every active workspace membership for the actor.
+- Bumped the app version to `0.30.16`.
+
 ## Version 0.30.15 - 2026-06-02 23:27 -04:00
 
 - Added nullable `parent_client_id` and `parent_project_id` hierarchy fields with workspace/parent indexes.

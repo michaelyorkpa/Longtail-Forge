@@ -15,7 +15,7 @@ import {
   sqlText,
 } from "./sqlite.js";
 
-const DEFAULT_ORGANIZATION_NAME = "Raymond Tec";
+const DEFAULT_WORKSPACE_NAME = "Raymond Tec";
 const REDACTED_SEED_USERNAME = "[REDACTED]";
 const DEFAULT_SUPER_ADMIN_USERNAME = process.env.SUPER_ADMIN_USERNAME || "support@longtailforge.local";
 const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = "Super Admin";
@@ -31,20 +31,115 @@ async function ensureDatabase() {
   await appSettingsRepository.ensureDefaults();
   await protectFirstUser();
 
-  const organizationId = await ensureDefaultOrganization();
-  await ensureOrganizationSettings(organizationId);
-  await modulesService.syncModuleRegistry(organizationId);
-  await repairRedactedSeedUsers(organizationId);
-  await seedSuperAdminUser(organizationId);
-  await ensureWorkspaceMemberships(organizationId);
+  const workspaceId = await ensureDefaultWorkspace();
+  await ensureWorkspaceSettings(workspaceId);
+  await modulesService.syncModuleRegistry(workspaceId);
+  await repairRedactedSeedUsers(workspaceId);
+  await seedSuperAdminUser(workspaceId);
+  await ensureWorkspaceMemberships(workspaceId);
+  await repairDuplicateWorkspaceUserRows();
   await repairUserActiveWorkspaces();
-  await ensureWorkspaceType(organizationId);
+  await ensureWorkspaceType(workspaceId);
+  await ensureWorkspacePermissionContracts();
   await repairPersonalWorkspaceMemberships();
-  await ensureProtectedUserRoles(organizationId);
-  await repairWorkspaceAliases();
+  await ensureProtectedUserRoles(workspaceId);
 }
 
-async function repairRedactedSeedUsers(organizationId) {
+async function repairDuplicateWorkspaceUserRows() {
+  if (
+    !(await tableExists("users")) ||
+    !(await tableExists("user_workspaces"))
+  ) {
+    return;
+  }
+
+  const duplicateRows = await querySql(`
+SELECT
+  rowid,
+  user_id,
+  home_workspace_id,
+  username,
+  display_name,
+  alt_email,
+  timezone,
+  password,
+  theme_mode,
+  user_status,
+  protected_user,
+  active_workspace_id
+FROM users
+WHERE user_id IN (
+  SELECT user_id
+  FROM users
+  GROUP BY user_id
+  HAVING COUNT(1) > 1
+)
+ORDER BY user_id, rowid;
+`);
+
+  const rowsByUserId = duplicateRows.reduce((groups, row) => {
+    if (!groups.has(row.user_id)) {
+      groups.set(row.user_id, []);
+    }
+
+    groups.get(row.user_id).push(row);
+    return groups;
+  }, new Map());
+
+  for (const rows of rowsByUserId.values()) {
+    const canonical = rows[0];
+    const activeMemberships = await querySql(`
+SELECT workspace_id
+FROM user_workspaces
+WHERE user_id = ${sqlText(canonical.user_id)}
+  AND status = 'active'
+ORDER BY created_at, workspace_id;
+`);
+    const activeWorkspaceIds = new Set(activeMemberships.map((membership) => membership.workspace_id));
+    const activeWorkspaceId = activeWorkspaceIds.has(canonical.active_workspace_id)
+      ? canonical.active_workspace_id
+      : activeMemberships[0]?.workspace_id || canonical.active_workspace_id || canonical.home_workspace_id;
+    const preferredTheme = rows.some((row) => row.theme_mode === "dark") ? "dark" : canonical.theme_mode || "light";
+    const protectedUser = rows.some((row) => row.protected_user === "yes") ? "yes" : canonical.protected_user || "no";
+    const activeStatus = rows.some((row) => row.user_status === "active") ? "active" : canonical.user_status || "inactive";
+    const duplicateRowIds = rows.slice(1).map((row) => row.rowid);
+
+    await runSql(`
+UPDATE users
+SET
+  theme_mode = ${sqlText(preferredTheme)},
+  user_status = ${sqlText(activeStatus)},
+  protected_user = ${sqlText(protectedUser)},
+  active_workspace_id = ${sqlText(activeWorkspaceId)}
+WHERE rowid = ${sqlInteger(canonical.rowid)};
+
+DELETE FROM users
+WHERE rowid IN (${duplicateRowIds.map((rowid) => sqlInteger(rowid)).join(", ")});
+`);
+  }
+
+  await runSql(`
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_unique_user_id
+ON users (user_id);
+`);
+}
+
+async function ensureWorkspacePermissionContracts() {
+  if (!(await tableExists("role_permissions"))) {
+    return;
+  }
+
+  await runSql(`
+DELETE FROM role_permissions
+WHERE role_id IN ('client_admin', 'project_admin')
+  AND permission_id = 'users.manage';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
+VALUES ('project_admin', 'roles.assign');
+`);
+}
+
+async function repairRedactedSeedUsers(workspaceId) {
   if (!(await tableExists("users"))) {
     return;
   }
@@ -52,7 +147,7 @@ async function repairRedactedSeedUsers(organizationId) {
   const redactedUsers = await querySql(`
 SELECT user_id
 FROM users
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND username = ${sqlText(REDACTED_SEED_USERNAME)};
 `);
 
@@ -63,7 +158,7 @@ WHERE organization_id = ${sqlText(organizationId)}
   const defaultUsers = await querySql(`
 SELECT user_id
 FROM users
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)}
 LIMIT 1;
 `);
@@ -74,12 +169,12 @@ LIMIT 1;
 UPDATE users
 SET username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)},
     display_name = ${sqlText(DEFAULT_SUPER_ADMIN_DISPLAY_NAME)}
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND username = ${sqlText(REDACTED_SEED_USERNAME)};
 
 UPDATE sessions
 SET username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)}
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND username = ${sqlText(REDACTED_SEED_USERNAME)};
 `);
     return;
@@ -94,17 +189,17 @@ SET username = ${sqlText(retiredUsername)},
     display_name = 'Retired Placeholder User',
     user_status = 'inactive',
     protected_user = 'no'
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND user_id = ${sqlText(user.user_id)}
   AND username = ${sqlText(REDACTED_SEED_USERNAME)};
 
 DELETE FROM sessions
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND user_id = ${sqlText(user.user_id)};
 
 INSERT INTO audit_logs (
   audit_id,
-  organization_id,
+  workspace_id,
   created_at,
   actor_user_id,
   actor_user_name,
@@ -116,12 +211,11 @@ INSERT INTO audit_logs (
   record_url,
   previous_value_json,
   new_value_json,
-  metadata_json,
-  workspace_id
+  metadata_json
 )
 VALUES (
   ${sqlText(randomUUID())},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlText(now)},
   'system',
   'system',
@@ -133,8 +227,7 @@ VALUES (
   'user-admin.html',
   ${sqlText(JSON.stringify({ username: REDACTED_SEED_USERNAME }))},
   ${sqlText(JSON.stringify({ username: retiredUsername, user_status: "inactive" }))},
-  ${sqlText(JSON.stringify({ reason: "literal redaction placeholder was present in seed user data" }))},
-  ${sqlText(organizationId)}
+  ${sqlText(JSON.stringify({ reason: "literal redaction placeholder was present in seed user data" }))}
 );
 `;
   });
@@ -222,22 +315,22 @@ LIMIT 1;
   return rows.length > 0;
 }
 
-async function ensureDefaultOrganization() {
-  const organizations = await querySql("SELECT id FROM organizations ORDER BY created_at LIMIT 1;");
+async function ensureDefaultWorkspace() {
+  const workspaces = await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
 
-  if (organizations.length > 0) {
-    return organizations[0].id;
+  if (workspaces.length > 0) {
+    return workspaces[0].workspace_id;
   }
 
   const seedSettings = getDefaultSettings();
-  const organizationId = randomUUID();
+  const workspaceId = randomUUID();
   const now = new Date().toISOString();
 
   await runSql(`
-INSERT INTO organizations (id, name, status, created_at, updated_at)
-VALUES (${sqlText(organizationId)}, ${sqlText(seedSettings.organizationName)}, 'Active', ${sqlText(now)}, ${sqlText(now)});
-INSERT INTO organization_settings (
-  organization_id,
+INSERT INTO workspaces (workspace_id, name, status, workspace_type, created_at, updated_at)
+VALUES (${sqlText(workspaceId)}, ${sqlText(seedSettings.workspaceName)}, 'Active', ${sqlText(DEFAULT_WORKSPACE_TYPE)}, ${sqlText(now)}, ${sqlText(now)});
+INSERT INTO workspace_settings (
+  workspace_id,
   fiscal_year_start_month,
   fiscal_year_start_day,
   default_billing_rate,
@@ -249,7 +342,7 @@ INSERT INTO organization_settings (
   updated_at
 )
 VALUES (
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlInteger(seedSettings.fiscalYear.startMonth)},
   ${sqlInteger(seedSettings.fiscalYear.startDay)},
   ${sqlText(seedSettings.defaultBillingRate)},
@@ -262,12 +355,12 @@ VALUES (
 );
 `);
 
-  return organizationId;
+  return workspaceId;
 }
 
-async function ensureOrganizationSettings(organizationId) {
+async function ensureWorkspaceSettings(workspaceId) {
   const settings = await querySql(
-    `SELECT organization_id FROM organization_settings WHERE organization_id = ${sqlText(organizationId)} LIMIT 1;`,
+    `SELECT workspace_id FROM workspace_settings WHERE workspace_id = ${sqlText(workspaceId)} LIMIT 1;`,
   );
 
   if (settings.length > 0) {
@@ -278,8 +371,8 @@ async function ensureOrganizationSettings(organizationId) {
   const now = new Date().toISOString();
 
   await runSql(`
-INSERT INTO organization_settings (
-  organization_id,
+INSERT INTO workspace_settings (
+  workspace_id,
   fiscal_year_start_month,
   fiscal_year_start_day,
   default_billing_rate,
@@ -291,7 +384,7 @@ INSERT INTO organization_settings (
   updated_at
 )
 VALUES (
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlInteger(seedSettings.fiscalYear.startMonth)},
   ${sqlInteger(seedSettings.fiscalYear.startDay)},
   ${sqlText(seedSettings.defaultBillingRate)},
@@ -306,14 +399,14 @@ VALUES (
 }
 
 function getDefaultSettings() {
-  return normalizeSettings({ organizationName: DEFAULT_ORGANIZATION_NAME });
+  return normalizeSettings({ workspaceName: DEFAULT_WORKSPACE_NAME });
 }
 
-async function seedSuperAdminUser(organizationId) {
+async function seedSuperAdminUser(workspaceId) {
   const existingUsers = await querySql(`
 SELECT user_id
 FROM users
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND username = ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)}
 LIMIT 1;
 `);
@@ -327,7 +420,7 @@ LIMIT 1;
     await runSql(`
 INSERT INTO users (
   user_id,
-  organization_id,
+  home_workspace_id,
   username,
   display_name,
   alt_email,
@@ -340,7 +433,7 @@ INSERT INTO users (
 )
 VALUES (
   ${sqlText(userId)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlText(DEFAULT_SUPER_ADMIN_USERNAME)},
   ${sqlText(DEFAULT_SUPER_ADMIN_DISPLAY_NAME)},
   NULL,
@@ -349,7 +442,7 @@ VALUES (
   'light',
   'active',
   'yes',
-  ${sqlText(organizationId)}
+  ${sqlText(workspaceId)}
 );
 `);
 
@@ -364,14 +457,14 @@ VALUES (
   await runSql(`
 UPDATE time_entries
 SET user_id = ${sqlText(userId)}
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND (user_id = 'local_user' OR user_id = '');
 `);
 }
 
-async function ensureWorkspaceMemberships(organizationId) {
+async function ensureWorkspaceMemberships(workspaceId) {
   const membershipTable = await tableExists("user_workspaces");
-  const hasOwnerColumn = await columnsExist("organizations", ["owner_user_id"]);
+  const hasOwnerColumn = await columnsExist("workspaces", ["owner_user_id"]);
 
   if (!membershipTable) {
     return;
@@ -380,7 +473,7 @@ async function ensureWorkspaceMemberships(organizationId) {
   const users = await querySql(`
 SELECT user_id, user_status
 FROM users
-WHERE organization_id = ${sqlText(organizationId)};
+WHERE home_workspace_id = ${sqlText(workspaceId)};
 `);
 
   const now = new Date().toISOString();
@@ -396,7 +489,7 @@ INSERT OR IGNORE INTO user_workspaces (
 VALUES (
   ${sqlText(randomUUID())},
   ${sqlText(user.user_id)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlText(user.user_status === "inactive" ? "inactive" : "active")},
   ${sqlText(now)},
   ${sqlText(now)}
@@ -412,13 +505,13 @@ VALUES (
   }
 
   await runSql(`
-UPDATE organizations
+UPDATE workspaces
 SET owner_user_id = COALESCE(
   owner_user_id,
   (
     SELECT user_id
     FROM users
-    WHERE organization_id = ${sqlText(organizationId)}
+    WHERE home_workspace_id = ${sqlText(workspaceId)}
       AND protected_user = 'yes'
     ORDER BY username
     LIMIT 1
@@ -426,12 +519,12 @@ SET owner_user_id = COALESCE(
   (
     SELECT user_id
     FROM users
-    WHERE organization_id = ${sqlText(organizationId)}
+    WHERE home_workspace_id = ${sqlText(workspaceId)}
     ORDER BY username
     LIMIT 1
   )
 )
-WHERE id = ${sqlText(organizationId)};
+WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
@@ -448,7 +541,7 @@ async function repairUserActiveWorkspaces() {
 
   await runSql(`
 UPDATE users
-SET active_workspace_id = organization_id
+SET active_workspace_id = home_workspace_id
 WHERE active_workspace_id IS NULL OR active_workspace_id = '';
 `);
 
@@ -481,208 +574,23 @@ WHERE user_id = ${sqlText(row.user_id)};
   }
 }
 
-async function ensureWorkspaceType(organizationId) {
-  if (!(await columnsExist("organizations", ["workspace_type"]))) {
+async function ensureWorkspaceType(workspaceId) {
+  if (!(await columnsExist("workspaces", ["workspace_type"]))) {
     return;
   }
 
   await runSql(`
-UPDATE organizations
-SET workspace_type = ${sqlText(DEFAULT_WORKSPACE_TYPE)}
-WHERE id = ${sqlText(organizationId)}
-  AND workspace_type NOT IN ('business', 'personal', 'family');
-`);
-}
-
-async function repairWorkspaceAliases() {
-  if (
-    !(await tableExists("workspaces")) ||
-    !(await tableExists("workspace_settings")) ||
-    !(await tableExists("organizations")) ||
-    !(await tableExists("organization_settings"))
-  ) {
-    return;
-  }
-
-  await runSql(`
-INSERT OR IGNORE INTO workspaces (
-  workspace_id,
-  name,
-  status,
-  workspace_type,
-  owner_user_id,
-  created_at,
-  updated_at
-)
-SELECT
-  id,
-  name,
-  status,
-  workspace_type,
-  owner_user_id,
-  created_at,
-  updated_at
-FROM organizations;
-
 UPDATE workspaces
-SET
-  name = (
-    SELECT organizations.name
-    FROM organizations
-    WHERE organizations.id = workspaces.workspace_id
-  ),
-  status = (
-    SELECT organizations.status
-    FROM organizations
-    WHERE organizations.id = workspaces.workspace_id
-  ),
-  workspace_type = (
-    SELECT organizations.workspace_type
-    FROM organizations
-    WHERE organizations.id = workspaces.workspace_id
-  ),
-  owner_user_id = (
-    SELECT organizations.owner_user_id
-    FROM organizations
-    WHERE organizations.id = workspaces.workspace_id
-  ),
-  updated_at = (
-    SELECT organizations.updated_at
-    FROM organizations
-    WHERE organizations.id = workspaces.workspace_id
-  )
-WHERE workspace_id IN (
-  SELECT id
-  FROM organizations
-);
-
-INSERT OR IGNORE INTO workspace_settings (
-  workspace_id,
-  fiscal_year_start_month,
-  fiscal_year_start_day,
-  default_billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  rounding_enabled,
-  rounding_increment,
-  audit_logging_enabled,
-  audit_retention_days,
-  audit_settings_updated_at,
-  created_at,
-  updated_at
-)
-SELECT
-  organization_id,
-  fiscal_year_start_month,
-  fiscal_year_start_day,
-  default_billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  rounding_enabled,
-  rounding_increment,
-  audit_logging_enabled,
-  audit_retention_days,
-  audit_settings_updated_at,
-  created_at,
-  updated_at
-FROM organization_settings;
-
-UPDATE workspace_settings
-SET
-  fiscal_year_start_month = (
-    SELECT organization_settings.fiscal_year_start_month
-    FROM organization_settings
-    WHERE organization_settings.organization_id = workspace_settings.workspace_id
-  ),
-  fiscal_year_start_day = (
-    SELECT organization_settings.fiscal_year_start_day
-    FROM organization_settings
-    WHERE organization_settings.organization_id = workspace_settings.workspace_id
-  ),
-  default_billing_rate = (
-    SELECT organization_settings.default_billing_rate
-    FROM organization_settings
-    WHERE organization_settings.organization_id = workspace_settings.workspace_id
-  ),
-  billing_period_type = (
-    SELECT organization_settings.billing_period_type
-    FROM organization_settings
-    WHERE organization_settings.organization_id = workspace_settings.workspace_id
-  ),
-  billing_period_start_day = (
-    SELECT organization_settings.billing_period_start_day
-    FROM organization_settings
-    WHERE organization_settings.organization_id = workspace_settings.workspace_id
-  ),
-  rounding_enabled = (
-    SELECT organization_settings.rounding_enabled
-    FROM organization_settings
-    WHERE organization_settings.organization_id = workspace_settings.workspace_id
-  ),
-  rounding_increment = (
-    SELECT organization_settings.rounding_increment
-    FROM organization_settings
-    WHERE organization_settings.organization_id = workspace_settings.workspace_id
-  ),
-  audit_logging_enabled = (
-    SELECT organization_settings.audit_logging_enabled
-    FROM organization_settings
-    WHERE organization_settings.organization_id = workspace_settings.workspace_id
-  ),
-  audit_retention_days = (
-    SELECT organization_settings.audit_retention_days
-    FROM organization_settings
-    WHERE organization_settings.organization_id = workspace_settings.workspace_id
-  ),
-  audit_settings_updated_at = (
-    SELECT organization_settings.audit_settings_updated_at
-    FROM organization_settings
-    WHERE organization_settings.organization_id = workspace_settings.workspace_id
-  ),
-  updated_at = (
-    SELECT organization_settings.updated_at
-    FROM organization_settings
-    WHERE organization_settings.organization_id = workspace_settings.workspace_id
-  )
-WHERE workspace_id IN (
-  SELECT organization_id
-  FROM organization_settings
-);
-
-UPDATE clients
-SET workspace_id = organization_id
-WHERE workspace_id IS NULL OR workspace_id != organization_id;
-
-UPDATE projects
-SET workspace_id = organization_id
-WHERE workspace_id IS NULL OR workspace_id != organization_id;
-
-UPDATE time_entries
-SET workspace_id = organization_id
-WHERE workspace_id IS NULL OR workspace_id != organization_id;
-
-UPDATE audit_logs
-SET workspace_id = organization_id
-WHERE workspace_id IS NULL OR workspace_id != organization_id;
-
-UPDATE api_keys
-SET workspace_id = organization_id
-WHERE workspace_id IS NULL OR workspace_id != organization_id;
-
-UPDATE user_role_assignments
-SET workspace_id = organization_id
-WHERE workspace_id IS NULL OR workspace_id != organization_id;
-
-UPDATE organization_modules
-SET workspace_id = organization_id
-WHERE workspace_id IS NULL OR workspace_id != organization_id;
+SET workspace_type = ${sqlText(DEFAULT_WORKSPACE_TYPE)}
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND workspace_type NOT IN ('business', 'personal', 'family');
 `);
 }
 
 async function repairPersonalWorkspaceMemberships() {
   if (
     !(await tableExists("user_workspaces")) ||
-    !(await columnsExist("organizations", ["owner_user_id", "workspace_type"]))
+    !(await columnsExist("workspaces", ["owner_user_id", "workspace_type"]))
   ) {
     return;
   }
@@ -693,34 +601,34 @@ SET status = 'inactive',
     updated_at = ${sqlText(new Date().toISOString())}
 WHERE status = 'active'
   AND workspace_id IN (
-    SELECT id
-    FROM organizations
+    SELECT workspace_id
+    FROM workspaces
     WHERE workspace_type = 'personal'
       AND owner_user_id IS NOT NULL
   )
   AND user_id != (
     SELECT owner_user_id
-    FROM organizations
-    WHERE organizations.id = user_workspaces.workspace_id
+    FROM workspaces
+    WHERE workspaces.workspace_id = user_workspaces.workspace_id
   );
 `);
 }
 
-async function ensureProtectedUserRoles(organizationId) {
+async function ensureProtectedUserRoles(workspaceId) {
   await runSql(`
 UPDATE user_role_assignments
 SET scope_type = 'all',
     scope_id = 'all',
     updated_at = ${sqlText(new Date().toISOString())}
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND role_id = 'super_admin'
-  AND scope_type = 'organization';
+  AND scope_type = 'workspace';
 `);
 
   const rows = await querySql(`
 SELECT user_id
 FROM users
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND protected_user = 'yes';
 `);
 
@@ -728,7 +636,7 @@ WHERE organization_id = ${sqlText(organizationId)}
   const inserts = rows.map((row) => `
 INSERT OR IGNORE INTO user_role_assignments (
   assignment_id,
-  organization_id,
+  workspace_id,
   user_id,
   role_id,
   scope_type,
@@ -741,7 +649,7 @@ INSERT OR IGNORE INTO user_role_assignments (
 )
 VALUES (
   ${sqlText(randomUUID())},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlText(row.user_id)},
   'super_admin',
   'all',

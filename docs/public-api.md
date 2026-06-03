@@ -18,7 +18,7 @@ API keys are created from the protected API Keys settings page while the intende
 
 API keys are scoped to the workspace that was active when the key was created. Public API requests run inside that workspace, even if the user later switches workspaces in the browser.
 
-During the 0.30.x workspace migration, responses include `workspace_id` and may still include legacy `organization_id` fields for backward compatibility.
+Version 0.30.16.1 completes the workspace storage migration. Public API responses use `workspace_id` as the workspace context field. Version 0.30.17 makes client endpoints Business-workspace-only; Personal and Family workspace integrations should use project endpoints without client records.
 
 ## Response Shape
 
@@ -69,6 +69,8 @@ Error responses:
 - `GET /api/v1/projects` requires `projects:read`
 - `GET /api/v1/projects/:projectId` requires `projects:read`
 
+Client endpoints are available only for Business workspaces. Project endpoints remain available for Business, Personal, and Family workspaces.
+
 ### Time Tracking
 
 - `GET /api/v1/time-entries` requires `time_entries:read`
@@ -84,10 +86,10 @@ Time-entry timestamps should be sent as ISO 8601 UTC strings, such as `2026-05-2
 
 Version 0.30.15 adds adjacency-list nesting metadata to client and project records. Client payloads may include `parent_client_id`; project payloads may include `parent_project_id`. Parent relationships are single-parent trees, and server validation rejects self-parenting, cross-scope project parents, and descendant cycles.
 
-## Workspace Compatibility
+## Workspace Context
 
-Version 0.30.0 begins the public language shift from organizations to workspaces. Version 0.30.3 adds active workspace sessions and project-first time entry creation. Version 0.30.5 scopes API keys and public API envelopes to workspaces. Version 0.30.14 documents the storage rename compatibility plan in `docs/storage-rename-plan.md`.
+Version 0.30.0 begins the public language shift to workspaces. Version 0.30.3 adds active workspace sessions and project-first time entry creation. Version 0.30.5 scopes API keys and public API envelopes to workspaces. Version 0.30.16.1 completes the workspace-native storage migration documented in `docs/storage-rename-plan.md`. Version 0.30.17 enforces Business-only client reads while keeping project reads workspace-type neutral.
 
-New integrations should use `workspace_id` for workspace context. Existing `organization_id` fields remain temporarily available until the deeper storage rename work in later 0.30.x releases is complete.
+Integrations should use `workspace_id` for workspace context.
 
 API audit log records include the workspace context for key creation, revocation, and public API writes.

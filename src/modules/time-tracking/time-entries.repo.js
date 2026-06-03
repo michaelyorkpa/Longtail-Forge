@@ -1,11 +1,10 @@
 import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../../core/database.js";
 import { normalizeTimeEntry } from "../../utils/normalizers.js";
 
-async function readAll(organizationId) {
+async function readAll(workspaceId) {
   const rows = await querySql(`
 SELECT
   entry_id,
-  organization_id,
   workspace_id,
   user_id,
   client_id,
@@ -20,18 +19,17 @@ SELECT
   billable,
   invoice_status
 FROM time_entries
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY end_time;
 `);
 
   return rows.map(timeEntryRowToAppValue);
 }
 
-async function readById(organizationId, entryId) {
+async function readById(workspaceId, entryId) {
   const rows = await querySql(`
 SELECT
   entry_id,
-  organization_id,
   workspace_id,
   user_id,
   client_id,
@@ -46,7 +44,7 @@ SELECT
   billable,
   invoice_status
 FROM time_entries
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND entry_id = ${sqlText(entryId)}
 LIMIT 1;
 `);
@@ -64,7 +62,7 @@ async function update(entry) {
   await runSql(`
 UPDATE time_entries
 SET
-  workspace_id = ${sqlText(entry.organization_id)},
+  workspace_id = ${sqlText(entry.workspace_id)},
   user_id = ${sqlText(entry.user_id)},
   client_id = ${sqlNullableText(entry.client_id)},
   client_name = ${sqlText(entry.client_name)},
@@ -78,15 +76,41 @@ SET
   billable = ${sqlText(entry.billable)},
   invoice_status = ${sqlText(entry.invoice_status)},
   updated_at = ${sqlText(now)}
-WHERE organization_id = ${sqlText(entry.organization_id)}
+WHERE workspace_id = ${sqlText(entry.workspace_id)}
   AND entry_id = ${sqlText(entry.entry_id)};
 `);
 }
 
-async function remove(organizationId, entryId) {
+async function countByProjectId(workspaceId, projectId) {
+  const rows = await querySql(`
+SELECT COUNT(*) AS total
+FROM time_entries
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND project_id = ${sqlText(projectId)};
+`);
+
+  return Number.parseInt(rows[0]?.total, 10) || 0;
+}
+
+async function updateProjectScope(workspaceId, projectId, scope) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE time_entries
+SET
+  client_id = ${sqlNullableText(scope.client_id)},
+  client_name = ${sqlText(scope.client_name)},
+  project_name = ${sqlText(scope.project_name)},
+  updated_at = ${sqlText(now)}
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND project_id = ${sqlText(projectId)};
+`);
+}
+
+async function remove(workspaceId, entryId) {
   await runSql(`
 DELETE FROM time_entries
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND entry_id = ${sqlText(entryId)};
 `);
 }
@@ -95,7 +119,6 @@ function createTimeEntryInsertSql(entry, now) {
   return `
 INSERT INTO time_entries (
   entry_id,
-  organization_id,
   workspace_id,
   user_id,
   client_id,
@@ -114,8 +137,7 @@ INSERT INTO time_entries (
 )
 VALUES (
   ${sqlText(entry.entry_id)},
-  ${sqlText(entry.organization_id)},
-  ${sqlText(entry.organization_id)},
+  ${sqlText(entry.workspace_id)},
   ${sqlText(entry.user_id)},
   ${sqlNullableText(entry.client_id)},
   ${sqlText(entry.client_name)},
@@ -136,8 +158,7 @@ VALUES (
 function timeEntryRowToAppValue(row) {
   return normalizeTimeEntry({
     entry_id: row.entry_id,
-    organization_id: row.organization_id,
-    workspace_id: row.workspace_id || row.organization_id,
+    workspace_id: row.workspace_id,
     user_id: row.user_id,
     client_id: row.client_id,
     client_name: row.client_name,
@@ -154,9 +175,11 @@ function timeEntryRowToAppValue(row) {
 }
 
 export const timeEntriesRepository = {
+  countByProjectId,
   create,
   remove,
   readAll,
   readById,
   update,
+  updateProjectScope,
 };

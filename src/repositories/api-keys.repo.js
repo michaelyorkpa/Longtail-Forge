@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { querySql, runSql, sqlText } from "../db/index.js";
 
-async function create({ organizationId, createdByUserId, name, keyHash, keyPrefix, scopes }) {
+async function create({ workspaceId, createdByUserId, name, keyHash, keyPrefix, scopes }) {
   const apiKeyId = randomUUID();
   const now = new Date().toISOString();
   const scopeInserts = scopes.map((scope) => `
@@ -13,7 +13,6 @@ VALUES (${sqlText(apiKeyId)}, ${sqlText(scope)});
 BEGIN TRANSACTION;
 INSERT INTO api_keys (
   api_key_id,
-  organization_id,
   workspace_id,
   created_by_user_id,
   name,
@@ -26,8 +25,7 @@ INSERT INTO api_keys (
 )
 VALUES (
   ${sqlText(apiKeyId)},
-  ${sqlText(organizationId)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlText(createdByUserId)},
   ${sqlText(name)},
   ${sqlText(keyHash)},
@@ -41,14 +39,13 @@ ${scopeInserts}
 COMMIT;
 `);
 
-  return readById(organizationId, apiKeyId);
+  return readById(workspaceId, apiKeyId);
 }
 
 async function readByHash(keyHash) {
   const rows = await querySql(`
 SELECT
   api_key_id,
-  organization_id,
   workspace_id,
   created_by_user_id,
   name,
@@ -73,11 +70,10 @@ LIMIT 1;
   };
 }
 
-async function readById(organizationId, apiKeyId) {
+async function readById(workspaceId, apiKeyId) {
   const rows = await querySql(`
 SELECT
   api_key_id,
-  organization_id,
   workspace_id,
   created_by_user_id,
   name,
@@ -87,7 +83,7 @@ SELECT
   last_used_at,
   revoked_at
 FROM api_keys
-WHERE (workspace_id = ${sqlText(organizationId)} OR organization_id = ${sqlText(organizationId)})
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND api_key_id = ${sqlText(apiKeyId)}
 LIMIT 1;
 `);
@@ -102,11 +98,10 @@ LIMIT 1;
   };
 }
 
-async function readAll(organizationId) {
+async function readAll(workspaceId) {
   const keys = await querySql(`
 SELECT
   api_key_id,
-  organization_id,
   workspace_id,
   created_by_user_id,
   name,
@@ -116,7 +111,7 @@ SELECT
   last_used_at,
   revoked_at
 FROM api_keys
-WHERE (workspace_id = ${sqlText(organizationId)} OR organization_id = ${sqlText(organizationId)})
+WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY created_at DESC;
 `);
   const scopes = await querySql(`
@@ -125,7 +120,7 @@ FROM api_key_scopes
 WHERE api_key_id IN (
   SELECT api_key_id
   FROM api_keys
-  WHERE workspace_id = ${sqlText(organizationId)} OR organization_id = ${sqlText(organizationId)}
+  WHERE workspace_id = ${sqlText(workspaceId)}
 )
 ORDER BY scope;
 `);
@@ -152,19 +147,19 @@ WHERE api_key_id = ${sqlText(apiKeyId)};
 `);
 }
 
-async function revoke(organizationId, apiKeyId) {
+async function revoke(workspaceId, apiKeyId) {
   const now = new Date().toISOString();
 
   await runSql(`
 UPDATE api_keys
 SET status = 'revoked',
     revoked_at = ${sqlText(now)}
-WHERE (workspace_id = ${sqlText(organizationId)} OR organization_id = ${sqlText(organizationId)})
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND api_key_id = ${sqlText(apiKeyId)}
   AND status != 'revoked';
 `);
 
-  return readById(organizationId, apiKeyId);
+  return readById(workspaceId, apiKeyId);
 }
 
 async function readScopes(apiKeyId) {

@@ -11,7 +11,7 @@ import {
 
 const USER_SELECT_COLUMNS = `
   user_id,
-  organization_id,
+  home_workspace_id,
   username,
   display_name,
   alt_email,
@@ -50,26 +50,34 @@ LIMIT 1;
   return rows[0] || null;
 }
 
-async function readByUsernameForOrganization(organizationId, username) {
+async function readByUsernameForWorkspace(workspaceId, username) {
   const rows = await querySql(`
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
-WHERE organization_id = ${sqlText(organizationId)}
-  AND username = ${sqlText(username)}
+WHERE username = ${sqlText(username)}
+  AND (
+    home_workspace_id = ${sqlText(workspaceId)}
+    OR EXISTS (
+      SELECT 1
+      FROM user_workspaces
+      WHERE user_workspaces.user_id = users.user_id
+        AND user_workspaces.workspace_id = ${sqlText(workspaceId)}
+    )
+  )
 LIMIT 1;
 `);
 
   return rows[0] || null;
 }
 
-async function readById(organizationId, userId) {
+async function readById(workspaceId, userId) {
   const rows = await querySql(`
 SELECT
 ${USER_SELECT_COLUMNS}
 FROM users
-WHERE organization_id = ${sqlText(organizationId)}
-  AND user_id = ${sqlText(userId)}
+WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)}
+ORDER BY rowid
 LIMIT 1;
 `);
 
@@ -89,26 +97,26 @@ LIMIT 1;
   return rows[0] || null;
 }
 
-async function readAll(organizationId) {
+async function readAll(workspaceId) {
   const rows = await querySql(`
 SELECT
-  user_id,
-  username,
-  display_name,
-  alt_email,
-  timezone,
-  theme_mode,
-  user_status,
-  protected_user
+${USER_SELECT_COLUMNS}
 FROM users
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE rowid IN (
+  SELECT MIN(user_rows.rowid)
+  FROM user_workspaces
+  INNER JOIN users AS user_rows
+    ON user_rows.user_id = user_workspaces.user_id
+  WHERE user_workspaces.workspace_id = ${sqlText(workspaceId)}
+  GROUP BY user_workspaces.user_id
+)
 ORDER BY username;
 `);
 
   return rows.map(userRowToAppValue);
 }
 
-async function create(organizationId, profile, passwordHash) {
+async function create(workspaceId, profile, passwordHash) {
   const userId = randomUUID();
   const username = profile.username;
   const displayName = normalizeDisplayName(profile.displayName, username);
@@ -118,7 +126,7 @@ async function create(organizationId, profile, passwordHash) {
   await runSql(`
 INSERT INTO users (
   user_id,
-  organization_id,
+  home_workspace_id,
   username,
   display_name,
   alt_email,
@@ -131,7 +139,7 @@ INSERT INTO users (
 )
 VALUES (
   ${sqlText(userId)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlText(username)},
   ${sqlText(displayName)},
   ${altEmail === null ? "NULL" : sqlText(altEmail)},
@@ -140,7 +148,7 @@ VALUES (
   'light',
   'active',
   'no',
-  ${sqlText(organizationId)}
+  ${sqlText(workspaceId)}
 );
 `);
 
@@ -156,16 +164,16 @@ VALUES (
   };
 }
 
-async function updatePassword(organizationId, userId, passwordHash) {
+async function updatePassword(workspaceId, userId, passwordHash) {
   await runSql(`
 UPDATE users
 SET password = ${sqlText(passwordHash)}
-WHERE organization_id = ${sqlText(organizationId)}
-  AND user_id = ${sqlText(userId)};
+WHERE user_id = ${sqlText(userId)}
+  AND ${userBelongsToWorkspaceSql(workspaceId, userId)};
 `);
 }
 
-async function updateProfile(organizationId, userId, profile) {
+async function updateProfile(workspaceId, userId, profile) {
   const altEmail = normalizeOptionalEmail(profile.altEmail);
 
   await runSql(`
@@ -174,26 +182,23 @@ SET username = ${sqlText(profile.username)},
     display_name = ${sqlText(normalizeDisplayName(profile.displayName, profile.username))},
     alt_email = ${altEmail === null ? "NULL" : sqlText(altEmail)},
     timezone = ${sqlText(normalizeTimezone(profile.timezone))}
-WHERE organization_id = ${sqlText(organizationId)}
-  AND user_id = ${sqlText(userId)};
+WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
 `);
 }
 
-async function updateThemeMode(organizationId, userId, themeMode) {
+async function updateThemeMode(workspaceId, userId, themeMode) {
   await runSql(`
 UPDATE users
 SET theme_mode = ${sqlText(normalizeThemeMode(themeMode))}
-WHERE organization_id = ${sqlText(organizationId)}
-  AND user_id = ${sqlText(userId)};
+WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
 `);
 }
 
-async function updateStatus(organizationId, userId, userStatus) {
+async function updateStatus(workspaceId, userId, userStatus) {
   await runSql(`
 UPDATE users
 SET user_status = ${sqlText(normalizeUserStatus(userStatus))}
-WHERE organization_id = ${sqlText(organizationId)}
-  AND user_id = ${sqlText(userId)};
+WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
 `);
 }
 
@@ -205,12 +210,25 @@ WHERE user_id = ${sqlText(userId)};
 `);
 }
 
-async function remove(organizationId, userId) {
+async function remove(workspaceId, userId) {
   await runSql(`
 DELETE FROM users
-WHERE organization_id = ${sqlText(organizationId)}
-  AND user_id = ${sqlText(userId)};
+WHERE ${userBelongsToWorkspaceSql(workspaceId, userId)};
 `);
+}
+
+function userBelongsToWorkspaceSql(workspaceId, userId) {
+  return `
+user_id = ${sqlText(userId)}
+  AND (
+    home_workspace_id = ${sqlText(workspaceId)}
+    OR EXISTS (
+      SELECT 1
+      FROM user_workspaces
+      WHERE user_workspaces.user_id = users.user_id
+        AND user_workspaces.workspace_id = ${sqlText(workspaceId)}
+    )
+  )`;
 }
 
 export const usersRepository = {
@@ -220,7 +238,7 @@ export const usersRepository = {
   readFirstByUserId,
   readByUsername,
   readByUsernameExcludingUser,
-  readByUsernameForOrganization,
+  readByUsernameForWorkspace,
   remove,
   updatePassword,
   updateActiveWorkspace,

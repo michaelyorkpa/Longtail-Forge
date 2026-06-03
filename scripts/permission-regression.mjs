@@ -36,6 +36,7 @@ try {
   await runOwnershipScopeTests(api, fixtures);
   await runClientProjectDomainTests(api, fixtures);
   await runDisabledModuleTests(api, fixtures);
+  await runReportingPermissionTests(api, fixtures);
   await runWorkspaceOwnerLifecycleTests(api, fixtures);
 
   console.log(`Permission regression harness passed ${results.length} checks.`);
@@ -48,11 +49,11 @@ try {
 }
 
 async function seedFixtures() {
-  const organizationId = (await querySql("SELECT id FROM organizations ORDER BY created_at LIMIT 1;"))[0].id;
+  const workspaceId = (await querySql("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;"))[0].workspace_id;
   const superAdmin = (await querySql(`
 SELECT user_id, username
 FROM users
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE home_workspace_id = ${sqlText(workspaceId)}
   AND protected_user = 'yes'
 LIMIT 1;
 `))[0];
@@ -80,36 +81,49 @@ LIMIT 1;
     id: `workspace-other-${randomUUID()}`,
     clientId: `client-other-${randomUUID()}`,
   };
+  const personalWorkspace = {
+    id: `workspace-personal-${randomUUID()}`,
+    projectId: `project-personal-${randomUUID()}`,
+  };
 
   await runSql(`
-${Object.values(users).filter((user) => user.userId).map((user) => userInsertSql(organizationId, user)).join("\n")}
-${Object.values(users).filter((user) => user.userId).map((user) => membershipInsertSql(organizationId, user, now)).join("\n")}
-${clientInsertSql(organizationId, clients.alpha, now)}
-${clientInsertSql(organizationId, clients.beta, now)}
-${projectInsertSql(organizationId, projects.alpha, now)}
-${projectInsertSql(organizationId, projects.beta, now)}
-${projectInsertSql(organizationId, projects.workspace, now)}
-${assignmentInsertSql(organizationId, users.workspaceAdmin.userId, "organization_admin", "organization", organizationId, now)}
-${assignmentInsertSql(organizationId, users.clientAdmin.userId, "client_admin", "client", clients.alpha.id, now)}
-${assignmentInsertSql(organizationId, users.projectAdmin.userId, "project_admin", "client", clients.alpha.id, now)}
-${assignmentInsertSql(organizationId, users.clientUser.userId, "client_user", "client", clients.alpha.id, now)}
-${assignmentInsertSql(organizationId, users.projectUser.userId, "project_user", "project", projects.alpha.id, now)}
-${assignmentInsertSql(organizationId, users.externalClientUser.userId, "client_external_user", "client", clients.alpha.id, now)}
-INSERT INTO organizations (id, name, status, owner_user_id, workspace_type, created_at, updated_at)
-VALUES (${sqlText(otherWorkspace.id)}, 'Other Workspace', 'Active', ${sqlText(superAdmin.user_id)}, 'business', ${sqlText(now)}, ${sqlText(now)});
+${Object.values(users).filter((user) => user.userId).map((user) => userInsertSql(workspaceId, user)).join("\n")}
+${Object.values(users).filter((user) => user.userId).map((user) => membershipInsertSql(workspaceId, user, now)).join("\n")}
+${clientInsertSql(workspaceId, clients.alpha, now)}
+${clientInsertSql(workspaceId, clients.beta, now)}
+${projectInsertSql(workspaceId, projects.alpha, now)}
+${projectInsertSql(workspaceId, projects.beta, now)}
+${projectInsertSql(workspaceId, projects.workspace, now)}
+${assignmentInsertSql(workspaceId, users.workspaceAdmin.userId, "workspace_admin", "workspace", workspaceId, now)}
+${assignmentInsertSql(workspaceId, users.clientAdmin.userId, "client_admin", "client", clients.alpha.id, now)}
+${assignmentInsertSql(workspaceId, users.projectAdmin.userId, "project_admin", "client", clients.alpha.id, now)}
+${assignmentInsertSql(workspaceId, users.clientUser.userId, "client_user", "client", clients.alpha.id, now)}
+${assignmentInsertSql(workspaceId, users.projectUser.userId, "project_user", "project", projects.alpha.id, now)}
+${assignmentInsertSql(workspaceId, users.externalClientUser.userId, "client_external_user", "client", clients.alpha.id, now)}
 INSERT INTO workspaces (workspace_id, name, status, workspace_type, owner_user_id, created_at, updated_at)
 VALUES (${sqlText(otherWorkspace.id)}, 'Other Workspace', 'Active', 'business', ${sqlText(superAdmin.user_id)}, ${sqlText(now)}, ${sqlText(now)});
 ${clientInsertSql(otherWorkspace.id, { id: otherWorkspace.clientId, name: "Other Workspace Client" }, now)}
+${workspaceInsertSql(personalWorkspace.id, "Personal Harness Workspace", "personal", users.workspaceAdmin.userId, now)}
+${workspaceSettingsInsertSql(personalWorkspace.id, now)}
+${Object.values(users).filter((user) => user.userId).map((user) => membershipInsertSql(personalWorkspace.id, user, now)).join("\n")}
+${projectInsertSql(personalWorkspace.id, { id: personalWorkspace.projectId, clientId: "", name: "Personal Workspace Project" }, now)}
+${assignmentInsertSql(personalWorkspace.id, users.workspaceAdmin.userId, "workspace_admin", "workspace", personalWorkspace.id, now)}
 `);
 
   const sessions = {};
   for (const [key, user] of Object.entries(users)) {
     const userId = user.userId || user.user_id;
     const username = user.username;
-    sessions[key] = await createSession(organizationId, userId, username);
+    sessions[key] = await createSession(workspaceId, userId, username);
   }
 
-  return { organizationId, users, sessions, clients, projects, otherWorkspace };
+  sessions.personalWorkspaceAdmin = await createSession(
+    personalWorkspace.id,
+    users.workspaceAdmin.userId,
+    users.workspaceAdmin.username,
+  );
+
+  return { workspaceId, users, sessions, clients, projects, otherWorkspace, personalWorkspace };
 }
 
 async function runAccessGuardTests(api) {
@@ -139,6 +153,17 @@ async function runApiKeyTests(api, fixtures) {
     "project user cannot create API keys",
     api.post("/api/api-keys", { name: "Denied key", scopes: ["clients:read"] }, { cookie: fixtures.sessions.projectUser }),
     403,
+  );
+  const personalClientKey = await createApiKey(api, fixtures.sessions.personalWorkspaceAdmin, ["clients:read", "projects:read"]);
+  await expectStatus(
+    "public API client reads are business-only",
+    api.get("/api/v1/clients", { bearer: personalClientKey.rawKey }),
+    403,
+  );
+  await expectStatus(
+    "public API project reads remain available in personal workspaces",
+    api.get("/api/v1/projects", { bearer: personalClientKey.rawKey }),
+    200,
   );
 }
 
@@ -172,6 +197,26 @@ async function runClientMutationTests(api, fixtures) {
     api.post("/api/clients", { name: "Denied Client" }, { cookie: fixtures.sessions.projectUser }),
     403,
   );
+  await expectStatus(
+    "personal workspace admin cannot list clients",
+    api.get("/api/clients", { cookie: fixtures.sessions.personalWorkspaceAdmin }),
+    403,
+  );
+  await expectStatus(
+    "personal workspace admin cannot create clients",
+    api.post("/api/clients", { name: "Denied Personal Client" }, { cookie: fixtures.sessions.personalWorkspaceAdmin }),
+    403,
+  );
+  await expectStatus(
+    "personal workspace hides clients in combined project payload",
+    api.get("/api/client-projects", { cookie: fixtures.sessions.personalWorkspaceAdmin }),
+    200,
+  ).then((response) => {
+    check("personal workspace combined payload has only workspace projects", () => {
+      assert.equal(response.body.clients.length, 0);
+      assert.ok(response.body.workspaceProjects.some((project) => project.id === fixtures.personalWorkspace.projectId));
+    });
+  });
 }
 
 async function runProjectMutationTests(api, fixtures) {
@@ -193,6 +238,11 @@ async function runProjectMutationTests(api, fixtures) {
     "workspace admin can move projects to workspace scope",
     api.put(`/api/projects/${encodeURIComponent(project.id)}`, { client_id: "", name: "Mutation Project Workspace" }, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
+  );
+  await expectStatus(
+    "personal workspace admin can create workspace projects without clients",
+    api.post("/api/projects", { name: `Personal Project ${randomUUID()}` }, { cookie: fixtures.sessions.personalWorkspaceAdmin }),
+    201,
   );
   await expectStatus(
     "project cannot become its own parent",
@@ -299,6 +349,44 @@ async function runUserMutationTests(api, fixtures) {
 
 async function runRoleAssignmentTests(api, fixtures) {
   await expectStatus(
+    "client admin can read role options for scoped assignments",
+    api.get("/api/roles", { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  await expectStatus(
+    "client admin can assign project users in assigned client",
+    api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignments: [{
+        role_id: "project_user",
+        scope_type: "project",
+        scope_id: fixtures.projects.alpha.id,
+      }],
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  await expectStatus(
+    "client admin cannot assign project users outside assigned client",
+    api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignments: [{
+        role_id: "project_user",
+        scope_type: "project",
+        scope_id: fixtures.projects.beta.id,
+      }],
+    }, { cookie: fixtures.sessions.clientAdmin }),
+    403,
+  );
+  await expectStatus(
+    "project admin can assign project users in assigned client",
+    api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
+      assignments: [{
+        role_id: "project_user",
+        scope_type: "project",
+        scope_id: fixtures.projects.alpha.id,
+      }],
+    }, { cookie: fixtures.sessions.projectAdmin }),
+    200,
+  );
+  await expectStatus(
     "workspace admin can update role assignments",
     api.put(`/api/users/${fixtures.users.unscopedUser.userId}/role-assignments`, {
       assignments: [{
@@ -327,18 +415,35 @@ async function runSettingsTests(api, fixtures) {
   await expectStatus("workspace admin can read workspace settings", settings, 200);
   await expectStatus(
     "workspace admin can update workspace settings",
-    api.put("/api/settings", { ...settings.body, organizationName: "Permission Regression Workspace", workspaceName: "Permission Regression Workspace" }, { cookie: fixtures.sessions.workspaceAdmin }),
+    api.put("/api/settings", { ...settings.body, workspaceName: "Permission Regression Workspace" }, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   );
   await expectStatus(
     "project user cannot update workspace settings",
-    api.put("/api/settings", { ...settings.body, organizationName: "Denied Workspace" }, { cookie: fixtures.sessions.projectUser }),
+    api.put("/api/settings", { ...settings.body, workspaceName: "Denied Workspace" }, { cookie: fixtures.sessions.projectUser }),
     403,
   );
 }
 
 async function runOwnershipScopeTests(api, fixtures) {
   const entry = await createTimeEntry(api, fixtures.sessions.projectUser, fixtures.projects.alpha.id);
+  const adminEntry = await createTimeEntry(api, fixtures.sessions.workspaceAdmin, fixtures.projects.alpha.id);
+  const clientAdminList = await expectStatus(
+    "client admin can list scoped time entries from other users",
+    api.get("/api/time-entries", { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  );
+  check("client admin scoped time list includes team entries in assigned client", () => {
+    assert.ok(clientAdminList.body.entries.some((item) => item.entry_id === adminEntry.entry_id));
+  });
+  const projectAdminList = await expectStatus(
+    "project admin can list scoped project time entries from other users",
+    api.get("/api/time-entries", { cookie: fixtures.sessions.projectAdmin }),
+    200,
+  );
+  check("project admin scoped time list includes team entries in assigned client", () => {
+    assert.ok(projectAdminList.body.entries.some((item) => item.entry_id === adminEntry.entry_id));
+  });
   const update = await api.put(
     `/api/time-entries/${encodeURIComponent(entry.entry_id)}`,
     timeEntryPayload(fixtures.projects.alpha.id, { user_id: fixtures.users.clientUser.userId, description: "Attempted owner spoof" }),
@@ -447,7 +552,7 @@ async function runWorkspaceOwnerLifecycleTests(api, fixtures) {
   await runSql(`
 ${userInsertSql(ownedWorkspace.body.workspace.workspaceId, transferAdmin)}
 ${membershipInsertSql(ownedWorkspace.body.workspace.workspaceId, transferAdmin, transferNow)}
-${assignmentInsertSql(ownedWorkspace.body.workspace.workspaceId, transferAdmin.userId, "organization_admin", "organization", ownedWorkspace.body.workspace.workspaceId, transferNow)}
+${assignmentInsertSql(ownedWorkspace.body.workspace.workspaceId, transferAdmin.userId, "workspace_admin", "workspace", ownedWorkspace.body.workspace.workspaceId, transferNow)}
 `);
   const transferAdminSession = await createSession(
     ownedWorkspace.body.workspace.workspaceId,
@@ -461,8 +566,8 @@ ${assignmentInsertSql(ownedWorkspace.body.workspace.workspaceId, transferAdmin.u
   );
   const transferredOwner = await querySql(`
 SELECT owner_user_id
-FROM organizations
-WHERE id = ${sqlText(ownedWorkspace.body.workspace.workspaceId)}
+FROM workspaces
+WHERE workspace_id = ${sqlText(ownedWorkspace.body.workspace.workspaceId)}
 LIMIT 1;
 `);
   check("workspace owner transfer selects the active workspace administrator", () => {
@@ -504,13 +609,13 @@ LIMIT 1;
     200,
   );
   const fallbackMemberships = await querySql(`
-SELECT organizations.workspace_type, user_workspaces.workspace_id, user_workspaces.status, users.active_workspace_id
+SELECT workspaces.workspace_type, user_workspaces.workspace_id, user_workspaces.status, users.active_workspace_id
 FROM user_workspaces
-INNER JOIN organizations ON organizations.id = user_workspaces.workspace_id
+INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
 INNER JOIN users ON users.user_id = user_workspaces.user_id
 WHERE user_workspaces.user_id = ${sqlText(unassigned.body.user.user_id)}
   AND user_workspaces.status = 'active'
-ORDER BY organizations.created_at DESC;
+ORDER BY workspaces.created_at DESC;
 `);
   check("personal fallback workspace is active for unassigned user", () => {
     assert.equal(fallbackMemberships[0]?.workspace_type, "personal");
@@ -570,6 +675,19 @@ async function runDisabledModuleTests(api, fixtures) {
     ...settings.body,
     timeTrackingEnabled: true,
   }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
+}
+
+async function runReportingPermissionTests(api, fixtures) {
+  await expectStatus(
+    "client user can read scoped reporting bootstrap",
+    api.get("/api/reporting/bootstrap", { cookie: fixtures.sessions.clientUser }),
+    200,
+  );
+  await expectStatus(
+    "external client user cannot read reporting bootstrap",
+    api.get("/api/reporting/bootstrap", { cookie: fixtures.sessions.externalClientUser }),
+    403,
+  );
 }
 
 async function createApiKey(api, cookie, scopes) {
@@ -689,11 +807,11 @@ function uniqueEmail(label) {
   return `${label}-${randomUUID()}@example.test`;
 }
 
-function userInsertSql(organizationId, user) {
+function userInsertSql(workspaceId, user) {
   return `
 INSERT INTO users (
   user_id,
-  organization_id,
+  home_workspace_id,
   username,
   display_name,
   alt_email,
@@ -706,7 +824,7 @@ INSERT INTO users (
 )
 VALUES (
   ${sqlText(user.userId)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlText(user.username)},
   ${sqlText(user.username)},
   NULL,
@@ -715,11 +833,11 @@ VALUES (
   'light',
   'active',
   'no',
-  ${sqlText(organizationId)}
+  ${sqlText(workspaceId)}
 );`;
 }
 
-function membershipInsertSql(organizationId, user, now) {
+function membershipInsertSql(workspaceId, user, now) {
   return `
 INSERT INTO user_workspaces (
   user_workspace_id,
@@ -732,21 +850,58 @@ INSERT INTO user_workspaces (
 VALUES (
   ${sqlText(randomUUID())},
   ${sqlText(user.userId)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   'active',
   ${sqlText(now)},
   ${sqlText(now)}
 );`;
 }
 
-function assignmentInsertSql(organizationId, userId, roleId, scopeType, scopeId, now) {
+function workspaceInsertSql(workspaceId, name, workspaceType, ownerUserId, now) {
+  return `
+INSERT INTO workspaces (workspace_id, name, status, workspace_type, owner_user_id, created_at, updated_at)
+VALUES (${sqlText(workspaceId)}, ${sqlText(name)}, 'Active', ${sqlText(workspaceType)}, ${sqlText(ownerUserId)}, ${sqlText(now)}, ${sqlText(now)});`;
+}
+
+function workspaceSettingsInsertSql(workspaceId, now) {
+  return `
+INSERT INTO workspace_settings (
+  workspace_id,
+  fiscal_year_start_month,
+  fiscal_year_start_day,
+  default_billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  rounding_enabled,
+  rounding_increment,
+  audit_logging_enabled,
+  audit_retention_days,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(workspaceId)},
+  1,
+  1,
+  '100',
+  'monthly',
+  1,
+  0,
+  'nearestQuarterHour',
+  1,
+  30,
+  ${sqlText(now)},
+  ${sqlText(now)}
+);`;
+}
+
+function assignmentInsertSql(workspaceId, userId, roleId, scopeType, scopeId, now) {
   const scopedClientId = scopeType === "client" ? scopeId : null;
   const scopedProjectId = scopeType === "project" ? scopeId : null;
 
   return `
 INSERT INTO user_role_assignments (
   assignment_id,
-  organization_id,
   workspace_id,
   user_id,
   role_id,
@@ -760,8 +915,7 @@ INSERT INTO user_role_assignments (
 )
 VALUES (
   ${sqlText(randomUUID())},
-  ${sqlText(organizationId)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlText(userId)},
   ${sqlText(roleId)},
   ${sqlText(scopeType)},
@@ -774,11 +928,10 @@ VALUES (
 );`;
 }
 
-function clientInsertSql(organizationId, client, now) {
+function clientInsertSql(workspaceId, client, now) {
   return `
 INSERT INTO clients (
   id,
-  organization_id,
   workspace_id,
   name,
   status,
@@ -804,8 +957,7 @@ INSERT INTO clients (
 )
 VALUES (
   ${sqlText(client.id)},
-  ${sqlText(organizationId)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${sqlText(client.name)},
   'Active',
   'yes',
@@ -830,11 +982,10 @@ VALUES (
 );`;
 }
 
-function projectInsertSql(organizationId, project, now) {
+function projectInsertSql(workspaceId, project, now) {
   return `
 INSERT INTO projects (
   id,
-  organization_id,
   workspace_id,
   client_id,
   name,
@@ -850,8 +1001,7 @@ INSERT INTO projects (
 )
 VALUES (
   ${sqlText(project.id)},
-  ${sqlText(organizationId)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
   ${project.clientId ? sqlText(project.clientId) : "NULL"},
   ${sqlText(project.name)},
   'Active',
@@ -866,7 +1016,7 @@ VALUES (
 );`;
 }
 
-async function createSession(organizationId, userId, username) {
+async function createSession(workspaceId, userId, username) {
   const sessionId = randomUUID();
   const now = new Date().toISOString();
   const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString();
@@ -874,22 +1024,22 @@ async function createSession(organizationId, userId, username) {
   await runSql(`
 INSERT INTO sessions (
   session_id,
-  organization_id,
+  home_workspace_id,
+  active_workspace_id,
   user_id,
   username,
   timezone,
-  active_workspace_id,
   expires_at,
   created_at,
   updated_at
 )
 VALUES (
   ${sqlText(sessionId)},
-  ${sqlText(organizationId)},
+  ${sqlText(workspaceId)},
+  ${sqlText(workspaceId)},
   ${sqlText(userId)},
   ${sqlText(username)},
   'America/New_York',
-  ${sqlText(organizationId)},
   ${sqlText(expiresAt)},
   ${sqlText(now)},
   ${sqlText(now)}

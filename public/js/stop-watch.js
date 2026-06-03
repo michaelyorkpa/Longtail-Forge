@@ -955,8 +955,19 @@ function sortByName(items) {
 }
 
 function normalizeClientProjectOptions(data) {
-  const normalizedClients = Array.isArray(data.clients) ? data.clients : [];
-  const workspaceProjects = Array.isArray(data.workspaceProjects) ? data.workspaceProjects : [];
+  const normalizedClients = Array.isArray(data.clients)
+    ? data.clients
+        .filter((client) => !isInactiveRecord(client))
+        .map((client) => ({
+          ...client,
+          projects: Array.isArray(client.projects)
+            ? client.projects.filter((project) => !isInactiveRecord(project))
+            : [],
+        }))
+    : [];
+  const workspaceProjects = Array.isArray(data.workspaceProjects)
+    ? data.workspaceProjects.filter((project) => !isInactiveRecord(project))
+    : [];
 
   if (workspaceProjects.length === 0) {
     return normalizedClients;
@@ -972,6 +983,10 @@ function normalizeClientProjectOptions(data) {
     },
     ...normalizedClients,
   ];
+}
+
+function isInactiveRecord(record) {
+  return String(record?.status || "").trim().toLowerCase() === "inactive";
 }
 
 function workspaceShowsClientTools() {

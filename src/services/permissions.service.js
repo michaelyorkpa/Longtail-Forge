@@ -10,15 +10,15 @@ import { normalizeProtectedUserFlag } from "../utils/normalizers.js";
 const ROLE_LIMITS = {
   super_admin: new Set([
     "super_admin",
-    "organization_admin",
+    "workspace_admin",
     "client_admin",
     "project_admin",
     "client_user",
     "project_user",
     "client_external_user",
   ]),
-  organization_admin: new Set([
-    "organization_admin",
+  workspace_admin: new Set([
+    "workspace_admin",
     "client_admin",
     "project_admin",
     "client_user",
@@ -31,7 +31,7 @@ const ROLE_LIMITS = {
 
 const ROLE_SCOPE_TYPES = {
   super_admin: "all",
-  organization_admin: "organization",
+  workspace_admin: "workspace",
   client_admin: "client",
   project_admin: "client",
   client_user: "client",
@@ -39,39 +39,39 @@ const ROLE_SCOPE_TYPES = {
   client_external_user: "client",
 };
 
-const FAMILY_ROLE_LIMITS = new Set(["organization_admin", "project_user"]);
-const PERSONAL_ROLE_LIMITS = new Set(["organization_admin"]);
+const FAMILY_ROLE_LIMITS = new Set(["workspace_admin", "project_user"]);
+const PERSONAL_ROLE_LIMITS = new Set(["workspace_admin"]);
 
 let rolePermissionsCache = null;
 
 async function listRoleOptions(session) {
-  await assertCan(session, "roles.assign", { organization_id: session.organization_id });
+  await assertCanAssignRoles(session);
   return {
     roles: await permissionsRepository.readRoles(),
   };
 }
 
 async function readUserAssignments(session, userId) {
-  await assertCan(session, "roles.assign", { organization_id: session.organization_id });
+  await assertCanAssignRoles(session);
   return {
-    assignments: await readDecoratedAssignments(session.organization_id, userId),
+    assignments: await readDecoratedAssignments(session.workspace_id, userId),
   };
 }
 
 async function replaceUserAssignments(session, userId, payload) {
-  await assertCan(session, "roles.assign", { organization_id: session.organization_id });
+  await assertCanAssignRoles(session);
 
-  const user = await usersRepository.readById(session.organization_id, userId);
+  const user = await usersRepository.readById(session.workspace_id, userId);
 
   if (!user) {
     throw new AppError("User was not found.", 404);
   }
 
-  const previousAssignments = await readDecoratedAssignments(session.organization_id, userId);
+  const previousAssignments = await readDecoratedAssignments(session.workspace_id, userId);
   const assignments = await normalizeAssignments(session, payload.assignments || []);
 
-  await permissionsRepository.replaceUserAssignments(session.organization_id, userId, assignments);
-  const nextAssignments = await readDecoratedAssignments(session.organization_id, userId);
+  await permissionsRepository.replaceUserAssignments(session.workspace_id, userId, assignments);
+  const nextAssignments = await readDecoratedAssignments(session.workspace_id, userId);
   await auditService.record({
     session,
     action: "user_role_assignments_updated",
@@ -93,18 +93,18 @@ async function replaceUserAssignments(session, userId, payload) {
 }
 
 async function can(session, action, resource = {}) {
-  if (!session?.organization_id || !session?.user_id) {
+  if (!session?.workspace_id || !session?.user_id) {
     return false;
   }
 
-  const user = await usersRepository.readById(session.organization_id, session.user_id);
+  const user = await usersRepository.readById(session.workspace_id, session.user_id);
 
   if (normalizeProtectedUserFlag(user?.protected_user)) {
     return true;
   }
 
   const assignments = await permissionsRepository.readAssignmentsForUser(
-    session.organization_id,
+    session.workspace_id,
     session.user_id,
   );
   const permissionsByRole = await readPermissionsByRole();
@@ -126,8 +126,39 @@ async function assertCan(session, action, resource = {}) {
   throw new AppError("You do not have permission to perform that action.", 403);
 }
 
+async function assertCanInAnyScope(session, action, resource = {}) {
+  if (await canInAnyScope(session, action, resource)) {
+    return;
+  }
+
+  throw new AppError("You do not have permission to perform that action.", 403);
+}
+
+async function canInAnyScope(session, action, resource = {}) {
+  if (!session?.workspace_id || !session?.user_id) {
+    return false;
+  }
+
+  const user = await usersRepository.readById(session.workspace_id, session.user_id);
+
+  if (normalizeProtectedUserFlag(user?.protected_user)) {
+    return true;
+  }
+
+  const assignments = await permissionsRepository.readAssignmentsForUser(
+    session.workspace_id,
+    session.user_id,
+  );
+  const permissionsByRole = await readPermissionsByRole();
+
+  return assignments.some((assignment) => (
+    (permissionsByRole.get(assignment.role_id) || new Set()).has(action) &&
+    assignmentAllowsAction(assignment, action, resource)
+  ));
+}
+
 async function filterReadableClients(session, clients) {
-  if (await can(session, "clients.manage", { organization_id: session.organization_id, operation: "read" })) {
+  if (await can(session, "clients.manage", { workspace_id: session.workspace_id, operation: "read" })) {
     return clients;
   }
 
@@ -136,7 +167,7 @@ async function filterReadableClients(session, clients) {
 }
 
 async function filterReadableProjects(session, projects) {
-  if (await can(session, "projects.manage", { organization_id: session.organization_id, operation: "read" })) {
+  if (await can(session, "projects.manage", { workspace_id: session.workspace_id, operation: "read" })) {
     return projects;
   }
 
@@ -147,13 +178,16 @@ async function filterReadableProjects(session, projects) {
 }
 
 async function filterReadableTimeEntries(session, entries) {
-  if (await can(session, "time_entries.edit_all", { organization_id: session.organization_id, operation: "read" })) {
+  if (await can(session, "time_entries.edit_all", { workspace_id: session.workspace_id, operation: "read" })) {
     return entries;
   }
 
   const readableScopes = await readReadableScopes(session);
   return entries.filter((entry) => (
-    entry.user_id === session.user_id &&
+    (
+      entry.user_id === session.user_id ||
+      canReadAllScopedTimeEntries(readableScopes, entry)
+    ) &&
     (readableScopes.clientIds.has(entry.client_id) || readableScopes.projectIds.has(entry.project_id))
   ));
 }
@@ -172,7 +206,11 @@ async function normalizeAssignments(session, assignments) {
       throw new AppError("Role assignment contains an unknown role.", 400);
     }
 
-    if (!(await canAssignRole(session, roleId))) {
+    if (!(await canAssignRole(session, {
+      roleId,
+      scopeType,
+      scopeId,
+    }))) {
       throw new AppError("You cannot assign that role.", 403);
     }
 
@@ -182,7 +220,7 @@ async function normalizeAssignments(session, assignments) {
       throw new AppError("Role assignment scope does not match the selected role.", 400);
     }
 
-    if (scopeType !== "organization" && scopeType !== "all" && !scopeId) {
+    if (scopeType !== "workspace" && scopeType !== "all" && !scopeId) {
       throw new AppError("Client and project role assignments need a scope.", 400);
     }
 
@@ -191,7 +229,7 @@ async function normalizeAssignments(session, assignments) {
     normalizedAssignments.push({
       role_id: roleId,
       scope_type: scopeType,
-      scope_id: scopeType === "organization" ? session.organization_id : scopeType === "all" ? "all" : scopeId,
+      scope_id: scopeType === "workspace" ? session.workspace_id : scopeType === "all" ? "all" : scopeId,
       client_id: scopeType === "client" ? scopeId : null,
       project_id: scopeType === "project" ? scopeId : null,
       permission_overrides_json: normalizeOverrides(assignment.permission_overrides),
@@ -202,13 +240,13 @@ async function normalizeAssignments(session, assignments) {
 }
 
 async function assertAssignmentScopeBelongsToWorkspace(session, scopeType, scopeId) {
-  if (scopeType === "all" || scopeType === "organization") {
+  if (scopeType === "all" || scopeType === "workspace") {
     return;
   }
 
   const scopeBelongsToWorkspace = scopeType === "client"
-    ? await clientsRepository.readById(session.organization_id, scopeId)
-    : await projectsRepository.readById(session.organization_id, scopeId);
+    ? await clientsRepository.readById(session.workspace_id, scopeId)
+    : await projectsRepository.readById(session.workspace_id, scopeId);
 
   if (!scopeBelongsToWorkspace) {
     throw new AppError("Role assignment scope does not belong to this workspace.", 400);
@@ -216,7 +254,7 @@ async function assertAssignmentScopeBelongsToWorkspace(session, scopeType, scope
 }
 
 async function assertWorkspaceTypeAllowsRole(session, roleId) {
-  const settings = await settingsRepository.readOrganizationSettings(session.organization_id);
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
 
   if (settings.workspaceType === "business") {
     return;
@@ -233,67 +271,130 @@ async function assertWorkspaceTypeAllowsRole(session, roleId) {
   throw new AppError("That role is not available for this workspace type.", 403);
 }
 
-async function canAssignRole(session, roleId) {
+async function assertCanAssignRoles(session) {
+  if (await hasAssignableRoleScope(session)) {
+    return;
+  }
+
+  throw new AppError("You do not have permission to perform that action.", 403);
+}
+
+async function hasAssignableRoleScope(session) {
   const assignments = await permissionsRepository.readAssignmentsForUser(
-    session.organization_id,
+    session.workspace_id,
     session.user_id,
   );
+  const permissionsByRole = await readPermissionsByRole();
+
+  return assignments.some((assignment) => (
+    (permissionsByRole.get(assignment.role_id) || new Set()).has("roles.assign") &&
+    assignmentAllowsAction(assignment, "roles.assign", { operation: "update" })
+  ));
+}
+
+async function canAssignRole(session, requestedAssignment) {
+  const assignments = await permissionsRepository.readAssignmentsForUser(
+    session.workspace_id,
+    session.user_id,
+  );
+  const roleId = requestedAssignment.roleId;
+  const assignmentResource = await readAssignmentResource(session.workspace_id, requestedAssignment);
 
   if (assignments.some((assignment) => assignment.role_id === "super_admin")) {
     return ROLE_LIMITS.super_admin.has(roleId);
   }
 
-  if (assignments.some((assignment) => assignment.role_id === "organization_admin")) {
-    return ROLE_LIMITS.organization_admin.has(roleId);
+  if (assignments.some((assignment) => assignment.role_id === "workspace_admin")) {
+    return ROLE_LIMITS.workspace_admin.has(roleId);
   }
 
-  if (assignments.some((assignment) => assignment.role_id === "client_admin")) {
-    return ROLE_LIMITS.client_admin.has(roleId);
+  if (assignments.some((assignment) => (
+    ROLE_LIMITS[assignment.role_id]?.has(roleId) &&
+    assignmentMatchesResource(assignment, assignmentResource, session)
+  ))) {
+    return true;
   }
 
-  if (assignments.some((assignment) => assignment.role_id === "project_admin")) {
-    return ROLE_LIMITS.project_admin.has(roleId);
-  }
-
-  const user = await usersRepository.readById(session.organization_id, session.user_id);
+  const user = await usersRepository.readById(session.workspace_id, session.user_id);
   return normalizeProtectedUserFlag(user?.protected_user) && ROLE_LIMITS.super_admin.has(roleId);
 }
 
+async function readAssignmentResource(workspaceId, assignment) {
+  if (assignment.scopeType === "workspace") {
+    return { workspace_id: workspaceId };
+  }
+
+  if (assignment.scopeType === "client") {
+    return {
+      workspace_id: workspaceId,
+      client_id: assignment.scopeId,
+    };
+  }
+
+  if (assignment.scopeType === "project") {
+    const project = await projectsRepository.readById(workspaceId, assignment.scopeId);
+
+    return {
+      workspace_id: workspaceId,
+      client_id: project?.client_id || "",
+      project_id: assignment.scopeId,
+    };
+  }
+
+  return { workspace_id: workspaceId };
+}
+
 async function isSuperAdmin(session) {
-  if (!session?.organization_id || !session?.user_id) {
+  if (!session?.workspace_id || !session?.user_id) {
     return false;
   }
 
-  const user = await usersRepository.readById(session.organization_id, session.user_id);
+  const user = await usersRepository.readById(session.workspace_id, session.user_id);
 
   if (normalizeProtectedUserFlag(user?.protected_user)) {
     return true;
   }
 
-  const assignments = await permissionsRepository.readAssignmentsForUser(session.organization_id, session.user_id);
+  const assignments = await permissionsRepository.readAssignmentsForUser(session.workspace_id, session.user_id);
   return assignments.some((assignment) => assignment.role_id === "super_admin");
 }
 
 async function readReadableScopes(session) {
-  const assignments = await permissionsRepository.readAssignmentsForUser(session.organization_id, session.user_id);
+  const assignments = await permissionsRepository.readAssignmentsForUser(session.workspace_id, session.user_id);
+  const permissionsByRole = await readPermissionsByRole();
   const clientIds = new Set();
   const projectIds = new Set();
+  const editAllClientIds = new Set();
+  const editAllProjectIds = new Set();
 
   assignments.forEach((assignment) => {
     if (assignment.scope_type === "client" && assignment.scope_id) {
       clientIds.add(assignment.scope_id);
+
+      if ((permissionsByRole.get(assignment.role_id) || new Set()).has("time_entries.edit_all")) {
+        editAllClientIds.add(assignment.scope_id);
+      }
     }
 
     if (assignment.scope_type === "project" && assignment.scope_id) {
       projectIds.add(assignment.scope_id);
+
+      if ((permissionsByRole.get(assignment.role_id) || new Set()).has("time_entries.edit_all")) {
+        editAllProjectIds.add(assignment.scope_id);
+      }
     }
   });
 
-  return { clientIds, projectIds };
+  return { clientIds, editAllClientIds, editAllProjectIds, projectIds };
 }
 
-async function readDecoratedAssignments(organizationId, userId) {
-  const assignments = await permissionsRepository.readAssignmentsForUser(organizationId, userId);
+function canReadAllScopedTimeEntries(readableScopes, entry) {
+  return readableScopes.editAllClientIds.has(entry.client_id) ||
+    readableScopes.editAllProjectIds.has(entry.project_id);
+}
+
+async function readDecoratedAssignments(workspaceId, userId) {
+  const assignments = await permissionsRepository.readAssignmentsForUser(workspaceId, userId);
   return assignments.map(decorateAssignment);
 }
 
@@ -318,9 +419,9 @@ function assignmentMatchesResource(assignment, resource, session) {
     return true;
   }
 
-  if (assignment.scope_type === "organization") {
-    const resourceWorkspaceId = resource.workspace_id || resource.organization_id;
-    return !resourceWorkspaceId || resourceWorkspaceId === session.organization_id;
+  if (assignment.scope_type === "workspace") {
+    const resourceWorkspaceId = resource.workspace_id;
+    return !resourceWorkspaceId || resourceWorkspaceId === session.workspace_id;
   }
 
   if (assignment.scope_type === "client") {
@@ -391,8 +492,8 @@ function actionToResourceKey(action) {
     return "time_entries";
   }
 
-  if (action.startsWith("organization_settings.")) {
-    return "organization_settings";
+  if (action.startsWith("workspace_settings.")) {
+    return "workspace_settings";
   }
 
   if (action.startsWith("clients.")) {
@@ -480,7 +581,9 @@ function parseJsonObject(value) {
 
 export const permissionsService = {
   assertCan,
+  assertCanInAnyScope,
   can,
+  canInAnyScope,
   filterReadableClients,
   filterReadableProjects,
   filterReadableTimeEntries,

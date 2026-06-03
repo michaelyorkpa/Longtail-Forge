@@ -6,11 +6,11 @@ import {
   sqlText,
 } from "../../core/database.js";
 
-async function readAll(organizationId, userId) {
+async function readAll(workspaceId, userId) {
   const rows = await querySql(`
 SELECT
   active_timer_id,
-  organization_id,
+  workspace_id,
   user_id,
   timer_slot,
   client_id,
@@ -25,7 +25,7 @@ SELECT
   created_at,
   updated_at
 FROM active_timers
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND user_id = ${sqlText(userId)}
 ORDER BY CAST(timer_slot AS INTEGER), timer_slot;
 `);
@@ -33,11 +33,11 @@ ORDER BY CAST(timer_slot AS INTEGER), timer_slot;
   return rows.map(activeTimerRowToAppValue);
 }
 
-async function readBySlot(organizationId, userId, timerSlot) {
+async function readBySlot(workspaceId, userId, timerSlot) {
   const rows = await querySql(`
 SELECT
   active_timer_id,
-  organization_id,
+  workspace_id,
   user_id,
   timer_slot,
   client_id,
@@ -52,7 +52,7 @@ SELECT
   created_at,
   updated_at
 FROM active_timers
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND user_id = ${sqlText(userId)}
   AND timer_slot = ${sqlText(timerSlot)}
 LIMIT 1;
@@ -65,13 +65,13 @@ async function upsert(timer) {
   const now = new Date().toISOString();
 
   if (timer.timer_status === "running") {
-    await pauseOtherRunningTimers(timer.organization_id, timer.user_id, timer.timer_slot, now);
+    await pauseOtherRunningTimers(timer.workspace_id, timer.user_id, timer.timer_slot, now);
   }
 
   await runSql(`
 INSERT INTO active_timers (
   active_timer_id,
-  organization_id,
+  workspace_id,
   user_id,
   timer_slot,
   client_id,
@@ -88,7 +88,7 @@ INSERT INTO active_timers (
 )
 VALUES (
   ${sqlText(timer.active_timer_id)},
-  ${sqlText(timer.organization_id)},
+  ${sqlText(timer.workspace_id)},
   ${sqlText(timer.user_id)},
   ${sqlText(timer.timer_slot)},
   ${sqlNullableText(timer.client_id)},
@@ -103,7 +103,7 @@ VALUES (
   ${sqlText(now)},
   ${sqlText(now)}
 )
-ON CONFLICT(organization_id, user_id, timer_slot) DO UPDATE SET
+ON CONFLICT(workspace_id, user_id, timer_slot) DO UPDATE SET
   client_id = excluded.client_id,
   client_name = excluded.client_name,
   project_id = excluded.project_id,
@@ -116,10 +116,10 @@ ON CONFLICT(organization_id, user_id, timer_slot) DO UPDATE SET
   updated_at = excluded.updated_at;
 `);
 
-  return readBySlot(timer.organization_id, timer.user_id, timer.timer_slot);
+  return readBySlot(timer.workspace_id, timer.user_id, timer.timer_slot);
 }
 
-async function pauseOtherRunningTimers(organizationId, userId, activeTimerSlot, now) {
+async function pauseOtherRunningTimers(workspaceId, userId, activeTimerSlot, now) {
   await runSql(`
 UPDATE active_timers
 SET accumulated_elapsed_seconds = accumulated_elapsed_seconds +
@@ -130,17 +130,17 @@ SET accumulated_elapsed_seconds = accumulated_elapsed_seconds +
     last_active_start_time = NULL,
     timer_status = 'paused',
     updated_at = ${sqlText(now)}
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND user_id = ${sqlText(userId)}
   AND timer_slot != ${sqlText(activeTimerSlot)}
   AND timer_status = 'running';
 `);
 }
 
-async function remove(organizationId, userId, timerSlot) {
+async function remove(workspaceId, userId, timerSlot) {
   await runSql(`
 DELETE FROM active_timers
-WHERE organization_id = ${sqlText(organizationId)}
+WHERE workspace_id = ${sqlText(workspaceId)}
   AND user_id = ${sqlText(userId)}
   AND timer_slot = ${sqlText(timerSlot)};
 `);
@@ -149,7 +149,7 @@ WHERE organization_id = ${sqlText(organizationId)}
 function activeTimerRowToAppValue(row) {
   return {
     active_timer_id: row.active_timer_id,
-    organization_id: row.organization_id,
+    workspace_id: row.workspace_id,
     user_id: row.user_id,
     timer_slot: row.timer_slot,
     client_id: row.client_id || "",

@@ -7,14 +7,14 @@ import { normalizeWorkspaceType } from "../utils/workspaces.js";
 async function readForUser(userId) {
   return querySql(`
 SELECT
-  organizations.id AS workspace_id,
-  organizations.name AS workspace_name,
-  organizations.workspace_type,
+  workspaces.workspace_id,
+  workspaces.name AS workspace_name,
+  workspaces.workspace_type,
   user_workspaces.status
 FROM user_workspaces
-INNER JOIN organizations ON organizations.id = user_workspaces.workspace_id
+INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
 WHERE user_workspaces.user_id = ${sqlText(userId)}
-ORDER BY organizations.name;
+ORDER BY workspaces.name;
 `);
 }
 
@@ -22,10 +22,10 @@ async function countUserWorkspacesByType(userId, workspaceType) {
   const rows = await querySql(`
 SELECT COUNT(1) AS count
 FROM user_workspaces
-INNER JOIN organizations ON organizations.id = user_workspaces.workspace_id
+INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
 WHERE user_workspaces.user_id = ${sqlText(userId)}
   AND user_workspaces.status = 'active'
-  AND organizations.workspace_type = ${sqlText(normalizeWorkspaceType(workspaceType))};
+  AND workspaces.workspace_type = ${sqlText(normalizeWorkspaceType(workspaceType))};
 `);
 
   return Number(rows[0]?.count) || 0;
@@ -34,10 +34,10 @@ WHERE user_workspaces.user_id = ${sqlText(userId)}
 async function readOwnedForUser(userId) {
   return querySql(`
 SELECT
-  id AS workspace_id,
+  workspace_id,
   name AS workspace_name,
   workspace_type
-FROM organizations
+FROM workspaces
 WHERE owner_user_id = ${sqlText(userId)}
 ORDER BY name;
 `);
@@ -46,12 +46,12 @@ ORDER BY name;
 async function readById(workspaceId) {
   const rows = await querySql(`
 SELECT
-  id AS workspace_id,
+  workspace_id,
   name AS workspace_name,
   workspace_type,
   owner_user_id
-FROM organizations
-WHERE id = ${sqlText(workspaceId)}
+FROM workspaces
+WHERE workspace_id = ${sqlText(workspaceId)}
 LIMIT 1;
 `);
 
@@ -67,11 +67,15 @@ SELECT
 FROM user_workspaces
 INNER JOIN users
   ON users.user_id = user_workspaces.user_id
-  AND users.organization_id = user_workspaces.workspace_id
+  AND users.rowid = (
+    SELECT MIN(user_rows.rowid)
+    FROM users AS user_rows
+    WHERE user_rows.user_id = user_workspaces.user_id
+  )
 INNER JOIN user_role_assignments
   ON user_role_assignments.user_id = user_workspaces.user_id
-  AND user_role_assignments.organization_id = user_workspaces.workspace_id
-  AND user_role_assignments.role_id = 'organization_admin'
+  AND user_role_assignments.workspace_id = user_workspaces.workspace_id
+  AND user_role_assignments.role_id = 'workspace_admin'
 WHERE user_workspaces.workspace_id = ${sqlText(workspaceId)}
   AND user_workspaces.status = 'active'
   AND users.user_status = 'active'
@@ -90,11 +94,6 @@ async function updateOwner(workspaceId, ownerUserId) {
   const now = new Date().toISOString();
 
   await runSql(`
-UPDATE organizations
-SET owner_user_id = ${sqlText(ownerUserId)},
-    updated_at = ${sqlText(now)}
-WHERE id = ${sqlText(workspaceId)};
-
 UPDATE workspaces
 SET owner_user_id = ${sqlText(ownerUserId)},
     updated_at = ${sqlText(now)}
@@ -113,24 +112,6 @@ async function createWorkspace({ ownerUser, workspaceName, workspaceType }) {
 
   await runSql(`
 BEGIN TRANSACTION;
-INSERT INTO organizations (
-  id,
-  name,
-  status,
-  created_at,
-  updated_at,
-  owner_user_id,
-  workspace_type
-)
-VALUES (
-  ${sqlText(workspaceId)},
-  ${sqlText(normalizedSettings.workspaceName)},
-  'Active',
-  ${sqlText(now)},
-  ${sqlText(now)},
-  ${sqlText(ownerUser.user_id)},
-  ${sqlText(normalizedType)}
-);
 INSERT INTO workspaces (
   workspace_id,
   name,
@@ -146,36 +127,6 @@ VALUES (
   'Active',
   ${sqlText(normalizedType)},
   ${sqlText(ownerUser.user_id)},
-  ${sqlText(now)},
-  ${sqlText(now)}
-);
-INSERT INTO organization_settings (
-  organization_id,
-  fiscal_year_start_month,
-  fiscal_year_start_day,
-  default_billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  rounding_enabled,
-  rounding_increment,
-  audit_logging_enabled,
-  audit_retention_days,
-  audit_settings_updated_at,
-  created_at,
-  updated_at
-)
-VALUES (
-  ${sqlText(workspaceId)},
-  ${sqlInteger(normalizedSettings.fiscalYear.startMonth)},
-  ${sqlInteger(normalizedSettings.fiscalYear.startDay)},
-  ${sqlText(normalizedSettings.defaultBillingRate)},
-  ${sqlText(normalizedSettings.billingPeriod.type)},
-  ${sqlInteger(normalizedSettings.billingPeriod.startDay)},
-  ${sqlInteger(normalizedSettings.billingRounding.enabled ? 1 : 0)},
-  ${sqlText(normalizedSettings.billingRounding.increment)},
-  ${sqlInteger(normalizedSettings.audit.loggingEnabled ? 1 : 0)},
-  ${sqlInteger(normalizedSettings.audit.retentionDays)},
-  ${sqlText(now)},
   ${sqlText(now)},
   ${sqlText(now)}
 );
@@ -209,32 +160,6 @@ VALUES (
   ${sqlText(now)},
   ${sqlText(now)}
 );
-INSERT INTO users (
-  user_id,
-  organization_id,
-  username,
-  display_name,
-  alt_email,
-  timezone,
-  password,
-  theme_mode,
-  user_status,
-  protected_user,
-  active_workspace_id
-)
-VALUES (
-  ${sqlText(ownerUser.user_id)},
-  ${sqlText(workspaceId)},
-  ${sqlText(ownerUser.username)},
-  ${sqlText(ownerUser.display_name || ownerUser.username)},
-  ${ownerUser.alt_email ? sqlText(ownerUser.alt_email) : "NULL"},
-  ${sqlText(ownerUser.timezone || "America/New_York")},
-  ${sqlText(ownerUser.password)},
-  ${sqlText(ownerUser.theme_mode || "light")},
-  ${sqlText(ownerUser.user_status || "active")},
-  ${sqlText(ownerUser.protected_user || "no")},
-  ${sqlText(workspaceId)}
-);
 INSERT INTO user_workspaces (
   user_workspace_id,
   user_id,
@@ -256,7 +181,6 @@ ON CONFLICT(user_id, workspace_id) DO UPDATE SET
   updated_at = excluded.updated_at;
 INSERT INTO user_role_assignments (
   assignment_id,
-  organization_id,
   workspace_id,
   user_id,
   role_id,
@@ -271,10 +195,9 @@ INSERT INTO user_role_assignments (
 VALUES (
   ${sqlText(randomUUID())},
   ${sqlText(workspaceId)},
-  ${sqlText(workspaceId)},
   ${sqlText(ownerUser.user_id)},
-  'organization_admin',
-  'organization',
+  'workspace_admin',
+  'workspace',
   ${sqlText(workspaceId)},
   NULL,
   NULL,

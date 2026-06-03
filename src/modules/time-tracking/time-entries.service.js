@@ -12,10 +12,10 @@ const MODULE_ID = "time-tracking";
 
 async function create(entry, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
-  const scope = await resolveTimeEntryScope(session.organization_id, entry);
+  const scope = await resolveTimeEntryScope(session.workspace_id, entry);
 
   await permissionsService.assertCan(session, "time_entries.create", {
-    organization_id: session.organization_id,
+    workspace_id: session.workspace_id,
     client_id: scope.client?.id || "",
     project_id: scope.project.id,
     operation: "create",
@@ -24,7 +24,7 @@ async function create(entry, session) {
   const entryId = randomUUID();
   const data = normalizeTimeEntry({
     entry_id: entryId,
-    organization_id: session.organization_id,
+    workspace_id: session.workspace_id,
     user_id: session.user_id,
     client_id: scope.client?.id || "",
     client_name: scope.client?.name || "",
@@ -65,7 +65,7 @@ async function create(entry, session) {
 async function update(payload, entryId, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const decodedEntryId = decodeURIComponent(entryId || "");
-  const previousEntry = await timeEntriesRepository.readById(session.organization_id, decodedEntryId);
+  const previousEntry = await timeEntriesRepository.readById(session.workspace_id, decodedEntryId);
 
   if (!decodedEntryId || !previousEntry) {
     throw new AppError("Time entry not found", 404);
@@ -73,13 +73,13 @@ async function update(payload, entryId, session) {
 
   const action = previousEntry.user_id === session.user_id ? "time_entries.edit_own" : "time_entries.edit_all";
   await permissionsService.assertCan(session, action, {
-    organization_id: session.organization_id,
+    workspace_id: session.workspace_id,
     client_id: previousEntry.client_id,
     project_id: previousEntry.project_id,
     operation: "update",
   });
 
-  const scope = await resolveTimeEntryScope(session.organization_id, {
+  const scope = await resolveTimeEntryScope(session.workspace_id, {
     ...previousEntry,
     ...payload,
   });
@@ -88,7 +88,7 @@ async function update(payload, entryId, session) {
     start_time: normalizeUtcIso(payload.start_time, session.timezone),
     end_time: normalizeUtcIso(payload.end_time, session.timezone),
     entry_id: decodedEntryId,
-    organization_id: session.organization_id,
+    workspace_id: session.workspace_id,
     user_id: previousEntry.user_id,
     client_id: scope.client?.id || "",
     client_name: scope.client?.name || "",
@@ -123,7 +123,7 @@ async function update(payload, entryId, session) {
 async function remove(entryId, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const decodedEntryId = decodeURIComponent(entryId || "");
-  const previousEntry = await timeEntriesRepository.readById(session.organization_id, decodedEntryId);
+  const previousEntry = await timeEntriesRepository.readById(session.workspace_id, decodedEntryId);
 
   if (!decodedEntryId || !previousEntry) {
     throw new AppError("Time entry not found", 404);
@@ -131,13 +131,13 @@ async function remove(entryId, session) {
 
   const action = previousEntry.user_id === session.user_id ? "time_entries.edit_own" : "time_entries.edit_all";
   await permissionsService.assertCan(session, action, {
-    organization_id: session.organization_id,
+    workspace_id: session.workspace_id,
     client_id: previousEntry.client_id,
     project_id: previousEntry.project_id,
     operation: "delete",
   });
 
-  await timeEntriesRepository.remove(session.organization_id, decodedEntryId);
+  await timeEntriesRepository.remove(session.workspace_id, decodedEntryId);
   await auditService.record({
     session,
     action: "time_entry_deleted",
@@ -160,12 +160,12 @@ async function remove(entryId, session) {
 }
 
 async function list(session) {
-  const entries = await timeEntriesRepository.readAll(session.organization_id);
+  const entries = await timeEntriesRepository.readAll(session.workspace_id);
   return { entries: await permissionsService.filterReadableTimeEntries(session, entries) };
 }
 
-async function resolveTimeEntryScope(organizationId, entry) {
-  return resolveProjectRecordScope(organizationId, entry, {
+async function resolveTimeEntryScope(workspaceId, entry) {
+  return resolveProjectRecordScope(workspaceId, entry, {
     archivedClientMessage: "Archived clients cannot receive new time entries.",
     archivedProjectMessage: "Archived projects cannot receive new time entries.",
     clientNotFoundMessage: "Client not found",

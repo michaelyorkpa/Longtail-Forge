@@ -1,6 +1,7 @@
 // Clients & Projects is the main editor for client, project, and billing metadata.
 const clientList = document.querySelector("[data-client-list]");
 const addClientButton = document.querySelector("[data-add-client]");
+const addProjectTopButton = document.querySelector("[data-add-project-top]");
 const clientStatusFilter = document.querySelector("[data-client-status-filter]");
 const projectClientFilter = document.querySelector("[data-project-client-filter]");
 const openProjectBulkButton = document.querySelector("[data-open-project-bulk]");
@@ -35,7 +36,7 @@ const billingContactFields = [
 ];
 
 let clientProjectData = { clients: [] };
-let organizationSettings = {
+let workspaceSettings = {
   defaultBillingRate: "",
   billingPeriod: { type: "calendarMonth", startDay: 1 },
   billingRounding: { enabled: false, increment: "nearestQuarterHour" },
@@ -61,6 +62,10 @@ if (openProjectBulkButton) {
 
 if (addClientButton) {
   addClientButton.addEventListener("click", openAddClientModal);
+}
+
+if (addProjectTopButton) {
+  addProjectTopButton.addEventListener("click", () => openAddProjectDialog(getWorkspaceProjectClient()));
 }
 
 if (cancelClientButton) {
@@ -99,7 +104,7 @@ async function loadPageData() {
       window.LongtailForge.api.getJson("/api/client-projects", { cache: "no-store" }),
     ]);
 
-    organizationSettings = normalizeSettings(settingsData);
+    workspaceSettings = normalizeSettings(settingsData);
     clientProjectData = normalizeData(clientsData);
     renderProjectClientFilter();
     applyInitialClientParam();
@@ -197,16 +202,6 @@ function renderClients() {
 
 function renderProjectsPage() {
   const projects = getProjectsForCurrentFilters();
-  const workspaceClient = getWorkspaceProjectClient();
-  const addProjectActions = document.createElement("div");
-  const addProjectButton = document.createElement("button");
-
-  addProjectActions.className = "project-list-actions";
-  addProjectButton.type = "button";
-  addProjectButton.textContent = "Add Project";
-  addProjectButton.addEventListener("click", () => openAddProjectDialog(workspaceClient));
-  addProjectActions.appendChild(addProjectButton);
-  clientList.appendChild(addProjectActions);
   clientList.appendChild(createProjectInlineBulkControls());
 
   if (projects.length === 0) {
@@ -223,11 +218,14 @@ function renderProjectsPage() {
 
 function createProjectInlineBulkControls() {
   const wrapper = document.createElement("div");
+  const heading = document.createElement("h2");
   const bulkStatusSelect = createBulkStatusSelect();
   const bulkClientSelect = createBulkClientSelect();
   const bulkBillableSelect = createBulkBillableSelect();
 
   wrapper.className = "inline-bulk-controls";
+  heading.textContent = "Bulk Changes";
+  wrapper.appendChild(heading);
   bulkStatusSelect.label.classList.add("inline-bulk-field");
   bulkStatusSelect.select.disabled = true;
   bulkStatusSelect.select.addEventListener("change", async () => {
@@ -650,7 +648,7 @@ function openAddClientModal() {
   populateParentClientSelect(newParentClientSelect);
 
   if (newProjectBillingRateInput) {
-    newProjectBillingRateInput.value = organizationSettings.defaultBillingRate;
+    newProjectBillingRateInput.value = workspaceSettings.defaultBillingRate;
   }
 
   clientModal.showModal();
@@ -851,7 +849,7 @@ function createBulkClientFilter() {
     createOption("All", "All projects"),
     createOption("__workspace_projects__", "Workspace Projects"),
   );
-  getRealClients().forEach((client) => {
+  getRealClients().filter((client) => isActiveStatus(client.status)).forEach((client) => {
     select.appendChild(createOption(client.id, client.name));
   });
   select.value = [...select.options].some((option) => option.value === projectClientFilter?.value)
@@ -889,7 +887,7 @@ function createBulkClientSelect() {
     createOption("", "No client change"),
     createOption("__workspace__", "Workspace project"),
   );
-  getRealClients().forEach((client) => {
+  getRealClients().filter((client) => isActiveStatus(client.status)).forEach((client) => {
     select.appendChild(createOption(client.id, client.name));
   });
   label.appendChild(select);
@@ -983,6 +981,7 @@ async function applyBulkProjectUpdate({
         ...project,
         status: status || project.status,
         client_id: shouldChangeClient ? nextClientId : project.client_id,
+        confirm_downstream_update: shouldChangeClient,
         billable: nextBillable || project.billable,
         action: {
           action: "projects_bulk_updated",
@@ -1161,9 +1160,9 @@ function getWorkspaceProjectClient() {
     name: "Workspace Projects",
     status: "Active",
     billable: simplifiedBilling ? "no" : "yes",
-    billing_rate: simplifiedBilling ? null : normalizeBillingRate(organizationSettings.defaultBillingRate),
-    billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(organizationSettings.billingPeriod),
-    billing_rounding: normalizeOptionalBillingRounding(organizationSettings.billingRounding),
+    billing_rate: simplifiedBilling ? null : normalizeBillingRate(workspaceSettings.defaultBillingRate),
+    billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(workspaceSettings.billingPeriod),
+    billing_rounding: normalizeOptionalBillingRounding(workspaceSettings.billingRounding),
     billing_contact: normalizeBillingContact({}),
     isWorkspaceScope: true,
     projects: [],
@@ -1399,16 +1398,16 @@ function createClientBillingSettingsEditor(client, options = {}) {
 
   const billingPeriodEditor = createBillingPeriodEditor({
     legend: "Billing Period",
-    inheritLabel: `Use workspace billing period (${formatBillingPeriod(organizationSettings.billingPeriod)})`,
+    inheritLabel: `Use workspace billing period (${formatBillingPeriod(workspaceSettings.billingPeriod)})`,
     value: client.billing_period,
-    inheritedPeriod: organizationSettings.billingPeriod,
+    inheritedPeriod: workspaceSettings.billingPeriod,
   });
 
   const billingRoundingEditor = createBillingRoundingEditor({
     legend: "Rounding",
-    inheritLabel: `Use workspace rounding (${formatBillingRounding(organizationSettings.billingRounding)})`,
+    inheritLabel: `Use workspace rounding (${formatBillingRounding(workspaceSettings.billingRounding)})`,
     value: client.billing_rounding,
-    inheritedRounding: organizationSettings.billingRounding,
+    inheritedRounding: workspaceSettings.billingRounding,
   });
 
   let saveButton = null;
@@ -1668,7 +1667,7 @@ function createProjectEditor(client, project) {
     legend: "Rounding",
     inheritLabel: getProjectRoundingInheritLabel(client, project),
     value: project.billing_rounding,
-    inheritedRounding: project.client_id ? getEffectiveClientBillingRounding(client) : organizationSettings.billingRounding,
+    inheritedRounding: project.client_id ? getEffectiveClientBillingRounding(client) : workspaceSettings.billingRounding,
     showModeWhenUnbillable: true,
   });
 
@@ -1724,7 +1723,7 @@ function createProjectEditor(client, project) {
     if ((oldProject.client_id || "") !== (project.client_id || "") || (oldProject.parent_project_id || "") !== (project.parent_project_id || "")) {
       const confirmed = await window.LongtailForge.modal.confirm({
         title: "Move project?",
-        message: "Move this project in the client/project hierarchy? Existing time entries keep their saved names; future rollups follow the updated hierarchy.",
+        message: "Move this project in the client/project hierarchy? Existing time entries assigned to this project will be updated to the new client and project names.",
         confirmLabel: "Move",
         cancelLabel: "Cancel",
       });
@@ -1742,6 +1741,7 @@ function createProjectEditor(client, project) {
       client_name: getProjectClientName(project.client_id),
       project_id: project.id,
       project_name: project.name,
+      confirm_downstream_update: true,
       details: `old_project_id=${oldProject.id};old_project_name=${oldProject.name};old_status=${oldProject.status};old_parent_project_id=${oldProject.parent_project_id || ""};new_parent_project_id=${project.parent_project_id || ""};old_billable=${oldProject.billable};old_billing_rate=${oldProject.billing_rate};new_status=${project.status};new_billable=${project.billable};new_billing_rate=${project.billing_rate};billing_period=${formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project))};rounding=${formatBillingRounding(getEffectiveProjectBillingRounding(client, project))};round_hours=${getEffectiveProjectBillingRounding(client, project).enabled ? "yes" : "no"}`,
     }, {
       openClientId: project.client_id || "__workspace_projects__",
@@ -1803,7 +1803,7 @@ function createProjectClientAssignment(project) {
   label.textContent = "Client";
   label.hidden = !clientsEnabledForWorkspace();
   select.appendChild(createOption("", "Workspace project"));
-  getRealClients().forEach((client) => {
+  getRealClients().filter((client) => isActiveStatus(client.status)).forEach((client) => {
     select.appendChild(createOption(client.id, client.name));
   });
   select.value = project.client_id || "";
@@ -1856,7 +1856,7 @@ function createAddProjectClientAssignment(client) {
   wrapper.hidden = !clientsEnabledForWorkspace();
   label.textContent = "Client";
   select.appendChild(createOption("", "Workspace project"));
-  getRealClients().forEach((realClient) => {
+  getRealClients().filter((realClient) => isActiveStatus(realClient.status)).forEach((realClient) => {
     select.appendChild(createOption(realClient.id, realClient.name));
   });
   select.value = getDefaultProjectClientId(client);
@@ -1997,7 +1997,7 @@ function createAddProjectForm(client, { onSaved = null, showClientAssignment = f
     legend: "Rounding",
     inheritLabel: getProjectRoundingInheritLabel(client, { client_id: client.isWorkspaceScope ? "" : client.id }),
     value: null,
-    inheritedRounding: client.isWorkspaceScope ? organizationSettings.billingRounding : getEffectiveClientBillingRounding(client),
+    inheritedRounding: client.isWorkspaceScope ? workspaceSettings.billingRounding : getEffectiveClientBillingRounding(client),
     showModeWhenUnbillable: true,
   });
 
@@ -2108,7 +2108,7 @@ async function addClient() {
     name: clientName,
     parent_client_id: newParentClientSelect?.value || "",
     billable: "yes",
-    billing_rate: organizationSettings.defaultBillingRate,
+    billing_rate: workspaceSettings.defaultBillingRate,
     billing_period: null,
     billing_rounding: null,
     billing_contact: createEmptyBillingContact(),
@@ -2315,9 +2315,9 @@ function normalizeData(data) {
       name: "Workspace Projects",
       status: "Active",
       billable: simplifiedBilling ? "no" : "yes",
-      billing_rate: simplifiedBilling ? null : normalizeBillingRate(organizationSettings.defaultBillingRate),
-      billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(organizationSettings.billingPeriod),
-      billing_rounding: normalizeOptionalBillingRounding(organizationSettings.billingRounding),
+      billing_rate: simplifiedBilling ? null : normalizeBillingRate(workspaceSettings.defaultBillingRate),
+      billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(workspaceSettings.billingPeriod),
+      billing_rounding: normalizeOptionalBillingRounding(workspaceSettings.billingRounding),
       billing_contact: normalizeBillingContact({}),
       isWorkspaceScope: true,
       projects: workspaceProjects,
@@ -2359,7 +2359,7 @@ function normalizeSettings(settings) {
 }
 
 function clientsEnabledForWorkspace() {
-  return organizationSettings.workspaceType === "business";
+  return workspaceSettings.workspaceType === "business";
 }
 
 function isActiveStatus(status) {
@@ -2622,11 +2622,11 @@ function populateBillingPeriodStartDays(select) {
 }
 
 function getEffectiveClientBillingPeriod(client) {
-  return client.billing_period || organizationSettings.billingPeriod;
+  return client.billing_period || workspaceSettings.billingPeriod;
 }
 
 function getEffectiveClientBillingRate(client) {
-  return client.billing_rate || organizationSettings.defaultBillingRate;
+  return client.billing_rate || workspaceSettings.defaultBillingRate;
 }
 
 function getEffectiveProjectBillingPeriod(client, project) {
@@ -2640,12 +2640,12 @@ function getProjectBillingPeriodInheritLabel(client) {
 }
 
 function getEffectiveClientBillingRounding(client) {
-  return client.billing_rounding || organizationSettings.billingRounding;
+  return client.billing_rounding || workspaceSettings.billingRounding;
 }
 
 function getEffectiveProjectBillingRounding(client, project) {
   if (!project?.client_id) {
-    return project.billing_rounding || organizationSettings.billingRounding;
+    return project.billing_rounding || workspaceSettings.billingRounding;
   }
 
   return project.billing_rounding || getEffectiveClientBillingRounding(client);
@@ -2654,7 +2654,7 @@ function getEffectiveProjectBillingRounding(client, project) {
 function getProjectRoundingInheritLabel(client, project) {
   const inheritsWorkspace = client.isWorkspaceScope || !project?.client_id;
   const inheritedRounding = inheritsWorkspace
-    ? organizationSettings.billingRounding
+    ? workspaceSettings.billingRounding
     : getEffectiveClientBillingRounding(client);
   const label = inheritsWorkspace ? "workspace" : "client";
 
@@ -2788,7 +2788,7 @@ window.LongtailForge.pageController.register("clients-projects", {
     mode: pageMode,
     openClientId,
     workspaceProjectCount: clientProjectData.workspaceProjects?.length || 0,
-    workspaceType: organizationSettings.workspaceType,
+    workspaceType: workspaceSettings.workspaceType,
   }),
   runSmoke: () => {
     const checks = [

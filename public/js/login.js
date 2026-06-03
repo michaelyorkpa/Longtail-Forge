@@ -49,12 +49,15 @@ async function redirectIfLoggedIn() {
     // Keep returning users out of the login form when their cookie is still valid.
     const response = await fetch("/api/session", { cache: "no-store" });
 
-    if (response.ok) {
-      const body = await response.json().catch(() => ({}));
+      if (response.ok) {
+        const body = await response.json().catch(() => ({}));
 
-      if (body.user?.workspaceContext) {
-        window.localStorage.setItem("lf_workspace_context", JSON.stringify(body.user.workspaceContext));
-      }
+        const themeMode = body.user?.themeMode === "dark" ? "dark" : "light";
+        window.localStorage.setItem("lf_theme", themeMode);
+        window.localStorage.setItem("lf_timezone", body.user?.timezone || "America/New_York");
+        if (body.user?.workspaceContext) {
+          window.localStorage.setItem("lf_workspace_context", JSON.stringify(body.user.workspaceContext));
+        }
       window.location.replace("/dashboard.html");
     }
   } catch {

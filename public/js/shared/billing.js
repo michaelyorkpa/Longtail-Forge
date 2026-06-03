@@ -99,10 +99,12 @@
     const clients = Array.isArray(data?.clients)
       ? data.clients
           .filter((client) => includeInactive || client.status !== "Inactive")
-          .map((client) => normalizeClient(client))
+          .map((client) => normalizeClient(client, { includeInactive }))
       : [];
     const workspaceProjects = Array.isArray(data?.workspaceProjects)
-      ? data.workspaceProjects.map((project) => normalizeProject(project, "yes"))
+      ? data.workspaceProjects
+          .filter((project) => includeInactive || project.status !== "Inactive")
+          .map((project) => normalizeProject(project, "yes"))
       : [];
 
     if (workspaceProjects.length > 0) {
@@ -122,7 +124,8 @@
     return clients;
   }
 
-  function normalizeClient(client) {
+  function normalizeClient(client, options = {}) {
+    const includeInactive = Boolean(options.includeInactive);
     const billable = normalizeBillableFlag(client?.billable);
 
     return {
@@ -134,7 +137,9 @@
       billingPeriod: normalizeOptionalBillingPeriod(client?.billing_period),
       billingRounding: normalizeOptionalBillingRounding(client?.billing_rounding),
       projects: Array.isArray(client?.projects)
-        ? client.projects.map((project) => normalizeProject(project, billable))
+        ? client.projects
+            .filter((project) => includeInactive || project.status !== "Inactive")
+            .map((project) => normalizeProject(project, billable))
         : [],
     };
   }
@@ -143,6 +148,7 @@
     return {
       id: String(project?.id || "").trim(),
       name: String(project?.name || "").trim(),
+      status: project?.status === "Inactive" ? "Inactive" : "Active",
       billable: normalizeBillableFlag(project?.billable, fallbackBillable),
       billingRate: parseOptionalMoney(project?.billing_rate),
       billingPeriod: normalizeOptionalBillingPeriod(project?.billing_period),

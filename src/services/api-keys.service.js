@@ -22,20 +22,20 @@ const PUBLIC_API_SCOPES = [
 const PUBLIC_API_SCOPE_SET = new Set(PUBLIC_API_SCOPES);
 
 async function list(session) {
-  await permissionsService.assertCan(session, "organization_settings.manage", {
-    organization_id: session.organization_id,
+  await permissionsService.assertCan(session, "workspace_settings.manage", {
+    workspace_id: session.workspace_id,
     operation: "read",
   });
 
   return {
-    apiKeys: await apiKeysRepository.readAll(session.organization_id),
+    apiKeys: await apiKeysRepository.readAll(session.workspace_id),
     availableScopes: PUBLIC_API_SCOPES,
   };
 }
 
 async function create(payload, session) {
-  await permissionsService.assertCan(session, "organization_settings.manage", {
-    organization_id: session.organization_id,
+  await permissionsService.assertCan(session, "workspace_settings.manage", {
+    workspace_id: session.workspace_id,
     operation: "update",
   });
 
@@ -52,7 +52,7 @@ async function create(payload, session) {
 
   const rawKey = createRawApiKey();
   const apiKey = await apiKeysRepository.create({
-    organizationId: session.organization_id,
+    workspaceId: session.workspace_id,
     createdByUserId: session.user_id,
     name,
     keyHash: hashApiKey(rawKey),
@@ -72,7 +72,7 @@ async function create(payload, session) {
     newValue: toPublicApiKey(apiKey),
     metadata: {
       key_prefix: apiKey.key_prefix,
-      workspace_id: apiKey.workspace_id || apiKey.organization_id,
+      workspace_id: apiKey.workspace_id,
       scopes,
     },
   });
@@ -80,24 +80,24 @@ async function create(payload, session) {
   return {
     apiKey: toPublicApiKey(apiKey),
     rawKey,
-    apiKeys: await apiKeysRepository.readAll(session.organization_id),
+    apiKeys: await apiKeysRepository.readAll(session.workspace_id),
     availableScopes: PUBLIC_API_SCOPES,
   };
 }
 
 async function revoke(apiKeyId, session) {
-  await permissionsService.assertCan(session, "organization_settings.manage", {
-    organization_id: session.organization_id,
+  await permissionsService.assertCan(session, "workspace_settings.manage", {
+    workspace_id: session.workspace_id,
     operation: "update",
   });
 
-  const previousKey = await apiKeysRepository.readById(session.organization_id, apiKeyId);
+  const previousKey = await apiKeysRepository.readById(session.workspace_id, apiKeyId);
 
   if (!previousKey) {
     throw new AppError("API key was not found.", 404);
   }
 
-  const apiKey = await apiKeysRepository.revoke(session.organization_id, apiKeyId);
+  const apiKey = await apiKeysRepository.revoke(session.workspace_id, apiKeyId);
   await auditService.record({
     session,
     action: "api_key_revoked",
@@ -110,13 +110,13 @@ async function revoke(apiKeyId, session) {
     newValue: toPublicApiKey(apiKey),
     metadata: {
       key_prefix: previousKey.key_prefix,
-      workspace_id: previousKey.workspace_id || previousKey.organization_id,
+      workspace_id: previousKey.workspace_id,
     },
   });
 
   return {
     apiKey: toPublicApiKey(apiKey),
-    apiKeys: await apiKeysRepository.readAll(session.organization_id),
+    apiKeys: await apiKeysRepository.readAll(session.workspace_id),
     availableScopes: PUBLIC_API_SCOPES,
   };
 }
@@ -162,8 +162,7 @@ function hashApiKey(rawKey) {
 function toPublicApiKey(apiKey) {
   return {
     api_key_id: apiKey.api_key_id,
-    workspace_id: apiKey.workspace_id || apiKey.organization_id,
-    organization_id: apiKey.organization_id,
+    workspace_id: apiKey.workspace_id,
     name: apiKey.name,
     key_prefix: apiKey.key_prefix,
     status: apiKey.status,

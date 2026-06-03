@@ -9,13 +9,13 @@ import { normalizeUtcIso } from "../../utils/timezones.js";
 const MODULE_ID = "time-tracking";
 
 async function listTimeEntries(context, query) {
-  const entries = await timeEntriesRepository.readAll(context.organization_id);
+  const entries = await timeEntriesRepository.readAll(context.workspace_id);
   return paged(entries.map((entry) => withWorkspaceAlias(entry, context)), query);
 }
 
 async function createTimeEntry(context, payload) {
   await assertModuleWriteEnabled(context, MODULE_ID);
-  const { client, project } = await resolveProjectRecordScope(context.organization_id, payload, {
+  const { client, project } = await resolveProjectRecordScope(context.workspace_id, payload, {
     archivedClientMessage: "Archived clients cannot receive new time entries.",
     archivedProjectMessage: "Archived projects cannot receive new time entries.",
     clientNotFoundMessage: "Client was not found.",
@@ -25,7 +25,7 @@ async function createTimeEntry(context, payload) {
   const entryId = payload.entry_id || randomUUID();
   const entry = normalizeTimeEntry({
     entry_id: entryId,
-    organization_id: context.organization_id,
+    workspace_id: context.workspace_id,
     user_id: context.user_id,
     client_id: client?.id || "",
     client_name: client?.name || "",
@@ -68,7 +68,7 @@ function withWorkspaceAlias(record, context) {
 
   return {
     ...record,
-    workspace_id: record.workspace_id || record.organization_id || context.workspace_id || context.organization_id,
+    workspace_id: record.workspace_id || context.workspace_id,
   };
 }
 
