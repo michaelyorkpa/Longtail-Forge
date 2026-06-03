@@ -52,6 +52,13 @@ SET name = ${sqlText(settings.organizationName)},
     workspace_type = ${sqlText(settings.workspaceType)},
     updated_at = ${sqlText(now)}
 WHERE id = ${sqlText(organizationId)};
+
+UPDATE workspaces
+SET name = ${sqlText(settings.organizationName)},
+    workspace_type = ${sqlText(settings.workspaceType)},
+    updated_at = ${sqlText(now)}
+WHERE workspace_id = ${sqlText(organizationId)};
+
 UPDATE organization_settings
 SET
   fiscal_year_start_month = ${sqlInteger(settings.fiscalYear.startMonth)},
@@ -66,6 +73,21 @@ SET
   audit_settings_updated_at = ${sqlText(now)},
   updated_at = ${sqlText(now)}
 WHERE organization_id = ${sqlText(organizationId)};
+
+UPDATE workspace_settings
+SET
+  fiscal_year_start_month = ${sqlInteger(settings.fiscalYear.startMonth)},
+  fiscal_year_start_day = ${sqlInteger(settings.fiscalYear.startDay)},
+  default_billing_rate = ${sqlText(settings.defaultBillingRate)},
+  billing_period_type = ${sqlText(settings.billingPeriod.type)},
+  billing_period_start_day = ${sqlInteger(settings.billingPeriod.startDay)},
+  rounding_enabled = ${sqlInteger(settings.billingRounding.enabled ? 1 : 0)},
+  rounding_increment = ${sqlText(settings.billingRounding.increment)},
+  audit_logging_enabled = ${sqlInteger(settings.audit.loggingEnabled ? 1 : 0)},
+  audit_retention_days = ${sqlInteger(settings.audit.retentionDays)},
+  audit_settings_updated_at = ${sqlText(now)},
+  updated_at = ${sqlText(now)}
+WHERE workspace_id = ${sqlText(organizationId)};
 `);
 }
 

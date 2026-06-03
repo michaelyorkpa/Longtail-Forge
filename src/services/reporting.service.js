@@ -24,6 +24,7 @@ async function readProjectSummary(session, query = {}) {
   const { settings, scopes } = await readReportContext(session);
   const entries = normalizeTimeEntries((await timeEntriesService.list(session)).entries);
   const scope = scopes.find((item) => item.id === String(query.scopeId || query.scope_id || "").trim());
+  const includeDescendants = parseIncludeDescendants(query);
 
   if (!scope) {
     throw new AppError("Reporting scope not found.", 404);
@@ -37,9 +38,16 @@ async function readProjectSummary(session, query = {}) {
     return emptyProjectSummary(scope);
   }
 
-  const scopeEntries = entries.filter((entry) => matchesScope(entry, scope));
+  const scopeEntries = entries.filter((entry) => matchesScope(entry, scope, { includeDescendants }));
   const rows = projects
-    .map((project) => summarizeProject(settings, scope, project, scopeEntries, readSelectedDateRange(settings, scope, project, query)))
+    .map((project) => summarizeProject(
+      settings,
+      scope,
+      project,
+      scopeEntries,
+      readSelectedDateRange(settings, scope, project, query),
+      { includeDescendants },
+    ))
     .filter(Boolean);
   const totals = rows.reduce((summary, row) => ({
     amount: summary.amount + row.amount,
@@ -155,9 +163,10 @@ function normalizeScope(client) {
     billingPeriod: normalizeOptionalBillingPeriod(client.billing_period),
     billingRounding: normalizeOptionalBillingRounding(client.billing_rounding),
     isWorkspaceScope: Boolean(client.isWorkspaceScope),
-    projects: Array.isArray(client.projects)
+    childScopeIds: Array.isArray(client.childScopeIds) ? client.childScopeIds : [],
+    projects: decorateProjectDescendants(Array.isArray(client.projects)
       ? client.projects.map((project) => normalizeProject(project, billable))
-      : [],
+      : []),
   };
 }
 
@@ -165,6 +174,7 @@ function normalizeProject(project, fallbackBillable = "yes") {
   return {
     id: String(project.id || "").trim(),
     name: String(project.name || "").trim(),
+    parentProjectId: String(project.parent_project_id || "").trim(),
     status: project.status === "Inactive" ? "Inactive" : "Active",
     billable: normalizeBillableFlag(project.billable, fallbackBillable),
     billingRate: parseOptionalMoney(project.billing_rate),
@@ -192,9 +202,9 @@ function summarizeScopesForRange(settings, scopes, entries, range) {
 }
 
 function summarizeScopeForRange(settings, scope, entries, range) {
-  const scopeEntries = entries.filter((entry) => matchesScope(entry, scope));
+  const scopeEntries = entries.filter((entry) => matchesScope(entry, scope, { includeDescendants: true }));
   const projectSummaries = scope.projects
-    .map((project) => summarizeProject(settings, scope, project, scopeEntries, range))
+    .map((project) => summarizeProject(settings, scope, project, scopeEntries, range, { includeDescendants: true }))
     .filter(Boolean);
   const totals = projectSummaries.reduce((summary, projectSummary) => ({
     amount: summary.amount + projectSummary.amount,
@@ -215,8 +225,10 @@ function summarizeScopeForRange(settings, scope, entries, range) {
   };
 }
 
-function summarizeProject(settings, scope, project, entries, range) {
-  const projectEntries = entries.filter((entry) => matchesProject(entry, project) && isEntryInRange(entry, range));
+function summarizeProject(settings, scope, project, entries, range, options = {}) {
+  const projectEntries = entries.filter((entry) => (
+    matchesProject(entry, project, options) && isEntryInRange(entry, range)
+  ));
   const rawSeconds = projectEntries.reduce((seconds, entry) => seconds + entry.durationSeconds, 0);
   const rawBillableSeconds = projectEntries
     .filter((entry) => entry.billable === "yes")
@@ -331,18 +343,49 @@ function isEntryInRange(entry, range) {
   );
 }
 
-function matchesScope(entry, scope) {
+function matchesScope(entry, scope, options = {}) {
   if (scope.isWorkspaceScope) {
     return !normalizeKey(entry.clientId) && !normalizeKey(entry.clientName);
+  }
+
+  if (options.includeDescendants && scope.childScopeIds.includes(entry.clientId)) {
+    return true;
   }
 
   return normalizeKey(entry.clientId) === normalizeKey(scope.id) ||
     normalizeKey(entry.clientName) === normalizeKey(scope.name);
 }
 
-function matchesProject(entry, project) {
+function matchesProject(entry, project, options = {}) {
+  if (options.includeDescendants && project.childProjectIds.includes(entry.projectId)) {
+    return true;
+  }
+
   return normalizeKey(entry.projectId) === normalizeKey(project.id) ||
     normalizeKey(entry.projectName) === normalizeKey(project.name);
+}
+
+function decorateProjectDescendants(projects) {
+  const descendantsByProjectId = new Map(projects.map((project) => [project.id, []]));
+
+  projects.forEach((project) => {
+    let parentId = project.parentProjectId;
+
+    while (parentId) {
+      const descendants = descendantsByProjectId.get(parentId);
+      if (!descendants) {
+        break;
+      }
+
+      descendants.push(project.id);
+      parentId = projects.find((candidate) => candidate.id === parentId)?.parentProjectId || "";
+    }
+  });
+
+  return projects.map((project) => ({
+    ...project,
+    childProjectIds: descendantsByProjectId.get(project.id) || [],
+  }));
 }
 
 function normalizeKey(value) {
@@ -361,6 +404,16 @@ function parseSelectedProjectIds(value) {
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function parseIncludeDescendants(query = {}) {
+  const rawValue = query.includeDescendants ?? query.include_descendants;
+
+  if (rawValue === undefined || rawValue === null || rawValue === "") {
+    return true;
+  }
+
+  return rawValue === true || rawValue === "true" || rawValue === "1" || rawValue === 1;
 }
 
 function normalizeBillableFlag(value, fallback = "yes") {

@@ -41,6 +41,7 @@ async function ensureDatabase() {
   await ensureWorkspaceType(organizationId);
   await repairPersonalWorkspaceMemberships();
   await ensureProtectedUserRoles(organizationId);
+  await repairWorkspaceAliases();
 }
 
 async function repairRedactedSeedUsers(organizationId) {
@@ -490,6 +491,191 @@ UPDATE organizations
 SET workspace_type = ${sqlText(DEFAULT_WORKSPACE_TYPE)}
 WHERE id = ${sqlText(organizationId)}
   AND workspace_type NOT IN ('business', 'personal', 'family');
+`);
+}
+
+async function repairWorkspaceAliases() {
+  if (
+    !(await tableExists("workspaces")) ||
+    !(await tableExists("workspace_settings")) ||
+    !(await tableExists("organizations")) ||
+    !(await tableExists("organization_settings"))
+  ) {
+    return;
+  }
+
+  await runSql(`
+INSERT OR IGNORE INTO workspaces (
+  workspace_id,
+  name,
+  status,
+  workspace_type,
+  owner_user_id,
+  created_at,
+  updated_at
+)
+SELECT
+  id,
+  name,
+  status,
+  workspace_type,
+  owner_user_id,
+  created_at,
+  updated_at
+FROM organizations;
+
+UPDATE workspaces
+SET
+  name = (
+    SELECT organizations.name
+    FROM organizations
+    WHERE organizations.id = workspaces.workspace_id
+  ),
+  status = (
+    SELECT organizations.status
+    FROM organizations
+    WHERE organizations.id = workspaces.workspace_id
+  ),
+  workspace_type = (
+    SELECT organizations.workspace_type
+    FROM organizations
+    WHERE organizations.id = workspaces.workspace_id
+  ),
+  owner_user_id = (
+    SELECT organizations.owner_user_id
+    FROM organizations
+    WHERE organizations.id = workspaces.workspace_id
+  ),
+  updated_at = (
+    SELECT organizations.updated_at
+    FROM organizations
+    WHERE organizations.id = workspaces.workspace_id
+  )
+WHERE workspace_id IN (
+  SELECT id
+  FROM organizations
+);
+
+INSERT OR IGNORE INTO workspace_settings (
+  workspace_id,
+  fiscal_year_start_month,
+  fiscal_year_start_day,
+  default_billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  rounding_enabled,
+  rounding_increment,
+  audit_logging_enabled,
+  audit_retention_days,
+  audit_settings_updated_at,
+  created_at,
+  updated_at
+)
+SELECT
+  organization_id,
+  fiscal_year_start_month,
+  fiscal_year_start_day,
+  default_billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  rounding_enabled,
+  rounding_increment,
+  audit_logging_enabled,
+  audit_retention_days,
+  audit_settings_updated_at,
+  created_at,
+  updated_at
+FROM organization_settings;
+
+UPDATE workspace_settings
+SET
+  fiscal_year_start_month = (
+    SELECT organization_settings.fiscal_year_start_month
+    FROM organization_settings
+    WHERE organization_settings.organization_id = workspace_settings.workspace_id
+  ),
+  fiscal_year_start_day = (
+    SELECT organization_settings.fiscal_year_start_day
+    FROM organization_settings
+    WHERE organization_settings.organization_id = workspace_settings.workspace_id
+  ),
+  default_billing_rate = (
+    SELECT organization_settings.default_billing_rate
+    FROM organization_settings
+    WHERE organization_settings.organization_id = workspace_settings.workspace_id
+  ),
+  billing_period_type = (
+    SELECT organization_settings.billing_period_type
+    FROM organization_settings
+    WHERE organization_settings.organization_id = workspace_settings.workspace_id
+  ),
+  billing_period_start_day = (
+    SELECT organization_settings.billing_period_start_day
+    FROM organization_settings
+    WHERE organization_settings.organization_id = workspace_settings.workspace_id
+  ),
+  rounding_enabled = (
+    SELECT organization_settings.rounding_enabled
+    FROM organization_settings
+    WHERE organization_settings.organization_id = workspace_settings.workspace_id
+  ),
+  rounding_increment = (
+    SELECT organization_settings.rounding_increment
+    FROM organization_settings
+    WHERE organization_settings.organization_id = workspace_settings.workspace_id
+  ),
+  audit_logging_enabled = (
+    SELECT organization_settings.audit_logging_enabled
+    FROM organization_settings
+    WHERE organization_settings.organization_id = workspace_settings.workspace_id
+  ),
+  audit_retention_days = (
+    SELECT organization_settings.audit_retention_days
+    FROM organization_settings
+    WHERE organization_settings.organization_id = workspace_settings.workspace_id
+  ),
+  audit_settings_updated_at = (
+    SELECT organization_settings.audit_settings_updated_at
+    FROM organization_settings
+    WHERE organization_settings.organization_id = workspace_settings.workspace_id
+  ),
+  updated_at = (
+    SELECT organization_settings.updated_at
+    FROM organization_settings
+    WHERE organization_settings.organization_id = workspace_settings.workspace_id
+  )
+WHERE workspace_id IN (
+  SELECT organization_id
+  FROM organization_settings
+);
+
+UPDATE clients
+SET workspace_id = organization_id
+WHERE workspace_id IS NULL OR workspace_id != organization_id;
+
+UPDATE projects
+SET workspace_id = organization_id
+WHERE workspace_id IS NULL OR workspace_id != organization_id;
+
+UPDATE time_entries
+SET workspace_id = organization_id
+WHERE workspace_id IS NULL OR workspace_id != organization_id;
+
+UPDATE audit_logs
+SET workspace_id = organization_id
+WHERE workspace_id IS NULL OR workspace_id != organization_id;
+
+UPDATE api_keys
+SET workspace_id = organization_id
+WHERE workspace_id IS NULL OR workspace_id != organization_id;
+
+UPDATE user_role_assignments
+SET workspace_id = organization_id
+WHERE workspace_id IS NULL OR workspace_id != organization_id;
+
+UPDATE organization_modules
+SET workspace_id = organization_id
+WHERE workspace_id IS NULL OR workspace_id != organization_id;
 `);
 }
 

@@ -8,6 +8,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
+- [ ] Add Table of Contents to README.md
+- [ ] Add an about section to GitHub
+
+
 - How is the "Remove Workspace" button wired, currently on User Settings page?
 
 - What happens when a user is removed from all workspaces?

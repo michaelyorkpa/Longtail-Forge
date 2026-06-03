@@ -118,6 +118,7 @@ function normalizeClientProjectData(data) {
       return {
         id: String(client.id || "").trim(),
         workspace_id: String(client.workspace_id || client.organization_id || "").trim(),
+        parent_client_id: String(client.parent_client_id || client.parentClientId || "").trim(),
         name: String(client.name || "").trim(),
         status: normalizeClientStatus(client.status),
         billable: clientBillable,
@@ -125,11 +126,13 @@ function normalizeClientProjectData(data) {
         billing_period: normalizeOptionalBillingPeriod(client.billing_period),
         billing_rounding: normalizeOptionalBillingRounding(client.billing_rounding),
         billing_contact: normalizeBillingContact(client.billing_contact),
+        childScopeIds: Array.isArray(client.childScopeIds) ? client.childScopeIds : [],
         projects: Array.isArray(client.projects)
             ? client.projects.map((project) => ({
                 id: String(project.id || "").trim(),
                 client_id: String(project.client_id || client.id || "").trim(),
                 workspace_id: String(project.workspace_id || project.organization_id || client.workspace_id || client.organization_id || "").trim(),
+                parent_project_id: String(project.parent_project_id || project.parentProjectId || "").trim(),
                 name: String(project.name || "").trim(),
               billable: normalizeBillableFlag(project.billable, clientBillable),
               billing_rate: normalizeBillingRate(project.billing_rate),

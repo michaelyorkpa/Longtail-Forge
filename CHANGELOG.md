@@ -1,3 +1,23 @@
+## Version 0.30.15 - 2026-06-02 23:27 -04:00
+
+- Added nullable `parent_client_id` and `parent_project_id` hierarchy fields with workspace/parent indexes.
+- Added server-side validation for client/project self-parenting, descendant cycles, workspace scope, and project parent/client compatibility.
+- Added parent selectors and indented tree labels for client and project editors, filters, and reporting project options.
+- Updated reporting summaries to include descendant clients/projects by default, with a direct-only toggle.
+- Added audit metadata for parent moves and expanded permission regression coverage for nesting rules.
+- Fixed Clients Settings rendering by loading the shared page controller script and corrected parent selector wiring for client saves.
+- Fixed Add Project parent-project options so the list populates for the default selected client/workspace scope when the modal opens.
+- Fixed new-project parent option filtering so root projects are not mistaken for descendants of an unsaved project.
+- Prevented inactive/archived clients and projects from appearing as parent options, and added server-side rejection for archived parent assignments.
+- Bumped the app version to `0.30.15`.
+
+## Version 0.30.14 - 2026-06-02 17:38 -04:00
+
+- Documented the storage rename compatibility plan, including the remaining `organization_id` inventory, final migration order, alias retention rules, and legacy removal gate.
+- Added `scripts/storage-alias-regression.mjs` and wired it into `npm run check` so legacy organization fields and workspace aliases stay synchronized during the compatibility phase.
+- Updated workspace settings saves to write both `organizations`/`organization_settings` and `workspaces`/`workspace_settings`.
+- Updated public API compatibility notes and release metadata for 0.30.14.
+
 ## Version 0.30.13 - 2026-06-02 17:11 -04:00
 
 - Added app-level workspace creation settings tables for install-wide defaults and per-user workspace creation overrides.

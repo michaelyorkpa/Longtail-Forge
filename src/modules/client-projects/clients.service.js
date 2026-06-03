@@ -4,7 +4,7 @@ import { projectsRepository } from "./projects.repo.js";
 import { auditService } from "../../core/audit.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
-import { readClientScope } from "../../core/record-scope.js";
+import { isArchivedRecord, readClientScope } from "../../core/record-scope.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
 import { normalizeClientProjectData } from "../../utils/normalizers.js";
 import { planProjectUpdate } from "./project-update-planner.js";
@@ -43,6 +43,7 @@ async function saveClientProjects() {
 async function readClientProjectData(organizationId) {
   const clients = await clientsRepository.readAll(organizationId);
   const projects = await projectsRepository.readAll(organizationId);
+  const descendantClientIdsByClient = buildDescendantIdMap(clients, "parent_client_id");
   const workspaceProjects = [];
   const projectsByClientId = projects.reduce((projectsByClient, project) => {
     const projectValue = { ...project };
@@ -65,11 +66,19 @@ async function readClientProjectData(organizationId) {
     ...normalizeClientProjectData({
     clients: clients.map((client) => ({
       ...client,
+      childScopeIds: descendantClientIdsByClient.get(client.id) || [],
       projects: projectsByClientId.get(client.id) || [],
     })),
     }),
     workspaceProjects,
   };
+}
+
+function buildDescendantIdMap(records, parentField) {
+  return records.reduce((descendantsById, record) => {
+    descendantsById.set(record.id, collectDescendantIds(records, record.id, parentField));
+    return descendantsById;
+  }, new Map());
 }
 
 async function listClients(session) {
@@ -100,6 +109,15 @@ async function createClient(payload, session) {
     operation: "create",
   });
   const client = normalizeClientPayload(payload, { id: payload?.id || randomUUID() });
+  const parentClient = await validateClientParent(session.organization_id, client.id, client.parent_client_id);
+
+  if (parentClient) {
+    await permissionsService.assertCan(session, "clients.manage", {
+      organization_id: session.organization_id,
+      client_id: parentClient.id,
+      operation: "update",
+    });
+  }
 
   await clientsRepository.create(session.organization_id, client);
   await recordAudit(payload?.action, {
@@ -112,7 +130,7 @@ async function createClient(payload, session) {
     recordUrl: `clients.html?client=${encodeURIComponent(client.id)}`,
     previousValue: null,
     newValue: client,
-    metadata: clientMetadata(client),
+    metadata: clientMetadata(client, parentClient),
   });
 
   return { client };
@@ -143,6 +161,16 @@ async function updateClient(clientId, payload, session) {
     ...previousClient,
     id: decodedClientId,
   });
+  const parentChanged = (previousClient.parent_client_id || "") !== (client.parent_client_id || "");
+  const parentClient = await validateClientParent(session.organization_id, client.id, client.parent_client_id);
+
+  if (parentChanged && parentClient) {
+    await permissionsService.assertCan(session, "clients.manage", {
+      organization_id: session.organization_id,
+      client_id: parentClient.id,
+      operation: "update",
+    });
+  }
 
   await clientsRepository.update(session.organization_id, client);
   await recordAudit(payload?.action, {
@@ -159,7 +187,11 @@ async function updateClient(clientId, payload, session) {
       old_client_name: previousClient.name,
       old_status: previousClient.status,
       new_status: client.status,
-      ...clientMetadata(client),
+      old_parent_client_id: previousClient.parent_client_id || "",
+      old_parent_client_name: await readClientName(session.organization_id, previousClient.parent_client_id),
+      new_parent_client_id: client.parent_client_id || "",
+      new_parent_client_name: parentClient?.name || "",
+      ...clientMetadata(client, parentClient),
     },
   });
 
@@ -250,6 +282,7 @@ async function createProject(clientId, payload, session) {
   const workspaceSettings = await settingsRepository.readOrganizationSettings(session.organization_id);
   const usesProjectRoundingOnly = workspaceUsesProjectRoundingOnly(workspaceSettings.workspaceType);
   const normalizedPayload = normalizeProjectPayloadForWorkspace(payload, usesProjectRoundingOnly);
+  const projectId = normalizedPayload?.id || randomUUID();
   const decodedClientId = usesProjectRoundingOnly
     ? ""
     : decodeURIComponent(clientId || normalizedPayload?.client_id || "");
@@ -259,6 +292,12 @@ async function createProject(clientId, payload, session) {
         notFoundMessage: "Client not found",
       })
     : null;
+  const parentProject = await validateProjectParent(
+    session.organization_id,
+    projectId,
+    normalizedPayload?.parent_project_id || normalizedPayload?.parentProjectId || "",
+    decodedClientId,
+  );
 
   await permissionsService.assertCan(session, "projects.manage", {
     organization_id: session.organization_id,
@@ -266,11 +305,21 @@ async function createProject(clientId, payload, session) {
     operation: "create",
   });
 
+  if (parentProject) {
+    await permissionsService.assertCan(session, "projects.manage", {
+      organization_id: session.organization_id,
+      client_id: parentProject.client_id,
+      project_id: parentProject.id,
+      operation: "update",
+    });
+  }
+
   const project = normalizeProjectPayload(normalizedPayload, {
-    id: normalizedPayload?.id || randomUUID(),
+    id: projectId,
     client_id: decodedClientId,
   }, client?.billable || "yes");
   project.workspace_id = session.organization_id;
+  project.parent_project_id = parentProject?.id || "";
 
   await assertUniqueProjectNameInScope(session.organization_id, project.client_id, project.name);
 
@@ -285,7 +334,7 @@ async function createProject(clientId, payload, session) {
     recordUrl: client ? `projects.html?client=${encodeURIComponent(client.id)}` : "projects.html",
     previousValue: null,
     newValue: project,
-    metadata: projectMetadata(client, project),
+    metadata: projectMetadata(client, project, parentProject),
   });
 
   return { project };
@@ -304,6 +353,7 @@ async function updateProject(projectId, payload, session) {
   });
   const previousProject = updatePlan.previousProject;
   const client = updatePlan.targetClient;
+  const parentProject = updatePlan.targetParentProject;
 
   await permissionsService.assertCan(session, "projects.manage", {
     organization_id: session.organization_id,
@@ -317,6 +367,15 @@ async function updateProject(projectId, payload, session) {
       organization_id: session.organization_id,
       client_id: updatePlan.move.toClientId,
       project_id: decodedProjectId,
+      operation: "update",
+    });
+  }
+
+  if (updatePlan.parentMove.isMove && parentProject) {
+    await permissionsService.assertCan(session, "projects.manage", {
+      organization_id: session.organization_id,
+      client_id: parentProject.client_id,
+      project_id: parentProject.id,
       operation: "update",
     });
   }
@@ -343,6 +402,7 @@ async function updateProject(projectId, payload, session) {
     client_id: client?.id || "",
   }, client?.billable || previousProject.billable || "yes");
   project.workspace_id = session.organization_id;
+  project.parent_project_id = parentProject?.id || "";
 
   await assertUniqueProjectNameInScope(session.organization_id, project.client_id, project.name, decodedProjectId);
 
@@ -363,8 +423,12 @@ async function updateProject(projectId, payload, session) {
       new_status: project.status,
       old_billable: previousProject.billable,
       new_billable: project.billable,
+      old_parent_project_id: previousProject.parent_project_id || "",
+      old_parent_project_name: await readProjectName(session.organization_id, previousProject.parent_project_id),
+      new_parent_project_id: project.parent_project_id || "",
+      new_parent_project_name: parentProject?.name || "",
       downstream_records: updatePlan.downstreamRecords,
-      ...projectMetadata(client, project),
+      ...projectMetadata(client, project, parentProject),
     },
   });
 
@@ -452,7 +516,114 @@ function normalizeProjectPayload(payload, fallback = {}, fallbackBillable = "yes
     client_id: Object.hasOwn(payload || {}, "client_id")
       ? String(payload.client_id || "").trim()
       : String(fallback.client_id || "").trim(),
+    parent_project_id: Object.hasOwn(payload || {}, "parent_project_id")
+      ? String(payload.parent_project_id || "").trim()
+      : Object.hasOwn(payload || {}, "parentProjectId")
+        ? String(payload.parentProjectId || "").trim()
+        : String(fallback.parent_project_id || "").trim(),
   };
+}
+
+async function validateClientParent(organizationId, clientId, parentClientId) {
+  const normalizedClientId = String(clientId || "").trim();
+  const normalizedParentId = String(parentClientId || "").trim();
+
+  if (!normalizedParentId) {
+    return null;
+  }
+
+  if (normalizedParentId === normalizedClientId) {
+    throw new AppError("A client cannot be its own parent.", 400);
+  }
+
+  const clients = await clientsRepository.readAll(organizationId);
+  const parentClient = clients.find((client) => client.id === normalizedParentId);
+
+  if (!parentClient) {
+    throw new AppError("Parent client not found.", 404);
+  }
+
+  if (isArchivedRecord(parentClient)) {
+    throw new AppError("Archived clients cannot be used as parent clients.", 400);
+  }
+
+  const descendants = collectDescendantIds(clients, normalizedClientId, "parent_client_id");
+  if (descendants.has(normalizedParentId)) {
+    throw new AppError("A client cannot be nested below one of its descendants.", 400);
+  }
+
+  return parentClient;
+}
+
+async function validateProjectParent(organizationId, projectId, parentProjectId, clientId) {
+  const normalizedProjectId = String(projectId || "").trim();
+  const normalizedParentId = String(parentProjectId || "").trim();
+  const normalizedClientId = String(clientId || "").trim();
+
+  if (!normalizedParentId) {
+    return null;
+  }
+
+  if (normalizedParentId === normalizedProjectId) {
+    throw new AppError("A project cannot be its own parent.", 400);
+  }
+
+  const projects = await projectsRepository.readAll(organizationId);
+  const parentProject = projects.find((project) => project.id === normalizedParentId);
+
+  if (!parentProject) {
+    throw new AppError("Parent project not found.", 404);
+  }
+
+  if (isArchivedRecord(parentProject)) {
+    throw new AppError("Archived projects cannot be used as parent projects.", 400);
+  }
+
+  if ((parentProject.client_id || "") !== normalizedClientId) {
+    throw new AppError("Parent project must belong to the same client or workspace project scope.", 400);
+  }
+
+  const descendants = collectDescendantIds(projects, normalizedProjectId, "parent_project_id");
+  if (descendants.has(normalizedParentId)) {
+    throw new AppError("A project cannot be nested below one of its descendants.", 400);
+  }
+
+  return parentProject;
+}
+
+function collectDescendantIds(records, recordId, parentField) {
+  const descendants = new Set();
+  const pending = [recordId];
+
+  while (pending.length > 0) {
+    const currentId = pending.pop();
+    records
+      .filter((record) => (record[parentField] || "") === currentId)
+      .forEach((record) => {
+        if (!descendants.has(record.id)) {
+          descendants.add(record.id);
+          pending.push(record.id);
+        }
+      });
+  }
+
+  return descendants;
+}
+
+async function readClientName(organizationId, clientId) {
+  if (!clientId) {
+    return "";
+  }
+
+  return (await clientsRepository.readById(organizationId, clientId))?.name || "";
+}
+
+async function readProjectName(organizationId, projectId) {
+  if (!projectId) {
+    return "";
+  }
+
+  return (await projectsRepository.readById(organizationId, projectId))?.name || "";
 }
 
 function normalizeProjectPayloadForWorkspace(payload = {}, usesProjectRoundingOnly = false) {
@@ -498,22 +669,26 @@ async function recordAudit(providedAction, auditEvent) {
   });
 }
 
-function clientMetadata(client) {
+function clientMetadata(client, parentClient = null) {
   return {
     client_id: client.id,
     client_name: client.name,
+    parent_client_id: client.parent_client_id || "",
+    parent_client_name: parentClient?.name || "",
     status: client.status,
     billable: client.billable,
     billing_rate: client.billing_rate,
   };
 }
 
-function projectMetadata(client, project) {
+function projectMetadata(client, project, parentProject = null) {
   return {
     client_id: client?.id || "",
     client_name: client?.name || "",
     project_id: project.id,
     project_name: project.name,
+    parent_project_id: project.parent_project_id || "",
+    parent_project_name: parentProject?.name || "",
     status: project.status,
     billable: project.billable,
     billing_rate: project.billing_rate,

@@ -82,9 +82,11 @@ Time-entry timestamps should be sent as ISO 8601 UTC strings, such as `2026-05-2
 
 `POST /api/v1/time-entries` requires `project_id`. `client_id` is optional in version 0.30.3 and later; when the project is linked to a client, the API uses that client automatically. Workspace-level projects can create time entries without a client.
 
+Version 0.30.15 adds adjacency-list nesting metadata to client and project records. Client payloads may include `parent_client_id`; project payloads may include `parent_project_id`. Parent relationships are single-parent trees, and server validation rejects self-parenting, cross-scope project parents, and descendant cycles.
+
 ## Workspace Compatibility
 
-Version 0.30.0 begins the public language shift from organizations to workspaces. Version 0.30.3 adds active workspace sessions and project-first time entry creation. Version 0.30.5 scopes API keys and public API envelopes to workspaces.
+Version 0.30.0 begins the public language shift from organizations to workspaces. Version 0.30.3 adds active workspace sessions and project-first time entry creation. Version 0.30.5 scopes API keys and public API envelopes to workspaces. Version 0.30.14 documents the storage rename compatibility plan in `docs/storage-rename-plan.md`.
 
 New integrations should use `workspace_id` for workspace context. Existing `organization_id` fields remain temporarily available until the deeper storage rename work in later 0.30.x releases is complete.
 

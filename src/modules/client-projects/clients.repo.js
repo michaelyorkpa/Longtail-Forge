@@ -19,6 +19,7 @@ async function readAll(organizationId) {
 SELECT
   id,
   workspace_id,
+  parent_client_id,
   name,
   status,
   billable,
@@ -51,6 +52,7 @@ async function readById(organizationId, clientId) {
 SELECT
   id,
   workspace_id,
+  parent_client_id,
   name,
   status,
   billable,
@@ -92,6 +94,7 @@ async function update(organizationId, client) {
 UPDATE clients
 SET
   workspace_id = ${sqlText(organizationId)},
+  parent_client_id = ${sqlNullableText(client.parent_client_id)},
   name = ${sqlText(client.name)},
   status = ${sqlText(client.status)},
   billable = ${sqlText(client.billable)},
@@ -163,6 +166,7 @@ INSERT INTO clients (
   id,
   organization_id,
   workspace_id,
+  parent_client_id,
   name,
   status,
   billable,
@@ -189,6 +193,7 @@ VALUES (
   ${sqlText(client.id)},
   ${sqlText(organizationId)},
   ${sqlText(organizationId)},
+  ${sqlNullableText(client.parent_client_id)},
   ${sqlText(client.name)},
   ${sqlText(client.status)},
   ${sqlText(client.billable)},
@@ -217,6 +222,7 @@ function clientRowToAppClient(row) {
   return {
     id: row.id,
     workspace_id: row.workspace_id || row.organization_id || "",
+    parent_client_id: row.parent_client_id || "",
     name: row.name,
     status: row.status,
     billable: normalizeBillableFlag(row.billable),

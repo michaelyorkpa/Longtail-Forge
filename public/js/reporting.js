@@ -6,6 +6,7 @@ const reportEndDateInput = document.querySelector("[data-report-end-date]");
 const reportScopeControl = document.querySelector("[data-report-scope-control]");
 const reportClientSelect = document.querySelector("[data-report-client]");
 const reportProjectSelect = document.querySelector("[data-report-projects]");
+const reportIncludeDescendantsInput = document.querySelector("[data-report-include-descendants]");
 const reportStatus = document.querySelector("[data-report-status]");
 const reportExtensionPanels = document.querySelector("[data-report-extension-panels]");
 const reportTableWrap = document.querySelector("[data-report-table-wrap]");
@@ -37,6 +38,7 @@ reportClientSelect.addEventListener("change", () => {
 });
 
 reportProjectSelect.addEventListener("change", renderReport);
+reportIncludeDescendantsInput?.addEventListener("change", renderReport);
 
 async function loadReportData() {
   setReportStatus("Loading report data...");
@@ -96,8 +98,8 @@ function renderProjectFilter() {
     return;
   }
 
-  sortByName(scope.projects).forEach((project) => {
-    const option = createOption(project.id, project.name);
+  sortProjectTree(scope.projects).forEach((project) => {
+    const option = createOption(project.id, `${treeIndent(getProjectDepth(project, scope.projects))}${project.name}`);
     option.selected = true;
     reportProjectSelect.appendChild(option);
   });
@@ -132,6 +134,7 @@ async function renderReport() {
       period: reportPeriodSelect.value,
       scopeId: scope.id,
       projectIds: selectedProjectIds.join(","),
+      includeDescendants: reportIncludeDescendantsInput?.checked ? "true" : "false",
     });
 
     if (reportPeriodSelect.value === "custom") {
@@ -276,12 +279,40 @@ function createTableCell(text, tagName = "td") {
   return cell;
 }
 
-function sortByName(items) {
-  return [...items].sort((firstItem, secondItem) =>
-    String(firstItem.name || "").localeCompare(String(secondItem.name || ""), undefined, {
+function sortProjectTree(projects) {
+  return [...projects].sort((left, right) =>
+    getProjectTreeSortKey(left, projects).localeCompare(getProjectTreeSortKey(right, projects), undefined, {
       sensitivity: "base",
     }),
   );
+}
+
+function getProjectTreeSortKey(project, projects) {
+  const names = [];
+  let currentProject = project;
+  const visited = new Set();
+
+  while (currentProject && !visited.has(currentProject.id)) {
+    visited.add(currentProject.id);
+    names.unshift(currentProject.name || "");
+    currentProject = projects.find((item) => item.id === currentProject.parentProjectId);
+  }
+
+  return names.join("/");
+}
+
+function getProjectDepth(project, projects, visited = new Set()) {
+  if (!project?.parentProjectId || visited.has(project.id)) {
+    return 0;
+  }
+
+  visited.add(project.id);
+  const parent = projects.find((item) => item.id === project.parentProjectId);
+  return parent ? 1 + getProjectDepth(parent, projects, visited) : 0;
+}
+
+function treeIndent(depth) {
+  return depth > 0 ? `${"  ".repeat(depth)}- ` : "";
 }
 
 function setReportStatus(message) {

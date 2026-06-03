@@ -144,10 +144,23 @@ async function runApiKeyTests(api, fixtures) {
 
 async function runClientMutationTests(api, fixtures) {
   const client = await createClient(api, fixtures.sessions.workspaceAdmin, "Mutation Client");
+  const childClient = await createClient(api, fixtures.sessions.workspaceAdmin, "Nested Child Client", {
+    parent_client_id: fixtures.clients.alpha.id,
+  });
   await expectStatus(
     "workspace admin can update clients",
     api.put(`/api/clients/${encodeURIComponent(client.id)}`, { name: "Mutation Client Updated" }, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
+  );
+  await expectStatus(
+    "client cannot become its own parent",
+    api.put(`/api/clients/${encodeURIComponent(client.id)}`, { name: client.name, parent_client_id: client.id }, { cookie: fixtures.sessions.workspaceAdmin }),
+    400,
+  );
+  await expectStatus(
+    "client cannot be nested below one of its descendants",
+    api.put(`/api/clients/${encodeURIComponent(fixtures.clients.alpha.id)}`, { name: fixtures.clients.alpha.name, parent_client_id: childClient.id }, { cookie: fixtures.sessions.workspaceAdmin }),
+    400,
   );
   await expectStatus(
     "workspace admin can archive clients",
@@ -163,6 +176,9 @@ async function runClientMutationTests(api, fixtures) {
 
 async function runProjectMutationTests(api, fixtures) {
   const project = await createProject(api, fixtures.sessions.workspaceAdmin, fixtures.clients.alpha.id, "Mutation Project");
+  const childProject = await createProject(api, fixtures.sessions.workspaceAdmin, fixtures.clients.alpha.id, "Nested Child Project", {
+    parent_project_id: fixtures.projects.alpha.id,
+  });
   await expectStatus(
     "workspace admin can update projects",
     api.put(`/api/projects/${encodeURIComponent(project.id)}`, { name: "Mutation Project Updated" }, { cookie: fixtures.sessions.workspaceAdmin }),
@@ -177,6 +193,21 @@ async function runProjectMutationTests(api, fixtures) {
     "workspace admin can move projects to workspace scope",
     api.put(`/api/projects/${encodeURIComponent(project.id)}`, { client_id: "", name: "Mutation Project Workspace" }, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
+  );
+  await expectStatus(
+    "project cannot become its own parent",
+    api.put(`/api/projects/${encodeURIComponent(project.id)}`, { client_id: "", name: project.name, parent_project_id: project.id }, { cookie: fixtures.sessions.workspaceAdmin }),
+    400,
+  );
+  await expectStatus(
+    "project cannot be nested below one of its descendants",
+    api.put(`/api/projects/${encodeURIComponent(fixtures.projects.alpha.id)}`, { client_id: fixtures.clients.alpha.id, name: fixtures.projects.alpha.name, parent_project_id: childProject.id }, { cookie: fixtures.sessions.workspaceAdmin }),
+    400,
+  );
+  await expectStatus(
+    "project parent must stay in the same client scope",
+    api.put(`/api/projects/${encodeURIComponent(fixtures.projects.alpha.id)}`, { client_id: fixtures.clients.alpha.id, name: fixtures.projects.alpha.name, parent_project_id: fixtures.projects.beta.id }, { cookie: fixtures.sessions.workspaceAdmin }),
+    400,
   );
   await expectStatus(
     "workspace admin can archive projects",
@@ -348,6 +379,16 @@ async function runClientProjectDomainTests(api, fixtures) {
     400,
   );
   await expectStatus(
+    "archived clients cannot be assigned as parent clients",
+    api.post("/api/clients", { name: "Denied Archived Parent Client", parent_client_id: archivedClient.id }, { cookie: fixtures.sessions.workspaceAdmin }),
+    400,
+  );
+  await expectStatus(
+    "existing clients cannot be moved under archived parent clients",
+    api.put(`/api/clients/${encodeURIComponent(fixtures.clients.beta.id)}`, { name: fixtures.clients.beta.name, parent_client_id: archivedClient.id }, { cookie: fixtures.sessions.workspaceAdmin }),
+    400,
+  );
+  await expectStatus(
     "projects cannot move into archived clients",
     api.put(`/api/projects/${encodeURIComponent(fixtures.projects.alpha.id)}`, { client_id: archivedClient.id, name: "Denied Archived Client Move" }, { cookie: fixtures.sessions.workspaceAdmin }),
     400,
@@ -361,6 +402,16 @@ async function runClientProjectDomainTests(api, fixtures) {
     "archived projects remain readable",
     api.get(`/api/projects/${encodeURIComponent(archivedProject.id)}`, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
+  );
+  await expectStatus(
+    "archived projects cannot be assigned as parent projects",
+    api.post(`/api/clients/${encodeURIComponent(fixtures.clients.alpha.id)}/projects`, { name: "Denied Archived Parent Project", parent_project_id: archivedProject.id }, { cookie: fixtures.sessions.workspaceAdmin }),
+    400,
+  );
+  await expectStatus(
+    "existing projects cannot be moved under archived parent projects",
+    api.put(`/api/projects/${encodeURIComponent(fixtures.projects.alpha.id)}`, { client_id: fixtures.clients.alpha.id, name: fixtures.projects.alpha.name, parent_project_id: archivedProject.id }, { cookie: fixtures.sessions.workspaceAdmin }),
+    400,
   );
   await expectStatus(
     "archived projects cannot receive time entries",
@@ -527,14 +578,14 @@ async function createApiKey(api, cookie, scopes) {
   return response.body;
 }
 
-async function createClient(api, cookie, name) {
-  const response = await api.post("/api/clients", { name }, { cookie });
+async function createClient(api, cookie, name, extra = {}) {
+  const response = await api.post("/api/clients", { name, ...extra }, { cookie });
   await expectStatus(`created client ${name}`, response, 201);
   return response.body.client;
 }
 
-async function createProject(api, cookie, clientId, name) {
-  const response = await api.post(`/api/clients/${encodeURIComponent(clientId)}/projects`, { name }, { cookie });
+async function createProject(api, cookie, clientId, name, extra = {}) {
+  const response = await api.post(`/api/clients/${encodeURIComponent(clientId)}/projects`, { name, ...extra }, { cookie });
   await expectStatus(`created project ${name}`, response, 201);
   return response.body.project;
 }

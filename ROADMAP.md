@@ -2,191 +2,43 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-### Verion 0.30.6 - Code Review
-
-Complete a code review to ensure all items necessary are in place to continue moving forward with modularization and expansion of app functionality.
-
-Goals for remainder of 0.30.x:
-
-- [x] Add CODEREVIEW.md to .gitignore
-  - [x] Put human readable notes and potential ROADMAP for remainder of clean up (0.30.7+) into CODEREVIEW.md for this step only
-  - [x] Add ROADMAP section to CODEREVIEW.md in the form of this ROADMAP so I can drag and drop it into place for remainder of 0.30.7+ to complete clean up
-  - [x] In CODEREVIEW.md, create a section specifically, for instructions for completing overall framework and modularization
-    - [x] Break tasks down into logical sections
-    - [x] Go as deep into sub-versions as necessary, e.g. 0.30.7.x.x
-  - [x] Document steps needed to finish modularization before integrating new task, notes, knowledge base, and support ticket modules
-    - 0.31 forward will be adding of additional modules (tasks, notes, tickets, etc.)
-    - 0.30.x is the final steps of the clean up to move this from a bloated time tracker to a project management framework with an already mature time tracker module
-  - [x] Look at 0.30.final which is for creating nested clients and nested projects (A client might have multiple sub-clients, a project might have multiple sub-projects)
-    - [x] Create a ROADMAP style set of instructions for 0.30.final and add that to the end of the ROADMAP section in CODEREVIEW.md
-      - I will rename the .final with the appropriate number once this code review is complete
-    - avoid circular client/project logic (a parent cannot become a child of a child client/project)
-    - check for any other pitfalls and put in language to avoid them
-
-- [x] Ensure all necessary code changes are in place to create true separtion between the framework and time tracking module
-
-- [x] Verify permissions are being respected, document where changes need to be made
-
-- [x] Verify roles apply correct default permissions
-
-- [x] Verify there are no bugs/omissisions that could allow access by unauthenticated users
-  - [x] Add tasks to CODEREVIEW.md that indicate where it will become necessary to begin checking file system permissions for lockdown
-    - this will likely be in the 0.50 release, and does NOT need to be included in the 0.30.x section
-
-- [x] Confirm code currently conforms to best practices for ease of maintenance, functionality, and modularity
-
-- [x] Add ROADMAP-ARCHIVE.md to .gitignore
-  - [x] Archive all completed ROADMAP sections to ROADMAP-ARCHIVE.md in this step
-  - [x] Add instruction to AGENTS.md to perform this archival task automatically moving forward
-
-### Version 0.30.7 - Permission Regression Hardening
-
-- [x] Add a lightweight automated permission test harness
-  - [x] Seed or fixture at least one workspace admin, client admin, project admin, client user, project user, and external client user
-  - [x] Verify unauthenticated browser API requests return 401
-  - [x] Verify protected HTML redirects unauthenticated users to login
-  - [x] Verify API-key routes reject missing, invalid, revoked, and underscoped keys
-- [x] Add mutation permission tests
-  - [x] Clients create/update/archive
-  - [x] Projects create/update/archive
-  - [x] Project move across clients and workspace projects
-  - [x] Time-entry create/update/delete
-  - [x] Active timer save/finalize/remove
-  - [x] User create/update/deactivate/reactivate/remove
-  - [x] Role assignment update
-  - [x] Workspace settings update
-  - [x] API key create/revoke
-- [x] Add ownership and scope regression tests
-  - [x] Time-entry update cannot change `user_id`
-  - [x] Public API time-entry create cannot spoof `user_id`
-  - [x] Project update requires permission on the current project scope before checking the target scope
-  - [x] Role assignment scope IDs must belong to the active workspace
-
-### Version 0.30.8 - Module Contract Cleanup
-
-- [x] Define a module contract document in code or docs
-  - [x] Module id, display name, category, version
-  - [x] Browser API routes
-  - [x] Public API routes if any
-  - [x] Protected views
-  - [x] Browser assets
-  - [x] Migrations
-  - [x] Seed/repair hooks
-  - [x] Navigation contributions
-  - [x] Dashboard contributions
-  - [x] Required permissions
-  - [x] Workspace capability requirements
-- [x] Move module status enforcement into reusable middleware/helper functions
-- [x] Ensure disabled modules consistently block write paths and hide navigation
-- [x] Decide whether disabled modules should allow historical read-only access per module
-- [x] Move remaining module-aware bootstrap logic into shared framework services
-
-### Version 0.30.9 - Time Tracking Module Boundary
-
-- [x] Treat Time Tracking as the reference module
-  - [x] Keep timers, manual entry, edit entries, time-entry repos/services/routes, active timers, and time-entry public API paths together
-  - [x] Move time-tracking migrations fully under the module migration folder
-  - [x] Document which framework services Time Tracking depends on
-- [x] Remove time-tracking assumptions from framework surfaces
-  - [x] Reporting menu and Dashboard should ask modules for available panels/links
-  - [x] Workspace Settings should render module settings through a module metadata pattern
-  - [x] Public API docs should list endpoints by module
-- [x] Add module-level smoke checks for enabled/disabled Time Tracking behavior
-
-### Version 0.30.10 - Client/Project Domain Cleanup
-
-- [x] Decide whether Clients/Projects is framework core or a first-class module
-  - Projects are framework core. Clients are a business-domain module that can enrich projects with client ownership, billing defaults, and client reporting, but project existence and project-scoped module records do not depend on clients.
-  - Treat workspace_id as the required framework attachment point for future module records; project_id is optional, and client_id remains optional business context.
-- [x] Extract shared record-scope helpers for workspace/client/project validation
-- [x] Extract project move/update record propagation planning into one service
-- [x] Add explicit behavior for archived clients/projects and downstream records
-- [x] Add explicit behavior for removing/deactivating workspace owners and creators
-- [x] Finish separating workspace projects from business client-linked projects in reporting and filters
-
-### Version 0.30.11 - Frontend Controller Split
-
-- [x] Split large browser controllers into page controllers plus shared helpers
-  - [x] `public/js/clients-projects.js`
-  - [x] `public/js/stop-watch.js`
-  - [x] `public/js/user-admin.js`
-  - [x] `public/js/edit-entries.js`
-- [x] Keep shared helpers as browser globals under `window.LongtailForge`
-- [x] Avoid a frontend build step until the module structure is stable
-- [x] Add page-level smoke tests or browser-console verification helpers for critical workflows
-
-### Version 0.30.12 - Reporting And Dashboard Framework Prep
-
-- [x] Move report aggregation behind backend services
-- [x] Make Reporting module-aware
-  - [x] Hide business client filters for personal/family workspaces
-  - [x] Default personal/family reporting to workspace projects
-  - [x] Allow future modules to add report panels
-- [x] Make Dashboard module-aware
-  - [x] Convert Dashboard into a project/workspace hub
-  - [x] Let Time Tracking contribute current-month/time/billing widgets
-  - [x] Reserve extension points for tasks, notes, tickets, notifications, and activity feed
-
-### Version 0.30.13 - Workspace Lifecycle Hardening
-
-- [x] Define behavior when a user is removed from all workspaces
-  - For users who are removed from all workspaces, a Personal workspace will be created for them and set to their "active_workspace_id" in the users table
-- [x] Define behavior when a workspace owner is deactivated or removed
-  - When a workspace owner is removed, ownership is assigned to the next most senior Workspace Administrator
-    - If there are no other Workspace administrators
-- [x] Add owner transfer rules
-- [x] Add workspace creation permission controls per user
-  - Default self-hosted installation allows for any user to create any type of workspace
-- [x] Add self-hosted workspace type limit UI or setup guidance
-  - Create app settings to handle this for now, it can be just a table
-  - In the future, Super Admins will have access to an App Settings UI to control these settings
-- [x] Verify personal/family/business workspace rules through tests
-
-### Version 0.30.14 - Storage Rename Plan
-
-- [ ] Inventory remaining `organization_id` compatibility usage
-- [ ] Decide the final migration order for replacing legacy organization names with workspace names
-- [ ] Keep backward-compatible aliases until public API and browser code have moved
-- [ ] Add tests that old aliases and new workspace fields remain synchronized during the compatibility phase
-- [ ] Document when legacy organization names can be removed
-
 ### Version 0.30.15 - Client and project nesting expansion
 
 Now that clients and projects are separated, there is a need to create nested clients and nested projects.
 
 The preferred starting model is adjacency-list storage with `parent_client_id` on clients and `parent_project_id` on projects. A join table is not necessary for single-parent trees. Use a closure table only if reporting queries become too slow or if multi-parent relationships become a real requirement. Multi-parent client/project graphs are not recommended for the first version because they make permissions, rollups, archival, and cycle prevention harder.
 
-- [ ] Add parent fields
-  - [ ] Add nullable `parent_client_id` to clients
-  - [ ] Add nullable `parent_project_id` to projects
-  - [ ] Add indexes for workspace plus parent fields
-  - [ ] Ensure parent and child records belong to the same workspace
-  - [ ] For projects, ensure parent and child client relationships are compatible
-- [ ] Prevent circular nesting
-  - [ ] A client cannot become its own parent
-  - [ ] A project cannot become its own parent
-  - [ ] A parent cannot be assigned to one of its descendants
-  - [ ] Validate cycles server-side before save
-  - [ ] Keep UI safeguards as helpful hints only; server validation is authoritative
-- [ ] Define nesting permissions
-  - [ ] Moving a client requires permission on the current client scope and the target parent scope
-  - [ ] Moving a project requires permission on the current project scope and the target parent/project/client scope
-  - [ ] Workspace admins can manage all nesting inside a workspace
-  - [ ] Client/project admins remain constrained to their assigned scope
-- [ ] Update reporting rollups
-  - [ ] Reports can include descendants of selected clients
-  - [ ] Reports can include descendants of selected projects
-  - [ ] Add filters for direct records only versus include descendants
-  - [ ] Preserve historical time-entry client/project names while matching by stable IDs
-- [ ] Update UI
-  - [ ] Add parent selectors for clients and projects
-  - [ ] Display nested records as indented lists or collapsible tree rows
-  - [ ] Keep flat filters available for fast lookup
-  - [ ] Show clear warnings before moving a client/project with existing records
-- [ ] Update audit and downstream records
-  - [ ] Audit parent changes with old/new parent IDs and names
-  - [ ] Decide whether moving a client/project updates historical records or only affects future rollups
-  - [ ] Add explicit confirmation before applying any downstream record propagation
+- [x] Add parent fields
+  - [x] Add nullable `parent_client_id` to clients
+  - [x] Add nullable `parent_project_id` to projects
+  - [x] Add indexes for workspace plus parent fields
+  - [x] Ensure parent and child records belong to the same workspace
+  - [x] For projects, ensure parent and child client relationships are compatible
+- [x] Prevent circular nesting
+  - [x] A client cannot become its own parent
+  - [x] A project cannot become its own parent
+  - [x] A parent cannot be assigned to one of its descendants
+  - [x] Validate cycles server-side before save
+  - [x] Keep UI safeguards as helpful hints only; server validation is authoritative
+- [x] Define nesting permissions
+  - [x] Moving a client requires permission on the current client scope and the target parent scope
+  - [x] Moving a project requires permission on the current project scope and the target parent/project/client scope
+  - [x] Workspace admins can manage all nesting inside a workspace
+  - [x] Client/project admins remain constrained to their assigned scope
+- [x] Update reporting rollups
+  - [x] Reports can include descendants of selected clients
+  - [x] Reports can include descendants of selected projects
+  - [x] Add filters for direct records only versus include descendants
+  - [x] Preserve historical time-entry client/project names while matching by stable IDs
+- [x] Update UI
+  - [x] Add parent selectors for clients and projects
+  - [x] Display nested records as indented lists or collapsible tree rows
+  - [x] Keep flat filters available for fast lookup
+  - [x] Show clear warnings before moving a client/project with existing records
+- [x] Update audit and downstream records
+  - [x] Audit parent changes with old/new parent IDs and names
+  - [x] Decide whether moving a client/project updates historical records or only affects future rollups
+  - [x] Add explicit confirmation before applying any downstream record propagation
 
 ### Version 0.30.16 - Final UI Tweaks in 0.30
 
@@ -206,6 +58,10 @@ The preferred starting model is adjacency-list storage with `parent_client_id` o
 
 - [ ] Previously clicked menus should close when a new menu is clicked
   - e.g. If I open Reporting, and then click Settings, reporting doesn't close. It makes the interface messy.
+
+- [ ] Dark mode doesn't "stick"
+  - if I log out and log back in, it reverts to light mode
+  - I have to open "user settings" and then it realizes it should be dark mode
 
 #### Audit Log UI
 

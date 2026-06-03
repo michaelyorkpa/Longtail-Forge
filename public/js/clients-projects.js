@@ -8,6 +8,7 @@ const statusMessage = document.querySelector("[data-client-project-status]");
 const clientModal = document.querySelector("[data-client-modal]");
 const clientForm = document.querySelector("[data-client-form]");
 const newClientNameInput = document.querySelector("[data-new-client-name]");
+const newParentClientSelect = document.querySelector("[data-new-parent-client]");
 const newProjectNameInput = document.querySelector("[data-new-project-name]");
 const newProjectBillingRateInput = document.querySelector(
   "[data-new-project-billing-rate]",
@@ -142,7 +143,7 @@ function renderClients() {
     return;
   }
 
-  const visibleClients = sortByName(clientProjectData.clients).filter((client) =>
+  const visibleClients = sortClientTree(clientProjectData.clients).filter((client) =>
     clientStatusFilter.value === "All" || client.status === clientStatusFilter.value,
   );
 
@@ -317,8 +318,8 @@ function createProjectTable(projects) {
     checkbox.dataset.projectTableSelect = project.id;
     checkbox.addEventListener("change", updateProjectTableBulkState);
     nameCell.textContent = clientsEnabledForWorkspace()
-      ? `${project.name} (${clientName})`
-      : project.name;
+      ? `${treeIndent(getProjectDepth(project, client))}${project.name} (${clientName})`
+      : `${treeIndent(getProjectDepth(project, client))}${project.name}`;
     editButton.type = "button";
     editButton.textContent = "Edit";
     editButton.addEventListener("click", () => openProjectDetailDialog(client, project));
@@ -334,9 +335,16 @@ function createProjectTable(projects) {
 }
 
 function sortProjectRows(projects) {
-  return [...projects].sort((left, right) =>
-    left.project.name.localeCompare(right.project.name, undefined, { sensitivity: "base" }),
-  );
+  return [...projects].sort((left, right) => {
+    const clientCompare = String(left.client.name || "").localeCompare(String(right.client.name || ""), undefined, { sensitivity: "base" });
+
+    if (clientCompare !== 0) {
+      return clientCompare;
+    }
+
+    return getProjectTreeSortKey(left.project, left.client)
+      .localeCompare(getProjectTreeSortKey(right.project, right.client), undefined, { sensitivity: "base" });
+  });
 }
 
 function getSelectedProjectIds() {
@@ -394,7 +402,7 @@ function renderClientsPage() {
 }
 
 function getVisibleClientsForClientPage() {
-  return sortByName(getRealClients()).filter((client) =>
+  return sortClientTree(getRealClients()).filter((client) =>
     clientStatusFilter.value === "All" || client.status === clientStatusFilter.value,
   );
 }
@@ -488,7 +496,7 @@ function createClientTable(clients) {
     checkbox.type = "checkbox";
     checkbox.dataset.clientTableSelect = client.id;
     checkbox.addEventListener("change", updateClientTableBulkState);
-    nameCell.textContent = client.name;
+    nameCell.textContent = `${treeIndent(getClientDepth(client))}${client.name}`;
     editButton.type = "button";
     editButton.textContent = "Edit";
     editButton.addEventListener("click", () => openClientDetailDialog(client));
@@ -639,6 +647,7 @@ function openAddClientModal() {
   }
 
   clientForm.reset();
+  populateParentClientSelect(newParentClientSelect);
 
   if (newProjectBillingRateInput) {
     newProjectBillingRateInput.value = organizationSettings.defaultBillingRate;
@@ -1020,7 +1029,7 @@ function renderProjectClientFilter() {
   projectClientFilter.appendChild(createOption("__workspace_projects__", "Workspace Projects"));
 
   getRealClients().forEach((client) => {
-    projectClientFilter.appendChild(createOption(client.id, client.name));
+    projectClientFilter.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
   });
 
   projectClientFilter.value = clientsEnabledForWorkspace() && [...projectClientFilter.options].some((option) => option.value === previousValue)
@@ -1036,6 +1045,112 @@ function getAllProjects() {
 
 function getRealClients() {
   return clientProjectData.clients.filter((client) => !client.isWorkspaceScope);
+}
+
+function getClientDepth(client, visited = new Set()) {
+  if (!client?.parent_client_id || visited.has(client.id)) {
+    return 0;
+  }
+
+  visited.add(client.id);
+  const parent = getRealClients().find((item) => item.id === client.parent_client_id);
+  return parent ? 1 + getClientDepth(parent, visited) : 0;
+}
+
+function getProjectDepth(project, client, visited = new Set()) {
+  if (!project?.parent_project_id || visited.has(project.id)) {
+    return 0;
+  }
+
+  visited.add(project.id);
+  const parent = (client?.projects || []).find((item) => item.id === project.parent_project_id);
+  return parent ? 1 + getProjectDepth(parent, client, visited) : 0;
+}
+
+function treeIndent(depth) {
+  return depth > 0 ? `${"  ".repeat(depth)}- ` : "";
+}
+
+function getProjectTreeSortKey(project, client) {
+  const names = [];
+  let currentProject = project;
+  const visited = new Set();
+
+  while (currentProject && !visited.has(currentProject.id)) {
+    visited.add(currentProject.id);
+    names.unshift(currentProject.name || "");
+    currentProject = (client?.projects || []).find((item) => item.id === currentProject.parent_project_id);
+  }
+
+  return names.join("/");
+}
+
+function sortClientTree(clients) {
+  return [...clients].sort((left, right) =>
+    getClientTreeSortKey(left).localeCompare(getClientTreeSortKey(right), undefined, { sensitivity: "base" }),
+  );
+}
+
+function sortProjectsForClient(client) {
+  return [...(client.projects || [])].sort((left, right) =>
+    getProjectTreeSortKey(left, client).localeCompare(getProjectTreeSortKey(right, client), undefined, { sensitivity: "base" }),
+  );
+}
+
+function getClientTreeSortKey(client) {
+  const names = [];
+  let currentClient = client;
+  const visited = new Set();
+
+  while (currentClient && !visited.has(currentClient.id)) {
+    visited.add(currentClient.id);
+    names.unshift(currentClient.name || "");
+    currentClient = getRealClients().find((item) => item.id === currentClient.parent_client_id);
+  }
+
+  return names.join("/");
+}
+
+function getClientDescendantIds(clientId) {
+  const descendants = new Set();
+  const pending = [clientId];
+
+  while (pending.length > 0) {
+    const currentId = pending.pop();
+    getRealClients()
+      .filter((client) => client.parent_client_id === currentId)
+      .forEach((client) => {
+        if (!descendants.has(client.id)) {
+          descendants.add(client.id);
+          pending.push(client.id);
+        }
+      });
+  }
+
+  return [...descendants];
+}
+
+function getProjectDescendantIds(projectId, client) {
+  if (!projectId) {
+    return [];
+  }
+
+  const descendants = new Set();
+  const pending = [projectId];
+
+  while (pending.length > 0) {
+    const currentId = pending.pop();
+    (client?.projects || [])
+      .filter((project) => project.parent_project_id === currentId)
+      .forEach((project) => {
+        if (!descendants.has(project.id)) {
+          descendants.add(project.id);
+          pending.push(project.id);
+        }
+      });
+  }
+
+  return [...descendants];
 }
 
 function getWorkspaceProjectClient() {
@@ -1075,7 +1190,7 @@ function createClientNameEditor(client, options = {}) {
   statusSelect.dataset.clientStatusInput = client.id;
   statusLabel.appendChild(statusSelect);
 
-  wrapper.append(label, statusLabel);
+  wrapper.append(label, createParentClientField(client), statusLabel);
 
   if (showSaveButton) {
     const saveButton = document.createElement("button");
@@ -1092,6 +1207,38 @@ function createClientNameEditor(client, options = {}) {
   }
 
   return wrapper;
+}
+
+function createParentClientField(client) {
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+
+  label.textContent = "Parent Client";
+  label.hidden = !clientsEnabledForWorkspace();
+  populateParentClientSelect(select, client.id);
+  select.dataset.clientParentInput = client.id;
+  select.dataset.clientParentField = "";
+  select.value = client.parent_client_id || "";
+  label.appendChild(select);
+  return label;
+}
+
+function populateParentClientSelect(select, excludedClientId = "") {
+  if (!select) {
+    return;
+  }
+
+  const excludedIds = new Set([excludedClientId, ...getClientDescendantIds(excludedClientId)]);
+  const currentValue = select.value || "";
+  select.replaceChildren(createOption("", "No parent client"));
+  getRealClients()
+    .filter((client) => !excludedIds.has(client.id) && isActiveStatus(client.status))
+    .forEach((client) => {
+      select.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
+    });
+  select.value = [...select.options].some((option) => option.value === currentValue)
+    ? currentValue
+    : "";
 }
 
 function createClientPageActions(client) {
@@ -1331,6 +1478,7 @@ function createClientBillingSettingsEditor(client, options = {}) {
 async function saveClientSettings(client, container, options = {}) {
   const nameInput = container?.querySelector("[data-client-name-input]");
   const statusSelect = container?.querySelector("[data-client-status-input]");
+  const parentClientSelect = container?.querySelector("[data-client-parent-field]");
   const billingRateInput = container?.querySelector("[data-client-billing-rate-input]");
   const billableInput = container?.querySelector("[data-client-billable-input]");
 
@@ -1342,6 +1490,22 @@ async function saveClientSettings(client, container, options = {}) {
   const oldClient = { ...client };
   client.name = nameInput.value.trim();
   client.status = statusSelect?.value || client.status;
+  client.parent_client_id = parentClientSelect?.value || "";
+
+  if ((oldClient.parent_client_id || "") !== (client.parent_client_id || "")) {
+    const confirmed = await window.LongtailForge.modal.confirm({
+      title: "Move client?",
+      message: "Move this client in the client hierarchy? Existing records keep their saved client and project names; future rollups follow the updated hierarchy.",
+      confirmLabel: "Move",
+      cancelLabel: "Cancel",
+      danger: false,
+    });
+
+    if (!confirmed) {
+      client.parent_client_id = oldClient.parent_client_id || "";
+      return false;
+    }
+  }
 
   container?.querySelectorAll("[data-billing-contact-field]").forEach((input) => {
     client.billing_contact[input.dataset.billingContactField] = input.value.trim();
@@ -1375,6 +1539,8 @@ async function saveClientSettings(client, container, options = {}) {
       `old_client_id=${oldClient.id}`,
       `old_client_name=${oldClient.name}`,
       `old_status=${oldClient.status}`,
+      `old_parent_client_id=${oldClient.parent_client_id || ""}`,
+      `new_parent_client_id=${client.parent_client_id || ""}`,
       `new_status=${client.status}`,
       "billing_contact_updated=true",
       `billable=${client.billable}`,
@@ -1401,7 +1567,7 @@ function createProjectList(client) {
   const list = document.createElement("div");
   list.className = "project-list";
 
-  sortByName(client.projects).forEach((project) => {
+  sortProjectsForClient(client).forEach((project) => {
     list.appendChild(createProjectEditor(client, project));
   });
 
@@ -1421,7 +1587,7 @@ function createProjectCards(client) {
     return list;
   }
 
-  sortByName(client.projects).forEach((project) => {
+  sortProjectsForClient(client).forEach((project) => {
     list.appendChild(createProjectEditor(client, project));
   });
 
@@ -1470,7 +1636,17 @@ function createProjectEditor(client, project) {
   const billableLabel = createBillableCheckbox(project.billable);
   const billableInput = billableLabel.querySelector("input");
   const clientAssignmentLabel = createProjectClientAssignment(project);
+  const parentProjectLabel = createProjectParentAssignment(project, client);
+  const clientAssignmentSelect = clientAssignmentLabel.querySelector("select");
+  const parentProjectSelect = parentProjectLabel.querySelector("select");
   const clientActions = createProjectClientShortcutActions(project);
+
+  clientAssignmentSelect.addEventListener("change", () => {
+    populateParentProjectSelect(parentProjectSelect, {
+      excludedProjectId: project.id,
+      clientId: clientAssignmentSelect.value,
+    });
+  });
 
   const billingDetails = document.createElement("details");
   billingDetails.className = "project-billing-details";
@@ -1537,12 +1713,28 @@ function createProjectEditor(client, project) {
 
     const oldProject = { ...project };
     project.name = nameInput.value.trim();
-    project.client_id = clientAssignmentLabel.querySelector("select").value;
+    project.client_id = clientAssignmentSelect.value;
+    project.parent_project_id = parentProjectSelect.value;
     project.status = statusSelect.value;
     project.billable = usesSimplifiedBilling ? "no" : normalizeBillableFlag(billableInput.checked);
     project.billing_rate = usesSimplifiedBilling ? null : normalizeBillingRate(billingRateInput.value);
     project.billing_period = usesSimplifiedBilling ? null : billingPeriodEditor.getValue();
     project.billing_rounding = billingRoundingEditor.getValue();
+
+    if ((oldProject.client_id || "") !== (project.client_id || "") || (oldProject.parent_project_id || "") !== (project.parent_project_id || "")) {
+      const confirmed = await window.LongtailForge.modal.confirm({
+        title: "Move project?",
+        message: "Move this project in the client/project hierarchy? Existing time entries keep their saved names; future rollups follow the updated hierarchy.",
+        confirmLabel: "Move",
+        cancelLabel: "Cancel",
+      });
+
+      if (!confirmed) {
+        project.client_id = oldProject.client_id || "";
+        project.parent_project_id = oldProject.parent_project_id || "";
+        return;
+      }
+    }
 
     await saveProjectRecord(project, {
       action: "project_updated",
@@ -1550,7 +1742,7 @@ function createProjectEditor(client, project) {
       client_name: getProjectClientName(project.client_id),
       project_id: project.id,
       project_name: project.name,
-      details: `old_project_id=${oldProject.id};old_project_name=${oldProject.name};old_status=${oldProject.status};old_billable=${oldProject.billable};old_billing_rate=${oldProject.billing_rate};new_status=${project.status};new_billable=${project.billable};new_billing_rate=${project.billing_rate};billing_period=${formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project))};rounding=${formatBillingRounding(getEffectiveProjectBillingRounding(client, project))};round_hours=${getEffectiveProjectBillingRounding(client, project).enabled ? "yes" : "no"}`,
+      details: `old_project_id=${oldProject.id};old_project_name=${oldProject.name};old_status=${oldProject.status};old_parent_project_id=${oldProject.parent_project_id || ""};new_parent_project_id=${project.parent_project_id || ""};old_billable=${oldProject.billable};old_billing_rate=${oldProject.billing_rate};new_status=${project.status};new_billable=${project.billable};new_billing_rate=${project.billing_rate};billing_period=${formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project))};rounding=${formatBillingRounding(getEffectiveProjectBillingRounding(client, project))};round_hours=${getEffectiveProjectBillingRounding(client, project).enabled ? "yes" : "no"}`,
     }, {
       openClientId: project.client_id || "__workspace_projects__",
       flashSelector: `[data-save-project-button="${project.id}"]`,
@@ -1593,6 +1785,7 @@ function createProjectEditor(client, project) {
   wrapper.append(
     nameLabel,
     clientAssignmentLabel,
+    parentProjectLabel,
     statusLabel,
     clientActions,
     billingDetails,
@@ -1616,6 +1809,42 @@ function createProjectClientAssignment(project) {
   select.value = project.client_id || "";
   label.appendChild(select);
   return label;
+}
+
+function createProjectParentAssignment(project, client) {
+  const label = document.createElement("label");
+  const select = document.createElement("select");
+
+  label.className = "project-parent-field";
+  label.textContent = "Parent Project";
+  populateParentProjectSelect(select, {
+    excludedProjectId: project.id,
+    clientId: project.client_id || (client.isWorkspaceScope ? "" : client.id),
+  });
+  select.value = project.parent_project_id || "";
+  label.appendChild(select);
+  return label;
+}
+
+function populateParentProjectSelect(select, { excludedProjectId = "", clientId = "" } = {}) {
+  if (!select) {
+    return;
+  }
+
+  const targetClient = getProjectTargetClient(clientId);
+  const excludedIds = excludedProjectId
+    ? new Set([excludedProjectId, ...getProjectDescendantIds(excludedProjectId, targetClient)])
+    : new Set();
+  const currentValue = select.value || "";
+  select.replaceChildren(createOption("", "No parent project"));
+  sortProjectsForClient(targetClient)
+    .filter((project) => !excludedIds.has(project.id) && isActiveStatus(project.status))
+    .forEach((project) => {
+      select.appendChild(createOption(project.id, `${treeIndent(getProjectDepth(project, targetClient))}${project.name}`));
+    });
+  select.value = [...select.options].some((option) => option.value === currentValue)
+    ? currentValue
+    : "";
 }
 
 function createAddProjectClientAssignment(client) {
@@ -1716,6 +1945,11 @@ function createAddProjectForm(client, { onSaved = null, showClientAssignment = f
   const clientAssignment = showClientAssignment
     ? createAddProjectClientAssignment(client)
     : null;
+  const parentProjectLabel = createProjectParentAssignment({
+    id: "",
+    client_id: client.isWorkspaceScope ? "" : client.id,
+    parent_project_id: "",
+  }, client);
 
   const nameLabel = document.createElement("label");
   nameLabel.className = "project-name-field";
@@ -1801,10 +2035,19 @@ function createAddProjectForm(client, { onSaved = null, showClientAssignment = f
 
   if (clientAssignment) {
     formFields.push(clientAssignment.element);
+    clientAssignment.select.addEventListener("change", () => {
+      populateParentProjectSelect(parentProjectLabel.querySelector("select"), {
+        clientId: clientAssignment.select.value,
+      });
+    });
+    populateParentProjectSelect(parentProjectLabel.querySelector("select"), {
+      clientId: clientAssignment.select.value,
+    });
   }
 
   form.append(
     ...formFields,
+    parentProjectLabel,
     statusLabel,
     billingDetails,
     saveButton,
@@ -1814,9 +2057,11 @@ function createAddProjectForm(client, { onSaved = null, showClientAssignment = f
 
     const selectedClientId = clientAssignment?.select.value ?? (client.isWorkspaceScope ? "" : client.id);
     const targetClient = getProjectTargetClient(selectedClientId);
+    const parentProjectId = parentProjectLabel.querySelector("select").value;
     const project = {
       id: createUuid(),
       client_id: targetClient.isWorkspaceScope ? "" : targetClient.id,
+      parent_project_id: parentProjectId,
       name: nameInput.value.trim(),
       billable: usesSimplifiedBilling ? "no" : normalizeBillableFlag(billableInput.checked),
       billing_rate: usesSimplifiedBilling ? null : normalizeBillingRate(billingRateInput.value),
@@ -1833,7 +2078,7 @@ function createAddProjectForm(client, { onSaved = null, showClientAssignment = f
       client_name: targetClient.isWorkspaceScope ? "" : targetClient.name,
       project_id: project.id,
       project_name: project.name,
-      details: `status=${project.status};billable=${project.billable};billing_rate=${project.billing_rate}`,
+      details: `status=${project.status};parent_project_id=${project.parent_project_id || ""};billable=${project.billable};billing_rate=${project.billing_rate}`,
     }, {
       openClientId: targetClient.id,
       flashSelector: `[data-add-project-button="${client.id}"]`,
@@ -1861,6 +2106,7 @@ async function addClient() {
   const client = {
     id: createUuid(),
     name: clientName,
+    parent_client_id: newParentClientSelect?.value || "",
     billable: "yes",
     billing_rate: organizationSettings.defaultBillingRate,
     billing_period: null,
@@ -1871,6 +2117,7 @@ async function addClient() {
       : [
           {
             id: createUuid(),
+            client_id: "",
             name: projectName,
             billable: "yes",
             billing_rate: normalizeBillingRate(newProjectBillingRateInput?.value),
@@ -1887,6 +2134,7 @@ async function addClient() {
     action: "client_created",
     client_id: client.id,
     client_name: client.name,
+    parent_client_id: client.parent_client_id || "",
     project_id: client.projects[0]?.id || "",
     project_name: client.projects[0]?.name || "",
     details: client.projects[0]
@@ -2047,6 +2295,7 @@ function normalizeData(data) {
         return {
           id: client.id,
           name: client.name,
+          parent_client_id: client.parent_client_id || "",
           status: clientStatuses.includes(client.status) ? client.status : "Active",
           billable: clientBillable,
           billing_rate: normalizeBillingRate(client.billing_rate),
@@ -2085,6 +2334,7 @@ function normalizeProjects(projects, clientBillable, clientId) {
     ? projects.map((project) => ({
         id: project.id,
         client_id: project.client_id || clientId || "",
+        parent_project_id: project.parent_project_id || "",
         name: project.name,
         billable: usesProjectRoundingOnly() ? "no" : normalizeBillableFlag(project.billable, clientBillable),
         billing_rate: usesProjectRoundingOnly() ? null : normalizeBillingRate(project.billing_rate),
@@ -2110,6 +2360,10 @@ function normalizeSettings(settings) {
 
 function clientsEnabledForWorkspace() {
   return organizationSettings.workspaceType === "business";
+}
+
+function isActiveStatus(status) {
+  return String(status || "").trim().toLowerCase() === "active";
 }
 
 function usesProjectRoundingOnly() {

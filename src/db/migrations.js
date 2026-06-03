@@ -325,6 +325,15 @@ async function isMigrationAlreadySatisfied(migration) {
     return columnsExist("users", ["active_workspace_id"]);
   }
 
+  if (migration.fileName === "022_add_client_project_parent_fields.sql") {
+    const [clientParentExists, projectParentExists] = await Promise.all([
+      columnsExist("clients", ["parent_client_id"]),
+      columnsExist("projects", ["parent_project_id"]),
+    ]);
+
+    return clientParentExists && projectParentExists;
+  }
+
   return false;
 }
 
