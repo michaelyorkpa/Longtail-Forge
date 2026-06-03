@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { activeTimersRepository } from "./active-timers.repo.js";
+import { taskTimersRepository } from "../tasks/task-timers.repo.js";
 import { timeEntriesService } from "./time-entries.service.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { AppError } from "../../core/errors.js";
@@ -27,6 +28,10 @@ async function save(timerSlot, payload, session) {
   timer.billable = (payload?.billable ?? scope.project.billable ?? scope.client?.billable) === "no" ? "no" : "yes";
 
   await assertCanUseProjectTimer(session, timer, "save");
+
+  if (timer.timer_status === "running") {
+    await taskTimersRepository.pauseRunningForUser(session.workspace_id, session.user_id);
+  }
 
   return {
     timer: await activeTimersRepository.upsert(timer),

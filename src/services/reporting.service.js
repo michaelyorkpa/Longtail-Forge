@@ -1,4 +1,5 @@
 import { clientsService } from "../modules/client-projects/clients.service.js";
+import { tasksService } from "../modules/tasks/tasks.service.js";
 import { timeEntriesService } from "../modules/time-tracking/time-entries.service.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { AppError } from "../core/errors.js";
@@ -7,6 +8,7 @@ import { settingsService } from "./settings.service.js";
 
 const WORKSPACE_SCOPE_ID = "__workspace_projects__";
 const TIME_TRACKING_MODULE_ID = "time-tracking";
+const TASKS_MODULE_ID = "tasks";
 
 async function readReportingBootstrap(session) {
   const { settings, scopes, moduleContext } = await readReportContext(session);
@@ -32,14 +34,17 @@ async function readProjectSummary(session, query = {}) {
   }
 
   const selectedProjectIds = parseSelectedProjectIds(query.projectIds || query.project_ids);
+  const selectedTaskIds = parseSelectedTaskIds(query.taskIds || query.task_ids || query.taskId || query.task_id);
   const projects = scope.projects
     .filter((project) => selectedProjectIds.length === 0 || selectedProjectIds.includes(project.id));
 
   if (projects.length === 0) {
-    return emptyProjectSummary(scope);
+    return emptyProjectSummary(scope, selectedTaskIds);
   }
 
-  const scopeEntries = entries.filter((entry) => matchesScope(entry, scope, { includeDescendants }));
+  const scopeEntries = entries
+    .filter((entry) => matchesScope(entry, scope, { includeDescendants }))
+    .filter((entry) => selectedTaskIds.length === 0 || selectedTaskIds.includes(entry.taskId));
   const rows = projects
     .map((project) => summarizeProject(
       settings,
@@ -57,6 +62,7 @@ async function readProjectSummary(session, query = {}) {
 
   return {
     scope,
+    taskFilter: selectedTaskIds,
     rows,
     totals,
   };
@@ -88,6 +94,9 @@ async function readDashboard(session) {
       amount: totals.amount,
     };
   });
+  const taskSummary = moduleHasPanel(moduleContext.modules, TASKS_MODULE_ID, "dashboard", "task-summary")
+    ? await tasksService.summary(session)
+    : null;
 
   return {
     workspace: workspaceSummary(session, settings),
@@ -106,6 +115,10 @@ async function readDashboard(session) {
       currentMonthBillables: currentMonthRows,
       currentMonthTotals,
       chartPoints,
+    },
+    tasks: {
+      available: Boolean(taskSummary),
+      summary: taskSummary,
     },
     extensionPoints: {
       dashboardPanels: readModulePanels(moduleContext.modules, "dashboard"),
@@ -134,9 +147,9 @@ function buildReportingScopes(data, settings, options = {}) {
     ? data.workspaceProjects.map((project) => normalizeProject(project, "yes"))
     : [];
   const workspaceScope = workspaceProjects.length > 0
-    ? [normalizeScope({
+      ? [normalizeScope({
         id: WORKSPACE_SCOPE_ID,
-        name: "Workspace Projects",
+        name: `${settings.workspaceName || "Workspace"} Projects`,
         status: "Active",
         billable: "yes",
         isWorkspaceScope: true,
@@ -195,6 +208,7 @@ function normalizeTimeEntries(entries) {
         clientName: entry.client_name,
         projectId: entry.project_id,
         projectName: entry.project_name,
+        taskId: entry.task_id,
         endTime: new Date(entry.end_time),
         durationSeconds: Number(entry.duration_seconds) || 0,
         billable: entry.billable === "no" ? "no" : "yes",
@@ -411,6 +425,10 @@ function parseSelectedProjectIds(value) {
     .filter(Boolean);
 }
 
+function parseSelectedTaskIds(value) {
+  return parseSelectedProjectIds(value);
+}
+
 function parseIncludeDescendants(query = {}) {
   const rawValue = query.includeDescendants ?? query.include_descendants;
 
@@ -529,9 +547,10 @@ function sortByName(items) {
   );
 }
 
-function emptyProjectSummary(scope) {
+function emptyProjectSummary(scope, taskFilter = []) {
   return {
     scope,
+    taskFilter,
     rows: [],
     totals: { amount: 0, seconds: 0 },
   };

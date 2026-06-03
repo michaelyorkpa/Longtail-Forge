@@ -28,6 +28,7 @@ try {
   await runApiKeyTests(api, fixtures);
   await runClientMutationTests(api, fixtures);
   await runProjectMutationTests(api, fixtures);
+  await runTaskMutationTests(api, fixtures);
   await runTimeEntryMutationTests(api, fixtures);
   await runActiveTimerMutationTests(api, fixtures);
   await runUserMutationTests(api, fixtures);
@@ -102,9 +103,13 @@ ${assignmentInsertSql(workspaceId, users.projectUser.userId, "project_user", "pr
 ${assignmentInsertSql(workspaceId, users.externalClientUser.userId, "client_external_user", "client", clients.alpha.id, now)}
 INSERT INTO workspaces (workspace_id, name, status, workspace_type, owner_user_id, created_at, updated_at)
 VALUES (${sqlText(otherWorkspace.id)}, 'Other Workspace', 'Active', 'business', ${sqlText(superAdmin.user_id)}, ${sqlText(now)}, ${sqlText(now)});
+${workspaceModuleInsertSql(otherWorkspace.id, "tasks", now)}
+${workspaceModuleInsertSql(otherWorkspace.id, "time-tracking", now)}
 ${clientInsertSql(otherWorkspace.id, { id: otherWorkspace.clientId, name: "Other Workspace Client" }, now)}
 ${workspaceInsertSql(personalWorkspace.id, "Personal Harness Workspace", "personal", users.workspaceAdmin.userId, now)}
 ${workspaceSettingsInsertSql(personalWorkspace.id, now)}
+${workspaceModuleInsertSql(personalWorkspace.id, "tasks", now)}
+${workspaceModuleInsertSql(personalWorkspace.id, "time-tracking", now)}
 ${Object.values(users).filter((user) => user.userId).map((user) => membershipInsertSql(personalWorkspace.id, user, now)).join("\n")}
 ${projectInsertSql(personalWorkspace.id, { id: personalWorkspace.projectId, clientId: "", name: "Personal Workspace Project" }, now)}
 ${assignmentInsertSql(personalWorkspace.id, users.workspaceAdmin.userId, "workspace_admin", "workspace", personalWorkspace.id, now)}
@@ -163,6 +168,84 @@ async function runApiKeyTests(api, fixtures) {
   await expectStatus(
     "public API project reads remain available in personal workspaces",
     api.get("/api/v1/projects", { bearer: personalClientKey.rawKey }),
+    200,
+  );
+
+  const taskReadKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["tasks:read"]);
+  const taskWriteKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["tasks:write"]);
+  const taskFullKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["tasks:read", "tasks:write"]);
+  await expectStatus(
+    "public API task reads require tasks read scope",
+    api.get("/api/v1/tasks", { bearer: taskReadKey.rawKey }),
+    200,
+  );
+  await expectStatus(
+    "public API task writes reject read-only keys",
+    api.post("/api/v1/tasks", { title: "Denied public API task" }, { bearer: taskReadKey.rawKey }),
+    403,
+  );
+  await expectStatus(
+    "public API task reads reject write-only keys",
+    api.get("/api/v1/tasks", { bearer: taskWriteKey.rawKey }),
+    403,
+  );
+  const publicTask = await expectStatus(
+    "public API can create project tasks",
+    api.post("/api/v1/tasks", {
+      title: "Public API project task",
+      project_id: fixtures.projects.alpha.id,
+      assignee_ids: [fixtures.users.projectUser.userId],
+      due_date: "2026-06-12",
+    }, { bearer: taskFullKey.rawKey }),
+    201,
+  );
+  fixtures.publicApiTaskId = publicTask.body.data.task_id;
+  check("public API task create inherits project client context", () => {
+    assert.equal(publicTask.body.data.project_id, fixtures.projects.alpha.id);
+    assert.equal(publicTask.body.data.client_id, fixtures.clients.alpha.id);
+    assert.equal(publicTask.body.workspace_id, fixtures.workspaceId);
+  });
+  await expectStatus(
+    "public API can read task by id",
+    api.get(`/api/v1/tasks/${encodeURIComponent(fixtures.publicApiTaskId)}`, { bearer: taskReadKey.rawKey }),
+    200,
+  ).then((response) => {
+    check("public API task read returns requested task", () => {
+      assert.equal(response.body.data.task_id, fixtures.publicApiTaskId);
+    });
+  });
+  await expectStatus(
+    "public API can update tasks",
+    api.put(`/api/v1/tasks/${encodeURIComponent(fixtures.publicApiTaskId)}`, {
+      title: "Public API project task updated",
+      priority: "urgent",
+      status: "in_progress",
+    }, { bearer: taskFullKey.rawKey }),
+    200,
+  ).then((response) => {
+    check("public API task update persists lifecycle fields", () => {
+      assert.equal(response.body.data.priority, "urgent");
+      assert.equal(response.body.data.status, "in_progress");
+    });
+  });
+  await expectStatus(
+    "public API can complete tasks",
+    api.post(`/api/v1/tasks/${encodeURIComponent(fixtures.publicApiTaskId)}/complete`, {}, { bearer: taskFullKey.rawKey }),
+    200,
+  );
+  await expectStatus(
+    "public API can reopen tasks",
+    api.post(`/api/v1/tasks/${encodeURIComponent(fixtures.publicApiTaskId)}/reopen`, {}, { bearer: taskFullKey.rawKey }),
+    200,
+  );
+  await expectStatus(
+    "public API can archive tasks",
+    api.post(`/api/v1/tasks/${encodeURIComponent(fixtures.publicApiTaskId)}/archive`, {}, { bearer: taskFullKey.rawKey }),
+    200,
+  );
+  await expectStatus(
+    "public API can restore tasks",
+    api.post(`/api/v1/tasks/${encodeURIComponent(fixtures.publicApiTaskId)}/restore`, {}, { bearer: taskFullKey.rawKey }),
     200,
   );
 }
@@ -272,6 +355,356 @@ async function runProjectMutationTests(api, fixtures) {
   await expectStatus(
     "project admin cannot move a project to an unauthorized target client",
     api.put(`/api/projects/${encodeURIComponent(fixtures.projects.alpha.id)}`, { client_id: fixtures.clients.beta.id, name: "Denied Target Move" }, { cookie: fixtures.sessions.projectAdmin }),
+    403,
+  );
+}
+
+async function runTaskMutationTests(api, fixtures) {
+  const workspaceTask = await expectStatus(
+    "workspace admin can create workspace-only tasks",
+    api.post("/api/tasks", {
+      title: "Workspace task",
+      priority: "high",
+      due_date: "2026-06-05",
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    201,
+  );
+  check("workspace-only task has no client or project scope", () => {
+    assert.equal(workspaceTask.body.task.client_id, "");
+    assert.equal(workspaceTask.body.task.project_id, "");
+  });
+
+  const scopedTask = await expectStatus(
+    "project user can create assigned project tasks",
+    api.post("/api/tasks", {
+      title: "Project scoped task",
+      project_id: fixtures.projects.alpha.id,
+      assignee_ids: [fixtures.users.projectUser.userId],
+    }, { cookie: fixtures.sessions.projectUser }),
+    201,
+  );
+  check("project task inherits client context from project", () => {
+    assert.equal(scopedTask.body.task.project_id, fixtures.projects.alpha.id);
+    assert.equal(scopedTask.body.task.client_id, fixtures.clients.alpha.id);
+    assert.deepEqual(scopedTask.body.task.assignee_ids, [fixtures.users.projectUser.userId]);
+  });
+
+  await expectStatus(
+    "project user cannot create tasks outside assigned project",
+    api.post("/api/tasks", {
+      title: "Denied project task",
+      project_id: fixtures.projects.beta.id,
+    }, { cookie: fixtures.sessions.projectUser }),
+    403,
+  );
+  await expectStatus(
+    "project user can complete own assigned tasks",
+    api.post(`/api/tasks/${encodeURIComponent(scopedTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
+    200,
+  );
+  await expectStatus(
+    "project user cannot archive tasks",
+    api.post(`/api/tasks/${encodeURIComponent(scopedTask.body.task.task_id)}/archive`, {}, { cookie: fixtures.sessions.projectUser }),
+    403,
+  );
+  await expectStatus(
+    "workspace admin can archive tasks",
+    api.post(`/api/tasks/${encodeURIComponent(scopedTask.body.task.task_id)}/archive`, {}, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  await expectStatus(
+    "workspace admin can restore tasks",
+    api.post(`/api/tasks/${encodeURIComponent(scopedTask.body.task.task_id)}/restore`, {}, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  await expectStatus(
+    "workspace admin can bulk update task priority",
+    api.post("/api/tasks/bulk", {
+      action: "priority",
+      priority: "urgent",
+      task_ids: [scopedTask.body.task.task_id],
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  ).then((response) => {
+    check("bulk priority update returns updated task", () => {
+      assert.equal(response.body.tasks[0].priority, "urgent");
+      assert.equal(response.body.errors.length, 0);
+    });
+  });
+  await expectStatus(
+    "project user bulk archive reuses task archive permission",
+    api.post("/api/tasks/bulk", {
+      action: "archive",
+      task_ids: [scopedTask.body.task.task_id],
+    }, { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("bulk archive reports denied selected task", () => {
+      assert.equal(response.body.tasks.length, 0);
+      assert.equal(response.body.errors[0].status, 403);
+    });
+  });
+  await expectStatus(
+    "workspace admin can save workspace task reminder defaults",
+    api.put("/api/settings", {
+      workspaceName: "Harness Business Workspace",
+      workspaceType: "business",
+      taskReminderDefaults: {
+        dateTime: [60, 180],
+        dateOnly: [1440, 2880],
+      },
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  ).then((response) => {
+    check("workspace task reminder defaults are returned from settings save", () => {
+      assert.deepEqual(response.body.data.taskReminderDefaults.dateTime, [60, 180]);
+      assert.deepEqual(response.body.data.taskReminderDefaults.dateOnly, [1440, 2880]);
+    });
+  });
+  await expectStatus(
+    "workspace admin can save client task reminder defaults",
+    api.put(`/api/clients/${fixtures.clients.alpha.id}`, {
+      name: "Alpha Client",
+      status: "Active",
+      billable: "yes",
+      taskReminderPolicy: {
+        inherited: false,
+        dateTime: [90, 240],
+        dateOnly: [2880, 4320],
+      },
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  await expectStatus(
+    "workspace admin can save project task reminder defaults",
+    api.put(`/api/projects/${fixtures.projects.alpha.id}`, {
+      name: "Alpha Project",
+      status: "Active",
+      client_id: fixtures.clients.alpha.id,
+      billable: "yes",
+      confirm_downstream_update: true,
+      taskReminderPolicy: {
+        inherited: false,
+        dateTime: [120, 360],
+        dateOnly: [1440, 4320],
+      },
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  await expectStatus(
+    "workspace admin can save task reminder overrides",
+    api.put(`/api/tasks/${encodeURIComponent(scopedTask.body.task.task_id)}`, {
+      title: "Project scoped task",
+      project_id: fixtures.projects.alpha.id,
+      reminderOverrideEnabled: true,
+      reminderPolicy: {
+        dateTime: [30, 60],
+        dateOnly: [1440, 2880],
+      },
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  ).then((response) => {
+    check("task reminder override is returned with effective policy", () => {
+      assert.equal(response.body.task.reminderDetails.overrideEnabled, true);
+      assert.deepEqual(response.body.task.reminderDetails.effectivePolicy.offsets.dateTime, [30, 60]);
+    });
+  });
+  const recurringTask = await expectStatus(
+    "workspace admin can create recurring project tasks",
+    api.post("/api/tasks", {
+      title: "Recurring project task",
+      project_id: fixtures.projects.alpha.id,
+      due_date: "2026-06-08",
+      assignee_ids: [fixtures.users.projectUser.userId],
+      recurrence: {
+        enabled: true,
+        frequency: "DAILY",
+        interval: 1,
+        endDate: "2026-06-10",
+      },
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    201,
+  );
+  check("recurring task returns recurrence details", () => {
+    assert.ok(recurringTask.body.task.recurrence_template_id);
+    assert.equal(recurringTask.body.task.recurrence_instance_date, "2026-06-08");
+    assert.equal(recurringTask.body.task.recurrenceDetails.frequency, "DAILY");
+  });
+  const completedRecurringTask = await expectStatus(
+    "project user can complete own recurring task and create next instance",
+    api.post(`/api/tasks/${encodeURIComponent(recurringTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
+    200,
+  );
+  check("recurring completion creates next dated task", () => {
+    assert.equal(completedRecurringTask.body.task.status, "complete");
+    assert.equal(completedRecurringTask.body.createdTask.due_date, "2026-06-09");
+    assert.equal(completedRecurringTask.body.createdTask.recurrence_template_id, recurringTask.body.task.recurrence_template_id);
+  });
+  await expectStatus(
+    "recurring completion retry reuses existing next instance",
+    api.post(`/api/tasks/${encodeURIComponent(recurringTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("recurring retry does not duplicate next instance", () => {
+      assert.equal(response.body.createdTask.task_id, completedRecurringTask.body.createdTask.task_id);
+      assert.equal(response.body.createdTask.recurrence_instance_date, "2026-06-09");
+    });
+  });
+  await expectStatus(
+    "task calendar API returns scoped due-date tasks",
+    api.get("/api/tasks/calendar?start=2026-06-01&end=2026-06-30", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("task calendar payload is calendar-ready and scope filtered", () => {
+      const taskIds = response.body.tasks.map((task) => task.task_id);
+      assert.ok(taskIds.includes(recurringTask.body.task.task_id));
+      assert.ok(taskIds.includes(completedRecurringTask.body.createdTask.task_id));
+      assert.ok(!taskIds.includes(workspaceTask.body.task.task_id));
+      assert.equal(response.body.tasks.find((task) => task.task_id === recurringTask.body.task.task_id).source.type, "task");
+      assert.equal(response.body.tasks.find((task) => task.task_id === recurringTask.body.task.task_id).url.startsWith("tasks.html?task="), true);
+    });
+  });
+  await expectStatus(
+    "dashboard task panels include scoped task links",
+    api.get("/api/dashboard", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("dashboard task summary respects task scope and exposes task URLs", () => {
+      const dueSoonIds = response.body.tasks.summary.dueSoon.map((task) => task.task_id);
+      assert.ok(dueSoonIds.includes(completedRecurringTask.body.createdTask.task_id));
+      assert.ok(!dueSoonIds.includes(workspaceTask.body.task.task_id));
+      assert.equal(response.body.tasks.summary.dueSoon[0].url.startsWith("tasks.html?task="), true);
+      assert.ok(response.body.extensionPoints.dashboardPanels.some((panel) => panel.id === "task-summary" && panel.renderer === "task-summary"));
+    });
+  });
+  const timerTask = await expectStatus(
+    "project user can create task timer eligible project task",
+    api.post("/api/tasks", {
+      title: "Task timer project task",
+      project_id: fixtures.projects.alpha.id,
+      assignee_ids: [fixtures.users.projectUser.userId],
+    }, { cookie: fixtures.sessions.projectUser }),
+    201,
+  );
+  fixtures.taskTimerTaskId = timerTask.body.task.task_id;
+  const timerGateTask = await expectStatus(
+    "project user can create task timer gate test task",
+    api.post("/api/tasks", {
+      title: "Task timer gate task",
+      project_id: fixtures.projects.alpha.id,
+      assignee_ids: [fixtures.users.projectUser.userId],
+    }, { cookie: fixtures.sessions.projectUser }),
+    201,
+  );
+  fixtures.taskTimerGateTaskId = timerGateTask.body.task.task_id;
+  await expectStatus(
+    "project user can start task timer",
+    api.put(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/timer`, {
+      timer_status: "running",
+      accumulated_elapsed_seconds: 5,
+      last_active_start_time: new Date().toISOString(),
+    }, { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("task timer returns active timer state", () => {
+      assert.equal(response.body.timer.task_id, timerTask.body.task.task_id);
+      assert.equal(response.body.timer.timer_status, "running");
+    });
+  });
+  await expectStatus(
+    "tasks cannot complete while task timer is active",
+    api.post(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
+    400,
+  );
+  await expectStatus(
+    "starting normal timer pauses running task timer",
+    api.put("/api/active-timers/task-mutual", timerPayload(fixtures.projects.alpha.id, {
+      timer_status: "running",
+      accumulated_elapsed_seconds: 3,
+      last_active_start_time: new Date().toISOString(),
+    }), { cookie: fixtures.sessions.projectUser }),
+    200,
+  );
+  await expectStatus(
+    "project user can list task timers",
+    api.get("/api/tasks/timers", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("normal timer start paused task timer", () => {
+      const timer = response.body.timers.find((item) => item.task_id === timerTask.body.task.task_id);
+      assert.equal(timer.timer_status, "paused");
+    });
+  });
+  await expectStatus(
+    "starting task timer pauses normal active timer",
+    api.put(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/timer`, {
+      timer_status: "running",
+      accumulated_elapsed_seconds: 8,
+      last_active_start_time: new Date().toISOString(),
+    }, { cookie: fixtures.sessions.projectUser }),
+    200,
+  );
+  await expectStatus(
+    "project user can list active timers after task timer starts",
+    api.get("/api/active-timers", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("task timer start paused normal timer", () => {
+      const timer = response.body.timers.find((item) => item.timer_slot === "task-mutual");
+      assert.equal(timer.timer_status, "paused");
+    });
+  });
+  await expectStatus(
+    "project user can finalize task timer into time entry",
+    api.post(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/timer/finalize`, {
+      duration_seconds: 60,
+      end_time: new Date().toISOString(),
+    }, { cookie: fixtures.sessions.projectUser }),
+    201,
+  ).then((response) => {
+    check("task timer finalize returns time entry id", () => {
+      assert.ok(response.body.entry_id);
+      assert.equal(response.body.task_id, timerTask.body.task.task_id);
+    });
+  });
+  await expectStatus(
+    "task timer time entry stores task id",
+    api.get("/api/time-entries", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("time entries include finalized task timer link", () => {
+      assert.ok(response.body.entries.some((entry) => entry.task_id === timerTask.body.task.task_id));
+    });
+  });
+  await expectStatus(
+    "project user can complete task after task timer is finalized",
+    api.post(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
+    200,
+  );
+  await expectStatus(
+    "client admin can list scoped tasks",
+    api.get("/api/tasks", { cookie: fixtures.sessions.clientAdmin }),
+    200,
+  ).then((response) => {
+    check("client admin scoped task list includes assigned client task", () => {
+      assert.ok(response.body.tasks.some((task) => task.task_id === scopedTask.body.task.task_id));
+      assert.ok(!response.body.tasks.some((task) => task.task_id === workspaceTask.body.task.task_id));
+    });
+  });
+  await expectStatus(
+    "personal workspace admin can create project tasks without clients",
+    api.post("/api/tasks", {
+      title: "Personal project task",
+      project_id: fixtures.personalWorkspace.projectId,
+    }, { cookie: fixtures.sessions.personalWorkspaceAdmin }),
+    201,
+  );
+  await expectStatus(
+    "personal workspace rejects direct client task scope",
+    api.post("/api/tasks", {
+      title: "Denied personal client task",
+      client_id: fixtures.clients.alpha.id,
+    }, { cookie: fixtures.sessions.personalWorkspaceAdmin }),
     403,
   );
 }
@@ -635,7 +1068,17 @@ async function runDisabledModuleTests(api, fixtures) {
     assert.ok(timeTrackingModule.publicApiEndpoints.some((item) => item.path === "/api/v1/time-entries"));
     assert.ok(timeTrackingModule.settings.some((item) => item.id === "timeTrackingEnabled"));
   });
+  check("settings expose Tasks module metadata", () => {
+    const tasksModule = settings.body.modules.find((moduleDefinition) => moduleDefinition.id === "tasks");
+    assert.ok(tasksModule);
+    assert.ok(tasksModule.navigation.some((item) => item.href === "tasks.html"));
+    assert.ok(tasksModule.publicApiEndpoints.some((item) => item.path === "/api/v1/tasks"));
+    assert.ok(tasksModule.settings.some((item) => item.id === "tasksEnabled"));
+    assert.ok(tasksModule.settings.some((item) => item.id === "taskTimersEnabled"));
+    assert.ok(settings.body.tasksEnabled);
+  });
   const apiKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["time_entries:read", "time_entries:write"]);
+  const tasksApiKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["tasks:read", "tasks:write"]);
   const disabledSettings = await api.put("/api/settings", {
     ...settings.body,
     timeTrackingEnabled: false,
@@ -671,9 +1114,68 @@ async function runDisabledModuleTests(api, fixtures) {
     api.put("/api/active-timers/disabled-smoke", timerPayload(fixtures.projects.alpha.id), { cookie: fixtures.sessions.projectUser }),
     403,
   );
+  await expectStatus(
+    "disabled Time Tracking blocks task timer writes",
+    api.put(`/api/tasks/${encodeURIComponent(fixtures.taskTimerGateTaskId)}/timer`, {
+      timer_status: "running",
+      accumulated_elapsed_seconds: 1,
+      last_active_start_time: new Date().toISOString(),
+    }, { cookie: fixtures.sessions.projectUser }),
+    403,
+  );
   await expectStatus("workspace admin can re-enable Time Tracking", api.put("/api/settings", {
     ...settings.body,
     timeTrackingEnabled: true,
+  }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
+  await expectStatus("workspace admin can disable Task Timers sub-option", api.put("/api/settings", {
+    ...settings.body,
+    taskTimersEnabled: false,
+  }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
+  await expectStatus(
+    "disabled Task Timers sub-option blocks task timer writes",
+    api.put(`/api/tasks/${encodeURIComponent(fixtures.taskTimerGateTaskId)}/timer`, {
+      timer_status: "running",
+      accumulated_elapsed_seconds: 1,
+      last_active_start_time: new Date().toISOString(),
+    }, { cookie: fixtures.sessions.projectUser }),
+    403,
+  );
+  await expectStatus("workspace admin can re-enable Task Timers sub-option", api.put("/api/settings", {
+    ...settings.body,
+    taskTimersEnabled: true,
+  }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
+  const disabledTasksSettings = await api.put("/api/settings", {
+    ...settings.body,
+    tasksEnabled: false,
+  }, { cookie: fixtures.sessions.workspaceAdmin });
+  await expectStatus("workspace admin can disable Tasks", disabledTasksSettings, 200);
+  check("disabled Tasks are removed from enabled module list", () => {
+    assert.equal(disabledTasksSettings.body.data.tasksEnabled, false);
+    assert.equal(disabledTasksSettings.body.data.enabledModules.includes("tasks"), false);
+  });
+  await expectStatus(
+    "disabled Tasks keep historical task reads available",
+    api.get("/api/tasks", { cookie: fixtures.sessions.projectUser }),
+    200,
+  );
+  await expectStatus(
+    "disabled Tasks keep public API task reads available",
+    api.get("/api/v1/tasks", { bearer: tasksApiKey.rawKey }),
+    200,
+  );
+  await expectStatus(
+    "disabled Tasks block task writes",
+    api.post("/api/tasks", { title: "Denied disabled task", project_id: fixtures.projects.alpha.id }, { cookie: fixtures.sessions.projectUser }),
+    403,
+  );
+  await expectStatus(
+    "disabled Tasks block public API task writes",
+    api.post("/api/v1/tasks", { title: "Denied disabled public task", project_id: fixtures.projects.alpha.id }, { bearer: tasksApiKey.rawKey }),
+    403,
+  );
+  await expectStatus("workspace admin can re-enable Tasks", api.put("/api/settings", {
+    ...settings.body,
+    tasksEnabled: true,
   }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
 }
 
@@ -683,6 +1185,19 @@ async function runReportingPermissionTests(api, fixtures) {
     api.get("/api/reporting/bootstrap", { cookie: fixtures.sessions.clientUser }),
     200,
   );
+  await expectStatus(
+    "workspace admin can filter reporting summaries by task timer link",
+    api.get(`/api/reporting/project-summary?scopeId=${encodeURIComponent(fixtures.clients.alpha.id)}&taskId=${encodeURIComponent(fixtures.taskTimerTaskId)}`, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  ).then((response) => {
+    check("task-linked reporting filter isolates finalized task timer time", () => {
+      assert.deepEqual(response.body.taskFilter, [fixtures.taskTimerTaskId]);
+      assert.equal(response.body.rows.length, 1);
+      assert.equal(response.body.rows[0].project.id, fixtures.projects.alpha.id);
+      assert.equal(response.body.rows[0].rawSeconds, 60);
+      assert.equal(response.body.totals.seconds, 60);
+    });
+  });
   await expectStatus(
     "external client user cannot read reporting bootstrap",
     api.get("/api/reporting/bootstrap", { cookie: fixtures.sessions.externalClientUser }),
@@ -787,12 +1302,13 @@ function timeEntryPayload(projectId, overrides = {}) {
   };
 }
 
-function timerPayload(projectId) {
+function timerPayload(projectId, overrides = {}) {
   return {
     project_id: projectId,
     description: "Permission regression active timer",
     accumulated_elapsed_seconds: 120,
     timer_status: "paused",
+    ...overrides,
   };
 }
 
@@ -891,6 +1407,26 @@ VALUES (
   1,
   30,
   ${sqlText(now)},
+  ${sqlText(now)}
+);`;
+}
+
+function workspaceModuleInsertSql(workspaceId, moduleId, now) {
+  return `
+INSERT OR IGNORE INTO workspace_modules (
+  workspace_id,
+  module_id,
+  status,
+  enabled_at,
+  disabled_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(workspaceId)},
+  ${sqlText(moduleId)},
+  'enabled',
+  ${sqlText(now)},
+  NULL,
   ${sqlText(now)}
 );`;
 }

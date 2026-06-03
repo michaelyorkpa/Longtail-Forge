@@ -192,6 +192,23 @@ async function filterReadableTimeEntries(session, entries) {
   ));
 }
 
+async function filterReadableTasks(session, tasks) {
+  const readableTasks = [];
+
+  for (const task of tasks) {
+    if (await can(session, "tasks.view", {
+      workspace_id: session.workspace_id,
+      client_id: task.client_id,
+      project_id: task.project_id,
+      operation: "read",
+    })) {
+      readableTasks.push(task);
+    }
+  }
+
+  return readableTasks;
+}
+
 async function normalizeAssignments(session, assignments) {
   const roles = await permissionsRepository.readRoles();
   const roleIds = new Set(roles.map((role) => role.role_id));
@@ -492,6 +509,10 @@ function actionToResourceKey(action) {
     return "time_entries";
   }
 
+  if (action.startsWith("tasks.")) {
+    return "tasks";
+  }
+
   if (action.startsWith("workspace_settings.")) {
     return "workspace_settings";
   }
@@ -586,6 +607,7 @@ export const permissionsService = {
   canInAnyScope,
   filterReadableClients,
   filterReadableProjects,
+  filterReadableTasks,
   filterReadableTimeEntries,
   isSuperAdmin,
   listRoleOptions,

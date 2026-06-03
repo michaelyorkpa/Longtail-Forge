@@ -26,6 +26,7 @@ const RECORD_TYPES = new Set([
   "user",
   "client",
   "project",
+  "task",
   "time_entry",
   "user_role_assignment",
   "api_key",

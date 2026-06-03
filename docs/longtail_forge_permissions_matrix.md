@@ -1,20 +1,20 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-06-03 for version 0.30.17
+Updated: 2026-06-03 for version 0.31.6
 
-This matrix describes the active workspace-native permission model after the 0.30.17 review fixes.
+This matrix describes the active workspace-native permission model after the completed 0.31 Tasks branch.
 
 ## Role Permission Matrix
 
-| Role | users.manage | roles.assign | workspace_settings.manage | clients.manage | projects.manage | billing.manage | time_entries.create | time_entries.edit_all | time_entries.edit_own | reporting.view | audit_logs.view |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Super Admin | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
-| Workspace Administrator | yes | yes | yes | yes | yes | yes | yes | yes | no | yes | yes |
-| Client Administrator | no | yes | no | yes | yes | yes | yes | yes | no | yes | no |
-| Project Administrator | no | yes | no | no | yes | yes | yes | yes | no | yes | no |
-| Client User | no | no | no | no | no | no | yes | no | yes | yes | no |
-| Project User | no | no | no | no | no | no | yes | no | yes | yes | no |
-| Client User (External) | no | no | no | no | no | no | yes | no | yes | no | no |
+| Role | users.manage | roles.assign | workspace_settings.manage | clients.manage | projects.manage | billing.manage | time_entries.create | time_entries.edit_all | time_entries.edit_own | tasks.create | tasks.view | tasks.edit_own | tasks.edit_all | tasks.assign | tasks.complete | tasks.archive | tasks.restore | reporting.view | audit_logs.view |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Super Admin | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes | yes |
+| Workspace Administrator | yes | yes | yes | yes | yes | yes | yes | yes | no | yes | yes | no | yes | yes | yes | yes | yes | yes | yes |
+| Client Administrator | no | yes | no | yes | yes | yes | yes | yes | no | yes | yes | yes | yes | yes | yes | yes | yes | yes | no |
+| Project Administrator | no | yes | no | no | yes | yes | yes | yes | no | yes | yes | yes | yes | yes | yes | yes | yes | yes | no |
+| Client User | no | no | no | no | no | no | yes | no | yes | yes | yes | yes | no | no | yes | no | no | yes | no |
+| Project User | no | no | no | no | no | no | yes | no | yes | yes | yes | yes | no | no | yes | no | no | yes | no |
+| Client User (External) | no | no | no | no | no | no | yes | no | yes | yes | yes | yes | no | no | yes | no | no | no | no |
 
 ## Role Assignment Rules
 
@@ -36,8 +36,26 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | --- | --- | --- |
 | Clients | Available through browser API and public API when permission/API scope allows it. | Blocked server-side with 403. `/api/client-projects` omits clients. |
 | Projects | Client projects and workspace projects are available. | Workspace projects are available without clients. |
+| Tasks | Workspace-only, client-linked, and project-linked tasks are available. Project-linked tasks inherit project client context. | Workspace-only and project-linked tasks are available. Direct client task scopes are blocked server-side with 403. |
 | Reporting | Client filters and workspace-project scopes are available according to readable scope. | Project reporting uses workspace-project scopes only. |
 | Time entries | May attach to a client project or workspace project. | Attach to workspace projects; client fields are empty. |
+
+## Task Rules
+
+- Every task belongs to exactly one workspace.
+- Client-linked tasks require a Business workspace.
+- Project-linked tasks inherit the selected project's client context when one exists.
+- A task cannot specify a client that conflicts with its selected project.
+- Assignees must be active workspace users with `tasks.view` in the selected workspace, client, or project scope.
+- 0.31.x assignments target concrete users only; the join table leaves room for future role/team assignment.
+- 0.31.x task lifecycle is `open`, `in_progress`, `blocked`, `complete`, and `archived`.
+- Task removal is soft archive/restore; true deletion is not exposed.
+- Task reminders inherit from Workspace -> Client -> Project -> Task in Business workspaces and Workspace -> Project -> Task in Personal/Family workspaces.
+- Recurring tasks use template records plus generated task instances; completing an instance creates the next instance when the recurrence rule still has future occurrences.
+- Task timers require Tasks, Time Tracking, and the Task Timers sub-option to be enabled.
+- Task timers are available only for project-linked tasks, including workspace projects in Personal and Family workspaces.
+- Task timers and normal Time Tracking timers are mutually exclusive for a user.
+- Finalized task timers write normal `time_entries` rows with `task_id` populated for reporting filters.
 
 ## Route Enforcement Summary
 
@@ -50,12 +68,24 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Browser | GET | /api/roles | roles.assign | any assigned scope | Scope-aware |
 | Browser | GET/PUT | /api/users/:userId/role-assignments | roles.assign | requested assignment scopes | Scope-aware |
 | Browser | GET | /api/settings | authenticated session | workspace | Open to active workspace members because bootstrap/navigation need settings metadata |
-| Browser | PUT | /api/settings | workspace_settings.manage | workspace | Enforced |
+| Browser | PUT | /api/settings | workspace_settings.manage | workspace | Enforced; includes Time Tracking, Tasks, Task Timers, and workspace task reminder defaults |
 | Browser | GET/POST/PUT | /api/api-keys* | workspace_settings.manage | workspace | Enforced |
 | Browser | GET | /api/client-projects | readable client/project scopes | client/project/workspace projects | Filtered; clients omitted outside Business workspaces |
-| Browser | GET/POST/PUT/DELETE | /api/clients* | clients.manage plus Business workspace | client | Enforced |
+| Browser | GET/POST/PUT/DELETE | /api/clients* | clients.manage plus Business workspace | client | Enforced; client task reminder defaults save with client updates |
 | Browser | GET/POST | /api/clients/:clientId/projects | projects.manage plus Business workspace | client | Enforced |
-| Browser | GET/POST/PUT/DELETE | /api/projects* | projects.manage | project/client/workspace | Enforced; Personal/Family projects are workspace-scoped |
+| Browser | GET/POST/PUT/DELETE | /api/projects* | projects.manage | project/client/workspace | Enforced; Personal/Family projects are workspace-scoped; project task reminder defaults save with project updates |
+| Browser | GET | /api/tasks | tasks.view | workspace/client/project | Filtered by readable task scopes; disabled Tasks keeps historical reads |
+| Browser | GET | /api/tasks/calendar | tasks.view | workspace/client/project | Filtered by readable task scopes and due date window |
+| Browser | GET | /api/tasks/timers | authenticated user plus task visibility | self/task workspace/client/project | Self-only active task timer state filtered by visible tasks |
+| Browser | POST | /api/tasks | tasks.create | workspace/client/project | Enforced; module write must be enabled |
+| Browser | POST | /api/tasks/bulk | task action permission per selected task | task workspace/client/project | Enforced task-by-task; module write must be enabled |
+| Browser | GET | /api/tasks/:taskId | tasks.view | task workspace/client/project | Enforced |
+| Browser | PUT | /api/tasks/:taskId | tasks.edit_own or tasks.edit_all | task workspace/client/project | Enforced; status transitions require matching lifecycle permissions; task reminder overrides save with task updates |
+| Browser | POST | /api/tasks/:taskId/complete | tasks.complete | task workspace/client/project | Enforced |
+| Browser | POST | /api/tasks/:taskId/reopen | tasks.complete | task workspace/client/project | Enforced |
+| Browser | POST | /api/tasks/:taskId/archive | tasks.archive | task workspace/client/project | Enforced |
+| Browser | POST | /api/tasks/:taskId/restore | tasks.restore | task workspace/client/project | Enforced |
+| Browser | PUT/POST/DELETE | /api/tasks/:taskId/timer* | tasks.view plus time_entries.create on linked project | task project/client/self | Enforced; Tasks, Time Tracking, and Task Timers must be enabled |
 | Browser | GET | /api/time-entries | readable time scopes | client/project | Filtered; scoped admins with edit_all see team entries in scope |
 | Browser | POST | /api/time-entries | time_entries.create | project/client | Enforced; module write must be enabled |
 | Browser | PUT/DELETE | /api/time-entries/:entryId | time_entries.edit_own or time_entries.edit_all | entry project/client | Enforced |
@@ -67,8 +97,10 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Browser | GET | /api/audit-logs* | audit_logs.view | workspace | Enforced |
 | Public API | GET | /api/v1/clients* | clients:read plus Business workspace | API key workspace | Enforced |
 | Public API | GET | /api/v1/projects* | projects:read | API key workspace | Enforced |
+| Public API | GET | /api/v1/tasks* | tasks:read | API key workspace | Enforced; disabled Tasks keeps historical reads |
+| Public API | POST/PUT | /api/v1/tasks* | tasks:write | API key workspace | Enforced; module write must be enabled |
 | Public API | GET | /api/v1/time-entries | time_entries:read | API key workspace | Enforced |
-| Public API | POST | /api/v1/time-entries | time_entries:write | API key workspace | Enforced; module write must be enabled |
+| Public API | POST | /api/v1/time-entries | time_entries:write | API key workspace | Enforced; module write must be enabled; accepts optional `task_id` |
 
 ## Permission Overrides
 
@@ -76,6 +108,7 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | --- | --- | --- |
 | operationAccess.clients | read/create/update/delete | `false` denies matching `clients.manage` operation. |
 | operationAccess.projects | read/create/update/delete | `false` denies matching `projects.manage` operation. |
+| operationAccess.tasks | read/create/update/delete | `false` denies matching task read/create/update/archive operations. |
 | operationAccess.time_entries | create/update/delete/read | `false` denies matching time-entry operation. |
 | operationAccess.workspace_settings | read/update | `false` denies matching workspace-settings operation. |
 | operationAccess.users | read/create/update/delete | `false` denies matching user or role-assignment operation. |
@@ -90,12 +123,14 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 `npm run test:permissions` covers the current critical matrix paths, including:
 
 - unauthenticated API and protected-page guards
-- API key scope, revocation, public project reads, and Business-only public client reads
+- API key scope, revocation, public project reads, Business-only public client reads, and public task read/write lifecycle endpoints
 - client and project mutation permissions, hierarchy validation, archive restrictions, and Personal workspace project creation without clients
 - Personal workspace client denial and `/api/client-projects` client omission
 - scoped role assignment by Client Administrator and Project Administrator
 - user lifecycle permissions remaining Workspace Administrator-only
 - scoped time-entry create/edit/delete/list visibility, including scoped admin visibility into team entries
-- reporting denial for External Client Users and allow for scoped users with `reporting.view`
-- Time Tracking disabled-module read/write behavior
+- task creation, scoped listing, project-client inheritance, assignment eligibility, completion, archive/restore, recurrence generation, calendar payload filtering, Dashboard task summaries, bulk route permission reuse, reminder-default saves, module-disabled write denial, and Personal/Family direct-client denial
+- task timer gating, mutual exclusion with normal timers, completion blocking, finalization into time entries, and disabled Task Timers behavior
+- reporting denial for External Client Users, allow for scoped users with `reporting.view`, and task-linked reporting filters
+- Time Tracking and Tasks disabled-module read/write behavior, including public API reads/writes
 - workspace owner transfer, owner-removal blocking, and Personal fallback workspace creation

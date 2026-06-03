@@ -135,12 +135,83 @@ function renderExtensionPanels() {
   }
 
   panels.forEach((panel) => {
+    if (panel.moduleId === "tasks" && panel.id === "task-summary" && dashboardData?.tasks?.available) {
+      dashboardExtensionPanels.appendChild(createTaskSummaryPanel(dashboardData.tasks.summary));
+      return;
+    }
+
     const marker = document.createElement("div");
     marker.dataset.dashboardPanel = panel.id;
     marker.dataset.moduleId = panel.moduleId;
     dashboardExtensionPanels.appendChild(marker);
   });
   dashboardExtensionPanels.hidden = false;
+}
+
+function createTaskSummaryPanel(summary = {}) {
+  const panel = document.createElement("article");
+  const heading = document.createElement("h2");
+  const counts = document.createElement("div");
+  const sections = document.createElement("div");
+
+  panel.className = "dashboard-panel task-summary-panel";
+  heading.textContent = "Tasks";
+  counts.className = "task-summary-counts";
+  counts.append(
+    createTaskCount("Overdue", summary.counts?.overdue || 0),
+    createTaskCount("Due Soon", summary.counts?.dueSoon || 0),
+    createTaskCount("Mine", summary.counts?.assignedToMe || 0),
+  );
+  sections.className = "task-summary-sections";
+  sections.append(
+    createTaskSummarySection("Overdue", summary.overdue || [], "No overdue tasks."),
+    createTaskSummarySection("Due Soon", summary.dueSoon || [], "No tasks due soon."),
+    createTaskSummarySection("Assigned to Me", summary.assignedToMe || [], "No assigned active tasks."),
+  );
+  panel.append(heading, counts, sections);
+  return panel;
+}
+
+function createTaskSummarySection(title, rows, emptyMessage) {
+  const section = document.createElement("section");
+  const heading = document.createElement("h3");
+  const list = document.createElement("ul");
+
+  section.className = "task-summary-section";
+  heading.textContent = title;
+  list.className = "task-summary-list";
+
+  if (rows.length === 0) {
+    const item = document.createElement("li");
+    item.textContent = emptyMessage;
+    list.appendChild(item);
+  } else {
+    rows.slice(0, 5).forEach((task) => {
+      const item = document.createElement("li");
+      const link = document.createElement("a");
+      const meta = document.createElement("span");
+
+      link.href = task.url || `tasks.html?task=${encodeURIComponent(task.task_id)}`;
+      link.textContent = task.title;
+      meta.textContent = task.due_date ? `Due ${task.due_date}` : "No due date";
+      item.append(link, meta);
+      list.appendChild(item);
+    });
+  }
+
+  section.append(heading, list);
+  return section;
+}
+
+function createTaskCount(label, value) {
+  const item = document.createElement("span");
+  const number = document.createElement("strong");
+  const text = document.createElement("span");
+
+  number.textContent = String(value);
+  text.textContent = label;
+  item.append(number, text);
+  return item;
 }
 
 function createBillablesSvg(points) {
@@ -235,7 +306,7 @@ function createScopeRadio(scope) {
   input.name = "dashboard-report-client";
   input.value = scope.id;
 
-  label.append(input, document.createTextNode(scope.isWorkspaceScope ? "Workspace Projects" : scope.name));
+  label.append(input, document.createTextNode(scope.isWorkspaceScope ? workspaceProjectsLabel() : scope.name));
   return label;
 }
 
@@ -249,10 +320,14 @@ function createScopeLinkCell(scope) {
   const cell = document.createElement("th");
   const link = document.createElement("a");
   link.href = `reporting.html?scope=${encodeURIComponent(scope.id)}`;
-  link.textContent = scope.isWorkspaceScope ? "Workspace Projects" : scope.name;
+  link.textContent = scope.isWorkspaceScope ? workspaceProjectsLabel() : scope.name;
   cell.scope = "row";
   cell.appendChild(link);
   return cell;
+}
+
+function workspaceProjectsLabel() {
+  return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
 }
 
 function setDashboardStatus(message) {

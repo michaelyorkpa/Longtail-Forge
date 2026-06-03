@@ -2,6 +2,7 @@
 const DEFAULT_WORKSPACE_NAME = "Workspace";
 const WORKSPACE_CONTEXT_STORAGE_KEY = "lf_workspace_context";
 const TIME_TRACKING_NAV_HREFS = new Set(["time-tracker.html", "manual-entry.html", "edit-entries.html", "reporting.html"]);
+const TASKS_NAV_HREFS = new Set(["tasks.html"]);
 const NAV_ITEMS = [
   { label: "Dashboard", href: "dashboard.html" },
   {
@@ -78,6 +79,7 @@ siteHeader.addEventListener("toggle", (event) => {
 }, true);
 
 window.LongtailForge = window.LongtailForge || {};
+window.LongtailForge.getWorkspaceProjectsLabel = getWorkspaceProjectsLabel;
 window.LongtailForge.workspaceContextReady = loadWorkspaceSettings();
 loadSessionWorkspaces();
 
@@ -233,8 +235,13 @@ async function loadSessionWorkspaces() {
     const body = await response.json();
     const user = body.user || {};
     if (user.workspaceContext) {
-      storeWorkspaceContext(user.workspaceContext);
-      applyWorkspaceCapabilities(user.workspaceContext);
+      const workspaceContext = {
+        ...user.workspaceContext,
+        userId: user.user_id || user.userId || user.workspaceContext.userId || user.workspaceContext.user_id || "",
+        username: user.username || user.workspaceContext.username || "",
+      };
+      storeWorkspaceContext(workspaceContext);
+      applyWorkspaceCapabilities(workspaceContext);
     }
     if (user.themeMode) {
       applyThemeMode(user.themeMode);
@@ -310,6 +317,16 @@ function applyActiveWorkspaceLabel(fallbackName = DEFAULT_WORKSPACE_NAME) {
   workspaceSelector.title = `Active workspace: ${workspaceName}`;
 }
 
+function getWorkspaceProjectsLabel(workspaceName) {
+  const labelSource = String(workspaceName || "").trim() ||
+    String(window.LongtailForge?.workspaceContext?.workspaceName || "").trim() ||
+    workspaceSelector?.selectedOptions?.[0]?.textContent?.trim() ||
+    document.querySelector("[data-workspace-name]")?.textContent?.trim() ||
+    DEFAULT_WORKSPACE_NAME;
+
+  return `${labelSource} Projects`;
+}
+
 function applyWorkspaceCapabilities(settings) {
   const capabilities = settings.workspaceCapabilities || {};
   const workspaceType = settings.workspaceType || capabilities.workspaceType || "business";
@@ -317,14 +334,19 @@ function applyWorkspaceCapabilities(settings) {
   const projectsSettingsVisible = availableTools.has("projects") || availableTools.has("clients_projects");
   const modules = Array.isArray(settings.modules) ? settings.modules : [];
   const timeTrackingModule = modules.find((moduleDefinition) => moduleDefinition.id === "time-tracking");
+  const tasksModule = modules.find((moduleDefinition) => moduleDefinition.id === "tasks");
   const timeTrackingEnabled = moduleIsEnabled(timeTrackingModule, settings, "time-tracking");
+  const tasksEnabled = moduleIsEnabled(tasksModule, settings, "tasks");
   const timeTrackingLinks = readModuleNavigationHrefs(timeTrackingModule);
+  const tasksLinks = readModuleNavigationHrefs(tasksModule);
   const visibleTimeTrackingLinks = timeTrackingLinks.size > 0 ? timeTrackingLinks : TIME_TRACKING_NAV_HREFS;
+  const visibleTasksLinks = tasksLinks.size > 0 ? tasksLinks : TASKS_NAV_HREFS;
 
   siteHeader.dataset.workspaceType = workspaceType;
   document.body.dataset.workspaceType = workspaceType;
   document.body.dataset.workspaceClientTools = availableTools.has("clients_projects") ? "enabled" : "disabled";
   document.body.dataset.timeTrackingModule = timeTrackingEnabled ? "enabled" : "disabled";
+  document.body.dataset.tasksModule = tasksEnabled ? "enabled" : "disabled";
   setNavLinkVisible("clients.html", availableTools.has("clients_projects"));
   setNavLinkVisible("projects.html", projectsSettingsVisible);
   setNavLinkVisible("api-keys.html", workspaceType === "business");
@@ -333,7 +355,7 @@ function applyWorkspaceCapabilities(settings) {
   setNavLinkVisible("time-tracker.html", timeTrackingEnabled && visibleTimeTrackingLinks.has("time-tracker.html"));
   setNavLinkVisible("manual-entry.html", timeTrackingEnabled && visibleTimeTrackingLinks.has("manual-entry.html"));
   setNavLinkVisible("edit-entries.html", timeTrackingEnabled && visibleTimeTrackingLinks.has("edit-entries.html"));
-  setNavLinkVisible("tasks.html", false);
+  setNavLinkVisible("tasks.html", tasksEnabled && visibleTasksLinks.has("tasks.html"));
 
   document.querySelectorAll(".nav-menu").forEach((menu) => {
     const visibleLinks = [...menu.querySelectorAll("a")].filter((link) => !link.hidden);
@@ -390,7 +412,10 @@ function storeWorkspaceContext(settings) {
   const context = {
     enabledModules: Array.isArray(settings.enabledModules) ? settings.enabledModules : previousContext.enabledModules || [],
     modules: Array.isArray(settings.modules) ? settings.modules : previousContext.modules || [],
+    tasksEnabled: settings.tasksEnabled === false ? false : true,
     timeTrackingEnabled: settings.timeTrackingEnabled !== false,
+    userId: settings.userId || settings.user_id || previousContext.userId || "",
+    username: settings.username || previousContext.username || "",
     workspaceCapabilities: settings.workspaceCapabilities || {},
     workspaceId: settings.workspaceId || settings.workspace_id || "",
     workspaceName: settings.workspaceName || DEFAULT_WORKSPACE_NAME,

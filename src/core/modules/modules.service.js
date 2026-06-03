@@ -2,6 +2,7 @@ import { listModules } from "./registry.js";
 import { querySql, runSql, sqlText } from "../../db/sqlite.js";
 
 const TIME_TRACKING_MODULE_ID = "time-tracking";
+const TASKS_MODULE_ID = "tasks";
 
 async function syncModuleRegistry(workspaceId) {
   const modules = listModules();
@@ -58,6 +59,7 @@ async function decorateWorkspaceSettings(settings, workspaceId) {
     ...settings,
     workspaceId,
     workspace_id: workspaceId,
+    tasksEnabled: moduleContext.moduleStatusById[TASKS_MODULE_ID] === "enabled",
     timeTrackingEnabled: moduleContext.moduleStatusById[TIME_TRACKING_MODULE_ID] === "enabled",
     enabledModules: moduleContext.enabledModules,
     modules: moduleContext.modules,

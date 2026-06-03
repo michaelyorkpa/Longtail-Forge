@@ -9,9 +9,10 @@ import { settingsRepository } from "../../repositories/settings.repo.js";
 import { normalizeClientProjectData } from "../../utils/normalizers.js";
 import { planProjectUpdate } from "./project-update-planner.js";
 import { timeEntriesRepository } from "../time-tracking/time-entries.repo.js";
+import { taskRemindersService } from "../tasks/task-reminders.service.js";
 
 async function readClientProjects(session) {
-  const data = await readClientProjectData(session.workspace_id);
+  const data = await attachReminderPolicies(await readClientProjectData(session.workspace_id), session.workspace_id);
   const workspaceSettings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
   const clients = workspaceSettings.workspaceType === "business" ? data.clients : [];
   const allProjects = data.clients.flatMap((client) => (
@@ -126,6 +127,7 @@ async function createClient(payload, session) {
   }
 
   await clientsRepository.create(session.workspace_id, client);
+  await saveClientReminderPolicy(session.workspace_id, client.id, payload);
   await recordAudit(payload?.action, {
     session,
     action: "client_created",
@@ -180,6 +182,7 @@ async function updateClient(clientId, payload, session) {
   }
 
   await clientsRepository.update(session.workspace_id, client);
+  await saveClientReminderPolicy(session.workspace_id, client.id, payload);
   await recordAudit(payload?.action, {
     session,
     action: "client_updated",
@@ -333,6 +336,7 @@ async function createProject(clientId, payload, session) {
   await assertUniqueProjectNameInScope(session.workspace_id, project.client_id, project.name);
 
   await projectsRepository.create(session.workspace_id, decodedClientId, project);
+  await saveProjectReminderPolicy(session.workspace_id, project.id, normalizedPayload);
   await recordAudit(normalizedPayload?.action, {
     session,
     action: "project_created",
@@ -434,6 +438,7 @@ async function updateProject(projectId, payload, session) {
   });
 
   await projectsRepository.update(session.workspace_id, project);
+  await saveProjectReminderPolicy(session.workspace_id, project.id, normalizedPayload);
   const downstreamRecords = await applyConfirmedProjectRecordMaintenance({
     workspaceId: session.workspace_id,
     project,
@@ -747,6 +752,65 @@ async function recordAudit(providedAction, auditEvent) {
       provided_action: providedAction || null,
     },
   });
+}
+
+async function attachReminderPolicies(data, workspaceId) {
+  const clients = await Promise.all((data.clients || []).map(async (client) => ({
+    ...client,
+    taskReminderPolicy: await taskRemindersService.readTargetPolicy(workspaceId, "client", client.id),
+    projects: await Promise.all((client.projects || []).map(async (project) => ({
+      ...project,
+      taskReminderPolicy: await taskRemindersService.readTargetPolicy(workspaceId, "project", project.id),
+    }))),
+  })));
+  const workspaceProjects = await Promise.all((data.workspaceProjects || []).map(async (project) => ({
+    ...project,
+    taskReminderPolicy: await taskRemindersService.readTargetPolicy(workspaceId, "project", project.id),
+  })));
+
+  return {
+    ...data,
+    clients,
+    workspaceProjects,
+  };
+}
+
+async function saveClientReminderPolicy(workspaceId, clientId, payload = {}) {
+  if (!hasTaskReminderPolicyPayload(payload)) {
+    return;
+  }
+
+  await taskRemindersService.saveTargetPolicy(
+    workspaceId,
+    "client",
+    clientId,
+    payload.taskReminderPolicy || payload.task_reminder_policy,
+    readReminderPolicyInherited(payload),
+  );
+}
+
+async function saveProjectReminderPolicy(workspaceId, projectId, payload = {}) {
+  if (!hasTaskReminderPolicyPayload(payload)) {
+    return;
+  }
+
+  await taskRemindersService.saveTargetPolicy(
+    workspaceId,
+    "project",
+    projectId,
+    payload.taskReminderPolicy || payload.task_reminder_policy,
+    readReminderPolicyInherited(payload),
+  );
+}
+
+function hasTaskReminderPolicyPayload(payload) {
+  return Object.hasOwn(payload || {}, "taskReminderPolicy") ||
+    Object.hasOwn(payload || {}, "task_reminder_policy");
+}
+
+function readReminderPolicyInherited(payload) {
+  const policy = payload.taskReminderPolicy || payload.task_reminder_policy || {};
+  return policy.inherited !== false;
 }
 
 function clientMetadata(client, parentClient = null) {

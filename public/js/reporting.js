@@ -80,13 +80,17 @@ function renderClientFilter() {
   reportScopeControl.hidden = reportBootstrap.clientFiltersVisible === false;
 
   reportBootstrap.scopes.forEach((scope) => {
-    const optionLabel = scope.isWorkspaceScope ? "Workspace Projects" : scope.name;
+    const optionLabel = scope.isWorkspaceScope ? workspaceProjectsLabel() : scope.name;
     reportClientSelect.appendChild(createOption(scope.id, optionLabel));
   });
 
   if (reportBootstrap.defaultScopeId) {
     reportClientSelect.value = reportBootstrap.defaultScopeId;
   }
+}
+
+function workspaceProjectsLabel() {
+  return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
 }
 
 function renderProjectFilter() {

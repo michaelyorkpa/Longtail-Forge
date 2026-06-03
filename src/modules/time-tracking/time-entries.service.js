@@ -30,6 +30,7 @@ async function create(entry, session) {
     client_name: scope.client?.name || "",
     project_id: scope.project.id,
     project_name: scope.project.name,
+    task_id: entry.task_id,
     description: entry.description,
     start_time: normalizeUtcIso(entry.start_time, session.timezone),
     end_time: normalizeUtcIso(entry.end_time, session.timezone),

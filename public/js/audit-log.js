@@ -325,6 +325,7 @@ function openAuditDetailDialog(log) {
   const actionRow = document.createElement("div");
   const closeButton = document.createElement("button");
   const jsonButton = document.createElement("button");
+  const metadata = parseJson(log.metadata_json);
 
   content.className = "audit-detail-grid";
   appendDetail(content, "Date", formatDateTime(log.created_at));
@@ -332,6 +333,9 @@ function openAuditDetailDialog(log) {
   appendDetail(content, "Action", log.action);
   appendDetail(content, "Change Type", formatEnum(log.change_type));
   appendDetail(content, "Record Type", formatEnum(log.record_type));
+  if (metadata?.summary) {
+    appendDetail(content, "Summary", metadata.summary);
+  }
   appendDetail(content, "IP Address", log.ip_address);
   appendRecordDetail(content, log);
   appendDetail(content, "Audit ID", log.audit_id);

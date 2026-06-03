@@ -11,8 +11,14 @@ const billingRoundingEnabledInput = document.querySelector("[data-billing-roundi
 const billingRoundingIncrementSelect = document.querySelector("[data-billing-rounding-increment]");
 const moduleSettingsContainer = document.querySelector("[data-module-settings]");
 let timeTrackingEnabledInput = document.querySelector("[data-time-tracking-enabled]");
+let tasksEnabledInput = document.querySelector("[data-tasks-enabled]");
+let taskTimersEnabledInput = document.querySelector("[data-task-timers-enabled]");
 const auditLoggingEnabledInput = document.querySelector("[data-audit-logging-enabled]");
 const auditRetentionDaysSelect = document.querySelector("[data-audit-retention-days]");
+const workspaceReminderDateTimeHours1Input = document.querySelector("[data-workspace-reminder-date-time-hours-1]");
+const workspaceReminderDateTimeHours2Input = document.querySelector("[data-workspace-reminder-date-time-hours-2]");
+const workspaceReminderDateOnlyDays1Input = document.querySelector("[data-workspace-reminder-date-only-days-1]");
+const workspaceReminderDateOnlyDays2Input = document.querySelector("[data-workspace-reminder-date-only-days-2]");
 const businessBillingControls = document.querySelectorAll("[data-business-billing-control]");
 const billingSettingsFieldset = document.querySelector("[data-billing-settings-fieldset]");
 const openWorkspaceUsersButton = document.querySelector("[data-open-workspace-users]");
@@ -66,9 +72,16 @@ async function loadSettingsForm() {
     if (timeTrackingEnabledInput) {
       timeTrackingEnabledInput.checked = settings.timeTrackingEnabled;
     }
+    if (tasksEnabledInput) {
+      tasksEnabledInput.checked = settings.tasksEnabled;
+    }
+    if (taskTimersEnabledInput) {
+      taskTimersEnabledInput.checked = settings.taskTimersEnabled;
+    }
     renderModuleSettings(settings);
     auditLoggingEnabledInput.checked = settings.audit.loggingEnabled;
     auditRetentionDaysSelect.value = String(settings.audit.retentionDays);
+    writeReminderDefaults(settings.taskReminderDefaults);
     updateBillingPeriodStartDayState();
     updateBillingRoundingState();
     updateWorkspaceTypeDependentControls();
@@ -98,10 +111,13 @@ async function saveSettings() {
       increment: billingRoundingIncrementSelect.value,
     },
     timeTrackingEnabled: readModuleBooleanSetting("timeTrackingEnabled", true),
+    tasksEnabled: readModuleBooleanSetting("tasksEnabled", true),
+    taskTimersEnabled: readModuleBooleanSetting("taskTimersEnabled", true),
     audit: {
       loggingEnabled: auditLoggingEnabledInput.checked,
       retentionDays: auditRetentionDaysSelect.value,
     },
+    taskReminderDefaults: readReminderDefaults(),
   });
 
   if (!settings.workspaceName) {
@@ -139,9 +155,16 @@ async function saveSettings() {
     if (timeTrackingEnabledInput) {
       timeTrackingEnabledInput.checked = savedSettings.timeTrackingEnabled;
     }
+    if (tasksEnabledInput) {
+      tasksEnabledInput.checked = savedSettings.tasksEnabled;
+    }
+    if (taskTimersEnabledInput) {
+      taskTimersEnabledInput.checked = savedSettings.taskTimersEnabled;
+    }
     renderModuleSettings(savedSettings);
     auditLoggingEnabledInput.checked = savedSettings.audit.loggingEnabled;
     auditRetentionDaysSelect.value = String(savedSettings.audit.retentionDays);
+    writeReminderDefaults(savedSettings.taskReminderDefaults);
     updateBillingPeriodStartDayState();
     updateBillingRoundingState();
     updateWorkspaceTypeDependentControls();
@@ -173,9 +196,12 @@ function normalizeSettings(settings) {
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
     timeTrackingEnabled: settings?.timeTrackingEnabled === false ? false : true,
+    tasksEnabled: settings?.tasksEnabled === false ? false : true,
+    taskTimersEnabled: settings?.taskTimersEnabled === false ? false : true,
     enabledModules: Array.isArray(settings?.enabledModules) ? settings.enabledModules : [],
     modules: Array.isArray(settings?.modules) ? settings.modules : [],
     audit: normalizeAuditSettings(settings?.audit),
+    taskReminderDefaults: normalizeReminderPolicy(settings?.taskReminderDefaults),
   };
 }
 
@@ -208,6 +234,12 @@ function renderModuleSettings(settings) {
     if (setting.id === "timeTrackingEnabled") {
       timeTrackingEnabledInput = input;
     }
+    if (setting.id === "tasksEnabled") {
+      tasksEnabledInput = input;
+    }
+    if (setting.id === "taskTimersEnabled") {
+      taskTimersEnabledInput = input;
+    }
 
     label.append(input, document.createTextNode(` ${setting.label}`));
     moduleSettingsContainer.appendChild(label);
@@ -226,7 +258,11 @@ function readRenderableModuleSettings(settings) {
         moduleId: moduleDefinition.id,
         value: setting.id === "timeTrackingEnabled"
           ? settings.timeTrackingEnabled !== false
-          : moduleDefinition.status === "enabled",
+          : setting.id === "tasksEnabled"
+            ? settings.tasksEnabled !== false
+            : setting.id === "taskTimersEnabled"
+              ? settings.taskTimersEnabled !== false
+              : moduleDefinition.status === "enabled",
       }));
   });
 }
@@ -342,6 +378,50 @@ function normalizeAuditSettings(audit) {
     loggingEnabled: audit?.loggingEnabled === false ? false : true,
     retentionDays: retentionOptions.includes(retentionDays) ? retentionDays : 30,
   };
+}
+
+function normalizeReminderPolicy(policy) {
+  return {
+    dateTime: normalizeOffsetList(policy?.dateTime || policy?.date_time, [120, 1440]),
+    dateOnly: normalizeOffsetList(policy?.dateOnly || policy?.date_only, [4320, 1440]),
+  };
+}
+
+function normalizeOffsetList(values, fallback) {
+  const offsets = (Array.isArray(values) ? values : [])
+    .map((value) => Number.parseInt(value, 10))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .slice(0, 2);
+
+  return offsets.length > 0 ? offsets : [...fallback];
+}
+
+function writeReminderDefaults(policy) {
+  const normalized = normalizeReminderPolicy(policy);
+  const timedHours = normalized.dateTime.map((minutes) => Math.round(minutes / 60));
+  const dateOnlyDays = normalized.dateOnly.map((minutes) => Math.round(minutes / 1440));
+
+  workspaceReminderDateTimeHours1Input.value = String(timedHours[0] || 2);
+  workspaceReminderDateTimeHours2Input.value = String(timedHours[1] || 24);
+  workspaceReminderDateOnlyDays1Input.value = String(dateOnlyDays[0] || 3);
+  workspaceReminderDateOnlyDays2Input.value = String(dateOnlyDays[1] || 1);
+}
+
+function readReminderDefaults() {
+  return {
+    dateTime: [
+      readPositiveInteger(workspaceReminderDateTimeHours1Input, 2) * 60,
+      readPositiveInteger(workspaceReminderDateTimeHours2Input, 24) * 60,
+    ],
+    dateOnly: [
+      readPositiveInteger(workspaceReminderDateOnlyDays1Input, 3) * 1440,
+      readPositiveInteger(workspaceReminderDateOnlyDays2Input, 1) * 1440,
+    ],
+  };
+}
+
+function readPositiveInteger(input, fallback) {
+  return Math.max(1, Number.parseInt(input?.value, 10) || fallback);
 }
 
 function updateBillingRoundingState() {

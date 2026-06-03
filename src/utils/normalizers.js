@@ -10,6 +10,7 @@ function normalizeTimeEntry(entry) {
     client_name: String(entry.client_name || "").trim(),
     project_id: String(entry.project_id || "").trim(),
     project_name: String(entry.project_name || "").trim(),
+    task_id: String(entry.task_id || "").trim(),
     description: String(entry.description || "").trim(),
     start_time: normalizeUtcIso(entry.start_time),
     end_time: normalizeUtcIso(entry.end_time),
@@ -157,6 +158,7 @@ function normalizeSettings(settings) {
     defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
+    taskTimersEnabled: settings?.taskTimersEnabled === false ? false : true,
     audit: normalizeAuditSettings(settings?.audit),
   };
 }

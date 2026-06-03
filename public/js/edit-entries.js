@@ -360,7 +360,7 @@ function normalizeClients(data) {
   if (workspaceProjects.length > 0) {
     clients.unshift({
       id: "__workspace_projects__",
-      name: "Workspace Projects",
+      name: workspaceProjectsLabel(),
       billable: "yes",
       isWorkspaceScope: true,
       projects: workspaceProjects.map((project) => ({
@@ -372,6 +372,10 @@ function normalizeClients(data) {
   }
 
   return clients;
+}
+
+function workspaceProjectsLabel() {
+  return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
 }
 
 function normalizeTimeEntries(data) {

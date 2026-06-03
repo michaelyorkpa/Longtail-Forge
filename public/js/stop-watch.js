@@ -976,13 +976,17 @@ function normalizeClientProjectOptions(data) {
   return [
     {
       id: "__workspace_projects__",
-      name: "Workspace Projects",
+      name: workspaceProjectsLabel(),
       billable: "yes",
       isWorkspaceScope: true,
       projects: workspaceProjects,
     },
     ...normalizedClients,
   ];
+}
+
+function workspaceProjectsLabel() {
+  return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
 }
 
 function isInactiveRecord(record) {

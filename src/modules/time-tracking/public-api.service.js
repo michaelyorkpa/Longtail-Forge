@@ -31,6 +31,7 @@ async function createTimeEntry(context, payload) {
     client_name: client?.name || "",
     project_id: project.id,
     project_name: project.name,
+    task_id: payload.task_id,
     description: payload.description,
     start_time: normalizeUtcIso(payload.start_time, context.timezone),
     end_time: normalizeUtcIso(payload.end_time, context.timezone),

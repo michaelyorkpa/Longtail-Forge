@@ -18,7 +18,8 @@ SELECT
   workspace_settings.rounding_increment,
   workspace_settings.audit_logging_enabled,
   workspace_settings.audit_retention_days,
-  workspace_settings.audit_settings_updated_at
+  workspace_settings.audit_settings_updated_at,
+  workspace_settings.task_timers_enabled
 FROM workspaces
 INNER JOIN workspace_settings ON workspace_settings.workspace_id = workspaces.workspace_id
 WHERE workspaces.workspace_id = ${sqlText(workspaceId)}
@@ -65,6 +66,7 @@ SET
   audit_logging_enabled = ${sqlInteger(settings.audit.loggingEnabled ? 1 : 0)},
   audit_retention_days = ${sqlInteger(settings.audit.retentionDays)},
   audit_settings_updated_at = ${sqlText(now)},
+  task_timers_enabled = ${sqlInteger(settings.taskTimersEnabled === false ? 0 : 1)},
   updated_at = ${sqlText(now)}
 WHERE workspace_id = ${sqlText(workspaceId)};
 `);
@@ -93,6 +95,9 @@ function settingsRowToWorkspaceSettings(row) {
         : Number(row.audit_logging_enabled) === 1,
       retentionDays: row.audit_retention_days,
     },
+    taskTimersEnabled: row.task_timers_enabled === undefined
+      ? true
+      : Number(row.task_timers_enabled) === 1,
   });
 }
 

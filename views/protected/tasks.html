@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tasks | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=8">
+  </head>
+  <body data-page-title="Tasks">
+    <main class="wide-page tasks-page">
+      <div class="page-heading">
+        <h1>Tasks</h1>
+        <button type="button" data-add-task>Add Task</button>
+      </div>
+
+      <div class="task-page-toolbar">
+        <h2>Filter List</h2>
+        <div class="task-quick-filters" data-task-quick-filters>
+          <button type="button" data-task-quick-filter="my">My Tasks</button>
+          <button type="button" data-task-quick-filter="unassigned">Unassigned</button>
+          <button type="button" data-task-quick-filter="overdue">Overdue</button>
+          <button type="button" data-task-quick-filter="today">Due Today</button>
+          <button type="button" data-task-quick-filter="week">Due This Week</button>
+          <button type="button" data-task-quick-filter="complete">Completed</button>
+          <button type="button" data-task-quick-filter="archived">Archived</button>
+        </div>
+        <label>
+          Sort
+          <select data-task-sort>
+            <option value="due_asc" selected>Due Date</option>
+            <option value="priority_desc">Priority</option>
+            <option value="status_asc">Status</option>
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </label>
+        <label>
+          Status
+          <select data-task-status-filter>
+            <option value="active" selected>Active</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="blocked">Blocked</option>
+            <option value="complete">Complete</option>
+            <option value="archived">Archived</option>
+            <option value="all">All</option>
+          </select>
+        </label>
+        <label>
+          Assignee
+          <select data-task-assignee-filter>
+            <option value="all" selected>All assignees</option>
+          </select>
+        </label>
+        <label data-client-workspace-control>
+          Client
+          <select data-task-client-filter>
+            <option value="all" selected>All clients</option>
+          </select>
+        </label>
+        <label>
+          Project
+          <select data-task-project-filter>
+            <option value="all" selected>All projects</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="task-bulk-toolbar" data-task-bulk-toolbar>
+        <label>
+          Bulk Action
+          <select data-task-bulk-action>
+            <option value="">Choose action</option>
+            <option value="status">Set status</option>
+            <option value="priority">Set priority</option>
+            <option value="assignee_add">Add assignees</option>
+            <option value="assignee_remove">Remove assignees</option>
+            <option value="archive">Archive</option>
+          </select>
+        </label>
+        <label data-task-bulk-status-control hidden>
+          Status
+          <select data-task-bulk-status>
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="blocked">Blocked</option>
+            <option value="complete">Complete</option>
+          </select>
+        </label>
+        <label data-task-bulk-priority-control hidden>
+          Priority
+          <select data-task-bulk-priority>
+            <option value="low">Low</option>
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </label>
+        <label data-task-bulk-assignee-control hidden>
+          Assignees
+          <select multiple data-task-bulk-assignees></select>
+        </label>
+        <button type="button" data-task-bulk-apply disabled>Apply to 0</button>
+      </div>
+
+      <p data-task-status role="status" aria-live="polite"></p>
+
+      <div class="list-table-wrap">
+        <table class="list-table task-table">
+          <thead>
+            <tr>
+              <th><input type="checkbox" data-task-select-all aria-label="Select all visible tasks"></th>
+              <th>Task</th>
+              <th>Scope</th>
+              <th>Assignees</th>
+              <th>Status</th>
+              <th>Priority</th>
+              <th>Due</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody data-task-list></tbody>
+        </table>
+      </div>
+
+      <dialog class="task-detail-dialog" data-task-dialog>
+        <form method="dialog" class="task-form" data-task-form>
+          <h2 data-task-dialog-title>Task</h2>
+
+          <label class="task-title-field">
+            Title
+            <input type="text" data-task-title required>
+          </label>
+
+          <label>
+            Status
+            <select data-task-form-status>
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="complete">Complete</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+
+          <label>
+            Priority
+            <select data-task-priority>
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </label>
+
+          <label data-client-workspace-control>
+            Client
+            <select data-task-client></select>
+          </label>
+
+          <label>
+            Project
+            <select data-task-project></select>
+          </label>
+
+          <label>
+            Due Date
+            <input type="date" data-task-due-date>
+          </label>
+
+          <label>
+            Due Time
+            <input type="time" data-task-due-time>
+          </label>
+
+          <label class="task-assignee-field">
+            Assignees
+            <select multiple data-task-assignees></select>
+          </label>
+
+          <fieldset class="task-recurrence-field">
+            <legend>Recurrence</legend>
+            <div class="task-recurrence-controls">
+              <label class="inline-option">
+                <input type="checkbox" data-task-recurring>
+                Recurring?
+              </label>
+              <button type="button" data-task-recurrence-details disabled>Details</button>
+            </div>
+            <p data-task-recurrence-summary>Not recurring.</p>
+          </fieldset>
+
+          <fieldset class="task-timer-field" data-task-timer-field hidden>
+            <legend>Task Timer</legend>
+            <p data-task-timer-status>No active timer.</p>
+            <div class="task-timer-controls">
+              <strong data-task-timer-display>00:00:00</strong>
+              <button type="button" data-task-timer-start>Start</button>
+              <button type="button" data-task-timer-pause disabled>Pause</button>
+              <button type="button" data-task-timer-finalize disabled>Save Time</button>
+              <button type="button" data-task-timer-reset disabled>Reset</button>
+            </div>
+          </fieldset>
+
+          <fieldset class="task-reminder-field">
+            <legend>Reminders</legend>
+            <p data-task-effective-reminders></p>
+            <label class="inline-option">
+              <input type="checkbox" data-task-reminder-override>
+              Override reminder defaults
+            </label>
+            <div class="reminder-offset-grid" data-task-reminder-override-fields hidden>
+              <label>
+                Timed Reminder 1 (hours before)
+                <input type="number" min="1" step="1" data-task-reminder-date-time-hours-1>
+              </label>
+              <label>
+                Timed Reminder 2 (hours before)
+                <input type="number" min="1" step="1" data-task-reminder-date-time-hours-2>
+              </label>
+              <label>
+                Date-Only Reminder 1 (days before)
+                <input type="number" min="1" step="1" data-task-reminder-date-only-days-1>
+              </label>
+              <label>
+                Date-Only Reminder 2 (days before)
+                <input type="number" min="1" step="1" data-task-reminder-date-only-days-2>
+              </label>
+            </div>
+          </fieldset>
+
+          <label class="task-description-field">
+            Description
+            <textarea rows="5" data-task-description></textarea>
+          </label>
+
+          <div class="form-actions task-modal-actions">
+            <button type="button" data-copy-task-link hidden>Copy Link</button>
+            <button type="button" data-cancel-task>Cancel</button>
+            <button type="submit" data-save-task>Save Task</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog class="task-recurrence-dialog" data-task-recurrence-dialog>
+        <form method="dialog" class="task-recurrence-form" data-task-recurrence-form>
+          <h2>Recurrence</h2>
+
+          <label>
+            Frequency
+            <select data-task-recurrence-frequency>
+              <option value="DAILY">Daily</option>
+              <option value="WEEKLY" selected>Weekly</option>
+              <option value="MONTHLY">Monthly</option>
+            </select>
+          </label>
+
+          <label>
+            Every
+            <input type="number" min="1" step="1" value="1" data-task-recurrence-interval>
+          </label>
+
+          <label>
+            End Date
+            <input type="date" data-task-recurrence-end-date>
+          </label>
+
+          <div class="form-actions task-modal-actions">
+            <button type="button" data-task-recurrence-cancel>Cancel</button>
+            <button type="submit">Save Recurrence</button>
+          </div>
+        </form>
+      </dialog>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/shared/modal.js"></script>
+    <script src="js/shared/api-client.js"></script>
+    <script src="js/shared/page-controller.js"></script>
+    <script src="js/shared/timezones.js"></script>
+    <script src="js/tasks.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

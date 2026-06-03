@@ -110,7 +110,7 @@
     if (workspaceProjects.length > 0) {
       clients.unshift({
         id: "__workspace_projects__",
-        name: "Workspace Projects",
+        name: workspaceProjectsLabel(),
         status: "Active",
         billable: "yes",
         billingRate: null,
@@ -122,6 +122,10 @@
     }
 
     return clients;
+  }
+
+  function workspaceProjectsLabel() {
+    return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
   }
 
   function normalizeClient(client, options = {}) {

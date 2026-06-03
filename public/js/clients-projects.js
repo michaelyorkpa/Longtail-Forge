@@ -847,7 +847,7 @@ function createBulkClientFilter() {
   label.textContent = "Filter by Client";
   select.append(
     createOption("All", "All projects"),
-    createOption("__workspace_projects__", "Workspace Projects"),
+    createOption("__workspace_projects__", workspaceProjectsLabel()),
   );
   getRealClients().filter((client) => isActiveStatus(client.status)).forEach((client) => {
     select.appendChild(createOption(client.id, client.name));
@@ -1025,7 +1025,7 @@ function renderProjectClientFilter() {
 
   const previousValue = projectClientFilter.value || "All";
   projectClientFilter.replaceChildren(createOption("All", "All clients"));
-  projectClientFilter.appendChild(createOption("__workspace_projects__", "Workspace Projects"));
+  projectClientFilter.appendChild(createOption("__workspace_projects__", workspaceProjectsLabel()));
 
   getRealClients().forEach((client) => {
     projectClientFilter.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
@@ -1157,7 +1157,7 @@ function getWorkspaceProjectClient() {
 
   return clientProjectData.clients.find((client) => client.isWorkspaceScope) || {
     id: "__workspace_projects__",
-    name: "Workspace Projects",
+    name: workspaceProjectsLabel(),
     status: "Active",
     billable: simplifiedBilling ? "no" : "yes",
     billing_rate: simplifiedBilling ? null : normalizeBillingRate(workspaceSettings.defaultBillingRate),
@@ -1409,6 +1409,11 @@ function createClientBillingSettingsEditor(client, options = {}) {
     value: client.billing_rounding,
     inheritedRounding: workspaceSettings.billingRounding,
   });
+  const reminderPolicyEditor = createTaskReminderPolicyEditor({
+    legend: "Task Reminder Defaults",
+    inheritLabel: "Use workspace task reminder defaults",
+    value: client.taskReminderPolicy,
+  });
 
   let saveButton = null;
 
@@ -1434,6 +1439,7 @@ function createClientBillingSettingsEditor(client, options = {}) {
     billingRateLabel,
     billingPeriodEditor.element,
     billingRoundingEditor.element,
+    reminderPolicyEditor.element,
   );
 
   if (saveButton) {
@@ -1457,12 +1463,14 @@ function createClientBillingSettingsEditor(client, options = {}) {
     client.billing_period = billingPeriodEditor.getValue();
     client.billable = normalizeBillableFlag(billableInput.checked);
     client.billing_rounding = billingRoundingEditor.getValue();
+    client.taskReminderPolicy = reminderPolicyEditor.getValue();
 
     await saveClientRecord(client, {
       action: "client_billing_settings_updated",
       client_id: client.id,
       client_name: client.name,
       details: `billable=${client.billable};billing_rate=${client.billing_rate};billing_period=${formatBillingPeriod(getEffectiveClientBillingPeriod(client))};rounding=${formatBillingRounding(getEffectiveClientBillingRounding(client))};round_hours=${getEffectiveClientBillingRounding(client).enabled ? "yes" : "no"}`,
+      taskReminderPolicy: client.taskReminderPolicy,
     }, {
       openClientId: client.id,
       openClientBillingSettingsId: client.id,
@@ -1670,9 +1678,15 @@ function createProjectEditor(client, project) {
     inheritedRounding: project.client_id ? getEffectiveClientBillingRounding(client) : workspaceSettings.billingRounding,
     showModeWhenUnbillable: true,
   });
+  const reminderPolicyEditor = createTaskReminderPolicyEditor({
+    legend: "Task Reminder Defaults",
+    inheritLabel: project.client_id ? "Use client task reminder defaults" : "Use workspace task reminder defaults",
+    value: project.taskReminderPolicy,
+  });
 
   billingSettings.append(
     billingRoundingEditor.element,
+    reminderPolicyEditor.element,
   );
 
   if (!usesSimplifiedBilling) {
@@ -1719,6 +1733,7 @@ function createProjectEditor(client, project) {
     project.billing_rate = usesSimplifiedBilling ? null : normalizeBillingRate(billingRateInput.value);
     project.billing_period = usesSimplifiedBilling ? null : billingPeriodEditor.getValue();
     project.billing_rounding = billingRoundingEditor.getValue();
+    project.taskReminderPolicy = reminderPolicyEditor.getValue();
 
     if ((oldProject.client_id || "") !== (project.client_id || "") || (oldProject.parent_project_id || "") !== (project.parent_project_id || "")) {
       const confirmed = await window.LongtailForge.modal.confirm({
@@ -1742,6 +1757,7 @@ function createProjectEditor(client, project) {
       project_id: project.id,
       project_name: project.name,
       confirm_downstream_update: true,
+      taskReminderPolicy: project.taskReminderPolicy,
       details: `old_project_id=${oldProject.id};old_project_name=${oldProject.name};old_status=${oldProject.status};old_parent_project_id=${oldProject.parent_project_id || ""};new_parent_project_id=${project.parent_project_id || ""};old_billable=${oldProject.billable};old_billing_rate=${oldProject.billing_rate};new_status=${project.status};new_billable=${project.billable};new_billing_rate=${project.billing_rate};billing_period=${formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project))};rounding=${formatBillingRounding(getEffectiveProjectBillingRounding(client, project))};round_hours=${getEffectiveProjectBillingRounding(client, project).enabled ? "yes" : "no"}`,
     }, {
       openClientId: project.client_id || "__workspace_projects__",
@@ -2302,6 +2318,7 @@ function normalizeData(data) {
           billing_period: normalizeOptionalBillingPeriod(client.billing_period),
           billing_rounding: normalizeOptionalBillingRounding(client.billing_rounding),
           billing_contact: normalizeBillingContact(client.billing_contact),
+          taskReminderPolicy: normalizeTaskReminderPolicy(client.taskReminderPolicy),
           projects: normalizeProjects(client.projects || [], clientBillable, client.id),
         };
       })
@@ -2312,13 +2329,14 @@ function normalizeData(data) {
 
     clients.unshift({
       id: "__workspace_projects__",
-      name: "Workspace Projects",
+      name: workspaceProjectsLabel(),
       status: "Active",
       billable: simplifiedBilling ? "no" : "yes",
       billing_rate: simplifiedBilling ? null : normalizeBillingRate(workspaceSettings.defaultBillingRate),
       billing_period: simplifiedBilling ? null : normalizeOptionalBillingPeriod(workspaceSettings.billingPeriod),
       billing_rounding: normalizeOptionalBillingRounding(workspaceSettings.billingRounding),
       billing_contact: normalizeBillingContact({}),
+      taskReminderPolicy: normalizeTaskReminderPolicy({ inherited: true }),
       isWorkspaceScope: true,
       projects: workspaceProjects,
     });
@@ -2340,6 +2358,7 @@ function normalizeProjects(projects, clientBillable, clientId) {
         billing_rate: usesProjectRoundingOnly() ? null : normalizeBillingRate(project.billing_rate),
         billing_period: usesProjectRoundingOnly() ? null : normalizeOptionalBillingPeriod(project.billing_period),
         billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
+        taskReminderPolicy: normalizeTaskReminderPolicy(project.taskReminderPolicy),
         status: projectStatuses.includes(project.status)
           ? project.status
           : "Active",
@@ -2356,6 +2375,23 @@ function normalizeSettings(settings) {
       ? settings.workspaceType
       : "business",
   };
+}
+
+function normalizeTaskReminderPolicy(policy) {
+  return {
+    inherited: policy?.inherited !== false,
+    dateTime: normalizeReminderOffsetList(policy?.offsets?.dateTime || policy?.dateTime || policy?.date_time, [120, 1440]),
+    dateOnly: normalizeReminderOffsetList(policy?.offsets?.dateOnly || policy?.dateOnly || policy?.date_only, [4320, 1440]),
+  };
+}
+
+function normalizeReminderOffsetList(values, fallback) {
+  const offsets = (Array.isArray(values) ? values : [])
+    .map((value) => Number.parseInt(value, 10))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .slice(0, 2);
+
+  return offsets.length > 0 ? offsets : [...fallback];
 }
 
 function clientsEnabledForWorkspace() {
@@ -2423,6 +2459,69 @@ function normalizeOptionalBillingRounding(rounding) {
   }
 
   return normalizeBillingRounding(rounding);
+}
+
+function createTaskReminderPolicyEditor({ legend, inheritLabel, value }) {
+  const fieldset = document.createElement("fieldset");
+  const legendElement = document.createElement("legend");
+  const inheritOption = document.createElement("label");
+  const inheritInput = document.createElement("input");
+  const grid = document.createElement("div");
+  const normalized = normalizeTaskReminderPolicy(value);
+  const timedHours = normalized.dateTime.map((minutes) => Math.round(minutes / 60));
+  const dateOnlyDays = normalized.dateOnly.map((minutes) => Math.round(minutes / 1440));
+  const timedFirst = createNumberField("Timed Reminder 1 (hours before)", timedHours[0] || 2);
+  const timedSecond = createNumberField("Timed Reminder 2 (hours before)", timedHours[1] || 24);
+  const dateOnlyFirst = createNumberField("Date-Only Reminder 1 (days before)", dateOnlyDays[0] || 3);
+  const dateOnlySecond = createNumberField("Date-Only Reminder 2 (days before)", dateOnlyDays[1] || 1);
+
+  fieldset.className = "billing-period-editor task-reminder-policy-editor";
+  legendElement.textContent = legend;
+  inheritOption.className = "inline-option";
+  inheritInput.type = "checkbox";
+  inheritInput.checked = normalized.inherited;
+  inheritOption.append(inheritInput, document.createTextNode(` ${inheritLabel}`));
+  grid.className = "reminder-offset-grid";
+  grid.append(timedFirst.label, timedSecond.label, dateOnlyFirst.label, dateOnlySecond.label);
+
+  const updateState = () => {
+    grid.hidden = inheritInput.checked;
+  };
+
+  inheritInput.addEventListener("change", updateState);
+  updateState();
+  fieldset.append(legendElement, inheritOption, grid);
+
+  return {
+    element: fieldset,
+    getValue: () => ({
+      inherited: inheritInput.checked,
+      dateTime: [
+        readPositiveInteger(timedFirst.input, 2) * 60,
+        readPositiveInteger(timedSecond.input, 24) * 60,
+      ],
+      dateOnly: [
+        readPositiveInteger(dateOnlyFirst.input, 3) * 1440,
+        readPositiveInteger(dateOnlySecond.input, 1) * 1440,
+      ],
+    }),
+  };
+}
+
+function createNumberField(text, value) {
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+
+  input.type = "number";
+  input.min = "1";
+  input.step = "1";
+  input.value = String(value);
+  label.append(text, input);
+  return { label, input };
+}
+
+function readPositiveInteger(input, fallback) {
+  return Math.max(1, Number.parseInt(input?.value, 10) || fallback);
 }
 
 function createBillingPeriodEditor({ legend, inheritLabel, value, inheritedPeriod }) {
@@ -2754,6 +2853,10 @@ function createOption(value, text) {
 
 function sortByName(items) {
   return window.LongtailForge.pageController.sortByName(items);
+}
+
+function workspaceProjectsLabel() {
+  return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
 }
 
 function createUuid() {

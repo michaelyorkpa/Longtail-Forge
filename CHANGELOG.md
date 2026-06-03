@@ -1,3 +1,68 @@
+## Version 0.31.6 - 2026-06-03 18:31 -04:00
+
+- Added public `/api/v1/tasks` read, create, update, complete, reopen, archive, and restore endpoints with `tasks:read` and `tasks:write` API key scopes.
+- Added task-linked reporting filters so finalized task timer time entries can be isolated by `task_id`.
+- Updated public API, module contract, and permissions matrix documentation for the completed 0.31 Tasks branch.
+- Extended permission regression coverage for task API scopes, disabled Tasks public API behavior, task endpoint metadata, and task-linked reporting.
+- Ran the final 0.31 review pass across task permissions, module boundaries, timezone handling, recurrence, and timer linkage.
+- Bumped the app version to `0.31.6`.
+
+## Version 0.31.5 - 2026-06-03 17:17 -04:00
+
+- Added `active_task_timers` persistence with one task timer per user per task and server-side project/client context capture.
+- Added Task Timers as a separate Tasks module sub-option in Workspace Settings, gated by both Tasks and Time Tracking availability.
+- Added task timer start, pause, reset, and finalize endpoints plus task detail modal stopwatch controls for eligible project-linked tasks.
+- Made task timers and normal Time Tracking timers mutually exclusive by pausing the other timer type when one starts running.
+- Saved finalized task timer time into `time_entries` with the task title as the description and `task_id` preserved for future reporting.
+- Blocked task completion while any active task timer record remains for that task.
+- Extended permission regression coverage for task timer gating, mutual exclusion, completion blocking, and finalized task time-entry links.
+- Bumped the app version to `0.31.5`.
+
+## Version 0.31.4 - 2026-06-03 16:51 -04:00
+
+- Added a scoped task calendar window helper and browser API payload for due-date-backed calendar integrations.
+- Expanded Dashboard task output into overdue, due-soon, and assigned-to-me sections with direct links into task detail.
+- Added renderer/link metadata to the Tasks dashboard module contract so future dashboard sections can consume task summaries without page-specific coupling.
+- Kept the full calendar UI deferred to 0.34.0 while exposing the task payload needed by that future surface.
+- Extended permission regression coverage for task calendar scope filtering and Dashboard task links.
+- Bumped the app version to `0.31.4`.
+
+## Version 0.31.3 - 2026-06-03 16:36 -04:00
+
+- Added task recurrence templates with workspace/client/project scope, assignment defaults, due pattern metadata, RRULE storage, optional end dates, and active/paused status.
+- Linked recurring task instances back to their template and added completion behavior that creates the next instance while preventing duplicate retry creation.
+- Added recurrence audit events for template create/update and generated task instances.
+- Added recurring task controls to the task modal, including a separate recurrence settings dialog and current-instance versus all-future edit prompts.
+- Extended permission regression coverage for scoped recurring task creation, completion, and duplicate protection.
+- Bumped the app version to `0.31.3`.
+
+## Version 0.31.2 - 2026-06-03 16:02 -04:00
+
+- Added normalized task reminder offset storage with workspace, client, project, and task scopes.
+- Added reminder inheritance for Business workspaces through Workspace -> Client -> Project -> Task and Personal/Family workspaces through Workspace -> Project -> Task.
+- Added Workspace Settings reminder defaults, client/project reminder default controls, and task-level reminder override controls.
+- Added computed pending reminder occurrence helpers for future notification delivery without requiring every-minute scheduler behavior in 0.31.2.
+- Updated due-date handling so date-only tasks remain date-only, timed task display uses the session timezone, and date-only overdue logic waits until the local day has passed.
+- Bumped the app version to `0.31.2`.
+
+## Version 0.31.1 - 2026-06-03 15:25 -04:00
+
+- Added saved Tasks sort preferences, quick filters for common task views, and active-default list behavior that keeps completed and archived tasks readable but out of the default view.
+- Added task bulk actions for status, priority, assignee add/remove, and archive using server-side task permissions for each selected task.
+- Added copyable task detail links, stronger Tasks page smoke helpers, completed/archived row styling, and dashboard task counts for overdue, due-soon, and assigned-to-me work.
+- Added readable task audit summaries in Audit Log detail views while keeping raw task JSON available on demand.
+- Bumped the app version to `0.31.1`.
+
+## Version 0.31.0 - 2026-06-03 13:56 -04:00
+
+- Added the first-party Tasks module with module metadata, navigation, Workspace Settings enablement, protected Tasks page, and browser `/api/tasks` routes.
+- Added task persistence with workspace/client/project scope links, multiple concrete user assignees, fixed priority/status values, due date/time handling, archive/restore, and future source-link fields.
+- Added task permissions, role mappings, assignment eligibility checks, module-disabled write protection, and audit events for task lifecycle changes.
+- Updated the permissions matrix and permission regression harness for task visibility, creation, assignment, completion, archive/restore, module toggles, and Personal/Family client-scope denial.
+- Fixed the Tasks Add/Edit modal so workspace-project task scopes use the active workspace name and assignee labels show display name plus email address.
+- Replaced generic workspace-project labels across the app with active workspace labels such as `Raymond Tec Projects`.
+- Bumped the app version to `0.31.0`.
+
 ## Version 0.30.17 - 2026-06-03 11:42 -04:00
 
 - Enforced Business-only client access in browser and public APIs while keeping workspace projects available for Personal and Family workspaces.

@@ -397,6 +397,45 @@ async function isMigrationAlreadySatisfied(migration) {
       workspacePermission.length > 0;
   }
 
+  if (migration.fileName === "025_add_tasks_module.sql") {
+    const [tasksExists, taskAssigneesExists, taskPermission] = await Promise.all([
+      tableExists("tasks"),
+      tableExists("task_assignees"),
+      querySql("SELECT permission_id FROM permissions WHERE permission_id = 'tasks.view' LIMIT 1;"),
+    ]);
+
+    return tasksExists && taskAssigneesExists && taskPermission.length > 0;
+  }
+
+  if (migration.fileName === "026_add_task_reminders.sql") {
+    const [offsetsExists, overrideColumn] = await Promise.all([
+      tableExists("task_reminder_offsets"),
+      columnsExist("tasks", ["reminder_override_enabled"]),
+    ]);
+
+    return offsetsExists && overrideColumn;
+  }
+
+  if (migration.fileName === "027_add_task_recurrence.sql") {
+    const [templatesExist, assigneesExist, taskColumnsExist] = await Promise.all([
+      columnsExist("task_recurrence_templates", ["recurrence_anchor_date"]),
+      tableExists("task_recurrence_assignees"),
+      columnsExist("tasks", ["recurrence_template_id", "recurrence_instance_date"]),
+    ]);
+
+    return templatesExist && assigneesExist && taskColumnsExist;
+  }
+
+  if (migration.fileName === "028_add_task_timers.sql") {
+    const [taskTimersExist, settingsColumn, timeEntryTaskColumn] = await Promise.all([
+      tableExists("active_task_timers"),
+      columnsExist("workspace_settings", ["task_timers_enabled"]),
+      columnsExist("time_entries", ["task_id"]),
+    ]);
+
+    return taskTimersExist && settingsColumn && timeEntryTaskColumn;
+  }
+
   return false;
 }
 

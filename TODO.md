@@ -8,8 +8,21 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
+### Documentation
+
 - [ ] Add Table of Contents to README.md
 - [ ] Add an about section to GitHub
+
+### Time Tracker
+
+- [ ] Reset button on Time Tracker no longer resets data properly
+
+### Tasks
+
+- [ ] Add reminder options to Tasks Settings in Settings -> Tasks
+
+- Client starts off as "Raymond Tec Projects" but isn't selectable to narrow down to Workspace projects, still displays all projects
+  - Need a "None" or "Select project group" option?
 
 - How is the "Remove Workspace" button wired, currently on User Settings page?
 
@@ -17,6 +30,9 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - What happens to a Workspace/project/client when the creator/owner is removed from it?
 
 ## Tweaks
+
+- [ ] Clean up Tasks UI
+- [ ] Do partial Dashboard modification to bring it closer to final dashboard appearance
 
 - What should happen to records when a client/project becomes completed or archived?
 

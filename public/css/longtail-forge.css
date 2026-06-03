@@ -1031,10 +1031,245 @@ button.danger-button {
     margin-bottom: 16px;
 }
 
+.task-page-toolbar {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 16px;
+}
+
+.task-quick-filters {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.task-quick-filters button {
+    padding: 8px 10px;
+}
+
+.task-quick-filters button[data-active="true"] {
+    border-color: var(--color-accent);
+    background: var(--color-hover);
+    color: var(--color-accent);
+}
+
+.task-bulk-toolbar {
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) minmax(220px, 1.4fr) auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 16px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.task-bulk-toolbar select[multiple] {
+    min-height: 92px;
+}
+
 .project-page-toolbar h2 {
     grid-column: 1 / -1;
     margin: 0;
     font-size: 16px;
+}
+
+.task-page-toolbar h2 {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 16px;
+}
+
+.task-table th:first-child,
+.task-table td:first-child {
+    width: 44px;
+    min-width: 44px;
+    text-align: center;
+}
+
+.task-table th:nth-child(2),
+.task-table td:nth-child(2) {
+    width: auto;
+    min-width: 180px;
+    text-align: left;
+}
+
+.task-table th:last-child,
+.task-table td:last-child {
+    width: 220px;
+}
+
+.task-row-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.task-row-actions button {
+    min-width: 72px;
+    padding: 8px 10px;
+}
+
+.task-table tr.is-task-complete {
+    color: var(--color-muted);
+    background: var(--color-hover);
+}
+
+.task-table tr.is-task-complete .link-button {
+    color: var(--color-muted);
+    text-decoration: line-through;
+}
+
+.task-table tr.is-task-archived {
+    opacity: 0.72;
+}
+
+.task-summary-panel {
+    display: grid;
+    gap: 12px;
+}
+
+.task-summary-counts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.task-summary-counts span {
+    display: grid;
+    gap: 2px;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.task-summary-counts strong {
+    font-size: 24px;
+}
+
+.task-summary-list {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.task-summary-sections {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.task-summary-section {
+    display: grid;
+    align-content: start;
+    gap: 8px;
+}
+
+.task-summary-section h3 {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+}
+
+.task-summary-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.task-summary-list span {
+    color: var(--color-muted);
+    white-space: nowrap;
+}
+
+.task-detail-dialog {
+    width: min(92vw, 760px);
+}
+
+.task-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding: 24px;
+}
+
+.task-form h2,
+.task-title-field,
+.task-assignee-field,
+.task-recurrence-field,
+.task-timer-field,
+.task-reminder-field,
+.task-description-field,
+.task-modal-actions {
+    grid-column: 1 / -1;
+}
+
+.task-assignee-field select {
+    min-height: 132px;
+}
+
+.task-reminder-field,
+.task-recurrence-field,
+.task-timer-field,
+.task-reminder-policy-editor {
+    display: grid;
+    gap: 12px;
+}
+
+.task-reminder-field p,
+.task-recurrence-field p,
+.task-timer-field p {
+    margin: 0;
+    color: var(--color-muted);
+}
+
+.task-recurrence-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.task-timer-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.task-timer-controls strong {
+    min-width: 84px;
+    font-variant-numeric: tabular-nums;
+}
+
+.task-recurrence-dialog {
+    width: min(92vw, 520px);
+}
+
+.task-recurrence-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    padding: 24px;
+}
+
+.task-recurrence-form h2,
+.task-recurrence-form label:last-of-type,
+.task-recurrence-form .task-modal-actions {
+    grid-column: 1 / -1;
+}
+
+.reminder-offset-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
 }
 
 .project-list-actions {
@@ -1822,6 +2057,11 @@ button:disabled {
     .add-project-form,
     .billing-editor,
     .project-page-toolbar,
+    .task-page-toolbar,
+    .task-bulk-toolbar,
+    .task-form,
+    .task-summary-sections,
+    .reminder-offset-grid,
     .inline-bulk-controls,
     .project-bulk-filter-row,
     .project-bulk-action-row,
