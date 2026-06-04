@@ -110,7 +110,6 @@ Examples:
 * Support Tickets
 * Calendars
 * Messaging
-* Notifications
 * Invoicing
 * Reporting expansions
 * Files/attachments

@@ -36,11 +36,14 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 - [x] Reset button on Time Tracker no longer resets data properly
   - Timer should clear client/project/description/and reset timer when "Clear info when Stopped/Reset" is checked and Stop or Reset is pressed. Stop still saves before clearing, reset warns user, then after confirmation, discards data for affected timer.
 
-## Version 0.31.8 - Documentation clean up
+## Version 0.31.8 
 
-- [ ] Update README.md to reflect the current state of the repo and the future
+## Version 0.31.9 - Documentation clean up
+
+- [ ] Update README.md to reflect the current state of the repo and the future expectations
 - [ ] Add Table of Contents to README.md
 - [ ] Add appropriate link to README.md for the CHANGELOG.md
+- [ ] Add links to appropriate sections for currently filled out docs
 
 ## Version 0.31.10 - Module Manifest Contract
 
