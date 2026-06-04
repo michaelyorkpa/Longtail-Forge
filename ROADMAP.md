@@ -36,14 +36,12 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 - [x] Reset button on Time Tracker no longer resets data properly
   - Timer should clear client/project/description/and reset timer when "Clear info when Stopped/Reset" is checked and Stop or Reset is pressed. Stop still saves before clearing, reset warns user, then after confirmation, discards data for affected timer.
 
-## Version 0.31.8 
-
-## Version 0.31.9 - Documentation clean up
+## Version 0.31.pre-10 - Documentation clean up
 
 - [ ] Update README.md to reflect the current state of the repo and the future expectations
 - [ ] Add Table of Contents to README.md
 - [ ] Add appropriate link to README.md for the CHANGELOG.md
-- [ ] Add links to appropriate sections for currently filled out docs
+- [ ] Add links to appropriate sections in README for currently filled out docs/
 
 ## Version 0.31.10 - Module Manifest Contract
 
@@ -76,6 +74,8 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     * `apiScopes`
     * `taggableTypes`
     * `searchableTypes`
+    * `notificationEvents`
+    * `notificationTemplates`
     * `auditRecordTypes`
     * `eventTypes`
     * `hooks`
@@ -92,6 +92,9 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Validate navigation definitions
   * [ ] Validate settings definitions
   * [ ] Validate permission declarations
+  * [ ] Validate API scope declarations
+  * [ ] Validate taggable/searchable type declarations
+  * [ ] Validate notification event/template declarations
   * [ ] Validate dependency declarations
   * [ ] Fail startup with a clear error if a module manifest is invalid
 
@@ -100,6 +103,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Explain required fields
   * [ ] Explain optional fields
   * [ ] Explain which fields are currently active and which are reserved for future framework features
+  * [ ] Explain that notifications are framework-owned, while modules only declare notification events/templates
   * [ ] Include a small example module manifest
 
 * [ ] Do not add full third-party plugin loading yet
@@ -129,6 +133,10 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Navigation contribution collection
   * [ ] Settings contribution collection
   * [ ] Permission contribution collection
+  * [ ] API scope contribution collection
+  * [ ] Taggable type contribution collection
+  * [ ] Searchable type contribution collection
+  * [ ] Notification event/template contribution collection
 
 * [ ] Add registry helper methods
 
@@ -140,6 +148,10 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] `listModuleSettings(workspaceId, session)`
   * [ ] `listModulePermissions()`
   * [ ] `listModuleApiScopes()`
+  * [ ] `listTaggableTypes()`
+  * [ ] `listSearchableTypes()`
+  * [ ] `listNotificationEvents()`
+  * [ ] `listNotificationTemplates()`
 
 * [ ] Add framework-level checks for module dependencies
 
@@ -158,7 +170,9 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * Disabled modules may allow historical reads only when `historicalReadAccess` is true
   * Disabled modules should stop background hooks or scheduled module behavior
   * Disabled modules should not create new search index entries
+  * Disabled modules should not create new tag assignments unless explicitly allowed
   * Disabled modules should not create new notifications
+  * Existing notifications from disabled modules may remain visible as historical records unless intentionally cleaned up
 
 * [ ] Move module write checks closer to the framework
 
@@ -187,6 +201,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
   * [ ] Some modules should not be disableable
   * [ ] Core framework services should not appear as normal optional modules
+  * [ ] Tags, search, notifications, permissions, audit logging, module registry, and app shell should be framework services, not optional workflow modules
   * [ ] The UI should clearly separate framework services from optional workflow modules
 
 ## Version 0.31.13 - Registry-Driven App Shell and Navigation
@@ -207,15 +222,16 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Endpoint should return available workspace switcher data
   * [ ] Endpoint should return enabled modules
   * [ ] Endpoint should return module-aware navigation
+  * [ ] Endpoint should return notification summary/counts when notifications exist
   * [ ] Endpoint should return user theme/timezone basics
   * [ ] Endpoint should return current user's permission hints only where safe
 
-* [ ] Update frontend navigation rendering
+* [ ] Update frontend navigation/app shell rendering
 
   * [ ] Frontend should render navigation returned by the backend
   * [ ] Frontend should not need to know about specific modules like Tasks or Time Tracking
   * [ ] Keep only app-shell level behavior hard-coded in the frontend
-  * [ ] Keep logout, workspace switching, app branding, and theme handling as framework behavior
+  * [ ] Keep logout, workspace switching, app branding, global search, notification bell, and theme handling as framework behavior
 
 * [ ] Preserve current navigation behavior during the refactor
 
@@ -245,9 +261,16 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 * [ ] Keep workspace settings separate from module settings
 
-  * [ ] Workspace identity, billing defaults, audit settings, and workspace type remain framework/workspace settings
+  * [ ] Workspace identity, billing defaults, audit settings, notification defaults, and workspace type remain framework/workspace settings
   * [ ] Module-specific options live under their module settings section
   * [ ] Module enable/disable checkboxes should be grouped clearly
+
+* [ ] Prepare user preference settings for framework services
+
+  * [ ] Leave room for user notification preferences
+  * [ ] Leave room for user default page/workspace preferences
+  * [ ] Leave room for user search/display preferences later
+  * [ ] Do not mix user preferences with workspace/module configuration
 
 * [ ] Validate module settings server-side
 
@@ -293,6 +316,13 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Keep module-specific JS/CSS module-owned
   * [ ] Avoid loading module-specific frontend code globally unless needed
 
+* [ ] Keep framework UI assets in framework/app-shell space
+
+  * [ ] Notification bell/toast UI is framework-owned
+  * [ ] Global search UI is framework-owned
+  * [ ] Workspace switcher is framework-owned
+  * [ ] Module pages should not duplicate app shell UI
+
 * [ ] Add basic module page documentation
 
   * [ ] Explain how a module registers a protected page
@@ -311,7 +341,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 * [ ] Add module resource definitions
 
-  * [ ] Modules should be able to declare resource keys such as `tasks`, `time_entries`, `tickets`, or `notes`
+  * [ ] Modules should be able to declare resource keys such as `tasks`, `time_entries`, `tickets`, `notes`, or `messages`
   * [ ] Resource definitions should include supported operations:
 
     * `read`
@@ -323,6 +353,13 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     * `assign`
     * `manage`
   * [ ] Permission checking should gradually move away from hard-coded resource key mapping
+
+* [ ] Add framework-owned permission expectations for notifications
+
+  * [ ] Notifications should never expose records the user cannot access
+  * [ ] Opening a notification should re-check access to the underlying record
+  * [ ] Notification APIs should only return notifications for the authenticated user/workspace
+  * [ ] Workspace admins may eventually manage notification defaults but should not read private user notifications unless explicitly designed later
 
 * [ ] Make public API scopes more module-declarative
 
@@ -339,6 +376,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Verify module API scopes appear in API key settings
   * [ ] Verify disabled modules block public API writes
   * [ ] Verify unauthorized users do not see module navigation
+  * [ ] Verify users cannot read notifications for records they cannot access
 
 ## Version 0.31.17 - Internal Event and Hook System
 
@@ -369,6 +407,9 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     * `task.completed`
     * `task.archived`
     * `task.restored`
+    * `notification.created`
+    * `notification.read`
+    * `notification.dismissed`
 
 * [ ] Add event payload conventions
 
@@ -379,6 +420,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Include previous value where appropriate
   * [ ] Include new value where appropriate
   * [ ] Include source such as manual, system, import, public_api, integration
+  * [ ] Include module ID where applicable
 
 * [ ] Use events for future cross-module behavior
 
@@ -395,7 +437,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * Add Time Tracking events after the event bus is stable
   * Keep this version focused on the event framework, not every future event consumer
 
-## Version 0.31.18 - Audit and Activity Extensibility
+## Version 0.31.18 - Audit, Activity, and Notification Extensibility
 
 * [ ] Make audit record types extensible
 
@@ -418,12 +460,28 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Activity feed should never expose raw audit JSON by default
   * [ ] Activity feed should respect permissions
 
+* [ ] Prepare notification-safe event summaries
+
+  * [ ] Define difference between activity feed and notifications
+  * [ ] Notifications are directed user alerts
+  * [ ] Activity feed is a permission-safe timeline
+  * [ ] Audit log is the admin/security record
+  * [ ] Notification payloads should not expose sensitive audit JSON
+
 * [ ] Add helper for activity-safe event summaries
 
   * [ ] Module can provide a human-readable label
   * [ ] Module can provide a safe record URL
   * [ ] Module can provide dashboard-safe summary text
   * [ ] Activity feed implementation can come later
+
+* [ ] Add helper for notification-safe event summaries
+
+  * [ ] Module can provide a notification title
+  * [ ] Module can provide a notification body
+  * [ ] Module can provide a safe record URL
+  * [ ] Module can provide recipient resolution hints
+  * [ ] Full notification implementation starts in 0.32.x
 
 ## Version 0.31.19 - Developer Module Example and Documentation
 
@@ -438,6 +496,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Include example permission declaration
   * [ ] Include example view registration
   * [ ] Include example event hook
+  * [ ] Include example notification event/template declaration
   * [ ] Do not add business functionality to the stub module
 
 * [ ] Add developer documentation
@@ -451,6 +510,8 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] How module migrations work
   * [ ] How events/hooks work
   * [ ] How module enable/disable works
+  * [ ] How framework notifications work
+  * [ ] How modules declare notification events/templates
   * [ ] How tags/search will hook into modules starting in 0.32.x
 
 * [ ] Add a framework sanity check script
@@ -460,19 +521,194 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Validate duplicate routes where practical
   * [ ] Validate duplicate permission IDs
   * [ ] Validate duplicate API scopes
+  * [ ] Validate duplicate notification event IDs
+  * [ ] Validate malformed notification templates
   * [ ] Validate missing module dependencies
   * [ ] Add the script to `npm run check`
 
 ## Version 0.31.20 - Integrate Time Tracker and Tasks
 
-- It would be good to integrate the task timer and the time tracking stop watches
-- What would be the best/easiest way to accomplish this from a coding/framework/modules perspective?
+* It would be good to integrate the task timer and the time tracking stop watches
 
-- [ ] This should respect the module separation
-  - [ ] Task timers should verify Time Tracker is installed and functional before activating this part of the module
-  - [ ] Once tasks are installed they should add a drop-down to the time tracker timers that shows all current tasks for current user
+* What would be the best/easiest way to accomplish this from a coding/framework/modules perspective?
 
-## Version 0.32.0 - Tags Framework Foundation
+* [ ] This should respect the module separation
+
+  * [ ] Task timers should verify Time Tracker is installed and functional before activating this part of the module
+  * [ ] Once tasks are installed they should add a drop-down to the time tracker timers that shows all current tasks for current user
+  * [ ] Task/time-tracking integration should use module dependency checks rather than hard-coded assumptions
+  * [ ] Task/time-tracking integration should leave room for notification events later, such as `timer.still_running` or `task.timer_started`
+
+## Version 0.32.0 - Notifications Framework Foundation
+
+* [ ] Add framework-owned notification tables
+
+  * [ ] Notifications should be framework-owned, not owned by Tasks, Tickets, Notes, Messaging, or Time Tracking
+  * [ ] Notifications should be workspace-scoped
+  * [ ] Notifications should be recipient-specific
+  * [ ] Notifications should be permission-aware
+  * [ ] Notifications should be module-aware
+  * [ ] Notifications should be safe when modules are disabled
+
+* [ ] Add `notifications` table
+
+  * [ ] `notification_id`
+  * [ ] `workspace_id`
+  * [ ] `module_id`
+  * [ ] `event_type`
+  * [ ] `recipient_user_id`
+  * [ ] `actor_user_id`
+  * [ ] `record_type`
+  * [ ] `record_id`
+  * [ ] `title`
+  * [ ] `body`
+  * [ ] `url`
+  * [ ] `status`
+  * [ ] `priority`
+  * [ ] `created_at`
+  * [ ] `read_at`
+  * [ ] `dismissed_at`
+  * [ ] `metadata_json`
+
+* [ ] Add notification indexes
+
+  * [ ] Workspace + recipient + status + created date
+  * [ ] Workspace + module ID
+  * [ ] Workspace + record type + record ID
+  * [ ] Workspace + event type
+  * [ ] Created date for cleanup/retention
+
+* [ ] Add notification statuses
+
+  * [ ] `unread`
+  * [ ] `read`
+  * [ ] `dismissed`
+  * [ ] `archived` if needed later
+
+* [ ] Add notification priorities
+
+  * [ ] `low`
+  * [ ] `normal`
+  * [ ] `high`
+  * [ ] `urgent`
+
+* [ ] Add module-declared notification event/template contract
+
+  * [ ] Modules should declare notification event types
+  * [ ] Modules may declare notification templates
+  * [ ] Notification declarations should include:
+
+    * `id`
+    * `moduleId`
+    * `label`
+    * `description`
+    * `defaultEnabled`
+    * `defaultPriority`
+    * recipient resolver name or framework-recognized recipient mode
+    * title template
+    * body template
+    * URL/record link pattern if applicable
+  * [ ] Framework should not maintain a permanent hard-coded list of notification event types
+
+* [ ] Add core notification permissions
+
+  * [ ] `notifications.view_own`
+  * [ ] `notifications.manage_preferences`
+  * [ ] `notifications.manage_workspace_defaults`
+  * [ ] Add default role mappings for users/workspace admins where appropriate
+
+## Version 0.32.1 - Notification Service and API
+
+* [ ] Create shared notification repository/service methods
+
+  * [ ] Create notification
+  * [ ] Create notification for multiple recipients
+  * [ ] List notifications for current user
+  * [ ] Count unread notifications for current user
+  * [ ] Mark notification as read
+  * [ ] Mark all notifications as read
+  * [ ] Dismiss notification
+  * [ ] Archive/cleanup old notifications
+  * [ ] Read notification target metadata safely
+
+* [ ] Validate notification operations through the framework
+
+  * [ ] Validate notification belongs to active workspace
+  * [ ] Validate notification recipient is the current user
+  * [ ] Validate target module is registered
+  * [ ] Validate target record type is registered where applicable
+  * [ ] Validate target record still belongs to active workspace where practical
+  * [ ] Validate user can access the target before opening/following notification link
+  * [ ] Validate disabled modules cannot create new notifications
+
+* [ ] Add browser API routes for notifications
+
+  * [ ] `GET /api/notifications`
+  * [ ] `GET /api/notifications/unread-count`
+  * [ ] `POST /api/notifications/:notificationId/read`
+  * [ ] `POST /api/notifications/read-all`
+  * [ ] `POST /api/notifications/:notificationId/dismiss`
+
+* [ ] Add notification event integration
+
+  * [ ] Framework event bus can trigger notification creation
+  * [ ] Modules can emit events that notification rules consume
+  * [ ] Keep first implementation simple and synchronous unless it becomes slow
+  * [ ] Leave room for background jobs later
+
+* [ ] Add audit/activity considerations
+
+  * [ ] Creating a normal user notification does not need full audit logging every time
+  * [ ] Notification preference changes should be audit logged where appropriate
+  * [ ] Workspace-level notification default changes should be audit logged
+  * [ ] Security-sensitive notifications can be audit logged later if needed
+
+## Version 0.32.2 - In-App Notification UI and Preferences
+
+* [ ] Add framework-owned notification UI
+
+  * [ ] Add notification bell to the authenticated app shell
+  * [ ] Show unread notification count
+  * [ ] Show recent notifications dropdown/panel
+  * [ ] Allow notifications to be marked read
+  * [ ] Allow notifications to be dismissed
+  * [ ] Link notifications to registered record URLs where safe
+  * [ ] Do not duplicate notification UI inside individual modules
+
+* [ ] Add notification page if needed
+
+  * [ ] List user notifications
+  * [ ] Filter by unread/read/dismissed
+  * [ ] Filter by module/source if useful
+  * [ ] Support pagination
+  * [ ] Support empty states
+
+* [ ] Add notification preferences groundwork
+
+  * [ ] User-level notification preferences
+  * [ ] Workspace-level notification defaults
+  * [ ] Allow modules to declare configurable notification types
+  * [ ] Users can mute notification types where permitted
+  * [ ] Workspace admins can set default behavior where appropriate
+
+* [ ] Add initial notification events
+
+  * [ ] `task.assigned`
+  * [ ] `task.due_soon`
+  * [ ] `task.overdue`
+  * [ ] `timer.still_running` if practical
+  * [ ] `module.disabled` for admins if useful
+
+* [ ] Add regression tests
+
+  * [ ] Users only see their own notifications
+  * [ ] Notifications cannot cross workspace boundaries
+  * [ ] Notifications do not open records the user cannot access
+  * [ ] Disabled modules do not create new notifications
+  * [ ] Unread count updates after read/dismiss actions
+  * [ ] Notification bell does not break unauthenticated/public pages
+
+## Version 0.32.3 - Tags Framework Foundation
 
 * [ ] Add framework-owned tagging tables
 
@@ -545,7 +781,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Do not use tags as the source of truth for visibility, permissions, billing status, workflow status, or archival state
   * [ ] Example: note visibility should eventually be stored as a `visibility` field, not enforced by `#public`
 
-## Version 0.32.1 - Tag Service and API
+## Version 0.32.4 - Tag Service and API
 
 * [ ] Create shared tag repository/service methods
 
@@ -597,7 +833,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Add/edit/archive tags
   * [ ] Keep UI simple until tagging is proven across several modules
 
-## Version 0.32.2 - Tagging Core Records
+## Version 0.32.5 - Tagging Core Records
 
 * [ ] Register initial taggable types through module manifests
 
@@ -637,15 +873,16 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Do not automatically copy client/project tags onto time entries or tasks
   * [ ] Later reporting can optionally include records under clients/projects with matching tags
 
-## Version 0.32.3 - Search Framework Contract
+## Version 0.32.6 - Search Framework Contract
 
 * [ ] Add framework-owned search service
 
-  * [ ] Search should be a framework service, not a feature owned by Tasks, Notes, Tickets, or Time Tracking
+  * [ ] Search should be a framework service, not a feature owned by Tasks, Notes, Tickets, Messaging, or Time Tracking
   * [ ] Search should be permission-aware
   * [ ] Search should be workspace-aware
   * [ ] Search should be module-aware
   * [ ] Search should be tag-aware
+  * [ ] Search should be notification-aware only where notification records themselves are searchable later
 
 * [ ] Add search backend adapter contract
 
@@ -703,7 +940,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     * indexer function/reference
   * [ ] Framework should not maintain a permanent hard-coded list of searchable record types
 
-## Version 0.32.4 - Search Indexing and Rebuild Tools
+## Version 0.32.7 - Search Indexing and Rebuild Tools
 
 * [ ] Add search indexing methods
 
@@ -745,7 +982,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] No advanced relevance tuning yet
   * [ ] Build the contract first so the backend can improve later
 
-## Version 0.32.5 - Search API and Global Search UI
+## Version 0.32.8 - Search API and Global Search UI
 
 * [ ] Add browser API search endpoint
 
@@ -777,6 +1014,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Show client/project context where useful
   * [ ] Show tags where useful
   * [ ] Link search result to the registered record URL when available
+  * [ ] Keep global search UI framework-owned
 
 * [ ] Add search results page
 
@@ -786,7 +1024,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Support permission-safe result display
   * [ ] Avoid making dashboard search too complex
 
-## Version 0.32.6 - Tag and Search Reporting Integration
+## Version 0.32.9 - Framework Integration Tests and Reporting Hooks
 
 * [ ] Add tag filters to reporting where useful
 
@@ -800,6 +1038,14 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Allow reports to link to filtered search results where useful
   * [ ] Allow dashboard sections to link to search results where useful
   * [ ] Keep reporting calculations based on real records, not the search index
+
+* [ ] Add notification-aware dashboard helpers
+
+  * [ ] App shell can show unread notification count
+  * [ ] Dashboard can eventually show user-specific notification summaries
+  * [ ] Notification summaries should respect permissions
+  * [ ] Notification summaries should not expose raw audit JSON
+  * [ ] Do not build full activity feed here unless already stable
 
 * [ ] Add saved filter groundwork if useful
 
@@ -816,8 +1062,12 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Search results update after record edits
   * [ ] Search index rebuild does not duplicate records
   * [ ] Reporting tag filters return expected records
+  * [ ] Notifications cannot cross workspace boundaries
+  * [ ] Notifications are only visible to intended recipients
+  * [ ] Notifications do not expose records the user cannot access
+  * [ ] Disabled modules do not create new notifications
 
-## Version 0.34.0 - Support Tickets
+## Version 0.33.0 - Support Tickets
 
 - [ ] Support tickets
   - [ ] Consult with existing support ticket solutions for best path here
@@ -826,7 +1076,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Tickets should support external/client-visible responses later
   - [ ] Ticket visibility and edit access should respect the roles/permissions system
 
-## Version 0.35.0 - Notes/Knowledge Base foundations
+## Version 0.34.0 - Notes/Knowledge Base foundations
 
 - [ ] Notes/knowledge base
   - [ ] Notes should be linkable with either markdown or wiki-style linking
@@ -838,11 +1088,11 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Notes should have a changelog table, can be reused from the audit log, but remains persistent
   - [ ] Note visibility and edit access should respect the roles/permissions system
 
-## Version 0.36.0 - Calendars and Calendar Views
+## Version 0.35.0 - Calendars and Calendar Views
 
 - [ ] Calendars
 
-## Version 0.37.0 - Dashboard as Project Hub
+## Version 0.36.0 - Dashboard as Project Hub
 
 - [ ] Dashboard should become the hub for managing projects
   - [ ] Add "Past Due/Due Soon" section that shows past due and upcoming tasks sorted by client and project
@@ -862,12 +1112,12 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Users should only see clients/projects/tasks/notes/tickets they are allowed to see
   - [ ] External client users should not see internal-only notes or admin-only audit details
 
-## Version 0.38.0 - Expanded Reporting and Invoicing
+## Version 0.37.0 - Expanded Reporting and Invoicing
 
 - [ ] Expanded reporting
 - [ ] Invoicing
 
-## Version 0.39.0 - User Account Security Upgrades and Database/Settings File Backup/Restore
+## Version 0.38.0 - User Account Security Upgrades and Database/Settings File Backup/Restore
 
 ### Two Factor Authentication (TOTP) (2FA)
 
@@ -1078,20 +1328,31 @@ Below is a rough road map for all of the 0.40 branch, this is not finalized yet
 ### Potential Integrations List
 
 - [ ] ZenDesk
+- [ ] FreshDesk
+
 - [ ] Google Tasks 
+- [ ] Google Calendar
+
 - [ ] Microsoft To Do
+
 - [ ] Microsoft SharePoint
   - File sharing
   - Knowledgebase pages
   - Input for tickets/notes/tasks/etc.
+
 - [ ] Microsoft OneDrive 
   - File sharing
   - Receive notifications on monitored folders
 
+- [ ] Google Workspace email
+  - To auto-route communications/messaging
+- [ ] Outlook email
+  - To auto-route communications/messaging
+
 - [ ] WordPress/WooCommerce
   - [ ] Support Ticket plugin
   - [ ] Knowledge Base plugin
-  - [ ] Automated task creation from:
+  - [ ] Automated task/ticket creation from:
     - Front-end support tickets
     - Order issues (fulfillment failure, etc.)
 

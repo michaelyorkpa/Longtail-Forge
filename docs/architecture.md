@@ -18,9 +18,9 @@ Framework/Core = the system that lets modules exist and work together.
 Modules = workflow tools that plug into the framework.
 ```
 
-The framework should provide shared services such as users, workspaces, authentication, permissions, navigation, module lifecycle, tags, search, audit logging, settings, and APIs.
+The framework should provide shared services such as users, workspaces, authentication, permissions, navigation, module lifecycle, tags, search, notifications, audit logging, settings, events/hooks, and APIs.
 
-Modules should provide business/workflow functionality such as tasks, time tracking, notes, support tickets, calendars, messaging, invoicing, and reporting expansions.
+Modules should provide business/workflow functionality such as tasks, time tracking, notes, support tickets, calendars, in-app messaging, invoicing, and reporting expansions.
 
 ---
 
@@ -35,7 +35,7 @@ Current first-party modules include:
 * Tasks
 * Time Tracking
 
-These modules are currently registered explicitly in the module registry. This is good for predictable first-party development, but the long-term goal is to formalize the module contract so additional first-party and third-party modules can be added without hard-coding their navigation, settings, routes, permissions, or views throughout the app.
+These modules are currently registered explicitly in the module registry. This is good for predictable first-party development, but the long-term goal is to formalize the module contract so additional first-party and third-party modules can be added without hard-coding their navigation, settings, routes, permissions, notifications, search behavior, tags, or views throughout the app.
 
 The next architecture step is not automatic plugin discovery. The next step is a clear module contract.
 
@@ -82,9 +82,11 @@ Framework/core includes:
 * Browser/internal API foundation
 * API key foundation
 * Audit logging
+* Activity-safe event summaries
 * Event/hook system
 * Tags framework
 * Search framework
+* Notifications framework
 * Timezone normalization helpers
 * Error handling
 * Database migration runner
@@ -109,7 +111,7 @@ Examples:
 * Notes/Knowledge Base
 * Support Tickets
 * Calendars
-* Messaging
+* In-app Messaging
 * Invoicing
 * Reporting expansions
 * Files/attachments
@@ -173,6 +175,7 @@ Time Tracking should hook into:
 * Audit logging
 * Public API scopes
 * Dashboard widgets
+* Notifications
 * Workspace settings
 
 Time Tracking should not be framework core.
@@ -189,6 +192,7 @@ Examples:
 * Permission/resource helpers
 * Taggable record contracts
 * Searchable record contracts
+* Notification helpers
 * Event emission helpers
 * Reminder framework later
 * Recurrence framework later
@@ -196,6 +200,121 @@ Examples:
 * Status/archive conventions later
 
 The feature is not core, but some of its reusable support systems may become core.
+
+---
+
+## Notifications and Messaging
+
+Notifications are framework infrastructure.
+
+In-app messaging is a first-party collaboration module.
+
+This distinction is important.
+
+Notifications tell users something happened.
+
+Messaging is one of the things that can happen.
+
+### Notifications Framework
+
+The notification system should be owned by the framework because every module may need to notify users about events.
+
+Examples:
+
+* A task is due soon.
+* A task was assigned to a user.
+* A ticket received a reply.
+* A note mentioned a user.
+* A timer is still running.
+* An invoice is overdue.
+* A module was disabled.
+* An integration created a record.
+* A future third-party module needs to alert users.
+
+The framework should own:
+
+* Notification records
+* Read/unread state
+* Notification recipients
+* Notification preferences
+* Notification permissions and visibility
+* Notification bell/toast UI
+* Notification API
+* Notification cleanup/retention rules
+* Event-to-notification hooks
+* Future delivery adapters
+
+Future delivery adapters may include:
+
+* In-app notifications
+* Email
+* Push notifications
+* Slack
+* Microsoft Teams
+* Discord
+* Webhooks
+
+Modules should create notifications by emitting events or calling the framework notification service.
+
+Modules should not each invent their own notification system.
+
+Example flow:
+
+```text
+task.due_soon event
+-> notifications framework creates notification
+-> app shell shows badge/bell/toast
+-> user marks notification read
+```
+
+### In-App Messaging Module
+
+In-app messaging should be a first-party collaboration module, not framework core.
+
+Messaging should own:
+
+* Conversations
+* Messages
+* Message threads
+* Participants
+* Read receipts if added later
+* Message-specific permissions
+* Message-specific views
+* Message-specific APIs
+* Message search/tag hooks
+* Message attachments later if needed
+
+Messaging may use the framework notification service to alert users about new messages, replies, or mentions.
+
+Example flow:
+
+```text
+User sends message
+-> messaging module stores message
+-> messaging module emits message.created
+-> notifications framework alerts recipients
+```
+
+### Activity Feed Difference
+
+Activity feed is separate from both notifications and messaging.
+
+Audit log is the admin/security truth.
+
+Activity feed is a user-friendly, permission-safe summary of recent events.
+
+Notifications are directed alerts to specific users.
+
+Messaging is a collaboration feature for user conversations.
+
+In short:
+
+```text
+Audit log = what happened, for admins/security/history.
+Activity feed = what happened, summarized for users.
+Notifications = something needs a user's attention.
+Messaging = users talking to each other.
+```
 
 ---
 
@@ -229,8 +348,10 @@ Examples:
 * Module registry
 * Tags
 * Search
+* Notifications
 * Audit logging
 * App shell
+* Event/hook system
 
 These should not appear to users as normal installable modules.
 
@@ -246,6 +367,7 @@ Examples:
 * Notes
 * Support Tickets
 * Calendars
+* In-app Messaging
 
 These may be enabled/disabled by workspace depending on workspace type, permissions, and module dependencies.
 
@@ -264,6 +386,7 @@ They should eventually be able to declare their own:
 * API scopes
 * Taggable record types
 * Searchable record types
+* Notification events/templates
 * Audit record types
 * Event hooks
 * Migrations
@@ -311,6 +434,8 @@ A module manifest may support:
 
   taggableTypes,
   searchableTypes,
+  notificationEvents,
+  notificationTemplates,
   auditRecordTypes,
   eventTypes,
   hooks,
@@ -361,6 +486,8 @@ listModulePermissions()
 listModuleApiScopes()
 listTaggableTypes()
 listSearchableTypes()
+listNotificationEvents()
+listNotificationTemplates()
 listAuditRecordTypes()
 ```
 
@@ -401,6 +528,8 @@ When a module is enabled:
 * Module settings become active.
 * Module event hooks may run.
 * Module records may be searchable.
+* Module records may be taggable.
+* Module notification hooks/templates may run.
 * Module dashboard widgets may appear.
 
 ### Disabling a Module
@@ -414,8 +543,10 @@ When a module is disabled:
 * Public API writes should be blocked.
 * Background hooks should stop.
 * New search index entries should not be created.
-* Notifications from that module should stop.
+* New tag assignments should not be created unless explicitly allowed.
+* New notifications from that module should stop.
 * Historical reads may remain available only if the module allows historical read access.
+* Existing notifications from that module may remain visible as historical records unless intentionally cleaned up.
 * Audit logs should remain available to authorized users.
 
 Module disable behavior should be enforced by the framework as much as possible so module authors do not need to remember to add checks everywhere.
@@ -444,7 +575,7 @@ Examples:
 
 Modules should declare which workspace capabilities they require.
 
-A module should not assume every workspace supports clients, billing, team members, or time tracking.
+A module should not assume every workspace supports clients, billing, team members, messaging, notifications, or time tracking.
 
 ---
 
@@ -486,6 +617,8 @@ Example:
 
 This avoids hard-coding every module's resource behavior into the permission service.
 
+Notifications should also respect permissions. A user should not receive or open a notification for a record they are not allowed to see.
+
 ---
 
 ## App Shell and Navigation
@@ -505,6 +638,7 @@ Instead, the backend should provide an app shell/bootstrap response that include
 * Workspace capabilities
 * Enabled modules
 * Navigation tree
+* Notification summary/counts
 * Permission-safe UI hints
 * Theme/timezone basics
 
@@ -512,13 +646,15 @@ The frontend should render the navigation tree returned by the backend.
 
 This allows modules to add navigation entries without editing the main frontend navigation file.
 
-Framework-owned navigation may include:
+Framework-owned navigation and app shell UI may include:
 
 * Dashboard
 * Workspace settings
 * User settings
 * Log out
 * Workspace switcher
+* Notification bell
+* Global search
 
 Module-owned navigation may include:
 
@@ -530,6 +666,7 @@ Module-owned navigation may include:
 * Notes
 * Tickets
 * Calendars
+* Messaging
 
 Navigation should be filtered by:
 
@@ -555,6 +692,8 @@ Framework views:
 * User admin
 * API keys
 * Audit log
+* Notifications page
+* Search results page
 
 Module views:
 
@@ -565,6 +704,7 @@ Module views:
 * Notes pages
 * Ticket pages
 * Calendar pages
+* Messaging pages
 
 A module view registration should define:
 
@@ -595,6 +735,8 @@ Common framework CSS/JS can remain global.
 
 Module-specific JS/CSS should belong to the module whenever practical.
 
+The notification bell/toast UI should be framework-owned app shell code, not reimplemented by every module.
+
 ---
 
 ## Settings
@@ -609,8 +751,16 @@ Framework/workspace settings include:
 * Workspace type
 * Billing defaults
 * Audit settings
+* Notification defaults
 * Workspace capabilities
 * General security settings
+
+User framework settings may include:
+
+* Theme
+* Timezone
+* Notification preferences
+* Default workspace/page preferences
 
 Module settings include:
 
@@ -634,6 +784,8 @@ settings: [
 The settings UI should eventually render module settings generically from module manifests.
 
 The settings save logic should not hard-code each module toggle.
+
+Notification preferences should be framework-owned, but modules may declare notification types/templates that users can enable, mute, or configure where practical.
 
 ---
 
@@ -664,6 +816,8 @@ Audit logs may contain admin/security detail.
 
 Activity feeds should be user-friendly, permission-safe summaries.
 
+Notification records are also not audit logs. Notifications are user-facing alerts. Audit logs are admin/security history.
+
 ---
 
 ## Event and Hook System
@@ -688,6 +842,9 @@ task.updated
 task.completed
 task.archived
 task.restored
+notification.created
+notification.read
+notification.dismissed
 ```
 
 Event payloads should generally include:
@@ -718,6 +875,142 @@ Future event consumers may include:
 The event system should start small.
 
 Do not refactor every service into events at once.
+
+---
+
+## Notifications Framework
+
+Notifications should be a framework service.
+
+Notifications should not belong to Tasks, Tickets, Notes, Messaging, or Time Tracking.
+
+The framework should own:
+
+* Notification records
+* Notification recipients
+* Read/unread state
+* Dismissed/archived state
+* Notification preferences
+* Notification permissions and visibility checks
+* Notification API
+* Notification bell/toast UI
+* Notification cleanup/retention
+* Notification delivery adapter contracts
+* Event-to-notification hooks
+
+Modules should declare notification events/templates where appropriate.
+
+Example:
+
+```js
+notificationEvents: [
+  {
+    id: "task.assigned",
+    label: "Task assigned",
+    defaultEnabled: true,
+    recipientResolver: "taskAssigneeRecipients",
+    template: "You were assigned a task: {task.title}"
+  }
+]
+```
+
+A basic notification record may include:
+
+```text
+notification_id
+workspace_id
+module_id
+event_type
+recipient_user_id
+actor_user_id
+record_type
+record_id
+title
+body
+url
+status
+priority
+created_at
+read_at
+dismissed_at
+metadata_json
+```
+
+Notification delivery should start with in-app notifications only.
+
+Future delivery channels may include:
+
+* Email
+* Push
+* Slack
+* Microsoft Teams
+* Discord
+* Webhooks
+
+Modules should not send directly to every channel themselves.
+
+Modules should ask the notification framework to notify users, and the framework should decide how to deliver.
+
+### Notification Rules
+
+Notifications should be:
+
+* Workspace-scoped
+* User-specific
+* Permission-aware
+* Module-aware
+* Safe when modules are disabled
+* Safe when records are archived
+* Configurable by user/workspace where practical
+
+A user should not receive or open a notification for a record they cannot access.
+
+A disabled module should not create new notifications.
+
+Existing notifications from a disabled module may remain as historical user records unless intentionally cleaned up.
+
+### Notification Examples
+
+Tasks:
+
+```text
+task.assigned
+task.due_soon
+task.overdue
+task.completed
+```
+
+Tickets:
+
+```text
+ticket.created
+ticket.assigned
+ticket.client_replied
+ticket.status_changed
+```
+
+Notes:
+
+```text
+note.mentioned_user
+note.updated
+note.shared
+```
+
+Messaging:
+
+```text
+message.created
+message.mentioned_user
+message.thread_replied
+```
+
+Time Tracking:
+
+```text
+timer.still_running
+time_entry.needs_review
+```
 
 ---
 
@@ -830,7 +1123,7 @@ Tags are for classification, filtering, reporting, grouping, and discovery.
 
 Search should be a framework service.
 
-Search should not belong to Tasks, Notes, Tickets, or Time Tracking.
+Search should not belong to Tasks, Notes, Tickets, Messaging, or Time Tracking.
 
 Longtail Forge should eventually support cross-object search.
 
@@ -846,6 +1139,7 @@ Possible results:
 - Note
 - Support ticket
 - Time entry
+- Message thread, if messaging is enabled and permitted
 - Attachment metadata
 - Activity item
 ```
@@ -946,6 +1240,55 @@ The search index is for discovery, not financial/accounting truth.
 
 ---
 
+## In-App Messaging Module
+
+In-app messaging should be a bundled first-party collaboration module.
+
+It should not be framework core.
+
+Messaging should own:
+
+* Conversations
+* Messages
+* Message threads
+* Participants
+* Read receipts if added later
+* Message-specific permissions
+* Message-specific views
+* Message-specific APIs
+* Message search hooks
+* Message tag hooks
+* Message attachment support later if needed
+
+Messaging should use framework services:
+
+* Workspaces
+* Users
+* Permissions
+* Search
+* Tags
+* Notifications
+* Audit logging
+* Event hooks
+* Public API foundation if external messaging access is later allowed
+
+Example messaging flow:
+
+```text
+User sends message
+-> messaging module stores message
+-> messaging module emits message.created
+-> notifications framework alerts recipients
+-> search framework indexes message if permitted
+-> audit/activity systems record safe summaries where appropriate
+```
+
+Messaging is a feature.
+
+Notifications are infrastructure.
+
+---
+
 ## Public API
 
 The public API foundation is framework-owned.
@@ -976,6 +1319,7 @@ The API should respect:
 * Module enabled/disabled state
 * Permissions where applicable
 * Record visibility rules
+* Notification visibility rules where notification APIs are exposed
 * Audit logging where appropriate
 
 ---
@@ -1054,6 +1398,7 @@ timezone-normalization
 workspace-settings
 tags-service
 search-service
+notifications-service
 event-bus
 ```
 
@@ -1064,6 +1409,7 @@ Example module dependencies:
 ```text
 tasks depends on client-projects optionally or conditionally
 time-tracking may integrate with tasks if tasks are enabled
+messaging may integrate with notifications, but notifications are framework-owned
 invoicing may depend on time-tracking
 knowledge-base may depend on notes
 ```
@@ -1092,8 +1438,10 @@ An enabled module may:
 * Accept public API writes with proper scopes
 * Register dashboard widgets
 * Register search records
+* Register taggable records
 * Emit and receive events
 * Run hooks
+* Trigger framework notifications
 * Expose settings
 
 ### Disabled Module
@@ -1104,7 +1452,8 @@ A disabled module should:
 * Block writes
 * Stop hooks/background behavior
 * Stop new search indexing
-* Stop notifications
+* Stop new notifications
+* Stop new tag assignments unless explicitly allowed
 * Preserve existing data
 * Allow historical reads only if permitted
 * Keep audit logs visible to authorized users
@@ -1159,6 +1508,8 @@ Cross-workspace shortcuts
 Permission checks only in the UI
 Tags controlling security behavior
 Search index as reporting truth
+Per-module notification systems
+Messaging treated as notification infrastructure
 Deleting data when modules are disabled
 ```
 
@@ -1179,10 +1530,11 @@ Longtail Forge is module-ready when a first-party or third-party developer can a
 * API scopes
 * Taggable types
 * Searchable types
+* Notification events/templates
 * Audit record types
 * Event hooks
 
-without editing unrelated frontend files, unrelated settings code, unrelated navigation code, unrelated permission mapping code, or unrelated search/tag code.
+without editing unrelated frontend files, unrelated settings code, unrelated navigation code, unrelated permission mapping code, unrelated notification code, or unrelated search/tag code.
 
 The framework should provide the rails.
 
@@ -1198,7 +1550,9 @@ Tasks, Time Tracking, Notes, Tickets, Calendars, Messaging, and Invoicing are mo
 
 Tasks and Time Tracking are important bundled first-party modules, but they should not be treated as required framework core.
 
-Tags and Search should be framework services because they need to work across all modules.
+In-app messaging is a bundled first-party collaboration module, not framework core.
+
+Tags, Search, and Notifications should be framework services because they need to work across all modules.
 
 The long-term goal is not just to add features.
 

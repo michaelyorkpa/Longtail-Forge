@@ -99,6 +99,17 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - makes an easily human readable report that is chronologically organized
   - make it respect filters
 
+### Time Tracking / Work Item Timer Integration
+
+- [ ] Keep Time Tracking usable as a simple standalone module for users who do not use Tasks.
+- [ ] Add a Time Tracking “Work Queue” panel that can show trackable items from enabled modules.
+- [ ] Allow Tasks to expose eligible tasks to the Time Tracking screen without hardcoding task-specific UI into the Time Tracking module.
+- [ ] Show active and paused task timers alongside general active timers for quick task switching.
+- [ ] Add a shared timer-source/trackable-item contract so future modules, including Support Tickets, can expose timer-ready records.
+- [ ] Ensure only one timer can actively run per user across general timers, task timers, and future ticket timers.
+- [ ] Finalized task/ticket timers should create normal time entries with source references such as task_id or ticket_id.
+- [ ] Consider a later migration from separate active timer tables to a generalized active_work_timers table with source_type/source_id.
+
 ## Tagging Phase 4
 
 - [ ] Phase 4: System/automatic tags
@@ -109,7 +120,7 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Long Term
 
-## 
+## Employee hour tracking for Payroll/HR purposes
 
 ## CRM Features?
 
