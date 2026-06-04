@@ -2,55 +2,44 @@
 
 Plan the project. Track the work. Preserve the knowledge.
 
-## Overview
+Longtail Forge started as a simple time tracker and is growing into a small-project operations hub for freelancers, small agencies, self-hosted teams, and eventually personal/family workspaces.
 
-Longtail Forge started as a simple time tracker and is growing into a small-project operations hub for freelancers, small agencies, and similar teams.
+## Table of Contents
 
-The app currently focuses on:
+- [Current State](#current-state)
+- [Documentation](#documentation)
+- [Getting Started](#getting-started)
+- [Development Checks](#development-checks)
+- [License](#license)
+- [Trademark](#trademark)
 
-- Multi-timer time tracking
-- Client and project management
-- Billable and non-billable reporting
-- Manual time entry and time-entry editing
-- User login and administration
-- Workspace settings
-- SQLite-backed local storage
+## Current State
 
-## Background
+Longtail Forge currently includes:
 
-The name is derived from the Wired article, and later book, *The Long Tail* by Chris Anderson. The concept is that the big, obvious work is only part of the story. In business, a few popular products or projects get most of the attention, but there is a long tail of smaller, niche, less obvious things that collectively matter a lot.
+- Workspace-based login, membership, settings, roles, and scoped permissions
+- Client and project management for Business workspaces, plus workspace projects for Personal and Family workspaces
+- Time tracking with manual entry, edit-entry workflows, active timer persistence, and UTC-backed storage
+- A framework-owned Workbench page for daily active timers and task work
+- First-party Tasks with reminders, recurrence, bulk actions, dashboard summaries, task timers, and public API support
+- Billable/non-billable reporting, dashboard summaries, audit logging, API keys, and public API foundations
+- Module-ready backend structure with first-party modules registered explicitly while the manifest contract matures
 
-Freelancers and small agencies often fill the gaps left behind by larger agencies and companies. The big project is easy to recognize. It has a start, an end, and a clearly visualized middle. The long tail is the work that comes after launch:
+The near-term roadmap focuses on formalizing module manifests, Workbench contribution contracts, registry-driven navigation/settings, module lifecycle rules, and future framework services such as tags, search, notifications, notes, support tickets, calendars, and broader project tools.
 
-- Small fixes
-- Support requests
-- Maintenance notes
-- Client-specific settings
-- Old decisions nobody remembers
-- Recurring tasks
-- Tiny updates that keep everything running
+## Documentation
 
-## Why I Built This Tool
-
-I could not find a good, all-in-one tool that met my needs for time tracking, reporting, tasks, notes, and project management in a way that felt integrated and useful.
-
-## Roadmap Summary
-
-The detailed per-version changelog and future plan live in [ROADMAP.md](ROADMAP.md).
-
-- `0.1` established the original flat-file stopwatch workflow.
-- `0.11` added multiple timers, reporting, front-end editing, manual entry, and the dashboard screen.
-- `0.12` moved the app to SQLite, added login, separated client/project UI, added billable flags, added a fourth timer, and introduced user administration.
-- `0.20.x` modernized the server around Express, repositories, migrations, services, central error handling, and public assets.
-- `0.21.x` finishes the legacy refactor and begins app version/footer and front-end organization cleanup.
-- `0.22.x` focuses on logging, reporting, edit-entry polish, timer-state refinements, and frontend utility groundwork.
-- `0.23.x` adds granular client/project CRUD, database audit logging, audit settings, and an admin audit-log viewer.
-- `0.24.x` adds the roles and permissions foundation.
-- `0.25.x` adds the public API and API key foundation.
-- `0.26.x` introduces module-ready backend architecture.
-- `0.27.x` consolidates shared billing and reporting calculations.
-- `0.28.x` finishes core time-tracking maturity with database-backed active timer persistence, richer real-user profiles, and UTC-backed time handling.
-- `0.30.x` shifts the app from organization language toward workspace sessions, memberships, workspace types, workspace creation, migration aliases, workspace-scoped API keys, and project-first time tracking with optional client links.
+- [ROADMAP.md](ROADMAP.md): detailed per-version plan and forward roadmap
+- [CHANGELOG.md](CHANGELOG.md): completed release notes
+- [DECISIONS.md](DECISIONS.md): settled product and architecture decisions
+- [docs/architecture.md](docs/architecture.md): framework/module architecture direction
+- [docs/module-contract.md](docs/module-contract.md): current module definition contract
+- [docs/time-tracking-module.md](docs/time-tracking-module.md): Time Tracking module boundary
+- [docs/public-api.md](docs/public-api.md): public API and API key documentation
+- [docs/longtail_forge_permissions_matrix.md](docs/longtail_forge_permissions_matrix.md): role and permission matrix
+- [docs/storage-rename-plan.md](docs/storage-rename-plan.md): workspace storage rename plan
+- [docs/product-notes.md](docs/product-notes.md): product notes and planning context
+- [docs/licensing.md](docs/licensing.md): licensing notes
 
 ## Getting Started
 
@@ -84,9 +73,21 @@ The app stores local runtime data in `data/`, including the SQLite database at `
 npm run start
 ```
 
-### Open
-
 Open `http://127.0.0.1:8001/index.html` in your browser, adjusting the port if you set `PORT`.
+
+## Development Checks
+
+Run the main verification check before syncing changes:
+
+```sh
+npm run check
+```
+
+Run the permission regression suite when permissions, workspace lifecycle, task access, reporting access, or module access rules change:
+
+```sh
+npm run test:permissions
+```
 
 ## License
 

@@ -440,6 +440,10 @@ async function isMigrationAlreadySatisfied(migration) {
     return columnsExist("tasks", ["billable"]);
   }
 
+  if (migration.fileName === "030_add_unified_active_work_timers.sql") {
+    return tableExists("active_work_timers");
+  }
+
   return false;
 }
 

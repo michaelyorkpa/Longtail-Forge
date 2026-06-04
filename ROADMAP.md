@@ -2,168 +2,32 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.7 - UI and Backend Cleanup After Tasks Module addition
+## Version 0.31.9.1 - Workbench MVP Follow-Up
+- [x] Rename Time Tracker stopwatch `Reset` actions to red `Discard` actions while keeping the standalone Time Tracker page limited to 4 stopwatch cards
+- [x] Rename Workbench timer `Save Time` actions to `Save & End`
+- [x] Rename Time Tracker stopwatch `Stop` actions to `Save & End` to keep timer save/end wording standardized
+- [x] Compact Time Tracker manual timer slots after save/discard so later timers move into cleared middle positions before refresh/reopen
+- [x] Make Workbench manual timer billable state always inherit from the selected client/project and briefly flash when inheritance changes the visible toggle
+- [x] Make Workbench flash the newly activated timer when timer switching moves it to the top of the timer list
+- [x] Add a Workbench Tasks `Add Task` action that opens the existing Tasks page Add Task modal
+- [x] Remove Workbench manual timer count limits while preserving the single-running-timer concurrency rule
 
-- [x] Create Settings -> "Tasks" setting page
-  - [x] Add default reminder options to Tasks Settings in Settings -> Tasks
-  - [x] Add "Timer Concurrency" setting
-    - this doesn't have to work yet, just drop the unattached checkbox
-  - future: Will be the place where custom task list views can be saved
+## Documentation Checkpoint Before 0.31.10
 
-- [x] Move "Projects" settings menu option back to Projects drop down at bottom of menu
-  - [x] Change menu name to "Projects Settings"
+This is a roadmap-only checkpoint. Do not use `0.31.pre-10` as a package version, module version, migration version, or changelog release identifier.
 
-- [x] On Projects Settings screen, make "Bulk Changes" collapsible
+- [x] Update README.md to reflect the current state of the repo and the future expectations
+- [x] Add Table of Contents to README.md
+- [x] Add appropriate link to README.md for the CHANGELOG.md
+- [x] Add links to appropriate sections in README for currently filled out docs/
 
-- [x] Create Settings -> "Time Tracking" settings page
-  - [x] Add "Timer Concurrency" setting
-    - this doesn't have to work yet, just drop the unattached checkbox for now
-
-- [x] Client starts off as "Raymond Tec Projects" on the Add Tasks modal but isn't selectable to filter lists to Workspace projects, still displays all projects
-  - Need an "All projects" option that is the default on the Add tasks screen
-
-- [x] On Projects -> Tasks
-  - [x] In the bulk actions box, titles and boxes need to be vertically aligned at top
-  - [x] Status and Priority need to be shrunk so Assignees can be expanded
-  - [x] Keep filter list and buttons always visible
-  - [x] Make sorting/filtering drop downs collapsible and hidden by default
-  - [x] Make bulk changes section collapsible with "Bulk Actions" as the heading
-
-- [x] Tasks should have billable flags applied
-  - [x] Task billable flags should inherit client/project billable flags
-  - For example: I completed a task in a new workspace project for Raymond Tec. Project name is "Server Maintenance." There should only be one task there. That task is marked as billable. It shouldn't be.
-
-- [x] Reset button on Time Tracker no longer resets data properly
-  - Timer should clear client/project/description/and reset timer when "Clear info when Stopped/Reset" is checked and Stop or Reset is pressed. Stop still saves before clearing, reset warns user, then after confirmation, discards data for affected timer.
-
-## Version 0.31.8 - Unified Active Timer Storage
-
-- [ ] Combine general active timers and task active timers into one generalized active timer table
-
-  - [ ] Replace separate active timer storage with a unified table such as `active_work_timers`
-  - [ ] Preserve support for simple project timers with no task/ticket/source record attached
-  - [ ] Preserve support for task timers by storing source metadata
-  - [ ] Add source fields:
-    - `source_module_id`
-    - `source_type`
-    - `source_id`
-    - `source_label`
-    - `source_url`
-  - [ ] Keep client/project fields directly on the timer for fast rendering and reporting handoff
-  - [ ] Keep timer fields:
-    - `active_timer_id`
-    - `workspace_id`
-    - `user_id`
-    - `timer_slot`
-    - `client_id`
-    - `client_name`
-    - `project_id`
-    - `project_name`
-    - `description`
-    - `billable`
-    - `accumulated_elapsed_seconds`
-    - `last_active_start_time`
-    - `timer_status`
-    - `created_at`
-    - `updated_at`
-
-- [ ] Migrate existing active timer data safely
-
-  - [ ] Migrate rows from the existing general active timer table as `source_type = manual`
-  - [ ] Migrate rows from the existing task active timer table as `source_module_id = tasks` and `source_type = task`
-  - [ ] Preserve elapsed time accurately during migration
-  - [ ] Preserve paused/running state accurately during migration
-  - [ ] Preserve current single-running-timer behavior per user/workspace
-  - [ ] Add a cleanup migration only after the unified table has been verified
-
-- [ ] Refactor active timer services around the unified model
-
-  - [ ] Time Tracking remains the owner of active timer persistence
-  - [ ] Tasks should no longer own a separate active task timer table long-term
-  - [ ] Task timer operations should call the shared active timer service with task source metadata
-  - [ ] Finalizing a sourced timer should create a normal time entry with the relevant source reference, such as `task_id`
-  - [ ] Keep Time Tracking usable without Tasks enabled
-  - [ ] Keep Tasks usable without task timers when Time Tracking is disabled or task timers are disabled
-
-- [ ] Update timer concurrency behavior
-
-  - [ ] Enforce one running timer per user/workspace across all timer sources
-  - [ ] Starting a manual timer pauses running task/ticket/source timers
-  - [ ] Starting a task timer pauses running manual/ticket/source timers
-  - [ ] Leave room for a future workspace setting that allows multiple concurrent running timers, but do not enable that behavior yet
-  - [ ] Keep the existing timer concurrency setting UI as reserved/non-functional unless this version wires it fully
-
-- [ ] Update tests and repair checks
-
-  - [ ] Add regression coverage for manual timer start/pause/finalize
-  - [ ] Add regression coverage for task timer start/pause/finalize
-  - [ ] Add regression coverage for switching between manual timers and task timers
-  - [ ] Add migration sanity checks for old active timer tables
-  - [ ] Add permission checks for sourced timers
-
-## Version 0.31.9 - Work Page MVP
-- [ ] Add a new authenticated "Work" page between Dashboard and Projects
-  - [ ] Add top-level navigation item: Work
-  - [ ] Place Work after Dashboard and before Projects
-  - [ ] Use the Work page as the daily workflow desktop/workbench
-  - [ ] Keep Dashboard as the summary/overview page
-  - [ ] Keep Projects as the client/project management area
-  - [ ] Do not make Work a replacement for module-specific pages
-- [ ] Move primary timer workflow into the Work page
-  - [ ] Show active and paused timers in a dedicated timer area
-  - [ ] Support collapsible timer cards
-  - [ ] Support simple/manual project timers without requiring Tasks
-  - [ ] Support sourced timers such as task timers when the source module is enabled
-  - [ ] Show source badges such as Manual, Task, and later Ticket
-  - [ ] Allow quick switching between active/paused timers
-  - [ ] Keep Time Tracking's existing standalone pages available for users who prefer the older focused workflow
-- [ ] Add task workflow cards when Tasks is enabled
-  - [ ] Show a collapsible task list on the Work page
-  - [ ] Include sorting/filtering controls similar to the Tasks page
-  - [ ] Include fast filters:
-    - Assigned to me
-    - Due today
-    - Due soon
-    - Overdue
-    - In progress
-    - Has timer
-  - [ ] Allow users to start/pause/finalize a task timer from the Work page
-  - [ ] Allow users to open the full task detail/edit modal from the Work page
-  - [ ] Hide task workflow cards when Tasks is disabled or unavailable
-- [ ] Add quick notes placeholder/reference area
-  - [ ] Add a collapsible Quick Notes card
-  - [ ] Support search/reference behavior once Notes/KB exists
-  - [ ] Include a placeholder state before Notes/KB is implemented
-  - [ ] Leave room for creating a note from the Work page later
-  - [ ] Do not make Notes/KB a hard dependency of the Work page
-- [ ] Add page layout behavior
-  - [ ] Use collapsible cards for major work areas
-  - [ ] Persist collapsed/expanded state per user/browser where practical
-  - [ ] Keep layout simple for now; do not build full drag-and-drop widgets yet
-  - [ ] Leave room for movable/reorderable cards later
-  - [ ] Make the page usable on desktop first, then responsive enough for tablet/phone refinement later
-- [ ] Respect module separation
-  - [ ] Work page is framework/app-shell level
-  - [ ] Time Tracking contributes timer capabilities
-  - [ ] Tasks contributes task work items
-  - [ ] Notes/KB will later contribute quick note search/create capabilities
-  - [ ] Support Tickets will later contribute ticket work items
-  - [ ] Disabled modules should not show active workflow cards except historical/read-only states where explicitly allowed
-
-## Version 0.31.pre-10 - Documentation clean up
-
-- [ ] Update README.md to reflect the current state of the repo and the future expectations
-- [ ] Add Table of Contents to README.md
-- [ ] Add appropriate link to README.md for the CHANGELOG.md
-- [ ] Add links to appropriate sections in README for currently filled out docs/
+## Version 0.31.10 - Module Manifest Contract
 
 Some notes for implementation:
 - Time Tracking owns active timer persistence and finalization.
-- Other modules may expose timer-capable work items.
-- The Work page renders normalized timer/work item data.
+- Other modules may expose timer-capable workbench items.
+- The Workbench page renders normalized timer/workbench item data.
 - No module should hard-code another module's frontend behavior unless routed through the declared integration contract.
-
-## Version 0.31.10 - Module Manifest Contract
 
 * [ ] Formalize the module manifest contract
 
@@ -207,10 +71,10 @@ Some notes for implementation:
     * `seedHooks`
     * `repairHooks`
 
-* [ ] Define the Work page contribution contract
+* [ ] Define the Workbench page contribution contract
 
-  * [ ] Modules may contribute Work page cards through a `workbench` manifest section
-  * [ ] Work page cards should include:
+  * [ ] Modules may contribute Workbench page cards through a `workbench` manifest section
+  * [ ] Workbench page cards should include:
     * `id`
     * `label`
     * `renderer`
@@ -220,9 +84,9 @@ Some notes for implementation:
     * `requiresEnabledModules`
     * `defaultCollapsed`
     * `sortOrder`
-  * [ ] Work page cards should be hidden when the contributing module is disabled
-  * [ ] Work page cards should respect permissions before showing record data
-  * [ ] Framework-owned Work cards should be allowed for core workflow areas such as active timers
+  * [ ] Workbench page cards should be hidden when the contributing module is disabled
+  * [ ] Workbench page cards should respect permissions before showing record data
+  * [ ] Framework-owned Workbench cards should be allowed for core workflow areas such as active timers
 
 * [ ] Define the timer source contract
 
@@ -240,13 +104,13 @@ Some notes for implementation:
   * [ ] Time Tracking should remain the owner of active timer persistence
   * [ ] Source modules should provide record context, not own duplicate timer engines
   * [ ] Source modules should be able to create sourced timers without making Time Tracking depend directly on that source module
-  * [ ] Timer source routes should return a normalized timer/work item shape usable by the Work page
+  * [ ] Timer source routes should return a normalized timer/workbench item shape usable by the Workbench page
 
-* [ ] Define the work item source contract
+* [ ] Define the workbench item source contract
 
-  * [ ] Modules may expose actionable records to the Work page through `workItemSources`
-  * [ ] Work item sources should support Tasks first and Support Tickets later
-  * [ ] Work item records should normalize to:
+  * [ ] Modules may expose actionable records to the Workbench page through `workItemSources`
+  * [ ] Workbench item sources should support Tasks first and Support Tickets later
+  * [ ] Workbench item records should normalize to:
     * `source_module_id`
     * `source_type`
     * `source_id`
@@ -264,7 +128,7 @@ Some notes for implementation:
     * `assignee_ids`
     * `timer_status`
     * `elapsed_seconds`
-  * [ ] Work item sources should support filtering/sorting hints without requiring the Work page to know module-specific internals
+  * [ ] Workbench item sources should support filtering/sorting hints without requiring the Workbench page to know module-specific internals
 
 * [ ] Add module manifest validation at startup
 
@@ -273,15 +137,18 @@ Some notes for implementation:
   * [ ] Validate route arrays
   * [ ] Validate navigation definitions
   * [ ] Validate dashboard definitions
-  * [ ] Validate Work page contribution definitions
+  * [ ] Validate Workbench page contribution definitions
   * [ ] Validate timer source definitions
-  * [ ] Validate work item source definitions
+  * [ ] Validate workbench item source definitions
   * [ ] Validate settings definitions
   * [ ] Validate permission declarations
   * [ ] Validate API scope declarations
   * [ ] Validate taggable/searchable type declarations
   * [ ] Validate notification event/template declarations
   * [ ] Validate dependency declarations
+  * [ ] Accept known reserved future fields but validate their basic shape/type only until runtime behavior lands
+  * [ ] Reject unknown arbitrary manifest fields unless a deliberate extension namespace is added later
+  * [ ] Document active manifest fields separately from reserved/inert manifest fields
   * [ ] Fail startup with a clear error if a module manifest is invalid
 
 * [ ] Add developer-facing module manifest documentation
@@ -289,7 +156,7 @@ Some notes for implementation:
   * [ ] Explain required fields
   * [ ] Explain optional fields
   * [ ] Explain which fields are currently active and which are reserved for future framework features
-  * [ ] Explain how modules contribute to Dashboard, Work, navigation, settings, permissions, public API, timer sources, and work item sources
+  * [ ] Explain how modules contribute to Dashboard, Workbench, navigation, settings, permissions, public API, timer sources, and workbench item sources
   * [ ] Explain that Time Tracking owns timer persistence while source modules expose timer-capable records
   * [ ] Explain that notifications are framework-owned, while modules only declare notification events/templates
   * [ ] Include a small example module manifest
@@ -341,16 +208,16 @@ Some notes for implementation:
   * [ ] `listNotificationEvents()`
   * [ ] `listNotificationTemplates()`
 
-* [ ] Add Work page and timer-source registry responsibilities
+* [ ] Add Workbench page and timer-source registry responsibilities
 
-  * [ ] Collect Work page card contributions from enabled modules
+  * [ ] Collect Workbench page card contributions from enabled modules
   * [ ] Collect timer source declarations from enabled modules
-  * [ ] Collect work item source declarations from enabled modules
-  * [ ] Validate source module dependencies before exposing timer/work item sources
-  * [ ] Filter Work page contributions by workspace type, workspace capabilities, module status, and permissions
-  * [ ] Provide normalized registry output for the Work page bootstrap/API
+  * [ ] Collect workbench item source declarations from enabled modules
+  * [ ] Validate source module dependencies before exposing timer/workbench item sources
+  * [ ] Filter Workbench page contributions by workspace type, workspace capabilities, module status, and permissions
+  * [ ] Provide normalized registry output for the Workbench page bootstrap/API
 
-* [ ] Add registry helper methods for Work/timer integrations
+* [ ] Add registry helper methods for Workbench/timer integrations
 
   * [ ] `listWorkbenchCards(workspaceId, session)`
   * [ ] `listTimerSources(workspaceId, session)`
@@ -378,6 +245,9 @@ Some notes for implementation:
   * Disabled modules should not create new tag assignments unless explicitly allowed
   * Disabled modules should not create new notifications
   * Existing notifications from disabled modules may remain visible as historical records unless intentionally cleaned up
+  * Active timers from disabled source modules should remain visible in a limited recovery state so time is not stranded
+  * Disabled-source timer recovery may allow pause, discard/remove, and safe finalization into a normal time entry when Time Tracking is enabled and the user has time entry create permission
+  * Disabled-source timer finalization should preserve stored source metadata when possible, but may fall back to stored client/project/description fields when the source record cannot be safely validated
 
 * [ ] Move module write checks closer to the framework
 
@@ -446,14 +316,14 @@ Some notes for implementation:
   * [ ] Existing module links still appear when enabled
   * [ ] Existing module links disappear when disabled or unauthorized
 
-* [ ] Add Work page to the registry-driven app shell
+* [ ] Add Workbench page to the registry-driven app shell
 
-  * [ ] Work should be a framework-owned authenticated page
-  * [ ] Work should appear after Dashboard and before Projects
-  * [ ] Work should remain visible when no optional workflow modules are enabled, but should show useful empty states
-  * [ ] Work should render module-contributed cards from the registry
-  * [ ] Work should not hard-code Tasks, Time Tracking, Notes, or Support Tickets in the app shell navigation
-  * [ ] Work page navigation should respect user permissions and workspace module availability
+  * [ ] Workbench should be a framework-owned authenticated page
+  * [ ] Workbench should appear after Dashboard and before Projects
+  * [ ] Workbench should remain visible when no optional workflow modules are enabled, but should show useful empty states
+  * [ ] Workbench should render module-contributed cards from the registry
+  * [ ] Workbench should not hard-code Tasks, Time Tracking, Notes, or Support Tickets in the app shell navigation
+  * [ ] Workbench page navigation should respect user permissions and workspace module availability
 
 ## Version 0.31.14 - Registry-Driven Module Settings
 
@@ -543,13 +413,13 @@ Some notes for implementation:
   * [ ] Explain how the navigation entry links to the page
   * [ ] Explain permission and enabled/disabled behavior
 
-* [ ] Register the Work page as a framework-owned protected view
+* [ ] Register the Workbench page as a framework-owned protected view
 
-  * [ ] Work page is not owned by Tasks, Time Tracking, Notes, or Support Tickets
-  * [ ] Work page can load module-contributed cards only when those modules are enabled and authorized
-  * [ ] Work page assets should be framework-owned
-  * [ ] Module-specific Work card renderers should be module-owned where practical
-  * [ ] Unknown/unregistered Work card renderers should fail safely with a clear placeholder
+  * [ ] Workbench page is not owned by Tasks, Time Tracking, Notes, or Support Tickets
+  * [ ] Workbench page can load module-contributed cards only when those modules are enabled and authorized
+  * [ ] Workbench page assets should be framework-owned
+  * [ ] Module-specific Workbench card renderers should be module-owned where practical
+  * [ ] Unknown/unregistered Workbench card renderers should fail safely with a clear placeholder
 
 ## Version 0.31.16 - Module Permissions and API Scope Contracts
 
@@ -705,13 +575,13 @@ Some notes for implementation:
   * [ ] Module can provide recipient resolution hints
   * [ ] Full notification implementation starts in 0.32.x
 
-* [ ] Clarify activity feed vs Work page terminology
+* [ ] Clarify activity feed vs Workbench page terminology
 
-  * [ ] Work page is the user's live workflow desktop/workbench
+  * [ ] Workbench page is the user's live workflow desktop/workbench
   * [ ] Activity feed is a permission-safe historical timeline
   * [ ] Audit log remains the authoritative security/admin record
   * [ ] Notifications are directed user alerts
-  * [ ] Do not use "Activity" as the main navigation label for the Work page unless the activity feed is renamed later
+  * [ ] Do not use "Activity" as the main navigation label for the Workbench page unless the activity feed is renamed later
 
 ## Version 0.31.19 - Developer Module Example and Documentation
 
@@ -756,7 +626,7 @@ Some notes for implementation:
   * [ ] Validate missing module dependencies
   * [ ] Add the script to `npm run check`
 
-## Version 0.31.20 - Timer Sources and Work Item Integration Cleanup
+## Version 0.31.20 - Timer Sources and Workbench Item Integration Cleanup
 
 * [ ] Formalize first-party timer source routes
 
@@ -766,17 +636,18 @@ Some notes for implementation:
     * Pausing a timer
     * Finalizing a timer into a time entry
     * Removing/discarding a timer
-  * [ ] Source modules should expose source-specific work item routes where needed
-  * [ ] Tasks should expose trackable task records through the timer/work item source contract
+  * [ ] Source modules should expose source-specific workbench item routes where needed
+  * [ ] Tasks should expose trackable task records through the timer/workbench item source contract
   * [ ] Support Tickets should later use the same contract instead of creating a separate timer system
 
-* [ ] Normalize Work page timer behavior
+* [ ] Normalize Workbench page timer behavior
 
-  * [ ] Work page should list manual timers and sourced timers together
-  * [ ] Work page should display the timer source clearly
-  * [ ] Work page should allow quick switching between manual timers, task timers, and future ticket timers
-  * [ ] Work page should not need to know whether a timer came from Tasks, Tickets, or another future module
-  * [ ] Work page should handle disabled modules gracefully
+  * [ ] Workbench page should list manual timers and sourced timers together
+  * [ ] Workbench page should display the timer source clearly
+  * [ ] Workbench page should allow quick switching between manual timers, task timers, and future ticket timers
+  * [ ] Time Tracker stopwatch page should be able to selectively pull in saved manual timers and sourced timers such as task timers
+  * [ ] Workbench page should not need to know whether a timer came from Tasks, Tickets, or another future module
+  * [ ] Workbench page should handle disabled modules gracefully
 
 * [ ] Keep Time Tracking and Tasks separate but integrated
 
@@ -793,14 +664,14 @@ Some notes for implementation:
     * `source_module_id = support-tickets`
     * `source_type = ticket`
     * `source_id = ticket_id`
-  * [ ] Tickets should eventually appear in the Work page as trackable work items
+  * [ ] Tickets should eventually appear in the Workbench page as trackable workbench items
   * [ ] Ticket timers should finalize into normal time entries with `ticket_id` or equivalent source metadata
   * [ ] Ticket timer behavior should reuse the same active timer engine as manual and task timers
 
 * [ ] Add developer documentation
 
   * [ ] Explain how a module exposes timer-capable records
-  * [ ] Explain how a module exposes Work page cards
+  * [ ] Explain how a module exposes Workbench page cards
   * [ ] Explain how source metadata flows into active timers
   * [ ] Explain how finalized timers become time entries
   * [ ] Include examples for manual timers, task timers, and future ticket timers

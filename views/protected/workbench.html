@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Workbench | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=10">
+  </head>
+  <body data-page-title="Workbench">
+    <main class="workbench-page">
+      <div class="page-heading">
+        <h1>Workbench</h1>
+        <a class="button-link" href="time-tracker.html">Time Tracker</a>
+      </div>
+
+      <p data-workbench-status role="status" aria-live="polite"></p>
+
+      <section class="workbench-layout" aria-label="Workbench areas">
+        <details class="workbench-section" data-workbench-card="timers" open>
+          <summary>
+            <span>Timers</span>
+            <span class="workbench-count" data-workbench-timer-count>0</span>
+          </summary>
+          <div class="workbench-section-body">
+            <form class="workbench-manual-timer-form" data-workbench-manual-timer-form>
+              <label data-client-workspace-control>
+                Client
+                <select data-workbench-manual-client></select>
+              </label>
+              <label>
+                Project
+                <select data-workbench-manual-project required></select>
+              </label>
+              <label>
+                Description
+                <input type="text" data-workbench-manual-description>
+              </label>
+              <label class="inline-option workbench-billable-option">
+                <input type="checkbox" data-workbench-manual-billable checked>
+                Billable
+              </label>
+              <button type="submit">Start Timer</button>
+            </form>
+            <div class="workbench-timer-list" data-workbench-timer-list></div>
+          </div>
+        </details>
+
+        <details class="workbench-section" data-workbench-card="tasks" open>
+          <summary>
+            <span>Tasks</span>
+            <span class="workbench-count" data-workbench-task-count>0</span>
+          </summary>
+          <div class="workbench-section-body">
+            <div class="workbench-task-toolbar">
+              <div class="workbench-filter-bar" data-workbench-task-filters>
+                <button type="button" data-workbench-task-filter="assigned">Assigned to me</button>
+                <button type="button" data-workbench-task-filter="today">Due today</button>
+                <button type="button" data-workbench-task-filter="soon">Due soon</button>
+                <button type="button" data-workbench-task-filter="overdue">Overdue</button>
+                <button type="button" data-workbench-task-filter="in_progress">In progress</button>
+                <button type="button" data-workbench-task-filter="has_timer">Has timer</button>
+                <button type="button" data-workbench-task-filter="all">All</button>
+              </div>
+              <a class="button-link" href="tasks.html?new=1">Add Task</a>
+            </div>
+            <label class="workbench-sort-control">
+              Sort
+              <select data-workbench-task-sort>
+                <option value="due_asc">Due Date</option>
+                <option value="priority_desc">Priority</option>
+                <option value="status_asc">Status</option>
+              </select>
+            </label>
+            <div class="workbench-task-list" data-workbench-task-list></div>
+          </div>
+        </details>
+
+        <details class="workbench-section" data-workbench-card="quick-notes">
+          <summary>
+            <span>Quick Notes</span>
+          </summary>
+          <div class="workbench-section-body">
+            <div class="workbench-empty-state">
+              <strong>Quick Notes</strong>
+              <p>Notes and knowledge base references will appear here when that module is available.</p>
+            </div>
+          </div>
+        </details>
+      </section>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/shared/modal.js"></script>
+    <script src="js/shared/api-client.js"></script>
+    <script src="js/shared/page-controller.js"></script>
+    <script src="js/shared/timezones.js"></script>
+    <script src="js/workbench.js?v=10"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

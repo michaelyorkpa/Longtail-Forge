@@ -1,6 +1,6 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-06-03 for version 0.31.6
+Updated: 2026-06-04 for version 0.31.9
 
 This matrix describes the active workspace-native permission model after the completed 0.31 Tasks branch.
 
@@ -54,7 +54,7 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 - Recurring tasks use template records plus generated task instances; completing an instance creates the next instance when the recurrence rule still has future occurrences.
 - Task timers require Tasks, Time Tracking, and the Task Timers sub-option to be enabled.
 - Task timers are available only for project-linked tasks, including workspace projects in Personal and Family workspaces.
-- Task timers and normal Time Tracking timers are mutually exclusive for a user.
+- Task timers and normal Time Tracking timers share `active_work_timers` storage and are mutually exclusive for a user.
 - Finalized task timers write normal `time_entries` rows with `task_id` populated for reporting filters.
 
 ## Route Enforcement Summary
@@ -91,6 +91,8 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Browser | PUT/DELETE | /api/time-entries/:entryId | time_entries.edit_own or time_entries.edit_all | entry project/client | Enforced |
 | Browser | GET | /api/active-timers | own timers | self | Self-only |
 | Browser | PUT/POST/DELETE | /api/active-timers/:timerSlot* | time_entries.create for save/finalize, own timer for delete | project/client/self | Enforced |
+| Browser | GET | /api/workbench/bootstrap | authenticated user plus underlying readable scopes | self/task/project/client | Returns normalized active timers and enabled-module workbench items |
+| Browser | PUT | /api/workbench/timers/:timerSlot/status | time_entries.create on linked project | project/client/self | Preserves timer source metadata while switching timer state |
 | Browser | GET | /api/reporting/bootstrap | reporting.view | any assigned reporting scope | Enforced, then filtered by readable scope |
 | Browser | GET | /api/reporting/project-summary | reporting.view | any assigned reporting scope | Enforced, then filtered by readable scope |
 | Browser | GET | /api/dashboard | reporting.view | any assigned reporting scope | Enforced, then filtered by readable scope |
@@ -130,7 +132,7 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 - user lifecycle permissions remaining Workspace Administrator-only
 - scoped time-entry create/edit/delete/list visibility, including scoped admin visibility into team entries
 - task creation, scoped listing, project-client inheritance, assignment eligibility, completion, archive/restore, recurrence generation, calendar payload filtering, Dashboard task summaries, bulk route permission reuse, reminder-default saves, module-disabled write denial, and Personal/Family direct-client denial
-- task timer gating, mutual exclusion with normal timers, completion blocking, finalization into time entries, and disabled Task Timers behavior
+- task timer gating, unified active timer storage, Workbench bootstrap/status actions, mutual exclusion with normal timers, completion blocking, finalization into time entries, and disabled Task Timers behavior
 - reporting denial for External Client Users, allow for scoped users with `reporting.view`, and task-linked reporting filters
 - Time Tracking and Tasks disabled-module read/write behavior, including public API reads/writes
 - workspace owner transfer, owner-removal blocking, and Personal fallback workspace creation

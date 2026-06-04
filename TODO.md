@@ -30,6 +30,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - [ ] Move notifications up in the ROADMAP?
 
+- [ ] Identify and use an accessibility checker for best accessibility practices. Do this early.
+
 - Should task timers show up as options to run on the Time tracker?
 
 - Do task timers pause when regular timers are started?

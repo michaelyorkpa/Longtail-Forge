@@ -23,9 +23,12 @@
             Task Timers
           </label>
           <label class="inline-option">
-            <input type="checkbox" disabled>
-            Timer Concurrency
+            <input type="checkbox" disabled aria-describedby="task-timer-concurrency-note">
+            Timer Concurrency (reserved)
           </label>
+          <p class="settings-help" id="task-timer-concurrency-note">
+            Future setting. 0.31.8 keeps one running timer per user/workspace.
+          </p>
         </fieldset>
 
         <fieldset class="settings-fieldset task-reminder-settings">

@@ -848,6 +848,11 @@ function openTaskFromUrl() {
   const params = new URLSearchParams(window.location.search);
   const taskId = params.get("task");
 
+  if (params.get("new") === "1") {
+    openTaskDialog();
+    return;
+  }
+
   if (!taskId) {
     return;
   }

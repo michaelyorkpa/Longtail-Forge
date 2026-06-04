@@ -31,4 +31,6 @@ The Time Tracking module is the reference implementation for the 0.30.x cleanup 
 
 The Tasks module is the reference implementation for a workflow module that spans browser routes, public API routes, Dashboard metadata, scoped permissions, lifecycle audit records, reminder/recurrence helpers, and optional timer linkage into another module. Task public API routes intentionally reuse the browser task service so assignment eligibility, recurrence completion, archive/restore, module-disabled write blocking, and audit behavior stay centralized.
 
-Modules that link to records owned by another module should validate both module enablement states before writing. Task Timers demonstrate this pattern: they require Tasks, Time Tracking, and the Tasks sub-option to be enabled, but they write completed work into Time Tracking with a durable `task_id` link for reporting.
+Modules that link to records owned by another module should validate both module enablement states before writing. Task Timers demonstrate this pattern: they require Tasks, Time Tracking, and the Tasks sub-option to be enabled, but active timer state is stored through Time Tracking's unified active timer service with Tasks source metadata. Finalized task timers write completed work into Time Tracking with a durable `task_id` link for reporting.
+
+The 0.31.9 Workbench page is framework-owned and currently uses pragmatic first-party bootstrap wiring. Later registry work should replace that wiring with declared Workbench cards, timer sources, and workbench item sources.

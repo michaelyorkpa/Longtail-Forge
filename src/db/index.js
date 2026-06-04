@@ -251,6 +251,14 @@ async function standardizeStoredTimesToUtc() {
       "updated_at",
     ]);
   }
+
+  if (await tableExists("active_work_timers")) {
+    await standardizeTableColumns("active_work_timers", "active_timer_id", [
+      "last_active_start_time",
+      "created_at",
+      "updated_at",
+    ]);
+  }
 }
 
 async function standardizeTableColumns(tableName, idColumn, columns) {

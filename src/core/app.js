@@ -13,6 +13,7 @@ import { permissionsRoutes } from "../routes/permissions.routes.js";
 import { reportingRoutes } from "../routes/reporting.routes.js";
 import { settingsRoutes } from "../routes/settings.routes.js";
 import { staticRoutes } from "../routes/static.routes.js";
+import { workbenchRoutes } from "../routes/workbench.routes.js";
 import { listBrowserApiRoutes, listPublicApiRoutes } from "./modules/registry.js";
 
 function createApp() {
@@ -33,6 +34,7 @@ function createApp() {
   app.use("/api", permissionsRoutes);
   app.use("/api", reportingRoutes);
   app.use("/api", settingsRoutes);
+  app.use("/api", workbenchRoutes);
   for (const moduleRoutes of listBrowserApiRoutes()) {
     app.use("/api", moduleRoutes);
   }

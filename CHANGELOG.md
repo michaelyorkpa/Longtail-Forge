@@ -1,3 +1,35 @@
+## Version 0.31.9.1 - 2026-06-04 15:13 -04:00
+
+- Renamed Time Tracker stopwatch `Reset` actions to red `Discard` actions while keeping the 4-stopwatch limit.
+- Renamed Workbench timer save actions to `Save & End`.
+- Made Workbench manual timer billable state always re-inherit from the selected client/project and momentarily flash when changed.
+- Made Workbench flash the newly activated timer after timer switching reorders the active timer to the top.
+- Fixed repeated Workbench billable inheritance changes so the visible flash retriggers every time the inherited value changes.
+- Renamed the Time Tracker stopwatch `Stop` action to `Save & End` to match Workbench wording.
+- Compacted Time Tracker manual timer slots after save/discard so later timers move up instead of reopening with unused middle cards.
+- Added a Workbench Tasks `Add Task` action that opens the existing Tasks page Add Task modal through `tasks.html?new=1`.
+- Lifted Workbench manual timer slot limits while preserving the one-running-timer concurrency rule.
+- Completed the documentation checkpoint before 0.31.10 by refreshing README current-state notes, the Table of Contents, changelog link, and documentation links.
+- Bumped the app version to `0.31.9.1`.
+
+## Version 0.31.9 - 2026-06-04 14:46 -04:00
+
+- Added the authenticated Workbench page after Dashboard and before Projects in the primary navigation.
+- Added `/api/workbench/bootstrap` to return normalized active timers, task workbench items, module state, and source metadata for the Workbench MVP.
+- Added Workbench timer cards for manual and sourced timers, including source badges, quick start/pause switching, save/discard actions, and disabled-source recovery display.
+- Added a Workbench task card with fast filters, sorting, task timer start/pause/finalize actions, and links into the full task detail/edit modal.
+- Added a collapsible Quick Notes placeholder and persisted Workbench card collapsed/expanded state in the browser.
+- Bumped the app version to `0.31.9`.
+
+## Version 0.31.8 - 2026-06-04 14:11 -04:00
+
+- Added unified `active_work_timers` storage for manual and sourced timers, including task source metadata.
+- Migrated existing manual and task active timer rows into the unified table while leaving legacy active timer tables in place.
+- Refactored task timer start, pause, reset, and finalize flows through the shared Time Tracking active timer service.
+- Kept one running timer per user/workspace across manual and task timer sources, with regression coverage for switching directions.
+- Labeled reserved Timer Concurrency settings as future/non-functional while 0.31.8 keeps single-running-timer behavior.
+- Bumped the app version to `0.31.8`.
+
 ## Version 0.31.7 - 2026-06-04 11:03 -04:00
 
 - Added dedicated Tasks and Time Tracking settings pages, including Tasks reminder defaults and placeholder Timer Concurrency checkboxes.
@@ -8,6 +40,7 @@
 - Refined 0.31.7 settings navigation so Clients sits under Workspace and module settings sit under Workspace -> Modules.
 - Added an explicit All quick filter to Projects -> Tasks and made opening Sorting and Filters select it automatically.
 - Tightened Projects Settings spacing, made Bulk Changes open automatically when projects are selected, and repaired the Server Maintenance task/time-entry billable data.
+- Captured 0.31.x roadmap clarifications for unified timer storage, Workbench page MVP wiring, reserved manifest fields, documentation checkpoint naming, and disabled-source timer recovery.
 - Bumped the app version to `0.31.7`.
 
 ## Version 0.31.6 - 2026-06-03 18:31 -04:00

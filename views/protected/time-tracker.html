@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Time Tracker | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=8">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=10">
   </head>
   <body data-page-title="Time Tracking">
     <main class="timer-page">
@@ -54,12 +54,12 @@
           <div data-stopwatch-controls>
             <button type="button" data-stopwatch-start>Start</button>
             <button type="button" data-stopwatch-pause>Pause</button>
-            <button type="button" data-stopwatch-stop>Stop</button>
-            <button type="button" data-stopwatch-reset>Reset</button>
+            <button type="button" data-stopwatch-stop>Save &amp; End</button>
+            <button type="button" class="danger-button" data-stopwatch-reset>Discard</button>
           </div>
           <label class="reset-option">
             <input type="checkbox" data-stopwatch-clear-on-reset>
-            Clear Info when Stopped/Reset
+            Clear Info when Stopped/Discarded
           </label>
           <label class="reset-option">
             <input type="checkbox" data-stopwatch-billable checked>
@@ -74,7 +74,7 @@
     <script src="js/shared/modal.js"></script>
     <script src="js/shared/api-client.js"></script>
     <script src="js/shared/page-controller.js"></script>
-    <script src="js/stop-watch.js?v=8"></script>
+    <script src="js/stop-watch.js?v=10"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

@@ -5,6 +5,7 @@ const TIME_TRACKING_NAV_HREFS = new Set(["time-tracker.html", "manual-entry.html
 const TASKS_NAV_HREFS = new Set(["tasks.html"]);
 const NAV_ITEMS = [
   { label: "Dashboard", href: "dashboard.html" },
+  { label: "Workbench", href: "workbench.html" },
   {
     label: "Projects",
     items: [

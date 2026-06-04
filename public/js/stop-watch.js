@@ -202,10 +202,13 @@ class StopwatchTimer {
       createButton(root, "Pause", "pause");
     this.stopButton =
       root.querySelector("[data-stopwatch-stop]") ||
-      createButton(root, "Stop", "stop");
+      createButton(root, "Save & End", "stop");
+    this.stopButton.textContent = "Save & End";
     this.resetButton =
       root.querySelector("[data-stopwatch-reset]") ||
-      createButton(root, "Reset", "reset");
+      createButton(root, "Discard", "reset", { danger: true });
+    this.resetButton.textContent = "Discard";
+    this.resetButton.classList.add("danger-button");
     this.clearOnResetInput =
       root.querySelector("[data-stopwatch-clear-on-reset]") ||
       createClearOnResetInput(root);
@@ -333,17 +336,18 @@ class StopwatchTimer {
   }
 
   async resetTimeTracker() {
-    if (!await this.confirmTimerReset("Resetting the timer")) {
+    if (!await this.confirmTimerReset("Discarding the timer")) {
       return;
     }
 
-    await this.resetTimeTrackerWithoutConfirmation();
+    await this.resetTimeTrackerWithoutConfirmation({ compactAfterRemoval: true });
   }
 
   async resetTimeTrackerWithoutConfirmation(options = {}) {
     const shouldPersist = options.persist !== false;
     const shouldClearInfo = options.ignoreClearPreference || this.clearOnResetInput.checked;
     const shouldClearElapsed = options.forceClearElapsed !== false;
+    const shouldCompactAfterRemoval = options.compactAfterRemoval === true;
 
     window.clearInterval(this.timerId);
     this.timerId = null;
@@ -367,6 +371,10 @@ class StopwatchTimer {
     this.persistedActiveTimerId = "";
     this.updateDisplay();
     this.updateButtons();
+
+    if (shouldCompactAfterRemoval) {
+      await loadActiveTimers();
+    }
   }
 
   async saveTimeEntry() {
@@ -426,7 +434,7 @@ class StopwatchTimer {
     } finally {
       this.isSaving = false;
       if (saved) {
-        await this.resetTimeTrackerWithoutConfirmation({ persist: false });
+        await this.resetTimeTrackerWithoutConfirmation({ compactAfterRemoval: true, persist: false });
       }
       this.updateButtons();
     }
@@ -512,9 +520,9 @@ class StopwatchTimer {
     }
 
     const shouldContinue = await window.LongtailForge.modal.confirm({
-      title: "Reset timer?",
-      message: `${actionLabel} will stop and reset this timer. Continue?`,
-      confirmLabel: "Reset",
+      title: "Discard timer?",
+      message: `${actionLabel} will stop and discard this timer's elapsed time. Continue?`,
+      confirmLabel: "Discard",
       cancelLabel: "Cancel",
       danger: true,
     });
@@ -815,8 +823,8 @@ function createTimeTrackerRoot(timerNumber) {
   createDisplay(element);
   createButton(element, "Start", "start");
   createButton(element, "Pause", "pause");
-  createButton(element, "Stop", "stop");
-  createButton(element, "Reset", "reset");
+  createButton(element, "Save & End", "stop");
+  createButton(element, "Discard", "reset", { danger: true });
   createClearOnResetInput(element);
   createBillableInput(element);
   createStatusMessage(element);
@@ -890,7 +898,7 @@ function createClearOnResetInput(parent) {
 
   label.append(
     input,
-    document.createTextNode(" Clear Info when Stopped/Reset"),
+    document.createTextNode(" Clear Info when Stopped/Discarded"),
   );
   parent.appendChild(label);
 
@@ -942,7 +950,7 @@ function createActiveIndicator(parent) {
   return element;
 }
 
-function createButton(parent, label, action) {
+function createButton(parent, label, action, options = {}) {
   let controls = parent.querySelector("[data-stopwatch-controls]");
 
   if (!controls) {
@@ -955,6 +963,7 @@ function createButton(parent, label, action) {
   button.type = "button";
   button.textContent = label;
   button.dataset[`stopwatch${capitalize(action)}`] = "";
+  button.classList.toggle("danger-button", Boolean(options.danger));
 
   controls.appendChild(button);
   return button;

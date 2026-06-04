@@ -611,6 +611,17 @@ async function runTaskMutationTests(api, fixtures) {
       assert.equal(response.body.timer.timer_status, "running");
     });
   });
+  await assertUnifiedTimerState({
+    label: "task timer is stored in unified active timer table",
+    workspaceId: fixtures.workspaceId,
+    userId: fixtures.users.projectUser.userId,
+    expected: {
+      source_module_id: "tasks",
+      source_type: "task",
+      source_id: timerTask.body.task.task_id,
+      timer_status: "running",
+    },
+  });
   await expectStatus(
     "tasks cannot complete while task timer is active",
     api.post(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
@@ -625,6 +636,16 @@ async function runTaskMutationTests(api, fixtures) {
     }), { cookie: fixtures.sessions.projectUser }),
     200,
   );
+  await assertUnifiedTimerState({
+    label: "manual timer is stored in unified active timer table",
+    workspaceId: fixtures.workspaceId,
+    userId: fixtures.users.projectUser.userId,
+    expected: {
+      source_type: "manual",
+      timer_slot: "task-mutual",
+      timer_status: "running",
+    },
+  });
   await expectStatus(
     "project user can list task timers",
     api.get("/api/tasks/timers", { cookie: fixtures.sessions.projectUser }),
@@ -634,6 +655,17 @@ async function runTaskMutationTests(api, fixtures) {
       const timer = response.body.timers.find((item) => item.task_id === timerTask.body.task.task_id);
       assert.equal(timer.timer_status, "paused");
     });
+  });
+  await assertUnifiedTimerState({
+    label: "normal timer start pauses sourced task timer in unified table",
+    workspaceId: fixtures.workspaceId,
+    userId: fixtures.users.projectUser.userId,
+    expected: {
+      source_module_id: "tasks",
+      source_type: "task",
+      source_id: timerTask.body.task.task_id,
+      timer_status: "paused",
+    },
   });
   await expectStatus(
     "starting task timer pauses normal active timer",
@@ -653,6 +685,53 @@ async function runTaskMutationTests(api, fixtures) {
       const timer = response.body.timers.find((item) => item.timer_slot === "task-mutual");
       assert.equal(timer.timer_status, "paused");
     });
+  });
+  await expectStatus(
+    "project user can load Workbench bootstrap",
+    api.get("/api/workbench/bootstrap", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("Workbench bootstrap returns normalized timers and task items", () => {
+      assert.equal(response.body.modules.tasks.enabled, true);
+      assert.equal(response.body.modules.timeTracking.enabled, true);
+      assert.ok(response.body.timers.some((timer) => timer.source_type === "manual" && timer.timer_slot === "task-mutual"));
+      assert.ok(response.body.timers.some((timer) => timer.source_module_id === "tasks" && timer.source_id === timerTask.body.task.task_id));
+      assert.ok(response.body.taskItems.some((task) => task.source_type === "task" && task.source_id === timerTask.body.task.task_id));
+    });
+  });
+  await expectStatus(
+    "Workbench can pause a sourced task timer without losing source metadata",
+    api.put(`/api/workbench/timers/${encodeURIComponent(`source:tasks:task:${timerTask.body.task.task_id}`)}/status`, {
+      timer_status: "paused",
+      accumulated_elapsed_seconds: 12,
+    }, { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("Workbench status action preserves task timer source", () => {
+      assert.equal(response.body.timer.source_module_id, "tasks");
+      assert.equal(response.body.timer.source_type, "task");
+      assert.equal(response.body.timer.source_id, timerTask.body.task.task_id);
+      assert.equal(response.body.timer.timer_status, "paused");
+    });
+  });
+  await expectStatus(
+    "project user can restart task timer after Workbench pause",
+    api.put(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/timer`, {
+      timer_status: "running",
+      accumulated_elapsed_seconds: 12,
+      last_active_start_time: new Date().toISOString(),
+    }, { cookie: fixtures.sessions.projectUser }),
+    200,
+  );
+  await assertUnifiedTimerState({
+    label: "task timer start pauses manual timer in unified table",
+    workspaceId: fixtures.workspaceId,
+    userId: fixtures.users.projectUser.userId,
+    expected: {
+      source_type: "manual",
+      timer_slot: "task-mutual",
+      timer_status: "paused",
+    },
   });
   await expectStatus(
     "project user can finalize task timer into time entry",
@@ -675,6 +754,12 @@ async function runTaskMutationTests(api, fixtures) {
     check("time entries include finalized task timer link", () => {
       assert.ok(response.body.entries.some((entry) => entry.task_id === timerTask.body.task.task_id));
     });
+  });
+  await assertNoUnifiedTimerState({
+    label: "finalized task timer is removed from unified active timer table",
+    workspaceId: fixtures.workspaceId,
+    userId: fixtures.users.projectUser.userId,
+    sourceId: timerTask.body.task.task_id,
   });
   await expectStatus(
     "project user can complete task after task timer is finalized",
@@ -753,6 +838,43 @@ async function runActiveTimerMutationTests(api, fixtures) {
     "project user cannot save active timers outside assigned project",
     api.put("/api/active-timers/3", timerPayload(fixtures.projects.beta.id), { cookie: fixtures.sessions.projectUser }),
     403,
+  );
+  await expectStatus(
+    "project user can save active timer slot before compaction",
+    api.put("/api/active-timers/1", timerPayload(fixtures.projects.alpha.id, { description: "Compaction slot 1" }), { cookie: fixtures.sessions.projectUser }),
+    200,
+  );
+  await expectStatus(
+    "project user can save middle active timer slot before compaction",
+    api.put("/api/active-timers/3", timerPayload(fixtures.projects.alpha.id, { description: "Compaction slot 3" }), { cookie: fixtures.sessions.projectUser }),
+    200,
+  );
+  await expectStatus(
+    "project user can save later active timer slot before compaction",
+    api.put("/api/active-timers/4", timerPayload(fixtures.projects.alpha.id, { description: "Compaction slot 4" }), { cookie: fixtures.sessions.projectUser }),
+    200,
+  );
+  await expectStatus(
+    "removing a middle active timer compacts later manual timer slots",
+    api.delete("/api/active-timers/3", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("manual active timer slots are compact after middle removal", () => {
+      const slots = response.body.timers
+        .map((timer) => timer.timer_slot)
+        .filter((timerSlot) => /^[1-9]\d*$/.test(timerSlot));
+      assert.deepEqual(slots, ["1", "2"]);
+    });
+  });
+  await expectStatus(
+    "project user can remove first compacted active timer",
+    api.delete("/api/active-timers/1", { cookie: fixtures.sessions.projectUser }),
+    200,
+  );
+  await expectStatus(
+    "project user can remove remaining compacted active timer",
+    api.delete("/api/active-timers/1", { cookie: fixtures.sessions.projectUser }),
+    200,
   );
 }
 
@@ -1227,6 +1349,58 @@ async function createTimeEntry(api, cookie, projectId) {
   const response = await api.post("/api/time-entries", timeEntryPayload(projectId), { cookie });
   await expectStatus(`created time entry for ${projectId}`, response, 201);
   return response.body;
+}
+
+async function assertUnifiedTimerState({ label, workspaceId, userId, expected }) {
+  const filters = [
+    `workspace_id = ${sqlText(workspaceId)}`,
+    `user_id = ${sqlText(userId)}`,
+  ];
+
+  if (expected.source_module_id !== undefined) {
+    filters.push(`source_module_id = ${sqlText(expected.source_module_id)}`);
+  }
+
+  if (expected.source_type !== undefined) {
+    filters.push(`source_type = ${sqlText(expected.source_type)}`);
+  }
+
+  if (expected.source_id !== undefined) {
+    filters.push(`source_id = ${sqlText(expected.source_id)}`);
+  }
+
+  if (expected.timer_slot !== undefined) {
+    filters.push(`timer_slot = ${sqlText(expected.timer_slot)}`);
+  }
+
+  const rows = await querySql(`
+SELECT source_module_id, source_type, source_id, timer_slot, timer_status
+FROM active_work_timers
+WHERE ${filters.join(" AND ")}
+LIMIT 1;
+`);
+
+  check(label, () => {
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].timer_status, expected.timer_status);
+  });
+}
+
+async function assertNoUnifiedTimerState({ label, workspaceId, userId, sourceId }) {
+  const rows = await querySql(`
+SELECT active_timer_id
+FROM active_work_timers
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND user_id = ${sqlText(userId)}
+  AND source_module_id = 'tasks'
+  AND source_type = 'task'
+  AND source_id = ${sqlText(sourceId)}
+LIMIT 1;
+`);
+
+  check(label, () => {
+    assert.equal(rows.length, 0);
+  });
 }
 
 function createApi(baseUrl) {

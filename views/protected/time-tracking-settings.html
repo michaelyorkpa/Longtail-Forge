@@ -19,9 +19,12 @@
             Time Tracking
           </label>
           <label class="inline-option">
-            <input type="checkbox" disabled>
-            Timer Concurrency
+            <input type="checkbox" disabled aria-describedby="time-tracking-timer-concurrency-note">
+            Timer Concurrency (reserved)
           </label>
+          <p class="settings-help" id="time-tracking-timer-concurrency-note">
+            Future setting. 0.31.8 keeps one running timer per user/workspace.
+          </p>
         </fieldset>
 
         <button type="submit" data-save-module-settings>Save Settings</button>

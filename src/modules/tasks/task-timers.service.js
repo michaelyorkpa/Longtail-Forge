@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { taskTimersRepository } from "./task-timers.repo.js";
 import { tasksRepository } from "./tasks.repo.js";
-import { activeTimersRepository } from "../time-tracking/active-timers.repo.js";
-import { timeEntriesService } from "../time-tracking/time-entries.service.js";
+import { activeTimersService } from "../time-tracking/active-timers.service.js";
 import { modulesService } from "../../core/modules/modules.service.js";
 import { auditService } from "../../core/audit.js";
 import { AppError } from "../../core/errors.js";
@@ -26,11 +25,8 @@ async function save(taskId, payload, session) {
 
   const timerStatus = payload?.timer_status === "running" ? "running" : "paused";
   const elapsedSeconds = Math.max(0, Number.parseInt(payload?.accumulated_elapsed_seconds, 10) || 0);
-  const timer = await taskTimersRepository.upsert({
-    active_task_timer_id: payload?.active_task_timer_id || randomUUID(),
-    workspace_id: session.workspace_id,
-    user_id: session.user_id,
-    task_id: task.task_id,
+  const result = await activeTimersService.saveSourced(taskTimerSource(task), {
+    active_timer_id: payload?.active_timer_id || payload?.active_task_timer_id || randomUUID(),
     client_id: task.client_id,
     client_name: task.client_name,
     project_id: task.project_id,
@@ -40,19 +36,15 @@ async function save(taskId, payload, session) {
     accumulated_elapsed_seconds: elapsedSeconds,
     last_active_start_time: timerStatus === "running" ? normalizeUtcIso(payload?.last_active_start_time, session.timezone) : null,
     timer_status: timerStatus,
-  });
+  }, session);
 
-  if (timerStatus === "running") {
-    await activeTimersRepository.pauseRunningForUser(session.workspace_id, session.user_id);
-  }
-
-  return { timer };
+  return { timer: taskTimerFromUnified(result.timer, task) };
 }
 
 async function remove(taskId, session) {
   await assertTaskTimersEnabled(session);
   const task = await readTaskOrThrow(taskId, session);
-  await taskTimersRepository.remove(session.workspace_id, session.user_id, task.task_id);
+  await activeTimersService.removeSourced(taskTimerSource(task), session);
 
   return {
     task_id: task.task_id,
@@ -66,28 +58,16 @@ async function finalize(taskId, payload, session) {
   await assertCanUseTaskTimer(session, task);
 
   const activeTimer = await taskTimersRepository.readByTask(session.workspace_id, session.user_id, task.task_id);
-  const durationSeconds = Math.max(
-    1,
-    Number.parseInt(payload?.duration_seconds ?? activeTimer?.accumulated_elapsed_seconds, 10) || 0,
-  );
-  const endTime = payload?.end_time || new Date().toISOString();
-  const startTime = payload?.start_time || new Date(new Date(endTime).getTime() - durationSeconds * 1000).toISOString();
-  const result = await timeEntriesService.create({
+  const result = await activeTimersService.finalizeSourced(taskTimerSource(task), payload, session, {
     client_id: task.client_id,
     client_name: task.client_name,
     project_id: task.project_id,
     project_name: task.project_name,
     task_id: task.task_id,
     description: task.title,
-    start_time: startTime,
-    end_time: endTime,
-    duration_seconds: durationSeconds,
-    duration_hours: (durationSeconds / 3600).toFixed(4),
     billable: task.billable === "no" ? "no" : "yes",
     invoice_status: "unbilled",
-  }, session);
-
-  await taskTimersRepository.remove(session.workspace_id, session.user_id, task.task_id);
+  });
   await auditService.record({
     session,
     action: "task_timer_finalized",
@@ -100,7 +80,7 @@ async function finalize(taskId, payload, session) {
     newValue: {
       ...result,
       task_id: task.task_id,
-      duration_seconds: durationSeconds,
+      duration_seconds: result.duration_seconds,
     },
     metadata: {
       task_id: task.task_id,
@@ -180,6 +160,24 @@ function taskResource(task) {
     workspace_id: task.workspace_id,
     client_id: task.client_id || "",
     project_id: task.project_id || "",
+  };
+}
+
+function taskTimerSource(task) {
+  return {
+    source_module_id: TASKS_MODULE_ID,
+    source_type: "task",
+    source_id: task.task_id,
+    source_label: task.title,
+    source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
+  };
+}
+
+function taskTimerFromUnified(timer, task) {
+  return {
+    ...timer,
+    active_task_timer_id: timer.active_timer_id,
+    task_id: task.task_id,
   };
 }
 

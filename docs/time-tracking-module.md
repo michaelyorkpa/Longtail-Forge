@@ -7,6 +7,8 @@ Owned by `src/modules/time-tracking/`:
 - Browser API routes for time entries and active timers.
 - Public API routes for `/api/v1/time-entries`.
 - Time-entry and active-timer services and repositories.
+- Unified active timer storage in `active_work_timers`, including manual timers and sourced timers such as Tasks.
+- Timer capabilities consumed by the framework-owned Workbench page.
 - Active-timer migrations under `src/modules/time-tracking/migrations/`.
 - Browser assets for timers, manual entry, edit entries, and time-entry rendering.
 - Module metadata for navigation, dashboard panels, settings, permissions, public API endpoints, and workspace capability requirements.
@@ -25,3 +27,7 @@ Framework dependencies:
 Disabled-module rule:
 
 Time Tracking keeps historical read-only access so existing entries remain visible, but create, update, delete, active-timer save, finalize, and remove operations are blocked when the module is disabled.
+
+Active timer storage:
+
+Version 0.31.8 uses `active_work_timers` as the normal read/write table for active manual timers and sourced timers. Legacy `active_timers` and `active_task_timers` tables are left in place after migration for upgrade safety, but normal app code no longer writes active timer state there.
