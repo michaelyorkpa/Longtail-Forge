@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Time Tracking Settings | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=8">
+  </head>
+  <body data-page-title="Time Tracking Settings">
+    <main class="settings-page">
+      <h1>Time Tracking Settings</h1>
+
+      <form class="settings-form" data-module-settings-form="time-tracking">
+        <fieldset class="settings-fieldset">
+          <legend>Time Tracking</legend>
+          <label class="inline-option">
+            <input type="checkbox" data-time-tracking-enabled>
+            Time Tracking
+          </label>
+          <label class="inline-option">
+            <input type="checkbox" disabled>
+            Timer Concurrency
+          </label>
+        </fieldset>
+
+        <button type="submit" data-save-module-settings>Save Settings</button>
+      </form>
+
+      <p data-module-settings-status role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/shared/api-client.js"></script>
+    <script src="js/module-settings.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

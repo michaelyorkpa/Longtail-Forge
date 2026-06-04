@@ -10,6 +10,7 @@ const taskDialogTitle = document.querySelector("[data-task-dialog-title]");
 const cancelTaskButton = document.querySelector("[data-cancel-task]");
 const copyTaskLinkButton = document.querySelector("[data-copy-task-link]");
 const quickFilters = document.querySelector("[data-task-quick-filters]");
+const filterDetails = document.querySelector("[data-task-filter-details]");
 const sortInput = document.querySelector("[data-task-sort]");
 const statusFilter = document.querySelector("[data-task-status-filter]");
 const assigneeFilter = document.querySelector("[data-task-assignee-filter]");
@@ -84,6 +85,7 @@ cancelTaskButton?.addEventListener("click", () => taskDialog?.close());
 copyTaskLinkButton?.addEventListener("click", copyCurrentTaskLink);
 taskForm?.addEventListener("submit", saveTask);
 quickFilters?.addEventListener("click", handleQuickFilterClick);
+filterDetails?.addEventListener("toggle", handleFilterDetailsToggle);
 bulkActionInput?.addEventListener("change", updateBulkControls);
 bulkAssigneesInput?.addEventListener("change", updateBulkControls);
 bulkApplyButton?.addEventListener("click", applyBulkAction);
@@ -155,10 +157,8 @@ function populateFilters() {
 }
 
 function populateTaskFormOptions() {
-  const workspaceScopeLabel = getWorkspaceScopeLabel();
-
   replaceOptions(clientInput, [
-    option("", workspaceScopeLabel),
+    option("", "All projects"),
     ...state.options.clients.map((client) => option(client.id, client.name)),
   ]);
   populateProjectInput(projectInput?.value || "");
@@ -586,8 +586,22 @@ function handleQuickFilterClick(event) {
   }
 
   const quickFilter = button.dataset.taskQuickFilter || "";
-  state.quickFilter = state.quickFilter === quickFilter ? "" : quickFilter;
+  state.quickFilter = quickFilter === "all"
+    ? ""
+    : state.quickFilter === quickFilter
+      ? ""
+      : quickFilter;
   applyQuickFilterDefaults();
+  saveFilterState();
+  renderTasks();
+}
+
+function handleFilterDetailsToggle() {
+  if (!filterDetails.open || state.quickFilter === "") {
+    return;
+  }
+
+  state.quickFilter = "";
   saveFilterState();
   renderTasks();
 }
@@ -604,7 +618,10 @@ function applyQuickFilterDefaults() {
 
 function updateQuickFilterState() {
   quickFilters?.querySelectorAll("[data-task-quick-filter]").forEach((button) => {
-    button.dataset.active = button.dataset.taskQuickFilter === state.quickFilter ? "true" : "false";
+    const quickFilter = button.dataset.taskQuickFilter || "";
+    button.dataset.active = (quickFilter === "all" ? state.quickFilter === "" : quickFilter === state.quickFilter)
+      ? "true"
+      : "false";
   });
 }
 

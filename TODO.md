@@ -4,37 +4,41 @@ This file is a scratchpad for loose notes, quick fixes, and ideas that have **no
 
 The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigned to a version there, remove it from this file so the two documents do not drift apart.
 
+# Notes for Maintaining This File
+
+- Use this file for rough ideas before they are ready for the versioned roadmap.
+- Keep implementation-ready work in `ROADMAP.md`, grouped by version.
+- When promoting a TODO item into `ROADMAP.md`, remove it from this file.
+- Avoid duplicating full feature specs here once they are already represented in the roadmap.
+
 # Short Term
 
 ## Fixes
 
-### Documentation
-
-- [ ] Add Table of Contents to README.md
-- [ ] Add an about section to GitHub
-
-### Time Tracker
-
-- [ ] Reset button on Time Tracker no longer resets data properly
-
 ### Tasks
-
-- [ ] Add reminder options to Tasks Settings in Settings -> Tasks
-
-- Client starts off as "Raymond Tec Projects" but isn't selectable to narrow down to Workspace projects, still displays all projects
-  - Need a "None" or "Select project group" option?
 
 - How is the "Remove Workspace" button wired, currently on User Settings page?
 
 - What happens when a user is removed from all workspaces?
+  - It's disallowed. Need a transfer mechanism.
 - What happens to a Workspace/project/client when the creator/owner is removed from it?
+  - It's disallowed. Need a transfer mechanism.
 
 ## Tweaks
 
-- [ ] Clean up Tasks UI
 - [ ] Do partial Dashboard modification to bring it closer to final dashboard appearance
 
+- [ ] Move notifications up in the ROADMAP?
+
+- Should task timers show up as options to run on the Time tracker?
+
+- Do task timers pause when regular timers are started?
+  - Needs to have a backend setting to control this. "Timer Concurrency"
+
 - What should happen to records when a client/project becomes completed or archived?
+
+- How long does archiving last?
+  - There should be some mechanism to export archived records for storage to keep database light
 
 - Add Workspace option to set default screen when switching into that workspace.
   - Current behavior keeps it on Time Tracker, for example, but perhaps a user would always want to default to the dashboard. So, make the starting page selectable and provide a "Stay on Current Workspace's page" option as well (so when a new workspace opens it remains in the time tracker, or tasks, or whatever)
@@ -56,6 +60,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - What other things should be tracked/monitored to enhance security?
 
 # Medium Term
+
+- [ ] "Focus" mode, allows dashboard/entire interface to switch to being focused on a single project/client for Business workspaces
+
+- [ ] Determine what code changes nee to happen to create phone/tablet/TV apps
 
 - [ ] Create a dashboard/workspace view that shows users all workspaces view
 
@@ -101,6 +109,12 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Long Term
 
+## 
+
+## CRM Features?
+
+- Should CRM features be an additional module?
+
 ## Parking Lot / Open Questions
 
 - [ ] Add hotkeys for menus/functions
@@ -125,10 +139,3 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
     - Start with normal indexed database search.
     - Use SQLite FTS5 or PostgreSQL full-text search before adding a separate search server.
     - Revisit Elasticsearch/OpenSearch only if search becomes a major feature with advanced relevance, fuzzy matching, synonyms, huge text volume, or cross-object search at scale.
-
-# Notes for Maintaining This File
-
-- Use this file for rough ideas before they are ready for the versioned roadmap.
-- Keep implementation-ready work in `ROADMAP.md`, grouped by version.
-- When promoting a TODO item into `ROADMAP.md`, remove it from this file.
-- Avoid duplicating full feature specs here once they are already represented in the roadmap.

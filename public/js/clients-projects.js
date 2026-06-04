@@ -217,14 +217,16 @@ function renderProjectsPage() {
 }
 
 function createProjectInlineBulkControls() {
-  const wrapper = document.createElement("div");
-  const heading = document.createElement("h2");
+  const wrapper = document.createElement("details");
+  const heading = document.createElement("summary");
+  const controls = document.createElement("div");
   const bulkStatusSelect = createBulkStatusSelect();
   const bulkClientSelect = createBulkClientSelect();
   const bulkBillableSelect = createBulkBillableSelect();
 
   wrapper.className = "inline-bulk-controls";
   heading.textContent = "Bulk Changes";
+  controls.className = "inline-bulk-control-grid";
   wrapper.appendChild(heading);
   bulkStatusSelect.label.classList.add("inline-bulk-field");
   bulkStatusSelect.select.disabled = true;
@@ -241,7 +243,7 @@ function createProjectInlineBulkControls() {
     });
     bulkStatusSelect.select.value = "";
   });
-  wrapper.appendChild(bulkStatusSelect.label);
+  controls.appendChild(bulkStatusSelect.label);
 
   if (bulkClientSelect) {
     bulkClientSelect.label.classList.add("inline-bulk-field");
@@ -259,7 +261,7 @@ function createProjectInlineBulkControls() {
       });
       bulkClientSelect.select.value = "";
     });
-    wrapper.appendChild(bulkClientSelect.label);
+    controls.appendChild(bulkClientSelect.label);
   }
 
   if (bulkBillableSelect) {
@@ -278,9 +280,10 @@ function createProjectInlineBulkControls() {
       });
       bulkBillableSelect.select.value = "";
     });
-    wrapper.appendChild(bulkBillableSelect.label);
+    controls.appendChild(bulkBillableSelect.label);
   }
 
+  wrapper.appendChild(controls);
   return wrapper;
 }
 
@@ -352,6 +355,12 @@ function getSelectedProjectIds() {
 
 function updateProjectTableBulkState() {
   const hasSelection = getSelectedProjectIds().length > 0;
+
+  clientList.querySelectorAll(".inline-bulk-controls").forEach((bulkControls) => {
+    if (hasSelection && bulkControls.tagName === "DETAILS") {
+      bulkControls.open = true;
+    }
+  });
 
   clientList.querySelectorAll(".inline-bulk-controls select").forEach((select) => {
     select.disabled = !hasSelection;

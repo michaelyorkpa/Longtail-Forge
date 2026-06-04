@@ -36,7 +36,7 @@ async function save(taskId, payload, session) {
     project_id: task.project_id,
     project_name: task.project_name,
     description: task.title,
-    billable: "yes",
+    billable: task.billable === "no" ? "no" : "yes",
     accumulated_elapsed_seconds: elapsedSeconds,
     last_active_start_time: timerStatus === "running" ? normalizeUtcIso(payload?.last_active_start_time, session.timezone) : null,
     timer_status: timerStatus,
@@ -83,7 +83,7 @@ async function finalize(taskId, payload, session) {
     end_time: endTime,
     duration_seconds: durationSeconds,
     duration_hours: (durationSeconds / 3600).toFixed(4),
-    billable: "yes",
+    billable: task.billable === "no" ? "no" : "yes",
     invoice_status: "unbilled",
   }, session);
 

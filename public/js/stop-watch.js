@@ -342,16 +342,26 @@ class StopwatchTimer {
 
   async resetTimeTrackerWithoutConfirmation(options = {}) {
     const shouldPersist = options.persist !== false;
-    const shouldClearElapsed = options.forceClearElapsed !== false &&
-      (options.ignoreClearPreference || this.clearOnResetInput.checked);
+    const shouldClearInfo = options.ignoreClearPreference || this.clearOnResetInput.checked;
+    const shouldClearElapsed = options.forceClearElapsed !== false;
 
     window.clearInterval(this.timerId);
     this.timerId = null;
-    if (shouldPersist && shouldClearElapsed) {
+    if (shouldPersist) {
       await this.discardPersistedState();
     }
     if (shouldClearElapsed) {
       this.elapsedMilliseconds = 0;
+    }
+    if (shouldClearInfo) {
+      this.clientSelect.value = "";
+      this.populateProjectOptions([]);
+      this.descriptionInput.value = "";
+      this.billableInput.checked = true;
+      this.confirmedClientId = "";
+      this.confirmedProjectId = "";
+      this.selectWorkspaceScopeClientIfNeeded();
+      await this.handleClientChange({ shouldReset: false });
     }
     this.activeStartTime = null;
     this.persistedActiveTimerId = "";

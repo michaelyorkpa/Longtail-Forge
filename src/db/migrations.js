@@ -436,6 +436,10 @@ async function isMigrationAlreadySatisfied(migration) {
     return taskTimersExist && settingsColumn && timeEntryTaskColumn;
   }
 
+  if (migration.fileName === "029_add_task_billable_flags.sql") {
+    return columnsExist("tasks", ["billable"]);
+  }
+
   return false;
 }
 

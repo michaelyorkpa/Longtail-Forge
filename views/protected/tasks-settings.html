@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tasks Settings | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=8">
+  </head>
+  <body data-page-title="Tasks Settings">
+    <main class="settings-page">
+      <h1>Tasks Settings</h1>
+
+      <form class="settings-form" data-module-settings-form="tasks">
+        <fieldset class="settings-fieldset">
+          <legend>Tasks</legend>
+          <label class="inline-option">
+            <input type="checkbox" data-tasks-enabled>
+            Tasks
+          </label>
+          <label class="inline-option">
+            <input type="checkbox" data-task-timers-enabled>
+            Task Timers
+          </label>
+          <label class="inline-option">
+            <input type="checkbox" disabled>
+            Timer Concurrency
+          </label>
+        </fieldset>
+
+        <fieldset class="settings-fieldset task-reminder-settings">
+          <legend>Task Reminder Defaults</legend>
+          <div class="reminder-offset-grid">
+            <label>
+              Timed Reminder 1 (hours before)
+              <input type="number" min="1" step="1" data-workspace-reminder-date-time-hours-1>
+            </label>
+            <label>
+              Timed Reminder 2 (hours before)
+              <input type="number" min="1" step="1" data-workspace-reminder-date-time-hours-2>
+            </label>
+            <label>
+              Date-Only Reminder 1 (days before)
+              <input type="number" min="1" step="1" data-workspace-reminder-date-only-days-1>
+            </label>
+            <label>
+              Date-Only Reminder 2 (days before)
+              <input type="number" min="1" step="1" data-workspace-reminder-date-only-days-2>
+            </label>
+          </div>
+        </fieldset>
+
+        <button type="submit" data-save-module-settings>Save Settings</button>
+      </form>
+
+      <p data-module-settings-status role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/shared/api-client.js"></script>
+    <script src="js/module-settings.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

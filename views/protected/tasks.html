@@ -14,10 +14,11 @@
         <button type="button" data-add-task>Add Task</button>
       </div>
 
-      <div class="task-page-toolbar">
+      <div class="task-page-toolbar task-sticky-controls">
         <h2>Filter List</h2>
         <div class="task-quick-filters" data-task-quick-filters>
           <button type="button" data-task-quick-filter="my">My Tasks</button>
+          <button type="button" data-task-quick-filter="all">All</button>
           <button type="button" data-task-quick-filter="unassigned">Unassigned</button>
           <button type="button" data-task-quick-filter="overdue">Overdue</button>
           <button type="button" data-task-quick-filter="today">Due Today</button>
@@ -25,84 +26,92 @@
           <button type="button" data-task-quick-filter="complete">Completed</button>
           <button type="button" data-task-quick-filter="archived">Archived</button>
         </div>
-        <label>
-          Sort
-          <select data-task-sort>
-            <option value="due_asc" selected>Due Date</option>
-            <option value="priority_desc">Priority</option>
-            <option value="status_asc">Status</option>
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-          </select>
-        </label>
-        <label>
-          Status
-          <select data-task-status-filter>
-            <option value="active" selected>Active</option>
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
-            <option value="blocked">Blocked</option>
-            <option value="complete">Complete</option>
-            <option value="archived">Archived</option>
-            <option value="all">All</option>
-          </select>
-        </label>
-        <label>
-          Assignee
-          <select data-task-assignee-filter>
-            <option value="all" selected>All assignees</option>
-          </select>
-        </label>
-        <label data-client-workspace-control>
-          Client
-          <select data-task-client-filter>
-            <option value="all" selected>All clients</option>
-          </select>
-        </label>
-        <label>
-          Project
-          <select data-task-project-filter>
-            <option value="all" selected>All projects</option>
-          </select>
-        </label>
+        <details class="task-filter-details" data-task-filter-details>
+          <summary>Sorting and Filters</summary>
+          <div class="task-filter-grid">
+            <label>
+              Sort
+              <select data-task-sort>
+                <option value="due_asc" selected>Due Date</option>
+                <option value="priority_desc">Priority</option>
+                <option value="status_asc">Status</option>
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+              </select>
+            </label>
+            <label>
+              Status
+              <select data-task-status-filter>
+                <option value="active" selected>Active</option>
+                <option value="open">Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="blocked">Blocked</option>
+                <option value="complete">Complete</option>
+                <option value="archived">Archived</option>
+                <option value="all">All</option>
+              </select>
+            </label>
+            <label>
+              Assignee
+              <select data-task-assignee-filter>
+                <option value="all" selected>All assignees</option>
+              </select>
+            </label>
+            <label data-client-workspace-control>
+              Client
+              <select data-task-client-filter>
+                <option value="all" selected>All clients</option>
+              </select>
+            </label>
+            <label>
+              Project
+              <select data-task-project-filter>
+                <option value="all" selected>All projects</option>
+              </select>
+            </label>
+          </div>
+        </details>
       </div>
 
-      <div class="task-bulk-toolbar" data-task-bulk-toolbar>
-        <label>
-          Bulk Action
-          <select data-task-bulk-action>
-            <option value="">Choose action</option>
-            <option value="status">Set status</option>
-            <option value="priority">Set priority</option>
-            <option value="assignee_add">Add assignees</option>
-            <option value="assignee_remove">Remove assignees</option>
-            <option value="archive">Archive</option>
-          </select>
-        </label>
-        <label data-task-bulk-status-control hidden>
-          Status
-          <select data-task-bulk-status>
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
-            <option value="blocked">Blocked</option>
-            <option value="complete">Complete</option>
-          </select>
-        </label>
-        <label data-task-bulk-priority-control hidden>
-          Priority
-          <select data-task-bulk-priority>
-            <option value="low">Low</option>
-            <option value="normal">Normal</option>
-            <option value="high">High</option>
-            <option value="urgent">Urgent</option>
-          </select>
-        </label>
-        <label data-task-bulk-assignee-control hidden>
-          Assignees
-          <select multiple data-task-bulk-assignees></select>
-        </label>
-        <button type="button" data-task-bulk-apply disabled>Apply to 0</button>
-      </div>
+      <details class="task-bulk-toolbar" data-task-bulk-toolbar>
+        <summary>Bulk Actions</summary>
+        <div class="task-bulk-grid">
+          <label>
+            Bulk Action
+            <select data-task-bulk-action>
+              <option value="">Choose action</option>
+              <option value="status">Set status</option>
+              <option value="priority">Set priority</option>
+              <option value="assignee_add">Add assignees</option>
+              <option value="assignee_remove">Remove assignees</option>
+              <option value="archive">Archive</option>
+            </select>
+          </label>
+          <label data-task-bulk-status-control hidden>
+            Status
+            <select data-task-bulk-status>
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="complete">Complete</option>
+            </select>
+          </label>
+          <label data-task-bulk-priority-control hidden>
+            Priority
+            <select data-task-bulk-priority>
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </label>
+          <label data-task-bulk-assignee-control hidden>
+            Assignees
+            <select multiple data-task-bulk-assignees></select>
+          </label>
+          <button type="button" data-task-bulk-apply disabled>Apply to 0</button>
+        </div>
+      </details>
 
       <p data-task-status role="status" aria-live="polite"></p>
 

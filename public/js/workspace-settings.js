@@ -28,6 +28,7 @@ const closeWorkspaceUsersButton = document.querySelector("[data-close-workspace-
 const workspaceSettingsStatus = document.querySelector("[data-workspace-settings-status]");
 const saveSettingsButton = document.querySelector("[data-save-settings]");
 let activeWorkspaceId = "";
+let currentTaskReminderDefaults = normalizeReminderPolicy();
 
 populateFiscalYearStartMonths();
 populateFiscalYearStartDays();
@@ -81,7 +82,8 @@ async function loadSettingsForm() {
     renderModuleSettings(settings);
     auditLoggingEnabledInput.checked = settings.audit.loggingEnabled;
     auditRetentionDaysSelect.value = String(settings.audit.retentionDays);
-    writeReminderDefaults(settings.taskReminderDefaults);
+    currentTaskReminderDefaults = normalizeReminderPolicy(settings.taskReminderDefaults);
+    writeReminderDefaults(currentTaskReminderDefaults);
     updateBillingPeriodStartDayState();
     updateBillingRoundingState();
     updateWorkspaceTypeDependentControls();
@@ -164,7 +166,8 @@ async function saveSettings() {
     renderModuleSettings(savedSettings);
     auditLoggingEnabledInput.checked = savedSettings.audit.loggingEnabled;
     auditRetentionDaysSelect.value = String(savedSettings.audit.retentionDays);
-    writeReminderDefaults(savedSettings.taskReminderDefaults);
+    currentTaskReminderDefaults = normalizeReminderPolicy(savedSettings.taskReminderDefaults);
+    writeReminderDefaults(currentTaskReminderDefaults);
     updateBillingPeriodStartDayState();
     updateBillingRoundingState();
     updateWorkspaceTypeDependentControls();
@@ -397,6 +400,11 @@ function normalizeOffsetList(values, fallback) {
 }
 
 function writeReminderDefaults(policy) {
+  if (!workspaceReminderDateTimeHours1Input) {
+    currentTaskReminderDefaults = normalizeReminderPolicy(policy);
+    return;
+  }
+
   const normalized = normalizeReminderPolicy(policy);
   const timedHours = normalized.dateTime.map((minutes) => Math.round(minutes / 60));
   const dateOnlyDays = normalized.dateOnly.map((minutes) => Math.round(minutes / 1440));
@@ -408,6 +416,10 @@ function writeReminderDefaults(policy) {
 }
 
 function readReminderDefaults() {
+  if (!workspaceReminderDateTimeHours1Input) {
+    return currentTaskReminderDefaults;
+  }
+
   return {
     dateTime: [
       readPositiveInteger(workspaceReminderDateTimeHours1Input, 2) * 60,

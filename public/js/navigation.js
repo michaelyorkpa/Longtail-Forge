@@ -17,6 +17,7 @@ const NAV_ITEMS = [
         ],
       },
       { label: "Tasks", href: "tasks.html" },
+      { label: "Projects Settings", href: "projects.html" },
     ],
   },
   {
@@ -28,12 +29,18 @@ const NAV_ITEMS = [
   {
     label: "Settings",
     items: [
-      { label: "Clients", href: "clients.html" },
-      { label: "Projects", href: "projects.html" },
       {
         label: "Workspace",
         items: [
           { label: "Workspace Settings", href: "workspace-settings.html" },
+          { label: "Clients", href: "clients.html" },
+          {
+            label: "Modules",
+            items: [
+              { label: "Tasks", href: "tasks-settings.html" },
+              { label: "Time Tracking", href: "time-tracking-settings.html" },
+            ],
+          },
           { label: "User Admin", href: "user-admin.html" },
           { label: "API Keys", href: "api-keys.html" },
           { label: "Audit Log", href: "audit-log.html" },

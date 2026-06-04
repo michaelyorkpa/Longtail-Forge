@@ -1028,15 +1028,25 @@ button.danger-button {
     grid-template-columns: repeat(2, minmax(180px, 240px));
     gap: 12px;
     align-items: end;
-    margin-bottom: 16px;
+    margin-bottom: 5px;
 }
 
 .task-page-toolbar {
     display: grid;
-    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    grid-template-columns: repeat(3, minmax(160px, 1fr));
     gap: 12px;
     align-items: end;
     margin-bottom: 16px;
+}
+
+.task-sticky-controls {
+    position: sticky;
+    top: 72px;
+    z-index: 3;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-background);
 }
 
 .task-quick-filters {
@@ -1057,15 +1067,45 @@ button.danger-button {
 }
 
 .task-bulk-toolbar {
-    display: grid;
-    grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) minmax(220px, 1.4fr) auto;
-    gap: 12px;
-    align-items: end;
     margin-bottom: 16px;
     padding: 12px;
     border: 1px solid var(--color-border);
     border-radius: 8px;
     background: var(--color-surface);
+}
+
+.task-filter-details,
+.task-bulk-toolbar {
+    grid-column: 1 / -1;
+}
+
+.task-filter-details summary,
+.task-bulk-toolbar summary,
+.inline-bulk-controls summary {
+    color: var(--color-text);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.task-filter-grid,
+.task-bulk-grid {
+    display: grid;
+    gap: 12px;
+    align-items: start;
+    padding-top: 12px;
+}
+
+.task-filter-grid {
+    grid-template-columns: repeat(5, minmax(130px, 1fr));
+}
+
+.task-bulk-grid {
+    grid-template-columns: minmax(150px, 0.8fr) minmax(130px, 0.6fr) minmax(130px, 0.6fr) minmax(260px, 1.4fr) auto;
+}
+
+.task-bulk-grid label,
+.task-filter-grid label {
+    align-self: start;
 }
 
 .task-bulk-toolbar select[multiple] {
@@ -1278,17 +1318,26 @@ button.danger-button {
 }
 
 .inline-bulk-controls {
+    margin-bottom: 16px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.inline-bulk-controls:not(details) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: end;
+}
+
+.inline-bulk-control-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
     align-items: end;
-    margin-bottom: 16px;
-}
-
-.inline-bulk-controls h2 {
-    grid-column: 1 / -1;
-    margin: 0;
-    font-size: 16px;
+    padding-top: 12px;
 }
 
 .inline-bulk-field select:disabled {
@@ -2058,11 +2107,12 @@ button:disabled {
     .billing-editor,
     .project-page-toolbar,
     .task-page-toolbar,
-    .task-bulk-toolbar,
+    .task-filter-grid,
+    .task-bulk-grid,
     .task-form,
     .task-summary-sections,
     .reminder-offset-grid,
-    .inline-bulk-controls,
+    .inline-bulk-control-grid,
     .project-bulk-filter-row,
     .project-bulk-action-row,
     .project-bulk-list,

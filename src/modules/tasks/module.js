@@ -7,7 +7,7 @@ const tasksModule = {
   displayName: "Tasks",
   description: "Workspace, client, and project task tracking with scoped assignment and due-date foundations.",
   category: "core-workflow",
-  version: "0.31.6",
+  version: "0.31.7",
   enabledByDefault: true,
   historicalReadAccess: true,
   browserApiRoutes: [tasksRoutes],

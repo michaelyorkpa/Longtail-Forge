@@ -453,9 +453,17 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
     clientId: valueOrFallback(payload, "client_id", fallback.client_id),
     projectId: valueOrFallback(payload, "project_id", fallback.project_id),
   });
+  const scopeChanged = scope.clientId !== (fallback.client_id || "") ||
+    scope.projectId !== (fallback.project_id || "");
+  const billableSource = Object.hasOwn(payload || {}, "billable")
+    ? payload.billable
+    : scopeChanged
+      ? scope.billable
+      : fallback.billable || scope.billable;
   const title = String(valueOrFallback(payload, "title", fallback.title) || "").trim();
   const status = normalizeStatus(valueOrFallback(payload, "status", fallback.status));
   const priority = normalizePriority(valueOrFallback(payload, "priority", fallback.priority));
+  const billable = normalizeBillableFlag(billableSource);
   const dueDate = normalizeDueDate(valueOrFallback(payload, "due_date", fallback.due_date));
   const dueTime = normalizeDueTime(valueOrFallback(payload, "due_time", fallback.due_time));
   const dueTimezone = dueDate
@@ -484,6 +492,7 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
     description: String(valueOrFallback(payload, "description", fallback.description) || "").trim(),
     status,
     priority,
+    billable,
     due_date: dueDate,
     due_time: dueTime,
     due_timezone: dueTimezone,
@@ -537,6 +546,7 @@ async function resolveTaskScope({ session, clientId, projectId }) {
     return {
       projectId: project.id,
       clientId: project.client_id || "",
+      billable: normalizeBillableFlag(project.billable),
     };
   }
 
@@ -554,12 +564,14 @@ async function resolveTaskScope({ session, clientId, projectId }) {
     return {
       projectId: "",
       clientId: client.id,
+      billable: normalizeBillableFlag(client.billable),
     };
   }
 
   return {
     projectId: "",
     clientId: "",
+    billable: "yes",
   };
 }
 
@@ -757,6 +769,18 @@ function normalizeAssigneeIds(assigneeIds) {
   return [...new Set((assigneeIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
 }
 
+function normalizeBillableFlag(value, fallback = "yes") {
+  if (value === false || value === "no") {
+    return "no";
+  }
+
+  if (value === true || value === "yes") {
+    return "yes";
+  }
+
+  return fallback === "no" ? "no" : "yes";
+}
+
 function sortTaskSummaryRows(tasks) {
   return [...tasks].sort((firstTask, secondTask) =>
     String(firstTask.due_date || "9999-12-31").localeCompare(String(secondTask.due_date || "9999-12-31")) ||
@@ -771,6 +795,7 @@ function taskSummaryRow(task) {
     title: task.title,
     status: task.status,
     priority: task.priority,
+    billable: task.billable,
     due_date: task.due_date,
     due_time: task.due_time,
     due_timezone: task.due_timezone,

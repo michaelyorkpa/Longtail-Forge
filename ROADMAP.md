@@ -2,7 +2,819 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.0 - Support Tickets
+## Version 0.31.7 - UI and Backend Cleanup After Tasks Module addition
+
+- [x] Create Settings -> "Tasks" setting page
+  - [x] Add default reminder options to Tasks Settings in Settings -> Tasks
+  - [x] Add "Timer Concurrency" setting
+    - this doesn't have to work yet, just drop the unattached checkbox
+  - future: Will be the place where custom task list views can be saved
+
+- [x] Move "Projects" settings menu option back to Projects drop down at bottom of menu
+  - [x] Change menu name to "Projects Settings"
+
+- [x] On Projects Settings screen, make "Bulk Changes" collapsible
+
+- [x] Create Settings -> "Time Tracking" settings page
+  - [x] Add "Timer Concurrency" setting
+    - this doesn't have to work yet, just drop the unattached checkbox for now
+
+- [x] Client starts off as "Raymond Tec Projects" on the Add Tasks modal but isn't selectable to filter lists to Workspace projects, still displays all projects
+  - Need an "All projects" option that is the default on the Add tasks screen
+
+- [x] On Projects -> Tasks
+  - [x] In the bulk actions box, titles and boxes need to be vertically aligned at top
+  - [x] Status and Priority need to be shrunk so Assignees can be expanded
+  - [x] Keep filter list and buttons always visible
+  - [x] Make sorting/filtering drop downs collapsible and hidden by default
+  - [x] Make bulk changes section collapsible with "Bulk Actions" as the heading
+
+- [x] Tasks should have billable flags applied
+  - [x] Task billable flags should inherit client/project billable flags
+  - For example: I completed a task in a new workspace project for Raymond Tec. Project name is "Server Maintenance." There should only be one task there. That task is marked as billable. It shouldn't be.
+
+- [x] Reset button on Time Tracker no longer resets data properly
+  - Timer should clear client/project/description/and reset timer when "Clear info when Stopped/Reset" is checked and Stop or Reset is pressed. Stop still saves before clearing, reset warns user, then after confirmation, discards data for affected timer.
+
+## Version 0.31.8 - Documentation clean up
+
+- [ ] Update README.md to reflect the current state of the repo and the future
+- [ ] Add Table of Contents to README.md
+- [ ] Add appropriate link to README.md for the CHANGELOG.md
+
+## Version 0.31.10 - Module Manifest Contract
+
+* [ ] Formalize the module manifest contract
+
+  * [ ] Create a documented list of supported module definition fields
+  * [ ] Keep the manifest format simple enough for first-party modules and future third-party modules
+  * [ ] Module manifests should support:
+
+    * `id`
+    * `name`
+    * `displayName`
+    * `description`
+    * `category`
+    * `version`
+    * `enabledByDefault`
+    * `canDisable`
+    * `historicalReadAccess`
+    * `browserApiRoutes`
+    * `publicApiRoutes`
+    * `migrationsDir`
+    * `protectedViewsDir`
+    * `publicViewsDir`
+    * `browserAssetsDir`
+    * `navigation`
+    * `dashboard`
+    * `settings`
+    * `requiredPermissions`
+    * `publicApiEndpoints`
+    * `apiScopes`
+    * `taggableTypes`
+    * `searchableTypes`
+    * `auditRecordTypes`
+    * `eventTypes`
+    * `hooks`
+    * `frameworkDependencies`
+    * `moduleDependencies`
+    * `seedHooks`
+    * `repairHooks`
+
+* [ ] Add module manifest validation at startup
+
+  * [ ] Validate that every module has a unique `id`
+  * [ ] Validate required fields
+  * [ ] Validate route arrays
+  * [ ] Validate navigation definitions
+  * [ ] Validate settings definitions
+  * [ ] Validate permission declarations
+  * [ ] Validate dependency declarations
+  * [ ] Fail startup with a clear error if a module manifest is invalid
+
+* [ ] Add developer-facing module manifest documentation
+
+  * [ ] Explain required fields
+  * [ ] Explain optional fields
+  * [ ] Explain which fields are currently active and which are reserved for future framework features
+  * [ ] Include a small example module manifest
+
+* [ ] Do not add full third-party plugin loading yet
+
+  * This version should define the contract first
+  * First-party modules should start following the same rules future third-party modules will follow
+  * Avoid building a large plugin installer before the framework behavior is stable
+
+## Version 0.31.11 - Module Registry Cleanup
+
+* [ ] Refactor the module registry into a clearer framework service
+
+  * [ ] Keep first-party modules explicitly registered for now
+  * [ ] Avoid automatic filesystem discovery
+  * [ ] Prepare the registry so external module manifests can be added later through configuration
+  * [ ] Keep registry behavior predictable and easy to debug
+
+* [ ] Split module registry responsibilities
+
+  * [ ] Module definition loading
+  * [ ] Module validation
+  * [ ] Module lookup by ID
+  * [ ] Enabled/disabled workspace module state
+  * [ ] Browser API route registration
+  * [ ] Public API route registration
+  * [ ] Migration source registration
+  * [ ] Navigation contribution collection
+  * [ ] Settings contribution collection
+  * [ ] Permission contribution collection
+
+* [ ] Add registry helper methods
+
+  * [ ] `listModules()`
+  * [ ] `getModule(moduleId)`
+  * [ ] `listEnabledModules(workspaceId)`
+  * [ ] `listModuleRoutes(type)`
+  * [ ] `listModuleNavigation(workspaceId, session)`
+  * [ ] `listModuleSettings(workspaceId, session)`
+  * [ ] `listModulePermissions()`
+  * [ ] `listModuleApiScopes()`
+
+* [ ] Add framework-level checks for module dependencies
+
+  * [ ] Prevent enabling a module when required framework dependencies are missing
+  * [ ] Prevent enabling a module when required module dependencies are disabled
+  * [ ] Return a clear message explaining which dependency blocks enabling the module
+
+## Version 0.31.12 - Module Enable/Disable Lifecycle
+
+* [ ] Define module enable/disable behavior clearly
+
+  * Disabling a module should not delete module data
+  * Disabling a module should hide module navigation
+  * Disabling a module should block normal browser API writes
+  * Disabling a module should block public API writes
+  * Disabled modules may allow historical reads only when `historicalReadAccess` is true
+  * Disabled modules should stop background hooks or scheduled module behavior
+  * Disabled modules should not create new search index entries
+  * Disabled modules should not create new notifications
+
+* [ ] Move module write checks closer to the framework
+
+  * [ ] Add reusable middleware for browser API write protection
+  * [ ] Add reusable middleware for public API write protection
+  * [ ] Keep service-level write checks where useful as a second layer of protection
+  * [ ] Avoid requiring every module author to remember custom write checks in every service method
+
+* [ ] Add module lifecycle hooks
+
+  * [ ] `onModuleEnabled`
+  * [ ] `onModuleDisabled`
+  * [ ] `onModuleInstalled`
+  * [ ] `onModuleUpdated`
+  * [ ] `onModuleRepaired`
+
+* [ ] Add audit logging for module state changes
+
+  * [ ] Log when a module is enabled
+  * [ ] Log when a module is disabled
+  * [ ] Log the actor user
+  * [ ] Log workspace/module IDs
+  * [ ] Log dependency or validation failures where appropriate
+
+* [ ] Add safety rules for core framework modules
+
+  * [ ] Some modules should not be disableable
+  * [ ] Core framework services should not appear as normal optional modules
+  * [ ] The UI should clearly separate framework services from optional workflow modules
+
+## Version 0.31.13 - Registry-Driven App Shell and Navigation
+
+* [ ] Replace hard-coded authenticated navigation with registry-driven navigation
+
+  * [ ] Build the navigation tree from core navigation plus enabled module navigation
+  * [ ] Filter navigation by workspace type
+  * [ ] Filter navigation by workspace capabilities
+  * [ ] Filter navigation by module enabled/disabled status
+  * [ ] Filter navigation by user permissions
+  * [ ] Hide empty parent navigation groups automatically
+
+* [ ] Add an app shell/bootstrap endpoint
+
+  * [ ] Endpoint should return app name/version
+  * [ ] Endpoint should return active workspace context
+  * [ ] Endpoint should return available workspace switcher data
+  * [ ] Endpoint should return enabled modules
+  * [ ] Endpoint should return module-aware navigation
+  * [ ] Endpoint should return user theme/timezone basics
+  * [ ] Endpoint should return current user's permission hints only where safe
+
+* [ ] Update frontend navigation rendering
+
+  * [ ] Frontend should render navigation returned by the backend
+  * [ ] Frontend should not need to know about specific modules like Tasks or Time Tracking
+  * [ ] Keep only app-shell level behavior hard-coded in the frontend
+  * [ ] Keep logout, workspace switching, app branding, and theme handling as framework behavior
+
+* [ ] Preserve current navigation behavior during the refactor
+
+  * [ ] Dashboard remains visible
+  * [ ] Workspace settings remains visible to authorized users
+  * [ ] User settings remains visible
+  * [ ] Existing module links still appear when enabled
+  * [ ] Existing module links disappear when disabled or unauthorized
+
+## Version 0.31.14 - Registry-Driven Module Settings
+
+* [ ] Replace hard-coded module setting toggles with registry-driven settings
+
+  * [ ] Module manifests define their own settings fields
+  * [ ] Settings UI renders module settings from registry data
+  * [ ] Module status checkboxes are generated from module manifest settings
+  * [ ] Settings save logic updates module status generically
+
+* [ ] Support common module setting field types
+
+  * [ ] Boolean
+  * [ ] Text
+  * [ ] Number
+  * [ ] Select/dropdown
+  * [ ] Multi-select if needed later
+  * [ ] Read-only informational fields
+
+* [ ] Keep workspace settings separate from module settings
+
+  * [ ] Workspace identity, billing defaults, audit settings, and workspace type remain framework/workspace settings
+  * [ ] Module-specific options live under their module settings section
+  * [ ] Module enable/disable checkboxes should be grouped clearly
+
+* [ ] Validate module settings server-side
+
+  * [ ] Do not trust frontend setting field definitions
+  * [ ] Reject unknown module setting IDs unless explicitly allowed
+  * [ ] Validate value types
+  * [ ] Audit log module setting changes
+
+* [ ] Avoid building a complex plugin marketplace/settings installer
+
+  * This version is about making first-party module settings generic
+  * Future third-party module support should reuse the same module settings contract
+
+## Version 0.31.15 - Module Views, Assets, and Page Registration
+
+* [ ] Add framework-owned view/page registration
+
+  * [ ] Modules can register protected views
+  * [ ] Modules can register public views later if needed
+  * [ ] Each registered view should define:
+
+    * View ID
+    * URL/path
+    * Module ID
+    * View file
+    * Required permission
+    * Required workspace capability
+    * Whether disabled modules can show historical views
+  * [ ] Unknown protected views should not be served just because an HTML file exists
+
+* [ ] Update static/view serving to respect module registration
+
+  * [ ] Public pages remain framework-owned
+  * [ ] Protected framework pages remain framework-owned
+  * [ ] Protected module pages are served only when registered
+  * [ ] Disabled module views should return a clear disabled-module page or redirect
+  * [ ] Unauthorized module views should return the standard unauthorized behavior
+
+* [ ] Add module asset registration
+
+  * [ ] Allow modules to declare JS/CSS asset paths
+  * [ ] Keep common framework CSS/JS global
+  * [ ] Keep module-specific JS/CSS module-owned
+  * [ ] Avoid loading module-specific frontend code globally unless needed
+
+* [ ] Add basic module page documentation
+
+  * [ ] Explain how a module registers a protected page
+  * [ ] Explain how the navigation entry links to the page
+  * [ ] Explain permission and enabled/disabled behavior
+
+## Version 0.31.16 - Module Permissions and API Scope Contracts
+
+* [ ] Make permissions more module-declarative
+
+  * [ ] Modules declare their required permissions in the manifest
+  * [ ] Modules declare user-facing permission labels/descriptions
+  * [ ] Modules declare default role permission mappings where practical
+  * [ ] Framework sync registers module permissions in the database
+  * [ ] Framework sync should not duplicate permissions
+
+* [ ] Add module resource definitions
+
+  * [ ] Modules should be able to declare resource keys such as `tasks`, `time_entries`, `tickets`, or `notes`
+  * [ ] Resource definitions should include supported operations:
+
+    * `read`
+    * `create`
+    * `update`
+    * `delete`
+    * `archive`
+    * `restore`
+    * `assign`
+    * `manage`
+  * [ ] Permission checking should gradually move away from hard-coded resource key mapping
+
+* [ ] Make public API scopes more module-declarative
+
+  * [ ] Modules declare public API scopes
+  * [ ] Modules declare public API endpoints
+  * [ ] API key UI reads available scopes from framework/module registry
+  * [ ] Disabled module scopes should not be offered for new API keys
+  * [ ] Existing API keys should not be able to write to disabled modules
+
+* [ ] Add tests for permission and scope registration
+
+  * [ ] Verify module permissions are registered
+  * [ ] Verify role permission defaults are applied
+  * [ ] Verify module API scopes appear in API key settings
+  * [ ] Verify disabled modules block public API writes
+  * [ ] Verify unauthorized users do not see module navigation
+
+## Version 0.31.17 - Internal Event and Hook System
+
+* [ ] Add a lightweight internal event bus
+
+  * [ ] Framework services can emit events
+  * [ ] Modules can subscribe to events through declared hooks
+  * [ ] Hooks should run server-side only
+  * [ ] Hook failures should be logged clearly
+  * [ ] Hook failures should not silently corrupt core record saves
+
+* [ ] Define core event naming conventions
+
+  * Examples:
+
+    * `workspace.created`
+    * `workspace.updated`
+    * `module.enabled`
+    * `module.disabled`
+    * `client.created`
+    * `client.updated`
+    * `project.created`
+    * `project.updated`
+    * `time_entry.created`
+    * `time_entry.updated`
+    * `task.created`
+    * `task.updated`
+    * `task.completed`
+    * `task.archived`
+    * `task.restored`
+
+* [ ] Add event payload conventions
+
+  * [ ] Include `workspace_id`
+  * [ ] Include actor/session where available
+  * [ ] Include `record_type`
+  * [ ] Include `record_id`
+  * [ ] Include previous value where appropriate
+  * [ ] Include new value where appropriate
+  * [ ] Include source such as manual, system, import, public_api, integration
+
+* [ ] Use events for future cross-module behavior
+
+  * [ ] Search indexing
+  * [ ] Activity feed
+  * [ ] Notifications
+  * [ ] Integrations
+  * [ ] Webhooks later
+  * [ ] Background jobs later
+
+* [ ] Do not refactor every service into events at once
+
+  * Start with module lifecycle events and Tasks events
+  * Add Time Tracking events after the event bus is stable
+  * Keep this version focused on the event framework, not every future event consumer
+
+## Version 0.31.18 - Audit and Activity Extensibility
+
+* [ ] Make audit record types extensible
+
+  * [ ] Modules can declare audit record types
+  * [ ] Framework validates module-declared record types
+  * [ ] Audit service accepts registered module record types
+  * [ ] Unknown record types should still be rejected unless explicitly allowed
+
+* [ ] Make audit change types extensible only where needed
+
+  * [ ] Keep common change types framework-owned
+  * [ ] Avoid letting modules create confusing one-off change types unnecessarily
+  * [ ] Prefer module-specific actions with common change types
+
+* [ ] Prepare activity feed groundwork
+
+  * [ ] Define difference between audit logs and activity feed
+  * [ ] Audit log remains the authoritative security/admin record
+  * [ ] Activity feed should be user-friendly and safe for dashboard display
+  * [ ] Activity feed should never expose raw audit JSON by default
+  * [ ] Activity feed should respect permissions
+
+* [ ] Add helper for activity-safe event summaries
+
+  * [ ] Module can provide a human-readable label
+  * [ ] Module can provide a safe record URL
+  * [ ] Module can provide dashboard-safe summary text
+  * [ ] Activity feed implementation can come later
+
+## Version 0.31.19 - Developer Module Example and Documentation
+
+* [ ] Add an example first-party stub module
+
+  * [ ] Keep it disabled by default
+  * [ ] Keep it simple and clearly marked as a developer example
+  * [ ] Include example browser API route
+  * [ ] Include example public API route if useful
+  * [ ] Include example navigation entry
+  * [ ] Include example settings field
+  * [ ] Include example permission declaration
+  * [ ] Include example view registration
+  * [ ] Include example event hook
+  * [ ] Do not add business functionality to the stub module
+
+* [ ] Add developer documentation
+
+  * [ ] How to create a module manifest
+  * [ ] How to register module routes
+  * [ ] How module settings work
+  * [ ] How module permissions work
+  * [ ] How module navigation works
+  * [ ] How module views/assets work
+  * [ ] How module migrations work
+  * [ ] How events/hooks work
+  * [ ] How module enable/disable works
+  * [ ] How tags/search will hook into modules starting in 0.32.x
+
+* [ ] Add a framework sanity check script
+
+  * [ ] Validate registered modules
+  * [ ] Validate duplicate module IDs
+  * [ ] Validate duplicate routes where practical
+  * [ ] Validate duplicate permission IDs
+  * [ ] Validate duplicate API scopes
+  * [ ] Validate missing module dependencies
+  * [ ] Add the script to `npm run check`
+
+## Version 0.31.20 - Integrate Time Tracker and Tasks
+
+- It would be good to integrate the task timer and the time tracking stop watches
+- What would be the best/easiest way to accomplish this from a coding/framework/modules perspective?
+
+- [ ] This should respect the module separation
+  - [ ] Task timers should verify Time Tracker is installed and functional before activating this part of the module
+  - [ ] Once tasks are installed they should add a drop-down to the time tracker timers that shows all current tasks for current user
+
+## Version 0.32.0 - Tags Framework Foundation
+
+* [ ] Add framework-owned tagging tables
+
+  * [ ] Create shared `tags` table for tag definitions
+  * [ ] Create shared `tag_assignments` table for assigning tags to records
+  * [ ] Tags should be workspace-scoped using `workspace_id`
+  * [ ] Tags should not be stored as comma-separated text on records
+
+* [ ] `tags` table should support:
+
+  * `tag_id`
+  * `workspace_id`
+  * `name`
+  * `slug`
+  * `description`
+  * `color`
+  * `status`
+  * `created_by_user_id`
+  * `created_at`
+  * `updated_at`
+
+* [ ] `tag_assignments` table should support:
+
+  * `tag_assignment_id`
+  * `workspace_id`
+  * `tag_id`
+  * `target_type`
+  * `target_id`
+  * `created_by_user_id`
+  * `source`
+  * `created_at`
+
+* [ ] Add indexes for common tag lookup patterns
+
+  * [ ] Workspace + tag slug
+  * [ ] Workspace + tag status
+  * [ ] Workspace + target type + target ID
+  * [ ] Workspace + tag ID + target type
+  * [ ] Prevent duplicate active assignment of the same tag to the same target
+
+* [ ] Add module-declared taggable type contract
+
+  * [ ] Modules should declare which record types are taggable
+  * [ ] Taggable type declarations should include:
+
+    * `targetType`
+    * `moduleId`
+    * `idField`
+    * `labelField`
+    * `workspaceField`
+    * `clientField` if applicable
+    * `projectField` if applicable
+    * required read permission
+    * required tag/edit permission
+  * [ ] Framework should not maintain a permanent hard-coded list of taggable target types
+
+* [ ] Add core tag permissions
+
+  * [ ] `tags.manage`
+  * [ ] `tags.view`
+  * [ ] `tags.assign`
+  * [ ] `tags.remove`
+  * [ ] Add default role mappings for workspace admins and appropriate scoped roles
+
+* [ ] Define system tag policy
+
+  * [ ] Manual tags come first
+  * [ ] System/automatic tags should wait until manual tagging is stable
+  * [ ] Use real fields for behavior/security
+  * [ ] Do not use tags as the source of truth for visibility, permissions, billing status, workflow status, or archival state
+  * [ ] Example: note visibility should eventually be stored as a `visibility` field, not enforced by `#public`
+
+## Version 0.32.1 - Tag Service and API
+
+* [ ] Create shared tag repository/service methods
+
+  * [ ] Create tag
+  * [ ] Update tag
+  * [ ] Archive/disable tag
+  * [ ] Restore tag
+  * [ ] List workspace tags
+  * [ ] Search workspace tags by name/slug
+  * [ ] Read tags assigned to a target
+  * [ ] Assign tag to target
+  * [ ] Remove tag from target
+  * [ ] Replace target tags in one save operation
+
+* [ ] Validate tag operations through the framework
+
+  * [ ] Validate tag belongs to active workspace
+  * [ ] Validate target type is registered as taggable
+  * [ ] Validate target record exists
+  * [ ] Validate target record belongs to active workspace
+  * [ ] Validate user can view target before showing assigned tags
+  * [ ] Validate user can assign/remove tags before changing assignments
+  * [ ] Validate disabled modules cannot receive new tag assignments unless explicitly allowed
+
+* [ ] Add browser API routes for tagging
+
+  * [ ] `GET /api/tags`
+  * [ ] `POST /api/tags`
+  * [ ] `PUT /api/tags/:tagId`
+  * [ ] `POST /api/tags/:tagId/archive`
+  * [ ] `POST /api/tags/:tagId/restore`
+  * [ ] `GET /api/tags/assignments`
+  * [ ] `PUT /api/tags/assignments`
+
+* [ ] Add audit logging for tag changes
+
+  * [ ] Tag created
+  * [ ] Tag updated
+  * [ ] Tag archived
+  * [ ] Tag restored
+  * [ ] Tag assigned to target
+  * [ ] Tag removed from target
+  * [ ] Bulk tag assignment changes
+
+* [ ] Add basic tag management UI
+
+  * [ ] Add tag management under workspace settings or a dedicated admin page
+  * [ ] List active tags
+  * [ ] Add/edit/archive tags
+  * [ ] Keep UI simple until tagging is proven across several modules
+
+## Version 0.32.2 - Tagging Core Records
+
+* [ ] Register initial taggable types through module manifests
+
+  * [ ] `time_entry`
+  * [ ] `client`
+  * [ ] `project`
+  * [ ] `task`
+
+* [ ] Add tag picker/search UI helper
+
+  * [ ] Reusable frontend helper for selecting tags
+  * [ ] Reusable frontend helper for displaying assigned tags
+  * [ ] Reusable frontend helper for saving target tag assignments
+  * [ ] Avoid building separate custom tag pickers for every module
+
+* [ ] Add tagging to Tasks
+
+  * [ ] Add tag display to task list
+  * [ ] Add tag picker to create/edit task modal
+  * [ ] Add tag filters to task list
+  * [ ] Include tags in task read/list API responses
+  * [ ] Audit tag changes separately from normal task field edits
+
+* [ ] Add tagging to Time Entries
+
+  * [ ] Add tag picker/search UI to time tracker finalization flow where practical
+  * [ ] Add tag picker/search UI to manual time entry
+  * [ ] Add tag picker/search UI to edit entries
+  * [ ] Add reporting filters by direct time-entry tags
+  * [ ] Include tags in time entry read/list/reporting responses where useful
+
+* [ ] Add tagging to Clients and Projects
+
+  * [ ] Allow clients to be tagged
+  * [ ] Allow projects to be tagged
+  * [ ] Show client/project tags as context on related records where useful
+  * [ ] Do not automatically copy client/project tags onto time entries or tasks
+  * [ ] Later reporting can optionally include records under clients/projects with matching tags
+
+## Version 0.32.3 - Search Framework Contract
+
+* [ ] Add framework-owned search service
+
+  * [ ] Search should be a framework service, not a feature owned by Tasks, Notes, Tickets, or Time Tracking
+  * [ ] Search should be permission-aware
+  * [ ] Search should be workspace-aware
+  * [ ] Search should be module-aware
+  * [ ] Search should be tag-aware
+
+* [ ] Add search backend adapter contract
+
+  * [ ] Start with a simple database-backed adapter
+  * [ ] Leave room for SQLite FTS5
+  * [ ] Leave room for PostgreSQL full-text search
+  * [ ] Leave room for external search engines later
+  * [ ] Do not require Elasticsearch/OpenSearch at this stage
+
+* [ ] Add initial `search_index` table
+
+  * [ ] `search_index_id`
+  * [ ] `workspace_id`
+  * [ ] `module_id`
+  * [ ] `record_type`
+  * [ ] `record_id`
+  * [ ] `title`
+  * [ ] `summary`
+  * [ ] `body`
+  * [ ] `tags_text`
+  * [ ] `client_id`
+  * [ ] `project_id`
+  * [ ] `visibility`
+  * [ ] `record_status`
+  * [ ] `source`
+  * [ ] `record_created_at`
+  * [ ] `record_updated_at`
+  * [ ] `indexed_at`
+
+* [ ] Add indexes for basic search/filtering
+
+  * [ ] Workspace + record type
+  * [ ] Workspace + module ID
+  * [ ] Workspace + client ID
+  * [ ] Workspace + project ID
+  * [ ] Workspace + record status
+  * [ ] Workspace + indexed timestamp
+  * [ ] Basic title/body lookup appropriate for current SQLite approach
+
+* [ ] Add module-declared searchable type contract
+
+  * [ ] Modules should declare which record types are searchable
+  * [ ] Searchable type declarations should include:
+
+    * `recordType`
+    * `moduleId`
+    * `idField`
+    * `titleField`
+    * `summaryField`
+    * `bodyFields`
+    * `workspaceField`
+    * `clientField` if applicable
+    * `projectField` if applicable
+    * required read permission
+    * indexer function/reference
+  * [ ] Framework should not maintain a permanent hard-coded list of searchable record types
+
+## Version 0.32.4 - Search Indexing and Rebuild Tools
+
+* [ ] Add search indexing methods
+
+  * [ ] Index one record
+  * [ ] Remove one record from index
+  * [ ] Re-index one record
+  * [ ] Re-index all records for one module
+  * [ ] Re-index all records for one workspace
+  * [ ] Re-index all records for the app if needed
+
+* [ ] Connect search indexing to framework events
+
+  * [ ] Index records on create
+  * [ ] Update index records on update
+  * [ ] Update or remove index records on archive
+  * [ ] Restore index records on restore
+  * [ ] Remove index records when a module is disabled if historical search should be hidden
+  * [ ] Rebuild index records when a module is re-enabled
+
+* [ ] Add initial searchable records
+
+  * [ ] Tasks
+  * [ ] Time entries
+  * [ ] Clients
+  * [ ] Projects
+
+* [ ] Add search rebuild admin/tooling path
+
+  * [ ] Add safe server-side method to rebuild search index
+  * [ ] Add admin-only endpoint or script for rebuilding search index
+  * [ ] Do not expose broad rebuild tools to normal users
+  * [ ] Log rebuild activity clearly
+
+* [ ] Keep search indexing boring at first
+
+  * [ ] No external search engine yet
+  * [ ] No fuzzy search yet
+  * [ ] No synonyms yet
+  * [ ] No advanced relevance tuning yet
+  * [ ] Build the contract first so the backend can improve later
+
+## Version 0.32.5 - Search API and Global Search UI
+
+* [ ] Add browser API search endpoint
+
+  * [ ] `GET /api/search`
+  * [ ] Support query text
+  * [ ] Support module filter
+  * [ ] Support record type filter
+  * [ ] Support client filter
+  * [ ] Support project filter
+  * [ ] Support tag filter
+  * [ ] Support pagination
+  * [ ] Respect workspace and permissions
+
+* [ ] Add public API search endpoint only if safe
+
+  * [ ] Consider `GET /api/v1/search`
+  * [ ] Require API key scopes
+  * [ ] Respect workspace and module permissions
+  * [ ] Do not expose records from disabled modules unless explicitly allowed
+  * [ ] This can be deferred if browser search is enough for now
+
+* [ ] Add global search UI
+
+  * [ ] Add simple search box to the authenticated app shell
+  * [ ] Show grouped results by record type
+  * [ ] Show record title
+  * [ ] Show short summary/snippet
+  * [ ] Show module/source label
+  * [ ] Show client/project context where useful
+  * [ ] Show tags where useful
+  * [ ] Link search result to the registered record URL when available
+
+* [ ] Add search results page
+
+  * [ ] Support filters
+  * [ ] Support pagination
+  * [ ] Support empty states
+  * [ ] Support permission-safe result display
+  * [ ] Avoid making dashboard search too complex
+
+## Version 0.32.6 - Tag and Search Reporting Integration
+
+* [ ] Add tag filters to reporting where useful
+
+  * [ ] Filter time reports by direct time-entry tags
+  * [ ] Filter task lists/reports by direct task tags
+  * [ ] Consider client/project tag filters as optional context filters
+  * [ ] Do not automatically treat client/project tags as tags on child records unless explicitly selected
+
+* [ ] Add search-aware reporting helpers
+
+  * [ ] Allow reports to link to filtered search results where useful
+  * [ ] Allow dashboard sections to link to search results where useful
+  * [ ] Keep reporting calculations based on real records, not the search index
+
+* [ ] Add saved filter groundwork if useful
+
+  * [ ] This does not need full saved views yet
+  * [ ] Leave room for future saved views in the project-management expansion
+  * [ ] Search filters and report filters should use compatible naming where practical
+
+* [ ] Add regression tests
+
+  * [ ] Tags cannot cross workspace boundaries
+  * [ ] Tags cannot be assigned to records the user cannot access
+  * [ ] Search does not return records the user cannot access
+  * [ ] Search does not return disabled-module records unless historical access allows it
+  * [ ] Search results update after record edits
+  * [ ] Search index rebuild does not duplicate records
+  * [ ] Reporting tag filters return expected records
+
+## Version 0.34.0 - Support Tickets
 
 - [ ] Support tickets
   - [ ] Consult with existing support ticket solutions for best path here
@@ -11,7 +823,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Tickets should support external/client-visible responses later
   - [ ] Ticket visibility and edit access should respect the roles/permissions system
 
-## Version 0.33.0 - Notes/Knowledge Base foundations
+## Version 0.35.0 - Notes/Knowledge Base foundations
 
 - [ ] Notes/knowledge base
   - [ ] Notes should be linkable with either markdown or wiki-style linking
@@ -23,23 +835,11 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Notes should have a changelog table, can be reused from the audit log, but remains persistent
   - [ ] Note visibility and edit access should respect the roles/permissions system
 
-## Version 0.34.0 - Calendars and Calendar Views
+## Version 0.36.0 - Calendars and Calendar Views
 
 - [ ] Calendars
 
-## Version 0.35.0 - Collaboration Tools
-
-- [ ] Add in-app messaging between users
-- [ ] UI Notifications (Toast? Bell at top?)
-  - [ ] Should be built so any module can hook to notifications
-  - future: this will incorporate into integrations like Slack, Teams, and Discord for sending notifications via chat messages
-
-- will I need every minute cronjobs or something similar to make the notifications work?
-- [ ] Add notifications hook to Tasks
-- [ ] Add notifications hook to Tickets
-- [ ] Add notifications hook to Notes
-
-## Version 0.36.0 - Dashboard as Project Hub
+## Version 0.37.0 - Dashboard as Project Hub
 
 - [ ] Dashboard should become the hub for managing projects
   - [ ] Add "Past Due/Due Soon" section that shows past due and upcoming tasks sorted by client and project
@@ -58,58 +858,6 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 - [ ] Dashboard sections should respect permissions
   - [ ] Users should only see clients/projects/tasks/notes/tickets they are allowed to see
   - [ ] External client users should not see internal-only notes or admin-only audit details
-
-## Version 0.37.0 - Tags
-
-## Tagging Foundation
-
-- Tags should be workspace-scoped, using `workspace_id`
-- Tags should not be stored as comma-separated text on records
-- Create a shared `tags` table for the tag definitions
-- Create a shared `tag_assignments` table for assigning tags to records
-- `tag_assignments` should support:
-  - `workspace_id`
-  - `tag_id`
-  - `target_type`
-  - `target_id`
-  - `created_by_user_id`
-  - `source` such as manual, system, import, rule
-  - `created_at`
-- Supported initial `target_type` values:
-  - `time_entry`
-  - `client`
-  - `project`
-  - `task`
-  - `note`
-  - `support_ticket`
-- Future `target_type` values:
-  - `invoice`
-
-- [ ] Phase 1: Time entry tagging
-  - Add tags to time entries first
-  - Add tag picker/search UI to time tracker, manual time entry, and edit-entry screens
-  - Add reporting filters by direct time-entry tags
-  - Add basic tag management inside workspace settings or a simple admin page
-
-- [ ] Phase 2: Client/project tagging
-  - Allow clients and projects to be tagged as records
-  - Show client/project tags as context on time entries
-  - Do not automatically copy client/project tags onto time entries
-  - Later reporting can optionally include records under clients/projects with matching tags
-
-### Version 0.37.1
-
-- [ ] Phase 3: Shared tagging service
-  - Create shared tag repository/service methods
-  - Validate that tagged records belong to the active workspace
-  - Audit log tag create/update/delete and tag assignment changes
-  - Keep tag logic reusable for future tasks, notes, tickets, and invoices
-
-### Version 0.37.2
-
-- [ ] Add tagging to Tasks
-- [ ] Add tagging to Notes
-- [ ] Add tagging to Tickets
 
 ## Version 0.38.0 - Expanded Reporting and Invoicing
 
@@ -133,7 +881,6 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 - [ ] Sessions should expire after 1 day
 - [ ] Super Admins should have ability to log users out
 - [ ] Workspace admins should have ability to log users out
-
 
 ### Version 0.39.3
 
@@ -162,6 +909,8 @@ Now that we have the base layer of a complete project management tool, we can be
 Allowing the app to run on SQLite OR PostGRES makes it more flexible for self-hosted installs; I want the database layer to be able to handle either one, based on the settings/.env file
 
 Below is a rough road map for all of the 0.40 branch, this is not finalized yet
+
+- [ ] Add topics to GitHub for discovery
 
 ### Project Tools expansion
 
@@ -254,6 +1003,7 @@ Below is a rough road map for all of the 0.40 branch, this is not finalized yet
 ### Database Tools
 
 - [ ] Configuration files for initial configuration
+  - [ ] Merge all previous migrations to make unified initial SQL
 - [ ] Migration tools to switch between database backends
 - [ ] Export/Import database tools
   - [ ] Allow users to export their workspaces
@@ -262,6 +1012,17 @@ Below is a rough road map for all of the 0.40 branch, this is not finalized yet
 
 - [ ] Define archival period
 - [ ] Define lifecycle of tasks, notes, tickets, etc.
+
+## Version 0.45.0 - Phone/Tablet/TV app prep
+
+- Prepare APIs for Phone/Tablet/TV apps
+
+- Universal Longtail Forge app for iOS
+
+- Universal Longtail Forge app for Android (Latest)
+
+- Roku apps for coordinating teams/families
+  - Displays Calendar/Task Lists/Current-Upcoming Day Events
 
 ## Version 0.50.0 - Production, Packaging, and Self-Hosting
 
@@ -302,21 +1063,52 @@ Below is a rough road map for all of the 0.40 branch, this is not finalized yet
 
 ## Version 0.70.0 - Integrations and Plugin Readiness
 
-- [ ] Build integrations only after public API, API keys/scopes, roles/permissions, and module boundaries are in place
-- [ ] ZenDesk
-- [ ] Google Tasks
-- [ ] Microsoft To Do
-- [ ] Microsoft SharePoint
-- [ ] WordPress
-  - [ ] Support Ticket plugin
-  - [ ] Knowledge Base plugin
-- [ ] Shopify
-  - [ ] Knowledge Base plugin
-  - [ ] Support ticket plugin
-    - Would include notes plugin for Shopify Admin
+### Guidelines/Notes for Integrations
+
 - [ ] Integration architecture
   - [ ] Integrations should authenticate through API keys, OAuth, or integration-specific credentials as appropriate
   - [ ] Integrations should respect workspace, client, project, and user permissions
   - [ ] Integration events should be audit logged where appropriate
   - [ ] Integration-created records should identify their source in metadata
   - [ ] Avoid integration-specific logic leaking into core services where a module or adapter would be cleaner
+
+### Potential Integrations List
+
+- [ ] ZenDesk
+- [ ] Google Tasks 
+- [ ] Microsoft To Do
+- [ ] Microsoft SharePoint
+  - File sharing
+  - Knowledgebase pages
+  - Input for tickets/notes/tasks/etc.
+- [ ] Microsoft OneDrive 
+  - File sharing
+  - Receive notifications on monitored folders
+
+- [ ] WordPress/WooCommerce
+  - [ ] Support Ticket plugin
+  - [ ] Knowledge Base plugin
+  - [ ] Automated task creation from:
+    - Front-end support tickets
+    - Order issues (fulfillment failure, etc.)
+
+- [ ] Shopify
+  - [ ] Knowledge Base plugin
+  - [ ] Support ticket plugin
+    - Would include notes plugin for Shopify Admin
+  - [ ] Automated task creation from:
+    - Front-end support tickets
+    - Order issues (fulfillment failure, etc.)
+
+### Personal/Family Workspace Integrations
+
+- [ ] Home Assistant
+  - [ ] Create grocery/shopping list items from Home Assistant (voice commands inputs)
+  - [ ] Update/create project tasks from Home Assistant (voice commands inputs)
+
+## Version 0.71.0
+
+- [ ] Buy domain name
+  - [ ] Launch website
+
+- [ ] Launch Social Media

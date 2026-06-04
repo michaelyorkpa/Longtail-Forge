@@ -1,3 +1,15 @@
+## Version 0.31.7 - 2026-06-04 11:03 -04:00
+
+- Added dedicated Tasks and Time Tracking settings pages, including Tasks reminder defaults and placeholder Timer Concurrency checkboxes.
+- Moved Projects Settings back under the Projects menu and renamed the menu entry to `Projects Settings`.
+- Made Projects Settings bulk changes collapsible and made Tasks sorting/filtering plus bulk actions collapsible while keeping quick filters visible.
+- Added persisted task billable flags inherited from project/client scope and used them for task timers and finalized task time entries.
+- Fixed Time Tracker reset so confirmed resets discard timer state, and the clear-info preference clears client, project, description, and billable fields.
+- Refined 0.31.7 settings navigation so Clients sits under Workspace and module settings sit under Workspace -> Modules.
+- Added an explicit All quick filter to Projects -> Tasks and made opening Sorting and Filters select it automatically.
+- Tightened Projects Settings spacing, made Bulk Changes open automatically when projects are selected, and repaired the Server Maintenance task/time-entry billable data.
+- Bumped the app version to `0.31.7`.
+
 ## Version 0.31.6 - 2026-06-03 18:31 -04:00
 
 - Added public `/api/v1/tasks` read, create, update, complete, reopen, archive, and restore endpoints with `tasks:read` and `tasks:write` API key scopes.
