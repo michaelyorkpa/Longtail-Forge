@@ -1262,17 +1262,17 @@ Some notes for implementation:
 - [ ] Super admins should be able to turn on a setting that requires 2FA setup on next login for individual users
 - [ ] Workspace admins can require users have 2FA to join workspace
 
-### Version 0.39.1 - Passkeys
+### Version 0.38.1 - Passkeys
 
 - [ ] Passkeys
 
-### Version 0.39.2 - User Sessions
+### Version 0.38.2 - User Sessions
 
 - [ ] Sessions should expire after 1 day
 - [ ] Super Admins should have ability to log users out
 - [ ] Workspace admins should have ability to log users out
 
-### Version 0.39.3
+### Version 0.38.3
 
 Super Admins should have a backup/restore function on the dashboard that dumps the current database into a clean file with an app meta data file that has app version stamped and datetime (UTC) of backup in it and zips it into a zip file along with any physical settings files on disk (this will be necessary after packaging for self-hosting and may not yet be necessary, but I want uniform functions for backup/restore that can be easily modified in the future)
 
@@ -1291,6 +1291,12 @@ Super Admins should have a backup/restore function on the dashboard that dumps t
   - [ ] "Perform restore" button
     - this should only accept zip files
     - this should verify files, checksum, etc. before installing/overwriting current data
+
+### Version 0.39.0
+
+Final code refactor for modularization and standardization
+
+Final checkpoint for documentation update before standardization of database tools
 
 ## Version 0.40.0 - Project Tools expansion & Database extraction layer for use with SQLite or PostGRES
 
