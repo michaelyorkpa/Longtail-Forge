@@ -2,6 +2,7 @@ import { clientProjectsModule } from "../../modules/client-projects/module.js";
 import { tasksModule } from "../../modules/tasks/module.js";
 import { timeTrackingModule } from "../../modules/time-tracking/module.js";
 import { usersModule } from "../../modules/users/module.js";
+import { validateModuleManifests } from "./manifest-contract.js";
 
 const moduleDefinitions = [
   clientProjectsModule,
@@ -9,6 +10,8 @@ const moduleDefinitions = [
   timeTrackingModule,
   usersModule,
 ];
+
+validateModuleManifests(moduleDefinitions);
 
 function listModules() {
   return moduleDefinitions.map((definition) => ({ ...definition }));

@@ -1,36 +1,133 @@
-# Module Contract
+# Module Manifest Contract
 
-Longtail Forge modules are static ESM records registered from `src/core/modules/registry.js`. The contract stays plain JavaScript while the framework boundary is still settling.
+Longtail Forge modules are static ESM records registered from `src/core/modules/registry.js`. Version 0.31.10 formalizes the manifest shape and validates registered first-party modules at startup. Third-party loading is intentionally deferred until the registry and module lifecycle are more stable.
 
-Each module definition should include:
+## Startup Validation
 
-- `id`: stable kebab-case identifier used in storage, settings, and checks.
-- `name` and `displayName`: database/module label and UI label.
-- `description`, `category`, and `version`: registry metadata stored in `modules`.
-- `enabledByDefault`: whether new workspaces should start with the module enabled.
-- `historicalReadAccess`: whether disabled modules still allow read-only access to old records. The default decision is yes for data modules and no for admin modules.
-- `browserApiRoutes`: Express routers mounted under `/api` for signed-in browser use.
-- `publicApiRoutes`: module-owned public API routers mounted under `/api/v1` after the core public routes.
-- `protectedViewsDir` and `browserAssetsDir`: ownership hints for module pages and browser scripts.
-- `migrationsDir`: module-owned migration folder. Core migrations still run first.
-- `seedHooks` and `repairHooks`: reserved arrays for future startup work after migrations.
-- `navigation`: links the app shell can consume when navigation becomes fully module-driven.
-- `dashboard`: panel descriptors the Dashboard can consume when it becomes fully module-driven.
-- `publicApiEndpoints`: stable endpoint descriptors used by documentation and future API discovery.
-- `requiredPermissions`: permissions the module expects roles to provide.
-- `settings`: module-owned settings descriptors that Workspace Settings can render. A setting with `moduleStatus: true` controls the module enablement row; related sub-options can use `moduleStatus: false`.
-- `workspaceCapabilityRequirements`: workspace capability keys that make the module relevant.
+The module registry validates every registered module before exposing route, migration, or metadata lists. Startup fails with an `Invalid module manifest configuration` error when a manifest has duplicate IDs, missing required fields, invalid field shapes, unknown fields, or dependencies that reference unregistered modules.
 
-Disabled-module policy:
+Unknown arbitrary manifest fields are rejected. Future extension data should wait for a deliberate extension namespace instead of being added ad hoc.
 
-- Disabled modules should block create, update, delete, and other write paths through shared framework helpers.
-- Disabled data modules may keep historical read-only access when `historicalReadAccess` is true.
-- Navigation should hide disabled-module links from ordinary app chrome, but server-side checks remain authoritative.
+## Active Fields
 
-The Time Tracking module is the reference implementation for the 0.30.x cleanup path.
+These fields are currently accepted by the manifest validator:
 
-The Tasks module is the reference implementation for a workflow module that spans browser routes, public API routes, Dashboard metadata, scoped permissions, lifecycle audit records, reminder/recurrence helpers, and optional timer linkage into another module. Task public API routes intentionally reuse the browser task service so assignment eligibility, recurrence completion, archive/restore, module-disabled write blocking, and audit behavior stay centralized.
+- `id`: required stable kebab-case module identifier used in storage, settings, dependency declarations, and module checks.
+- `name`: required database/module label.
+- `displayName`: required UI label.
+- `description`: required human-readable summary.
+- `category`: required module grouping, such as `core-workflow` or `core-admin`.
+- `version`: required module contract/version marker.
+- `enabledByDefault`: required boolean controlling new workspace module status.
+- `canDisable`: optional boolean that declares whether Workspace Settings may disable the module.
+- `historicalReadAccess`: optional boolean that allows disabled data modules to keep read-only access to old records.
+- `browserApiRoutes`: optional array of Express routers mounted under `/api` for signed-in browser use.
+- `publicApiRoutes`: optional array of Express routers mounted before browser session authentication.
+- `migrationsDir`: optional URL/string module migration folder. Core migrations still run first.
+- `protectedViewsDir`: optional URL/string ownership hint for authenticated module pages.
+- `publicViewsDir`: optional URL/string ownership hint for public module pages.
+- `browserAssetsDir`: optional URL/string ownership hint for module browser assets.
+- `navigation`: optional app-shell link descriptors.
+- `dashboard`: optional Dashboard panel descriptors.
+- `reporting`: optional reporting contribution descriptors.
+- `workbench`: optional Workbench card contribution descriptors.
+- `settings`: optional module settings descriptors.
+- `requiredPermissions`: optional permission IDs expected by the module.
+- `publicApiEndpoints`: optional public API documentation/discovery descriptors.
+- `apiScopes`: optional API key scope IDs provided by the module.
+- `timerSources`: optional timer-capable source declarations.
+- `workItemSources`: optional actionable Workbench item source declarations.
+- `frameworkDependencies`: optional framework service dependency IDs.
+- `moduleDependencies`: optional registered module IDs that must exist.
+- `workspaceCapabilityRequirements`: optional workspace capability keys that make the module relevant.
+- `seedHooks`: optional reserved startup hook array.
+- `repairHooks`: optional reserved startup repair hook array.
 
-Modules that link to records owned by another module should validate both module enablement states before writing. Task Timers demonstrate this pattern: they require Tasks, Time Tracking, and the Tasks sub-option to be enabled, but active timer state is stored through Time Tracking's unified active timer service with Tasks source metadata. Finalized task timers write completed work into Time Tracking with a durable `task_id` link for reporting.
+## Reserved Fields
 
-The 0.31.9 Workbench page is framework-owned and currently uses pragmatic first-party bootstrap wiring. Later registry work should replace that wiring with declared Workbench cards, timer sources, and workbench item sources.
+These fields are accepted only as arrays today. The validator checks their basic shape, but runtime behavior is reserved for later framework versions:
+
+- `taggableTypes`
+- `searchableTypes`
+- `notificationEvents`
+- `notificationTemplates`
+- `auditRecordTypes`
+- `eventTypes`
+- `hooks`
+
+Notifications are framework-owned. Modules will declare notification events and templates through the manifest, but individual modules should not create duplicate notification UI.
+
+## Contribution Shapes
+
+Navigation items require `label` and `href`; they may include `parent` and `requiredPermissions`.
+
+Dashboard items require `id` and `label`; renderer/count/link metadata may be added by module-specific dashboard features.
+
+Workbench cards require `id`, `label`, `renderer`, and `moduleId`; they may include `requiredPermissions`, `requiredWorkspaceCapabilities`, `requiresEnabledModules`, `defaultCollapsed`, and `sortOrder`. Workbench cards from disabled modules should be hidden. Framework-owned Workbench cards, such as active timers, are allowed for core workflow areas.
+
+Timer sources declare record types that can start or control timers. A timer source requires `sourceType`, `moduleId`, and `label`; it may include `listRoute`, `startRoute`, `pauseRoute`, `finalizeRoute`, `requiredPermissions`, and `requiredModules`. Time Tracking owns active timer persistence and finalization. Source modules expose record context and routes; they do not own duplicate timer engines.
+
+Workbench item sources expose actionable records to the Workbench page. They require `sourceType`, `moduleId`, `label`, and `listRoute`; they may include `requiredPermissions`, `requiredModules`, `filterHints`, and `sortHints`. Records should normalize to `source_module_id`, `source_type`, `source_id`, `source_label`, `source_url`, `title`, `description`, `client_id`, `client_name`, `project_id`, `project_name`, `status`, `priority`, `due_at`, `assignee_ids`, `timer_status`, and `elapsed_seconds`.
+
+Settings items require `id`, `label`, and `type`; a setting with `moduleStatus: true` controls the module enablement row, while related sub-options can use `moduleStatus: false`.
+
+Public API endpoint descriptors require `method`, `path`, and `scope`.
+
+## Disable Policy
+
+Disabling a module does not delete module data. Disabled modules hide normal navigation, block browser and public API writes, stop future background/module behavior when lifecycle hooks exist, and avoid creating new search, tag, or notification records. Disabled data modules may keep historical reads only when `historicalReadAccess` is true.
+
+Active timers sourced from disabled modules remain visible in a limited recovery state so time is not stranded.
+
+## Example
+
+```js
+const exampleModule = {
+  id: "example-work",
+  name: "Example Work",
+  displayName: "Example Work",
+  description: "Example work items for module contract development.",
+  category: "core-workflow",
+  version: "0.31.10",
+  enabledByDefault: false,
+  canDisable: true,
+  historicalReadAccess: true,
+  browserApiRoutes: [exampleRoutes],
+  publicApiRoutes: [],
+  migrationsDir: new URL("./migrations/", import.meta.url),
+  protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
+  browserAssetsDir: new URL("../../../public/js/", import.meta.url),
+  navigation: [{ label: "Example Work", href: "example-work.html" }],
+  dashboard: [{ id: "example-summary", label: "Example Summary" }],
+  workbench: [{
+    id: "example-items",
+    label: "Example Items",
+    renderer: "example-items",
+    moduleId: "example-work",
+    requiredPermissions: ["example.view"],
+    requiredWorkspaceCapabilities: ["projects"],
+    requiresEnabledModules: ["example-work"],
+    defaultCollapsed: false,
+    sortOrder: 30,
+  }],
+  settings: [{ id: "exampleWorkEnabled", label: "Example Work", type: "boolean", moduleStatus: true }],
+  requiredPermissions: ["example.view", "example.create"],
+  publicApiEndpoints: [{ method: "GET", path: "/api/v1/example-work", scope: "example:read" }],
+  apiScopes: ["example:read"],
+  timerSources: [],
+  workItemSources: [{
+    sourceType: "example-item",
+    moduleId: "example-work",
+    label: "Example Items",
+    listRoute: "/api/example-work/items",
+    requiredPermissions: ["example.view"],
+    requiredModules: ["example-work"],
+    filterHints: { supported: ["all", "assigned-to-me"] },
+    sortHints: { supported: ["due_at", "priority"] },
+  }],
+  frameworkDependencies: ["module-access", "permissions-service"],
+  moduleDependencies: [],
+  seedHooks: [],
+  repairHooks: [],
+};
+```

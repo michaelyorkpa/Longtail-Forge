@@ -6,8 +6,9 @@ const usersModule = {
   displayName: "Users",
   description: "User administration, profile settings, and role assignment surfaces.",
   category: "core-admin",
-  version: "0.30.8",
+  version: "0.31.10",
   enabledByDefault: true,
+  canDisable: false,
   historicalReadAccess: false,
   browserApiRoutes: [usersRoutes],
   publicApiRoutes: [],
@@ -25,8 +26,12 @@ const usersModule = {
     "users.manage",
     "roles.assign",
   ],
+  publicApiEndpoints: [],
+  apiScopes: [],
+  workbench: [],
+  timerSources: [],
+  workItemSources: [],
   workspaceCapabilityRequirements: ["team_members", "permissions", "family_permissions"],
-  seedData: [],
 };
 
 export { usersModule };

@@ -15,7 +15,21 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
+- Add new photo dispatch task did not move to "Overdue" at 4pm
+- Make "Reminders" in Add/Edit Task modal collapsible
+- Bulk Actions doesn't open when a selected
+- Remove the "Bulk Action" drop down and keep the "Status" "Priority" and "Assignees"
+  - Add "-" to Status and Priority boxes
+  - Perform the bulk action, after user clicks apply, based on what is selected in Status, Priority, and/or Assignees
+  - If only a Status is selected, only change the status on the selected tasks
+  - If only a Priority is selected, only change the priority on the selected tasks
+  - If one or more assignees are selected, but nothing else change the assignees on the selected tasks
+  - If any combination of the above are selected, change the selected bulk actions on the selected tasks
+  - Doing this will speed up bulk changes and reduce time spent making them
+
 ### Tasks
+
+- [ ] In Add Task modal, "All Projects" exists, but we've lost the "{{workspaceName}} Projects" to sort by.
 
 - How is the "Remove Workspace" button wired, currently on User Settings page?
 
@@ -31,6 +45,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - [ ] Move notifications up in the ROADMAP?
 
 - [ ] Identify and use an accessibility checker for best accessibility practices. Do this early.
+
+- [ ] Make all footers float at the bottom of modal windows (Save/Cancel/etc.) so users don't have to scroll all the way to the bottom every time
 
 - Should task timers show up as options to run on the Time tracker?
 

@@ -1,3 +1,11 @@
+## Version 0.31.10 - 2026-06-04 16:26 -04:00
+
+- Added startup module manifest validation for unique IDs, required fields, route arrays, navigation, dashboard, Workbench, timer source, work item source, settings, permissions, API scopes, reserved fields, dependencies, and unknown manifest fields.
+- Formalized active and reserved module manifest fields in `docs/module-contract.md`, including Workbench cards, timer sources, work item sources, disable policy, notification ownership, and an example manifest.
+- Updated first-party module manifests to the 0.31.10 contract with explicit `canDisable`, API scope, Workbench, timer source, and work item source declarations.
+- Kept third-party plugin loading deferred while first-party modules follow the future manifest rules.
+- Bumped the app version to `0.31.10`.
+
 ## Version 0.31.9.1 - 2026-06-04 15:13 -04:00
 
 - Renamed Time Tracker stopwatch `Reset` actions to red `Discard` actions while keeping the 4-stopwatch limit.

@@ -2,25 +2,6 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.9.1 - Workbench MVP Follow-Up
-- [x] Rename Time Tracker stopwatch `Reset` actions to red `Discard` actions while keeping the standalone Time Tracker page limited to 4 stopwatch cards
-- [x] Rename Workbench timer `Save Time` actions to `Save & End`
-- [x] Rename Time Tracker stopwatch `Stop` actions to `Save & End` to keep timer save/end wording standardized
-- [x] Compact Time Tracker manual timer slots after save/discard so later timers move into cleared middle positions before refresh/reopen
-- [x] Make Workbench manual timer billable state always inherit from the selected client/project and briefly flash when inheritance changes the visible toggle
-- [x] Make Workbench flash the newly activated timer when timer switching moves it to the top of the timer list
-- [x] Add a Workbench Tasks `Add Task` action that opens the existing Tasks page Add Task modal
-- [x] Remove Workbench manual timer count limits while preserving the single-running-timer concurrency rule
-
-## Documentation Checkpoint Before 0.31.10
-
-This is a roadmap-only checkpoint. Do not use `0.31.pre-10` as a package version, module version, migration version, or changelog release identifier.
-
-- [x] Update README.md to reflect the current state of the repo and the future expectations
-- [x] Add Table of Contents to README.md
-- [x] Add appropriate link to README.md for the CHANGELOG.md
-- [x] Add links to appropriate sections in README for currently filled out docs/
-
 ## Version 0.31.10 - Module Manifest Contract
 
 Some notes for implementation:
@@ -29,11 +10,11 @@ Some notes for implementation:
 - The Workbench page renders normalized timer/workbench item data.
 - No module should hard-code another module's frontend behavior unless routed through the declared integration contract.
 
-* [ ] Formalize the module manifest contract
+* [x] Formalize the module manifest contract
 
-  * [ ] Create a documented list of supported module definition fields
-  * [ ] Keep the manifest format simple enough for first-party modules and future third-party modules
-  * [ ] Module manifests should support:
+  * [x] Create a documented list of supported module definition fields
+  * [x] Keep the manifest format simple enough for first-party modules and future third-party modules
+  * [x] Module manifests should support:
 
     * `id`
     * `name`
@@ -71,10 +52,10 @@ Some notes for implementation:
     * `seedHooks`
     * `repairHooks`
 
-* [ ] Define the Workbench page contribution contract
+* [x] Define the Workbench page contribution contract
 
-  * [ ] Modules may contribute Workbench page cards through a `workbench` manifest section
-  * [ ] Workbench page cards should include:
+  * [x] Modules may contribute Workbench page cards through a `workbench` manifest section
+  * [x] Workbench page cards should include:
     * `id`
     * `label`
     * `renderer`
@@ -84,14 +65,14 @@ Some notes for implementation:
     * `requiresEnabledModules`
     * `defaultCollapsed`
     * `sortOrder`
-  * [ ] Workbench page cards should be hidden when the contributing module is disabled
-  * [ ] Workbench page cards should respect permissions before showing record data
-  * [ ] Framework-owned Workbench cards should be allowed for core workflow areas such as active timers
+  * [x] Workbench page cards should be hidden when the contributing module is disabled
+  * [x] Workbench page cards should respect permissions before showing record data
+  * [x] Framework-owned Workbench cards should be allowed for core workflow areas such as active timers
 
-* [ ] Define the timer source contract
+* [x] Define the timer source contract
 
-  * [ ] Modules may declare timer-capable record types through `timerSources`
-  * [ ] Timer source declarations should include:
+  * [x] Modules may declare timer-capable record types through `timerSources`
+  * [x] Timer source declarations should include:
     * `sourceType`
     * `moduleId`
     * `label`
@@ -101,16 +82,16 @@ Some notes for implementation:
     * `finalizeRoute`
     * `requiredPermissions`
     * `requiredModules`
-  * [ ] Time Tracking should remain the owner of active timer persistence
-  * [ ] Source modules should provide record context, not own duplicate timer engines
-  * [ ] Source modules should be able to create sourced timers without making Time Tracking depend directly on that source module
-  * [ ] Timer source routes should return a normalized timer/workbench item shape usable by the Workbench page
+  * [x] Time Tracking should remain the owner of active timer persistence
+  * [x] Source modules should provide record context, not own duplicate timer engines
+  * [x] Source modules should be able to create sourced timers without making Time Tracking depend directly on that source module
+  * [x] Timer source routes should return a normalized timer/workbench item shape usable by the Workbench page
 
-* [ ] Define the workbench item source contract
+* [x] Define the workbench item source contract
 
-  * [ ] Modules may expose actionable records to the Workbench page through `workItemSources`
-  * [ ] Workbench item sources should support Tasks first and Support Tickets later
-  * [ ] Workbench item records should normalize to:
+  * [x] Modules may expose actionable records to the Workbench page through `workItemSources`
+  * [x] Workbench item sources should support Tasks first and Support Tickets later
+  * [x] Workbench item records should normalize to:
     * `source_module_id`
     * `source_type`
     * `source_id`
@@ -128,40 +109,40 @@ Some notes for implementation:
     * `assignee_ids`
     * `timer_status`
     * `elapsed_seconds`
-  * [ ] Workbench item sources should support filtering/sorting hints without requiring the Workbench page to know module-specific internals
+  * [x] Workbench item sources should support filtering/sorting hints without requiring the Workbench page to know module-specific internals
 
-* [ ] Add module manifest validation at startup
+* [x] Add module manifest validation at startup
 
-  * [ ] Validate that every module has a unique `id`
-  * [ ] Validate required fields
-  * [ ] Validate route arrays
-  * [ ] Validate navigation definitions
-  * [ ] Validate dashboard definitions
-  * [ ] Validate Workbench page contribution definitions
-  * [ ] Validate timer source definitions
-  * [ ] Validate workbench item source definitions
-  * [ ] Validate settings definitions
-  * [ ] Validate permission declarations
-  * [ ] Validate API scope declarations
-  * [ ] Validate taggable/searchable type declarations
-  * [ ] Validate notification event/template declarations
-  * [ ] Validate dependency declarations
-  * [ ] Accept known reserved future fields but validate their basic shape/type only until runtime behavior lands
-  * [ ] Reject unknown arbitrary manifest fields unless a deliberate extension namespace is added later
-  * [ ] Document active manifest fields separately from reserved/inert manifest fields
-  * [ ] Fail startup with a clear error if a module manifest is invalid
+  * [x] Validate that every module has a unique `id`
+  * [x] Validate required fields
+  * [x] Validate route arrays
+  * [x] Validate navigation definitions
+  * [x] Validate dashboard definitions
+  * [x] Validate Workbench page contribution definitions
+  * [x] Validate timer source definitions
+  * [x] Validate workbench item source definitions
+  * [x] Validate settings definitions
+  * [x] Validate permission declarations
+  * [x] Validate API scope declarations
+  * [x] Validate taggable/searchable type declarations
+  * [x] Validate notification event/template declarations
+  * [x] Validate dependency declarations
+  * [x] Accept known reserved future fields but validate their basic shape/type only until runtime behavior lands
+  * [x] Reject unknown arbitrary manifest fields unless a deliberate extension namespace is added later
+  * [x] Document active manifest fields separately from reserved/inert manifest fields
+  * [x] Fail startup with a clear error if a module manifest is invalid
 
-* [ ] Add developer-facing module manifest documentation
+* [x] Add developer-facing module manifest documentation
 
-  * [ ] Explain required fields
-  * [ ] Explain optional fields
-  * [ ] Explain which fields are currently active and which are reserved for future framework features
-  * [ ] Explain how modules contribute to Dashboard, Workbench, navigation, settings, permissions, public API, timer sources, and workbench item sources
-  * [ ] Explain that Time Tracking owns timer persistence while source modules expose timer-capable records
-  * [ ] Explain that notifications are framework-owned, while modules only declare notification events/templates
-  * [ ] Include a small example module manifest
+  * [x] Explain required fields
+  * [x] Explain optional fields
+  * [x] Explain which fields are currently active and which are reserved for future framework features
+  * [x] Explain how modules contribute to Dashboard, Workbench, navigation, settings, permissions, public API, timer sources, and workbench item sources
+  * [x] Explain that Time Tracking owns timer persistence while source modules expose timer-capable records
+  * [x] Explain that notifications are framework-owned, while modules only declare notification events/templates
+  * [x] Include a small example module manifest
 
-* [ ] Do not add full third-party plugin loading yet
+* [x] Do not add full third-party plugin loading yet
 
   * This version should define the contract first
   * First-party modules should start following the same rules future third-party modules will follow

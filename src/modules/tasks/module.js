@@ -7,8 +7,9 @@ const tasksModule = {
   displayName: "Tasks",
   description: "Workspace, client, and project task tracking with scoped assignment and due-date foundations.",
   category: "core-workflow",
-  version: "0.31.7",
+  version: "0.31.10",
   enabledByDefault: true,
+  canDisable: true,
   historicalReadAccess: true,
   browserApiRoutes: [tasksRoutes],
   publicApiRoutes: [tasksPublicApiRoutes],
@@ -27,6 +28,19 @@ const tasksModule = {
       renderer: "task-summary",
       counts: ["overdue", "dueSoon", "assignedToMe"],
       links: ["overdue", "dueSoon", "assignedToMe"],
+    },
+  ],
+  workbench: [
+    {
+      id: "task-workbench-items",
+      label: "Tasks",
+      renderer: "task-workbench-items",
+      moduleId: "tasks",
+      requiredPermissions: ["tasks.view"],
+      requiredWorkspaceCapabilities: ["projects"],
+      requiresEnabledModules: ["tasks"],
+      defaultCollapsed: false,
+      sortOrder: 20,
     },
   ],
   reporting: [],
@@ -49,6 +63,36 @@ const tasksModule = {
     "tasks.complete",
     "tasks.archive",
     "tasks.restore",
+  ],
+  apiScopes: ["tasks:read", "tasks:write"],
+  timerSources: [
+    {
+      sourceType: "task",
+      moduleId: "tasks",
+      label: "Task Timer",
+      listRoute: "/api/tasks/timers",
+      startRoute: "/api/tasks/:taskId/timer",
+      pauseRoute: "/api/tasks/:taskId/timer",
+      finalizeRoute: "/api/tasks/:taskId/timer/finalize",
+      requiredPermissions: ["tasks.view", "time_entries.create"],
+      requiredModules: ["tasks", "time-tracking"],
+    },
+  ],
+  workItemSources: [
+    {
+      sourceType: "task",
+      moduleId: "tasks",
+      label: "Tasks",
+      listRoute: "/api/workbench/bootstrap",
+      requiredPermissions: ["tasks.view"],
+      requiredModules: ["tasks"],
+      filterHints: {
+        supported: ["all", "due-soon", "assigned-to-me", "active"],
+      },
+      sortHints: {
+        supported: ["due_at", "priority", "title", "timer_status"],
+      },
+    },
   ],
   workspaceCapabilityRequirements: ["projects", "clients_projects"],
   settings: [
@@ -73,7 +117,6 @@ const tasksModule = {
     "timezone-normalization",
     "workspace-settings",
   ],
-  seedData: [],
 };
 
 export { tasksModule };

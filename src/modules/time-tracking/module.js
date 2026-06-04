@@ -7,8 +7,9 @@ const timeTrackingModule = {
   displayName: "Time Tracking",
   description: "Timers, manual entries, editable time entries, and billable time capture.",
   category: "core-workflow",
-  version: "0.31.7",
+  version: "0.31.10",
   enabledByDefault: true,
+  canDisable: true,
   historicalReadAccess: true,
   browserApiRoutes: [timeEntriesRoutes],
   publicApiRoutes: [timeTrackingPublicApiRoutes],
@@ -27,6 +28,19 @@ const timeTrackingModule = {
     { id: "active-timers", label: "Active Timers" },
     { id: "recent-time", label: "Recent Time" },
     { id: "billing-summary", label: "Billing Summary" },
+  ],
+  workbench: [
+    {
+      id: "active-work-timers",
+      label: "Active Timers",
+      renderer: "active-work-timers",
+      moduleId: "time-tracking",
+      requiredPermissions: ["time_entries.create"],
+      requiredWorkspaceCapabilities: ["time_tracking"],
+      requiresEnabledModules: ["time-tracking"],
+      defaultCollapsed: false,
+      sortOrder: 10,
+    },
   ],
   reporting: [
     { id: "project-time-billing", label: "Project Time & Billing" },
@@ -50,6 +64,21 @@ const timeTrackingModule = {
       moduleStatus: true,
     },
   ],
+  apiScopes: ["time_entries:read", "time_entries:write"],
+  timerSources: [
+    {
+      sourceType: "manual",
+      moduleId: "time-tracking",
+      label: "Manual Timer",
+      listRoute: "/api/active-timers",
+      startRoute: "/api/active-timers/:timerSlot",
+      pauseRoute: "/api/active-timers/:timerSlot",
+      finalizeRoute: "/api/active-timers/:timerSlot/finalize",
+      requiredPermissions: ["time_entries.create"],
+      requiredModules: ["time-tracking"],
+    },
+  ],
+  workItemSources: [],
   frameworkDependencies: [
     "api-key-auth",
     "audit-service",
@@ -60,7 +89,6 @@ const timeTrackingModule = {
     "timezone-normalization",
     "workspace-settings",
   ],
-  seedData: [],
 };
 
 export { timeTrackingModule };

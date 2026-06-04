@@ -6,8 +6,9 @@ const clientProjectsModule = {
   displayName: "Clients and Projects",
   description: "Client and project records, billing defaults, and nested compatibility read models.",
   category: "core-workflow",
-  version: "0.30.8",
+  version: "0.31.10",
   enabledByDefault: true,
+  canDisable: true,
   historicalReadAccess: true,
   browserApiRoutes: [clientsRoutes],
   publicApiRoutes: [],
@@ -34,8 +35,11 @@ const clientProjectsModule = {
     "projects.manage",
     "billing.manage",
   ],
+  apiScopes: ["clients:read", "projects:read"],
+  workbench: [],
+  timerSources: [],
+  workItemSources: [],
   workspaceCapabilityRequirements: ["clients_projects", "projects"],
-  seedData: [],
 };
 
 export { clientProjectsModule };
