@@ -7,8 +7,12 @@ const TASKS_MODULE_ID = "tasks";
 const TIME_TRACKING_MODULE_ID = "time-tracking";
 
 async function bootstrap(session) {
-  // TODO 0.31.10-0.31.15: replace this pragmatic first-party assembly with registry-driven Workbench card, timer-source, and workbench item contributions.
-  const moduleContext = await modulesService.readWorkspaceModuleContext(session.workspace_id);
+  const [moduleContext, workbenchCards, timerSources, workItemSources] = await Promise.all([
+    modulesService.readWorkspaceModuleContext(session.workspace_id),
+    modulesService.listWorkbenchCards(session.workspace_id, session),
+    modulesService.listTimerSources(session.workspace_id, session),
+    modulesService.listWorkItemSources(session.workspace_id, session),
+  ]);
   const moduleStatusById = moduleContext.moduleStatusById || {};
   const timeTrackingEnabled = moduleStatusById[TIME_TRACKING_MODULE_ID] === "enabled";
   const tasksEnabled = moduleStatusById[TASKS_MODULE_ID] === "enabled";
@@ -23,6 +27,11 @@ async function bootstrap(session) {
     modules: {
       tasks: { enabled: tasksEnabled },
       timeTracking: { enabled: timeTrackingEnabled },
+    },
+    registry: {
+      workbenchCards,
+      timerSources,
+      workItemSources,
     },
     timers: (timerResult.timers || []).map((timer) => normalizeTimer(timer, moduleStatusById)),
     taskItems: taskResult

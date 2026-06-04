@@ -14,7 +14,7 @@ import { reportingRoutes } from "../routes/reporting.routes.js";
 import { settingsRoutes } from "../routes/settings.routes.js";
 import { staticRoutes } from "../routes/static.routes.js";
 import { workbenchRoutes } from "../routes/workbench.routes.js";
-import { listBrowserApiRoutes, listPublicApiRoutes } from "./modules/registry.js";
+import { modulesService } from "./modules/modules.service.js";
 
 function createApp() {
   const app = express();
@@ -25,7 +25,7 @@ function createApp() {
   app.use("/api", appInfoRoutes);
   app.use("/api", authRoutes);
   app.use(publicApiRoutes);
-  for (const moduleRoutes of listPublicApiRoutes()) {
+  for (const moduleRoutes of modulesService.listModuleRoutes("public")) {
     app.use(moduleRoutes);
   }
   app.use(requireAuth);
@@ -35,7 +35,7 @@ function createApp() {
   app.use("/api", reportingRoutes);
   app.use("/api", settingsRoutes);
   app.use("/api", workbenchRoutes);
-  for (const moduleRoutes of listBrowserApiRoutes()) {
+  for (const moduleRoutes of modulesService.listModuleRoutes("browser")) {
     app.use("/api", moduleRoutes);
   }
   app.use("/api", (request, response, next) => {

@@ -8,6 +8,14 @@ The module registry validates every registered module before exposing route, mig
 
 Unknown arbitrary manifest fields are rejected. Future extension data should wait for a deliberate extension namespace instead of being added ad hoc.
 
+## Registry Service
+
+`src/core/modules/registry.js` remains the static first-party registration list. It does not perform filesystem discovery and does not load third-party modules yet.
+
+`src/core/modules/modules.service.js` is the framework-facing registry service. It provides module lookup, route lists, migration sources, enabled workspace module state, navigation/settings contribution collection, permission and API scope collection, reserved tag/search/notification contribution lists, and Workbench/timer/work-item contribution collection.
+
+Workspace-aware contribution helpers filter disabled modules, missing module dependencies, workspace capability mismatches, and user permission mismatches. Capability lists are treated as "any of these capabilities makes the contribution relevant" so Business, Personal, and Family workspaces can share module manifests without duplicate definitions.
+
 ## Active Fields
 
 These fields are currently accepted by the manifest validator:

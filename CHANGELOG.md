@@ -1,3 +1,13 @@
+## Version 0.31.11 - 2026-06-04 16:46 -04:00
+
+- Refactored module registry behavior behind `modulesService` with module lookup, route lists, workspace-enabled module reads, contribution collection, permission lists, API scope lists, and reserved tag/search/notification list helpers.
+- Added Workbench registry helpers for enabled Workbench cards, timer sources, work item sources, and source lookups, with module, capability, dependency, and permission filtering.
+- Added dependency validation before enabling workspace modules so missing framework or module dependencies return clear errors.
+- Updated Workbench bootstrap to include registry-collected Workbench cards, timer sources, and work item sources while preserving current normalized timer/task payloads.
+- Updated Tasks and Time Tracking Workbench capability hints so registry filtering exposes their cards across supported workspace types.
+- Documented the static registry versus framework-facing registry service split in `docs/module-contract.md`.
+- Bumped the app version to `0.31.11`.
+
 ## Version 0.31.10 - 2026-06-04 16:26 -04:00
 
 - Added startup module manifest validation for unique IDs, required fields, route arrays, navigation, dashboard, Workbench, timer source, work item source, settings, permissions, API scopes, reserved fields, dependencies, and unknown manifest fields.

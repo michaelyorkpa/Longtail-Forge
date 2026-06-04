@@ -31,6 +31,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - [ ] In Add Task modal, "All Projects" exists, but we've lost the "{{workspaceName}} Projects" to sort by.
 
+- [ ] In Projects -> Tasks the task list should move the buttons to the bottom of each list item, side-by-side
+  - Drop the "Actions" column
+  - Truncate Scope, but add hover over reveal for full detail
+
 - How is the "Remove Workspace" button wired, currently on User Settings page?
 
 - What happens when a user is removed from all workspaces?

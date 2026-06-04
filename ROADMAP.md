@@ -2,215 +2,69 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.10 - Module Manifest Contract
-
-Some notes for implementation:
-- Time Tracking owns active timer persistence and finalization.
-- Other modules may expose timer-capable workbench items.
-- The Workbench page renders normalized timer/workbench item data.
-- No module should hard-code another module's frontend behavior unless routed through the declared integration contract.
-
-* [x] Formalize the module manifest contract
-
-  * [x] Create a documented list of supported module definition fields
-  * [x] Keep the manifest format simple enough for first-party modules and future third-party modules
-  * [x] Module manifests should support:
-
-    * `id`
-    * `name`
-    * `displayName`
-    * `description`
-    * `category`
-    * `version`
-    * `enabledByDefault`
-    * `canDisable`
-    * `historicalReadAccess`
-    * `browserApiRoutes`
-    * `publicApiRoutes`
-    * `migrationsDir`
-    * `protectedViewsDir`
-    * `publicViewsDir`
-    * `browserAssetsDir`
-    * `navigation`
-    * `dashboard`
-    * `workbench`
-    * `settings`
-    * `requiredPermissions`
-    * `publicApiEndpoints`
-    * `apiScopes`
-    * `timerSources`
-    * `workItemSources`
-    * `taggableTypes`
-    * `searchableTypes`
-    * `notificationEvents`
-    * `notificationTemplates`
-    * `auditRecordTypes`
-    * `eventTypes`
-    * `hooks`
-    * `frameworkDependencies`
-    * `moduleDependencies`
-    * `seedHooks`
-    * `repairHooks`
-
-* [x] Define the Workbench page contribution contract
-
-  * [x] Modules may contribute Workbench page cards through a `workbench` manifest section
-  * [x] Workbench page cards should include:
-    * `id`
-    * `label`
-    * `renderer`
-    * `moduleId`
-    * `requiredPermissions`
-    * `requiredWorkspaceCapabilities`
-    * `requiresEnabledModules`
-    * `defaultCollapsed`
-    * `sortOrder`
-  * [x] Workbench page cards should be hidden when the contributing module is disabled
-  * [x] Workbench page cards should respect permissions before showing record data
-  * [x] Framework-owned Workbench cards should be allowed for core workflow areas such as active timers
-
-* [x] Define the timer source contract
-
-  * [x] Modules may declare timer-capable record types through `timerSources`
-  * [x] Timer source declarations should include:
-    * `sourceType`
-    * `moduleId`
-    * `label`
-    * `listRoute`
-    * `startRoute`
-    * `pauseRoute`
-    * `finalizeRoute`
-    * `requiredPermissions`
-    * `requiredModules`
-  * [x] Time Tracking should remain the owner of active timer persistence
-  * [x] Source modules should provide record context, not own duplicate timer engines
-  * [x] Source modules should be able to create sourced timers without making Time Tracking depend directly on that source module
-  * [x] Timer source routes should return a normalized timer/workbench item shape usable by the Workbench page
-
-* [x] Define the workbench item source contract
-
-  * [x] Modules may expose actionable records to the Workbench page through `workItemSources`
-  * [x] Workbench item sources should support Tasks first and Support Tickets later
-  * [x] Workbench item records should normalize to:
-    * `source_module_id`
-    * `source_type`
-    * `source_id`
-    * `source_label`
-    * `source_url`
-    * `title`
-    * `description`
-    * `client_id`
-    * `client_name`
-    * `project_id`
-    * `project_name`
-    * `status`
-    * `priority`
-    * `due_at`
-    * `assignee_ids`
-    * `timer_status`
-    * `elapsed_seconds`
-  * [x] Workbench item sources should support filtering/sorting hints without requiring the Workbench page to know module-specific internals
-
-* [x] Add module manifest validation at startup
-
-  * [x] Validate that every module has a unique `id`
-  * [x] Validate required fields
-  * [x] Validate route arrays
-  * [x] Validate navigation definitions
-  * [x] Validate dashboard definitions
-  * [x] Validate Workbench page contribution definitions
-  * [x] Validate timer source definitions
-  * [x] Validate workbench item source definitions
-  * [x] Validate settings definitions
-  * [x] Validate permission declarations
-  * [x] Validate API scope declarations
-  * [x] Validate taggable/searchable type declarations
-  * [x] Validate notification event/template declarations
-  * [x] Validate dependency declarations
-  * [x] Accept known reserved future fields but validate their basic shape/type only until runtime behavior lands
-  * [x] Reject unknown arbitrary manifest fields unless a deliberate extension namespace is added later
-  * [x] Document active manifest fields separately from reserved/inert manifest fields
-  * [x] Fail startup with a clear error if a module manifest is invalid
-
-* [x] Add developer-facing module manifest documentation
-
-  * [x] Explain required fields
-  * [x] Explain optional fields
-  * [x] Explain which fields are currently active and which are reserved for future framework features
-  * [x] Explain how modules contribute to Dashboard, Workbench, navigation, settings, permissions, public API, timer sources, and workbench item sources
-  * [x] Explain that Time Tracking owns timer persistence while source modules expose timer-capable records
-  * [x] Explain that notifications are framework-owned, while modules only declare notification events/templates
-  * [x] Include a small example module manifest
-
-* [x] Do not add full third-party plugin loading yet
-
-  * This version should define the contract first
-  * First-party modules should start following the same rules future third-party modules will follow
-  * Avoid building a large plugin installer before the framework behavior is stable
-
 ## Version 0.31.11 - Module Registry Cleanup
 
-* [ ] Refactor the module registry into a clearer framework service
+* [x] Refactor the module registry into a clearer framework service
 
-  * [ ] Keep first-party modules explicitly registered for now
-  * [ ] Avoid automatic filesystem discovery
-  * [ ] Prepare the registry so external module manifests can be added later through configuration
-  * [ ] Keep registry behavior predictable and easy to debug
+  * [x] Keep first-party modules explicitly registered for now
+  * [x] Avoid automatic filesystem discovery
+  * [x] Prepare the registry so external module manifests can be added later through configuration
+  * [x] Keep registry behavior predictable and easy to debug
 
-* [ ] Split module registry responsibilities
+* [x] Split module registry responsibilities
 
-  * [ ] Module definition loading
-  * [ ] Module validation
-  * [ ] Module lookup by ID
-  * [ ] Enabled/disabled workspace module state
-  * [ ] Browser API route registration
-  * [ ] Public API route registration
-  * [ ] Migration source registration
-  * [ ] Navigation contribution collection
-  * [ ] Settings contribution collection
-  * [ ] Permission contribution collection
-  * [ ] API scope contribution collection
-  * [ ] Taggable type contribution collection
-  * [ ] Searchable type contribution collection
-  * [ ] Notification event/template contribution collection
+  * [x] Module definition loading
+  * [x] Module validation
+  * [x] Module lookup by ID
+  * [x] Enabled/disabled workspace module state
+  * [x] Browser API route registration
+  * [x] Public API route registration
+  * [x] Migration source registration
+  * [x] Navigation contribution collection
+  * [x] Settings contribution collection
+  * [x] Permission contribution collection
+  * [x] API scope contribution collection
+  * [x] Taggable type contribution collection
+  * [x] Searchable type contribution collection
+  * [x] Notification event/template contribution collection
 
-* [ ] Add registry helper methods
+* [x] Add registry helper methods
 
-  * [ ] `listModules()`
-  * [ ] `getModule(moduleId)`
-  * [ ] `listEnabledModules(workspaceId)`
-  * [ ] `listModuleRoutes(type)`
-  * [ ] `listModuleNavigation(workspaceId, session)`
-  * [ ] `listModuleSettings(workspaceId, session)`
-  * [ ] `listModulePermissions()`
-  * [ ] `listModuleApiScopes()`
-  * [ ] `listTaggableTypes()`
-  * [ ] `listSearchableTypes()`
-  * [ ] `listNotificationEvents()`
-  * [ ] `listNotificationTemplates()`
+  * [x] `listModules()`
+  * [x] `getModule(moduleId)`
+  * [x] `listEnabledModules(workspaceId)`
+  * [x] `listModuleRoutes(type)`
+  * [x] `listModuleNavigation(workspaceId, session)`
+  * [x] `listModuleSettings(workspaceId, session)`
+  * [x] `listModulePermissions()`
+  * [x] `listModuleApiScopes()`
+  * [x] `listTaggableTypes()`
+  * [x] `listSearchableTypes()`
+  * [x] `listNotificationEvents()`
+  * [x] `listNotificationTemplates()`
 
-* [ ] Add Workbench page and timer-source registry responsibilities
+* [x] Add Workbench page and timer-source registry responsibilities
 
-  * [ ] Collect Workbench page card contributions from enabled modules
-  * [ ] Collect timer source declarations from enabled modules
-  * [ ] Collect workbench item source declarations from enabled modules
-  * [ ] Validate source module dependencies before exposing timer/workbench item sources
-  * [ ] Filter Workbench page contributions by workspace type, workspace capabilities, module status, and permissions
-  * [ ] Provide normalized registry output for the Workbench page bootstrap/API
+  * [x] Collect Workbench page card contributions from enabled modules
+  * [x] Collect timer source declarations from enabled modules
+  * [x] Collect workbench item source declarations from enabled modules
+  * [x] Validate source module dependencies before exposing timer/workbench item sources
+  * [x] Filter Workbench page contributions by workspace type, workspace capabilities, module status, and permissions
+  * [x] Provide normalized registry output for the Workbench page bootstrap/API
 
-* [ ] Add registry helper methods for Workbench/timer integrations
+* [x] Add registry helper methods for Workbench/timer integrations
 
-  * [ ] `listWorkbenchCards(workspaceId, session)`
-  * [ ] `listTimerSources(workspaceId, session)`
-  * [ ] `listWorkItemSources(workspaceId, session)`
-  * [ ] `getTimerSource(moduleId, sourceType)`
-  * [ ] `getWorkItemSource(moduleId, sourceType)`
+  * [x] `listWorkbenchCards(workspaceId, session)`
+  * [x] `listTimerSources(workspaceId, session)`
+  * [x] `listWorkItemSources(workspaceId, session)`
+  * [x] `getTimerSource(moduleId, sourceType)`
+  * [x] `getWorkItemSource(moduleId, sourceType)`
 
-* [ ] Add framework-level checks for module dependencies
+* [x] Add framework-level checks for module dependencies
 
-  * [ ] Prevent enabling a module when required framework dependencies are missing
-  * [ ] Prevent enabling a module when required module dependencies are disabled
-  * [ ] Return a clear message explaining which dependency blocks enabling the module
+  * [x] Prevent enabling a module when required framework dependencies are missing
+  * [x] Prevent enabling a module when required module dependencies are disabled
+  * [x] Return a clear message explaining which dependency blocks enabling the module
 
 ## Version 0.31.12 - Module Enable/Disable Lifecycle
 
