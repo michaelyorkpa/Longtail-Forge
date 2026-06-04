@@ -35,6 +35,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - Drop the "Actions" column
   - Truncate Scope, but add hover over reveal for full detail
 
+- [ ] Add a "Duplicate" button to create a new task from a completed/existing task
+
 - How is the "Remove Workspace" button wired, currently on User Settings page?
 
 - What happens when a user is removed from all workspaces?
