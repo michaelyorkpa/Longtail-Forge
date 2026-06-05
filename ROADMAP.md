@@ -2,98 +2,55 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.19 - Developer Module Example and Documentation
-
-* [x] Add an example first-party stub module
-
-  * [x] Keep it disabled by default
-  * [x] Keep it simple and clearly marked as a developer example
-  * [x] Include example browser API route
-  * [x] Include example public API route if useful
-  * [x] Include example navigation entry
-  * [x] Include example settings field
-  * [x] Include example permission declaration
-  * [x] Include example view registration
-  * [x] Include example event hook
-  * [x] Include example notification event/template declaration
-  * [x] Do not add business functionality to the stub module
-
-* [x] Add developer documentation
-
-  * [x] How to create a module manifest
-  * [x] How to register module routes
-  * [x] How module settings work
-  * [x] How module permissions work
-  * [x] How module navigation works
-  * [x] How module views/assets work
-  * [x] How module migrations work
-  * [x] How events/hooks work
-  * [x] How module enable/disable works
-  * [x] How framework notifications work
-  * [x] How modules declare notification events/templates
-  * [x] How tags/search will hook into modules starting in 0.32.x
-
-* [x] Add a framework sanity check script
-
-  * [x] Validate registered modules
-  * [x] Validate duplicate module IDs
-  * [x] Validate duplicate routes where practical
-  * [x] Validate duplicate permission IDs
-  * [x] Validate duplicate API scopes
-  * [x] Validate duplicate notification event IDs
-  * [x] Validate malformed notification templates
-  * [x] Validate missing module dependencies
-  * [x] Add the script to `npm run check`
-
 ## Version 0.31.20 - Timer Sources and Workbench Item Integration Cleanup
 
-* [ ] Formalize first-party timer source routes
+* [x] Formalize first-party timer source routes
 
-  * [ ] Time Tracking should expose shared active timer routes for:
+  * [x] Time Tracking should expose shared active timer routes for:
     * Listing active/paused timers
     * Starting a timer
     * Pausing a timer
     * Finalizing a timer into a time entry
     * Removing/discarding a timer
-  * [ ] Source modules should expose source-specific workbench item routes where needed
-  * [ ] Tasks should expose trackable task records through the timer/workbench item source contract
-  * [ ] Support Tickets should later use the same contract instead of creating a separate timer system
+  * [x] Source modules should expose source-specific workbench item routes where needed
+  * [x] Tasks should expose trackable task records through the timer/workbench item source contract
+  * [x] Support Tickets should later use the same contract instead of creating a separate timer system
 
-* [ ] Normalize Workbench page timer behavior
+* [x] Normalize Workbench page timer behavior
 
-  * [ ] Workbench page should list manual timers and sourced timers together
-  * [ ] Workbench page should display the timer source clearly
-  * [ ] Workbench page should allow quick switching between manual timers, task timers, and future ticket timers
-  * [ ] Time Tracker stopwatch page should be able to selectively pull in saved manual timers and sourced timers such as task timers
-  * [ ] Workbench page should not need to know whether a timer came from Tasks, Tickets, or another future module
-  * [ ] Workbench page should handle disabled modules gracefully
+  * [x] Workbench page should list manual timers and sourced timers together
+  * [x] Workbench page should display the timer source clearly
+  * [x] Workbench page should allow quick switching between manual timers, task timers, and future ticket timers
+  * [x] Time Tracker stopwatch page should be able to selectively pull in saved manual timers and sourced timers such as task timers
+  * [x] Workbench page should not need to know whether a timer came from Tasks, Tickets, or another future module
+  * [x] Workbench page should handle disabled modules gracefully
 
-* [ ] Keep Time Tracking and Tasks separate but integrated
+* [x] Keep Time Tracking and Tasks separate but integrated
 
-  * [ ] Time Tracking remains usable when Tasks is disabled
-  * [ ] Tasks remains usable when Time Tracking is disabled, but task timers are unavailable
-  * [ ] Task timers require both Tasks and Time Tracking to be enabled
-  * [ ] Task timer permissions should require task read access and time entry create access
-  * [ ] Finalized task timers should create normal time entries with `task_id`
-  * [ ] Task completion should continue to block or warn when an active task timer exists
+  * [x] Time Tracking remains usable when Tasks is disabled
+  * [x] Tasks remains usable when Time Tracking is disabled, but task timers are unavailable
+  * [x] Task timers require both Tasks and Time Tracking to be enabled
+  * [x] Task timer permissions should require task read access and time entry create access
+  * [x] Finalized task timers should create normal time entries with `task_id`
+  * [x] Task completion should continue to block or warn when an active task timer exists
 
-* [ ] Prepare Support Ticket timer integration
+* [x] Prepare Support Ticket timer integration
 
-  * [ ] Define expected source values for tickets:
+  * [x] Define expected source values for tickets:
     * `source_module_id = support-tickets`
     * `source_type = ticket`
     * `source_id = ticket_id`
-  * [ ] Tickets should eventually appear in the Workbench page as trackable workbench items
-  * [ ] Ticket timers should finalize into normal time entries with `ticket_id` or equivalent source metadata
-  * [ ] Ticket timer behavior should reuse the same active timer engine as manual and task timers
+  * [x] Tickets should eventually appear in the Workbench page as trackable workbench items
+  * [x] Ticket timers should finalize into normal time entries with `ticket_id` or equivalent source metadata
+  * [x] Ticket timer behavior should reuse the same active timer engine as manual and task timers
 
-* [ ] Add developer documentation
+* [x] Add developer documentation
 
-  * [ ] Explain how a module exposes timer-capable records
-  * [ ] Explain how a module exposes Workbench page cards
-  * [ ] Explain how source metadata flows into active timers
-  * [ ] Explain how finalized timers become time entries
-  * [ ] Include examples for manual timers, task timers, and future ticket timers
+  * [x] Explain how a module exposes timer-capable records
+  * [x] Explain how a module exposes Workbench page cards
+  * [x] Explain how source metadata flows into active timers
+  * [x] Explain how finalized timers become time entries
+  * [x] Include examples for manual timers, task timers, and future ticket timers
 
 ## Version 0.32.0 - Notifications Framework Foundation
 

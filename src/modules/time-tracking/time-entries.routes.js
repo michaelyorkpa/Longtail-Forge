@@ -32,9 +32,34 @@ timeEntriesRoutes.get("/active-timers", asyncRoute(async (request, response) => 
   response.status(200).json(result);
 }));
 
+timeEntriesRoutes.get("/active-timers/all", asyncRoute(async (request, response) => {
+  const result = await activeTimersService.listAll(request.session);
+  response.status(200).json(result);
+}));
+
 timeEntriesRoutes.put("/active-timers/:timerSlot", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await activeTimersService.save(request.params.timerSlot, payload, request.session);
+  response.status(200).json(result);
+}));
+
+timeEntriesRoutes.post("/active-timers/:timerSlot/start", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await activeTimersService.updateStatus(
+    request.params.timerSlot,
+    { ...payload, timer_status: "running" },
+    request.session,
+  );
+  response.status(200).json(result);
+}));
+
+timeEntriesRoutes.post("/active-timers/:timerSlot/pause", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await activeTimersService.updateStatus(
+    request.params.timerSlot,
+    { ...payload, timer_status: "paused" },
+    request.session,
+  );
   response.status(200).json(result);
 }));
 

@@ -129,6 +129,33 @@ check("framework dependencies are known", () => {
   }
 });
 
+check("timer sources expose the lifecycle contract", () => {
+  for (const moduleDefinition of modules) {
+    for (const source of moduleDefinition.timerSources || []) {
+      assert.ok(source.listRoute, `${moduleDefinition.id}:${source.sourceType} timer source listRoute is required`);
+      assert.ok(source.startRoute, `${moduleDefinition.id}:${source.sourceType} timer source startRoute is required`);
+      assert.ok(source.pauseRoute, `${moduleDefinition.id}:${source.sourceType} timer source pauseRoute is required`);
+      assert.ok(source.finalizeRoute, `${moduleDefinition.id}:${source.sourceType} timer source finalizeRoute is required`);
+      assert.ok(source.removeRoute, `${moduleDefinition.id}:${source.sourceType} timer source removeRoute is required`);
+      assert.ok(source.requiredPermissions?.length > 0, `${moduleDefinition.id}:${source.sourceType} timer source permissions are required`);
+      assert.ok(source.requiredModules?.includes(moduleDefinition.id), `${moduleDefinition.id}:${source.sourceType} timer source must require its owner module`);
+    }
+  }
+});
+
+check("work item sources expose dedicated list routes", () => {
+  for (const moduleDefinition of modules) {
+    for (const source of moduleDefinition.workItemSources || []) {
+      assert.notEqual(
+        source.listRoute,
+        "/api/workbench/bootstrap",
+        `${moduleDefinition.id}:${source.sourceType} work item source must not point at the aggregate Workbench bootstrap route`,
+      );
+      assert.ok(source.requiredModules?.includes(moduleDefinition.id), `${moduleDefinition.id}:${source.sourceType} work item source must require its owner module`);
+    }
+  }
+});
+
 function inspectRouterRoutes(router) {
   return (router?.stack || [])
     .filter((layer) => layer.route?.path)
@@ -146,4 +173,3 @@ function normalizePath(value) {
 }
 
 console.log(`Module sanity check passed ${checks} checks.`);
-

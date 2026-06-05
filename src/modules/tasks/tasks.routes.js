@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { tasksService } from "./tasks.service.js";
 import { taskTimersService } from "./task-timers.service.js";
+import { workbenchService } from "../../services/workbench.service.js";
 import { asyncRoute, readJsonBody } from "../../core/http.js";
 
 const tasksRoutes = Router();
@@ -29,6 +30,11 @@ tasksRoutes.get("/tasks/calendar", asyncRoute(async (request, response) => {
 
 tasksRoutes.get("/tasks/timers", asyncRoute(async (request, response) => {
   const result = await taskTimersService.list(request.session);
+  response.status(200).json(result);
+}));
+
+tasksRoutes.get("/tasks/workbench-items", asyncRoute(async (request, response) => {
+  const result = await workbenchService.listTaskWorkItems(request.session);
   response.status(200).json(result);
 }));
 

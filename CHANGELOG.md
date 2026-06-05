@@ -1,3 +1,14 @@
+## Version 0.31.20 - 2026-06-05 02:15 -04:00
+
+- Added a shared `/api/active-timers/all` route for manual and sourced active/paused timer listing.
+- Added explicit active timer start and pause lifecycle routes alongside existing finalize and remove behavior.
+- Added a dedicated `/api/tasks/workbench-items` source route with normalized task Workbench records and timer summaries.
+- Updated timer source manifest metadata with remove routes and pointed Tasks work item metadata at its dedicated list route.
+- Added nested timer source metadata to Workbench timer and task payloads while preserving flat compatibility fields.
+- Documented timer-capable records, Workbench item sources, source metadata flow, task timers, and future Support Ticket timer values.
+- Extended the module sanity check to validate timer source lifecycle routes and dedicated work-item source routes.
+- Bumped the app and first-party module versions to `0.31.20`.
+
 ## Version 0.31.19 - 2026-06-05 02:00 -04:00
 
 - Added a disabled-by-default `developer-example` first-party module that demonstrates manifest routes, view registration, browser assets, settings, permissions, API scopes, events, notification declarations, tag/search declarations, and event hooks.

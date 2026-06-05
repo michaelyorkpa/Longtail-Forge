@@ -41,10 +41,28 @@ async function bootstrap(session) {
   };
 }
 
+async function listTaskWorkItems(session) {
+  const [moduleContext, taskResult, taskTimerResult] = await Promise.all([
+    modulesService.readWorkspaceModuleContext(session.workspace_id),
+    tasksService.list(session),
+    taskTimersService.list(session),
+  ]);
+  const tasksEnabled = moduleContext.moduleStatusById?.[TASKS_MODULE_ID] === "enabled";
+
+  return {
+    source_module_id: TASKS_MODULE_ID,
+    source_type: "task",
+    source_enabled: tasksEnabled,
+    items: (taskResult.tasks || []).map((task) => normalizeTaskItem(task, taskTimerResult.timers || [], session.user_id)),
+    options: taskResult.options || null,
+  };
+}
+
 function normalizeTimer(timer, moduleStatusById) {
   const sourceModuleId = timer.source_module_id || "";
   const sourceType = timer.source_type || "manual";
   const sourceEnabled = !sourceModuleId || moduleStatusById[sourceModuleId] === "enabled";
+  const sourceLabelValue = timer.source_label || timer.description || sourceLabel(sourceType);
 
   return {
     active_timer_id: timer.active_timer_id,
@@ -52,9 +70,17 @@ function normalizeTimer(timer, moduleStatusById) {
     source_module_id: sourceModuleId,
     source_type: sourceType,
     source_id: timer.source_id || "",
-    source_label: timer.source_label || timer.description || sourceLabel(sourceType),
+    source_label: sourceLabelValue,
     source_url: timer.source_url || "",
     source_enabled: sourceEnabled,
+    source: {
+      module_id: sourceModuleId || TIME_TRACKING_MODULE_ID,
+      type: sourceType,
+      id: timer.source_id || "",
+      label: sourceLabelValue,
+      url: timer.source_url || "",
+      enabled: sourceEnabled,
+    },
     client_id: timer.client_id || "",
     client_name: timer.client_name || "",
     project_id: timer.project_id || "",
@@ -71,13 +97,22 @@ function normalizeTimer(timer, moduleStatusById) {
 
 function normalizeTaskItem(task, taskTimers, currentUserId) {
   const timer = taskTimers.find((item) => item.task_id === task.task_id) || null;
+  const sourceUrl = `tasks.html?task=${encodeURIComponent(task.task_id)}`;
 
   return {
     source_module_id: "tasks",
     source_type: "task",
     source_id: task.task_id,
     source_label: task.title,
-    source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
+    source_url: sourceUrl,
+    source: {
+      module_id: "tasks",
+      type: "task",
+      id: task.task_id,
+      label: task.title,
+      url: sourceUrl,
+      enabled: true,
+    },
     task_id: task.task_id,
     title: task.title,
     description: task.description || "",
@@ -108,4 +143,5 @@ function sourceLabel(sourceType) {
 
 export const workbenchService = {
   bootstrap,
+  listTaskWorkItems,
 };

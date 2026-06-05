@@ -381,6 +381,7 @@ function validateTimerSources(timerSources, moduleId, errors) {
     optionalString(item, "startRoute", errors, { prefix: `timerSources[${index}]` });
     optionalString(item, "pauseRoute", errors, { prefix: `timerSources[${index}]` });
     optionalString(item, "finalizeRoute", errors, { prefix: `timerSources[${index}]` });
+    optionalString(item, "removeRoute", errors, { prefix: `timerSources[${index}]` });
     optionalStringArray(item, "requiredPermissions", errors, { prefix: `timerSources[${index}]` });
     optionalStringArray(item, "requiredModules", errors, { prefix: `timerSources[${index}]` });
   });
