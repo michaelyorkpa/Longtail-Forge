@@ -1,3 +1,12 @@
+## Version 0.31.13 - 2026-06-04 23:52 -04:00
+
+- Added authenticated `/api/app-shell/bootstrap` with app metadata, active workspace context, workspace switcher data, enabled modules, registry-driven navigation, notification placeholders, user theme/timezone basics, and permission hints.
+- Added backend app-shell navigation assembly that combines framework links with enabled module navigation from the registry.
+- Updated the browser app shell to render server-provided navigation while retaining the static navigation tree as a loading/fallback path.
+- Preserved Dashboard, Workbench, Projects, Reporting, Settings, workspace switching, logout, and user settings behavior during the registry-driven navigation refactor.
+- Documented the app-shell bootstrap navigation contract in `docs/module-contract.md`.
+- Bumped the app version to `0.31.13`.
+
 ## Version 0.31.12 - 2026-06-04 17:12 -04:00
 
 - Centralized module enable/disable state changes in `modulesService.setModuleStatus` with non-disableable module safety, dependency checks, lifecycle hook calls, and no-op handling for unchanged states.

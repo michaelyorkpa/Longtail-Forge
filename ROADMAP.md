@@ -2,99 +2,51 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.12 - Module Enable/Disable Lifecycle
-
-* [x] Define module enable/disable behavior clearly
-
-  * Disabling a module should not delete module data
-  * Disabling a module should hide module navigation
-  * Disabling a module should block normal browser API writes
-  * Disabling a module should block public API writes
-  * Disabled modules may allow historical reads only when `historicalReadAccess` is true
-  * Disabled modules should stop background hooks or scheduled module behavior
-  * Disabled modules should not create new search index entries
-  * Disabled modules should not create new tag assignments unless explicitly allowed
-  * Disabled modules should not create new notifications
-  * Existing notifications from disabled modules may remain visible as historical records unless intentionally cleaned up
-  * Active timers from disabled source modules should remain visible in a limited recovery state so time is not stranded
-  * Disabled-source timer recovery may allow pause, discard/remove, and safe finalization into a normal time entry when Time Tracking is enabled and the user has time entry create permission
-  * Disabled-source timer finalization should preserve stored source metadata when possible, but may fall back to stored client/project/description fields when the source record cannot be safely validated
-
-* [x] Move module write checks closer to the framework
-
-  * [x] Add reusable middleware for browser API write protection
-  * [x] Add reusable middleware for public API write protection
-  * [x] Keep service-level write checks where useful as a second layer of protection
-  * [x] Avoid requiring every module author to remember custom write checks in every service method
-
-* [x] Add module lifecycle hooks
-
-  * [x] `onModuleEnabled`
-  * [x] `onModuleDisabled`
-  * [x] `onModuleInstalled`
-  * [x] `onModuleUpdated`
-  * [x] `onModuleRepaired`
-
-* [x] Add audit logging for module state changes
-
-  * [x] Log when a module is enabled
-  * [x] Log when a module is disabled
-  * [x] Log the actor user
-  * [x] Log workspace/module IDs
-  * [x] Log dependency or validation failures where appropriate
-
-* [x] Add safety rules for core framework modules
-
-  * [x] Some modules should not be disableable
-  * [x] Core framework services should not appear as normal optional modules
-  * [x] Tags, search, notifications, permissions, audit logging, module registry, and app shell should be framework services, not optional workflow modules
-  * [x] The UI should clearly separate framework services from optional workflow modules
-
 ## Version 0.31.13 - Registry-Driven App Shell and Navigation
 
-* [ ] Replace hard-coded authenticated navigation with registry-driven navigation
+* [x] Replace hard-coded authenticated navigation with registry-driven navigation
 
-  * [ ] Build the navigation tree from core navigation plus enabled module navigation
-  * [ ] Filter navigation by workspace type
-  * [ ] Filter navigation by workspace capabilities
-  * [ ] Filter navigation by module enabled/disabled status
-  * [ ] Filter navigation by user permissions
-  * [ ] Hide empty parent navigation groups automatically
+  * [x] Build the navigation tree from core navigation plus enabled module navigation
+  * [x] Filter navigation by workspace type
+  * [x] Filter navigation by workspace capabilities
+  * [x] Filter navigation by module enabled/disabled status
+  * [x] Filter navigation by user permissions
+  * [x] Hide empty parent navigation groups automatically
 
-* [ ] Add an app shell/bootstrap endpoint
+* [x] Add an app shell/bootstrap endpoint
 
-  * [ ] Endpoint should return app name/version
-  * [ ] Endpoint should return active workspace context
-  * [ ] Endpoint should return available workspace switcher data
-  * [ ] Endpoint should return enabled modules
-  * [ ] Endpoint should return module-aware navigation
-  * [ ] Endpoint should return notification summary/counts when notifications exist
-  * [ ] Endpoint should return user theme/timezone basics
-  * [ ] Endpoint should return current user's permission hints only where safe
+  * [x] Endpoint should return app name/version
+  * [x] Endpoint should return active workspace context
+  * [x] Endpoint should return available workspace switcher data
+  * [x] Endpoint should return enabled modules
+  * [x] Endpoint should return module-aware navigation
+  * [x] Endpoint should return notification summary/counts when notifications exist
+  * [x] Endpoint should return user theme/timezone basics
+  * [x] Endpoint should return current user's permission hints only where safe
 
-* [ ] Update frontend navigation/app shell rendering
+* [x] Update frontend navigation/app shell rendering
 
-  * [ ] Frontend should render navigation returned by the backend
-  * [ ] Frontend should not need to know about specific modules like Tasks or Time Tracking
-  * [ ] Keep only app-shell level behavior hard-coded in the frontend
-  * [ ] Keep logout, workspace switching, app branding, global search, notification bell, and theme handling as framework behavior
+  * [x] Frontend should render navigation returned by the backend
+  * [x] Frontend should not need to know about specific modules like Tasks or Time Tracking
+  * [x] Keep only app-shell level behavior hard-coded in the frontend
+  * [x] Keep logout, workspace switching, app branding, global search, notification bell, and theme handling as framework behavior
 
-* [ ] Preserve current navigation behavior during the refactor
+* [x] Preserve current navigation behavior during the refactor
 
-  * [ ] Dashboard remains visible
-  * [ ] Workspace settings remains visible to authorized users
-  * [ ] User settings remains visible
-  * [ ] Existing module links still appear when enabled
-  * [ ] Existing module links disappear when disabled or unauthorized
+  * [x] Dashboard remains visible
+  * [x] Workspace settings remains visible to authorized users
+  * [x] User settings remains visible
+  * [x] Existing module links still appear when enabled
+  * [x] Existing module links disappear when disabled or unauthorized
 
-* [ ] Add Workbench page to the registry-driven app shell
+* [x] Add Workbench page to the registry-driven app shell
 
-  * [ ] Workbench should be a framework-owned authenticated page
-  * [ ] Workbench should appear after Dashboard and before Projects
-  * [ ] Workbench should remain visible when no optional workflow modules are enabled, but should show useful empty states
-  * [ ] Workbench should render module-contributed cards from the registry
-  * [ ] Workbench should not hard-code Tasks, Time Tracking, Notes, or Support Tickets in the app shell navigation
-  * [ ] Workbench page navigation should respect user permissions and workspace module availability
+  * [x] Workbench should be a framework-owned authenticated page
+  * [x] Workbench should appear after Dashboard and before Projects
+  * [x] Workbench should remain visible when no optional workflow modules are enabled, but should show useful empty states
+  * [x] Workbench should render module-contributed cards from the registry
+  * [x] Workbench should not hard-code Tasks, Time Tracking, Notes, or Support Tickets in the app shell navigation
+  * [x] Workbench page navigation should respect user permissions and workspace module availability
 
 ## Version 0.31.14 - Registry-Driven Module Settings
 
@@ -1241,48 +1193,63 @@ Below is a rough road map for all of the 0.40 branch, this is not finalized yet
 
 ### Potential Integrations List
 
+### Support tickets
+
 - [ ] ZenDesk
 - [ ] FreshDesk
 
-- [ ] Google Tasks 
+### Calendars
+
 - [ ] Google Calendar
+- [ ] Outlook Calendar
+
+### Task App Integrations
 
 - [ ] Microsoft To Do
+- [ ] Google Tasks
 
+
+### File Sharing and Storage
+
+Is it possible to get notifications from any of these sources?
+
+- [ ] Microsoft OneDrive 
+- [ ] Google Drive
+- [ ] DropBox
 - [ ] Microsoft SharePoint
   - File sharing
   - Knowledgebase pages
   - Input for tickets/notes/tasks/etc.
 
-- [ ] Microsoft OneDrive 
-  - File sharing
-  - Receive notifications on monitored folders
+### Email integrations
+
+Auto-routing communications/messaging
 
 - [ ] Google Workspace email
-  - To auto-route communications/messaging
-- [ ] Outlook email
-  - To auto-route communications/messaging
+- [ ] Outlook
+
+### eCommerce Plugins
+
+- [ ] Knowledge Base plugin
+- [ ] Support ticket plugin
+  - Would include notes plugin for Shopify Admin
+- [ ] Automated task creation from:
+  - Front-end support tickets
+  - Order issues (fulfillment failure, etc.)
 
 - [ ] WordPress/WooCommerce
-  - [ ] Support Ticket plugin
-  - [ ] Knowledge Base plugin
-  - [ ] Automated task/ticket creation from:
-    - Front-end support tickets
-    - Order issues (fulfillment failure, etc.)
-
 - [ ] Shopify
-  - [ ] Knowledge Base plugin
-  - [ ] Support ticket plugin
-    - Would include notes plugin for Shopify Admin
-  - [ ] Automated task creation from:
-    - Front-end support tickets
-    - Order issues (fulfillment failure, etc.)
+- [ ] Magento
+- [ ] BigCommerce
 
 ### Personal/Family Workspace Integrations
 
+- [ ] Create grocery/shopping list items from Home Assistant (voice commands inputs)
+- [ ] Update/create project tasks from Home Assistant (voice commands inputs)
+
 - [ ] Home Assistant
-  - [ ] Create grocery/shopping list items from Home Assistant (voice commands inputs)
-  - [ ] Update/create project tasks from Home Assistant (voice commands inputs)
+- [ ] Apple Home
+- [ ] Google Assistant (Google Home?)
 
 ## Version 0.71.0
 

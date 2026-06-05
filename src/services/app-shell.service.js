@@ -1,0 +1,244 @@
+import { config } from "../config.js";
+import { modulesService } from "../core/modules/modules.service.js";
+import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.js";
+import { usersRepository } from "../repositories/users.repo.js";
+import { permissionsService } from "./permissions.service.js";
+import { settingsService } from "./settings.service.js";
+import { normalizeThemeMode } from "../utils/normalizers.js";
+
+async function bootstrap(session) {
+  const [workspaceContext, workspaces, user, moduleNavigation, permissionHints] = await Promise.all([
+    settingsService.readWorkspaceBootstrap(session),
+    userWorkspacesRepository.readForUser(session.user_id),
+    usersRepository.readById(session.home_workspace_id || session.workspace_id, session.user_id),
+    modulesService.listModuleNavigation(session.workspace_id, session),
+    readPermissionHints(session),
+  ]);
+  const navigation = await buildNavigation(workspaceContext, moduleNavigation, permissionHints);
+
+  return {
+    app: {
+      name: config.appName,
+      version: config.appVersion,
+    },
+    activeWorkspaceId: session.active_workspace_id || session.workspace_id,
+    enabledModules: workspaceContext.enabledModules || [],
+    moduleNavigation,
+    navigation,
+    notificationSummary: {
+      count: 0,
+      unreadCount: 0,
+    },
+    permissionHints,
+    themeMode: normalizeThemeMode(user?.theme_mode),
+    timezone: session.timezone || user?.timezone || "",
+    user: {
+      user_id: session.user_id,
+      username: session.username,
+      themeMode: normalizeThemeMode(user?.theme_mode),
+      timezone: session.timezone || user?.timezone || "",
+    },
+    workspaceContext,
+    workspaces: normalizeWorkspaceMemberships(workspaces),
+  };
+}
+
+async function readPermissionHints(session) {
+  const [
+    canManageWorkspaceSettings,
+    canManageProjects,
+    canManageUsers,
+    canViewAuditLogs,
+  ] = await Promise.all([
+    permissionsService.can(session, "workspace_settings.manage", {
+      workspace_id: session.workspace_id,
+      operation: "read",
+    }),
+    permissionsService.can(session, "projects.manage", {
+      workspace_id: session.workspace_id,
+      operation: "read",
+    }),
+    permissionsService.can(session, "users.manage", {
+      workspace_id: session.workspace_id,
+      operation: "read",
+    }),
+    permissionsService.can(session, "audit_logs.view", {
+      workspace_id: session.workspace_id,
+      operation: "read",
+    }),
+  ]);
+
+  return {
+    auditLogsView: canViewAuditLogs,
+    projectsManage: canManageProjects,
+    usersManage: canManageUsers,
+    workspaceSettingsManage: canManageWorkspaceSettings,
+  };
+}
+
+async function buildNavigation(workspaceContext, moduleNavigation, permissionHints) {
+  const capabilities = workspaceContext.workspaceCapabilities || {};
+  const workspaceType = workspaceContext.workspaceType || capabilities.workspaceType || "business";
+  const availableTools = new Set(Array.isArray(capabilities.availableTools) ? capabilities.availableTools : []);
+  const enabledModules = new Set(workspaceContext.enabledModules || []);
+  const moduleNavByHref = new Map(moduleNavigation.map((item) => [item.href, item]));
+  const projectsMenu = {
+    id: "projects",
+    label: "Projects",
+    items: [],
+  };
+  const reportingMenu = {
+    id: "reporting",
+    label: "Reporting",
+    items: [],
+  };
+  const workspaceSettingsMenu = {
+    id: "workspace-settings-group",
+    label: "Workspace",
+    items: [],
+  };
+  const modulesSettingsMenu = {
+    id: "module-settings-group",
+    label: "Modules",
+    items: [],
+  };
+
+  addTimeKeepingNavigation(projectsMenu.items, moduleNavigation);
+  addModuleNavItem(projectsMenu.items, moduleNavByHref.get("tasks.html"));
+
+  if (availableTools.has("projects") || availableTools.has("clients_projects")) {
+    projectsMenu.items.push({
+      id: "projects-settings",
+      label: "Projects Settings",
+      href: "projects.html",
+    });
+  }
+
+  addModuleNavItem(reportingMenu.items, moduleNavByHref.get("reporting.html"));
+
+  if (permissionHints.workspaceSettingsManage) {
+    workspaceSettingsMenu.items.push({
+      id: "workspace-settings",
+      label: "Workspace Settings",
+      href: "workspace-settings.html",
+    });
+  }
+
+  if (availableTools.has("clients_projects")) {
+    addModuleNavItem(workspaceSettingsMenu.items, moduleNavByHref.get("clients.html"));
+  }
+
+  if (enabledModules.has("tasks")) {
+    modulesSettingsMenu.items.push({
+      id: "tasks-settings",
+      label: "Tasks",
+      href: "tasks-settings.html",
+    });
+  }
+
+  if (enabledModules.has("time-tracking")) {
+    modulesSettingsMenu.items.push({
+      id: "time-tracking-settings",
+      label: "Time Tracking",
+      href: "time-tracking-settings.html",
+    });
+  }
+
+  if (modulesSettingsMenu.items.length > 0) {
+    workspaceSettingsMenu.items.push(modulesSettingsMenu);
+  }
+
+  if (availableTools.has("team_members") && permissionHints.usersManage) {
+    addModuleNavItem(workspaceSettingsMenu.items, moduleNavByHref.get("user-admin.html"));
+  }
+
+  if (workspaceType === "business" && permissionHints.workspaceSettingsManage) {
+    workspaceSettingsMenu.items.push({
+      id: "api-keys",
+      label: "API Keys",
+      href: "api-keys.html",
+    });
+  }
+
+  if (permissionHints.auditLogsView) {
+    workspaceSettingsMenu.items.push({
+      id: "audit-log",
+      label: "Audit Log",
+      href: "audit-log.html",
+    });
+  }
+
+  const settingsMenu = {
+    id: "settings",
+    label: "Settings",
+    items: [
+      workspaceSettingsMenu,
+      {
+        id: "user-settings",
+        label: "User",
+        href: "user-settings.html",
+      },
+    ].filter((item) => item.href || item.items?.length > 0),
+  };
+
+  return [
+    { id: "dashboard", label: "Dashboard", href: "dashboard.html" },
+    { id: "workbench", label: "Workbench", href: "workbench.html" },
+    projectsMenu,
+    reportingMenu,
+    settingsMenu,
+  ].filter((item) => item.href || item.items?.length > 0);
+}
+
+function addTimeKeepingNavigation(targetItems, moduleNavigation) {
+  const timeKeeping = moduleNavigation.find((item) => item.href === "time-tracker.html");
+
+  if (!timeKeeping) {
+    return;
+  }
+
+  const timeKeepingMenu = {
+    id: "time-keeping",
+    label: timeKeeping.label || "Time Keeping",
+    items: [
+      {
+        id: "time-tracker",
+        label: "Time Tracker",
+        href: "time-tracker.html",
+      },
+    ],
+  };
+
+  moduleNavigation
+    .filter((item) => item.parent === "time-tracker.html")
+    .forEach((item) => addModuleNavItem(timeKeepingMenu.items, item));
+
+  targetItems.push(timeKeepingMenu);
+}
+
+function addModuleNavItem(targetItems, item) {
+  if (!item?.href) {
+    return;
+  }
+
+  targetItems.push({
+    id: item.id || item.href.replace(/\.html$/, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase(),
+    label: item.label,
+    href: item.href,
+    moduleId: item.moduleId,
+  });
+}
+
+function normalizeWorkspaceMemberships(memberships) {
+  return memberships
+    .filter((membership) => membership.status === "active")
+    .map((membership) => ({
+      workspace_id: membership.workspace_id,
+      workspaceName: membership.workspace_name,
+      status: membership.status,
+    }));
+}
+
+export const appShellService = {
+  bootstrap,
+};

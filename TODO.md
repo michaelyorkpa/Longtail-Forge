@@ -75,8 +75,9 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ### UI/Workspace tweaks for better generalized use
 
-- [ ] Should there be a workspace setting to de-couple timers?
-  - Should timers only be allowed to auto-pause when a different one is started or should there be a Workspace switch that allows timers to run concurrently?
+- Timer Concurrency
+
+- How to prevent CSAM in file uploads?
 
 ### Security tracking and considerations
 
@@ -85,11 +86,27 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Medium Term
 
+### User Interface 
+
+- [ ] Create a dashboard/workspace view that shows users all workspaces view
+
 - [ ] "Focus" mode, allows dashboard/entire interface to switch to being focused on a single project/client for Business workspaces
 
 - [ ] Determine what code changes nee to happen to create phone/tablet/TV apps
 
-- [ ] Create a dashboard/workspace view that shows users all workspaces view
+- [ ] Lists (Shopping/Grocery)
+  - could be useful for physical project planning
+  - definitely useful in Personal/Family workspaces
+  - eventual functionality could include scanning barcodes to add items to lists
+  - What would a shopping/grocery list be called in a business context?
+
+### Third-Party Module ideas
+
+- What tools would be useful for content creators?
+
+### Administration and Settings
+
+- Is there a way to encrypt/secure the data in the database?
 
 - [ ] Create app-level settings for:
   - [ ] Total number of personal workspaces per users
@@ -99,11 +116,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - [ ] Add delete option for workspaces
 
 - [ ] Add workspace transfer screens
-
-- [ ] Lists (Shopping/Grocery)
-  - could be useful for physical project planning
-  - definitely useful in Personal/Family workspaces
-  - eventual functionality could include scanning barcodes to add items to lists
 
 - [ ] Add workspace creation permission per user in the User Admin settings modal
 
@@ -143,6 +155,13 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - System tags should be locked or protected from accidental deletion
 
 # Long Term
+
+## Estimation build out
+
+- Build out of estimatation module
+  - Estimate creation from existing time entries
+    - Take similar, existing time entries (tagged entries?) and use that to create estimates
+    - Not an AI estimate, but one that builds an estimate from existing data
 
 ## Employee hour tracking for Payroll/HR purposes
 

@@ -88,8 +88,7 @@ siteHeader.addEventListener("toggle", (event) => {
 
 window.LongtailForge = window.LongtailForge || {};
 window.LongtailForge.getWorkspaceProjectsLabel = getWorkspaceProjectsLabel;
-window.LongtailForge.workspaceContextReady = loadWorkspaceSettings();
-loadSessionWorkspaces();
+window.LongtailForge.workspaceContextReady = loadAppShellBootstrap();
 
 function buildSiteHeader() {
   // Build the header at runtime so page HTML can stay focused on page-specific content.
@@ -140,6 +139,16 @@ function buildSiteHeader() {
   header.append(nav);
 
   return header;
+}
+
+function renderNavigation(items) {
+  if (!navLinks || !Array.isArray(items) || items.length === 0) {
+    return;
+  }
+
+  const currentPage = getCurrentPage();
+
+  navLinks.replaceChildren(...items.map((item) => createNavItem(item, currentPage)));
 }
 
 function createNavItem(item, currentPage) {
@@ -205,6 +214,43 @@ function getCurrentPage() {
   return page || "dashboard.html";
 }
 
+async function loadAppShellBootstrap() {
+  try {
+    const response = await fetch("/api/app-shell/bootstrap", { cache: "no-store" });
+
+    if (response.status === 401) {
+      window.location.replace("/login.html");
+      return;
+    }
+
+    if (!response.ok) {
+      throw new Error("App shell bootstrap was unavailable.");
+    }
+
+    const shell = await response.json();
+    const workspaceContext = {
+      ...(shell.workspaceContext || {}),
+      enabledModules: shell.enabledModules || shell.workspaceContext?.enabledModules || [],
+      navigation: shell.navigation || [],
+      permissionHints: shell.permissionHints || {},
+      userId: shell.user?.user_id || "",
+      username: shell.user?.username || "",
+    };
+
+    storeWorkspaceContext(workspaceContext);
+    renderNavigation(shell.navigation);
+    applyWorkspaceName(workspaceContext.workspaceName);
+    applyWorkspaceCapabilities(workspaceContext);
+    if (shell.themeMode) {
+      applyThemeMode(shell.themeMode);
+    }
+    populateWorkspaceSelector(shell.workspaces || [], shell.activeWorkspaceId || workspaceContext.workspaceId);
+  } catch {
+    await loadWorkspaceSettings();
+    await loadSessionWorkspaces();
+  }
+}
+
 async function loadWorkspaceSettings() {
   try {
     const response = await fetch("/api/settings", { cache: "no-store" });
@@ -260,15 +306,23 @@ async function loadSessionWorkspaces() {
       return;
     }
 
-    workspaceSelector.replaceChildren(...workspaces.map((workspace) =>
-      createWorkspaceOption(workspace.workspaceName || workspace.workspace_id, workspace.workspace_id),
-    ));
-    workspaceSelector.value = user.active_workspace_id || user.workspace_id || workspaces[0].workspace_id;
-    workspaceSelector.disabled = workspaces.length < 2;
-    applyActiveWorkspaceLabel();
+    populateWorkspaceSelector(workspaces, user.active_workspace_id || user.workspace_id || workspaces[0].workspace_id);
   } catch {
     workspaceSelector.disabled = true;
   }
+}
+
+function populateWorkspaceSelector(workspaces, activeWorkspaceId) {
+  if (!workspaceSelector || !Array.isArray(workspaces) || workspaces.length === 0) {
+    return;
+  }
+
+  workspaceSelector.replaceChildren(...workspaces.map((workspace) =>
+    createWorkspaceOption(workspace.workspaceName || workspace.workspace_id, workspace.workspace_id),
+  ));
+  workspaceSelector.value = activeWorkspaceId || workspaces[0].workspace_id;
+  workspaceSelector.disabled = workspaces.length < 2;
+  applyActiveWorkspaceLabel();
 }
 
 function applyThemeMode(themeMode) {
@@ -403,6 +457,9 @@ function applyCachedWorkspaceContext() {
   }
 
   applyWorkspaceName(cachedContext.workspaceName);
+  if (Array.isArray(cachedContext.navigation) && cachedContext.navigation.length > 0) {
+    renderNavigation(cachedContext.navigation);
+  }
   applyWorkspaceCapabilities(cachedContext);
 }
 
@@ -420,6 +477,8 @@ function storeWorkspaceContext(settings) {
   const context = {
     enabledModules: Array.isArray(settings.enabledModules) ? settings.enabledModules : previousContext.enabledModules || [],
     modules: Array.isArray(settings.modules) ? settings.modules : previousContext.modules || [],
+    navigation: Array.isArray(settings.navigation) ? settings.navigation : previousContext.navigation || [],
+    permissionHints: settings.permissionHints || previousContext.permissionHints || {},
     tasksEnabled: settings.tasksEnabled === false ? false : true,
     timeTrackingEnabled: settings.timeTrackingEnabled !== false,
     userId: settings.userId || settings.user_id || previousContext.userId || "",

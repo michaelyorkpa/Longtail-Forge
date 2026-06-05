@@ -69,6 +69,8 @@ Notifications are framework-owned. Modules will declare notification events and 
 
 Navigation items require `label` and `href`; they may include `parent` and `requiredPermissions`.
 
+The authenticated app shell reads module navigation through `/api/app-shell/bootstrap`. The backend combines framework-owned navigation such as Dashboard, Workbench, workspace settings, user settings, workspace switching, API keys, and audit links with enabled module navigation from the registry. The browser app shell renders the returned tree directly and keeps the static browser nav only as a fallback while bootstrap data is loading or unavailable.
+
 Dashboard items require `id` and `label`; renderer/count/link metadata may be added by module-specific dashboard features.
 
 Workbench cards require `id`, `label`, `renderer`, and `moduleId`; they may include `requiredPermissions`, `requiredWorkspaceCapabilities`, `requiresEnabledModules`, `defaultCollapsed`, and `sortOrder`. Workbench cards from disabled modules should be hidden. Framework-owned Workbench cards, such as active timers, are allowed for core workflow areas.
