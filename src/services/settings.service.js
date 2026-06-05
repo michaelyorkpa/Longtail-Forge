@@ -53,6 +53,7 @@ async function save(payload, session) {
     workspace_id: session.workspace_id,
     operation: "update",
   });
+  rejectLegacyModuleSettingAliases(payload);
 
   const previousSettings = await read(session);
   const data = normalizeSettings({
@@ -124,6 +125,15 @@ async function save(payload, session) {
   };
 }
 
+function rejectLegacyModuleSettingAliases(payload) {
+  const legacyAliases = ["timeTrackingEnabled", "tasksEnabled", "taskTimersEnabled"];
+  const submittedAlias = legacyAliases.find((settingId) => Object.hasOwn(payload || {}, settingId));
+
+  if (submittedAlias) {
+    throw new AppError(`Use moduleSettings for module setting '${submittedAlias}'.`, 400);
+  }
+}
+
 function resolveModuleSettingChanges(payload, previousSettings, data) {
   const submittedSettings = readSubmittedModuleSettings(payload);
   const definitions = buildModuleSettingDefinitionMap(previousSettings.moduleSettings || []);
@@ -183,40 +193,25 @@ function readSubmittedModuleSettings(payload) {
   const submittedSettings = new Map();
   const moduleSettings = payload?.moduleSettings;
 
-  if (moduleSettings !== undefined) {
-    if (Array.isArray(moduleSettings)) {
-      addLegacyModuleSetting(submittedSettings, payload, TIME_TRACKING_MODULE_ID, "timeTrackingEnabled");
-      addLegacyModuleSetting(submittedSettings, payload, TASKS_MODULE_ID, "tasksEnabled");
-      addLegacyModuleSetting(submittedSettings, payload, TASKS_MODULE_ID, "taskTimersEnabled");
-      return submittedSettings;
-    }
-
-    if (!isPlainObject(moduleSettings)) {
-      throw new AppError("moduleSettings must be an object keyed by module ID.", 400);
-    }
-
-    for (const [moduleId, settings] of Object.entries(moduleSettings)) {
-      if (!isPlainObject(settings)) {
-        throw new AppError(`moduleSettings.${moduleId} must be an object keyed by setting ID.`, 400);
-      }
-
-      for (const [settingId, value] of Object.entries(settings)) {
-        addSubmittedModuleSetting(submittedSettings, moduleId, settingId, value);
-      }
-    }
+  if (moduleSettings === undefined) {
+    return submittedSettings;
   }
 
-  addLegacyModuleSetting(submittedSettings, payload, TIME_TRACKING_MODULE_ID, "timeTrackingEnabled");
-  addLegacyModuleSetting(submittedSettings, payload, TASKS_MODULE_ID, "tasksEnabled");
-  addLegacyModuleSetting(submittedSettings, payload, TASKS_MODULE_ID, "taskTimersEnabled");
+  if (!isPlainObject(moduleSettings)) {
+    throw new AppError("moduleSettings must be an object keyed by module ID.", 400);
+  }
+
+  for (const [moduleId, settings] of Object.entries(moduleSettings)) {
+    if (!isPlainObject(settings)) {
+      throw new AppError(`moduleSettings.${moduleId} must be an object keyed by setting ID.`, 400);
+    }
+
+    for (const [settingId, value] of Object.entries(settings)) {
+      addSubmittedModuleSetting(submittedSettings, moduleId, settingId, value);
+    }
+  }
 
   return submittedSettings;
-}
-
-function addLegacyModuleSetting(submittedSettings, payload, moduleId, settingId) {
-  if (Object.hasOwn(payload || {}, settingId)) {
-    addSubmittedModuleSetting(submittedSettings, moduleId, settingId, payload[settingId]);
-  }
 }
 
 function addSubmittedModuleSetting(submittedSettings, moduleId, settingId, value) {

@@ -2,55 +2,243 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.20 - Timer Sources and Workbench Item Integration Cleanup
+## Version 0.31.21 - Legacy Cleanup and Workspace-Native Modernization Review
 
-* [x] Formalize first-party timer source routes
+This cleanup removes active legacy compatibility surfaces, old route aliases, obsolete table remnants, and stale naming while preserving historical migration safety unless a deliberate migration-history squash is chosen.
 
-  * [x] Time Tracking should expose shared active timer routes for:
-    * Listing active/paused timers
-    * Starting a timer
-    * Pausing a timer
-    * Finalizing a timer into a time entry
-    * Removing/discarding a timer
-  * [x] Source modules should expose source-specific workbench item routes where needed
-  * [x] Tasks should expose trackable task records through the timer/workbench item source contract
-  * [x] Support Tickets should later use the same contract instead of creating a separate timer system
+### Review Findings From The Repo Scan
 
-* [x] Normalize Workbench page timer behavior
+* [x] `organization` naming is mostly out of active app code, but it still appears in:
 
-  * [x] Workbench page should list manual timers and sourced timers together
-  * [x] Workbench page should display the timer source clearly
-  * [x] Workbench page should allow quick switching between manual timers, task timers, and future ticket timers
-  * [x] Time Tracker stopwatch page should be able to selectively pull in saved manual timers and sourced timers such as task timers
-  * [x] Workbench page should not need to know whether a timer came from Tasks, Tickets, or another future module
-  * [x] Workbench page should handle disabled modules gracefully
+  * [x] Historical migration files under `src/db/migrations/` and `src/modules/*/migrations/`
+  * [x] Migration satisfaction logic in `src/db/migrations.js`
+  * [x] The old `organization-settings.html` framework protected view mapping in `src/services/static.service.js`
+  * [x] Active docs that still mention "legacy Organization Settings" in `docs/module-contract.md`
+  * [x] Historical release/decision text in `CHANGELOG.md` and `DECISIONS.md`
 
-* [x] Keep Time Tracking and Tasks separate but integrated
+* [x] Legacy organization tables are already absent from the current database:
 
-  * [x] Time Tracking remains usable when Tasks is disabled
-  * [x] Tasks remains usable when Time Tracking is disabled, but task timers are unavailable
-  * [x] Task timers require both Tasks and Time Tracking to be enabled
-  * [x] Task timer permissions should require task read access and time entry create access
-  * [x] Finalized task timers should create normal time entries with `task_id`
-  * [x] Task completion should continue to block or warn when an active task timer exists
+  * [x] `organizations`
+  * [x] `organization_settings`
+  * [x] `organization_modules`
 
-* [x] Prepare Support Ticket timer integration
+* [x] Old timer tables still exist in the current database even though normal code now uses `active_work_timers`:
 
-  * [x] Define expected source values for tickets:
-    * `source_module_id = support-tickets`
-    * `source_type = ticket`
-    * `source_id = ticket_id`
-  * [x] Tickets should eventually appear in the Workbench page as trackable workbench items
-  * [x] Ticket timers should finalize into normal time entries with `ticket_id` or equivalent source metadata
-  * [x] Ticket timer behavior should reuse the same active timer engine as manual and task timers
+  * [x] `active_timers` currently has leftover rows
+  * [x] `active_task_timers` currently exists but has no rows
+  * [x] `active_work_timers` is the active unified timer table
 
-* [x] Add developer documentation
+* [x] Active compatibility code still exists for:
 
-  * [x] Explain how a module exposes timer-capable records
-  * [x] Explain how a module exposes Workbench page cards
-  * [x] Explain how source metadata flows into active timers
-  * [x] Explain how finalized timers become time entries
-  * [x] Include examples for manual timers, task timers, and future ticket timers
+  * [x] `organization-settings.html` static page compatibility
+  * [x] Top-level legacy settings booleans accepted by `/api/settings`
+  * [x] Browser fallback handling for legacy settings inputs in `public/js/workspace-settings.js`
+  * [x] Compatibility re-export shims for old route/service/repository paths
+  * [x] The legacy `clients-projects.html` view and `clients-projects-legacy` module view descriptor
+
+### Cleanup Principles
+
+* [x] Modernize active app code to workspace-native names only:
+
+  * [x] Use `workspace_id`, `workspace`, `workspace_settings`, and `workspace_modules`
+  * [x] Use `workspace_admin`, `workspace_settings.manage`, and `workspace` scope
+  * [x] Avoid new references to `organization`, `organization_id`, `organization_settings`, or `organization_modules`
+
+* [x] Preserve historical migrations unless the implementation explicitly introduces a migration-history squash:
+
+  * [x] Do not edit checksum-tracked historical migration files in place
+  * [x] Prefer a new cleanup migration for dropping old tables and indexes
+  * [x] If a zero-legacy baseline is desired, do it as a separate migration-history squash with clear upgrade policy
+
+* [x] Preserve historical changelog and decision text as historical record:
+
+  * [x] Do not rewrite old release notes just to remove old terminology
+  * [x] Update active docs and current contract language instead
+
+### Remove Legacy Organization Surfaces
+
+* [x] Remove the old `organization-settings.html` compatibility surface:
+
+  * [x] Remove `organization-settings.html` from `frameworkProtectedViews` in `src/services/static.service.js`
+  * [x] Remove or replace any redirect file for `views/protected/organization-settings.html` if it exists
+  * [x] Search public assets and docs for links to `organization-settings.html`
+  * [x] Confirm `/organization-settings.html` no longer serves as a normal protected page
+  * [x] Update `docs/module-contract.md` so framework-owned views no longer mention legacy Organization Settings
+
+* [x] Remove any remaining active organization-named API or browser payload aliases:
+
+  * [x] Search active source outside historical migrations for `organization_id`, `organizationName`, `organization_settings`, and `organization_modules`
+  * [x] Verify public API responses do not emit legacy organization fields
+  * [x] Verify browser settings and app shell payloads use workspace names only
+  * [x] Update regression coverage to fail if active source reintroduces organization terms outside approved historical files
+
+### Remove Old Timer Tables
+
+* [x] Add a cleanup migration for obsolete active timer tables:
+
+  * [x] Before dropping `active_timers`, copy any rows not already represented in `active_work_timers`
+  * [x] Convert copied manual rows to `source_type = manual`, empty `source_module_id`, empty `source_id`, and `source_label = Manual`
+  * [x] Preserve `workspace_id`, `user_id`, timer slot, project/client context, elapsed time, status, and timestamps
+  * [x] Drop `active_timers`
+  * [x] Drop `active_task_timers`
+  * [x] Drop obsolete indexes attached to those tables
+
+* [x] Remove startup maintenance for dropped timer tables:
+
+  * [x] Remove the `active_timers` standardization block from `src/db/index.js` after the cleanup migration is in place
+  * [x] Keep `active_work_timers` standardization only
+  * [x] Update `scripts/workspace-storage-regression.mjs` to assert `active_timers` and `active_task_timers` do not exist
+  * [x] Update `docs/time-tracking-module.md` so legacy timer tables are no longer described as retained
+
+* [x] Verify timer cleanup with data-sensitive checks:
+
+  * [x] Confirm no timer rows are lost when old `active_timers` rows exist
+  * [x] Confirm `/api/active-timers/all` returns migrated manual and sourced timers from `active_work_timers`
+  * [x] Confirm task timer start, pause, finalize, and discard still use `active_work_timers`
+  * [x] Confirm `npm run test:permissions` still covers active timer and task timer permission behavior
+
+### Remove Legacy Settings Aliases
+
+* [x] Make `/api/settings` require the registry-driven `moduleSettings` shape for module settings:
+
+  * [x] Stop accepting top-level `timeTrackingEnabled`
+  * [x] Stop accepting top-level `tasksEnabled`
+  * [x] Stop accepting top-level `taskTimersEnabled`
+  * [x] Remove `addLegacyModuleSetting` from `src/services/settings.service.js`
+  * [x] Update permission regression tests to submit `moduleSettings` only
+
+* [x] Remove browser-side legacy settings wiring:
+
+  * [x] Remove legacy input-memory helpers from `public/js/workspace-settings.js`
+  * [x] Confirm Workspace Settings renders module controls from the registry-driven module settings payload
+  * [x] Confirm module-specific settings pages continue using the registry-driven helper
+  * [x] Update docs so legacy booleans are no longer described as compatibility aliases
+
+### Remove Legacy Route, Service, And Repository Shims
+
+* [x] Review and remove compatibility re-export files that no longer have active imports:
+
+  * [x] `src/app.js`
+  * [x] `src/routes/clients.routes.js`
+  * [x] `src/routes/projects.routes.js`
+  * [x] `src/routes/time-entries.routes.js`
+  * [x] `src/services/clients.service.js`
+  * [x] `src/services/time-entries.service.js`
+  * [x] `src/repositories/clients.repo.js`
+  * [x] `src/repositories/projects.repo.js`
+  * [x] `src/repositories/time-entries.repo.js`
+
+* [x] Update imports before deleting shims:
+
+  * [x] Point app startup directly at `src/core/app.js`
+  * [x] Point framework/module imports at module-owned routes, services, and repositories
+  * [x] Point regression scripts at module-owned repositories where appropriate
+  * [x] Confirm no imports reference deleted shim paths
+
+### Remove Legacy Clients/Projects Page Alias
+
+* [x] Remove the old combined `clients-projects.html` compatibility page if the split Clients and Projects pages cover the workflow:
+
+  * [x] Remove the `clients-projects-legacy` protected view descriptor from `src/modules/client-projects/module.js`
+  * [x] Remove `views/protected/clients-projects.html` if it is only a compatibility shell
+  * [x] Update asset descriptors so the browser script is associated with `clients` and `projects` only
+  * [x] Rename `public/js/clients-projects.js` only if the implementation can do so without unnecessary churn
+  * [x] Update page-controller IDs and tests if the legacy page ID is removed
+
+### Documentation And Contract Cleanup
+
+* [x] Update active docs to reflect the fully modernized contract:
+
+  * [x] `docs/module-contract.md`
+  * [x] `docs/module-development.md`
+  * [x] `docs/time-tracking-module.md`
+  * [x] `docs/public-api.md`
+  * [x] `docs/architecture.md`
+  * [x] `docs/longtail_forge_permissions_matrix.md`
+
+* [x] Archive or annotate old compatibility plans:
+
+  * [x] Leave `docs/storage-rename-plan.md` as historical context, or mark it completed and superseded by 0.31.21
+  * [x] Do not leave active docs saying compatibility aliases are still expected after the cleanup lands
+
+### Regression And Verification Plan
+
+* [x] Add a focused legacy-cleanup regression script or extend existing checks:
+
+  * [x] Assert active source does not contain unapproved organization terminology
+  * [x] Assert legacy organization tables do not exist
+  * [x] Assert `active_timers` and `active_task_timers` do not exist after migrations
+  * [x] Assert `/api/settings` rejects top-level module setting aliases
+  * [x] Assert module settings still save through `moduleSettings`
+  * [x] Assert old static compatibility pages are not served
+
+* [x] Run full verification after implementation:
+
+  * [x] `npm run check`
+  * [x] `npm run test:permissions`
+  * [x] `sqlite3 data/longtail-forge.db "PRAGMA integrity_check;"`
+  * [x] `/api/app-info`
+  * [x] `/api/settings` save smoke using `moduleSettings`
+  * [x] `/api/active-timers/all` smoke
+  * [x] Workbench and Time Tracker timer smoke
+
+### Version 0.31.22 Clean Up
+
+#### App function failures
+
+- [ ] "Add new photo dispatch" task did not move to "Overdue" at 4pm, it moved into it after midnight
+  - It doesn't seem "task due" is respecting time due
+- Bulk Actions in Projects -> Tasks list doesn't open when a task selected
+
+#### User Interface
+
+- [ ] Make "Reminders" in Add/Edit Task modal collapsible
+
+- [ ] Remove the "Bulk Action" drop down and keep the "Status" "Priority" and "Assignees"
+  - [ ] Add "-" to Status and Priority boxes
+  - Perform the bulk action, after user clicks apply, based on what is selected in Status, Priority, and/or Assignees
+  - If only a Status is selected, only change the status on the selected tasks
+  - If only a Priority is selected, only change the priority on the selected tasks
+  - If one or more assignees are selected, but nothing else change the assignees on the selected tasks
+  - If any combination of the above are selected, change the selected bulk actions on the selected tasks
+  - Doing this will speed up bulk changes and reduce time spent making them
+
+- [ ] In Add Task modal, "All Projects" exists, but we've lost the "{{workspaceName}} Projects" to sort by.
+
+- [ ] In Projects -> Tasks the task list, we should move the buttons to the bottom of each list item, side-by-side
+  - Drop the "Actions" column
+  - Truncate Scope, but add hover over reveal for full detail
+
+- [ ] Add a "Duplicate" button to create a new task from a completed/existing task
+
+- [ ] Make a static footer at the bottom of modal windows for the Save/Cancel/etc. buttons so users don't have to scroll all the way to the bottom every time
+
+### Version 0.31.23 Accessibility QA Foundation
+
+- [ ] Adopt WCAG 2.2 AA as the accessibility target for Longtail Forge UI.
+- [ ] Add accessibility checks to development workflow:
+  - [ ] axe DevTools browser extension for manual page checks.
+  - [ ] Lighthouse accessibility checks for major authenticated pages.
+  - [ ] `axe-core`/Playwright or equivalent automated checks for reusable UI components.
+  - [ ] `pa11y-ci` or equivalent route-based checks for key pages.
+- [ ] Add an accessibility release checklist:
+  - [ ] Keyboard-only navigation works.
+  - [ ] Focus order is logical.
+  - [ ] Focus is visible.
+  - [ ] Modals trap/release focus correctly.
+  - [ ] Forms have labels, help text, and useful validation errors.
+  - [ ] Color contrast passes.
+  - [ ] UI works at 200% zoom/reflow.
+  - [ ] Reduced-motion preferences are respected where animation exists.
+- [ ] Add shared accessible UI patterns:
+  - [ ] Buttons/links.
+  - [ ] Form fields.
+  - [ ] Modals.
+  - [ ] Dropdowns.
+  - [ ] Tabs.
+  - [ ] Toasts/notifications.
+  - [ ] Empty states.
+- [ ] Document that automated accessibility tools assist testing but do not replace manual review.
 
 ## Version 0.32.0 - Notifications Framework Foundation
 
@@ -648,7 +836,68 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 - [ ] Super Admins should have ability to log users out
 - [ ] Workspace admins should have ability to log users out
 
-### Version 0.38.3
+## Version 0.38.3 - Login Security Monitoring and Risk Scoring
+
+- [ ] Add `user_login_events` table:
+  - [ ] `login_event_id`
+  - [ ] `user_id`
+  - [ ] `occurred_at`
+  - [ ] `success`
+  - [ ] `failure_reason`
+  - [ ] `ip_address`
+  - [ ] `ip_hash`
+  - [ ] `user_agent`
+  - [ ] `user_agent_hash`
+  - [ ] `browser_family`
+  - [ ] `os_family`
+  - [ ] `device_type`
+  - [ ] `country`
+  - [ ] `region`
+  - [ ] `risk_score`
+  - [ ] `risk_reason`
+  - [ ] `session_id_hash`
+  - [ ] `metadata_json`
+- [ ] Log authentication events:
+  - [ ] Successful login.
+  - [ ] Failed login.
+  - [ ] Password reset requested.
+  - [ ] Password reset completed.
+  - [ ] 2FA challenge success/failure.
+  - [ ] Passkey registration/removal.
+  - [ ] New device/session.
+  - [ ] Logout.
+  - [ ] Admin-forced logout.
+- [ ] Add login risk checks:
+  - [ ] New device/browser.
+  - [ ] New country or impossible travel.
+  - [ ] IP reputation check if available.
+  - [ ] Many failures for same account.
+  - [ ] Many failures from same IP.
+  - [ ] Successful login after many failures.
+  - [ ] Login from TOR/VPN/proxy if detectable.
+- [ ] Add risk-based responses:
+  - [ ] Low risk: allow login and log event.
+  - [ ] Medium risk: allow login and notify user.
+  - [ ] High risk: require 2FA/passkey reauthentication if available.
+  - [ ] Critical risk: temporarily block or require password reset/admin review.
+- [ ] Add user-facing security tools:
+  - [ ] Show recent login history in user settings.
+  - [ ] Allow user to revoke sessions.
+  - [ ] Email/in-app notification for new device login.
+  - [ ] Email/in-app notification for suspicious login.
+- [ ] Add admin security tools:
+  - [ ] View recent failed login patterns.
+  - [ ] Force logout user sessions.
+  - [ ] Temporarily disable account.
+  - [ ] Require password reset.
+  - [ ] Require 2FA setup.
+- [ ] Privacy rules:
+  - [ ] Do not log passwords, tokens, reset tokens, or full session IDs.
+  - [ ] Consider hashing or truncating IP addresses for long-term retention.
+  - [ ] Define retention period for login events.
+  - [ ] Restrict access to login security logs.
+
+### Version 0.38.4
 
 Super Admins should have a backup/restore function on the dashboard that dumps the current database into a clean file with an app meta data file that has app version stamped and datetime (UTC) of backup in it and zips it into a zip file along with any physical settings files on disk (this will be necessary after packaging for self-hosting and may not yet be necessary, but I want uniform functions for backup/restore that can be easily modified in the future)
 
@@ -669,8 +918,6 @@ Super Admins should have a backup/restore function on the dashboard that dumps t
     - this should verify files, checksum, etc. before installing/overwriting current data
 
 ### Version 0.39.0
-
-Final code refactor for modularization and standardization
 
 Final checkpoint for documentation update before standardization of database tools
 

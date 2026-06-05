@@ -82,7 +82,7 @@ The authenticated app shell reads module navigation through `/api/app-shell/boot
 
 Protected view descriptors require `id`, `path`, `moduleId`, and `file`; they may include `requiredPermissions`, `requiredWorkspaceCapabilities`, and `allowDisabledRead`. The static view service serves protected module pages only when a registered view matches the requested path. Unknown protected HTML files are not served merely because they exist under `views/protected`.
 
-Framework-owned protected views are registered by the framework rather than by optional workflow modules. Dashboard, Workbench, Workspace Settings, User Settings, API Keys, Audit Log, Reporting, and legacy Organization Settings remain framework-owned in 0.31.15. Workbench is specifically not owned by Tasks, Time Tracking, Notes, Support Tickets, or any other workflow module.
+Framework-owned protected views are registered by the framework rather than by optional workflow modules. Dashboard, Workbench, Workspace Settings, User Settings, API Keys, Audit Log, and Reporting remain framework-owned. Workbench is specifically not owned by Tasks, Time Tracking, Notes, Support Tickets, or any other workflow module.
 
 When a protected module view belongs to a disabled module, the view service returns a disabled-module response unless the descriptor sets `allowDisabledRead: true` and the module allows historical reads. Permission checks are server-side; `requiredPermissions` on the view descriptor is treated as the page-level gate before the module's APIs enforce record-level access.
 
@@ -102,7 +102,7 @@ Settings items require `id`, `label`, and `type`. Supported field types are `boo
 
 A setting with `moduleStatus: true` controls the module enablement row through `workspace_modules`; it must be validated and saved by the server through the registry service. Related module options use `moduleStatus: false` and require an explicit server-side settings handler before they can be writable. The browser settings UI renders field definitions and values from the backend `moduleSettings` payload instead of hard-coding first-party module toggles.
 
-The `/api/settings` save contract accepts a `moduleSettings` object keyed by module ID and setting ID. The server rejects unknown module IDs, unknown setting IDs, read-only fields, invalid value types, invalid select options, and writable settings that do not have a server-side handler. Legacy booleans such as `timeTrackingEnabled`, `tasksEnabled`, and `taskTimersEnabled` are still accepted as compatibility aliases for their registry settings.
+The `/api/settings` save contract accepts a `moduleSettings` object keyed by module ID and setting ID. The server rejects unknown module IDs, unknown setting IDs, read-only fields, invalid value types, invalid select options, writable settings that do not have a server-side handler, and old top-level module setting aliases.
 
 Permission descriptors require `id`, `moduleId`, `label`, and `description`; they may include `resource` and `operation`. `requiredPermissions` remains as a compact compatibility list for route/view contribution filtering, while `permissions` is the user-facing contract used for database sync and future permission UI. Startup sync inserts or updates declared permissions and inserts default role mappings without deleting existing role permissions.
 

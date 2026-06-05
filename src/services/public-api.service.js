@@ -1,5 +1,5 @@
-import { clientsRepository } from "../repositories/clients.repo.js";
-import { projectsRepository } from "../repositories/projects.repo.js";
+import { clientsRepository } from "../modules/client-projects/clients.repo.js";
+import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
 import { AppError } from "../utils/app-error.js";
 

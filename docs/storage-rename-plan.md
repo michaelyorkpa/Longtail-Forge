@@ -1,6 +1,6 @@
 # Workspace Storage Migration
 
-Version 0.30.16.1 completes the active storage migration to workspace-first names.
+Version 0.30.16.1 completed the active storage migration to workspace-first names. Version 0.31.21 removes the remaining active compatibility surfaces while preserving historical migration files for existing upgrade paths.
 
 ## Active Schema
 

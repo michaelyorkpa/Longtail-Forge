@@ -1,3 +1,14 @@
+## Version 0.31.21 - 2026-06-05 02:51 -04:00
+
+- Added a cleanup migration that copies any remaining legacy active timer rows into `active_work_timers`, enforces one running timer per user, and drops obsolete `active_timers` and `active_task_timers` tables.
+- Removed the old `organization-settings.html` and `clients-projects.html` compatibility pages from active protected view serving.
+- Removed legacy route, service, repository, and `src/app.js` re-export shims and pointed active imports at canonical core/module paths.
+- Removed top-level module-setting save aliases from `/api/settings`; module settings now save through `moduleSettings`.
+- Removed browser-side legacy module setting input wiring from Workspace Settings.
+- Updated active module/docs language for workspace-native settings and unified timer storage.
+- Added a legacy cleanup regression to `npm run check`.
+- Bumped the app and first-party module versions to `0.31.21`.
+
 ## Version 0.31.20 - 2026-06-05 02:15 -04:00
 
 - Added a shared `/api/active-timers/all` route for manual and sourced active/paused timer listing.

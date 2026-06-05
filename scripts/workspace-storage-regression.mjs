@@ -10,9 +10,9 @@ process.env.SUPER_ADMIN_PASSWORD = "Workspace-Storage-Test-Password-123!";
 
 const { initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { settingsRepository } = await import("../src/repositories/settings.repo.js");
-const { clientsRepository } = await import("../src/repositories/clients.repo.js");
-const { projectsRepository } = await import("../src/repositories/projects.repo.js");
-const { timeEntriesRepository } = await import("../src/repositories/time-entries.repo.js");
+const { clientsRepository } = await import("../src/modules/client-projects/clients.repo.js");
+const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
+const { timeEntriesRepository } = await import("../src/modules/time-tracking/time-entries.repo.js");
 const { auditLogsRepository } = await import("../src/repositories/audit-logs.repo.js");
 const { apiKeysRepository } = await import("../src/repositories/api-keys.repo.js");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
@@ -20,6 +20,7 @@ const { modulesService } = await import("../src/core/modules/modules.service.js"
 try {
   await initializeDatabase();
   await assertLegacyTablesRemoved();
+  await assertLegacyTimerTablesRemoved();
   const workspaceId = await readDefaultWorkspaceId();
   const userId = await readDefaultUserId(workspaceId);
 
@@ -119,6 +120,16 @@ WHERE type = 'table'
   AND name IN ('organizations', 'organization_settings', 'organization_modules');
 `);
   assert.equal(rows.length, 0, "legacy organization tables should not exist after workspace migration");
+}
+
+async function assertLegacyTimerTablesRemoved() {
+  const rows = await querySql(`
+SELECT name
+FROM sqlite_master
+WHERE type = 'table'
+  AND name IN ('active_timers', 'active_task_timers');
+`);
+  assert.equal(rows.length, 0, "legacy active timer tables should not exist after unified timer migration");
 }
 
 async function assertWorkspaceRows(workspaceId) {

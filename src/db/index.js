@@ -244,14 +244,6 @@ async function standardizeStoredTimesToUtc() {
   ]);
   await standardizeTableColumns("audit_logs", "audit_id", ["created_at"]);
 
-  if (await tableExists("active_timers")) {
-    await standardizeTableColumns("active_timers", "active_timer_id", [
-      "last_active_start_time",
-      "created_at",
-      "updated_at",
-    ]);
-  }
-
   if (await tableExists("active_work_timers")) {
     await standardizeTableColumns("active_work_timers", "active_timer_id", [
       "last_active_start_time",

@@ -30,4 +30,4 @@ Time Tracking keeps historical read-only access so existing entries remain visib
 
 Active timer storage:
 
-Version 0.31.8 uses `active_work_timers` as the normal read/write table for active manual timers and sourced timers. Legacy `active_timers` and `active_task_timers` tables are left in place after migration for upgrade safety, but normal app code no longer writes active timer state there.
+Version 0.31.21 makes `active_work_timers` the only active timer table. Manual timers and sourced timers such as Tasks share that table, and obsolete `active_timers` and `active_task_timers` tables are migrated forward and dropped by the cleanup migration.

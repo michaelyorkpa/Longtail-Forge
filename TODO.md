@@ -15,28 +15,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
-- Add new photo dispatch task did not move to "Overdue" at 4pm
-- Make "Reminders" in Add/Edit Task modal collapsible
-- Bulk Actions doesn't open when a selected
-- Remove the "Bulk Action" drop down and keep the "Status" "Priority" and "Assignees"
-  - Add "-" to Status and Priority boxes
-  - Perform the bulk action, after user clicks apply, based on what is selected in Status, Priority, and/or Assignees
-  - If only a Status is selected, only change the status on the selected tasks
-  - If only a Priority is selected, only change the priority on the selected tasks
-  - If one or more assignees are selected, but nothing else change the assignees on the selected tasks
-  - If any combination of the above are selected, change the selected bulk actions on the selected tasks
-  - Doing this will speed up bulk changes and reduce time spent making them
-
-### Tasks
-
-- [ ] In Add Task modal, "All Projects" exists, but we've lost the "{{workspaceName}} Projects" to sort by.
-
-- [ ] In Projects -> Tasks the task list should move the buttons to the bottom of each list item, side-by-side
-  - Drop the "Actions" column
-  - Truncate Scope, but add hover over reveal for full detail
-
-- [ ] Add a "Duplicate" button to create a new task from a completed/existing task
-
 - How is the "Remove Workspace" button wired, currently on User Settings page?
 
 - What happens when a user is removed from all workspaces?
@@ -46,10 +24,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Tweaks
 
-- [ ] Identify and use an accessibility checker for best accessibility practices. Do this early.
-
-- [ ] Make all footers float at the bottom of modal windows (Save/Cancel/etc.) so users don't have to scroll all the way to the bottom every time
-
 - What should happen to records when a client/project becomes completed or archived?
 
 - How long does archiving last?
@@ -58,26 +32,187 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - Add Workspace option to set default screen when switching into that workspace.
   - Current behavior keeps it on Time Tracker, for example, but perhaps a user would always want to default to the dashboard. So, make the starting page selectable and provide a "Stay on Current Workspace's page" option as well (so when a new workspace opens it remains in the time tracker, or tasks, or whatever)
 
-### UI clean up/clarification
+## UI clean up/clarification
 
 - [ ] Create list of every form for required entry fields
   - User Settings
     - Every field except Alternate Email address
 
-### UI/Workspace tweaks for better generalized use
+## UI/Workspace tweaks for better generalized use
 
 - Timer Concurrency
 
-- How to prevent CSAM in file uploads?
+## User Upload Safety and CSAM Prevention
 
-### Security tracking and considerations
+- [ ] Treat user-uploaded files as a security-sensitive framework feature.
+- [ ] Build secure upload handling before allowing broad file uploads:
+  - [ ] Allowlist file extensions by business need.
+  - [ ] Validate actual file type/signature; do not trust browser-provided MIME type alone.
+  - [ ] Generate server-side filenames.
+  - [ ] Enforce file size limits.
+  - [ ] Store uploaded files outside the webroot or in isolated object storage.
+  - [ ] Require authentication and authorization before upload/download.
+  - [ ] Scan uploads with antivirus/sandbox tooling where practical.
+  - [ ] Log upload, download, deletion, quarantine, and scan events.
+- [ ] Add upload quarantine workflow:
+  - [ ] New files enter pending/scanning state.
+  - [ ] Files are not publicly accessible until cleared.
+  - [ ] Failed or suspicious files are quarantined.
+  - [ ] Quarantined files are not shown in normal app UI.
+  - [ ] Admin access to quarantined files is tightly restricted and audited.
+- [ ] Add abuse reporting:
+  - [ ] Users can report illegal or abusive uploaded content.
+  - [ ] Reports create security/audit events.
+  - [ ] Reports can disable public access to the file while reviewed.
+- [ ] Before enabling public/user-generated image or video uploads:
+  - [ ] Evaluate a specialized CSAM detection provider such as Thorn Safer, PhotoDNA access, or equivalent.
+  - [ ] Add known-CSAM hash matching where available.
+  - [ ] Add policy for suspected novel CSAM escalation.
+  - [ ] Add written NCMEC CyberTipline reporting procedure.
+  - [ ] Add retention/preservation policy reviewed by legal counsel.
+- [ ] Do not build a DIY CSAM review gallery.
+- [ ] Do not require normal admins to manually inspect suspected CSAM.
 
-- Should user's IP, browser, useragent, etc. be tracked anywhere? This could be added to security checks. Most likely place: users table. "mostRecentIP" "mostRecentBrowser" "mostRecentUseragent" etc.
-  - What other things should be tracked/monitored to enhance security?
+## Creator Studio / Content Studio Module
+
+- [ ] Add optional first-party `creator-studio` module.
+- [ ] Core records:
+  - [ ] Content ideas.
+  - [ ] Content drafts.
+  - [ ] Campaigns/series.
+  - [ ] Publishing channels.
+  - [ ] Assets/media.
+  - [ ] Content templates.
+  - [ ] Repurposing tasks.
+- [ ] Content idea fields:
+  - [ ] Title.
+  - [ ] Description/angle.
+  - [ ] Workspace.
+  - [ ] Client/project if applicable.
+  - [ ] Channel(s).
+  - [ ] Format: blog, short, long video, email, social post, product page, course material, etc.
+  - [ ] Status: idea, planned, drafting, editing, scheduled, published, archived.
+  - [ ] Priority.
+  - [ ] Target publish date.
+  - [ ] Assigned user.
+  - [ ] Tags.
+  - [ ] Related notes/tasks/assets.
+- [ ] Editorial calendar:
+  - [ ] Calendar view by publish date.
+  - [ ] List view by status.
+  - [ ] Kanban view by production stage.
+  - [ ] Filter by brand/site/channel/project/tag.
+- [ ] Publishing channels:
+  - [ ] Website/blog.
+  - [ ] YouTube.
+  - [ ] Shorts/Reels/TikTok.
+  - [ ] Newsletter.
+  - [ ] Facebook/Instagram/X/LinkedIn/Mastodon.
+  - [ ] Podcast if needed later.
+- [ ] Asset library:
+  - [ ] Attach images, video, audio, documents, thumbnails, captions, and scripts.
+  - [ ] Track asset usage across content items.
+  - [ ] Store alt text, captions, source/license notes, and credit requirements.
+- [ ] Repurposing workflow:
+  - [ ] One long-form item can spawn shorts, social posts, newsletter blurbs, blog excerpts, and follow-up tasks.
+  - [ ] Track each derivative item separately but link it to the source content.
+- [ ] Analytics groundwork:
+  - [ ] Store published URL.
+  - [ ] Store basic performance notes manually at first.
+  - [ ] Later: integrate platform analytics where APIs allow.
+- [ ] Permissions:
+  - [ ] Creator Studio records are workspace-scoped.
+  - [ ] Client/project-linked content respects existing permissions.
+  - [ ] External clients may be allowed to review/comment only if explicitly enabled.
+
+## Shopping / Procurement Lists Module
+
+- [ ] Add optional first-party lists module for personal/family and business workspaces.
+- [ ] Use workspace-aware labels:
+  - [ ] Personal/family workspaces: "Shopping Lists"
+  - [ ] Business workspaces: "Procurement Lists"
+- [ ] Core list fields:
+  - [ ] `list_id`
+  - [ ] `workspace_id`
+  - [ ] `client_id` optional
+  - [ ] `project_id` optional
+  - [ ] `title`
+  - [ ] `description`
+  - [ ] `list_type`
+  - [ ] `status`
+  - [ ] `created_by_user_id`
+  - [ ] `created_at`
+  - [ ] `updated_at`
+- [ ] List item fields:
+  - [ ] Item name.
+  - [ ] Quantity.
+  - [ ] Unit.
+  - [ ] Needed by date.
+  - [ ] Vendor/store.
+  - [ ] URL.
+  - [ ] Estimated cost.
+  - [ ] Actual cost.
+  - [ ] Purchase/order status.
+  - [ ] Notes.
+  - [ ] Assigned user.
+  - [ ] Sort order.
+  - [ ] Checked/completed state.
+- [ ] Business use cases:
+  - [ ] Project parts list.
+  - [ ] R&D purchasing list.
+  - [ ] Office supply list.
+  - [ ] Client/project procurement checklist.
+- [ ] Personal/family use cases:
+  - [ ] Grocery list.
+  - [ ] Household shopping list.
+  - [ ] Trip packing/shopping list.
+  - [ ] Family project supply list.
+- [ ] Integrations:
+  - [ ] Lists should support tags once tagging is stable.
+  - [ ] Lists should be searchable once framework search is stable.
+  - [ ] List activity should be able to appear in dashboard/activity feed later.
 
 # Medium Term
 
-### User Interface 
+## Estimation Assistant / Historical Time Estimation
+
+- [ ] Add future estimation helper after tags, search, and time-entry reporting are stable.
+- [ ] Estimation should use real historical time entries, not guesses.
+- [ ] Inputs:
+  - [ ] Workspace.
+  - [ ] Client optional.
+  - [ ] Project optional.
+  - [ ] Task/project title.
+  - [ ] Description.
+  - [ ] Selected tags.
+  - [ ] Date range.
+  - [ ] User/team filter optional.
+  - [ ] Billable/non-billable filter.
+- [ ] Matching logic:
+  - [ ] Match by direct time-entry tags.
+  - [ ] Match by project/client context where selected.
+  - [ ] Match by task/project title keywords where useful.
+  - [ ] Allow user to include/exclude individual comparison records.
+  - [ ] Remove obvious outliers or show them separately.
+- [ ] Output:
+  - [ ] Suggested estimated hours.
+  - [ ] Low/typical/high range.
+  - [ ] Number of matching records used.
+  - [ ] Similar past entries list.
+  - [ ] Confidence level.
+  - [ ] Notes explaining why the estimate was suggested.
+- [ ] Project integration:
+  - [ ] Allow estimate to be saved to task estimated hours.
+  - [ ] Allow estimate to be saved to project estimated hours.
+  - [ ] Compare estimated vs actual tracked time.
+  - [ ] Support reporting by estimate accuracy over time.
+- [ ] Guardrails:
+  - [ ] Do not generate estimates from too few records without warning.
+  - [ ] Do not compare across inaccessible records.
+  - [ ] Respect workspace, module, client/project, and permission boundaries.
+  - [ ] Clearly label estimates as historical suggestions, not guarantees.
+
+## User Interface 
 
 - [ ] Create a dashboard/workspace view that shows users all workspaces view
 
@@ -91,11 +226,7 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - eventual functionality could include scanning barcodes to add items to lists
   - What would a shopping/grocery list be called in a business context?
 
-### Third-Party Module ideas
-
-- What tools would be useful for content creators?
-
-### Administration and Settings
+## Administration and Settings
 
 - Is there a way to encrypt/secure the data in the database?
 
@@ -125,14 +256,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - [ ] Create Audit Log "Timeline" report
   - makes an easily human readable report that is chronologically organized
   - make it respect filters
-
-## Tagging Phase 4
-
-- [ ] Phase 4: System/automatic tags
-  - Add optional system tags only after manual tagging works
-  - Use real fields for behavior/security, then optionally expose them as system tags
-  - Example: note visibility should be stored as `visibility`, not enforced by `#public`
-  - System tags should be locked or protected from accidental deletion
 
 # Long Term
 

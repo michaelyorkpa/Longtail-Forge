@@ -10,9 +10,6 @@ const billingPeriodStartDaySelect = document.querySelector("[data-billing-period
 const billingRoundingEnabledInput = document.querySelector("[data-billing-rounding-enabled]");
 const billingRoundingIncrementSelect = document.querySelector("[data-billing-rounding-increment]");
 const moduleSettingsContainer = document.querySelector("[data-module-settings]");
-let timeTrackingEnabledInput = document.querySelector("[data-time-tracking-enabled]");
-let tasksEnabledInput = document.querySelector("[data-tasks-enabled]");
-let taskTimersEnabledInput = document.querySelector("[data-task-timers-enabled]");
 const auditLoggingEnabledInput = document.querySelector("[data-audit-logging-enabled]");
 const auditRetentionDaysSelect = document.querySelector("[data-audit-retention-days]");
 const workspaceReminderDateTimeHours1Input = document.querySelector("[data-workspace-reminder-date-time-hours-1]");
@@ -70,15 +67,6 @@ async function loadSettingsForm() {
     billingPeriodStartDaySelect.value = String(settings.billingPeriod.startDay);
     billingRoundingEnabledInput.checked = settings.billingRounding.enabled;
     billingRoundingIncrementSelect.value = settings.billingRounding.increment;
-    if (timeTrackingEnabledInput) {
-      timeTrackingEnabledInput.checked = settings.timeTrackingEnabled;
-    }
-    if (tasksEnabledInput) {
-      tasksEnabledInput.checked = settings.tasksEnabled;
-    }
-    if (taskTimersEnabledInput) {
-      taskTimersEnabledInput.checked = settings.taskTimersEnabled;
-    }
     renderModuleSettings(settings);
     auditLoggingEnabledInput.checked = settings.audit.loggingEnabled;
     auditRetentionDaysSelect.value = String(settings.audit.retentionDays);
@@ -112,9 +100,6 @@ async function saveSettings() {
       enabled: billingRoundingEnabledInput.checked,
       increment: billingRoundingIncrementSelect.value,
     },
-    timeTrackingEnabled: readModuleBooleanSetting("timeTrackingEnabled", true),
-    tasksEnabled: readModuleBooleanSetting("tasksEnabled", true),
-    taskTimersEnabled: readModuleBooleanSetting("taskTimersEnabled", true),
     moduleSettings: readModuleSettingsPayload(),
     audit: {
       loggingEnabled: auditLoggingEnabledInput.checked,
@@ -155,15 +140,6 @@ async function saveSettings() {
     billingPeriodStartDaySelect.value = String(savedSettings.billingPeriod.startDay);
     billingRoundingEnabledInput.checked = savedSettings.billingRounding.enabled;
     billingRoundingIncrementSelect.value = savedSettings.billingRounding.increment;
-    if (timeTrackingEnabledInput) {
-      timeTrackingEnabledInput.checked = savedSettings.timeTrackingEnabled;
-    }
-    if (tasksEnabledInput) {
-      tasksEnabledInput.checked = savedSettings.tasksEnabled;
-    }
-    if (taskTimersEnabledInput) {
-      taskTimersEnabledInput.checked = savedSettings.taskTimersEnabled;
-    }
     renderModuleSettings(savedSettings);
     auditLoggingEnabledInput.checked = savedSettings.audit.loggingEnabled;
     auditRetentionDaysSelect.value = String(savedSettings.audit.retentionDays);
@@ -322,8 +298,6 @@ function createModuleSettingControl(moduleDefinition, setting) {
     input.disabled = true;
   }
 
-  rememberLegacyModuleInput(setting.id, input);
-
   if (setting.type === "boolean") {
     label.append(input, document.createTextNode(` ${setting.label}`));
   } else {
@@ -368,24 +342,6 @@ function createModuleSettingInput(setting) {
   input.value = setting.value ?? "";
   input.placeholder = setting.placeholder || "";
   return input;
-}
-
-function rememberLegacyModuleInput(settingId, input) {
-  if (settingId === "timeTrackingEnabled") {
-    timeTrackingEnabledInput = input;
-  }
-  if (settingId === "tasksEnabled") {
-    tasksEnabledInput = input;
-  }
-  if (settingId === "taskTimersEnabled") {
-    taskTimersEnabledInput = input;
-  }
-}
-
-function readModuleBooleanSetting(settingId, fallback) {
-  const input = document.querySelector(`[data-module-setting="${settingId}"]`);
-
-  return input ? input.checked : fallback;
 }
 
 function readModuleSettingsPayload() {

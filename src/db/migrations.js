@@ -444,6 +444,15 @@ async function isMigrationAlreadySatisfied(migration) {
     return tableExists("active_work_timers");
   }
 
+  if (migration.fileName === "031_cleanup_legacy_surfaces.sql") {
+    const [activeTimersExist, activeTaskTimersExist] = await Promise.all([
+      tableExists("active_timers"),
+      tableExists("active_task_timers"),
+    ]);
+
+    return !activeTimersExist && !activeTaskTimersExist;
+  }
+
   return false;
 }
 

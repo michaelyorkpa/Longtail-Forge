@@ -1,6 +1,6 @@
 import { permissionsRepository } from "../repositories/permissions.repo.js";
-import { clientsRepository } from "../repositories/clients.repo.js";
-import { projectsRepository } from "../repositories/projects.repo.js";
+import { clientsRepository } from "../modules/client-projects/clients.repo.js";
+import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { auditService } from "./audit.service.js";

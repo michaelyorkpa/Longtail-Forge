@@ -11,7 +11,7 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-permission-regressi
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-permission-test.db");
 process.env.SUPER_ADMIN_PASSWORD = "Permission-Test-Password-123!";
 
-const { createApp } = await import("../src/app.js");
+const { createApp } = await import("../src/core/app.js");
 const { initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 const results = [];
@@ -970,12 +970,20 @@ async function runSettingsTests(api, fixtures) {
   await expectStatus("workspace admin can read workspace settings", settings, 200);
   await expectStatus(
     "workspace admin can update workspace settings",
-    api.put("/api/settings", { ...settings.body, workspaceName: "Permission Regression Workspace" }, { cookie: fixtures.sessions.workspaceAdmin }),
+    api.put("/api/settings", {
+      ...workspaceSettingsSavePayload(settings.body),
+      workspaceName: "Permission Regression Workspace",
+      moduleSettings: moduleSettingsPayload(settings.body),
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   );
   await expectStatus(
     "project user cannot update workspace settings",
-    api.put("/api/settings", { ...settings.body, workspaceName: "Denied Workspace" }, { cookie: fixtures.sessions.projectUser }),
+    api.put("/api/settings", {
+      ...workspaceSettingsSavePayload(settings.body),
+      workspaceName: "Denied Workspace",
+      moduleSettings: moduleSettingsPayload(settings.body),
+    }, { cookie: fixtures.sessions.projectUser }),
     403,
   );
 }
@@ -1202,8 +1210,10 @@ async function runDisabledModuleTests(api, fixtures) {
   const apiKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["time_entries:read", "time_entries:write"]);
   const tasksApiKey = await createApiKey(api, fixtures.sessions.workspaceAdmin, ["tasks:read", "tasks:write"]);
   const disabledSettings = await api.put("/api/settings", {
-    ...settings.body,
-    timeTrackingEnabled: false,
+    ...workspaceSettingsSavePayload(settings.body),
+    moduleSettings: moduleSettingsPayload(settings.body, {
+      "time-tracking": { timeTrackingEnabled: false },
+    }),
   }, { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can disable Time Tracking", disabledSettings, 200);
   check("disabled Time Tracking is removed from enabled module list", () => {
@@ -1246,12 +1256,16 @@ async function runDisabledModuleTests(api, fixtures) {
     403,
   );
   await expectStatus("workspace admin can re-enable Time Tracking", api.put("/api/settings", {
-    ...settings.body,
-    timeTrackingEnabled: true,
+    ...workspaceSettingsSavePayload(settings.body),
+    moduleSettings: moduleSettingsPayload(settings.body, {
+      "time-tracking": { timeTrackingEnabled: true },
+    }),
   }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
   await expectStatus("workspace admin can disable Task Timers sub-option", api.put("/api/settings", {
-    ...settings.body,
-    taskTimersEnabled: false,
+    ...workspaceSettingsSavePayload(settings.body),
+    moduleSettings: moduleSettingsPayload(settings.body, {
+      tasks: { taskTimersEnabled: false },
+    }),
   }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
   await expectStatus(
     "disabled Task Timers sub-option blocks task timer writes",
@@ -1263,12 +1277,16 @@ async function runDisabledModuleTests(api, fixtures) {
     403,
   );
   await expectStatus("workspace admin can re-enable Task Timers sub-option", api.put("/api/settings", {
-    ...settings.body,
-    taskTimersEnabled: true,
+    ...workspaceSettingsSavePayload(settings.body),
+    moduleSettings: moduleSettingsPayload(settings.body, {
+      tasks: { taskTimersEnabled: true },
+    }),
   }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
   const disabledTasksSettings = await api.put("/api/settings", {
-    ...settings.body,
-    tasksEnabled: false,
+    ...workspaceSettingsSavePayload(settings.body),
+    moduleSettings: moduleSettingsPayload(settings.body, {
+      tasks: { tasksEnabled: false },
+    }),
   }, { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can disable Tasks", disabledTasksSettings, 200);
   check("disabled Tasks are removed from enabled module list", () => {
@@ -1296,9 +1314,57 @@ async function runDisabledModuleTests(api, fixtures) {
     403,
   );
   await expectStatus("workspace admin can re-enable Tasks", api.put("/api/settings", {
-    ...settings.body,
-    tasksEnabled: true,
+    ...workspaceSettingsSavePayload(settings.body),
+    moduleSettings: moduleSettingsPayload(settings.body, {
+      tasks: { tasksEnabled: true },
+    }),
   }, { cookie: fixtures.sessions.workspaceAdmin }), 200);
+  await expectStatus("top-level legacy module settings are rejected", api.put("/api/settings", {
+    ...workspaceSettingsSavePayload(settings.body),
+    timeTrackingEnabled: false,
+  }, { cookie: fixtures.sessions.workspaceAdmin }), 400);
+}
+
+function workspaceSettingsSavePayload(settings) {
+  return {
+    workspaceName: settings.workspaceName,
+    workspaceType: settings.workspaceType,
+    fiscalYear: settings.fiscalYear,
+    defaultBillingRate: settings.defaultBillingRate,
+    billingPeriod: settings.billingPeriod,
+    billingRounding: settings.billingRounding,
+    audit: settings.audit,
+    taskReminderDefaults: settings.taskReminderDefaults,
+  };
+}
+
+function moduleSettingsPayload(settings, overrides = {}) {
+  const payload = {};
+
+  for (const moduleDefinition of settings.moduleSettings || []) {
+    const moduleId = moduleDefinition.moduleId;
+
+    if (!moduleId) {
+      continue;
+    }
+
+    payload[moduleId] = {};
+    for (const setting of moduleDefinition.settings || []) {
+      if (setting.readOnly === true) {
+        continue;
+      }
+      payload[moduleId][setting.id] = setting.value;
+    }
+  }
+
+  for (const [moduleId, settingsById] of Object.entries(overrides)) {
+    payload[moduleId] = {
+      ...(payload[moduleId] || {}),
+      ...settingsById,
+    };
+  }
+
+  return payload;
 }
 
 async function runReportingPermissionTests(api, fixtures) {
