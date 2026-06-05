@@ -7,7 +7,7 @@ const developerExampleModule = {
   displayName: "Developer Example",
   description: "Disabled-by-default example module that demonstrates the module manifest contract.",
   category: "developer",
-  version: "0.31.24.1",
+  version: "0.31.24.2",
   enabledByDefault: false,
   canDisable: true,
   historicalReadAccess: true,

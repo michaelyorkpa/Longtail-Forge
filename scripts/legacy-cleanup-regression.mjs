@@ -7,7 +7,7 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-legacy-cleanup-regr
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-legacy-cleanup-test.db");
 process.env.SUPER_ADMIN_PASSWORD = "Legacy-Cleanup-Test-Password-123!";
 
-const { initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
+const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { settingsService } = await import("../src/services/settings.service.js");
 const { staticService } = await import("../src/services/static.service.js");
 
@@ -21,6 +21,7 @@ try {
   await assertActiveSourceHasNoLegacyOrganizationSurface();
   console.log(`Legacy cleanup regression passed ${checks} checks.`);
 } finally {
+  await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 

@@ -2,64 +2,109 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-### Version 0.31.24.1 - UI Tweaks and Clean up
-
-- Do not hard code any of these changes. They should all be adjusted properly through views, routes, and best practices to maintain the integrity of the framework.
-
-#### Appearance
-
-- [x] There is no need for scope/client in Personal or Family Workspaces at all. Clients should not appear anywhere. 
-  - [x] All projects, are workspace scoped in Personal/Family Workspaces
-  - [x] Tasks can be Workspace scoped or project scoped
-  - [x] Time entries can be project scoped
-
-- [x] Personal and Family workspaces should NOT have an option for "Default Billing Rate"
-  - It should be removed from all UI
-  - It should be nullable in the database
-
-- In Workspace Settings, Personal and Family workspaces:
-  - [x] Should change "Billing Period" to "Time Reporting Period"
-  - [x] Should not display Fiscal Year selection (This should simply default to January 1)
-
-- [x] In Business workspaces, workspace projects should be displayed with the scope of the Workspace Name. Do not add " Projects" to the end
-- [x] In all locations that include client/scope, the Workspace Projects should be at the top (with the workspace name, only)
-
-- In add/edit task modals:
-  - [x] Recurrence should be collapsible
-
-- In Projects -> Tasks truncate with hover over for full reveal for: 
-  - [x] Scope
-  - [x] Asignees
-
-- [x] Settings -> Workspace -> Clients -> Edit client modal footer doesn't go all the way to the bottom of the modal window
-
-#### Behavior
-
-- [x] The Client (Scope) and Project selection boxes need to be organized
-  - [x] Alphabetically
-  - [x] Child items should be indented below parent items
-  - [x] Child items should be organized alphabetically
-  - [x] These settings also need to apply to the Parent Client drop down box in Settings -> Add/Edit Client
-  - Client List in Settings -> Workspace -> Clients is properly organized, good work!
-
-- [x] New tasks should default Assignee to task creator
-
-- [x] Add "Project Defaults" section to Project settings
-  - This should start collapsed in the project settings
-  - [x] Add "default priority" and "default status" for tasks to Project settings
-  - [x] Add "default sort order" to Project settings
-    - This should be a re-arrangable box
-    - This should default to: Due Date, Priority, Status
-
-- [x] Fix historical records
-  - When parent clients are added, all existing projects need to be updated
-  - Individual items don't need to be updated, because they should still have the project assigned and be accessible by reporting
-  - I recently moved three clients under the parent client of "Steven Spohn" and no projects or time entries show up
-    - [x] Please correct the affected projects for this move and make the change permanent in code
-
 ### Version 0.31.24.2 - Database speed up
 
 Database calls have begun slowing down. I'm unsure what the cause is, but it's creating a noticable lag on the front end. Please do some testing and fill this ROADMAP section with the actions to take with the results of your tests.
+
+#### Test Results
+
+- [x] Database health check
+  - `PRAGMA integrity_check` returned `ok`.
+  - Database size is about `1.32 MB` with `338` pages at `4096` bytes per page.
+  - `PRAGMA freelist_count` returned `0`, so there is no meaningful database bloat to vacuum away.
+  - Current row counts are small: `clients=9`, `projects=36`, `time_entries=69`, `tasks=18`, `audit_logs=294`.
+
+- [x] Database access overhead check
+  - `50` separate `querySql("SELECT 1")` calls averaged about `32 ms` each.
+  - `50` batched SELECT statements in one sqlite process took about `34 ms` total.
+  - Primary finding: the active database wrapper spawns a new `sqlite3` process for every `querySql`/`runSql` call, so page latency is dominated by process startup and repeated small queries rather than raw SQLite table size.
+
+- [x] Authenticated HTTP timing check
+  - `/api/app-info`: median about `3 ms`.
+  - `/api/app-shell/bootstrap`: median about `229 ms`.
+  - `/api/settings`: median about `138 ms`.
+  - `/api/client-projects`: median about `279 ms`.
+  - `/api/tasks`: median about `492 ms`.
+  - `/api/time-entries`: median about `117 ms`.
+  - `/api/reporting/bootstrap`: median about `529 ms`.
+  - `/api/dashboard`: median about `1004 ms`.
+  - `/api/reporting/project-summary`: median about `575 ms`.
+
+- [x] Service timing check
+  - `settingsService.read`: median about `135 ms`.
+  - `clientsService.readClientProjects`: median about `291 ms`.
+  - `tasksService.list`: median about `559 ms`.
+  - `timeEntriesService.list`: median about `101 ms`.
+  - `reportingService.readReportingBootstrap`: median about `545 ms`.
+  - `reportingService.readDashboard`: median about `1245 ms`.
+  - `reportingService.readProjectSummary`: median about `671 ms`.
+
+- [x] Query plan check
+  - Several common list queries use indexes for workspace filtering but still build temporary B-trees for `ORDER BY`.
+  - Affected examples include Tasks due-date ordering, role assignments by user, time entries by end time, clients by name, and projects by name.
+  - Secondary finding: add targeted sort-covering indexes, but do this after reducing query/process count so index work is measured against the real bottleneck.
+
+#### Repair Plan
+
+- [x] Replace per-query sqlite process spawning with a persistent sqlite adapter
+  - [x] Reuse one long-lived sqlite process for queued `querySql` and `runSql` calls instead of spawning a process per call.
+  - [x] Preserve the existing `querySql`, `runSql`, `sqlText`, `sqlNullableText`, `sqlInteger`, and `sqlNullableInteger` public helper contract while replacing the internals.
+  - [x] Keep migration checksum validation and fresh-start database behavior unchanged.
+  - [x] Add an explicit close hook for regression scripts and temporary database cleanup.
+
+- [x] Add request-scoped caching for repeated permission reads
+  - [x] Cache current user and role assignments for the duration of a request/session object.
+  - [x] Update `permissionsService.can` and `canInAnyScope` so repeated checks in task/reporting loops do not reread the same user and assignment rows.
+  - [x] Preserve protected-user and scoped-role behavior exactly.
+  - [x] Verify with the permission regression harness.
+
+- [x] Reduce task/reporting lag caused by repeated small reads
+  - [x] Remove the per-query process startup cost from task reminder, recurrence, permission, reporting, settings, module, and client/project reads.
+  - [x] Avoid repeated permission database reads inside task and reporting loops through request-scoped permission caching.
+  - [x] Keep `/api/tasks`, reporting, and dashboard response contracts unchanged.
+  - [x] Keep reporting parent-client descendant behavior from `0.31.24.1`.
+
+- [x] Add targeted list-sort indexes after the query-count fixes
+  - [x] Add task due ordering index `(workspace_id, due_date, due_time, updated_at)`.
+  - [x] Add active task assignee read index `(workspace_id, removed_at, user_id)`.
+  - [x] Add time entry list ordering index `(workspace_id, end_time)`.
+  - [x] Add client and project name ordering indexes `(workspace_id, name)`.
+  - [x] Add role assignment user ordering index `(workspace_id, user_id, updated_at, assignment_id)`.
+
+- [x] Add a performance regression script
+  - [x] Add a local script that measures database wrapper overhead and core service timings.
+  - [x] Record database health in the output so timing changes are interpreted with data integrity.
+  - [x] Add conservative thresholds for the repaired small-database baseline.
+  - [x] Wire the script into `npm run check`.
+
+#### Repair Results
+
+- [x] `50` trivial database reads now complete in about `7 ms` total in the performance regression.
+- [x] Temporary fresh-database service timings now run well below target:
+  - `settingsService.read`: about `2 ms`.
+  - `clientsService.readClientProjects`: about `1 ms`.
+  - `tasksService.list`: about `3 ms`.
+  - `reportingService.readReportingBootstrap`: about `3 ms`.
+  - `reportingService.readDashboard`: about `6 ms`.
+- [x] Live authenticated HTTP smoke after repair:
+  - `/api/settings`: median about `5 ms`.
+  - `/api/client-projects`: median about `8 ms`.
+  - `/api/tasks`: median about `12 ms`.
+  - `/api/reporting/bootstrap`: median about `9 ms`.
+  - `/api/dashboard`: median about `17 ms`.
+
+#### Acceptance Targets
+
+- [x] `50` trivial database reads should complete in less than `100 ms` total on the local machine.
+- [x] `/api/settings` should have a median response time under `75 ms`.
+- [x] `/api/client-projects` should have a median response time under `125 ms`.
+- [x] `/api/tasks` should have a median response time under `175 ms` with the current small dataset.
+- [x] `/api/reporting/bootstrap` should have a median response time under `175 ms`.
+- [x] `/api/dashboard` should have a median response time under `300 ms`.
+- [x] `PRAGMA integrity_check` remains `ok`.
+- [x] `npm run check` passes.
+- [x] `npm run test:permissions` passes.
+- [x] `/api/app-info` reports the release version after implementation.
 
 ## Version 0.32.0 - Notifications Framework Foundation
 

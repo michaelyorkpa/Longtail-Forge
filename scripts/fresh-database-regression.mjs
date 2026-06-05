@@ -7,7 +7,7 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-fresh-database-regr
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-fresh-database-test.db");
 process.env.SUPER_ADMIN_PASSWORD = "Fresh-Database-Test-Password-123!";
 
-const { initializeDatabase, querySql } = await import("../src/db/index.js");
+const { closeSqlite, initializeDatabase, querySql } = await import("../src/db/index.js");
 
 try {
   await initializeDatabase();
@@ -18,6 +18,7 @@ try {
   await assertIntegrity();
   console.log("Fresh database regression passed.");
 } finally {
+  await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 
@@ -32,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 2, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 3, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -42,6 +43,11 @@ ORDER BY version;
     version: "032",
     module_id: "core",
     name: "project_defaults_and_workspace_reporting",
+  });
+  assert.deepEqual(migrations[2], {
+    version: "033",
+    module_id: "core",
+    name: "add_performance_sort_indexes",
   });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }

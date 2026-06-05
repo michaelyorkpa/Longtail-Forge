@@ -8,7 +8,7 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-workspace-storage-r
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-workspace-storage-test.db");
 process.env.SUPER_ADMIN_PASSWORD = "Workspace-Storage-Test-Password-123!";
 
-const { initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
+const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 const { settingsRepository } = await import("../src/repositories/settings.repo.js");
 const { clientsRepository } = await import("../src/modules/client-projects/clients.repo.js");
 const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
@@ -91,6 +91,7 @@ try {
   await assertWorkspaceRows(workspaceId);
   console.log("Workspace storage regression passed.");
 } finally {
+  await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 

@@ -12,7 +12,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-permissi
 process.env.SUPER_ADMIN_PASSWORD = "Permission-Test-Password-123!";
 
 const { createApp } = await import("../src/core/app.js");
-const { initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 const results = [];
 let server;
@@ -46,6 +46,7 @@ try {
     await closeServer(server);
   }
 
+  await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
 

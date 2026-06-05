@@ -7,6 +7,7 @@ import { modulesService } from "../core/modules/modules.service.js";
 import { appSettingsRepository } from "../repositories/app-settings.repo.js";
 import { runMigrations } from "./migrations.js";
 import {
+  closeSqlite,
   querySql,
   runSql,
   sqlInteger,
@@ -707,6 +708,7 @@ async function columnsExist(tableName, columnNames) {
 export {
   ensureDatabase,
   initializeDatabase,
+  closeSqlite,
   querySql,
   runSql,
   sqlInteger,

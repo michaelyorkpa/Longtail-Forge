@@ -97,16 +97,13 @@ async function can(session, action, resource = {}) {
     return false;
   }
 
-  const user = await usersRepository.readById(session.workspace_id, session.user_id);
+  const user = await readCurrentUser(session);
 
   if (normalizeProtectedUserFlag(user?.protected_user)) {
     return true;
   }
 
-  const assignments = await permissionsRepository.readAssignmentsForUser(
-    session.workspace_id,
-    session.user_id,
-  );
+  const assignments = await readAssignmentsForSession(session);
   const permissionsByRole = await readPermissionsByRole();
 
   return assignments.some((assignment) => {
@@ -139,16 +136,13 @@ async function canInAnyScope(session, action, resource = {}) {
     return false;
   }
 
-  const user = await usersRepository.readById(session.workspace_id, session.user_id);
+  const user = await readCurrentUser(session);
 
   if (normalizeProtectedUserFlag(user?.protected_user)) {
     return true;
   }
 
-  const assignments = await permissionsRepository.readAssignmentsForUser(
-    session.workspace_id,
-    session.user_id,
-  );
+  const assignments = await readAssignmentsForSession(session);
   const permissionsByRole = await readPermissionsByRole();
 
   return assignments.some((assignment) => (
@@ -297,10 +291,7 @@ async function assertCanAssignRoles(session) {
 }
 
 async function hasAssignableRoleScope(session) {
-  const assignments = await permissionsRepository.readAssignmentsForUser(
-    session.workspace_id,
-    session.user_id,
-  );
+  const assignments = await readAssignmentsForSession(session);
   const permissionsByRole = await readPermissionsByRole();
 
   return assignments.some((assignment) => (
@@ -310,10 +301,7 @@ async function hasAssignableRoleScope(session) {
 }
 
 async function canAssignRole(session, requestedAssignment) {
-  const assignments = await permissionsRepository.readAssignmentsForUser(
-    session.workspace_id,
-    session.user_id,
-  );
+  const assignments = await readAssignmentsForSession(session);
   const roleId = requestedAssignment.roleId;
   const assignmentResource = await readAssignmentResource(session.workspace_id, requestedAssignment);
 
@@ -332,7 +320,7 @@ async function canAssignRole(session, requestedAssignment) {
     return true;
   }
 
-  const user = await usersRepository.readById(session.workspace_id, session.user_id);
+  const user = await readCurrentUser(session);
   return normalizeProtectedUserFlag(user?.protected_user) && ROLE_LIMITS.super_admin.has(roleId);
 }
 
@@ -366,18 +354,18 @@ async function isSuperAdmin(session) {
     return false;
   }
 
-  const user = await usersRepository.readById(session.workspace_id, session.user_id);
+  const user = await readCurrentUser(session);
 
   if (normalizeProtectedUserFlag(user?.protected_user)) {
     return true;
   }
 
-  const assignments = await permissionsRepository.readAssignmentsForUser(session.workspace_id, session.user_id);
+  const assignments = await readAssignmentsForSession(session);
   return assignments.some((assignment) => assignment.role_id === "super_admin");
 }
 
 async function readReadableScopes(session) {
-  const assignments = await permissionsRepository.readAssignmentsForUser(session.workspace_id, session.user_id);
+  const assignments = await readAssignmentsForSession(session);
   const permissionsByRole = await readPermissionsByRole();
   const clientIds = new Set();
   const projectIds = new Set();
@@ -408,6 +396,46 @@ async function readReadableScopes(session) {
 function canReadAllScopedTimeEntries(readableScopes, entry) {
   return readableScopes.editAllClientIds.has(entry.client_id) ||
     readableScopes.editAllProjectIds.has(entry.project_id);
+}
+
+async function readCurrentUser(session) {
+  const cache = readRequestCache(session);
+  const cacheKey = `${session.workspace_id}:${session.user_id}`;
+
+  if (!cache.users.has(cacheKey)) {
+    cache.users.set(cacheKey, await usersRepository.readById(session.workspace_id, session.user_id));
+  }
+
+  return cache.users.get(cacheKey);
+}
+
+async function readAssignmentsForSession(session) {
+  const cache = readRequestCache(session);
+  const cacheKey = `${session.workspace_id}:${session.user_id}`;
+
+  if (!cache.assignments.has(cacheKey)) {
+    cache.assignments.set(cacheKey, await permissionsRepository.readAssignmentsForUser(
+      session.workspace_id,
+      session.user_id,
+    ));
+  }
+
+  return cache.assignments.get(cacheKey);
+}
+
+function readRequestCache(session) {
+  if (!session.__requestCache) {
+    Object.defineProperty(session, "__requestCache", {
+      configurable: true,
+      enumerable: false,
+      value: {
+        assignments: new Map(),
+        users: new Map(),
+      },
+    });
+  }
+
+  return session.__requestCache;
 }
 
 async function readDecoratedAssignments(workspaceId, userId) {

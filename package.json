@@ -1,11 +1,11 @@
 {
   "name": "longtail-forge",
-  "version": "0.31.24.1",
+  "version": "0.31.24.2",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node scripts/check-js.mjs && node scripts/workspace-storage-regression.mjs && node scripts/legacy-cleanup-regression.mjs && node scripts/fresh-database-regression.mjs && node scripts/accessibility-regression.mjs && node scripts/event-bus-regression.mjs && node scripts/audit-extensibility-regression.mjs && node scripts/module-sanity-check.mjs && eslint .",
+    "check": "node scripts/check-js.mjs && node scripts/workspace-storage-regression.mjs && node scripts/legacy-cleanup-regression.mjs && node scripts/fresh-database-regression.mjs && node scripts/performance-regression.mjs && node scripts/accessibility-regression.mjs && node scripts/event-bus-regression.mjs && node scripts/audit-extensibility-regression.mjs && node scripts/module-sanity-check.mjs && eslint .",
     "test:permissions": "node scripts/permission-regression.mjs",
     "lint": "eslint ."
   },

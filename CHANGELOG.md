@@ -1,3 +1,13 @@
+## Version 0.31.24.2 - 2026-06-05 12:15 -04:00
+
+- Bumped the app and first-party module versions to `0.31.24.2`.
+- Replaced per-query sqlite process spawning with a queued persistent sqlite adapter while preserving the existing database helper API.
+- Added an explicit sqlite close hook for regression scripts and temporary database cleanup.
+- Added request-scoped permission caching for current user and role assignment reads.
+- Added performance sort indexes for tasks, task assignees, time entries, clients, projects, and user role assignments.
+- Added `scripts/performance-regression.mjs` and wired it into `npm run check`.
+- Reduced fresh-database performance regression timings to single-digit milliseconds for core service reads.
+
 ## Version 0.31.24.1 - 2026-06-05 10:54 -04:00
 
 - Bumped the app and first-party module versions to `0.31.24.1`.
