@@ -24,6 +24,7 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "apiScopes",
   "timerSources",
   "workItemSources",
+  "hooks",
   "frameworkDependencies",
   "moduleDependencies",
   "seedHooks",
@@ -34,7 +35,6 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
 const RESERVED_MANIFEST_FIELDS = new Set([
   "auditRecordTypes",
   "eventTypes",
-  "hooks",
   "notificationEvents",
   "notificationTemplates",
   "searchableTypes",
@@ -80,6 +80,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateWorkbench(moduleDefinition.workbench, errors);
   validateSettings(moduleDefinition.settings, errors);
   validatePublicApiEndpoints(moduleDefinition.publicApiEndpoints, errors);
+  validateHooks(moduleDefinition.hooks, errors);
   validateTimerSources(moduleDefinition.timerSources, moduleDefinition.id, errors);
   validateWorkItemSources(moduleDefinition.workItemSources, moduleDefinition.id, errors);
   validateReservedFields(moduleDefinition, errors);
@@ -178,6 +179,30 @@ function validatePublicApiEndpoints(publicApiEndpoints, errors) {
     requireString(item, "path", errors, { prefix: `publicApiEndpoints[${index}]` });
     requireString(item, "scope", errors, { prefix: `publicApiEndpoints[${index}]` });
   });
+}
+
+function validateHooks(hooks, errors) {
+  if (hooks === undefined) {
+    return;
+  }
+
+  if (!isPlainObject(hooks)) {
+    errors.push("hooks must be an object.");
+    return;
+  }
+
+  for (const hookName of [
+    "onModuleEnabled",
+    "onModuleDisabled",
+    "onModuleInstalled",
+    "onModuleUpdated",
+    "onModuleRepaired",
+  ]) {
+    const hook = hooks[hookName];
+    if (hook !== undefined && typeof hook !== "function") {
+      errors.push(`hooks.${hookName} must be a function.`);
+    }
+  }
 }
 
 function validateTimerSources(timerSources, moduleId, errors) {

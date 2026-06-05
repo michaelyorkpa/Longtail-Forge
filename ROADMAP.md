@@ -2,73 +2,9 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.11 - Module Registry Cleanup
-
-* [x] Refactor the module registry into a clearer framework service
-
-  * [x] Keep first-party modules explicitly registered for now
-  * [x] Avoid automatic filesystem discovery
-  * [x] Prepare the registry so external module manifests can be added later through configuration
-  * [x] Keep registry behavior predictable and easy to debug
-
-* [x] Split module registry responsibilities
-
-  * [x] Module definition loading
-  * [x] Module validation
-  * [x] Module lookup by ID
-  * [x] Enabled/disabled workspace module state
-  * [x] Browser API route registration
-  * [x] Public API route registration
-  * [x] Migration source registration
-  * [x] Navigation contribution collection
-  * [x] Settings contribution collection
-  * [x] Permission contribution collection
-  * [x] API scope contribution collection
-  * [x] Taggable type contribution collection
-  * [x] Searchable type contribution collection
-  * [x] Notification event/template contribution collection
-
-* [x] Add registry helper methods
-
-  * [x] `listModules()`
-  * [x] `getModule(moduleId)`
-  * [x] `listEnabledModules(workspaceId)`
-  * [x] `listModuleRoutes(type)`
-  * [x] `listModuleNavigation(workspaceId, session)`
-  * [x] `listModuleSettings(workspaceId, session)`
-  * [x] `listModulePermissions()`
-  * [x] `listModuleApiScopes()`
-  * [x] `listTaggableTypes()`
-  * [x] `listSearchableTypes()`
-  * [x] `listNotificationEvents()`
-  * [x] `listNotificationTemplates()`
-
-* [x] Add Workbench page and timer-source registry responsibilities
-
-  * [x] Collect Workbench page card contributions from enabled modules
-  * [x] Collect timer source declarations from enabled modules
-  * [x] Collect workbench item source declarations from enabled modules
-  * [x] Validate source module dependencies before exposing timer/workbench item sources
-  * [x] Filter Workbench page contributions by workspace type, workspace capabilities, module status, and permissions
-  * [x] Provide normalized registry output for the Workbench page bootstrap/API
-
-* [x] Add registry helper methods for Workbench/timer integrations
-
-  * [x] `listWorkbenchCards(workspaceId, session)`
-  * [x] `listTimerSources(workspaceId, session)`
-  * [x] `listWorkItemSources(workspaceId, session)`
-  * [x] `getTimerSource(moduleId, sourceType)`
-  * [x] `getWorkItemSource(moduleId, sourceType)`
-
-* [x] Add framework-level checks for module dependencies
-
-  * [x] Prevent enabling a module when required framework dependencies are missing
-  * [x] Prevent enabling a module when required module dependencies are disabled
-  * [x] Return a clear message explaining which dependency blocks enabling the module
-
 ## Version 0.31.12 - Module Enable/Disable Lifecycle
 
-* [ ] Define module enable/disable behavior clearly
+* [x] Define module enable/disable behavior clearly
 
   * Disabling a module should not delete module data
   * Disabling a module should hide module navigation
@@ -84,35 +20,35 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * Disabled-source timer recovery may allow pause, discard/remove, and safe finalization into a normal time entry when Time Tracking is enabled and the user has time entry create permission
   * Disabled-source timer finalization should preserve stored source metadata when possible, but may fall back to stored client/project/description fields when the source record cannot be safely validated
 
-* [ ] Move module write checks closer to the framework
+* [x] Move module write checks closer to the framework
 
-  * [ ] Add reusable middleware for browser API write protection
-  * [ ] Add reusable middleware for public API write protection
-  * [ ] Keep service-level write checks where useful as a second layer of protection
-  * [ ] Avoid requiring every module author to remember custom write checks in every service method
+  * [x] Add reusable middleware for browser API write protection
+  * [x] Add reusable middleware for public API write protection
+  * [x] Keep service-level write checks where useful as a second layer of protection
+  * [x] Avoid requiring every module author to remember custom write checks in every service method
 
-* [ ] Add module lifecycle hooks
+* [x] Add module lifecycle hooks
 
-  * [ ] `onModuleEnabled`
-  * [ ] `onModuleDisabled`
-  * [ ] `onModuleInstalled`
-  * [ ] `onModuleUpdated`
-  * [ ] `onModuleRepaired`
+  * [x] `onModuleEnabled`
+  * [x] `onModuleDisabled`
+  * [x] `onModuleInstalled`
+  * [x] `onModuleUpdated`
+  * [x] `onModuleRepaired`
 
-* [ ] Add audit logging for module state changes
+* [x] Add audit logging for module state changes
 
-  * [ ] Log when a module is enabled
-  * [ ] Log when a module is disabled
-  * [ ] Log the actor user
-  * [ ] Log workspace/module IDs
-  * [ ] Log dependency or validation failures where appropriate
+  * [x] Log when a module is enabled
+  * [x] Log when a module is disabled
+  * [x] Log the actor user
+  * [x] Log workspace/module IDs
+  * [x] Log dependency or validation failures where appropriate
 
-* [ ] Add safety rules for core framework modules
+* [x] Add safety rules for core framework modules
 
-  * [ ] Some modules should not be disableable
-  * [ ] Core framework services should not appear as normal optional modules
-  * [ ] Tags, search, notifications, permissions, audit logging, module registry, and app shell should be framework services, not optional workflow modules
-  * [ ] The UI should clearly separate framework services from optional workflow modules
+  * [x] Some modules should not be disableable
+  * [x] Core framework services should not appear as normal optional modules
+  * [x] Tags, search, notifications, permissions, audit logging, module registry, and app shell should be framework services, not optional workflow modules
+  * [x] The UI should clearly separate framework services from optional workflow modules
 
 ## Version 0.31.13 - Registry-Driven App Shell and Navigation
 

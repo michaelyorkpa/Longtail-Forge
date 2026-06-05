@@ -21,6 +21,7 @@ const CHANGE_TYPES = new Set([
 
 const RECORD_TYPES = new Set([
   "workspace",
+  "module",
   "workspace_membership",
   "workspace_setting",
   "user",

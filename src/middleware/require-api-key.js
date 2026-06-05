@@ -1,4 +1,6 @@
 import { apiKeysService } from "../services/api-keys.service.js";
+import { assertModuleWriteEnabled } from "../core/modules/module-access.js";
+import { modulesService } from "../core/modules/modules.service.js";
 import { sendJson } from "../utils/http.js";
 
 function requireApiKey(requiredScope) {
@@ -33,11 +35,25 @@ function requireApiKey(requiredScope) {
         username: `api:${apiKey.key_prefix}`,
         api_key_id: apiKey.api_key_id,
       };
+
+      if (isWriteRequest(request) && requiredScope) {
+        const moduleId = modulesService.getModuleForApiScope(requiredScope);
+        const moduleDefinition = modulesService.getModule(moduleId);
+
+        if (moduleId && moduleDefinition?.canDisable !== false) {
+          await assertModuleWriteEnabled(request.apiSession, moduleId);
+        }
+      }
+
       next();
     } catch (error) {
       next(error);
     }
   };
+}
+
+function isWriteRequest(request) {
+  return !["GET", "HEAD", "OPTIONS"].includes(request.method);
 }
 
 function readApiKey(request) {

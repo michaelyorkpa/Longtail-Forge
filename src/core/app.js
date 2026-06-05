@@ -14,6 +14,7 @@ import { reportingRoutes } from "../routes/reporting.routes.js";
 import { settingsRoutes } from "../routes/settings.routes.js";
 import { staticRoutes } from "../routes/static.routes.js";
 import { workbenchRoutes } from "../routes/workbench.routes.js";
+import { requireModuleBrowserWritesEnabled } from "./modules/module-access.js";
 import { modulesService } from "./modules/modules.service.js";
 
 function createApp() {
@@ -35,8 +36,19 @@ function createApp() {
   app.use("/api", reportingRoutes);
   app.use("/api", settingsRoutes);
   app.use("/api", workbenchRoutes);
-  for (const moduleRoutes of modulesService.listModuleRoutes("browser")) {
-    app.use("/api", moduleRoutes);
+  for (const moduleRoute of modulesService.listModuleRouteEntries("browser")) {
+    const moduleDefinition = modulesService.getModule(moduleRoute.moduleId);
+
+    if (moduleDefinition?.canDisable === false) {
+      app.use("/api", moduleRoute.router);
+      continue;
+    }
+
+    app.use(
+      "/api",
+      requireModuleBrowserWritesEnabled(moduleRoute.moduleId),
+      moduleRoute.router,
+    );
   }
   app.use("/api", (request, response, next) => {
     if (request.method === "GET") {

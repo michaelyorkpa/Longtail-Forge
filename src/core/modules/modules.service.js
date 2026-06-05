@@ -1,8 +1,10 @@
 import {
   getModule as getRegisteredModule,
+  listModuleApiScopeEntries as listRegisteredModuleApiScopeEntries,
   listModuleApiScopes as listRegisteredModuleApiScopes,
   listModuleMigrationSources,
   listModulePermissions as listRegisteredModulePermissions,
+  listModuleRouteEntries as listRegisteredModuleRouteEntries,
   listModuleRoutes as listRegisteredModuleRoutes,
   listModules as listRegisteredModules,
   listNotificationEvents as listRegisteredNotificationEvents,
@@ -39,12 +41,24 @@ function listModuleRoutes(type) {
   return listRegisteredModuleRoutes(type);
 }
 
+function listModuleRouteEntries(type) {
+  return listRegisteredModuleRouteEntries(type);
+}
+
 function listModulePermissions() {
   return listRegisteredModulePermissions();
 }
 
 function listModuleApiScopes() {
   return listRegisteredModuleApiScopes();
+}
+
+function listModuleApiScopeEntries() {
+  return listRegisteredModuleApiScopeEntries();
+}
+
+function getModuleForApiScope(scope) {
+  return listModuleApiScopeEntries().find((entry) => entry.scope === scope)?.moduleId || "";
 }
 
 function listTaggableTypes() {
@@ -65,6 +79,8 @@ function listNotificationTemplates() {
 
 async function syncModuleRegistry(workspaceId) {
   const modules = listModules();
+  const existingModuleRows = await querySql("SELECT module_id, version FROM modules;");
+  const existingModulesById = new Map(existingModuleRows.map((row) => [row.module_id, row]));
   const now = new Date().toISOString();
   const statements = modules.flatMap((moduleDefinition) => {
     const moduleStatus = "active";
@@ -109,6 +125,19 @@ ON CONFLICT(workspace_id, module_id) DO NOTHING;
   if (statements.length > 0) {
     await runSql(statements.join("\n"));
   }
+
+  for (const moduleDefinition of modules) {
+    const existingModule = existingModulesById.get(moduleDefinition.id);
+
+    if (!existingModule) {
+      await runModuleLifecycleHook(moduleDefinition, "onModuleInstalled", { workspaceId });
+    } else if (existingModule.version !== moduleDefinition.version) {
+      await runModuleLifecycleHook(moduleDefinition, "onModuleUpdated", {
+        previousVersion: existingModule.version,
+        workspaceId,
+      });
+    }
+  }
 }
 
 async function decorateWorkspaceSettings(settings, workspaceId) {
@@ -147,6 +176,7 @@ ORDER BY module_id;
       category: moduleDefinition.category,
       version: moduleDefinition.version,
       status,
+      canDisable: moduleDefinition.canDisable !== false,
       historicalReadAccess: moduleDefinition.historicalReadAccess !== false,
       navigation: moduleDefinition.navigation || [],
       dashboard: moduleDefinition.dashboard || [],
@@ -217,24 +247,47 @@ LIMIT 1;
   return rows[0]?.status === "enabled" ? "enabled" : "disabled";
 }
 
-async function setModuleStatus(workspaceId, moduleId, enabled) {
-  if (enabled) {
-    await assertModuleCanBeEnabled(workspaceId, moduleId);
+async function setModuleStatus(workspaceId, moduleId, enabled, options = {}) {
+  const moduleDefinition = getModule(moduleId);
+  const previousStatus = await readModuleStatus(workspaceId, moduleId);
+  const nextStatus = enabled ? "enabled" : "disabled";
+
+  try {
+    if (enabled) {
+      await assertModuleCanBeEnabled(workspaceId, moduleId);
+    } else {
+      await assertModuleCanBeDisabled(workspaceId, moduleId);
+    }
+  } catch (error) {
+    await recordModuleStateFailure(workspaceId, moduleDefinition, enabled, error, { ...options, moduleId });
+    throw error;
+  }
+
+  if (previousStatus === nextStatus) {
+    return;
   }
 
   const now = new Date().toISOString();
-  const status = enabled ? "enabled" : "disabled";
 
   await runSql(`
 UPDATE workspace_modules
-SET status = ${sqlText(status)},
-    enabled_at = CASE WHEN ${sqlText(status)} = 'enabled' THEN COALESCE(enabled_at, ${sqlText(now)}) ELSE enabled_at END,
-    disabled_at = CASE WHEN ${sqlText(status)} = 'disabled' THEN ${sqlText(now)} ELSE NULL END,
+SET status = ${sqlText(nextStatus)},
+    enabled_at = CASE WHEN ${sqlText(nextStatus)} = 'enabled' THEN COALESCE(enabled_at, ${sqlText(now)}) ELSE enabled_at END,
+    disabled_at = CASE WHEN ${sqlText(nextStatus)} = 'disabled' THEN ${sqlText(now)} ELSE NULL END,
     updated_at = ${sqlText(now)}
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND module_id = ${sqlText(moduleId)}
 ;
 `);
+
+  await runModuleLifecycleHook(moduleDefinition, enabled ? "onModuleEnabled" : "onModuleDisabled", {
+    moduleId,
+    nextStatus,
+    previousStatus,
+    session: options.session || null,
+    workspaceId,
+  });
+  await recordModuleStateChanged(workspaceId, moduleDefinition, previousStatus, nextStatus, options);
 }
 
 async function assertModuleCanBeEnabled(workspaceId, moduleId) {
@@ -264,6 +317,99 @@ async function assertModuleCanBeEnabled(workspaceId, moduleId) {
       400,
     );
   }
+}
+
+async function assertModuleCanBeDisabled(workspaceId, moduleId) {
+  const moduleDefinition = getModule(moduleId);
+
+  if (!moduleDefinition) {
+    throw new AppError(`Module '${moduleId}' is not registered.`, 400);
+  }
+
+  if (moduleDefinition.canDisable === false) {
+    throw new AppError(`Module '${moduleId}' cannot be disabled because it is a core framework module.`, 400);
+  }
+
+  const enabledModuleIds = new Set(await readEnabledModuleIds(workspaceId));
+  const dependentModules = listModules().filter((candidate) => (
+    candidate.id !== moduleId &&
+    enabledModuleIds.has(candidate.id) &&
+    (candidate.moduleDependencies || []).includes(moduleId)
+  ));
+
+  if (dependentModules.length > 0) {
+    throw new AppError(
+      `Module '${moduleId}' cannot be disabled because enabled modules depend on it: ${dependentModules.map((item) => item.id).join(", ")}.`,
+      400,
+    );
+  }
+}
+
+async function runModuleLifecycleHook(moduleDefinition, hookName, context) {
+  const hook = moduleDefinition?.hooks?.[hookName];
+
+  if (typeof hook !== "function") {
+    return null;
+  }
+
+  return hook({
+    ...context,
+    module: moduleDefinition,
+    modulesService,
+  });
+}
+
+async function recordModuleStateChanged(workspaceId, moduleDefinition, previousStatus, nextStatus, options) {
+  const { auditService } = await import("../../services/audit.service.js");
+  const moduleId = moduleDefinition?.id || options.moduleId || "";
+
+  await auditService.record({
+    session: options.session,
+    workspaceId,
+    action: nextStatus === "enabled" ? "module.enabled" : "module.disabled",
+    changeType: "settings_change",
+    recordType: "module",
+    recordId: moduleId,
+    recordLabel: moduleDefinition?.displayName || moduleDefinition?.name || moduleId,
+    recordUrl: "workspace-settings.html",
+    previousValue: {
+      module_id: moduleId,
+      status: previousStatus,
+    },
+    newValue: {
+      module_id: moduleId,
+      status: nextStatus,
+    },
+    metadata: {
+      module_id: moduleId,
+      workspace_id: workspaceId,
+    },
+    force: true,
+  });
+}
+
+async function recordModuleStateFailure(workspaceId, moduleDefinition, enabling, error, options) {
+  const { auditService } = await import("../../services/audit.service.js");
+  const moduleId = moduleDefinition?.id || options.moduleId || "";
+
+  await auditService.record({
+    session: options.session,
+    workspaceId,
+    action: enabling ? "module.enable_failed" : "module.disable_failed",
+    changeType: "settings_change",
+    recordType: "module",
+    recordId: moduleId,
+    recordLabel: moduleDefinition?.displayName || moduleDefinition?.name || moduleId,
+    recordUrl: "workspace-settings.html",
+    previousValue: null,
+    newValue: null,
+    metadata: {
+      error: error?.message || String(error),
+      module_id: moduleId,
+      workspace_id: workspaceId,
+    },
+    force: true,
+  });
 }
 
 async function listModuleNavigation(workspaceId, session = null) {
@@ -415,13 +561,16 @@ export const modulesService = {
   canWriteModule,
   decorateWorkspaceSettings,
   getModule,
+  getModuleForApiScope,
   getTimerSource,
   getWorkItemSource,
   listEnabledModules,
   listModuleApiScopes,
+  listModuleApiScopeEntries,
   listModuleMigrationSources,
   listModuleNavigation,
   listModulePermissions,
+  listModuleRouteEntries,
   listModuleRoutes,
   listModules,
   listModuleSettings,

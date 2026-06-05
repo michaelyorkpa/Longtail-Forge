@@ -1,3 +1,14 @@
+## Version 0.31.12 - 2026-06-04 17:12 -04:00
+
+- Centralized module enable/disable state changes in `modulesService.setModuleStatus` with non-disableable module safety, dependency checks, lifecycle hook calls, and no-op handling for unchanged states.
+- Added framework-level browser module write guards during route mounting and public API module write enforcement through API-key scope handling.
+- Added module lifecycle hook support for enable, disable, install, update, and repair hook names in the manifest contract.
+- Added forced audit records for `module.enabled`, `module.disabled`, `module.enable_failed`, and `module.disable_failed` events.
+- Surfaced `canDisable` in workspace module metadata and documented lifecycle/disable behavior in `docs/module-contract.md`.
+- Marked Clients/Projects and Users as non-disableable core modules while keeping Tasks and Time Tracking optional workflow modules.
+- Updated first-party module metadata to version `0.31.12`.
+- Bumped the app version to `0.31.12`.
+
 ## Version 0.31.11 - 2026-06-04 16:46 -04:00
 
 - Refactored module registry behavior behind `modulesService` with module lookup, route lists, workspace-enabled module reads, contribution collection, permission lists, API scope lists, and reserved tag/search/notification list helpers.

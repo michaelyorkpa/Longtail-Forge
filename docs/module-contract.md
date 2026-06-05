@@ -45,6 +45,7 @@ These fields are currently accepted by the manifest validator:
 - `apiScopes`: optional API key scope IDs provided by the module.
 - `timerSources`: optional timer-capable source declarations.
 - `workItemSources`: optional actionable Workbench item source declarations.
+- `hooks`: optional lifecycle hook object with `onModuleEnabled`, `onModuleDisabled`, `onModuleInstalled`, `onModuleUpdated`, and `onModuleRepaired` functions.
 - `frameworkDependencies`: optional framework service dependency IDs.
 - `moduleDependencies`: optional registered module IDs that must exist.
 - `workspaceCapabilityRequirements`: optional workspace capability keys that make the module relevant.
@@ -61,7 +62,6 @@ These fields are accepted only as arrays today. The validator checks their basic
 - `notificationTemplates`
 - `auditRecordTypes`
 - `eventTypes`
-- `hooks`
 
 Notifications are framework-owned. Modules will declare notification events and templates through the manifest, but individual modules should not create duplicate notification UI.
 
@@ -83,7 +83,11 @@ Public API endpoint descriptors require `method`, `path`, and `scope`.
 
 ## Disable Policy
 
-Disabling a module does not delete module data. Disabled modules hide normal navigation, block browser and public API writes, stop future background/module behavior when lifecycle hooks exist, and avoid creating new search, tag, or notification records. Disabled data modules may keep historical reads only when `historicalReadAccess` is true.
+Disabling a module does not delete module data. Disabled modules hide normal navigation, block browser and public API writes through framework guards, stop future background/module behavior when lifecycle hooks exist, and avoid creating new search, tag, or notification records. Disabled data modules may keep historical reads only when `historicalReadAccess` is true.
+
+Modules with `canDisable: false` are treated as core framework modules and cannot be disabled through workspace module state changes. Disabling a module also fails when another enabled module declares it as a `moduleDependencies` requirement.
+
+Module state transitions are audited as `module.enabled` and `module.disabled` records with `record_type = module`. Dependency or validation failures are audited as `module.enable_failed` or `module.disable_failed` when an actor/workspace context is available.
 
 Active timers sourced from disabled modules remain visible in a limited recovery state so time is not stranded.
 

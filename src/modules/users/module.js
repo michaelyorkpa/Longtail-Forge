@@ -6,7 +6,7 @@ const usersModule = {
   displayName: "Users",
   description: "User administration, profile settings, and role assignment surfaces.",
   category: "core-admin",
-  version: "0.31.10",
+  version: "0.31.12",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: false,

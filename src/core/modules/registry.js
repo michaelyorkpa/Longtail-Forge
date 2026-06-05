@@ -34,6 +34,7 @@ function cloneModuleDefinition(definition) {
     notificationTemplates: [...(definition.notificationTemplates || [])],
     auditRecordTypes: [...(definition.auditRecordTypes || [])],
     eventTypes: [...(definition.eventTypes || [])],
+    hooks: { ...(definition.hooks || {}) },
     frameworkDependencies: [...(definition.frameworkDependencies || [])],
     moduleDependencies: [...(definition.moduleDependencies || [])],
     seedHooks: [...(definition.seedHooks || [])],
@@ -64,6 +65,26 @@ function listModuleRoutes(type) {
   return [];
 }
 
+function listModuleRouteEntries(type) {
+  const routeField = type === "public"
+    ? "publicApiRoutes"
+    : type === "browser"
+      ? "browserApiRoutes"
+      : "";
+
+  if (!routeField) {
+    return [];
+  }
+
+  return moduleDefinitions.flatMap((definition) => (
+    definition[routeField] || []
+  ).map((router) => ({
+    moduleId: definition.id,
+    router,
+    type,
+  })));
+}
+
 function listBrowserApiRoutes() {
   return listModuleRoutes("browser");
 }
@@ -87,6 +108,15 @@ function listModulePermissions() {
 
 function listModuleApiScopes() {
   return uniqueStrings(moduleDefinitions.flatMap((definition) => definition.apiScopes || []));
+}
+
+function listModuleApiScopeEntries() {
+  return moduleDefinitions.flatMap((definition) => (
+    definition.apiScopes || []
+  ).map((scope) => ({
+    moduleId: definition.id,
+    scope,
+  })));
 }
 
 function listTaggableTypes() {
@@ -119,8 +149,10 @@ export {
   getModule,
   listBrowserApiRoutes,
   listModuleApiScopes,
+  listModuleApiScopeEntries,
   listModuleMigrationSources,
   listModulePermissions,
+  listModuleRouteEntries,
   listModuleRoutes,
   listModules,
   listNotificationEvents,

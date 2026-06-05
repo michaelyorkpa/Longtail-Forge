@@ -468,7 +468,13 @@ async function createWorkspace(payload, session, sessionId = "") {
   });
   const timeTrackingEnabled = payload.timeTrackingEnabled !== false;
 
-  await modulesService.setModuleStatus(workspace.workspaceId, "time-tracking", timeTrackingEnabled);
+  await modulesService.setModuleStatus(workspace.workspaceId, "time-tracking", timeTrackingEnabled, {
+    session: {
+      ...session,
+      workspace_id: workspace.workspaceId,
+      active_workspace_id: workspace.workspaceId,
+    },
+  });
 
   if (sessionId) {
     await sessionsRepository.updateActiveWorkspace(sessionId, workspace.workspaceId);

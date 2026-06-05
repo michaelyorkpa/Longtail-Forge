@@ -20,4 +20,33 @@ function requireModuleWriteEnabled(moduleId) {
   };
 }
 
-export { assertModuleWriteEnabled, requireModuleWriteEnabled };
+function requireModuleWriteEnabledForRoute(moduleId, sessionReader) {
+  return async (request, response, next) => {
+    try {
+      if (request.method === "GET" || request.method === "HEAD" || request.method === "OPTIONS") {
+        next();
+        return;
+      }
+
+      await assertModuleWriteEnabled(sessionReader(request), moduleId);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+function requireModuleBrowserWritesEnabled(moduleId) {
+  return requireModuleWriteEnabledForRoute(moduleId, (request) => request.session);
+}
+
+function requireModulePublicApiWritesEnabled(moduleId) {
+  return requireModuleWriteEnabledForRoute(moduleId, (request) => request.apiSession);
+}
+
+export {
+  assertModuleWriteEnabled,
+  requireModuleBrowserWritesEnabled,
+  requireModulePublicApiWritesEnabled,
+  requireModuleWriteEnabled,
+};

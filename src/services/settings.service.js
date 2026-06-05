@@ -87,8 +87,8 @@ async function save(payload, session) {
   if (Object.hasOwn(payload || {}, "taskReminderDefaults") || Object.hasOwn(payload || {}, "task_reminder_defaults")) {
     await taskRemindersService.saveWorkspaceDefaults(session.workspace_id, payload.taskReminderDefaults || payload.task_reminder_defaults);
   }
-  await modulesService.setModuleStatus(session.workspace_id, TIME_TRACKING_MODULE_ID, timeTrackingEnabled);
-  await modulesService.setModuleStatus(session.workspace_id, TASKS_MODULE_ID, tasksEnabled);
+  await modulesService.setModuleStatus(session.workspace_id, TIME_TRACKING_MODULE_ID, timeTrackingEnabled, { session });
+  await modulesService.setModuleStatus(session.workspace_id, TASKS_MODULE_ID, tasksEnabled, { session });
 
   if (auditEnabled) {
     await auditService.record({
