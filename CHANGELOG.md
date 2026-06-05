@@ -7,7 +7,7 @@
 - Added first-party terminology metadata, including Business `Clients & Projects` and Personal/Family `Projects` labels for the stable `client-projects` module.
 - Added resolver coverage to the module sanity check and documented the display-only terminology contract.
 - Grouped Projects page task-owned project defaults inside a Task module box, nested the project task sort controls under `Sort order`, and matched the Project Defaults summary weight to Project Rounding.
-- Moved Projects page Save Project and Archive actions into a footer-style action bar inside Project Settings.
+- Moved Projects page Save Project and Archive actions into the existing Project Settings modal footer next to Close.
 
 ## Version 0.31.24.2 - 2026-06-05 12:15 -04:00
 

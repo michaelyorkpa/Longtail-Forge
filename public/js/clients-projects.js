@@ -1814,7 +1814,6 @@ function createProjectEditor(client, project, options = {}) {
     });
   });
 
-  actionGroup.append(saveButton, deleteButton);
   if (options.actionTarget) {
     options.actionTarget.append(saveButton, deleteButton);
   } else {

@@ -21,6 +21,9 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - [ ] If you click the "Completed" or the "Archived" filter in Projects -> Tasks, then click "All," the filtered list doesn't change
 
+- [ ] Make sure the Tasks list on the Workbench matches the project's default sort order
+- [ ] Add priority sorting to Tasks on Workbench
+
 - Review whether the User Settings "Remove Workspace" flow needs clearer wording now that it removes the signed-in user's membership rather than deleting the workspace record.
 
 ## Tweaks
