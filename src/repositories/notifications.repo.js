@@ -1,0 +1,247 @@
+import { randomUUID } from "node:crypto";
+import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/index.js";
+
+const NOTIFICATION_COLUMNS = `
+  notification_id,
+  workspace_id,
+  module_id,
+  event_type,
+  recipient_user_id,
+  actor_user_id,
+  record_type,
+  record_id,
+  title,
+  body,
+  url,
+  status,
+  priority,
+  created_at,
+  read_at,
+  dismissed_at,
+  metadata_json
+`;
+
+async function create(notification) {
+  const notificationId = notification.notification_id || randomUUID();
+  const now = notification.created_at || new Date().toISOString();
+
+  await runSql(`
+INSERT INTO notifications (
+  notification_id,
+  workspace_id,
+  module_id,
+  event_type,
+  recipient_user_id,
+  actor_user_id,
+  record_type,
+  record_id,
+  title,
+  body,
+  url,
+  status,
+  priority,
+  created_at,
+  read_at,
+  dismissed_at,
+  metadata_json
+)
+VALUES (
+  ${sqlText(notificationId)},
+  ${sqlText(notification.workspace_id)},
+  ${sqlNullableText(notification.module_id)},
+  ${sqlText(notification.event_type)},
+  ${sqlText(notification.recipient_user_id)},
+  ${sqlNullableText(notification.actor_user_id)},
+  ${sqlNullableText(notification.record_type)},
+  ${sqlNullableText(notification.record_id)},
+  ${sqlText(notification.title)},
+  ${sqlText(notification.body || "")},
+  ${sqlNullableText(notification.url)},
+  ${sqlText(notification.status || "unread")},
+  ${sqlText(notification.priority || "normal")},
+  ${sqlText(now)},
+  ${sqlNullableText(notification.read_at)},
+  ${sqlNullableText(notification.dismissed_at)},
+  ${sqlText(notification.metadata_json || "{}")}
+);
+`);
+
+  return readById(notification.workspace_id, notificationId);
+}
+
+async function listForRecipient(workspaceId, recipientUserId, options = {}) {
+  const status = normalizeStatusFilter(options.status);
+  const limit = clampLimit(options.limit);
+  const rows = await querySql(`
+SELECT
+${NOTIFICATION_COLUMNS}
+FROM notifications
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND recipient_user_id = ${sqlText(recipientUserId)}
+  ${status ? `AND status = ${sqlText(status)}` : ""}
+ORDER BY created_at DESC, notification_id DESC
+LIMIT ${sqlInteger(limit)};
+`);
+
+  return rows.map(notificationRowToAppValue);
+}
+
+async function countUnreadForRecipient(workspaceId, recipientUserId) {
+  const rows = await querySql(`
+SELECT COUNT(*) AS count
+FROM notifications
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND recipient_user_id = ${sqlText(recipientUserId)}
+  AND status = 'unread';
+`);
+
+  return Number(rows[0]?.count || 0);
+}
+
+async function readByIdForRecipient(workspaceId, recipientUserId, notificationId) {
+  const rows = await querySql(`
+SELECT
+${NOTIFICATION_COLUMNS}
+FROM notifications
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND recipient_user_id = ${sqlText(recipientUserId)}
+  AND notification_id = ${sqlText(notificationId)}
+LIMIT 1;
+`);
+
+  return rows[0] ? notificationRowToAppValue(rows[0]) : null;
+}
+
+async function readById(workspaceId, notificationId) {
+  const rows = await querySql(`
+SELECT
+${NOTIFICATION_COLUMNS}
+FROM notifications
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND notification_id = ${sqlText(notificationId)}
+LIMIT 1;
+`);
+
+  return rows[0] ? notificationRowToAppValue(rows[0]) : null;
+}
+
+async function markRead(workspaceId, recipientUserId, notificationId) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE notifications
+SET status = CASE WHEN status = 'dismissed' THEN status ELSE 'read' END,
+    read_at = COALESCE(read_at, ${sqlText(now)})
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND recipient_user_id = ${sqlText(recipientUserId)}
+  AND notification_id = ${sqlText(notificationId)};
+`);
+
+  return readByIdForRecipient(workspaceId, recipientUserId, notificationId);
+}
+
+async function markAllRead(workspaceId, recipientUserId) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE notifications
+SET status = 'read',
+    read_at = COALESCE(read_at, ${sqlText(now)})
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND recipient_user_id = ${sqlText(recipientUserId)}
+  AND status = 'unread';
+`);
+}
+
+async function dismiss(workspaceId, recipientUserId, notificationId) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE notifications
+SET status = 'dismissed',
+    dismissed_at = COALESCE(dismissed_at, ${sqlText(now)})
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND recipient_user_id = ${sqlText(recipientUserId)}
+  AND notification_id = ${sqlText(notificationId)};
+`);
+
+  return readByIdForRecipient(workspaceId, recipientUserId, notificationId);
+}
+
+async function archiveOlderThan(cutoffIso) {
+  await runSql(`
+UPDATE notifications
+SET status = 'archived'
+WHERE created_at < ${sqlText(cutoffIso)}
+  AND status IN ('read', 'dismissed');
+`);
+}
+
+async function readWorkspaceAdminUserIds(workspaceId) {
+  const rows = await querySql(`
+SELECT DISTINCT user_id
+FROM user_role_assignments
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND role_id = 'workspace_admin';
+`);
+
+  return rows.map((row) => row.user_id).filter(Boolean);
+}
+
+function notificationRowToAppValue(row) {
+  return {
+    notification_id: row.notification_id,
+    workspace_id: row.workspace_id,
+    module_id: row.module_id || "",
+    event_type: row.event_type,
+    recipient_user_id: row.recipient_user_id,
+    actor_user_id: row.actor_user_id || "",
+    record_type: row.record_type || "",
+    record_id: row.record_id || "",
+    title: row.title,
+    body: row.body || "",
+    url: row.url || "",
+    status: row.status || "unread",
+    priority: row.priority || "normal",
+    created_at: row.created_at,
+    read_at: row.read_at || "",
+    dismissed_at: row.dismissed_at || "",
+    metadata: parseMetadata(row.metadata_json),
+  };
+}
+
+function parseMetadata(metadataJson) {
+  try {
+    const parsed = JSON.parse(metadataJson || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeStatusFilter(status) {
+  const normalizedStatus = String(status || "").trim();
+  return ["unread", "read", "dismissed", "archived"].includes(normalizedStatus) ? normalizedStatus : "";
+}
+
+function clampLimit(limit) {
+  const numericLimit = Number.parseInt(limit, 10);
+  if (!Number.isFinite(numericLimit)) {
+    return 25;
+  }
+
+  return Math.min(Math.max(numericLimit, 1), 100);
+}
+
+export const notificationsRepository = {
+  archiveOlderThan,
+  countUnreadForRecipient,
+  create,
+  dismiss,
+  listForRecipient,
+  markAllRead,
+  markRead,
+  readById,
+  readByIdForRecipient,
+  readWorkspaceAdminUserIds,
+};

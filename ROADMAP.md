@@ -2,129 +2,51 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.0 - Notifications Framework Foundation
-
-* [x] Add framework-owned notification tables
-
-  * [x] Notifications should be framework-owned, not owned by Tasks, Tickets, Notes, Messaging, or Time Tracking
-  * [x] Notifications should be workspace-scoped
-  * [x] Notifications should be recipient-specific
-  * [x] Notifications should be permission-aware
-  * [x] Notifications should be module-aware
-  * [x] Notifications should be safe when modules are disabled
-
-* [x] Add `notifications` table
-
-  * [x] `notification_id`
-  * [x] `workspace_id`
-  * [x] `module_id`
-  * [x] `event_type`
-  * [x] `recipient_user_id`
-  * [x] `actor_user_id`
-  * [x] `record_type`
-  * [x] `record_id`
-  * [x] `title`
-  * [x] `body`
-  * [x] `url`
-  * [x] `status`
-  * [x] `priority`
-  * [x] `created_at`
-  * [x] `read_at`
-  * [x] `dismissed_at`
-  * [x] `metadata_json`
-
-* [x] Add notification indexes
-
-  * [x] Workspace + recipient + status + created date
-  * [x] Workspace + module ID
-  * [x] Workspace + record type + record ID
-  * [x] Workspace + event type
-  * [x] Created date for cleanup/retention
-
-* [x] Add notification statuses
-
-  * [x] `unread`
-  * [x] `read`
-  * [x] `dismissed`
-  * [x] `archived` if needed later
-
-* [x] Add notification priorities
-
-  * [x] `low`
-  * [x] `normal`
-  * [x] `high`
-  * [x] `urgent`
-
-* [x] Add module-declared notification event/template contract
-
-  * [x] Modules should declare notification event types
-  * [x] Modules may declare notification templates
-  * [x] Notification declarations should include:
-
-    * `id`
-    * `moduleId`
-    * `label`
-    * `description`
-    * `defaultEnabled`
-    * `defaultPriority`
-    * recipient resolver name or framework-recognized recipient mode
-    * title template
-    * body template
-    * URL/record link pattern if applicable
-  * [x] Framework should not maintain a permanent hard-coded list of notification event types
-
-* [x] Add core notification permissions
-
-  * [x] `notifications.view_own`
-  * [x] `notifications.manage_preferences`
-  * [x] `notifications.manage_workspace_defaults`
-  * [x] Add default role mappings for users/workspace admins where appropriate
-
 ## Version 0.32.1 - Notification Service and API
 
-* [ ] Create shared notification repository/service methods
+* [x] Create shared notification repository/service methods
 
-  * [ ] Create notification
-  * [ ] Create notification for multiple recipients
-  * [ ] List notifications for current user
-  * [ ] Count unread notifications for current user
-  * [ ] Mark notification as read
-  * [ ] Mark all notifications as read
-  * [ ] Dismiss notification
-  * [ ] Archive/cleanup old notifications
-  * [ ] Read notification target metadata safely
+  * [x] Create notification
+  * [x] Create notification for multiple recipients
+  * [x] List notifications for current user
+  * [x] Count unread notifications for current user
+  * [x] Mark notification as read
+  * [x] Mark all notifications as read
+  * [x] Dismiss notification
+  * [x] Archive/cleanup old notifications
+  * [x] Read notification target metadata safely
 
-* [ ] Validate notification operations through the framework
+* [x] Validate notification operations through the framework
 
-  * [ ] Validate notification belongs to active workspace
-  * [ ] Validate notification recipient is the current user
-  * [ ] Validate target module is registered
-  * [ ] Validate target record type is registered where applicable
-  * [ ] Validate target record still belongs to active workspace where practical
-  * [ ] Validate user can access the target before opening/following notification link
-  * [ ] Validate disabled modules cannot create new notifications
+  * [x] Validate notification belongs to active workspace
+  * [x] Validate notification recipient is the current user
+  * [x] Validate target module is registered
+  * [x] Validate target record type is registered where applicable
+  * [x] Validate target record still belongs to active workspace where practical
+  * [x] Validate user can access the target before opening/following notification link
+  * [x] Validate disabled modules cannot create new notifications
 
-* [ ] Add browser API routes for notifications
+* [x] Add browser API routes for notifications
 
-  * [ ] `GET /api/notifications`
-  * [ ] `GET /api/notifications/unread-count`
-  * [ ] `POST /api/notifications/:notificationId/read`
-  * [ ] `POST /api/notifications/read-all`
-  * [ ] `POST /api/notifications/:notificationId/dismiss`
+  * [x] `GET /api/notifications`
+  * [x] `GET /api/notifications/unread-count`
+  * [x] `POST /api/notifications/:notificationId/read`
+  * [x] `POST /api/notifications/read-all`
+  * [x] `POST /api/notifications/:notificationId/dismiss`
 
-* [ ] Add notification event integration
+* [x] Add notification event integration
 
-  * [ ] Framework event bus can trigger notification creation
-  * [ ] Modules can emit events that notification rules consume
-  * [ ] Keep first implementation simple and synchronous unless it becomes slow
-  * [ ] Leave room for background jobs later
+  * [x] Framework event bus can trigger notification creation
+  * [x] Modules can emit events that notification rules consume
+  * [x] Keep first implementation simple and synchronous unless it becomes slow
+  * [x] Leave room for background jobs later
 
-* [ ] Add audit/activity considerations
+* [x] Add audit/activity considerations
 
-  * [ ] Creating a normal user notification does not need full audit logging every time
-  * [ ] Notification preference changes should be audit logged where appropriate
-  * [ ] Workspace-level notification default changes should be audit logged
-  * [ ] Security-sensitive notifications can be audit logged later if needed
+  * [x] Creating a normal user notification does not need full audit logging every time
+  * [x] Notification preference changes should be audit logged where appropriate
+  * [x] Workspace-level notification default changes should be audit logged
+  * [x] Security-sensitive notifications can be audit logged later if needed
 
 ## Version 0.32.2 - In-App Notification UI and Preferences
 

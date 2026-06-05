@@ -1,3 +1,13 @@
+## Version 0.32.1 - 2026-06-05 17:32 -04:00
+
+- Bumped the app and first-party module versions to `0.32.1`.
+- Added a framework notification repository and service for creating notifications, creating multi-recipient notifications, listing current-user notifications, unread counts, read/read-all, dismiss, cleanup archiving, and target metadata decoration.
+- Added browser notification routes for `GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications/:notificationId/read`, `POST /api/notifications/read-all`, and `POST /api/notifications/:notificationId/dismiss`.
+- Wired module-declared notification events into the internal event bus using safe notification summaries/templates, with disabled-module blocking.
+- Added task lifecycle notification declarations for existing task events so assignees can receive framework notifications when task events are emitted.
+- Added notification regression coverage for recipient scoping, unread/read/dismiss flows, target-link access checks, event-driven creation, and disabled-module blocking.
+- Updated notification documentation, the permissions matrix, decisions, and roadmap/archive bookkeeping for 0.32.1.
+
 ## Version 0.32.0 - 2026-06-05 17:14 -04:00
 
 - Bumped the app and first-party module versions to `0.32.0`.

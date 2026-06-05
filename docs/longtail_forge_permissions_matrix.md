@@ -1,6 +1,6 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-06-05 for version 0.31.25
+Updated: 2026-06-05 for version 0.32.1
 
 This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, and performance passes.
 
@@ -96,6 +96,11 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Browser | GET | /api/workbench/bootstrap | authenticated user plus underlying readable scopes | self/task/project/client | Returns normalized active timers and enabled-module workbench items |
 | Browser | GET | /api/active-timers/all | authenticated user plus timer/source visibility | self/task/project/client | Lists unified manual and sourced active timers for Workbench |
 | Browser | PUT | /api/workbench/timers/:timerSlot/status | time_entries.create on linked project | project/client/self | Preserves timer source metadata while switching timer state |
+| Browser | GET | /api/notifications | notifications.view_own in any assigned scope | current user/workspace | Returns only the active user's notifications; target URLs are hidden when target access fails |
+| Browser | GET | /api/notifications/unread-count | notifications.view_own in any assigned scope | current user/workspace | Counts only unread notifications addressed to the active user |
+| Browser | POST | /api/notifications/:notificationId/read | notifications.view_own in any assigned scope | current user/workspace | Marks only the active user's notification read |
+| Browser | POST | /api/notifications/read-all | notifications.view_own in any assigned scope | current user/workspace | Marks only the active user's unread notifications read |
+| Browser | POST | /api/notifications/:notificationId/dismiss | notifications.view_own in any assigned scope | current user/workspace | Dismisses only the active user's notification |
 | Browser | GET | /api/reporting/bootstrap | reporting.view | any assigned reporting scope | Enforced, then filtered by readable scope |
 | Browser | GET | /api/reporting/project-summary | reporting.view | any assigned reporting scope | Enforced, then filtered by readable scope |
 | Browser | GET | /api/dashboard | reporting.view | any assigned reporting scope | Enforced, then filtered by readable scope |

@@ -10,6 +10,7 @@ import { apiKeysRoutes } from "../routes/api-keys.routes.js";
 import { auditRoutes } from "../routes/audit.routes.js";
 import { authRoutes } from "../routes/auth.routes.js";
 import { publicApiRoutes } from "../routes/public-api.routes.js";
+import { notificationsRoutes } from "../routes/notifications.routes.js";
 import { permissionsRoutes } from "../routes/permissions.routes.js";
 import { reportingRoutes } from "../routes/reporting.routes.js";
 import { settingsRoutes } from "../routes/settings.routes.js";
@@ -17,9 +18,11 @@ import { staticRoutes } from "../routes/static.routes.js";
 import { workbenchRoutes } from "../routes/workbench.routes.js";
 import { requireModuleBrowserWritesEnabledForRouter } from "./modules/module-access.js";
 import { modulesService } from "./modules/modules.service.js";
+import { notificationsService } from "../services/notifications.service.js";
 
 function createApp() {
   const app = express();
+  notificationsService.registerEventHandlers();
 
   app.disable("x-powered-by");
   app.use(cookieParser());
@@ -34,6 +37,7 @@ function createApp() {
   app.use("/api", appShellRoutes);
   app.use("/api", apiKeysRoutes);
   app.use("/api", auditRoutes);
+  app.use("/api", notificationsRoutes);
   app.use("/api", permissionsRoutes);
   app.use("/api", reportingRoutes);
   app.use("/api", settingsRoutes);

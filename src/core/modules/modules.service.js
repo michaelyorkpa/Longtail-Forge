@@ -100,6 +100,10 @@ function listModuleEventTypes() {
   return listRegisteredModuleEventTypes();
 }
 
+function onInternalEvent(eventName, handler, options = {}) {
+  return internalEventBus.on(eventName, handler, options);
+}
+
 function getModuleForApiScope(scope) {
   return listModuleApiScopeEntries().find((entry) => entry.scope === scope)?.moduleId || "";
 }
@@ -923,6 +927,7 @@ export const modulesService = {
   listTimerSources,
   listWorkbenchCards,
   listWorkItemSources,
+  onInternalEvent,
   readEnabledModuleIds,
   resolveProtectedModuleView,
   readModuleStatus,
