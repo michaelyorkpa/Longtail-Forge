@@ -89,7 +89,18 @@ check("API scopes are unique", () => {
 });
 
 check("notification event IDs are unique", () => {
-  assertUnique("notification event id", modulesService.listNotificationEvents().map((event) => event.id));
+  const events = modulesService.listNotificationEvents();
+
+  assertUnique("notification event id", events.map((event) => event.id));
+
+  for (const event of events) {
+    assert.ok(event.moduleId, `notification event ${event.id} moduleId is required`);
+    assert.ok(event.label, `notification event ${event.id} label is required`);
+    assert.ok(event.description, `notification event ${event.id} description is required`);
+    assert.equal(typeof event.defaultEnabled, "boolean", `notification event ${event.id} defaultEnabled is required`);
+    assert.ok(["low", "normal", "high", "urgent"].includes(event.defaultPriority), `notification event ${event.id} defaultPriority is invalid`);
+    assert.ok(event.recipientResolver || event.recipientMode, `notification event ${event.id} recipientResolver or recipientMode is required`);
+  }
 });
 
 check("notification templates are well formed", () => {

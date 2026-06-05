@@ -2,118 +2,64 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-### Version 0.31.25 - Workspace-Type Module Labels and Terminology
-
-- [x] Add module manifest support for workspace-type-aware labels.
-  - [x] Default label.
-  - [x] Business workspace label.
-  - [x] Personal workspace label.
-  - [x] Family workspace label.
-  - [x] Optional short label.
-  - [x] Optional navigation label.
-  - [x] Optional empty-state wording.
-  - [x] Optional create-button wording.
-  - [x] Singular and plural terminology fields.
-
-- [x] Keep terminology differences in the registry/manifest first.
-  - [x] Do not fork database tables just because labels differ by workspace type.
-  - [x] Do not create separate modules for the same underlying workflow unless behavior truly differs.
-  - [x] Use stable internal module IDs and record types.
-  - [x] Let the UI choose the best label based on workspace type.
-
-- [x] Add terminology resolver support.
-  - [x] Group manifest terminology by workspace type: `default`, `business`, `personal`, and `family`.
-  - [x] Merge terminology as exact workspace type, Family to Personal, then default.
-  - [x] Fall back safely when optional display labels are missing.
-  - [x] Keep stable IDs, routes, permission IDs, API scope IDs, audit record types, and stored data unchanged.
-
-- [x] Convert obvious framework-level surfaces.
-  - [x] Main app-shell navigation.
-  - [x] Module registry output.
-  - [x] Dashboard cards generated from module registry metadata.
-  - [x] Workbench cards and source metadata generated from module registry metadata.
-  - [x] Settings/module management labels generated from module registry metadata.
-  - [x] API scope display labels/descriptions returned from enabled module metadata.
-
-- [x] Add first-party module terminology examples.
-  - [x] Clients/Projects keeps stable module ID `client-projects`.
-  - [x] Business label: `Clients & Projects`.
-  - [x] Personal label: `Projects`.
-  - [x] Family falls back to Personal label: `Projects`.
-  - [x] Tasks and Time Tracking keep default labels for now.
-
-- [x] Leave room for future workspace-level custom labels.
-  - [x] Do not build custom labels yet unless needed.
-  - [x] If added later, store overrides in workspace settings or a dedicated `workspace_module_label_overrides` table.
-  - [x] Validate overrides so they cannot break routes, permissions, APIs, or module IDs.
-
-- [x] Add tests and docs.
-  - [x] Business workspace receives business terminology when present.
-  - [x] Personal workspace receives personal terminology when present.
-  - [x] Family workspace falls back through Family, then Personal, then default.
-  - [x] Missing workspace-specific labels fall back to default.
-  - [x] Stable IDs are unchanged by terminology resolution.
-  - [x] App shell/module registry surfaces render resolved display labels without changing routes or module IDs.
-  - [x] Add decision notes to `DECISIONS.md`.
-
 ## Version 0.32.0 - Notifications Framework Foundation
 
-* [ ] Add framework-owned notification tables
+* [x] Add framework-owned notification tables
 
-  * [ ] Notifications should be framework-owned, not owned by Tasks, Tickets, Notes, Messaging, or Time Tracking
-  * [ ] Notifications should be workspace-scoped
-  * [ ] Notifications should be recipient-specific
-  * [ ] Notifications should be permission-aware
-  * [ ] Notifications should be module-aware
-  * [ ] Notifications should be safe when modules are disabled
+  * [x] Notifications should be framework-owned, not owned by Tasks, Tickets, Notes, Messaging, or Time Tracking
+  * [x] Notifications should be workspace-scoped
+  * [x] Notifications should be recipient-specific
+  * [x] Notifications should be permission-aware
+  * [x] Notifications should be module-aware
+  * [x] Notifications should be safe when modules are disabled
 
-* [ ] Add `notifications` table
+* [x] Add `notifications` table
 
-  * [ ] `notification_id`
-  * [ ] `workspace_id`
-  * [ ] `module_id`
-  * [ ] `event_type`
-  * [ ] `recipient_user_id`
-  * [ ] `actor_user_id`
-  * [ ] `record_type`
-  * [ ] `record_id`
-  * [ ] `title`
-  * [ ] `body`
-  * [ ] `url`
-  * [ ] `status`
-  * [ ] `priority`
-  * [ ] `created_at`
-  * [ ] `read_at`
-  * [ ] `dismissed_at`
-  * [ ] `metadata_json`
+  * [x] `notification_id`
+  * [x] `workspace_id`
+  * [x] `module_id`
+  * [x] `event_type`
+  * [x] `recipient_user_id`
+  * [x] `actor_user_id`
+  * [x] `record_type`
+  * [x] `record_id`
+  * [x] `title`
+  * [x] `body`
+  * [x] `url`
+  * [x] `status`
+  * [x] `priority`
+  * [x] `created_at`
+  * [x] `read_at`
+  * [x] `dismissed_at`
+  * [x] `metadata_json`
 
-* [ ] Add notification indexes
+* [x] Add notification indexes
 
-  * [ ] Workspace + recipient + status + created date
-  * [ ] Workspace + module ID
-  * [ ] Workspace + record type + record ID
-  * [ ] Workspace + event type
-  * [ ] Created date for cleanup/retention
+  * [x] Workspace + recipient + status + created date
+  * [x] Workspace + module ID
+  * [x] Workspace + record type + record ID
+  * [x] Workspace + event type
+  * [x] Created date for cleanup/retention
 
-* [ ] Add notification statuses
+* [x] Add notification statuses
 
-  * [ ] `unread`
-  * [ ] `read`
-  * [ ] `dismissed`
-  * [ ] `archived` if needed later
+  * [x] `unread`
+  * [x] `read`
+  * [x] `dismissed`
+  * [x] `archived` if needed later
 
-* [ ] Add notification priorities
+* [x] Add notification priorities
 
-  * [ ] `low`
-  * [ ] `normal`
-  * [ ] `high`
-  * [ ] `urgent`
+  * [x] `low`
+  * [x] `normal`
+  * [x] `high`
+  * [x] `urgent`
 
-* [ ] Add module-declared notification event/template contract
+* [x] Add module-declared notification event/template contract
 
-  * [ ] Modules should declare notification event types
-  * [ ] Modules may declare notification templates
-  * [ ] Notification declarations should include:
+  * [x] Modules should declare notification event types
+  * [x] Modules may declare notification templates
+  * [x] Notification declarations should include:
 
     * `id`
     * `moduleId`
@@ -125,14 +71,14 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     * title template
     * body template
     * URL/record link pattern if applicable
-  * [ ] Framework should not maintain a permanent hard-coded list of notification event types
+  * [x] Framework should not maintain a permanent hard-coded list of notification event types
 
-* [ ] Add core notification permissions
+* [x] Add core notification permissions
 
-  * [ ] `notifications.view_own`
-  * [ ] `notifications.manage_preferences`
-  * [ ] `notifications.manage_workspace_defaults`
-  * [ ] Add default role mappings for users/workspace admins where appropriate
+  * [x] `notifications.view_own`
+  * [x] `notifications.manage_preferences`
+  * [x] `notifications.manage_workspace_defaults`
+  * [x] Add default role mappings for users/workspace admins where appropriate
 
 ## Version 0.32.1 - Notification Service and API
 

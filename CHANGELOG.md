@@ -1,3 +1,12 @@
+## Version 0.32.0 - 2026-06-05 17:14 -04:00
+
+- Bumped the app and first-party module versions to `0.32.0`.
+- Added the framework-owned `notifications` table with workspace, recipient, module, event, record, status, priority, timestamps, URL, and metadata fields.
+- Added notification indexes for recipient/status/date reads, module filtering, record lookups, event filtering, and retention cleanup.
+- Added framework-owned notification permissions and default role mappings for own-notification reads, personal preferences, and workspace defaults.
+- Promoted notification manifest events/templates into a validated contract and documented the 0.32.0 notification foundation.
+- Marked the 0.32.0 roadmap section complete and archived the completed 0.31.25 roadmap section.
+
 ## Version 0.31.25 - 2026-06-05 14:22 -04:00
 
 - Bumped the app and first-party module versions to `0.31.25`.

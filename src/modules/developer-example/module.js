@@ -17,7 +17,7 @@ const developerExampleModule = {
     },
   },
   category: "developer",
-  version: "0.31.25",
+  version: "0.32.0",
   enabledByDefault: false,
   canDisable: true,
   historicalReadAccess: true,
@@ -163,6 +163,7 @@ const developerExampleModule = {
       description: "Sample notification event declaration for module developer documentation.",
       defaultEnabled: false,
       defaultPriority: "low",
+      recipientMode: "explicit_users",
     },
   ],
   notificationTemplates: [

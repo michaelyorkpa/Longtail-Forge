@@ -52,6 +52,8 @@ const RESERVED_MANIFEST_FIELDS = new Set([
 const MODULE_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 const SETTING_FIELD_TYPES = new Set(["boolean", "text", "number", "select", "multi-select", "info"]);
+const NOTIFICATION_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
+const NOTIFICATION_RECIPIENT_MODES = new Set(["actor", "assignees", "workspace_admins", "explicit_users"]);
 const TERMINOLOGY_WORKSPACE_TYPES = new Set(["default", "business", "personal", "family"]);
 const TERMINOLOGY_FIELDS = new Set([
   "label",
@@ -115,6 +117,8 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateHooks(moduleDefinition.hooks, errors);
   validateTimerSources(moduleDefinition.timerSources, moduleDefinition.id, errors);
   validateWorkItemSources(moduleDefinition.workItemSources, moduleDefinition.id, errors);
+  validateNotificationEvents(moduleDefinition.notificationEvents, moduleDefinition.id, errors);
+  validateNotificationTemplates(moduleDefinition.notificationTemplates, moduleDefinition.id, errors);
   validateReservedFields(moduleDefinition, errors);
 
   for (const dependencyId of moduleDefinition.moduleDependencies || []) {
@@ -160,8 +164,52 @@ function validateKnownFields(moduleDefinition, errors) {
 
 function validateReservedFields(moduleDefinition, errors) {
   for (const fieldName of RESERVED_MANIFEST_FIELDS) {
-    optionalArray(moduleDefinition, fieldName, errors);
+    if (!["notificationEvents", "notificationTemplates"].includes(fieldName)) {
+      optionalArray(moduleDefinition, fieldName, errors);
+    }
   }
+}
+
+function validateNotificationEvents(notificationEvents, moduleId, errors) {
+  optionalArrayOfObjects(notificationEvents, "notificationEvents", errors, (item, index) => {
+    requireString(item, "id", errors, { prefix: `notificationEvents[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `notificationEvents[${index}]` });
+    requireString(item, "label", errors, { prefix: `notificationEvents[${index}]` });
+    requireString(item, "description", errors, { prefix: `notificationEvents[${index}]` });
+    requireBoolean(item, "defaultEnabled", errors, { prefix: `notificationEvents[${index}]` });
+    requireString(item, "defaultPriority", errors, { prefix: `notificationEvents[${index}]` });
+    if (typeof item.defaultPriority === "string" && !NOTIFICATION_PRIORITIES.has(item.defaultPriority)) {
+      errors.push(`notificationEvents[${index}].defaultPriority must be low, normal, high, or urgent.`);
+    }
+    optionalString(item, "recipientResolver", errors, { prefix: `notificationEvents[${index}]` });
+    optionalString(item, "recipientMode", errors, { prefix: `notificationEvents[${index}]` });
+    if (!item.recipientResolver && !item.recipientMode) {
+      errors.push(`notificationEvents[${index}] must include recipientResolver or recipientMode.`);
+    }
+    if (typeof item.recipientMode === "string" && !NOTIFICATION_RECIPIENT_MODES.has(item.recipientMode)) {
+      errors.push(`notificationEvents[${index}].recipientMode must be a framework-recognized recipient mode.`);
+    }
+    validateTerminology(item.terminology, `notificationEvents[${index}].terminology`, errors);
+  });
+}
+
+function validateNotificationTemplates(notificationTemplates, moduleId, errors) {
+  optionalArrayOfObjects(notificationTemplates, "notificationTemplates", errors, (item, index) => {
+    requireString(item, "id", errors, { prefix: `notificationTemplates[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `notificationTemplates[${index}]` });
+    requireString(item, "event", errors, { prefix: `notificationTemplates[${index}]` });
+    requireString(item, "title", errors, { prefix: `notificationTemplates[${index}]` });
+    requireString(item, "body", errors, { prefix: `notificationTemplates[${index}]` });
+    optionalString(item, "url", errors, { prefix: `notificationTemplates[${index}]` });
+    optionalString(item, "recordLinkPattern", errors, { prefix: `notificationTemplates[${index}]` });
+    if (item.url !== undefined) {
+      validateRelativeUrl(item.url, `notificationTemplates[${index}].url`, errors);
+    }
+    if (item.recordLinkPattern !== undefined) {
+      validateRelativeUrl(item.recordLinkPattern, `notificationTemplates[${index}].recordLinkPattern`, errors);
+    }
+    validateTerminology(item.terminology, `notificationTemplates[${index}].terminology`, errors);
+  });
 }
 
 function validateNavigation(navigation, errors) {
@@ -554,6 +602,12 @@ function optionalUrlOrString(object, fieldName, errors, options = {}) {
   }
   if (!(value instanceof URL) && typeof value !== "string") {
     errors.push(`${fieldName} must be a URL or string.`);
+  }
+}
+
+function validateRelativeUrl(value, fieldName, errors) {
+  if (typeof value === "string" && /^[a-z][a-z0-9+.-]*:/i.test(value)) {
+    errors.push(`${fieldName} must be relative.`);
   }
 }
 

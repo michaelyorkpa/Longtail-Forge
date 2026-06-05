@@ -72,7 +72,7 @@ Disabling a module hides normal navigation and blocks normal browser/public API 
 
 ## Framework Notifications
 
-Notifications are framework-owned. Modules may declare future notification metadata in `notificationEvents` and `notificationTemplates`, but modules should not create duplicate notification UI.
+Notifications are framework-owned. Modules may declare notification metadata in `notificationEvents` and `notificationTemplates`, but modules should not create duplicate notification UI.
 
 Notification summaries should use safe event summary helpers rather than raw event or audit JSON.
 

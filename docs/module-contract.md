@@ -61,6 +61,8 @@ These fields are currently accepted by the manifest validator:
 - `frameworkDependencies`: optional framework service dependency IDs.
 - `moduleDependencies`: optional registered module IDs that must exist.
 - `workspaceCapabilityRequirements`: optional workspace capability keys that make the module relevant.
+- `notificationEvents`: optional module-declared notification event descriptors.
+- `notificationTemplates`: optional module-declared notification template descriptors.
 - `seedHooks`: optional reserved startup hook array.
 - `repairHooks`: optional reserved startup repair hook array.
 
@@ -70,10 +72,8 @@ These fields are accepted only as arrays today. The validator checks their basic
 
 - `taggableTypes`
 - `searchableTypes`
-- `notificationEvents`
-- `notificationTemplates`
 
-Notifications are framework-owned. Modules will declare notification events and templates through the manifest, but individual modules should not create duplicate notification UI.
+Notifications are framework-owned. Modules declare notification events and templates through the manifest, but individual modules should not create duplicate notification UI.
 
 ## Contribution Shapes
 
@@ -113,7 +113,9 @@ Default role permission mappings require `roleId` and `permissions`. They are ad
 
 Public API endpoint descriptors require `method`, `path`, and `scope`. API scope descriptors require `id`, `moduleId`, `label`, and `description`; they may include `access` (`read` or `write`) and display-only `terminology`. Legacy string scopes are still accepted by the validator and normalized by the registry. The API key UI reads available scopes from enabled module metadata, so disabled optional module scopes are not offered for new keys. Existing API keys still rely on route-level scope checks and module write guards, so writes to disabled modules remain blocked.
 
-Notification permissions are framework-owned in 0.31.16. Notification APIs must be recipient/workspace scoped, must re-check target record access before opening a notification target, and must not expose private notifications to workspace admins unless a later version explicitly designs that capability.
+Notification permissions are framework-owned. `notifications.view_own` covers current-user notification reads, `notifications.manage_preferences` covers personal notification preferences, and `notifications.manage_workspace_defaults` covers workspace-level default notification settings. Notification APIs must be recipient/workspace scoped, must re-check target record access before opening a notification target, and must not expose private notifications to workspace admins unless a later version explicitly designs that capability.
+
+Notification event descriptors require `id`, `moduleId`, `label`, `description`, `defaultEnabled`, and `defaultPriority` (`low`, `normal`, `high`, or `urgent`). They may include `recipientResolver` for a named module/framework resolver or `recipientMode` for a framework-recognized mode such as `actor`, `assignees`, `workspace_admins`, or `explicit_users`. Notification template descriptors require `id`, `moduleId`, `event`, `title`, and `body`; they may include a relative `url` or `recordLinkPattern`. The framework stores notification records in a workspace-scoped, recipient-specific `notifications` table with module, event, record, status, priority, URL, and metadata fields.
 
 Audit record type descriptors require `recordType`, `moduleId`, `label`, and `description`. The audit service accepts framework-owned record types plus module-declared record types. Unknown audit record types are rejected unless a caller explicitly sets an unknown-type allowance for a future import/repair path. Audit change types remain framework-owned common values: `create`, `update`, `delete`, `archive`, `restore`, `login`, `logout`, and `settings_change`.
 
