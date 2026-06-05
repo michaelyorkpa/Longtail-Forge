@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tasks | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=8">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=10">
   </head>
   <body data-page-title="Tasks">
     <main class="wide-page tasks-page">
@@ -76,38 +76,29 @@
       <details class="task-bulk-toolbar" data-task-bulk-toolbar>
         <summary>Bulk Actions</summary>
         <div class="task-bulk-grid">
-          <label>
-            Bulk Action
-            <select data-task-bulk-action>
-              <option value="">Choose action</option>
-              <option value="status">Set status</option>
-              <option value="priority">Set priority</option>
-              <option value="assignee_add">Add assignees</option>
-              <option value="assignee_remove">Remove assignees</option>
-              <option value="archive">Archive</option>
-            </select>
-          </label>
-          <label data-task-bulk-status-control hidden>
+          <label data-task-bulk-status-control>
             Status
             <select data-task-bulk-status>
+              <option value="" selected>-</option>
               <option value="open">Open</option>
               <option value="in_progress">In Progress</option>
               <option value="blocked">Blocked</option>
               <option value="complete">Complete</option>
             </select>
           </label>
-          <label data-task-bulk-priority-control hidden>
+          <label data-task-bulk-priority-control>
             Priority
             <select data-task-bulk-priority>
+              <option value="" selected>-</option>
               <option value="low">Low</option>
               <option value="normal">Normal</option>
               <option value="high">High</option>
               <option value="urgent">Urgent</option>
             </select>
           </label>
-          <label data-task-bulk-assignee-control hidden>
+          <label data-task-bulk-assignee-control>
             Assignees
-            <select multiple data-task-bulk-assignees></select>
+            <div class="task-bulk-assignee-list" data-task-bulk-assignees></div>
           </label>
           <button type="button" data-task-bulk-apply disabled>Apply to 0</button>
         </div>
@@ -126,7 +117,6 @@
               <th>Status</th>
               <th>Priority</th>
               <th>Due</th>
-              <th>Actions</th>
             </tr>
           </thead>
           <tbody data-task-list></tbody>
@@ -188,8 +178,8 @@
             <select multiple data-task-assignees></select>
           </label>
 
-          <fieldset class="task-recurrence-field">
-            <legend>Recurrence</legend>
+          <details class="task-recurrence-field" data-task-recurrence-panel>
+            <summary>Recurrence</summary>
             <div class="task-recurrence-controls">
               <label class="inline-option">
                 <input type="checkbox" data-task-recurring>
@@ -198,7 +188,7 @@
               <button type="button" data-task-recurrence-details disabled>Details</button>
             </div>
             <p data-task-recurrence-summary>Not recurring.</p>
-          </fieldset>
+          </details>
 
           <fieldset class="task-timer-field" data-task-timer-field hidden>
             <legend>Task Timer</legend>
@@ -212,8 +202,8 @@
             </div>
           </fieldset>
 
-          <fieldset class="task-reminder-field">
-            <legend>Reminders</legend>
+          <details class="task-reminder-field" data-task-reminder-details>
+            <summary>Reminders</summary>
             <p data-task-effective-reminders></p>
             <label class="inline-option">
               <input type="checkbox" data-task-reminder-override>
@@ -237,7 +227,7 @@
                 <input type="number" min="1" step="1" data-task-reminder-date-only-days-2>
               </label>
             </div>
-          </fieldset>
+          </details>
 
           <label class="task-description-field">
             Description
@@ -288,7 +278,7 @@
     <script src="js/shared/api-client.js"></script>
     <script src="js/shared/page-controller.js"></script>
     <script src="js/shared/timezones.js"></script>
-    <script src="js/tasks.js"></script>
+    <script src="js/tasks.js?v=3"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

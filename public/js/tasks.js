@@ -17,13 +17,13 @@ const assigneeFilter = document.querySelector("[data-task-assignee-filter]");
 const clientFilter = document.querySelector("[data-task-client-filter]");
 const projectFilter = document.querySelector("[data-task-project-filter]");
 const selectAllInput = document.querySelector("[data-task-select-all]");
-const bulkActionInput = document.querySelector("[data-task-bulk-action]");
+const bulkToolbar = document.querySelector("[data-task-bulk-toolbar]");
 const bulkStatusControl = document.querySelector("[data-task-bulk-status-control]");
 const bulkStatusInput = document.querySelector("[data-task-bulk-status]");
 const bulkPriorityControl = document.querySelector("[data-task-bulk-priority-control]");
 const bulkPriorityInput = document.querySelector("[data-task-bulk-priority]");
 const bulkAssigneeControl = document.querySelector("[data-task-bulk-assignee-control]");
-const bulkAssigneesInput = document.querySelector("[data-task-bulk-assignees]");
+const bulkAssigneesControl = document.querySelector("[data-task-bulk-assignees]");
 const bulkApplyButton = document.querySelector("[data-task-bulk-apply]");
 const titleInput = document.querySelector("[data-task-title]");
 const formStatusInput = document.querySelector("[data-task-form-status]");
@@ -86,8 +86,9 @@ copyTaskLinkButton?.addEventListener("click", copyCurrentTaskLink);
 taskForm?.addEventListener("submit", saveTask);
 quickFilters?.addEventListener("click", handleQuickFilterClick);
 filterDetails?.addEventListener("toggle", handleFilterDetailsToggle);
-bulkActionInput?.addEventListener("change", updateBulkControls);
-bulkAssigneesInput?.addEventListener("change", updateBulkControls);
+bulkStatusInput?.addEventListener("change", updateBulkControls);
+bulkPriorityInput?.addEventListener("change", updateBulkControls);
+bulkAssigneesControl?.addEventListener("change", updateBulkControls);
 bulkApplyButton?.addEventListener("click", applyBulkAction);
 selectAllInput?.addEventListener("change", toggleVisibleSelection);
 reminderOverrideInput?.addEventListener("change", updateReminderOverrideState);
@@ -106,6 +107,7 @@ taskTimerResetButton?.addEventListener("click", resetTaskTimer);
   });
 });
 clientInput?.addEventListener("change", () => populateProjectInput(projectInput.value));
+projectInput?.addEventListener("change", applySelectedProjectTaskDefaults);
 
 loadTasks();
 
@@ -136,6 +138,7 @@ async function loadTasks() {
 
 function populateFilters() {
   const workspaceScopeLabel = getWorkspaceScopeLabel();
+  const hasClientScope = usesClientScope();
 
   replaceOptions(assigneeFilter, [
     option("all", "All assignees"),
@@ -143,39 +146,75 @@ function populateFilters() {
     option("unassigned", "Unassigned"),
     ...state.options.users.map((user) => option(user.user_id, displayUser(user))),
   ]);
-  replaceOptions(clientFilter, [
-    option("all", "All clients"),
-    option("", workspaceScopeLabel),
-    ...state.options.clients.map((client) => option(client.id, client.name)),
-  ]);
+  setClientScopeControlsVisible(hasClientScope);
+  if (hasClientScope) {
+    replaceOptions(clientFilter, [
+      option("all", "All"),
+      option("", workspaceScopeLabel),
+      ...sortClientOptions(state.options.clients).map((client) => option(client.id, `${treeIndent(getClientDepth(client))}${client.name}`)),
+    ]);
+  } else {
+    replaceOptions(clientFilter, [option("all", "All")]);
+  }
   replaceOptions(projectFilter, [
-    option("all", "All projects"),
+    option("all", "All Projects"),
     option("", "No project"),
-    ...state.options.projects.map((project) => option(project.id, project.name)),
+    ...sortProjectOptions(state.options.projects).map((project) => option(project.id, `${treeIndent(getProjectDepth(project))}${project.name}`)),
   ]);
   populateTaskFormOptions();
 }
 
 function populateTaskFormOptions() {
-  replaceOptions(clientInput, [
-    option("", "All projects"),
-    ...state.options.clients.map((client) => option(client.id, client.name)),
-  ]);
+  if (usesClientScope()) {
+    replaceOptions(clientInput, [
+      option("all", "All Projects"),
+      option("", getWorkspaceScopeLabel()),
+      ...sortClientOptions(state.options.clients).map((client) => option(client.id, `${treeIndent(getClientDepth(client))}${client.name}`)),
+    ]);
+  } else {
+    replaceOptions(clientInput, [option("all", "All Projects")]);
+  }
   populateProjectInput(projectInput?.value || "");
   const userOptions = state.options.users.map((user) => option(user.user_id, displayUser(user)));
   replaceOptions(assigneesInput, userOptions.map((item) => item.cloneNode(true)));
-  replaceOptions(bulkAssigneesInput, userOptions);
+  renderBulkAssigneeOptions();
+}
+
+function renderBulkAssigneeOptions() {
+  if (!bulkAssigneesControl) {
+    return;
+  }
+
+  const selectedIds = new Set(selectedBulkAssigneeIds());
+  const controls = state.options.users.map((user) => {
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    const name = document.createElement("span");
+    const labelText = displayUser(user);
+
+    checkbox.type = "checkbox";
+    checkbox.value = user.user_id;
+    checkbox.checked = selectedIds.has(user.user_id);
+    name.className = "task-bulk-assignee-name";
+    name.textContent = labelText;
+    name.title = labelText;
+    label.className = "task-bulk-assignee-option";
+    label.append(checkbox, name);
+    return label;
+  });
+
+  bulkAssigneesControl.replaceChildren(...controls);
 }
 
 function populateProjectInput(selectedProjectId = "") {
-  const selectedClientId = clientInput?.value || "";
+  const selectedClientId = usesClientScope() ? clientInput?.value || "all" : "all";
   const projects = state.options.projects.filter((project) =>
-    !selectedClientId || (project.client_id || "") === selectedClientId,
+    selectedClientId === "all" || (project.client_id || "") === selectedClientId,
   );
 
   replaceOptions(projectInput, [
-    option("", "No project"),
-    ...projects.map((project) => option(project.id, project.name)),
+    option("", selectedClientId === "" ? getWorkspaceScopeLabel() : "No project"),
+    ...sortProjectOptions(projects).map((project) => option(project.id, `${treeIndent(getProjectDepth(project))}${project.name}`)),
   ]);
 
   if (projects.some((project) => project.id === selectedProjectId)) {
@@ -195,7 +234,7 @@ function renderTasks() {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
 
-    cell.colSpan = 8;
+    cell.colSpan = 7;
     cell.textContent = "No tasks match the current filters.";
     row.appendChild(cell);
     taskList.appendChild(row);
@@ -203,14 +242,14 @@ function renderTasks() {
     return;
   }
 
-  tasks.forEach((task) => taskList.appendChild(createTaskRow(task)));
+  tasks.forEach((task) => taskList.append(...createTaskRow(task)));
   updateSelectionControls(tasks);
 }
 
 function filteredTasks() {
   const statusValue = statusFilter?.value || "active";
   const assigneeValue = assigneeFilter?.value || "all";
-  const clientValue = clientFilter?.value || "all";
+  const clientValue = usesClientScope() ? clientFilter?.value || "all" : "all";
   const projectValue = projectFilter?.value || "all";
 
   return state.tasks.filter((task) => {
@@ -233,6 +272,7 @@ function filteredTasks() {
 function matchesQuickFilter(task) {
   const today = todayKey();
   const weekEnd = addDaysKey(today, 7);
+  const overdue = isTaskOverdue(task);
 
   if (state.quickFilter === "my") {
     return (task.assignee_ids || []).includes(currentUserId()) && isActiveTask(task);
@@ -243,15 +283,15 @@ function matchesQuickFilter(task) {
   }
 
   if (state.quickFilter === "overdue") {
-    return Boolean(task.due_date && task.due_date < today && isActiveTask(task));
+    return overdue;
   }
 
   if (state.quickFilter === "today") {
-    return task.due_date === today && isActiveTask(task);
+    return task.due_date === today && isActiveTask(task) && !overdue;
   }
 
   if (state.quickFilter === "week") {
-    return Boolean(task.due_date && task.due_date >= today && task.due_date <= weekEnd && isActiveTask(task));
+    return Boolean(task.due_date && task.due_date >= today && task.due_date <= weekEnd && isActiveTask(task) && !overdue);
   }
 
   if (state.quickFilter === "complete") {
@@ -266,6 +306,8 @@ function matchesQuickFilter(task) {
 }
 
 function sortedTasks(tasks) {
+  const projectSortOrder = getActiveProjectSortOrder();
+
   return [...tasks].sort((firstTask, secondTask) => {
     if (sortInput?.value === "priority_desc") {
       return priorityRank(secondTask.priority) - priorityRank(firstTask.priority) ||
@@ -285,14 +327,47 @@ function sortedTasks(tasks) {
       return String(firstTask.created_at || "").localeCompare(String(secondTask.created_at || ""));
     }
 
+    if (projectSortOrder.length > 0) {
+      return compareByProjectSortOrder(firstTask, secondTask, projectSortOrder) ||
+        String(secondTask.updated_at || "").localeCompare(String(firstTask.updated_at || ""));
+    }
+
     return dueSortValue(firstTask).localeCompare(dueSortValue(secondTask)) ||
       priorityRank(secondTask.priority) - priorityRank(firstTask.priority) ||
       String(secondTask.updated_at || "").localeCompare(String(firstTask.updated_at || ""));
   });
 }
 
+function getActiveProjectSortOrder() {
+  if ((sortInput?.value || "due_asc") !== "due_asc" || (projectFilter?.value || "all") === "all") {
+    return [];
+  }
+
+  const project = state.options.projects.find((item) => item.id === projectFilter.value);
+  return normalizeProjectTaskSortOrder(project?.taskDefaults?.sortOrder || []);
+}
+
+function compareByProjectSortOrder(firstTask, secondTask, sortOrder) {
+  return sortOrder.reduce((result, sortItem) => {
+    if (result !== 0) {
+      return result;
+    }
+
+    if (sortItem === "priority") {
+      return priorityRank(secondTask.priority) - priorityRank(firstTask.priority);
+    }
+
+    if (sortItem === "status") {
+      return String(firstTask.status || "").localeCompare(String(secondTask.status || ""));
+    }
+
+    return dueSortValue(firstTask).localeCompare(dueSortValue(secondTask));
+  }, 0);
+}
+
 function createTaskRow(task) {
   const row = document.createElement("tr");
+  const actionsRow = document.createElement("tr");
   const selectCell = document.createElement("td");
   const titleCell = document.createElement("td");
   const scopeCell = document.createElement("td");
@@ -303,10 +378,15 @@ function createTaskRow(task) {
   const actionsCell = document.createElement("td");
   const checkbox = document.createElement("input");
   const titleButton = document.createElement("button");
+  const scopeText = formatScope(task);
 
   row.dataset.taskStatus = task.status || "open";
+  actionsRow.dataset.taskStatus = task.status || "open";
   row.classList.toggle("is-task-complete", task.status === "complete");
   row.classList.toggle("is-task-archived", task.status === "archived");
+  actionsRow.classList.toggle("is-task-complete", task.status === "complete");
+  actionsRow.classList.toggle("is-task-archived", task.status === "archived");
+  actionsRow.classList.add("task-actions-row");
 
   checkbox.type = "checkbox";
   checkbox.value = task.task_id;
@@ -327,22 +407,33 @@ function createTaskRow(task) {
   titleButton.className = "link-button";
   titleButton.textContent = task.title;
   titleButton.addEventListener("click", () => openTaskDialog(task));
+  titleCell.className = "task-title-cell";
   titleCell.appendChild(titleButton);
-  scopeCell.textContent = formatScope(task);
-  assigneeCell.textContent = task.assignees?.length
+  scopeCell.className = "task-scope-cell";
+  scopeCell.textContent = scopeText;
+  scopeCell.title = scopeText;
+  const assigneeText = task.assignees?.length
     ? task.assignees.map(displayUser).join(", ")
     : "Unassigned";
+  assigneeCell.className = "task-assignee-cell";
+  assigneeCell.textContent = assigneeText;
+  assigneeCell.title = assigneeText;
   statusCell.textContent = formatToken(task.status);
   priorityCell.textContent = formatToken(task.priority);
   dueCell.textContent = formatDue(task);
+
+  actionsCell.colSpan = 7;
   actionsCell.appendChild(createActions(task));
-  row.append(selectCell, titleCell, scopeCell, assigneeCell, statusCell, priorityCell, dueCell, actionsCell);
-  return row;
+
+  row.append(selectCell, titleCell, scopeCell, assigneeCell, statusCell, priorityCell, dueCell);
+  actionsRow.appendChild(actionsCell);
+  return [row, actionsRow];
 }
 
 function createActions(task) {
   const wrap = document.createElement("div");
   const editButton = actionButton("Edit", () => openTaskDialog(task));
+  const duplicateButton = actionButton("Duplicate", () => duplicateTask(task));
   const copyButton = actionButton("Copy Link", () => copyTaskLink(task));
   const completeButton = task.status === "complete"
     ? actionButton("Reopen", () => postTaskAction(task, "reopen"))
@@ -352,7 +443,7 @@ function createActions(task) {
     : actionButton("Archive", () => confirmArchive(task));
 
   wrap.className = "task-row-actions";
-  wrap.append(editButton, copyButton, completeButton, archiveButton);
+  wrap.append(editButton, duplicateButton, copyButton, completeButton, archiveButton);
   return wrap;
 }
 
@@ -397,22 +488,31 @@ async function postTaskAction(task, action) {
   }
 }
 
-function openTaskDialog(task = null) {
-  state.editingTaskId = task?.task_id || "";
-  taskDialogTitle.textContent = task ? "Edit Task" : "Add Task";
-  copyTaskLinkButton.hidden = !task;
-  titleInput.value = task?.title || "";
-  formStatusInput.value = task?.status || "open";
+function duplicateTask(task) {
+  openTaskDialog(task, { duplicate: true });
+}
+
+function openTaskDialog(task = null, options = {}) {
+  const isDuplicate = options.duplicate === true;
+
+  state.editingTaskId = isDuplicate ? "" : task?.task_id || "";
+  taskDialogTitle.textContent = isDuplicate ? "Duplicate Task" : task ? "Edit Task" : "Add Task";
+  copyTaskLinkButton.hidden = !task || isDuplicate;
+  titleInput.value = isDuplicate && task?.title ? `Copy of ${task.title}` : task?.title || "";
+  formStatusInput.value = isDuplicate ? "open" : task?.status || "open";
   priorityInput.value = task?.priority || "normal";
-  clientInput.value = task?.client_id || "";
+  clientInput.value = task ? task.client_id || "" : "all";
   populateProjectInput(task?.project_id || "");
+  if (!task) {
+    applySelectedProjectTaskDefaults();
+  }
   dueDateInput.value = task?.due_date || "";
   dueTimeInput.value = task?.due_time || "";
   descriptionInput.value = task?.description || "";
-  selectAssignees(task?.assignee_ids || []);
-  writeRecurrenceFields(task?.recurrenceDetails);
+  selectAssignees(task?.assignee_ids || (task ? [] : [currentUserId()]));
+  writeRecurrenceFields(isDuplicate ? null : task?.recurrenceDetails);
   writeReminderFields(task?.reminderDetails);
-  writeTaskTimerFields(task);
+  writeTaskTimerFields(isDuplicate ? null : task);
 
   if (typeof taskDialog.showModal === "function") {
     taskDialog.showModal();
@@ -421,6 +521,27 @@ function openTaskDialog(task = null) {
   }
 
   titleInput.focus();
+}
+
+function applySelectedProjectTaskDefaults() {
+  if (state.editingTaskId) {
+    return;
+  }
+
+  const project = state.options.projects.find((item) => item.id === projectInput?.value);
+  const defaults = project?.taskDefaults || {};
+
+  if (taskDefaultStatuses().includes(defaults.status)) {
+    formStatusInput.value = defaults.status;
+  } else {
+    formStatusInput.value = "open";
+  }
+
+  if (taskDefaultPriorities().includes(defaults.priority)) {
+    priorityInput.value = defaults.priority;
+  } else {
+    priorityInput.value = "normal";
+  }
 }
 
 async function loadTaskTimers() {
@@ -466,7 +587,7 @@ function readTaskFormPayload() {
     title: titleInput.value,
     status: formStatusInput.value,
     priority: priorityInput.value,
-    client_id: clientInput.value,
+    client_id: clientInput.value === "all" ? "" : clientInput.value,
     project_id: projectInput.value,
     due_date: dueDateInput.value,
     due_time: dueTimeInput.value,
@@ -479,64 +600,101 @@ function readTaskFormPayload() {
 }
 
 async function applyBulkAction() {
-  const action = bulkActionInput.value;
   const taskIds = [...state.selectedTaskIds];
+  const actions = selectedBulkActions(taskIds);
 
-  if (!action || taskIds.length === 0) {
+  if (actions.length === 0) {
     return;
-  }
-
-  const payload = {
-    action,
-    task_ids: taskIds,
-  };
-
-  if (action === "status") {
-    payload.status = bulkStatusInput.value;
-  }
-
-  if (action === "priority") {
-    payload.priority = bulkPriorityInput.value;
-  }
-
-  if (action === "assignee_add" || action === "assignee_remove") {
-    payload.assignee_ids = [...bulkAssigneesInput.selectedOptions].map((selected) => selected.value);
   }
 
   setStatus("Updating selected tasks...");
 
   try {
-    const result = await api.postJson("/api/tasks/bulk", payload);
-    (result.tasks || []).forEach(upsertTask);
+    const results = [];
+    const errors = [];
+
+    for (const payload of actions) {
+      const result = await api.postJson("/api/tasks/bulk", payload);
+      results.push(...(result.tasks || []));
+      errors.push(...(result.errors || []));
+    }
+
+    results.forEach(upsertTask);
     state.selectedTaskIds.clear();
+    resetBulkInputs();
     renderTasks();
-    setStatus(result.errors?.length
-      ? `Updated ${result.tasks?.length || 0} tasks. ${result.errors.length} tasks could not be updated.`
-      : `Updated ${result.tasks?.length || 0} tasks.`);
+    if (errors.length) {
+      const firstError = errors[0]?.message ? ` ${errors[0].message}` : "";
+      setStatus(`Updated ${results.length} task changes. ${errors.length} changes could not be updated.${firstError}`, {
+        isError: results.length === 0,
+      });
+    } else {
+      setStatus(`Updated ${results.length} task changes.`);
+    }
   } catch (error) {
     setStatus(error.message || "Selected tasks were not updated.", { isError: true });
   }
 }
 
 function updateBulkControls() {
-  const action = bulkActionInput?.value || "";
   const selectedCount = state.selectedTaskIds.size;
+  const hasSelectedAction = selectedBulkActions([...state.selectedTaskIds]).length > 0;
 
-  if (bulkStatusControl) {
-    bulkStatusControl.hidden = action !== "status";
-  }
-  if (bulkPriorityControl) {
-    bulkPriorityControl.hidden = action !== "priority";
-  }
-  if (bulkAssigneeControl) {
-    bulkAssigneeControl.hidden = action !== "assignee_add" && action !== "assignee_remove";
-  }
+  bulkStatusControl?.removeAttribute("hidden");
+  bulkPriorityControl?.removeAttribute("hidden");
+  bulkAssigneeControl?.removeAttribute("hidden");
 
   if (bulkApplyButton) {
-    bulkApplyButton.disabled = !action || selectedCount === 0 ||
-      ((action === "assignee_add" || action === "assignee_remove") && bulkAssigneesInput.selectedOptions.length === 0);
+    bulkApplyButton.disabled = selectedCount === 0 || !hasSelectedAction;
     bulkApplyButton.textContent = `Apply to ${selectedCount}`;
   }
+
+  if (bulkToolbar && selectedCount > 0) {
+    bulkToolbar.open = true;
+  }
+}
+
+function selectedBulkActions(taskIds) {
+  if (taskIds.length === 0) {
+    return [];
+  }
+
+  const actions = [];
+  const status = bulkStatusInput?.value || "";
+  const priority = bulkPriorityInput?.value || "";
+  const assigneeIds = selectedBulkAssigneeIds();
+
+  if (status) {
+    actions.push({ action: "status", task_ids: taskIds, status });
+  }
+
+  if (priority) {
+    actions.push({ action: "priority", task_ids: taskIds, priority });
+  }
+
+  if (assigneeIds.length > 0) {
+    actions.push({ action: "assignee_replace", task_ids: taskIds, assignee_ids: assigneeIds });
+  }
+
+  return actions;
+}
+
+function selectedBulkAssigneeIds() {
+  return [...(bulkAssigneesControl?.querySelectorAll("input[type='checkbox']:checked") || [])]
+    .map((input) => input.value)
+    .filter(Boolean);
+}
+
+function resetBulkInputs() {
+  if (bulkStatusInput) {
+    bulkStatusInput.value = "";
+  }
+  if (bulkPriorityInput) {
+    bulkPriorityInput.value = "";
+  }
+  bulkAssigneesControl?.querySelectorAll("input[type='checkbox']").forEach((input) => {
+    input.checked = false;
+  });
 }
 
 function toggleVisibleSelection() {
@@ -576,6 +734,16 @@ function syncSelectionToTasks(visibleTasks) {
   if (visibleTasks.length === 0) {
     state.selectedTaskIds.clear();
   }
+}
+
+function usesClientScope() {
+  return state.options.workspaceType === "business";
+}
+
+function setClientScopeControlsVisible(isVisible) {
+  document.querySelectorAll("[data-client-workspace-control]").forEach((element) => {
+    element.hidden = !isVisible;
+  });
 }
 
 function handleQuickFilterClick(event) {
@@ -922,6 +1090,93 @@ function replaceOptions(select, options) {
   }
 }
 
+function sortClientOptions(clients) {
+  return [...(clients || [])].sort((left, right) =>
+    getClientTreeSortKey(left).localeCompare(getClientTreeSortKey(right), undefined, { sensitivity: "base" }),
+  );
+}
+
+function sortProjectOptions(projects) {
+  return [...(projects || [])].sort((left, right) =>
+    getProjectTreeSortKey(left).localeCompare(getProjectTreeSortKey(right), undefined, { sensitivity: "base" }),
+  );
+}
+
+function getClientTreeSortKey(client) {
+  const names = [];
+  let currentClient = client;
+  const visited = new Set();
+
+  while (currentClient && !visited.has(currentClient.id)) {
+    visited.add(currentClient.id);
+    names.unshift(currentClient.name || "");
+    currentClient = state.options.clients.find((item) => item.id === currentClient.parent_client_id);
+  }
+
+  return names.join("/");
+}
+
+function getProjectTreeSortKey(project) {
+  const names = [];
+  let currentProject = project;
+  const visited = new Set();
+
+  while (currentProject && !visited.has(currentProject.id)) {
+    visited.add(currentProject.id);
+    names.unshift(currentProject.name || "");
+    currentProject = state.options.projects.find((item) => item.id === currentProject.parent_project_id);
+  }
+
+  return names.join("/");
+}
+
+function getClientDepth(client, visited = new Set()) {
+  if (!client?.parent_client_id || visited.has(client.id)) {
+    return 0;
+  }
+
+  visited.add(client.id);
+  const parent = state.options.clients.find((item) => item.id === client.parent_client_id);
+  return parent ? 1 + getClientDepth(parent, visited) : 0;
+}
+
+function getProjectDepth(project, visited = new Set()) {
+  if (!project?.parent_project_id || visited.has(project.id)) {
+    return 0;
+  }
+
+  visited.add(project.id);
+  const parent = state.options.projects.find((item) => item.id === project.parent_project_id);
+  return parent ? 1 + getProjectDepth(parent, visited) : 0;
+}
+
+function treeIndent(depth) {
+  return depth > 0 ? `${"  ".repeat(depth)}- ` : "";
+}
+
+function normalizeProjectTaskSortOrder(value) {
+  const allowed = ["due_date", "priority", "status"];
+  const ordered = (Array.isArray(value) ? value : [])
+    .map((item) => String(item || "").trim())
+    .filter((item) => allowed.includes(item));
+
+  allowed.forEach((item) => {
+    if (!ordered.includes(item)) {
+      ordered.push(item);
+    }
+  });
+
+  return ordered.slice(0, allowed.length);
+}
+
+function taskDefaultStatuses() {
+  return ["open", "in_progress", "blocked", "complete", "archived"];
+}
+
+function taskDefaultPriorities() {
+  return ["low", "normal", "high", "urgent"];
+}
+
 function option(value, label) {
   return pageController.createOption(value, label);
 }
@@ -1142,6 +1397,19 @@ function isActiveTask(task) {
   return task.status !== "complete" && task.status !== "archived";
 }
 
+function isTaskOverdue(task) {
+  if (!task.due_date || !isActiveTask(task)) {
+    return false;
+  }
+
+  if (task.due_time && task.due_at_utc) {
+    const dueAt = new Date(task.due_at_utc);
+    return !Number.isNaN(dueAt.getTime()) && dueAt.getTime() < Date.now();
+  }
+
+  return task.due_date < todayKey();
+}
+
 function todayKey() {
   return window.LongtailForge.timezones?.formatDateInput?.(new Date()) || new Date().toISOString().slice(0, 10);
 }
@@ -1183,7 +1451,7 @@ window.LongtailForge.pageController.register("tasks", {
       { name: "task dialog exists", ok: Boolean(taskDialog) },
       { name: "quick filters exist", ok: Boolean(quickFilters?.querySelector("[data-task-quick-filter]")) },
       { name: "sort select exists", ok: Boolean(sortInput) },
-      { name: "bulk controls exist", ok: Boolean(bulkActionInput && bulkApplyButton) },
+      { name: "bulk controls exist", ok: Boolean(bulkToolbar && bulkStatusInput && bulkPriorityInput && bulkAssigneesControl && bulkApplyButton) },
       { name: "copy link exists", ok: Boolean(copyTaskLinkButton) },
       { name: "recurrence controls exist", ok: Boolean(recurringInput && recurrenceDetailsButton && recurrenceDialog) },
     ];

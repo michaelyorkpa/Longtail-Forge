@@ -21,6 +21,14 @@ const isClientsPage = pageMode === "clients";
 const isProjectsPage = pageMode === "projects";
 const clientStatuses = ["Active", "Inactive"];
 const projectStatuses = ["Active", "Inactive", "Completed"];
+const taskDefaultStatuses = ["open", "in_progress", "blocked", "complete", "archived"];
+const taskDefaultPriorities = ["low", "normal", "high", "urgent"];
+const defaultProjectTaskSortOrder = ["due_date", "priority", "status"];
+const projectTaskSortLabels = {
+  due_date: "Due Date",
+  priority: "Priority",
+  status: "Status",
+};
 const billingContactFields = [
   ["name", "Name"],
   ["email", "Email"],
@@ -313,7 +321,7 @@ function createProjectTable(projects) {
     const editCell = document.createElement("td");
     const checkbox = document.createElement("input");
     const editButton = document.createElement("button");
-    const clientName = client.isWorkspaceScope ? "Workspace Project" : client.name;
+    const clientName = client.isWorkspaceScope ? workspaceProjectsLabel() : client.name;
 
     checkbox.type = "checkbox";
     checkbox.dataset.projectTableSelect = project.id;
@@ -858,7 +866,7 @@ function createBulkClientFilter() {
     createOption("All", "All projects"),
     createOption("__workspace_projects__", workspaceProjectsLabel()),
   );
-  getRealClients().filter((client) => isActiveStatus(client.status)).forEach((client) => {
+  sortClientTree(getRealClients()).filter((client) => isActiveStatus(client.status)).forEach((client) => {
     select.appendChild(createOption(client.id, client.name));
   });
   select.value = [...select.options].some((option) => option.value === projectClientFilter?.value)
@@ -1036,7 +1044,7 @@ function renderProjectClientFilter() {
   projectClientFilter.replaceChildren(createOption("All", "All clients"));
   projectClientFilter.appendChild(createOption("__workspace_projects__", workspaceProjectsLabel()));
 
-  getRealClients().forEach((client) => {
+  sortClientTree(getRealClients()).forEach((client) => {
     projectClientFilter.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
   });
 
@@ -1239,7 +1247,7 @@ function populateParentClientSelect(select, excludedClientId = "") {
   const excludedIds = new Set([excludedClientId, ...getClientDescendantIds(excludedClientId)]);
   const currentValue = select.value || "";
   select.replaceChildren(createOption("", "No parent client"));
-  getRealClients()
+  sortClientTree(getRealClients())
     .filter((client) => !excludedIds.has(client.id) && isActiveStatus(client.status))
     .forEach((client) => {
       select.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
@@ -1692,6 +1700,7 @@ function createProjectEditor(client, project) {
     inheritLabel: project.client_id ? "Use client task reminder defaults" : "Use workspace task reminder defaults",
     value: project.taskReminderPolicy,
   });
+  const taskDefaultsEditor = createProjectTaskDefaultsEditor(project.taskDefaults);
 
   billingSettings.append(
     billingRoundingEditor.element,
@@ -1743,6 +1752,7 @@ function createProjectEditor(client, project) {
     project.billing_period = usesSimplifiedBilling ? null : billingPeriodEditor.getValue();
     project.billing_rounding = billingRoundingEditor.getValue();
     project.taskReminderPolicy = reminderPolicyEditor.getValue();
+    project.taskDefaults = taskDefaultsEditor.getValue();
 
     if ((oldProject.client_id || "") !== (project.client_id || "") || (oldProject.parent_project_id || "") !== (project.parent_project_id || "")) {
       const confirmed = await window.LongtailForge.modal.confirm({
@@ -1766,6 +1776,7 @@ function createProjectEditor(client, project) {
       project_id: project.id,
       project_name: project.name,
       confirm_downstream_update: true,
+      taskDefaults: project.taskDefaults,
       taskReminderPolicy: project.taskReminderPolicy,
       details: `old_project_id=${oldProject.id};old_project_name=${oldProject.name};old_status=${oldProject.status};old_parent_project_id=${oldProject.parent_project_id || ""};new_parent_project_id=${project.parent_project_id || ""};old_billable=${oldProject.billable};old_billing_rate=${oldProject.billing_rate};new_status=${project.status};new_billable=${project.billable};new_billing_rate=${project.billing_rate};billing_period=${formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project))};rounding=${formatBillingRounding(getEffectiveProjectBillingRounding(client, project))};round_hours=${getEffectiveProjectBillingRounding(client, project).enabled ? "yes" : "no"}`,
     }, {
@@ -1813,11 +1824,90 @@ function createProjectEditor(client, project) {
     parentProjectLabel,
     statusLabel,
     clientActions,
+    taskDefaultsEditor.element,
     billingDetails,
     actionGroup,
   );
   details.append(summary, wrapper);
   return details;
+}
+
+function createProjectTaskDefaultsEditor(defaults = {}) {
+  const normalized = normalizeProjectTaskDefaults(defaults);
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  const grid = document.createElement("div");
+  const statusLabel = document.createElement("label");
+  const statusSelect = document.createElement("select");
+  const priorityLabel = document.createElement("label");
+  const prioritySelect = document.createElement("select");
+  const sortList = document.createElement("div");
+
+  details.className = "project-defaults-details";
+  summary.textContent = "Project Defaults";
+  grid.className = "project-defaults-grid";
+  statusLabel.textContent = "Default Status";
+  priorityLabel.textContent = "Default Priority";
+  sortList.className = "project-default-sort-list";
+
+  taskDefaultStatuses.forEach((status) => {
+    statusSelect.appendChild(createOption(status, formatToken(status)));
+  });
+  taskDefaultPriorities.forEach((priority) => {
+    prioritySelect.appendChild(createOption(priority, formatToken(priority)));
+  });
+  statusSelect.value = normalized.status;
+  prioritySelect.value = normalized.priority;
+
+  const renderSortRows = (order) => {
+    sortList.replaceChildren(...order.map((item, index) => {
+      const row = document.createElement("div");
+      const name = document.createElement("span");
+      const upButton = document.createElement("button");
+      const downButton = document.createElement("button");
+
+      row.className = "project-default-sort-row";
+      row.dataset.sortItem = item;
+      name.textContent = projectTaskSortLabels[item] || item;
+      upButton.type = "button";
+      upButton.textContent = "Up";
+      upButton.disabled = index === 0;
+      downButton.type = "button";
+      downButton.textContent = "Down";
+      downButton.disabled = index === order.length - 1;
+      upButton.addEventListener("click", () => {
+        const nextOrder = [...readSortOrder()];
+        [nextOrder[index - 1], nextOrder[index]] = [nextOrder[index], nextOrder[index - 1]];
+        renderSortRows(nextOrder);
+      });
+      downButton.addEventListener("click", () => {
+        const nextOrder = [...readSortOrder()];
+        [nextOrder[index], nextOrder[index + 1]] = [nextOrder[index + 1], nextOrder[index]];
+        renderSortRows(nextOrder);
+      });
+      row.append(name, upButton, downButton);
+      return row;
+    }));
+  };
+
+  const readSortOrder = () => normalizeProjectTaskSortOrder(
+    [...sortList.querySelectorAll("[data-sort-item]")].map((row) => row.dataset.sortItem),
+  );
+
+  statusLabel.appendChild(statusSelect);
+  priorityLabel.appendChild(prioritySelect);
+  renderSortRows(normalized.sortOrder);
+  grid.append(statusLabel, priorityLabel, sortList);
+  details.append(summary, grid);
+
+  return {
+    element: details,
+    getValue: () => ({
+      status: statusSelect.value,
+      priority: prioritySelect.value,
+      sortOrder: readSortOrder(),
+    }),
+  };
 }
 
 function createProjectClientAssignment(project) {
@@ -1828,8 +1918,8 @@ function createProjectClientAssignment(project) {
   label.textContent = "Client";
   label.hidden = !clientsEnabledForWorkspace();
   select.appendChild(createOption("", "Workspace project"));
-  getRealClients().filter((client) => isActiveStatus(client.status)).forEach((client) => {
-    select.appendChild(createOption(client.id, client.name));
+  sortClientTree(getRealClients()).filter((client) => isActiveStatus(client.status)).forEach((client) => {
+    select.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
   });
   select.value = project.client_id || "";
   label.appendChild(select);
@@ -1881,12 +1971,17 @@ function createAddProjectClientAssignment(client) {
   wrapper.hidden = !clientsEnabledForWorkspace();
   label.textContent = "Client";
   select.appendChild(createOption("", "Workspace project"));
-  getRealClients().filter((realClient) => isActiveStatus(realClient.status)).forEach((realClient) => {
-    select.appendChild(createOption(realClient.id, realClient.name));
+  sortClientTree(getRealClients()).filter((realClient) => isActiveStatus(realClient.status)).forEach((realClient) => {
+    select.appendChild(createOption(realClient.id, `${treeIndent(getClientDepth(realClient))}${realClient.name}`));
   });
   select.value = getDefaultProjectClientId(client);
   label.appendChild(select);
-  wrapper.append(label, createAddClientShortcutButton());
+  wrapper.appendChild(label);
+
+  const addClientButton = createAddClientShortcutButton();
+  if (addClientButton) {
+    wrapper.appendChild(addClientButton);
+  }
 
   return { element: wrapper, select };
 }
@@ -1902,7 +1997,10 @@ function createProjectClientShortcutActions(project) {
     wrapper.appendChild(editClientButton);
   }
 
-  wrapper.appendChild(createAddClientShortcutButton());
+  const addClientButton = createAddClientShortcutButton();
+  if (addClientButton) {
+    wrapper.appendChild(addClientButton);
+  }
   return wrapper;
 }
 
@@ -1922,6 +2020,10 @@ function createEditClientShortcutButton(clientId) {
 }
 
 function createAddClientShortcutButton() {
+  if (!clientsEnabledForWorkspace()) {
+    return null;
+  }
+
   const button = document.createElement("button");
 
   button.type = "button";
@@ -1967,7 +2069,7 @@ function createAddProjectForm(client, { onSaved = null, showClientAssignment = f
   const form = document.createElement("form");
   form.className = "add-project-form";
   const usesSimplifiedBilling = usesProjectRoundingOnly();
-  const clientAssignment = showClientAssignment
+  const clientAssignment = showClientAssignment && clientsEnabledForWorkspace()
     ? createAddProjectClientAssignment(client)
     : null;
   const parentProjectLabel = createProjectParentAssignment({
@@ -2367,6 +2469,7 @@ function normalizeProjects(projects, clientBillable, clientId) {
         billing_rate: usesProjectRoundingOnly() ? null : normalizeBillingRate(project.billing_rate),
         billing_period: usesProjectRoundingOnly() ? null : normalizeOptionalBillingPeriod(project.billing_period),
         billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
+        taskDefaults: normalizeProjectTaskDefaults(project.taskDefaults || project.task_defaults || project),
         taskReminderPolicy: normalizeTaskReminderPolicy(project.taskReminderPolicy),
         status: projectStatuses.includes(project.status)
           ? project.status
@@ -2384,6 +2487,40 @@ function normalizeSettings(settings) {
       ? settings.workspaceType
       : "business",
   };
+}
+
+function normalizeProjectTaskDefaults(defaults = {}) {
+  return {
+    priority: taskDefaultPriorities.includes(defaults.priority || defaults.task_default_priority)
+      ? defaults.priority || defaults.task_default_priority
+      : "normal",
+    status: taskDefaultStatuses.includes(defaults.status || defaults.task_default_status)
+      ? defaults.status || defaults.task_default_status
+      : "open",
+    sortOrder: normalizeProjectTaskSortOrder(defaults.sortOrder || defaults.task_default_sort_order_json),
+  };
+}
+
+function normalizeProjectTaskSortOrder(value) {
+  const rawItems = Array.isArray(value) ? value : parseJsonArray(value);
+  const ordered = rawItems.filter((item) => defaultProjectTaskSortOrder.includes(item));
+
+  defaultProjectTaskSortOrder.forEach((item) => {
+    if (!ordered.includes(item)) {
+      ordered.push(item);
+    }
+  });
+
+  return ordered.slice(0, defaultProjectTaskSortOrder.length);
+}
+
+function parseJsonArray(value) {
+  try {
+    const parsed = JSON.parse(String(value || "[]"));
+    return Array.isArray(parsed) ? parsed.map((item) => String(item || "").trim()) : [];
+  } catch {
+    return [];
+  }
 }
 
 function normalizeTaskReminderPolicy(policy) {
@@ -2866,6 +3003,14 @@ function sortByName(items) {
 
 function workspaceProjectsLabel() {
   return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
+}
+
+function formatToken(value) {
+  return String(value || "")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function createUuid() {

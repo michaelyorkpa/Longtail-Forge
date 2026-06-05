@@ -386,7 +386,7 @@ function getWorkspaceProjectsLabel(workspaceName) {
     document.querySelector("[data-workspace-name]")?.textContent?.trim() ||
     DEFAULT_WORKSPACE_NAME;
 
-  return `${labelSource} Projects`;
+  return labelSource;
 }
 
 function applyWorkspaceCapabilities(settings) {

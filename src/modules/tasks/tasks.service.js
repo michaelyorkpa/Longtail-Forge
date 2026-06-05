@@ -37,13 +37,14 @@ async function list(session) {
 
 async function summary(session) {
   const { tasks } = await list(session);
-  const today = localDateKey(new Date(), session.timezone);
+  const now = new Date();
+  const today = localDateKey(now, session.timezone);
   const dueSoonCutoff = addDaysKey(today, 7);
   const activeTasks = tasks.filter((task) => !["complete", "archived"].includes(task.status));
   const assignedToMe = activeTasks.filter((task) => (task.assignee_ids || []).includes(session.user_id));
-  const overdue = activeTasks.filter((task) => task.due_date && task.due_date < today);
+  const overdue = activeTasks.filter((task) => isTaskOverdue(task, now, today));
   const dueSoon = activeTasks.filter((task) =>
-    task.due_date && task.due_date >= today && task.due_date <= dueSoonCutoff,
+    isTaskDueSoon(task, now, today, dueSoonCutoff),
   );
 
   return {
@@ -101,15 +102,17 @@ async function read(taskId, session) {
 
 async function create(payload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const taskDefaults = await readProjectTaskDefaults(session, payload?.project_id || payload?.projectId);
   const normalizedTask = await normalizeTaskPayload({
     payload,
     session,
     fallback: {
       task_id: payload?.task_id || payload?.id || randomUUID(),
-      status: "open",
-      priority: "normal",
+      status: taskDefaults.status,
+      priority: taskDefaults.priority,
       created_by_user_id: session.user_id,
       updated_by_user_id: session.user_id,
+      assignee_ids: [session.user_id],
     },
   });
 
@@ -456,6 +459,27 @@ async function readOptions(session) {
   };
 }
 
+async function readProjectTaskDefaults(session, projectId) {
+  const normalizedProjectId = String(projectId || "").trim();
+
+  if (!normalizedProjectId) {
+    return {
+      priority: "normal",
+      status: "open",
+      sortOrder: ["due_date", "priority", "status"],
+    };
+  }
+
+  const project = await projectsRepository.readById(session.workspace_id, normalizedProjectId);
+  const defaults = project?.taskDefaults || {};
+
+  return {
+    priority: normalizePriority(defaults.priority),
+    status: normalizeStatus(defaults.status),
+    sortOrder: Array.isArray(defaults.sortOrder) ? defaults.sortOrder : ["due_date", "priority", "status"],
+  };
+}
+
 async function applyBulkAction(taskId, action, payload, session) {
   if (action === "archive") {
     return archive(taskId, session);
@@ -469,6 +493,12 @@ async function applyBulkAction(taskId, action, payload, session) {
 
   if (action === "priority") {
     return update(taskId, { priority: payload.priority }, session);
+  }
+
+  if (action === "assignee_replace") {
+    return update(taskId, {
+      assignee_ids: normalizeAssigneeIds(payload.assignee_ids || payload.assigneeIds || []),
+    }, session);
   }
 
   if (action === "assignee_add" || action === "assignee_remove") {
@@ -829,6 +859,27 @@ function sortTaskSummaryRows(tasks) {
     priorityRank(secondTask.priority) - priorityRank(firstTask.priority) ||
     String(secondTask.updated_at || "").localeCompare(String(firstTask.updated_at || "")),
   );
+}
+
+function isTaskOverdue(task, now, today) {
+  if (!task.due_date) {
+    return false;
+  }
+
+  if (task.due_time && task.due_at_utc) {
+    const dueAt = new Date(task.due_at_utc);
+    return !Number.isNaN(dueAt.getTime()) && dueAt.getTime() < now.getTime();
+  }
+
+  return task.due_date < today;
+}
+
+function isTaskDueSoon(task, now, today, dueSoonCutoff) {
+  if (!task.due_date || task.due_date < today || task.due_date > dueSoonCutoff) {
+    return false;
+  }
+
+  return !isTaskOverdue(task, now, today);
 }
 
 function taskSummaryRow(task) {

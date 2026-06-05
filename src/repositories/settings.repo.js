@@ -1,4 +1,4 @@
-import { querySql, runSql, sqlInteger, sqlText } from "../db/index.js";
+import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/index.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 
@@ -46,30 +46,43 @@ LIMIT 1;
   }
 
   const now = new Date().toISOString();
+  const savedSettings = normalizeWorkspaceTypeSettings(settings);
 
   await runSql(`
 UPDATE workspaces
-SET name = ${sqlText(settings.workspaceName)},
-    workspace_type = ${sqlText(settings.workspaceType)},
+SET name = ${sqlText(savedSettings.workspaceName)},
+    workspace_type = ${sqlText(savedSettings.workspaceType)},
     updated_at = ${sqlText(now)}
 WHERE workspace_id = ${sqlText(workspaceId)};
 
 UPDATE workspace_settings
 SET
-  fiscal_year_start_month = ${sqlInteger(settings.fiscalYear.startMonth)},
-  fiscal_year_start_day = ${sqlInteger(settings.fiscalYear.startDay)},
-  default_billing_rate = ${sqlText(settings.defaultBillingRate)},
-  billing_period_type = ${sqlText(settings.billingPeriod.type)},
-  billing_period_start_day = ${sqlInteger(settings.billingPeriod.startDay)},
-  rounding_enabled = ${sqlInteger(settings.billingRounding.enabled ? 1 : 0)},
-  rounding_increment = ${sqlText(settings.billingRounding.increment)},
-  audit_logging_enabled = ${sqlInteger(settings.audit.loggingEnabled ? 1 : 0)},
-  audit_retention_days = ${sqlInteger(settings.audit.retentionDays)},
+  fiscal_year_start_month = ${sqlInteger(savedSettings.fiscalYear.startMonth)},
+  fiscal_year_start_day = ${sqlInteger(savedSettings.fiscalYear.startDay)},
+  default_billing_rate = ${sqlNullableText(savedSettings.defaultBillingRate)},
+  billing_period_type = ${sqlText(savedSettings.billingPeriod.type)},
+  billing_period_start_day = ${sqlInteger(savedSettings.billingPeriod.startDay)},
+  rounding_enabled = ${sqlInteger(savedSettings.billingRounding.enabled ? 1 : 0)},
+  rounding_increment = ${sqlText(savedSettings.billingRounding.increment)},
+  audit_logging_enabled = ${sqlInteger(savedSettings.audit.loggingEnabled ? 1 : 0)},
+  audit_retention_days = ${sqlInteger(savedSettings.audit.retentionDays)},
   audit_settings_updated_at = ${sqlText(now)},
-  task_timers_enabled = ${sqlInteger(settings.taskTimersEnabled === false ? 0 : 1)},
+  task_timers_enabled = ${sqlInteger(savedSettings.taskTimersEnabled === false ? 0 : 1)},
   updated_at = ${sqlText(now)}
 WHERE workspace_id = ${sqlText(workspaceId)};
 `);
+}
+
+function normalizeWorkspaceTypeSettings(settings) {
+  if (settings.workspaceType === "business") {
+    return settings;
+  }
+
+  return {
+    ...settings,
+    fiscalYear: { startMonth: 1, startDay: 1 },
+    defaultBillingRate: null,
+  };
 }
 
 function settingsRowToWorkspaceSettings(row) {

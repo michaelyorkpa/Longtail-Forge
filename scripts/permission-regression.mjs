@@ -388,6 +388,30 @@ async function runTaskMutationTests(api, fixtures) {
     assert.equal(scopedTask.body.task.client_id, fixtures.clients.alpha.id);
     assert.deepEqual(scopedTask.body.task.assignee_ids, [fixtures.users.projectUser.userId]);
   });
+  const timedOverdue = localPastMinuteDue();
+  const timedOverdueTask = await expectStatus(
+    "workspace admin can create a same-day timed overdue task",
+    api.post("/api/tasks", {
+      title: "Same-day timed overdue task",
+      project_id: fixtures.projects.alpha.id,
+      assignee_ids: [fixtures.users.projectUser.userId],
+      due_date: timedOverdue.date,
+      due_time: timedOverdue.time,
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    201,
+  );
+  await expectStatus(
+    "dashboard task summary respects due time for overdue tasks",
+    api.get("/api/dashboard", { cookie: fixtures.sessions.projectUser }),
+    200,
+  ).then((response) => {
+    check("same-day timed overdue task is overdue, not due soon", () => {
+      const overdueIds = response.body.tasks.summary.overdue.map((task) => task.task_id);
+      const dueSoonIds = response.body.tasks.summary.dueSoon.map((task) => task.task_id);
+      assert.ok(overdueIds.includes(timedOverdueTask.body.task.task_id));
+      assert.equal(dueSoonIds.includes(timedOverdueTask.body.task.task_id), false);
+    });
+  });
 
   await expectStatus(
     "project user cannot create tasks outside assigned project",
@@ -431,6 +455,29 @@ async function runTaskMutationTests(api, fixtures) {
       assert.equal(response.body.errors.length, 0);
     });
   });
+  await expectStatus(
+    "workspace admin can bulk replace task assignees",
+    api.post("/api/tasks/bulk", {
+      action: "assignee_replace",
+      assignee_ids: [fixtures.users.workspaceAdmin.userId],
+      task_ids: [scopedTask.body.task.task_id],
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  ).then((response) => {
+    check("bulk assignee replace returns exact assignee list", () => {
+      assert.deepEqual(response.body.tasks[0].assignee_ids, [fixtures.users.workspaceAdmin.userId]);
+      assert.equal(response.body.errors.length, 0);
+    });
+  });
+  await expectStatus(
+    "workspace admin can bulk restore task assignee",
+    api.post("/api/tasks/bulk", {
+      action: "assignee_replace",
+      assignee_ids: [fixtures.users.projectUser.userId],
+      task_ids: [scopedTask.body.task.task_id],
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
   await expectStatus(
     "project user bulk archive reuses task archive permission",
     api.post("/api/tasks/bulk", {
@@ -1822,6 +1869,25 @@ VALUES (
 );`);
 
   return sessionId;
+}
+
+function localPastMinuteDue(timeZone = "America/New_York") {
+  const now = new Date();
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(now).map((part) => [part.type, part.value]));
+  const minute = Math.max(0, Number(parts.minute || 0) - 1);
+
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`,
+    time: `${parts.hour}:${String(minute).padStart(2, "0")}`,
+  };
 }
 
 function listen(app) {

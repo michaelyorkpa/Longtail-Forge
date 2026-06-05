@@ -10,6 +10,7 @@ import {
   normalizeBillingPeriod,
   normalizeBillingRate,
   normalizeBillingRounding,
+  normalizeProjectTaskDefaults,
 } from "../../utils/normalizers.js";
 
 async function readAll(workspaceId) {
@@ -26,7 +27,10 @@ SELECT
   billing_period_type,
   billing_period_start_day,
   billing_rounding_enabled,
-  billing_rounding_increment
+  billing_rounding_increment,
+  task_default_priority,
+  task_default_status,
+  task_default_sort_order_json
 FROM projects
 WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY name;
@@ -49,7 +53,10 @@ SELECT
   billing_period_type,
   billing_period_start_day,
   billing_rounding_enabled,
-  billing_rounding_increment
+  billing_rounding_increment,
+  task_default_priority,
+  task_default_status,
+  task_default_sort_order_json
 FROM projects
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND id = ${sqlText(projectId)}
@@ -73,7 +80,10 @@ SELECT
   billing_period_type,
   billing_period_start_day,
   billing_rounding_enabled,
-  billing_rounding_increment
+  billing_rounding_increment,
+  task_default_priority,
+  task_default_status,
+  task_default_sort_order_json
 FROM projects
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND client_id = ${sqlText(clientId)}
@@ -104,7 +114,10 @@ SELECT
   billing_period_type,
   billing_period_start_day,
   billing_rounding_enabled,
-  billing_rounding_increment
+  billing_rounding_increment,
+  task_default_priority,
+  task_default_status,
+  task_default_sort_order_json
 FROM projects
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND ${clientScopeSql}
@@ -138,6 +151,9 @@ SET
   billing_period_start_day = ${sqlNullableInteger(project.billing_period?.startDay)},
   billing_rounding_enabled = ${sqlNullableInteger(project.billing_rounding ? (project.billing_rounding.enabled ? 1 : 0) : null)},
   billing_rounding_increment = ${sqlNullableText(project.billing_rounding?.increment)},
+  task_default_priority = ${sqlText(project.taskDefaults?.priority || "normal")},
+  task_default_status = ${sqlText(project.taskDefaults?.status || "open")},
+  task_default_sort_order_json = ${sqlText(JSON.stringify(project.taskDefaults?.sortOrder || ["due_date", "priority", "status"]))},
   updated_at = ${sqlText(now)}
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND id = ${sqlText(project.id)};
@@ -171,6 +187,9 @@ INSERT INTO projects (
   billing_period_start_day,
   billing_rounding_enabled,
   billing_rounding_increment,
+  task_default_priority,
+  task_default_status,
+  task_default_sort_order_json,
   created_at,
   updated_at
 )
@@ -187,6 +206,9 @@ VALUES (
   ${sqlNullableInteger(project.billing_period?.startDay)},
   ${sqlNullableInteger(project.billing_rounding ? (project.billing_rounding.enabled ? 1 : 0) : null)},
   ${sqlNullableText(project.billing_rounding?.increment)},
+  ${sqlText(project.taskDefaults?.priority || "normal")},
+  ${sqlText(project.taskDefaults?.status || "open")},
+  ${sqlText(JSON.stringify(project.taskDefaults?.sortOrder || ["due_date", "priority", "status"]))},
   ${sqlText(now)},
   ${sqlText(now)}
 );`;
@@ -203,6 +225,11 @@ function projectRowToAppProject(row) {
     billing_rate: normalizeBillingRate(row.billing_rate),
     billing_period: billingPeriodRowToAppValue(row),
     billing_rounding: billingRoundingRowToAppValue(row),
+    taskDefaults: normalizeProjectTaskDefaults({
+      task_default_priority: row.task_default_priority,
+      task_default_status: row.task_default_status,
+      task_default_sort_order_json: row.task_default_sort_order_json,
+    }),
     status: row.status,
   };
 }

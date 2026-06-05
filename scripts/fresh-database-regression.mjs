@@ -27,13 +27,21 @@ SELECT version, module_id, name
 FROM schema_migrations
 ORDER BY version;
 `);
-  const historicalRows = migrations.filter((migration) => /^\d+$/.test(migration.version));
+  const historicalRows = migrations.filter((migration) => {
+    const version = Number.parseInt(migration.version, 10);
+    return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
+  });
 
-  assert.equal(migrations.length, 1, "fresh database should record only the current baseline");
+  assert.equal(migrations.length, 2, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
     name: "fresh_start_database",
+  });
+  assert.deepEqual(migrations[1], {
+    version: "032",
+    module_id: "core",
+    name: "project_defaults_and_workspace_reporting",
   });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }

@@ -6,7 +6,7 @@ const clientProjectsModule = {
   displayName: "Clients and Projects",
   description: "Client and project records, billing defaults, and workspace-scoped project context.",
   category: "core-workflow",
-  version: "0.31.22",
+  version: "0.31.24.1",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: true,

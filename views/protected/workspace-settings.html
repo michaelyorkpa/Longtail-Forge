@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Workspace Settings | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=7">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=8">
   </head>
   <body data-page-title="Workspace Settings">
     <main class="settings-page workspace-settings-page">
@@ -58,7 +58,7 @@
           </div>
 
           <div class="workspace-settings-column">
-            <fieldset class="settings-fieldset">
+            <fieldset class="settings-fieldset" data-fiscal-year-fieldset>
               <legend>Fiscal Year</legend>
 
               <label>
@@ -73,15 +73,15 @@
             </fieldset>
 
             <fieldset class="settings-fieldset" data-billing-settings-fieldset>
-              <legend>Billing Settings</legend>
+              <legend data-billing-settings-legend>Billing Settings</legend>
 
-              <label data-business-billing-control>
+              <label data-default-billing-rate-control>
                 Default Billing Rate ($/hour)
                 <input type="text" inputmode="decimal" data-default-billing-rate-input>
               </label>
 
-              <label data-business-billing-control>
-                Billing Period
+              <label data-billing-period-control>
+                <span data-billing-period-label>Billing Period</span>
                 <select data-billing-period-type>
                   <option value="calendarMonth">Calendar month</option>
                   <option value="custom">Custom</option>
@@ -132,7 +132,7 @@
 
     <script src="js/navigation.js"></script>
     <script src="js/shared/api-client.js"></script>
-    <script src="js/workspace-settings.js"></script>
+    <script src="js/workspace-settings.js?v=2"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

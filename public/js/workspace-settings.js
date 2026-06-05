@@ -16,8 +16,12 @@ const workspaceReminderDateTimeHours1Input = document.querySelector("[data-works
 const workspaceReminderDateTimeHours2Input = document.querySelector("[data-workspace-reminder-date-time-hours-2]");
 const workspaceReminderDateOnlyDays1Input = document.querySelector("[data-workspace-reminder-date-only-days-1]");
 const workspaceReminderDateOnlyDays2Input = document.querySelector("[data-workspace-reminder-date-only-days-2]");
-const businessBillingControls = document.querySelectorAll("[data-business-billing-control]");
 const billingSettingsFieldset = document.querySelector("[data-billing-settings-fieldset]");
+const billingSettingsLegend = document.querySelector("[data-billing-settings-legend]");
+const billingPeriodControl = document.querySelector("[data-billing-period-control]");
+const billingPeriodLabel = document.querySelector("[data-billing-period-label]");
+const defaultBillingRateControl = document.querySelector("[data-default-billing-rate-control]");
+const fiscalYearFieldset = document.querySelector("[data-fiscal-year-fieldset]");
 const openWorkspaceUsersButton = document.querySelector("[data-open-workspace-users]");
 const workspaceUsersDialog = document.querySelector("[data-workspace-users-dialog]");
 const workspaceUsersList = document.querySelector("[data-workspace-users-list]");
@@ -171,8 +175,8 @@ function normalizeSettings(settings) {
     workspaceId: String(settings?.workspaceId || settings?.workspace_id || "").trim(),
     workspaceName,
     workspaceType,
-    fiscalYear: normalizeFiscalYear(settings?.fiscalYear),
-    defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),
+    fiscalYear: workspaceType === "business" ? normalizeFiscalYear(settings?.fiscalYear) : { startMonth: 1, startDay: 1 },
+    defaultBillingRate: workspaceType === "business" ? String(settings?.defaultBillingRate || "").trim() : "",
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
     timeTrackingEnabled: settings?.timeTrackingEnabled === false ? false : true,
@@ -549,14 +553,38 @@ function updateBillingRoundingState() {
 function updateWorkspaceTypeDependentControls() {
   const usesRoundingOnly = normalizeWorkspaceType(workspaceTypeSelect?.value) !== "business";
 
-  businessBillingControls.forEach((control) => {
-    control.hidden = usesRoundingOnly;
-  });
+  if (defaultBillingRateControl) {
+    defaultBillingRateControl.hidden = usesRoundingOnly;
+  }
+
+  if (fiscalYearFieldset) {
+    fiscalYearFieldset.hidden = usesRoundingOnly;
+  }
 
   if (billingSettingsFieldset) {
-    billingSettingsFieldset.querySelector("legend").textContent = usesRoundingOnly
+    billingSettingsFieldset.classList.toggle("is-time-reporting-settings", usesRoundingOnly);
+  }
+
+  if (billingSettingsLegend) {
+    billingSettingsLegend.textContent = usesRoundingOnly
       ? "Rounding"
       : "Billing Settings";
+  }
+
+  if (billingPeriodLabel) {
+    billingPeriodLabel.textContent = usesRoundingOnly
+      ? "Time Reporting Period"
+      : "Billing Period";
+  }
+
+  if (billingPeriodControl) {
+    billingPeriodControl.hidden = false;
+  }
+
+  if (usesRoundingOnly) {
+    fiscalYearStartMonthSelect.value = "1";
+    populateFiscalYearStartDays(1);
+    defaultBillingRateInput.value = "";
   }
 }
 

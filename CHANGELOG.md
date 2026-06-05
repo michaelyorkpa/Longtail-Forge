@@ -1,3 +1,33 @@
+## Version 0.31.24.1 - 2026-06-05 10:54 -04:00
+
+- Bumped the app and first-party module versions to `0.31.24.1`.
+- Removed client/scope UI from Personal and Family project/task flows while keeping projects workspace scoped.
+- Changed workspace project labels to the workspace name only and kept workspace scope options first in client/scope selectors.
+- Made Personal and Family workspace settings hide default billing rate and fiscal year controls, relabel the period control as Time Reporting Period, and save default billing rate as nullable.
+- Added project-owned task defaults for status, priority, and sort order, with new tasks defaulting assignees to the creator.
+- Made task recurrence collapsible, truncated task Scope and Assignees cells with hover titles, and widened sticky modal footers to the modal bottom edge.
+- Fixed parent-client reporting so descendant client projects appear in parent scope rollups and project summaries.
+
+## Version 0.31.24 - 2026-06-05 07:13 -04:00
+
+- Adopted WCAG 2.2 AA as the Longtail Forge browser UI accessibility target.
+- Added `docs/accessibility.md` with the accessibility workflow, manual release checklist, and shared UI pattern guidance.
+- Added `scripts/accessibility-regression.mjs` and wired it into `npm run check`.
+- Added shared visible focus styling and reduced-motion handling in `public/css/longtail-forge.css`.
+- Added `aria-describedby` wiring to shared modal dialogs.
+- Added accessible labels for one-time generated secret fields in API Keys and User Admin.
+- Completed the reordered 0.31 cleanup pass without changing package metadata beyond `0.31.24`.
+- Updated Tasks overdue logic so due times are respected before midnight in task filters and dashboard summaries.
+- Reworked Tasks bulk changes to remove the Bulk Action dropdown and apply selected status, priority, and assignee replacements in combination.
+- Added a Duplicate task action, collapsible task reminders, sticky modal action footers, and bottom-aligned task row actions with truncated hoverable Scope values.
+- Restored Business workspace task scope options for both `All Projects` and workspace-specific Projects while hiding client/scope controls outside Business workspaces.
+- Followed up on 0.31.24 cleanup by moving task action buttons into a full-width single-line row, making the bulk assignee selector clearer, and surfacing bulk errors more explicitly.
+- Replaced the Tasks bulk assignee multi-select with explicit checkboxes and cache-busted the Tasks CSS/JS so browser refreshes pick up the fixed bulk UI.
+- Set the floating Tasks filter panel, bulk panel, and sticky modal footers to solid white backgrounds.
+- Cleaned up the Tasks bulk assignee picker into checkbox and assignee-name columns with truncated hover-reveal labels.
+- Hid Add Client project-dialog shortcuts in Personal and Family workspaces and cache-busted the Projects page script.
+- Bumped the app and first-party module versions to `0.31.24`.
+
 ## Version 0.31.22 - 2026-06-05 03:24 -04:00
 
 - Added a fresh-start database baseline at `src/db/schema/current.sql` for new installs.

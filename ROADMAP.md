@@ -2,230 +2,64 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.22 - Fresh start database
+### Version 0.31.24.1 - UI Tweaks and Clean up
 
-Make the database startup path feel like a freshly built modern app instead of a long upgrade chain. The current schema should be represented as one clean baseline that creates the present-day tables, indexes, seed rows, module metadata, permissions, settings, and defaults directly.
+- Do not hard code any of these changes. They should all be adjusted properly through views, routes, and best practices to maintain the integrity of the framework.
 
-I no longer want the app to run 30+ migrations on first startup. I want one solid, unified initial SQL schema to fire for what is current and active.
+#### Appearance
 
-#### Fresh baseline goal
+- [x] There is no need for scope/client in Personal or Family Workspaces at all. Clients should not appear anywhere. 
+  - [x] All projects, are workspace scoped in Personal/Family Workspaces
+  - [x] Tasks can be Workspace scoped or project scoped
+  - [x] Time entries can be project scoped
 
-- [x] Create a current-state initial schema for a new install.
-  - [x] Use workspace-native table names and columns only.
-  - [x] Use `workspaces`, `workspace_settings`, `workspace_modules`, and `workspace_id`.
-  - [x] Do not include legacy `organizations`, `organization_settings`, `organization_modules`, `organization_id`, `active_timers`, or `active_task_timers`.
-  - [x] Include every table needed by the current app as of 0.31.22.
-  - [x] Include all current indexes, constraints, defaults, and unique keys.
-  - [x] Include current seed data for roles, permissions, app settings, module registry rows, default workspace, default user, workspace settings, workspace membership, and module status.
-  - [x] Include module-owned schema from Tasks and Time Tracking in the clean baseline instead of relying on old incremental migrations for new installs.
+- [x] Personal and Family workspaces should NOT have an option for "Default Billing Rate"
+  - It should be removed from all UI
+  - It should be nullable in the database
 
-- [x] Decide and implement the new migration file structure.
-  - [x] Add a single canonical baseline SQL file, such as `src/db/schema/current.sql` or `src/db/migrations/001_initial_schema.sql`, depending on the cleanest implementation path.
-  - [x] Keep old incremental migration files as historical reference without using them in the normal new-install startup path.
-  - [x] Keep historical migration history out of the normal new-install startup path.
-  - [x] Make module migration discovery compatible with the fresh baseline, or explicitly fold first-party module migrations into the baseline.
-  - [x] Keep future migrations starting after the baseline, such as `002_...` in the new sequence or `032_...` if preserving version numbering is safer.
+- In Workspace Settings, Personal and Family workspaces:
+  - [x] Should change "Billing Period" to "Time Reporting Period"
+  - [x] Should not display Fiscal Year selection (This should simply default to January 1)
 
-#### Existing database upgrade policy
+- [x] In Business workspaces, workspace projects should be displayed with the scope of the Workspace Name. Do not add " Projects" to the end
+- [x] In all locations that include client/scope, the Workspace Projects should be at the top (with the workspace name, only)
 
-- [x] Preserve a safe path for existing databases.
-  - [x] Detect existing databases that already have `schema_migrations`.
-  - [x] Do not re-run the fresh baseline against an existing database.
-  - [x] Keep existing applied databases valid without requiring old migration checksum validation.
-  - [x] Decide whether existing databases should:
-    - [x] Keep their current `schema_migrations` rows and continue forward from the next migration, or
-    - [x] Be marked as upgraded to the new baseline with a clear baseline marker.
-  - [x] Avoid checksum failures for databases that applied the old migration history before 0.31.22.
-  - [x] Add a one-time compatibility path only if needed to bridge old migration metadata into the new baseline marker.
+- In add/edit task modals:
+  - [x] Recurrence should be collapsible
 
-- [x] Define the support boundary.
-  - [x] A brand-new database should create the current 0.31.22 schema from the fresh baseline only.
-  - [x] A database already upgraded through 0.31.21 should start without running old migrations again.
-  - [x] A partially upgraded legacy database should either upgrade safely or fail with a clear message telling the user what backup/recovery step is required.
-  - [x] Do not keep silent compatibility behavior that makes the startup path hard to reason about.
+- In Projects -> Tasks truncate with hover over for full reveal for: 
+  - [x] Scope
+  - [x] Asignees
 
-#### Migration runner cleanup
+- [x] Settings -> Workspace -> Clients -> Edit client modal footer doesn't go all the way to the bottom of the modal window
 
-- [x] Simplify `src/db/migrations.js`.
-  - [x] Remove the large `isMigrationAlreadySatisfied` branch list for old incremental migrations from the normal path.
-  - [x] Remove special handling that exists only for old organization/workspace compatibility phases.
-  - [x] Remove baseline logic that records 30+ old migrations for a fresh schema.
-  - [x] Keep migration checksum validation for future migrations.
-  - [x] Keep clear errors when an expected future migration file is missing or changed after being applied.
-  - [x] Make fresh database initialization easy to read: create schema, seed essentials, record baseline, then apply future migrations.
+#### Behavior
 
-- [x] Simplify startup database repairs where possible.
-  - [x] Keep useful current repairs such as timestamp normalization only if they are still needed for current data.
-  - [x] Remove repair paths that only apply to dropped legacy tables or removed aliases.
-  - [x] Confirm startup no longer spends time checking tables that cannot exist in the fresh baseline.
+- [x] The Client (Scope) and Project selection boxes need to be organized
+  - [x] Alphabetically
+  - [x] Child items should be indented below parent items
+  - [x] Child items should be organized alphabetically
+  - [x] These settings also need to apply to the Parent Client drop down box in Settings -> Add/Edit Client
+  - Client List in Settings -> Workspace -> Clients is properly organized, good work!
 
-#### Clean schema content checklist
+- [x] New tasks should default Assignee to task creator
 
-- [x] Include core identity and workspace tables.
-  - [x] `workspaces`
-  - [x] `workspace_settings`
-  - [x] `users`
-  - [x] `user_workspaces`
-  - [x] `sessions`
-  - [x] `user_workspace_creation_permissions`
-  - [x] `app_settings`
+- [x] Add "Project Defaults" section to Project settings
+  - This should start collapsed in the project settings
+  - [x] Add "default priority" and "default status" for tasks to Project settings
+  - [x] Add "default sort order" to Project settings
+    - This should be a re-arrangable box
+    - This should default to: Due Date, Priority, Status
 
-- [x] Include permissions and module framework tables.
-  - [x] `roles`
-  - [x] `permissions`
-  - [x] `role_permissions`
-  - [x] `user_role_assignments`
-  - [x] `modules`
-  - [x] `workspace_modules`
-  - [x] `schema_migrations`
+- [x] Fix historical records
+  - When parent clients are added, all existing projects need to be updated
+  - Individual items don't need to be updated, because they should still have the project assigned and be accessible by reporting
+  - I recently moved three clients under the parent client of "Steven Spohn" and no projects or time entries show up
+    - [x] Please correct the affected projects for this move and make the change permanent in code
 
-- [x] Include project and time tracking tables.
-  - [x] `clients`
-  - [x] `projects`
-  - [x] `time_entries`
-  - [x] `active_work_timers`
-  - [x] `api_keys`
-  - [x] `api_key_scopes`
-  - [x] `audit_logs`
+### Version 0.31.24.2 - Database speed up
 
-- [x] Include Tasks tables.
-  - [x] `tasks`
-  - [x] `task_assignees`
-  - [x] `task_reminder_offsets`
-  - [x] `task_recurrence_templates`
-  - [x] `task_recurrence_assignees`
-
-- [x] Include current seed/default data.
-  - [x] Current role IDs and labels.
-  - [x] Current permission IDs and labels.
-  - [x] Current default role permission grants.
-  - [x] Current app settings.
-  - [x] Current module registry rows.
-  - [x] Current default workspace and protected super admin bootstrap behavior.
-  - [x] Current default workspace module statuses.
-
-#### Regression coverage
-
-- [x] Add a fresh database baseline regression.
-  - [x] Create an empty temporary database.
-  - [x] Initialize it through the normal app startup path.
-  - [x] Assert the old incremental migrations did not run one by one for a new install.
-  - [x] Assert the resulting table list exactly matches the current expected table set.
-  - [x] Assert forbidden legacy tables do not exist.
-  - [x] Assert required indexes exist.
-  - [x] Assert required seed rows exist.
-  - [x] Assert module registry sync still works.
-  - [x] Assert default workspace/settings/user/session prerequisites are valid.
-
-- [x] Add an existing database startup regression.
-  - [x] Start from a database that already has the 0.31.21 schema.
-  - [x] Initialize it under the new migration runner.
-  - [x] Assert startup does not depend on old incremental migration files.
-  - [x] Assert future migrations still apply normally.
-  - [x] Assert `PRAGMA integrity_check` returns `ok`.
-
-- [x] Add a migration runner regression.
-  - [x] Assert changed future migration checksums still fail.
-  - [x] Assert missing future migration files still fail.
-  - [x] Assert old incremental migrations are not required for new installs.
-  - [x] Assert schema baseline version is recorded clearly.
-
-#### Documentation
-
-- [x] Update database documentation.
-  - [x] Document the fresh baseline strategy.
-  - [x] Document where old migration history lives.
-  - [x] Document how new migrations should be added after 0.31.22.
-  - [x] Document how existing installations cross into the fresh baseline era.
-  - [x] Make it clear that the active schema is workspace-native and legacy-free.
-
-- [x] Update developer guidance.
-  - [x] Explain whether first-party module schema belongs in the unified baseline or module migration files.
-  - [x] Explain how future optional/third-party modules should add migrations.
-  - [x] Explain the expected naming and numbering convention after the baseline reset.
-
-#### Verification
-
-- [x] Run full verification.
-  - [x] `npm run check`
-  - [x] `npm run test:permissions`
-  - [x] Fresh temporary database initialization smoke.
-  - [x] Existing local database startup smoke.
-  - [x] `sqlite3 data/longtail-forge.db "PRAGMA integrity_check;"`
-  - [x] `/api/app-info`
-  - [x] `/api/settings`
-  - [x] `/api/app-shell/bootstrap`
-  - [x] `/api/workbench/bootstrap`
-  - [x] `/api/tasks`
-  - [x] `/api/time-entries`
-
-#### Release cleanup
-
-- [x] Keep 0.31.22 narrowly focused on database baseline work.
-  - [x] Do not include the 0.31.23 UI/task cleanup items in this release.
-  - [x] Do not start notification/tag/search framework work in this release.
-  - [x] Bump app and first-party module versions only during the implementation pass.
-  - [x] Update `CHANGELOG.md`, `DECISIONS.md`, and `ROADMAP-ARCHIVE.md` during the implementation pass.
-
-## Version 0.31.23 - 0.31 Clean Up Items
-
-#### App function failures
-
-- [ ] "Add new photo dispatch" task did not move to "Overdue" at 4pm, it moved into it after midnight
-  - It doesn't seem "task due" is respecting time due
-- Bulk Actions in Projects -> Tasks list doesn't open when a task selected
-
-#### User Interface
-
-- [ ] Make "Reminders" in Add/Edit Task modal collapsible
-
-- [ ] Remove the "Bulk Action" drop down and keep the "Status" "Priority" and "Assignees"
-  - [ ] Add "-" to Status and Priority boxes
-  - Perform the bulk action, after user clicks apply, based on what is selected in Status, Priority, and/or Assignees
-  - If only a Status is selected, only change the status on the selected tasks
-  - If only a Priority is selected, only change the priority on the selected tasks
-  - If one or more assignees are selected, but nothing else change the assignees on the selected tasks
-  - If any combination of the above are selected, change the selected bulk actions on the selected tasks
-  - Doing this will speed up bulk changes and reduce time spent making them
-
-- [ ] In Add Task modal, "All Projects" exists, but we've lost the "{{workspaceName}} Projects" to sort by, we need both
-  - [ ] Anywhere there is a clients/scope sort/filter in a business workspace, it needs to have both "All" and "{{workspaceName}} Projects" option
-  - [ ] Personal and Family workspaces shouldn't have a client/scope sort/filter
-
-- [ ] In Projects -> Tasks the task list, the action buttons should move to the bottom of each list item, side-by-side
-  - Drop the "Actions" column
-  - Truncate Scope, but add hover over to reveal full detail
-
-- [ ] Add a "Duplicate" button to create a new task from a completed/existing task
-
-- [ ] Make a static footer at the bottom of modal windows for the Save/Cancel/etc. buttons so users don't have to scroll all the way to the bottom every time
-
-## Version 0.31.24 Accessibility QA Foundation
-
-- [ ] Adopt WCAG 2.2 AA as the accessibility target for Longtail Forge UI.
-- [ ] Add accessibility checks to development workflow:
-  - [ ] axe DevTools browser extension for manual page checks.
-  - [ ] Lighthouse accessibility checks for major authenticated pages.
-  - [ ] `axe-core`/Playwright or equivalent automated checks for reusable UI components.
-  - [ ] `pa11y-ci` or equivalent route-based checks for key pages.
-- [ ] Add an accessibility release checklist:
-  - [ ] Keyboard-only navigation works.
-  - [ ] Focus order is logical.
-  - [ ] Focus is visible.
-  - [ ] Modals trap/release focus correctly.
-  - [ ] Forms have labels, help text, and useful validation errors.
-  - [ ] Color contrast passes.
-  - [ ] UI works at 200% zoom/reflow.
-  - [ ] Reduced-motion preferences are respected where animation exists.
-- [ ] Add shared accessible UI patterns:
-  - [ ] Buttons/links.
-  - [ ] Form fields.
-  - [ ] Modals.
-  - [ ] Dropdowns.
-  - [ ] Tabs.
-  - [ ] Toasts/notifications.
-  - [ ] Empty states.
-- [ ] Document that automated accessibility tools assist testing but do not replace manual review.
+Database calls have begun slowing down. I'm unsure what the cause is, but it's creating a noticable lag on the front end. Please do some testing and fill this ROADMAP section with the actions to take with the results of your tests.
 
 ## Version 0.32.0 - Notifications Framework Foundation
 

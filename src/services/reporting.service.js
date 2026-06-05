@@ -149,7 +149,7 @@ function buildReportingScopes(data, settings, options = {}) {
   const workspaceScope = workspaceProjects.length > 0
       ? [normalizeScope({
         id: WORKSPACE_SCOPE_ID,
-        name: `${settings.workspaceName || "Workspace"} Projects`,
+        name: settings.workspaceName || "Workspace",
         status: "Active",
         billable: "yes",
         isWorkspaceScope: true,
@@ -166,7 +166,21 @@ function buildReportingScopes(data, settings, options = {}) {
     return workspaceScope;
   }
 
-  return [...workspaceScope, ...sortByName(clientScopes)];
+  return [...workspaceScope, ...sortByName(attachDescendantClientProjects(clientScopes))];
+}
+
+function attachDescendantClientProjects(scopes) {
+  return scopes.map((scope) => {
+    const descendantProjects = scopes
+      .filter((candidate) => scope.childScopeIds.includes(candidate.id))
+      .flatMap((candidate) => candidate.projects);
+    const projectsById = new Map([...scope.projects, ...descendantProjects].map((project) => [project.id, project]));
+
+    return {
+      ...scope,
+      projects: decorateProjectDescendants([...projectsById.values()]),
+    };
+  });
 }
 
 function normalizeScope(client) {

@@ -39,6 +39,7 @@
     const text = document.createElement("p");
     const actionWrap = document.createElement("div");
     const headingId = `app-dialog-title-${Date.now()}-${modalCounter}`;
+    const descriptionId = `app-dialog-description-${Date.now()}-${modalCounter}`;
 
     modalCounter += 1;
 
@@ -46,12 +47,14 @@
     dialog.setAttribute("role", "dialog");
     dialog.setAttribute("aria-modal", "true");
     dialog.setAttribute("aria-labelledby", headingId);
+    dialog.setAttribute("aria-describedby", descriptionId);
 
     form.method = "dialog";
     form.className = "app-dialog-form";
 
     heading.id = headingId;
     heading.textContent = title;
+    text.id = descriptionId;
     text.textContent = message;
     actionWrap.className = "form-actions";
 

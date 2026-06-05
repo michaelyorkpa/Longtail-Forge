@@ -35,6 +35,7 @@ The near-term roadmap focuses on formalizing module manifests, Workbench contrib
 - [docs/architecture.md](docs/architecture.md): framework/module architecture direction
 - [docs/module-contract.md](docs/module-contract.md): current module definition contract
 - [docs/time-tracking-module.md](docs/time-tracking-module.md): Time Tracking module boundary
+- [docs/accessibility.md](docs/accessibility.md): accessibility target, checks, and manual release checklist
 - [docs/public-api.md](docs/public-api.md): public API and API key documentation
 - [docs/longtail_forge_permissions_matrix.md](docs/longtail_forge_permissions_matrix.md): role and permission matrix
 - [docs/storage-rename-plan.md](docs/storage-rename-plan.md): workspace storage rename plan

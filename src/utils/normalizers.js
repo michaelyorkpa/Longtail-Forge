@@ -134,11 +134,12 @@ function normalizeClientProjectData(data) {
                 workspace_id: String(project.workspace_id || client.workspace_id || "").trim(),
                 parent_project_id: String(project.parent_project_id || project.parentProjectId || "").trim(),
                 name: String(project.name || "").trim(),
-              billable: normalizeBillableFlag(project.billable, clientBillable),
-              billing_rate: normalizeBillingRate(project.billing_rate),
-              billing_period: normalizeOptionalBillingPeriod(project.billing_period),
-              billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
-              status: normalizeStatus(project.status),
+                billable: normalizeBillableFlag(project.billable, clientBillable),
+                billing_rate: normalizeBillingRate(project.billing_rate),
+                billing_period: normalizeOptionalBillingPeriod(project.billing_period),
+                billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
+                taskDefaults: normalizeProjectTaskDefaults(project.taskDefaults || project.task_defaults || project),
+                status: normalizeStatus(project.status),
             }))
           : [],
       };
@@ -154,8 +155,8 @@ function normalizeSettings(settings) {
     workspaceName,
     workspaceType,
     workspaceCapabilities: getWorkspaceCapabilities(workspaceType),
-    fiscalYear: normalizeFiscalYear(settings?.fiscalYear),
-    defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),
+    fiscalYear: workspaceType === "business" ? normalizeFiscalYear(settings?.fiscalYear) : { startMonth: 1, startDay: 1 },
+    defaultBillingRate: workspaceType === "business" ? String(settings?.defaultBillingRate || "").trim() : "",
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
     taskTimersEnabled: settings?.taskTimersEnabled === false ? false : true,
@@ -166,6 +167,47 @@ function normalizeSettings(settings) {
 function normalizeBillingRate(value) {
   const text = String(value ?? "").trim();
   return text || null;
+}
+
+function normalizeProjectTaskDefaults(defaults = {}) {
+  return {
+    priority: normalizeTaskPriority(defaults.priority || defaults.task_default_priority || defaults.defaultPriority),
+    status: normalizeTaskStatus(defaults.status || defaults.task_default_status || defaults.defaultStatus),
+    sortOrder: normalizeProjectTaskSortOrder(defaults.sortOrder || defaults.sort_order || defaults.task_default_sort_order || defaults.task_default_sort_order_json),
+  };
+}
+
+function normalizeTaskPriority(value) {
+  const priority = String(value || "").trim();
+  return ["low", "normal", "high", "urgent"].includes(priority) ? priority : "normal";
+}
+
+function normalizeTaskStatus(value) {
+  const status = String(value || "").trim();
+  return ["open", "in_progress", "blocked", "complete", "archived"].includes(status) ? status : "open";
+}
+
+function normalizeProjectTaskSortOrder(value) {
+  const parsed = Array.isArray(value) ? value : parseSortOrderJson(value);
+  const allowed = ["due_date", "priority", "status"];
+  const ordered = parsed.filter((item) => allowed.includes(item));
+
+  allowed.forEach((item) => {
+    if (!ordered.includes(item)) {
+      ordered.push(item);
+    }
+  });
+
+  return ordered.slice(0, allowed.length);
+}
+
+function parseSortOrderJson(value) {
+  try {
+    const parsed = JSON.parse(String(value || "[]"));
+    return Array.isArray(parsed) ? parsed.map((item) => String(item || "").trim()) : [];
+  } catch {
+    return [];
+  }
 }
 
 function normalizeBillableFlag(value, fallback = "yes") {
@@ -278,6 +320,7 @@ export {
   normalizeOptionalEmail,
   normalizeProtectedUserFlag,
   normalizeSettings,
+  normalizeProjectTaskDefaults,
   normalizeThemeMode,
   normalizeWorkspaceType,
   normalizeTimeEntry,
