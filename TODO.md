@@ -46,18 +46,9 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Tweaks
 
-- [ ] Do partial Dashboard modification to bring it closer to final dashboard appearance
-
-- [ ] Move notifications up in the ROADMAP?
-
 - [ ] Identify and use an accessibility checker for best accessibility practices. Do this early.
 
 - [ ] Make all footers float at the bottom of modal windows (Save/Cancel/etc.) so users don't have to scroll all the way to the bottom every time
-
-- Should task timers show up as options to run on the Time tracker?
-
-- Do task timers pause when regular timers are started?
-  - Needs to have a backend setting to control this. "Timer Concurrency"
 
 - What should happen to records when a client/project becomes completed or archived?
 
@@ -92,7 +83,7 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - [ ] "Focus" mode, allows dashboard/entire interface to switch to being focused on a single project/client for Business workspaces
 
-- [ ] Determine what code changes nee to happen to create phone/tablet/TV apps
+- [ ] Determine what code changes need to happen to create phone/tablet/TV apps
 
 - [ ] Lists (Shopping/Grocery)
   - could be useful for physical project planning

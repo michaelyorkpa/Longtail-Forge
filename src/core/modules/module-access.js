@@ -40,13 +40,45 @@ function requireModuleBrowserWritesEnabled(moduleId) {
   return requireModuleWriteEnabledForRoute(moduleId, (request) => request.session);
 }
 
+function requireModuleBrowserWritesEnabledForRouter(moduleId, router) {
+  return async (request, response, next) => {
+    try {
+      if (!isWriteRequest(request) || !routerMatchesRequest(router, request)) {
+        next();
+        return;
+      }
+
+      await assertModuleWriteEnabled(request.session, moduleId);
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
 function requireModulePublicApiWritesEnabled(moduleId) {
   return requireModuleWriteEnabledForRoute(moduleId, (request) => request.apiSession);
+}
+
+function isWriteRequest(request) {
+  return !["GET", "HEAD", "OPTIONS"].includes(request.method);
+}
+
+function routerMatchesRequest(router, request) {
+  return (router?.stack || []).some((layer) => {
+    if (!layer.route || typeof layer.match !== "function") {
+      return false;
+    }
+
+    const method = String(request.method || "").toLowerCase();
+    return layer.route.methods?.[method] === true && layer.match(request.path);
+  });
 }
 
 export {
   assertModuleWriteEnabled,
   requireModuleBrowserWritesEnabled,
+  requireModuleBrowserWritesEnabledForRouter,
   requireModulePublicApiWritesEnabled,
   requireModuleWriteEnabled,
 };

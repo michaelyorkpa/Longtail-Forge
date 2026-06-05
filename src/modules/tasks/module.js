@@ -7,7 +7,7 @@ const tasksModule = {
   displayName: "Tasks",
   description: "Workspace, client, and project task tracking with scoped assignment and due-date foundations.",
   category: "core-workflow",
-  version: "0.31.17",
+  version: "0.31.19",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -185,6 +185,20 @@ const tasksModule = {
       operations: ["read", "create", "update", "delete", "archive", "restore", "assign", "manage"],
     },
   ],
+  auditRecordTypes: [
+    {
+      recordType: "task",
+      moduleId: "tasks",
+      label: "Task",
+      description: "Task records and task lifecycle audit history.",
+    },
+    {
+      recordType: "task_recurrence_template",
+      moduleId: "tasks",
+      label: "Task Recurrence Template",
+      description: "Recurring task series templates and recurrence audit history.",
+    },
+  ],
   apiScopes: [
     {
       id: "tasks:read",
@@ -236,6 +250,83 @@ const tasksModule = {
       label: "Task Restored",
       description: "Emitted after a task is restored from the archive.",
       recordType: "task",
+    },
+  ],
+  eventSummaries: [
+    {
+      event: "task.created",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Created",
+        summary: ({ event }) => `Created task "${event.new_value?.title || event.record_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
+      },
+      notification: {
+        title: "Task Created",
+        body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" was created.`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
+        recipientHints: ["assignees"],
+      },
+    },
+    {
+      event: "task.updated",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Updated",
+        summary: ({ event }) => `Updated task "${event.new_value?.title || event.record_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
+      },
+      notification: {
+        title: "Task Updated",
+        body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" was updated.`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
+        recipientHints: ["assignees"],
+      },
+    },
+    {
+      event: "task.completed",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Completed",
+        summary: ({ event }) => `Completed task "${event.new_value?.title || event.record_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
+      },
+      notification: {
+        title: "Task Completed",
+        body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" was completed.`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
+        recipientHints: ["assignees"],
+      },
+    },
+    {
+      event: "task.archived",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Archived",
+        summary: ({ event }) => `Archived task "${event.new_value?.title || event.record_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
+      },
+      notification: {
+        title: "Task Archived",
+        body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" was archived.`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
+        recipientHints: ["assignees"],
+      },
+    },
+    {
+      event: "task.restored",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Restored",
+        summary: ({ event }) => `Restored task "${event.new_value?.title || event.record_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
+      },
+      notification: {
+        title: "Task Restored",
+        body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" was restored.`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
+        recipientHints: ["assignees"],
+      },
     },
   ],
   timerSources: [

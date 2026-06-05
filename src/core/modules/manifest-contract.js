@@ -28,7 +28,9 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "resourceDefinitions",
   "publicApiEndpoints",
   "apiScopes",
+  "auditRecordTypes",
   "eventTypes",
+  "eventSummaries",
   "timerSources",
   "workItemSources",
   "hooks",
@@ -40,7 +42,6 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
 ]);
 
 const RESERVED_MANIFEST_FIELDS = new Set([
-  "auditRecordTypes",
   "notificationEvents",
   "notificationTemplates",
   "searchableTypes",
@@ -92,7 +93,9 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateDefaultRolePermissions(moduleDefinition.defaultRolePermissions, errors);
   validateResourceDefinitions(moduleDefinition.resourceDefinitions, moduleDefinition.id, errors);
   validateApiScopes(moduleDefinition.apiScopes, moduleDefinition.id, errors);
+  validateAuditRecordTypes(moduleDefinition.auditRecordTypes, moduleDefinition.id, errors);
   validateEventTypes(moduleDefinition.eventTypes, moduleDefinition.id, errors);
+  validateEventSummaries(moduleDefinition.eventSummaries, moduleDefinition.id, errors);
   validatePublicApiEndpoints(moduleDefinition.publicApiEndpoints, errors);
   validateHooks(moduleDefinition.hooks, errors);
   validateTimerSources(moduleDefinition.timerSources, moduleDefinition.id, errors);
@@ -302,6 +305,39 @@ function validateEventTypes(eventTypes, moduleId, errors) {
     requireString(item, "description", errors, { prefix: `eventTypes[${index}]` });
     optionalString(item, "recordType", errors, { prefix: `eventTypes[${index}]` });
   });
+}
+
+function validateAuditRecordTypes(auditRecordTypes, moduleId, errors) {
+  optionalArrayOfObjects(auditRecordTypes, "auditRecordTypes", errors, (item, index) => {
+    requireString(item, "recordType", errors, { prefix: `auditRecordTypes[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `auditRecordTypes[${index}]` });
+    requireString(item, "label", errors, { prefix: `auditRecordTypes[${index}]` });
+    requireString(item, "description", errors, { prefix: `auditRecordTypes[${index}]` });
+  });
+}
+
+function validateEventSummaries(eventSummaries, moduleId, errors) {
+  optionalArrayOfObjects(eventSummaries, "eventSummaries", errors, (item, index) => {
+    requireString(item, "event", errors, { prefix: `eventSummaries[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `eventSummaries[${index}]` });
+    optionalPlainObject(item, "activity", errors, { prefix: `eventSummaries[${index}]` });
+    optionalPlainObject(item, "notification", errors, { prefix: `eventSummaries[${index}]` });
+    validateSummaryObject(item.activity, `eventSummaries[${index}].activity`, errors, ["label", "summary", "url"]);
+    validateSummaryObject(item.notification, `eventSummaries[${index}].notification`, errors, ["title", "body", "url", "recipientHints"]);
+  });
+}
+
+function validateSummaryObject(summary, prefix, errors, fieldNames) {
+  if (summary === undefined) {
+    return;
+  }
+
+  for (const fieldName of fieldNames) {
+    const value = summary[fieldName];
+    if (value !== undefined && typeof value !== "string" && typeof value !== "function" && !Array.isArray(value)) {
+      errors.push(`${prefix}.${fieldName} must be a string, function, or array.`);
+    }
+  }
 }
 
 function validateHooks(hooks, errors) {

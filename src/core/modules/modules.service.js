@@ -2,7 +2,9 @@ import {
   getModule as getRegisteredModule,
   listModuleBrowserAssets as listRegisteredModuleBrowserAssets,
   listModuleApiScopeEntries as listRegisteredModuleApiScopeEntries,
+  listModuleAuditRecordTypes as listRegisteredModuleAuditRecordTypes,
   listModuleEventHooks as listRegisteredModuleEventHooks,
+  listModuleEventSummaries as listRegisteredModuleEventSummaries,
   listModuleEventTypes as listRegisteredModuleEventTypes,
   listModuleApiScopes as listRegisteredModuleApiScopes,
   listModuleMigrationSources,
@@ -81,8 +83,16 @@ function listModuleApiScopeEntries() {
   return listRegisteredModuleApiScopeEntries();
 }
 
+function listModuleAuditRecordTypes() {
+  return listRegisteredModuleAuditRecordTypes();
+}
+
 function listModuleEventHooks() {
   return listRegisteredModuleEventHooks().map(({ handler: _handler, ...hook }) => hook);
+}
+
+function listModuleEventSummaries() {
+  return listRegisteredModuleEventSummaries();
 }
 
 function listModuleEventTypes() {
@@ -863,7 +873,9 @@ export const modulesService = {
   listAvailableApiScopes,
   listModuleApiScopes,
   listModuleApiScopeEntries,
+  listModuleAuditRecordTypes,
   listModuleEventHooks,
+  listModuleEventSummaries,
   listModuleEventTypes,
   listModuleMigrationSources,
   listModulePermissionEntries,

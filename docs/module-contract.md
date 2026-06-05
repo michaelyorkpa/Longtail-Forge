@@ -2,6 +2,8 @@
 
 Longtail Forge modules are static ESM records registered from `src/core/modules/registry.js`. Version 0.31.10 formalizes the manifest shape and validates registered first-party modules at startup. Third-party loading is intentionally deferred until the registry and module lifecycle are more stable.
 
+For implementation guidance, see `docs/module-development.md`. The disabled-by-default `developer-example` module is a working first-party stub that demonstrates route, page, setting, permission, event, notification, tag, and search declarations without adding business functionality.
+
 ## Startup Validation
 
 The module registry validates every registered module before exposing route, migration, or metadata lists. Startup fails with an `Invalid module manifest configuration` error when a manifest has duplicate IDs, missing required fields, invalid field shapes, unknown fields, or dependencies that reference unregistered modules.
@@ -12,7 +14,7 @@ Unknown arbitrary manifest fields are rejected. Future extension data should wai
 
 `src/core/modules/registry.js` remains the static first-party registration list. It does not perform filesystem discovery and does not load third-party modules yet.
 
-`src/core/modules/modules.service.js` is the framework-facing registry service. It provides module lookup, route lists, migration sources, enabled workspace module state, navigation/settings contribution collection, permission and API scope collection, event type and event hook collection, reserved tag/search/notification contribution lists, and Workbench/timer/work-item contribution collection.
+`src/core/modules/modules.service.js` is the framework-facing registry service. It provides module lookup, route lists, migration sources, enabled workspace module state, navigation/settings contribution collection, permission and API scope collection, audit record type collection, event type and event hook collection, event summary collection, reserved tag/search/notification contribution lists, and Workbench/timer/work-item contribution collection.
 
 Workspace-aware contribution helpers filter disabled modules, missing module dependencies, workspace capability mismatches, and user permission mismatches. Capability lists are treated as "any of these capabilities makes the contribution relevant" so Business, Personal, and Family workspaces can share module manifests without duplicate definitions.
 
@@ -49,9 +51,11 @@ These fields are currently accepted by the manifest validator:
 - `resourceDefinitions`: optional module resource keys and supported operations.
 - `publicApiEndpoints`: optional public API documentation/discovery descriptors.
 - `apiScopes`: optional API key scope descriptors provided by the module.
+- `auditRecordTypes`: optional audit record type descriptors accepted by the audit service.
 - `timerSources`: optional timer-capable source declarations.
 - `workItemSources`: optional actionable Workbench item source declarations.
 - `eventTypes`: optional module event descriptors emitted through the internal event bus.
+- `eventSummaries`: optional activity-safe and notification-safe event summary descriptors.
 - `hooks`: optional hook object with lifecycle functions and `events` subscriptions.
 - `frameworkDependencies`: optional framework service dependency IDs.
 - `moduleDependencies`: optional registered module IDs that must exist.
@@ -67,7 +71,6 @@ These fields are accepted only as arrays today. The validator checks their basic
 - `searchableTypes`
 - `notificationEvents`
 - `notificationTemplates`
-- `auditRecordTypes`
 
 Notifications are framework-owned. Modules will declare notification events and templates through the manifest, but individual modules should not create duplicate notification UI.
 
@@ -109,6 +112,8 @@ Public API endpoint descriptors require `method`, `path`, and `scope`. API scope
 
 Notification permissions are framework-owned in 0.31.16. Notification APIs must be recipient/workspace scoped, must re-check target record access before opening a notification target, and must not expose private notifications to workspace admins unless a later version explicitly designs that capability.
 
+Audit record type descriptors require `recordType`, `moduleId`, `label`, and `description`. The audit service accepts framework-owned record types plus module-declared record types. Unknown audit record types are rejected unless a caller explicitly sets an unknown-type allowance for a future import/repair path. Audit change types remain framework-owned common values: `create`, `update`, `delete`, `archive`, `restore`, `login`, `logout`, and `settings_change`.
+
 Event type descriptors require `event`, `moduleId`, `label`, and `description`; they may include `recordType`. The first active module event descriptors are Tasks events: `task.created`, `task.updated`, `task.completed`, `task.archived`, and `task.restored`.
 
 Lifecycle hooks remain direct functions on `hooks`: `onModuleEnabled`, `onModuleDisabled`, `onModuleInstalled`, `onModuleUpdated`, and `onModuleRepaired`. Event subscriptions live under `hooks.events` as descriptors with `event`, optional `id`, and `handler`.
@@ -116,6 +121,10 @@ Lifecycle hooks remain direct functions on `hooks`: `onModuleEnabled`, `onModule
 Internal events are server-side only. Event payloads normalize to `workspace_id`, `actor_user_id`, `module_id`, `record_type`, `record_id`, `previous_value`, `new_value`, `source`, `metadata`, `session`, and `emitted_at`. Hook failures are logged and reported in dispatch results, but they do not throw back into the core save that emitted the event.
 
 The 0.31.17 event bus is deliberately lightweight. It supports future search indexing, activity feed updates, notifications, integrations, webhooks, and background jobs, but this version only wires module lifecycle events and Tasks events.
+
+Activity feed and notification summaries are not full activity feed or notification implementations. They are safe summary helpers for future consumers. `eventSummaries` entries require `event` and `moduleId`; they may provide `activity.label`, `activity.summary`, `activity.url`, `notification.title`, `notification.body`, `notification.url`, and `notification.recipientHints`. Summary helpers return human-readable text and safe relative URLs instead of raw event or audit JSON.
+
+Terminology stays separate: Workbench is the user's live workflow desktop, activity feed is a permission-safe historical timeline, audit log is the authoritative admin/security record, and notifications are directed user alerts.
 
 ## Disable Policy
 
@@ -198,6 +207,12 @@ const exampleModule = {
     label: "Example Work",
     operations: ["read", "create", "update", "archive", "restore"],
   }],
+  auditRecordTypes: [{
+    recordType: "example_work",
+    moduleId: "example-work",
+    label: "Example Work",
+    description: "Example work records and audit history.",
+  }],
   requiredPermissions: ["example.view", "example.create"],
   publicApiEndpoints: [{ method: "GET", path: "/api/v1/example-work", scope: "example:read" }],
   apiScopes: [{
@@ -213,6 +228,21 @@ const exampleModule = {
     label: "Example Created",
     description: "Emitted after an example work record is created.",
     recordType: "example_work",
+  }],
+  eventSummaries: [{
+    event: "example.created",
+    moduleId: "example-work",
+    activity: {
+      label: "Example Created",
+      summary: ({ event }) => `Created ${event.new_value?.title || "example work"}.`,
+      url: ({ event }) => `example-work.html?item=${encodeURIComponent(event.record_id || "")}`,
+    },
+    notification: {
+      title: "Example Created",
+      body: ({ event }) => `${event.new_value?.title || "Example work"} was created.`,
+      url: ({ event }) => `example-work.html?item=${encodeURIComponent(event.record_id || "")}`,
+      recipientHints: ["assignees"],
+    },
   }],
   hooks: {
     events: [{

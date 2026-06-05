@@ -7,7 +7,7 @@ const timeTrackingModule = {
   displayName: "Time Tracking",
   description: "Timers, manual entries, editable time entries, and billable time capture.",
   category: "core-workflow",
-  version: "0.31.17",
+  version: "0.31.19",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -178,6 +178,14 @@ const timeTrackingModule = {
       moduleId: "time-tracking",
       label: "Reporting",
       operations: ["read"],
+    },
+  ],
+  auditRecordTypes: [
+    {
+      recordType: "time_entry",
+      moduleId: "time-tracking",
+      label: "Time Entry",
+      description: "Tracked time records and time entry lifecycle audit history.",
     },
   ],
   workspaceCapabilityRequirements: ["time_tracking", "time_tracking_optional"],

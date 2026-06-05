@@ -2,161 +2,48 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.17 - Internal Event and Hook System
-
-* [x] Add a lightweight internal event bus
-
-  * [x] Framework services can emit events
-  * [x] Modules can subscribe to events through declared hooks
-  * [x] Hooks should run server-side only
-  * [x] Hook failures should be logged clearly
-  * [x] Hook failures should not silently corrupt core record saves
-
-* [x] Define core event naming conventions
-
-  * Examples:
-
-    * `workspace.created`
-    * `workspace.updated`
-    * `module.enabled`
-    * `module.disabled`
-    * `client.created`
-    * `client.updated`
-    * `project.created`
-    * `project.updated`
-    * `time_entry.created`
-    * `time_entry.updated`
-    * `task.created`
-    * `task.updated`
-    * `task.completed`
-    * `task.archived`
-    * `task.restored`
-    * `notification.created`
-    * `notification.read`
-    * `notification.dismissed`
-
-* [x] Add event payload conventions
-
-  * [x] Include `workspace_id`
-  * [x] Include actor/session where available
-  * [x] Include `record_type`
-  * [x] Include `record_id`
-  * [x] Include previous value where appropriate
-  * [x] Include new value where appropriate
-  * [x] Include source such as manual, system, import, public_api, integration
-  * [x] Include module ID where applicable
-
-* [x] Use events for future cross-module behavior
-
-  * [x] Search indexing
-  * [x] Activity feed
-  * [x] Notifications
-  * [x] Integrations
-  * [x] Webhooks later
-  * [x] Background jobs later
-
-* [x] Do not refactor every service into events at once
-
-  * Start with module lifecycle events and Tasks events
-  * Add Time Tracking events after the event bus is stable
-  * Keep this version focused on the event framework, not every future event consumer
-
-## Version 0.31.18 - Audit, Activity, and Notification Extensibility
-
-* [ ] Make audit record types extensible
-
-  * [ ] Modules can declare audit record types
-  * [ ] Framework validates module-declared record types
-  * [ ] Audit service accepts registered module record types
-  * [ ] Unknown record types should still be rejected unless explicitly allowed
-
-* [ ] Make audit change types extensible only where needed
-
-  * [ ] Keep common change types framework-owned
-  * [ ] Avoid letting modules create confusing one-off change types unnecessarily
-  * [ ] Prefer module-specific actions with common change types
-
-* [ ] Prepare activity feed groundwork
-
-  * [ ] Define difference between audit logs and activity feed
-  * [ ] Audit log remains the authoritative security/admin record
-  * [ ] Activity feed should be user-friendly and safe for dashboard display
-  * [ ] Activity feed should never expose raw audit JSON by default
-  * [ ] Activity feed should respect permissions
-
-* [ ] Prepare notification-safe event summaries
-
-  * [ ] Define difference between activity feed and notifications
-  * [ ] Notifications are directed user alerts
-  * [ ] Activity feed is a permission-safe timeline
-  * [ ] Audit log is the admin/security record
-  * [ ] Notification payloads should not expose sensitive audit JSON
-
-* [ ] Add helper for activity-safe event summaries
-
-  * [ ] Module can provide a human-readable label
-  * [ ] Module can provide a safe record URL
-  * [ ] Module can provide dashboard-safe summary text
-  * [ ] Activity feed implementation can come later
-
-* [ ] Add helper for notification-safe event summaries
-
-  * [ ] Module can provide a notification title
-  * [ ] Module can provide a notification body
-  * [ ] Module can provide a safe record URL
-  * [ ] Module can provide recipient resolution hints
-  * [ ] Full notification implementation starts in 0.32.x
-
-* [ ] Clarify activity feed vs Workbench page terminology
-
-  * [ ] Workbench page is the user's live workflow desktop/workbench
-  * [ ] Activity feed is a permission-safe historical timeline
-  * [ ] Audit log remains the authoritative security/admin record
-  * [ ] Notifications are directed user alerts
-  * [ ] Do not use "Activity" as the main navigation label for the Workbench page unless the activity feed is renamed later
-
 ## Version 0.31.19 - Developer Module Example and Documentation
 
-* [ ] Add an example first-party stub module
+* [x] Add an example first-party stub module
 
-  * [ ] Keep it disabled by default
-  * [ ] Keep it simple and clearly marked as a developer example
-  * [ ] Include example browser API route
-  * [ ] Include example public API route if useful
-  * [ ] Include example navigation entry
-  * [ ] Include example settings field
-  * [ ] Include example permission declaration
-  * [ ] Include example view registration
-  * [ ] Include example event hook
-  * [ ] Include example notification event/template declaration
-  * [ ] Do not add business functionality to the stub module
+  * [x] Keep it disabled by default
+  * [x] Keep it simple and clearly marked as a developer example
+  * [x] Include example browser API route
+  * [x] Include example public API route if useful
+  * [x] Include example navigation entry
+  * [x] Include example settings field
+  * [x] Include example permission declaration
+  * [x] Include example view registration
+  * [x] Include example event hook
+  * [x] Include example notification event/template declaration
+  * [x] Do not add business functionality to the stub module
 
-* [ ] Add developer documentation
+* [x] Add developer documentation
 
-  * [ ] How to create a module manifest
-  * [ ] How to register module routes
-  * [ ] How module settings work
-  * [ ] How module permissions work
-  * [ ] How module navigation works
-  * [ ] How module views/assets work
-  * [ ] How module migrations work
-  * [ ] How events/hooks work
-  * [ ] How module enable/disable works
-  * [ ] How framework notifications work
-  * [ ] How modules declare notification events/templates
-  * [ ] How tags/search will hook into modules starting in 0.32.x
+  * [x] How to create a module manifest
+  * [x] How to register module routes
+  * [x] How module settings work
+  * [x] How module permissions work
+  * [x] How module navigation works
+  * [x] How module views/assets work
+  * [x] How module migrations work
+  * [x] How events/hooks work
+  * [x] How module enable/disable works
+  * [x] How framework notifications work
+  * [x] How modules declare notification events/templates
+  * [x] How tags/search will hook into modules starting in 0.32.x
 
-* [ ] Add a framework sanity check script
+* [x] Add a framework sanity check script
 
-  * [ ] Validate registered modules
-  * [ ] Validate duplicate module IDs
-  * [ ] Validate duplicate routes where practical
-  * [ ] Validate duplicate permission IDs
-  * [ ] Validate duplicate API scopes
-  * [ ] Validate duplicate notification event IDs
-  * [ ] Validate malformed notification templates
-  * [ ] Validate missing module dependencies
-  * [ ] Add the script to `npm run check`
+  * [x] Validate registered modules
+  * [x] Validate duplicate module IDs
+  * [x] Validate duplicate routes where practical
+  * [x] Validate duplicate permission IDs
+  * [x] Validate duplicate API scopes
+  * [x] Validate duplicate notification event IDs
+  * [x] Validate malformed notification templates
+  * [x] Validate missing module dependencies
+  * [x] Add the script to `npm run check`
 
 ## Version 0.31.20 - Timer Sources and Workbench Item Integration Cleanup
 

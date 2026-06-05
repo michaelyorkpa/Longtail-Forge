@@ -6,7 +6,7 @@ const clientProjectsModule = {
   displayName: "Clients and Projects",
   description: "Client and project records, billing defaults, and nested compatibility read models.",
   category: "core-workflow",
-  version: "0.31.17",
+  version: "0.31.19",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: true,
@@ -118,6 +118,20 @@ const clientProjectsModule = {
       moduleId: "client-projects",
       label: "Billing",
       operations: ["read", "update", "manage"],
+    },
+  ],
+  auditRecordTypes: [
+    {
+      recordType: "client",
+      moduleId: "client-projects",
+      label: "Client",
+      description: "Client records and client lifecycle audit history.",
+    },
+    {
+      recordType: "project",
+      moduleId: "client-projects",
+      label: "Project",
+      description: "Project records and project lifecycle audit history.",
     },
   ],
   apiScopes: [

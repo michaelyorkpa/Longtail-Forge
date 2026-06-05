@@ -15,7 +15,7 @@ import { reportingRoutes } from "../routes/reporting.routes.js";
 import { settingsRoutes } from "../routes/settings.routes.js";
 import { staticRoutes } from "../routes/static.routes.js";
 import { workbenchRoutes } from "../routes/workbench.routes.js";
-import { requireModuleBrowserWritesEnabled } from "./modules/module-access.js";
+import { requireModuleBrowserWritesEnabledForRouter } from "./modules/module-access.js";
 import { modulesService } from "./modules/modules.service.js";
 
 function createApp() {
@@ -48,7 +48,7 @@ function createApp() {
 
     app.use(
       "/api",
-      requireModuleBrowserWritesEnabled(moduleRoute.moduleId),
+      requireModuleBrowserWritesEnabledForRouter(moduleRoute.moduleId, moduleRoute.router),
       moduleRoute.router,
     );
   }

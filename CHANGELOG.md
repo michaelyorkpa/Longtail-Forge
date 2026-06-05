@@ -1,3 +1,23 @@
+## Version 0.31.19 - 2026-06-05 02:00 -04:00
+
+- Added a disabled-by-default `developer-example` first-party module that demonstrates manifest routes, view registration, browser assets, settings, permissions, API scopes, events, notification declarations, tag/search declarations, and event hooks.
+- Added a small protected Developer Example page plus sample browser and public API routes for module contract validation.
+- Added `docs/module-development.md` with practical module development guidance and linked it from `docs/module-contract.md`.
+- Added a module sanity check script that validates registered modules, duplicate routes/IDs/scopes, notification templates, and dependency references.
+- Added the module sanity check to `npm run check`.
+- Bumped the app and first-party module versions to `0.31.19`.
+
+## Version 0.31.18 - 2026-06-05 01:45 -04:00
+
+- Activated module-declared `auditRecordTypes` metadata and registry/service helpers for audit record type discovery.
+- Updated the audit service to accept framework-owned plus module-declared record types and reject unknown record types unless explicitly allowed.
+- Kept audit change types framework-owned common values and added discovery for those values.
+- Added activity-safe and notification-safe event summary helpers that return human-readable text, recipient hints, and safe relative URLs without exposing raw event JSON.
+- Added first-party audit record type declarations and Tasks event summary descriptors.
+- Documented audit, activity feed, notification summary, and Workbench terminology boundaries in `docs/module-contract.md`.
+- Added audit extensibility regression coverage to `npm run check`.
+- Bumped the app and first-party module versions to `0.31.18`.
+
 ## Version 0.31.17 - 2026-06-05 01:32 -04:00
 
 - Added a lightweight server-side internal event bus with async dispatch, normalized event payloads, and hook failure reporting that does not interrupt core saves.

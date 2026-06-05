@@ -4,6 +4,7 @@ import { userWorkspacesRepository } from "../repositories/user-workspaces.repo.j
 import { settingsRepository } from "../repositories/settings.repo.js";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
+import { modulesService } from "../core/modules/modules.service.js";
 import { permissionsService } from "./permissions.service.js";
 import { AppError } from "../utils/app-error.js";
 import { localDateBoundToUtcIso, normalizeUtcIso } from "../utils/timezones.js";
@@ -29,6 +30,7 @@ const RECORD_TYPES = new Set([
   "project",
   "task",
   "time_entry",
+  "module_setting",
   "user_role_assignment",
   "api_key",
 ]);
@@ -36,12 +38,13 @@ const RECORD_TYPES = new Set([
 async function record(event) {
   const workspaceId = event.workspaceId || event.session?.workspace_id || "";
   const action = String(event.action || "").trim();
-  const changeType = normalizeEnum(event.changeType, CHANGE_TYPES, "update");
-  const recordType = normalizeEnum(event.recordType, RECORD_TYPES, "workspace");
 
   if (!workspaceId || !action) {
     return null;
   }
+
+  const changeType = normalizeChangeType(event.changeType);
+  const recordType = normalizeRecordType(event.recordType, { allowUnknown: event.allowUnknownRecordType === true });
 
   const auditSettings = await readAuditSettings(workspaceId);
   await cleanupExpired(workspaceId, auditSettings.retentionDays);
@@ -70,6 +73,28 @@ async function record(event) {
 
   await auditLogsRepository.create(entry);
   return entry;
+}
+
+function listAuditRecordTypes() {
+  const recordTypes = [
+    ...[...RECORD_TYPES].map((recordType) => ({
+      recordType,
+      moduleId: "framework",
+      label: titleize(recordType),
+      description: `Framework audit record type ${recordType}.`,
+    })),
+    ...modulesService.listModuleAuditRecordTypes(),
+  ];
+
+  return [...recordTypes.reduce((byRecordType, recordType) => {
+    byRecordType.set(recordType.recordType, recordType);
+    return byRecordType;
+  }, new Map()).values()]
+    .sort((left, right) => left.recordType.localeCompare(right.recordType));
+}
+
+function listAuditChangeTypes() {
+  return [...CHANGE_TYPES].sort();
 }
 
 async function list(session, filters = {}) {
@@ -275,9 +300,47 @@ async function readAuditSettings(workspaceId) {
   return settings.audit;
 }
 
-function normalizeEnum(value, allowedValues, fallback) {
+function normalizeChangeType(value) {
   const normalized = String(value || "").trim();
-  return allowedValues.has(normalized) ? normalized : fallback;
+
+  if (!CHANGE_TYPES.has(normalized)) {
+    throw new AppError(`Unknown audit change type '${normalized || "<empty>"}'.`, 400);
+  }
+
+  return normalized;
+}
+
+function normalizeRecordType(value, options = {}) {
+  const normalized = String(value || "").trim();
+
+  if (!normalized) {
+    throw new AppError("Audit record type is required.", 400);
+  }
+
+  if (eventRecordTypes().has(normalized)) {
+    return normalized;
+  }
+
+  if (options.allowUnknown) {
+    return normalized;
+  }
+
+  throw new AppError(`Unknown audit record type '${normalized}'.`, 400);
+}
+
+function eventRecordTypes() {
+  return new Set([
+    ...RECORD_TYPES,
+    ...modulesService.listModuleAuditRecordTypes().map((recordType) => recordType.recordType),
+  ]);
+}
+
+function titleize(value) {
+  return String(value || "")
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function nullableString(value) {
@@ -300,6 +363,8 @@ function stringifyNullableJson(value) {
 export const auditService = {
   cleanupExpired,
   exportCsv,
+  listAuditChangeTypes,
+  listAuditRecordTypes,
   list,
   record,
 };

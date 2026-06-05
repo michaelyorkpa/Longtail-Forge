@@ -1,4 +1,5 @@
 import { clientProjectsModule } from "../../modules/client-projects/module.js";
+import { developerExampleModule } from "../../modules/developer-example/module.js";
 import { tasksModule } from "../../modules/tasks/module.js";
 import { timeTrackingModule } from "../../modules/time-tracking/module.js";
 import { usersModule } from "../../modules/users/module.js";
@@ -6,6 +7,7 @@ import { validateModuleManifests } from "./manifest-contract.js";
 
 const moduleDefinitions = [
   clientProjectsModule,
+  developerExampleModule,
   tasksModule,
   timeTrackingModule,
   usersModule,
@@ -45,6 +47,7 @@ function cloneModuleDefinition(definition) {
     notificationTemplates: [...(definition.notificationTemplates || [])],
     auditRecordTypes: [...(definition.auditRecordTypes || [])],
     eventTypes: [...(definition.eventTypes || [])],
+    eventSummaries: [...(definition.eventSummaries || [])],
     hooks,
     frameworkDependencies: [...(definition.frameworkDependencies || [])],
     moduleDependencies: [...(definition.moduleDependencies || [])],
@@ -191,8 +194,16 @@ function listNotificationTemplates() {
   return listContribution("notificationTemplates");
 }
 
+function listModuleAuditRecordTypes() {
+  return listContribution("auditRecordTypes");
+}
+
 function listModuleEventTypes() {
   return listContribution("eventTypes");
+}
+
+function listModuleEventSummaries() {
+  return listContribution("eventSummaries");
 }
 
 function listModuleEventHooks() {
@@ -253,8 +264,10 @@ export {
   listModuleBrowserAssets,
   listModuleApiScopes,
   listModuleApiScopeEntries,
+  listModuleAuditRecordTypes,
   listModuleMigrationSources,
   listModuleEventHooks,
+  listModuleEventSummaries,
   listModuleEventTypes,
   listModulePermissions,
   listModulePermissionEntries,
