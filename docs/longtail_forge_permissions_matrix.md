@@ -1,8 +1,8 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-06-04 for version 0.31.9
+Updated: 2026-06-05 for version 0.31.24.2
 
-This matrix describes the active workspace-native permission model after the completed 0.31 Tasks branch.
+This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, and performance passes.
 
 ## Role Permission Matrix
 
@@ -56,6 +56,8 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 - Task timers are available only for project-linked tasks, including workspace projects in Personal and Family workspaces.
 - Task timers and normal Time Tracking timers share `active_work_timers` storage and are mutually exclusive for a user.
 - Finalized task timers write normal `time_entries` rows with `task_id` populated for reporting filters.
+- New tasks default assignees to the creator when no assignee payload is provided.
+- Project-owned task defaults may define default task status, default task priority, and task sort order.
 
 ## Route Enforcement Summary
 
@@ -92,6 +94,7 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Browser | GET | /api/active-timers | own timers | self | Self-only |
 | Browser | PUT/POST/DELETE | /api/active-timers/:timerSlot* | time_entries.create for save/finalize, own timer for delete | project/client/self | Enforced |
 | Browser | GET | /api/workbench/bootstrap | authenticated user plus underlying readable scopes | self/task/project/client | Returns normalized active timers and enabled-module workbench items |
+| Browser | GET | /api/active-timers/all | authenticated user plus timer/source visibility | self/task/project/client | Lists unified manual and sourced active timers for Workbench |
 | Browser | PUT | /api/workbench/timers/:timerSlot/status | time_entries.create on linked project | project/client/self | Preserves timer source metadata while switching timer state |
 | Browser | GET | /api/reporting/bootstrap | reporting.view | any assigned reporting scope | Enforced, then filtered by readable scope |
 | Browser | GET | /api/reporting/project-summary | reporting.view | any assigned reporting scope | Enforced, then filtered by readable scope |

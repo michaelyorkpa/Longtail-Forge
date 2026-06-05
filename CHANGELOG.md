@@ -7,6 +7,7 @@
 - Added performance sort indexes for tasks, task assignees, time entries, clients, projects, and user role assignments.
 - Added `scripts/performance-regression.mjs` and wired it into `npm run check`.
 - Reduced fresh-database performance regression timings to single-digit milliseconds for core service reads.
+- Refreshed documentation after the 0.31.x module-readiness and performance passes, including README current-state notes, database docs, architecture notes, permissions matrix, storage verification notes, licensing notes, product notes, and TODO scratchpad cleanup.
 
 ## Version 0.31.24.1 - 2026-06-05 10:54 -04:00
 

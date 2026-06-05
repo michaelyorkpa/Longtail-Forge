@@ -15,12 +15,7 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
-- How is the "Remove Workspace" button wired, currently on User Settings page?
-
-- What happens when a user is removed from all workspaces?
-  - It's disallowed. Need a transfer mechanism.
-- What happens to a Workspace/project/client when the creator/owner is removed from it?
-  - It's disallowed. Need a transfer mechanism.
+- Review whether the User Settings "Remove Workspace" flow needs clearer wording now that it removes the signed-in user's membership rather than deleting the workspace record.
 
 ## Tweaks
 
@@ -139,8 +134,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - [ ] Add delete option for workspaces
 
 - [ ] Add workspace transfer screens
+  - Owner transfer exists as a backend safety rule; this item is for explicit admin UI.
 
 - [ ] Add workspace creation permission per user in the User Admin settings modal
+  - App-level and per-user storage exists; this item is for the management UI.
 
   - [ ] Add self-hosted install setting to limit/select workspace types
     - [ ] Allow self-hosted installs to be business-only, personal, or personal and family only if desired

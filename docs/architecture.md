@@ -26,7 +26,7 @@ Modules should provide business/workflow functionality such as tasks, time track
 
 ## Current Architecture Direction
 
-As of the 0.31.x branch, Longtail Forge already has the start of a module architecture.
+As of version 0.31.24.2, Longtail Forge has an active first-party module architecture.
 
 Current first-party modules include:
 
@@ -35,9 +35,9 @@ Current first-party modules include:
 * Tasks
 * Time Tracking
 
-These modules are currently registered explicitly in the module registry. This is good for predictable first-party development, but the long-term goal is to formalize the module contract so additional first-party and third-party modules can be added without hard-coding their navigation, settings, routes, permissions, notifications, search behavior, tags, or views throughout the app.
+These modules are registered explicitly in the static module registry. The current manifest contract includes startup validation, registry-driven navigation, settings, protected views, browser assets, permissions, API scopes, audit record types, internal events, event summaries, Workbench cards, timer sources, work item sources, lifecycle hooks, dependency checks, and reserved notification/tag/search declarations.
 
-The next architecture step is not automatic plugin discovery. The next step is a clear module contract.
+The next architecture step is not automatic plugin discovery. The next step is to build the framework-owned services declared in the roadmap, beginning with notifications, tags, and search, while keeping first-party modules on the same manifest rails future modules will use.
 
 Longtail Forge should prefer:
 
@@ -427,9 +427,15 @@ A module manifest may support:
   navigation,
   dashboard,
   reporting,
+  workbench,
   settings,
 
+  protectedViews,
+  publicViews,
+  browserAssets,
+  permissions,
   requiredPermissions,
+  resourceDefinitions,
   defaultRolePermissions,
   publicApiEndpoints,
   apiScopes,
@@ -440,10 +446,14 @@ A module manifest may support:
   notificationTemplates,
   auditRecordTypes,
   eventTypes,
+  eventSummaries,
+  timerSources,
+  workItemSources,
   hooks,
 
   frameworkDependencies,
   moduleDependencies,
+  workspaceCapabilityRequirements,
 
   seedHooks,
   repairHooks
@@ -473,7 +483,7 @@ Configurable external module registration later.
 Automatic discovery never, unless there is a strong reason.
 ```
 
-The registry should eventually provide helper methods like:
+The registry/service layer now provides helper methods like:
 
 ```js
 listModules()
@@ -491,9 +501,14 @@ listSearchableTypes()
 listNotificationEvents()
 listNotificationTemplates()
 listAuditRecordTypes()
+listModuleEventTypes()
+listModuleEventSummaries()
+listWorkbenchCards(workspaceId, session)
+listTimerSources(workspaceId, session)
+listWorkItemSources(workspaceId, session)
 ```
 
-The registry should become the single source of truth for module contributions.
+For active first-party modules, the registry/service layer is the source of truth for module contributions.
 
 ---
 
@@ -682,7 +697,7 @@ Navigation should be filtered by:
 
 ## Views and Assets
 
-Views should eventually be registered instead of served only because a matching HTML file exists.
+Protected module views are registered through module manifests instead of being served only because a matching HTML file exists.
 
 Framework views:
 
@@ -716,13 +731,13 @@ A module view registration should define:
   path,
   moduleId,
   file,
-  requiredPermission,
-  requiredWorkspaceCapability,
-  allowWhenModuleDisabled
+  requiredPermissions,
+  requiredWorkspaceCapabilities,
+  allowDisabledRead
 }
 ```
 
-The static/view service should check:
+The static/view service checks:
 
 * Is the view registered?
 * Is it public or protected?
@@ -783,7 +798,7 @@ settings: [
 ]
 ```
 
-The settings UI should eventually render module settings generically from module manifests.
+The settings UI renders module setting definitions and values from the backend `moduleSettings` payload.
 
 The settings save logic should not hard-code each module toggle.
 

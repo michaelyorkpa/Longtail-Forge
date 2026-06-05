@@ -18,6 +18,6 @@ Earlier checksum-tracked migration files are preserved so existing installations
 
 ## Verification
 
-- `npm run check` runs JavaScript syntax checks, the workspace storage regression, and ESLint.
-- `npm run test:permissions` verifies workspace-native roles, scopes, permissions, Business-only client access, scoped role assignment, reporting permission enforcement, user lifecycle rules, and workspace ownership transfer.
-- SQLite `PRAGMA integrity_check` should return `ok` after migration.
+- `npm run check` runs JavaScript syntax checks, workspace storage regression, legacy cleanup regression, fresh-database regression, performance regression, accessibility regression, event/audit/module sanity checks, and ESLint.
+- `npm run test:permissions` verifies workspace-native roles, scopes, permissions, Business-only client access, scoped role assignment, reporting permission enforcement, user lifecycle rules, workspace ownership transfer, and Personal fallback workspace creation.
+- SQLite `PRAGMA integrity_check` should return `ok` after migration or direct database repair.

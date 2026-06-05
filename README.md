@@ -23,9 +23,10 @@ Longtail Forge currently includes:
 - A framework-owned Workbench page for daily active timers and task work
 - First-party Tasks with reminders, recurrence, bulk actions, dashboard summaries, task timers, and public API support
 - Billable/non-billable reporting, dashboard summaries, audit logging, API keys, and public API foundations
-- Module-ready backend structure with first-party modules registered explicitly while the manifest contract matures
+- Module-ready backend structure with explicit first-party module registration, startup manifest validation, registry-driven navigation/settings/views/assets, lifecycle checks, module permissions/API scopes, internal events, and developer example coverage
+- A fresh-start database baseline for new installs, a persistent SQLite adapter for local performance, and regression checks for permissions, accessibility, module sanity, migrations, legacy cleanup, and database performance
 
-The near-term roadmap focuses on formalizing module manifests, Workbench contribution contracts, registry-driven navigation/settings, module lifecycle rules, and future framework services such as tags, search, notifications, notes, support tickets, calendars, and broader project tools.
+The near-term roadmap moves into framework services that can be shared by current and future modules: notifications, tags, search, support tickets, notes, calendars, broader reporting, and richer project tools.
 
 ## Documentation
 

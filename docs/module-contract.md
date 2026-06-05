@@ -1,6 +1,6 @@
 # Module Manifest Contract
 
-Longtail Forge modules are static ESM records registered from `src/core/modules/registry.js`. Version 0.31.10 formalizes the manifest shape and validates registered first-party modules at startup. Third-party loading is intentionally deferred until the registry and module lifecycle are more stable.
+Longtail Forge modules are static ESM records registered from `src/core/modules/registry.js`. The 0.31.x branch formalized the manifest shape, validates registered first-party modules at startup, and routes core app-shell/module behavior through the registry service. Third-party loading is intentionally deferred until the registry and module lifecycle are more stable.
 
 For implementation guidance, see `docs/module-development.md`. The disabled-by-default `developer-example` module is a working first-party stub that demonstrates route, page, setting, permission, event, notification, tag, and search declarations without adding business functionality.
 
