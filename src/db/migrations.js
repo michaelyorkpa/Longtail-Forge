@@ -7,29 +7,33 @@ import { listModuleMigrationSources } from "../core/modules/registry.js";
 import { querySql, runSql, sqlText } from "./sqlite.js";
 
 const MIGRATIONS_TABLE = "schema_migrations";
+const BASELINE_VERSION = "0.31.22";
+const BASELINE_MODULE_ID = "core";
+const BASELINE_NAME = "fresh_start_database";
+const LEGACY_MIGRATION_VERSION_CUTOFF = 31;
+const CURRENT_SCHEMA_FILE = path.join(config.root, "src", "db", "schema", "current.sql");
 
 async function runMigrations() {
   await fs.mkdir(config.dataDir, { recursive: true });
-  await ensureMigrationsTable();
 
-  const migrations = await readMigrationFiles();
+  if (!(await tableExists(MIGRATIONS_TABLE)) && !(await hasExistingApplicationSchema())) {
+    await applyFreshBaseline();
+  }
+
+  await ensureMigrationsTable();
+  await validateBaselineChecksum();
+
+  if (!(await hasBaselineMarker()) && (await hasExistingApplicationSchema())) {
+    await recordExistingCurrentSchemaBaseline();
+  }
+
+  const migrations = await readFutureMigrationFiles();
   await backfillMissingChecksums(migrations);
   await validateAppliedMigrationChecksums(migrations);
   const appliedVersions = await readAppliedVersions();
 
-  if (appliedVersions.size === 0 && (await hasExistingApplicationSchema())) {
-    await baselineExistingSchema(migrations);
-    return;
-  }
-
   for (const migration of migrations) {
     if (appliedVersions.has(migration.version)) {
-      continue;
-    }
-
-    if (await isMigrationAlreadySatisfied(migration)) {
-      await recordMigration(migration);
-      appliedVersions.add(migration.version);
       continue;
     }
 
@@ -57,7 +61,7 @@ CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
   }
 }
 
-async function readMigrationFiles() {
+async function readFutureMigrationFiles() {
   const migrationSources = [
     { moduleId: "core", migrationsDir: config.migrationsDir },
     ...listModuleMigrationSources(),
@@ -66,6 +70,7 @@ async function readMigrationFiles() {
 
   return migrationGroups
     .flat()
+    .filter((migration) => isFutureMigrationVersion(migration.version))
     .sort((left, right) => left.version.localeCompare(right.version) || left.moduleId.localeCompare(right.moduleId));
 }
 
@@ -122,7 +127,7 @@ async function backfillMissingChecksums(migrations) {
   const migrationByVersion = new Map(
     migrations.map((migration) => [migration.version, migration]),
   );
-  const appliedMigrations = await readAppliedMigrations();
+  const appliedMigrations = (await readAppliedMigrations()).filter(isFutureAppliedMigration);
 
   for (const appliedMigration of appliedMigrations) {
     if (appliedMigration.checksum) {
@@ -150,7 +155,7 @@ async function validateAppliedMigrationChecksums(migrations) {
   const migrationByVersion = new Map(
     migrations.map((migration) => [migration.version, migration]),
   );
-  const appliedMigrations = await readAppliedMigrations();
+  const appliedMigrations = (await readAppliedMigrations()).filter(isFutureAppliedMigration);
 
   for (const appliedMigration of appliedMigrations) {
     const migration = migrationByVersion.get(appliedMigration.version);
@@ -176,6 +181,16 @@ FROM ${MIGRATIONS_TABLE};
 `);
 }
 
+function isFutureAppliedMigration(migration) {
+  return isFutureMigrationVersion(migration.version);
+}
+
+function isFutureMigrationVersion(version) {
+  const versionNumber = Number.parseInt(String(version || "").split(".").pop(), 10);
+
+  return Number.isInteger(versionNumber) && versionNumber > LEGACY_MIGRATION_VERSION_CUTOFF;
+}
+
 async function hasExistingApplicationSchema() {
   const rows = await querySql(`
 SELECT name
@@ -196,23 +211,102 @@ WHERE type = 'table'
   return rows.length > 0;
 }
 
-async function baselineExistingSchema(migrations) {
-  const statements = [];
+async function applyFreshBaseline() {
+  const baseline = await readBaselineSchema();
 
-  for (const migration of migrations) {
-    if (["010", "011", "012", "013", "014", "015", "016", "017", "018", "019"].includes(migration.version) && !(await isMigrationAlreadySatisfied(migration))) {
-      await applyMigration(migration);
-      continue;
-    }
+  await runSql(`
+BEGIN TRANSACTION;
+${baseline.sql}
+${createRecordMigrationSql(baseline)}
+COMMIT;
+`);
+}
 
-    statements.push(createRecordMigrationSql(migration));
+async function recordExistingCurrentSchemaBaseline() {
+  const baseline = await readBaselineSchema();
+
+  if (!(await hasCurrentSchemaTables())) {
+    throw new Error(
+      "Existing database is not at the current 0.31.22 schema. Restore a backup and upgrade through 0.31.21 before using the fresh-start baseline.",
+    );
   }
 
-  if (statements.length === 0) {
-    return;
-  }
+  await recordMigration(baseline);
+}
 
-  await runSql(statements.join("\n"));
+async function readBaselineSchema() {
+  const sql = await fs.readFile(CURRENT_SCHEMA_FILE, "utf8");
+
+  return {
+    checksum: createMigrationChecksum(sql),
+    fileName: path.basename(CURRENT_SCHEMA_FILE),
+    moduleId: BASELINE_MODULE_ID,
+    name: BASELINE_NAME,
+    sql,
+    version: BASELINE_VERSION,
+  };
+}
+
+async function hasBaselineMarker() {
+  const rows = await querySql(`
+SELECT version
+FROM ${MIGRATIONS_TABLE}
+WHERE version = ${sqlText(BASELINE_VERSION)}
+LIMIT 1;
+`);
+
+  return rows.length > 0;
+}
+
+async function validateBaselineChecksum() {
+  const baseline = await readBaselineSchema();
+  const rows = await querySql(`
+SELECT checksum
+FROM ${MIGRATIONS_TABLE}
+WHERE version = ${sqlText(BASELINE_VERSION)}
+LIMIT 1;
+`);
+
+  if (rows.length > 0 && rows[0].checksum !== baseline.checksum) {
+    throw new Error("Applied fresh-start database baseline checksum does not match the current schema file.");
+  }
+}
+
+async function hasCurrentSchemaTables() {
+  const requiredTables = [
+    "active_work_timers",
+    "api_key_scopes",
+    "api_keys",
+    "app_settings",
+    "audit_logs",
+    "clients",
+    "modules",
+    "permissions",
+    "projects",
+    "role_permissions",
+    "roles",
+    "sessions",
+    "task_assignees",
+    "task_recurrence_assignees",
+    "task_recurrence_templates",
+    "task_reminder_offsets",
+    "tasks",
+    "time_entries",
+    "user_role_assignments",
+    "user_workspace_creation_permissions",
+    "user_workspaces",
+    "users",
+    "workspace_modules",
+    "workspace_settings",
+    "workspaces",
+  ];
+  const legacyTables = ["organizations", "organization_settings", "organization_modules", "active_timers", "active_task_timers"];
+  const [requiredChecks, legacyChecks] = await Promise.all([
+    Promise.all(requiredTables.map(tableExists)),
+    Promise.all(legacyTables.map(tableExists)),
+  ]);
+
+  return requiredChecks.every(Boolean) && legacyChecks.every((exists) => !exists);
 }
 
 async function applyMigration(migration) {
@@ -239,223 +333,6 @@ function createMigrationChecksum(sql) {
   return createHash("sha256").update(sql).digest("hex");
 }
 
-async function isMigrationAlreadySatisfied(migration) {
-  if (migration.fileName === "002_add_user_theme_status_protection.sql") {
-    return columnsExist("users", ["theme_mode", "user_status", "protected_user"]);
-  }
-
-  if (migration.fileName === "003_add_billable_flags.sql") {
-    const [clientsSatisfied, projectsSatisfied, timeEntriesSatisfied] = await Promise.all([
-      columnsExist("clients", ["billable"]),
-      columnsExist("projects", ["billable"]),
-      columnsExist("time_entries", ["billable"]),
-    ]);
-
-    return clientsSatisfied && projectsSatisfied && timeEntriesSatisfied;
-  }
-
-  if (migration.fileName === "004_add_sessions.sql") {
-    return tableExists("sessions");
-  }
-
-  if (migration.fileName === "010_add_module_registry.sql") {
-    const [modulesTableExists, organizationModulesTableExists] = await Promise.all([
-      tableExists("modules"),
-      tableExists("organization_modules"),
-    ]);
-
-    return modulesTableExists && organizationModulesTableExists;
-  }
-
-  if (migration.fileName === "011_add_active_timers.sql") {
-    return tableExists("active_timers");
-  }
-
-  if (migration.fileName === "012_add_user_profile_fields.sql") {
-    return columnsExist("users", ["display_name", "alt_email", "timezone"]);
-  }
-
-  if (migration.fileName === "013_add_session_timezone.sql") {
-    return columnsExist("sessions", ["timezone"]);
-  }
-
-  if (migration.fileName === "014_add_workspace_memberships.sql") {
-    const [userWorkspacesExists, ownerColumnExists] = await Promise.all([
-      tableExists("user_workspaces"),
-      columnsExist("organizations", ["owner_user_id"]),
-    ]);
-
-    return userWorkspacesExists && ownerColumnExists;
-  }
-
-  if (migration.fileName === "015_add_workspace_type.sql") {
-    return columnsExist("organizations", ["workspace_type"]);
-  }
-
-  if (migration.fileName === "016_add_active_workspace_sessions.sql") {
-    return columnsExist("sessions", ["active_workspace_id"]);
-  }
-
-  if (migration.fileName === "017_make_client_links_optional.sql") {
-    const [projectClientNullable, timeEntryClientNullable] = await Promise.all([
-      columnIsNullable("projects", "client_id"),
-      columnIsNullable("time_entries", "client_id"),
-    ]);
-
-    return projectClientNullable && timeEntryClientNullable;
-  }
-
-  if (migration.fileName === "018_add_client_workspace_alias.sql") {
-    return columnsExist("clients", ["workspace_id"]);
-  }
-
-  if (migration.fileName === "019_add_workspace_alias_tables.sql") {
-    const [workspaceTablesExist, workspaceColumnsExist] = await Promise.all([
-      tableExists("workspaces"),
-      Promise.all([
-        columnsExist("projects", ["workspace_id"]),
-        columnsExist("time_entries", ["workspace_id"]),
-        columnsExist("audit_logs", ["workspace_id"]),
-        columnsExist("api_keys", ["workspace_id"]),
-        columnsExist("user_role_assignments", ["workspace_id"]),
-        columnsExist("organization_modules", ["workspace_id"]),
-      ]),
-    ]);
-
-    return workspaceTablesExist && workspaceColumnsExist.every(Boolean);
-  }
-
-  if (migration.fileName === "020_add_user_active_workspace.sql") {
-    return columnsExist("users", ["active_workspace_id"]);
-  }
-
-  if (migration.fileName === "022_add_client_project_parent_fields.sql") {
-    const [clientParentExists, projectParentExists] = await Promise.all([
-      columnsExist("clients", ["parent_client_id"]),
-      columnsExist("projects", ["parent_project_id"]),
-    ]);
-
-    return clientParentExists && projectParentExists;
-  }
-
-  if (migration.fileName === "023_add_audit_ip_address.sql") {
-    const [auditIpExists, sessionIpExists] = await Promise.all([
-      columnsExist("audit_logs", ["ip_address"]),
-      columnsExist("sessions", ["ip_address"]),
-    ]);
-
-    return auditIpExists && sessionIpExists;
-  }
-
-  if (migration.fileName === "024_complete_workspace_storage.sql") {
-    const [
-      workspaceModulesExists,
-      usersWorkspaceNative,
-      sessionsWorkspaceNative,
-      clientsWorkspaceNative,
-      projectsWorkspaceNative,
-      timeEntriesWorkspaceNative,
-      auditLogsWorkspaceNative,
-      apiKeysWorkspaceNative,
-      assignmentsWorkspaceNative,
-      activeTimersWorkspaceNative,
-    ] = await Promise.all([
-      tableExists("workspace_modules"),
-      columnsExist("users", ["home_workspace_id"]),
-      columnsExist("sessions", ["home_workspace_id", "active_workspace_id"]),
-      columnsExist("clients", ["workspace_id"]),
-      columnsExist("projects", ["workspace_id"]),
-      columnsExist("time_entries", ["workspace_id"]),
-      columnsExist("audit_logs", ["workspace_id"]),
-      columnsExist("api_keys", ["workspace_id"]),
-      columnsExist("user_role_assignments", ["workspace_id"]),
-      columnsExist("active_timers", ["workspace_id"]),
-    ]);
-
-    const [legacyTables, workspaceRole, workspacePermission] = await Promise.all([
-      Promise.all([
-        tableExists("organizations"),
-        tableExists("organization_settings"),
-        tableExists("organization_modules"),
-      ]),
-      querySql("SELECT role_id FROM roles WHERE role_id = 'workspace_admin' LIMIT 1;"),
-      querySql("SELECT permission_id FROM permissions WHERE permission_id = 'workspace_settings.manage' LIMIT 1;"),
-    ]);
-
-    return workspaceModulesExists &&
-      usersWorkspaceNative &&
-      sessionsWorkspaceNative &&
-      clientsWorkspaceNative &&
-      projectsWorkspaceNative &&
-      timeEntriesWorkspaceNative &&
-      auditLogsWorkspaceNative &&
-      apiKeysWorkspaceNative &&
-      assignmentsWorkspaceNative &&
-      activeTimersWorkspaceNative &&
-      legacyTables.every((exists) => !exists) &&
-      workspaceRole.length > 0 &&
-      workspacePermission.length > 0;
-  }
-
-  if (migration.fileName === "025_add_tasks_module.sql") {
-    const [tasksExists, taskAssigneesExists, taskPermission] = await Promise.all([
-      tableExists("tasks"),
-      tableExists("task_assignees"),
-      querySql("SELECT permission_id FROM permissions WHERE permission_id = 'tasks.view' LIMIT 1;"),
-    ]);
-
-    return tasksExists && taskAssigneesExists && taskPermission.length > 0;
-  }
-
-  if (migration.fileName === "026_add_task_reminders.sql") {
-    const [offsetsExists, overrideColumn] = await Promise.all([
-      tableExists("task_reminder_offsets"),
-      columnsExist("tasks", ["reminder_override_enabled"]),
-    ]);
-
-    return offsetsExists && overrideColumn;
-  }
-
-  if (migration.fileName === "027_add_task_recurrence.sql") {
-    const [templatesExist, assigneesExist, taskColumnsExist] = await Promise.all([
-      columnsExist("task_recurrence_templates", ["recurrence_anchor_date"]),
-      tableExists("task_recurrence_assignees"),
-      columnsExist("tasks", ["recurrence_template_id", "recurrence_instance_date"]),
-    ]);
-
-    return templatesExist && assigneesExist && taskColumnsExist;
-  }
-
-  if (migration.fileName === "028_add_task_timers.sql") {
-    const [taskTimersExist, settingsColumn, timeEntryTaskColumn] = await Promise.all([
-      tableExists("active_task_timers"),
-      columnsExist("workspace_settings", ["task_timers_enabled"]),
-      columnsExist("time_entries", ["task_id"]),
-    ]);
-
-    return taskTimersExist && settingsColumn && timeEntryTaskColumn;
-  }
-
-  if (migration.fileName === "029_add_task_billable_flags.sql") {
-    return columnsExist("tasks", ["billable"]);
-  }
-
-  if (migration.fileName === "030_add_unified_active_work_timers.sql") {
-    return tableExists("active_work_timers");
-  }
-
-  if (migration.fileName === "031_cleanup_legacy_surfaces.sql") {
-    const [activeTimersExist, activeTaskTimersExist] = await Promise.all([
-      tableExists("active_timers"),
-      tableExists("active_task_timers"),
-    ]);
-
-    return !activeTimersExist && !activeTaskTimersExist;
-  }
-
-  return false;
-}
-
 async function tableExists(tableName) {
   const rows = await querySql(`
 SELECT name
@@ -473,13 +350,6 @@ async function columnsExist(tableName, columnNames) {
   const existingColumnNames = new Set(columns.map((column) => column.name));
 
   return columnNames.every((columnName) => existingColumnNames.has(columnName));
-}
-
-async function columnIsNullable(tableName, columnName) {
-  const columns = await querySql(`PRAGMA table_info(${tableName});`);
-  const column = columns.find((item) => item.name === columnName);
-
-  return Boolean(column) && Number(column.notnull) === 0;
 }
 
 export { runMigrations };

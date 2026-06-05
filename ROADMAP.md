@@ -2,187 +2,172 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.21 - Legacy Cleanup and Workspace-Native Modernization Review
+## Version 0.31.22 - Fresh start database
 
-This cleanup removes active legacy compatibility surfaces, old route aliases, obsolete table remnants, and stale naming while preserving historical migration safety unless a deliberate migration-history squash is chosen.
+Make the database startup path feel like a freshly built modern app instead of a long upgrade chain. The current schema should be represented as one clean baseline that creates the present-day tables, indexes, seed rows, module metadata, permissions, settings, and defaults directly.
 
-### Review Findings From The Repo Scan
+I no longer want the app to run 30+ migrations on first startup. I want one solid, unified initial SQL schema to fire for what is current and active.
 
-* [x] `organization` naming is mostly out of active app code, but it still appears in:
+#### Fresh baseline goal
 
-  * [x] Historical migration files under `src/db/migrations/` and `src/modules/*/migrations/`
-  * [x] Migration satisfaction logic in `src/db/migrations.js`
-  * [x] The old `organization-settings.html` framework protected view mapping in `src/services/static.service.js`
-  * [x] Active docs that still mention "legacy Organization Settings" in `docs/module-contract.md`
-  * [x] Historical release/decision text in `CHANGELOG.md` and `DECISIONS.md`
+- [x] Create a current-state initial schema for a new install.
+  - [x] Use workspace-native table names and columns only.
+  - [x] Use `workspaces`, `workspace_settings`, `workspace_modules`, and `workspace_id`.
+  - [x] Do not include legacy `organizations`, `organization_settings`, `organization_modules`, `organization_id`, `active_timers`, or `active_task_timers`.
+  - [x] Include every table needed by the current app as of 0.31.22.
+  - [x] Include all current indexes, constraints, defaults, and unique keys.
+  - [x] Include current seed data for roles, permissions, app settings, module registry rows, default workspace, default user, workspace settings, workspace membership, and module status.
+  - [x] Include module-owned schema from Tasks and Time Tracking in the clean baseline instead of relying on old incremental migrations for new installs.
 
-* [x] Legacy organization tables are already absent from the current database:
+- [x] Decide and implement the new migration file structure.
+  - [x] Add a single canonical baseline SQL file, such as `src/db/schema/current.sql` or `src/db/migrations/001_initial_schema.sql`, depending on the cleanest implementation path.
+  - [x] Keep old incremental migration files as historical reference without using them in the normal new-install startup path.
+  - [x] Keep historical migration history out of the normal new-install startup path.
+  - [x] Make module migration discovery compatible with the fresh baseline, or explicitly fold first-party module migrations into the baseline.
+  - [x] Keep future migrations starting after the baseline, such as `002_...` in the new sequence or `032_...` if preserving version numbering is safer.
 
-  * [x] `organizations`
-  * [x] `organization_settings`
-  * [x] `organization_modules`
+#### Existing database upgrade policy
 
-* [x] Old timer tables still exist in the current database even though normal code now uses `active_work_timers`:
+- [x] Preserve a safe path for existing databases.
+  - [x] Detect existing databases that already have `schema_migrations`.
+  - [x] Do not re-run the fresh baseline against an existing database.
+  - [x] Keep existing applied databases valid without requiring old migration checksum validation.
+  - [x] Decide whether existing databases should:
+    - [x] Keep their current `schema_migrations` rows and continue forward from the next migration, or
+    - [x] Be marked as upgraded to the new baseline with a clear baseline marker.
+  - [x] Avoid checksum failures for databases that applied the old migration history before 0.31.22.
+  - [x] Add a one-time compatibility path only if needed to bridge old migration metadata into the new baseline marker.
 
-  * [x] `active_timers` currently has leftover rows
-  * [x] `active_task_timers` currently exists but has no rows
-  * [x] `active_work_timers` is the active unified timer table
+- [x] Define the support boundary.
+  - [x] A brand-new database should create the current 0.31.22 schema from the fresh baseline only.
+  - [x] A database already upgraded through 0.31.21 should start without running old migrations again.
+  - [x] A partially upgraded legacy database should either upgrade safely or fail with a clear message telling the user what backup/recovery step is required.
+  - [x] Do not keep silent compatibility behavior that makes the startup path hard to reason about.
 
-* [x] Active compatibility code still exists for:
+#### Migration runner cleanup
 
-  * [x] `organization-settings.html` static page compatibility
-  * [x] Top-level legacy settings booleans accepted by `/api/settings`
-  * [x] Browser fallback handling for legacy settings inputs in `public/js/workspace-settings.js`
-  * [x] Compatibility re-export shims for old route/service/repository paths
-  * [x] The legacy `clients-projects.html` view and `clients-projects-legacy` module view descriptor
+- [x] Simplify `src/db/migrations.js`.
+  - [x] Remove the large `isMigrationAlreadySatisfied` branch list for old incremental migrations from the normal path.
+  - [x] Remove special handling that exists only for old organization/workspace compatibility phases.
+  - [x] Remove baseline logic that records 30+ old migrations for a fresh schema.
+  - [x] Keep migration checksum validation for future migrations.
+  - [x] Keep clear errors when an expected future migration file is missing or changed after being applied.
+  - [x] Make fresh database initialization easy to read: create schema, seed essentials, record baseline, then apply future migrations.
 
-### Cleanup Principles
+- [x] Simplify startup database repairs where possible.
+  - [x] Keep useful current repairs such as timestamp normalization only if they are still needed for current data.
+  - [x] Remove repair paths that only apply to dropped legacy tables or removed aliases.
+  - [x] Confirm startup no longer spends time checking tables that cannot exist in the fresh baseline.
 
-* [x] Modernize active app code to workspace-native names only:
+#### Clean schema content checklist
 
-  * [x] Use `workspace_id`, `workspace`, `workspace_settings`, and `workspace_modules`
-  * [x] Use `workspace_admin`, `workspace_settings.manage`, and `workspace` scope
-  * [x] Avoid new references to `organization`, `organization_id`, `organization_settings`, or `organization_modules`
+- [x] Include core identity and workspace tables.
+  - [x] `workspaces`
+  - [x] `workspace_settings`
+  - [x] `users`
+  - [x] `user_workspaces`
+  - [x] `sessions`
+  - [x] `user_workspace_creation_permissions`
+  - [x] `app_settings`
 
-* [x] Preserve historical migrations unless the implementation explicitly introduces a migration-history squash:
+- [x] Include permissions and module framework tables.
+  - [x] `roles`
+  - [x] `permissions`
+  - [x] `role_permissions`
+  - [x] `user_role_assignments`
+  - [x] `modules`
+  - [x] `workspace_modules`
+  - [x] `schema_migrations`
 
-  * [x] Do not edit checksum-tracked historical migration files in place
-  * [x] Prefer a new cleanup migration for dropping old tables and indexes
-  * [x] If a zero-legacy baseline is desired, do it as a separate migration-history squash with clear upgrade policy
+- [x] Include project and time tracking tables.
+  - [x] `clients`
+  - [x] `projects`
+  - [x] `time_entries`
+  - [x] `active_work_timers`
+  - [x] `api_keys`
+  - [x] `api_key_scopes`
+  - [x] `audit_logs`
 
-* [x] Preserve historical changelog and decision text as historical record:
+- [x] Include Tasks tables.
+  - [x] `tasks`
+  - [x] `task_assignees`
+  - [x] `task_reminder_offsets`
+  - [x] `task_recurrence_templates`
+  - [x] `task_recurrence_assignees`
 
-  * [x] Do not rewrite old release notes just to remove old terminology
-  * [x] Update active docs and current contract language instead
+- [x] Include current seed/default data.
+  - [x] Current role IDs and labels.
+  - [x] Current permission IDs and labels.
+  - [x] Current default role permission grants.
+  - [x] Current app settings.
+  - [x] Current module registry rows.
+  - [x] Current default workspace and protected super admin bootstrap behavior.
+  - [x] Current default workspace module statuses.
 
-### Remove Legacy Organization Surfaces
+#### Regression coverage
 
-* [x] Remove the old `organization-settings.html` compatibility surface:
+- [x] Add a fresh database baseline regression.
+  - [x] Create an empty temporary database.
+  - [x] Initialize it through the normal app startup path.
+  - [x] Assert the old incremental migrations did not run one by one for a new install.
+  - [x] Assert the resulting table list exactly matches the current expected table set.
+  - [x] Assert forbidden legacy tables do not exist.
+  - [x] Assert required indexes exist.
+  - [x] Assert required seed rows exist.
+  - [x] Assert module registry sync still works.
+  - [x] Assert default workspace/settings/user/session prerequisites are valid.
 
-  * [x] Remove `organization-settings.html` from `frameworkProtectedViews` in `src/services/static.service.js`
-  * [x] Remove or replace any redirect file for `views/protected/organization-settings.html` if it exists
-  * [x] Search public assets and docs for links to `organization-settings.html`
-  * [x] Confirm `/organization-settings.html` no longer serves as a normal protected page
-  * [x] Update `docs/module-contract.md` so framework-owned views no longer mention legacy Organization Settings
+- [x] Add an existing database startup regression.
+  - [x] Start from a database that already has the 0.31.21 schema.
+  - [x] Initialize it under the new migration runner.
+  - [x] Assert startup does not depend on old incremental migration files.
+  - [x] Assert future migrations still apply normally.
+  - [x] Assert `PRAGMA integrity_check` returns `ok`.
 
-* [x] Remove any remaining active organization-named API or browser payload aliases:
+- [x] Add a migration runner regression.
+  - [x] Assert changed future migration checksums still fail.
+  - [x] Assert missing future migration files still fail.
+  - [x] Assert old incremental migrations are not required for new installs.
+  - [x] Assert schema baseline version is recorded clearly.
 
-  * [x] Search active source outside historical migrations for `organization_id`, `organizationName`, `organization_settings`, and `organization_modules`
-  * [x] Verify public API responses do not emit legacy organization fields
-  * [x] Verify browser settings and app shell payloads use workspace names only
-  * [x] Update regression coverage to fail if active source reintroduces organization terms outside approved historical files
+#### Documentation
 
-### Remove Old Timer Tables
+- [x] Update database documentation.
+  - [x] Document the fresh baseline strategy.
+  - [x] Document where old migration history lives.
+  - [x] Document how new migrations should be added after 0.31.22.
+  - [x] Document how existing installations cross into the fresh baseline era.
+  - [x] Make it clear that the active schema is workspace-native and legacy-free.
 
-* [x] Add a cleanup migration for obsolete active timer tables:
+- [x] Update developer guidance.
+  - [x] Explain whether first-party module schema belongs in the unified baseline or module migration files.
+  - [x] Explain how future optional/third-party modules should add migrations.
+  - [x] Explain the expected naming and numbering convention after the baseline reset.
 
-  * [x] Before dropping `active_timers`, copy any rows not already represented in `active_work_timers`
-  * [x] Convert copied manual rows to `source_type = manual`, empty `source_module_id`, empty `source_id`, and `source_label = Manual`
-  * [x] Preserve `workspace_id`, `user_id`, timer slot, project/client context, elapsed time, status, and timestamps
-  * [x] Drop `active_timers`
-  * [x] Drop `active_task_timers`
-  * [x] Drop obsolete indexes attached to those tables
+#### Verification
 
-* [x] Remove startup maintenance for dropped timer tables:
+- [x] Run full verification.
+  - [x] `npm run check`
+  - [x] `npm run test:permissions`
+  - [x] Fresh temporary database initialization smoke.
+  - [x] Existing local database startup smoke.
+  - [x] `sqlite3 data/longtail-forge.db "PRAGMA integrity_check;"`
+  - [x] `/api/app-info`
+  - [x] `/api/settings`
+  - [x] `/api/app-shell/bootstrap`
+  - [x] `/api/workbench/bootstrap`
+  - [x] `/api/tasks`
+  - [x] `/api/time-entries`
 
-  * [x] Remove the `active_timers` standardization block from `src/db/index.js` after the cleanup migration is in place
-  * [x] Keep `active_work_timers` standardization only
-  * [x] Update `scripts/workspace-storage-regression.mjs` to assert `active_timers` and `active_task_timers` do not exist
-  * [x] Update `docs/time-tracking-module.md` so legacy timer tables are no longer described as retained
+#### Release cleanup
 
-* [x] Verify timer cleanup with data-sensitive checks:
+- [x] Keep 0.31.22 narrowly focused on database baseline work.
+  - [x] Do not include the 0.31.23 UI/task cleanup items in this release.
+  - [x] Do not start notification/tag/search framework work in this release.
+  - [x] Bump app and first-party module versions only during the implementation pass.
+  - [x] Update `CHANGELOG.md`, `DECISIONS.md`, and `ROADMAP-ARCHIVE.md` during the implementation pass.
 
-  * [x] Confirm no timer rows are lost when old `active_timers` rows exist
-  * [x] Confirm `/api/active-timers/all` returns migrated manual and sourced timers from `active_work_timers`
-  * [x] Confirm task timer start, pause, finalize, and discard still use `active_work_timers`
-  * [x] Confirm `npm run test:permissions` still covers active timer and task timer permission behavior
-
-### Remove Legacy Settings Aliases
-
-* [x] Make `/api/settings` require the registry-driven `moduleSettings` shape for module settings:
-
-  * [x] Stop accepting top-level `timeTrackingEnabled`
-  * [x] Stop accepting top-level `tasksEnabled`
-  * [x] Stop accepting top-level `taskTimersEnabled`
-  * [x] Remove `addLegacyModuleSetting` from `src/services/settings.service.js`
-  * [x] Update permission regression tests to submit `moduleSettings` only
-
-* [x] Remove browser-side legacy settings wiring:
-
-  * [x] Remove legacy input-memory helpers from `public/js/workspace-settings.js`
-  * [x] Confirm Workspace Settings renders module controls from the registry-driven module settings payload
-  * [x] Confirm module-specific settings pages continue using the registry-driven helper
-  * [x] Update docs so legacy booleans are no longer described as compatibility aliases
-
-### Remove Legacy Route, Service, And Repository Shims
-
-* [x] Review and remove compatibility re-export files that no longer have active imports:
-
-  * [x] `src/app.js`
-  * [x] `src/routes/clients.routes.js`
-  * [x] `src/routes/projects.routes.js`
-  * [x] `src/routes/time-entries.routes.js`
-  * [x] `src/services/clients.service.js`
-  * [x] `src/services/time-entries.service.js`
-  * [x] `src/repositories/clients.repo.js`
-  * [x] `src/repositories/projects.repo.js`
-  * [x] `src/repositories/time-entries.repo.js`
-
-* [x] Update imports before deleting shims:
-
-  * [x] Point app startup directly at `src/core/app.js`
-  * [x] Point framework/module imports at module-owned routes, services, and repositories
-  * [x] Point regression scripts at module-owned repositories where appropriate
-  * [x] Confirm no imports reference deleted shim paths
-
-### Remove Legacy Clients/Projects Page Alias
-
-* [x] Remove the old combined `clients-projects.html` compatibility page if the split Clients and Projects pages cover the workflow:
-
-  * [x] Remove the `clients-projects-legacy` protected view descriptor from `src/modules/client-projects/module.js`
-  * [x] Remove `views/protected/clients-projects.html` if it is only a compatibility shell
-  * [x] Update asset descriptors so the browser script is associated with `clients` and `projects` only
-  * [x] Rename `public/js/clients-projects.js` only if the implementation can do so without unnecessary churn
-  * [x] Update page-controller IDs and tests if the legacy page ID is removed
-
-### Documentation And Contract Cleanup
-
-* [x] Update active docs to reflect the fully modernized contract:
-
-  * [x] `docs/module-contract.md`
-  * [x] `docs/module-development.md`
-  * [x] `docs/time-tracking-module.md`
-  * [x] `docs/public-api.md`
-  * [x] `docs/architecture.md`
-  * [x] `docs/longtail_forge_permissions_matrix.md`
-
-* [x] Archive or annotate old compatibility plans:
-
-  * [x] Leave `docs/storage-rename-plan.md` as historical context, or mark it completed and superseded by 0.31.21
-  * [x] Do not leave active docs saying compatibility aliases are still expected after the cleanup lands
-
-### Regression And Verification Plan
-
-* [x] Add a focused legacy-cleanup regression script or extend existing checks:
-
-  * [x] Assert active source does not contain unapproved organization terminology
-  * [x] Assert legacy organization tables do not exist
-  * [x] Assert `active_timers` and `active_task_timers` do not exist after migrations
-  * [x] Assert `/api/settings` rejects top-level module setting aliases
-  * [x] Assert module settings still save through `moduleSettings`
-  * [x] Assert old static compatibility pages are not served
-
-* [x] Run full verification after implementation:
-
-  * [x] `npm run check`
-  * [x] `npm run test:permissions`
-  * [x] `sqlite3 data/longtail-forge.db "PRAGMA integrity_check;"`
-  * [x] `/api/app-info`
-  * [x] `/api/settings` save smoke using `moduleSettings`
-  * [x] `/api/active-timers/all` smoke
-  * [x] Workbench and Time Tracker timer smoke
-
-### Version 0.31.22 Clean Up
+## Version 0.31.23 - 0.31 Clean Up Items
 
 #### App function failures
 
@@ -203,17 +188,19 @@ This cleanup removes active legacy compatibility surfaces, old route aliases, ob
   - If any combination of the above are selected, change the selected bulk actions on the selected tasks
   - Doing this will speed up bulk changes and reduce time spent making them
 
-- [ ] In Add Task modal, "All Projects" exists, but we've lost the "{{workspaceName}} Projects" to sort by.
+- [ ] In Add Task modal, "All Projects" exists, but we've lost the "{{workspaceName}} Projects" to sort by, we need both
+  - [ ] Anywhere there is a clients/scope sort/filter in a business workspace, it needs to have both "All" and "{{workspaceName}} Projects" option
+  - [ ] Personal and Family workspaces shouldn't have a client/scope sort/filter
 
-- [ ] In Projects -> Tasks the task list, we should move the buttons to the bottom of each list item, side-by-side
+- [ ] In Projects -> Tasks the task list, the action buttons should move to the bottom of each list item, side-by-side
   - Drop the "Actions" column
-  - Truncate Scope, but add hover over reveal for full detail
+  - Truncate Scope, but add hover over to reveal full detail
 
 - [ ] Add a "Duplicate" button to create a new task from a completed/existing task
 
 - [ ] Make a static footer at the bottom of modal windows for the Save/Cancel/etc. buttons so users don't have to scroll all the way to the bottom every time
 
-### Version 0.31.23 Accessibility QA Foundation
+## Version 0.31.24 Accessibility QA Foundation
 
 - [ ] Adopt WCAG 2.2 AA as the accessibility target for Longtail Forge UI.
 - [ ] Add accessibility checks to development workflow:
@@ -917,9 +904,107 @@ Super Admins should have a backup/restore function on the dashboard that dumps t
     - this should only accept zip files
     - this should verify files, checksum, etc. before installing/overwriting current data
 
-### Version 0.39.0
+### Version 0.39.0 - Shopping / Procurement Lists Module
 
-Final checkpoint for documentation update before standardization of database tools
+- [ ] Add optional first-party lists module for personal/family and business workspaces.
+- [ ] Use workspace-aware labels:
+  - [ ] Personal/family workspaces: "Shopping Lists"
+  - [ ] Business workspaces: "Procurement Lists"
+- [ ] Core list fields:
+  - [ ] `list_id`
+  - [ ] `workspace_id`
+  - [ ] `client_id` optional
+  - [ ] `project_id` optional
+  - [ ] `title`
+  - [ ] `description`
+  - [ ] `list_type`
+  - [ ] `status`
+  - [ ] `created_by_user_id`
+  - [ ] `created_at`
+  - [ ] `updated_at`
+- [ ] List item fields:
+  - [ ] Item name.
+  - [ ] Quantity.
+  - [ ] Unit.
+  - [ ] Needed by date.
+  - [ ] Vendor/store.
+  - [ ] URL.
+  - [ ] Estimated cost.
+  - [ ] Actual cost.
+  - [ ] Purchase/order status.
+  - [ ] Notes.
+  - [ ] Assigned user.
+  - [ ] Sort order.
+  - [ ] Checked/completed state.
+- [ ] Business use cases:
+  - [ ] Project parts list.
+  - [ ] R&D purchasing list.
+  - [ ] Office supply list.
+  - [ ] Client/project procurement checklist.
+- [ ] Personal/family use cases:
+  - [ ] Grocery list.
+  - [ ] Household shopping list.
+  - [ ] Trip packing/shopping list.
+  - [ ] Family project supply list.
+- [ ] Integrations:
+  - [ ] Lists should support tags once tagging is stable.
+  - [ ] Lists should be searchable once framework search is stable.
+  - [ ] List activity should be able to appear in dashboard/activity feed later.
+
+### Version 0.39.1 - Creator Studio / Content Studio Module
+
+- [ ] Add optional first-party `creator-studio` module.
+- [ ] Core records:
+  - [ ] Content ideas.
+  - [ ] Content drafts.
+  - [ ] Campaigns/series.
+  - [ ] Publishing channels.
+  - [ ] Assets/media.
+  - [ ] Content templates.
+  - [ ] Repurposing tasks.
+- [ ] Content idea fields:
+  - [ ] Title.
+  - [ ] Description/angle.
+  - [ ] Workspace.
+  - [ ] Client/project if applicable.
+  - [ ] Channel(s).
+  - [ ] Format: blog, short, long video, email, social post, product page, course material, etc.
+  - [ ] Status: idea, planned, drafting, editing, scheduled, published, archived.
+  - [ ] Priority.
+  - [ ] Target publish date.
+  - [ ] Assigned user.
+  - [ ] Tags.
+  - [ ] Related notes/tasks/assets.
+- [ ] Editorial calendar:
+  - [ ] Calendar view by publish date.
+  - [ ] List view by status.
+  - [ ] Kanban view by production stage.
+  - [ ] Filter by brand/site/channel/project/tag.
+- [ ] Publishing channels:
+  - [ ] Website/blog.
+  - [ ] YouTube.
+  - [ ] Shorts/Reels/TikTok.
+  - [ ] Newsletter.
+  - [ ] Facebook/Instagram/X/LinkedIn/Mastodon.
+  - [ ] Podcast if needed later.
+- [ ] Asset library:
+  - [ ] Attach images, video, audio, documents, thumbnails, captions, and scripts.
+  - [ ] Track asset usage across content items.
+  - [ ] Store alt text, captions, source/license notes, and credit requirements.
+- [ ] Repurposing workflow:
+  - [ ] One long-form item can spawn shorts, social posts, newsletter blurbs, blog excerpts, and follow-up tasks.
+  - [ ] Track each derivative item separately but link it to the source content.
+- [ ] Analytics groundwork:
+  - [ ] Store published URL.
+  - [ ] Store basic performance notes manually at first.
+  - [ ] Later: integrate platform analytics where APIs allow.
+- [ ] Permissions:
+  - [ ] Creator Studio records are workspace-scoped.
+  - [ ] Client/project-linked content respects existing permissions.
+  - [ ] External clients may be allowed to review/comment only if explicitly enabled.
+
+
+## Final checkpoint for documentation update before 0.40.0
 
 ## Version 0.40.0 - Project Tools expansion & Database extraction layer for use with SQLite or PostGRES
 

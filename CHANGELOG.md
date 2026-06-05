@@ -1,3 +1,13 @@
+## Version 0.31.22 - 2026-06-05 03:24 -04:00
+
+- Added a fresh-start database baseline at `src/db/schema/current.sql` for new installs.
+- Simplified the migration runner so fresh databases record one `0.31.22` baseline row instead of replaying migrations `001` through `031`.
+- Preserved existing upgraded databases by recording the baseline marker without requiring historical migration checksum validation.
+- Kept checksum validation for future post-baseline migrations.
+- Added a fresh database regression to `npm run check`.
+- Documented the active database baseline and future migration convention in `docs/database.md`.
+- Bumped the app and first-party module versions to `0.31.22`.
+
 ## Version 0.31.21 - 2026-06-05 02:51 -04:00
 
 - Added a cleanup migration that copies any remaining legacy active timer rows into `active_work_timers`, enforces one running timer per user, and drops obsolete `active_timers` and `active_task_timers` tables.

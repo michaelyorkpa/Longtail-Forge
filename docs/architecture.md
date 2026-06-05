@@ -95,6 +95,8 @@ Framework/core includes:
 
 These systems are not optional workflow features. They are the foundation other features depend on.
 
+The current database startup contract is documented in [database.md](database.md). New installs use the 0.31.22 fresh-start baseline instead of replaying the historical migration chain, while future migrations still run after that baseline.
+
 ---
 
 ## What Belongs in First-Party Modules
