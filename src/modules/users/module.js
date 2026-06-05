@@ -6,7 +6,7 @@ const usersModule = {
   displayName: "Users",
   description: "User administration, profile settings, and role assignment surfaces.",
   category: "core-admin",
-  version: "0.31.12",
+  version: "0.31.15",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: false,
@@ -20,6 +20,27 @@ const usersModule = {
   navigation: [
     { label: "User Admin", href: "user-admin.html", parent: "settings.html" },
     { label: "User Settings", href: "user-settings.html", parent: "settings.html" },
+  ],
+  protectedViews: [
+    {
+      id: "user-admin",
+      path: "/user-admin.html",
+      moduleId: "users",
+      file: "user-admin.html",
+      requiredPermissions: ["users.manage"],
+      requiredWorkspaceCapabilities: ["team_members", "permissions", "family_permissions"],
+    },
+  ],
+  publicViews: [],
+  browserAssets: [
+    {
+      id: "user-admin-script",
+      moduleId: "users",
+      path: "/js/user-admin.js",
+      type: "script",
+      views: ["user-admin"],
+      requiredPermissions: ["users.manage"],
+    },
   ],
   dashboard: [],
   requiredPermissions: [

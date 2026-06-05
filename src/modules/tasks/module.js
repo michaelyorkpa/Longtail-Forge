@@ -7,7 +7,7 @@ const tasksModule = {
   displayName: "Tasks",
   description: "Workspace, client, and project task tracking with scoped assignment and due-date foundations.",
   category: "core-workflow",
-  version: "0.31.12",
+  version: "0.31.15",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -20,6 +20,44 @@ const tasksModule = {
   repairHooks: [],
   navigation: [
     { label: "Tasks", href: "tasks.html", parent: "projects.html", counts: ["overdue", "dueSoon"] },
+  ],
+  protectedViews: [
+    {
+      id: "tasks",
+      path: "/tasks.html",
+      moduleId: "tasks",
+      file: "tasks.html",
+      requiredPermissions: ["tasks.view"],
+      requiredWorkspaceCapabilities: ["projects", "clients_projects"],
+      allowDisabledRead: true,
+    },
+    {
+      id: "tasks-settings",
+      path: "/tasks-settings.html",
+      moduleId: "tasks",
+      file: "tasks-settings.html",
+      requiredPermissions: ["workspace_settings.manage"],
+      requiredWorkspaceCapabilities: ["projects", "clients_projects"],
+    },
+  ],
+  publicViews: [],
+  browserAssets: [
+    {
+      id: "tasks-script",
+      moduleId: "tasks",
+      path: "/js/tasks.js",
+      type: "script",
+      views: ["tasks"],
+      requiredPermissions: ["tasks.view"],
+    },
+    {
+      id: "tasks-module-settings-script",
+      moduleId: "tasks",
+      path: "/js/module-settings.js",
+      type: "script",
+      views: ["tasks-settings"],
+      requiredPermissions: ["workspace_settings.manage"],
+    },
   ],
   dashboard: [
     {

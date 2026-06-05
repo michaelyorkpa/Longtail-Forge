@@ -488,6 +488,20 @@ h1 {
     font-weight: 700;
 }
 
+.module-settings-group {
+    display: grid;
+    gap: 10px;
+}
+
+.module-settings-group + .module-settings-group {
+    margin-top: 8px;
+}
+
+.module-settings-group h2 {
+    margin: 0;
+    font-size: 16px;
+}
+
 .theme-mode-switch {
     width: fit-content;
     min-height: 40px;

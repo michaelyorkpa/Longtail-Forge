@@ -14,18 +14,7 @@
       <form class="settings-form" data-module-settings-form="tasks">
         <fieldset class="settings-fieldset">
           <legend>Tasks</legend>
-          <label class="inline-option">
-            <input type="checkbox" data-tasks-enabled>
-            Tasks
-          </label>
-          <label class="inline-option">
-            <input type="checkbox" data-task-timers-enabled>
-            Task Timers
-          </label>
-          <label class="inline-option">
-            <input type="checkbox" disabled aria-describedby="task-timer-concurrency-note">
-            Timer Concurrency (reserved)
-          </label>
+          <div data-module-settings-fields></div>
           <p class="settings-help" id="task-timer-concurrency-note">
             Future setting. 0.31.8 keeps one running timer per user/workspace.
           </p>

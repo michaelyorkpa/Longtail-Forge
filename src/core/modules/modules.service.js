@@ -1,9 +1,12 @@
 import {
   getModule as getRegisteredModule,
+  listModuleBrowserAssets as listRegisteredModuleBrowserAssets,
   listModuleApiScopeEntries as listRegisteredModuleApiScopeEntries,
   listModuleApiScopes as listRegisteredModuleApiScopes,
   listModuleMigrationSources,
   listModulePermissions as listRegisteredModulePermissions,
+  listModuleProtectedViews as listRegisteredModuleProtectedViews,
+  listModulePublicViews as listRegisteredModulePublicViews,
   listModuleRouteEntries as listRegisteredModuleRouteEntries,
   listModuleRoutes as listRegisteredModuleRoutes,
   listModules as listRegisteredModules,
@@ -77,6 +80,14 @@ function listNotificationTemplates() {
   return listRegisteredNotificationTemplates();
 }
 
+function listModulePublicViews() {
+  return listRegisteredModulePublicViews().map(normalizeViewContribution);
+}
+
+function listModuleBrowserAssets() {
+  return listRegisteredModuleBrowserAssets().map(normalizeAssetContribution);
+}
+
 async function syncModuleRegistry(workspaceId) {
   const modules = listModules();
   const existingModuleRows = await querySql("SELECT module_id, version FROM modules;");
@@ -142,6 +153,7 @@ ON CONFLICT(workspace_id, module_id) DO NOTHING;
 
 async function decorateWorkspaceSettings(settings, workspaceId) {
   const moduleContext = await readWorkspaceModuleContext(workspaceId);
+  const moduleSettings = await readWorkspaceModuleSettings(workspaceId, settings, moduleContext);
 
   return {
     ...settings,
@@ -150,8 +162,34 @@ async function decorateWorkspaceSettings(settings, workspaceId) {
     tasksEnabled: moduleContext.moduleStatusById[TASKS_MODULE_ID] === "enabled",
     timeTrackingEnabled: moduleContext.moduleStatusById[TIME_TRACKING_MODULE_ID] === "enabled",
     enabledModules: moduleContext.enabledModules,
+    moduleSettings,
     modules: moduleContext.modules,
   };
+}
+
+async function readWorkspaceModuleSettings(workspaceId, settings, moduleContext = null) {
+  const [resolvedModuleContext, workspaceCapabilities] = await Promise.all([
+    moduleContext || readWorkspaceModuleContext(workspaceId),
+    readWorkspaceCapabilities(workspaceId),
+  ]);
+  const availableTools = new Set(workspaceCapabilities.availableTools || []);
+
+  return resolvedModuleContext.modules
+    .filter((moduleDefinition) => moduleSettingsMatchWorkspace(moduleDefinition, availableTools))
+    .map((moduleDefinition) => ({
+      moduleId: moduleDefinition.id,
+      name: moduleDefinition.name,
+      displayName: moduleDefinition.displayName,
+      status: moduleDefinition.status,
+      canDisable: moduleDefinition.canDisable,
+      settings: (moduleDefinition.settings || []).map((setting) => ({
+        ...setting,
+        moduleId: moduleDefinition.id,
+        readOnly: setting.readOnly === true || (setting.moduleStatus === true && moduleDefinition.canDisable === false),
+        value: readModuleSettingValue(moduleDefinition, setting, settings),
+      })),
+    }))
+    .filter((moduleDefinition) => moduleDefinition.settings.length > 0);
 }
 
 async function readWorkspaceModuleContext(workspaceId) {
@@ -420,6 +458,76 @@ async function listModuleSettings(workspaceId, session = null) {
   return listWorkspaceContributions(workspaceId, session, "settings");
 }
 
+async function resolveProtectedModuleView(workspaceId, session, requestPath) {
+  const pathName = normalizeViewPath(requestPath);
+
+  if (!pathName) {
+    return null;
+  }
+
+  const [moduleContext, workspaceCapabilities] = await Promise.all([
+    readWorkspaceModuleContext(workspaceId),
+    readWorkspaceCapabilities(workspaceId),
+  ]);
+  const moduleStatusById = moduleContext.moduleStatusById;
+  const availableTools = new Set(workspaceCapabilities.availableTools || []);
+
+  for (const view of listRegisteredModuleProtectedViews().map(normalizeViewContribution)) {
+    if (normalizeViewPath(view.path) !== pathName) {
+      continue;
+    }
+
+    const moduleDefinition = getModule(view.moduleId);
+
+    if (!moduleDefinition) {
+      return {
+        status: "not_found",
+        statusCode: 404,
+        message: "Page not found.",
+        view,
+      };
+    }
+
+    const moduleStatus = moduleStatusById[view.moduleId] || "disabled";
+    const disabledReadAllowed = view.allowDisabledRead === true && moduleDefinition.historicalReadAccess !== false;
+
+    if (moduleStatus !== "enabled" && !disabledReadAllowed) {
+      return {
+        status: "module_disabled",
+        statusCode: 403,
+        message: `${moduleDefinition.displayName || moduleDefinition.name || view.moduleId} is disabled for this workspace.`,
+        view,
+      };
+    }
+
+    if (!requiredCapabilitiesAvailable(view, moduleDefinition, availableTools)) {
+      return {
+        status: "unavailable",
+        statusCode: 404,
+        message: "Page not found.",
+        view,
+      };
+    }
+
+    if (!(await requiredPermissionsAllowed(view, session))) {
+      return {
+        status: "unauthorized",
+        statusCode: 403,
+        message: "You do not have permission to view this page.",
+        view,
+      };
+    }
+
+    return {
+      status: "ok",
+      statusCode: 200,
+      view,
+    };
+  }
+
+  return null;
+}
+
 async function listWorkbenchCards(workspaceId, session = null) {
   const cards = await listWorkspaceContributions(workspaceId, session, "workbench");
 
@@ -501,6 +609,78 @@ function normalizeContribution(moduleDefinition, contribution) {
   };
 }
 
+function normalizeViewContribution(view) {
+  return {
+    ...view,
+    path: normalizeViewPath(view.path),
+    file: String(view.file || "").trim(),
+  };
+}
+
+function normalizeAssetContribution(asset) {
+  return {
+    ...asset,
+    path: String(asset.path || "").trim(),
+    type: asset.type === "style" ? "style" : "script",
+  };
+}
+
+function normalizeViewPath(value) {
+  const pathName = String(value || "").trim();
+
+  if (!pathName) {
+    return "";
+  }
+
+  return pathName.startsWith("/") ? pathName : `/${pathName}`;
+}
+
+function moduleSettingsMatchWorkspace(moduleDefinition, availableTools) {
+  const requiredCapabilities = moduleDefinition.workspaceCapabilityRequirements || [];
+
+  if (requiredCapabilities.length === 0) {
+    return true;
+  }
+
+  return requiredCapabilities.some((capability) => availableTools.has(capability));
+}
+
+function readModuleSettingValue(moduleDefinition, setting, settings) {
+  if (setting.moduleStatus === true) {
+    return moduleDefinition.status === "enabled";
+  }
+
+  if (setting.id === "taskTimersEnabled") {
+    return settings.taskTimersEnabled !== false;
+  }
+
+  if (Object.hasOwn(settings, setting.id)) {
+    return settings[setting.id];
+  }
+
+  return defaultSettingValue(setting);
+}
+
+function defaultSettingValue(setting) {
+  if (Object.hasOwn(setting, "defaultValue")) {
+    return setting.defaultValue;
+  }
+
+  if (setting.type === "boolean") {
+    return false;
+  }
+
+  if (setting.type === "number") {
+    return "";
+  }
+
+  if (setting.type === "multi-select") {
+    return [];
+  }
+
+  return "";
+}
+
 function requiredModulesEnabled(contribution, enabledModuleIds) {
   const requiredModules = [
     contribution.moduleId,
@@ -573,8 +753,10 @@ export const modulesService = {
   listModuleRouteEntries,
   listModuleRoutes,
   listModules,
+  listModuleBrowserAssets,
   listModuleSettings,
   listNotificationEvents,
+  listModulePublicViews,
   listNotificationTemplates,
   listSearchableTypes,
   listTaggableTypes,
@@ -582,7 +764,9 @@ export const modulesService = {
   listWorkbenchCards,
   listWorkItemSources,
   readEnabledModuleIds,
+  resolveProtectedModuleView,
   readModuleStatus,
+  readWorkspaceModuleSettings,
   readWorkspaceModuleContext,
   setModuleStatus,
   syncModuleRegistry,

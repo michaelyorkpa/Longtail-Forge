@@ -2,102 +2,13 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.13 - Registry-Driven App Shell and Navigation
-
-* [x] Replace hard-coded authenticated navigation with registry-driven navigation
-
-  * [x] Build the navigation tree from core navigation plus enabled module navigation
-  * [x] Filter navigation by workspace type
-  * [x] Filter navigation by workspace capabilities
-  * [x] Filter navigation by module enabled/disabled status
-  * [x] Filter navigation by user permissions
-  * [x] Hide empty parent navigation groups automatically
-
-* [x] Add an app shell/bootstrap endpoint
-
-  * [x] Endpoint should return app name/version
-  * [x] Endpoint should return active workspace context
-  * [x] Endpoint should return available workspace switcher data
-  * [x] Endpoint should return enabled modules
-  * [x] Endpoint should return module-aware navigation
-  * [x] Endpoint should return notification summary/counts when notifications exist
-  * [x] Endpoint should return user theme/timezone basics
-  * [x] Endpoint should return current user's permission hints only where safe
-
-* [x] Update frontend navigation/app shell rendering
-
-  * [x] Frontend should render navigation returned by the backend
-  * [x] Frontend should not need to know about specific modules like Tasks or Time Tracking
-  * [x] Keep only app-shell level behavior hard-coded in the frontend
-  * [x] Keep logout, workspace switching, app branding, global search, notification bell, and theme handling as framework behavior
-
-* [x] Preserve current navigation behavior during the refactor
-
-  * [x] Dashboard remains visible
-  * [x] Workspace settings remains visible to authorized users
-  * [x] User settings remains visible
-  * [x] Existing module links still appear when enabled
-  * [x] Existing module links disappear when disabled or unauthorized
-
-* [x] Add Workbench page to the registry-driven app shell
-
-  * [x] Workbench should be a framework-owned authenticated page
-  * [x] Workbench should appear after Dashboard and before Projects
-  * [x] Workbench should remain visible when no optional workflow modules are enabled, but should show useful empty states
-  * [x] Workbench should render module-contributed cards from the registry
-  * [x] Workbench should not hard-code Tasks, Time Tracking, Notes, or Support Tickets in the app shell navigation
-  * [x] Workbench page navigation should respect user permissions and workspace module availability
-
-## Version 0.31.14 - Registry-Driven Module Settings
-
-* [ ] Replace hard-coded module setting toggles with registry-driven settings
-
-  * [ ] Module manifests define their own settings fields
-  * [ ] Settings UI renders module settings from registry data
-  * [ ] Module status checkboxes are generated from module manifest settings
-  * [ ] Settings save logic updates module status generically
-
-* [ ] Support common module setting field types
-
-  * [ ] Boolean
-  * [ ] Text
-  * [ ] Number
-  * [ ] Select/dropdown
-  * [ ] Multi-select if needed later
-  * [ ] Read-only informational fields
-
-* [ ] Keep workspace settings separate from module settings
-
-  * [ ] Workspace identity, billing defaults, audit settings, notification defaults, and workspace type remain framework/workspace settings
-  * [ ] Module-specific options live under their module settings section
-  * [ ] Module enable/disable checkboxes should be grouped clearly
-
-* [ ] Prepare user preference settings for framework services
-
-  * [ ] Leave room for user notification preferences
-  * [ ] Leave room for user default page/workspace preferences
-  * [ ] Leave room for user search/display preferences later
-  * [ ] Do not mix user preferences with workspace/module configuration
-
-* [ ] Validate module settings server-side
-
-  * [ ] Do not trust frontend setting field definitions
-  * [ ] Reject unknown module setting IDs unless explicitly allowed
-  * [ ] Validate value types
-  * [ ] Audit log module setting changes
-
-* [ ] Avoid building a complex plugin marketplace/settings installer
-
-  * This version is about making first-party module settings generic
-  * Future third-party module support should reuse the same module settings contract
-
 ## Version 0.31.15 - Module Views, Assets, and Page Registration
 
-* [ ] Add framework-owned view/page registration
+* [x] Add framework-owned view/page registration
 
-  * [ ] Modules can register protected views
-  * [ ] Modules can register public views later if needed
-  * [ ] Each registered view should define:
+  * [x] Modules can register protected views
+  * [x] Modules can register public views later if needed
+  * [x] Each registered view should define:
 
     * View ID
     * URL/path
@@ -106,43 +17,43 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     * Required permission
     * Required workspace capability
     * Whether disabled modules can show historical views
-  * [ ] Unknown protected views should not be served just because an HTML file exists
+  * [x] Unknown protected views should not be served just because an HTML file exists
 
-* [ ] Update static/view serving to respect module registration
+* [x] Update static/view serving to respect module registration
 
-  * [ ] Public pages remain framework-owned
-  * [ ] Protected framework pages remain framework-owned
-  * [ ] Protected module pages are served only when registered
-  * [ ] Disabled module views should return a clear disabled-module page or redirect
-  * [ ] Unauthorized module views should return the standard unauthorized behavior
+  * [x] Public pages remain framework-owned
+  * [x] Protected framework pages remain framework-owned
+  * [x] Protected module pages are served only when registered
+  * [x] Disabled module views should return a clear disabled-module page or redirect
+  * [x] Unauthorized module views should return the standard unauthorized behavior
 
-* [ ] Add module asset registration
+* [x] Add module asset registration
 
-  * [ ] Allow modules to declare JS/CSS asset paths
-  * [ ] Keep common framework CSS/JS global
-  * [ ] Keep module-specific JS/CSS module-owned
-  * [ ] Avoid loading module-specific frontend code globally unless needed
+  * [x] Allow modules to declare JS/CSS asset paths
+  * [x] Keep common framework CSS/JS global
+  * [x] Keep module-specific JS/CSS module-owned
+  * [x] Avoid loading module-specific frontend code globally unless needed
 
-* [ ] Keep framework UI assets in framework/app-shell space
+* [x] Keep framework UI assets in framework/app-shell space
 
-  * [ ] Notification bell/toast UI is framework-owned
-  * [ ] Global search UI is framework-owned
-  * [ ] Workspace switcher is framework-owned
-  * [ ] Module pages should not duplicate app shell UI
+  * [x] Notification bell/toast UI is framework-owned
+  * [x] Global search UI is framework-owned
+  * [x] Workspace switcher is framework-owned
+  * [x] Module pages should not duplicate app shell UI
 
-* [ ] Add basic module page documentation
+* [x] Add basic module page documentation
 
-  * [ ] Explain how a module registers a protected page
-  * [ ] Explain how the navigation entry links to the page
-  * [ ] Explain permission and enabled/disabled behavior
+  * [x] Explain how a module registers a protected page
+  * [x] Explain how the navigation entry links to the page
+  * [x] Explain permission and enabled/disabled behavior
 
-* [ ] Register the Workbench page as a framework-owned protected view
+* [x] Register the Workbench page as a framework-owned protected view
 
-  * [ ] Workbench page is not owned by Tasks, Time Tracking, Notes, or Support Tickets
-  * [ ] Workbench page can load module-contributed cards only when those modules are enabled and authorized
-  * [ ] Workbench page assets should be framework-owned
-  * [ ] Module-specific Workbench card renderers should be module-owned where practical
-  * [ ] Unknown/unregistered Workbench card renderers should fail safely with a clear placeholder
+  * [x] Workbench page is not owned by Tasks, Time Tracking, Notes, or Support Tickets
+  * [x] Workbench page can load module-contributed cards only when those modules are enabled and authorized
+  * [x] Workbench page assets should be framework-owned
+  * [x] Module-specific Workbench card renderers should be module-owned where practical
+  * [x] Unknown/unregistered Workbench card renderers should fail safely with a clear placeholder
 
 ## Version 0.31.16 - Module Permissions and API Scope Contracts
 

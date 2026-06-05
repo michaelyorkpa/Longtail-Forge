@@ -14,6 +14,9 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "protectedViewsDir",
   "publicViewsDir",
   "browserAssetsDir",
+  "protectedViews",
+  "publicViews",
+  "browserAssets",
   "navigation",
   "dashboard",
   "reporting",
@@ -43,6 +46,7 @@ const RESERVED_MANIFEST_FIELDS = new Set([
 
 const MODULE_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
+const SETTING_FIELD_TYPES = new Set(["boolean", "text", "number", "select", "multi-select", "info"]);
 
 function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   const errors = [];
@@ -76,6 +80,9 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   optionalArray(moduleDefinition, "seedHooks", errors);
   optionalArray(moduleDefinition, "repairHooks", errors);
   validateNavigation(moduleDefinition.navigation, errors);
+  validateViews(moduleDefinition.protectedViews, moduleDefinition.id, "protectedViews", errors);
+  validateViews(moduleDefinition.publicViews, moduleDefinition.id, "publicViews", errors);
+  validateBrowserAssets(moduleDefinition.browserAssets, moduleDefinition.id, errors);
   validateDashboard(moduleDefinition.dashboard, errors);
   validateWorkbench(moduleDefinition.workbench, errors);
   validateSettings(moduleDefinition.settings, errors);
@@ -140,6 +147,33 @@ function validateNavigation(navigation, errors) {
   });
 }
 
+function validateViews(views, moduleId, fieldName, errors) {
+  optionalArrayOfObjects(views, fieldName, errors, (item, index) => {
+    requireString(item, "id", errors, { prefix: `${fieldName}[${index}]` });
+    requireString(item, "path", errors, { prefix: `${fieldName}[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `${fieldName}[${index}]` });
+    requireString(item, "file", errors, { prefix: `${fieldName}[${index}]` });
+    optionalStringArray(item, "requiredPermissions", errors, { prefix: `${fieldName}[${index}]` });
+    optionalStringArray(item, "requiredWorkspaceCapabilities", errors, { prefix: `${fieldName}[${index}]` });
+    optionalBoolean(item, "allowDisabledRead", errors, { prefix: `${fieldName}[${index}]` });
+  });
+}
+
+function validateBrowserAssets(browserAssets, moduleId, errors) {
+  optionalArrayOfObjects(browserAssets, "browserAssets", errors, (item, index) => {
+    requireString(item, "id", errors, { prefix: `browserAssets[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `browserAssets[${index}]` });
+    requireString(item, "path", errors, { prefix: `browserAssets[${index}]` });
+    requireString(item, "type", errors, { prefix: `browserAssets[${index}]` });
+    if (typeof item.type === "string" && !["script", "style"].includes(item.type)) {
+      errors.push(`browserAssets[${index}].type must be script or style.`);
+    }
+    optionalStringArray(item, "views", errors, { prefix: `browserAssets[${index}]` });
+    optionalStringArray(item, "requiredPermissions", errors, { prefix: `browserAssets[${index}]` });
+    optionalStringArray(item, "requiredWorkspaceCapabilities", errors, { prefix: `browserAssets[${index}]` });
+  });
+}
+
 function validateDashboard(dashboard, errors) {
   optionalArrayOfObjects(dashboard, "dashboard", errors, (item, index) => {
     requireString(item, "id", errors, { prefix: `dashboard[${index}]` });
@@ -166,7 +200,21 @@ function validateSettings(settings, errors) {
     requireString(item, "id", errors, { prefix: `settings[${index}]` });
     requireString(item, "label", errors, { prefix: `settings[${index}]` });
     requireString(item, "type", errors, { prefix: `settings[${index}]` });
+    if (typeof item.type === "string" && !SETTING_FIELD_TYPES.has(item.type)) {
+      errors.push(`settings[${index}].type must be one of ${Array.from(SETTING_FIELD_TYPES).join(", ")}.`);
+    }
+    optionalString(item, "description", errors, { prefix: `settings[${index}]` });
+    optionalString(item, "placeholder", errors, { prefix: `settings[${index}]` });
+    optionalStringArray(item, "requiredPermissions", errors, { prefix: `settings[${index}]` });
+    optionalArrayOfObjects(item.options, `settings[${index}].options`, errors, (option, optionIndex) => {
+      requireString(option, "label", errors, { prefix: `settings[${index}].options[${optionIndex}]` });
+      requireString(option, "value", errors, { prefix: `settings[${index}].options[${optionIndex}]` });
+    });
+    optionalNumber(item, "min", errors, { prefix: `settings[${index}]` });
+    optionalNumber(item, "max", errors, { prefix: `settings[${index}]` });
+    optionalNumber(item, "step", errors, { prefix: `settings[${index}]` });
     optionalBoolean(item, "moduleStatus", errors, { prefix: `settings[${index}]` });
+    optionalBoolean(item, "readOnly", errors, { prefix: `settings[${index}]` });
   });
 }
 

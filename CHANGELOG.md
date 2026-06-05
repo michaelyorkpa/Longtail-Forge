@@ -1,3 +1,22 @@
+## Version 0.31.15 - 2026-06-05 00:52 -04:00
+
+- Added module manifest support and validation for protected views, public view placeholders, and browser asset descriptors.
+- Added module registry/service helpers for protected/public view and browser asset contributions.
+- Registered first-party Tasks, Time Tracking, Clients/Projects, and User Admin protected views and module-specific browser assets.
+- Updated protected HTML serving so module pages must be registered and pass module status, workspace capability, and permission checks before being served.
+- Kept Dashboard, Workbench, Workspace Settings, User Settings, API Keys, Audit Log, Reporting, and legacy Organization Settings framework-owned.
+- Documented module page and asset registration behavior in `docs/module-contract.md`, updated decisions, and bumped first-party module metadata to `0.31.15`.
+- Bumped the app version to `0.31.15`.
+
+## Version 0.31.14 - 2026-06-05 00:31 -04:00
+
+- Added server-owned `moduleSettings` metadata to `/api/settings` so module settings pages can render registry-defined fields and current values.
+- Added server-side module settings validation for unknown modules/settings, read-only fields, value types, select options, and missing writable handlers.
+- Updated Workspace Settings, Tasks Settings, and Time Tracking Settings to render module controls from registry data instead of hard-coded first-party toggles.
+- Kept workspace identity, billing, audit, reminder defaults, and user preferences separate from module-owned settings.
+- Documented the registry-driven module settings contract in `docs/module-contract.md` and recorded the 0.31.14 decisions.
+- Bumped the app version to `0.31.14`.
+
 ## Version 0.31.13 - 2026-06-04 23:52 -04:00
 
 - Added authenticated `/api/app-shell/bootstrap` with app metadata, active workspace context, workspace switcher data, enabled modules, registry-driven navigation, notification placeholders, user theme/timezone basics, and permission hints.

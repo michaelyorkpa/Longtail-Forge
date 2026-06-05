@@ -115,6 +115,7 @@ async function saveSettings() {
     timeTrackingEnabled: readModuleBooleanSetting("timeTrackingEnabled", true),
     tasksEnabled: readModuleBooleanSetting("tasksEnabled", true),
     taskTimersEnabled: readModuleBooleanSetting("taskTimersEnabled", true),
+    moduleSettings: readModuleSettingsPayload(),
     audit: {
       loggingEnabled: auditLoggingEnabledInput.checked,
       retentionDays: auditRetentionDaysSelect.value,
@@ -202,6 +203,7 @@ function normalizeSettings(settings) {
     tasksEnabled: settings?.tasksEnabled === false ? false : true,
     taskTimersEnabled: settings?.taskTimersEnabled === false ? false : true,
     enabledModules: Array.isArray(settings?.enabledModules) ? settings.enabledModules : [],
+    moduleSettings: normalizeModuleSettings(settings?.moduleSettings, settings),
     modules: Array.isArray(settings?.modules) ? settings.modules : [],
     audit: normalizeAuditSettings(settings?.audit),
     taskReminderDefaults: normalizeReminderPolicy(settings?.taskReminderDefaults),
@@ -213,7 +215,7 @@ function renderModuleSettings(settings) {
     return;
   }
 
-  const moduleSettings = readRenderableModuleSettings(settings);
+  const moduleSettings = settings.moduleSettings || [];
   moduleSettingsContainer.replaceChildren();
 
   if (moduleSettings.length === 0) {
@@ -224,56 +226,204 @@ function renderModuleSettings(settings) {
     return;
   }
 
-  moduleSettings.forEach((setting) => {
-    const label = document.createElement("label");
-    const input = document.createElement("input");
+  moduleSettings.forEach((moduleDefinition) => {
+    const group = document.createElement("section");
+    const heading = document.createElement("h2");
 
-    label.className = "inline-option";
-    input.type = "checkbox";
-    input.checked = setting.value;
-    input.dataset.moduleSetting = setting.id;
-    input.dataset.moduleId = setting.moduleId;
+    group.className = "module-settings-group";
+    heading.textContent = moduleDefinition.displayName || moduleDefinition.name || moduleDefinition.moduleId;
+    group.appendChild(heading);
 
-    if (setting.id === "timeTrackingEnabled") {
-      timeTrackingEnabledInput = input;
-    }
-    if (setting.id === "tasksEnabled") {
-      tasksEnabledInput = input;
-    }
-    if (setting.id === "taskTimersEnabled") {
-      taskTimersEnabledInput = input;
-    }
+    (moduleDefinition.settings || []).forEach((setting) => {
+      group.appendChild(createModuleSettingControl(moduleDefinition, setting));
+    });
 
-    label.append(input, document.createTextNode(` ${setting.label}`));
-    moduleSettingsContainer.appendChild(label);
+    moduleSettingsContainer.appendChild(group);
   });
 }
 
-function readRenderableModuleSettings(settings) {
-  return (settings.modules || []).flatMap((moduleDefinition) => {
-    const moduleSettings = Array.isArray(moduleDefinition.settings) ? moduleDefinition.settings : [];
+function normalizeModuleSettings(moduleSettings, settings) {
+  if (Array.isArray(moduleSettings)) {
+    return moduleSettings.map((moduleDefinition) => ({
+      moduleId: String(moduleDefinition.moduleId || moduleDefinition.id || "").trim(),
+      name: String(moduleDefinition.name || "").trim(),
+      displayName: String(moduleDefinition.displayName || moduleDefinition.name || "").trim(),
+      status: moduleDefinition.status === "enabled" ? "enabled" : "disabled",
+      canDisable: moduleDefinition.canDisable !== false,
+      settings: Array.isArray(moduleDefinition.settings)
+        ? moduleDefinition.settings.map((setting) => normalizeModuleSetting(moduleDefinition, setting, settings))
+        : [],
+    })).filter((moduleDefinition) => moduleDefinition.moduleId && moduleDefinition.settings.length > 0);
+  }
 
-    return moduleSettings
-      .filter((setting) => setting.type === "boolean")
-      .map((setting) => ({
-        id: setting.id,
-        label: setting.label || moduleDefinition.displayName || moduleDefinition.name || setting.id,
-        moduleId: moduleDefinition.id,
-        value: setting.id === "timeTrackingEnabled"
-          ? settings.timeTrackingEnabled !== false
-          : setting.id === "tasksEnabled"
-            ? settings.tasksEnabled !== false
-            : setting.id === "taskTimersEnabled"
-              ? settings.taskTimersEnabled !== false
-              : moduleDefinition.status === "enabled",
-      }));
+  return (settings?.modules || []).flatMap((moduleDefinition) => {
+    const fields = Array.isArray(moduleDefinition.settings) ? moduleDefinition.settings : [];
+
+    return fields.length > 0
+      ? [{
+          moduleId: moduleDefinition.id,
+          name: moduleDefinition.name,
+          displayName: moduleDefinition.displayName || moduleDefinition.name,
+          status: moduleDefinition.status === "enabled" ? "enabled" : "disabled",
+          canDisable: moduleDefinition.canDisable !== false,
+          settings: fields.map((setting) => normalizeModuleSetting(moduleDefinition, setting, settings)),
+        }]
+      : [];
   });
+}
+
+function normalizeModuleSetting(moduleDefinition, setting, settings) {
+  const moduleId = moduleDefinition.moduleId || moduleDefinition.id || setting.moduleId || "";
+  const value = Object.hasOwn(setting, "value")
+    ? setting.value
+    : setting.id === "timeTrackingEnabled"
+      ? settings?.timeTrackingEnabled !== false
+      : setting.id === "tasksEnabled"
+        ? settings?.tasksEnabled !== false
+        : setting.id === "taskTimersEnabled"
+          ? settings?.taskTimersEnabled !== false
+          : moduleDefinition.status === "enabled";
+
+  return {
+    id: String(setting.id || "").trim(),
+    label: String(setting.label || setting.id || "").trim(),
+    description: String(setting.description || "").trim(),
+    moduleId,
+    moduleStatus: setting.moduleStatus === true,
+    options: Array.isArray(setting.options) ? setting.options : [],
+    placeholder: String(setting.placeholder || "").trim(),
+    readOnly: setting.readOnly === true,
+    type: normalizeModuleSettingType(setting.type),
+    value,
+  };
+}
+
+function normalizeModuleSettingType(type) {
+  return ["boolean", "text", "number", "select", "multi-select", "info"].includes(type) ? type : "info";
+}
+
+function createModuleSettingControl(moduleDefinition, setting) {
+  if (setting.type === "info") {
+    const paragraph = document.createElement("p");
+    paragraph.className = "settings-help";
+    paragraph.textContent = setting.description || setting.label;
+    return paragraph;
+  }
+
+  const label = document.createElement("label");
+  const input = createModuleSettingInput(setting);
+
+  label.className = setting.type === "boolean" ? "inline-option" : "";
+  input.dataset.moduleSetting = setting.id;
+  input.dataset.moduleId = setting.moduleId || moduleDefinition.moduleId;
+  input.dataset.moduleSettingType = setting.type;
+
+  if (setting.readOnly) {
+    input.disabled = true;
+  }
+
+  rememberLegacyModuleInput(setting.id, input);
+
+  if (setting.type === "boolean") {
+    label.append(input, document.createTextNode(` ${setting.label}`));
+  } else {
+    label.append(document.createTextNode(setting.label), input);
+  }
+
+  if (setting.description) {
+    const help = document.createElement("span");
+    help.className = "settings-help";
+    help.textContent = setting.description;
+    label.appendChild(help);
+  }
+
+  return label;
+}
+
+function createModuleSettingInput(setting) {
+  if (setting.type === "boolean") {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = setting.value !== false;
+    return input;
+  }
+
+  if (setting.type === "select" || setting.type === "multi-select") {
+    const select = document.createElement("select");
+    select.multiple = setting.type === "multi-select";
+    (setting.options || []).forEach((option) => {
+      const optionElement = document.createElement("option");
+      optionElement.value = option.value;
+      optionElement.textContent = option.label;
+      optionElement.selected = Array.isArray(setting.value)
+        ? setting.value.includes(option.value)
+        : setting.value === option.value;
+      select.appendChild(optionElement);
+    });
+    return select;
+  }
+
+  const input = document.createElement("input");
+  input.type = setting.type === "number" ? "number" : "text";
+  input.value = setting.value ?? "";
+  input.placeholder = setting.placeholder || "";
+  return input;
+}
+
+function rememberLegacyModuleInput(settingId, input) {
+  if (settingId === "timeTrackingEnabled") {
+    timeTrackingEnabledInput = input;
+  }
+  if (settingId === "tasksEnabled") {
+    tasksEnabledInput = input;
+  }
+  if (settingId === "taskTimersEnabled") {
+    taskTimersEnabledInput = input;
+  }
 }
 
 function readModuleBooleanSetting(settingId, fallback) {
   const input = document.querySelector(`[data-module-setting="${settingId}"]`);
 
   return input ? input.checked : fallback;
+}
+
+function readModuleSettingsPayload() {
+  const payload = {};
+
+  document.querySelectorAll("[data-module-setting]").forEach((input) => {
+    if (input.disabled) {
+      return;
+    }
+
+    const moduleId = input.dataset.moduleId;
+    const settingId = input.dataset.moduleSetting;
+
+    if (!moduleId || !settingId) {
+      return;
+    }
+
+    payload[moduleId] = payload[moduleId] || {};
+    payload[moduleId][settingId] = readModuleSettingInputValue(input);
+  });
+
+  return payload;
+}
+
+function readModuleSettingInputValue(input) {
+  if (input.dataset.moduleSettingType === "boolean") {
+    return input.checked;
+  }
+
+  if (input.dataset.moduleSettingType === "number") {
+    return Number(input.value);
+  }
+
+  if (input.dataset.moduleSettingType === "multi-select") {
+    return Array.from(input.selectedOptions).map((option) => option.value);
+  }
+
+  return input.value;
 }
 
 function normalizeWorkspaceType(value) {

@@ -35,6 +35,9 @@ These fields are currently accepted by the manifest validator:
 - `protectedViewsDir`: optional URL/string ownership hint for authenticated module pages.
 - `publicViewsDir`: optional URL/string ownership hint for public module pages.
 - `browserAssetsDir`: optional URL/string ownership hint for module browser assets.
+- `protectedViews`: optional authenticated module page descriptors.
+- `publicViews`: optional public module page descriptors, reserved for later public module pages.
+- `browserAssets`: optional browser asset descriptors for module-specific scripts or styles.
 - `navigation`: optional app-shell link descriptors.
 - `dashboard`: optional Dashboard panel descriptors.
 - `reporting`: optional reporting contribution descriptors.
@@ -71,6 +74,14 @@ Navigation items require `label` and `href`; they may include `parent` and `requ
 
 The authenticated app shell reads module navigation through `/api/app-shell/bootstrap`. The backend combines framework-owned navigation such as Dashboard, Workbench, workspace settings, user settings, workspace switching, API keys, and audit links with enabled module navigation from the registry. The browser app shell renders the returned tree directly and keeps the static browser nav only as a fallback while bootstrap data is loading or unavailable.
 
+Protected view descriptors require `id`, `path`, `moduleId`, and `file`; they may include `requiredPermissions`, `requiredWorkspaceCapabilities`, and `allowDisabledRead`. The static view service serves protected module pages only when a registered view matches the requested path. Unknown protected HTML files are not served merely because they exist under `views/protected`.
+
+Framework-owned protected views are registered by the framework rather than by optional workflow modules. Dashboard, Workbench, Workspace Settings, User Settings, API Keys, Audit Log, Reporting, and legacy Organization Settings remain framework-owned in 0.31.15. Workbench is specifically not owned by Tasks, Time Tracking, Notes, Support Tickets, or any other workflow module.
+
+When a protected module view belongs to a disabled module, the view service returns a disabled-module response unless the descriptor sets `allowDisabledRead: true` and the module allows historical reads. Permission checks are server-side; `requiredPermissions` on the view descriptor is treated as the page-level gate before the module's APIs enforce record-level access.
+
+Browser asset descriptors require `id`, `moduleId`, `path`, and `type` (`script` or `style`); they may include `views`, `requiredPermissions`, and `requiredWorkspaceCapabilities`. Common app-shell assets such as navigation, theme initialization, workspace switching, global search placeholders, notification placeholders, and shared CSS remain framework-owned. Module-specific page scripts/styles should be declared by the owning module and loaded only on the pages that need them.
+
 Dashboard items require `id` and `label`; renderer/count/link metadata may be added by module-specific dashboard features.
 
 Workbench cards require `id`, `label`, `renderer`, and `moduleId`; they may include `requiredPermissions`, `requiredWorkspaceCapabilities`, `requiresEnabledModules`, `defaultCollapsed`, and `sortOrder`. Workbench cards from disabled modules should be hidden. Framework-owned Workbench cards, such as active timers, are allowed for core workflow areas.
@@ -79,7 +90,11 @@ Timer sources declare record types that can start or control timers. A timer sou
 
 Workbench item sources expose actionable records to the Workbench page. They require `sourceType`, `moduleId`, `label`, and `listRoute`; they may include `requiredPermissions`, `requiredModules`, `filterHints`, and `sortHints`. Records should normalize to `source_module_id`, `source_type`, `source_id`, `source_label`, `source_url`, `title`, `description`, `client_id`, `client_name`, `project_id`, `project_name`, `status`, `priority`, `due_at`, `assignee_ids`, `timer_status`, and `elapsed_seconds`.
 
-Settings items require `id`, `label`, and `type`; a setting with `moduleStatus: true` controls the module enablement row, while related sub-options can use `moduleStatus: false`.
+Settings items require `id`, `label`, and `type`. Supported field types are `boolean`, `text`, `number`, `select`, `multi-select`, and `info`. Settings may include `description`, `placeholder`, `options`, `min`, `max`, `step`, `requiredPermissions`, `readOnly`, and `moduleStatus`.
+
+A setting with `moduleStatus: true` controls the module enablement row through `workspace_modules`; it must be validated and saved by the server through the registry service. Related module options use `moduleStatus: false` and require an explicit server-side settings handler before they can be writable. The browser settings UI renders field definitions and values from the backend `moduleSettings` payload instead of hard-coding first-party module toggles.
+
+The `/api/settings` save contract accepts a `moduleSettings` object keyed by module ID and setting ID. The server rejects unknown module IDs, unknown setting IDs, read-only fields, invalid value types, invalid select options, and writable settings that do not have a server-side handler. Legacy booleans such as `timeTrackingEnabled`, `tasksEnabled`, and `taskTimersEnabled` are still accepted as compatibility aliases for their registry settings.
 
 Public API endpoint descriptors require `method`, `path`, and `scope`.
 
@@ -112,6 +127,22 @@ const exampleModule = {
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
   navigation: [{ label: "Example Work", href: "example-work.html" }],
+  protectedViews: [{
+    id: "example-work",
+    path: "/example-work.html",
+    moduleId: "example-work",
+    file: "example-work.html",
+    requiredPermissions: ["example.view"],
+    requiredWorkspaceCapabilities: ["example_work"],
+    allowDisabledRead: true,
+  }],
+  browserAssets: [{
+    id: "example-work-script",
+    moduleId: "example-work",
+    path: "/js/example-work.js",
+    type: "script",
+    views: ["example-work"],
+  }],
   dashboard: [{ id: "example-summary", label: "Example Summary" }],
   workbench: [{
     id: "example-items",
@@ -124,7 +155,13 @@ const exampleModule = {
     defaultCollapsed: false,
     sortOrder: 30,
   }],
-  settings: [{ id: "exampleWorkEnabled", label: "Example Work", type: "boolean", moduleStatus: true }],
+  settings: [
+    { id: "exampleWorkEnabled", label: "Example Work", type: "boolean", moduleStatus: true },
+    { id: "exampleMode", label: "Mode", type: "select", options: [
+      { label: "Simple", value: "simple" },
+      { label: "Detailed", value: "detailed" },
+    ] },
+  ],
   requiredPermissions: ["example.view", "example.create"],
   publicApiEndpoints: [{ method: "GET", path: "/api/v1/example-work", scope: "example:read" }],
   apiScopes: ["example:read"],

@@ -1,15 +1,14 @@
 const moduleSettingsForm = document.querySelector("[data-module-settings-form]");
 const moduleSettingsStatus = document.querySelector("[data-module-settings-status]");
+const moduleSettingsFields = document.querySelector("[data-module-settings-fields]");
 const saveModuleSettingsButton = document.querySelector("[data-save-module-settings]");
-const timeTrackingEnabledInput = document.querySelector("[data-time-tracking-enabled]");
-const tasksEnabledInput = document.querySelector("[data-tasks-enabled]");
-const taskTimersEnabledInput = document.querySelector("[data-task-timers-enabled]");
 const reminderDateTimeHours1Input = document.querySelector("[data-workspace-reminder-date-time-hours-1]");
 const reminderDateTimeHours2Input = document.querySelector("[data-workspace-reminder-date-time-hours-2]");
 const reminderDateOnlyDays1Input = document.querySelector("[data-workspace-reminder-date-only-days-1]");
 const reminderDateOnlyDays2Input = document.querySelector("[data-workspace-reminder-date-only-days-2]");
 
 let currentSettings = null;
+let currentModule = null;
 
 moduleSettingsForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -23,6 +22,7 @@ async function loadSettings() {
 
   try {
     currentSettings = normalizeSettings(await window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }));
+    currentModule = findCurrentModule(currentSettings);
     writeSettings(currentSettings);
     setStatus("");
   } catch (error) {
@@ -37,9 +37,7 @@ async function saveSettings() {
 
   const payload = {
     ...currentSettings,
-    timeTrackingEnabled: timeTrackingEnabledInput ? timeTrackingEnabledInput.checked : currentSettings.timeTrackingEnabled,
-    tasksEnabled: tasksEnabledInput ? tasksEnabledInput.checked : currentSettings.tasksEnabled,
-    taskTimersEnabled: taskTimersEnabledInput ? taskTimersEnabledInput.checked : currentSettings.taskTimersEnabled,
+    moduleSettings: readModuleSettingsPayload(),
     taskReminderDefaults: readReminderDefaults(),
   };
 
@@ -49,6 +47,7 @@ async function saveSettings() {
   try {
     const result = await window.LongtailForge.api.putJson("/api/settings", payload);
     currentSettings = normalizeSettings(result.data || result);
+    currentModule = findCurrentModule(currentSettings);
     writeSettings(currentSettings);
     flashSavedState();
   } catch (error) {
@@ -59,19 +58,137 @@ async function saveSettings() {
 }
 
 function writeSettings(settings) {
-  if (timeTrackingEnabledInput) {
-    timeTrackingEnabledInput.checked = settings.timeTrackingEnabled;
-  }
-
-  if (tasksEnabledInput) {
-    tasksEnabledInput.checked = settings.tasksEnabled;
-  }
-
-  if (taskTimersEnabledInput) {
-    taskTimersEnabledInput.checked = settings.taskTimersEnabled;
-  }
-
+  renderModuleSettings(settings);
   writeReminderDefaults(settings.taskReminderDefaults);
+}
+
+function renderModuleSettings() {
+  if (!moduleSettingsFields) {
+    return;
+  }
+
+  moduleSettingsFields.replaceChildren();
+
+  if (!currentModule) {
+    const placeholder = document.createElement("p");
+    placeholder.className = "placeholder-copy";
+    placeholder.textContent = "No configurable module settings are available.";
+    moduleSettingsFields.appendChild(placeholder);
+    return;
+  }
+
+  (currentModule.settings || []).forEach((setting) => {
+    moduleSettingsFields.appendChild(createModuleSettingControl(currentModule, setting));
+  });
+}
+
+function createModuleSettingControl(moduleDefinition, setting) {
+  if (setting.type === "info") {
+    const paragraph = document.createElement("p");
+    paragraph.className = "settings-help";
+    paragraph.textContent = setting.description || setting.label;
+    return paragraph;
+  }
+
+  const label = document.createElement("label");
+  const input = createModuleSettingInput(setting);
+
+  label.className = setting.type === "boolean" ? "inline-option" : "";
+  input.dataset.moduleSetting = setting.id;
+  input.dataset.moduleId = setting.moduleId || moduleDefinition.moduleId;
+  input.dataset.moduleSettingType = setting.type;
+
+  if (setting.readOnly) {
+    input.disabled = true;
+  }
+
+  if (setting.type === "boolean") {
+    label.append(input, document.createTextNode(` ${setting.label}`));
+  } else {
+    label.append(document.createTextNode(setting.label), input);
+  }
+
+  if (setting.description) {
+    const help = document.createElement("span");
+    help.className = "settings-help";
+    help.textContent = setting.description;
+    label.appendChild(help);
+  }
+
+  return label;
+}
+
+function createModuleSettingInput(setting) {
+  if (setting.type === "boolean") {
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = setting.value !== false;
+    return input;
+  }
+
+  if (setting.type === "select" || setting.type === "multi-select") {
+    const select = document.createElement("select");
+    select.multiple = setting.type === "multi-select";
+    (setting.options || []).forEach((option) => {
+      const optionElement = document.createElement("option");
+      optionElement.value = option.value;
+      optionElement.textContent = option.label;
+      optionElement.selected = Array.isArray(setting.value)
+        ? setting.value.includes(option.value)
+        : setting.value === option.value;
+      select.appendChild(optionElement);
+    });
+    return select;
+  }
+
+  const input = document.createElement("input");
+  input.type = setting.type === "number" ? "number" : "text";
+  input.value = setting.value ?? "";
+  input.placeholder = setting.placeholder || "";
+  return input;
+}
+
+function readModuleSettingsPayload() {
+  const payload = {};
+
+  document.querySelectorAll("[data-module-setting]").forEach((input) => {
+    if (input.disabled) {
+      return;
+    }
+
+    const moduleId = input.dataset.moduleId;
+    const settingId = input.dataset.moduleSetting;
+
+    if (!moduleId || !settingId) {
+      return;
+    }
+
+    payload[moduleId] = payload[moduleId] || {};
+    payload[moduleId][settingId] = readModuleSettingInputValue(input);
+  });
+
+  return payload;
+}
+
+function readModuleSettingInputValue(input) {
+  if (input.dataset.moduleSettingType === "boolean") {
+    return input.checked;
+  }
+
+  if (input.dataset.moduleSettingType === "number") {
+    return Number(input.value);
+  }
+
+  if (input.dataset.moduleSettingType === "multi-select") {
+    return Array.from(input.selectedOptions).map((option) => option.value);
+  }
+
+  return input.value;
+}
+
+function findCurrentModule(settings) {
+  const moduleId = moduleSettingsForm?.dataset.moduleSettingsForm || "";
+  return (settings.moduleSettings || []).find((moduleDefinition) => moduleDefinition.moduleId === moduleId) || null;
 }
 
 function normalizeSettings(settings) {
@@ -85,9 +202,56 @@ function normalizeSettings(settings) {
     timeTrackingEnabled: settings?.timeTrackingEnabled === false ? false : true,
     tasksEnabled: settings?.tasksEnabled === false ? false : true,
     taskTimersEnabled: settings?.taskTimersEnabled === false ? false : true,
+    moduleSettings: normalizeModuleSettings(settings?.moduleSettings, settings),
     audit: normalizeAuditSettings(settings?.audit),
     taskReminderDefaults: normalizeReminderPolicy(settings?.taskReminderDefaults),
   };
+}
+
+function normalizeModuleSettings(moduleSettings, settings) {
+  if (!Array.isArray(moduleSettings)) {
+    return [];
+  }
+
+  return moduleSettings.map((moduleDefinition) => ({
+    moduleId: String(moduleDefinition.moduleId || moduleDefinition.id || "").trim(),
+    name: String(moduleDefinition.name || "").trim(),
+    displayName: String(moduleDefinition.displayName || moduleDefinition.name || "").trim(),
+    status: moduleDefinition.status === "enabled" ? "enabled" : "disabled",
+    canDisable: moduleDefinition.canDisable !== false,
+    settings: Array.isArray(moduleDefinition.settings)
+      ? moduleDefinition.settings.map((setting) => normalizeModuleSetting(moduleDefinition, setting, settings))
+      : [],
+  })).filter((moduleDefinition) => moduleDefinition.moduleId && moduleDefinition.settings.length > 0);
+}
+
+function normalizeModuleSetting(moduleDefinition, setting, settings) {
+  const value = Object.hasOwn(setting, "value")
+    ? setting.value
+    : setting.id === "timeTrackingEnabled"
+      ? settings?.timeTrackingEnabled !== false
+      : setting.id === "tasksEnabled"
+        ? settings?.tasksEnabled !== false
+        : setting.id === "taskTimersEnabled"
+          ? settings?.taskTimersEnabled !== false
+          : moduleDefinition.status === "enabled";
+
+  return {
+    id: String(setting.id || "").trim(),
+    label: String(setting.label || setting.id || "").trim(),
+    description: String(setting.description || "").trim(),
+    moduleId: String(setting.moduleId || moduleDefinition.moduleId || moduleDefinition.id || "").trim(),
+    moduleStatus: setting.moduleStatus === true,
+    options: Array.isArray(setting.options) ? setting.options : [],
+    placeholder: String(setting.placeholder || "").trim(),
+    readOnly: setting.readOnly === true,
+    type: normalizeModuleSettingType(setting.type),
+    value,
+  };
+}
+
+function normalizeModuleSettingType(type) {
+  return ["boolean", "text", "number", "select", "multi-select", "info"].includes(type) ? type : "info";
 }
 
 function normalizeWorkspaceType(value) {

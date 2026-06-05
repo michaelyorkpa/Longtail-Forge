@@ -5,7 +5,7 @@ import { asyncRoute } from "../utils/http.js";
 const staticRoutes = Router();
 
 staticRoutes.get("*", asyncRoute(async (request, response) => {
-  const result = await staticService.read(request.url);
+  const result = await staticService.read(request.url, request.session);
 
   response.writeHead(result.statusCode, {
     "Content-Type": result.contentType,

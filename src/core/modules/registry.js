@@ -19,6 +19,9 @@ function cloneModuleDefinition(definition) {
     browserApiRoutes: [...(definition.browserApiRoutes || [])],
     publicApiRoutes: [...(definition.publicApiRoutes || [])],
     navigation: [...(definition.navigation || [])],
+    protectedViews: [...(definition.protectedViews || [])],
+    publicViews: [...(definition.publicViews || [])],
+    browserAssets: [...(definition.browserAssets || [])],
     dashboard: [...(definition.dashboard || [])],
     reporting: [...(definition.reporting || [])],
     workbench: [...(definition.workbench || [])],
@@ -102,6 +105,18 @@ function listModuleMigrationSources() {
     }));
 }
 
+function listModuleProtectedViews() {
+  return listContribution("protectedViews");
+}
+
+function listModulePublicViews() {
+  return listContribution("publicViews");
+}
+
+function listModuleBrowserAssets() {
+  return listContribution("browserAssets");
+}
+
 function listModulePermissions() {
   return uniqueStrings(moduleDefinitions.flatMap((definition) => definition.requiredPermissions || []));
 }
@@ -148,10 +163,13 @@ function uniqueStrings(values) {
 export {
   getModule,
   listBrowserApiRoutes,
+  listModuleBrowserAssets,
   listModuleApiScopes,
   listModuleApiScopeEntries,
   listModuleMigrationSources,
   listModulePermissions,
+  listModuleProtectedViews,
+  listModulePublicViews,
   listModuleRouteEntries,
   listModuleRoutes,
   listModules,
