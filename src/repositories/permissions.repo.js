@@ -19,6 +19,32 @@ ORDER BY role_id, permission_id;
 `);
 }
 
+async function ensurePermissionContracts(permissions, roleDefaults) {
+  const permissionStatements = permissions.map((permission) => `
+INSERT OR IGNORE INTO permissions (permission_id, permission_name, description)
+VALUES (
+  ${sqlText(permission.id)},
+  ${sqlText(permission.label || permission.id)},
+  ${sqlText(permission.description || permission.id)}
+);
+
+UPDATE permissions
+SET permission_name = ${sqlText(permission.label || permission.id)},
+    description = ${sqlText(permission.description || permission.id)}
+WHERE permission_id = ${sqlText(permission.id)};
+`).join("\n");
+  const rolePermissionStatements = roleDefaults.flatMap((mapping) => (
+    mapping.permissions || []
+  ).map((permissionId) => `
+INSERT OR IGNORE INTO role_permissions (role_id, permission_id)
+SELECT ${sqlText(mapping.roleId)}, ${sqlText(permissionId)}
+WHERE EXISTS (SELECT 1 FROM roles WHERE role_id = ${sqlText(mapping.roleId)})
+  AND EXISTS (SELECT 1 FROM permissions WHERE permission_id = ${sqlText(permissionId)});
+`)).join("\n");
+
+  await runSql([permissionStatements, rolePermissionStatements].filter(Boolean).join("\n"));
+}
+
 async function readAssignmentsForWorkspace(workspaceId) {
   return querySql(`
 SELECT
@@ -102,6 +128,7 @@ COMMIT;
 }
 
 export const permissionsRepository = {
+  ensurePermissionContracts,
   readAssignmentsForWorkspace,
   readAssignmentsForUser,
   readRolePermissions,

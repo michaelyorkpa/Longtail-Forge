@@ -22,7 +22,10 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "reporting",
   "workbench",
   "settings",
+  "permissions",
   "requiredPermissions",
+  "defaultRolePermissions",
+  "resourceDefinitions",
   "publicApiEndpoints",
   "apiScopes",
   "timerSources",
@@ -73,7 +76,6 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   optionalArray(moduleDefinition, "browserApiRoutes", errors);
   optionalArray(moduleDefinition, "publicApiRoutes", errors);
   optionalStringArray(moduleDefinition, "requiredPermissions", errors);
-  optionalStringArray(moduleDefinition, "apiScopes", errors);
   optionalStringArray(moduleDefinition, "frameworkDependencies", errors);
   optionalStringArray(moduleDefinition, "moduleDependencies", errors);
   optionalStringArray(moduleDefinition, "workspaceCapabilityRequirements", errors);
@@ -86,6 +88,10 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateDashboard(moduleDefinition.dashboard, errors);
   validateWorkbench(moduleDefinition.workbench, errors);
   validateSettings(moduleDefinition.settings, errors);
+  validatePermissions(moduleDefinition.permissions, moduleDefinition.id, errors);
+  validateDefaultRolePermissions(moduleDefinition.defaultRolePermissions, errors);
+  validateResourceDefinitions(moduleDefinition.resourceDefinitions, moduleDefinition.id, errors);
+  validateApiScopes(moduleDefinition.apiScopes, moduleDefinition.id, errors);
   validatePublicApiEndpoints(moduleDefinition.publicApiEndpoints, errors);
   validateHooks(moduleDefinition.hooks, errors);
   validateTimerSources(moduleDefinition.timerSources, moduleDefinition.id, errors);
@@ -215,6 +221,64 @@ function validateSettings(settings, errors) {
     optionalNumber(item, "step", errors, { prefix: `settings[${index}]` });
     optionalBoolean(item, "moduleStatus", errors, { prefix: `settings[${index}]` });
     optionalBoolean(item, "readOnly", errors, { prefix: `settings[${index}]` });
+  });
+}
+
+function validatePermissions(permissions, moduleId, errors) {
+  optionalArrayOfObjects(permissions, "permissions", errors, (item, index) => {
+    requireString(item, "id", errors, { prefix: `permissions[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `permissions[${index}]` });
+    requireString(item, "label", errors, { prefix: `permissions[${index}]` });
+    requireString(item, "description", errors, { prefix: `permissions[${index}]` });
+    optionalString(item, "resource", errors, { prefix: `permissions[${index}]` });
+    optionalString(item, "operation", errors, { prefix: `permissions[${index}]` });
+  });
+}
+
+function validateDefaultRolePermissions(defaultRolePermissions, errors) {
+  optionalArrayOfObjects(defaultRolePermissions, "defaultRolePermissions", errors, (item, index) => {
+    requireString(item, "roleId", errors, { prefix: `defaultRolePermissions[${index}]` });
+    optionalStringArray(item, "permissions", errors, { prefix: `defaultRolePermissions[${index}]` });
+  });
+}
+
+function validateResourceDefinitions(resourceDefinitions, moduleId, errors) {
+  optionalArrayOfObjects(resourceDefinitions, "resourceDefinitions", errors, (item, index) => {
+    requireString(item, "key", errors, { prefix: `resourceDefinitions[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `resourceDefinitions[${index}]` });
+    requireString(item, "label", errors, { prefix: `resourceDefinitions[${index}]` });
+    optionalStringArray(item, "operations", errors, { prefix: `resourceDefinitions[${index}]` });
+  });
+}
+
+function validateApiScopes(apiScopes, moduleId, errors) {
+  if (apiScopes === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(apiScopes)) {
+    errors.push("apiScopes must be an array.");
+    return;
+  }
+
+  apiScopes.forEach((item, index) => {
+    if (typeof item === "string") {
+      if (!item.trim()) {
+        errors.push(`apiScopes[${index}] must be a non-empty string.`);
+      }
+      return;
+    }
+
+    if (!isPlainObject(item)) {
+      errors.push(`apiScopes[${index}] must be a string or object.`);
+      return;
+    }
+
+    requireString(item, "id", errors, { prefix: `apiScopes[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `apiScopes[${index}]` });
+    requireString(item, "label", errors, { prefix: `apiScopes[${index}]` });
+    requireString(item, "description", errors, { prefix: `apiScopes[${index}]` });
+    optionalString(item, "access", errors, { prefix: `apiScopes[${index}]` });
   });
 }
 

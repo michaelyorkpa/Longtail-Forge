@@ -1,3 +1,13 @@
+## Version 0.31.16 - 2026-06-05 01:12 -04:00
+
+- Added manifest validation and registry normalization for module permission descriptors, role default mappings, resource definitions, and API scope descriptors.
+- Added startup sync that inserts or updates module-declared permissions and adds missing default role permission rows without deleting existing grants.
+- Added first-party permission/resource/API scope metadata for Clients/Projects, Tasks, Time Tracking, and Users.
+- Updated API key scope discovery to read enabled-module scopes from the registry, hiding disabled optional module scopes from new API keys.
+- Updated the API Keys browser UI to render scope labels/descriptions from registry metadata while keeping legacy string scopes compatible.
+- Documented module permission, resource, API scope, and notification access expectations in `docs/module-contract.md`.
+- Bumped the app and first-party module versions to `0.31.16`.
+
 ## Version 0.31.15 - 2026-06-05 00:52 -04:00
 
 - Added module manifest support and validation for protected views, public view placeholders, and browser asset descriptors.

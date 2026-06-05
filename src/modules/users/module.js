@@ -6,7 +6,7 @@ const usersModule = {
   displayName: "Users",
   description: "User administration, profile settings, and role assignment surfaces.",
   category: "core-admin",
-  version: "0.31.15",
+  version: "0.31.16",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: false,
@@ -46,6 +46,38 @@ const usersModule = {
   requiredPermissions: [
     "users.manage",
     "roles.assign",
+  ],
+  permissions: [
+    {
+      id: "users.manage",
+      moduleId: "users",
+      label: "Manage Users",
+      description: "Create, update, deactivate, and assign users.",
+      resource: "users",
+      operation: "manage",
+    },
+    {
+      id: "roles.assign",
+      moduleId: "users",
+      label: "Assign Roles",
+      description: "Add and remove scoped role assignments.",
+      resource: "users",
+      operation: "assign",
+    },
+  ],
+  defaultRolePermissions: [
+    { roleId: "super_admin", permissions: ["users.manage", "roles.assign"] },
+    { roleId: "workspace_admin", permissions: ["users.manage", "roles.assign"] },
+    { roleId: "client_admin", permissions: ["roles.assign"] },
+    { roleId: "project_admin", permissions: ["roles.assign"] },
+  ],
+  resourceDefinitions: [
+    {
+      key: "users",
+      moduleId: "users",
+      label: "Users",
+      operations: ["read", "create", "update", "delete", "assign", "manage"],
+    },
   ],
   publicApiEndpoints: [],
   apiScopes: [],

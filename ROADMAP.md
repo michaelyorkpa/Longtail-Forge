@@ -2,73 +2,20 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.15 - Module Views, Assets, and Page Registration
-
-* [x] Add framework-owned view/page registration
-
-  * [x] Modules can register protected views
-  * [x] Modules can register public views later if needed
-  * [x] Each registered view should define:
-
-    * View ID
-    * URL/path
-    * Module ID
-    * View file
-    * Required permission
-    * Required workspace capability
-    * Whether disabled modules can show historical views
-  * [x] Unknown protected views should not be served just because an HTML file exists
-
-* [x] Update static/view serving to respect module registration
-
-  * [x] Public pages remain framework-owned
-  * [x] Protected framework pages remain framework-owned
-  * [x] Protected module pages are served only when registered
-  * [x] Disabled module views should return a clear disabled-module page or redirect
-  * [x] Unauthorized module views should return the standard unauthorized behavior
-
-* [x] Add module asset registration
-
-  * [x] Allow modules to declare JS/CSS asset paths
-  * [x] Keep common framework CSS/JS global
-  * [x] Keep module-specific JS/CSS module-owned
-  * [x] Avoid loading module-specific frontend code globally unless needed
-
-* [x] Keep framework UI assets in framework/app-shell space
-
-  * [x] Notification bell/toast UI is framework-owned
-  * [x] Global search UI is framework-owned
-  * [x] Workspace switcher is framework-owned
-  * [x] Module pages should not duplicate app shell UI
-
-* [x] Add basic module page documentation
-
-  * [x] Explain how a module registers a protected page
-  * [x] Explain how the navigation entry links to the page
-  * [x] Explain permission and enabled/disabled behavior
-
-* [x] Register the Workbench page as a framework-owned protected view
-
-  * [x] Workbench page is not owned by Tasks, Time Tracking, Notes, or Support Tickets
-  * [x] Workbench page can load module-contributed cards only when those modules are enabled and authorized
-  * [x] Workbench page assets should be framework-owned
-  * [x] Module-specific Workbench card renderers should be module-owned where practical
-  * [x] Unknown/unregistered Workbench card renderers should fail safely with a clear placeholder
-
 ## Version 0.31.16 - Module Permissions and API Scope Contracts
 
-* [ ] Make permissions more module-declarative
+* [x] Make permissions more module-declarative
 
-  * [ ] Modules declare their required permissions in the manifest
-  * [ ] Modules declare user-facing permission labels/descriptions
-  * [ ] Modules declare default role permission mappings where practical
-  * [ ] Framework sync registers module permissions in the database
-  * [ ] Framework sync should not duplicate permissions
+  * [x] Modules declare their required permissions in the manifest
+  * [x] Modules declare user-facing permission labels/descriptions
+  * [x] Modules declare default role permission mappings where practical
+  * [x] Framework sync registers module permissions in the database
+  * [x] Framework sync should not duplicate permissions
 
-* [ ] Add module resource definitions
+* [x] Add module resource definitions
 
-  * [ ] Modules should be able to declare resource keys such as `tasks`, `time_entries`, `tickets`, `notes`, or `messages`
-  * [ ] Resource definitions should include supported operations:
+  * [x] Modules should be able to declare resource keys such as `tasks`, `time_entries`, `tickets`, `notes`, or `messages`
+  * [x] Resource definitions should include supported operations:
 
     * `read`
     * `create`
@@ -78,31 +25,31 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     * `restore`
     * `assign`
     * `manage`
-  * [ ] Permission checking should gradually move away from hard-coded resource key mapping
+  * [x] Permission checking should gradually move away from hard-coded resource key mapping
 
-* [ ] Add framework-owned permission expectations for notifications
+* [x] Add framework-owned permission expectations for notifications
 
-  * [ ] Notifications should never expose records the user cannot access
-  * [ ] Opening a notification should re-check access to the underlying record
-  * [ ] Notification APIs should only return notifications for the authenticated user/workspace
-  * [ ] Workspace admins may eventually manage notification defaults but should not read private user notifications unless explicitly designed later
+  * [x] Notifications should never expose records the user cannot access
+  * [x] Opening a notification should re-check access to the underlying record
+  * [x] Notification APIs should only return notifications for the authenticated user/workspace
+  * [x] Workspace admins may eventually manage notification defaults but should not read private user notifications unless explicitly designed later
 
-* [ ] Make public API scopes more module-declarative
+* [x] Make public API scopes more module-declarative
 
-  * [ ] Modules declare public API scopes
-  * [ ] Modules declare public API endpoints
-  * [ ] API key UI reads available scopes from framework/module registry
-  * [ ] Disabled module scopes should not be offered for new API keys
-  * [ ] Existing API keys should not be able to write to disabled modules
+  * [x] Modules declare public API scopes
+  * [x] Modules declare public API endpoints
+  * [x] API key UI reads available scopes from framework/module registry
+  * [x] Disabled module scopes should not be offered for new API keys
+  * [x] Existing API keys should not be able to write to disabled modules
 
-* [ ] Add tests for permission and scope registration
+* [x] Add tests for permission and scope registration
 
-  * [ ] Verify module permissions are registered
-  * [ ] Verify role permission defaults are applied
-  * [ ] Verify module API scopes appear in API key settings
-  * [ ] Verify disabled modules block public API writes
-  * [ ] Verify unauthorized users do not see module navigation
-  * [ ] Verify users cannot read notifications for records they cannot access
+  * [x] Verify module permissions are registered
+  * [x] Verify role permission defaults are applied
+  * [x] Verify module API scopes appear in API key settings
+  * [x] Verify disabled modules block public API writes
+  * [x] Verify unauthorized users do not see module navigation
+  * [x] Verify users cannot read notifications for records they cannot access
 
 ## Version 0.31.17 - Internal Event and Hook System
 

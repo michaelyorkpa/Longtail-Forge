@@ -43,9 +43,12 @@ These fields are currently accepted by the manifest validator:
 - `reporting`: optional reporting contribution descriptors.
 - `workbench`: optional Workbench card contribution descriptors.
 - `settings`: optional module settings descriptors.
+- `permissions`: optional permission descriptors with user-facing labels and descriptions.
 - `requiredPermissions`: optional permission IDs expected by the module.
+- `defaultRolePermissions`: optional role-to-permission defaults to sync into `role_permissions`.
+- `resourceDefinitions`: optional module resource keys and supported operations.
 - `publicApiEndpoints`: optional public API documentation/discovery descriptors.
-- `apiScopes`: optional API key scope IDs provided by the module.
+- `apiScopes`: optional API key scope descriptors provided by the module.
 - `timerSources`: optional timer-capable source declarations.
 - `workItemSources`: optional actionable Workbench item source declarations.
 - `hooks`: optional lifecycle hook object with `onModuleEnabled`, `onModuleDisabled`, `onModuleInstalled`, `onModuleUpdated`, and `onModuleRepaired` functions.
@@ -96,7 +99,15 @@ A setting with `moduleStatus: true` controls the module enablement row through `
 
 The `/api/settings` save contract accepts a `moduleSettings` object keyed by module ID and setting ID. The server rejects unknown module IDs, unknown setting IDs, read-only fields, invalid value types, invalid select options, and writable settings that do not have a server-side handler. Legacy booleans such as `timeTrackingEnabled`, `tasksEnabled`, and `taskTimersEnabled` are still accepted as compatibility aliases for their registry settings.
 
-Public API endpoint descriptors require `method`, `path`, and `scope`.
+Permission descriptors require `id`, `moduleId`, `label`, and `description`; they may include `resource` and `operation`. `requiredPermissions` remains as a compact compatibility list for route/view contribution filtering, while `permissions` is the user-facing contract used for database sync and future permission UI. Startup sync inserts or updates declared permissions and inserts default role mappings without deleting existing role permissions.
+
+Resource definitions require `key`, `moduleId`, and `label`; they may include supported operations such as `read`, `create`, `update`, `delete`, `archive`, `restore`, `assign`, and `manage`. The current permission engine still maps known action prefixes to resource keys, but module manifests now provide the resource contract future modules and permission UI can consume.
+
+Default role permission mappings require `roleId` and `permissions`. They are additive: the framework inserts missing `role_permissions` rows and does not remove existing rows that were granted by migrations, admins, or older versions.
+
+Public API endpoint descriptors require `method`, `path`, and `scope`. API scope descriptors require `id`, `moduleId`, `label`, and `description`; they may include `access` (`read` or `write`). Legacy string scopes are still accepted by the validator and normalized by the registry. The API key UI reads available scopes from enabled module metadata, so disabled optional module scopes are not offered for new keys. Existing API keys still rely on route-level scope checks and module write guards, so writes to disabled modules remain blocked.
+
+Notification permissions are framework-owned in 0.31.16. Notification APIs must be recipient/workspace scoped, must re-check target record access before opening a notification target, and must not expose private notifications to workspace admins unless a later version explicitly designs that capability.
 
 ## Disable Policy
 
@@ -162,9 +173,32 @@ const exampleModule = {
       { label: "Detailed", value: "detailed" },
     ] },
   ],
+  permissions: [{
+    id: "example.view",
+    moduleId: "example-work",
+    label: "View Example Work",
+    description: "View example work records.",
+    resource: "example_work",
+    operation: "read",
+  }],
+  defaultRolePermissions: [
+    { roleId: "workspace_admin", permissions: ["example.view"] },
+  ],
+  resourceDefinitions: [{
+    key: "example_work",
+    moduleId: "example-work",
+    label: "Example Work",
+    operations: ["read", "create", "update", "archive", "restore"],
+  }],
   requiredPermissions: ["example.view", "example.create"],
   publicApiEndpoints: [{ method: "GET", path: "/api/v1/example-work", scope: "example:read" }],
-  apiScopes: ["example:read"],
+  apiScopes: [{
+    id: "example:read",
+    moduleId: "example-work",
+    label: "Read Example Work",
+    description: "Read example work records through the public API.",
+    access: "read",
+  }],
   timerSources: [],
   workItemSources: [{
     sourceType: "example-item",

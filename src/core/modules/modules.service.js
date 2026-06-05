@@ -4,9 +4,12 @@ import {
   listModuleApiScopeEntries as listRegisteredModuleApiScopeEntries,
   listModuleApiScopes as listRegisteredModuleApiScopes,
   listModuleMigrationSources,
+  listModulePermissionEntries as listRegisteredModulePermissionEntries,
   listModulePermissions as listRegisteredModulePermissions,
   listModuleProtectedViews as listRegisteredModuleProtectedViews,
   listModulePublicViews as listRegisteredModulePublicViews,
+  listModuleResourceDefinitions as listRegisteredModuleResourceDefinitions,
+  listModuleRolePermissionDefaults as listRegisteredModuleRolePermissionDefaults,
   listModuleRouteEntries as listRegisteredModuleRouteEntries,
   listModuleRoutes as listRegisteredModuleRoutes,
   listModules as listRegisteredModules,
@@ -16,6 +19,7 @@ import {
   listTaggableTypes as listRegisteredTaggableTypes,
 } from "./registry.js";
 import { querySql, runSql, sqlText } from "../../db/sqlite.js";
+import { permissionsRepository } from "../../repositories/permissions.repo.js";
 import { AppError } from "../../utils/app-error.js";
 import { getWorkspaceCapabilities } from "../../utils/workspaces.js";
 
@@ -50,6 +54,18 @@ function listModuleRouteEntries(type) {
 
 function listModulePermissions() {
   return listRegisteredModulePermissions();
+}
+
+function listModulePermissionEntries() {
+  return listRegisteredModulePermissionEntries();
+}
+
+function listModuleRolePermissionDefaults() {
+  return listRegisteredModuleRolePermissionDefaults();
+}
+
+function listModuleResourceDefinitions() {
+  return listRegisteredModuleResourceDefinitions();
 }
 
 function listModuleApiScopes() {
@@ -149,6 +165,15 @@ ON CONFLICT(workspace_id, module_id) DO NOTHING;
       });
     }
   }
+
+  await syncModulePermissionContracts();
+}
+
+async function syncModulePermissionContracts() {
+  await permissionsRepository.ensurePermissionContracts(
+    listModulePermissionEntries(),
+    listModuleRolePermissionDefaults(),
+  );
 }
 
 async function decorateWorkspaceSettings(settings, workspaceId) {
@@ -243,6 +268,22 @@ async function listEnabledModules(workspaceId) {
   const moduleContext = await readWorkspaceModuleContext(workspaceId);
 
   return moduleContext.modules.filter((moduleDefinition) => moduleDefinition.status === "enabled");
+}
+
+async function listAvailableApiScopes(workspaceId) {
+  await syncModuleRegistry(workspaceId);
+  const enabledModuleIds = new Set(await readEnabledModuleIds(workspaceId));
+
+  return listModuleApiScopeEntries()
+    .filter((scope) => enabledModuleIds.has(scope.moduleId))
+    .map((scope) => ({
+      id: scope.scope,
+      scope: scope.scope,
+      moduleId: scope.moduleId,
+      label: scope.label,
+      description: scope.description,
+      access: scope.access,
+    }));
 }
 
 async function readEnabledModuleIds(workspaceId) {
@@ -745,9 +786,11 @@ export const modulesService = {
   getTimerSource,
   getWorkItemSource,
   listEnabledModules,
+  listAvailableApiScopes,
   listModuleApiScopes,
   listModuleApiScopeEntries,
   listModuleMigrationSources,
+  listModulePermissionEntries,
   listModuleNavigation,
   listModulePermissions,
   listModuleRouteEntries,
@@ -757,6 +800,8 @@ export const modulesService = {
   listModuleSettings,
   listNotificationEvents,
   listModulePublicViews,
+  listModuleResourceDefinitions,
+  listModuleRolePermissionDefaults,
   listNotificationTemplates,
   listSearchableTypes,
   listTaggableTypes,

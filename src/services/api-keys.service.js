@@ -2,24 +2,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { apiKeysRepository } from "../repositories/api-keys.repo.js";
 import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
+import { modulesService } from "../core/modules/modules.service.js";
 import { AppError } from "../utils/app-error.js";
 
 const API_KEY_PREFIX = "ltf_live";
-const PUBLIC_API_SCOPES = [
-  "clients:read",
-  "clients:write",
-  "projects:read",
-  "projects:write",
-  "time_entries:read",
-  "time_entries:write",
-  "tasks:read",
-  "tasks:write",
-  "notes:read",
-  "notes:write",
-  "tickets:read",
-  "tickets:write",
-];
-const PUBLIC_API_SCOPE_SET = new Set(PUBLIC_API_SCOPES);
 
 async function list(session) {
   await permissionsService.assertCan(session, "workspace_settings.manage", {
@@ -29,7 +15,7 @@ async function list(session) {
 
   return {
     apiKeys: await apiKeysRepository.readAll(session.workspace_id),
-    availableScopes: PUBLIC_API_SCOPES,
+    availableScopes: await modulesService.listAvailableApiScopes(session.workspace_id),
   };
 }
 
@@ -40,7 +26,8 @@ async function create(payload, session) {
   });
 
   const name = String(payload.name || "").trim();
-  const scopes = normalizeScopes(payload.scopes || []);
+  const availableScopes = await modulesService.listAvailableApiScopes(session.workspace_id);
+  const scopes = normalizeScopes(payload.scopes || [], availableScopes);
 
   if (!name) {
     throw new AppError("API key name is required.", 400);
@@ -81,7 +68,7 @@ async function create(payload, session) {
     apiKey: toPublicApiKey(apiKey),
     rawKey,
     apiKeys: await apiKeysRepository.readAll(session.workspace_id),
-    availableScopes: PUBLIC_API_SCOPES,
+    availableScopes,
   };
 }
 
@@ -117,7 +104,7 @@ async function revoke(apiKeyId, session) {
   return {
     apiKey: toPublicApiKey(apiKey),
     apiKeys: await apiKeysRepository.readAll(session.workspace_id),
-    availableScopes: PUBLIC_API_SCOPES,
+    availableScopes: await modulesService.listAvailableApiScopes(session.workspace_id),
   };
 }
 
@@ -139,11 +126,13 @@ async function markUsed(apiKey) {
   await apiKeysRepository.updateLastUsed(apiKey.api_key_id);
 }
 
-function normalizeScopes(scopes) {
+function normalizeScopes(scopes, availableScopes) {
+  const publicApiScopeSet = new Set(availableScopes.map((scope) => scope.id || scope.scope));
+
   return Array.from(new Set(
     scopes
       .map((scope) => String(scope || "").trim())
-      .filter((scope) => PUBLIC_API_SCOPE_SET.has(scope)),
+      .filter((scope) => publicApiScopeSet.has(scope)),
   ));
 }
 
@@ -174,7 +163,6 @@ function toPublicApiKey(apiKey) {
 }
 
 export const apiKeysService = {
-  availableScopes: PUBLIC_API_SCOPES,
   create,
   hasScope,
   list,

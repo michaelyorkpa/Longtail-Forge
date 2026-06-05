@@ -7,7 +7,7 @@ const timeTrackingModule = {
   displayName: "Time Tracking",
   description: "Timers, manual entries, editable time entries, and billable time capture.",
   category: "core-workflow",
-  version: "0.31.15",
+  version: "0.31.16",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -123,6 +123,63 @@ const timeTrackingModule = {
     "time_entries.edit_all",
     "reporting.view",
   ],
+  permissions: [
+    {
+      id: "time_entries.create",
+      moduleId: "time-tracking",
+      label: "Create Time Entries",
+      description: "Create stopwatch and manual time entries.",
+      resource: "time_entries",
+      operation: "create",
+    },
+    {
+      id: "time_entries.edit_own",
+      moduleId: "time-tracking",
+      label: "Edit Own Time Entries",
+      description: "Edit or delete only the actor's own time entries in scope.",
+      resource: "time_entries",
+      operation: "update",
+    },
+    {
+      id: "time_entries.edit_all",
+      moduleId: "time-tracking",
+      label: "Edit All Time Entries",
+      description: "Edit or delete time entries in scope.",
+      resource: "time_entries",
+      operation: "update",
+    },
+    {
+      id: "reporting.view",
+      moduleId: "time-tracking",
+      label: "View Reporting",
+      description: "View reports in scope.",
+      resource: "reporting",
+      operation: "read",
+    },
+  ],
+  defaultRolePermissions: [
+    { roleId: "super_admin", permissions: ["time_entries.create", "time_entries.edit_all", "reporting.view"] },
+    { roleId: "workspace_admin", permissions: ["time_entries.create", "time_entries.edit_all", "reporting.view"] },
+    { roleId: "client_admin", permissions: ["time_entries.create", "time_entries.edit_all", "reporting.view"] },
+    { roleId: "project_admin", permissions: ["time_entries.create", "time_entries.edit_all", "reporting.view"] },
+    { roleId: "client_user", permissions: ["time_entries.create", "time_entries.edit_own", "reporting.view"] },
+    { roleId: "project_user", permissions: ["time_entries.create", "time_entries.edit_own", "reporting.view"] },
+    { roleId: "client_external_user", permissions: ["time_entries.create", "time_entries.edit_own"] },
+  ],
+  resourceDefinitions: [
+    {
+      key: "time_entries",
+      moduleId: "time-tracking",
+      label: "Time Entries",
+      operations: ["read", "create", "update", "delete", "manage"],
+    },
+    {
+      key: "reporting",
+      moduleId: "time-tracking",
+      label: "Reporting",
+      operations: ["read"],
+    },
+  ],
   workspaceCapabilityRequirements: ["time_tracking", "time_tracking_optional"],
   settings: [
     {
@@ -132,7 +189,22 @@ const timeTrackingModule = {
       moduleStatus: true,
     },
   ],
-  apiScopes: ["time_entries:read", "time_entries:write"],
+  apiScopes: [
+    {
+      id: "time_entries:read",
+      moduleId: "time-tracking",
+      label: "Read Time Entries",
+      description: "Read time entries through the public API.",
+      access: "read",
+    },
+    {
+      id: "time_entries:write",
+      moduleId: "time-tracking",
+      label: "Write Time Entries",
+      description: "Create time entries through the public API.",
+      access: "write",
+    },
+  ],
   timerSources: [
     {
       sourceType: "manual",

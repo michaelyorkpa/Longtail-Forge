@@ -36,7 +36,7 @@ async function loadApiKeys() {
   try {
     const body = await window.LongtailForge.api.getJson("/api/api-keys", { cache: "no-store" });
 
-    availableScopes = body.availableScopes || [];
+    availableScopes = normalizeAvailableScopes(body.availableScopes || []);
     renderScopeControls();
     renderApiKeys(body.apiKeys || []);
     setApiKeyStatus("");
@@ -92,12 +92,17 @@ function renderScopeControls() {
   availableScopes.forEach((scope) => {
     const label = document.createElement("label");
     const checkbox = document.createElement("input");
+    const labelText = document.createElement("span");
 
     label.className = "inline-option";
     checkbox.type = "checkbox";
-    checkbox.value = scope;
+    checkbox.value = scope.id;
     checkbox.dataset.apiKeyScope = "";
-    label.append(checkbox, document.createTextNode(scope));
+    labelText.textContent = `${scope.label || scope.id} (${scope.id})`;
+    if (scope.description) {
+      label.title = scope.description;
+    }
+    label.append(checkbox, labelText);
     apiKeyScopes.appendChild(label);
   });
 }
@@ -181,6 +186,25 @@ async function revokeApiKey(apiKey) {
 function readSelectedScopes() {
   return Array.from(apiKeyScopes.querySelectorAll("[data-api-key-scope]:checked"))
     .map((checkbox) => checkbox.value);
+}
+
+function normalizeAvailableScopes(scopes) {
+  return scopes.map((scope) => {
+    if (typeof scope === "string") {
+      return {
+        id: scope,
+        label: scope,
+        description: "",
+      };
+    }
+
+    return {
+      id: String(scope.id || scope.scope || "").trim(),
+      label: String(scope.label || scope.id || scope.scope || "").trim(),
+      description: String(scope.description || "").trim(),
+      moduleId: String(scope.moduleId || "").trim(),
+    };
+  }).filter((scope) => scope.id);
 }
 
 function showRawKey(rawKey) {
