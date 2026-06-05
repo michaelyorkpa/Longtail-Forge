@@ -28,6 +28,7 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "resourceDefinitions",
   "publicApiEndpoints",
   "apiScopes",
+  "eventTypes",
   "timerSources",
   "workItemSources",
   "hooks",
@@ -40,7 +41,6 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
 
 const RESERVED_MANIFEST_FIELDS = new Set([
   "auditRecordTypes",
-  "eventTypes",
   "notificationEvents",
   "notificationTemplates",
   "searchableTypes",
@@ -92,6 +92,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateDefaultRolePermissions(moduleDefinition.defaultRolePermissions, errors);
   validateResourceDefinitions(moduleDefinition.resourceDefinitions, moduleDefinition.id, errors);
   validateApiScopes(moduleDefinition.apiScopes, moduleDefinition.id, errors);
+  validateEventTypes(moduleDefinition.eventTypes, moduleDefinition.id, errors);
   validatePublicApiEndpoints(moduleDefinition.publicApiEndpoints, errors);
   validateHooks(moduleDefinition.hooks, errors);
   validateTimerSources(moduleDefinition.timerSources, moduleDefinition.id, errors);
@@ -293,6 +294,16 @@ function validatePublicApiEndpoints(publicApiEndpoints, errors) {
   });
 }
 
+function validateEventTypes(eventTypes, moduleId, errors) {
+  optionalArrayOfObjects(eventTypes, "eventTypes", errors, (item, index) => {
+    requireString(item, "event", errors, { prefix: `eventTypes[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `eventTypes[${index}]` });
+    requireString(item, "label", errors, { prefix: `eventTypes[${index}]` });
+    requireString(item, "description", errors, { prefix: `eventTypes[${index}]` });
+    optionalString(item, "recordType", errors, { prefix: `eventTypes[${index}]` });
+  });
+}
+
 function validateHooks(hooks, errors) {
   if (hooks === undefined) {
     return;
@@ -315,6 +326,14 @@ function validateHooks(hooks, errors) {
       errors.push(`hooks.${hookName} must be a function.`);
     }
   }
+
+  optionalArrayOfObjects(hooks.events, "hooks.events", errors, (item, index) => {
+    requireString(item, "event", errors, { prefix: `hooks.events[${index}]` });
+    optionalString(item, "id", errors, { prefix: `hooks.events[${index}]` });
+    if (typeof item.handler !== "function") {
+      errors.push(`hooks.events[${index}].handler must be a function.`);
+    }
+  });
 }
 
 function validateTimerSources(timerSources, moduleId, errors) {

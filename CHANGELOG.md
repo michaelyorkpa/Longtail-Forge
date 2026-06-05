@@ -1,3 +1,13 @@
+## Version 0.31.17 - 2026-06-05 01:32 -04:00
+
+- Added a lightweight server-side internal event bus with async dispatch, normalized event payloads, and hook failure reporting that does not interrupt core saves.
+- Added manifest validation and registry/service helpers for active `eventTypes` metadata and `hooks.events` module subscriptions.
+- Emitted `module.enabled` and `module.disabled` internal events from centralized module lifecycle changes.
+- Emitted Tasks events for create, update/reopen, complete, archive, restore, and recurring instance creation.
+- Documented event naming, payload, hook, and future consumer conventions in `docs/module-contract.md`.
+- Added an event bus regression script to `npm run check`.
+- Bumped the app and first-party module versions to `0.31.17`.
+
 ## Version 0.31.16 - 2026-06-05 01:12 -04:00
 
 - Added manifest validation and registry normalization for module permission descriptors, role default mappings, resource definitions, and API scope descriptors.

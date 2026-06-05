@@ -137,6 +137,11 @@ async function create(payload, session) {
     previousValue: null,
     newValue: taskWithDetails,
   });
+  await emitTaskEvent("task.created", {
+    session,
+    previousValue: null,
+    newValue: taskWithDetails,
+  });
 
   if (recurrence.enabled) {
     await recordRecurrenceAudit({
@@ -227,6 +232,11 @@ async function update(taskId, payload, session) {
     previousValue: previousTask,
     newValue: taskWithDetails,
   });
+  await emitTaskEvent("task.updated", {
+    session,
+    previousValue: previousTask,
+    newValue: taskWithDetails,
+  });
 
   return { task: taskWithDetails };
 }
@@ -252,6 +262,11 @@ async function complete(taskId, session) {
     session,
     action: "task_completed",
     changeType: "update",
+    previousValue: previousTask,
+    newValue: task,
+  });
+  await emitTaskEvent("task.completed", {
+    session,
     previousValue: previousTask,
     newValue: task,
   });
@@ -286,6 +301,15 @@ async function complete(taskId, session) {
       previousValue: null,
       newValue: createdTask,
     });
+    await emitTaskEvent("task.created", {
+      session,
+      previousValue: null,
+      newValue: createdTask,
+      metadata: {
+        recurrence_template_id: createdTask.recurrence_template_id || "",
+        source_task_id: task.task_id,
+      },
+    });
   }
 
   return { task, createdTask };
@@ -310,6 +334,14 @@ async function reopen(taskId, session) {
     changeType: "restore",
     previousValue: previousTask,
     newValue: task,
+  });
+  await emitTaskEvent("task.updated", {
+    session,
+    previousValue: previousTask,
+    newValue: task,
+    metadata: {
+      transition: "reopened",
+    },
   });
 
   return { task };
@@ -337,6 +369,11 @@ async function archive(taskId, session) {
     previousValue: previousTask,
     newValue: task,
   });
+  await emitTaskEvent("task.archived", {
+    session,
+    previousValue: previousTask,
+    newValue: task,
+  });
 
   return { task };
 }
@@ -359,6 +396,11 @@ async function restore(taskId, session) {
     session,
     action: "task_restored",
     changeType: "restore",
+    previousValue: previousTask,
+    newValue: task,
+  });
+  await emitTaskEvent("task.restored", {
+    session,
     previousValue: previousTask,
     newValue: task,
   });
@@ -886,6 +928,27 @@ async function recordTaskAudit({ session, action, changeType, previousValue, new
       project_id: newValue?.project_id || previousValue?.project_id || "",
       project_name: newValue?.project_name || previousValue?.project_name || "",
       assignee_ids: newValue?.assignee_ids || [],
+    },
+  });
+}
+
+async function emitTaskEvent(eventName, { session, previousValue, newValue, metadata = {} }) {
+  const task = newValue || previousValue || {};
+
+  await modulesService.emitInternalEvent(eventName, {
+    session,
+    moduleId: TASKS_MODULE_ID,
+    recordType: "task",
+    recordId: task.task_id,
+    previousValue,
+    newValue,
+    source: session?.api_key_id ? "public_api" : "manual",
+    metadata: {
+      task_id: task.task_id,
+      client_id: task.client_id || "",
+      project_id: task.project_id || "",
+      status: task.status || "",
+      ...metadata,
     },
   });
 }

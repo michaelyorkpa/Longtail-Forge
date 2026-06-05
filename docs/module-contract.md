@@ -12,7 +12,7 @@ Unknown arbitrary manifest fields are rejected. Future extension data should wai
 
 `src/core/modules/registry.js` remains the static first-party registration list. It does not perform filesystem discovery and does not load third-party modules yet.
 
-`src/core/modules/modules.service.js` is the framework-facing registry service. It provides module lookup, route lists, migration sources, enabled workspace module state, navigation/settings contribution collection, permission and API scope collection, reserved tag/search/notification contribution lists, and Workbench/timer/work-item contribution collection.
+`src/core/modules/modules.service.js` is the framework-facing registry service. It provides module lookup, route lists, migration sources, enabled workspace module state, navigation/settings contribution collection, permission and API scope collection, event type and event hook collection, reserved tag/search/notification contribution lists, and Workbench/timer/work-item contribution collection.
 
 Workspace-aware contribution helpers filter disabled modules, missing module dependencies, workspace capability mismatches, and user permission mismatches. Capability lists are treated as "any of these capabilities makes the contribution relevant" so Business, Personal, and Family workspaces can share module manifests without duplicate definitions.
 
@@ -51,7 +51,8 @@ These fields are currently accepted by the manifest validator:
 - `apiScopes`: optional API key scope descriptors provided by the module.
 - `timerSources`: optional timer-capable source declarations.
 - `workItemSources`: optional actionable Workbench item source declarations.
-- `hooks`: optional lifecycle hook object with `onModuleEnabled`, `onModuleDisabled`, `onModuleInstalled`, `onModuleUpdated`, and `onModuleRepaired` functions.
+- `eventTypes`: optional module event descriptors emitted through the internal event bus.
+- `hooks`: optional hook object with lifecycle functions and `events` subscriptions.
 - `frameworkDependencies`: optional framework service dependency IDs.
 - `moduleDependencies`: optional registered module IDs that must exist.
 - `workspaceCapabilityRequirements`: optional workspace capability keys that make the module relevant.
@@ -67,7 +68,6 @@ These fields are accepted only as arrays today. The validator checks their basic
 - `notificationEvents`
 - `notificationTemplates`
 - `auditRecordTypes`
-- `eventTypes`
 
 Notifications are framework-owned. Modules will declare notification events and templates through the manifest, but individual modules should not create duplicate notification UI.
 
@@ -108,6 +108,14 @@ Default role permission mappings require `roleId` and `permissions`. They are ad
 Public API endpoint descriptors require `method`, `path`, and `scope`. API scope descriptors require `id`, `moduleId`, `label`, and `description`; they may include `access` (`read` or `write`). Legacy string scopes are still accepted by the validator and normalized by the registry. The API key UI reads available scopes from enabled module metadata, so disabled optional module scopes are not offered for new keys. Existing API keys still rely on route-level scope checks and module write guards, so writes to disabled modules remain blocked.
 
 Notification permissions are framework-owned in 0.31.16. Notification APIs must be recipient/workspace scoped, must re-check target record access before opening a notification target, and must not expose private notifications to workspace admins unless a later version explicitly designs that capability.
+
+Event type descriptors require `event`, `moduleId`, `label`, and `description`; they may include `recordType`. The first active module event descriptors are Tasks events: `task.created`, `task.updated`, `task.completed`, `task.archived`, and `task.restored`.
+
+Lifecycle hooks remain direct functions on `hooks`: `onModuleEnabled`, `onModuleDisabled`, `onModuleInstalled`, `onModuleUpdated`, and `onModuleRepaired`. Event subscriptions live under `hooks.events` as descriptors with `event`, optional `id`, and `handler`.
+
+Internal events are server-side only. Event payloads normalize to `workspace_id`, `actor_user_id`, `module_id`, `record_type`, `record_id`, `previous_value`, `new_value`, `source`, `metadata`, `session`, and `emitted_at`. Hook failures are logged and reported in dispatch results, but they do not throw back into the core save that emitted the event.
+
+The 0.31.17 event bus is deliberately lightweight. It supports future search indexing, activity feed updates, notifications, integrations, webhooks, and background jobs, but this version only wires module lifecycle events and Tasks events.
 
 ## Disable Policy
 
@@ -199,6 +207,22 @@ const exampleModule = {
     description: "Read example work records through the public API.",
     access: "read",
   }],
+  eventTypes: [{
+    event: "example.created",
+    moduleId: "example-work",
+    label: "Example Created",
+    description: "Emitted after an example work record is created.",
+    recordType: "example_work",
+  }],
+  hooks: {
+    events: [{
+      id: "example-task-created",
+      event: "task.created",
+      handler: async ({ event, module }) => {
+        // React to another module's event without interrupting the saved task.
+      },
+    }],
+  },
   timerSources: [],
   workItemSources: [{
     sourceType: "example-item",

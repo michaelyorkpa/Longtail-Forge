@@ -14,6 +14,11 @@ const moduleDefinitions = [
 validateModuleManifests(moduleDefinitions);
 
 function cloneModuleDefinition(definition) {
+  const hooks = { ...(definition.hooks || {}) };
+  if (Array.isArray(hooks.events)) {
+    hooks.events = hooks.events.map((hook) => ({ ...hook }));
+  }
+
   return {
     ...definition,
     browserApiRoutes: [...(definition.browserApiRoutes || [])],
@@ -40,7 +45,7 @@ function cloneModuleDefinition(definition) {
     notificationTemplates: [...(definition.notificationTemplates || [])],
     auditRecordTypes: [...(definition.auditRecordTypes || [])],
     eventTypes: [...(definition.eventTypes || [])],
-    hooks: { ...(definition.hooks || {}) },
+    hooks,
     frameworkDependencies: [...(definition.frameworkDependencies || [])],
     moduleDependencies: [...(definition.moduleDependencies || [])],
     seedHooks: [...(definition.seedHooks || [])],
@@ -186,6 +191,20 @@ function listNotificationTemplates() {
   return listContribution("notificationTemplates");
 }
 
+function listModuleEventTypes() {
+  return listContribution("eventTypes");
+}
+
+function listModuleEventHooks() {
+  return moduleDefinitions.flatMap((definition) => (
+    definition.hooks?.events || []
+  ).map((hook, index) => ({
+    ...hook,
+    id: hook.id || `${definition.id}:${hook.event}:${index}`,
+    moduleId: definition.id,
+  })));
+}
+
 function listContribution(fieldName) {
   return moduleDefinitions.flatMap((definition) => (
     definition[fieldName] || []
@@ -235,6 +254,8 @@ export {
   listModuleApiScopes,
   listModuleApiScopeEntries,
   listModuleMigrationSources,
+  listModuleEventHooks,
+  listModuleEventTypes,
   listModulePermissions,
   listModulePermissionEntries,
   listModuleProtectedViews,

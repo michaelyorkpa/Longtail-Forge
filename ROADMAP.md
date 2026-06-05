@@ -2,66 +2,17 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.31.16 - Module Permissions and API Scope Contracts
-
-* [x] Make permissions more module-declarative
-
-  * [x] Modules declare their required permissions in the manifest
-  * [x] Modules declare user-facing permission labels/descriptions
-  * [x] Modules declare default role permission mappings where practical
-  * [x] Framework sync registers module permissions in the database
-  * [x] Framework sync should not duplicate permissions
-
-* [x] Add module resource definitions
-
-  * [x] Modules should be able to declare resource keys such as `tasks`, `time_entries`, `tickets`, `notes`, or `messages`
-  * [x] Resource definitions should include supported operations:
-
-    * `read`
-    * `create`
-    * `update`
-    * `delete`
-    * `archive`
-    * `restore`
-    * `assign`
-    * `manage`
-  * [x] Permission checking should gradually move away from hard-coded resource key mapping
-
-* [x] Add framework-owned permission expectations for notifications
-
-  * [x] Notifications should never expose records the user cannot access
-  * [x] Opening a notification should re-check access to the underlying record
-  * [x] Notification APIs should only return notifications for the authenticated user/workspace
-  * [x] Workspace admins may eventually manage notification defaults but should not read private user notifications unless explicitly designed later
-
-* [x] Make public API scopes more module-declarative
-
-  * [x] Modules declare public API scopes
-  * [x] Modules declare public API endpoints
-  * [x] API key UI reads available scopes from framework/module registry
-  * [x] Disabled module scopes should not be offered for new API keys
-  * [x] Existing API keys should not be able to write to disabled modules
-
-* [x] Add tests for permission and scope registration
-
-  * [x] Verify module permissions are registered
-  * [x] Verify role permission defaults are applied
-  * [x] Verify module API scopes appear in API key settings
-  * [x] Verify disabled modules block public API writes
-  * [x] Verify unauthorized users do not see module navigation
-  * [x] Verify users cannot read notifications for records they cannot access
-
 ## Version 0.31.17 - Internal Event and Hook System
 
-* [ ] Add a lightweight internal event bus
+* [x] Add a lightweight internal event bus
 
-  * [ ] Framework services can emit events
-  * [ ] Modules can subscribe to events through declared hooks
-  * [ ] Hooks should run server-side only
-  * [ ] Hook failures should be logged clearly
-  * [ ] Hook failures should not silently corrupt core record saves
+  * [x] Framework services can emit events
+  * [x] Modules can subscribe to events through declared hooks
+  * [x] Hooks should run server-side only
+  * [x] Hook failures should be logged clearly
+  * [x] Hook failures should not silently corrupt core record saves
 
-* [ ] Define core event naming conventions
+* [x] Define core event naming conventions
 
   * Examples:
 
@@ -84,27 +35,27 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     * `notification.read`
     * `notification.dismissed`
 
-* [ ] Add event payload conventions
+* [x] Add event payload conventions
 
-  * [ ] Include `workspace_id`
-  * [ ] Include actor/session where available
-  * [ ] Include `record_type`
-  * [ ] Include `record_id`
-  * [ ] Include previous value where appropriate
-  * [ ] Include new value where appropriate
-  * [ ] Include source such as manual, system, import, public_api, integration
-  * [ ] Include module ID where applicable
+  * [x] Include `workspace_id`
+  * [x] Include actor/session where available
+  * [x] Include `record_type`
+  * [x] Include `record_id`
+  * [x] Include previous value where appropriate
+  * [x] Include new value where appropriate
+  * [x] Include source such as manual, system, import, public_api, integration
+  * [x] Include module ID where applicable
 
-* [ ] Use events for future cross-module behavior
+* [x] Use events for future cross-module behavior
 
-  * [ ] Search indexing
-  * [ ] Activity feed
-  * [ ] Notifications
-  * [ ] Integrations
-  * [ ] Webhooks later
-  * [ ] Background jobs later
+  * [x] Search indexing
+  * [x] Activity feed
+  * [x] Notifications
+  * [x] Integrations
+  * [x] Webhooks later
+  * [x] Background jobs later
 
-* [ ] Do not refactor every service into events at once
+* [x] Do not refactor every service into events at once
 
   * Start with module lifecycle events and Tasks events
   * Add Time Tracking events after the event bus is stable

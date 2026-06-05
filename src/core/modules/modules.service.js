@@ -2,6 +2,8 @@ import {
   getModule as getRegisteredModule,
   listModuleBrowserAssets as listRegisteredModuleBrowserAssets,
   listModuleApiScopeEntries as listRegisteredModuleApiScopeEntries,
+  listModuleEventHooks as listRegisteredModuleEventHooks,
+  listModuleEventTypes as listRegisteredModuleEventTypes,
   listModuleApiScopes as listRegisteredModuleApiScopes,
   listModuleMigrationSources,
   listModulePermissionEntries as listRegisteredModulePermissionEntries,
@@ -18,6 +20,7 @@ import {
   listSearchableTypes as listRegisteredSearchableTypes,
   listTaggableTypes as listRegisteredTaggableTypes,
 } from "./registry.js";
+import { internalEventBus } from "../events/event-bus.js";
 import { querySql, runSql, sqlText } from "../../db/sqlite.js";
 import { permissionsRepository } from "../../repositories/permissions.repo.js";
 import { AppError } from "../../utils/app-error.js";
@@ -25,6 +28,8 @@ import { getWorkspaceCapabilities } from "../../utils/workspaces.js";
 
 const TIME_TRACKING_MODULE_ID = "time-tracking";
 const TASKS_MODULE_ID = "tasks";
+let moduleEventHookUnsubscribers = [];
+let moduleEventHooksRegistered = false;
 const AVAILABLE_FRAMEWORK_DEPENDENCIES = new Set([
   "api-key-auth",
   "audit-service",
@@ -76,6 +81,14 @@ function listModuleApiScopeEntries() {
   return listRegisteredModuleApiScopeEntries();
 }
 
+function listModuleEventHooks() {
+  return listRegisteredModuleEventHooks().map(({ handler: _handler, ...hook }) => hook);
+}
+
+function listModuleEventTypes() {
+  return listRegisteredModuleEventTypes();
+}
+
 function getModuleForApiScope(scope) {
   return listModuleApiScopeEntries().find((entry) => entry.scope === scope)?.moduleId || "";
 }
@@ -105,6 +118,7 @@ function listModuleBrowserAssets() {
 }
 
 async function syncModuleRegistry(workspaceId) {
+  registerModuleEventHooks();
   const modules = listModules();
   const existingModuleRows = await querySql("SELECT module_id, version FROM modules;");
   const existingModulesById = new Map(existingModuleRows.map((row) => [row.module_id, row]));
@@ -367,6 +381,26 @@ WHERE workspace_id = ${sqlText(workspaceId)}
     workspaceId,
   });
   await recordModuleStateChanged(workspaceId, moduleDefinition, previousStatus, nextStatus, options);
+  await emitInternalEvent(nextStatus === "enabled" ? "module.enabled" : "module.disabled", {
+    session: options.session || null,
+    workspaceId,
+    moduleId,
+    recordType: "module",
+    recordId: moduleId,
+    previousValue: {
+      module_id: moduleId,
+      status: previousStatus,
+    },
+    newValue: {
+      module_id: moduleId,
+      status: nextStatus,
+    },
+    source: options.source || "manual",
+    metadata: {
+      module_id: moduleId,
+      workspace_id: workspaceId,
+    },
+  });
 }
 
 async function assertModuleCanBeEnabled(workspaceId, moduleId) {
@@ -431,11 +465,50 @@ async function runModuleLifecycleHook(moduleDefinition, hookName, context) {
     return null;
   }
 
-  return hook({
-    ...context,
-    module: moduleDefinition,
-    modulesService,
-  });
+  try {
+    return await hook({
+      ...context,
+      module: moduleDefinition,
+      modulesService,
+    });
+  } catch (error) {
+    console.error(`[modules] Lifecycle hook '${hookName}' failed for '${moduleDefinition?.id || "unknown"}':`, error);
+    return null;
+  }
+}
+
+function registerModuleEventHooks(options = {}) {
+  if (moduleEventHooksRegistered && !options.force) {
+    return listModuleEventHooks();
+  }
+
+  for (const unsubscribe of moduleEventHookUnsubscribers) {
+    unsubscribe();
+  }
+
+  moduleEventHookUnsubscribers = [];
+
+  for (const hook of listRegisteredModuleEventHooks()) {
+    moduleEventHookUnsubscribers.push(internalEventBus.on(hook.event, async (event) => {
+      const moduleDefinition = getModule(hook.moduleId);
+      await hook.handler({
+        event,
+        module: moduleDefinition,
+        modulesService,
+      });
+    }, {
+      id: hook.id,
+      moduleId: hook.moduleId,
+    }));
+  }
+
+  moduleEventHooksRegistered = true;
+  return listModuleEventHooks();
+}
+
+async function emitInternalEvent(eventName, payload = {}) {
+  registerModuleEventHooks();
+  return internalEventBus.emit(eventName, payload);
 }
 
 async function recordModuleStateChanged(workspaceId, moduleDefinition, previousStatus, nextStatus, options) {
@@ -781,6 +854,7 @@ export const modulesService = {
   canReadModule,
   canWriteModule,
   decorateWorkspaceSettings,
+  emitInternalEvent,
   getModule,
   getModuleForApiScope,
   getTimerSource,
@@ -789,6 +863,8 @@ export const modulesService = {
   listAvailableApiScopes,
   listModuleApiScopes,
   listModuleApiScopeEntries,
+  listModuleEventHooks,
+  listModuleEventTypes,
   listModuleMigrationSources,
   listModulePermissionEntries,
   listModuleNavigation,
@@ -813,6 +889,7 @@ export const modulesService = {
   readModuleStatus,
   readWorkspaceModuleSettings,
   readWorkspaceModuleContext,
+  registerModuleEventHooks,
   setModuleStatus,
   syncModuleRegistry,
 };

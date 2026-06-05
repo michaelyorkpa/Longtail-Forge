@@ -7,7 +7,7 @@ const timeTrackingModule = {
   displayName: "Time Tracking",
   description: "Timers, manual entries, editable time entries, and billable time capture.",
   category: "core-workflow",
-  version: "0.31.16",
+  version: "0.31.17",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
