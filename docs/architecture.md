@@ -26,7 +26,7 @@ Modules should provide business/workflow functionality such as tasks, time track
 
 ## Current Architecture Direction
 
-As of version 0.31.24.2, Longtail Forge has an active first-party module architecture.
+As of version 0.31.25, Longtail Forge has an active first-party module architecture with display-only workspace-aware terminology for framework/module-registry surfaces.
 
 Current first-party modules include:
 

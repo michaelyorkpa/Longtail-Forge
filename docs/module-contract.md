@@ -26,6 +26,7 @@ These fields are currently accepted by the manifest validator:
 - `name`: required database/module label.
 - `displayName`: required UI label.
 - `description`: required human-readable summary.
+- `terminology`: optional display-only labels grouped by workspace type. Supported groups are `default`, `business`, `personal`, and `family`; supported fields include `label`, `singular`, `plural`, `shortLabel`, `navigationLabel`, `description`, `createButton`, and `emptyState`.
 - `category`: required module grouping, such as `core-workflow` or `core-admin`.
 - `version`: required module contract/version marker.
 - `enabledByDefault`: required boolean controlling new workspace module status.
@@ -76,7 +77,7 @@ Notifications are framework-owned. Modules will declare notification events and 
 
 ## Contribution Shapes
 
-Navigation items require `label` and `href`; they may include `parent` and `requiredPermissions`.
+Navigation items require `label` and `href`; they may include `parent`, `requiredPermissions`, and display-only `terminology`.
 
 The authenticated app shell reads module navigation through `/api/app-shell/bootstrap`. The backend combines framework-owned navigation such as Dashboard, Workbench, workspace settings, user settings, workspace switching, API keys, and audit links with enabled module navigation from the registry. The browser app shell renders the returned tree directly and keeps the static browser nav only as a fallback while bootstrap data is loading or unavailable.
 
@@ -106,17 +107,17 @@ The `/api/settings` save contract accepts a `moduleSettings` object keyed by mod
 
 Permission descriptors require `id`, `moduleId`, `label`, and `description`; they may include `resource` and `operation`. `requiredPermissions` remains as a compact compatibility list for route/view contribution filtering, while `permissions` is the user-facing contract used for database sync and future permission UI. Startup sync inserts or updates declared permissions and inserts default role mappings without deleting existing role permissions.
 
-Resource definitions require `key`, `moduleId`, and `label`; they may include supported operations such as `read`, `create`, `update`, `delete`, `archive`, `restore`, `assign`, and `manage`. The current permission engine still maps known action prefixes to resource keys, but module manifests now provide the resource contract future modules and permission UI can consume.
+Resource definitions require `key`, `moduleId`, and `label`; they may include supported operations such as `read`, `create`, `update`, `delete`, `archive`, `restore`, `assign`, `manage`, and display-only `terminology`. The current permission engine still maps known action prefixes to resource keys, but module manifests now provide the resource contract future modules and permission UI can consume.
 
 Default role permission mappings require `roleId` and `permissions`. They are additive: the framework inserts missing `role_permissions` rows and does not remove existing rows that were granted by migrations, admins, or older versions.
 
-Public API endpoint descriptors require `method`, `path`, and `scope`. API scope descriptors require `id`, `moduleId`, `label`, and `description`; they may include `access` (`read` or `write`). Legacy string scopes are still accepted by the validator and normalized by the registry. The API key UI reads available scopes from enabled module metadata, so disabled optional module scopes are not offered for new keys. Existing API keys still rely on route-level scope checks and module write guards, so writes to disabled modules remain blocked.
+Public API endpoint descriptors require `method`, `path`, and `scope`. API scope descriptors require `id`, `moduleId`, `label`, and `description`; they may include `access` (`read` or `write`) and display-only `terminology`. Legacy string scopes are still accepted by the validator and normalized by the registry. The API key UI reads available scopes from enabled module metadata, so disabled optional module scopes are not offered for new keys. Existing API keys still rely on route-level scope checks and module write guards, so writes to disabled modules remain blocked.
 
 Notification permissions are framework-owned in 0.31.16. Notification APIs must be recipient/workspace scoped, must re-check target record access before opening a notification target, and must not expose private notifications to workspace admins unless a later version explicitly designs that capability.
 
 Audit record type descriptors require `recordType`, `moduleId`, `label`, and `description`. The audit service accepts framework-owned record types plus module-declared record types. Unknown audit record types are rejected unless a caller explicitly sets an unknown-type allowance for a future import/repair path. Audit change types remain framework-owned common values: `create`, `update`, `delete`, `archive`, `restore`, `login`, `logout`, and `settings_change`.
 
-Event type descriptors require `event`, `moduleId`, `label`, and `description`; they may include `recordType`. The first active module event descriptors are Tasks events: `task.created`, `task.updated`, `task.completed`, `task.archived`, and `task.restored`.
+Event type descriptors require `event`, `moduleId`, `label`, and `description`; they may include `recordType` and display-only `terminology`. The first active module event descriptors are Tasks events: `task.created`, `task.updated`, `task.completed`, `task.archived`, and `task.restored`.
 
 Lifecycle hooks remain direct functions on `hooks`: `onModuleEnabled`, `onModuleDisabled`, `onModuleInstalled`, `onModuleUpdated`, and `onModuleRepaired`. Event subscriptions live under `hooks.events` as descriptors with `event`, optional `id`, and `handler`.
 
@@ -127,6 +128,8 @@ The 0.31.17 event bus is deliberately lightweight. It supports future search ind
 Activity feed and notification summaries are not full activity feed or notification implementations. They are safe summary helpers for future consumers. `eventSummaries` entries require `event` and `moduleId`; they may provide `activity.label`, `activity.summary`, `activity.url`, `notification.title`, `notification.body`, `notification.url`, and `notification.recipientHints`. Summary helpers return human-readable text and safe relative URLs instead of raw event or audit JSON.
 
 Terminology stays separate: Workbench is the user's live workflow desktop, activity feed is a permission-safe historical timeline, audit log is the authoritative admin/security record, and notifications are directed user alerts.
+
+Workspace-type module terminology is display-only. The resolver merges `default`, then `personal` for Family workspaces, then the exact workspace type. Resolved labels may affect module names, navigation, dashboard cards, Workbench cards, empty states, create buttons, record/resource nouns, notification/event display labels, permission display labels, and API scope descriptions, but they must not change module IDs, route names, permission IDs, API scope IDs, audit record types, database tables, stored records, or historical audit/event data.
 
 ## Disable Policy
 

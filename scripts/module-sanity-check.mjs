@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { modulesService } from "../src/core/modules/modules.service.js";
+import { resolveModuleDefinitionTerminology, resolveWorkspaceTerminology } from "../src/core/modules/terminology.js";
 
 const KNOWN_FRAMEWORK_DEPENDENCIES = new Set([
   "api-key-auth",
@@ -154,6 +155,48 @@ check("work item sources expose dedicated list routes", () => {
       assert.ok(source.requiredModules?.includes(moduleDefinition.id), `${moduleDefinition.id}:${source.sourceType} work item source must require its owner module`);
     }
   }
+});
+
+check("workspace terminology resolver follows fallback order", () => {
+  const terminology = {
+    default: {
+      label: "Default Label",
+      plural: "Default Records",
+    },
+    personal: {
+      label: "Personal Label",
+    },
+    family: {
+      plural: "Family Records",
+    },
+    business: {
+      label: "Business Label",
+    },
+  };
+
+  assert.equal(resolveWorkspaceTerminology(terminology, "business").label, "Business Label");
+  assert.equal(resolveWorkspaceTerminology(terminology, "personal").label, "Personal Label");
+  assert.equal(resolveWorkspaceTerminology(terminology, "family").label, "Personal Label");
+  assert.equal(resolveWorkspaceTerminology(terminology, "family").plural, "Family Records");
+  assert.equal(resolveWorkspaceTerminology(terminology, "unknown").label, "Default Label");
+});
+
+check("workspace terminology changes display labels without changing IDs", () => {
+  const clientProjects = modules.find((moduleDefinition) => moduleDefinition.id === "client-projects");
+  const businessModule = resolveModuleDefinitionTerminology(clientProjects, "business");
+  const personalModule = resolveModuleDefinitionTerminology(clientProjects, "personal");
+  const familyModule = resolveModuleDefinitionTerminology(clientProjects, "family");
+
+  assert.equal(businessModule.id, "client-projects");
+  assert.equal(personalModule.id, "client-projects");
+  assert.equal(familyModule.id, "client-projects");
+  assert.equal(businessModule.displayName, "Clients & Projects");
+  assert.equal(personalModule.displayName, "Projects");
+  assert.equal(familyModule.displayName, "Projects");
+  assert.deepEqual(
+    businessModule.publicApiEndpoints.map((endpoint) => endpoint.scope),
+    personalModule.publicApiEndpoints.map((endpoint) => endpoint.scope),
+  );
 });
 
 function inspectRouterRoutes(router) {

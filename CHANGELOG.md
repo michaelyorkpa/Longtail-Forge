@@ -1,3 +1,14 @@
+## Version 0.31.25 - 2026-06-05 14:22 -04:00
+
+- Bumped the app and first-party module versions to `0.31.25`.
+- Added manifest `terminology` support for display-only workspace-type labels.
+- Added a terminology resolver with Business, Personal, Family, and default fallback behavior, including Family-to-Personal fallback.
+- Applied resolved terminology to obvious app-shell, module registry, navigation, dashboard, Workbench, module settings, and API scope display surfaces.
+- Added first-party terminology metadata, including Business `Clients & Projects` and Personal/Family `Projects` labels for the stable `client-projects` module.
+- Added resolver coverage to the module sanity check and documented the display-only terminology contract.
+- Grouped Projects page task-owned project defaults inside a Task module box, nested the project task sort controls under `Sort order`, and matched the Project Defaults summary weight to Project Rounding.
+- Moved Projects page Save Project and Archive actions into a footer-style action bar inside Project Settings.
+
 ## Version 0.31.24.2 - 2026-06-05 12:15 -04:00
 
 - Bumped the app and first-party module versions to `0.31.24.2`.

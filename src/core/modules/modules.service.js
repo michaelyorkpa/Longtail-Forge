@@ -23,6 +23,7 @@ import {
   listTaggableTypes as listRegisteredTaggableTypes,
 } from "./registry.js";
 import { internalEventBus } from "../events/event-bus.js";
+import { resolveContributionTerminology, resolveModuleDefinitionTerminology } from "./terminology.js";
 import { querySql, runSql, sqlText } from "../../db/sqlite.js";
 import { permissionsRepository } from "../../repositories/permissions.repo.js";
 import { AppError } from "../../utils/app-error.js";
@@ -243,17 +244,22 @@ async function readWorkspaceModuleSettings(workspaceId, settings, moduleContext 
 
 async function readWorkspaceModuleContext(workspaceId) {
   const installedModules = listModules();
-  const rows = await querySql(`
+  const [rows, workspaceCapabilities] = await Promise.all([
+    querySql(`
 SELECT module_id, status
 FROM workspace_modules
 WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY module_id;
-`);
+`),
+    readWorkspaceCapabilities(workspaceId),
+  ]);
+  const workspaceType = workspaceCapabilities.workspaceType || "business";
   const statusById = rows.reduce((statusMap, row) => {
     statusMap[row.module_id] = row.status === "enabled" ? "enabled" : "disabled";
     return statusMap;
   }, {});
-  const modules = installedModules.map((moduleDefinition) => {
+  const modules = installedModules.map((rawModuleDefinition) => {
+    const moduleDefinition = resolveModuleDefinitionTerminology(rawModuleDefinition, workspaceType);
     const status = statusById[moduleDefinition.id] || "disabled";
 
     return {
@@ -271,6 +277,14 @@ ORDER BY module_id;
       publicApiEndpoints: moduleDefinition.publicApiEndpoints || [],
       requiredPermissions: moduleDefinition.requiredPermissions || [],
       settings: moduleDefinition.settings || [],
+      permissions: moduleDefinition.permissions || [],
+      resourceDefinitions: moduleDefinition.resourceDefinitions || [],
+      apiScopes: moduleDefinition.apiScopes || [],
+      eventTypes: moduleDefinition.eventTypes || [],
+      eventSummaries: moduleDefinition.eventSummaries || [],
+      timerSources: moduleDefinition.timerSources || [],
+      workItemSources: moduleDefinition.workItemSources || [],
+      terminology: moduleDefinition.terminology || {},
       workspaceCapabilityRequirements: moduleDefinition.workspaceCapabilityRequirements || [],
     };
   });
@@ -296,18 +310,27 @@ async function listEnabledModules(workspaceId) {
 
 async function listAvailableApiScopes(workspaceId) {
   await syncModuleRegistry(workspaceId);
-  const enabledModuleIds = new Set(await readEnabledModuleIds(workspaceId));
+  const [enabledModuleIds, workspaceCapabilities] = await Promise.all([
+    readEnabledModuleIds(workspaceId),
+    readWorkspaceCapabilities(workspaceId),
+  ]);
+  const enabledModuleIdSet = new Set(enabledModuleIds);
+  const workspaceType = workspaceCapabilities.workspaceType || "business";
 
   return listModuleApiScopeEntries()
-    .filter((scope) => enabledModuleIds.has(scope.moduleId))
-    .map((scope) => ({
-      id: scope.scope,
-      scope: scope.scope,
-      moduleId: scope.moduleId,
-      label: scope.label,
-      description: scope.description,
-      access: scope.access,
-    }));
+    .filter((scope) => enabledModuleIdSet.has(scope.moduleId))
+    .map((scope) => {
+      const resolvedScope = resolveContributionTerminology(scope, workspaceType, "apiScopes");
+
+      return {
+        id: scope.scope,
+        scope: scope.scope,
+        moduleId: scope.moduleId,
+        label: resolvedScope.label,
+        description: resolvedScope.description,
+        access: scope.access,
+      };
+    });
 }
 
 async function readEnabledModuleIds(workspaceId) {
@@ -697,6 +720,7 @@ async function listWorkspaceContributions(workspaceId, session, fieldName) {
   const enabledModuleIds = new Set(moduleContext.enabledModules);
   const modulesById = new Map(listModules().map((moduleDefinition) => [moduleDefinition.id, moduleDefinition]));
   const availableTools = new Set(workspaceCapabilities.availableTools || []);
+  const workspaceType = workspaceCapabilities.workspaceType || "business";
   const contributions = [];
 
   for (const moduleDefinition of modulesById.values()) {
@@ -705,7 +729,10 @@ async function listWorkspaceContributions(workspaceId, session, fieldName) {
     }
 
     for (const contribution of moduleDefinition[fieldName] || []) {
-      const normalized = normalizeContribution(moduleDefinition, contribution);
+      const normalized = normalizeContribution(
+        moduleDefinition,
+        resolveContributionTerminology(contribution, workspaceType, fieldName),
+      );
 
       if (!requiredModulesEnabled(normalized, enabledModuleIds)) {
         continue;

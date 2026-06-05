@@ -377,9 +377,9 @@ function updateProjectTableBulkState() {
 
 function openProjectDetailDialog(client, project) {
   const dialog = document.createElement("dialog");
-  const projectEditor = createProjectEditor(client, project);
   const closeActions = document.createElement("div");
   const closeButton = document.createElement("button");
+  const projectEditor = createProjectEditor(client, project, { actionTarget: closeActions });
 
   dialog.className = "project-form-dialog detail-edit-dialog";
   projectEditor.open = true;
@@ -1618,7 +1618,7 @@ function createProjectCards(client) {
   return list;
 }
 
-function createProjectEditor(client, project) {
+function createProjectEditor(client, project, options = {}) {
   // Project settings sit closest to the work and override client/app defaults.
   const details = document.createElement("details");
   details.className = "project-item";
@@ -1815,6 +1815,11 @@ function createProjectEditor(client, project) {
   });
 
   actionGroup.append(saveButton, deleteButton);
+  if (options.actionTarget) {
+    options.actionTarget.append(saveButton, deleteButton);
+  } else {
+    actionGroup.append(saveButton, deleteButton);
+  }
   if (clientAssignmentLabel.hidden) {
     wrapper.classList.add("project-editor-no-client");
   }
@@ -1826,7 +1831,7 @@ function createProjectEditor(client, project) {
     clientActions,
     taskDefaultsEditor.element,
     billingDetails,
-    actionGroup,
+    ...(options.actionTarget ? [] : [actionGroup]),
   );
   details.append(summary, wrapper);
   return details;
@@ -1836,18 +1841,26 @@ function createProjectTaskDefaultsEditor(defaults = {}) {
   const normalized = normalizeProjectTaskDefaults(defaults);
   const details = document.createElement("details");
   const summary = document.createElement("summary");
+  const moduleGroup = document.createElement("fieldset");
+  const moduleLegend = document.createElement("legend");
   const grid = document.createElement("div");
   const statusLabel = document.createElement("label");
   const statusSelect = document.createElement("select");
   const priorityLabel = document.createElement("label");
   const prioritySelect = document.createElement("select");
+  const sortFieldset = document.createElement("fieldset");
+  const sortLegend = document.createElement("legend");
   const sortList = document.createElement("div");
 
   details.className = "project-defaults-details";
   summary.textContent = "Project Defaults";
+  moduleGroup.className = "project-module-defaults-group";
+  moduleLegend.textContent = "Task module";
   grid.className = "project-defaults-grid";
   statusLabel.textContent = "Default Status";
   priorityLabel.textContent = "Default Priority";
+  sortFieldset.className = "project-default-sort-group";
+  sortLegend.textContent = "Sort order";
   sortList.className = "project-default-sort-list";
 
   taskDefaultStatuses.forEach((status) => {
@@ -1897,8 +1910,10 @@ function createProjectTaskDefaultsEditor(defaults = {}) {
   statusLabel.appendChild(statusSelect);
   priorityLabel.appendChild(prioritySelect);
   renderSortRows(normalized.sortOrder);
-  grid.append(statusLabel, priorityLabel, sortList);
-  details.append(summary, grid);
+  sortFieldset.append(sortLegend, sortList);
+  grid.append(statusLabel, priorityLabel, sortFieldset);
+  moduleGroup.append(moduleLegend, grid);
+  details.append(summary, moduleGroup);
 
   return {
     element: details,

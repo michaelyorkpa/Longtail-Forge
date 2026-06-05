@@ -3,6 +3,7 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "name",
   "displayName",
   "description",
+  "terminology",
   "category",
   "version",
   "enabledByDefault",
@@ -51,6 +52,19 @@ const RESERVED_MANIFEST_FIELDS = new Set([
 const MODULE_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 const SETTING_FIELD_TYPES = new Set(["boolean", "text", "number", "select", "multi-select", "info"]);
+const TERMINOLOGY_WORKSPACE_TYPES = new Set(["default", "business", "personal", "family"]);
+const TERMINOLOGY_FIELDS = new Set([
+  "label",
+  "singular",
+  "plural",
+  "shortLabel",
+  "navigationLabel",
+  "emptyState",
+  "emptyStateLabel",
+  "createButton",
+  "createButtonLabel",
+  "description",
+]);
 
 function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   const errors = [];
@@ -65,6 +79,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   requireString(moduleDefinition, "name", errors);
   requireString(moduleDefinition, "displayName", errors);
   requireString(moduleDefinition, "description", errors);
+  validateTerminology(moduleDefinition.terminology, "terminology", errors);
   requireString(moduleDefinition, "category", errors);
   requireString(moduleDefinition, "version", errors);
   requireBoolean(moduleDefinition, "enabledByDefault", errors);
@@ -153,6 +168,7 @@ function validateNavigation(navigation, errors) {
   optionalArrayOfObjects(navigation, "navigation", errors, (item, index) => {
     requireString(item, "label", errors, { prefix: `navigation[${index}]` });
     requireString(item, "href", errors, { prefix: `navigation[${index}]` });
+    validateTerminology(item.terminology, `navigation[${index}].terminology`, errors);
     optionalStringArray(item, "requiredPermissions", errors, { prefix: `navigation[${index}]` });
   });
 }
@@ -188,6 +204,7 @@ function validateDashboard(dashboard, errors) {
   optionalArrayOfObjects(dashboard, "dashboard", errors, (item, index) => {
     requireString(item, "id", errors, { prefix: `dashboard[${index}]` });
     requireString(item, "label", errors, { prefix: `dashboard[${index}]` });
+    validateTerminology(item.terminology, `dashboard[${index}].terminology`, errors);
   });
 }
 
@@ -202,6 +219,7 @@ function validateWorkbench(workbench, errors) {
     optionalStringArray(item, "requiresEnabledModules", errors, { prefix: `workbench[${index}]` });
     optionalBoolean(item, "defaultCollapsed", errors, { prefix: `workbench[${index}]` });
     optionalNumber(item, "sortOrder", errors, { prefix: `workbench[${index}]` });
+    validateTerminology(item.terminology, `workbench[${index}].terminology`, errors);
   });
 }
 
@@ -225,6 +243,7 @@ function validateSettings(settings, errors) {
     optionalNumber(item, "step", errors, { prefix: `settings[${index}]` });
     optionalBoolean(item, "moduleStatus", errors, { prefix: `settings[${index}]` });
     optionalBoolean(item, "readOnly", errors, { prefix: `settings[${index}]` });
+    validateTerminology(item.terminology, `settings[${index}].terminology`, errors);
   });
 }
 
@@ -236,6 +255,7 @@ function validatePermissions(permissions, moduleId, errors) {
     requireString(item, "description", errors, { prefix: `permissions[${index}]` });
     optionalString(item, "resource", errors, { prefix: `permissions[${index}]` });
     optionalString(item, "operation", errors, { prefix: `permissions[${index}]` });
+    validateTerminology(item.terminology, `permissions[${index}].terminology`, errors);
   });
 }
 
@@ -252,6 +272,7 @@ function validateResourceDefinitions(resourceDefinitions, moduleId, errors) {
     validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `resourceDefinitions[${index}]` });
     requireString(item, "label", errors, { prefix: `resourceDefinitions[${index}]` });
     optionalStringArray(item, "operations", errors, { prefix: `resourceDefinitions[${index}]` });
+    validateTerminology(item.terminology, `resourceDefinitions[${index}].terminology`, errors);
   });
 }
 
@@ -283,6 +304,7 @@ function validateApiScopes(apiScopes, moduleId, errors) {
     requireString(item, "label", errors, { prefix: `apiScopes[${index}]` });
     requireString(item, "description", errors, { prefix: `apiScopes[${index}]` });
     optionalString(item, "access", errors, { prefix: `apiScopes[${index}]` });
+    validateTerminology(item.terminology, `apiScopes[${index}].terminology`, errors);
   });
 }
 
@@ -304,6 +326,7 @@ function validateEventTypes(eventTypes, moduleId, errors) {
     requireString(item, "label", errors, { prefix: `eventTypes[${index}]` });
     requireString(item, "description", errors, { prefix: `eventTypes[${index}]` });
     optionalString(item, "recordType", errors, { prefix: `eventTypes[${index}]` });
+    validateTerminology(item.terminology, `eventTypes[${index}].terminology`, errors);
   });
 }
 
@@ -313,6 +336,7 @@ function validateAuditRecordTypes(auditRecordTypes, moduleId, errors) {
     validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `auditRecordTypes[${index}]` });
     requireString(item, "label", errors, { prefix: `auditRecordTypes[${index}]` });
     requireString(item, "description", errors, { prefix: `auditRecordTypes[${index}]` });
+    validateTerminology(item.terminology, `auditRecordTypes[${index}].terminology`, errors);
   });
 }
 
@@ -324,6 +348,9 @@ function validateEventSummaries(eventSummaries, moduleId, errors) {
     optionalPlainObject(item, "notification", errors, { prefix: `eventSummaries[${index}]` });
     validateSummaryObject(item.activity, `eventSummaries[${index}].activity`, errors, ["label", "summary", "url"]);
     validateSummaryObject(item.notification, `eventSummaries[${index}].notification`, errors, ["title", "body", "url", "recipientHints"]);
+    validateTerminology(item.terminology, `eventSummaries[${index}].terminology`, errors);
+    validateTerminology(item.activity?.terminology, `eventSummaries[${index}].activity.terminology`, errors);
+    validateTerminology(item.notification?.terminology, `eventSummaries[${index}].notification.terminology`, errors);
   });
 }
 
@@ -384,6 +411,7 @@ function validateTimerSources(timerSources, moduleId, errors) {
     optionalString(item, "removeRoute", errors, { prefix: `timerSources[${index}]` });
     optionalStringArray(item, "requiredPermissions", errors, { prefix: `timerSources[${index}]` });
     optionalStringArray(item, "requiredModules", errors, { prefix: `timerSources[${index}]` });
+    validateTerminology(item.terminology, `timerSources[${index}].terminology`, errors);
   });
 }
 
@@ -397,7 +425,39 @@ function validateWorkItemSources(workItemSources, moduleId, errors) {
     optionalStringArray(item, "requiredModules", errors, { prefix: `workItemSources[${index}]` });
     optionalPlainObject(item, "filterHints", errors, { prefix: `workItemSources[${index}]` });
     optionalPlainObject(item, "sortHints", errors, { prefix: `workItemSources[${index}]` });
+    validateTerminology(item.terminology, `workItemSources[${index}].terminology`, errors);
   });
+}
+
+function validateTerminology(terminology, prefix, errors) {
+  if (terminology === undefined) {
+    return;
+  }
+
+  if (!isPlainObject(terminology)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+
+  for (const [workspaceType, terms] of Object.entries(terminology)) {
+    if (!TERMINOLOGY_WORKSPACE_TYPES.has(workspaceType)) {
+      errors.push(`${prefix}.${workspaceType} is not a supported workspace type.`);
+      continue;
+    }
+
+    if (!isPlainObject(terms)) {
+      errors.push(`${prefix}.${workspaceType} must be an object.`);
+      continue;
+    }
+
+    for (const [fieldName, value] of Object.entries(terms)) {
+      if (!TERMINOLOGY_FIELDS.has(fieldName)) {
+        errors.push(`${prefix}.${workspaceType}.${fieldName} is not a supported terminology field.`);
+      } else if (typeof value !== "string") {
+        errors.push(`${prefix}.${workspaceType}.${fieldName} must be a string.`);
+      }
+    }
+  }
 }
 
 function validateModuleIdValue(object, fieldName, expectedValue, errors, options = {}) {

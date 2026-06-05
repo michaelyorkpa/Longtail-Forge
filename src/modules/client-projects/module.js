@@ -5,8 +5,28 @@ const clientProjectsModule = {
   name: "Clients and Projects",
   displayName: "Clients and Projects",
   description: "Client and project records, billing defaults, and workspace-scoped project context.",
+  terminology: {
+    default: {
+      label: "Clients and Projects",
+      singular: "Project",
+      plural: "Projects",
+      navigationLabel: "Projects",
+    },
+    business: {
+      label: "Clients & Projects",
+      singular: "Client or Project",
+      plural: "Clients & Projects",
+      navigationLabel: "Clients & Projects",
+    },
+    personal: {
+      label: "Projects",
+      singular: "Project",
+      plural: "Projects",
+      navigationLabel: "Projects",
+    },
+  },
   category: "core-workflow",
-  version: "0.31.24.2",
+  version: "0.31.25",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: true,
@@ -48,7 +68,14 @@ const clientProjectsModule = {
     },
   ],
   dashboard: [
-    { id: "project-summary", label: "Project Summary" },
+    {
+      id: "project-summary",
+      label: "Project Summary",
+      terminology: {
+        business: { label: "Client & Project Summary" },
+        personal: { label: "Project Summary" },
+      },
+    },
   ],
   publicApiEndpoints: [
     { method: "GET", path: "/api/v1/clients", scope: "clients:read" },

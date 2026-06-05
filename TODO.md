@@ -15,6 +15,12 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
+- [ ] Need a way for properly authenticated users to see active/running timers, but not change them
+
+- [ ] Add a "Complete" button on the Workbench tasks
+
+- [ ] If you click the "Completed" or the "Archived" filter in Projects -> Tasks, then click "All," the filtered list doesn't change
+
 - Review whether the User Settings "Remove Workspace" flow needs clearer wording now that it removes the signed-in user's membership rather than deleting the workspace record.
 
 ## Tweaks
@@ -33,40 +39,11 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - User Settings
     - Every field except Alternate Email address
 
+- [ ] There should be something in the views/models that indicates whether a field needs to be required so the * becomes automatic as views happen (if this is best practice)
+
 ## UI/Workspace tweaks for better generalized use
 
 - Timer Concurrency
-
-## User Upload Safety and CSAM Prevention
-
-- [ ] Treat user-uploaded files as a security-sensitive framework feature.
-- [ ] Build secure upload handling before allowing broad file uploads:
-  - [ ] Allowlist file extensions by business need.
-  - [ ] Validate actual file type/signature; do not trust browser-provided MIME type alone.
-  - [ ] Generate server-side filenames.
-  - [ ] Enforce file size limits.
-  - [ ] Store uploaded files outside the webroot or in isolated object storage.
-  - [ ] Require authentication and authorization before upload/download.
-  - [ ] Scan uploads with antivirus/sandbox tooling where practical.
-  - [ ] Log upload, download, deletion, quarantine, and scan events.
-- [ ] Add upload quarantine workflow:
-  - [ ] New files enter pending/scanning state.
-  - [ ] Files are not publicly accessible until cleared.
-  - [ ] Failed or suspicious files are quarantined.
-  - [ ] Quarantined files are not shown in normal app UI.
-  - [ ] Admin access to quarantined files is tightly restricted and audited.
-- [ ] Add abuse reporting:
-  - [ ] Users can report illegal or abusive uploaded content.
-  - [ ] Reports create security/audit events.
-  - [ ] Reports can disable public access to the file while reviewed.
-- [ ] Before enabling public/user-generated image or video uploads:
-  - [ ] Evaluate a specialized CSAM detection provider such as Thorn Safer, PhotoDNA access, or equivalent.
-  - [ ] Add known-CSAM hash matching where available.
-  - [ ] Add policy for suspected novel CSAM escalation.
-  - [ ] Add written NCMEC CyberTipline reporting procedure.
-  - [ ] Add retention/preservation policy reviewed by legal counsel.
-- [ ] Do not build a DIY CSAM review gallery.
-- [ ] Do not require normal admins to manually inspect suspected CSAM.
 
 # Medium Term
 
@@ -115,12 +92,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - [ ] "Focus" mode, allows dashboard/entire interface to switch to being focused on a single project/client for Business workspaces
 
 - [ ] Determine what code changes need to happen to create phone/tablet/TV apps
-
-- [ ] Lists (Shopping/Grocery)
-  - could be useful for physical project planning
-  - definitely useful in Personal/Family workspaces
-  - eventual functionality could include scanning barcodes to add items to lists
-  - What would a shopping/grocery list be called in a business context?
 
 ## Administration and Settings
 

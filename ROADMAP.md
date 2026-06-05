@@ -2,109 +2,59 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-### Version 0.31.24.2 - Database speed up
+### Version 0.31.25 - Workspace-Type Module Labels and Terminology
 
-Database calls have begun slowing down. I'm unsure what the cause is, but it's creating a noticable lag on the front end. Please do some testing and fill this ROADMAP section with the actions to take with the results of your tests.
+- [x] Add module manifest support for workspace-type-aware labels.
+  - [x] Default label.
+  - [x] Business workspace label.
+  - [x] Personal workspace label.
+  - [x] Family workspace label.
+  - [x] Optional short label.
+  - [x] Optional navigation label.
+  - [x] Optional empty-state wording.
+  - [x] Optional create-button wording.
+  - [x] Singular and plural terminology fields.
 
-#### Test Results
+- [x] Keep terminology differences in the registry/manifest first.
+  - [x] Do not fork database tables just because labels differ by workspace type.
+  - [x] Do not create separate modules for the same underlying workflow unless behavior truly differs.
+  - [x] Use stable internal module IDs and record types.
+  - [x] Let the UI choose the best label based on workspace type.
 
-- [x] Database health check
-  - `PRAGMA integrity_check` returned `ok`.
-  - Database size is about `1.32 MB` with `338` pages at `4096` bytes per page.
-  - `PRAGMA freelist_count` returned `0`, so there is no meaningful database bloat to vacuum away.
-  - Current row counts are small: `clients=9`, `projects=36`, `time_entries=69`, `tasks=18`, `audit_logs=294`.
+- [x] Add terminology resolver support.
+  - [x] Group manifest terminology by workspace type: `default`, `business`, `personal`, and `family`.
+  - [x] Merge terminology as exact workspace type, Family to Personal, then default.
+  - [x] Fall back safely when optional display labels are missing.
+  - [x] Keep stable IDs, routes, permission IDs, API scope IDs, audit record types, and stored data unchanged.
 
-- [x] Database access overhead check
-  - `50` separate `querySql("SELECT 1")` calls averaged about `32 ms` each.
-  - `50` batched SELECT statements in one sqlite process took about `34 ms` total.
-  - Primary finding: the active database wrapper spawns a new `sqlite3` process for every `querySql`/`runSql` call, so page latency is dominated by process startup and repeated small queries rather than raw SQLite table size.
+- [x] Convert obvious framework-level surfaces.
+  - [x] Main app-shell navigation.
+  - [x] Module registry output.
+  - [x] Dashboard cards generated from module registry metadata.
+  - [x] Workbench cards and source metadata generated from module registry metadata.
+  - [x] Settings/module management labels generated from module registry metadata.
+  - [x] API scope display labels/descriptions returned from enabled module metadata.
 
-- [x] Authenticated HTTP timing check
-  - `/api/app-info`: median about `3 ms`.
-  - `/api/app-shell/bootstrap`: median about `229 ms`.
-  - `/api/settings`: median about `138 ms`.
-  - `/api/client-projects`: median about `279 ms`.
-  - `/api/tasks`: median about `492 ms`.
-  - `/api/time-entries`: median about `117 ms`.
-  - `/api/reporting/bootstrap`: median about `529 ms`.
-  - `/api/dashboard`: median about `1004 ms`.
-  - `/api/reporting/project-summary`: median about `575 ms`.
+- [x] Add first-party module terminology examples.
+  - [x] Clients/Projects keeps stable module ID `client-projects`.
+  - [x] Business label: `Clients & Projects`.
+  - [x] Personal label: `Projects`.
+  - [x] Family falls back to Personal label: `Projects`.
+  - [x] Tasks and Time Tracking keep default labels for now.
 
-- [x] Service timing check
-  - `settingsService.read`: median about `135 ms`.
-  - `clientsService.readClientProjects`: median about `291 ms`.
-  - `tasksService.list`: median about `559 ms`.
-  - `timeEntriesService.list`: median about `101 ms`.
-  - `reportingService.readReportingBootstrap`: median about `545 ms`.
-  - `reportingService.readDashboard`: median about `1245 ms`.
-  - `reportingService.readProjectSummary`: median about `671 ms`.
+- [x] Leave room for future workspace-level custom labels.
+  - [x] Do not build custom labels yet unless needed.
+  - [x] If added later, store overrides in workspace settings or a dedicated `workspace_module_label_overrides` table.
+  - [x] Validate overrides so they cannot break routes, permissions, APIs, or module IDs.
 
-- [x] Query plan check
-  - Several common list queries use indexes for workspace filtering but still build temporary B-trees for `ORDER BY`.
-  - Affected examples include Tasks due-date ordering, role assignments by user, time entries by end time, clients by name, and projects by name.
-  - Secondary finding: add targeted sort-covering indexes, but do this after reducing query/process count so index work is measured against the real bottleneck.
-
-#### Repair Plan
-
-- [x] Replace per-query sqlite process spawning with a persistent sqlite adapter
-  - [x] Reuse one long-lived sqlite process for queued `querySql` and `runSql` calls instead of spawning a process per call.
-  - [x] Preserve the existing `querySql`, `runSql`, `sqlText`, `sqlNullableText`, `sqlInteger`, and `sqlNullableInteger` public helper contract while replacing the internals.
-  - [x] Keep migration checksum validation and fresh-start database behavior unchanged.
-  - [x] Add an explicit close hook for regression scripts and temporary database cleanup.
-
-- [x] Add request-scoped caching for repeated permission reads
-  - [x] Cache current user and role assignments for the duration of a request/session object.
-  - [x] Update `permissionsService.can` and `canInAnyScope` so repeated checks in task/reporting loops do not reread the same user and assignment rows.
-  - [x] Preserve protected-user and scoped-role behavior exactly.
-  - [x] Verify with the permission regression harness.
-
-- [x] Reduce task/reporting lag caused by repeated small reads
-  - [x] Remove the per-query process startup cost from task reminder, recurrence, permission, reporting, settings, module, and client/project reads.
-  - [x] Avoid repeated permission database reads inside task and reporting loops through request-scoped permission caching.
-  - [x] Keep `/api/tasks`, reporting, and dashboard response contracts unchanged.
-  - [x] Keep reporting parent-client descendant behavior from `0.31.24.1`.
-
-- [x] Add targeted list-sort indexes after the query-count fixes
-  - [x] Add task due ordering index `(workspace_id, due_date, due_time, updated_at)`.
-  - [x] Add active task assignee read index `(workspace_id, removed_at, user_id)`.
-  - [x] Add time entry list ordering index `(workspace_id, end_time)`.
-  - [x] Add client and project name ordering indexes `(workspace_id, name)`.
-  - [x] Add role assignment user ordering index `(workspace_id, user_id, updated_at, assignment_id)`.
-
-- [x] Add a performance regression script
-  - [x] Add a local script that measures database wrapper overhead and core service timings.
-  - [x] Record database health in the output so timing changes are interpreted with data integrity.
-  - [x] Add conservative thresholds for the repaired small-database baseline.
-  - [x] Wire the script into `npm run check`.
-
-#### Repair Results
-
-- [x] `50` trivial database reads now complete in about `7 ms` total in the performance regression.
-- [x] Temporary fresh-database service timings now run well below target:
-  - `settingsService.read`: about `2 ms`.
-  - `clientsService.readClientProjects`: about `1 ms`.
-  - `tasksService.list`: about `3 ms`.
-  - `reportingService.readReportingBootstrap`: about `3 ms`.
-  - `reportingService.readDashboard`: about `6 ms`.
-- [x] Live authenticated HTTP smoke after repair:
-  - `/api/settings`: median about `5 ms`.
-  - `/api/client-projects`: median about `8 ms`.
-  - `/api/tasks`: median about `12 ms`.
-  - `/api/reporting/bootstrap`: median about `9 ms`.
-  - `/api/dashboard`: median about `17 ms`.
-
-#### Acceptance Targets
-
-- [x] `50` trivial database reads should complete in less than `100 ms` total on the local machine.
-- [x] `/api/settings` should have a median response time under `75 ms`.
-- [x] `/api/client-projects` should have a median response time under `125 ms`.
-- [x] `/api/tasks` should have a median response time under `175 ms` with the current small dataset.
-- [x] `/api/reporting/bootstrap` should have a median response time under `175 ms`.
-- [x] `/api/dashboard` should have a median response time under `300 ms`.
-- [x] `PRAGMA integrity_check` remains `ok`.
-- [x] `npm run check` passes.
-- [x] `npm run test:permissions` passes.
-- [x] `/api/app-info` reports the release version after implementation.
+- [x] Add tests and docs.
+  - [x] Business workspace receives business terminology when present.
+  - [x] Personal workspace receives personal terminology when present.
+  - [x] Family workspace falls back through Family, then Personal, then default.
+  - [x] Missing workspace-specific labels fall back to default.
+  - [x] Stable IDs are unchanged by terminology resolution.
+  - [x] App shell/module registry surfaces render resolved display labels without changing routes or module IDs.
+  - [x] Add decision notes to `DECISIONS.md`.
 
 ## Version 0.32.0 - Notifications Framework Foundation
 
@@ -459,6 +409,24 @@ Database calls have begun slowing down. I'm unsure what the cause is, but it's c
   * [ ] Leave room for external search engines later
   * [ ] Do not require Elasticsearch/OpenSearch at this stage
 
+- [ ] Add SQLite FTS5 as the first real full-text backend where available. 
+  - [ ] Detect whether the active SQLite build supports FTS5. 
+  - [ ] Add a safe fallback to indexed `LIKE` search if FTS5 is unavailable. 
+  - [ ] Prefer FTS5 for local/self-hosted SQLite installs before considering external search services. 
+  - [ ] Keep the search service behind an adapter so PostgreSQL full-text search can be added later. 
+  - [ ] Do not require Elasticsearch/OpenSearch at this stage. 
+- [ ] Add `search_index` as the canonical framework search metadata table. 
+  - [ ] Keep permission, workspace, module, client, project, status, and visibility metadata in normal tables. 
+  - [ ] Use the normal `search_index` table as the source of truth for what records are searchable. 
+  - [ ] Use FTS5 virtual tables only as the full-text lookup engine. 
+  - [ ] Do not use FTS5 as the source of truth for permissions or record visibility. 
+- [ ] Add SQLite FTS5 virtual table/migration if supported. 
+  - [ ] Index searchable text fields such as title, summary, body, tags text, and module/source label. 
+  - [ ] Store enough reference fields to map FTS results back to `search_index`. 
+  - [ ] Keep FTS rows synchronized when `search_index` records are created, updated, removed, or rebuilt. 
+  - [ ] Add rebuild tooling that can regenerate FTS rows from `search_index`. 
+  - [ ] Add tests for FTS availability and fallback behavior.
+
 * [ ] Add initial `search_index` table
 
   * [ ] `search_index_id`
@@ -541,6 +509,12 @@ Database calls have begun slowing down. I'm unsure what the cause is, but it's c
   * [ ] Do not expose broad rebuild tools to normal users
   * [ ] Log rebuild activity clearly
 
+- [ ] Add FTS rebuild support. 
+  - [ ] Rebuild FTS rows from `search_index`. 
+  - [ ] Detect and repair missing FTS rows. 
+  - [ ] Detect and remove orphaned FTS rows. 
+  - [ ] Keep rebuild admin/tooling permission-restricted.
+
 * [ ] Keep search indexing boring at first
 
   * [ ] No external search engine yet
@@ -562,6 +536,12 @@ Database calls have begun slowing down. I'm unsure what the cause is, but it's c
   * [ ] Support tag filter
   * [ ] Support pagination
   * [ ] Respect workspace and permissions
+
+- [ ] Use the search service adapter from the API layer. 
+  - [ ] API routes should not query SQLite FTS tables directly. 
+  - [ ] API routes should call the framework search service. 
+  - [ ] Search results must still be permission-filtered after full-text matching. 
+  - [ ] FTS ranking can be basic at first.
 
 * [ ] Add public API search endpoint only if safe
 
@@ -634,6 +614,241 @@ Database calls have begun slowing down. I'm unsure what the cause is, but it's c
   * [ ] Notifications do not expose records the user cannot access
   * [ ] Disabled modules do not create new notifications
 
+## Version 0.32.10 - File Storage and Attachment Framework Foundation
+
+- [ ] Add framework-owned file storage foundation.
+  - [ ] File handling should be a shared framework service, not separately implemented by Tasks, Tickets, Notes, Knowledge Base, Creator Studio, or future modules.
+  - [ ] Individual modules should attach files through a registered file attachment contract.
+  - [ ] The framework owns file metadata, storage location, scan/quarantine status, download routing, deletion rules, audit events, and storage adapters.
+  - [ ] Modules own the meaning of the attachment in their own record context.
+
+- [ ] Add `files` table for stored file metadata.
+  - [ ] `file_id`
+  - [ ] `workspace_id`
+  - [ ] `storage_provider`
+  - [ ] `storage_key`
+  - [ ] `original_filename`
+  - [ ] `stored_filename`
+  - [ ] `display_name`
+  - [ ] `extension`
+  - [ ] `mime_type_claimed`
+  - [ ] `mime_type_detected`
+  - [ ] `file_size_bytes`
+  - [ ] `sha256_hash`
+  - [ ] `status`
+  - [ ] `scan_status`
+  - [ ] `quarantine_reason`
+  - [ ] `uploaded_by_user_id`
+  - [ ] `created_at`
+  - [ ] `updated_at`
+  - [ ] `deleted_at`
+  - [ ] `metadata_json`
+
+- [ ] Add `file_attachments` table to link files to module records.
+  - [ ] `file_attachment_id`
+  - [ ] `workspace_id`
+  - [ ] `file_id`
+  - [ ] `module_id`
+  - [ ] `target_type`
+  - [ ] `target_id`
+  - [ ] `client_id` optional
+  - [ ] `project_id` optional
+  - [ ] `attachment_role`
+  - [ ] `caption`
+  - [ ] `sort_order`
+  - [ ] `attached_by_user_id`
+  - [ ] `created_at`
+  - [ ] `removed_at`
+
+- [ ] Add file statuses.
+  - [ ] `pending`
+  - [ ] `available`
+  - [ ] `quarantined`
+  - [ ] `deleted`
+
+- [ ] Add scan statuses.
+  - [ ] `not_required`
+  - [ ] `pending`
+  - [ ] `passed`
+  - [ ] `failed`
+  - [ ] `error`
+
+- [ ] Add file attachment indexes.
+  - [ ] Workspace + file ID.
+  - [ ] Workspace + module ID.
+  - [ ] Workspace + target type + target ID.
+  - [ ] Workspace + client ID.
+  - [ ] Workspace + project ID.
+  - [ ] Workspace + status.
+  - [ ] Workspace + hash.
+  - [ ] Prevent duplicate active attachment of the same file to the same target where practical.
+
+- [ ] Add module-declared attachable type contract.
+  - [ ] Modules declare which record types can accept files.
+  - [ ] Attachable declarations should include:
+    - [ ] `targetType`
+    - [ ] `moduleId`
+    - [ ] `idField`
+    - [ ] `labelField`
+    - [ ] `workspaceField`
+    - [ ] `clientField` if applicable
+    - [ ] `projectField` if applicable
+    - [ ] required read/download permission
+    - [ ] required upload/attach permission
+    - [ ] allowed file categories
+    - [ ] max files per record if applicable
+    - [ ] max file size override if applicable
+  - [ ] Framework should not maintain a permanent hard-coded list of attachable target types.
+
+- [ ] Add storage adapter contract.
+  - [ ] Start with protected local filesystem storage outside the webroot.
+  - [ ] Store files in workspace-safe protected directories.
+  - [ ] Never trust user-provided filenames for stored paths.
+  - [ ] Generate server-side filenames/storage keys.
+  - [ ] Keep original filename only as metadata.
+  - [ ] Leave room for future adapters:
+    - [ ] Local protected filesystem.
+    - [ ] OneDrive.
+    - [ ] Google Drive.
+    - [ ] Dropbox.
+    - [ ] AWS S3.
+    - [ ] DigitalOcean Spaces/CDN.
+    - [ ] Other S3-compatible storage.
+  - [ ] Storage providers should use the same file metadata and permission layer.
+
+- [ ] Add core file permissions.
+  - [ ] `files.view`
+  - [ ] `files.upload`
+  - [ ] `files.download`
+  - [ ] `files.delete`
+  - [ ] `files.manage_quarantine`
+  - [ ] `files.manage_workspace_settings`
+
+## Version 0.32.11 - File Upload, Download, Safety, and API
+
+- [ ] Add secure upload handling.
+  - [ ] Allowlist file extensions by business need.
+  - [ ] Validate actual file type/signature; do not trust browser-provided MIME type alone.
+  - [ ] Generate server-side filenames/storage keys.
+  - [ ] Enforce file size limits.
+  - [ ] Store uploaded files outside the webroot or in isolated object storage.
+  - [ ] Require authentication and authorization before upload.
+  - [ ] Validate target module and target record before accepting an attachment.
+  - [ ] Validate target record belongs to active workspace.
+  - [ ] Validate user can attach files to the target record.
+  - [ ] Block uploads to disabled modules unless explicitly allowed.
+  - [ ] Log upload attempts, successful uploads, rejected uploads, deletion, quarantine, and scan events.
+
+- [ ] Add upload quarantine workflow.
+  - [ ] New files enter `pending` or `pending/scanning` state where applicable.
+  - [ ] Files are not publicly accessible until cleared.
+  - [ ] Failed or suspicious files are quarantined.
+  - [ ] Quarantined files are not shown in normal app UI.
+  - [ ] Admin access to quarantined files is tightly restricted and audited.
+  - [ ] Do not build a DIY CSAM review gallery.
+  - [ ] Do not require normal admins to manually inspect suspected CSAM.
+
+- [ ] Add antivirus/safety scanning hooks.
+  - [ ] Add scanner adapter contract.
+  - [ ] Allow local installs to start with a no-op scanner only when uploads are limited to trusted/admin users.
+  - [ ] Leave room for ClamAV or similar antivirus scanning.
+  - [ ] Leave room for external scanning/sandboxing providers.
+  - [ ] Store scan result metadata without exposing sensitive details to normal users.
+
+- [ ] Add CSAM prevention planning before broad public/user-generated uploads.
+  - [ ] Do not enable public image/video uploads until a specialized detection/reporting plan exists.
+  - [ ] Evaluate specialized CSAM detection providers such as Thorn Safer, PhotoDNA access, or an equivalent.
+  - [ ] Add known-CSAM hash matching where available.
+  - [ ] Add policy for suspected novel CSAM escalation.
+  - [ ] Add written NCMEC CyberTipline reporting procedure.
+  - [ ] Add retention/preservation policy reviewed by legal counsel.
+  - [ ] Do not make normal workspace admins responsible for reviewing suspected CSAM.
+
+- [ ] Add secure download handling.
+  - [ ] Do not expose protected files through direct static URLs.
+  - [ ] All protected downloads go through an authenticated app route.
+  - [ ] Validate file belongs to active workspace.
+  - [ ] Validate the file is attached to a record the user can access.
+  - [ ] Validate the target module is enabled.
+  - [ ] Validate file status is available and scan status permits download.
+  - [ ] Return safe content headers.
+  - [ ] Use attachment disposition for risky file types.
+  - [ ] Consider short-lived signed download tokens later, but keep first implementation simple and server-checked.
+  - [ ] Log download events where appropriate.
+
+- [ ] Add abuse reporting for uploaded files.
+  - [ ] Users can report illegal, abusive, or inappropriate uploaded content.
+  - [ ] Reports create security/audit events.
+  - [ ] Reports can hide or disable public access to the file while reviewed.
+  - [ ] Reports should not expose quarantined files to normal admins.
+
+- [ ] Add browser API routes for files.
+  - [ ] `POST /api/files`
+  - [ ] `GET /api/files/:fileId`
+  - [ ] `GET /api/files/:fileId/download`
+  - [ ] `POST /api/files/:fileId/delete`
+  - [ ] `GET /api/files/attachments`
+  - [ ] `POST /api/files/attachments`
+  - [ ] `POST /api/files/attachments/:fileAttachmentId/remove`
+  - [ ] `POST /api/files/:fileId/report`
+  - [ ] Admin-only quarantine routes if needed.
+
+- [ ] Add audit logging for file events.
+  - [ ] File uploaded.
+  - [ ] File attached to target.
+  - [ ] File downloaded where appropriate.
+  - [ ] File removed from target.
+  - [ ] File deleted.
+  - [ ] File quarantined.
+  - [ ] File scan failed.
+  - [ ] File reported.
+  - [ ] File restored from quarantine if that is ever allowed.
+
+## Version 0.32.12 - File Attachment UI and Module Hooks
+
+- [ ] Add reusable file attachment UI helper.
+  - [ ] File picker/upload component.
+  - [ ] Attachment list component.
+  - [ ] Download button/link component.
+  - [ ] Remove attachment action.
+  - [ ] File status display.
+  - [ ] Quarantine/pending status handling.
+  - [ ] Empty state.
+  - [ ] Error state.
+  - [ ] Permission-aware controls.
+
+- [ ] Add initial Files/Attachments module surface.
+  - [ ] Add optional first-party Files area for browsing workspace files if useful.
+  - [ ] Keep the first version simple.
+  - [ ] Do not turn the Files area into a full document-management system yet.
+  - [ ] Allow users to find files by module, target record, client, project, filename, and status where permissions allow.
+  - [ ] Keep actual record-specific attachment management inside the owning module screens.
+
+- [ ] Add file hooks for planned modules.
+  - [ ] Tasks should be able to attach files later.
+  - [ ] Support tickets should be able to attach files when built.
+  - [ ] Notes should be able to attach files when built.
+  - [ ] Knowledge Base entries should be able to attach public-safe files when built.
+  - [ ] Creator Studio should be able to use files as assets/media when built.
+  - [ ] Projects and clients may support attachments later if useful.
+
+- [ ] Add public-safe file groundwork.
+  - [ ] Protected internal files are the default.
+  - [ ] Public/client-visible files require explicit visibility fields and permission checks.
+  - [ ] Public-safe attachments are required before public KB/client portal features.
+  - [ ] Do not use tags as the source of truth for public/private file access.
+
+- [ ] Add regression tests.
+  - [ ] Files cannot cross workspace boundaries.
+  - [ ] Users cannot upload to records they cannot access.
+  - [ ] Users cannot download files attached to records they cannot access.
+  - [ ] Disabled modules cannot receive new file attachments.
+  - [ ] Quarantined files do not appear in normal attachment lists.
+  - [ ] Quarantined files cannot be downloaded by normal users.
+  - [ ] File paths cannot escape approved storage directories.
+  - [ ] Original filenames cannot overwrite server files.
+  - [ ] File metadata remains after attachment removal unless the file itself is deleted.
+
 ## Version 0.33.0 - Support Tickets
 
 - [ ] Support tickets
@@ -643,17 +858,39 @@ Database calls have begun slowing down. I'm unsure what the cause is, but it's c
   - [ ] Tickets should support external/client-visible responses later
   - [ ] Ticket visibility and edit access should respect the roles/permissions system
 
-## Version 0.34.0 - Notes/Knowledge Base foundations
+## Version 0.34.0 - Notes Module Foundation 
 
-- [ ] Notes/knowledge base
-  - [ ] Notes should be linkable with either markdown or wiki-style linking
-  - [ ] Notes should form the basis of the knowledge base
-  - [ ] Knowledge base should build automatically from notes, tasks, and support tickets
-    - Knowledge base will be a self-building "site" like SharePoint for working on tasks
-  - [ ] Notes can be marked as specific to a client, project, or entire org
-  - [ ] Notes should be marked as internal only or external visible
-  - [ ] Notes should have a changelog table, can be reused from the audit log, but remains persistent
-  - [ ] Note visibility and edit access should respect the roles/permissions system
+- [ ] Add Notes as a first-party module. 
+  - [ ] Notes are dynamic working records. 
+  - [ ] Notes may be workspace-level, client-level, project-level, task-linked, ticket-linked, or user-linked. 
+  - [ ] Notes should support internal visibility first. 
+  - [ ] Notes should support markdown or wiki-style linking. 
+  - [ ] Notes should support tags once tagging is stable. 
+  - [ ] Notes should be searchable once search is stable. 
+  - [ ] Notes should support file attachments once the file framework is stable. 
+  - [ ] Notes should have persistent revision/changelog support. 
+  - [ ] Note visibility and edit access should respect roles and permissions. 
+  - [ ] Do not make tags the source of truth for public/private access. 
+  
+## Version 0.34.1 - Knowledge Base Module Foundation 
+
+- [ ] Add Knowledge Base as a separate first-party module/concept. 
+  - [ ] Knowledge Base is a publishing and curation layer, not just "notes with public enabled." 
+  - [ ] KB entries may be created from notes, linked to notes, or written directly. 
+  - [ ] KB entries should support static/published pages. 
+  - [ ] KB entries should have explicit visibility fields. 
+  - [ ] KB entries should support draft/review/published/archived states. 
+  - [ ] KB entries should support internal-only, workspace-visible, client-visible, and public-visible modes later. 
+  - [ ] KB entries should support tags, search, attachments, and revision history. 
+  - [ ] Public/client-visible KB behavior should wait until permissions and public-safe file handling are stable. 
+
+- [ ] Define relationship between Notes and Knowledge Base. 
+  - [ ] Notes can be source material for KB entries. 
+  - [ ] KB entries can link back to source notes. 
+  - [ ] Updating a note should not automatically publish a KB change. 
+  - [ ] Publishing should be explicit. 
+  - [ ] KB should not automatically publish tasks, tickets, or notes without review. 
+  - [ ] Public KB pages should not expose internal comments, audit data, private attachments, or hidden source notes.
 
 ## Version 0.35.0 - Calendars and Calendar Views
 
@@ -785,6 +1022,14 @@ Super Admins should have a backup/restore function on the dashboard that dumps t
 
 ### Version 0.39.0 - Shopping / Procurement Lists Module
 
+- [ ] Treat this as an official first-party module. 
+  - [ ] The module should ship with Longtail Forge. 
+  - [ ] It should be enable/disable capable per workspace. 
+  - [ ] Personal/family workspaces should label it as "Shopping Lists." 
+  - [ ] Business workspaces should label it as "Procurement Lists." 
+  - [ ] The underlying module ID should remain stable regardless of label. 
+  - [ ] Suggested module ID: `lists` or `procurement-lists`; prefer `lists` if it will cover personal/family shopping use cases cleanly.
+
 - [ ] Add optional first-party lists module for personal/family and business workspaces.
 - [ ] Use workspace-aware labels:
   - [ ] Personal/family workspaces: "Shopping Lists"
@@ -832,7 +1077,6 @@ Super Admins should have a backup/restore function on the dashboard that dumps t
 
 ### Version 0.39.1 - Creator Studio / Content Studio Module
 
-- [ ] Add optional first-party `creator-studio` module.
 - [ ] Core records:
   - [ ] Content ideas.
   - [ ] Content drafts.
@@ -882,8 +1126,68 @@ Super Admins should have a backup/restore function on the dashboard that dumps t
   - [ ] Client/project-linked content respects existing permissions.
   - [ ] External clients may be allowed to review/comment only if explicitly enabled.
 
+- [ ] Treat Creator Studio as an optional first-party module. 
+  - [ ] The module should ship with Longtail Forge but be disabled by default for workspaces that do not need it. 
+  - [ ] It should follow the same module manifest, permissions, navigation, search, tags, notification, file, task, notes, and calendar contracts as every other first-party module. 
+  - [ ] Do not build it as a separate third-party plugin project yet. 
+  - [ ] Use it as a real-world test case for whether Longtail Forge modules can compose shared framework services cleanly. 
 
-## Final checkpoint for documentation update before 0.40.0
+- [ ] Reuse existing first-party modules where appropriate. 
+  - [ ] Content ideas may start as Creator Studio records but should be linkable to notes and lists. 
+  - [ ] Content drafts may hook into Notes when Notes exists. 
+  - [ ] Campaigns/series should likely be Creator Studio-owned hierarchical records. 
+  - [ ] Assets/media should use the framework file service. 
+  - [ ] Repurposing work should be able to create/link Tasks. 
+  - [ ] Publishing dates should hook into Calendar when Calendar exists. 
+  - [ ] Tags and Search should apply to Creator Studio records. 
+  - [ ] Notifications should support assignments, due dates, review requests, and scheduled publish reminders later. 
+
+- [ ] Add Creator Studio workbench. 
+  - [ ] Add a dedicated Creator Studio workbench page. 
+  - [ ] Workbench should be accessible from a picker similar to workspace/module selection. 
+  - [ ] It should support a focused content-production workflow without cluttering the basic workbench. 
+  - [ ] It should optionally filter by client/project/brand/channel/campaign. 
+  - [ ] It should be disabled cleanly when the Creator Studio module is disabled. 
+
+- [ ] Define workbench areas as a framework concept. 
+  - [ ] Basic workbench for general first-party modules such as timers, tasks, notes, and lists. 
+  - [ ] Focused workbench for one client/project at a time. 
+  - [ ] Creator Studio workbench for content planning, drafting, assets, campaigns, repurposing, and editorial calendar work. 
+  - [ ] Future modules may declare their own workbench areas through the module manifest.
+
+## Version 0.39.9 - User Documentation and 0.3x Stabilization Checkpoint 
+
+- [ ] Create user-facing documentation for the completed 0.3x feature set. 
+  - [ ] Getting started. 
+  - [ ] Workspace types and workspace switching. 
+  - [ ] Users, roles, and permissions. 
+  - [ ] Clients and projects. 
+  - [ ] Time tracking. 
+  - [ ] Tasks. 
+  - [ ] Notifications. 
+  - [ ] Tags. 
+  - [ ] Search. 
+  - [ ] Files/attachments if completed in 0.32.x. 
+  - [ ] Support tickets if completed in 0.33.x. 
+  - [ ] Notes and knowledge base foundations if completed in 0.34.x. 
+  - [ ] Calendar basics if completed in 0.35.x. 
+  - [ ] Shopping/procurement lists if completed in 0.39.x. 
+  - [ ] Creator/content studio if completed in 0.39.x. 
+- [ ] Create admin-facing documentation for workspace/module setup. 
+  - [ ] Module enable/disable behavior. 
+  - [ ] Workspace-type label differences. 
+  - [ ] Permission expectations. 
+  - [ ] Safe file upload/download behavior. 
+- [ ] Create developer-facing notes for first-party module contracts. 
+  - [ ] Module manifest fields. 
+  - [ ] Navigation registration. 
+  - [ ] Permission declarations. 
+  - [ ] Notification declarations. 
+  - [ ] Taggable/searchable declarations. 
+  - [ ] File attachable declarations. 
+  - [ ] Workbench card/area declarations. 
+- [ ] Update `docs/architecture.md` to reflect the completed 0.3x architecture. 
+- [ ] Verify `ROADMAP.md`, `TODO.md`, `DECISIONS.md`, `CHANGELOG.md`, and package versions are consistent.
 
 ## Version 0.40.0 - Project Tools expansion & Database extraction layer for use with SQLite or PostGRES
 
@@ -1114,6 +1418,20 @@ Auto-routing communications/messaging
 - [ ] Home Assistant
 - [ ] Apple Home
 - [ ] Google Assistant (Google Home?)
+
+### Analytics (Creator Studio)
+
+- [ ] WordPress
+- [ ] YouTube
+- [ ] TikTok
+- [ ] Twitch
+- [ ] Facebook
+- [ ] Instagram
+- [ ] Threads
+- [ ] X
+- [ ] BlueSky
+- [ ] Mastodon
+- [ ] Buffer
 
 ## Version 0.71.0
 

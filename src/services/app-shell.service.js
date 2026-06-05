@@ -81,10 +81,12 @@ async function buildNavigation(workspaceContext, moduleNavigation, permissionHin
   const workspaceType = workspaceContext.workspaceType || capabilities.workspaceType || "business";
   const availableTools = new Set(Array.isArray(capabilities.availableTools) ? capabilities.availableTools : []);
   const enabledModules = new Set(workspaceContext.enabledModules || []);
+  const modulesById = new Map((workspaceContext.modules || []).map((moduleDefinition) => [moduleDefinition.id, moduleDefinition]));
+  const clientProjectsLabel = moduleDisplayLabel(modulesById, "client-projects", "Projects");
   const moduleNavByHref = new Map(moduleNavigation.map((item) => [item.href, item]));
   const projectsMenu = {
     id: "projects",
-    label: "Projects",
+    label: clientProjectsLabel,
     items: [],
   };
   const reportingMenu = {
@@ -131,7 +133,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, permissionHin
   if (enabledModules.has("tasks")) {
     modulesSettingsMenu.items.push({
       id: "tasks-settings",
-      label: "Tasks",
+      label: moduleDisplayLabel(modulesById, "tasks", "Tasks"),
       href: "tasks-settings.html",
     });
   }
@@ -139,7 +141,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, permissionHin
   if (enabledModules.has("time-tracking")) {
     modulesSettingsMenu.items.push({
       id: "time-tracking-settings",
-      label: "Time Tracking",
+      label: moduleDisplayLabel(modulesById, "time-tracking", "Time Tracking"),
       href: "time-tracking-settings.html",
     });
   }
@@ -227,6 +229,11 @@ function addModuleNavItem(targetItems, item) {
     href: item.href,
     moduleId: item.moduleId,
   });
+}
+
+function moduleDisplayLabel(modulesById, moduleId, fallback) {
+  const moduleDefinition = modulesById.get(moduleId);
+  return moduleDefinition?.shortLabel || moduleDefinition?.displayName || moduleDefinition?.name || fallback;
 }
 
 function normalizeWorkspaceMemberships(memberships) {

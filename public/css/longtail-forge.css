@@ -1667,11 +1667,35 @@ dialog .form-actions {
     border-bottom: 1px solid var(--color-border);
 }
 
+.project-defaults-details summary {
+    font-weight: 700;
+}
+
+.project-module-defaults-group,
+.project-default-sort-group {
+    min-width: 0;
+    margin: 12px 0 0;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.project-default-sort-group {
+    grid-column: 1 / -1;
+}
+
+.project-module-defaults-group > legend,
+.project-default-sort-group > legend {
+    padding: 0 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+}
+
 .project-defaults-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
-    padding-top: 12px;
 }
 
 .project-default-sort-list {
@@ -1912,6 +1936,10 @@ dialog .form-actions {
 .project-actions {
     display: flex;
     gap: 8px;
+    justify-content: flex-end;
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border);
 }
 
 .client-page-actions,
