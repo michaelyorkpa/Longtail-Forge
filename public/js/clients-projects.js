@@ -10,6 +10,7 @@ const clientModal = document.querySelector("[data-client-modal]");
 const clientForm = document.querySelector("[data-client-form]");
 const newClientNameInput = document.querySelector("[data-new-client-name]");
 const newParentClientSelect = document.querySelector("[data-new-parent-client]");
+const newClientTagsContainer = document.querySelector("[data-new-client-tags]");
 const newProjectNameInput = document.querySelector("[data-new-project-name]");
 const newProjectBillingRateInput = document.querySelector(
   "[data-new-project-billing-rate]",
@@ -55,6 +56,8 @@ let openBillingClientId = "";
 let openClientBillingSettingsId = "";
 let openedAddClientFromQuery = false;
 let openedClientDetailFromQuery = false;
+let tagOptions = [];
+let newClientTagPicker = { readTagIds: () => [] };
 
 loadPageData();
 
@@ -107,13 +110,15 @@ async function loadPageData() {
   setStatus("Loading clients and projects...");
 
   try {
-    const [settingsData, clientsData] = await Promise.all([
+    const [settingsData, clientsData, loadedTags] = await Promise.all([
       window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
       window.LongtailForge.api.getJson("/api/client-projects", { cache: "no-store" }),
+      loadTagOptions(),
     ]);
 
     workspaceSettings = normalizeSettings(settingsData);
     clientProjectData = normalizeData(clientsData);
+    tagOptions = loadedTags;
     renderProjectClientFilter();
     applyInitialClientParam();
     renderClients();
@@ -329,6 +334,7 @@ function createProjectTable(projects) {
     nameCell.textContent = clientsEnabledForWorkspace()
       ? `${treeIndent(getProjectDepth(project, client))}${project.name} (${clientName})`
       : `${treeIndent(getProjectDepth(project, client))}${project.name}`;
+    appendTagChips(nameCell, project.tags);
     editButton.type = "button";
     editButton.textContent = "Edit";
     editButton.addEventListener("click", () => openProjectDetailDialog(client, project));
@@ -512,6 +518,7 @@ function createClientTable(clients) {
     checkbox.dataset.clientTableSelect = client.id;
     checkbox.addEventListener("change", updateClientTableBulkState);
     nameCell.textContent = `${treeIndent(getClientDepth(client))}${client.name}`;
+    appendTagChips(nameCell, client.tags);
     editButton.type = "button";
     editButton.textContent = "Edit";
     editButton.addEventListener("click", () => openClientDetailDialog(client));
@@ -524,6 +531,63 @@ function createClientTable(clients) {
   table.append(thead, tbody);
   tableWrap.appendChild(table);
   return tableWrap;
+}
+
+function appendTagChips(container, tags) {
+  if (!container || !window.LongtailForge.tags?.renderTagList || !Array.isArray(tags) || tags.length === 0) {
+    return;
+  }
+
+  const list = document.createElement("div");
+  list.className = "tag-chip-list";
+  window.LongtailForge.tags.renderTagList(list, tags);
+  container.appendChild(list);
+}
+
+async function loadTagOptions() {
+  return window.LongtailForge?.tags?.loadTags
+    ? window.LongtailForge.tags.loadTags({ status: "active" })
+    : [];
+}
+
+function createTagPickerField(label, tags = [], targetKind = "record") {
+  const element = document.createElement("div");
+  element.dataset[`${targetKind}Tags`] = "";
+  element.tagPicker = { readTagIds: () => [] };
+  const picker = mountTagPicker(element, tags, label);
+
+  if (picker) {
+    picker.then((mountedPicker) => {
+      element.tagPicker = mountedPicker || element.tagPicker;
+      const legend = element.querySelector("legend");
+      if (legend) {
+        legend.textContent = label;
+      }
+    });
+  } else {
+    element.hidden = true;
+  }
+
+  return {
+    element,
+    readTagIds: () => element.tagPicker?.readTagIds?.() || [],
+  };
+}
+
+function mountTagPicker(container, tags = [], label = "Tags") {
+  if (!container || !window.LongtailForge.tags?.mountPicker || tagOptions.length === 0) {
+    if (container) {
+      container.hidden = true;
+    }
+    return null;
+  }
+
+  container.hidden = false;
+  return window.LongtailForge.tags.mountPicker(container, {
+    tags: tagOptions,
+    label,
+    selectedTagIds: tags.map((tag) => tag.tag_id),
+  });
 }
 
 function getSelectedClientIds() {
@@ -663,6 +727,13 @@ function openAddClientModal() {
 
   clientForm.reset();
   populateParentClientSelect(newParentClientSelect);
+  newClientTagPicker = { readTagIds: () => [] };
+  const mountedPicker = mountTagPicker(newClientTagsContainer, []);
+  if (mountedPicker) {
+    mountedPicker.then((picker) => {
+      newClientTagPicker = picker || newClientTagPicker;
+    });
+  }
 
   if (newProjectBillingRateInput) {
     newProjectBillingRateInput.value = workspaceSettings.defaultBillingRate;
@@ -1205,8 +1276,9 @@ function createClientNameEditor(client, options = {}) {
   const statusSelect = createClientStatusSelect(client.status);
   statusSelect.dataset.clientStatusInput = client.id;
   statusLabel.appendChild(statusSelect);
+  const tagPicker = createTagPickerField("Client Tags", client.tags, "client");
 
-  wrapper.append(label, createParentClientField(client), statusLabel);
+  wrapper.append(label, createParentClientField(client), statusLabel, tagPicker.element);
 
   if (showSaveButton) {
     const saveButton = document.createElement("button");
@@ -1503,6 +1575,7 @@ async function saveClientSettings(client, container, options = {}) {
   const nameInput = container?.querySelector("[data-client-name-input]");
   const statusSelect = container?.querySelector("[data-client-status-input]");
   const parentClientSelect = container?.querySelector("[data-client-parent-field]");
+  const tagPicker = container?.querySelector("[data-client-tags]")?.tagPicker;
   const billingRateInput = container?.querySelector("[data-client-billing-rate-input]");
   const billableInput = container?.querySelector("[data-client-billable-input]");
 
@@ -1515,6 +1588,7 @@ async function saveClientSettings(client, container, options = {}) {
   client.name = nameInput.value.trim();
   client.status = statusSelect?.value || client.status;
   client.parent_client_id = parentClientSelect?.value || "";
+  client.tagIds = tagPicker?.readTagIds?.() || [];
 
   if ((oldClient.parent_client_id || "") !== (client.parent_client_id || "")) {
     const confirmed = await window.LongtailForge.modal.confirm({
@@ -1664,6 +1738,7 @@ function createProjectEditor(client, project, options = {}) {
   const clientAssignmentSelect = clientAssignmentLabel.querySelector("select");
   const parentProjectSelect = parentProjectLabel.querySelector("select");
   const clientActions = createProjectClientShortcutActions(project);
+  const tagPicker = createTagPickerField("Project Tags", project.tags, "project");
 
   clientAssignmentSelect.addEventListener("change", () => {
     populateParentProjectSelect(parentProjectSelect, {
@@ -1753,6 +1828,7 @@ function createProjectEditor(client, project, options = {}) {
     project.billing_rounding = billingRoundingEditor.getValue();
     project.taskReminderPolicy = reminderPolicyEditor.getValue();
     project.taskDefaults = taskDefaultsEditor.getValue();
+    project.tagIds = tagPicker.readTagIds();
 
     if ((oldProject.client_id || "") !== (project.client_id || "") || (oldProject.parent_project_id || "") !== (project.parent_project_id || "")) {
       const confirmed = await window.LongtailForge.modal.confirm({
@@ -1829,6 +1905,7 @@ function createProjectEditor(client, project, options = {}) {
     statusLabel,
     clientActions,
     taskDefaultsEditor.element,
+    tagPicker.element,
     billingDetails,
     ...(options.actionTarget ? [] : [actionGroup]),
   );
@@ -2141,6 +2218,7 @@ function createAddProjectForm(client, { onSaved = null, showClientAssignment = f
     inheritedRounding: client.isWorkspaceScope ? workspaceSettings.billingRounding : getEffectiveClientBillingRounding(client),
     showModeWhenUnbillable: true,
   });
+  const tagPicker = createTagPickerField("Project Tags", [], "project");
 
   billingSettings.append(
     billingRoundingEditor.element,
@@ -2190,6 +2268,7 @@ function createAddProjectForm(client, { onSaved = null, showClientAssignment = f
     ...formFields,
     parentProjectLabel,
     statusLabel,
+    tagPicker.element,
     billingDetails,
     saveButton,
   );
@@ -2209,6 +2288,7 @@ function createAddProjectForm(client, { onSaved = null, showClientAssignment = f
       billing_period: usesSimplifiedBilling ? null : billingPeriodEditor.getValue(),
       billing_rounding: billingRoundingEditor.getValue(),
       status: statusSelect.value,
+      tagIds: tagPicker.readTagIds(),
     };
 
     targetClient.projects.push(project);
@@ -2253,6 +2333,7 @@ async function addClient() {
     billing_period: null,
     billing_rounding: null,
     billing_contact: createEmptyBillingContact(),
+    tagIds: newClientTagPicker?.readTagIds?.() || [],
     projects: isClientsPage
       ? []
       : [
@@ -2444,6 +2525,7 @@ function normalizeData(data) {
           billing_rounding: normalizeOptionalBillingRounding(client.billing_rounding),
           billing_contact: normalizeBillingContact(client.billing_contact),
           taskReminderPolicy: normalizeTaskReminderPolicy(client.taskReminderPolicy),
+          tags: normalizeTags(client.tags),
           projects: normalizeProjects(client.projects || [], clientBillable, client.id),
         };
       })
@@ -2485,10 +2567,22 @@ function normalizeProjects(projects, clientBillable, clientId) {
         billing_rounding: normalizeOptionalBillingRounding(project.billing_rounding),
         taskDefaults: normalizeProjectTaskDefaults(project.taskDefaults || project.task_defaults || project),
         taskReminderPolicy: normalizeTaskReminderPolicy(project.taskReminderPolicy),
+        tags: normalizeTags(project.tags),
         status: projectStatuses.includes(project.status)
           ? project.status
           : "Active",
       }))
+    : [];
+}
+
+function normalizeTags(tags) {
+  return Array.isArray(tags)
+    ? tags.map((tag) => ({
+        tag_id: String(tag.tag_id || "").trim(),
+        name: String(tag.name || "").trim(),
+        slug: String(tag.slug || "").trim(),
+        color: String(tag.color || "").trim(),
+      })).filter((tag) => tag.tag_id)
     : [];
 }
 

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { timeEntriesRepository } from "./time-entries.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
+import { tagsService } from "../../services/tags.service.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { resolveProjectRecordScope } from "../../core/record-scope.js";
@@ -41,6 +42,7 @@ async function create(entry, session) {
   });
 
   await timeEntriesRepository.create(data);
+  await saveTargetTags(session, "time_entry", entryId, entry);
   await auditService.record({
     session,
     action: "time_entry_created",
@@ -60,7 +62,11 @@ async function create(entry, session) {
     },
   });
 
-  return { entry_id: entryId, storage: "database" };
+  return {
+    entry: (await tagsService.decorateRecordsForTarget(session, "time_entry", [data]))[0],
+    entry_id: entryId,
+    storage: "database",
+  };
 }
 
 async function update(payload, entryId, session) {
@@ -98,6 +104,8 @@ async function update(payload, entryId, session) {
   });
 
   await timeEntriesRepository.update(updatedEntry);
+  await saveTargetTags(session, "time_entry", decodedEntryId, payload);
+  const taggedEntry = (await tagsService.decorateRecordsForTarget(session, "time_entry", [updatedEntry]))[0];
   await auditService.record({
     session,
     action: "time_entry_updated",
@@ -109,7 +117,7 @@ async function update(payload, entryId, session) {
       : updatedEntry.project_name,
     recordUrl: `edit-entries.html?entry=${encodeURIComponent(decodedEntryId)}`,
     previousValue: previousEntry,
-    newValue: updatedEntry,
+    newValue: taggedEntry,
     metadata: {
       old_client_id: previousEntry.client_id,
       old_project_id: previousEntry.project_id,
@@ -118,7 +126,7 @@ async function update(payload, entryId, session) {
     },
   });
 
-  return { entry: updatedEntry, storage: "database" };
+  return { entry: taggedEntry, storage: "database" };
 }
 
 async function remove(entryId, session) {
@@ -160,9 +168,31 @@ async function remove(entryId, session) {
   return { entry_id: decodedEntryId, deleted: true };
 }
 
-async function list(session) {
+async function list(session, query = {}) {
   const entries = await timeEntriesRepository.readAll(session.workspace_id);
-  return { entries: await permissionsService.filterReadableTimeEntries(session, entries) };
+  const readableEntries = await permissionsService.filterReadableTimeEntries(session, entries);
+  const filteredEntries = await tagsService.filterRecordsByTags(
+    session,
+    "time_entry",
+    readableEntries,
+    query.tagIds || query.tag_ids || query.tags,
+  );
+
+  return {
+    entries: await tagsService.decorateRecordsForTarget(session, "time_entry", filteredEntries),
+  };
+}
+
+async function saveTargetTags(session, targetType, targetId, payload = {}) {
+  if (!Object.hasOwn(payload || {}, "tagIds") && !Object.hasOwn(payload || {}, "tag_ids")) {
+    return;
+  }
+
+  await tagsService.replaceAssignments(session, {
+    targetId,
+    targetType,
+    tagIds: payload.tagIds || payload.tag_ids || [],
+  });
 }
 
 async function resolveTimeEntryScope(workspaceId, entry) {

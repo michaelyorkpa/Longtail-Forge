@@ -7,6 +7,7 @@ const timerTemplate = (
 ).cloneNode(true);
 
 let clients = [];
+let tagOptions = [];
 let timers = [];
 
 const timerPersistence = {
@@ -172,6 +173,7 @@ async function loadActiveTimers() {
 async function initializeTimeTracker() {
   await window.LongtailForge.workspaceContextReady;
   setTimerCount(1);
+  await loadTagOptions();
   await loadClientProjectData();
   await loadActiveTimers();
 }
@@ -192,6 +194,9 @@ class StopwatchTimer {
     this.descriptionInput =
       root.querySelector("[data-stopwatch-description]") ||
       createDescriptionInput(root);
+    this.tagsContainer =
+      root.querySelector("[data-stopwatch-tags]") ||
+      createTagsContainer(root);
     this.display =
       root.querySelector("[data-stopwatch-display]") || createDisplay(root);
     this.startButton =
@@ -232,6 +237,7 @@ class StopwatchTimer {
     this.confirmedProjectId = this.projectSelect.value;
     this.persistedActiveTimerId = "";
     this.isRestoring = false;
+    this.tagPicker = { readTagIds: () => [], setSelected: () => {} };
 
     this.startTimeTracker = this.startTimeTracker.bind(this);
     this.pause = this.pause.bind(this);
@@ -252,6 +258,7 @@ class StopwatchTimer {
 
     this.updateDisplay();
     this.updateButtons();
+    this.mountTagPicker();
   }
 
   dispose() {
@@ -361,6 +368,7 @@ class StopwatchTimer {
       this.clientSelect.value = "";
       this.populateProjectOptions([]);
       this.descriptionInput.value = "";
+      this.tagPicker?.setSelected?.([]);
       this.billableInput.checked = true;
       this.confirmedClientId = "";
       this.confirmedProjectId = "";
@@ -411,6 +419,7 @@ class StopwatchTimer {
       duration_hours: (durationSeconds / 3600).toFixed(4),
       billable: this.billableInput.checked ? "yes" : "no",
       invoice_status: "unbilled",
+      tagIds: this.readTagIds(),
     };
 
     let saved = false;
@@ -621,6 +630,27 @@ class StopwatchTimer {
     this.billableInput.checked = billableSource?.billable !== "no";
   }
 
+  mountTagPicker(selectedTagIds = []) {
+    if (!this.tagsContainer || !window.LongtailForge?.tags?.mountPicker || tagOptions.length === 0) {
+      if (this.tagsContainer) {
+        this.tagsContainer.hidden = true;
+      }
+      return;
+    }
+
+    this.tagsContainer.hidden = false;
+    window.LongtailForge.tags.mountPicker(this.tagsContainer, {
+      tags: tagOptions,
+      selectedTagIds,
+    }).then((picker) => {
+      this.tagPicker = picker || this.tagPicker;
+    });
+  }
+
+  readTagIds() {
+    return this.tagPicker?.readTagIds?.() || [];
+  }
+
   restoreFromPersistedTimer(timerData) {
     this.isRestoring = true;
     this.persistedActiveTimerId = timerData.active_timer_id || "";
@@ -820,6 +850,7 @@ function createTimeTrackerRoot(timerNumber) {
   createSelect(element, "Project", "project", "Select a project").disabled =
     true;
   createDescriptionInput(element);
+  createTagsContainer(element);
   createDisplay(element);
   createButton(element, "Start", "start");
   createButton(element, "Pause", "pause");
@@ -865,6 +896,14 @@ function createDescriptionInput(parent) {
   details.appendChild(label);
 
   return input;
+}
+
+function createTagsContainer(parent) {
+  const details = getDetailsContainer(parent);
+  const element = document.createElement("div");
+  element.dataset.stopwatchTags = "";
+  details.appendChild(element);
+  return element;
 }
 
 function getDetailsContainer(parent) {
@@ -1017,6 +1056,13 @@ function workspaceShowsClientTools() {
   const tools = context.workspaceCapabilities?.availableTools || [];
 
   return Array.isArray(tools) && tools.includes("clients_projects");
+}
+
+async function loadTagOptions() {
+  tagOptions = window.LongtailForge?.tags?.loadTags
+    ? await window.LongtailForge.tags.loadTags({ status: "active" })
+    : [];
+  timers.forEach((timer) => timer.mountTagPicker(timer.readTagIds()));
 }
 
 function createOption(value, label) {

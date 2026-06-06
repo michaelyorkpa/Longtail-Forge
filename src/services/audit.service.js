@@ -33,8 +33,6 @@ const RECORD_TYPES = new Set([
   "module_setting",
   "user_role_assignment",
   "api_key",
-  "tag",
-  "tag_assignment",
 ]);
 
 async function record(event) {

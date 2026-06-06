@@ -69,6 +69,12 @@
                 <option value="all" selected>All projects</option>
               </select>
             </label>
+            <label data-task-tag-filter-control hidden>
+              Tag
+              <select data-task-tag-filter>
+                <option value="all" selected>All tags</option>
+              </select>
+            </label>
           </div>
         </details>
       </div>
@@ -229,6 +235,8 @@
             </div>
           </details>
 
+          <div class="task-tags-field" data-task-tags></div>
+
           <label class="task-description-field">
             Description
             <textarea rows="5" data-task-description></textarea>
@@ -278,6 +286,7 @@
     <script src="js/shared/api-client.js"></script>
     <script src="js/shared/page-controller.js"></script>
     <script src="js/shared/timezones.js"></script>
+    <script src="js/shared/tags.js"></script>
     <script src="js/tasks.js?v=3"></script>
     <script src="js/footer.js"></script>
   </body>

@@ -7,7 +7,7 @@ import { asyncRoute, readJsonBody } from "../../core/http.js";
 const tasksRoutes = Router();
 
 tasksRoutes.get("/tasks", asyncRoute(async (request, response) => {
-  const result = await tasksService.list(request.session);
+  const result = await tasksService.list(request.session, request.query);
   response.status(200).json(result);
 }));
 

@@ -1,5 +1,6 @@
 import { clientProjectsModule } from "../../modules/client-projects/module.js";
 import { developerExampleModule } from "../../modules/developer-example/module.js";
+import { tagsModule } from "../../modules/tags/module.js";
 import { tasksModule } from "../../modules/tasks/module.js";
 import { timeTrackingModule } from "../../modules/time-tracking/module.js";
 import { usersModule } from "../../modules/users/module.js";
@@ -8,6 +9,7 @@ import { validateModuleManifests } from "./manifest-contract.js";
 const moduleDefinitions = [
   clientProjectsModule,
   developerExampleModule,
+  tagsModule,
   tasksModule,
   timeTrackingModule,
   usersModule,

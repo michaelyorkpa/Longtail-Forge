@@ -175,6 +175,29 @@ ORDER BY LOWER(tags.name), tags.tag_id;
   return rows.map(assignmentRowToAppValue);
 }
 
+async function listAssignmentsForTargets(workspaceId, targetType, targetIds) {
+  const normalizedIds = [...new Set((targetIds || []).map((targetId) => String(targetId || "").trim()).filter(Boolean))];
+
+  if (normalizedIds.length === 0) {
+    return [];
+  }
+
+  const rows = await querySql(`
+SELECT
+${ASSIGNMENT_COLUMNS}
+FROM tag_assignments
+INNER JOIN tags
+  ON tags.workspace_id = tag_assignments.workspace_id
+  AND tags.tag_id = tag_assignments.tag_id
+WHERE tag_assignments.workspace_id = ${sqlText(workspaceId)}
+  AND tag_assignments.target_type = ${sqlText(targetType)}
+  AND tag_assignments.target_id IN (${normalizedIds.map(sqlText).join(", ")})
+ORDER BY tag_assignments.target_id, LOWER(tags.name), tags.tag_id;
+`);
+
+  return rows.map(assignmentRowToAppValue);
+}
+
 async function addAssignment(workspaceId, assignment) {
   const assignmentId = randomUUID();
   const now = new Date().toISOString();
@@ -259,6 +282,7 @@ export const tagsRepository = {
   addAssignment,
   createTag,
   listAssignmentsForTarget,
+  listAssignmentsForTargets,
   listTags,
   readTagById,
   readTagBySlug,

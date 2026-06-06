@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { clientsRepository } from "./clients.repo.js";
 import { projectsRepository } from "./projects.repo.js";
 import { auditService } from "../../core/audit.js";
+import { tagsService } from "../../services/tags.service.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { isArchivedRecord, readClientScope } from "../../core/record-scope.js";
@@ -24,15 +25,27 @@ async function readClientProjects(session) {
   const readableProjectClientIds = new Set(readableProjects.map((project) => project.client_id));
   const readableProjectIds = new Set(readableProjects.map((project) => project.id));
 
+  const workspaceProjects = await tagsService.decorateRecordsForTarget(
+    session,
+    "project",
+    (data.workspaceProjects || []).filter((project) => readableProjectIds.has(project.id)),
+  );
+  const decoratedClients = await tagsService.decorateRecordsForTarget(
+    session,
+    "client",
+    clients.filter((client) => readableClientIds.has(client.id) || readableProjectClientIds.has(client.id)),
+  );
+  const projectAssignments = await tagsService.decorateRecordsForTarget(session, "project", readableProjects);
+  const projectsById = new Map(projectAssignments.map((project) => [project.id, project]));
+
   return {
-    workspaceProjects: (data.workspaceProjects || []).filter((project) => readableProjectIds.has(project.id)),
-    clients: clients
-      .filter((client) => readableClientIds.has(client.id) || readableProjectClientIds.has(client.id))
+    workspaceProjects,
+    clients: decoratedClients
       .map((client) => ({
         ...client,
         projects: client.projects.filter((project) => (
           readableClientIds.has(client.id) || readableProjectIds.has(project.id)
-        )),
+        )).map((project) => projectsById.get(project.id) || project),
       })),
   };
 }
@@ -85,10 +98,18 @@ function buildDescendantIdMap(records, parentField) {
   }, new Map());
 }
 
-async function listClients(session) {
+async function listClients(session, query = {}) {
   await assertBusinessWorkspace(session);
   const clients = await clientsRepository.readAll(session.workspace_id);
-  return { clients: await permissionsService.filterReadableClients(session, clients) };
+  const readableClients = await permissionsService.filterReadableClients(session, clients);
+  const filteredClients = await tagsService.filterRecordsByTags(
+    session,
+    "client",
+    readableClients,
+    query.tagIds || query.tag_ids || query.tags,
+  );
+
+  return { clients: await tagsService.decorateRecordsForTarget(session, "client", filteredClients) };
 }
 
 async function readClient(clientId, session) {
@@ -106,7 +127,7 @@ async function readClient(clientId, session) {
     operation: "read",
   });
 
-  return { client };
+  return { client: (await tagsService.decorateRecordsForTarget(session, "client", [client]))[0] };
 }
 
 async function createClient(payload, session) {
@@ -128,6 +149,7 @@ async function createClient(payload, session) {
 
   await clientsRepository.create(session.workspace_id, client);
   await saveClientReminderPolicy(session.workspace_id, client.id, payload);
+  await saveTargetTags(session, "client", client.id, payload);
   await recordAudit(payload?.action, {
     session,
     action: "client_created",
@@ -141,7 +163,7 @@ async function createClient(payload, session) {
     metadata: clientMetadata(client, parentClient),
   });
 
-  return { client };
+  return { client: (await tagsService.decorateRecordsForTarget(session, "client", [client]))[0] };
 }
 
 async function updateClient(clientId, payload, session) {
@@ -183,6 +205,7 @@ async function updateClient(clientId, payload, session) {
 
   await clientsRepository.update(session.workspace_id, client);
   await saveClientReminderPolicy(session.workspace_id, client.id, payload);
+  await saveTargetTags(session, "client", client.id, payload);
   await recordAudit(payload?.action, {
     session,
     action: "client_updated",
@@ -205,7 +228,7 @@ async function updateClient(clientId, payload, session) {
     },
   });
 
-  return { client };
+  return { client: (await tagsService.decorateRecordsForTarget(session, "client", [client]))[0] };
 }
 
 async function archiveClient(clientId, payload, session) {
@@ -246,9 +269,17 @@ async function archiveClient(clientId, payload, session) {
   return { client_id: decodedClientId, archived: true };
 }
 
-async function listProjects(session) {
+async function listProjects(session, query = {}) {
   const projects = await projectsRepository.readAll(session.workspace_id);
-  return { projects: await permissionsService.filterReadableProjects(session, projects) };
+  const readableProjects = await permissionsService.filterReadableProjects(session, projects);
+  const filteredProjects = await tagsService.filterRecordsByTags(
+    session,
+    "project",
+    readableProjects,
+    query.tagIds || query.tag_ids || query.tags,
+  );
+
+  return { projects: await tagsService.decorateRecordsForTarget(session, "project", filteredProjects) };
 }
 
 async function listClientProjects(clientId, session) {
@@ -268,7 +299,11 @@ async function listClientProjects(clientId, session) {
 
   return {
     client,
-    projects: await projectsRepository.readByClientId(session.workspace_id, decodedClientId),
+    projects: await tagsService.decorateRecordsForTarget(
+      session,
+      "project",
+      await projectsRepository.readByClientId(session.workspace_id, decodedClientId),
+    ),
   };
 }
 
@@ -287,7 +322,7 @@ async function readProject(projectId, session) {
     operation: "read",
   });
 
-  return { project };
+  return { project: (await tagsService.decorateRecordsForTarget(session, "project", [project]))[0] };
 }
 
 async function createProject(clientId, payload, session) {
@@ -337,6 +372,7 @@ async function createProject(clientId, payload, session) {
 
   await projectsRepository.create(session.workspace_id, decodedClientId, project);
   await saveProjectReminderPolicy(session.workspace_id, project.id, normalizedPayload);
+  await saveTargetTags(session, "project", project.id, normalizedPayload);
   await recordAudit(normalizedPayload?.action, {
     session,
     action: "project_created",
@@ -350,7 +386,7 @@ async function createProject(clientId, payload, session) {
     metadata: projectMetadata(client, project, parentProject),
   });
 
-  return { project };
+  return { project: (await tagsService.decorateRecordsForTarget(session, "project", [project]))[0] };
 }
 
 async function assertBusinessWorkspace(session) {
@@ -439,6 +475,7 @@ async function updateProject(projectId, payload, session) {
 
   await projectsRepository.update(session.workspace_id, project);
   await saveProjectReminderPolicy(session.workspace_id, project.id, normalizedPayload);
+  await saveTargetTags(session, "project", project.id, normalizedPayload);
   const downstreamRecords = await applyConfirmedProjectRecordMaintenance({
     workspaceId: session.workspace_id,
     project,
@@ -471,7 +508,7 @@ async function updateProject(projectId, payload, session) {
     },
   });
 
-  return { project };
+  return { project: (await tagsService.decorateRecordsForTarget(session, "project", [project]))[0] };
 }
 
 async function assertProjectRecordMaintenanceConfirmed({
@@ -518,6 +555,18 @@ async function applyConfirmedProjectRecordMaintenance({
     activeTimers: "resolve_scope_on_next_save_or_finalize",
     futureRecordTypes: ["tasks", "notes", "knowledge_base"],
   };
+}
+
+async function saveTargetTags(session, targetType, targetId, payload = {}) {
+  if (!Object.hasOwn(payload || {}, "tagIds") && !Object.hasOwn(payload || {}, "tag_ids")) {
+    return;
+  }
+
+  await tagsService.replaceAssignments(session, {
+    targetId,
+    targetType,
+    tagIds: payload.tagIds || payload.tag_ids || [],
+  });
 }
 
 async function archiveProject(projectId, payload, session) {

@@ -66,7 +66,6 @@ async function readPermissionHints(session) {
     canManageProjects,
     canManageUsers,
     canViewAuditLogs,
-    canManageTags,
   ] = await Promise.all([
     permissionsService.can(session, "workspace_settings.manage", {
       workspace_id: session.workspace_id,
@@ -84,16 +83,11 @@ async function readPermissionHints(session) {
       workspace_id: session.workspace_id,
       operation: "read",
     }),
-    permissionsService.can(session, "tags.manage", {
-      workspace_id: session.workspace_id,
-      operation: "read",
-    }),
   ]);
 
   return {
     auditLogsView: canViewAuditLogs,
     projectsManage: canManageProjects,
-    tagsManage: canManageTags,
     usersManage: canManageUsers,
     workspaceSettingsManage: canManageWorkspaceSettings,
   };
@@ -152,13 +146,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     addModuleNavItem(workspaceSettingsMenu.items, moduleNavByHref.get("clients.html"));
   }
 
-  if (permissionHints.tagsManage) {
-    workspaceSettingsMenu.items.push({
-      id: "tags",
-      label: "Tags",
-      href: "tags.html",
-    });
-  }
+  addSettingsModuleNavigation(workspaceSettingsMenu.items, moduleNavigation);
 
   moduleSettingsNavigation.forEach((item) => addModuleNavItem(modulesSettingsMenu.items, item));
 
@@ -232,6 +220,12 @@ function addTimeKeepingNavigation(targetItems, moduleNavigation) {
     .forEach((item) => addModuleNavItem(timeKeepingMenu.items, item));
 
   targetItems.push(timeKeepingMenu);
+}
+
+function addSettingsModuleNavigation(targetItems, moduleNavigation) {
+  moduleNavigation
+    .filter((item) => item.parent === "settings.html")
+    .forEach((item) => addModuleNavItem(targetItems, item));
 }
 
 function addModuleNavItem(targetItems, item) {

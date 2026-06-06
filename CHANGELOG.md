@@ -1,3 +1,16 @@
+## Version 0.32.5 - 2026-06-06 09:28 -04:00
+
+- Bumped the app and first-party module versions to `0.32.5`.
+- Added a disableable first-party `tags` module that contributes tag routes, tag management navigation, `tags.html`, browser assets, tag permissions, and tag audit record types through the module manifest.
+- Removed tag-specific hard-coding from framework app-shell navigation, framework protected view registration, framework route mounting, and framework audit record type registration.
+- Added generic tag service helpers for decorating and filtering taggable records by module-declared target type metadata.
+- Added shared browser tag UI helpers for loading tags, rendering tag chips, and mounting a reusable checkbox picker.
+- Added tag assignment saves, tag response decoration, and tag filtering for Tasks and Time Entries, plus tag response decoration, filtering, and assignment saves for Clients and Projects.
+- Added visible tag chips on task rows, time-entry edit rows, client rows, and project rows, with shared tag pickers on task, time tracker finalization, manual-entry, edit-entry, client, and project forms.
+- Added direct time-entry tag filtering to Reporting without making Reporting own tag storage or picker behavior.
+- Added 0.32.5 core-record tagging regression coverage and wired it into `npm run check`.
+- Updated roadmap/archive, decisions, and module contract/architecture documentation for the disableable tagging module standard.
+
 ## Version 0.32.4 - 2026-06-06 08:31 -04:00
 
 - Bumped the app and first-party module versions to `0.32.4`.

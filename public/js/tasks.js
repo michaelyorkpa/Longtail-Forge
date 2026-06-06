@@ -16,6 +16,8 @@ const statusFilter = document.querySelector("[data-task-status-filter]");
 const assigneeFilter = document.querySelector("[data-task-assignee-filter]");
 const clientFilter = document.querySelector("[data-task-client-filter]");
 const projectFilter = document.querySelector("[data-task-project-filter]");
+const tagFilterControl = document.querySelector("[data-task-tag-filter-control]");
+const tagFilter = document.querySelector("[data-task-tag-filter]");
 const selectAllInput = document.querySelector("[data-task-select-all]");
 const bulkToolbar = document.querySelector("[data-task-bulk-toolbar]");
 const bulkStatusControl = document.querySelector("[data-task-bulk-status-control]");
@@ -57,6 +59,7 @@ const taskReminderDateTimeHours2Input = document.querySelector("[data-task-remin
 const taskReminderDateOnlyDays1Input = document.querySelector("[data-task-reminder-date-only-days-1]");
 const taskReminderDateOnlyDays2Input = document.querySelector("[data-task-reminder-date-only-days-2]");
 const descriptionInput = document.querySelector("[data-task-description]");
+const taskTagsContainer = document.querySelector("[data-task-tags]");
 
 const api = window.LongtailForge.api;
 const pageController = window.LongtailForge.pageController;
@@ -78,6 +81,8 @@ let state = {
   recurrenceDraft: defaultRecurrenceDraft(),
   taskTimers: [],
   taskTimerIntervalId: null,
+  tagPicker: null,
+  tagOptions: [],
 };
 
 addTaskButton?.addEventListener("click", () => openTaskDialog());
@@ -100,7 +105,7 @@ taskTimerStartButton?.addEventListener("click", () => saveTaskTimer("running"));
 taskTimerPauseButton?.addEventListener("click", () => saveTaskTimer("paused"));
 taskTimerFinalizeButton?.addEventListener("click", finalizeTaskTimer);
 taskTimerResetButton?.addEventListener("click", resetTaskTimer);
-[sortInput, statusFilter, assigneeFilter, clientFilter, projectFilter].forEach((input) => {
+[sortInput, statusFilter, assigneeFilter, clientFilter, projectFilter, tagFilter].forEach((input) => {
   input?.addEventListener("change", () => {
     saveFilterState();
     renderTasks();
@@ -118,6 +123,7 @@ async function loadTasks() {
     await window.LongtailForge.workspaceContextReady;
     await window.LongtailForge.timezones?.loadSessionTimezone?.();
     const result = await api.getJson("/api/tasks", { cache: "no-store" });
+    const tagOptions = await loadTagOptions();
     const timersResult = await loadTaskTimers();
     state = {
       ...state,
@@ -125,6 +131,7 @@ async function loadTasks() {
       taskTimers: timersResult.timers || [],
       currentUserId: result.currentUserId || state.currentUserId,
       options: result.options || state.options,
+      tagOptions,
     };
     restoreFilterState();
     populateFilters();
@@ -161,7 +168,24 @@ function populateFilters() {
     option("", "No project"),
     ...sortProjectOptions(state.options.projects).map((project) => option(project.id, `${treeIndent(getProjectDepth(project))}${project.name}`)),
   ]);
+  populateTagFilter();
   populateTaskFormOptions();
+}
+
+function populateTagFilter() {
+  const tags = state.tagOptions || [];
+  const previousValue = tagFilter?.value || "all";
+
+  if (!tagFilter || !tagFilterControl) {
+    return;
+  }
+
+  tagFilterControl.hidden = tags.length === 0;
+  replaceOptions(tagFilter, [
+    option("all", "All tags"),
+    ...tags.map((tag) => option(tag.tag_id, tag.name || tag.slug)),
+  ]);
+  tagFilter.value = tags.some((tag) => tag.tag_id === previousValue) ? previousValue : "all";
 }
 
 function populateTaskFormOptions() {
@@ -251,6 +275,7 @@ function filteredTasks() {
   const assigneeValue = assigneeFilter?.value || "all";
   const clientValue = usesClientScope() ? clientFilter?.value || "all" : "all";
   const projectValue = projectFilter?.value || "all";
+  const tagValue = tagFilter?.value || "all";
 
   return state.tasks.filter((task) => {
     const activeStatus = task.status !== "complete" && task.status !== "archived";
@@ -263,9 +288,10 @@ function filteredTasks() {
       ));
     const clientMatch = clientValue === "all" || (task.client_id || "") === clientValue;
     const projectMatch = projectValue === "all" || (task.project_id || "") === projectValue;
+    const tagMatch = tagValue === "all" || (task.tags || []).some((tag) => tag.tag_id === tagValue);
     const quickMatch = matchesQuickFilter(task);
 
-    return statusMatch && assigneeMatch && clientMatch && projectMatch && quickMatch;
+    return statusMatch && assigneeMatch && clientMatch && projectMatch && tagMatch && quickMatch;
   });
 }
 
@@ -409,6 +435,7 @@ function createTaskRow(task) {
   titleButton.addEventListener("click", () => openTaskDialog(task));
   titleCell.className = "task-title-cell";
   titleCell.appendChild(titleButton);
+  appendTagChips(titleCell, task.tags);
   scopeCell.className = "task-scope-cell";
   scopeCell.textContent = scopeText;
   scopeCell.title = scopeText;
@@ -513,6 +540,7 @@ function openTaskDialog(task = null, options = {}) {
   writeRecurrenceFields(isDuplicate ? null : task?.recurrenceDetails);
   writeReminderFields(task?.reminderDetails);
   writeTaskTimerFields(isDuplicate ? null : task);
+  mountTaskTagPicker(isDuplicate ? [] : task?.tags || []);
 
   if (typeof taskDialog.showModal === "function") {
     taskDialog.showModal();
@@ -596,7 +624,47 @@ function readTaskFormPayload() {
     recurrence: readRecurrencePayload(),
     reminderOverrideEnabled: reminderOverrideInput.checked,
     reminderPolicy: readReminderPolicy(),
+    tagIds: readTaskTagIds(),
   };
+}
+
+async function loadTagOptions() {
+  if (!window.LongtailForge.tags?.loadTags) {
+    return [];
+  }
+
+  try {
+    return await window.LongtailForge.tags.loadTags();
+  } catch {
+    return [];
+  }
+}
+
+function appendTagChips(container, tags) {
+  if (!container || !window.LongtailForge.tags?.renderTagList || !Array.isArray(tags) || tags.length === 0) {
+    return;
+  }
+
+  const list = document.createElement("div");
+  list.className = "tag-chip-list";
+  window.LongtailForge.tags.renderTagList(list, tags);
+  container.appendChild(list);
+}
+
+async function mountTaskTagPicker(tags) {
+  state.tagPicker = null;
+  if (!taskTagsContainer || !window.LongtailForge.tags?.mountPicker) {
+    taskTagsContainer?.replaceChildren();
+    return;
+  }
+
+  state.tagPicker = await window.LongtailForge.tags.mountPicker(taskTagsContainer, {
+    selectedTags: tags,
+  });
+}
+
+function readTaskTagIds() {
+  return state.tagPicker?.readTagIds?.() || [];
 }
 
 async function applyBulkAction() {

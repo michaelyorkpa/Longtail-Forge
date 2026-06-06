@@ -1128,7 +1128,7 @@ GET /api/tags/assignments
 PUT /api/tags/assignments
 ```
 
-`tags.html` is a framework-owned protected settings page for basic tag definition management. Record-level pickers, target tag displays, and tag filters belong to later module integration work.
+`tags.html` is a protected settings page contributed by the first-party `tags` module, not hard-coded into the framework static-view list. The `tags` module also contributes the shared browser helper used by first-party record pages for tag chips and reusable pickers. Record modules should integrate through those helpers and the shared tag service rather than owning tag SQL or custom tag pickers.
 
 ### Tags Are Not Workflow State
 

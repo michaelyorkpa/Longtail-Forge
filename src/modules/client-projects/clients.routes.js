@@ -15,7 +15,7 @@ clientsRoutes.put("/client-projects", asyncRoute(async (request, response) => {
 }));
 
 clientsRoutes.get("/clients", asyncRoute(async (request, response) => {
-  const result = await clientsService.listClients(request.session);
+  const result = await clientsService.listClients(request.session, request.query);
   response.status(200).json(result);
 }));
 
@@ -42,7 +42,7 @@ clientsRoutes.delete("/clients/:clientId", asyncRoute(async (request, response) 
 }));
 
 clientsRoutes.get("/projects", asyncRoute(async (request, response) => {
-  const result = await clientsService.listProjects(request.session);
+  const result = await clientsService.listProjects(request.session, request.query);
   response.status(200).json(result);
 }));
 

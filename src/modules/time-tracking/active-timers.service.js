@@ -130,6 +130,7 @@ async function finalize(timerSlot, payload, session) {
     duration_hours: payload?.duration_hours,
     billable: payload?.billable ?? activeTimer?.billable ?? "yes",
     invoice_status: payload?.invoice_status || "unbilled",
+    tagIds: payload?.tagIds || payload?.tag_ids || [],
   };
   if (activeTimer?.source_module_id === "tasks" && activeTimer?.source_type === "task" && activeTimer?.source_id) {
     entry.task_id = activeTimer.source_id;
@@ -182,6 +183,7 @@ async function finalizeSourced(source, payload, session, entryOverrides = {}) {
     duration_hours: payload?.duration_hours ?? (durationSeconds / 3600).toFixed(4),
     billable: payload?.billable ?? activeTimer?.billable ?? "yes",
     invoice_status: payload?.invoice_status || "unbilled",
+    tagIds: payload?.tagIds || payload?.tag_ids || [],
     ...entryOverrides,
   };
 

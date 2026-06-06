@@ -54,7 +54,22 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Tweaks
 
-- Do we need a way to define "default settings" for first and third party modules? e.g. default sort order, default filtering, etc.
+- Add Workspace level date format display settings
+- Add Workspace level time format display settings
+- Add user level setting for timezone display "Local Timezone or UTC"
+  - Does this make sense on a lower level too? (May be useful when freelancers have clients in different timezones)
+
+- Adjust the way the front end handles module modals
+  - This does not apply to settings or setting modals. Those should remain in the appropriate menus.
+  - This does apply to add/edit modals of all types.
+  - Modals should be openable from any screen, e.g. "Add Task" on Workbench should simply open the modal, rather than navigating away from the Workbench
+  - This will reduce the number of clicks a user has to perform to continue working when an interruption necessitates a change or addition
+
+- The workbench should be your daily workspace. The dashboard is where you go to focus/refocus. 
+  - Workbench should be built around the current project focus
+
+- We need a way to define "default settings" for first and third party modules. e.g. default sort order, default filtering, etc.
+  - These are settings that apply module-wide and can affect the default module behavior.
 
 - What should happen to records when a client/project becomes completed or archived?
 
@@ -77,6 +92,11 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - Timer Concurrency
 
 # Medium Term
+
+- Expand tagging infrastructure to: 
+  - normalize capitalization (on input)
+    - This should be a default setting ("Normalize/Standardize capitalization?")
+  - 
 
 ## Estimation Assistant / Historical Time Estimation
 

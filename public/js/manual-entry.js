@@ -10,8 +10,10 @@ const entryBillableSelect = document.querySelector("[data-entry-billable]");
 const entryInvoiceStatusSelect = document.querySelector("[data-entry-invoice-status]");
 const entryStatus = document.querySelector("[data-entry-status]");
 const saveEntryButton = document.querySelector("[data-save-entry]");
+const entryTagsContainer = document.querySelector("[data-entry-tags]");
 
 let entryClients = [];
+let entryTagPicker = null;
 
 initializeManualEntry();
 
@@ -40,6 +42,7 @@ async function initializeManualEntry() {
   await window.LongtailForge.workspaceContextReady;
   setDefaultEntryDate();
   await loadEntryClients();
+  await mountEntryTagPicker();
 }
 
 async function loadEntryClients() {
@@ -136,6 +139,7 @@ async function saveManualEntry() {
     duration_hours: (durationSeconds / 3600).toFixed(4),
     billable: entryBillableSelect.value,
     invoice_status: entryInvoiceStatusSelect.value,
+    tagIds: entryTagPicker?.readTagIds?.() || [],
   };
 
   saveEntryButton.disabled = true;
@@ -158,6 +162,7 @@ async function saveManualEntry() {
     manualEntryForm.reset();
     setDefaultEntryDate();
     populateProjectOptions();
+    await mountEntryTagPicker();
     flashSavedButton();
     setEntryStatus(`Saved ${result.entry_id} to the database.`);
   } catch (error) {
@@ -166,6 +171,16 @@ async function saveManualEntry() {
   } finally {
     saveEntryButton.disabled = false;
   }
+}
+
+async function mountEntryTagPicker() {
+  entryTagPicker = null;
+  if (!entryTagsContainer || !window.LongtailForge.tags?.mountPicker) {
+    entryTagsContainer?.replaceChildren();
+    return;
+  }
+
+  entryTagPicker = await window.LongtailForge.tags.mountPicker(entryTagsContainer);
 }
 
 function normalizeClients(data) {

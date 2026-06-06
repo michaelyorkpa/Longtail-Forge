@@ -7,6 +7,8 @@ const filterCustomDates = document.querySelector("[data-edit-filter-custom-dates
 const filterStartDateInput = document.querySelector("[data-edit-filter-start-date]");
 const filterEndDateInput = document.querySelector("[data-edit-filter-end-date]");
 const filterUsersSelect = document.querySelector("[data-edit-filter-users]");
+const filterTagControl = document.querySelector("[data-edit-filter-tag-control]");
+const filterTagSelect = document.querySelector("[data-edit-filter-tag]");
 const editEntryStatus = document.querySelector("[data-edit-entry-status]");
 const editEntryTable = document.querySelector("[data-edit-entry-table]");
 const editEntryForm = document.querySelector("[data-edit-entry-form]");
@@ -22,6 +24,7 @@ const editEntryDurationSecondsInput = document.querySelector("[data-edit-entry-d
 const editEntryDescriptionInput = document.querySelector("[data-edit-entry-description]");
 const editEntryBillableSelect = document.querySelector("[data-edit-entry-billable]");
 const editEntryInvoiceStatusSelect = document.querySelector("[data-edit-entry-invoice-status]");
+const editEntryTagsContainer = document.querySelector("[data-edit-entry-tags]");
 const cancelEditEntryButton = document.querySelector("[data-cancel-edit-entry]");
 const saveEditEntryButton = document.querySelector("[data-save-edit-entry]");
 
@@ -32,6 +35,8 @@ let editSettings = {
 let timeEntries = [];
 let editUsers = [];
 let selectedEntryId = "";
+let editTagOptions = [];
+let editEntryTagPicker = null;
 
 initializeEditEntries();
 
@@ -43,6 +48,7 @@ filterPeriodSelect.addEventListener("change", () => {
 filterStartDateInput.addEventListener("change", renderEntries);
 filterEndDateInput.addEventListener("change", renderEntries);
 filterUsersSelect.addEventListener("change", renderEntries);
+filterTagSelect?.addEventListener("change", renderEntries);
 filterClientSelect.addEventListener("change", () => {
   populateFilterProjects();
   renderEntries();
@@ -87,6 +93,7 @@ async function loadEditEntryData() {
     timeEntries = entriesResponse.ok
       ? normalizeTimeEntries(await entriesResponse.json())
       : [];
+    editTagOptions = await loadTagOptions();
     editUsers = usersResponse.ok
       ? normalizeUsers(await usersResponse.json())
       : [];
@@ -97,6 +104,7 @@ async function loadEditEntryData() {
     selectWorkspaceScopeClientIfNeeded(editEntryClientSelect);
     populateFilterProjects();
     populateUserOptions();
+    populateTagFilter();
     setDefaultCustomDates();
     updateFilterDateState();
     renderEntries();
@@ -182,7 +190,7 @@ function renderEntries() {
     row.append(
       createTableCell(formatDate(entry.endTime)),
       createTableCell(entry.clientName),
-      createTableCell(entry.projectName),
+      createProjectCell(entry),
       createTableCell(formatHours(entry.durationSeconds)),
       createTableCell(formatEntryStatus(entry)),
       createActionsCell(entry),
@@ -194,11 +202,13 @@ function renderEntries() {
 function getFilteredEntries() {
   const selectedUsers = getSelectedUserIds();
   const selectedDateRange = getSelectedDateRange();
+  const selectedTagId = filterTagSelect?.value || "";
 
   return timeEntries
     .filter((entry) => matchesStatusFilter(entry))
     .filter((entry) => isEntryInRange(entry, selectedDateRange))
     .filter((entry) => selectedUsers.length === 0 || selectedUsers.includes(entry.userId))
+    .filter((entry) => !selectedTagId || (entry.tags || []).some((tag) => tag.tag_id === selectedTagId))
     .filter((entry) => !filterClientSelect.value || matchesClient(entry, getClient(filterClientSelect.value)))
     .filter((entry) => !filterProjectSelect.value || matchesProject(entry, getProject(filterClientSelect.value, filterProjectSelect.value)))
     .sort((firstEntry, secondEntry) => secondEntry.endTime - firstEntry.endTime);
@@ -225,6 +235,19 @@ function createActionsCell(entry) {
   return cell;
 }
 
+function createProjectCell(entry) {
+  const cell = createTableCell(entry.projectName);
+
+  if (window.LongtailForge.tags?.renderTagList && Array.isArray(entry.tags) && entry.tags.length > 0) {
+    const tagList = document.createElement("div");
+    tagList.className = "tag-chip-list";
+    window.LongtailForge.tags.renderTagList(tagList, entry.tags);
+    cell.appendChild(tagList);
+  }
+
+  return cell;
+}
+
 function openEditForm(entryId) {
   // Entries may have old client/project names, so IDs are resolved through helper matching.
   const entry = timeEntries.find((currentEntry) => currentEntry.entryId === entryId);
@@ -245,6 +268,7 @@ function openEditForm(entryId) {
   editEntryDescriptionInput.value = entry.description;
   editEntryBillableSelect.value = getEffectiveEntryBillable(entry);
   editEntryInvoiceStatusSelect.value = entry.invoiceStatus;
+  mountEditEntryTagPicker(entry.tags || []);
   editEntryForm.hidden = false;
   editEntryForm.scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -279,6 +303,7 @@ async function saveEditedEntry() {
     duration_hours: (durationSeconds / 3600).toFixed(4),
     billable: editEntryBillableSelect.value,
     invoice_status: editEntryInvoiceStatusSelect.value,
+    tagIds: editEntryTagPicker?.readTagIds?.() || [],
   };
 
   saveEditEntryButton.disabled = true;
@@ -338,6 +363,8 @@ function closeEditForm() {
   selectedEntryId = "";
   editEntryForm.hidden = true;
   editEntryForm.reset();
+  editEntryTagPicker = null;
+  editEntryTagsContainer?.replaceChildren();
 }
 
 function normalizeClients(data) {
@@ -393,6 +420,7 @@ function normalizeTimeEntries(data) {
         durationSeconds: Number(entry.duration_seconds) || 0,
         billable: normalizeEntryBillable(entry.billable),
         invoiceStatus: entry.invoice_status || "unbilled",
+        tags: Array.isArray(entry.tags) ? entry.tags : [],
       }))
     : [];
 }
@@ -436,6 +464,44 @@ function populateUserOptions() {
     .forEach(([userId, label]) => {
       filterUsersSelect.appendChild(createOption(userId, label));
     });
+}
+
+async function loadTagOptions() {
+  if (!window.LongtailForge.tags?.loadTags) {
+    return [];
+  }
+
+  try {
+    return await window.LongtailForge.tags.loadTags();
+  } catch {
+    return [];
+  }
+}
+
+function populateTagFilter() {
+  if (!filterTagSelect || !filterTagControl) {
+    return;
+  }
+
+  const previousValue = filterTagSelect.value || "";
+  filterTagControl.hidden = editTagOptions.length === 0;
+  filterTagSelect.replaceChildren(
+    createOption("", "All tags"),
+    ...editTagOptions.map((tag) => createOption(tag.tag_id, tag.name || tag.slug)),
+  );
+  filterTagSelect.value = editTagOptions.some((tag) => tag.tag_id === previousValue) ? previousValue : "";
+}
+
+async function mountEditEntryTagPicker(tags) {
+  editEntryTagPicker = null;
+  if (!editEntryTagsContainer || !window.LongtailForge.tags?.mountPicker) {
+    editEntryTagsContainer?.replaceChildren();
+    return;
+  }
+
+  editEntryTagPicker = await window.LongtailForge.tags.mountPicker(editEntryTagsContainer, {
+    selectedTags: tags,
+  });
 }
 
 function getSelectedUserIds() {

@@ -2,97 +2,45 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.4 - Tag Service and API
-
-* [x] Create shared tag repository/service methods
-
-  * [x] Create tag
-  * [x] Update tag
-  * [x] Archive/disable tag
-  * [x] Restore tag
-  * [x] List workspace tags
-  * [x] Search workspace tags by name/slug
-  * [x] Read tags assigned to a target
-  * [x] Assign tag to target
-  * [x] Remove tag from target
-  * [x] Replace target tags in one save operation
-
-* [x] Validate tag operations through the framework
-
-  * [x] Validate tag belongs to active workspace
-  * [x] Validate target type is registered as taggable
-  * [x] Validate target record exists
-  * [x] Validate target record belongs to active workspace
-  * [x] Validate user can view target before showing assigned tags
-  * [x] Validate user can assign/remove tags before changing assignments
-  * [x] Validate disabled modules cannot receive new tag assignments unless explicitly allowed
-
-* [x] Add browser API routes for tagging
-
-  * [x] `GET /api/tags`
-  * [x] `POST /api/tags`
-  * [x] `PUT /api/tags/:tagId`
-  * [x] `POST /api/tags/:tagId/archive`
-  * [x] `POST /api/tags/:tagId/restore`
-  * [x] `GET /api/tags/assignments`
-  * [x] `PUT /api/tags/assignments`
-
-* [x] Add audit logging for tag changes
-
-  * [x] Tag created
-  * [x] Tag updated
-  * [x] Tag archived
-  * [x] Tag restored
-  * [x] Tag assigned to target
-  * [x] Tag removed from target
-  * [x] Bulk tag assignment changes
-
-* [x] Add basic tag management UI
-
-  * [x] Add tag management under workspace settings or a dedicated admin page
-  * [x] List active tags
-  * [x] Add/edit/archive tags
-  * [x] Keep UI simple until tagging is proven across several modules
-
 ## Version 0.32.5 - Tagging Core Records
 
-* [ ] Register initial taggable types through module manifests
+* [x] Register initial taggable types through module manifests
 
-  * [ ] `time_entry`
-  * [ ] `client`
-  * [ ] `project`
-  * [ ] `task`
+  * [x] `time_entry`
+  * [x] `client`
+  * [x] `project`
+  * [x] `task`
 
-* [ ] Add tag picker/search UI helper
+* [x] Add tag picker/search UI helper
 
-  * [ ] Reusable frontend helper for selecting tags
-  * [ ] Reusable frontend helper for displaying assigned tags
-  * [ ] Reusable frontend helper for saving target tag assignments
-  * [ ] Avoid building separate custom tag pickers for every module
+  * [x] Reusable frontend helper for selecting tags
+  * [x] Reusable frontend helper for displaying assigned tags
+  * [x] Reusable frontend helper for saving target tag assignments
+  * [x] Avoid building separate custom tag pickers for every module
 
-* [ ] Add tagging to Tasks
+* [x] Add tagging to Tasks
 
-  * [ ] Add tag display to task list
-  * [ ] Add tag picker to create/edit task modal
-  * [ ] Add tag filters to task list
-  * [ ] Include tags in task read/list API responses
-  * [ ] Audit tag changes separately from normal task field edits
+  * [x] Add tag display to task list
+  * [x] Add tag picker to create/edit task modal
+  * [x] Add tag filters to task list
+  * [x] Include tags in task read/list API responses
+  * [x] Audit tag changes separately from normal task field edits
 
-* [ ] Add tagging to Time Entries
+* [x] Add tagging to Time Entries
 
-  * [ ] Add tag picker/search UI to time tracker finalization flow where practical
-  * [ ] Add tag picker/search UI to manual time entry
-  * [ ] Add tag picker/search UI to edit entries
-  * [ ] Add reporting filters by direct time-entry tags
-  * [ ] Include tags in time entry read/list/reporting responses where useful
+  * [x] Add tag picker/search UI to time tracker finalization flow where practical
+  * [x] Add tag picker/search UI to manual time entry
+  * [x] Add tag picker/search UI to edit entries
+  * [x] Add reporting filters by direct time-entry tags
+  * [x] Include tags in time entry read/list/reporting responses where useful
 
-* [ ] Add tagging to Clients and Projects
+* [x] Add tagging to Clients and Projects
 
-  * [ ] Allow clients to be tagged
-  * [ ] Allow projects to be tagged
-  * [ ] Show client/project tags as context on related records where useful
-  * [ ] Do not automatically copy client/project tags onto time entries or tasks
-  * [ ] Later reporting can optionally include records under clients/projects with matching tags
+  * [x] Allow clients to be tagged
+  * [x] Allow projects to be tagged
+  * [x] Show client/project tags as context on related records where useful
+  * [x] Do not automatically copy client/project tags onto time entries or tasks
+  * [x] Later reporting can optionally include records under clients/projects with matching tags
 
 ## Version 0.32.6 - Search Framework Contract
 

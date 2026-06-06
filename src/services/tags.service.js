@@ -6,8 +6,10 @@ import { tagsRepository } from "../repositories/tags.repo.js";
 import { AppError } from "../utils/app-error.js";
 
 const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const TAGS_MODULE_ID = "tags";
 
 async function list(session, query = {}) {
+  await assertTaggingReadEnabled(session);
   await permissionsService.assertCan(session, "tags.view", {
     workspace_id: session.workspace_id,
     operation: "read",
@@ -22,6 +24,7 @@ async function list(session, query = {}) {
 }
 
 async function create(session, payload = {}) {
+  await assertTaggingWriteEnabled(session);
   await permissionsService.assertCan(session, "tags.manage", {
     workspace_id: session.workspace_id,
     operation: "create",
@@ -38,6 +41,7 @@ async function create(session, payload = {}) {
 }
 
 async function update(session, tagId, payload = {}) {
+  await assertTaggingWriteEnabled(session);
   await permissionsService.assertCan(session, "tags.manage", {
     workspace_id: session.workspace_id,
     operation: "update",
@@ -52,6 +56,7 @@ async function update(session, tagId, payload = {}) {
 }
 
 async function archive(session, tagId) {
+  await assertTaggingWriteEnabled(session);
   await permissionsService.assertCan(session, "tags.manage", {
     workspace_id: session.workspace_id,
     operation: "archive",
@@ -65,6 +70,7 @@ async function archive(session, tagId) {
 }
 
 async function restore(session, tagId) {
+  await assertTaggingWriteEnabled(session);
   await permissionsService.assertCan(session, "tags.manage", {
     workspace_id: session.workspace_id,
     operation: "restore",
@@ -78,6 +84,7 @@ async function restore(session, tagId) {
 }
 
 async function listAssignments(session, query = {}) {
+  await assertTaggingReadEnabled(session);
   await permissionsService.assertCan(session, "tags.view", {
     workspace_id: session.workspace_id,
     operation: "read",
@@ -92,6 +99,7 @@ async function listAssignments(session, query = {}) {
 }
 
 async function assign(session, payload = {}) {
+  await assertTaggingWriteEnabled(session);
   const target = await readTargetForSession(session, payload.targetType || payload.target_type, payload.targetId || payload.target_id, "assign");
   const tag = await readAssignableTag(session.workspace_id, payload.tagId || payload.tag_id);
   const existing = await tagsRepository.listAssignmentsForTarget(session.workspace_id, target.targetType, target.targetId);
@@ -118,6 +126,7 @@ async function assign(session, payload = {}) {
 }
 
 async function remove(session, payload = {}) {
+  await assertTaggingWriteEnabled(session);
   const target = await readTargetForSession(session, payload.targetType || payload.target_type, payload.targetId || payload.target_id, "remove");
   const tag = await readExistingTag(session.workspace_id, payload.tagId || payload.tag_id);
   const existing = await tagsRepository.listAssignmentsForTarget(session.workspace_id, target.targetType, target.targetId);
@@ -137,6 +146,7 @@ async function remove(session, payload = {}) {
 }
 
 async function replaceAssignments(session, payload = {}) {
+  await assertTaggingWriteEnabled(session);
   const target = await readTargetForSession(session, payload.targetType || payload.target_type, payload.targetId || payload.target_id, "replace");
   const tagIds = normalizeTagIds(payload.tagIds || payload.tag_ids);
   const nextTags = await readAssignableTags(session.workspace_id, tagIds);
@@ -191,6 +201,49 @@ async function replaceAssignments(session, payload = {}) {
   });
 
   return { assignments, target: target.publicTarget };
+}
+
+async function decorateRecordsForTarget(session, targetType, records, options = {}) {
+  if (!Array.isArray(records) || records.length === 0 || !(await tagsModuleReadable(session))) {
+    return Array.isArray(records) ? records : [];
+  }
+
+  const idField = options.idField || defaultTargetIdField(targetType);
+  const recordIds = records.map((record) => String(record?.[idField] || record?.id || "").trim()).filter(Boolean);
+  const assignments = await tagsRepository.listAssignmentsForTargets(session.workspace_id, targetType, recordIds);
+  const assignmentsByTarget = groupAssignmentsByTarget(assignments);
+
+  return records.map((record) => ({
+    ...record,
+    tags: (assignmentsByTarget.get(String(record?.[idField] || record?.id || "").trim()) || [])
+      .map((assignment) => assignment.tag)
+      .filter((tag) => tag.status === "active"),
+  }));
+}
+
+async function filterRecordsByTags(session, targetType, records, tagIds, options = {}) {
+  const normalizedTagIds = normalizeOptionalTagIds(tagIds);
+
+  if (normalizedTagIds.length === 0) {
+    return records;
+  }
+
+  if (!(await tagsModuleReadable(session))) {
+    return [];
+  }
+
+  const decorated = await decorateRecordsForTarget(session, targetType, records, options);
+  const requiredIds = new Set(normalizedTagIds);
+
+  return decorated.filter((record) => {
+    const recordTagIds = new Set((record.tags || []).map((tag) => tag.tag_id));
+    return options.match === "all"
+      ? normalizedTagIds.every((tagId) => recordTagIds.has(tagId))
+      : normalizedTagIds.some((tagId) => recordTagIds.has(tagId));
+  }).map((record) => ({
+    ...record,
+    tagFilterMatchedIds: [...requiredIds].filter((tagId) => (record.tags || []).some((tag) => tag.tag_id === tagId)),
+  }));
 }
 
 async function readTargetForSession(session, rawTargetType, rawTargetId, operation) {
@@ -258,6 +311,26 @@ async function readTargetForSession(session, rawTargetType, rawTargetId, operati
     targetId,
     targetType,
   };
+}
+
+async function tagsModuleReadable(session) {
+  return modulesService.canReadModule(session?.workspace_id, TAGS_MODULE_ID);
+}
+
+async function assertTaggingReadEnabled(session) {
+  if (await modulesService.canReadModule(session?.workspace_id, TAGS_MODULE_ID)) {
+    return;
+  }
+
+  throw new AppError("Tagging is disabled for this workspace.", 403);
+}
+
+async function assertTaggingWriteEnabled(session) {
+  if (await modulesService.canWriteModule(session?.workspace_id, TAGS_MODULE_ID)) {
+    return;
+  }
+
+  throw new AppError("Tagging is disabled for this workspace.", 403);
 }
 
 async function assertCanMutateTargetTags(session, target, operation) {
@@ -375,6 +448,36 @@ function normalizeTagIds(value) {
   return [...new Set(value.map((tagId) => String(tagId || "").trim()).filter(Boolean))];
 }
 
+function normalizeOptionalTagIds(value) {
+  if (value === undefined || value === null || value === "") {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return [...new Set(value.map((tagId) => String(tagId || "").trim()).filter(Boolean))];
+  }
+
+  return [...new Set(String(value || "")
+    .split(",")
+    .map((tagId) => tagId.trim())
+    .filter(Boolean))];
+}
+
+function groupAssignmentsByTarget(assignments) {
+  return assignments.reduce((groups, assignment) => {
+    if (!groups.has(assignment.target_id)) {
+      groups.set(assignment.target_id, []);
+    }
+
+    groups.get(assignment.target_id).push(assignment);
+    return groups;
+  }, new Map());
+}
+
+function defaultTargetIdField(targetType) {
+  return modulesService.listTaggableTypes().find((type) => type.targetType === targetType)?.idField || "id";
+}
+
 function normalizeSlug(value) {
   return String(value || "")
     .trim()
@@ -454,6 +557,8 @@ export const tagsService = {
   archive,
   assign,
   create,
+  decorateRecordsForTarget,
+  filterRecordsByTags,
   list,
   listAssignments,
   remove,

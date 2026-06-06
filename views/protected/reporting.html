@@ -45,6 +45,13 @@
           <select data-report-projects multiple disabled></select>
         </label>
 
+        <label hidden data-report-tag-control>
+          Tags
+          <select data-report-tag-filter>
+            <option value="">All tags</option>
+          </select>
+        </label>
+
         <label class="inline-option">
           <input type="checkbox" data-report-include-descendants checked>
           Include descendants
@@ -79,6 +86,7 @@
 
     <script src="js/navigation.js"></script>
     <script src="js/shared/formatters.js"></script>
+    <script src="js/shared/tags.js"></script>
     <script src="js/reporting.js"></script>
     <script src="js/footer.js"></script>
   </body>

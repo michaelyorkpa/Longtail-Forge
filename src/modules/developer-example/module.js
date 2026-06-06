@@ -17,7 +17,7 @@ const developerExampleModule = {
     },
   },
   category: "developer",
-  version: "0.32.4",
+  version: "0.32.5",
   enabledByDefault: false,
   canDisable: true,
   historicalReadAccess: true,

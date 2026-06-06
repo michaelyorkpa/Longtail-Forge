@@ -6,6 +6,8 @@ const reportEndDateInput = document.querySelector("[data-report-end-date]");
 const reportScopeControl = document.querySelector("[data-report-scope-control]");
 const reportClientSelect = document.querySelector("[data-report-client]");
 const reportProjectSelect = document.querySelector("[data-report-projects]");
+const reportTagControl = document.querySelector("[data-report-tag-control]");
+const reportTagFilterSelect = document.querySelector("[data-report-tag-filter]");
 const reportIncludeDescendantsInput = document.querySelector("[data-report-include-descendants]");
 const reportStatus = document.querySelector("[data-report-status]");
 const reportExtensionPanels = document.querySelector("[data-report-extension-panels]");
@@ -20,6 +22,7 @@ let reportBootstrap = {
   reportPanels: [],
   scopes: [],
 };
+let reportTagOptions = [];
 
 setDefaultCustomDates();
 updateCustomDateState();
@@ -38,6 +41,7 @@ reportClientSelect.addEventListener("change", () => {
 });
 
 reportProjectSelect.addEventListener("change", renderReport);
+reportTagFilterSelect?.addEventListener("change", renderReport);
 reportIncludeDescendantsInput?.addEventListener("change", renderReport);
 
 async function loadReportData() {
@@ -51,8 +55,10 @@ async function loadReportData() {
     }
 
     reportBootstrap = await response.json();
+    reportTagOptions = await loadTagOptions();
     renderExtensionPanels();
     renderClientFilter();
+    renderTagFilter();
     applyReportQueryParams();
     renderProjectFilter();
     await renderReport();
@@ -140,6 +146,11 @@ async function renderReport() {
       projectIds: selectedProjectIds.join(","),
       includeDescendants: reportIncludeDescendantsInput?.checked ? "true" : "false",
     });
+    const selectedTagId = String(reportTagFilterSelect?.value || "").trim();
+
+    if (selectedTagId) {
+      params.set("tagIds", selectedTagId);
+    }
 
     if (reportPeriodSelect.value === "custom") {
       params.set("startDate", reportStartDateInput.value);
@@ -215,6 +226,24 @@ function renderExtensionPanels() {
 
 function getSelectedScope() {
   return reportBootstrap.scopes.find((scope) => scope.id === reportClientSelect.value);
+}
+
+async function loadTagOptions() {
+  return window.LongtailForge?.tags?.loadTags
+    ? window.LongtailForge.tags.loadTags({ status: "active" })
+    : [];
+}
+
+function renderTagFilter() {
+  if (!reportTagFilterSelect || !reportTagControl) {
+    return;
+  }
+
+  reportTagFilterSelect.replaceChildren(createOption("", "All tags"));
+  reportTagOptions.forEach((tag) => {
+    reportTagFilterSelect.appendChild(createOption(tag.tag_id, tag.name));
+  });
+  reportTagControl.hidden = reportTagOptions.length === 0;
 }
 
 function getSelectedProjectIds() {

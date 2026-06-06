@@ -28,7 +28,7 @@ This matrix describes the active workspace-native permission model after the com
 | tags.assign | yes | yes | yes | yes | yes | yes | no |
 | tags.remove | yes | yes | yes | yes | yes | yes | no |
 
-The 0.32.4 tag service release adds framework browser APIs for tag definitions and assignments. Assignment reads require `tags.view` plus the target type's declared read permission. Assignment writes require the enabled source module plus `tags.assign` for additions or `tags.remove` for removals, along with the target type's declared tag permission.
+The 0.32.5 tagging release makes the `tags` feature a disableable first-party module. Assignment reads require the `tags` module to be readable, `tags.view`, and the target type's declared read permission. Assignment writes require the `tags` module and source module to be enabled, plus `tags.assign` for additions or `tags.remove` for removals, along with the target type's declared tag permission.
 
 ## Role Assignment Rules
 

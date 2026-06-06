@@ -10,6 +10,7 @@ import { modulesService } from "../../core/modules/modules.service.js";
 import { usersRepository } from "../../repositories/users.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
+import { tagsService } from "../../services/tags.service.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
@@ -18,7 +19,7 @@ const TASKS_MODULE_ID = "tasks";
 const STATUSES = new Set(["open", "in_progress", "blocked", "complete", "archived"]);
 const PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 
-async function list(session) {
+async function list(session, query = {}) {
   const tasks = await tasksRepository.readAll(session.workspace_id);
   const readableTasks = [];
 
@@ -28,8 +29,14 @@ async function list(session) {
     }
   }
 
+  const taggedTasks = await tagsService.decorateRecordsForTarget(
+    session,
+    "task",
+    await tagsService.filterRecordsByTags(session, "task", readableTasks, query.tagIds || query.tag_ids || query.tags),
+  );
+
   return {
-    tasks: await attachReminderDetails(readableTasks),
+    tasks: await attachReminderDetails(taggedTasks),
     currentUserId: session.user_id,
     options: await readOptions(session),
   };
@@ -94,7 +101,7 @@ async function read(taskId, session) {
   await assertCanReadTask(session, task);
 
   return {
-    task: await attachTaskDetails(task),
+    task: await attachTaskDetails((await tagsService.decorateRecordsForTarget(session, "task", [task]))[0]),
     currentUserId: session.user_id,
     options: await readOptions(session),
   };
@@ -132,7 +139,8 @@ async function create(payload, session) {
 
   const task = await tasksRepository.create(session.workspace_id, normalizedTask);
   await saveTaskReminderOverride(session.workspace_id, task.task_id, payload);
-  const taskWithDetails = await attachTaskDetails(await readTaskOrThrow(session.workspace_id, task.task_id));
+  await saveTargetTags(session, "task", task.task_id, payload);
+  const taskWithDetails = await readTaggedTaskWithDetails(session, task.task_id);
   await recordTaskAudit({
     session,
     action: "task_created",
@@ -227,7 +235,8 @@ async function update(taskId, payload, session) {
 
   const task = await tasksRepository.update(session.workspace_id, normalizedTask);
   await saveTaskReminderOverride(session.workspace_id, task.task_id, payload);
-  const taskWithDetails = await attachTaskDetails(await readTaskOrThrow(session.workspace_id, task.task_id));
+  await saveTargetTags(session, "task", task.task_id, payload);
+  const taskWithDetails = await readTaggedTaskWithDetails(session, task.task_id);
   await recordTaskAudit({
     session,
     action: "task_updated",
@@ -779,6 +788,23 @@ async function saveTaskReminderOverride(workspaceId, taskId, payload = {}) {
   const overrideEnabled = readReminderOverrideEnabled(payload, {});
   const policy = payload.reminderPolicy || payload.reminder_policy || {};
   await taskRemindersService.saveTargetPolicy(workspaceId, "task", taskId, policy, !overrideEnabled);
+}
+
+async function saveTargetTags(session, targetType, targetId, payload = {}) {
+  if (!Object.hasOwn(payload || {}, "tagIds") && !Object.hasOwn(payload || {}, "tag_ids")) {
+    return;
+  }
+
+  await tagsService.replaceAssignments(session, {
+    targetId,
+    targetType,
+    tagIds: payload.tagIds || payload.tag_ids || [],
+  });
+}
+
+async function readTaggedTaskWithDetails(session, taskId) {
+  const task = await readTaskOrThrow(session.workspace_id, taskId);
+  return attachTaskDetails((await tagsService.decorateRecordsForTarget(session, "task", [task]))[0]);
 }
 
 async function attachReminderDetails(tasks) {

@@ -25,7 +25,9 @@ async function readReportingBootstrap(session) {
 
 async function readProjectSummary(session, query = {}) {
   const { settings, scopes } = await readReportContext(session);
-  const entries = normalizeTimeEntries((await timeEntriesService.list(session)).entries);
+  const entries = normalizeTimeEntries((await timeEntriesService.list(session, {
+    tagIds: query.tagIds || query.tag_ids || query.tags,
+  })).entries);
   const scope = scopes.find((item) => item.id === String(query.scopeId || query.scope_id || "").trim());
   const includeDescendants = parseIncludeDescendants(query);
 
@@ -227,6 +229,7 @@ function normalizeTimeEntries(entries) {
         endTime: new Date(entry.end_time),
         durationSeconds: Number(entry.duration_seconds) || 0,
         billable: entry.billable === "no" ? "no" : "yes",
+        tags: Array.isArray(entry.tags) ? entry.tags : [],
       }))
     : [];
 }

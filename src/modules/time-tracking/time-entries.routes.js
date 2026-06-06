@@ -6,7 +6,7 @@ import { asyncRoute, readJsonBody } from "../../core/http.js";
 const timeEntriesRoutes = Router();
 
 timeEntriesRoutes.get("/time-entries", asyncRoute(async (request, response) => {
-  const result = await timeEntriesService.list(request.session);
+  const result = await timeEntriesService.list(request.session, request.query);
   response.status(200).json(result);
 }));
 
