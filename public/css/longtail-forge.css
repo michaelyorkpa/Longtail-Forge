@@ -81,6 +81,120 @@ body {
     min-width: 0;
 }
 
+.notification-shell {
+    position: relative;
+}
+
+.notification-bell {
+    position: relative;
+    min-width: 112px;
+    height: 40px;
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.notification-bell:hover,
+.notification-bell[aria-expanded="true"] {
+    background: var(--color-hover);
+    color: var(--color-text);
+}
+
+.notification-count {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    min-width: 18px;
+    height: 18px;
+    box-sizing: border-box;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--color-danger);
+    color: #ffffff;
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+}
+
+.notification-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 20;
+    width: min(360px, calc(100vw - 32px));
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-card);
+}
+
+.notification-panel-header,
+.notification-row-heading,
+.notification-list-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.notification-panel-list {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.notification-panel-item,
+.notification-row {
+    display: grid;
+    gap: 6px;
+    padding: 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.notification-panel-item.is-unread,
+.notification-row.is-unread {
+    border-color: var(--color-accent);
+}
+
+.notification-panel-item > a,
+.notification-panel-item > span,
+.notification-row-heading > a,
+.notification-row-heading > span {
+    min-width: 0;
+    color: var(--color-text);
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.notification-meta,
+.notification-panel-empty {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.notification-panel-actions,
+.notification-row-actions,
+.notification-pagination {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.notification-pagination {
+    align-items: center;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
 :focus-visible {
     outline: 3px solid var(--color-accent);
     outline-offset: 3px;
@@ -375,6 +489,75 @@ h1 {
 .settings-page {
     width: min(90vw, 480px);
     text-align: left;
+}
+
+.notifications-page {
+    display: grid;
+    gap: 24px;
+}
+
+.notification-workspace,
+.notification-preferences {
+    display: grid;
+    gap: 14px;
+}
+
+.notification-list {
+    display: grid;
+    gap: 10px;
+}
+
+.notification-status-badge {
+    flex: 0 0 auto;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: var(--color-hover);
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.notification-preference-list {
+    display: grid;
+    gap: 10px;
+}
+
+.notification-preference-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.notification-preference-row label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.notification-preference-row select {
+    width: 140px;
+}
+
+.segmented-control {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.segmented-control button {
+    min-width: 76px;
+    padding: 8px 10px;
+}
+
+.segmented-control button[aria-pressed="true"] {
+    border-color: var(--color-accent);
+    background: var(--color-hover);
+    color: var(--color-text);
 }
 
 .workspace-settings-page {

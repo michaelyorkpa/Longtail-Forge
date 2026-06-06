@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { notificationsService } from "../services/notifications.service.js";
-import { asyncRoute } from "../utils/http.js";
+import { asyncRoute, readJsonBody } from "../utils/http.js";
 
 const notificationsRoutes = Router();
 
@@ -11,6 +11,23 @@ notificationsRoutes.get("/notifications", asyncRoute(async (request, response) =
 
 notificationsRoutes.get("/notifications/unread-count", asyncRoute(async (request, response) => {
   const result = await notificationsService.unreadCount(request.session);
+  response.status(200).json(result);
+}));
+
+notificationsRoutes.get("/notifications/preferences", asyncRoute(async (request, response) => {
+  const result = await notificationsService.preferences(request.session);
+  response.status(200).json(result);
+}));
+
+notificationsRoutes.put("/notifications/preferences", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await notificationsService.savePreferences(request.session, payload);
+  response.status(200).json(result);
+}));
+
+notificationsRoutes.put("/notifications/workspace-defaults", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await notificationsService.saveWorkspaceDefaults(request.session, payload);
   response.status(200).json(result);
 }));
 

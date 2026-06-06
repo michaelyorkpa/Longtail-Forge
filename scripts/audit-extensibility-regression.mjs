@@ -60,7 +60,7 @@ const taskSummaryCount = modulesService.listModuleEventSummaries()
   .length;
 
 check("registry exposes Tasks event summaries", () => {
-  assert.equal(taskSummaryCount, 5);
+  assert.equal(taskSummaryCount, 8);
 });
 
 const taskEvent = {
@@ -95,4 +95,3 @@ check("notification summaries expose recipient hints without raw event JSON", ()
 });
 
 console.log(`Audit extensibility regression passed ${checks} checks.`);
-

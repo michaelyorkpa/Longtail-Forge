@@ -57,6 +57,57 @@ async function unreadCount(session) {
   };
 }
 
+async function preferences(session) {
+  await permissionsService.assertCanInAnyScope(session, "notifications.manage_preferences");
+
+  const [userRows, defaultRows, canManageWorkspaceDefaults] = await Promise.all([
+    notificationsRepository.readUserPreferences(session.workspace_id, session.user_id),
+    notificationsRepository.readWorkspaceDefaults(session.workspace_id),
+    permissionsService.canInAnyScope(session, "notifications.manage_workspace_defaults"),
+  ]);
+  const userPreferenceByEvent = new Map(userRows.map((row) => [row.event_type, row]));
+  const workspaceDefaultByEvent = new Map(defaultRows.map((row) => [row.event_type, row]));
+
+  return {
+    canManageWorkspaceDefaults,
+    events: listConfigurableNotificationEvents().map((event) => {
+      const userPreference = userPreferenceByEvent.get(event.id);
+      const workspaceDefault = workspaceDefaultByEvent.get(event.id);
+      const workspaceEnabled = workspaceDefault ? Number(workspaceDefault.enabled) === 1 : event.defaultEnabled !== false;
+
+      return {
+        id: event.id,
+        moduleId: event.moduleId,
+        label: event.label,
+        description: event.description,
+        defaultEnabled: event.defaultEnabled !== false,
+        defaultPriority: event.defaultPriority || "normal",
+        userEnabled: userPreference ? Number(userPreference.enabled) === 1 : workspaceEnabled,
+        workspaceEnabled,
+        workspacePriority: workspaceDefault?.priority || event.defaultPriority || "normal",
+      };
+    }),
+  };
+}
+
+async function savePreferences(session, payload = {}) {
+  await permissionsService.assertCanInAnyScope(session, "notifications.manage_preferences");
+
+  const allowedEventIds = new Set(listConfigurableNotificationEvents().map((event) => event.id));
+  const preferenceRows = normalizePreferenceList(payload.preferences || payload.events, allowedEventIds);
+  await notificationsRepository.saveUserPreferences(session.workspace_id, session.user_id, preferenceRows);
+  return preferences(session);
+}
+
+async function saveWorkspaceDefaults(session, payload = {}) {
+  await permissionsService.assertCanInAnyScope(session, "notifications.manage_workspace_defaults");
+
+  const allowedEventIds = new Set(listConfigurableNotificationEvents().map((event) => event.id));
+  const defaults = normalizeWorkspaceDefaultList(payload.defaults || payload.events, allowedEventIds);
+  await notificationsRepository.saveWorkspaceDefaults(session.workspace_id, defaults);
+  return preferences(session);
+}
+
 async function markRead(notificationId, session) {
   await assertCanMutateOwnNotification(notificationId, session);
   const notification = await notificationsRepository.markRead(session.workspace_id, session.user_id, notificationId);
@@ -166,9 +217,15 @@ async function createFromEvent(event, declaration = null) {
   }
 
   const recipients = await resolveRecipients(event, notificationDeclaration);
+  const enabledRecipients = await filterEnabledRecipients(workspaceId, recipients, notificationDeclaration.id);
   const summary = summarizeNotificationEvent(event);
   const template = modulesService.listNotificationTemplates().find((candidate) => candidate.event === event.name);
-  const payloads = recipients.map((recipientUserId) => ({
+  const workspaceDefault = await readWorkspaceDefault(workspaceId, notificationDeclaration.id);
+  if (!workspaceDefault.enabled) {
+    return { notifications: [] };
+  }
+
+  const payloads = enabledRecipients.map((recipientUserId) => ({
     workspace_id: workspaceId,
     module_id: moduleId,
     event_type: event.name,
@@ -179,7 +236,7 @@ async function createFromEvent(event, declaration = null) {
     title: template?.title || summary.title,
     body: template?.body || summary.body,
     url: template?.url || summary.url,
-    priority: notificationDeclaration.defaultPriority || "normal",
+    priority: workspaceDefault.priority || notificationDeclaration.defaultPriority || "normal",
     metadata: {
       emitted_at: event.emitted_at,
       source: event.source || "",
@@ -187,6 +244,30 @@ async function createFromEvent(event, declaration = null) {
   }));
 
   return createMany(payloads, event.session || null);
+}
+
+async function filterEnabledRecipients(workspaceId, recipientIds, eventType) {
+  const userPreferences = await Promise.all(recipientIds.map(async (userId) => {
+    const rows = await notificationsRepository.readUserPreferences(workspaceId, userId);
+    const preference = rows.find((row) => row.event_type === eventType);
+    return {
+      enabled: !preference || Number(preference.enabled) === 1,
+      userId,
+    };
+  }));
+
+  return userPreferences.filter((preference) => preference.enabled).map((preference) => preference.userId);
+}
+
+async function readWorkspaceDefault(workspaceId, eventType) {
+  const event = modulesService.listNotificationEvents().find((candidate) => candidate.id === eventType);
+  const rows = await notificationsRepository.readWorkspaceDefaults(workspaceId);
+  const defaultRow = rows.find((row) => row.event_type === eventType);
+
+  return {
+    enabled: defaultRow ? Number(defaultRow.enabled) === 1 : event?.defaultEnabled !== false,
+    priority: defaultRow?.priority || event?.defaultPriority || "normal",
+  };
 }
 
 async function resolveRecipients(event, declaration) {
@@ -354,6 +435,31 @@ function normalizeMetadata(metadata) {
   return typeof metadata === "object" && !Array.isArray(metadata) ? metadata : {};
 }
 
+function listConfigurableNotificationEvents() {
+  return modulesService.listNotificationEvents()
+    .filter((event) => modulesService.getModule(event.moduleId))
+    .sort((left, right) => left.moduleId.localeCompare(right.moduleId) || left.label.localeCompare(right.label));
+}
+
+function normalizePreferenceList(items, allowedEventIds) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      enabled: item.enabled !== false && item.userEnabled !== false,
+      event_type: item.event_type || item.eventType || item.id,
+    }))
+    .filter((item) => allowedEventIds.has(item.event_type));
+}
+
+function normalizeWorkspaceDefaultList(items, allowedEventIds) {
+  return (Array.isArray(items) ? items : [])
+    .map((item) => ({
+      enabled: item.enabled !== false && item.workspaceEnabled !== false,
+      event_type: item.event_type || item.eventType || item.id,
+      priority: normalizePriority(item.priority || item.workspacePriority),
+    }))
+    .filter((item) => allowedEventIds.has(item.event_type));
+}
+
 export const notificationsService = {
   archiveOldNotifications,
   create,
@@ -363,8 +469,11 @@ export const notificationsService = {
   list,
   markAllRead,
   markRead,
+  preferences,
   readTargetMetadata,
   registerEventHandlers,
   resetEventHandlersForTests,
+  savePreferences,
+  saveWorkspaceDefaults,
   unreadCount,
 };

@@ -108,8 +108,11 @@ const taskEventTypes = modulesService.listModuleEventTypes()
 check("registry exposes Tasks event types", () => {
   assert.deepEqual(taskEventTypes, [
     "task.archived",
+    "task.assigned",
     "task.completed",
     "task.created",
+    "task.due_soon",
+    "task.overdue",
     "task.restored",
     "task.updated",
   ]);
@@ -117,4 +120,3 @@ check("registry exposes Tasks event types", () => {
 
 internalEventBus.reset();
 console.log(`Event bus regression passed ${checks} checks.`);
-

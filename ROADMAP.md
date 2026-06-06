@@ -2,96 +2,50 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.1 - Notification Service and API
-
-* [x] Create shared notification repository/service methods
-
-  * [x] Create notification
-  * [x] Create notification for multiple recipients
-  * [x] List notifications for current user
-  * [x] Count unread notifications for current user
-  * [x] Mark notification as read
-  * [x] Mark all notifications as read
-  * [x] Dismiss notification
-  * [x] Archive/cleanup old notifications
-  * [x] Read notification target metadata safely
-
-* [x] Validate notification operations through the framework
-
-  * [x] Validate notification belongs to active workspace
-  * [x] Validate notification recipient is the current user
-  * [x] Validate target module is registered
-  * [x] Validate target record type is registered where applicable
-  * [x] Validate target record still belongs to active workspace where practical
-  * [x] Validate user can access the target before opening/following notification link
-  * [x] Validate disabled modules cannot create new notifications
-
-* [x] Add browser API routes for notifications
-
-  * [x] `GET /api/notifications`
-  * [x] `GET /api/notifications/unread-count`
-  * [x] `POST /api/notifications/:notificationId/read`
-  * [x] `POST /api/notifications/read-all`
-  * [x] `POST /api/notifications/:notificationId/dismiss`
-
-* [x] Add notification event integration
-
-  * [x] Framework event bus can trigger notification creation
-  * [x] Modules can emit events that notification rules consume
-  * [x] Keep first implementation simple and synchronous unless it becomes slow
-  * [x] Leave room for background jobs later
-
-* [x] Add audit/activity considerations
-
-  * [x] Creating a normal user notification does not need full audit logging every time
-  * [x] Notification preference changes should be audit logged where appropriate
-  * [x] Workspace-level notification default changes should be audit logged
-  * [x] Security-sensitive notifications can be audit logged later if needed
-
 ## Version 0.32.2 - In-App Notification UI and Preferences
 
-* [ ] Add framework-owned notification UI
+* [x] Add framework-owned notification UI
 
-  * [ ] Add notification bell to the authenticated app shell
-  * [ ] Show unread notification count
-  * [ ] Show recent notifications dropdown/panel
-  * [ ] Allow notifications to be marked read
-  * [ ] Allow notifications to be dismissed
-  * [ ] Link notifications to registered record URLs where safe
-  * [ ] Do not duplicate notification UI inside individual modules
+  * [x] Add notification bell to the authenticated app shell
+  * [x] Show unread notification count
+  * [x] Show recent notifications dropdown/panel
+  * [x] Allow notifications to be marked read
+  * [x] Allow notifications to be dismissed
+  * [x] Link notifications to registered record URLs where safe
+  * [x] Do not duplicate notification UI inside individual modules
 
-* [ ] Add notification page if needed
+* [x] Add notification page if needed
 
-  * [ ] List user notifications
-  * [ ] Filter by unread/read/dismissed
-  * [ ] Filter by module/source if useful
-  * [ ] Support pagination
-  * [ ] Support empty states
+  * [x] List user notifications
+  * [x] Filter by unread/read/dismissed
+  * [x] Filter by module/source if useful
+  * [x] Support pagination
+  * [x] Support empty states
 
-* [ ] Add notification preferences groundwork
+* [x] Add notification preferences groundwork
 
-  * [ ] User-level notification preferences
-  * [ ] Workspace-level notification defaults
-  * [ ] Allow modules to declare configurable notification types
-  * [ ] Users can mute notification types where permitted
-  * [ ] Workspace admins can set default behavior where appropriate
+  * [x] User-level notification preferences
+  * [x] Workspace-level notification defaults
+  * [x] Allow modules to declare configurable notification types
+  * [x] Users can mute notification types where permitted
+  * [x] Workspace admins can set default behavior where appropriate
 
-* [ ] Add initial notification events
+* [x] Add initial notification events
 
-  * [ ] `task.assigned`
-  * [ ] `task.due_soon`
-  * [ ] `task.overdue`
-  * [ ] `timer.still_running` if practical
-  * [ ] `module.disabled` for admins if useful
+  * [x] `task.assigned`
+  * [x] `task.due_soon`
+  * [x] `task.overdue`
+  * [x] `timer.still_running` if practical
+  * [x] `module.disabled` for admins if useful
 
-* [ ] Add regression tests
+* [x] Add regression tests
 
-  * [ ] Users only see their own notifications
-  * [ ] Notifications cannot cross workspace boundaries
-  * [ ] Notifications do not open records the user cannot access
-  * [ ] Disabled modules do not create new notifications
-  * [ ] Unread count updates after read/dismiss actions
-  * [ ] Notification bell does not break unauthenticated/public pages
+  * [x] Users only see their own notifications
+  * [x] Notifications cannot cross workspace boundaries
+  * [x] Notifications do not open records the user cannot access
+  * [x] Disabled modules do not create new notifications
+  * [x] Unread count updates after read/dismiss actions
+  * [x] Notification bell does not break unauthenticated/public pages
 
 ## Version 0.32.3 - Tags Framework Foundation
 
@@ -721,10 +675,11 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 - [ ] Support tickets
   - [ ] Consult with existing support ticket solutions for best path here
-  - [ ] Tickets should be assignable to clients and projects
+  - [ ] Tickets should be assignable to clients and projects in Business workspaces
   - [ ] Tickets should support internal notes
   - [ ] Tickets should support external/client-visible responses later
   - [ ] Ticket visibility and edit access should respect the roles/permissions system
+  - [ ] Support tickets become requests in Personal/Family workspaces
 
 ## Version 0.34.0 - Notes Module Foundation 
 
@@ -764,7 +719,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 - [ ] Calendars
 
-## Version 0.36.0 - Dashboard as Project Hub
+## Version 0.36.0 - Dashboard and Workbench Formalization as Project hub and work center
 
 - [ ] Dashboard should become the hub for managing projects
   - [ ] Add "Past Due/Due Soon" section that shows past due and upcoming tasks sorted by client and project

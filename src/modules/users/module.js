@@ -16,7 +16,7 @@ const usersModule = {
     },
   },
   category: "core-admin",
-  version: "0.32.1",
+  version: "0.32.2",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: false,
@@ -111,6 +111,38 @@ const usersModule = {
   ],
   publicApiEndpoints: [],
   apiScopes: [],
+  eventTypes: [
+    {
+      event: "module.disabled",
+      moduleId: "users",
+      label: "Module Disabled",
+      description: "Framework module-disabled event surfaced for workspace administrators.",
+      recordType: "module",
+    },
+  ],
+  eventSummaries: [
+    {
+      event: "module.disabled",
+      moduleId: "users",
+      notification: {
+        title: "Module Disabled",
+        body: ({ event }) => `Module "${event.record_id || event.metadata?.module_id || "Module"}" was disabled.`,
+        url: "workspace-settings.html",
+        recipientHints: ["workspace_admins"],
+      },
+    },
+  ],
+  notificationEvents: [
+    {
+      id: "module.disabled",
+      moduleId: "users",
+      label: "Module Disabled",
+      description: "Notifies workspace administrators when a module is disabled.",
+      defaultEnabled: true,
+      defaultPriority: "high",
+      recipientMode: "workspace_admins",
+    },
+  ],
   workbench: [],
   timerSources: [],
   workItemSources: [],

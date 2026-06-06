@@ -5,14 +5,16 @@ import { usersRepository } from "../repositories/users.repo.js";
 import { permissionsService } from "./permissions.service.js";
 import { settingsService } from "./settings.service.js";
 import { normalizeThemeMode } from "../utils/normalizers.js";
+import { notificationsService } from "./notifications.service.js";
 
 async function bootstrap(session) {
-  const [workspaceContext, workspaces, user, moduleNavigation, permissionHints] = await Promise.all([
+  const [workspaceContext, workspaces, user, moduleNavigation, permissionHints, notificationSummary] = await Promise.all([
     settingsService.readWorkspaceBootstrap(session),
     userWorkspacesRepository.readForUser(session.user_id),
     usersRepository.readById(session.home_workspace_id || session.workspace_id, session.user_id),
     modulesService.listModuleNavigation(session.workspace_id, session),
     readPermissionHints(session),
+    readNotificationSummary(session),
   ]);
   const navigation = await buildNavigation(workspaceContext, moduleNavigation, permissionHints);
 
@@ -25,10 +27,7 @@ async function bootstrap(session) {
     enabledModules: workspaceContext.enabledModules || [],
     moduleNavigation,
     navigation,
-    notificationSummary: {
-      count: 0,
-      unreadCount: 0,
-    },
+    notificationSummary,
     permissionHints,
     themeMode: normalizeThemeMode(user?.theme_mode),
     timezone: session.timezone || user?.timezone || "",
@@ -41,6 +40,14 @@ async function bootstrap(session) {
     workspaceContext,
     workspaces: normalizeWorkspaceMemberships(workspaces),
   };
+}
+
+async function readNotificationSummary(session) {
+  try {
+    return await notificationsService.unreadCount(session);
+  } catch {
+    return { count: 0, unreadCount: 0 };
+  }
 }
 
 async function readPermissionHints(session) {

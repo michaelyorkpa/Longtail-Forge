@@ -72,6 +72,7 @@ VALUES (
 async function listForRecipient(workspaceId, recipientUserId, options = {}) {
   const status = normalizeStatusFilter(options.status);
   const limit = clampLimit(options.limit);
+  const offset = clampOffset(options.offset);
   const rows = await querySql(`
 SELECT
 ${NOTIFICATION_COLUMNS}
@@ -80,7 +81,8 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   AND recipient_user_id = ${sqlText(recipientUserId)}
   ${status ? `AND status = ${sqlText(status)}` : ""}
 ORDER BY created_at DESC, notification_id DESC
-LIMIT ${sqlInteger(limit)};
+LIMIT ${sqlInteger(limit)}
+OFFSET ${sqlInteger(offset)};
 `);
 
   return rows.map(notificationRowToAppValue);
@@ -188,6 +190,70 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   return rows.map((row) => row.user_id).filter(Boolean);
 }
 
+async function readUserPreferences(workspaceId, userId) {
+  return querySql(`
+SELECT workspace_id, user_id, event_type, enabled, created_at, updated_at
+FROM notification_user_preferences
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND user_id = ${sqlText(userId)}
+ORDER BY event_type;
+`);
+}
+
+async function readWorkspaceDefaults(workspaceId) {
+  return querySql(`
+SELECT workspace_id, event_type, enabled, priority, created_at, updated_at
+FROM notification_workspace_defaults
+WHERE workspace_id = ${sqlText(workspaceId)}
+ORDER BY event_type;
+`);
+}
+
+async function saveUserPreferences(workspaceId, userId, preferences) {
+  const now = new Date().toISOString();
+  const statements = (preferences || []).map((preference) => `
+INSERT INTO notification_user_preferences (workspace_id, user_id, event_type, enabled, created_at, updated_at)
+VALUES (
+  ${sqlText(workspaceId)},
+  ${sqlText(userId)},
+  ${sqlText(preference.event_type)},
+  ${sqlInteger(preference.enabled ? 1 : 0)},
+  ${sqlText(now)},
+  ${sqlText(now)}
+)
+ON CONFLICT(workspace_id, user_id, event_type) DO UPDATE SET
+  enabled = excluded.enabled,
+  updated_at = excluded.updated_at;
+`).join("\n");
+
+  if (statements) {
+    await runSql(statements);
+  }
+}
+
+async function saveWorkspaceDefaults(workspaceId, defaults) {
+  const now = new Date().toISOString();
+  const statements = (defaults || []).map((preference) => `
+INSERT INTO notification_workspace_defaults (workspace_id, event_type, enabled, priority, created_at, updated_at)
+VALUES (
+  ${sqlText(workspaceId)},
+  ${sqlText(preference.event_type)},
+  ${sqlInteger(preference.enabled ? 1 : 0)},
+  ${sqlText(preference.priority || "normal")},
+  ${sqlText(now)},
+  ${sqlText(now)}
+)
+ON CONFLICT(workspace_id, event_type) DO UPDATE SET
+  enabled = excluded.enabled,
+  priority = excluded.priority,
+  updated_at = excluded.updated_at;
+`).join("\n");
+
+  if (statements) {
+    await runSql(statements);
+  }
+}
+
 function notificationRowToAppValue(row) {
   return {
     notification_id: row.notification_id,
@@ -233,6 +299,11 @@ function clampLimit(limit) {
   return Math.min(Math.max(numericLimit, 1), 100);
 }
 
+function clampOffset(offset) {
+  const numericOffset = Number.parseInt(offset, 10);
+  return Number.isFinite(numericOffset) && numericOffset > 0 ? numericOffset : 0;
+}
+
 export const notificationsRepository = {
   archiveOlderThan,
   countUnreadForRecipient,
@@ -243,5 +314,9 @@ export const notificationsRepository = {
   markRead,
   readById,
   readByIdForRecipient,
+  readUserPreferences,
   readWorkspaceAdminUserIds,
+  readWorkspaceDefaults,
+  saveUserPreferences,
+  saveWorkspaceDefaults,
 };

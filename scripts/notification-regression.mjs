@@ -27,6 +27,7 @@ try {
   const api = createApi(baseUrl);
 
   await runNotificationApiTests(api, fixtures);
+  await runNotificationPreferenceTests(api, fixtures);
   await runNotificationEventTests(fixtures);
   await runDisabledModuleTests(fixtures);
 
@@ -123,6 +124,18 @@ async function runNotificationApiTests(api, fixtures) {
     assert.equal(unreadCount.body.unreadCount, 1);
   });
 
+  const shell = await api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.projectUser });
+  check("app shell bootstrap exposes unread notification count", () => {
+    assert.equal(shell.status, 200, JSON.stringify(shell.body));
+    assert.equal(shell.body.notificationSummary.unreadCount, 1);
+  });
+
+  const page = await api.get("/notifications.html", { cookie: fixtures.sessions.projectUser });
+  check("protected notifications page loads for authenticated users", () => {
+    assert.equal(page.status, 200, String(page.body).slice(0, 120));
+    assert.match(String(page.body), /data-notification-page-list/);
+  });
+
   const readResult = await api.post(`/api/notifications/${encodeURIComponent(notificationId)}/read`, {}, {
     cookie: fixtures.sessions.projectUser,
   });
@@ -172,14 +185,91 @@ async function runNotificationApiTests(api, fixtures) {
   });
 }
 
+async function runNotificationPreferenceTests(api, fixtures) {
+  const preferences = await api.get("/api/notifications/preferences", { cookie: fixtures.sessions.projectUser });
+  check("user can read configurable notification preferences", () => {
+    assert.equal(preferences.status, 200, JSON.stringify(preferences.body));
+    assert.ok(preferences.body.events.some((event) => event.id === "task.updated"));
+    assert.equal(preferences.body.canManageWorkspaceDefaults, false);
+  });
+
+  const adminPreferences = await api.get("/api/notifications/preferences", { cookie: fixtures.sessions.workspaceAdmin });
+  check("workspace admin can manage notification defaults", () => {
+    assert.equal(adminPreferences.status, 200, JSON.stringify(adminPreferences.body));
+    assert.equal(adminPreferences.body.canManageWorkspaceDefaults, true);
+  });
+
+  const muted = await api.put("/api/notifications/preferences", {
+    preferences: [{ id: "task.updated", enabled: false }],
+  }, { cookie: fixtures.sessions.projectUser });
+  check("user can mute a notification type", () => {
+    assert.equal(muted.status, 200, JSON.stringify(muted.body));
+    const taskUpdated = muted.body.events.find((event) => event.id === "task.updated");
+    assert.equal(taskUpdated.userEnabled, false);
+  });
+
+  const beforeMutedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
+  await modulesService.emitInternalEvent("task.updated", {
+    actorUserId: fixtures.users.workspaceAdmin.userId,
+    moduleId: "tasks",
+    newValue: {
+      assignee_ids: [fixtures.users.projectUser.userId],
+      task_id: "muted-event-task",
+      title: "Muted event task",
+    },
+    recordId: "muted-event-task",
+    recordType: "task",
+    session: {
+      user_id: fixtures.users.workspaceAdmin.userId,
+      workspace_id: fixtures.workspaceId,
+    },
+    workspaceId: fixtures.workspaceId,
+  });
+  const afterMutedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
+  check("muted notification type does not create a user notification", () => {
+    assert.equal(afterMutedRows, beforeMutedRows);
+  });
+
+  const defaults = await api.put("/api/notifications/workspace-defaults", {
+    defaults: [{ id: "task.overdue", enabled: false, priority: "urgent" }],
+  }, { cookie: fixtures.sessions.workspaceAdmin });
+  check("workspace admin can save notification defaults", () => {
+    assert.equal(defaults.status, 200, JSON.stringify(defaults.body));
+    const taskOverdue = defaults.body.events.find((event) => event.id === "task.overdue");
+    assert.equal(taskOverdue.workspaceEnabled, false);
+  });
+
+  const beforeDefaultRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.overdue");
+  await modulesService.emitInternalEvent("task.overdue", {
+    actorUserId: fixtures.users.workspaceAdmin.userId,
+    moduleId: "tasks",
+    newValue: {
+      assignee_ids: [fixtures.users.projectUser.userId],
+      task_id: "workspace-default-event-task",
+      title: "Workspace default event task",
+    },
+    recordId: "workspace-default-event-task",
+    recordType: "task",
+    session: {
+      user_id: fixtures.users.workspaceAdmin.userId,
+      workspace_id: fixtures.workspaceId,
+    },
+    workspaceId: fixtures.workspaceId,
+  });
+  const afterDefaultRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.overdue");
+  check("disabled workspace default blocks event-created notifications", () => {
+    assert.equal(afterDefaultRows, beforeDefaultRows);
+  });
+}
+
 async function runNotificationEventTests(fixtures) {
   const beforeRows = await querySql(`
 SELECT COUNT(*) AS count
 FROM notifications
-WHERE event_type = 'task.updated';
+WHERE event_type = 'task.assigned';
 `);
 
-  await modulesService.emitInternalEvent("task.updated", {
+  await modulesService.emitInternalEvent("task.assigned", {
     actorUserId: fixtures.users.workspaceAdmin.userId,
     moduleId: "tasks",
     newValue: {
@@ -199,7 +289,7 @@ WHERE event_type = 'task.updated';
   const afterRows = await querySql(`
 SELECT COUNT(*) AS count
 FROM notifications
-WHERE event_type = 'task.updated';
+WHERE event_type = 'task.assigned';
 `);
 
   check("framework event bus can create notifications from module declarations", () => {
@@ -253,6 +343,7 @@ function createApi(baseUrl) {
   return {
     get: (url, options = {}) => request(baseUrl, "GET", url, null, options),
     post: (url, body, options = {}) => request(baseUrl, "POST", url, body, options),
+    put: (url, body, options = {}) => request(baseUrl, "PUT", url, body, options),
   };
 }
 
@@ -286,6 +377,18 @@ async function request(baseUrl, method, url, body = null, options = {}) {
     body: parsedBody,
     status: response.status,
   };
+}
+
+async function notificationCountFor(workspaceId, recipientUserId, eventType) {
+  const rows = await querySql(`
+SELECT COUNT(*) AS count
+FROM notifications
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND recipient_user_id = ${sqlText(recipientUserId)}
+  AND event_type = ${sqlText(eventType)};
+`);
+
+  return Number(rows[0]?.count || 0);
 }
 
 function check(name, assertion) {

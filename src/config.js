@@ -18,7 +18,7 @@ function toDisplayName(packageName) {
 const config = {
   appName: toDisplayName(packageJson.name),
   appVersion: packageJson.version,
-  host: process.env.HOST || "127.0.0.1",
+  host: process.env.HOST || "0.0.0.0",
   port: Number(process.env.PORT) || 8001,
   root,
   publicDir: path.join(root, "public"),

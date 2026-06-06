@@ -17,7 +17,7 @@ const timeTrackingModule = {
     },
   },
   category: "core-workflow",
-  version: "0.32.1",
+  version: "0.32.2",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -221,6 +221,38 @@ const timeTrackingModule = {
       label: "Write Time Entries",
       description: "Create time entries through the public API.",
       access: "write",
+    },
+  ],
+  eventTypes: [
+    {
+      event: "timer.still_running",
+      moduleId: "time-tracking",
+      label: "Timer Still Running",
+      description: "Reserved notification event for future long-running timer checks.",
+      recordType: "active_work_timer",
+    },
+  ],
+  eventSummaries: [
+    {
+      event: "timer.still_running",
+      moduleId: "time-tracking",
+      notification: {
+        title: "Timer Still Running",
+        body: "A timer is still running.",
+        url: "workbench.html",
+        recipientHints: ["actor"],
+      },
+    },
+  ],
+  notificationEvents: [
+    {
+      id: "timer.still_running",
+      moduleId: "time-tracking",
+      label: "Timer Still Running",
+      description: "Notifies a user when a timer appears to still be running.",
+      defaultEnabled: true,
+      defaultPriority: "high",
+      recipientMode: "actor",
     },
   ],
   timerSources: [

@@ -57,6 +57,10 @@ document.body.prepend(siteHeader);
 
 const navToggle = siteHeader.querySelector(".nav-toggle");
 const navLinks = siteHeader.querySelector("#primary-menu");
+const notificationBell = siteHeader.querySelector("[data-notification-bell]");
+const notificationCount = siteHeader.querySelector("[data-notification-count]");
+const notificationPanel = siteHeader.querySelector("[data-notification-panel]");
+const notificationList = siteHeader.querySelector("[data-notification-list]");
 const workspaceSelector = siteHeader.querySelector("[data-workspace-selector]");
 
 applyCachedWorkspaceContext();
@@ -67,6 +71,17 @@ if (navToggle && navLinks) {
 
     navToggle.setAttribute("aria-expanded", String(!isOpen));
     navLinks.classList.toggle("is-open", !isOpen);
+  });
+}
+
+if (notificationBell) {
+  notificationBell.addEventListener("click", () => {
+    const isOpen = notificationBell.getAttribute("aria-expanded") === "true";
+    notificationBell.setAttribute("aria-expanded", String(!isOpen));
+    notificationPanel.hidden = isOpen;
+    if (!isOpen) {
+      loadNotificationPanel();
+    }
   });
 }
 
@@ -97,6 +112,14 @@ function buildSiteHeader() {
   const brand = document.createElement("div");
   const homeLink = document.createElement("a");
   const workspaceSelect = document.createElement("select");
+  const notificationWrap = document.createElement("div");
+  const notificationButton = document.createElement("button");
+  const notificationBadge = document.createElement("span");
+  const notificationPanelElement = document.createElement("div");
+  const notificationPanelHeader = document.createElement("div");
+  const notificationPanelTitle = document.createElement("strong");
+  const notificationPageLink = document.createElement("a");
+  const notificationItems = document.createElement("div");
   const toggle = document.createElement("button");
   const links = document.createElement("div");
   const currentPage = getCurrentPage();
@@ -118,6 +141,38 @@ function buildSiteHeader() {
 
   brand.append(homeLink, workspaceSelect);
 
+  notificationWrap.className = "notification-shell";
+
+  notificationButton.className = "notification-bell";
+  notificationButton.type = "button";
+  notificationButton.dataset.notificationBell = "";
+  notificationButton.setAttribute("aria-expanded", "false");
+  notificationButton.setAttribute("aria-controls", "notification-panel");
+  notificationButton.setAttribute("aria-label", "Notifications");
+  notificationButton.textContent = "Notifications";
+
+  notificationBadge.className = "notification-count";
+  notificationBadge.dataset.notificationCount = "";
+  notificationBadge.textContent = "0";
+  notificationBadge.hidden = true;
+  notificationButton.append(notificationBadge);
+
+  notificationPanelElement.className = "notification-panel";
+  notificationPanelElement.id = "notification-panel";
+  notificationPanelElement.dataset.notificationPanel = "";
+  notificationPanelElement.hidden = true;
+
+  notificationPanelHeader.className = "notification-panel-header";
+  notificationPanelTitle.textContent = "Notifications";
+  notificationPageLink.href = "notifications.html";
+  notificationPageLink.textContent = "View all";
+  notificationPanelHeader.append(notificationPanelTitle, notificationPageLink);
+
+  notificationItems.className = "notification-panel-list";
+  notificationItems.dataset.notificationList = "";
+  notificationPanelElement.append(notificationPanelHeader, notificationItems);
+  notificationWrap.append(notificationButton, notificationPanelElement);
+
   toggle.className = "nav-toggle";
   toggle.type = "button";
   toggle.setAttribute("aria-expanded", "false");
@@ -135,7 +190,7 @@ function buildSiteHeader() {
     links.append(createNavItem(item, currentPage));
   });
 
-  nav.append(brand, toggle, links);
+  nav.append(brand, notificationWrap, toggle, links);
   header.append(nav);
 
   return header;
@@ -239,6 +294,7 @@ async function loadAppShellBootstrap() {
 
     storeWorkspaceContext(workspaceContext);
     renderNavigation(shell.navigation);
+    applyNotificationSummary(shell.notificationSummary);
     applyWorkspaceName(workspaceContext.workspaceName);
     applyWorkspaceCapabilities(workspaceContext);
     if (shell.themeMode) {
@@ -249,6 +305,105 @@ async function loadAppShellBootstrap() {
     await loadWorkspaceSettings();
     await loadSessionWorkspaces();
   }
+}
+
+function applyNotificationSummary(summary = {}) {
+  const unreadCount = Number(summary.unreadCount || summary.count || 0);
+
+  if (!notificationCount) {
+    return;
+  }
+
+  notificationCount.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
+  notificationCount.hidden = unreadCount === 0;
+}
+
+async function loadNotificationPanel() {
+  if (!notificationList) {
+    return;
+  }
+
+  notificationList.replaceChildren(createNotificationPanelEmpty("Loading"));
+
+  try {
+    const response = await fetch("/api/notifications?limit=5", { cache: "no-store" });
+    if (!response.ok) {
+      throw new Error("Notifications unavailable.");
+    }
+
+    const body = await response.json();
+    const notifications = Array.isArray(body.notifications) ? body.notifications : [];
+    notificationList.replaceChildren(...(notifications.length > 0
+      ? notifications.map(createNotificationPanelItem)
+      : [createNotificationPanelEmpty("No notifications")]));
+    refreshNotificationCount();
+  } catch {
+    notificationList.replaceChildren(createNotificationPanelEmpty("Notifications unavailable"));
+  }
+}
+
+function createNotificationPanelItem(notification) {
+  const item = document.createElement("article");
+  const title = notification.url ? document.createElement("a") : document.createElement("span");
+  const meta = document.createElement("span");
+  const actions = document.createElement("span");
+  const readButton = document.createElement("button");
+  const dismissButton = document.createElement("button");
+
+  item.className = `notification-panel-item is-${notification.status || "unread"}`;
+  title.textContent = notification.title || "Notification";
+  if (notification.url) {
+    title.href = notification.url;
+  }
+
+  meta.className = "notification-meta";
+  meta.textContent = [notification.event_type, formatNotificationDate(notification.created_at)].filter(Boolean).join(" · ");
+
+  actions.className = "notification-panel-actions";
+  readButton.type = "button";
+  readButton.textContent = "Read";
+  readButton.disabled = notification.status !== "unread";
+  readButton.addEventListener("click", () => mutateNotification(notification.notification_id, "read"));
+
+  dismissButton.type = "button";
+  dismissButton.textContent = "Dismiss";
+  dismissButton.addEventListener("click", () => mutateNotification(notification.notification_id, "dismiss"));
+  actions.append(readButton, dismissButton);
+
+  item.append(title, meta, actions);
+  return item;
+}
+
+function createNotificationPanelEmpty(text) {
+  const empty = document.createElement("p");
+  empty.className = "notification-panel-empty";
+  empty.textContent = text;
+  return empty;
+}
+
+async function mutateNotification(notificationId, action) {
+  await fetch(`/api/notifications/${encodeURIComponent(notificationId)}/${action}`, { method: "POST" });
+  await loadNotificationPanel();
+}
+
+async function refreshNotificationCount() {
+  try {
+    const response = await fetch("/api/notifications/unread-count", { cache: "no-store" });
+    if (response.ok) {
+      applyNotificationSummary(await response.json());
+    }
+  } catch {
+    applyNotificationSummary({ unreadCount: 0 });
+  }
+}
+
+function formatNotificationDate(value) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
 }
 
 async function loadWorkspaceSettings() {

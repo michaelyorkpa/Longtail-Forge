@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Notifications | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=10">
+  </head>
+  <body data-page-title="Notifications">
+    <main class="wide-page notifications-page">
+      <div class="page-heading">
+        <h1>Notifications</h1>
+        <div class="segmented-control" role="group" aria-label="Notification filter">
+          <button type="button" data-notification-filter="all" aria-pressed="true">All</button>
+          <button type="button" data-notification-filter="unread" aria-pressed="false">Unread</button>
+          <button type="button" data-notification-filter="read" aria-pressed="false">Read</button>
+          <button type="button" data-notification-filter="dismissed" aria-pressed="false">Dismissed</button>
+        </div>
+      </div>
+
+      <section class="notification-workspace">
+        <div class="notification-list-toolbar">
+          <label>
+            Source
+            <select data-notification-module-filter>
+              <option value="">All</option>
+            </select>
+          </label>
+          <button type="button" data-mark-all-notifications-read>Mark All Read</button>
+        </div>
+
+        <p data-notification-status role="status" aria-live="polite"></p>
+        <div class="notification-list" data-notification-page-list></div>
+      </section>
+
+      <section class="notification-preferences">
+        <h2>Preferences</h2>
+        <form class="settings-form" data-notification-preferences-form>
+          <div class="notification-preference-list" data-notification-preference-list></div>
+          <button type="submit">Save Preferences</button>
+        </form>
+      </section>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

@@ -240,6 +240,13 @@ async function update(taskId, payload, session) {
     previousValue: previousTask,
     newValue: taskWithDetails,
   });
+  if (assigneesChanged(previousTask, taskWithDetails)) {
+    await emitTaskEvent("task.assigned", {
+      session,
+      previousValue: previousTask,
+      newValue: taskWithDetails,
+    });
+  }
 
   return { task: taskWithDetails };
 }

@@ -26,7 +26,7 @@ const clientProjectsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.32.1",
+  version: "0.32.2",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: true,

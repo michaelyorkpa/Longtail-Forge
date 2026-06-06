@@ -1,3 +1,14 @@
+## Version 0.32.2 - 2026-06-05 22:30 -04:00
+
+- Bumped the app and first-party module versions to `0.32.2`.
+- Added notification user preference and workspace default tables with saved enabled state and workspace priority overrides.
+- Added notification preference APIs and wired event delivery to honor workspace defaults plus user mutes.
+- Added a framework-owned app-shell notification bell/dropdown with unread counts, recent notifications, read/dismiss actions, and a link to the full notification page.
+- Added `notifications.html` with notification listing, unread/read/dismissed filters, source filtering, pagination, empty states, read/dismiss actions, and preference/default controls.
+- Added initial notification events for `task.assigned`, `task.due_soon`, `task.overdue`, `timer.still_running`, and `module.disabled`; task assignment changes now emit `task.assigned`.
+- Expanded notification regression coverage for app-shell counts, protected page access, preferences, workspace defaults, muted delivery, and target-link visibility.
+- Updated notification documentation, the permissions matrix, decisions, and roadmap/archive bookkeeping for 0.32.2.
+
 ## Version 0.32.1 - 2026-06-05 17:32 -04:00
 
 - Bumped the app and first-party module versions to `0.32.1`.

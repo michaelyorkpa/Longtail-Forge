@@ -1,6 +1,6 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-06-05 for version 0.32.1
+Updated: 2026-06-05 for version 0.32.2
 
 This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, and performance passes.
 
@@ -98,6 +98,8 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 | Browser | PUT | /api/workbench/timers/:timerSlot/status | time_entries.create on linked project | project/client/self | Preserves timer source metadata while switching timer state |
 | Browser | GET | /api/notifications | notifications.view_own in any assigned scope | current user/workspace | Returns only the active user's notifications; target URLs are hidden when target access fails |
 | Browser | GET | /api/notifications/unread-count | notifications.view_own in any assigned scope | current user/workspace | Counts only unread notifications addressed to the active user |
+| Browser | GET/PUT | /api/notifications/preferences | notifications.manage_preferences in any assigned scope | current user/workspace | Reads or saves the active user's notification type preferences |
+| Browser | PUT | /api/notifications/workspace-defaults | notifications.manage_workspace_defaults in any assigned scope | workspace | Saves workspace-level notification defaults and priority overrides |
 | Browser | POST | /api/notifications/:notificationId/read | notifications.view_own in any assigned scope | current user/workspace | Marks only the active user's notification read |
 | Browser | POST | /api/notifications/read-all | notifications.view_own in any assigned scope | current user/workspace | Marks only the active user's unread notifications read |
 | Browser | POST | /api/notifications/:notificationId/dismiss | notifications.view_own in any assigned scope | current user/workspace | Dismisses only the active user's notification |
