@@ -701,6 +701,16 @@ h1 {
     font-size: 16px;
 }
 
+.module-settings-group h3 {
+    margin: 0;
+    font-size: 15px;
+}
+
+.workspace-create-module-settings {
+    display: grid;
+    gap: 12px;
+}
+
 .theme-mode-switch {
     width: fit-content;
     min-height: 40px;
@@ -2582,6 +2592,14 @@ label {
 .inline-option input {
     width: auto;
     margin: 0;
+}
+
+.inline-option.is-read-only {
+    color: var(--color-muted);
+}
+
+.inline-option.is-read-only input {
+    cursor: not-allowed;
 }
 
 select,

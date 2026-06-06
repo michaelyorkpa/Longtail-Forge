@@ -466,26 +466,25 @@ async function createWorkspace(payload, session, sessionId = "") {
     workspaceName,
     workspaceType,
   });
-  const timeTrackingEnabled = payload.timeTrackingEnabled !== false;
+  const creationSession = {
+    ...session,
+    workspace_id: workspace.workspaceId,
+    active_workspace_id: workspace.workspaceId,
+  };
+  const moduleStatusChanges = resolveCreateWorkspaceModuleStatusChanges(payload, workspaceType);
 
-  await modulesService.setModuleStatus(workspace.workspaceId, "time-tracking", timeTrackingEnabled, {
-    session: {
-      ...session,
-      workspace_id: workspace.workspaceId,
-      active_workspace_id: workspace.workspaceId,
-    },
-  });
+  for (const change of moduleStatusChanges) {
+    await modulesService.setModuleStatus(workspace.workspaceId, change.moduleId, change.enabled, {
+      session: creationSession,
+    });
+  }
 
   if (sessionId) {
     await sessionsRepository.updateActiveWorkspace(sessionId, workspace.workspaceId);
   }
 
   await auditService.record({
-    session: {
-      ...session,
-      workspace_id: workspace.workspaceId,
-      active_workspace_id: workspace.workspaceId,
-    },
+    session: creationSession,
     action: "workspace_created",
     changeType: "create",
     recordType: "workspace",
@@ -497,7 +496,11 @@ async function createWorkspace(payload, session, sessionId = "") {
     metadata: {
       created_from_workspace_id: session.workspace_id,
       workspace_type: workspace.workspaceType,
-      time_tracking_enabled: timeTrackingEnabled,
+      module_statuses: moduleStatusChanges.reduce((statuses, change) => {
+        statuses[change.moduleId] = change.enabled ? "enabled" : "disabled";
+        return statuses;
+      }, {}),
+      time_tracking_enabled: moduleStatusChanges.find((change) => change.moduleId === "time-tracking")?.enabled,
     },
   });
 
@@ -862,8 +865,117 @@ async function readWorkspaceCreationOptions(session) {
       workspaceType,
       label: formatWorkspaceType(workspaceType),
       defaultName: getWorkspaceCapabilities(workspaceType).defaultName || "",
+      moduleSettings: readWorkspaceCreationModuleSettings(workspaceType),
     })),
   };
+}
+
+function readWorkspaceCreationModuleSettings(workspaceType) {
+  return modulesService.listModuleSettingsForWorkspaceType(workspaceType)
+    .map((moduleDefinition) => ({
+      ...moduleDefinition,
+      settings: (moduleDefinition.settings || []).filter((setting) => setting.moduleStatus === true),
+    }))
+    .filter((moduleDefinition) => moduleDefinition.settings.length > 0);
+}
+
+function resolveCreateWorkspaceModuleStatusChanges(payload, workspaceType) {
+  const definitions = buildCreateWorkspaceModuleStatusDefinitionMap(workspaceType);
+  const submittedSettings = readSubmittedCreateWorkspaceModuleSettings(payload);
+  const changes = [];
+
+  if (submittedSettings.size === 0) {
+    if (Object.hasOwn(payload || {}, "timeTrackingEnabled")) {
+      const definition = definitions.get("time-tracking.timeTrackingEnabled");
+      if (definition) {
+        changes.push({
+          moduleId: definition.module.moduleId,
+          enabled: payload.timeTrackingEnabled !== false,
+        });
+      }
+    }
+    return changes;
+  }
+
+  for (const [moduleId, settings] of submittedSettings.entries()) {
+    for (const [settingId, value] of settings.entries()) {
+      const definition = definitions.get(`${moduleId}.${settingId}`);
+
+      if (!definition) {
+        throw new AppError(`Unknown module setting '${moduleId}.${settingId}'.`, 400);
+      }
+
+      if (definition.setting.readOnly === true) {
+        throw new AppError(`Module setting '${moduleId}.${settingId}' is read-only.`, 400);
+      }
+
+      if (definition.setting.moduleStatus !== true) {
+        throw new AppError(`Module setting '${moduleId}.${settingId}' cannot be set during workspace creation.`, 400);
+      }
+
+      if (typeof value !== "boolean") {
+        throw new AppError(`Module setting '${moduleId}.${settingId}' must be a boolean.`, 400);
+      }
+
+      changes.push({
+        moduleId,
+        enabled: value,
+      });
+    }
+  }
+
+  return changes;
+}
+
+function buildCreateWorkspaceModuleStatusDefinitionMap(workspaceType) {
+  const definitions = new Map();
+
+  for (const moduleDefinition of readWorkspaceCreationModuleSettings(workspaceType)) {
+    for (const setting of moduleDefinition.settings || []) {
+      definitions.set(`${moduleDefinition.moduleId}.${setting.id}`, {
+        module: moduleDefinition,
+        setting,
+      });
+    }
+  }
+
+  return definitions;
+}
+
+function readSubmittedCreateWorkspaceModuleSettings(payload) {
+  const submittedSettings = new Map();
+  const moduleSettings = payload?.moduleSettings;
+
+  if (moduleSettings === undefined) {
+    return submittedSettings;
+  }
+
+  if (!isPlainObject(moduleSettings)) {
+    throw new AppError("moduleSettings must be an object keyed by module ID.", 400);
+  }
+
+  for (const [moduleId, settings] of Object.entries(moduleSettings)) {
+    if (!isPlainObject(settings)) {
+      throw new AppError(`moduleSettings.${moduleId} must be an object keyed by setting ID.`, 400);
+    }
+
+    for (const [settingId, value] of Object.entries(settings)) {
+      const normalizedModuleId = String(moduleId || "").trim();
+      const normalizedSettingId = String(settingId || "").trim();
+
+      if (!normalizedModuleId || !normalizedSettingId) {
+        throw new AppError("Module setting IDs are required.", 400);
+      }
+
+      if (!submittedSettings.has(normalizedModuleId)) {
+        submittedSettings.set(normalizedModuleId, new Map());
+      }
+
+      submittedSettings.get(normalizedModuleId).set(normalizedSettingId, value);
+    }
+  }
+
+  return submittedSettings;
 }
 
 async function readSaasWorkspaceTypes(session, baseTypes) {
@@ -1038,6 +1150,10 @@ function normalizeUserProfilePayload(payload, fallbackUser = {}) {
     altEmail,
     timezone: normalizeTimezone(timezoneInput),
   };
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype;
 }
 
 export const usersService = {

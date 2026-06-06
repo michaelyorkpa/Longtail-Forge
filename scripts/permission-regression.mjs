@@ -38,6 +38,7 @@ try {
   await runClientProjectDomainTests(api, fixtures);
   await runDisabledModuleTests(api, fixtures);
   await runReportingPermissionTests(api, fixtures);
+  await runWorkspaceCreationModuleSettingTests(api, fixtures);
   await runWorkspaceOwnerLifecycleTests(api, fixtures);
 
   console.log(`Permission regression harness passed ${results.length} checks.`);
@@ -1235,6 +1236,98 @@ ORDER BY workspaces.created_at DESC;
   });
 }
 
+async function runWorkspaceCreationModuleSettingTests(api, fixtures) {
+  const userSettings = await expectStatus(
+    "workspace admin can read workspace creation module controls",
+    api.get("/api/user/settings", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  const businessType = userSettings.body.workspaceCreation.availableTypes.find((type) => type.workspaceType === "business");
+
+  check("Create Workspace exposes module settings for Business workspaces", () => {
+    assert.ok(businessType);
+    assert.ok(businessType.moduleSettings.some((moduleDefinition) => moduleDefinition.moduleId === "tasks"));
+    assert.ok(businessType.moduleSettings.some((moduleDefinition) => moduleDefinition.moduleId === "time-tracking"));
+  });
+  check("required modules appear locked in Create Workspace module controls", () => {
+    const requiredModule = businessType.moduleSettings.find((moduleDefinition) => moduleDefinition.moduleId === "client-projects");
+    assert.ok(requiredModule);
+    assert.ok(requiredModule.settings.some((setting) => setting.moduleStatus === true && setting.readOnly === true));
+  });
+
+  const tasksOffWorkspace = await expectStatus(
+    "workspace admin can create Business workspace with Tasks off and Time Tracking on",
+    api.post("/api/workspaces", {
+      workspaceName: `Tasks Off ${randomUUID()}`,
+      workspaceType: "business",
+      moduleSettings: createWorkspaceModuleSettingsPayload(businessType, {
+        tasks: { tasksEnabled: false },
+        "time-tracking": { timeTrackingEnabled: true },
+      }),
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    201,
+  );
+  const tasksOffStatuses = await readWorkspaceModuleStatuses(tasksOffWorkspace.body.workspace.workspaceId);
+  check("created workspace stores Tasks off and Time Tracking on", () => {
+    assert.equal(tasksOffStatuses.get("tasks"), "disabled");
+    assert.equal(tasksOffStatuses.get("time-tracking"), "enabled");
+  });
+  const tasksOffShell = await expectStatus(
+    "app shell loads after creating workspace with Tasks disabled",
+    api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("disabled Tasks do not appear in nav after creation", () => {
+    assert.equal(flattenNavigationHrefs(tasksOffShell.body.navigation).includes("tasks.html"), false);
+  });
+
+  const tasksOffSettings = await expectStatus(
+    "Workspace Settings exposes the same Business module availability rules",
+    api.get("/api/settings", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("Workspace Settings keeps required module controls locked", () => {
+    const requiredModule = tasksOffSettings.body.moduleSettings.find((moduleDefinition) => moduleDefinition.moduleId === "client-projects");
+    assert.ok(requiredModule);
+    assert.ok(requiredModule.settings.some((setting) => setting.moduleStatus === true && setting.readOnly === true));
+  });
+  check("Workspace Settings and Create Workspace expose matching Business module setting IDs", () => {
+    assert.deepEqual(
+      moduleStatusSettingKeys(tasksOffSettings.body.moduleSettings),
+      moduleStatusSettingKeys(businessType.moduleSettings),
+    );
+  });
+
+  const timeTrackingOffWorkspace = await expectStatus(
+    "workspace admin can create Business workspace with Time Tracking off and Tasks on",
+    api.post("/api/workspaces", {
+      workspaceName: `Time Tracking Off ${randomUUID()}`,
+      workspaceType: "business",
+      moduleSettings: createWorkspaceModuleSettingsPayload(businessType, {
+        tasks: { tasksEnabled: true },
+        "time-tracking": { timeTrackingEnabled: false },
+      }),
+    }, { cookie: fixtures.sessions.workspaceAdmin }),
+    201,
+  );
+  const timeTrackingOffStatuses = await readWorkspaceModuleStatuses(timeTrackingOffWorkspace.body.workspace.workspaceId);
+  check("created workspace stores Time Tracking off and Tasks on", () => {
+    assert.equal(timeTrackingOffStatuses.get("tasks"), "enabled");
+    assert.equal(timeTrackingOffStatuses.get("time-tracking"), "disabled");
+  });
+  const timeTrackingOffShell = await expectStatus(
+    "app shell loads after creating workspace with Time Tracking disabled",
+    api.get("/api/app-shell/bootstrap", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("disabled Time Tracking does not appear in nav after creation", () => {
+    const hrefs = flattenNavigationHrefs(timeTrackingOffShell.body.navigation);
+    assert.equal(hrefs.includes("time-tracker.html"), false);
+    assert.equal(hrefs.includes("manual-entry.html"), false);
+    assert.equal(hrefs.includes("edit-entries.html"), false);
+  });
+}
+
 async function runDisabledModuleTests(api, fixtures) {
   const settings = await api.get("/api/settings", { cookie: fixtures.sessions.workspaceAdmin });
   await expectStatus("workspace admin can read settings before disabled-module smoke", settings, 200);
@@ -1413,6 +1506,45 @@ function moduleSettingsPayload(settings, overrides = {}) {
   }
 
   return payload;
+}
+
+function createWorkspaceModuleSettingsPayload(workspaceType, overrides = {}) {
+  const payload = moduleSettingsPayload({
+    moduleSettings: workspaceType.moduleSettings || [],
+  }, overrides);
+
+  for (const [moduleId, settingsById] of Object.entries(payload)) {
+    if (Object.keys(settingsById).length === 0) {
+      delete payload[moduleId];
+    }
+  }
+
+  return payload;
+}
+
+async function readWorkspaceModuleStatuses(workspaceId) {
+  const rows = await querySql(`
+SELECT module_id, status
+FROM workspace_modules
+WHERE workspace_id = ${sqlText(workspaceId)};
+`);
+
+  return new Map(rows.map((row) => [row.module_id, row.status]));
+}
+
+function moduleStatusSettingKeys(moduleSettings) {
+  return (moduleSettings || []).flatMap((moduleDefinition) => (
+    (moduleDefinition.settings || [])
+      .filter((setting) => setting.moduleStatus === true)
+      .map((setting) => `${moduleDefinition.moduleId}.${setting.id}`)
+  )).sort();
+}
+
+function flattenNavigationHrefs(navigation) {
+  return (navigation || []).flatMap((item) => [
+    item.href,
+    ...flattenNavigationHrefs(item.children || []),
+  ]).filter(Boolean);
 }
 
 async function runReportingPermissionTests(api, fixtures) {

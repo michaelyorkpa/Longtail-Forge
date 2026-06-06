@@ -2,78 +2,23 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.3 - Tags Framework Foundation
+## Version 0.32.3.1 - UI Foundation Cleanup
 
-* [x] Add framework-owned tagging tables
-
-  * [x] Create shared `tags` table for tag definitions
-  * [x] Create shared `tag_assignments` table for assigning tags to records
-  * [x] Tags should be workspace-scoped using `workspace_id`
-  * [x] Tags should not be stored as comma-separated text on records
-
-* [x] `tags` table should support:
-
-  * `tag_id`
-  * `workspace_id`
-  * `name`
-  * `slug`
-  * `description`
-  * `color`
-  * `status`
-  * `created_by_user_id`
-  * `created_at`
-  * `updated_at`
-
-* [x] `tag_assignments` table should support:
-
-  * `tag_assignment_id`
-  * `workspace_id`
-  * `tag_id`
-  * `target_type`
-  * `target_id`
-  * `created_by_user_id`
-  * `source`
-  * `created_at`
-
-* [x] Add indexes for common tag lookup patterns
-
-  * [x] Workspace + tag slug
-  * [x] Workspace + tag status
-  * [x] Workspace + target type + target ID
-  * [x] Workspace + tag ID + target type
-  * [x] Prevent duplicate active assignment of the same tag to the same target
-
-* [x] Add module-declared taggable type contract
-
-  * [x] Modules should declare which record types are taggable
-  * [x] Taggable type declarations should include:
-
-    * `targetType`
-    * `moduleId`
-    * `idField`
-    * `labelField`
-    * `workspaceField`
-    * `clientField` if applicable
-    * `projectField` if applicable
-    * required read permission
-    * required tag/edit permission
-  * [x] Framework should not maintain a permanent hard-coded list of taggable target types
-
-* [x] Add core tag permissions
-
-  * [x] `tags.manage`
-  * [x] `tags.view`
-  * [x] `tags.assign`
-  * [x] `tags.remove`
-  * [x] Add default role mappings for workspace admins and appropriate scoped roles
-
-* [x] Define system tag policy
-
-  * [x] Manual tags come first
-  * [x] System/automatic tags should wait until manual tagging is stable
-  * [x] Use real fields for behavior/security
-  * [x] Do not use tags as the source of truth for visibility, permissions, billing status, workflow status, or archival state
-  * [x] Example: note visibility should eventually be stored as a `visibility` field, not enforced by `#public`
+1. [x] Add `docs/ui-layout-guide.md`.
+2. [x] Add `docs/settings-control-matrix.md`.
+3. [x] Add `public/js/shared/settings-controls.js`.
+4. [x] Refactor `workspace-settings.js` and `module-settings.js` to use the shared settings renderer.
+5. [x] Extend user settings workspace creation data so Create Workspace can render initial module controls from the module registry.
+6. [x] Update Create Workspace UI to remove the hard-coded Time Tracking-only checkbox.
+7. [x] Update `createWorkspace` backend to accept `moduleSettings` and apply all submitted `moduleStatus` controls through `modulesService.setModuleStatus`.
+8. [x] Keep temporary backwards compatibility for `timeTrackingEnabled`, but mark it deprecated.
+9. [x] Add regression coverage:
+   - [x] Create Business workspace with Tasks off / Time Tracking on.
+   - [x] Create Business workspace with Time Tracking off / Tasks on.
+   - [x] Required modules appear locked.
+   - [x] Workspace Settings and Create Workspace show the same module availability rules.
+   - [x] Disabled modules do not appear in nav after creation.
+10. [x] Update TODO/ROADMAP/CHANGELOG.
 
 ## Version 0.32.4 - Tag Service and API
 

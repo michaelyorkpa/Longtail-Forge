@@ -29,9 +29,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - [ ] Make sure the Tasks list on the Workbench matches the project's default sort order
 - [ ] Add priority sorting to Tasks on Workbench
 
-- [ ] Create workspace in Settings -> User doesn't have buttons for anything other than time tracking
-  - [ ] Module enablement should be coded into this based on what's available in the registry
-
 - Review whether the User Settings "Remove Workspace" flow needs clearer wording now that it removes the signed-in user's membership rather than deleting the workspace record.
 
 ## Tweaks

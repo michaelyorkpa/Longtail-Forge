@@ -17,7 +17,7 @@ const timeTrackingModule = {
     },
   },
   category: "core-workflow",
-  version: "0.32.3",
+  version: "0.32.3.1",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,

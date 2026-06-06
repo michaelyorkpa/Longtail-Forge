@@ -1,3 +1,14 @@
+## Version 0.32.3.1 - 2026-06-05 23:32 -04:00
+
+- Bumped the app and first-party module versions to `0.32.3.1`.
+- Added `docs/ui-layout-guide.md` and `docs/settings-control-matrix.md` for UI/settings cleanup rules.
+- Added shared browser settings controls in `public/js/shared/settings-controls.js`.
+- Refactored Workspace Settings and module settings pages to use the shared module settings renderer.
+- Updated Create Workspace to render registry-driven module status controls instead of a hard-coded Time Tracking checkbox.
+- Updated workspace creation to accept `moduleSettings` and apply submitted module status controls through `modulesService.setModuleStatus`, while keeping deprecated `timeTrackingEnabled` compatibility when `moduleSettings` is absent.
+- Added regression coverage for Create Workspace module combinations, locked required module controls, matching module availability rules, and nav filtering after creating workspaces with disabled modules.
+- Updated TODO, roadmap/archive, decisions, and changelog bookkeeping for 0.32.3.1.
+
 ## Version 0.32.3 - 2026-06-05 22:46 -04:00
 
 - Bumped the app and first-party module versions to `0.32.3`.

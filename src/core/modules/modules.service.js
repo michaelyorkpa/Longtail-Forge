@@ -124,6 +124,33 @@ function listNotificationTemplates() {
   return listRegisteredNotificationTemplates();
 }
 
+function listModuleSettingsForWorkspaceType(workspaceType = "business") {
+  const workspaceCapabilities = getWorkspaceCapabilities(workspaceType);
+  const availableTools = new Set(workspaceCapabilities.availableTools || []);
+
+  return listModules()
+    .map((rawModuleDefinition) => resolveModuleDefinitionTerminology(rawModuleDefinition, workspaceCapabilities.workspaceType))
+    .filter((moduleDefinition) => moduleSettingsMatchWorkspace(moduleDefinition, availableTools))
+    .map((moduleDefinition) => {
+      const status = moduleDefinition.enabledByDefault ? "enabled" : "disabled";
+
+      return {
+        moduleId: moduleDefinition.id,
+        name: moduleDefinition.name,
+        displayName: moduleDefinition.displayName,
+        status,
+        canDisable: moduleDefinition.canDisable !== false,
+        settings: (moduleDefinition.settings || []).map((setting) => ({
+          ...setting,
+          moduleId: moduleDefinition.id,
+          readOnly: setting.readOnly === true || (setting.moduleStatus === true && moduleDefinition.canDisable === false),
+          value: setting.moduleStatus === true ? status === "enabled" : defaultSettingValue(setting),
+        })),
+      };
+    })
+    .filter((moduleDefinition) => moduleDefinition.settings.length > 0);
+}
+
 function listModulePublicViews() {
   return listRegisteredModulePublicViews().map(normalizeViewContribution);
 }
@@ -914,6 +941,7 @@ export const modulesService = {
   listModulePermissions,
   listModuleRouteEntries,
   listModuleRoutes,
+  listModuleSettingsForWorkspaceType,
   listModules,
   listModuleBrowserAssets,
   listModuleSettings,

@@ -1,0 +1,35 @@
+# UI Layout Guide
+
+Longtail Forge UI should stay quiet, scannable, and operational. Pages should favor clear controls, stable spacing, and predictable state over decorative layouts.
+
+## Page Structure
+
+- Use the actual work surface as the first screen.
+- Keep settings, admin, reporting, and workflow pages dense but readable.
+- Avoid nesting cards inside cards.
+- Use fieldsets for related form controls.
+- Keep headings proportional to the panel or page they belong to.
+
+## Controls
+
+- Use native form controls when they fit: checkboxes for binary settings, selects for option sets, inputs for text and numbers, and buttons for commands.
+- Use shared renderers for registry-driven controls instead of hand-building duplicate UI in each page script.
+- Disabled required controls should remain visible and clearly locked.
+- Labels should describe the setting itself, not implementation details.
+
+## Module Settings
+
+Module status controls come from module manifests. A setting with `moduleStatus: true` controls the corresponding `workspace_modules` row through the backend registry service.
+
+Workspace Settings and Create Workspace should use the same module availability rules:
+
+- Workspace Settings can show module status controls plus module-specific sub-settings.
+- Create Workspace should show initial module status controls only.
+- Required modules should appear locked rather than disappearing.
+- Module-specific pages should render only the selected module's settings.
+
+## Frontend Implementation
+
+Plain browser JavaScript remains the default. Shared UI helpers should live under `public/js/shared/` and attach APIs to `window.LongtailForge`.
+
+`public/js/shared/settings-controls.js` owns the shared module settings renderer and payload reader for Workspace Settings, module-specific settings pages, and Create Workspace.

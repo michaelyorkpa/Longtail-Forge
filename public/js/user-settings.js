@@ -16,7 +16,7 @@ const saveProfileButton = document.querySelector("[data-save-profile]");
 const workspaceCreateForm = document.querySelector("[data-workspace-create-form]");
 const newWorkspaceTypeSelect = document.querySelector("[data-new-workspace-type]");
 const newWorkspaceNameInput = document.querySelector("[data-new-workspace-name]");
-const newWorkspaceTimeTrackingInput = document.querySelector("[data-new-workspace-time-tracking]");
+const newWorkspaceModuleSettingsContainer = document.querySelector("[data-new-workspace-module-settings]");
 const createWorkspaceButton = document.querySelector("[data-create-workspace]");
 const openWorkspaceRemovalButton = document.querySelector("[data-open-workspace-removal]");
 const workspaceRemovalDialog = document.querySelector("[data-workspace-removal-dialog]");
@@ -56,7 +56,10 @@ newWorkspaceNameInput.addEventListener("input", () => {
   workspaceNameEditedByUser = newWorkspaceNameInput.value.trim() !== lastSuggestedWorkspaceName;
 });
 
-newWorkspaceTypeSelect.addEventListener("change", updateSuggestedWorkspaceName);
+newWorkspaceTypeSelect.addEventListener("change", () => {
+  updateSuggestedWorkspaceName();
+  renderCreateWorkspaceModuleSettings();
+});
 
 openWorkspaceRemovalButton?.addEventListener("click", openWorkspaceRemovalDialog);
 closeWorkspaceRemovalButton?.addEventListener("click", () => workspaceRemovalDialog?.close());
@@ -146,15 +149,14 @@ function applyWorkspaceCreation(workspaceCreation) {
   workspaceCreateForm.hidden = !hasAvailableTypes;
   newWorkspaceTypeSelect.disabled = !hasAvailableTypes;
   newWorkspaceNameInput.disabled = !hasAvailableTypes;
-  if (newWorkspaceTimeTrackingInput) {
-    newWorkspaceTimeTrackingInput.disabled = !hasAvailableTypes;
-    newWorkspaceTimeTrackingInput.checked = true;
-  }
   createWorkspaceButton.disabled = !hasAvailableTypes;
 
   if (hasAvailableTypes) {
     newWorkspaceTypeSelect.value = workspaceCreationTypes[0].workspaceType;
     setSuggestedWorkspaceName(getWorkspaceTypeSuggestedName(workspaceCreationTypes[0]));
+    renderCreateWorkspaceModuleSettings();
+  } else {
+    renderCreateWorkspaceModuleSettings();
   }
 }
 
@@ -282,7 +284,7 @@ async function createWorkspace() {
       body: JSON.stringify({
         workspaceType,
         workspaceName,
-        timeTrackingEnabled: newWorkspaceTimeTrackingInput?.checked !== false,
+        moduleSettings: window.LongtailForge.settingsControls.readModuleSettingsPayload(workspaceCreateForm),
       }),
     });
     const body = await response.json().catch(() => ({}));
@@ -315,6 +317,16 @@ function updateSuggestedWorkspaceName() {
   }
 
   lastSuggestedWorkspaceName = nextSuggestion;
+}
+
+function renderCreateWorkspaceModuleSettings() {
+  const selectedType = workspaceCreationTypes.find((type) => type.workspaceType === newWorkspaceTypeSelect.value);
+
+  window.LongtailForge.settingsControls.renderModuleSettingsGroups(
+    newWorkspaceModuleSettingsContainer,
+    selectedType?.moduleSettings || [],
+    { emptyText: "No module controls are available for this workspace type.", headingLevel: "h3" },
+  );
 }
 
 function setSuggestedWorkspaceName(workspaceName) {
