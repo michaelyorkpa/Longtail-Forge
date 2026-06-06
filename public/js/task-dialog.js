@@ -179,6 +179,7 @@
       frequency: recurrenceDialog.querySelector("[data-task-recurrence-frequency]"),
       interval: recurrenceDialog.querySelector("[data-task-recurrence-interval]"),
     };
+    decorateTaskDialogControls();
 
     if (form.dataset.taskDialogBound === "true") {
       return;
@@ -202,6 +203,19 @@
     fields.timerPause?.addEventListener("click", () => saveTaskTimer("paused"));
     fields.timerFinalize?.addEventListener("click", finalizeTaskTimer);
     fields.timerReset?.addEventListener("click", resetTaskTimer);
+  }
+
+  function decorateTaskDialogControls() {
+    const icons = namespace.icons;
+
+    if (!icons?.decorateButton) {
+      return;
+    }
+
+    icons.decorateButton(fields.timerStart, { icon: "start", label: "Start task timer", text: "Start", iconOnly: false });
+    icons.decorateButton(fields.timerPause, { icon: "pause", label: "Pause task timer", text: "Pause", iconOnly: false });
+    icons.decorateButton(fields.timerFinalize, { icon: "save", label: "Save task timer as time", text: "Save Time", iconOnly: false });
+    icons.decorateButton(fields.timerReset, { icon: "restore", label: "Reset task timer", text: "Reset", iconOnly: false, variant: "danger" });
   }
 
   function populateFormOptions() {

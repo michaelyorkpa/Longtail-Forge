@@ -403,7 +403,7 @@ function createProjectTable(projects) {
     const nameCell = document.createElement("td");
     const editCell = document.createElement("td");
     const checkbox = document.createElement("input");
-    const editButton = document.createElement("button");
+    const editButton = createClientProjectActionButton("Edit", "edit");
     const clientName = client.isWorkspaceScope ? workspaceProjectsLabel() : client.name;
 
     checkbox.type = "checkbox";
@@ -413,8 +413,6 @@ function createProjectTable(projects) {
       ? `${treeIndent(getProjectDepth(project, client))}${project.name} (${clientName})`
       : `${treeIndent(getProjectDepth(project, client))}${project.name}`;
     appendTagChips(nameCell, project.tags);
-    editButton.type = "button";
-    editButton.textContent = "Edit";
     editButton.addEventListener("click", () => openProjectDetailDialog(client, project));
     selectCell.appendChild(checkbox);
     editCell.appendChild(editButton);
@@ -610,15 +608,13 @@ function createClientTable(clients) {
     const nameCell = document.createElement("td");
     const editCell = document.createElement("td");
     const checkbox = document.createElement("input");
-    const editButton = document.createElement("button");
+    const editButton = createClientProjectActionButton("Edit", "edit");
 
     checkbox.type = "checkbox";
     checkbox.dataset.clientTableSelect = client.id;
     checkbox.addEventListener("change", updateClientTableBulkState);
     nameCell.textContent = `${treeIndent(getClientDepth(client))}${client.name}`;
     appendTagChips(nameCell, client.tags);
-    editButton.type = "button";
-    editButton.textContent = "Edit";
     editButton.addEventListener("click", () => openClientDetailDialog(client));
     selectCell.appendChild(checkbox);
     editCell.appendChild(editButton);
@@ -1726,6 +1722,23 @@ function createAddProjectSubmitButton(clientId) {
   return button;
 }
 
+function createClientProjectActionButton(label, icon, options = {}) {
+  if (window.LongtailForge.icons?.createIconButton) {
+    return window.LongtailForge.icons.createIconButton({
+      icon,
+      label,
+      title: label,
+      variant: options.danger ? "danger" : "",
+    });
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  button.classList.toggle("danger-button", options.danger === true);
+  return button;
+}
+
 function createClientBillingSettingsEditor(client, options = {}) {
   // Client billing values override app defaults but can still inherit period/rounding.
   const showSaveButton = options.showSaveButton !== false;
@@ -2133,10 +2146,7 @@ function createProjectEditor(client, project, options = {}) {
     }
   });
 
-  const deleteButton = document.createElement("button");
-  deleteButton.type = "button";
-  deleteButton.textContent = "Archive";
-  deleteButton.className = "danger-button";
+  const deleteButton = createClientProjectActionButton("Archive", "archive", { danger: true });
   deleteButton.addEventListener("click", async () => {
     const shouldDelete = await window.LongtailForge.modal.confirm({
       title: "Archive project?",
@@ -2235,17 +2245,13 @@ function createProjectTaskDefaultsEditor(defaults = {}) {
     sortList.replaceChildren(...order.map((item, index) => {
       const row = document.createElement("div");
       const name = document.createElement("span");
-      const upButton = document.createElement("button");
-      const downButton = document.createElement("button");
+      const upButton = createClientProjectActionButton("Move up", "up");
+      const downButton = createClientProjectActionButton("Move down", "down");
 
       row.className = "project-default-sort-row";
       row.dataset.sortItem = item;
       name.textContent = projectTaskSortLabels[item] || item;
-      upButton.type = "button";
-      upButton.textContent = "Up";
       upButton.disabled = index === 0;
-      downButton.type = "button";
-      downButton.textContent = "Down";
       downButton.disabled = index === order.length - 1;
       upButton.addEventListener("click", () => {
         const nextOrder = [...readSortOrder()];

@@ -2,210 +2,97 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.5.2 - Framework/Backend Tidying
+## Version 0.32.5.3 - Shared Icon and Compact Action Controls
 
-This section is intentionally split into ordered implementation passes because it touches framework-owned modal orchestration, Tasks, Time Tracking, Clients/Projects defaults, and Workbench behavior.
+This section should create a reusable framework-owned icon/action control foundation before converting individual module surfaces. The goal is compact, accessible controls with clear module boundaries, not one-off icon buttons scattered through page scripts.
 
-### Pass 1 - Cross-screen module modal contract
+### Pass 1 - Shared icon and action-control foundation
 
-- [x] Review the existing shared modal helper, page controller patterns, module manifest browser asset model, and current add/edit modal entry points.
-- [x] Define a lightweight browser-side module action contract for opening module-owned add/edit dialogs from another page without navigating away first.
-- [x] Keep settings and setting modals out of this contract; they should continue to live in the appropriate settings menus.
-- [x] Register first-party modal actions for practical near-term module flows:
-  - [x] Add Task
-  - [x] Edit Task
-  - [x] Add Time Entry
-  - [x] Edit Time Entry
-  - [x] Add Project
-  - [x] Edit Project
-  - [x] Add Client, only for Business workspaces
-  - [x] Edit Client, only for Business workspaces
-- [x] Update cross-page callers such as Workbench so `Add Task` opens the module modal directly instead of routing through `tasks.html?new=1`.
-- [x] Preserve module ownership: framework code may discover and dispatch actions, but module pages/scripts still own their forms, validation, saves, and permissions.
-- [x] Add regression coverage for action discovery, disabled modules, and at least one Workbench-to-module modal invocation.
+- [x] Choose the first-party icon source for the app.
+  - [x] Prefer a local inline SVG subset checked into the app over remote icon fonts or CDN assets.
+  - [x] Confirm icon license/attribution requirements before adding assets.
+  - [x] Keep the icon registry framework-owned and module-agnostic.
+- [x] Add a shared browser icon helper.
+  - [x] Render icons by stable semantic names such as `add`, `edit`, `archive`, `restore`, `delete`, `start`, `pause`, `save`, `close`, `copy`, `refresh`, and `more`.
+  - [x] Use inline SVG with `currentColor` so light/dark mode stays theme-token driven.
+  - [x] Prevent arbitrary SVG/string injection through the helper API.
+  - [x] Support icon-only buttons, icon-plus-text buttons, and decorative icons with explicit accessibility handling.
+- [x] Add shared CSS for compact action controls.
+  - [x] Add `.icon`, `.icon-button`, `.action-button`, and compact action-group styles.
+  - [x] Keep icon-only controls at a minimum 44px touch target.
+  - [x] Preserve existing primary, secondary, link, and danger button semantics.
+  - [x] Preserve visible focus states and disabled states.
+  - [x] Avoid creating a module-specific style dependency in framework CSS.
+- [x] Document the contract in module-development docs.
+  - [x] Modules may call the shared icon/action helpers.
+  - [x] Modules should not ship duplicate icon registries for common app actions.
+  - [x] Module-specific icons may be added only through a documented extension point.
 
-### Pass 2 - Module-owned reusable dialog contract
+### Pass 2 - Convert high-density framework and task controls
 
-- [x] Treat the Pass 1 iframe host as a temporary bridge, not the final modal/action architecture.
-- [x] Define a module-owned dialog helper contract that lets modules register real dialog openers without embedding full module pages in frames.
-- [x] Keep the framework boundary narrow:
-  - [x] Framework owns action discovery, dispatch, availability checks, host-page lifecycle, and completion callbacks
-  - [x] Modules own dialog rendering, form state, validation, API calls, save behavior, reset behavior, and record-specific permissions
-  - [x] Framework must not import module-specific form internals or know task/time-entry/project/client field layouts
-- [x] Add a shared action registry shape for dialog-backed actions:
-  - [x] `actionId`
-  - [x] `moduleId`
-  - [x] `recordType`
-  - [x] `mode` such as `add`, `edit`, or future module-defined modes
-  - [x] `label`
-  - [x] `requiredPermissions`
-  - [x] `requiredWorkspaceCapabilities`
-  - [x] `requiredModules`
-  - [x] `open(params, hostContext)` callback
-  - [x] `canOpen(params, hostContext)` callback where module-specific checks are needed
-  - [x] completion payload contract
-- [x] Keep settings and setting modals excluded from this contract; they remain in their settings menus.
-- [x] Keep the registry browser-side for this pass, but document how module manifests should eventually declare action metadata separately from browser opener functions.
-- [x] Add host lifecycle behavior that all module dialog helpers can rely on:
-  - [x] Refresh callback after successful completion
-  - [x] Close/cancel callback
-  - [x] Status/error handoff
-  - [x] Focus return to the initiating control
-  - [x] Optional params for default client/project/task context
-- [x] Add regression coverage proving the framework dispatches through registered module callbacks instead of iframe/page embedding.
+- [x] Convert timer controls where compact icons materially improve scanning.
+  - [x] Time Tracker Start/Pause/Save/Discard controls.
+  - [x] Task timer Start/Pause/Save Time/Reset controls.
+  - [x] Keep text visible where the action would be ambiguous or risky.
+- [x] Convert Tasks list/action controls.
+  - [x] Task row edit/open actions.
+  - [x] Task complete/reopen/archive/restore/delete-style actions where present.
+  - [x] Bulk action controls only where icon treatment does not reduce clarity.
+- [x] Keep destructive actions visually and semantically distinct.
+  - [x] Danger icon buttons must keep danger styling.
+  - [x] Destructive icon-only controls must have clear `aria-label` and `title` text.
+  - [x] Do not hide confirmation or permission behavior behind the icon helper.
+- [x] Preserve module ownership.
+  - [x] Tasks module keeps task action behavior and permission checks.
+  - [x] Time Tracking module keeps timer/time-entry behavior and permission checks.
+  - [x] Shared icon helpers only render controls and icons.
 
-### Pass 3 - Task dialog helper extraction
+### Pass 3 - Convert remaining repeated row actions
 
-- [x] Extract the Tasks add/edit dialog into a Tasks-owned reusable browser helper.
-- [x] Keep the existing Tasks page using the extracted helper for its Add Task and Edit Task flows.
-- [x] Register `tasks.add` and `tasks.edit` through the module-owned dialog helper instead of the iframe/page bridge.
-- [x] Update Workbench `Add Task` to open the real Tasks dialog in Workbench's DOM without loading the full Tasks page.
-- [x] Preserve existing Tasks behavior:
-  - [x] Project/client selector rules
-  - [x] Workspace-type visibility rules
-  - [x] Project task defaults
-  - [x] Recurrence controls
-  - [x] Reminder controls
-  - [x] Task timer controls where appropriate on edit
-  - [x] Tag picker integration
-  - [x] Copy task link behavior on edit
-  - [x] Save/audit/notification behavior through the Tasks service
-- [x] Add completion callbacks so Workbench refreshes task cards after a task is created or edited.
-- [x] Remove iframe usage for Tasks actions once the helper path is active.
-- [x] Add regression coverage for:
-  - [x] Tasks page still opens add/edit dialogs
-  - [x] Workbench opens Add Task without an iframe
-  - [x] Disabled Tasks module prevents action availability
-  - [x] Completion refresh callback fires after save
+- [x] Convert Tags list actions.
+  - [x] Edit.
+  - [x] Archive.
+  - [x] Restore.
+  - [x] Clear/reset only where the icon is obvious with accessible labeling.
+- [x] Convert Clients/Projects repeated row actions.
+  - [x] Edit project/client.
+  - [x] Archive/restore project/client where present.
+  - [x] Move up/down project default sort controls if icon treatment improves clarity.
+- [x] Convert Time Entries row actions.
+  - [x] Edit.
+  - [x] Delete.
+  - [x] Refresh/reload only where repeated in dense areas.
+- [x] Convert notification quick actions only if they remain obvious.
+  - [x] Read/unread.
+  - [x] Dismiss.
+  - [x] Open target.
+  - [x] Leave preference/configuration controls as text-first controls unless a later notification UI pass changes the layout.
 
-### Pass 4 - Time Entry dialog helper extraction
+### Pass 4 - Regression, accessibility, and visual contract checks
 
-- [x] Extract Time Tracking-owned Add Time Entry dialog behavior from the current manual-entry flow into a reusable helper.
-- [x] Extract Time Tracking-owned Edit Time Entry dialog behavior from the current edit-entry flow into a reusable helper where practical before the unified Time Entries screen lands.
-- [x] Register `time-entries.add` and `time-entries.edit` through module-owned dialog helpers instead of the iframe/page bridge.
-- [x] Preserve existing Time Tracking behavior:
-  - [x] Client/project selector rules
-  - [x] Workspace projects behavior for Personal and Family workspaces
-  - [x] Billable default inheritance
-  - [x] Date/time and duration validation
-  - [x] Invoice status
-  - [x] Tag picker integration
-  - [x] Create/update/delete service ownership
-- [x] Add host params for default client, project, date, start/end time, and entry ID where callers can provide useful context.
-- [x] Remove iframe usage for Time Entry actions once helper paths are active.
-- [x] Add regression coverage for add/edit helper registration, disabled Time Tracking module availability, and completion callbacks.
-
-### Pass 5 - Client and Project dialog helper extraction
-
-- [x] Extract Clients/Projects-owned Add Project and Edit Project dialogs into reusable browser helpers.
-- [x] Extract Business-only Add Client and Edit Client dialogs into reusable browser helpers.
-- [x] Register `projects.add`, `projects.edit`, `clients.add`, and `clients.edit` through module-owned dialog helpers instead of the iframe/page bridge.
-- [x] Preserve existing Clients/Projects behavior:
-  - [x] Business-only client actions
-  - [x] Personal/Family project-only behavior
-  - [x] Client/project hierarchy controls
-  - [x] Billing defaults and rounding controls
-  - [x] Task defaults controls
-  - [x] Tag picker integration
-  - [x] True modal footer/action placement beside existing close actions
-  - [x] Save/archive audit behavior through Clients/Projects services
-- [x] Add host params for default client, parent project, project ID, and client ID.
-- [x] Remove iframe usage for Clients/Projects actions once helper paths are active.
-- [x] Add regression coverage for Business-only client action availability, project action availability in non-Business workspaces, and completion callbacks.
-
-### Pass 6 - Retire iframe bridge and harden module action registry
-
-- [x] Remove the iframe-based module action host once all first-party actions have module-owned dialog helpers.
-- [x] Keep or replace the Pass 1 action registry only where it dispatches registered module callbacks directly.
-- [x] Ensure no Workbench or cross-screen caller opens full pages inside modal frames.
-- [x] Add a regression that fails if module action dispatch creates an iframe for first-party add/edit actions.
-- [x] Update decisions and module-development docs to describe the dialog-helper contract and the boundary between framework dispatch and module-owned UI.
-- [x] Confirm the framework can list available actions without importing module-specific form internals.
-
-### Pass 7 - Task timer status transitions
-
-- [x] Starting a task timer should move an eligible `open` task to `in_progress`.
-- [x] Starting or resuming a timer for a task that is already `in_progress` should leave it `in_progress`.
-- [x] Pausing a task timer should leave the task `in_progress`.
-- [x] Resetting, deleting, or discarding a task timer before saving time should move the task back to `open` only when the timer start was what moved it to `in_progress`.
-- [x] Finalizing/saving task time should leave the task `in_progress` unless another explicit task completion action runs.
-- [x] Preserve the existing rule that completed or archived tasks cannot use task timers.
-- [x] Audit task status changes caused by timer lifecycle events clearly enough to distinguish them from manual task edits.
-- [x] Add task-timer regression coverage for start, pause, discard/reset, finalize, completed-task rejection, and archived-task rejection.
-
-### Pass 8 - Unified Time Entries screen
-
-- [x] Rename the editable/manual time entry surface to `Time Entries`.
-- [x] Consolidate the current manual entry and edit-entry workflows into one filterable/sortable Time Entries list view.
-- [x] Keep the list view aligned with the Tasks page interaction model where practical:
-  - [x] Top toolbar with `Add Time Entry`
-  - [x] Filter controls
-  - [x] Sort controls
-  - [x] Scannable rows
-  - [x] Row actions for edit/delete where permitted
-- [x] Move the existing edit time entry form out of the bottom of the page and into an edit modal.
-- [x] Convert manual time entry into an `Add Time Entry` modal.
-- [x] Preserve existing Time Tracking service/API ownership for create, update, delete, billable defaults, tag assignment, and reporting-facing fields.
-- [x] Update navigation labels/routes only as needed to avoid duplicate Manual Entry/Edit Entries destinations once the unified screen is active.
-- [x] Add regression coverage for add modal, edit modal, filter/sort behavior, and tag/billable payload preservation.
-
-### Pass 9 - Project default task assignee
-
-- [x] Add a project-level default task assignee setting alongside existing project task defaults.
-- [x] Support these default assignee modes:
-  - [x] `Task Creator`
-  - [x] `Project Admin`
-  - [x] `Unassigned`
-- [x] For `Project Admin`, resolve fallback ownership in this order:
-  - [x] Project admin
-  - [x] Client admin, for Business workspaces when no project admin is available
-  - [x] Workspace admin, when no project admin is available and no Business client admin fallback applies
-- [x] Apply the project default only when creating a new task and no explicit assignee payload is submitted.
-- [x] Preserve existing permissions and scope boundaries when resolving candidate default assignees.
-- [x] Display the selected default in the project settings/edit modal using the existing modal footer/action placement pattern.
-- [x] Add regression coverage for each default mode and fallback path.
-
-### Pass 10 - Workbench task ordering and filters
-
-- [x] Make the Workbench task list use the selected task's project default sort order when that project provides one.
-- [x] Add a Workbench priority sort option.
-- [x] Keep Workbench as a framework-owned surface that renders module-contributed task work items instead of moving task-specific data ownership into Workbench.
-- [x] Fix the Projects -> Tasks quick-filter bug where `Completed` or `Archived` followed by `All` does not refresh the visible list.
-- [x] Add regression coverage for Workbench default sorting, priority sorting, and the `Completed`/`Archived` -> `All` filter reset.
+- [x] Add regression coverage for shared icon helper behavior.
+  - [x] Known icon names render stable inline SVG.
+  - [x] Unknown icon names fail safely.
+  - [x] Icons use `currentColor`.
+  - [x] The helper does not depend on Tasks, Time Tracking, Clients/Projects, Tags, or Notifications internals.
+- [x] Add accessibility regression coverage.
+  - [x] Icon-only buttons must have accessible labels.
+  - [x] Decorative icons must be hidden from assistive tech.
+  - [x] Focusable controls must keep visible focus styling.
+  - [x] Disabled icon buttons must remain discoverably disabled.
+- [x] Add UI contract checks.
+  - [x] Danger icon buttons preserve danger styling.
+  - [x] Icon-only controls keep a minimum 44px touch target in shared CSS.
+  - [x] No remote icon font/CDN dependency is introduced.
+  - [x] Converted controls continue to use native `button` elements for commands.
+- [x] Update changelog, decisions, and docs bookkeeping for the completed passes.
 
 ### Clarification questions before implementation
 
-- [x] Should the unified Time Entries screen replace both `manual-entry.html` and `edit-entries.html`, or should those URLs remain as compatibility redirects/aliases to the new screen? Replace them both.
-- [x] For cross-screen modal actions, should 0.32.5.2 implement the shared action contract plus the first-party actions listed above, or should it implement only Tasks/Time Entries first and leave Clients/Projects modal actions for a later pass?
-  - Answered in Pass 1: implement the shared action contract plus the listed first-party actions, with module-owned pages embedded in modal mode rather than duplicating module forms in Workbench.
-- [x] Should the iframe/page bridge remain the final cross-screen modal implementation?
-  - Answered after Pass 1 review: no. The iframe/page bridge is awkward and should be replaced by module-owned reusable dialog helpers with direct registry dispatch and no full-page embedding.
-- [x] For `Project Admin` default assignee resolution, if multiple project/client/workspace admins qualify, should the app pick the oldest active admin, the alphabetically first display name, or require the project setting to choose a specific user? Oldest admin, please.
+- [x] Should the first icon set be a local Lucide-derived SVG subset, or should Longtail Forge define a smaller hand-picked internal SVG set for only the actions we need now? Use local Lucide derived SVGs. These are not installed yet.
+- [x] Should compact icon controls be icon-only in dense table/list rows by default, or should the first pass prefer icon-plus-text until each surface proves it needs tighter controls? Icon only, please.
 
-## Version 0.32.5.3 - Shared Icon and Compact Action Controls
-
-- [ ] Add shared icon system
-  - [ ] Choose one first-party icon set for the app
-  - [ ] Prefer inline/local SVG icons over remote icon fonts
-  - [ ] Add shared icon rendering helper
-  - [ ] Add shared `.icon`, `.icon-button`, and `.action-button` styles
-  - [ ] Ensure all icon-only controls have `aria-label`
-  - [ ] Ensure all icon controls keep a minimum 44px touch target
-  - [ ] Ensure icons use `currentColor` for light/dark theme compatibility
-
-- [ ] Convert dense action areas to icon-capable controls
-  - [ ] Timer Start/Pause/Save/Discard controls
-  - [ ] Task row actions
-  - [ ] Tag row edit/archive/restore actions
-  - [ ] Notification quick actions where useful
-  - [ ] Table row edit/delete/archive actions
-
-- [ ] Add regression checks
-  - [ ] Icon-only buttons must have accessible labels
-  - [ ] Danger icon buttons must preserve danger styling
-  - [ ] Shared icon helper must not depend on a specific module
-
-### Version 0.32.5.4 - Notification UI Fixes
+## Version 0.32.5.4 - Notification UI Fixes
 
 - Font size of work item title in the notification drop down is too large
 
@@ -220,12 +107,12 @@ This section is intentionally split into ordered implementation passes because i
   - For example, someone creates a task, assigns it to someone else, then turns on the notifications so they get a notification when updates happen
   - This may be a large update, because this should/would only apply to a single user (the person who turns on the notifications)
 
-### Version 0.32.5.5 - Tags Fixes
+## Version 0.32.5.5 - Tags Fixes
 
 - Need to be able to add tags on the fly
   - Going to a whole separate page to add tags is cumbersome and time consuming, and requires that users pre-plan tags, interrupting the workflow and decreasing the usability of tags
 
-### Version 0.32.5.6
+## Version 0.32.5.6
 
 - Need to be able to add tags on the fly
   - Going to a whole separate page to add tags is cumbersome and time consuming, and requires that users pre-plan tags, interrupting the workflow and decreasing the usability of tags

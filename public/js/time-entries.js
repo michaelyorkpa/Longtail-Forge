@@ -191,22 +191,34 @@ function compareEntries(firstEntry, secondEntry) {
 function createActionsCell(entry) {
   const cell = document.createElement("td");
   const actions = document.createElement("div");
-  const editButton = document.createElement("button");
-  const deleteButton = document.createElement("button");
+  const editButton = createTimeEntryActionButton("Edit", "edit");
+  const deleteButton = createTimeEntryActionButton("Delete", "delete", { danger: true });
 
   actions.className = "table-actions";
-  editButton.type = "button";
-  editButton.textContent = "Edit";
   editButton.addEventListener("click", () => openEditDialog(entry.entryId));
 
-  deleteButton.type = "button";
-  deleteButton.textContent = "Delete";
-  deleteButton.className = "danger-button";
   deleteButton.addEventListener("click", () => deleteEntry(entry));
 
   actions.append(editButton, deleteButton);
   cell.appendChild(actions);
   return cell;
+}
+
+function createTimeEntryActionButton(label, icon, options = {}) {
+  if (window.LongtailForge.icons?.createIconButton) {
+    return window.LongtailForge.icons.createIconButton({
+      icon,
+      label,
+      title: label,
+      variant: options.danger ? "danger" : "",
+    });
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  button.classList.toggle("danger-button", options.danger === true);
+  return button;
 }
 
 async function openEditDialog(entryId) {

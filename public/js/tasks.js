@@ -394,12 +394,33 @@ function createActions(task) {
 }
 
 function actionButton(label, handler) {
-  const button = document.createElement("button");
+  const button = window.LongtailForge.icons?.createIconButton
+    ? window.LongtailForge.icons.createIconButton({
+      icon: taskActionIcon(label),
+      label,
+      title: label,
+      variant: label === "Archive" ? "danger" : "",
+    })
+    : document.createElement("button");
 
   button.type = "button";
-  button.textContent = label;
+  if (!window.LongtailForge.icons?.createIconButton) {
+    button.textContent = label;
+  }
   button.addEventListener("click", handler);
   return button;
+}
+
+function taskActionIcon(label) {
+  return {
+    Archive: "archive",
+    Complete: "complete",
+    "Copy Link": "copy",
+    Duplicate: "duplicate",
+    Edit: "edit",
+    Reopen: "restore",
+    Restore: "restore",
+  }[label] || "more";
 }
 
 async function confirmArchive(task) {

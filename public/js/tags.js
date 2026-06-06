@@ -112,8 +112,11 @@ function createTagRow(tag) {
   const meta = document.createElement("p");
   const description = document.createElement("p");
   const actions = document.createElement("div");
-  const editButton = document.createElement("button");
-  const archiveButton = document.createElement("button");
+  const archiveLabel = tag.status === "active" ? "Archive" : "Restore";
+  const editButton = createTagActionButton("Edit", "edit");
+  const archiveButton = createTagActionButton(archiveLabel, tag.status === "active" ? "archive" : "restore", {
+    danger: tag.status === "active",
+  });
 
   row.className = `tag-row is-${tag.status || "active"}`;
   swatch.className = "tag-swatch";
@@ -129,17 +132,30 @@ function createTagRow(tag) {
   summary.append(heading, meta, description);
 
   actions.className = "tag-row-actions";
-  editButton.type = "button";
-  editButton.textContent = "Edit";
   editButton.addEventListener("click", () => editTag(tag));
 
-  archiveButton.type = "button";
-  archiveButton.textContent = tag.status === "active" ? "Archive" : "Restore";
   archiveButton.addEventListener("click", () => mutateTagStatus(tag));
   actions.append(editButton, archiveButton);
 
   row.append(swatch, summary, actions);
   return row;
+}
+
+function createTagActionButton(label, icon, options = {}) {
+  if (window.LongtailForge.icons?.createIconButton) {
+    return window.LongtailForge.icons.createIconButton({
+      icon,
+      label,
+      title: label,
+      variant: options.danger ? "danger" : "",
+    });
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  button.classList.toggle("danger-button", options.danger === true);
+  return button;
 }
 
 function editTag(tag) {

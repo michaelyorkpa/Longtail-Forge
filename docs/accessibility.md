@@ -57,3 +57,9 @@ Use:
 - `role="status"` with `aria-live="polite"` for non-blocking status updates.
 
 If a visible label is not practical, use `aria-label` or `aria-labelledby`.
+
+## Icon-Only Controls
+
+Icon-only command controls must be native `button` elements with an accessible name, usually through `aria-label`, and a discoverable `title` when visible text is removed. Decorative SVG icons inside buttons should be hidden from assistive technology with `aria-hidden="true"` and `focusable="false"`.
+
+Use the shared `window.LongtailForge.icons` helper for common action icons so icon-only controls keep the shared 44px touch target, visible focus styling, disabled styling, theme-aware `currentColor`, and danger styling for destructive actions.

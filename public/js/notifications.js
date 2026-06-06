@@ -151,8 +151,8 @@ function createNotificationRow(notification) {
   const body = document.createElement("p");
   const meta = document.createElement("p");
   const actions = document.createElement("div");
-  const readButton = document.createElement("button");
-  const dismissButton = document.createElement("button");
+  const readButton = createNotificationActionButton("Read", "complete");
+  const dismissButton = createNotificationActionButton("Dismiss", "close", { danger: true });
   const displayTitle = notificationDisplayTitle(notification);
   const contextTitle = notificationContextTitle(notification);
 
@@ -176,18 +176,31 @@ function createNotificationRow(notification) {
   meta.textContent = notificationMetaParts(notification).join(" - ");
 
   actions.className = "notification-row-actions";
-  readButton.type = "button";
-  readButton.textContent = "Read";
   readButton.disabled = notification.status !== "unread";
   readButton.addEventListener("click", () => mutateNotification(notification.notification_id, "read"));
-  dismissButton.type = "button";
-  dismissButton.textContent = "Dismiss";
   dismissButton.disabled = notification.status === "dismissed";
   dismissButton.addEventListener("click", () => mutateNotification(notification.notification_id, "dismiss"));
   actions.append(readButton, dismissButton);
 
   row.append(heading, body, meta, actions);
   return row;
+}
+
+function createNotificationActionButton(label, icon, options = {}) {
+  if (window.LongtailForge.icons?.createIconButton) {
+    return window.LongtailForge.icons.createIconButton({
+      icon,
+      label,
+      title: label,
+      variant: options.danger ? "danger" : "",
+    });
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  button.classList.toggle("danger-button", options.danger === true);
+  return button;
 }
 
 function notificationDisplayTitle(notification) {

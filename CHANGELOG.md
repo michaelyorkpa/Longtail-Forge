@@ -1,3 +1,21 @@
+## Version 0.32.5.3 - 2026-06-06 17:24 -04:00
+
+- Bumped the app and first-party module versions to `0.32.5.3`.
+- Added a framework-owned shared icon helper at `window.LongtailForge.icons` with a local Lucide-derived inline SVG subset for common action icons.
+- Added shared `.icon`, `.icon-button`, `.action-button`, and `.action-group` styles with theme-driven `currentColor`, 44px icon-only targets, and preserved danger styling.
+- Loaded the shared icon helper on protected app views so module/page scripts can rely on the framework helper during conversion passes.
+- Documented the shared icon/action-control contract for module authors and added local Lucide attribution.
+- Added shared icon regression coverage and wired it into `npm run check`.
+- Converted Time Tracker and task timer controls to shared icon-plus-text action buttons while preserving visible wording for timer actions.
+- Converted dense Tasks row actions to shared icon-only controls with accessible labels/titles and preserved danger styling for Archive.
+- Added icon control conversion regression coverage and wired it into `npm run check`.
+- Converted repeated Tags, Clients/Projects, Time Entries, and notification quick actions to shared icon-only controls where the actions remain obvious.
+- Added shared `up` and `down` icons for project default sort controls.
+- Added remaining icon action regression coverage and wired it into `npm run check`.
+- Added icon accessibility contract regression coverage for labels, titles, decorative SVG behavior, native buttons, disabled/focus/danger styling, 44px touch targets, and local-only icon dependencies.
+- Documented icon-only control accessibility expectations.
+- Updated roadmap/archive and decisions bookkeeping for 0.32.5.3 Passes 1, 2, 3, and 4.
+
 ## Version 0.32.5.2 - 2026-06-06 11:32 -04:00
 
 - Bumped the app and first-party module versions to `0.32.5.2`.

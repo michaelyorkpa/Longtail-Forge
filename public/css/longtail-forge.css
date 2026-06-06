@@ -698,6 +698,15 @@ h1 {
     flex-wrap: wrap;
 }
 
+.tag-row-actions .icon-button,
+.notification-row-actions .icon-button,
+.table-actions .icon-button,
+.project-default-sort-row .icon-button {
+    min-width: 44px;
+    width: 44px;
+    padding: 0;
+}
+
 .tag-list {
     display: grid;
     gap: 12px;
@@ -1523,8 +1532,12 @@ button.danger-button {
 
 .task-row-actions button {
     flex: 0 0 auto;
-    min-width: 104px;
-    padding: 8px 10px;
+}
+
+.task-row-actions .icon-button {
+    min-width: 44px;
+    width: 44px;
+    padding: 0;
 }
 
 .task-actions-row td {
@@ -2752,8 +2765,8 @@ textarea {
 }
 
 [data-stopwatch-controls] button {
-    width: 96px;
-    min-width: 96px;
+    width: auto;
+    min-width: 44px;
     min-height: 44px;
     line-height: 1.15;
     white-space: normal;
@@ -2803,6 +2816,47 @@ button.is-saved {
 button:disabled {
     cursor: not-allowed;
     opacity: 0.5;
+}
+
+.icon {
+    display: inline-block;
+    width: 1.25em;
+    height: 1.25em;
+    flex: 0 0 auto;
+    stroke: currentColor;
+    vertical-align: -0.2em;
+}
+
+.action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    line-height: 1;
+}
+
+.action-button-label {
+    min-width: 0;
+}
+
+.icon-button {
+    min-width: 44px;
+    width: 44px;
+    min-height: 44px;
+    padding: 0;
+}
+
+.icon-button.danger-button {
+    border-color: var(--color-danger-border);
+    color: var(--color-danger);
+}
+
+.action-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
 }
 
 [data-stopwatch-status] {

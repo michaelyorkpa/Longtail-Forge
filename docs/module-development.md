@@ -52,6 +52,14 @@ Register authenticated module pages through `protectedViews`. Protected module p
 
 Declare module-specific browser scripts or styles in `browserAssets`. Shared app-shell assets remain framework-owned.
 
+## Shared Icon And Action Controls
+
+Use `window.LongtailForge.icons` for common action icons and compact action buttons. The shared helper is framework-owned, uses a local Lucide-derived inline SVG subset, and renders by stable semantic names such as `add`, `edit`, `archive`, `restore`, `delete`, `start`, `pause`, `save`, `close`, `copy`, `refresh`, and `more`.
+
+Modules may use `createIcon`, `createIconButton`, or `decorateButton` for common actions, but module behavior, permission checks, API calls, and confirmation flows should remain in the owning module. Icon-only controls need an accessible label, and destructive controls should pass the danger variant or keep the existing `danger-button` class.
+
+Do not ship duplicate icon registries for common app actions. Module-specific icons may be added later through a documented extension point; until then, add common icons to the shared registry instead of loading remote icon fonts, CDN icon scripts, or module-local copies.
+
 ## Cross-screen Dialog Actions
 
 Use `window.LongtailForge.moduleActions.register()` when a module needs an add/edit dialog that can open from another framework-owned surface such as Workbench. The framework owns action discovery, availability checks, dispatch, focus return, and completion callbacks. The module owns the dialog markup, form state, validation, API calls, save/reset behavior, and record-specific permission handling. Action dispatch is callback-only: do not register page URLs for embedded frames, and do not make framework code import module-specific form internals.

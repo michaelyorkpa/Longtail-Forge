@@ -214,6 +214,12 @@ class StopwatchTimer {
       createButton(root, "Discard", "reset", { danger: true });
     this.resetButton.textContent = "Discard";
     this.resetButton.classList.add("danger-button");
+    decorateStopwatchControls({
+      pauseButton: this.pauseButton,
+      resetButton: this.resetButton,
+      startButton: this.startButton,
+      stopButton: this.stopButton,
+    });
     this.clearOnResetInput =
       root.querySelector("[data-stopwatch-clear-on-reset]") ||
       createClearOnResetInput(root);
@@ -1006,6 +1012,19 @@ function createButton(parent, label, action, options = {}) {
 
   controls.appendChild(button);
   return button;
+}
+
+function decorateStopwatchControls({ pauseButton, resetButton, startButton, stopButton }) {
+  const icons = window.LongtailForge?.icons;
+
+  if (!icons?.decorateButton) {
+    return;
+  }
+
+  icons.decorateButton(startButton, { icon: "start", label: "Start timer", text: "Start", iconOnly: false });
+  icons.decorateButton(pauseButton, { icon: "pause", label: "Pause timer", text: "Pause", iconOnly: false });
+  icons.decorateButton(stopButton, { icon: "save", label: "Save and end timer", text: "Save & End", iconOnly: false });
+  icons.decorateButton(resetButton, { icon: "delete", label: "Discard timer", text: "Discard", iconOnly: false, variant: "danger" });
 }
 
 function sortByName(items) {
