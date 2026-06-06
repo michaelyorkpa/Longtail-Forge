@@ -66,17 +66,7 @@ closeWorkspaceRemovalButton?.addEventListener("click", () => workspaceRemovalDia
 
 async function loadUserSettings() {
   try {
-    const response = await fetch("/api/user/settings", { cache: "no-store" });
-    const body = await response.json().catch(() => ({}));
-
-    if (response.status === 401) {
-      window.location.replace("/login.html");
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(body.error || "User settings could not be loaded.");
-    }
+    const body = await window.LongtailForge.api.getJson("/api/user/settings", { cache: "no-store" });
 
     applyThemeMode(body.themeMode);
     applyProfile(body);
@@ -84,7 +74,7 @@ async function loadUserSettings() {
     applyWorkspaceCreation(body.workspaceCreation);
     setUserSettingsStatus("");
   } catch (error) {
-    setUserSettingsStatus(error.message || "User settings could not be loaded.", true);
+    handleApiError(error, "User settings could not be loaded.");
   }
 }
 
@@ -94,29 +84,12 @@ async function saveThemeMode() {
   setUserSettingsStatus("Saving appearance...");
 
   try {
-    const response = await fetch("/api/user/settings", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ themeMode }),
-    });
-    const body = await response.json().catch(() => ({}));
-
-    if (response.status === 401) {
-      window.location.replace("/login.html");
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(body.error || "Appearance was not saved.");
-    }
+    const body = await window.LongtailForge.api.putJson("/api/user/settings", { themeMode });
 
     applyThemeMode(body.themeMode);
-    setUserSettingsStatus("Appearance saved.");
-    window.setTimeout(() => setUserSettingsStatus(""), 1600);
+    setUserSettingsStatus("Appearance saved.", false, { type: "success", clearAfter: 1600 });
   } catch (error) {
-    setUserSettingsStatus(error.message || "Appearance was not saved.", true);
+    handleApiError(error, "Appearance was not saved.");
   }
 }
 
@@ -221,33 +194,17 @@ async function saveProfile() {
   setUserSettingsStatus("Saving profile...");
 
   try {
-    const response = await fetch("/api/user/settings", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username,
-        displayName,
-        altEmail,
-        timezone,
-      }),
+    const body = await window.LongtailForge.api.putJson("/api/user/settings", {
+      username,
+      displayName,
+      altEmail,
+      timezone,
     });
-    const body = await response.json().catch(() => ({}));
-
-    if (response.status === 401) {
-      window.location.replace("/login.html");
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(body.error || "Profile was not saved.");
-    }
 
     applyProfile(body);
     flashButtonSavedState(saveProfileButton, "Profile saved.");
   } catch (error) {
-    setUserSettingsStatus(error.message || "Profile was not saved.", true);
+    handleApiError(error, "Profile was not saved.");
   } finally {
     saveProfileButton.disabled = false;
   }
@@ -276,32 +233,16 @@ async function createWorkspace() {
   setUserSettingsStatus("Creating workspace...");
 
   try {
-    const response = await fetch("/api/workspaces", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        workspaceType,
-        workspaceName,
-        moduleSettings: window.LongtailForge.settingsControls.readModuleSettingsPayload(workspaceCreateForm),
-      }),
+    await window.LongtailForge.api.postJson("/api/workspaces", {
+      workspaceType,
+      workspaceName,
+      moduleSettings: window.LongtailForge.settingsControls.readModuleSettingsPayload(workspaceCreateForm),
     });
-    const body = await response.json().catch(() => ({}));
-
-    if (response.status === 401) {
-      window.location.replace("/login.html");
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(body.error || "Workspace was not created.");
-    }
 
     setUserSettingsStatus("Workspace created.");
     window.location.replace("/workspace-settings.html");
   } catch (error) {
-    setUserSettingsStatus(error.message || "Workspace was not created.", true);
+    handleApiError(error, "Workspace was not created.");
     createWorkspaceButton.disabled = false;
   }
 }
@@ -415,26 +356,13 @@ async function removeWorkspaceMembership(workspaceId) {
   setUserSettingsStatus(`Removing ${workspace.workspaceName || "workspace"}...`);
 
   try {
-    const response = await fetch(`/api/user/workspaces/${encodeURIComponent(workspaceId)}`, {
-      method: "DELETE",
-    });
-    const body = await response.json().catch(() => ({}));
-
-    if (response.status === 401) {
-      window.location.replace("/login.html");
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(body.error || "Workspace was not removed.");
-    }
+    const body = await window.LongtailForge.api.deleteJson(`/api/user/workspaces/${encodeURIComponent(workspaceId)}`);
 
     applyWorkspaceAccess(body);
     renderWorkspaceRemovalList();
-    setUserSettingsStatus("Workspace removed.");
-    window.setTimeout(() => setUserSettingsStatus(""), 1600);
+    setUserSettingsStatus("Workspace removed.", false, { type: "success", clearAfter: 1600 });
   } catch (error) {
-    setUserSettingsStatus(error.message || "Workspace was not removed.", true);
+    handleApiError(error, "Workspace was not removed.");
   }
 }
 
@@ -513,33 +441,15 @@ async function changePassword() {
   setUserSettingsStatus("Changing password...");
 
   try {
-    const response = await fetch("/api/user/password", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        currentPassword,
-        newPassword,
-      }),
+    await window.LongtailForge.api.putJson("/api/user/password", {
+      currentPassword,
+      newPassword,
     });
-
-    const body = await response.json().catch(() => ({}));
-
-    // A stale session should always return to login before showing form errors.
-    if (response.status === 401) {
-      window.location.replace("/login.html");
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(body.error || "Password was not changed.");
-    }
 
     passwordForm.reset();
     flashButtonSavedState(savePasswordButton, "Password changed.");
   } catch (error) {
-    setUserSettingsStatus(error.message || "Password was not changed.", true);
+    handleApiError(error, "Password was not changed.");
   } finally {
     savePasswordButton.disabled = false;
   }
@@ -559,7 +469,23 @@ function flashButtonSavedState(button, message) {
   }, 1600);
 }
 
-function setUserSettingsStatus(message, isError = false) {
-  userSettingsStatus.textContent = message;
-  userSettingsStatus.classList.toggle("is-error", isError);
+function setUserSettingsStatus(message, isError = false, options = {}) {
+  const statusOptions = typeof isError === "object"
+    ? isError
+    : { ...options, type: isError ? "error" : options.type || "" };
+
+  window.LongtailForge.status.set(
+    userSettingsStatus,
+    message,
+    statusOptions,
+  );
+}
+
+function handleApiError(error, fallbackMessage) {
+  if (error?.status === 401) {
+    window.location.replace("/login.html");
+    return;
+  }
+
+  setUserSettingsStatus(error?.message || fallbackMessage, true);
 }

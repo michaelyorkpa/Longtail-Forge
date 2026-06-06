@@ -282,6 +282,9 @@ function validateSettings(settings, errors) {
     }
     optionalString(item, "description", errors, { prefix: `settings[${index}]` });
     optionalString(item, "placeholder", errors, { prefix: `settings[${index}]` });
+    optionalString(item, "inputmode", errors, { prefix: `settings[${index}]` });
+    optionalString(item, "readOnlyReason", errors, { prefix: `settings[${index}]` });
+    optionalString(item, "disabledReason", errors, { prefix: `settings[${index}]` });
     optionalStringArray(item, "requiredPermissions", errors, { prefix: `settings[${index}]` });
     optionalArrayOfObjects(item.options, `settings[${index}].options`, errors, (option, optionIndex) => {
       requireString(option, "label", errors, { prefix: `settings[${index}].options[${optionIndex}]` });
@@ -292,6 +295,7 @@ function validateSettings(settings, errors) {
     optionalNumber(item, "step", errors, { prefix: `settings[${index}]` });
     optionalBoolean(item, "moduleStatus", errors, { prefix: `settings[${index}]` });
     optionalBoolean(item, "readOnly", errors, { prefix: `settings[${index}]` });
+    optionalBoolean(item, "required", errors, { prefix: `settings[${index}]` });
     validateTerminology(item.terminology, `settings[${index}].terminology`, errors);
   });
 }

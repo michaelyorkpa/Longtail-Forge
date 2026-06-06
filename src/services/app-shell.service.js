@@ -8,15 +8,24 @@ import { normalizeThemeMode } from "../utils/normalizers.js";
 import { notificationsService } from "./notifications.service.js";
 
 async function bootstrap(session) {
-  const [workspaceContext, workspaces, user, moduleNavigation, permissionHints, notificationSummary] = await Promise.all([
+  const [
+    workspaceContext,
+    workspaces,
+    user,
+    moduleNavigation,
+    moduleSettingsNavigation,
+    permissionHints,
+    notificationSummary,
+  ] = await Promise.all([
     settingsService.readWorkspaceBootstrap(session),
     userWorkspacesRepository.readForUser(session.user_id),
     usersRepository.readById(session.home_workspace_id || session.workspace_id, session.user_id),
     modulesService.listModuleNavigation(session.workspace_id, session),
+    modulesService.listModuleSettingsNavigation(session.workspace_id, session),
     readPermissionHints(session),
     readNotificationSummary(session),
   ]);
-  const navigation = await buildNavigation(workspaceContext, moduleNavigation, permissionHints);
+  const navigation = await buildNavigation(workspaceContext, moduleNavigation, moduleSettingsNavigation, permissionHints);
 
   return {
     app: {
@@ -26,6 +35,7 @@ async function bootstrap(session) {
     activeWorkspaceId: session.active_workspace_id || session.workspace_id,
     enabledModules: workspaceContext.enabledModules || [],
     moduleNavigation,
+    moduleSettingsNavigation,
     navigation,
     notificationSummary,
     permissionHints,
@@ -83,11 +93,10 @@ async function readPermissionHints(session) {
   };
 }
 
-async function buildNavigation(workspaceContext, moduleNavigation, permissionHints) {
+async function buildNavigation(workspaceContext, moduleNavigation, moduleSettingsNavigation, permissionHints) {
   const capabilities = workspaceContext.workspaceCapabilities || {};
   const workspaceType = workspaceContext.workspaceType || capabilities.workspaceType || "business";
   const availableTools = new Set(Array.isArray(capabilities.availableTools) ? capabilities.availableTools : []);
-  const enabledModules = new Set(workspaceContext.enabledModules || []);
   const modulesById = new Map((workspaceContext.modules || []).map((moduleDefinition) => [moduleDefinition.id, moduleDefinition]));
   const clientProjectsLabel = moduleDisplayLabel(modulesById, "client-projects", "Projects");
   const moduleNavByHref = new Map(moduleNavigation.map((item) => [item.href, item]));
@@ -137,21 +146,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, permissionHin
     addModuleNavItem(workspaceSettingsMenu.items, moduleNavByHref.get("clients.html"));
   }
 
-  if (enabledModules.has("tasks")) {
-    modulesSettingsMenu.items.push({
-      id: "tasks-settings",
-      label: moduleDisplayLabel(modulesById, "tasks", "Tasks"),
-      href: "tasks-settings.html",
-    });
-  }
-
-  if (enabledModules.has("time-tracking")) {
-    modulesSettingsMenu.items.push({
-      id: "time-tracking-settings",
-      label: moduleDisplayLabel(modulesById, "time-tracking", "Time Tracking"),
-      href: "time-tracking-settings.html",
-    });
-  }
+  moduleSettingsNavigation.forEach((item) => addModuleNavItem(modulesSettingsMenu.items, item));
 
   if (modulesSettingsMenu.items.length > 0) {
     workspaceSettingsMenu.items.push(modulesSettingsMenu);

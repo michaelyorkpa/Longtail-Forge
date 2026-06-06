@@ -2,23 +2,152 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.3.1 - UI Foundation Cleanup
+## Version 0.32.3.2 - UI Contract Hardening
 
-1. [x] Add `docs/ui-layout-guide.md`.
-2. [x] Add `docs/settings-control-matrix.md`.
-3. [x] Add `public/js/shared/settings-controls.js`.
-4. [x] Refactor `workspace-settings.js` and `module-settings.js` to use the shared settings renderer.
-5. [x] Extend user settings workspace creation data so Create Workspace can render initial module controls from the module registry.
-6. [x] Update Create Workspace UI to remove the hard-coded Time Tracking-only checkbox.
-7. [x] Update `createWorkspace` backend to accept `moduleSettings` and apply all submitted `moduleStatus` controls through `modulesService.setModuleStatus`.
-8. [x] Keep temporary backwards compatibility for `timeTrackingEnabled`, but mark it deprecated.
-9. [x] Add regression coverage:
-   - [x] Create Business workspace with Tasks off / Time Tracking on.
-   - [x] Create Business workspace with Time Tracking off / Tasks on.
-   - [x] Required modules appear locked.
-   - [x] Workspace Settings and Create Workspace show the same module availability rules.
-   - [x] Disabled modules do not appear in nav after creation.
-10. [x] Update TODO/ROADMAP/CHANGELOG.
+- [x] Remove first-party setting ID special cases from `public/js/shared/settings-controls.js`.
+  - [x] Remove direct checks for `timeTrackingEnabled`, `tasksEnabled`, and `taskTimersEnabled`.
+  - [x] Drive checkbox, select, number, text, textarea, module-status, and read-only behavior from the registry-provided setting metadata.
+  - [x] Keep first-party module labels/descriptions in module manifests or server-normalized setting metadata, not in the shared renderer.
+  - [x] Keep the shared renderer generic enough for future first-party modules such as Lists, Notes, Tickets, Files, and Creator Studio.
+
+- [x] Stop top-level legacy module flags from being included in browser settings save payloads.
+  - [x] Ensure Workspace Settings saves module state only through `moduleSettings`.
+  - [x] Ensure Module Settings saves module state and module-specific options only through `moduleSettings`.
+  - [x] Ensure User Settings / Create Workspace submits initial module state through `moduleSettings`.
+  - [x] Keep deprecated top-level fields such as `timeTrackingEnabled`, `tasksEnabled`, and `taskTimersEnabled` as response-only compatibility fields where still required.
+  - [x] Keep the deprecated Create Workspace `timeTrackingEnabled` fallback only for old callers that omit `moduleSettings`.
+  - [x] Document the remaining compatibility boundary so the removal path is clear.
+
+- [x] Add shared `public/js/shared/settings-normalizers.js`.
+  - [x] Normalize module settings payloads into a single browser shape before rendering.
+  - [x] Normalize values by declared setting type instead of setting ID.
+  - [x] Normalize missing `moduleSettings`, disabled modules, required modules, dependency-blocked modules, and read-only controls.
+  - [x] Share the helper across Workspace Settings, Module Settings, and Create Workspace.
+  - [x] Avoid duplicating fallback logic in each page script.
+
+- [x] Add shared `public/js/shared/status.js`.
+  - [x] Provide one helper for success, error, loading, and cleared status messages.
+  - [x] Standardize `is-error` / success class handling.
+  - [x] Preserve existing accessible live-region behavior on settings pages.
+  - [x] Avoid duplicated timeout and status-clearing logic in Workspace Settings, Module Settings, User Settings, and future module pages.
+
+- [x] Standardize Workspace/User/Module settings API calls through `public/js/shared/api-client.js`.
+  - [x] Replace raw `fetch` calls for Workspace Settings saves and loads.
+  - [x] Replace raw `fetch` calls for User Settings and Create Workspace settings-related operations where practical.
+  - [x] Keep Module Settings on the shared API client and align error handling with the other settings pages.
+  - [x] Do not broaden this pass into all app fetch calls unless the touched settings code requires it.
+  - [x] Note any remaining raw `fetch` calls, such as notification-specific calls, for later cleanup instead of mixing scopes.
+
+- [x] Extend `settings-controls.js` to honor richer setting metadata.
+  - [x] Honor `min`, `max`, and `step` for number controls.
+  - [x] Honor `required` where the setting contract marks a value as required.
+  - [x] Honor `inputmode` for text/number-like controls where useful.
+  - [x] Preserve and render `placeholder`, `description`, and option metadata consistently.
+  - [x] Keep disabled/read-only controls visibly disabled and excluded from writable payloads unless the setting contract explicitly allows them.
+
+- [x] Add module dependency/read-only reason display in module controls.
+  - [x] Surface dependency-blocked module controls with a clear reason.
+  - [x] Surface required modules with a locked/read-only reason.
+  - [x] Surface permission-blocked controls with a read-only reason when the server provides one.
+  - [x] Add backend metadata fields if the current module/settings payload does not expose enough reason text.
+  - [x] Keep reason text data-driven from module metadata, dependency metadata, or server-normalized settings data.
+
+- [x] Make module settings navigation registry-driven.
+  - [x] Remove hard-coded Tasks and Time Tracking settings link assembly from `src/services/app-shell.service.js`.
+  - [x] Derive module settings navigation from module manifests, protected views, or explicit module settings navigation metadata.
+  - [x] Keep framework-owned Settings, Workspace Settings, User Settings, API Keys, Audit Log, and Notifications links framework-owned.
+  - [x] Ensure disabled modules do not contribute active module settings links unless historical/admin access is explicitly allowed.
+  - [x] Ensure new first-party modules can add settings pages without editing the app-shell service.
+
+- [x] Clean up browser fallback navigation so module-owned links are not permanently hard-coded.
+  - [x] Review `public/js/navigation.js` fallback `NAV_ITEMS`.
+  - [x] Reduce fallback navigation to framework-owned links where possible.
+  - [x] Let `/api/app-shell/bootstrap` remain the authoritative source for module-owned navigation after load.
+  - [x] Remove or isolate hard-coded `TIME_TRACKING_NAV_HREFS` and `TASKS_NAV_HREFS` visibility logic if bootstrap navigation already handles it.
+  - [x] Keep a safe degraded navigation path for bootstrap failures without pretending the static fallback is the modular source of truth.
+
+- [x] Update module manifest validation and docs for new UI metadata.
+  - [x] Validate any newly supported setting metadata such as `required`, `inputmode`, read-only reason fields, and dependency reason fields.
+  - [x] Update `docs/module-contract.md` to describe the supported settings-control metadata.
+  - [x] Update `docs/settings-control-matrix.md` if new control behavior changes the matrix.
+  - [x] Keep `docs/ui-layout-guide.md` aligned with the shared settings/status patterns.
+
+- [x] Add settings payload and navigation regression coverage.
+  - [x] Verify Workspace Settings save payloads do not include top-level module flags.
+  - [x] Verify Module Settings save payloads do not include top-level module flags.
+  - [x] Verify Create Workspace sends initial module state through `moduleSettings`.
+  - [x] Verify the deprecated Create Workspace `timeTrackingEnabled` fallback still works only when `moduleSettings` is absent.
+  - [x] Verify module settings links are contributed from module metadata rather than app-shell first-party conditionals.
+  - [x] Verify disabled modules do not appear in active navigation after bootstrap.
+  - [x] Include the regression in `npm run check` or the closest existing local verification path.
+
+- [x] Audit cache keys for changed shared browser scripts.
+  - [x] Ensure updated settings pages load the current versions of `settings-controls.js`, `settings-normalizers.js`, `status.js`, and `api-client.js`.
+  - [x] Avoid stale browser cache making removed legacy UI controls appear to persist.
+  - [x] Keep cache-busting consistent with the rest of the plain browser asset strategy.
+
+## Version 0.32.3.3 - Dashboard and Workbench Modular UI Cleanup
+
+- [ ] Review Dashboard and Workbench as framework-owned surfaces.
+  - [ ] Confirm Dashboard remains the framework summary surface instead of a Time Tracking or Tasks-owned page.
+  - [ ] Confirm Workbench remains the framework workflow desktop instead of a page owned by Tasks or Time Tracking.
+  - [ ] Identify which Dashboard and Workbench sections are framework-owned, which are first-party module contributions, and which are temporary compatibility code.
+  - [ ] Avoid changing business behavior while separating framework layout from module-specific renderers.
+
+- [ ] Add a Dashboard contribution contract.
+  - [ ] Define how modules declare dashboard cards, summary sections, empty states, and links.
+  - [ ] Include stable contribution IDs, module IDs, labels, descriptions, required permissions, required module state, sort order, and optional workspace-type terminology.
+  - [ ] Keep framework-owned dashboard areas such as page chrome, layout, app status, workspace context, and generic empty states outside module manifests.
+  - [ ] Ensure disabled modules cannot contribute active dashboard sections unless historical read access is explicitly allowed.
+  - [ ] Leave room for future notification, tag, search, file, and project-health dashboard sections.
+
+- [ ] Move Dashboard first-party hard-coded cards toward registered contributions.
+  - [ ] Audit `public/js/dashboard.js` and related services for direct Time Tracking, Tasks, Clients, and Projects assumptions.
+  - [ ] Convert Time Tracking summary cards into module-declared or module-service-backed dashboard contributions where practical.
+  - [ ] Convert Tasks summary cards into module-declared or module-service-backed dashboard contributions where practical.
+  - [ ] Keep shared billing/formatting helpers shared, not duplicated inside module renderers.
+  - [ ] Preserve existing Dashboard summaries while making their source modular.
+
+- [ ] Add a Workbench contribution and renderer contract.
+  - [ ] Define how modules register Workbench item sources, card renderers, actions, empty states, and optional active-timer behavior.
+  - [ ] Include stable source IDs, module IDs, record types, labels, required permissions, required module state, fetch endpoints, sort behavior, and action metadata.
+  - [ ] Keep framework-owned Workbench areas such as layout, source tabs, filters, loading states, status messaging, and generic action dispatch outside module renderers.
+  - [ ] Let module-specific renderers handle record-specific fields without hard-coding every module in the framework page script.
+  - [ ] Leave room for future Notes, Tickets, Lists, Creator Studio, Files, Tags, and Search workbench contributions.
+
+- [ ] Move Workbench first-party hard-coded item logic toward registered renderers.
+  - [ ] Audit `public/js/workbench.js` for direct Tasks and Time Tracking rendering branches.
+  - [ ] Audit `src/services/workbench.service.js` for direct first-party module source assembly.
+  - [ ] Keep the framework aggregate endpoint, but make the source list and item metadata come from registered module contributions where practical.
+  - [ ] Keep task timer behavior behind the existing shared active timer engine instead of duplicating timer logic.
+  - [ ] Preserve current task, time-entry, and timer workflows while reducing framework knowledge of first-party record shapes.
+
+- [ ] Align Dashboard and Workbench navigation with the app-shell/module registry.
+  - [ ] Ensure Dashboard links, Workbench links, and section links use registered routes instead of hard-coded first-party URLs where practical.
+  - [ ] Ensure disabled modules do not leave orphaned Dashboard cards, Workbench tabs, or action links.
+  - [ ] Ensure workspace-type terminology is resolved before labels render.
+  - [ ] Keep Dashboard and Workbench visible as framework-owned pages even when optional workflow modules are disabled.
+
+- [ ] Add shared UI helpers only where they remove real duplication.
+  - [ ] Reuse existing shared formatters, billing helpers, records helpers, modal helpers, and API client helpers before adding new abstractions.
+  - [ ] Add small shared helpers for contribution rendering only if Dashboard and Workbench need the same normalization or status behavior.
+  - [ ] Avoid creating a frontend build step; keep the plain browser JavaScript contract.
+  - [ ] Keep module renderers focused on data presentation rather than owning full page layout.
+
+- [ ] Update developer-facing docs for Dashboard and Workbench contribution contracts.
+  - [ ] Update `docs/module-contract.md` with dashboard and workbench contribution fields once implemented.
+  - [ ] Update `docs/architecture.md` to show Dashboard and Workbench as framework surfaces fed by module contributions.
+  - [ ] Add examples for Tasks and Time Tracking as first-party module contributions.
+  - [ ] Document which Dashboard/Workbench behaviors remain intentionally framework-owned.
+
+- [ ] Add Dashboard and Workbench regression coverage.
+  - [ ] Verify Dashboard does not render disabled-module cards.
+  - [ ] Verify Workbench does not render disabled-module sources.
+  - [ ] Verify Dashboard and Workbench remain accessible when optional workflow modules are disabled.
+  - [ ] Verify Tasks and Time Tracking contributions still render when enabled.
+  - [ ] Verify module contribution labels honor workspace-type terminology.
+  - [ ] Verify Workbench timer actions still use the shared active timer engine.
+  - [ ] Include the regression in `npm run check` or the closest existing local verification path.
 
 ## Version 0.32.4 - Tag Service and API
 

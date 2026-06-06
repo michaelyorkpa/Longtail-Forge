@@ -2,50 +2,13 @@
   const root = global.LongtailForge || {};
 
   function normalizeModuleSettings(moduleSettings, settings = {}) {
-    if (!Array.isArray(moduleSettings)) {
-      return [];
+    if (root.settingsNormalizers?.normalizeModuleSettings) {
+      return root.settingsNormalizers.normalizeModuleSettings(moduleSettings, {
+        modules: settings?.modules,
+      });
     }
 
-    return moduleSettings.map((moduleDefinition) => ({
-      moduleId: String(moduleDefinition.moduleId || moduleDefinition.id || "").trim(),
-      name: String(moduleDefinition.name || "").trim(),
-      displayName: String(moduleDefinition.displayName || moduleDefinition.name || "").trim(),
-      status: moduleDefinition.status === "enabled" ? "enabled" : "disabled",
-      canDisable: moduleDefinition.canDisable !== false,
-      settings: Array.isArray(moduleDefinition.settings)
-        ? moduleDefinition.settings.map((setting) => normalizeModuleSetting(moduleDefinition, setting, settings))
-        : [],
-    })).filter((moduleDefinition) => moduleDefinition.moduleId && moduleDefinition.settings.length > 0);
-  }
-
-  function normalizeModuleSetting(moduleDefinition, setting, settings = {}) {
-    const moduleId = String(setting.moduleId || moduleDefinition.moduleId || moduleDefinition.id || "").trim();
-    const value = Object.hasOwn(setting, "value")
-      ? setting.value
-      : setting.id === "timeTrackingEnabled"
-        ? settings?.timeTrackingEnabled !== false
-        : setting.id === "tasksEnabled"
-          ? settings?.tasksEnabled !== false
-          : setting.id === "taskTimersEnabled"
-            ? settings?.taskTimersEnabled !== false
-            : moduleDefinition.status === "enabled";
-
-    return {
-      id: String(setting.id || "").trim(),
-      label: String(setting.label || setting.id || "").trim(),
-      description: String(setting.description || "").trim(),
-      moduleId,
-      moduleStatus: setting.moduleStatus === true,
-      options: Array.isArray(setting.options) ? setting.options : [],
-      placeholder: String(setting.placeholder || "").trim(),
-      readOnly: setting.readOnly === true,
-      type: normalizeModuleSettingType(setting.type),
-      value,
-    };
-  }
-
-  function normalizeModuleSettingType(type) {
-    return ["boolean", "text", "number", "select", "multi-select", "info"].includes(type) ? type : "info";
+    return [];
   }
 
   function renderModuleSettingsGroups(container, moduleSettings, options = {}) {
@@ -121,16 +84,20 @@
       label.classList.add("is-read-only");
     }
 
+    if (setting.required) {
+      input.required = true;
+    }
+
     if (setting.type === "boolean") {
       label.append(input, document.createTextNode(` ${setting.label}`));
     } else {
       label.append(document.createTextNode(setting.label), input);
     }
 
-    if (setting.description || setting.readOnly) {
+    if (setting.description || setting.readOnly || setting.readOnlyReason) {
       const help = document.createElement("span");
       help.className = "settings-help";
-      help.textContent = setting.description || "Required module.";
+      help.textContent = [setting.description, setting.readOnlyReason].filter(Boolean).join(" ");
       label.appendChild(help);
     }
 
@@ -164,7 +131,26 @@
     input.type = setting.type === "number" ? "number" : "text";
     input.value = setting.value ?? "";
     input.placeholder = setting.placeholder || "";
+    applyInputMetadata(input, setting);
     return input;
+  }
+
+  function applyInputMetadata(input, setting) {
+    if (setting.min !== "") {
+      input.min = setting.min;
+    }
+
+    if (setting.max !== "") {
+      input.max = setting.max;
+    }
+
+    if (setting.step !== "") {
+      input.step = setting.step;
+    }
+
+    if (setting.inputmode) {
+      input.inputMode = setting.inputmode;
+    }
   }
 
   function readModuleSettingsPayload(scope = document) {

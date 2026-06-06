@@ -36,8 +36,14 @@ async function saveSettings() {
   }
 
   const payload = {
-    ...currentSettings,
+    workspaceName: currentSettings.workspaceName,
+    workspaceType: currentSettings.workspaceType,
+    fiscalYear: currentSettings.fiscalYear,
+    defaultBillingRate: currentSettings.defaultBillingRate,
+    billingPeriod: currentSettings.billingPeriod,
+    billingRounding: currentSettings.billingRounding,
     moduleSettings: readModuleSettingsPayload(),
+    audit: currentSettings.audit,
     taskReminderDefaults: readReminderDefaults(),
   };
 
@@ -94,9 +100,6 @@ function normalizeSettings(settings) {
     defaultBillingRate: String(settings?.defaultBillingRate || "").trim(),
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
-    timeTrackingEnabled: settings?.timeTrackingEnabled === false ? false : true,
-    tasksEnabled: settings?.tasksEnabled === false ? false : true,
-    taskTimersEnabled: settings?.taskTimersEnabled === false ? false : true,
     moduleSettings: normalizeModuleSettings(settings?.moduleSettings, settings),
     audit: normalizeAuditSettings(settings?.audit),
     taskReminderDefaults: normalizeReminderPolicy(settings?.taskReminderDefaults),
@@ -104,7 +107,9 @@ function normalizeSettings(settings) {
 }
 
 function normalizeModuleSettings(moduleSettings, settings) {
-  return window.LongtailForge.settingsControls.normalizeModuleSettings(moduleSettings, settings);
+  return window.LongtailForge.settingsNormalizers.normalizeModuleSettings(moduleSettings, {
+    modules: settings?.modules,
+  });
 }
 
 function normalizeWorkspaceType(value) {
@@ -214,6 +219,5 @@ function flashSavedState() {
 }
 
 function setStatus(message, options = {}) {
-  moduleSettingsStatus.textContent = message;
-  moduleSettingsStatus.classList.toggle("is-error", Boolean(options.isError));
+  window.LongtailForge.status.set(moduleSettingsStatus, message, options.isError ? { type: "error" } : options);
 }

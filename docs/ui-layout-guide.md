@@ -33,3 +33,7 @@ Workspace Settings and Create Workspace should use the same module availability 
 Plain browser JavaScript remains the default. Shared UI helpers should live under `public/js/shared/` and attach APIs to `window.LongtailForge`.
 
 `public/js/shared/settings-controls.js` owns the shared module settings renderer and payload reader for Workspace Settings, module-specific settings pages, and Create Workspace.
+
+`public/js/shared/settings-normalizers.js` owns browser normalization for registry-shaped module setting payloads. `public/js/shared/status.js` owns accessible status message updates for settings pages.
+
+Shared settings helpers should render from metadata such as type, options, required state, numeric bounds, input mode, read-only state, and reason text. They should not know about first-party setting IDs.

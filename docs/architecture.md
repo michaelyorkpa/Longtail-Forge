@@ -798,7 +798,9 @@ settings: [
 ]
 ```
 
-The settings UI renders module setting definitions and values from the backend `moduleSettings` payload.
+The settings UI renders module setting definitions and values from the backend `moduleSettings` payload. Shared browser helpers normalize module settings, render controls from metadata, read enabled controls back into `moduleSettings`, and standardize status messages. The shared settings renderer must not special-case first-party setting IDs.
+
+Module settings navigation is assembled from registered module settings views rather than from app-shell first-party conditionals. Deprecated top-level module flags may remain in API responses as compatibility fields, but browser save payloads should submit module state through `moduleSettings`.
 
 The settings save logic should not hard-code each module toggle.
 

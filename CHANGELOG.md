@@ -1,3 +1,14 @@
+## Version 0.32.3.2 - 2026-06-06 07:55 -04:00
+
+- Bumped the app and first-party module versions to `0.32.3.2`.
+- Added shared browser settings normalizers and status helpers for registry-driven settings pages.
+- Removed first-party setting ID special cases from the shared settings renderer and added support for richer setting metadata including numeric bounds, required fields, input modes, and read-only reasons.
+- Updated Workspace Settings, module settings, and Create Workspace flows to submit module state through `moduleSettings` without carrying top-level legacy module flags in browser save payloads.
+- Made module settings navigation derive from registered module settings views instead of app-shell hard-coded Tasks and Time Tracking links.
+- Reduced the static browser navigation fallback to framework-owned links while keeping bootstrap navigation authoritative for module-owned links.
+- Added UI contract regression coverage and wired it into `npm run check`.
+- Updated module contract, architecture, UI guide, settings matrix, decisions, and roadmap/archive bookkeeping for 0.32.3.2.
+
 ## Version 0.32.3.1 - 2026-06-05 23:32 -04:00
 
 - Bumped the app and first-party module versions to `0.32.3.1`.

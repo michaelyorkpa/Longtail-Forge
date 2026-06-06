@@ -99,11 +99,15 @@ Workbench item sources expose actionable records to the Workbench page. They req
 
 The Workbench timer payload includes both flat compatibility fields and a nested `source` object with `module_id`, `type`, `id`, `label`, `url`, and `enabled`. Manual timers use `source_type = manual`. Task timers use `source_module_id = tasks`, `source_type = task`, and `source_id = task_id`; they require both Tasks and Time Tracking to be enabled, task read access, and time entry create access. Future Support Ticket timers should use `source_module_id = support-tickets`, `source_type = ticket`, and `source_id = ticket_id`, and should finalize through the same active timer engine into normal time entries with ticket metadata.
 
-Settings items require `id`, `label`, and `type`. Supported field types are `boolean`, `text`, `number`, `select`, `multi-select`, and `info`. Settings may include `description`, `placeholder`, `options`, `min`, `max`, `step`, `requiredPermissions`, `readOnly`, and `moduleStatus`.
+Settings items require `id`, `label`, and `type`. Supported field types are `boolean`, `text`, `number`, `select`, `multi-select`, and `info`. Settings may include `description`, `placeholder`, `options`, `min`, `max`, `step`, `required`, `inputmode`, `requiredPermissions`, `readOnly`, `readOnlyReason`, `disabledReason`, and `moduleStatus`.
 
 A setting with `moduleStatus: true` controls the module enablement row through `workspace_modules`; it must be validated and saved by the server through the registry service. Related module options use `moduleStatus: false` and require an explicit server-side settings handler before they can be writable. The browser settings UI renders field definitions and values from the backend `moduleSettings` payload instead of hard-coding first-party module toggles.
 
+The shared browser settings renderer honors setting metadata by type and does not special-case first-party setting IDs. Browser settings payloads submit module state and module-specific values through `moduleSettings`; deprecated top-level module flags such as `timeTrackingEnabled`, `tasksEnabled`, and `taskTimersEnabled` are compatibility response fields only for current browser code and old callers.
+
 The `/api/settings` save contract accepts a `moduleSettings` object keyed by module ID and setting ID. The server rejects unknown module IDs, unknown setting IDs, read-only fields, invalid value types, invalid select options, writable settings that do not have a server-side handler, and old top-level module setting aliases.
+
+Module settings navigation is derived from registered module protected views whose descriptors identify settings pages. The app shell may group those pages under Settings -> Workspace -> Modules, but it should not hard-code first-party module settings links.
 
 Permission descriptors require `id`, `moduleId`, `label`, and `description`; they may include `resource` and `operation`. `requiredPermissions` remains as a compact compatibility list for route/view contribution filtering, while `permissions` is the user-facing contract used for database sync and future permission UI. Startup sync inserts or updates declared permissions and inserts default role mappings without deleting existing role permissions.
 

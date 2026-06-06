@@ -127,12 +127,22 @@ function listNotificationTemplates() {
 function listModuleSettingsForWorkspaceType(workspaceType = "business") {
   const workspaceCapabilities = getWorkspaceCapabilities(workspaceType);
   const availableTools = new Set(workspaceCapabilities.availableTools || []);
-
-  return listModules()
+  const moduleDefinitions = listModules()
     .map((rawModuleDefinition) => resolveModuleDefinitionTerminology(rawModuleDefinition, workspaceCapabilities.workspaceType))
-    .filter((moduleDefinition) => moduleSettingsMatchWorkspace(moduleDefinition, availableTools))
+    .filter((moduleDefinition) => moduleSettingsMatchWorkspace(moduleDefinition, availableTools));
+  const moduleStatusById = Object.fromEntries(moduleDefinitions.map((moduleDefinition) => [
+    moduleDefinition.id,
+    moduleDefinition.enabledByDefault ? "enabled" : "disabled",
+  ]));
+
+  return moduleDefinitions
     .map((moduleDefinition) => {
       const status = moduleDefinition.enabledByDefault ? "enabled" : "disabled";
+      const decoratedModule = {
+        ...moduleDefinition,
+        status,
+        canDisable: moduleDefinition.canDisable !== false,
+      };
 
       return {
         moduleId: moduleDefinition.id,
@@ -140,12 +150,9 @@ function listModuleSettingsForWorkspaceType(workspaceType = "business") {
         displayName: moduleDefinition.displayName,
         status,
         canDisable: moduleDefinition.canDisable !== false,
-        settings: (moduleDefinition.settings || []).map((setting) => ({
-          ...setting,
-          moduleId: moduleDefinition.id,
-          readOnly: setting.readOnly === true || (setting.moduleStatus === true && moduleDefinition.canDisable === false),
-          value: setting.moduleStatus === true ? status === "enabled" : defaultSettingValue(setting),
-        })),
+        settings: (moduleDefinition.settings || []).map((setting) =>
+          decorateModuleSetting(decoratedModule, setting, {}, moduleStatusById),
+        ),
       };
     })
     .filter((moduleDefinition) => moduleDefinition.settings.length > 0);
@@ -263,12 +270,9 @@ async function readWorkspaceModuleSettings(workspaceId, settings, moduleContext 
       displayName: moduleDefinition.displayName,
       status: moduleDefinition.status,
       canDisable: moduleDefinition.canDisable,
-      settings: (moduleDefinition.settings || []).map((setting) => ({
-        ...setting,
-        moduleId: moduleDefinition.id,
-        readOnly: setting.readOnly === true || (setting.moduleStatus === true && moduleDefinition.canDisable === false),
-        value: readModuleSettingValue(moduleDefinition, setting, settings),
-      })),
+      settings: (moduleDefinition.settings || []).map((setting) =>
+        decorateModuleSetting(moduleDefinition, setting, settings, resolvedModuleContext.moduleStatusById),
+      ),
     }))
     .filter((moduleDefinition) => moduleDefinition.settings.length > 0);
 }
@@ -636,6 +640,45 @@ async function listModuleSettings(workspaceId, session = null) {
   return listWorkspaceContributions(workspaceId, session, "settings");
 }
 
+async function listModuleSettingsNavigation(workspaceId, session = null) {
+  const [moduleContext, workspaceCapabilities] = await Promise.all([
+    readWorkspaceModuleContext(workspaceId),
+    readWorkspaceCapabilities(workspaceId),
+  ]);
+  const enabledModuleIds = new Set(moduleContext.enabledModules);
+  const availableTools = new Set(workspaceCapabilities.availableTools || []);
+  const modulesById = new Map(listModules().map((moduleDefinition) => [moduleDefinition.id, moduleDefinition]));
+  const workspaceType = workspaceCapabilities.workspaceType || "business";
+  const items = [];
+
+  for (const view of listRegisteredModuleProtectedViews().map(normalizeViewContribution)) {
+    const moduleDefinition = modulesById.get(view.moduleId);
+
+    if (!moduleDefinition || !enabledModuleIds.has(view.moduleId) || !isModuleSettingsView(view)) {
+      continue;
+    }
+
+    if (!requiredCapabilitiesAvailable(view, moduleDefinition, availableTools)) {
+      continue;
+    }
+
+    if (!(await requiredPermissionsAllowed(view, session))) {
+      continue;
+    }
+
+    const resolvedModule = resolveModuleDefinitionTerminology(moduleDefinition, workspaceType);
+
+    items.push({
+      id: view.id,
+      label: resolvedModule.shortLabel || resolvedModule.displayName || resolvedModule.name,
+      href: view.path.replace(/^\//, ""),
+      moduleId: view.moduleId,
+    });
+  }
+
+  return items.sort((left, right) => left.label.localeCompare(right.label) || left.id.localeCompare(right.id));
+}
+
 async function resolveProtectedModuleView(workspaceId, session, requestPath) {
   const pathName = normalizeViewPath(requestPath);
 
@@ -843,6 +886,69 @@ function readModuleSettingValue(moduleDefinition, setting, settings) {
   return defaultSettingValue(setting);
 }
 
+function decorateModuleSetting(moduleDefinition, setting, settings, moduleStatusById = {}) {
+  const statusMetadata = setting.moduleStatus === true
+    ? readModuleStatusSettingMetadata(moduleDefinition, moduleStatusById)
+    : { readOnly: false, readOnlyReason: "" };
+
+  return {
+    ...setting,
+    moduleId: moduleDefinition.id,
+    readOnly: setting.readOnly === true || statusMetadata.readOnly,
+    readOnlyReason: setting.readOnlyReason || setting.disabledReason || statusMetadata.readOnlyReason,
+    value: readModuleSettingValue(moduleDefinition, setting, settings),
+  };
+}
+
+function readModuleStatusSettingMetadata(moduleDefinition, moduleStatusById) {
+  if (moduleDefinition.canDisable === false) {
+    return {
+      readOnly: true,
+      readOnlyReason: "Required module.",
+    };
+  }
+
+  const enabledModuleIds = new Set(Object.entries(moduleStatusById)
+    .filter(([, status]) => status === "enabled")
+    .map(([moduleId]) => moduleId));
+
+  if (moduleDefinition.status !== "enabled") {
+    const missingDependencies = (moduleDefinition.moduleDependencies || [])
+      .filter((moduleId) => !enabledModuleIds.has(moduleId));
+
+    if (missingDependencies.length > 0) {
+      return {
+        readOnly: true,
+        readOnlyReason: `Requires enabled modules: ${missingDependencies.join(", ")}.`,
+      };
+    }
+  }
+
+  const dependentModules = listModules()
+    .filter((candidate) => (
+      candidate.id !== moduleDefinition.id &&
+      enabledModuleIds.has(candidate.id) &&
+      (candidate.moduleDependencies || []).includes(moduleDefinition.id)
+    ))
+    .map((candidate) => candidate.displayName || candidate.name || candidate.id);
+
+  if (dependentModules.length > 0) {
+    return {
+      readOnly: true,
+      readOnlyReason: `Required by enabled modules: ${dependentModules.join(", ")}.`,
+    };
+  }
+
+  return {
+    readOnly: false,
+    readOnlyReason: "",
+  };
+}
+
+function isModuleSettingsView(view) {
+  return String(view.id || "").endsWith("-settings") || String(view.path || "").endsWith("-settings.html");
+}
+
 function defaultSettingValue(setting) {
   if (Object.hasOwn(setting, "defaultValue")) {
     return setting.defaultValue;
@@ -942,6 +1048,7 @@ export const modulesService = {
   listModuleRouteEntries,
   listModuleRoutes,
   listModuleSettingsForWorkspaceType,
+  listModuleSettingsNavigation,
   listModules,
   listModuleBrowserAssets,
   listModuleSettings,

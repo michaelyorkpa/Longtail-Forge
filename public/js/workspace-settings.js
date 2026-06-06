@@ -54,13 +54,7 @@ async function loadSettingsForm() {
   setWorkspaceSettingsStatus("Loading workspace settings...");
 
   try {
-    const response = await fetch("/api/settings", { cache: "no-store" });
-
-    if (!response.ok) {
-      throw new Error(`Could not load settings: ${response.status}`);
-    }
-
-    const settings = normalizeSettings(await response.json());
+    const settings = normalizeSettings(await window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }));
     activeWorkspaceId = settings.workspaceId || settings.workspace_id || "";
     workspaceNameInput.value = settings.workspaceName;
     setWorkspaceTypeValue(settings.workspaceType);
@@ -81,7 +75,7 @@ async function loadSettingsForm() {
     updateWorkspaceTypeDependentControls();
     setWorkspaceSettingsStatus("");
   } catch (error) {
-    setWorkspaceSettingsStatus("Workspace settings could not be loaded.");
+    handleApiError(error, "Workspace settings could not be loaded.");
     console.error(error);
   }
 }
@@ -121,19 +115,7 @@ async function saveSettings() {
   setWorkspaceSettingsStatus("Saving workspace settings...");
 
   try {
-    const response = await fetch("/api/settings", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(settings),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Save failed: ${response.status}`);
-    }
-
-    const result = await response.json();
+    const result = await window.LongtailForge.api.putJson("/api/settings", settings);
     const savedSettings = normalizeSettings(result.data);
     workspaceNameInput.value = savedSettings.workspaceName;
     setWorkspaceTypeValue(savedSettings.workspaceType);
@@ -159,7 +141,7 @@ async function saveSettings() {
 
     flashSavedState();
   } catch (error) {
-    setWorkspaceSettingsStatus("Workspace settings were not saved. Start the local server and try again.");
+    handleApiError(error, "Workspace settings were not saved. Start the local server and try again.");
     console.error(error);
   } finally {
     saveSettingsButton.disabled = false;
@@ -179,9 +161,6 @@ function normalizeSettings(settings) {
     defaultBillingRate: workspaceType === "business" ? String(settings?.defaultBillingRate || "").trim() : "",
     billingPeriod: normalizeBillingPeriod(settings?.billingPeriod),
     billingRounding: normalizeBillingRounding(settings?.billingRounding),
-    timeTrackingEnabled: settings?.timeTrackingEnabled === false ? false : true,
-    tasksEnabled: settings?.tasksEnabled === false ? false : true,
-    taskTimersEnabled: settings?.taskTimersEnabled === false ? false : true,
     enabledModules: Array.isArray(settings?.enabledModules) ? settings.enabledModules : [],
     moduleSettings: normalizeModuleSettings(settings?.moduleSettings, settings),
     modules: Array.isArray(settings?.modules) ? settings.modules : [],
@@ -199,22 +178,9 @@ function renderModuleSettings(settings) {
 }
 
 function normalizeModuleSettings(moduleSettings, settings) {
-  const source = Array.isArray(moduleSettings) ? moduleSettings : (settings?.modules || []).flatMap((moduleDefinition) => {
-    const fields = Array.isArray(moduleDefinition.settings) ? moduleDefinition.settings : [];
-
-    return fields.length > 0
-      ? [{
-          moduleId: moduleDefinition.id,
-          name: moduleDefinition.name,
-          displayName: moduleDefinition.displayName || moduleDefinition.name,
-          status: moduleDefinition.status === "enabled" ? "enabled" : "disabled",
-          canDisable: moduleDefinition.canDisable !== false,
-          settings: fields,
-        }]
-      : [];
+  return window.LongtailForge.settingsNormalizers.normalizeModuleSettings(moduleSettings, {
+    modules: settings?.modules,
   });
-
-  return window.LongtailForge.settingsControls.normalizeModuleSettings(source, settings);
 }
 
 function readModuleSettingsPayload() {
@@ -508,5 +474,14 @@ function flashSavedState() {
 }
 
 function setWorkspaceSettingsStatus(message) {
-  workspaceSettingsStatus.textContent = message;
+  window.LongtailForge.status.set(workspaceSettingsStatus, message);
+}
+
+function handleApiError(error, fallbackMessage) {
+  if (error?.status === 401) {
+    window.location.replace("/login.html");
+    return;
+  }
+
+  window.LongtailForge.status.set(workspaceSettingsStatus, error?.message || fallbackMessage, { type: "error" });
 }
