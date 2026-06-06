@@ -1,44 +1,28 @@
-// Edit Entries reuses the reporting data sources, then writes changes back by entry ID.
-const filterClientSelect = document.querySelector("[data-edit-filter-client]");
-const filterProjectSelect = document.querySelector("[data-edit-filter-project]");
-const filterStatusSelect = document.querySelector("[data-edit-filter-status]");
-const filterPeriodSelect = document.querySelector("[data-edit-filter-period]");
-const filterCustomDates = document.querySelector("[data-edit-filter-custom-dates]");
-const filterStartDateInput = document.querySelector("[data-edit-filter-start-date]");
-const filterEndDateInput = document.querySelector("[data-edit-filter-end-date]");
-const filterUsersSelect = document.querySelector("[data-edit-filter-users]");
-const filterTagControl = document.querySelector("[data-edit-filter-tag-control]");
-const filterTagSelect = document.querySelector("[data-edit-filter-tag]");
-const editEntryStatus = document.querySelector("[data-edit-entry-status]");
-const editEntryTable = document.querySelector("[data-edit-entry-table]");
-const editEntryForm = document.querySelector("[data-edit-entry-form]");
-const editEntryHeading = document.querySelector("[data-edit-entry-heading]");
-const editEntryClientSelect = document.querySelector("[data-edit-entry-client]");
-const editEntryProjectSelect = document.querySelector("[data-edit-entry-project]");
-const editEntryDateInput = document.querySelector("[data-edit-entry-date]");
-const editEntryStartTimeInput = document.querySelector("[data-edit-entry-start-time]");
-const editEntryEndTimeInput = document.querySelector("[data-edit-entry-end-time]");
-const editEntryDurationHoursInput = document.querySelector("[data-edit-entry-duration-hours]");
-const editEntryDurationMinutesInput = document.querySelector("[data-edit-entry-duration-minutes]");
-const editEntryDurationSecondsInput = document.querySelector("[data-edit-entry-duration-seconds]");
-const editEntryDescriptionInput = document.querySelector("[data-edit-entry-description]");
-const editEntryBillableSelect = document.querySelector("[data-edit-entry-billable]");
-const editEntryInvoiceStatusSelect = document.querySelector("[data-edit-entry-invoice-status]");
-const editEntryTagsContainer = document.querySelector("[data-edit-entry-tags]");
-const cancelEditEntryButton = document.querySelector("[data-cancel-edit-entry]");
-const saveEditEntryButton = document.querySelector("[data-save-edit-entry]");
+// Time Entries reuses the reporting data sources, then writes changes back by entry ID.
+const filterClientSelect = document.querySelector("[data-time-entry-filter-client]");
+const filterProjectSelect = document.querySelector("[data-time-entry-filter-project]");
+const filterStatusSelect = document.querySelector("[data-time-entry-filter-status]");
+const filterPeriodSelect = document.querySelector("[data-time-entry-filter-period]");
+const filterCustomDates = document.querySelector("[data-time-entry-filter-custom-dates]");
+const filterStartDateInput = document.querySelector("[data-time-entry-filter-start-date]");
+const filterEndDateInput = document.querySelector("[data-time-entry-filter-end-date]");
+const filterUsersSelect = document.querySelector("[data-time-entry-filter-users]");
+const filterTagControl = document.querySelector("[data-time-entry-filter-tag-control]");
+const filterTagSelect = document.querySelector("[data-time-entry-filter-tag]");
+const sortSelect = document.querySelector("[data-time-entry-sort]");
+const addTimeEntryButton = document.querySelector("[data-add-time-entry]");
+const timeEntryStatus = document.querySelector("[data-time-entry-status]");
+const timeEntryTable = document.querySelector("[data-time-entry-table]");
 
-let editClients = [];
-let editSettings = {
+let timeEntryClients = [];
+let timeEntrySettings = {
   billingPeriod: { type: "calendarMonth", startDay: 1 },
 };
 let timeEntries = [];
-let editUsers = [];
-let selectedEntryId = "";
-let editTagOptions = [];
-let editEntryTagPicker = null;
+let timeEntryUsers = [];
+let timeEntryTagOptions = [];
 
-initializeEditEntries();
+initializeTimeEntries();
 
 filterStatusSelect.addEventListener("change", renderEntries);
 filterPeriodSelect.addEventListener("change", () => {
@@ -49,30 +33,16 @@ filterStartDateInput.addEventListener("change", renderEntries);
 filterEndDateInput.addEventListener("change", renderEntries);
 filterUsersSelect.addEventListener("change", renderEntries);
 filterTagSelect?.addEventListener("change", renderEntries);
+sortSelect.addEventListener("change", renderEntries);
+addTimeEntryButton.addEventListener("click", openAddDialog);
 filterClientSelect.addEventListener("change", () => {
   populateFilterProjects();
   renderEntries();
 });
 filterProjectSelect.addEventListener("change", renderEntries);
-editEntryClientSelect.addEventListener("change", () => {
-  populateEditProjects();
-  updateEditBillableDefault();
-});
-editEntryProjectSelect.addEventListener("change", updateEditBillableDefault);
-editEntryDateInput.addEventListener("change", updateEndTimeFromDuration);
-editEntryStartTimeInput.addEventListener("change", updateEndTimeFromDuration);
-editEntryEndTimeInput.addEventListener("change", updateDurationFromTimeRange);
-editEntryDurationHoursInput.addEventListener("input", updateEndTimeFromDuration);
-editEntryDurationMinutesInput.addEventListener("input", updateEndTimeFromDuration);
-editEntryDurationSecondsInput.addEventListener("input", updateEndTimeFromDuration);
-cancelEditEntryButton.addEventListener("click", closeEditForm);
-editEntryForm.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  await saveEditedEntry();
-});
 
-async function loadEditEntryData() {
-  setEditEntryStatus("Loading entries...");
+async function loadTimeEntryData() {
+  setTimeEntryStatus("Loading entries...");
 
   try {
     const [settingsResponse, clientsResponse, entriesResponse, usersResponse] = await Promise.all([
@@ -86,45 +56,45 @@ async function loadEditEntryData() {
       throw new Error(`Could not load client data: ${clientsResponse.status}`);
     }
 
-    editSettings = settingsResponse.ok
+    timeEntrySettings = settingsResponse.ok
       ? normalizeSettings(await settingsResponse.json())
       : normalizeSettings({});
-    editClients = normalizeClients(await clientsResponse.json());
+    timeEntryClients = normalizeClients(await clientsResponse.json());
     timeEntries = entriesResponse.ok
       ? normalizeTimeEntries(await entriesResponse.json())
       : [];
-    editTagOptions = await loadTagOptions();
-    editUsers = usersResponse.ok
+    timeEntryTagOptions = await loadTagOptions();
+    timeEntryUsers = usersResponse.ok
       ? normalizeUsers(await usersResponse.json())
       : [];
 
     populateClientOptions(filterClientSelect, "All clients");
-    populateClientOptions(editEntryClientSelect, "Select a client");
     selectWorkspaceScopeClientIfNeeded(filterClientSelect);
-    selectWorkspaceScopeClientIfNeeded(editEntryClientSelect);
     populateFilterProjects();
     populateUserOptions();
     populateTagFilter();
     setDefaultCustomDates();
     updateFilterDateState();
     renderEntries();
-    setEditEntryStatus("");
+    setTimeEntryStatus("");
   } catch (error) {
-    setEditEntryStatus("Entries could not be loaded.");
+    setTimeEntryStatus("Entries could not be loaded.");
     console.error(error);
   }
 }
 
-async function initializeEditEntries() {
+async function initializeTimeEntries() {
   await window.LongtailForge.timezones.loadSessionTimezone();
   await window.LongtailForge.workspaceContextReady;
-  await loadEditEntryData();
+  await loadTimeEntryData();
+  openAddFromUrl();
+  openEntryFromUrl();
 }
 
 function populateClientOptions(select, placeholder) {
   select.replaceChildren(createOption("", placeholder));
 
-  sortByName(editClients).forEach((client) => {
+  sortByName(timeEntryClients).forEach((client) => {
     select.appendChild(createOption(client.id, client.name));
   });
 }
@@ -134,7 +104,7 @@ function selectWorkspaceScopeClientIfNeeded(select) {
     return;
   }
 
-  const workspaceClient = editClients.find((client) => client.isWorkspaceScope);
+  const workspaceClient = timeEntryClients.find((client) => client.isWorkspaceScope);
 
   if (workspaceClient) {
     select.value = workspaceClient.id;
@@ -154,25 +124,9 @@ function populateFilterProjects() {
   });
 }
 
-function populateEditProjects(projectId = "") {
-  const client = getClient(editEntryClientSelect.value);
-  editEntryProjectSelect.replaceChildren(createOption("", "Select a project"));
-  editEntryProjectSelect.disabled = !client;
-
-  if (!client) {
-    return;
-  }
-
-  sortByName(client.projects).forEach((project) => {
-    editEntryProjectSelect.appendChild(createOption(project.id, project.name));
-  });
-
-  editEntryProjectSelect.value = projectId;
-}
-
 function renderEntries() {
   // The table is rebuilt from state after every filter change or save.
-  editEntryTable.innerHTML = "";
+  timeEntryTable.innerHTML = "";
   const entries = getFilteredEntries();
 
   if (!entries.length) {
@@ -181,7 +135,7 @@ function renderEntries() {
     cell.colSpan = 6;
     cell.textContent = "No entries match these filters.";
     row.appendChild(cell);
-    editEntryTable.appendChild(row);
+    timeEntryTable.appendChild(row);
     return;
   }
 
@@ -195,7 +149,7 @@ function renderEntries() {
       createTableCell(formatEntryStatus(entry)),
       createActionsCell(entry),
     );
-    editEntryTable.appendChild(row);
+    timeEntryTable.appendChild(row);
   });
 }
 
@@ -211,7 +165,27 @@ function getFilteredEntries() {
     .filter((entry) => !selectedTagId || (entry.tags || []).some((tag) => tag.tag_id === selectedTagId))
     .filter((entry) => !filterClientSelect.value || matchesClient(entry, getClient(filterClientSelect.value)))
     .filter((entry) => !filterProjectSelect.value || matchesProject(entry, getProject(filterClientSelect.value, filterProjectSelect.value)))
-    .sort((firstEntry, secondEntry) => secondEntry.endTime - firstEntry.endTime);
+    .sort(compareEntries);
+}
+
+function compareEntries(firstEntry, secondEntry) {
+  switch (sortSelect.value) {
+    case "end_asc":
+      return firstEntry.endTime - secondEntry.endTime;
+    case "duration_desc":
+      return secondEntry.durationSeconds - firstEntry.durationSeconds;
+    case "duration_asc":
+      return firstEntry.durationSeconds - secondEntry.durationSeconds;
+    case "project_asc":
+      return String(firstEntry.projectName || "").localeCompare(
+        String(secondEntry.projectName || ""),
+        undefined,
+        { sensitivity: "base" },
+      );
+    case "end_desc":
+    default:
+      return secondEntry.endTime - firstEntry.endTime;
+  }
 }
 
 function createActionsCell(entry) {
@@ -223,7 +197,7 @@ function createActionsCell(entry) {
   actions.className = "table-actions";
   editButton.type = "button";
   editButton.textContent = "Edit";
-  editButton.addEventListener("click", () => openEditForm(entry.entryId));
+  editButton.addEventListener("click", () => openEditDialog(entry.entryId));
 
   deleteButton.type = "button";
   deleteButton.textContent = "Delete";
@@ -233,6 +207,44 @@ function createActionsCell(entry) {
   actions.append(editButton, deleteButton);
   cell.appendChild(actions);
   return cell;
+}
+
+async function openEditDialog(entryId) {
+  setTimeEntryStatus("Opening entry...");
+
+  try {
+    const result = await window.LongtailForge.timeEntryDialog.openEdit({ entryId }, {
+      complete: async () => {
+        await loadTimeEntryData();
+        setTimeEntryStatus(`Saved ${entryId}.`);
+      },
+      setStatus: setTimeEntryStatus,
+    });
+    if (result !== "complete") {
+      setTimeEntryStatus("");
+    }
+  } catch (error) {
+    setTimeEntryStatus(error.message || "Entry could not be opened.");
+  }
+}
+
+async function openAddDialog() {
+  setTimeEntryStatus("Opening entry...");
+
+  try {
+    const result = await window.LongtailForge.timeEntryDialog.openAdd({}, {
+      complete: async () => {
+        await loadTimeEntryData();
+        setTimeEntryStatus("Entry saved.");
+      },
+      setStatus: setTimeEntryStatus,
+    });
+    if (result !== "complete") {
+      setTimeEntryStatus("");
+    }
+  } catch (error) {
+    setTimeEntryStatus(error.message || "Entry could not be opened.");
+  }
 }
 
 function createProjectCell(entry) {
@@ -248,85 +260,6 @@ function createProjectCell(entry) {
   return cell;
 }
 
-function openEditForm(entryId) {
-  // Entries may have old client/project names, so IDs are resolved through helper matching.
-  const entry = timeEntries.find((currentEntry) => currentEntry.entryId === entryId);
-
-  if (!entry) {
-    setEditEntryStatus("Entry could not be found.");
-    return;
-  }
-
-  selectedEntryId = entry.entryId;
-  editEntryHeading.textContent = `Edit Entry - ${getEntryHeadingLabel(entry)}`;
-  editEntryClientSelect.value = findClientIdForEntry(entry);
-  populateEditProjects(findProjectIdForEntry(entry));
-  editEntryDateInput.value = formatDateInput(entry.startTime);
-  editEntryStartTimeInput.value = formatTimeInput(entry.startTime);
-  editEntryEndTimeInput.value = formatTimeInput(entry.endTime);
-  setDurationInputs(entry.durationSeconds);
-  editEntryDescriptionInput.value = entry.description;
-  editEntryBillableSelect.value = getEffectiveEntryBillable(entry);
-  editEntryInvoiceStatusSelect.value = entry.invoiceStatus;
-  mountEditEntryTagPicker(entry.tags || []);
-  editEntryForm.hidden = false;
-  editEntryForm.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-async function saveEditedEntry() {
-  const client = getClient(editEntryClientSelect.value);
-  const project = getProject(editEntryClientSelect.value, editEntryProjectSelect.value);
-  const startTime = createZonedDateTime(editEntryDateInput.value, editEntryStartTimeInput.value);
-  const durationSeconds = getDurationInputSeconds();
-
-  // Keep client/project names in the saved entry so reports do not need extra joins.
-  if (!project) {
-    setEditEntryStatus("Select a project.");
-    return;
-  }
-
-  if (!startTime || durationSeconds <= 0) {
-    setEditEntryStatus("Enter a valid start time and duration.");
-    return;
-  }
-
-  const endTime = new Date(startTime.getTime() + (durationSeconds * 1000));
-  const entry = {
-    client_id: client.isWorkspaceScope ? "" : client.id,
-    client_name: client.isWorkspaceScope ? "" : client.name,
-    project_id: project.id,
-    project_name: project.name,
-    description: editEntryDescriptionInput.value.trim(),
-    start_time: startTime.toISOString(),
-    end_time: endTime.toISOString(),
-    duration_seconds: durationSeconds,
-    duration_hours: (durationSeconds / 3600).toFixed(4),
-    billable: editEntryBillableSelect.value,
-    invoice_status: editEntryInvoiceStatusSelect.value,
-    tagIds: editEntryTagPicker?.readTagIds?.() || [],
-  };
-
-  saveEditEntryButton.disabled = true;
-  setEditEntryStatus("Saving entry...");
-
-  try {
-    await window.LongtailForge.api.putJson(
-      `/api/time-entries/${encodeURIComponent(selectedEntryId)}`,
-      entry,
-    );
-
-    await loadEditEntryData();
-    closeEditForm();
-    flashSavedButton();
-    setEditEntryStatus(`Saved ${selectedEntryId}.`);
-  } catch (error) {
-    setEditEntryStatus("Entry was not saved. Start the local server and try again.");
-    console.error(error);
-  } finally {
-    saveEditEntryButton.disabled = false;
-  }
-}
-
 async function deleteEntry(entry) {
   const shouldDelete = await window.LongtailForge.modal.confirm({
     title: "Delete entry?",
@@ -340,31 +273,35 @@ async function deleteEntry(entry) {
     return;
   }
 
-  setEditEntryStatus("Deleting entry...");
+  setTimeEntryStatus("Deleting entry...");
 
   try {
     await window.LongtailForge.api.deleteJson(
       `/api/time-entries/${encodeURIComponent(entry.entryId)}`,
     );
 
-    if (selectedEntryId === entry.entryId) {
-      closeEditForm();
-    }
-
-    await loadEditEntryData();
-    setEditEntryStatus("Entry deleted.");
+    await loadTimeEntryData();
+    setTimeEntryStatus("Entry deleted.");
   } catch (error) {
-    setEditEntryStatus("Entry was not deleted. Start the local server and try again.");
+    setTimeEntryStatus("Entry was not deleted. Start the local server and try again.");
     console.error(error);
   }
 }
 
-function closeEditForm() {
-  selectedEntryId = "";
-  editEntryForm.hidden = true;
-  editEntryForm.reset();
-  editEntryTagPicker = null;
-  editEntryTagsContainer?.replaceChildren();
+function openEntryFromUrl() {
+  const entryId = new URLSearchParams(window.location.search).get("entry") || "";
+
+  if (entryId) {
+    openEditDialog(entryId);
+  }
+}
+
+function openAddFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+
+  if (params.get("new") === "1" || params.get("add") === "1") {
+    openAddDialog();
+  }
 }
 
 function normalizeClients(data) {
@@ -445,7 +382,7 @@ function normalizeUsers(data) {
 function populateUserOptions() {
   const usersById = new Map();
 
-  editUsers.forEach((user) => {
+  timeEntryUsers.forEach((user) => {
     usersById.set(user.userId, user.username || user.userId);
   });
 
@@ -484,24 +421,12 @@ function populateTagFilter() {
   }
 
   const previousValue = filterTagSelect.value || "";
-  filterTagControl.hidden = editTagOptions.length === 0;
+  filterTagControl.hidden = timeEntryTagOptions.length === 0;
   filterTagSelect.replaceChildren(
     createOption("", "All tags"),
-    ...editTagOptions.map((tag) => createOption(tag.tag_id, tag.name || tag.slug)),
+    ...timeEntryTagOptions.map((tag) => createOption(tag.tag_id, tag.name || tag.slug)),
   );
-  filterTagSelect.value = editTagOptions.some((tag) => tag.tag_id === previousValue) ? previousValue : "";
-}
-
-async function mountEditEntryTagPicker(tags) {
-  editEntryTagPicker = null;
-  if (!editEntryTagsContainer || !window.LongtailForge.tags?.mountPicker) {
-    editEntryTagsContainer?.replaceChildren();
-    return;
-  }
-
-  editEntryTagPicker = await window.LongtailForge.tags.mountPicker(editEntryTagsContainer, {
-    selectedTags: tags,
-  });
+  filterTagSelect.value = timeEntryTagOptions.some((tag) => tag.tag_id === previousValue) ? previousValue : "";
 }
 
 function getSelectedUserIds() {
@@ -525,7 +450,7 @@ function getSelectedDateRange() {
     return getCustomDateRange();
   }
 
-  return getBillingPeriodRange(editSettings.billingPeriod, filterPeriodSelect.value);
+  return getBillingPeriodRange(timeEntrySettings.billingPeriod, filterPeriodSelect.value);
 }
 
 function getCustomDateRange() {
@@ -612,7 +537,7 @@ function normalizeBillingPeriod(period) {
 }
 
 function getClient(clientId) {
-  return editClients.find((client) => client.id === clientId);
+  return timeEntryClients.find((client) => client.id === clientId);
 }
 
 function getProject(clientId, projectId) {
@@ -624,30 +549,7 @@ function getProject(clientId, projectId) {
 }
 
 function getAllFilterProjects() {
-  return editClients.flatMap((client) => client.projects || []);
-}
-
-function findClientIdForEntry(entry) {
-  return editClients.find((client) => matchesClient(entry, client))?.id || "";
-}
-
-function findProjectIdForEntry(entry) {
-  const client = getClient(editEntryClientSelect.value);
-  return client?.projects.find((project) => matchesProject(entry, project))?.id || "";
-}
-
-function updateEditBillableDefault() {
-  if (!selectedEntryId) {
-    return;
-  }
-
-  const entry = timeEntries.find((currentEntry) => currentEntry.entryId === selectedEntryId);
-
-  if (!entry || entry.billable) {
-    return;
-  }
-
-  editEntryBillableSelect.value = getEffectiveEntryBillable(entry);
+  return timeEntryClients.flatMap((client) => client.projects || []);
 }
 
 function matchesClient(entry, client) {
@@ -656,16 +558,6 @@ function matchesClient(entry, client) {
 
 function matchesProject(entry, project) {
   return window.LongtailForge.records.matchesProject(entry, project);
-}
-
-function createZonedDateTime(dateValue, timeValue) {
-  if (!dateValue || !timeValue) {
-    return null;
-  }
-
-  const date = new Date(window.LongtailForge.timezones.zonedDateTimeToUtcIso(dateValue, timeValue));
-
-  return Number.isFinite(date.getTime()) ? date : null;
 }
 
 function parseDateInput(value) {
@@ -701,7 +593,7 @@ function formatEntryStatus(entry) {
 }
 
 function getEffectiveEntryBillable(entry) {
-  const client = editClients.find((currentClient) => matchesClient(entry, currentClient));
+  const client = timeEntryClients.find((currentClient) => matchesClient(entry, currentClient));
   const project = client?.projects.find((currentProject) => matchesProject(entry, currentProject));
   const billableValues = [
     normalizeEntryBillable(entry.billable),
@@ -730,58 +622,6 @@ function formatDateInput(date) {
   return window.LongtailForge.timezones.formatDateInput(date);
 }
 
-function formatTimeInput(date) {
-  return window.LongtailForge.timezones.formatTimeInput(date);
-}
-
-function setDurationInputs(totalSeconds) {
-  const normalizedSeconds = Math.max(0, Number.parseInt(totalSeconds, 10) || 0);
-  const hours = Math.floor(normalizedSeconds / 3600);
-  const minutes = Math.floor((normalizedSeconds % 3600) / 60);
-  const seconds = normalizedSeconds % 60;
-
-  editEntryDurationHoursInput.value = String(hours);
-  editEntryDurationMinutesInput.value = String(minutes);
-  editEntryDurationSecondsInput.value = String(seconds);
-}
-
-function getDurationInputSeconds() {
-  const hours = Math.max(0, Number.parseInt(editEntryDurationHoursInput.value, 10) || 0);
-  const minutes = clampDurationPart(editEntryDurationMinutesInput.value);
-  const seconds = clampDurationPart(editEntryDurationSecondsInput.value);
-
-  editEntryDurationMinutesInput.value = String(minutes);
-  editEntryDurationSecondsInput.value = String(seconds);
-
-  return (hours * 3600) + (minutes * 60) + seconds;
-}
-
-function clampDurationPart(value) {
-  return Math.min(59, Math.max(0, Number.parseInt(value, 10) || 0));
-}
-
-function updateDurationFromTimeRange() {
-  const startTime = createZonedDateTime(editEntryDateInput.value, editEntryStartTimeInput.value);
-  const endTime = createZonedDateTime(editEntryDateInput.value, editEntryEndTimeInput.value);
-
-  if (!startTime || !endTime || endTime <= startTime) {
-    return;
-  }
-
-  setDurationInputs(Math.round((endTime.getTime() - startTime.getTime()) / 1000));
-}
-
-function updateEndTimeFromDuration() {
-  const startTime = createZonedDateTime(editEntryDateInput.value, editEntryStartTimeInput.value);
-  const durationSeconds = getDurationInputSeconds();
-
-  if (!startTime || durationSeconds <= 0) {
-    return;
-  }
-
-  editEntryEndTimeInput.value = formatTimeInput(new Date(startTime.getTime() + (durationSeconds * 1000)));
-}
-
 function formatDuration(totalSeconds) {
   const normalizedSeconds = Math.max(0, Number.parseInt(totalSeconds, 10) || 0);
   const hours = Math.floor(normalizedSeconds / 3600);
@@ -808,17 +648,6 @@ function updateFilterDateState() {
   filterEndDateInput.disabled = !isCustom;
 }
 
-function flashSavedButton() {
-  const originalText = saveEditEntryButton.textContent;
-  saveEditEntryButton.textContent = "Saved.";
-  saveEditEntryButton.classList.add("is-saved");
-
-  window.setTimeout(() => {
-    saveEditEntryButton.textContent = originalText;
-    saveEditEntryButton.classList.remove("is-saved");
-  }, 1600);
-}
-
 function createOption(value, text) {
   return window.LongtailForge.pageController.createOption(value, text);
 }
@@ -833,42 +662,37 @@ function sortByName(items) {
   return window.LongtailForge.pageController.sortByName(items);
 }
 
-function setEditEntryStatus(message) {
-  window.LongtailForge.pageController.setStatus(editEntryStatus, message);
-}
-
-function getEntryHeadingLabel(entry) {
-  return [
-    entry.projectName || "",
-    formatDate(entry.endTime),
-  ].filter(Boolean).join(" - ") || "Selected Entry";
+function setTimeEntryStatus(message) {
+  window.LongtailForge.pageController.setStatus(timeEntryStatus, message);
 }
 
 function workspaceShowsClientTools() {
-  const tools = editSettings.workspaceCapabilities?.availableTools || [];
+  const tools = timeEntrySettings.workspaceCapabilities?.availableTools || [];
 
   return Array.isArray(tools) && tools.includes("clients_projects");
 }
 
-window.LongtailForge.pageController.register("edit-entries", {
+window.LongtailForge.pageController.register("time-entries", {
   snapshot: () => ({
-    clientCount: editClients.length,
+    clientCount: timeEntryClients.length,
     entryCount: timeEntries.length,
-    selectedEntryId,
-    userCount: editUsers.length,
+    selectedEntryId: "",
+    sortMode: sortSelect.value,
+    userCount: timeEntryUsers.length,
     workspaceShowsClientTools: workspaceShowsClientTools(),
   }),
   runSmoke: () => {
     const checks = [
+      { name: "toolbar controls exist", ok: Boolean(addTimeEntryButton && sortSelect) },
       { name: "filter controls exist", ok: Boolean(filterStatusSelect && filterPeriodSelect && filterUsersSelect) },
-      { name: "entry table exists", ok: Boolean(editEntryTable) },
-      { name: "edit form exists", ok: Boolean(editEntryForm) },
+      { name: "entry table exists", ok: Boolean(timeEntryTable) },
+      { name: "time entry dialog helper exists", ok: Boolean(window.LongtailForge.timeEntryDialog) },
       { name: "entry data is an array", ok: Array.isArray(timeEntries) },
     ];
 
     return {
       ok: checks.every((check) => check.ok),
-      pageId: "edit-entries",
+      pageId: "time-entries",
       checks,
     };
   },

@@ -26,7 +26,7 @@ const clientProjectsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.32.5.1",
+  version: "0.32.5.2",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: true,
@@ -64,7 +64,7 @@ const clientProjectsModule = {
       moduleId: "client-projects",
       path: "/js/clients-projects.js",
       type: "script",
-      views: ["clients", "projects"],
+      views: ["clients", "projects", "workbench"],
     },
   ],
   dashboard: [

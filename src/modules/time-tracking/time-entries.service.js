@@ -50,7 +50,7 @@ async function create(entry, session) {
     recordType: "time_entry",
     recordId: entryId,
     recordLabel: data.client_name ? `${data.client_name} / ${data.project_name}` : data.project_name,
-    recordUrl: `edit-entries.html?entry=${encodeURIComponent(entryId)}`,
+    recordUrl: `time-entries.html?entry=${encodeURIComponent(entryId)}`,
     previousValue: null,
     newValue: data,
     metadata: {
@@ -115,7 +115,7 @@ async function update(payload, entryId, session) {
     recordLabel: updatedEntry.client_name
       ? `${updatedEntry.client_name} / ${updatedEntry.project_name}`
       : updatedEntry.project_name,
-    recordUrl: `edit-entries.html?entry=${encodeURIComponent(decodedEntryId)}`,
+    recordUrl: `time-entries.html?entry=${encodeURIComponent(decodedEntryId)}`,
     previousValue: previousEntry,
     newValue: taggedEntry,
     metadata: {
@@ -156,7 +156,7 @@ async function remove(entryId, session) {
     recordLabel: previousEntry.client_name
       ? `${previousEntry.client_name} / ${previousEntry.project_name}`
       : previousEntry.project_name,
-    recordUrl: `edit-entries.html?entry=${encodeURIComponent(decodedEntryId)}`,
+    recordUrl: `time-entries.html?entry=${encodeURIComponent(decodedEntryId)}`,
     previousValue: previousEntry,
     newValue: null,
     metadata: {

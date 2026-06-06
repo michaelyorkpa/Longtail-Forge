@@ -24,6 +24,10 @@ async function save(taskId, payload, session) {
   await assertCanUseTaskTimer(session, task);
 
   const timerStatus = payload?.timer_status === "running" ? "running" : "paused";
+  const existingTimer = await taskTimersRepository.readByTask(session.workspace_id, session.user_id, task.task_id);
+  const transition = timerStatus === "running"
+    ? await transitionTaskToInProgressForTimerStart(task, existingTimer, session)
+    : taskTimerTransitionMetadata(existingTimer);
   const elapsedSeconds = Math.max(0, Number.parseInt(payload?.accumulated_elapsed_seconds, 10) || 0);
   const result = await activeTimersService.saveSourced(taskTimerSource(task), {
     active_timer_id: payload?.active_timer_id || payload?.active_task_timer_id || randomUUID(),
@@ -35,6 +39,9 @@ async function save(taskId, payload, session) {
     billable: task.billable === "no" ? "no" : "yes",
     accumulated_elapsed_seconds: elapsedSeconds,
     last_active_start_time: timerStatus === "running" ? normalizeUtcIso(payload?.last_active_start_time, session.timezone) : null,
+    sourceMetadata: {
+      taskTimerStatusTransition: transition,
+    },
     timer_status: timerStatus,
   }, session);
 
@@ -44,7 +51,9 @@ async function save(taskId, payload, session) {
 async function remove(taskId, session) {
   await assertTaskTimersEnabled(session);
   const task = await readTaskOrThrow(taskId, session);
+  const timer = await taskTimersRepository.readByTask(session.workspace_id, session.user_id, task.task_id);
   await activeTimersService.removeSourced(taskTimerSource(task), session);
+  await revertTaskTimerStartTransition(task, timer, session);
 
   return {
     task_id: task.task_id,
@@ -152,6 +161,112 @@ async function assertCanUseTaskTimer(session, task) {
     client_id: task.client_id,
     project_id: task.project_id,
     operation: "task_timer",
+  });
+}
+
+async function transitionTaskToInProgressForTimerStart(task, existingTimer, session) {
+  const existingTransition = taskTimerTransitionMetadata(existingTimer);
+
+  if (existingTransition.movedTaskFromOpen === true) {
+    return existingTransition;
+  }
+
+  if (task.status !== "open") {
+    return {
+      movedTaskFromOpen: false,
+      previousStatus: task.status,
+    };
+  }
+
+  const updatedTask = await tasksRepository.update(session.workspace_id, {
+    ...task,
+    status: "in_progress",
+    updated_by_user_id: session.user_id,
+    assignee_ids: task.assignee_ids,
+  });
+
+  await recordTaskTimerStatusAudit({
+    session,
+    action: "task_timer_status_started",
+    previousTask: task,
+    nextTask: updatedTask,
+    transition: {
+      from: "open",
+      to: "in_progress",
+    },
+  });
+
+  return {
+    movedTaskFromOpen: true,
+    previousStatus: "open",
+  };
+}
+
+async function revertTaskTimerStartTransition(task, timer, session) {
+  const transition = taskTimerTransitionMetadata(timer);
+
+  if (transition.movedTaskFromOpen !== true || task.status !== "in_progress") {
+    return null;
+  }
+
+  const updatedTask = await tasksRepository.update(session.workspace_id, {
+    ...task,
+    status: "open",
+    updated_by_user_id: session.user_id,
+    assignee_ids: task.assignee_ids,
+  });
+
+  await recordTaskTimerStatusAudit({
+    session,
+    action: "task_timer_status_reverted",
+    previousTask: task,
+    nextTask: updatedTask,
+    transition: {
+      from: "in_progress",
+      to: "open",
+    },
+  });
+
+  return updatedTask;
+}
+
+function taskTimerTransitionMetadata(timer) {
+  const metadata = timer?.sourceMetadata || parseTimerSourceMetadata(timer?.source_metadata_json);
+  const transition = metadata?.taskTimerStatusTransition || {};
+
+  return {
+    movedTaskFromOpen: transition.movedTaskFromOpen === true,
+    previousStatus: transition.previousStatus || "",
+  };
+}
+
+function parseTimerSourceMetadata(value) {
+  try {
+    const parsed = JSON.parse(String(value || "{}"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+async function recordTaskTimerStatusAudit({ session, action, previousTask, nextTask, transition }) {
+  await auditService.record({
+    session,
+    action,
+    changeType: "update",
+    recordType: "task",
+    recordId: nextTask?.task_id || previousTask?.task_id,
+    recordLabel: nextTask?.title || previousTask?.title,
+    recordUrl: `tasks.html?task=${encodeURIComponent(nextTask?.task_id || previousTask?.task_id || "")}`,
+    previousValue: previousTask,
+    newValue: nextTask,
+    metadata: {
+      task_id: nextTask?.task_id || previousTask?.task_id,
+      client_id: nextTask?.client_id || previousTask?.client_id || "",
+      project_id: nextTask?.project_id || previousTask?.project_id || "",
+      source: "task_timer_lifecycle",
+      transition,
+    },
   });
 }
 

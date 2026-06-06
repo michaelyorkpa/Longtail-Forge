@@ -2,48 +2,185 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.5.1 - UI Clean up
+## Version 0.32.5.2 - Framework/Backend Tidying
 
-- [x] Filter list and bulk actions in Projects -> Tasks, and add/edit task modal footer have backgrounds that do not respect dark mode
-  - [x] I believe this extends to all modal footers; I just found a white footer background in the edit project settings modal, too
+This section is intentionally split into ordered implementation passes because it touches framework-owned modal orchestration, Tasks, Time Tracking, Clients/Projects defaults, and Workbench behavior.
 
-- [x] Add a "Complete" button on the Workbench tasks
+### Pass 1 - Cross-screen module modal contract
 
-- [x] Turn off floating of task list filter and make it stay static on the page
-  - As much as I love it, it's too big on smaller screens (laptop)
+- [x] Review the existing shared modal helper, page controller patterns, module manifest browser asset model, and current add/edit modal entry points.
+- [x] Define a lightweight browser-side module action contract for opening module-owned add/edit dialogs from another page without navigating away first.
+- [x] Keep settings and setting modals out of this contract; they should continue to live in the appropriate settings menus.
+- [x] Register first-party modal actions for practical near-term module flows:
+  - [x] Add Task
+  - [x] Edit Task
+  - [x] Add Time Entry
+  - [x] Edit Time Entry
+  - [x] Add Project
+  - [x] Edit Project
+  - [x] Add Client, only for Business workspaces
+  - [x] Edit Client, only for Business workspaces
+- [x] Update cross-page callers such as Workbench so `Add Task` opens the module modal directly instead of routing through `tasks.html?new=1`.
+- [x] Preserve module ownership: framework code may discover and dispatch actions, but module pages/scripts still own their forms, validation, saves, and permissions.
+- [x] Add regression coverage for action discovery, disabled modules, and at least one Workbench-to-module modal invocation.
 
-- [x] Notifications display task.updated - {{date}}, {{time}} instead of {{taskTitle}} - {{date}}, {{time}}
-  - When {{taskTitle}} is hovered over, please display the {{clientName}}/{{projectName}} in Business workspaces
-    - For Personal and Family workspaces, hover over should give just {{projectName}}
+### Pass 2 - Module-owned reusable dialog contract
 
-## Version 0.35.5.2 - Framework/Backend Tidying
+- [x] Treat the Pass 1 iframe host as a temporary bridge, not the final modal/action architecture.
+- [x] Define a module-owned dialog helper contract that lets modules register real dialog openers without embedding full module pages in frames.
+- [x] Keep the framework boundary narrow:
+  - [x] Framework owns action discovery, dispatch, availability checks, host-page lifecycle, and completion callbacks
+  - [x] Modules own dialog rendering, form state, validation, API calls, save behavior, reset behavior, and record-specific permissions
+  - [x] Framework must not import module-specific form internals or know task/time-entry/project/client field layouts
+- [x] Add a shared action registry shape for dialog-backed actions:
+  - [x] `actionId`
+  - [x] `moduleId`
+  - [x] `recordType`
+  - [x] `mode` such as `add`, `edit`, or future module-defined modes
+  - [x] `label`
+  - [x] `requiredPermissions`
+  - [x] `requiredWorkspaceCapabilities`
+  - [x] `requiredModules`
+  - [x] `open(params, hostContext)` callback
+  - [x] `canOpen(params, hostContext)` callback where module-specific checks are needed
+  - [x] completion payload contract
+- [x] Keep settings and setting modals excluded from this contract; they remain in their settings menus.
+- [x] Keep the registry browser-side for this pass, but document how module manifests should eventually declare action metadata separately from browser opener functions.
+- [x] Add host lifecycle behavior that all module dialog helpers can rely on:
+  - [x] Refresh callback after successful completion
+  - [x] Close/cancel callback
+  - [x] Status/error handoff
+  - [x] Focus return to the initiating control
+  - [x] Optional params for default client/project/task context
+- [x] Add regression coverage proving the framework dispatches through registered module callbacks instead of iframe/page embedding.
 
-- Adjust the way the front end handles module modals
-  - This does not apply to settings or setting modals. Those should remain in the appropriate menus.
-  - This does apply to add/edit modals of all types.
-  - Modals should be openable from any screen, e.g. "Add Task" on Workbench should simply open the modal, rather than navigating away from the Workbench
-  - This will reduce the number of clicks a user has to perform to continue working when an interruption necessitates a change or addition
+### Pass 3 - Task dialog helper extraction
 
-- Starting a task timer should move task status to in progress
-  - if task timer is cancelled/reset/deleted before saving, task should move back to open status
+- [x] Extract the Tasks add/edit dialog into a Tasks-owned reusable browser helper.
+- [x] Keep the existing Tasks page using the extracted helper for its Add Task and Edit Task flows.
+- [x] Register `tasks.add` and `tasks.edit` through the module-owned dialog helper instead of the iframe/page bridge.
+- [x] Update Workbench `Add Task` to open the real Tasks dialog in Workbench's DOM without loading the full Tasks page.
+- [x] Preserve existing Tasks behavior:
+  - [x] Project/client selector rules
+  - [x] Workspace-type visibility rules
+  - [x] Project task defaults
+  - [x] Recurrence controls
+  - [x] Reminder controls
+  - [x] Task timer controls where appropriate on edit
+  - [x] Tag picker integration
+  - [x] Copy task link behavior on edit
+  - [x] Save/audit/notification behavior through the Tasks service
+- [x] Add completion callbacks so Workbench refreshes task cards after a task is created or edited.
+- [x] Remove iframe usage for Tasks actions once the helper path is active.
+- [x] Add regression coverage for:
+  - [x] Tasks page still opens add/edit dialogs
+  - [x] Workbench opens Add Task without an iframe
+  - [x] Disabled Tasks module prevents action availability
+  - [x] Completion refresh callback fires after save
 
-- [ ] Edit time entries and manual time entry screens needs an update
-  - [ ] This should, simply, be titled Time Entries
-  - [ ] The screen should be a filter/sortable list view (bring it in line with the Tasks screen; it's close)
-  - [ ] The actual edit form should be moved from the bottom of this screen to a modal window
-  - [ ] An "Add Time Entry" button should be added to the top of the time entries window
-  - [ ] Manual time entries should become an "Add Time Entry" modal window
+### Pass 4 - Time Entry dialog helper extraction
 
-- [ ] Add Project default for task assignation. Choices can be:
-  - Task Creator
-  - Project Admin (fallback, client admin if Business workspace or Workspace admin if no client admin/not Business workspace)
-  - Unassigned
+- [x] Extract Time Tracking-owned Add Time Entry dialog behavior from the current manual-entry flow into a reusable helper.
+- [x] Extract Time Tracking-owned Edit Time Entry dialog behavior from the current edit-entry flow into a reusable helper where practical before the unified Time Entries screen lands.
+- [x] Register `time-entries.add` and `time-entries.edit` through module-owned dialog helpers instead of the iframe/page bridge.
+- [x] Preserve existing Time Tracking behavior:
+  - [x] Client/project selector rules
+  - [x] Workspace projects behavior for Personal and Family workspaces
+  - [x] Billable default inheritance
+  - [x] Date/time and duration validation
+  - [x] Invoice status
+  - [x] Tag picker integration
+  - [x] Create/update/delete service ownership
+- [x] Add host params for default client, project, date, start/end time, and entry ID where callers can provide useful context.
+- [x] Remove iframe usage for Time Entry actions once helper paths are active.
+- [x] Add regression coverage for add/edit helper registration, disabled Time Tracking module availability, and completion callbacks.
 
-- [ ] Make sure the Tasks list on the Workbench uses the project's default sort order
-- [ ] Add priority sorting to Tasks on Workbench
+### Pass 5 - Client and Project dialog helper extraction
 
-- [ ] If you click the "Completed" or the "Archived" filter in Projects -> Tasks, then click "All," the filtered list doesn't change
+- [x] Extract Clients/Projects-owned Add Project and Edit Project dialogs into reusable browser helpers.
+- [x] Extract Business-only Add Client and Edit Client dialogs into reusable browser helpers.
+- [x] Register `projects.add`, `projects.edit`, `clients.add`, and `clients.edit` through module-owned dialog helpers instead of the iframe/page bridge.
+- [x] Preserve existing Clients/Projects behavior:
+  - [x] Business-only client actions
+  - [x] Personal/Family project-only behavior
+  - [x] Client/project hierarchy controls
+  - [x] Billing defaults and rounding controls
+  - [x] Task defaults controls
+  - [x] Tag picker integration
+  - [x] True modal footer/action placement beside existing close actions
+  - [x] Save/archive audit behavior through Clients/Projects services
+- [x] Add host params for default client, parent project, project ID, and client ID.
+- [x] Remove iframe usage for Clients/Projects actions once helper paths are active.
+- [x] Add regression coverage for Business-only client action availability, project action availability in non-Business workspaces, and completion callbacks.
 
+### Pass 6 - Retire iframe bridge and harden module action registry
+
+- [x] Remove the iframe-based module action host once all first-party actions have module-owned dialog helpers.
+- [x] Keep or replace the Pass 1 action registry only where it dispatches registered module callbacks directly.
+- [x] Ensure no Workbench or cross-screen caller opens full pages inside modal frames.
+- [x] Add a regression that fails if module action dispatch creates an iframe for first-party add/edit actions.
+- [x] Update decisions and module-development docs to describe the dialog-helper contract and the boundary between framework dispatch and module-owned UI.
+- [x] Confirm the framework can list available actions without importing module-specific form internals.
+
+### Pass 7 - Task timer status transitions
+
+- [x] Starting a task timer should move an eligible `open` task to `in_progress`.
+- [x] Starting or resuming a timer for a task that is already `in_progress` should leave it `in_progress`.
+- [x] Pausing a task timer should leave the task `in_progress`.
+- [x] Resetting, deleting, or discarding a task timer before saving time should move the task back to `open` only when the timer start was what moved it to `in_progress`.
+- [x] Finalizing/saving task time should leave the task `in_progress` unless another explicit task completion action runs.
+- [x] Preserve the existing rule that completed or archived tasks cannot use task timers.
+- [x] Audit task status changes caused by timer lifecycle events clearly enough to distinguish them from manual task edits.
+- [x] Add task-timer regression coverage for start, pause, discard/reset, finalize, completed-task rejection, and archived-task rejection.
+
+### Pass 8 - Unified Time Entries screen
+
+- [x] Rename the editable/manual time entry surface to `Time Entries`.
+- [x] Consolidate the current manual entry and edit-entry workflows into one filterable/sortable Time Entries list view.
+- [x] Keep the list view aligned with the Tasks page interaction model where practical:
+  - [x] Top toolbar with `Add Time Entry`
+  - [x] Filter controls
+  - [x] Sort controls
+  - [x] Scannable rows
+  - [x] Row actions for edit/delete where permitted
+- [x] Move the existing edit time entry form out of the bottom of the page and into an edit modal.
+- [x] Convert manual time entry into an `Add Time Entry` modal.
+- [x] Preserve existing Time Tracking service/API ownership for create, update, delete, billable defaults, tag assignment, and reporting-facing fields.
+- [x] Update navigation labels/routes only as needed to avoid duplicate Manual Entry/Edit Entries destinations once the unified screen is active.
+- [x] Add regression coverage for add modal, edit modal, filter/sort behavior, and tag/billable payload preservation.
+
+### Pass 9 - Project default task assignee
+
+- [x] Add a project-level default task assignee setting alongside existing project task defaults.
+- [x] Support these default assignee modes:
+  - [x] `Task Creator`
+  - [x] `Project Admin`
+  - [x] `Unassigned`
+- [x] For `Project Admin`, resolve fallback ownership in this order:
+  - [x] Project admin
+  - [x] Client admin, for Business workspaces when no project admin is available
+  - [x] Workspace admin, when no project admin is available and no Business client admin fallback applies
+- [x] Apply the project default only when creating a new task and no explicit assignee payload is submitted.
+- [x] Preserve existing permissions and scope boundaries when resolving candidate default assignees.
+- [x] Display the selected default in the project settings/edit modal using the existing modal footer/action placement pattern.
+- [x] Add regression coverage for each default mode and fallback path.
+
+### Pass 10 - Workbench task ordering and filters
+
+- [x] Make the Workbench task list use the selected task's project default sort order when that project provides one.
+- [x] Add a Workbench priority sort option.
+- [x] Keep Workbench as a framework-owned surface that renders module-contributed task work items instead of moving task-specific data ownership into Workbench.
+- [x] Fix the Projects -> Tasks quick-filter bug where `Completed` or `Archived` followed by `All` does not refresh the visible list.
+- [x] Add regression coverage for Workbench default sorting, priority sorting, and the `Completed`/`Archived` -> `All` filter reset.
+
+### Clarification questions before implementation
+
+- [x] Should the unified Time Entries screen replace both `manual-entry.html` and `edit-entries.html`, or should those URLs remain as compatibility redirects/aliases to the new screen? Replace them both.
+- [x] For cross-screen modal actions, should 0.32.5.2 implement the shared action contract plus the first-party actions listed above, or should it implement only Tasks/Time Entries first and leave Clients/Projects modal actions for a later pass?
+  - Answered in Pass 1: implement the shared action contract plus the listed first-party actions, with module-owned pages embedded in modal mode rather than duplicating module forms in Workbench.
+- [x] Should the iframe/page bridge remain the final cross-screen modal implementation?
+  - Answered after Pass 1 review: no. The iframe/page bridge is awkward and should be replaced by module-owned reusable dialog helpers with direct registry dispatch and no full-page embedding.
+- [x] For `Project Admin` default assignee resolution, if multiple project/client/workspace admins qualify, should the app pick the oldest active admin, the alphabetically first display name, or require the project setting to choose a specific user? Oldest admin, please.
 
 ## Version 0.32.5.3 - Shared Icon and Compact Action Controls
 

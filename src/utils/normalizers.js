@@ -174,7 +174,13 @@ function normalizeProjectTaskDefaults(defaults = {}) {
     priority: normalizeTaskPriority(defaults.priority || defaults.task_default_priority || defaults.defaultPriority),
     status: normalizeTaskStatus(defaults.status || defaults.task_default_status || defaults.defaultStatus),
     sortOrder: normalizeProjectTaskSortOrder(defaults.sortOrder || defaults.sort_order || defaults.task_default_sort_order || defaults.task_default_sort_order_json),
+    defaultAssigneeMode: normalizeProjectTaskDefaultAssigneeMode(defaults.defaultAssigneeMode || defaults.default_assignee_mode || defaults.task_default_assignee_mode),
   };
+}
+
+function normalizeProjectTaskDefaultAssigneeMode(value) {
+  const mode = String(value || "").trim();
+  return ["creator", "project_admin", "unassigned"].includes(mode) ? mode : "creator";
 }
 
 function normalizeTaskPriority(value) {

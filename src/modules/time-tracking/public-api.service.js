@@ -49,7 +49,7 @@ async function createTimeEntry(context, payload) {
     recordType: "time_entry",
     recordId: entryId,
     recordLabel: entry.client_name ? `${entry.client_name} / ${entry.project_name}` : entry.project_name,
-    recordUrl: `edit-entries.html?entry=${encodeURIComponent(entryId)}`,
+    recordUrl: `time-entries.html?entry=${encodeURIComponent(entryId)}`,
     previousValue: null,
     newValue: entry,
     metadata: {

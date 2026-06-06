@@ -6,6 +6,7 @@ import { taskTimersService } from "./task-timers.service.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
+import { permissionsRepository } from "../../repositories/permissions.repo.js";
 import { modulesService } from "../../core/modules/modules.service.js";
 import { usersRepository } from "../../repositories/users.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
@@ -109,7 +110,14 @@ async function read(taskId, session) {
 
 async function create(payload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
-  const taskDefaults = await readProjectTaskDefaults(session, payload?.project_id || payload?.projectId);
+  const projectId = payload?.project_id || payload?.projectId;
+  const taskDefaults = await readProjectTaskDefaults(session, projectId);
+  const defaultAssigneeIds = await resolveCreateDefaultAssigneeIds({
+    payload,
+    projectId,
+    session,
+    taskDefaults,
+  });
   const normalizedTask = await normalizeTaskPayload({
     payload,
     session,
@@ -119,7 +127,7 @@ async function create(payload, session) {
       priority: taskDefaults.priority,
       created_by_user_id: session.user_id,
       updated_by_user_id: session.user_id,
-      assignee_ids: [session.user_id],
+      assignee_ids: defaultAssigneeIds,
     },
   });
 
@@ -493,7 +501,96 @@ async function readProjectTaskDefaults(session, projectId) {
     priority: normalizePriority(defaults.priority),
     status: normalizeStatus(defaults.status),
     sortOrder: Array.isArray(defaults.sortOrder) ? defaults.sortOrder : ["due_date", "priority", "status"],
+    defaultAssigneeMode: normalizeProjectDefaultAssigneeMode(defaults.defaultAssigneeMode),
   };
+}
+
+async function resolveCreateDefaultAssigneeIds({ payload = {}, projectId = "", session, taskDefaults = {} }) {
+  if (hasAssigneePayload(payload)) {
+    return normalizeAssigneeIds(
+      Array.isArray(payload.assignee_ids)
+        ? payload.assignee_ids
+        : Array.isArray(payload.assignees)
+          ? payload.assignees.map((assignee) => assignee.user_id || assignee)
+          : payload.assigneeIds,
+    );
+  }
+
+  const mode = normalizeProjectDefaultAssigneeMode(taskDefaults.defaultAssigneeMode);
+
+  if (mode === "unassigned") {
+    return [];
+  }
+
+  if (mode !== "project_admin") {
+    return [session.user_id];
+  }
+
+  const adminUserId = await resolveProjectAdminDefaultAssignee(session, projectId);
+  return adminUserId ? [adminUserId] : [];
+}
+
+function hasAssigneePayload(payload = {}) {
+  return Object.hasOwn(payload, "assignee_ids") ||
+    Object.hasOwn(payload, "assigneeIds") ||
+    Object.hasOwn(payload, "assignees");
+}
+
+async function resolveProjectAdminDefaultAssignee(session, projectId) {
+  const normalizedProjectId = String(projectId || "").trim();
+
+  if (!normalizedProjectId) {
+    return "";
+  }
+
+  const [settings, project] = await Promise.all([
+    settingsRepository.readWorkspaceSettings(session.workspace_id),
+    projectsRepository.readById(session.workspace_id, normalizedProjectId),
+  ]);
+
+  if (!project) {
+    return "";
+  }
+
+  const projectAdmin = project.client_id
+    ? await permissionsRepository.readOldestActiveUserForRoleScope(
+        session.workspace_id,
+        "project_admin",
+        "client",
+        project.client_id,
+      )
+    : null;
+
+  if (projectAdmin?.user_id) {
+    return projectAdmin.user_id;
+  }
+
+  const clientAdmin = settings.workspaceType === "business" && project.client_id
+    ? await permissionsRepository.readOldestActiveUserForRoleScope(
+        session.workspace_id,
+        "client_admin",
+        "client",
+        project.client_id,
+      )
+    : null;
+
+  if (clientAdmin?.user_id) {
+    return clientAdmin.user_id;
+  }
+
+  const workspaceAdmin = await permissionsRepository.readOldestActiveUserForRoleScope(
+    session.workspace_id,
+    "workspace_admin",
+    "workspace",
+    session.workspace_id,
+  );
+
+  return workspaceAdmin?.user_id || "";
+}
+
+function normalizeProjectDefaultAssigneeMode(value) {
+  const mode = String(value || "").trim();
+  return ["creator", "project_admin", "unassigned"].includes(mode) ? mode : "creator";
 }
 
 async function applyBulkAction(taskId, action, payload, session) {

@@ -1,3 +1,30 @@
+## Version 0.32.5.2 - 2026-06-06 11:32 -04:00
+
+- Bumped the app and first-party module versions to `0.32.5.2`.
+- Added a shared browser-side module action registry and modal host for cross-screen module-owned add/edit dialogs.
+- Registered first-party modal actions for Tasks, Time Entries, Projects, and Business-only Clients.
+- Updated Workbench `Add Task` to open the module-owned task form through the shared action host instead of navigating to `tasks.html?new=1`.
+- Added module-action completion signals to task, time-entry, client, and project save paths so hosts can close and refresh after module-owned saves.
+- Added project and time-entry query openers needed by registered edit/add actions.
+- Added module-action regression coverage and wired it into `npm run check`.
+- Extended module actions with callback-backed module-owned dialog openers, `canOpen` checks, action metadata, host lifecycle callbacks, status handoff, and focus return as the non-iframe contract for future passes.
+- Documented the browser-side dialog action contract in the module development and module contract docs.
+- Fixed Settings navigation composition so User Settings appears only under Settings -> User and User Admin appears only once under Settings -> Workspace.
+- Added a Tasks-owned reusable task dialog helper and switched Tasks page and Workbench `Add Task` flows to use it instead of the iframe/page bridge.
+- Added a Time Tracking-owned reusable time entry dialog helper and switched Time Entry module actions plus Edit Entries row edits to use helper-owned dialogs instead of embedded page frames.
+- Added Clients/Projects-owned reusable Project and Business-only Client dialog helpers and switched registered Client/Project module actions to helper-owned dialogs instead of embedded page frames.
+- Retired the iframe-based module action bridge so the shared registry dispatches only module-owned dialog callbacks and regression coverage fails on frame-based first-party actions.
+- Added task-timer lifecycle status transitions so starting an eligible open task timer moves the task to in-progress, discard/reset reverts only timer-started transitions, saved time leaves the task in-progress, and timer-driven status changes are audited distinctly.
+- Added active timer source metadata storage plus task-timer status regression coverage for start, pause, discard/reset, finalize, completed-task rejection, and archived-task rejection.
+- Replaced the separate Manual Entry and Edit Entries pages with a unified Time Entries screen that provides an `Add Time Entry` toolbar action, filter controls, sort controls, scannable rows, and modal-owned add/edit workflows.
+- Updated Time Tracking navigation, protected-view registration, tags asset targeting, and audit record URLs to use `time-entries.html`.
+- Added Time Entries screen regression coverage for add/edit modal hooks, filters, sorting, and tag/billable payload preservation.
+- Added project-level default task assignee modes for Task Creator, Project Admin, and Unassigned, with Project Admin fallback through oldest active project admin, Business client admin, then workspace admin.
+- Added project default assignee storage, Project Defaults UI, task-create resolution, and regression coverage for each default mode and fallback path.
+- Updated Workbench task ordering to consume Tasks module project default sort metadata, kept the priority sort path covered, and fixed the Tasks page quick-filter reset from Completed/Archived back to All.
+- Added Workbench task ordering regression coverage for project default sorting, priority sorting, and the Tasks All quick-filter reset.
+- Updated roadmap and decisions bookkeeping for 0.32.5.2 Passes 1, 2, 3, 4, 5, 6, 7, 8, 9, and 10.
+
 ## Version 0.32.5.1 - 2026-06-06 10:32 -04:00
 
 - Bumped the app and first-party module versions to `0.32.5.1`.
@@ -6,6 +33,7 @@
 - Added a Workbench task `Complete` action that uses the existing Tasks module completion API and preserves timer, permission, recurrence, audit, and notification behavior.
 - Updated task notification summaries and framework notification decoration so task notifications display the task title, with client/project hover context in Business workspaces and project-only context in Personal/Family workspaces.
 - Updated roadmap/archive and decisions bookkeeping for 0.32.5.1.
+- Rewrote the upcoming 0.32.5.2 framework/backend tidying roadmap into ordered implementation passes with implementation checklists and clarification questions.
 
 ## Version 0.32.5 - 2026-06-06 09:28 -04:00
 

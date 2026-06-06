@@ -10,7 +10,7 @@ Owned by `src/modules/time-tracking/`:
 - Unified active timer storage in `active_work_timers`, including manual timers and sourced timers such as Tasks.
 - Timer capabilities consumed by the framework-owned Workbench page.
 - Active-timer migrations under `src/modules/time-tracking/migrations/`.
-- Browser assets for timers, manual entry, edit entries, and time-entry rendering.
+- Browser assets for timers, the unified Time Entries screen, and time-entry rendering.
 - Module metadata for navigation, dashboard panels, settings, permissions, public API endpoints, and workspace capability requirements.
 
 Framework dependencies:

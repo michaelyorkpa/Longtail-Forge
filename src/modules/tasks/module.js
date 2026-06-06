@@ -21,7 +21,7 @@ const tasksModule = {
     },
   },
   category: "core-workflow",
-  version: "0.32.5.1",
+  version: "0.32.5.2",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -56,6 +56,14 @@ const tasksModule = {
   ],
   publicViews: [],
   browserAssets: [
+    {
+      id: "tasks-dialog-script",
+      moduleId: "tasks",
+      path: "/js/task-dialog.js",
+      type: "script",
+      views: ["tasks", "workbench"],
+      requiredPermissions: ["tasks.view"],
+    },
     {
       id: "tasks-script",
       moduleId: "tasks",

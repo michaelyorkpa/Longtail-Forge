@@ -24,11 +24,17 @@ const clientStatuses = ["Active", "Inactive"];
 const projectStatuses = ["Active", "Inactive", "Completed"];
 const taskDefaultStatuses = ["open", "in_progress", "blocked", "complete", "archived"];
 const taskDefaultPriorities = ["low", "normal", "high", "urgent"];
+const taskDefaultAssigneeModes = ["creator", "project_admin", "unassigned"];
 const defaultProjectTaskSortOrder = ["due_date", "priority", "status"];
 const projectTaskSortLabels = {
   due_date: "Due Date",
   priority: "Priority",
   status: "Status",
+};
+const projectTaskAssigneeModeLabels = {
+  creator: "Task Creator",
+  project_admin: "Project Admin",
+  unassigned: "Unassigned",
 };
 const billingContactFields = [
   ["name", "Name"],
@@ -56,12 +62,16 @@ let openBillingClientId = "";
 let openClientBillingSettingsId = "";
 let openedAddClientFromQuery = false;
 let openedClientDetailFromQuery = false;
+let openedAddProjectFromQuery = false;
+let openedProjectDetailFromQuery = false;
 let tagOptions = [];
 let newClientTagPicker = { readTagIds: () => [] };
 
-loadPageData();
+if (clientList && statusMessage) {
+  loadPageData();
+}
 
-clientStatusFilter.addEventListener("change", renderClients);
+clientStatusFilter?.addEventListener("change", renderClients);
 
 if (projectClientFilter) {
   projectClientFilter.addEventListener("change", renderClients);
@@ -124,11 +134,79 @@ async function loadPageData() {
     renderClients();
     openAddClientModalFromQuery();
     openClientDetailModalFromQuery();
+    openAddProjectModalFromQuery();
+    openProjectDetailModalFromQuery();
     setStatus("");
   } catch (error) {
     setStatus("Client and project data could not be loaded.");
     console.error(error);
   }
+}
+
+async function loadClientProjectDialogData() {
+  await window.LongtailForge.workspaceContextReady;
+
+  const [settingsData, clientsData, loadedTags] = await Promise.all([
+    window.LongtailForge.api.getJson("/api/settings", { cache: "no-store" }),
+    window.LongtailForge.api.getJson("/api/client-projects", { cache: "no-store" }),
+    loadTagOptions(),
+  ]);
+
+  workspaceSettings = normalizeSettings(settingsData);
+  clientProjectData = normalizeData(clientsData);
+  tagOptions = loadedTags;
+}
+
+async function openAddProjectAction(params = {}, hostContext = null) {
+  await loadClientProjectDialogData();
+  const client = getProjectTargetClient(params.clientId || params.defaultClientId || params.parentClientId || "");
+
+  return openAddProjectDialog(client, {
+    hostContext,
+    parentProjectId: params.parentProjectId || params.parent_project_id || "",
+  });
+}
+
+async function openEditProjectAction(params = {}, hostContext = null) {
+  await loadClientProjectDialogData();
+  const projectId = params.projectId || params.recordId || params.id || "";
+  const match = getAllProjects().find(({ project }) => project.id === projectId);
+
+  if (!match) {
+    throw new Error("Project could not be found.");
+  }
+
+  return openProjectDetailDialog(match.client, match.project, { hostContext });
+}
+
+async function openAddClientAction(params = {}, hostContext = null) {
+  await loadClientProjectDialogData();
+
+  if (!clientsEnabledForWorkspace()) {
+    throw new Error("Client actions are only available in Business workspaces.");
+  }
+
+  return openAddClientDialog({
+    defaultParentClientId: params.parentClientId || params.defaultClientId || "",
+    hostContext,
+  });
+}
+
+async function openEditClientAction(params = {}, hostContext = null) {
+  await loadClientProjectDialogData();
+
+  if (!clientsEnabledForWorkspace()) {
+    throw new Error("Client actions are only available in Business workspaces.");
+  }
+
+  const clientId = params.clientId || params.recordId || params.id || "";
+  const client = getRealClients().find((item) => item.id === clientId);
+
+  if (!client) {
+    throw new Error("Client could not be found.");
+  }
+
+  return openClientDetailDialog(client, { hostContext });
 }
 
 function renderClients() {
@@ -381,28 +459,48 @@ function updateProjectTableBulkState() {
   });
 }
 
-function openProjectDetailDialog(client, project) {
+function openProjectDetailDialog(client, project, options = {}) {
   const dialog = document.createElement("dialog");
   const closeActions = document.createElement("div");
   const closeButton = document.createElement("button");
-  const projectEditor = createProjectEditor(client, project, { actionTarget: closeActions });
+  let completed = false;
+  const projectEditor = createProjectEditor(client, project, {
+    actionTarget: closeActions,
+    hostContext: options.hostContext,
+    onSaved: () => {
+      completed = true;
+      dialog.close("complete");
+    },
+  });
 
   dialog.className = "project-form-dialog detail-edit-dialog";
   projectEditor.open = true;
   closeActions.className = "form-actions detail-modal-actions";
   closeButton.type = "button";
   closeButton.textContent = "Close";
-  closeButton.addEventListener("click", () => dialog.close());
+  closeButton.addEventListener("click", () => {
+    options.hostContext?.cancel?.({ actionId: "projects.edit", recordId: project.id });
+    dialog.close("cancel");
+  });
   closeActions.appendChild(closeButton);
   dialog.append(projectEditor, closeActions);
   document.body.appendChild(dialog);
-  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+  dialog.addEventListener("close", () => {
+    if (!completed && dialog.returnValue !== "cancel") {
+      options.hostContext?.cancel?.({ actionId: "projects.edit", recordId: project.id });
+    }
+    dialog.remove();
+  }, { once: true });
 
   if (typeof dialog.showModal === "function") {
     dialog.showModal();
   } else {
     dialog.setAttribute("open", "");
   }
+
+  return new Promise((resolve) => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
+  });
 }
 
 function renderClientsPage() {
@@ -603,13 +701,14 @@ function updateClientTableBulkState() {
   });
 }
 
-function openClientDetailDialog(client) {
+function openClientDetailDialog(client, options = {}) {
   const dialog = document.createElement("dialog");
   const details = document.createElement("details");
   const summary = document.createElement("summary");
   const editor = document.createElement("div");
   const closeActions = document.createElement("div");
   const closeButton = document.createElement("button");
+  let completed = false;
 
   dialog.className = "client-detail-dialog detail-edit-dialog";
   details.className = "client-item";
@@ -620,23 +719,41 @@ function openClientDetailDialog(client) {
     createClientNameEditor(client, { showSaveButton: false }),
     createBillingContactEditor(client, { showSaveButton: false }),
     createClientBillingSettingsEditor(client, { showSaveButton: false }),
-    createClientPageActions(client),
+    createClientPageActions(client, {
+      hostContext: options.hostContext,
+      onSaved: () => {
+        completed = true;
+        dialog.close("complete");
+      },
+    }),
   );
   closeActions.className = "form-actions detail-modal-actions";
   closeButton.type = "button";
   closeButton.textContent = "Close";
-  closeButton.addEventListener("click", () => dialog.close());
+  closeButton.addEventListener("click", () => {
+    options.hostContext?.cancel?.({ actionId: "clients.edit", recordId: client.id });
+    dialog.close("cancel");
+  });
   closeActions.appendChild(closeButton);
   details.append(summary, editor);
   dialog.append(details, closeActions);
   document.body.appendChild(dialog);
-  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+  dialog.addEventListener("close", () => {
+    if (!completed && dialog.returnValue !== "cancel") {
+      options.hostContext?.cancel?.({ actionId: "clients.edit", recordId: client.id });
+    }
+    dialog.remove();
+  }, { once: true });
 
   if (typeof dialog.showModal === "function") {
     dialog.showModal();
   } else {
     dialog.setAttribute("open", "");
   }
+
+  return new Promise((resolve) => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
+  });
 }
 
 async function applyBulkClientUpdate({ selectedClientIds, status, billable }) {
@@ -686,10 +803,12 @@ async function applyBulkClientUpdate({ selectedClientIds, status, billable }) {
   }
 }
 
-function openAddProjectDialog(client) {
+function openAddProjectDialog(client, options = {}) {
   const dialog = document.createElement("dialog");
   const form = createAddProjectForm(client, {
-    onSaved: () => dialog.close(),
+    hostContext: options.hostContext,
+    onSaved: () => dialog.close("complete"),
+    parentProjectId: options.parentProjectId || "",
     showClientAssignment: true,
   });
   const heading = document.createElement("h2");
@@ -703,7 +822,10 @@ function openAddProjectDialog(client) {
   closeButton.textContent = "Cancel";
   actions.className = "form-actions";
   actions.classList.add("project-modal-actions");
-  closeButton.addEventListener("click", () => dialog.close());
+  closeButton.addEventListener("click", () => {
+    options.hostContext?.cancel?.({ actionId: "projects.add" });
+    dialog.close("cancel");
+  });
   const submitButton = form.querySelector("[data-add-project-button]") || createAddProjectSubmitButton(client.id);
   submitButton.remove();
   actions.append(submitButton, closeButton);
@@ -711,13 +833,22 @@ function openAddProjectDialog(client) {
   form.appendChild(actions);
   dialog.appendChild(form);
   document.body.appendChild(dialog);
-  dialog.addEventListener("close", () => dialog.remove(), { once: true });
+  dialog.addEventListener("close", () => {
+    if (dialog.returnValue !== "complete" && dialog.returnValue !== "cancel") {
+      options.hostContext?.cancel?.({ actionId: "projects.add" });
+    }
+    dialog.remove();
+  }, { once: true });
 
   if (typeof dialog.showModal === "function") {
     dialog.showModal();
   } else {
     dialog.setAttribute("open", "");
   }
+
+  return new Promise((resolve) => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
+  });
 }
 
 function openAddClientModal() {
@@ -741,6 +872,108 @@ function openAddClientModal() {
 
   clientModal.showModal();
   newClientNameInput?.focus();
+}
+
+function openAddClientDialog({ defaultParentClientId = "", hostContext = null } = {}) {
+  const dialog = document.createElement("dialog");
+  const form = document.createElement("form");
+  const heading = document.createElement("h2");
+  const nameLabel = document.createElement("label");
+  const nameInput = document.createElement("input");
+  const parentLabel = document.createElement("label");
+  const parentSelect = document.createElement("select");
+  const tagContainer = document.createElement("div");
+  const actions = document.createElement("div");
+  const cancelButton = document.createElement("button");
+  const saveButton = document.createElement("button");
+  let tagPicker = { readTagIds: () => [] };
+
+  dialog.className = "client-detail-dialog";
+  form.className = "entry-form client-modal-form";
+  heading.textContent = "Add Client";
+  nameLabel.textContent = "Client Name";
+  nameInput.type = "text";
+  nameInput.required = true;
+  nameLabel.appendChild(nameInput);
+  parentLabel.textContent = "Parent Client";
+  populateParentClientSelect(parentSelect);
+  parentSelect.value = [...parentSelect.options].some((option) => option.value === defaultParentClientId)
+    ? defaultParentClientId
+    : "";
+  parentLabel.appendChild(parentSelect);
+  const mountedPicker = mountTagPicker(tagContainer, [], "Client Tags");
+  if (mountedPicker) {
+    mountedPicker.then((picker) => {
+      tagPicker = picker || tagPicker;
+    });
+  }
+  actions.className = "form-actions";
+  cancelButton.type = "button";
+  cancelButton.textContent = "Cancel";
+  saveButton.type = "submit";
+  saveButton.textContent = "Save";
+  cancelButton.addEventListener("click", () => {
+    hostContext?.cancel?.({ actionId: "clients.add" });
+    dialog.close("cancel");
+  });
+  actions.append(cancelButton, saveButton);
+  form.append(heading, nameLabel, parentLabel, tagContainer, actions);
+  dialog.appendChild(form);
+  document.body.appendChild(dialog);
+  dialog.addEventListener("close", () => {
+    if (dialog.returnValue !== "complete" && dialog.returnValue !== "cancel") {
+      hostContext?.cancel?.({ actionId: "clients.add" });
+    }
+    dialog.remove();
+  }, { once: true });
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    if (!nameInput.value.trim()) {
+      setStatus("Client name is required.");
+      return;
+    }
+
+    const client = {
+      id: createUuid(),
+      name: nameInput.value.trim(),
+      parent_client_id: parentSelect.value || "",
+      billable: "yes",
+      billing_rate: workspaceSettings.defaultBillingRate,
+      billing_period: null,
+      billing_rounding: null,
+      billing_contact: createEmptyBillingContact(),
+      tagIds: tagPicker?.readTagIds?.() || [],
+      projects: [],
+    };
+    const saved = await createClientRecord(client, {
+      action: "client_created",
+      client_id: client.id,
+      client_name: client.name,
+      parent_client_id: client.parent_client_id || "",
+      project_id: "",
+      project_name: "",
+      details: "initial_project_created=false",
+    }, {
+      hostContext,
+      openClientId: client.id,
+    });
+
+    if (saved) {
+      dialog.close("complete");
+    }
+  });
+
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+  } else {
+    dialog.setAttribute("open", "");
+  }
+  nameInput.focus();
+
+  return new Promise((resolve) => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
+  });
 }
 
 function openAddClientModalFromQuery() {
@@ -771,6 +1004,36 @@ function openClientDetailModalFromQuery() {
 
   openedClientDetailFromQuery = true;
   openClientDetailDialog(client);
+}
+
+function openAddProjectModalFromQuery() {
+  if (!isProjectsPage || openedAddProjectFromQuery) {
+    return;
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("addProject") !== "true") {
+    return;
+  }
+
+  openedAddProjectFromQuery = true;
+  openAddProjectDialog(getWorkspaceProjectClient());
+}
+
+function openProjectDetailModalFromQuery() {
+  if (!isProjectsPage || openedProjectDetailFromQuery) {
+    return;
+  }
+
+  const projectId = new URLSearchParams(window.location.search).get("project") || "";
+  const match = getAllProjects().find(({ project }) => project.id === projectId);
+
+  if (!match) {
+    return;
+  }
+
+  openedProjectDetailFromQuery = true;
+  openProjectDetailDialog(match.client, match.project);
 }
 
 function getProjectsForCurrentFilters() {
@@ -1329,7 +1592,7 @@ function populateParentClientSelect(select, excludedClientId = "") {
     : "";
 }
 
-function createClientPageActions(client) {
+function createClientPageActions(client, options = {}) {
   const wrapper = document.createElement("div");
   wrapper.className = "form-actions client-page-actions";
 
@@ -1338,12 +1601,16 @@ function createClientPageActions(client) {
   saveButton.textContent = "Save Client";
   saveButton.dataset.saveClientSettingsButton = client.id;
   saveButton.addEventListener("click", async () => {
-    await saveClientSettings(client, wrapper.closest(".client-editor"), {
+    const saved = await saveClientSettings(client, wrapper.closest(".client-editor"), {
       action: "client_settings_updated",
       openBillingClientId: client.id,
       openClientBillingSettingsId: client.id,
       flashSelector: `[data-save-client-settings-button="${client.id}"]`,
+      hostContext: options.hostContext,
     });
+    if (saved) {
+      options.onSaved?.(client);
+    }
   });
 
   const editProjectsButton = document.createElement("button");
@@ -1652,6 +1919,7 @@ async function saveClientSettings(client, container, options = {}) {
     openBillingClientId: options.openBillingClientId || "",
     openClientBillingSettingsId: options.openClientBillingSettingsId || "",
     flashSelector: options.flashSelector,
+    hostContext: options.hostContext || null,
   });
 }
 
@@ -1845,7 +2113,7 @@ function createProjectEditor(client, project, options = {}) {
       }
     }
 
-    await saveProjectRecord(project, {
+    const saved = await saveProjectRecord(project, {
       action: "project_updated",
       client_id: project.client_id,
       client_name: getProjectClientName(project.client_id),
@@ -1858,7 +2126,11 @@ function createProjectEditor(client, project, options = {}) {
     }, {
       openClientId: project.client_id || "__workspace_projects__",
       flashSelector: `[data-save-project-button="${project.id}"]`,
+      hostContext: options.hostContext || null,
     });
+    if (saved) {
+      options.onSaved?.(project);
+    }
   });
 
   const deleteButton = document.createElement("button");
@@ -1878,7 +2150,7 @@ function createProjectEditor(client, project, options = {}) {
       return;
     }
 
-    await archiveProjectRecord(project, {
+    const archived = await archiveProjectRecord(project, {
       action: "project_archived",
       client_id: client.isWorkspaceScope ? "" : client.id,
       client_name: client.isWorkspaceScope ? "" : client.name,
@@ -1887,7 +2159,11 @@ function createProjectEditor(client, project, options = {}) {
       details: `status=${project.status};billable=${project.billable};billing_rate=${project.billing_rate}`,
     }, {
       openClientId: client.id,
+      hostContext: options.hostContext || null,
     });
+    if (archived) {
+      options.onSaved?.(project);
+    }
   });
 
   if (options.actionTarget) {
@@ -1924,6 +2200,8 @@ function createProjectTaskDefaultsEditor(defaults = {}) {
   const statusSelect = document.createElement("select");
   const priorityLabel = document.createElement("label");
   const prioritySelect = document.createElement("select");
+  const assigneeLabel = document.createElement("label");
+  const assigneeSelect = document.createElement("select");
   const sortFieldset = document.createElement("fieldset");
   const sortLegend = document.createElement("legend");
   const sortList = document.createElement("div");
@@ -1935,6 +2213,7 @@ function createProjectTaskDefaultsEditor(defaults = {}) {
   grid.className = "project-defaults-grid";
   statusLabel.textContent = "Default Status";
   priorityLabel.textContent = "Default Priority";
+  assigneeLabel.textContent = "Default Assignee";
   sortFieldset.className = "project-default-sort-group";
   sortLegend.textContent = "Sort order";
   sortList.className = "project-default-sort-list";
@@ -1945,8 +2224,12 @@ function createProjectTaskDefaultsEditor(defaults = {}) {
   taskDefaultPriorities.forEach((priority) => {
     prioritySelect.appendChild(createOption(priority, formatToken(priority)));
   });
+  taskDefaultAssigneeModes.forEach((mode) => {
+    assigneeSelect.appendChild(createOption(mode, projectTaskAssigneeModeLabels[mode]));
+  });
   statusSelect.value = normalized.status;
   prioritySelect.value = normalized.priority;
+  assigneeSelect.value = normalized.defaultAssigneeMode;
 
   const renderSortRows = (order) => {
     sortList.replaceChildren(...order.map((item, index) => {
@@ -1985,9 +2268,10 @@ function createProjectTaskDefaultsEditor(defaults = {}) {
 
   statusLabel.appendChild(statusSelect);
   priorityLabel.appendChild(prioritySelect);
+  assigneeLabel.appendChild(assigneeSelect);
   renderSortRows(normalized.sortOrder);
   sortFieldset.append(sortLegend, sortList);
-  grid.append(statusLabel, priorityLabel, sortFieldset);
+  grid.append(statusLabel, priorityLabel, assigneeLabel, sortFieldset);
   moduleGroup.append(moduleLegend, grid);
   details.append(summary, moduleGroup);
 
@@ -1996,6 +2280,7 @@ function createProjectTaskDefaultsEditor(defaults = {}) {
     getValue: () => ({
       status: statusSelect.value,
       priority: prioritySelect.value,
+      defaultAssigneeMode: assigneeSelect.value,
       sortOrder: readSortOrder(),
     }),
   };
@@ -2156,7 +2441,12 @@ function getProjectClientName(clientId) {
   return getRealClients().find((client) => client.id === clientId)?.name || "";
 }
 
-function createAddProjectForm(client, { onSaved = null, showClientAssignment = false } = {}) {
+function createAddProjectForm(client, {
+  hostContext = null,
+  onSaved = null,
+  parentProjectId = "",
+  showClientAssignment = false,
+} = {}) {
   const form = document.createElement("form");
   form.className = "add-project-form";
   const usesSimplifiedBilling = usesProjectRoundingOnly();
@@ -2166,7 +2456,7 @@ function createAddProjectForm(client, { onSaved = null, showClientAssignment = f
   const parentProjectLabel = createProjectParentAssignment({
     id: "",
     client_id: client.isWorkspaceScope ? "" : client.id,
-    parent_project_id: "",
+    parent_project_id: parentProjectId,
   }, client);
 
   const nameLabel = document.createElement("label");
@@ -2303,6 +2593,7 @@ function createAddProjectForm(client, { onSaved = null, showClientAssignment = f
     }, {
       openClientId: targetClient.id,
       flashSelector: `[data-add-project-button="${client.id}"]`,
+      hostContext,
     });
     onSaved?.();
   });
@@ -2454,14 +2745,49 @@ async function persistClientProjectChange(action, viewState = {}, request) {
     openClientId = viewState.openClientId || action.client_id || "";
     openBillingClientId = viewState.openBillingClientId || "";
     openClientBillingSettingsId = viewState.openClientBillingSettingsId || "";
-    renderClients();
+    if (clientList) {
+      renderClients();
+    }
     setStatus("");
     flashSavedButton(viewState.flashSelector);
+    signalClientProjectModuleAction(action, viewState.hostContext || null);
     return true;
   } catch (error) {
     setStatus(error.message || "Clients and projects were not saved. Start the local server and try again.");
     console.error(error);
     return false;
+  }
+}
+
+function signalClientProjectModuleAction(action = {}, hostContext = null) {
+  const actionName = action.action || "";
+
+  if (actionName === "client_created") {
+    completeClientProjectAction(hostContext, {
+      actionId: "clients.add",
+      recordId: action.client_id || "",
+    });
+  } else if (actionName.startsWith("client_")) {
+    completeClientProjectAction(hostContext, {
+      actionId: "clients.edit",
+      recordId: action.client_id || "",
+    });
+  } else if (actionName === "project_created") {
+    completeClientProjectAction(hostContext, {
+      actionId: "projects.add",
+      recordId: action.project_id || "",
+    });
+  } else if (actionName.startsWith("project_")) {
+    completeClientProjectAction(hostContext, {
+      actionId: "projects.edit",
+      recordId: action.project_id || "",
+    });
+  }
+}
+
+function completeClientProjectAction(hostContext, detail) {
+  if (hostContext?.complete) {
+    hostContext.complete(detail);
   }
 }
 
@@ -2606,6 +2932,9 @@ function normalizeProjectTaskDefaults(defaults = {}) {
       ? defaults.status || defaults.task_default_status
       : "open",
     sortOrder: normalizeProjectTaskSortOrder(defaults.sortOrder || defaults.task_default_sort_order_json),
+    defaultAssigneeMode: taskDefaultAssigneeModes.includes(defaults.defaultAssigneeMode || defaults.default_assignee_mode || defaults.task_default_assignee_mode)
+      ? defaults.defaultAssigneeMode || defaults.default_assignee_mode || defaults.task_default_assignee_mode
+      : "creator",
   };
 }
 
@@ -3146,6 +3475,73 @@ function isAddClientFormDirty() {
 function setStatus(message) {
   window.LongtailForge.pageController.setStatus(statusMessage, message);
 }
+
+const clientProjectDialogApi = {
+  openAddClient: openAddClientAction,
+  openAddProject: openAddProjectAction,
+  openEditClient: openEditClientAction,
+  openEditProject: openEditProjectAction,
+};
+
+window.LongtailForge.clientProjectDialog = clientProjectDialogApi;
+
+window.LongtailForge.moduleActions?.register?.({
+  actionId: "projects.add",
+  id: "projects.add",
+  moduleId: "client-projects",
+  label: "Add Project",
+  title: "Add Project",
+  mode: "add",
+  recordType: "project",
+  requiredModules: ["client-projects"],
+  requiredPermissions: ["projects.manage"],
+  requiredWorkspaceCapabilities: ["projects", "clients_projects"],
+  open: openAddProjectAction,
+});
+
+window.LongtailForge.moduleActions?.register?.({
+  actionId: "projects.edit",
+  id: "projects.edit",
+  moduleId: "client-projects",
+  label: "Edit Project",
+  title: "Edit Project",
+  mode: "edit",
+  recordType: "project",
+  requiredModules: ["client-projects"],
+  requiredPermissions: ["projects.manage"],
+  requiredWorkspaceCapabilities: ["projects", "clients_projects"],
+  open: openEditProjectAction,
+});
+
+window.LongtailForge.moduleActions?.register?.({
+  actionId: "clients.add",
+  id: "clients.add",
+  moduleId: "client-projects",
+  label: "Add Client",
+  title: "Add Client",
+  mode: "add",
+  recordType: "client",
+  requiredModules: ["client-projects"],
+  requiredPermissions: ["clients.manage"],
+  requiredWorkspaceCapabilities: ["clients_projects"],
+  workspaceTypes: ["business"],
+  open: openAddClientAction,
+});
+
+window.LongtailForge.moduleActions?.register?.({
+  actionId: "clients.edit",
+  id: "clients.edit",
+  moduleId: "client-projects",
+  label: "Edit Client",
+  title: "Edit Client",
+  mode: "edit",
+  recordType: "client",
+  requiredModules: ["client-projects"],
+  requiredPermissions: ["clients.manage"],
+  requiredWorkspaceCapabilities: ["clients_projects"],
+  workspaceTypes: ["business"],
+  open: openEditClientAction,
+});
 
 window.LongtailForge.pageController.register("clients-projects", {
   snapshot: () => ({

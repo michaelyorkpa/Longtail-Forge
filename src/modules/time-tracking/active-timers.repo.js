@@ -76,6 +76,7 @@ INSERT INTO active_work_timers (
   source_id,
   source_label,
   source_url,
+  source_metadata_json,
   client_id,
   client_name,
   project_id,
@@ -98,6 +99,7 @@ VALUES (
   ${sqlNullableText(timer.source_id)},
   ${sqlText(timer.source_label || "")},
   ${sqlText(timer.source_url || "")},
+  ${sqlText(normalizeSourceMetadataJson(timer.source_metadata_json || timer.sourceMetadata))},
   ${sqlNullableText(timer.client_id)},
   ${sqlText(timer.client_name)},
   ${sqlText(timer.project_id)},
@@ -116,6 +118,7 @@ ON CONFLICT(workspace_id, user_id, timer_slot) DO UPDATE SET
   source_id = excluded.source_id,
   source_label = excluded.source_label,
   source_url = excluded.source_url,
+  source_metadata_json = excluded.source_metadata_json,
   client_id = excluded.client_id,
   client_name = excluded.client_name,
   project_id = excluded.project_id,
@@ -249,6 +252,7 @@ SELECT
   source_id,
   source_label,
   source_url,
+  source_metadata_json,
   client_id,
   client_name,
   project_id,
@@ -275,6 +279,8 @@ function activeTimerRowToAppValue(row) {
     source_id: row.source_id || "",
     source_label: row.source_label || "",
     source_url: row.source_url || "",
+    source_metadata_json: row.source_metadata_json || "{}",
+    sourceMetadata: parseSourceMetadata(row.source_metadata_json),
     client_id: row.client_id || "",
     client_name: row.client_name || "",
     project_id: row.project_id || "",
@@ -287,6 +293,38 @@ function activeTimerRowToAppValue(row) {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
+}
+
+function normalizeSourceMetadataJson(value) {
+  if (!value) {
+    return "{}";
+  }
+
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? JSON.stringify(parsed)
+        : "{}";
+    } catch {
+      return "{}";
+    }
+  }
+
+  if (typeof value === "object" && !Array.isArray(value)) {
+    return JSON.stringify(value);
+  }
+
+  return "{}";
+}
+
+function parseSourceMetadata(value) {
+  try {
+    const parsed = JSON.parse(String(value || "{}"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 function isNumericTimerSlot(timerSlot) {

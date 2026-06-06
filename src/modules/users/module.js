@@ -16,7 +16,7 @@ const usersModule = {
     },
   },
   category: "core-admin",
-  version: "0.32.5.1",
+  version: "0.32.5.2",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: false,
@@ -29,7 +29,6 @@ const usersModule = {
   repairHooks: [],
   navigation: [
     { label: "User Admin", href: "user-admin.html", parent: "settings.html" },
-    { label: "User Settings", href: "user-settings.html", parent: "settings.html" },
   ],
   protectedViews: [
     {

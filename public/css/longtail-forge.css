@@ -1046,13 +1046,13 @@ button.danger-button {
     fill: var(--color-success);
 }
 
-/* Manual entry, edit-entry, and reporting forms/tables */
+/* Time entry and reporting forms/tables */
 .entry-page {
     width: min(94vw, 720px);
     text-align: left;
 }
 
-.edit-entries-page {
+.time-entries-page {
     width: min(94vw, 1120px);
 }
 
@@ -2917,7 +2917,7 @@ button:disabled {
         width: min(92vw, 520px);
     }
 
-    .edit-entries-page {
+    .time-entries-page {
         width: min(92vw, 520px);
     }
 

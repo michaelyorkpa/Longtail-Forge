@@ -30,7 +30,8 @@ SELECT
   billing_rounding_increment,
   task_default_priority,
   task_default_status,
-  task_default_sort_order_json
+  task_default_sort_order_json,
+  task_default_assignee_mode
 FROM projects
 WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY name;
@@ -56,7 +57,8 @@ SELECT
   billing_rounding_increment,
   task_default_priority,
   task_default_status,
-  task_default_sort_order_json
+  task_default_sort_order_json,
+  task_default_assignee_mode
 FROM projects
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND id = ${sqlText(projectId)}
@@ -83,7 +85,8 @@ SELECT
   billing_rounding_increment,
   task_default_priority,
   task_default_status,
-  task_default_sort_order_json
+  task_default_sort_order_json,
+  task_default_assignee_mode
 FROM projects
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND client_id = ${sqlText(clientId)}
@@ -117,7 +120,8 @@ SELECT
   billing_rounding_increment,
   task_default_priority,
   task_default_status,
-  task_default_sort_order_json
+  task_default_sort_order_json,
+  task_default_assignee_mode
 FROM projects
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND ${clientScopeSql}
@@ -154,6 +158,7 @@ SET
   task_default_priority = ${sqlText(project.taskDefaults?.priority || "normal")},
   task_default_status = ${sqlText(project.taskDefaults?.status || "open")},
   task_default_sort_order_json = ${sqlText(JSON.stringify(project.taskDefaults?.sortOrder || ["due_date", "priority", "status"]))},
+  task_default_assignee_mode = ${sqlText(project.taskDefaults?.defaultAssigneeMode || "creator")},
   updated_at = ${sqlText(now)}
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND id = ${sqlText(project.id)};
@@ -190,6 +195,7 @@ INSERT INTO projects (
   task_default_priority,
   task_default_status,
   task_default_sort_order_json,
+  task_default_assignee_mode,
   created_at,
   updated_at
 )
@@ -209,6 +215,7 @@ VALUES (
   ${sqlText(project.taskDefaults?.priority || "normal")},
   ${sqlText(project.taskDefaults?.status || "open")},
   ${sqlText(JSON.stringify(project.taskDefaults?.sortOrder || ["due_date", "priority", "status"]))},
+  ${sqlText(project.taskDefaults?.defaultAssigneeMode || "creator")},
   ${sqlText(now)},
   ${sqlText(now)}
 );`;
@@ -229,6 +236,7 @@ function projectRowToAppProject(row) {
       task_default_priority: row.task_default_priority,
       task_default_status: row.task_default_status,
       task_default_sort_order_json: row.task_default_sort_order_json,
+      task_default_assignee_mode: row.task_default_assignee_mode,
     }),
     status: row.status,
   };

@@ -9,6 +9,7 @@ const timerList = document.querySelector("[data-workbench-timer-list]");
 const taskList = document.querySelector("[data-workbench-task-list]");
 const taskFilters = document.querySelector("[data-workbench-task-filters]");
 const taskSortInput = document.querySelector("[data-workbench-task-sort]");
+const addTaskButton = document.querySelector("[data-workbench-add-task]");
 const manualTimerForm = document.querySelector("[data-workbench-manual-timer-form]");
 const manualClientInput = document.querySelector("[data-workbench-manual-client]");
 const manualProjectInput = document.querySelector("[data-workbench-manual-project]");
@@ -33,6 +34,7 @@ let state = {
   },
   taskFilter: "assigned",
   taskItems: [],
+  taskOptions: { projects: [] },
   timers: [],
 };
 let tickIntervalId = null;
@@ -51,6 +53,7 @@ document.querySelectorAll("[data-workbench-card]").forEach((card) => {
 });
 taskFilters?.addEventListener("click", handleTaskFilterClick);
 taskSortInput?.addEventListener("change", () => renderTasks());
+addTaskButton?.addEventListener("click", openAddTaskAction);
 manualTimerForm?.addEventListener("submit", startManualTimer);
 manualClientInput?.addEventListener("change", () => populateManualProjects({ notifyBillableChange: true }));
 manualProjectInput?.addEventListener("change", () => updateManualBillableDefault({ notify: true }));
@@ -77,6 +80,7 @@ async function loadWorkbench() {
       modules: bootstrap.modules || state.modules,
       registry: bootstrap.registry || state.registry,
       taskItems: bootstrap.taskItems || [],
+      taskOptions: bootstrap.taskOptions || { projects: [] },
       timers: bootstrap.timers || [],
     };
     populateManualTimerForm();
@@ -382,6 +386,21 @@ async function completeTask(task) {
   }
 }
 
+async function openAddTaskAction() {
+  setStatus("Opening task form...");
+  try {
+    const result = await window.LongtailForge.moduleActions.open("tasks.add", {}, { setStatus });
+    if (result.completed) {
+      await loadWorkbench();
+      setStatus("Task created.");
+      return;
+    }
+    setStatus("");
+  } catch (error) {
+    setStatus(error.message || "Task form could not be opened.", { isError: true });
+  }
+}
+
 async function finalizeTimer(timer) {
   const durationSeconds = Math.max(1, readElapsedSeconds(timer));
   const endTime = new Date();
@@ -565,6 +584,8 @@ function filteredTasks() {
 }
 
 function sortedTasks(tasks) {
+  const projectSortOrders = readTaskProjectSortOrders(tasks);
+
   return [...tasks].sort((first, second) => {
     if (taskSortInput?.value === "priority_desc") {
       return priorityRank(second.priority) - priorityRank(first.priority) || dueSortValue(first).localeCompare(dueSortValue(second));
@@ -572,8 +593,78 @@ function sortedTasks(tasks) {
     if (taskSortInput?.value === "status_asc") {
       return String(first.status || "").localeCompare(String(second.status || "")) || dueSortValue(first).localeCompare(dueSortValue(second));
     }
+    if (projectSortOrders.size > 0) {
+      const projectOrderResult = compareByProjectSortOrder(first, second, projectSortOrders);
+      if (projectOrderResult !== 0) {
+        return projectOrderResult;
+      }
+    }
     return dueSortValue(first).localeCompare(dueSortValue(second)) || priorityRank(second.priority) - priorityRank(first.priority);
   });
+}
+
+function readTaskProjectSortOrders(tasks) {
+  if ((taskSortInput?.value || "due_asc") !== "due_asc") {
+    return new Map();
+  }
+
+  const projectsById = new Map((state.taskOptions?.projects || []).map((project) => [project.id, project]));
+  const projectSortOrders = new Map();
+
+  tasks.forEach((task) => {
+    const projectId = task.project_id || "";
+    if (!projectId || projectSortOrders.has(projectId)) {
+      return;
+    }
+
+    const sortOrder = normalizeProjectTaskSortOrder(projectsById.get(projectId)?.taskDefaults?.sortOrder || []);
+    if (sortOrder.length > 0) {
+      projectSortOrders.set(projectId, sortOrder);
+    }
+  });
+
+  return projectSortOrders;
+}
+
+function compareByProjectSortOrder(firstTask, secondTask, projectSortOrders) {
+  if ((firstTask.project_id || "") !== (secondTask.project_id || "")) {
+    return dueSortValue(firstTask).localeCompare(dueSortValue(secondTask));
+  }
+
+  const sortOrder = projectSortOrders.get(firstTask.project_id || "");
+  if (!sortOrder) {
+    return 0;
+  }
+
+  return sortOrder.reduce((result, sortItem) => {
+    if (result !== 0) {
+      return result;
+    }
+
+    if (sortItem === "priority") {
+      return priorityRank(secondTask.priority) - priorityRank(firstTask.priority);
+    }
+
+    if (sortItem === "status") {
+      return String(firstTask.status || "").localeCompare(String(secondTask.status || ""));
+    }
+
+    return dueSortValue(firstTask).localeCompare(dueSortValue(secondTask));
+  }, 0);
+}
+
+function normalizeProjectTaskSortOrder(value) {
+  const rawItems = Array.isArray(value) ? value : [];
+  const allowed = ["due_date", "priority", "status"];
+  const ordered = rawItems.filter((item) => allowed.includes(item));
+
+  allowed.forEach((item) => {
+    if (!ordered.includes(item)) {
+      ordered.push(item);
+    }
+  });
+
+  return ordered.length === allowed.length ? ordered : [];
 }
 
 function sortedTimers(timers) {
@@ -856,5 +947,6 @@ window.LongtailForge.pageController.register("workbench", {
     timerCount: state.timers.length,
     tasksEnabled: state.modules.tasks?.enabled === true,
     timeTrackingEnabled: state.modules.timeTracking?.enabled === true,
+    moduleActionCount: window.LongtailForge.moduleActions?.list?.().length || 0,
   }),
 });

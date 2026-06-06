@@ -86,6 +86,29 @@ ORDER BY updated_at DESC, assignment_id;
 `);
 }
 
+async function readOldestActiveUserForRoleScope(workspaceId, roleId, scopeType, scopeId) {
+  const rows = await querySql(`
+SELECT
+  user_role_assignments.user_id,
+  users.username,
+  users.display_name,
+  user_role_assignments.assignment_id,
+  user_role_assignments.created_at
+FROM user_role_assignments
+INNER JOIN users
+  ON users.user_id = user_role_assignments.user_id
+WHERE user_role_assignments.workspace_id = ${sqlText(workspaceId)}
+  AND user_role_assignments.role_id = ${sqlText(roleId)}
+  AND user_role_assignments.scope_type = ${sqlText(scopeType)}
+  AND user_role_assignments.scope_id = ${sqlText(scopeId)}
+  AND users.user_status = 'active'
+ORDER BY user_role_assignments.created_at ASC, user_role_assignments.assignment_id ASC
+LIMIT 1;
+`);
+
+  return rows[0] || null;
+}
+
 async function replaceUserAssignments(workspaceId, userId, assignments) {
   const now = new Date().toISOString();
   const inserts = assignments.map((assignment) => `
@@ -131,6 +154,7 @@ export const permissionsRepository = {
   ensurePermissionContracts,
   readAssignmentsForWorkspace,
   readAssignmentsForUser,
+  readOldestActiveUserForRoleScope,
   readRolePermissions,
   readRoles,
   replaceUserAssignments,

@@ -49,6 +49,7 @@ async function saveSourced(source, payload, session) {
     source_id: normalizedSource.source_id,
     source_label: normalizedSource.source_label,
     source_url: normalizedSource.source_url,
+    sourceMetadata: payload?.sourceMetadata || payload?.source_metadata || {},
   };
 
   return {

@@ -51,6 +51,8 @@ function timerToTaskTimer(timer) {
     source_id: timer.source_id || "",
     source_label: timer.source_label || timer.description || "",
     source_url: timer.source_url || "",
+    source_metadata_json: timer.source_metadata_json || "{}",
+    sourceMetadata: timer.sourceMetadata || {},
     created_at: timer.created_at,
     updated_at: timer.updated_at,
   };

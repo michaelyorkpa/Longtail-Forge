@@ -52,6 +52,35 @@ Register authenticated module pages through `protectedViews`. Protected module p
 
 Declare module-specific browser scripts or styles in `browserAssets`. Shared app-shell assets remain framework-owned.
 
+## Cross-screen Dialog Actions
+
+Use `window.LongtailForge.moduleActions.register()` when a module needs an add/edit dialog that can open from another framework-owned surface such as Workbench. The framework owns action discovery, availability checks, dispatch, focus return, and completion callbacks. The module owns the dialog markup, form state, validation, API calls, save/reset behavior, and record-specific permission handling. Action dispatch is callback-only: do not register page URLs for embedded frames, and do not make framework code import module-specific form internals.
+
+Dialog-backed actions should register metadata plus an opener callback:
+
+```js
+window.LongtailForge.moduleActions.register({
+  actionId: "example-work.add",
+  moduleId: "example-work",
+  recordType: "example-work-item",
+  mode: "add",
+  label: "Add Example Work",
+  requiredModules: ["example-work"],
+  requiredPermissions: ["example.create"],
+  requiredWorkspaceCapabilities: ["projects"],
+  open: async (params, hostContext) => {
+    // Render a module-owned dialog, save through module-owned APIs, then call:
+    hostContext.complete({ recordId: "created-record-id" });
+  },
+});
+```
+
+Use `canOpen(params, hostContext)` for module-specific checks that cannot be described by module state or workspace capability metadata alone. Call `hostContext.cancel()` when the user cancels and `hostContext.setStatus(message, { isError })` to hand status text back to the host.
+
+Do not use this contract for settings or setting modals. Those stay in their settings pages and menus.
+
+The current registry is browser-side. Future manifest metadata may describe action labels, record types, permissions, modules, and workspace capabilities declaratively, but opener functions should remain module-owned browser code rather than framework imports of module form internals.
+
 ## Migrations
 
 Set `migrationsDir` only when the module owns database migrations. Keep example modules migration-free unless the example specifically needs schema behavior. Core migrations still run before module migrations.

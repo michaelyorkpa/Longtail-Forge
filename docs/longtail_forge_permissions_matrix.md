@@ -70,8 +70,8 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 - Task timers are available only for project-linked tasks, including workspace projects in Personal and Family workspaces.
 - Task timers and normal Time Tracking timers share `active_work_timers` storage and are mutually exclusive for a user.
 - Finalized task timers write normal `time_entries` rows with `task_id` populated for reporting filters.
-- New tasks default assignees to the creator when no assignee payload is provided.
-- Project-owned task defaults may define default task status, default task priority, and task sort order.
+- New project-linked tasks use the project's default task assignee mode when no assignee payload is provided; explicit assignee payloads remain authoritative.
+- Project-owned task defaults may define default task status, default task priority, task sort order, and default task assignee mode.
 
 ## Route Enforcement Summary
 

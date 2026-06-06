@@ -5,9 +5,6 @@ const taskStatus = document.querySelector("[data-task-status]");
 const taskList = document.querySelector("[data-task-list]");
 const addTaskButton = document.querySelector("[data-add-task]");
 const taskDialog = document.querySelector("[data-task-dialog]");
-const taskForm = document.querySelector("[data-task-form]");
-const taskDialogTitle = document.querySelector("[data-task-dialog-title]");
-const cancelTaskButton = document.querySelector("[data-cancel-task]");
 const copyTaskLinkButton = document.querySelector("[data-copy-task-link]");
 const quickFilters = document.querySelector("[data-task-quick-filters]");
 const filterDetails = document.querySelector("[data-task-filter-details]");
@@ -27,39 +24,9 @@ const bulkPriorityInput = document.querySelector("[data-task-bulk-priority]");
 const bulkAssigneeControl = document.querySelector("[data-task-bulk-assignee-control]");
 const bulkAssigneesControl = document.querySelector("[data-task-bulk-assignees]");
 const bulkApplyButton = document.querySelector("[data-task-bulk-apply]");
-const titleInput = document.querySelector("[data-task-title]");
-const formStatusInput = document.querySelector("[data-task-form-status]");
-const priorityInput = document.querySelector("[data-task-priority]");
-const clientInput = document.querySelector("[data-task-client]");
-const projectInput = document.querySelector("[data-task-project]");
-const dueDateInput = document.querySelector("[data-task-due-date]");
-const dueTimeInput = document.querySelector("[data-task-due-time]");
-const assigneesInput = document.querySelector("[data-task-assignees]");
-const reminderOverrideInput = document.querySelector("[data-task-reminder-override]");
-const reminderOverrideFields = document.querySelector("[data-task-reminder-override-fields]");
-const effectiveRemindersText = document.querySelector("[data-task-effective-reminders]");
 const recurringInput = document.querySelector("[data-task-recurring]");
 const recurrenceDetailsButton = document.querySelector("[data-task-recurrence-details]");
-const recurrenceSummaryText = document.querySelector("[data-task-recurrence-summary]");
 const recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]");
-const recurrenceForm = document.querySelector("[data-task-recurrence-form]");
-const recurrenceCancelButton = document.querySelector("[data-task-recurrence-cancel]");
-const recurrenceFrequencyInput = document.querySelector("[data-task-recurrence-frequency]");
-const recurrenceIntervalInput = document.querySelector("[data-task-recurrence-interval]");
-const recurrenceEndDateInput = document.querySelector("[data-task-recurrence-end-date]");
-const taskTimerField = document.querySelector("[data-task-timer-field]");
-const taskTimerStatusText = document.querySelector("[data-task-timer-status]");
-const taskTimerDisplay = document.querySelector("[data-task-timer-display]");
-const taskTimerStartButton = document.querySelector("[data-task-timer-start]");
-const taskTimerPauseButton = document.querySelector("[data-task-timer-pause]");
-const taskTimerFinalizeButton = document.querySelector("[data-task-timer-finalize]");
-const taskTimerResetButton = document.querySelector("[data-task-timer-reset]");
-const taskReminderDateTimeHours1Input = document.querySelector("[data-task-reminder-date-time-hours-1]");
-const taskReminderDateTimeHours2Input = document.querySelector("[data-task-reminder-date-time-hours-2]");
-const taskReminderDateOnlyDays1Input = document.querySelector("[data-task-reminder-date-only-days-1]");
-const taskReminderDateOnlyDays2Input = document.querySelector("[data-task-reminder-date-only-days-2]");
-const descriptionInput = document.querySelector("[data-task-description]");
-const taskTagsContainer = document.querySelector("[data-task-tags]");
 
 const api = window.LongtailForge.api;
 const pageController = window.LongtailForge.pageController;
@@ -78,17 +45,11 @@ let state = {
   currentUserId: "",
   quickFilter: "",
   selectedTaskIds: new Set(),
-  recurrenceDraft: defaultRecurrenceDraft(),
   taskTimers: [],
-  taskTimerIntervalId: null,
-  tagPicker: null,
   tagOptions: [],
 };
 
 addTaskButton?.addEventListener("click", () => openTaskDialog());
-cancelTaskButton?.addEventListener("click", () => taskDialog?.close());
-copyTaskLinkButton?.addEventListener("click", copyCurrentTaskLink);
-taskForm?.addEventListener("submit", saveTask);
 quickFilters?.addEventListener("click", handleQuickFilterClick);
 filterDetails?.addEventListener("toggle", handleFilterDetailsToggle);
 bulkStatusInput?.addEventListener("change", updateBulkControls);
@@ -96,23 +57,12 @@ bulkPriorityInput?.addEventListener("change", updateBulkControls);
 bulkAssigneesControl?.addEventListener("change", updateBulkControls);
 bulkApplyButton?.addEventListener("click", applyBulkAction);
 selectAllInput?.addEventListener("change", toggleVisibleSelection);
-reminderOverrideInput?.addEventListener("change", updateReminderOverrideState);
-recurringInput?.addEventListener("change", updateRecurrenceState);
-recurrenceDetailsButton?.addEventListener("click", openRecurrenceDialog);
-recurrenceCancelButton?.addEventListener("click", () => recurrenceDialog?.close());
-recurrenceForm?.addEventListener("submit", saveRecurrenceDraft);
-taskTimerStartButton?.addEventListener("click", () => saveTaskTimer("running"));
-taskTimerPauseButton?.addEventListener("click", () => saveTaskTimer("paused"));
-taskTimerFinalizeButton?.addEventListener("click", finalizeTaskTimer);
-taskTimerResetButton?.addEventListener("click", resetTaskTimer);
 [sortInput, statusFilter, assigneeFilter, clientFilter, projectFilter, tagFilter].forEach((input) => {
   input?.addEventListener("change", () => {
     saveFilterState();
     renderTasks();
   });
 });
-clientInput?.addEventListener("change", () => populateProjectInput(projectInput.value));
-projectInput?.addEventListener("change", applySelectedProjectTaskDefaults);
 
 loadTasks();
 
@@ -135,6 +85,7 @@ async function loadTasks() {
     };
     restoreFilterState();
     populateFilters();
+    configureTaskDialog();
     renderTasks();
     openTaskFromUrl();
     setStatus("");
@@ -169,7 +120,7 @@ function populateFilters() {
     ...sortProjectOptions(state.options.projects).map((project) => option(project.id, `${treeIndent(getProjectDepth(project))}${project.name}`)),
   ]);
   populateTagFilter();
-  populateTaskFormOptions();
+  renderBulkAssigneeOptions();
 }
 
 function populateTagFilter() {
@@ -186,22 +137,6 @@ function populateTagFilter() {
     ...tags.map((tag) => option(tag.tag_id, tag.name || tag.slug)),
   ]);
   tagFilter.value = tags.some((tag) => tag.tag_id === previousValue) ? previousValue : "all";
-}
-
-function populateTaskFormOptions() {
-  if (usesClientScope()) {
-    replaceOptions(clientInput, [
-      option("all", "All Projects"),
-      option("", getWorkspaceScopeLabel()),
-      ...sortClientOptions(state.options.clients).map((client) => option(client.id, `${treeIndent(getClientDepth(client))}${client.name}`)),
-    ]);
-  } else {
-    replaceOptions(clientInput, [option("all", "All Projects")]);
-  }
-  populateProjectInput(projectInput?.value || "");
-  const userOptions = state.options.users.map((user) => option(user.user_id, displayUser(user)));
-  replaceOptions(assigneesInput, userOptions.map((item) => item.cloneNode(true)));
-  renderBulkAssigneeOptions();
 }
 
 function renderBulkAssigneeOptions() {
@@ -228,22 +163,6 @@ function renderBulkAssigneeOptions() {
   });
 
   bulkAssigneesControl.replaceChildren(...controls);
-}
-
-function populateProjectInput(selectedProjectId = "") {
-  const selectedClientId = usesClientScope() ? clientInput?.value || "all" : "all";
-  const projects = state.options.projects.filter((project) =>
-    selectedClientId === "all" || (project.client_id || "") === selectedClientId,
-  );
-
-  replaceOptions(projectInput, [
-    option("", selectedClientId === "" ? getWorkspaceScopeLabel() : "No project"),
-    ...sortProjectOptions(projects).map((project) => option(project.id, `${treeIndent(getProjectDepth(project))}${project.name}`)),
-  ]);
-
-  if (projects.some((project) => project.id === selectedProjectId)) {
-    projectInput.value = selectedProjectId;
-  }
 }
 
 function renderTasks() {
@@ -520,56 +439,26 @@ function duplicateTask(task) {
 }
 
 function openTaskDialog(task = null, options = {}) {
-  const isDuplicate = options.duplicate === true;
-
-  state.editingTaskId = isDuplicate ? "" : task?.task_id || "";
-  taskDialogTitle.textContent = isDuplicate ? "Duplicate Task" : task ? "Edit Task" : "Add Task";
-  copyTaskLinkButton.hidden = !task || isDuplicate;
-  titleInput.value = isDuplicate && task?.title ? `Copy of ${task.title}` : task?.title || "";
-  formStatusInput.value = isDuplicate ? "open" : task?.status || "open";
-  priorityInput.value = task?.priority || "normal";
-  clientInput.value = task ? task.client_id || "" : "all";
-  populateProjectInput(task?.project_id || "");
-  if (!task) {
-    applySelectedProjectTaskDefaults();
-  }
-  dueDateInput.value = task?.due_date || "";
-  dueTimeInput.value = task?.due_time || "";
-  descriptionInput.value = task?.description || "";
-  selectAssignees(task?.assignee_ids || (task ? [] : [currentUserId()]));
-  writeRecurrenceFields(isDuplicate ? null : task?.recurrenceDetails);
-  writeReminderFields(task?.reminderDetails);
-  writeTaskTimerFields(isDuplicate ? null : task);
-  mountTaskTagPicker(isDuplicate ? [] : task?.tags || []);
-
-  if (typeof taskDialog.showModal === "function") {
-    taskDialog.showModal();
-  } else {
-    taskDialog.setAttribute("open", "");
-  }
-
-  titleInput.focus();
+  state.editingTaskId = options.duplicate === true ? "" : task?.task_id || "";
+  configureTaskDialog();
+  return window.LongtailForge.tasksDialog.open({ duplicate: options.duplicate === true, task });
 }
 
-function applySelectedProjectTaskDefaults() {
-  if (state.editingTaskId) {
-    return;
-  }
-
-  const project = state.options.projects.find((item) => item.id === projectInput?.value);
-  const defaults = project?.taskDefaults || {};
-
-  if (taskDefaultStatuses().includes(defaults.status)) {
-    formStatusInput.value = defaults.status;
-  } else {
-    formStatusInput.value = "open";
-  }
-
-  if (taskDefaultPriorities().includes(defaults.priority)) {
-    priorityInput.value = defaults.priority;
-  } else {
-    priorityInput.value = "normal";
-  }
+function configureTaskDialog() {
+  window.LongtailForge.tasksDialog?.configure?.({
+    currentUserId: currentUserId(),
+    onSaved: (result) => {
+      if (result.task) {
+        upsertTask(result.task);
+      }
+      renderTasks();
+    },
+    options: state.options,
+    setStatus,
+    tagOptions: state.tagOptions,
+    taskTimers: state.taskTimers,
+    tasks: state.tasks,
+  });
 }
 
 async function loadTaskTimers() {
@@ -578,54 +467,6 @@ async function loadTaskTimers() {
   } catch {
     return { timers: [] };
   }
-}
-
-async function saveTask(event) {
-  event.preventDefault();
-  const payload = readTaskFormPayload();
-  const editingTask = state.tasks.find((task) => task.task_id === state.editingTaskId);
-
-  if (editingTask?.recurrence_template_id) {
-    const applyFuture = await modal.confirm({
-      title: "Update recurring task",
-      message: "Apply these changes to all future tasks in this recurrence?",
-      confirmLabel: "All Future",
-      cancelLabel: "Only This Task",
-    });
-    payload.recurrence.applyTo = applyFuture ? "future" : "instance";
-  }
-
-  setStatus(state.editingTaskId ? "Saving task..." : "Creating task...");
-
-  try {
-    const result = state.editingTaskId
-      ? await api.putJson(`/api/tasks/${encodeURIComponent(state.editingTaskId)}`, payload)
-      : await api.postJson("/api/tasks", payload);
-    upsertTask(result.task);
-    taskDialog.close();
-    renderTasks();
-    setStatus("");
-  } catch (error) {
-    setStatus(error.message || "Task was not saved.", { isError: true });
-  }
-}
-
-function readTaskFormPayload() {
-  return {
-    title: titleInput.value,
-    status: formStatusInput.value,
-    priority: priorityInput.value,
-    client_id: clientInput.value === "all" ? "" : clientInput.value,
-    project_id: projectInput.value,
-    due_date: dueDateInput.value,
-    due_time: dueTimeInput.value,
-    description: descriptionInput.value,
-    assignee_ids: [...assigneesInput.selectedOptions].map((selected) => selected.value),
-    recurrence: readRecurrencePayload(),
-    reminderOverrideEnabled: reminderOverrideInput.checked,
-    reminderPolicy: readReminderPolicy(),
-    tagIds: readTaskTagIds(),
-  };
 }
 
 async function loadTagOptions() {
@@ -649,22 +490,6 @@ function appendTagChips(container, tags) {
   list.className = "tag-chip-list";
   window.LongtailForge.tags.renderTagList(list, tags);
   container.appendChild(list);
-}
-
-async function mountTaskTagPicker(tags) {
-  state.tagPicker = null;
-  if (!taskTagsContainer || !window.LongtailForge.tags?.mountPicker) {
-    taskTagsContainer?.replaceChildren();
-    return;
-  }
-
-  state.tagPicker = await window.LongtailForge.tags.mountPicker(taskTagsContainer, {
-    selectedTags: tags,
-  });
-}
-
-function readTaskTagIds() {
-  return state.tagPicker?.readTagIds?.() || [];
 }
 
 async function applyBulkAction() {
@@ -843,7 +668,9 @@ function handleFilterDetailsToggle() {
 }
 
 function applyQuickFilterDefaults() {
-  if (state.quickFilter === "complete") {
+  if (!state.quickFilter) {
+    statusFilter.value = "all";
+  } else if (state.quickFilter === "complete") {
     statusFilter.value = "complete";
   } else if (state.quickFilter === "archived") {
     statusFilter.value = "archived";
@@ -861,14 +688,6 @@ function updateQuickFilterState() {
   });
 }
 
-function selectAssignees(assigneeIds) {
-  const selectedIds = new Set(assigneeIds);
-
-  [...assigneesInput.options].forEach((item) => {
-    item.selected = selectedIds.has(item.value);
-  });
-}
-
 function upsertTask(task) {
   const existingIndex = state.tasks.findIndex((item) => item.task_id === task.task_id);
 
@@ -878,206 +697,6 @@ function upsertTask(task) {
   }
 
   state.tasks.unshift(task);
-}
-
-async function saveTaskTimer(timerStatus) {
-  const task = currentEditingTask();
-
-  if (!task) {
-    return;
-  }
-
-  const timer = currentTaskTimer(task.task_id);
-  const elapsedSeconds = readTaskTimerElapsedSeconds(timer);
-
-  setStatus(timerStatus === "running" ? "Starting task timer..." : "Pausing task timer...");
-
-  try {
-    const result = await api.putJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer`, {
-      active_task_timer_id: timer?.active_task_timer_id || "",
-      timer_status: timerStatus,
-      accumulated_elapsed_seconds: elapsedSeconds,
-      last_active_start_time: new Date().toISOString(),
-    });
-    upsertTaskTimer(result.timer);
-    writeTaskTimerFields(task);
-    setStatus("");
-  } catch (error) {
-    setStatus(error.message || "Task timer was not saved.", { isError: true });
-  }
-}
-
-async function finalizeTaskTimer() {
-  const task = currentEditingTask();
-  const timer = task ? currentTaskTimer(task.task_id) : null;
-
-  if (!task || !timer) {
-    return;
-  }
-
-  const durationSeconds = readTaskTimerElapsedSeconds(timer);
-
-  setStatus("Saving task timer...");
-
-  try {
-    await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer/finalize`, {
-      duration_seconds: durationSeconds,
-      end_time: new Date().toISOString(),
-    });
-    removeTaskTimer(task.task_id);
-    writeTaskTimerFields(task);
-    setStatus("Task time saved.");
-  } catch (error) {
-    setStatus(error.message || "Task time was not saved.", { isError: true });
-  }
-}
-
-async function resetTaskTimer() {
-  const task = currentEditingTask();
-
-  if (!task) {
-    return;
-  }
-
-  const confirmed = await modal.confirm({
-    title: "Reset task timer",
-    message: `Reset the timer for "${task.title}"?`,
-    confirmLabel: "Reset",
-    danger: true,
-  });
-
-  if (!confirmed) {
-    return;
-  }
-
-  try {
-    await api.deleteJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer`);
-    removeTaskTimer(task.task_id);
-    writeTaskTimerFields(task);
-    setStatus("Task timer reset.");
-  } catch (error) {
-    setStatus(error.message || "Task timer was not reset.", { isError: true });
-  }
-}
-
-function writeTaskTimerFields(task) {
-  clearTaskTimerInterval();
-
-  if (!taskTimerField) {
-    return;
-  }
-
-  const eligible = Boolean(
-    task?.task_id &&
-    task.project_id &&
-    task.status !== "complete" &&
-    task.status !== "archived" &&
-    state.options.taskTimersEnabled !== false &&
-    state.options.timeTrackingEnabled !== false,
-  );
-  const timer = task ? currentTaskTimer(task.task_id) : null;
-
-  taskTimerField.hidden = !task?.task_id;
-  taskTimerStartButton.disabled = !eligible || timer?.timer_status === "running";
-  taskTimerPauseButton.disabled = !eligible || timer?.timer_status !== "running";
-  taskTimerFinalizeButton.disabled = !eligible || !timer;
-  taskTimerResetButton.disabled = !timer;
-
-  if (!task?.task_id) {
-    taskTimerStatusText.textContent = "Save the task before using a task timer.";
-  } else if (!eligible) {
-    taskTimerStatusText.textContent = readTaskTimerIneligibleReason(task);
-  } else if (timer?.timer_status === "running") {
-    taskTimerStatusText.textContent = "Running.";
-  } else if (timer) {
-    taskTimerStatusText.textContent = "Paused.";
-  } else {
-    taskTimerStatusText.textContent = "No active timer.";
-  }
-
-  updateTaskTimerDisplay(timer);
-  if (timer?.timer_status === "running") {
-    state.taskTimerIntervalId = window.setInterval(() => updateTaskTimerDisplay(timer), 1000);
-  }
-}
-
-function readTaskTimerIneligibleReason(task) {
-  if (state.options.taskTimersEnabled === false) {
-    return "Task timers are disabled.";
-  }
-
-  if (state.options.timeTrackingEnabled === false) {
-    return "Time Tracking is disabled.";
-  }
-
-  if (!task.project_id) {
-    return "Task timers require a project-linked task.";
-  }
-
-  if (task.status === "complete" || task.status === "archived") {
-    return "Completed and archived tasks cannot use task timers.";
-  }
-
-  return "Task timer unavailable.";
-}
-
-function updateTaskTimerDisplay(timer) {
-  taskTimerDisplay.textContent = formatDuration(readTaskTimerElapsedSeconds(timer));
-}
-
-function readTaskTimerElapsedSeconds(timer) {
-  if (!timer) {
-    return 0;
-  }
-
-  const baseSeconds = Number.parseInt(timer.accumulated_elapsed_seconds, 10) || 0;
-  if (timer.timer_status !== "running" || !timer.last_active_start_time) {
-    return baseSeconds;
-  }
-
-  const startedAt = new Date(timer.last_active_start_time).getTime();
-  return baseSeconds + Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
-}
-
-function formatDuration(totalSeconds) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
-}
-
-function currentEditingTask() {
-  return state.tasks.find((task) => task.task_id === state.editingTaskId);
-}
-
-function currentTaskTimer(taskId) {
-  return state.taskTimers.find((timer) => timer.task_id === taskId);
-}
-
-function upsertTaskTimer(timer) {
-  const existingIndex = state.taskTimers.findIndex((item) => item.task_id === timer.task_id);
-  state.taskTimers = state.taskTimers.map((item) =>
-    item.timer_status === "running" && item.task_id !== timer.task_id
-      ? { ...item, timer_status: "paused", last_active_start_time: null }
-      : item,
-  );
-
-  if (existingIndex >= 0) {
-    state.taskTimers.splice(existingIndex, 1, timer);
-  } else {
-    state.taskTimers.push(timer);
-  }
-}
-
-function removeTaskTimer(taskId) {
-  state.taskTimers = state.taskTimers.filter((timer) => timer.task_id !== taskId);
-}
-
-function clearTaskTimerInterval() {
-  if (state.taskTimerIntervalId) {
-    window.clearInterval(state.taskTimerIntervalId);
-    state.taskTimerIntervalId = null;
-  }
 }
 
 function openTaskFromUrl() {
@@ -1096,14 +715,6 @@ function openTaskFromUrl() {
   const task = state.tasks.find((item) => item.task_id === taskId);
   if (task) {
     openTaskDialog(task);
-  }
-}
-
-async function copyCurrentTaskLink() {
-  const task = state.tasks.find((item) => item.task_id === state.editingTaskId);
-
-  if (task) {
-    await copyTaskLink(task);
   }
 }
 
@@ -1237,14 +848,6 @@ function normalizeProjectTaskSortOrder(value) {
   return ordered.slice(0, allowed.length);
 }
 
-function taskDefaultStatuses() {
-  return ["open", "in_progress", "blocked", "complete", "archived"];
-}
-
-function taskDefaultPriorities() {
-  return ["low", "normal", "high", "urgent"];
-}
-
 function option(value, label) {
   return pageController.createOption(value, label);
 }
@@ -1300,145 +903,6 @@ function formatDue(task) {
 
   return window.LongtailForge.timezones?.formatDateTime?.(task.due_at_utc, task.due_timezone) ||
     `${task.due_date} ${task.due_time}`;
-}
-
-function writeReminderFields(details = {}) {
-  const taskPolicy = normalizeReminderPolicy(details.taskPolicy || details.effectivePolicy?.offsets || {});
-  const effectivePolicy = normalizeReminderPolicy(details.effectivePolicy?.offsets || {});
-  const timedHours = taskPolicy.dateTime.map((minutes) => Math.round(minutes / 60));
-  const dateOnlyDays = taskPolicy.dateOnly.map((minutes) => Math.round(minutes / 1440));
-
-  reminderOverrideInput.checked = Boolean(details.overrideEnabled);
-  taskReminderDateTimeHours1Input.value = String(timedHours[0] || 2);
-  taskReminderDateTimeHours2Input.value = String(timedHours[1] || 24);
-  taskReminderDateOnlyDays1Input.value = String(dateOnlyDays[0] || 3);
-  taskReminderDateOnlyDays2Input.value = String(dateOnlyDays[1] || 1);
-  effectiveRemindersText.textContent = `Effective: timed ${formatOffsetList(effectivePolicy.dateTime, "hours")}; date-only ${formatOffsetList(effectivePolicy.dateOnly, "days")}.`;
-  updateReminderOverrideState();
-}
-
-function writeRecurrenceFields(details = {}) {
-  const parsed = {
-    ...defaultRecurrenceDraft(),
-    enabled: Boolean(details.enabled),
-    frequency: details.frequency || "WEEKLY",
-    interval: Number.parseInt(details.interval, 10) || 1,
-    endDate: details.endDate || details.end_date || "",
-  };
-
-  state.recurrenceDraft = parsed;
-  recurringInput.checked = parsed.enabled;
-  updateRecurrenceState();
-}
-
-function updateRecurrenceState() {
-  if (!recurringInput || !recurrenceDetailsButton) {
-    return;
-  }
-
-  recurrenceDetailsButton.disabled = !recurringInput.checked;
-  recurrenceSummaryText.textContent = recurringInput.checked
-    ? formatRecurrenceSummary(state.recurrenceDraft)
-    : "Not recurring.";
-}
-
-function openRecurrenceDialog() {
-  recurrenceFrequencyInput.value = state.recurrenceDraft.frequency || "WEEKLY";
-  recurrenceIntervalInput.value = String(state.recurrenceDraft.interval || 1);
-  recurrenceEndDateInput.value = state.recurrenceDraft.endDate || "";
-
-  if (typeof recurrenceDialog.showModal === "function") {
-    recurrenceDialog.showModal();
-  } else {
-    recurrenceDialog.setAttribute("open", "");
-  }
-}
-
-function saveRecurrenceDraft(event) {
-  event.preventDefault();
-  state.recurrenceDraft = {
-    enabled: recurringInput.checked,
-    frequency: recurrenceFrequencyInput.value || "WEEKLY",
-    interval: readPositiveInteger(recurrenceIntervalInput, 1),
-    endDate: recurrenceEndDateInput.value || "",
-  };
-  updateRecurrenceState();
-  recurrenceDialog.close();
-}
-
-function readRecurrencePayload() {
-  return {
-    enabled: Boolean(recurringInput.checked),
-    applyTo: "instance",
-    frequency: state.recurrenceDraft.frequency || "WEEKLY",
-    interval: state.recurrenceDraft.interval || 1,
-    endDate: state.recurrenceDraft.endDate || "",
-  };
-}
-
-function defaultRecurrenceDraft() {
-  return {
-    enabled: false,
-    frequency: "WEEKLY",
-    interval: 1,
-    endDate: "",
-  };
-}
-
-function formatRecurrenceSummary(recurrence) {
-  const interval = Number.parseInt(recurrence.interval, 10) || 1;
-  const frequency = String(recurrence.frequency || "WEEKLY").toLowerCase();
-  const unit = {
-    daily: "day",
-    weekly: "week",
-    monthly: "month",
-  }[frequency] || "week";
-  const cadence = interval === 1 ? `Every ${unit}` : `Every ${interval} ${unit}s`;
-
-  return recurrence.endDate ? `${cadence} until ${recurrence.endDate}.` : `${cadence}.`;
-}
-
-function updateReminderOverrideState() {
-  reminderOverrideFields.hidden = !reminderOverrideInput.checked;
-}
-
-function readReminderPolicy() {
-  return {
-    dateTime: [
-      readPositiveInteger(taskReminderDateTimeHours1Input, 2) * 60,
-      readPositiveInteger(taskReminderDateTimeHours2Input, 24) * 60,
-    ],
-    dateOnly: [
-      readPositiveInteger(taskReminderDateOnlyDays1Input, 3) * 1440,
-      readPositiveInteger(taskReminderDateOnlyDays2Input, 1) * 1440,
-    ],
-  };
-}
-
-function normalizeReminderPolicy(policy) {
-  return {
-    dateTime: normalizeOffsetList(policy.dateTime || policy.date_time, [120, 1440]),
-    dateOnly: normalizeOffsetList(policy.dateOnly || policy.date_only, [4320, 1440]),
-  };
-}
-
-function normalizeOffsetList(values, fallback) {
-  const offsets = (Array.isArray(values) ? values : [])
-    .map((value) => Number.parseInt(value, 10))
-    .filter((value) => Number.isFinite(value) && value > 0)
-    .slice(0, 2);
-
-  return offsets.length > 0 ? offsets : [...fallback];
-}
-
-function readPositiveInteger(input, fallback) {
-  return Math.max(1, Number.parseInt(input?.value, 10) || fallback);
-}
-
-function formatOffsetList(offsets, unit) {
-  const divisor = unit === "days" ? 1440 : 60;
-  const label = unit === "days" ? "d" : "h";
-  return offsets.map((minutes) => `${Math.round(minutes / divisor)}${label}`).join(", ");
 }
 
 function formatToken(value) {

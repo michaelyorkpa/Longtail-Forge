@@ -6,6 +6,7 @@ const files = {
   moduleSettings: readText("public/js/module-settings.js"),
   navigation: readText("public/js/navigation.js"),
   settingsControls: readText("public/js/shared/settings-controls.js"),
+  usersModule: readText("src/modules/users/module.js"),
   timeTrackingSettingsView: readText("views/protected/time-tracking-settings.html"),
   userSettings: readText("public/js/user-settings.js"),
   userSettingsView: readText("views/protected/user-settings.html"),
@@ -54,6 +55,16 @@ assert.doesNotMatch(
   readFunctionBody(files.appShell, "buildNavigation"),
   /\b(?:tasks-settings|time-tracking-settings)\b/,
   "app shell buildNavigation must not hard-code first-party module settings links",
+);
+assert.doesNotMatch(
+  readObjectArray(files.usersModule, "navigation"),
+  /user-settings\.html/,
+  "User Settings is framework-owned and must not be contributed by the Users module navigation",
+);
+assert.match(
+  readFunctionBody(files.appShell, "addModuleNavItem"),
+  /targetItems\.some\(\(existingItem\) => existingItem\.href === item\.href\)/,
+  "app shell menu composition must de-duplicate module navigation by href",
 );
 
 assert.doesNotMatch(
@@ -129,4 +140,26 @@ function readConstArray(source, constName) {
   }
 
   throw new Error(`${constName} array did not close`);
+}
+
+function readObjectArray(source, propertyName) {
+  const marker = `${propertyName}: [`;
+  const start = source.indexOf(marker);
+  assert.notEqual(start, -1, `${propertyName} array was not found`);
+
+  let depth = 0;
+  for (let index = start + marker.length - 1; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (char === "[") {
+      depth += 1;
+    } else if (char === "]") {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(start, index + 1);
+      }
+    }
+  }
+
+  throw new Error(`${propertyName} array did not close`);
 }

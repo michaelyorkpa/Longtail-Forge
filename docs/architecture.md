@@ -677,8 +677,7 @@ Module-owned navigation may include:
 
 * Tasks
 * Time Tracker
-* Manual Entry
-* Edit Entries
+* Time Entries
 * Reports
 * Notes
 * Tickets

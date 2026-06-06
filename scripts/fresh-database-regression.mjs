@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 6, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 8, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -63,6 +63,16 @@ ORDER BY version;
     version: "036",
     module_id: "core",
     name: "add_tags_foundation",
+  });
+  assert.deepEqual(migrations[6], {
+    version: "037",
+    module_id: "core",
+    name: "add_active_timer_source_metadata",
+  });
+  assert.deepEqual(migrations[7], {
+    version: "038",
+    module_id: "core",
+    name: "add_project_default_task_assignee",
   });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }

@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Time Entries | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=8">
+  </head>
+  <body data-page-title="Time Entries">
+    <main class="entry-page time-entries-page">
+      <div class="page-heading">
+        <h1>Time Entries</h1>
+        <button type="button" data-add-time-entry>Add Time Entry</button>
+      </div>
+
+      <section class="entry-filters" aria-label="Entry filters">
+        <label>
+          Entry Status
+          <select data-time-entry-filter-status>
+            <option value="">All statuses</option>
+            <option value="unbilled">Unbilled</option>
+            <option value="billed">Billed</option>
+            <option value="paid">Paid</option>
+          </select>
+        </label>
+
+        <label class="report-period-control">
+          Dates
+          <select data-time-entry-filter-period>
+            <option value="current">Current billing period</option>
+            <option value="last">Last billing period</option>
+            <option value="custom">Custom</option>
+            <option value="all">All dates</option>
+          </select>
+        </label>
+
+        <div class="report-custom-dates" data-time-entry-filter-custom-dates hidden>
+          <label>
+            Start Date
+            <input type="date" data-time-entry-filter-start-date disabled>
+          </label>
+
+          <label>
+            End Date
+            <input type="date" data-time-entry-filter-end-date disabled>
+          </label>
+        </div>
+
+        <label data-client-workspace-control>
+          Client
+          <select data-time-entry-filter-client>
+            <option value="">All clients</option>
+          </select>
+        </label>
+
+        <label>
+          Project
+          <select data-time-entry-filter-project disabled>
+            <option value="">All projects</option>
+          </select>
+        </label>
+
+        <label>
+          Users
+          <select data-time-entry-filter-users multiple></select>
+        </label>
+
+        <label data-time-entry-filter-tag-control hidden>
+          Tag
+          <select data-time-entry-filter-tag>
+            <option value="">All tags</option>
+          </select>
+        </label>
+
+        <label>
+          Sort
+          <select data-time-entry-sort>
+            <option value="end_desc">Newest first</option>
+            <option value="end_asc">Oldest first</option>
+            <option value="duration_desc">Duration high to low</option>
+            <option value="duration_asc">Duration low to high</option>
+            <option value="project_asc">Project A to Z</option>
+          </select>
+        </label>
+      </section>
+
+      <p data-time-entry-status role="status" aria-live="polite"></p>
+
+      <div class="report-table-wrap">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th scope="col">Date</th>
+              <th scope="col">Client</th>
+              <th scope="col">Project</th>
+              <th scope="col">Duration</th>
+              <th scope="col">Status</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody data-time-entry-table></tbody>
+        </table>
+      </div>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/shared/modal.js"></script>
+    <script src="js/shared/api-client.js"></script>
+    <script src="js/shared/formatters.js"></script>
+    <script src="js/shared/timezones.js"></script>
+    <script src="js/shared/records.js"></script>
+    <script src="js/shared/page-controller.js"></script>
+    <script src="js/shared/module-actions.js?v=1"></script>
+    <script src="js/shared/tags.js"></script>
+    <script src="js/time-entry-dialog.js?v=1"></script>
+    <script src="js/time-entries.js?v=1"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

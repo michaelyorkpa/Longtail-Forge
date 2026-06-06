@@ -233,6 +233,10 @@ function addModuleNavItem(targetItems, item) {
     return;
   }
 
+  if (targetItems.some((existingItem) => existingItem.href === item.href)) {
+    return;
+  }
+
   targetItems.push({
     id: item.id || item.href.replace(/\.html$/, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase(),
     label: item.label,
