@@ -34,6 +34,7 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "eventSummaries",
   "timerSources",
   "workItemSources",
+  "taggableTypes",
   "hooks",
   "frameworkDependencies",
   "moduleDependencies",
@@ -46,7 +47,6 @@ const RESERVED_MANIFEST_FIELDS = new Set([
   "notificationEvents",
   "notificationTemplates",
   "searchableTypes",
-  "taggableTypes",
 ]);
 
 const MODULE_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
@@ -117,6 +117,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateHooks(moduleDefinition.hooks, errors);
   validateTimerSources(moduleDefinition.timerSources, moduleDefinition.id, errors);
   validateWorkItemSources(moduleDefinition.workItemSources, moduleDefinition.id, errors);
+  validateTaggableTypes(moduleDefinition.taggableTypes, moduleDefinition.id, errors);
   validateNotificationEvents(moduleDefinition.notificationEvents, moduleDefinition.id, errors);
   validateNotificationTemplates(moduleDefinition.notificationTemplates, moduleDefinition.id, errors);
   validateReservedFields(moduleDefinition, errors);
@@ -474,6 +475,24 @@ function validateWorkItemSources(workItemSources, moduleId, errors) {
     optionalPlainObject(item, "filterHints", errors, { prefix: `workItemSources[${index}]` });
     optionalPlainObject(item, "sortHints", errors, { prefix: `workItemSources[${index}]` });
     validateTerminology(item.terminology, `workItemSources[${index}].terminology`, errors);
+  });
+}
+
+function validateTaggableTypes(taggableTypes, moduleId, errors) {
+  optionalArrayOfObjects(taggableTypes, "taggableTypes", errors, (item, index) => {
+    requireString(item, "targetType", errors, { prefix: `taggableTypes[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `taggableTypes[${index}]` });
+    requireString(item, "label", errors, { prefix: `taggableTypes[${index}]` });
+    requireString(item, "description", errors, { prefix: `taggableTypes[${index}]` });
+    requireString(item, "idField", errors, { prefix: `taggableTypes[${index}]` });
+    requireString(item, "labelField", errors, { prefix: `taggableTypes[${index}]` });
+    requireString(item, "workspaceField", errors, { prefix: `taggableTypes[${index}]` });
+    optionalString(item, "clientField", errors, { prefix: `taggableTypes[${index}]` });
+    optionalString(item, "projectField", errors, { prefix: `taggableTypes[${index}]` });
+    requireString(item, "requiredReadPermission", errors, { prefix: `taggableTypes[${index}]` });
+    requireString(item, "requiredTagPermission", errors, { prefix: `taggableTypes[${index}]` });
+    optionalStringArray(item, "requiredModules", errors, { prefix: `taggableTypes[${index}]` });
+    validateTerminology(item.terminology, `taggableTypes[${index}].terminology`, errors);
   });
 }
 

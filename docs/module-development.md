@@ -78,8 +78,10 @@ Notification summaries should use safe event summary helpers rather than raw eve
 
 ## Tags And Search
 
-Tag and search declarations are still reserved groundwork. Modules may provide basic `taggableTypes` and `searchableTypes` descriptors for documentation and sanity checks, but the full tag/search implementations land later.
+Tags are framework-owned classification metadata. Modules declare taggable records in `taggableTypes`; each descriptor identifies the target type, owning module, ID field, display label field, workspace field, optional client/project fields, and required read/tag permissions. Do not add module-owned tag tables or comma-separated tag text columns.
+
+Search declarations are still reserved groundwork. Modules may provide basic `searchableTypes` descriptors for documentation and sanity checks, but the full search implementation lands later.
 
 ## Sanity Checks
 
-Run `npm run check` before relying on a module change. The check suite validates JavaScript syntax, storage behavior, event bus behavior, audit extensibility, registered module uniqueness, route descriptors, permissions, API scopes, notification declarations, and dependency references.
+Run `npm run check` before relying on a module change. The check suite validates JavaScript syntax, storage behavior, event bus behavior, audit extensibility, registered module uniqueness, route descriptors, permissions, API scopes, notification declarations, taggable type declarations, and dependency references.

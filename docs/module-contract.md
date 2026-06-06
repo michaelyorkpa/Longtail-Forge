@@ -14,7 +14,7 @@ Unknown arbitrary manifest fields are rejected. Future extension data should wai
 
 `src/core/modules/registry.js` remains the static first-party registration list. It does not perform filesystem discovery and does not load third-party modules yet.
 
-`src/core/modules/modules.service.js` is the framework-facing registry service. It provides module lookup, route lists, migration sources, enabled workspace module state, navigation/settings contribution collection, permission and API scope collection, audit record type collection, event type and event hook collection, event summary collection, reserved tag/search/notification contribution lists, and Workbench/timer/work-item contribution collection.
+`src/core/modules/modules.service.js` is the framework-facing registry service. It provides module lookup, route lists, migration sources, enabled workspace module state, navigation/settings contribution collection, permission and API scope collection, audit record type collection, event type and event hook collection, event summary collection, taggable type lists, reserved search contribution lists, notification contribution lists, and Workbench/timer/work-item contribution collection.
 
 Workspace-aware contribution helpers filter disabled modules, missing module dependencies, workspace capability mismatches, and user permission mismatches. Capability lists are treated as "any of these capabilities makes the contribution relevant" so Business, Personal, and Family workspaces can share module manifests without duplicate definitions.
 
@@ -63,6 +63,7 @@ These fields are currently accepted by the manifest validator:
 - `workspaceCapabilityRequirements`: optional workspace capability keys that make the module relevant.
 - `notificationEvents`: optional module-declared notification event descriptors.
 - `notificationTemplates`: optional module-declared notification template descriptors.
+- `taggableTypes`: optional module-declared taggable record type descriptors.
 - `seedHooks`: optional reserved startup hook array.
 - `repairHooks`: optional reserved startup repair hook array.
 
@@ -70,7 +71,6 @@ These fields are currently accepted by the manifest validator:
 
 These fields are accepted only as arrays today. The validator checks their basic shape, but runtime behavior is reserved for later framework versions:
 
-- `taggableTypes`
 - `searchableTypes`
 
 Notifications are framework-owned. Modules declare notification events and templates through the manifest, but individual modules should not create duplicate notification UI.
@@ -114,6 +114,10 @@ Default role permission mappings require `roleId` and `permissions`. They are ad
 Public API endpoint descriptors require `method`, `path`, and `scope`. API scope descriptors require `id`, `moduleId`, `label`, and `description`; they may include `access` (`read` or `write`) and display-only `terminology`. Legacy string scopes are still accepted by the validator and normalized by the registry. The API key UI reads available scopes from enabled module metadata, so disabled optional module scopes are not offered for new keys. Existing API keys still rely on route-level scope checks and module write guards, so writes to disabled modules remain blocked.
 
 Notification permissions are framework-owned. `notifications.view_own` covers current-user notification reads, `notifications.manage_preferences` covers personal notification preferences, and `notifications.manage_workspace_defaults` covers workspace-level default notification settings. Notification APIs must be recipient/workspace scoped, must re-check target record access before opening a notification target, and must not expose private notifications to workspace admins unless a later version explicitly designs that capability.
+
+Tag permissions are framework-owned. `tags.manage` covers workspace tag definition management, `tags.view` covers viewing tag definitions and assignments, `tags.assign` covers adding tag assignments to registered target records, and `tags.remove` covers removing assignments. Tags are classification metadata only; visibility, permissions, billing status, workflow status, and archival state must stay in real fields rather than being inferred from tags.
+
+Taggable type descriptors require `targetType`, `moduleId`, `label`, `description`, `idField`, `labelField`, `workspaceField`, `requiredReadPermission`, and `requiredTagPermission`. They may include `clientField`, `projectField`, `requiredModules`, and display-only terminology. The framework discovers taggable target types from module manifests through `modulesService.listTaggableTypes()` instead of maintaining a permanent hard-coded list. The 0.32.3 foundation registers initial taggable types for `task`, `time_entry`, `client`, and `project`; tag service methods, browser APIs, and UI land in later roadmap slices.
 
 Notification event descriptors require `id`, `moduleId`, `label`, `description`, `defaultEnabled`, and `defaultPriority` (`low`, `normal`, `high`, or `urgent`). They may include `recipientResolver` for a named module/framework resolver or `recipientMode` for a framework-recognized mode such as `actor`, `assignees`, `workspace_admins`, or `explicit_users`. Notification template descriptors require `id`, `moduleId`, `event`, `title`, and `body`; they may include a relative `url` or `recordLinkPattern`. The framework stores notification records in a workspace-scoped, recipient-specific `notifications` table with module, event, record, status, priority, URL, and metadata fields.
 

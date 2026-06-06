@@ -2,61 +2,16 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.2 - In-App Notification UI and Preferences
-
-* [x] Add framework-owned notification UI
-
-  * [x] Add notification bell to the authenticated app shell
-  * [x] Show unread notification count
-  * [x] Show recent notifications dropdown/panel
-  * [x] Allow notifications to be marked read
-  * [x] Allow notifications to be dismissed
-  * [x] Link notifications to registered record URLs where safe
-  * [x] Do not duplicate notification UI inside individual modules
-
-* [x] Add notification page if needed
-
-  * [x] List user notifications
-  * [x] Filter by unread/read/dismissed
-  * [x] Filter by module/source if useful
-  * [x] Support pagination
-  * [x] Support empty states
-
-* [x] Add notification preferences groundwork
-
-  * [x] User-level notification preferences
-  * [x] Workspace-level notification defaults
-  * [x] Allow modules to declare configurable notification types
-  * [x] Users can mute notification types where permitted
-  * [x] Workspace admins can set default behavior where appropriate
-
-* [x] Add initial notification events
-
-  * [x] `task.assigned`
-  * [x] `task.due_soon`
-  * [x] `task.overdue`
-  * [x] `timer.still_running` if practical
-  * [x] `module.disabled` for admins if useful
-
-* [x] Add regression tests
-
-  * [x] Users only see their own notifications
-  * [x] Notifications cannot cross workspace boundaries
-  * [x] Notifications do not open records the user cannot access
-  * [x] Disabled modules do not create new notifications
-  * [x] Unread count updates after read/dismiss actions
-  * [x] Notification bell does not break unauthenticated/public pages
-
 ## Version 0.32.3 - Tags Framework Foundation
 
-* [ ] Add framework-owned tagging tables
+* [x] Add framework-owned tagging tables
 
-  * [ ] Create shared `tags` table for tag definitions
-  * [ ] Create shared `tag_assignments` table for assigning tags to records
-  * [ ] Tags should be workspace-scoped using `workspace_id`
-  * [ ] Tags should not be stored as comma-separated text on records
+  * [x] Create shared `tags` table for tag definitions
+  * [x] Create shared `tag_assignments` table for assigning tags to records
+  * [x] Tags should be workspace-scoped using `workspace_id`
+  * [x] Tags should not be stored as comma-separated text on records
 
-* [ ] `tags` table should support:
+* [x] `tags` table should support:
 
   * `tag_id`
   * `workspace_id`
@@ -69,7 +24,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * `created_at`
   * `updated_at`
 
-* [ ] `tag_assignments` table should support:
+* [x] `tag_assignments` table should support:
 
   * `tag_assignment_id`
   * `workspace_id`
@@ -80,18 +35,18 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * `source`
   * `created_at`
 
-* [ ] Add indexes for common tag lookup patterns
+* [x] Add indexes for common tag lookup patterns
 
-  * [ ] Workspace + tag slug
-  * [ ] Workspace + tag status
-  * [ ] Workspace + target type + target ID
-  * [ ] Workspace + tag ID + target type
-  * [ ] Prevent duplicate active assignment of the same tag to the same target
+  * [x] Workspace + tag slug
+  * [x] Workspace + tag status
+  * [x] Workspace + target type + target ID
+  * [x] Workspace + tag ID + target type
+  * [x] Prevent duplicate active assignment of the same tag to the same target
 
-* [ ] Add module-declared taggable type contract
+* [x] Add module-declared taggable type contract
 
-  * [ ] Modules should declare which record types are taggable
-  * [ ] Taggable type declarations should include:
+  * [x] Modules should declare which record types are taggable
+  * [x] Taggable type declarations should include:
 
     * `targetType`
     * `moduleId`
@@ -102,23 +57,23 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     * `projectField` if applicable
     * required read permission
     * required tag/edit permission
-  * [ ] Framework should not maintain a permanent hard-coded list of taggable target types
+  * [x] Framework should not maintain a permanent hard-coded list of taggable target types
 
-* [ ] Add core tag permissions
+* [x] Add core tag permissions
 
-  * [ ] `tags.manage`
-  * [ ] `tags.view`
-  * [ ] `tags.assign`
-  * [ ] `tags.remove`
-  * [ ] Add default role mappings for workspace admins and appropriate scoped roles
+  * [x] `tags.manage`
+  * [x] `tags.view`
+  * [x] `tags.assign`
+  * [x] `tags.remove`
+  * [x] Add default role mappings for workspace admins and appropriate scoped roles
 
-* [ ] Define system tag policy
+* [x] Define system tag policy
 
-  * [ ] Manual tags come first
-  * [ ] System/automatic tags should wait until manual tagging is stable
-  * [ ] Use real fields for behavior/security
-  * [ ] Do not use tags as the source of truth for visibility, permissions, billing status, workflow status, or archival state
-  * [ ] Example: note visibility should eventually be stored as a `visibility` field, not enforced by `#public`
+  * [x] Manual tags come first
+  * [x] System/automatic tags should wait until manual tagging is stable
+  * [x] Use real fields for behavior/security
+  * [x] Do not use tags as the source of truth for visibility, permissions, billing status, workflow status, or archival state
+  * [x] Example: note visibility should eventually be stored as a `visibility` field, not enforced by `#public`
 
 ## Version 0.32.4 - Tag Service and API
 

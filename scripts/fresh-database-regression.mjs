@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 5, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 6, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -58,6 +58,11 @@ ORDER BY version;
     version: "035",
     module_id: "core",
     name: "add_notification_preferences",
+  });
+  assert.deepEqual(migrations[5], {
+    version: "036",
+    module_id: "core",
+    name: "add_tags_foundation",
   });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
@@ -88,6 +93,8 @@ ORDER BY name;
     "roles",
     "schema_migrations",
     "sessions",
+    "tag_assignments",
+    "tags",
     "task_assignees",
     "task_recurrence_assignees",
     "task_recurrence_templates",
@@ -122,6 +129,11 @@ WHERE type = 'index'
     'idx_notifications_workspace_module',
     'idx_notification_user_preferences_user',
     'idx_notification_workspace_defaults_workspace',
+    'idx_tag_assignments_tag_target',
+    'idx_tag_assignments_target',
+    'idx_tag_assignments_unique_target_tag',
+    'idx_tags_workspace_slug',
+    'idx_tags_workspace_status',
     'idx_tasks_workspace_due_date',
     'idx_time_entries_workspace_task',
     'idx_user_workspaces_workspace_status',
@@ -141,6 +153,11 @@ ORDER BY name;
     "idx_notifications_recipient_status_created",
     "idx_notifications_record",
     "idx_notifications_workspace_module",
+    "idx_tag_assignments_tag_target",
+    "idx_tag_assignments_target",
+    "idx_tag_assignments_unique_target_tag",
+    "idx_tags_workspace_slug",
+    "idx_tags_workspace_status",
     "idx_tasks_workspace_due_date",
     "idx_time_entries_workspace_task",
     "idx_user_workspaces_workspace_status",
@@ -154,7 +171,7 @@ async function assertSeedRows() {
     querySql("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'yes';"),
     querySql("SELECT COUNT(*) AS count FROM modules;"),
     querySql("SELECT COUNT(*) AS count FROM roles WHERE role_id IN ('super_admin', 'workspace_admin');"),
-    querySql("SELECT COUNT(*) AS count FROM permissions WHERE permission_id IN ('workspace_settings.manage', 'tasks.view', 'time_entries.create', 'notifications.view_own', 'notifications.manage_preferences', 'notifications.manage_workspace_defaults');"),
+    querySql("SELECT COUNT(*) AS count FROM permissions WHERE permission_id IN ('workspace_settings.manage', 'tasks.view', 'time_entries.create', 'notifications.view_own', 'notifications.manage_preferences', 'notifications.manage_workspace_defaults', 'tags.manage', 'tags.view', 'tags.assign', 'tags.remove');"),
     querySql("SELECT COUNT(*) AS count FROM workspace_modules;"),
     querySql("SELECT COUNT(*) AS count FROM app_settings;"),
   ]);
@@ -163,7 +180,7 @@ async function assertSeedRows() {
   assert.equal(Number(users[0].count), 1, "fresh startup should create one protected super admin");
   assert.ok(Number(modules[0].count) >= 4, "fresh startup should sync registered modules");
   assert.equal(Number(roles[0].count), 2, "fresh baseline should seed current core roles");
-  assert.equal(Number(permissions[0].count), 6, "fresh startup should seed core, module, and notification permissions");
+  assert.equal(Number(permissions[0].count), 10, "fresh startup should seed core, module, notification, and tag permissions");
   assert.ok(Number(workspaceModules[0].count) >= 4, "fresh startup should create workspace module status rows");
   assert.ok(Number(appSettings[0].count) >= 3, "fresh startup should seed app settings");
 }

@@ -123,6 +123,29 @@ check("notification templates are well formed", () => {
   }
 });
 
+check("taggable type declarations are well formed", () => {
+  const taggableTypes = modulesService.listTaggableTypes();
+
+  assertUnique("taggable target type", taggableTypes.map((type) => type.targetType));
+
+  for (const type of taggableTypes) {
+    assert.ok(type.targetType, "taggable targetType is required");
+    assert.ok(type.moduleId, `taggable type ${type.targetType} moduleId is required`);
+    assert.ok(type.label, `taggable type ${type.targetType} label is required`);
+    assert.ok(type.description, `taggable type ${type.targetType} description is required`);
+    assert.ok(type.idField, `taggable type ${type.targetType} idField is required`);
+    assert.ok(type.labelField, `taggable type ${type.targetType} labelField is required`);
+    assert.ok(type.workspaceField, `taggable type ${type.targetType} workspaceField is required`);
+    assert.ok(type.requiredReadPermission, `taggable type ${type.targetType} requiredReadPermission is required`);
+    assert.ok(type.requiredTagPermission, `taggable type ${type.targetType} requiredTagPermission is required`);
+  }
+
+  assert.ok(taggableTypes.some((type) => type.targetType === "task"), "task taggable type should be registered");
+  assert.ok(taggableTypes.some((type) => type.targetType === "time_entry"), "time_entry taggable type should be registered");
+  assert.ok(taggableTypes.some((type) => type.targetType === "client"), "client taggable type should be registered");
+  assert.ok(taggableTypes.some((type) => type.targetType === "project"), "project taggable type should be registered");
+});
+
 check("module dependencies reference registered modules", () => {
   const moduleIds = new Set(modules.map((moduleDefinition) => moduleDefinition.id));
 

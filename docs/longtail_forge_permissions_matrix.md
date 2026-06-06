@@ -1,8 +1,8 @@
 # Longtail Forge Permissions Matrix
 
-Updated: 2026-06-05 for version 0.32.2
+Updated: 2026-06-05 for version 0.32.3
 
-This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, and performance passes.
+This matrix describes the active workspace-native permission model after the completed 0.31 Tasks, Workbench, module-contract, lifecycle, cleanup, accessibility, performance, notifications, and tags-foundation passes.
 
 ## Role Permission Matrix
 
@@ -15,6 +15,20 @@ This matrix describes the active workspace-native permission model after the com
 | Client User | no | no | no | no | no | no | yes | no | yes | yes | yes | yes | no | no | yes | no | no | yes | no |
 | Project User | no | no | no | no | no | no | yes | no | yes | yes | yes | yes | no | no | yes | no | no | yes | no |
 | Client User (External) | no | no | no | no | no | no | yes | no | yes | yes | yes | yes | no | no | yes | no | no | no | no |
+
+## Framework Notification And Tag Defaults
+
+| Permission | Super Admin | Workspace Administrator | Client Administrator | Project Administrator | Client User | Project User | Client User (External) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| notifications.view_own | yes | yes | yes | yes | yes | yes | yes |
+| notifications.manage_preferences | yes | yes | yes | yes | yes | yes | yes |
+| notifications.manage_workspace_defaults | yes | yes | no | no | no | no | no |
+| tags.manage | yes | yes | no | no | no | no | no |
+| tags.view | yes | yes | yes | yes | yes | yes | yes |
+| tags.assign | yes | yes | yes | yes | yes | yes | no |
+| tags.remove | yes | yes | yes | yes | yes | yes | no |
+
+The 0.32.3 tags release seeds permissions and validates module-declared taggable target types. Browser tag service/API routes are intentionally deferred until 0.32.4, so no tag route rows appear in the route matrix yet.
 
 ## Role Assignment Rules
 
@@ -146,3 +160,4 @@ Scoped role assignment is scope-aware. Client Administrators and Project Adminis
 - reporting denial for External Client Users, allow for scoped users with `reporting.view`, and task-linked reporting filters
 - Time Tracking and Tasks disabled-module read/write behavior, including public API reads/writes
 - workspace owner transfer, owner-removal blocking, and Personal fallback workspace creation
+- fresh database tag permission seeding and module sanity checks for taggable target type declarations

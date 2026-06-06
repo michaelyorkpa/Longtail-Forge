@@ -35,7 +35,7 @@ Current first-party modules include:
 * Tasks
 * Time Tracking
 
-These modules are registered explicitly in the static module registry. The current manifest contract includes startup validation, registry-driven navigation, settings, protected views, browser assets, permissions, API scopes, audit record types, internal events, event summaries, Workbench cards, timer sources, work item sources, lifecycle hooks, dependency checks, and reserved notification/tag/search declarations.
+These modules are registered explicitly in the static module registry. The current manifest contract includes startup validation, registry-driven navigation, settings, protected views, browser assets, permissions, API scopes, audit record types, internal events, event summaries, Workbench cards, timer sources, work item sources, lifecycle hooks, dependency checks, notification declarations, taggable type declarations, and reserved search declarations.
 
 The next architecture step is not automatic plugin discovery. The next step is to build the framework-owned services declared in the roadmap, beginning with notifications, tags, and search, while keeping first-party modules on the same manifest rails future modules will use.
 
@@ -1093,8 +1093,8 @@ taggableTypes: [
     workspaceField: "workspace_id",
     clientField: "client_id",
     projectField: "project_id",
-    readPermission: "tasks.view",
-    tagPermission: "tags.assign"
+    requiredReadPermission: "tasks.view",
+    requiredTagPermission: "tags.assign"
   }
 ]
 ```

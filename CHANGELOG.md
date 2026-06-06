@@ -1,3 +1,13 @@
+## Version 0.32.3 - 2026-06-05 22:46 -04:00
+
+- Bumped the app and first-party module versions to `0.32.3`.
+- Added the framework-owned `tags` and `tag_assignments` tables with workspace-scoped tag definitions, assignment rows, source tracking, status checks, and lookup/duplicate-prevention indexes.
+- Seeded core tag permissions and default role mappings for workspace administrators and scoped roles.
+- Promoted module `taggableTypes` declarations into an active validated manifest contract.
+- Registered initial taggable target types for tasks, time entries, clients, projects, and the developer example module.
+- Updated fresh database and module sanity regressions to cover the tags schema and manifest contract.
+- Updated roadmap/archive bookkeeping, decisions, module contract documentation, and the permissions matrix for 0.32.3.
+
 ## Version 0.32.2 - 2026-06-05 22:30 -04:00
 
 - Bumped the app and first-party module versions to `0.32.2`.
