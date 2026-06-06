@@ -13,6 +13,17 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Icon Overhaul
+
+- Full/mutli-word buttons are getting cumbersome, I need to update the interface with free icons to represent things like:
+  - Save
+  - Delete
+  - Cancel
+  - Timer Start/Play
+  - Timer Pause
+  - Timer Stop
+  - Timer Discard
+
 ## Fixes
 
 - [ ] Need a way for properly authenticated users to see active/running timers, but not change them
