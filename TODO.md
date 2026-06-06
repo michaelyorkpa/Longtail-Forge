@@ -26,6 +26,16 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
+- [ ] Filter list, bulk actions, and the add/edit task modal footer have backgrounds that do not respect dark mode
+  - [ ] I believe this extends to all modal footers; I just found a white footer background in the edit project settings modal, too
+
+- [ ] Edit time entries and manual time entry screens needs an update
+  - [ ] This should, simply, be titled Time Entries
+  - [ ] The screen should be a filter/sortable list view (bring it in line with the Tasks screen; it's close)
+  - [ ] The actual edit form should be moved from the bottom of this screen to a modal window
+  - [ ] An "Add Time Entry" button should be added to the top of the time entries window
+  - [ ] Manual time entries should become an "Add Time Entry" modal window
+
 - [ ] Need a way for properly authenticated users to see active/running timers, but not change them
 
 - [ ] Add a "Complete" button on the Workbench tasks
@@ -43,6 +53,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - Review whether the User Settings "Remove Workspace" flow needs clearer wording now that it removes the signed-in user's membership rather than deleting the workspace record.
 
 ## Tweaks
+
+- Do we need a way to define "default settings" for first and third party modules? e.g. default sort order, default filtering, etc.
 
 - What should happen to records when a client/project becomes completed or archived?
 

@@ -1094,6 +1094,7 @@ taggableTypes: [
   {
     targetType: "task",
     moduleId: "tasks",
+    tableName: "tasks",
     idField: "task_id",
     labelField: "title",
     workspaceField: "workspace_id",
@@ -1109,11 +1110,25 @@ The framework should validate:
 
 * The tag belongs to the active workspace.
 * The target type is registered as taggable.
-* The target record exists.
-* The target record belongs to the active workspace.
+* The target record exists according to the module-declared table and field metadata.
+* The target record belongs to the active workspace through the module-declared workspace field.
 * The user can view the target before seeing tags.
 * The user can assign/remove tags before changing tags.
 * Disabled modules cannot receive new tag assignments unless explicitly allowed.
+
+The framework browser API exposes:
+
+```text
+GET /api/tags
+POST /api/tags
+PUT /api/tags/:tagId
+POST /api/tags/:tagId/archive
+POST /api/tags/:tagId/restore
+GET /api/tags/assignments
+PUT /api/tags/assignments
+```
+
+`tags.html` is a framework-owned protected settings page for basic tag definition management. Record-level pickers, target tag displays, and tag filters belong to later module integration work.
 
 ### Tags Are Not Workflow State
 

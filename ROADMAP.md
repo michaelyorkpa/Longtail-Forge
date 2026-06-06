@@ -2,120 +2,57 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.3.3 - Dashboard and Workbench Modular UI Cleanup
-
-- [x] Review Dashboard and Workbench as framework-owned surfaces.
-  - [x] Confirm Dashboard remains the framework summary surface instead of a Time Tracking or Tasks-owned page.
-  - [x] Confirm Workbench remains the framework workflow desktop instead of a page owned by Tasks or Time Tracking.
-  - [x] Identify which Dashboard and Workbench sections are framework-owned, which are first-party module contributions, and which are temporary compatibility code.
-  - [x] Avoid changing business behavior while separating framework layout from module-specific renderers.
-
-- [x] Add a Dashboard contribution contract.
-  - [x] Define how modules declare dashboard cards, summary sections, empty states, and links.
-  - [x] Include stable contribution IDs, module IDs, labels, descriptions, required permissions, required module state, sort order, and optional workspace-type terminology.
-  - [x] Keep framework-owned dashboard areas such as page chrome, layout, app status, workspace context, and generic empty states outside module manifests.
-  - [x] Ensure disabled modules cannot contribute active dashboard sections unless historical read access is explicitly allowed.
-  - [x] Leave room for future notification, tag, search, file, and project-health dashboard sections.
-
-- [x] Move Dashboard first-party hard-coded cards toward registered contributions.
-  - [x] Audit `public/js/dashboard.js` and related services for direct Time Tracking, Tasks, Clients, and Projects assumptions.
-  - [x] Convert Time Tracking summary cards into module-declared or module-service-backed dashboard contributions where practical.
-  - [x] Convert Tasks summary cards into module-declared or module-service-backed dashboard contributions where practical.
-  - [x] Keep shared billing/formatting helpers shared, not duplicated inside module renderers.
-  - [x] Preserve existing Dashboard summaries while making their source modular.
-
-- [x] Add a Workbench contribution and renderer contract.
-  - [x] Define how modules register Workbench item sources, card renderers, actions, empty states, and optional active-timer behavior.
-  - [x] Include stable source IDs, module IDs, record types, labels, required permissions, required module state, fetch endpoints, sort behavior, and action metadata.
-  - [x] Keep framework-owned Workbench areas such as layout, source tabs, filters, loading states, status messaging, and generic action dispatch outside module renderers.
-  - [x] Let module-specific renderers handle record-specific fields without hard-coding every module in the framework page script.
-  - [x] Leave room for future Notes, Tickets, Lists, Creator Studio, Files, Tags, and Search workbench contributions.
-
-- [x] Move Workbench first-party hard-coded item logic toward registered renderers.
-  - [x] Audit `public/js/workbench.js` for direct Tasks and Time Tracking rendering branches.
-  - [x] Audit `src/services/workbench.service.js` for direct first-party module source assembly.
-  - [x] Keep the framework aggregate endpoint, but make the source list and item metadata come from registered module contributions where practical.
-  - [x] Keep task timer behavior behind the existing shared active timer engine instead of duplicating timer logic.
-  - [x] Preserve current task, time-entry, and timer workflows while reducing framework knowledge of first-party record shapes.
-
-- [x] Align Dashboard and Workbench navigation with the app-shell/module registry.
-  - [x] Ensure Dashboard links, Workbench links, and section links use registered routes instead of hard-coded first-party URLs where practical.
-  - [x] Ensure disabled modules do not leave orphaned Dashboard cards, Workbench tabs, or action links.
-  - [x] Ensure workspace-type terminology is resolved before labels render.
-  - [x] Keep Dashboard and Workbench visible as framework-owned pages even when optional workflow modules are disabled.
-
-- [x] Add shared UI helpers only where they remove real duplication.
-  - [x] Reuse existing shared formatters, billing helpers, records helpers, modal helpers, and API client helpers before adding new abstractions.
-  - [x] Add small shared helpers for contribution rendering only if Dashboard and Workbench need the same normalization or status behavior.
-  - [x] Avoid creating a frontend build step; keep the plain browser JavaScript contract.
-  - [x] Keep module renderers focused on data presentation rather than owning full page layout.
-
-- [x] Update developer-facing docs for Dashboard and Workbench contribution contracts.
-  - [x] Update `docs/module-contract.md` with dashboard and workbench contribution fields once implemented.
-  - [x] Update `docs/architecture.md` to show Dashboard and Workbench as framework surfaces fed by module contributions.
-  - [x] Add examples for Tasks and Time Tracking as first-party module contributions.
-  - [x] Document which Dashboard/Workbench behaviors remain intentionally framework-owned.
-
-- [x] Add Dashboard and Workbench regression coverage.
-  - [x] Verify Dashboard does not render disabled-module cards.
-  - [x] Verify Workbench does not render disabled-module sources.
-  - [x] Verify Dashboard and Workbench remain accessible when optional workflow modules are disabled.
-  - [x] Verify Tasks and Time Tracking contributions still render when enabled.
-  - [x] Verify module contribution labels honor workspace-type terminology.
-  - [x] Verify Workbench timer actions still use the shared active timer engine.
-  - [x] Include the regression in `npm run check` or the closest existing local verification path.
-
 ## Version 0.32.4 - Tag Service and API
 
-* [ ] Create shared tag repository/service methods
+* [x] Create shared tag repository/service methods
 
-  * [ ] Create tag
-  * [ ] Update tag
-  * [ ] Archive/disable tag
-  * [ ] Restore tag
-  * [ ] List workspace tags
-  * [ ] Search workspace tags by name/slug
-  * [ ] Read tags assigned to a target
-  * [ ] Assign tag to target
-  * [ ] Remove tag from target
-  * [ ] Replace target tags in one save operation
+  * [x] Create tag
+  * [x] Update tag
+  * [x] Archive/disable tag
+  * [x] Restore tag
+  * [x] List workspace tags
+  * [x] Search workspace tags by name/slug
+  * [x] Read tags assigned to a target
+  * [x] Assign tag to target
+  * [x] Remove tag from target
+  * [x] Replace target tags in one save operation
 
-* [ ] Validate tag operations through the framework
+* [x] Validate tag operations through the framework
 
-  * [ ] Validate tag belongs to active workspace
-  * [ ] Validate target type is registered as taggable
-  * [ ] Validate target record exists
-  * [ ] Validate target record belongs to active workspace
-  * [ ] Validate user can view target before showing assigned tags
-  * [ ] Validate user can assign/remove tags before changing assignments
-  * [ ] Validate disabled modules cannot receive new tag assignments unless explicitly allowed
+  * [x] Validate tag belongs to active workspace
+  * [x] Validate target type is registered as taggable
+  * [x] Validate target record exists
+  * [x] Validate target record belongs to active workspace
+  * [x] Validate user can view target before showing assigned tags
+  * [x] Validate user can assign/remove tags before changing assignments
+  * [x] Validate disabled modules cannot receive new tag assignments unless explicitly allowed
 
-* [ ] Add browser API routes for tagging
+* [x] Add browser API routes for tagging
 
-  * [ ] `GET /api/tags`
-  * [ ] `POST /api/tags`
-  * [ ] `PUT /api/tags/:tagId`
-  * [ ] `POST /api/tags/:tagId/archive`
-  * [ ] `POST /api/tags/:tagId/restore`
-  * [ ] `GET /api/tags/assignments`
-  * [ ] `PUT /api/tags/assignments`
+  * [x] `GET /api/tags`
+  * [x] `POST /api/tags`
+  * [x] `PUT /api/tags/:tagId`
+  * [x] `POST /api/tags/:tagId/archive`
+  * [x] `POST /api/tags/:tagId/restore`
+  * [x] `GET /api/tags/assignments`
+  * [x] `PUT /api/tags/assignments`
 
-* [ ] Add audit logging for tag changes
+* [x] Add audit logging for tag changes
 
-  * [ ] Tag created
-  * [ ] Tag updated
-  * [ ] Tag archived
-  * [ ] Tag restored
-  * [ ] Tag assigned to target
-  * [ ] Tag removed from target
-  * [ ] Bulk tag assignment changes
+  * [x] Tag created
+  * [x] Tag updated
+  * [x] Tag archived
+  * [x] Tag restored
+  * [x] Tag assigned to target
+  * [x] Tag removed from target
+  * [x] Bulk tag assignment changes
 
-* [ ] Add basic tag management UI
+* [x] Add basic tag management UI
 
-  * [ ] Add tag management under workspace settings or a dedicated admin page
-  * [ ] List active tags
-  * [ ] Add/edit/archive tags
-  * [ ] Keep UI simple until tagging is proven across several modules
+  * [x] Add tag management under workspace settings or a dedicated admin page
+  * [x] List active tags
+  * [x] Add/edit/archive tags
+  * [x] Keep UI simple until tagging is proven across several modules
 
 ## Version 0.32.5 - Tagging Core Records
 

@@ -1,3 +1,14 @@
+## Version 0.32.4 - 2026-06-06 08:31 -04:00
+
+- Bumped the app and first-party module versions to `0.32.4`.
+- Added a framework tag repository and service for tag create/update/archive/restore, listing/search, assignment reads, assign/remove, and replacement saves.
+- Added `/api/tags` and `/api/tags/assignments` browser routes with workspace, target, permission, module-state, and active-tag validation.
+- Extended taggable manifest metadata with `tableName` for runtime target lookup and corrected Clients/Projects taggable ID fields to match their database tables.
+- Added framework audit record types and audit logging for tag definition changes, assignment add/remove events, and bulk assignment replacements.
+- Added a basic framework-owned `tags.html` management page under Workspace settings for listing, creating, editing, archiving, and restoring tags.
+- Added tag service regression coverage and wired it into `npm run check`.
+- Updated module contract, architecture notes, permissions notes, decisions, and roadmap/archive bookkeeping for 0.32.4.
+
 ## Version 0.32.3.3 - 2026-06-06 08:09 -04:00
 
 - Bumped the app and first-party module versions to `0.32.3.3`.

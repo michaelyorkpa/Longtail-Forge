@@ -15,6 +15,7 @@ import { permissionsRoutes } from "../routes/permissions.routes.js";
 import { reportingRoutes } from "../routes/reporting.routes.js";
 import { settingsRoutes } from "../routes/settings.routes.js";
 import { staticRoutes } from "../routes/static.routes.js";
+import { tagsRoutes } from "../routes/tags.routes.js";
 import { workbenchRoutes } from "../routes/workbench.routes.js";
 import { requireModuleBrowserWritesEnabledForRouter } from "./modules/module-access.js";
 import { modulesService } from "./modules/modules.service.js";
@@ -41,6 +42,7 @@ function createApp() {
   app.use("/api", permissionsRoutes);
   app.use("/api", reportingRoutes);
   app.use("/api", settingsRoutes);
+  app.use("/api", tagsRoutes);
   app.use("/api", workbenchRoutes);
   for (const moduleRoute of modulesService.listModuleRouteEntries("browser")) {
     const moduleDefinition = modulesService.getModule(moduleRoute.moduleId);

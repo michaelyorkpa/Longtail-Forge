@@ -503,6 +503,7 @@ function validateTaggableTypes(taggableTypes, moduleId, errors) {
     validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `taggableTypes[${index}]` });
     requireString(item, "label", errors, { prefix: `taggableTypes[${index}]` });
     requireString(item, "description", errors, { prefix: `taggableTypes[${index}]` });
+    requireString(item, "tableName", errors, { prefix: `taggableTypes[${index}]` });
     requireString(item, "idField", errors, { prefix: `taggableTypes[${index}]` });
     requireString(item, "labelField", errors, { prefix: `taggableTypes[${index}]` });
     requireString(item, "workspaceField", errors, { prefix: `taggableTypes[${index}]` });

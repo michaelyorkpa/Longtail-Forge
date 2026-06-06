@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tags | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=10">
+  </head>
+  <body data-page-title="Tags">
+    <main class="wide-page tags-page">
+      <div class="page-heading">
+        <h1>Tags</h1>
+        <div class="segmented-control" role="group" aria-label="Tag status filter">
+          <button type="button" data-tag-status-filter="active" aria-pressed="true">Active</button>
+          <button type="button" data-tag-status-filter="archived" aria-pressed="false">Archived</button>
+          <button type="button" data-tag-status-filter="all" aria-pressed="false">All</button>
+        </div>
+      </div>
+
+      <section class="tags-workspace">
+        <form class="tag-editor-form" data-tag-form>
+          <input type="hidden" name="tag_id" data-tag-id>
+          <label>
+            Name
+            <input type="text" name="name" data-tag-name maxlength="80" required>
+          </label>
+          <label>
+            Slug
+            <input type="text" name="slug" data-tag-slug maxlength="80">
+          </label>
+          <label>
+            Color
+            <input type="color" name="color" data-tag-color value="#2f6fed">
+          </label>
+          <label class="tag-description-field">
+            Description
+            <input type="text" name="description" data-tag-description maxlength="240">
+          </label>
+          <div class="tag-editor-actions">
+            <button type="submit" data-tag-save>Save Tag</button>
+            <button type="button" data-tag-reset>Clear</button>
+          </div>
+        </form>
+
+        <div class="notification-list-toolbar">
+          <label>
+            Search
+            <input type="search" data-tag-search placeholder="Filter tags">
+          </label>
+          <button type="button" data-tag-refresh>Refresh</button>
+        </div>
+
+        <p data-tag-status role="status" aria-live="polite"></p>
+        <div class="tag-list" data-tag-list></div>
+      </section>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/tags.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

@@ -28,7 +28,7 @@ This matrix describes the active workspace-native permission model after the com
 | tags.assign | yes | yes | yes | yes | yes | yes | no |
 | tags.remove | yes | yes | yes | yes | yes | yes | no |
 
-The 0.32.3 tags release seeds permissions and validates module-declared taggable target types. Browser tag service/API routes are intentionally deferred until 0.32.4, so no tag route rows appear in the route matrix yet.
+The 0.32.4 tag service release adds framework browser APIs for tag definitions and assignments. Assignment reads require `tags.view` plus the target type's declared read permission. Assignment writes require the enabled source module plus `tags.assign` for additions or `tags.remove` for removals, along with the target type's declared tag permission.
 
 ## Role Assignment Rules
 

@@ -666,6 +666,79 @@ h1 {
     justify-self: end;
 }
 
+.tags-workspace {
+    display: grid;
+    gap: 16px;
+}
+
+.tag-editor-form {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(128px, 1fr)) auto;
+    gap: 12px;
+    align-items: end;
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.tag-editor-form label {
+    display: grid;
+    gap: 6px;
+}
+
+.tag-description-field {
+    grid-column: span 2;
+}
+
+.tag-editor-actions,
+.tag-row-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.tag-list {
+    display: grid;
+    gap: 12px;
+}
+
+.tag-row {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.tag-row.is-archived,
+.tag-row.is-disabled {
+    opacity: 0.72;
+}
+
+.tag-swatch {
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+}
+
+.tag-row-summary {
+    min-width: 0;
+}
+
+.tag-row-summary h2 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.tag-row-description {
+    margin: 4px 0 0;
+}
+
 .settings-secondary-actions {
     display: flex;
     justify-content: flex-end;
@@ -2771,8 +2844,14 @@ button:disabled {
     .entry-form,
     .entry-filters,
     .audit-log-filters,
+    .tag-editor-form,
+    .tag-row,
     .duration-editor {
         grid-template-columns: 1fr;
+    }
+
+    .tag-description-field {
+        grid-column: auto;
     }
 
     .page-heading,
@@ -2816,6 +2895,8 @@ button:disabled {
     .project-editor button,
     .add-project-form button,
     .billing-editor button,
+    .tag-editor-form button,
+    .tag-row-actions button,
     .login-form button {
         width: 100%;
     }
