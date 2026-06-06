@@ -16,7 +16,7 @@ const tagsModule = {
     },
   },
   category: "framework-service",
-  version: "0.32.5",
+  version: "0.32.5.1",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: false,

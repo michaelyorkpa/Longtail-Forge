@@ -239,12 +239,15 @@ function createTaskItem(task) {
   const startButton = actionButton(running ? "Running" : "Start Timer", () => startTaskTimer(task));
   const pauseButton = actionButton("Pause", () => pauseTaskTimer(task));
   const saveButton = actionButton("Save & End", () => finalizeTaskTimer(task));
+  const completeButton = actionButton("Complete", () => completeTask(task));
   const openButton = linkButton("Open Task", task.source_url || `tasks.html?task=${encodeURIComponent(task.task_id)}`);
 
   startButton.disabled = running || !taskCanUseTimer(task);
   pauseButton.disabled = !running || !taskCanUseTimer(task);
   saveButton.disabled = !timer || !taskCanUseTimer(task);
-  actions.append(startButton, pauseButton, saveButton, openButton);
+  completeButton.disabled = task.status === "complete" || task.status === "archived" || Boolean(timer);
+  completeButton.title = timer ? "Save or discard the task timer before completing this task." : "";
+  actions.append(startButton, pauseButton, saveButton, completeButton, openButton);
   item.append(header, detail, actions);
   return item;
 }
@@ -355,6 +358,27 @@ async function finalizeTaskTimer(task) {
     setStatus("Task time saved.");
   } catch (error) {
     setStatus(error.message || "Task time could not be saved.", { isError: true });
+  }
+}
+
+async function completeTask(task) {
+  const confirmed = await modal.confirm({
+    title: "Complete task",
+    message: `Complete "${task.title}"?`,
+    confirmLabel: "Complete",
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  setStatus("Completing task...");
+  try {
+    await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/complete`, {});
+    await loadWorkbench();
+    setStatus("Task completed.");
+  } catch (error) {
+    setStatus(error.message || "Task could not be completed.", { isError: true });
   }
 }
 

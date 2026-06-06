@@ -361,9 +361,11 @@ async function decorateForSession(notification, session) {
   }
 
   const target = await readTargetMetadata(notification, session);
+  const displayTitle = target.label || notification.title;
 
   return {
     ...notification,
+    displayTitle,
     url: target.canOpen ? target.url : "",
     target,
   };
@@ -373,10 +375,16 @@ async function readTaskTargetMetadata(notification, session, baseMetadata) {
   const { tasksService } = await import("../modules/tasks/tasks.service.js");
 
   try {
-    await tasksService.read(notification.record_id, session);
+    const result = await tasksService.read(notification.record_id, session);
+    const task = result.task || {};
     return {
       ...baseMetadata,
       canOpen: Boolean(notification.url),
+      context: {
+        clientName: task.client_name || "",
+        projectName: task.project_name || "",
+      },
+      label: task.title || "",
       targetExists: true,
       url: notification.url || "",
     };

@@ -318,15 +318,20 @@ function createNotificationPanelItem(notification) {
   const actions = document.createElement("span");
   const readButton = document.createElement("button");
   const dismissButton = document.createElement("button");
+  const displayTitle = notificationDisplayTitle(notification);
+  const contextTitle = notificationContextTitle(notification);
 
   item.className = `notification-panel-item is-${notification.status || "unread"}`;
-  title.textContent = notification.title || "Notification";
+  title.textContent = displayTitle;
+  if (contextTitle) {
+    title.title = contextTitle;
+  }
   if (notification.url) {
     title.href = notification.url;
   }
 
   meta.className = "notification-meta";
-  meta.textContent = [notification.event_type, formatNotificationDate(notification.created_at)].filter(Boolean).join(" · ");
+  meta.textContent = notificationMetaParts(notification).join(" - ");
 
   actions.className = "notification-panel-actions";
   readButton.type = "button";
@@ -341,6 +346,37 @@ function createNotificationPanelItem(notification) {
 
   item.append(title, meta, actions);
   return item;
+}
+
+function notificationDisplayTitle(notification) {
+  return notification.displayTitle || notification.target?.label || notification.title || "Notification";
+}
+
+function notificationContextTitle(notification) {
+  if (notification.target?.recordType !== "task") {
+    return "";
+  }
+
+  const context = notification.target?.context || {};
+  const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || "business";
+  const projectName = String(context.projectName || "").trim();
+  const clientName = String(context.clientName || "").trim();
+
+  if (workspaceType === "business") {
+    return [clientName, projectName].filter(Boolean).join(" / ");
+  }
+
+  return projectName;
+}
+
+function notificationMetaParts(notification) {
+  const date = formatNotificationDate(notification.created_at);
+
+  if (notification.target?.recordType === "task") {
+    return [date].filter(Boolean);
+  }
+
+  return [notification.event_type, date].filter(Boolean);
 }
 
 function createNotificationPanelEmpty(text) {

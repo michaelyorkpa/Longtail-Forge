@@ -1,3 +1,12 @@
+## Version 0.32.5.1 - 2026-06-06 10:32 -04:00
+
+- Bumped the app and first-party module versions to `0.32.5.1`.
+- Replaced hard-coded white task control, bulk action, bulk assignee, and dialog footer backgrounds with shared theme surface tokens.
+- Made the Tasks page filter controls static instead of sticky so the filter area no longer floats over smaller laptop viewports.
+- Added a Workbench task `Complete` action that uses the existing Tasks module completion API and preserves timer, permission, recurrence, audit, and notification behavior.
+- Updated task notification summaries and framework notification decoration so task notifications display the task title, with client/project hover context in Business workspaces and project-only context in Personal/Family workspaces.
+- Updated roadmap/archive and decisions bookkeeping for 0.32.5.1.
+
 ## Version 0.32.5 - 2026-06-06 09:28 -04:00
 
 - Bumped the app and first-party module versions to `0.32.5`.

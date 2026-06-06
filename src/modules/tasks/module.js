@@ -1,6 +1,10 @@
 import { tasksRoutes } from "./tasks.routes.js";
 import { tasksPublicApiRoutes } from "./public-api.routes.js";
 
+function taskNotificationTitle({ event }) {
+  return event.new_value?.title || event.previous_value?.title || event.record_id || "Task";
+}
+
 const tasksModule = {
   id: "tasks",
   name: "Tasks",
@@ -17,7 +21,7 @@ const tasksModule = {
     },
   },
   category: "core-workflow",
-  version: "0.32.5",
+  version: "0.32.5.1",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -325,7 +329,7 @@ const tasksModule = {
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
       },
       notification: {
-        title: "Task Created",
+        title: taskNotificationTitle,
         body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" was created.`,
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
         recipientHints: ["assignees"],
@@ -340,7 +344,7 @@ const tasksModule = {
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
       },
       notification: {
-        title: "Task Updated",
+        title: taskNotificationTitle,
         body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" was updated.`,
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
         recipientHints: ["assignees"],
@@ -355,7 +359,7 @@ const tasksModule = {
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
       },
       notification: {
-        title: "Task Assigned",
+        title: taskNotificationTitle,
         body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" was assigned.`,
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
         recipientHints: ["assignees"],
@@ -370,7 +374,7 @@ const tasksModule = {
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
       },
       notification: {
-        title: "Task Completed",
+        title: taskNotificationTitle,
         body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" was completed.`,
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
         recipientHints: ["assignees"],
@@ -385,7 +389,7 @@ const tasksModule = {
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
       },
       notification: {
-        title: "Task Archived",
+        title: taskNotificationTitle,
         body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" was archived.`,
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
         recipientHints: ["assignees"],
@@ -400,7 +404,7 @@ const tasksModule = {
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
       },
       notification: {
-        title: "Task Restored",
+        title: taskNotificationTitle,
         body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" was restored.`,
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
         recipientHints: ["assignees"],
@@ -410,7 +414,7 @@ const tasksModule = {
       event: "task.due_soon",
       moduleId: "tasks",
       notification: {
-        title: "Task Due Soon",
+        title: taskNotificationTitle,
         body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" is due soon.`,
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
         recipientHints: ["assignees"],
@@ -420,7 +424,7 @@ const tasksModule = {
       event: "task.overdue",
       moduleId: "tasks",
       notification: {
-        title: "Task Overdue",
+        title: taskNotificationTitle,
         body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" is overdue.`,
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
         recipientHints: ["assignees"],

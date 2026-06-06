@@ -153,11 +153,16 @@ function createNotificationRow(notification) {
   const actions = document.createElement("div");
   const readButton = document.createElement("button");
   const dismissButton = document.createElement("button");
+  const displayTitle = notificationDisplayTitle(notification);
+  const contextTitle = notificationContextTitle(notification);
 
   row.className = `notification-row is-${notification.status || "unread"}`;
   heading.className = "notification-row-heading";
 
-  title.textContent = notification.title || "Notification";
+  title.textContent = displayTitle;
+  if (contextTitle) {
+    title.title = contextTitle;
+  }
   if (notification.url) {
     title.href = notification.url;
   }
@@ -168,11 +173,7 @@ function createNotificationRow(notification) {
 
   body.textContent = notification.body || "";
   meta.className = "notification-meta";
-  meta.textContent = [
-    notification.module_id || "framework",
-    notification.event_type,
-    formatDate(notification.created_at),
-  ].filter(Boolean).join(" · ");
+  meta.textContent = notificationMetaParts(notification).join(" - ");
 
   actions.className = "notification-row-actions";
   readButton.type = "button";
@@ -187,6 +188,41 @@ function createNotificationRow(notification) {
 
   row.append(heading, body, meta, actions);
   return row;
+}
+
+function notificationDisplayTitle(notification) {
+  return notification.displayTitle || notification.target?.label || notification.title || "Notification";
+}
+
+function notificationContextTitle(notification) {
+  if (notification.target?.recordType !== "task") {
+    return "";
+  }
+
+  const context = notification.target?.context || {};
+  const workspaceType = window.LongtailForge?.workspaceContext?.workspaceType || "business";
+  const projectName = String(context.projectName || "").trim();
+  const clientName = String(context.clientName || "").trim();
+
+  if (workspaceType === "business") {
+    return [clientName, projectName].filter(Boolean).join(" / ");
+  }
+
+  return projectName;
+}
+
+function notificationMetaParts(notification) {
+  const date = formatDate(notification.created_at);
+
+  if (notification.target?.recordType === "task") {
+    return [notification.module_id || "framework", date].filter(Boolean);
+  }
+
+  return [
+    notification.module_id || "framework",
+    notification.event_type,
+    date,
+  ].filter(Boolean);
 }
 
 function renderPreferences(canManageWorkspaceDefaults) {

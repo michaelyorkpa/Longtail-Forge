@@ -88,7 +88,7 @@ check("activity summaries are dashboard-safe", () => {
 });
 
 check("notification summaries expose recipient hints without raw event JSON", () => {
-  assert.equal(notificationSummary.title, "Task Created");
+  assert.equal(notificationSummary.title, "Safe summary task");
   assert.equal(notificationSummary.body, "Task \"Safe summary task\" was created.");
   assert.equal(notificationSummary.url, "tasks.html?task=task-1");
   assert.deepEqual(notificationSummary.recipientHints, ["assignees"]);

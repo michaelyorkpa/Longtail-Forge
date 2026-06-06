@@ -2,45 +2,96 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.5 - Tagging Core Records
+## Version 0.32.5.1 - UI Clean up
 
-* [x] Register initial taggable types through module manifests
+- [x] Filter list and bulk actions in Projects -> Tasks, and add/edit task modal footer have backgrounds that do not respect dark mode
+  - [x] I believe this extends to all modal footers; I just found a white footer background in the edit project settings modal, too
 
-  * [x] `time_entry`
-  * [x] `client`
-  * [x] `project`
-  * [x] `task`
+- [x] Add a "Complete" button on the Workbench tasks
 
-* [x] Add tag picker/search UI helper
+- [x] Turn off floating of task list filter and make it stay static on the page
+  - As much as I love it, it's too big on smaller screens (laptop)
 
-  * [x] Reusable frontend helper for selecting tags
-  * [x] Reusable frontend helper for displaying assigned tags
-  * [x] Reusable frontend helper for saving target tag assignments
-  * [x] Avoid building separate custom tag pickers for every module
+- [x] Notifications display task.updated - {{date}}, {{time}} instead of {{taskTitle}} - {{date}}, {{time}}
+  - When {{taskTitle}} is hovered over, please display the {{clientName}}/{{projectName}} in Business workspaces
+    - For Personal and Family workspaces, hover over should give just {{projectName}}
 
-* [x] Add tagging to Tasks
+## Version 0.35.5.2 - Framework/Backend Tidying
 
-  * [x] Add tag display to task list
-  * [x] Add tag picker to create/edit task modal
-  * [x] Add tag filters to task list
-  * [x] Include tags in task read/list API responses
-  * [x] Audit tag changes separately from normal task field edits
+- Adjust the way the front end handles module modals
+  - This does not apply to settings or setting modals. Those should remain in the appropriate menus.
+  - This does apply to add/edit modals of all types.
+  - Modals should be openable from any screen, e.g. "Add Task" on Workbench should simply open the modal, rather than navigating away from the Workbench
+  - This will reduce the number of clicks a user has to perform to continue working when an interruption necessitates a change or addition
 
-* [x] Add tagging to Time Entries
+- Starting a task timer should move task status to in progress
+  - if task timer is cancelled/reset/deleted before saving, task should move back to open status
 
-  * [x] Add tag picker/search UI to time tracker finalization flow where practical
-  * [x] Add tag picker/search UI to manual time entry
-  * [x] Add tag picker/search UI to edit entries
-  * [x] Add reporting filters by direct time-entry tags
-  * [x] Include tags in time entry read/list/reporting responses where useful
+- [ ] Edit time entries and manual time entry screens needs an update
+  - [ ] This should, simply, be titled Time Entries
+  - [ ] The screen should be a filter/sortable list view (bring it in line with the Tasks screen; it's close)
+  - [ ] The actual edit form should be moved from the bottom of this screen to a modal window
+  - [ ] An "Add Time Entry" button should be added to the top of the time entries window
+  - [ ] Manual time entries should become an "Add Time Entry" modal window
 
-* [x] Add tagging to Clients and Projects
+- [ ] Add Project default for task assignation. Choices can be:
+  - Task Creator
+  - Project Admin (fallback, client admin if Business workspace or Workspace admin if no client admin/not Business workspace)
+  - Unassigned
 
-  * [x] Allow clients to be tagged
-  * [x] Allow projects to be tagged
-  * [x] Show client/project tags as context on related records where useful
-  * [x] Do not automatically copy client/project tags onto time entries or tasks
-  * [x] Later reporting can optionally include records under clients/projects with matching tags
+- [ ] Make sure the Tasks list on the Workbench uses the project's default sort order
+- [ ] Add priority sorting to Tasks on Workbench
+
+- [ ] If you click the "Completed" or the "Archived" filter in Projects -> Tasks, then click "All," the filtered list doesn't change
+
+
+## Version 0.32.5.3 - Shared Icon and Compact Action Controls
+
+- [ ] Add shared icon system
+  - [ ] Choose one first-party icon set for the app
+  - [ ] Prefer inline/local SVG icons over remote icon fonts
+  - [ ] Add shared icon rendering helper
+  - [ ] Add shared `.icon`, `.icon-button`, and `.action-button` styles
+  - [ ] Ensure all icon-only controls have `aria-label`
+  - [ ] Ensure all icon controls keep a minimum 44px touch target
+  - [ ] Ensure icons use `currentColor` for light/dark theme compatibility
+
+- [ ] Convert dense action areas to icon-capable controls
+  - [ ] Timer Start/Pause/Save/Discard controls
+  - [ ] Task row actions
+  - [ ] Tag row edit/archive/restore actions
+  - [ ] Notification quick actions where useful
+  - [ ] Table row edit/delete/archive actions
+
+- [ ] Add regression checks
+  - [ ] Icon-only buttons must have accessible labels
+  - [ ] Danger icon buttons must preserve danger styling
+  - [ ] Shared icon helper must not depend on a specific module
+
+### Version 0.32.5.4 - Notification UI Fixes
+
+- Font size of work item title in the notification drop down is too large
+
+- Hitting dismiss in the notification drop down doesn't clear the notifications from the box
+- Going to "see all notifications" doesn't show the one notification I see in the box that won't clear
+
+- There are no preferences settings in the Notification UI and the preferences should be in User Settings as well as in the notifications screen
+  - Preferences should include:
+    - Module based groupings of checkboxes for when and what to be notified about
+
+- Notifications should have hooks that allow turning on notifications for specific work items individually that overrides preferences
+  - For example, someone creates a task, assigns it to someone else, then turns on the notifications so they get a notification when updates happen
+  - This may be a large update, because this should/would only apply to a single user (the person who turns on the notifications)
+
+### Version 0.32.5.5 - Tags Fixes
+
+- Need to be able to add tags on the fly
+  - Going to a whole separate page to add tags is cumbersome and time consuming, and requires that users pre-plan tags, interrupting the workflow and decreasing the usability of tags
+
+### Version 0.32.5.6
+
+- Need to be able to add tags on the fly
+  - Going to a whole separate page to add tags is cumbersome and time consuming, and requires that users pre-plan tags, interrupting the workflow and decreasing the usability of tags
 
 ## Version 0.32.6 - Search Framework Contract
 
