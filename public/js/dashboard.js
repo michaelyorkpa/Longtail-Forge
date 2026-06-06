@@ -11,6 +11,16 @@ const billablesChart = document.querySelector("[data-billables-chart]");
 const dashboardStatus = document.querySelector("[data-dashboard-status]");
 
 let dashboardData = null;
+let dashboardPanels = [];
+
+const dashboardPanelRenderers = {
+  "project-summary": renderProjectHub,
+  "billing-summary": () => {
+    renderCurrentMonthBillables();
+    renderBillablesChart();
+  },
+  "task-summary": renderTaskSummaryContribution,
+};
 
 loadDashboardData();
 
@@ -39,14 +49,33 @@ async function loadDashboardData() {
     }
 
     dashboardData = await response.json();
-    renderProjectHub();
-    renderExtensionPanels();
-    renderCurrentMonthBillables();
-    renderBillablesChart();
+    dashboardPanels = dashboardData?.extensionPoints?.dashboardPanels || [];
+    renderRegisteredDashboardPanels();
     setDashboardStatus("");
   } catch (error) {
     setDashboardStatus("Dashboard data could not be loaded.");
     console.error(error);
+  }
+}
+
+function renderRegisteredDashboardPanels() {
+  renderStaticDashboardPanels();
+  renderExtensionPanels();
+}
+
+function renderStaticDashboardPanels() {
+  document.querySelectorAll("[data-dashboard-renderer]").forEach((panel) => {
+    const renderer = panel.dataset.dashboardRenderer;
+    const contribution = findDashboardContribution(renderer, panel.dataset.dashboardPanelId);
+    panel.hidden = !contribution;
+  });
+
+  for (const contribution of dashboardPanels) {
+    const renderer = dashboardPanelRenderers[contribution.renderer];
+
+    if (renderer) {
+      renderer(contribution);
+    }
   }
 }
 
@@ -79,7 +108,7 @@ function renderCurrentMonthBillables() {
   const rows = dashboardData?.timeTracking?.currentMonthBillables || [];
   currentMonthBillables.innerHTML = "";
 
-  if (!dashboardData?.timeTracking?.available) {
+  if (!findDashboardContribution("billing-summary", "billing-summary")) {
     renderEmptyBillableRow("Time Tracking is not available for this workspace.");
     return;
   }
@@ -116,6 +145,11 @@ function renderEmptyBillableRow(message) {
 }
 
 function renderBillablesChart() {
+  if (!findDashboardContribution("billing-summary", "billing-summary")) {
+    billablesChart.innerHTML = "";
+    return;
+  }
+
   const points = (dashboardData?.timeTracking?.chartPoints || []).map((point) => ({
     label: formatMonthLabel(new Date(point.labelDate)),
     hours: Number(point.hours) || 0,
@@ -126,7 +160,7 @@ function renderBillablesChart() {
 }
 
 function renderExtensionPanels() {
-  const panels = dashboardData?.extensionPoints?.dashboardPanels || [];
+  const panels = dashboardPanels.filter((panel) => !document.querySelector(`[data-dashboard-panel-id="${cssEscape(panel.id)}"]`));
   dashboardExtensionPanels.replaceChildren();
 
   if (!Array.isArray(panels) || panels.length === 0) {
@@ -135,8 +169,13 @@ function renderExtensionPanels() {
   }
 
   panels.forEach((panel) => {
-    if (panel.moduleId === "tasks" && panel.id === "task-summary" && dashboardData?.tasks?.available) {
-      dashboardExtensionPanels.appendChild(createTaskSummaryPanel(dashboardData.tasks.summary));
+    const renderer = dashboardPanelRenderers[panel.renderer];
+
+    if (renderer) {
+      const renderedPanel = renderer(panel);
+      if (renderedPanel) {
+        dashboardExtensionPanels.appendChild(renderedPanel);
+      }
       return;
     }
 
@@ -146,6 +185,21 @@ function renderExtensionPanels() {
     dashboardExtensionPanels.appendChild(marker);
   });
   dashboardExtensionPanels.hidden = false;
+}
+
+function renderTaskSummaryContribution() {
+  if (!dashboardData?.tasks?.available) {
+    return null;
+  }
+
+  return createTaskSummaryPanel(dashboardData.tasks.summary);
+}
+
+function findDashboardContribution(renderer, id = "") {
+  return dashboardPanels.find((panel) => (
+    panel.renderer === renderer &&
+    (!id || panel.id === id)
+  ));
 }
 
 function createTaskSummaryPanel(summary = {}) {
@@ -332,4 +386,12 @@ function workspaceProjectsLabel() {
 
 function setDashboardStatus(message) {
   dashboardStatus.textContent = message;
+}
+
+function cssEscape(value) {
+  if (window.CSS?.escape) {
+    return window.CSS.escape(value);
+  }
+
+  return String(value).replaceAll('"', '\\"');
 }

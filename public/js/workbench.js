@@ -14,6 +14,7 @@ const manualClientInput = document.querySelector("[data-workbench-manual-client]
 const manualProjectInput = document.querySelector("[data-workbench-manual-project]");
 const manualDescriptionInput = document.querySelector("[data-workbench-manual-description]");
 const manualBillableInput = document.querySelector("[data-workbench-manual-billable]");
+const timeTrackingModuleLink = document.querySelector('[data-workbench-module-link="time-tracking"]');
 
 const api = window.LongtailForge.api;
 const modal = window.LongtailForge.modal;
@@ -25,6 +26,11 @@ let state = {
     tasks: { enabled: false },
     timeTracking: { enabled: false },
   },
+  registry: {
+    workbenchCards: [],
+    timerSources: [],
+    workItemSources: [],
+  },
   taskFilter: "assigned",
   taskItems: [],
   timers: [],
@@ -32,7 +38,14 @@ let state = {
 let tickIntervalId = null;
 let pendingActivatedTimerKey = "";
 
-// TODO 0.31.10-0.31.15: replace this pragmatic first-party controller wiring with registered Workbench card renderers and timer/workbench item sources.
+const workbenchCardRenderers = {
+  "active-work-timers": () => {
+    renderTimers();
+    updateManualTimerState();
+  },
+  "task-workbench-items": renderTasks,
+};
+
 document.querySelectorAll("[data-workbench-card]").forEach((card) => {
   card.addEventListener("toggle", persistCardState);
 });
@@ -62,6 +75,7 @@ async function loadWorkbench() {
       clients: normalizeClientProjectOptions(clientProjectData),
       currentUserId: bootstrap.currentUserId || "",
       modules: bootstrap.modules || state.modules,
+      registry: bootstrap.registry || state.registry,
       taskItems: bootstrap.taskItems || [],
       timers: bootstrap.timers || [],
     };
@@ -83,9 +97,24 @@ async function loadClientProjectData() {
 }
 
 function renderWorkbench() {
-  renderTimers();
-  renderTasks();
-  updateManualTimerState();
+  renderRegisteredWorkbenchCards();
+  updateModuleLinks();
+}
+
+function renderRegisteredWorkbenchCards() {
+  const activeCards = new Map((state.registry.workbenchCards || []).map((card) => [card.renderer, card]));
+
+  document.querySelectorAll("[data-workbench-card]").forEach((card) => {
+    const rendererId = card.dataset.workbenchRenderer || "";
+    const contribution = activeCards.get(rendererId);
+    const renderer = workbenchCardRenderers[rendererId];
+
+    card.hidden = !contribution || !renderer;
+
+    if (contribution && renderer) {
+      renderer(contribution);
+    }
+  });
 }
 
 function renderTimers() {
@@ -151,8 +180,8 @@ function createTimerCard(timer) {
 }
 
 function renderTasks() {
-  const tasksEnabled = state.modules.tasks?.enabled === true;
-  const taskCard = document.querySelector('[data-workbench-card="tasks"]');
+  const tasksEnabled = cardContributionActive("task-workbench-items");
+  const taskCard = document.querySelector('[data-workbench-renderer="task-workbench-items"]');
   const tasks = tasksEnabled ? sortedTasks(filteredTasks()) : [];
 
   taskCard.hidden = !tasksEnabled;
@@ -170,6 +199,16 @@ function renderTasks() {
   }
 
   tasks.forEach((task) => taskList.appendChild(createTaskItem(task)));
+}
+
+function cardContributionActive(rendererId) {
+  return (state.registry.workbenchCards || []).some((card) => card.renderer === rendererId);
+}
+
+function updateModuleLinks() {
+  if (timeTrackingModuleLink) {
+    timeTrackingModuleLink.hidden = !cardContributionActive("active-work-timers");
+  }
 }
 
 function createTaskItem(task) {

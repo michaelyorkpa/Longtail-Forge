@@ -70,6 +70,7 @@ async function readProjectSummary(session, query = {}) {
 
 async function readDashboard(session) {
   const { settings, scopes, moduleContext } = await readReportContext(session, { includeInactive: true });
+  const dashboardPanels = await modulesService.listDashboardPanels(session.workspace_id, session);
   const entries = normalizeTimeEntries((await timeEntriesService.list(session)).entries);
   const clientFiltersVisible = settings.workspaceType === "business";
   const activeScopes = scopes.filter((scope) => scope.status === "Active");
@@ -94,7 +95,7 @@ async function readDashboard(session) {
       amount: totals.amount,
     };
   });
-  const taskSummary = moduleHasPanel(moduleContext.modules, TASKS_MODULE_ID, "dashboard", "task-summary")
+  const taskSummary = panelIsAvailable(dashboardPanels, TASKS_MODULE_ID, "task-summary")
     ? await tasksService.summary(session)
     : null;
 
@@ -111,7 +112,7 @@ async function readDashboard(session) {
       defaultReportScopeId: clientFiltersVisible ? "" : activeScopes[0]?.id || "",
     },
     timeTracking: {
-      available: moduleHasPanel(moduleContext.modules, TIME_TRACKING_MODULE_ID, "dashboard", "billing-summary"),
+      available: panelIsAvailable(dashboardPanels, TIME_TRACKING_MODULE_ID, "billing-summary"),
       currentMonthBillables: currentMonthRows,
       currentMonthTotals,
       chartPoints,
@@ -121,7 +122,7 @@ async function readDashboard(session) {
       summary: taskSummary,
     },
     extensionPoints: {
-      dashboardPanels: readModulePanels(moduleContext.modules, "dashboard"),
+      dashboardPanels,
       reportingPanels: readModulePanels(moduleContext.modules, "reporting"),
       reserved: ["tasks", "notes", "tickets", "notifications", "activity-feed"],
     },
@@ -570,12 +571,8 @@ function emptyProjectSummary(scope, taskFilter = []) {
   };
 }
 
-function moduleHasPanel(modules, moduleId, panelGroup, panelId) {
-  const moduleDefinition = modules.find((item) => item.id === moduleId);
-  const moduleAvailable = moduleDefinition?.status === "enabled" || moduleDefinition?.historicalReadAccess === true;
-  const panels = Array.isArray(moduleDefinition?.[panelGroup]) ? moduleDefinition[panelGroup] : [];
-
-  return moduleAvailable && panels.some((panel) => panel.id === panelId);
+function panelIsAvailable(panels, moduleId, panelId) {
+  return panels.some((panel) => panel.moduleId === moduleId && panel.id === panelId);
 }
 
 function readModulePanels(modules, panelGroup) {

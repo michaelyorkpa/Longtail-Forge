@@ -759,6 +759,16 @@ async function listWorkbenchCards(workspaceId, session = null) {
   ));
 }
 
+async function listDashboardPanels(workspaceId, session = null) {
+  const panels = await listWorkspaceContributions(workspaceId, session, "dashboard");
+
+  return panels.sort((left, right) => (
+    Number(left.sortOrder) - Number(right.sortOrder) ||
+    left.label.localeCompare(right.label) ||
+    left.id.localeCompare(right.id)
+  ));
+}
+
 async function listTimerSources(workspaceId, session = null) {
   return listSourceContributions(workspaceId, session, "timerSources");
 }
@@ -1002,7 +1012,7 @@ async function requiredPermissionsAllowed(contribution, session) {
   const { permissionsService } = await import("../../services/permissions.service.js");
 
   for (const permissionId of requiredPermissions) {
-    if (!(await permissionsService.can(session, permissionId, {
+    if (!(await permissionsService.canInAnyScope(session, permissionId, {
       workspace_id: session.workspace_id,
       operation: "read",
     }))) {
@@ -1034,6 +1044,7 @@ export const modulesService = {
   getTimerSource,
   getWorkItemSource,
   listEnabledModules,
+  listDashboardPanels,
   listAvailableApiScopes,
   listModuleApiScopes,
   listModuleApiScopeEntries,

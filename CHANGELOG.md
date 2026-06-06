@@ -1,3 +1,13 @@
+## Version 0.32.3.3 - 2026-06-06 08:09 -04:00
+
+- Bumped the app and first-party module versions to `0.32.3.3`.
+- Hardened Dashboard and Workbench manifest contribution contracts with renderer IDs, module IDs, permission/capability/module requirements, sort order, and source/action metadata.
+- Made Dashboard panels come from permission-filtered module contributions and dispatch browser renderers by registered renderer ID.
+- Made Workbench cards render only when registered card contributions are active, while keeping task and timer behavior intact.
+- Added registered Dashboard/Workbench metadata for Clients & Projects, Tasks, and Time Tracking first-party contributions.
+- Added Dashboard/Workbench regression coverage and wired it into `npm run check`.
+- Updated module contract, architecture notes, decisions, and roadmap/archive bookkeeping for 0.32.3.3.
+
 ## Version 0.32.3.2 - 2026-06-06 07:55 -04:00
 
 - Bumped the app and first-party module versions to `0.32.3.2`.

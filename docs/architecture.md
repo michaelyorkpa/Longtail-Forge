@@ -804,6 +804,10 @@ Module settings navigation is assembled from registered module settings views ra
 
 The settings save logic should not hard-code each module toggle.
 
+Dashboard and Workbench are framework-owned surfaces fed by module contributions. Modules declare Dashboard panels and Workbench cards in their manifests with stable IDs, renderer IDs, module IDs, permission requirements, module-state requirements, and optional workspace terminology. The backend filters those contributions by workspace, module state, capabilities, and permissions before returning them to the browser.
+
+The browser Dashboard and Workbench scripts may still contain first-party renderer implementations, but those renderers are activated by contribution metadata rather than permanent module/id conditionals. Future modules should be able to add Dashboard panels or Workbench cards by declaring contributions and supplying compatible renderer behavior without changing unrelated navigation or settings code.
+
 Notification preferences should be framework-owned, but modules may declare notification types/templates that users can enable, mute, or configure where practical.
 
 ---

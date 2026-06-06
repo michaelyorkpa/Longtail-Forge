@@ -11,13 +11,13 @@
     <main class="workbench-page">
       <div class="page-heading">
         <h1>Workbench</h1>
-        <a class="button-link" href="time-tracker.html">Time Tracker</a>
+        <a class="button-link" href="time-tracker.html" data-workbench-module-link="time-tracking">Time Tracker</a>
       </div>
 
       <p data-workbench-status role="status" aria-live="polite"></p>
 
       <section class="workbench-layout" aria-label="Workbench areas">
-        <details class="workbench-section" data-workbench-card="timers" open>
+        <details class="workbench-section" data-workbench-card="active-work-timers" data-workbench-renderer="active-work-timers" open>
           <summary>
             <span>Timers</span>
             <span class="workbench-count" data-workbench-timer-count>0</span>
@@ -46,7 +46,7 @@
           </div>
         </details>
 
-        <details class="workbench-section" data-workbench-card="tasks" open>
+        <details class="workbench-section" data-workbench-card="task-workbench-items" data-workbench-renderer="task-workbench-items" open>
           <summary>
             <span>Tasks</span>
             <span class="workbench-count" data-workbench-task-count>0</span>
@@ -76,7 +76,7 @@
           </div>
         </details>
 
-        <details class="workbench-section" data-workbench-card="quick-notes">
+        <details class="workbench-section" data-workbench-card="quick-notes" data-workbench-renderer="quick-notes" hidden>
           <summary>
             <span>Quick Notes</span>
           </summary>
@@ -95,7 +95,7 @@
     <script src="js/shared/api-client.js"></script>
     <script src="js/shared/page-controller.js"></script>
     <script src="js/shared/timezones.js"></script>
-    <script src="js/workbench.js?v=10"></script>
+    <script src="js/workbench.js?v=11"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

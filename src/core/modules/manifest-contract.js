@@ -253,6 +253,13 @@ function validateDashboard(dashboard, errors) {
   optionalArrayOfObjects(dashboard, "dashboard", errors, (item, index) => {
     requireString(item, "id", errors, { prefix: `dashboard[${index}]` });
     requireString(item, "label", errors, { prefix: `dashboard[${index}]` });
+    requireString(item, "renderer", errors, { prefix: `dashboard[${index}]` });
+    requireString(item, "moduleId", errors, { prefix: `dashboard[${index}]` });
+    optionalString(item, "description", errors, { prefix: `dashboard[${index}]` });
+    optionalStringArray(item, "requiredPermissions", errors, { prefix: `dashboard[${index}]` });
+    optionalStringArray(item, "requiredWorkspaceCapabilities", errors, { prefix: `dashboard[${index}]` });
+    optionalStringArray(item, "requiresEnabledModules", errors, { prefix: `dashboard[${index}]` });
+    optionalNumber(item, "sortOrder", errors, { prefix: `dashboard[${index}]` });
     validateTerminology(item.terminology, `dashboard[${index}].terminology`, errors);
   });
 }
@@ -263,9 +270,17 @@ function validateWorkbench(workbench, errors) {
     requireString(item, "label", errors, { prefix: `workbench[${index}]` });
     requireString(item, "renderer", errors, { prefix: `workbench[${index}]` });
     requireString(item, "moduleId", errors, { prefix: `workbench[${index}]` });
+    optionalString(item, "description", errors, { prefix: `workbench[${index}]` });
+    optionalString(item, "sourceType", errors, { prefix: `workbench[${index}]` });
+    optionalString(item, "listRoute", errors, { prefix: `workbench[${index}]` });
     optionalStringArray(item, "requiredPermissions", errors, { prefix: `workbench[${index}]` });
     optionalStringArray(item, "requiredWorkspaceCapabilities", errors, { prefix: `workbench[${index}]` });
     optionalStringArray(item, "requiresEnabledModules", errors, { prefix: `workbench[${index}]` });
+    optionalArrayOfObjects(item.actions, `workbench[${index}].actions`, errors, (action, actionIndex) => {
+      requireString(action, "id", errors, { prefix: `workbench[${index}].actions[${actionIndex}]` });
+      requireString(action, "label", errors, { prefix: `workbench[${index}].actions[${actionIndex}]` });
+      optionalString(action, "route", errors, { prefix: `workbench[${index}].actions[${actionIndex}]` });
+    });
     optionalBoolean(item, "defaultCollapsed", errors, { prefix: `workbench[${index}]` });
     optionalNumber(item, "sortOrder", errors, { prefix: `workbench[${index}]` });
     validateTerminology(item.terminology, `workbench[${index}].terminology`, errors);

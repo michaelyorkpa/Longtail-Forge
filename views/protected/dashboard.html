@@ -12,7 +12,7 @@
       <h1>Dashboard</h1>
 
       <section class="dashboard-summary-grid" aria-label="Dashboard summary">
-        <article class="dashboard-panel active-client-panel">
+        <article class="dashboard-panel active-client-panel" data-dashboard-panel-id="project-summary" data-dashboard-renderer="project-summary">
           <details class="dashboard-client-details">
             <summary>
               <span data-dashboard-hub-count-label>Active Clients</span>
@@ -28,7 +28,7 @@
 
       <section hidden data-dashboard-extension-panels></section>
 
-      <section class="dashboard-panel">
+      <section class="dashboard-panel" data-dashboard-panel-id="billing-summary" data-dashboard-renderer="billing-summary">
         <h2>Current Month Billables</h2>
         <p data-dashboard-status role="status" aria-live="polite"></p>
         <div class="report-table-wrap">
@@ -52,7 +52,7 @@
         </div>
       </section>
 
-      <section class="dashboard-panel">
+      <section class="dashboard-panel" data-dashboard-panel-id="billing-summary" data-dashboard-renderer="billing-summary">
         <h2>Hours &amp; Billables by Month</h2>
         <div class="billables-chart" data-billables-chart aria-label="Previous 12 months and current month hours and billables"></div>
       </section>
@@ -60,7 +60,7 @@
 
     <script src="js/navigation.js"></script>
     <script src="js/shared/formatters.js"></script>
-    <script src="js/dashboard.js"></script>
+    <script src="js/dashboard.js?v=2"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

@@ -26,7 +26,7 @@ const clientProjectsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.32.3.2",
+  version: "0.32.3.3",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: true,
@@ -71,6 +71,11 @@ const clientProjectsModule = {
     {
       id: "project-summary",
       label: "Project Summary",
+      description: "Framework project/client hub data for dashboard reporting shortcuts.",
+      renderer: "project-summary",
+      moduleId: "client-projects",
+      requiredWorkspaceCapabilities: ["projects", "clients_projects"],
+      sortOrder: 10,
       terminology: {
         business: { label: "Client & Project Summary" },
         personal: { label: "Project Summary" },
