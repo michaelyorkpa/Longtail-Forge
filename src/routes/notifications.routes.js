@@ -31,6 +31,22 @@ notificationsRoutes.put("/notifications/workspace-defaults", asyncRoute(async (r
   response.status(200).json(result);
 }));
 
+notificationsRoutes.get("/notifications/subscriptions", asyncRoute(async (request, response) => {
+  const result = await notificationsService.subscriptionStatus(request.session, request.query);
+  response.status(200).json(result);
+}));
+
+notificationsRoutes.post("/notifications/subscriptions", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await notificationsService.followTarget(request.session, payload);
+  response.status(200).json(result);
+}));
+
+notificationsRoutes.delete("/notifications/subscriptions", asyncRoute(async (request, response) => {
+  const result = await notificationsService.unfollowTarget(request.session, request.query);
+  response.status(200).json(result);
+}));
+
 notificationsRoutes.post("/notifications/:notificationId/read", asyncRoute(async (request, response) => {
   const result = await notificationsService.markRead(request.params.notificationId, request.session);
   response.status(200).json(result);

@@ -293,9 +293,10 @@ async function loadNotificationPanel() {
   }
 
   notificationList.replaceChildren(createNotificationPanelEmpty("Loading"));
+  setNotificationPanelStatus("");
 
   try {
-    const response = await fetch("/api/notifications?limit=5", { cache: "no-store" });
+    const response = await fetch("/api/notifications?status=active&limit=5", { cache: "no-store" });
     if (!response.ok) {
       throw new Error("Notifications unavailable.");
     }
@@ -322,6 +323,8 @@ function createNotificationPanelItem(notification) {
   const contextTitle = notificationContextTitle(notification);
 
   item.className = `notification-panel-item is-${notification.status || "unread"}`;
+  item.dataset.notificationPanelItem = notification.notification_id || "";
+  title.className = "notification-panel-title";
   title.textContent = displayTitle;
   if (contextTitle) {
     title.title = contextTitle;
@@ -337,11 +340,11 @@ function createNotificationPanelItem(notification) {
   readButton.type = "button";
   readButton.textContent = "Read";
   readButton.disabled = notification.status !== "unread";
-  readButton.addEventListener("click", () => mutateNotification(notification.notification_id, "read"));
+  readButton.addEventListener("click", () => mutateNotification(notification.notification_id, "read", item));
 
   dismissButton.type = "button";
   dismissButton.textContent = "Dismiss";
-  dismissButton.addEventListener("click", () => mutateNotification(notification.notification_id, "dismiss"));
+  dismissButton.addEventListener("click", () => mutateNotification(notification.notification_id, "dismiss", item));
   actions.append(readButton, dismissButton);
 
   item.append(title, meta, actions);
@@ -386,9 +389,29 @@ function createNotificationPanelEmpty(text) {
   return empty;
 }
 
-async function mutateNotification(notificationId, action) {
-  await fetch(`/api/notifications/${encodeURIComponent(notificationId)}/${action}`, { method: "POST" });
-  await loadNotificationPanel();
+async function mutateNotification(notificationId, action, item = null) {
+  setNotificationPanelStatus("");
+
+  try {
+    const response = await fetch(`/api/notifications/${encodeURIComponent(notificationId)}/${action}`, { method: "POST" });
+    if (!response.ok) {
+      throw new Error("Notification action failed.");
+    }
+
+    if (action === "dismiss") {
+      item?.remove();
+      if (notificationList && notificationList.querySelectorAll("[data-notification-panel-item]").length === 0) {
+        notificationList.replaceChildren(createNotificationPanelEmpty("No notifications"));
+      }
+      await refreshNotificationCount();
+      return;
+    }
+
+    await loadNotificationPanel();
+  } catch {
+    setNotificationPanelStatus("Notification action failed.", true);
+    await refreshNotificationCount();
+  }
 }
 
 async function refreshNotificationCount() {
@@ -400,6 +423,29 @@ async function refreshNotificationCount() {
   } catch {
     applyNotificationSummary({ unreadCount: 0 });
   }
+}
+
+function setNotificationPanelStatus(message, isError = false) {
+  if (!notificationList) {
+    return;
+  }
+
+  let status = notificationList.querySelector("[data-notification-panel-status]");
+  if (!message) {
+    status?.remove();
+    return;
+  }
+
+  if (!status) {
+    status = document.createElement("p");
+    status.className = "notification-panel-status";
+    status.dataset.notificationPanelStatus = "";
+    status.setAttribute("role", "status");
+    notificationList.prepend(status);
+  }
+
+  status.textContent = message;
+  status.classList.toggle("is-error", isError);
 }
 
 function formatNotificationDate(value) {

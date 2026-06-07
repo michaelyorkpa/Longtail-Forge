@@ -3,6 +3,7 @@ import { modulesService } from "../core/modules/modules.service.js";
 import { notificationsRepository } from "../repositories/notifications.repo.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { AppError } from "../utils/app-error.js";
+import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 
 const FRAMEWORK_NOTIFICATION_MODULE_ID = "framework";
@@ -95,7 +96,21 @@ async function savePreferences(session, payload = {}) {
 
   const allowedEventIds = new Set(listConfigurableNotificationEvents().map((event) => event.id));
   const preferenceRows = normalizePreferenceList(payload.preferences || payload.events, allowedEventIds);
+  const previousRows = await notificationsRepository.readUserPreferences(session.workspace_id, session.user_id);
   await notificationsRepository.saveUserPreferences(session.workspace_id, session.user_id, preferenceRows);
+  await auditService.record({
+    action: "notification_preferences_updated",
+    changeType: "settings_change",
+    metadata: {
+      eventTypes: preferenceRows.map((preference) => preference.event_type),
+    },
+    newValue: preferenceRows,
+    previousValue: previousRows.map(notificationPreferenceAuditValue),
+    recordId: session.user_id,
+    recordLabel: "Notification preferences",
+    recordType: "user",
+    session,
+  });
   return preferences(session);
 }
 
@@ -104,8 +119,84 @@ async function saveWorkspaceDefaults(session, payload = {}) {
 
   const allowedEventIds = new Set(listConfigurableNotificationEvents().map((event) => event.id));
   const defaults = normalizeWorkspaceDefaultList(payload.defaults || payload.events, allowedEventIds);
+  const previousRows = await notificationsRepository.readWorkspaceDefaults(session.workspace_id);
   await notificationsRepository.saveWorkspaceDefaults(session.workspace_id, defaults);
+  await auditService.record({
+    action: "notification_workspace_defaults_updated",
+    changeType: "settings_change",
+    metadata: {
+      eventTypes: defaults.map((preference) => preference.event_type),
+    },
+    newValue: defaults,
+    previousValue: previousRows.map(notificationWorkspaceDefaultAuditValue),
+    recordId: "notification_workspace_defaults",
+    recordLabel: "Notification workspace defaults",
+    recordType: "workspace_setting",
+    session,
+  });
   return preferences(session);
+}
+
+async function subscriptionStatus(session, query = {}) {
+  const target = normalizeSubscriptionTarget(query);
+  await assertCanFollowTarget(session, target);
+
+  const subscription = await notificationsRepository.readSubscription(session.workspace_id, session.user_id, target);
+  return {
+    isFollowing: subscription?.status === "active",
+    subscription,
+    target,
+  };
+}
+
+async function followTarget(session, payload = {}) {
+  const target = normalizeSubscriptionTarget(payload);
+  await assertCanFollowTarget(session, target);
+
+  const previous = await notificationsRepository.readSubscription(session.workspace_id, session.user_id, target);
+  const subscription = await notificationsRepository.saveSubscription(session.workspace_id, session.user_id, target);
+  await auditService.record({
+    action: "notification_subscription_followed",
+    changeType: "settings_change",
+    metadata: target,
+    newValue: subscription,
+    previousValue: previous,
+    recordId: session.user_id,
+    recordLabel: "Notification subscription",
+    recordType: "user",
+    session,
+  });
+
+  return {
+    isFollowing: true,
+    subscription,
+    target,
+  };
+}
+
+async function unfollowTarget(session, payload = {}) {
+  const target = normalizeSubscriptionTarget(payload);
+  await assertCanFollowTarget(session, target);
+
+  const previous = await notificationsRepository.readSubscription(session.workspace_id, session.user_id, target);
+  const subscription = await notificationsRepository.removeSubscription(session.workspace_id, session.user_id, target);
+  await auditService.record({
+    action: "notification_subscription_unfollowed",
+    changeType: "settings_change",
+    metadata: target,
+    newValue: subscription,
+    previousValue: previous,
+    recordId: session.user_id,
+    recordLabel: "Notification subscription",
+    recordType: "user",
+    session,
+  });
+
+  return {
+    isFollowing: false,
+    subscription,
+    target,
+  };
 }
 
 async function markRead(notificationId, session) {
@@ -216,16 +307,18 @@ async function createFromEvent(event, declaration = null) {
     return { notifications: [] };
   }
 
-  const recipients = await resolveRecipients(event, notificationDeclaration);
-  const enabledRecipients = await filterEnabledRecipients(workspaceId, recipients, notificationDeclaration.id);
   const summary = summarizeNotificationEvent(event);
   const template = modulesService.listNotificationTemplates().find((candidate) => candidate.event === event.name);
   const workspaceDefault = await readWorkspaceDefault(workspaceId, notificationDeclaration.id);
   if (!workspaceDefault.enabled) {
     return { notifications: [] };
   }
+  const recipients = await resolveRecipients(event, notificationDeclaration);
+  const enabledRecipients = await filterEnabledRecipients(workspaceId, recipients, notificationDeclaration.id);
+  const subscribedRecipients = await readSubscribedRecipientIds(event, notificationDeclaration);
+  const finalRecipients = [...new Set([...enabledRecipients, ...subscribedRecipients])];
 
-  const payloads = enabledRecipients.map((recipientUserId) => ({
+  const payloads = finalRecipients.map((recipientUserId) => ({
     workspace_id: workspaceId,
     module_id: moduleId,
     event_type: event.name,
@@ -268,6 +361,36 @@ async function readWorkspaceDefault(workspaceId, eventType) {
     enabled: defaultRow ? Number(defaultRow.enabled) === 1 : event?.defaultEnabled !== false,
     priority: defaultRow?.priority || event?.defaultPriority || "normal",
   };
+}
+
+async function readSubscribedRecipientIds(event, declaration) {
+  const workspaceId = event.workspace_id || "";
+  const moduleId = declaration.moduleId || event.module_id || "";
+  const targetType = event.record_type || "";
+  const targetId = event.record_id || "";
+
+  if (!workspaceId || !moduleId || !targetType || !targetId || !moduleDeclaresFollowTarget(moduleId, targetType, declaration.id)) {
+    return [];
+  }
+
+  const subscriptions = await notificationsRepository.readSubscriptionsForTarget(workspaceId, {
+    event_type: declaration.id,
+    module_id: moduleId,
+    target_id: targetId,
+    target_type: targetType,
+  });
+  const allowedSubscriptions = await Promise.all(subscriptions.map(async (subscription) => {
+    return await canUserAccessTarget({
+      module_id: moduleId,
+      target_id: targetId,
+      target_type: targetType,
+      url: summarizeNotificationEvent(event).url,
+      user_id: subscription.user_id,
+      workspace_id: workspaceId,
+    }) ? subscription : null;
+  }));
+
+  return allowedSubscriptions.filter(Boolean).map((subscription) => subscription.user_id);
 }
 
 async function resolveRecipients(event, declaration) {
@@ -403,6 +526,64 @@ function moduleDeclaresRecordType(moduleId, recordType) {
   ));
 }
 
+function moduleDeclaresFollowTarget(moduleId, targetType, eventType = "") {
+  return modulesService.listNotificationFollowTargets().some((target) => (
+    target.moduleId === moduleId &&
+    target.targetType === targetType &&
+    (!eventType || !Array.isArray(target.eventTypes) || target.eventTypes.length === 0 || target.eventTypes.includes(eventType))
+  ));
+}
+
+async function assertCanFollowTarget(session, target) {
+  await permissionsService.assertCanInAnyScope(session, "notifications.manage_preferences");
+
+  if (!moduleDeclaresFollowTarget(target.module_id, target.target_type, target.event_type)) {
+    throw new AppError("Notification target cannot be followed.", 400);
+  }
+
+  if (!(await modulesService.canReadModule(session.workspace_id, target.module_id))) {
+    throw new AppError("Notification target module is not available.", 403);
+  }
+
+  const canAccessTarget = await canUserAccessTarget({
+    ...target,
+    user_id: session.user_id,
+    workspace_id: session.workspace_id,
+  });
+  if (!canAccessTarget) {
+    throw new AppError("Notification target not found.", 404);
+  }
+}
+
+async function canUserAccessTarget(target) {
+  const metadata = await readTargetMetadata({
+    module_id: target.module_id,
+    record_id: target.target_id,
+    record_type: target.target_type,
+    url: target.url || "",
+  }, {
+    user_id: target.user_id,
+    workspace_id: target.workspace_id,
+  });
+
+  return metadata.targetExists === true;
+}
+
+function normalizeSubscriptionTarget(source = {}) {
+  const target = {
+    event_type: String(source.event_type || source.eventType || "").trim(),
+    module_id: String(source.module_id || source.moduleId || "").trim(),
+    target_id: String(source.target_id || source.targetId || source.record_id || source.recordId || "").trim(),
+    target_type: String(source.target_type || source.targetType || source.record_type || source.recordType || "").trim(),
+  };
+
+  if (!target.module_id || !target.target_type || !target.target_id) {
+    throw new AppError("Notification subscription module, target type, and target ID are required.", 400);
+  }
+
+  return target;
+}
+
 function readExplicitRecipientIds(event) {
   const ids = event.metadata?.recipient_user_ids || event.metadata?.recipientUserIds || [];
   return Array.isArray(ids) ? ids.map((id) => String(id || "").trim()).filter(Boolean) : [];
@@ -468,12 +649,28 @@ function normalizeWorkspaceDefaultList(items, allowedEventIds) {
     .filter((item) => allowedEventIds.has(item.event_type));
 }
 
+function notificationPreferenceAuditValue(row) {
+  return {
+    enabled: Number(row.enabled) === 1,
+    event_type: row.event_type,
+  };
+}
+
+function notificationWorkspaceDefaultAuditValue(row) {
+  return {
+    enabled: Number(row.enabled) === 1,
+    event_type: row.event_type,
+    priority: row.priority || "normal",
+  };
+}
+
 export const notificationsService = {
   archiveOldNotifications,
   create,
   createFromEvent,
   createMany,
   dismiss,
+  followTarget,
   list,
   markAllRead,
   markRead,
@@ -483,5 +680,7 @@ export const notificationsService = {
   resetEventHandlersForTests,
   savePreferences,
   saveWorkspaceDefaults,
+  subscriptionStatus,
+  unfollowTarget,
   unreadCount,
 };

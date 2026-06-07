@@ -94,18 +94,77 @@ This section should create a reusable framework-owned icon/action control founda
 
 ## Version 0.32.5.4 - Notification UI Fixes
 
-- Font size of work item title in the notification drop down is too large
+This section should fix the first-pass notification UI regressions and make notification preferences usable from the framework-owned notification surfaces. Keep notification UI framework-owned; modules declare event types and target metadata, but should not render separate inboxes, bells, or duplicate preference screens.
 
-- Hitting dismiss in the notification drop down doesn't clear the notifications from the box
-- Going to "see all notifications" doesn't show the one notification I see in the box that won't clear
+### Pass 1 - Notification dropdown display and dismissal fixes
 
-- There are no preferences settings in the Notification UI and the preferences should be in User Settings as well as in the notifications screen
-  - Preferences should include:
-    - Module based groupings of checkboxes for when and what to be notified about
+- [x] Reduce the work item title size in the notification dropdown.
+  - [x] Keep the title readable, but scale it like a compact dropdown row title instead of a page/card heading.
+  - [x] Preserve visible target context such as client/project or project-only labels where already available.
+  - [x] Verify long titles wrap or truncate cleanly without stretching the dropdown.
+- [x] Fix dropdown dismiss behavior.
+  - [x] Dismissing a notification from the dropdown should remove it from the visible dropdown list immediately after a successful save.
+  - [x] Dismissing the last visible notification should update the empty state.
+  - [x] Dismissal should update the unread/count indicator consistently.
+  - [x] Failed dismiss requests should leave the notification visible and show a useful status message.
+- [x] Fix dropdown-to-inbox consistency.
+  - [x] "See all notifications" should show the same active notification that appears in the dropdown when it has not been dismissed or archived.
+  - [x] The dropdown and full notification inbox should use compatible status filters for unread/read/dismissed visibility.
+  - [x] Verify the notification that currently will not clear appears in the full inbox before dismissal and disappears or moves state after dismissal.
 
-- Notifications should have hooks that allow turning on notifications for specific work items individually that overrides preferences
-  - For example, someone creates a task, assigns it to someone else, then turns on the notifications so they get a notification when updates happen
-  - This may be a large update, because this should/would only apply to a single user (the person who turns on the notifications)
+### Pass 2 - Notification preferences in both notification surfaces
+
+- [x] Add notification preference controls to the full Notifications screen.
+  - [x] Show preferences in a dedicated section or tab on `notifications.html`.
+  - [x] Group preferences by module.
+  - [x] Render checkbox controls for each configurable notification event type.
+  - [x] Keep labels user-readable while storing preferences by stable event type IDs.
+  - [x] Respect workspace-level notification defaults when deciding whether a user can enable or mute an event.
+- [x] Add the same user notification preferences to User Settings.
+  - [x] Reuse the same framework-owned preference data and rendering contract as the Notifications screen.
+  - [x] Avoid creating a second preference model in User Settings.
+  - [x] Keep notification preferences separate from module enablement/settings controls.
+- [x] Save preference changes through the framework notification preference API.
+  - [x] Save per-user, per-workspace, per-event preferences.
+  - [x] Refresh visible preference state after save.
+  - [x] Show success and error status messages.
+  - [x] Audit preference changes where the existing notification decisions require it.
+
+### Pass 3 - Per-work-item notification follow hooks
+
+- [x] Design a framework-owned per-target notification subscription contract.
+  - [x] Let an individual user follow a specific work item and receive notifications for that target even when their broader preferences would otherwise be muted.
+  - [x] Keep subscriptions scoped to one workspace, one user, one module, one target type, and one target ID.
+  - [x] Keep module ownership limited to declaring followable target types and relevant event types.
+  - [x] Ensure target access is checked before a user can follow or receive notifications for that target.
+- [x] Add follow/unfollow hooks for task/work-item surfaces.
+  - [x] A user should be able to turn on notifications for a specific task or work item.
+  - [x] Example flow: one user creates a task, assigns it to someone else, then follows that task so they receive update notifications.
+  - [x] Following a work item should apply only to the user who turned it on.
+  - [x] Unfollowing should stop that user's per-target override without changing workspace defaults or other users' preferences.
+- [x] Decide whether this pass needs a new database table before implementation.
+  - [x] Consider a `notification_subscriptions` or similarly named framework table.
+  - [x] Store workspace, user, module, target type, target ID, status, created/updated timestamps, and optional event-type filtering.
+  - [x] Add indexes for workspace/user and workspace/target lookup.
+  - [x] Preserve future room for email/push delivery without implementing those channels here.
+
+### Pass 4 - Regression and verification
+
+- [x] Add regression coverage for dropdown dismissal.
+  - [x] Dismiss removes the notification from the dropdown after success.
+  - [x] Dismiss updates unread/count state.
+  - [x] Failed dismiss keeps the notification visible.
+- [x] Add regression coverage for dropdown/full-inbox consistency.
+  - [x] A visible dropdown notification is present in the full inbox under the appropriate active filter.
+  - [x] Read/dismissed status handling is consistent between both surfaces.
+- [x] Add regression coverage for user notification preferences.
+  - [x] Preferences render grouped by module.
+  - [x] Preference changes save per workspace/user/event type.
+  - [x] User Settings and the Notifications screen read/write the same preference source.
+- [x] Add regression coverage for per-target subscriptions if implemented in this version.
+  - [x] Only the subscribing user receives the override.
+  - [x] Target permission checks are enforced before follow and before delivery.
+  - [x] Unfollow removes the override without mutating broader preferences.
 
 ## Version 0.32.5.5 - Tags Fixes
 

@@ -21,7 +21,7 @@ const tasksModule = {
     },
   },
   category: "core-workflow",
-  version: "0.32.5.3",
+  version: "0.32.5.4",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -511,6 +511,24 @@ const tasksModule = {
       defaultEnabled: true,
       defaultPriority: "urgent",
       recipientMode: "assignees",
+    },
+  ],
+  notificationFollowTargets: [
+    {
+      targetType: "task",
+      moduleId: "tasks",
+      label: "Task",
+      description: "Allows a user to follow one task and receive notifications for task events on that target.",
+      requiredReadPermission: "tasks.view",
+      eventTypes: [
+        "task.updated",
+        "task.assigned",
+        "task.completed",
+        "task.archived",
+        "task.restored",
+        "task.due_soon",
+        "task.overdue",
+      ],
     },
   ],
   timerSources: [

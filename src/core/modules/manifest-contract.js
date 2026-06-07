@@ -46,6 +46,7 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
 const RESERVED_MANIFEST_FIELDS = new Set([
   "notificationEvents",
   "notificationTemplates",
+  "notificationFollowTargets",
   "searchableTypes",
 ]);
 
@@ -120,6 +121,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateTaggableTypes(moduleDefinition.taggableTypes, moduleDefinition.id, errors);
   validateNotificationEvents(moduleDefinition.notificationEvents, moduleDefinition.id, errors);
   validateNotificationTemplates(moduleDefinition.notificationTemplates, moduleDefinition.id, errors);
+  validateNotificationFollowTargets(moduleDefinition.notificationFollowTargets, moduleDefinition.id, errors);
   validateReservedFields(moduleDefinition, errors);
 
   for (const dependencyId of moduleDefinition.moduleDependencies || []) {
@@ -210,6 +212,17 @@ function validateNotificationTemplates(notificationTemplates, moduleId, errors) 
       validateRelativeUrl(item.recordLinkPattern, `notificationTemplates[${index}].recordLinkPattern`, errors);
     }
     validateTerminology(item.terminology, `notificationTemplates[${index}].terminology`, errors);
+  });
+}
+
+function validateNotificationFollowTargets(notificationFollowTargets, moduleId, errors) {
+  optionalArrayOfObjects(notificationFollowTargets, "notificationFollowTargets", errors, (item, index) => {
+    requireString(item, "targetType", errors, { prefix: `notificationFollowTargets[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `notificationFollowTargets[${index}]` });
+    requireString(item, "label", errors, { prefix: `notificationFollowTargets[${index}]` });
+    requireString(item, "description", errors, { prefix: `notificationFollowTargets[${index}]` });
+    requireString(item, "requiredReadPermission", errors, { prefix: `notificationFollowTargets[${index}]` });
+    optionalStringArray(item, "eventTypes", errors, { prefix: `notificationFollowTargets[${index}]` });
   });
 }
 

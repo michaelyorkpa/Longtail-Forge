@@ -381,6 +381,7 @@ function createActions(task) {
   const editButton = actionButton("Edit", () => openTaskDialog(task));
   const duplicateButton = actionButton("Duplicate", () => duplicateTask(task));
   const copyButton = actionButton("Copy Link", () => copyTaskLink(task));
+  const followButton = actionButton("Follow Notifications", () => followTaskNotifications(task));
   const completeButton = task.status === "complete"
     ? actionButton("Reopen", () => postTaskAction(task, "reopen"))
     : actionButton("Complete", () => postTaskAction(task, "complete"));
@@ -389,7 +390,7 @@ function createActions(task) {
     : actionButton("Archive", () => confirmArchive(task));
 
   wrap.className = "task-row-actions";
-  wrap.append(editButton, duplicateButton, copyButton, completeButton, archiveButton);
+  wrap.append(editButton, duplicateButton, copyButton, followButton, completeButton, archiveButton);
   return wrap;
 }
 
@@ -418,9 +419,28 @@ function taskActionIcon(label) {
     "Copy Link": "copy",
     Duplicate: "duplicate",
     Edit: "edit",
+    "Follow Notifications": "more",
     Reopen: "restore",
     Restore: "restore",
   }[label] || "more";
+}
+
+async function followTaskNotifications(task) {
+  if (!window.LongtailForge.notificationSubscriptions) {
+    setStatus("Notification following is unavailable.", { isError: true });
+    return;
+  }
+
+  setStatus("Following task notifications...");
+
+  try {
+    await window.LongtailForge.notificationSubscriptions.follow(
+      window.LongtailForge.notificationSubscriptions.taskTarget(task.task_id),
+    );
+    setStatus("Task notifications followed.");
+  } catch (error) {
+    setStatus(error.message || "Task notifications were not followed.", { isError: true });
+  }
 }
 
 async function confirmArchive(task) {

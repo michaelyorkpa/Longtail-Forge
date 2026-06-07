@@ -7,7 +7,7 @@ const preferenceList = document.querySelector("[data-notification-preference-lis
 const filterButtons = [...document.querySelectorAll("[data-notification-filter]")];
 
 const state = {
-  filter: "all",
+  filter: "active",
   notifications: [],
   page: 0,
   pageSize: 25,
@@ -16,11 +16,12 @@ const state = {
 
 filterButtons.forEach((button) => {
   button.addEventListener("click", () => {
-    state.filter = button.dataset.notificationFilter || "all";
+    state.filter = button.dataset.notificationFilter || "active";
+    state.page = 0;
     filterButtons.forEach((candidate) => {
       candidate.setAttribute("aria-pressed", String(candidate === button));
     });
-    renderNotifications();
+    loadNotifications();
   });
 });
 
@@ -42,6 +43,9 @@ async function loadNotifications() {
       limit: String(state.pageSize),
       offset: String(state.page * state.pageSize),
     });
+    if (state.filter && state.filter !== "all") {
+      params.set("status", state.filter);
+    }
     const response = await fetch(`/api/notifications?${params}`, { cache: "no-store" });
     if (!response.ok) {
       throw new Error("Notifications unavailable.");
@@ -61,13 +65,8 @@ async function loadNotifications() {
 
 async function loadPreferences() {
   try {
-    const response = await fetch("/api/notifications/preferences", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error("Preferences unavailable.");
-    }
-
-    const body = await response.json();
-    state.preferences = Array.isArray(body.events) ? body.events : [];
+    const body = await window.LongtailForge.notificationPreferences.loadPreferences();
+    state.preferences = body.events;
     renderPreferences(body.canManageWorkspaceDefaults === true);
   } catch {
     state.preferences = [];
@@ -95,9 +94,8 @@ function renderNotifications() {
   }
 
   const filteredNotifications = state.notifications.filter((notification) => {
-    const statusMatch = state.filter === "all" || notification.status === state.filter;
     const moduleMatch = !moduleFilter?.value || notification.module_id === moduleFilter.value;
-    return statusMatch && moduleMatch;
+    return moduleMatch;
   });
 
   notificationList.replaceChildren(...(filteredNotifications.length > 0
@@ -239,70 +237,27 @@ function notificationMetaParts(notification) {
 }
 
 function renderPreferences(canManageWorkspaceDefaults) {
-  if (!preferenceList) {
-    return;
-  }
-
-  preferenceList.replaceChildren(...(state.preferences.length > 0
-    ? state.preferences.map((preference) => createPreferenceRow(preference, canManageWorkspaceDefaults))
-    : [emptyElement("No configurable notification types")]));
-}
-
-function createPreferenceRow(preference, canManageWorkspaceDefaults) {
-  const row = document.createElement("fieldset");
-  const legend = document.createElement("legend");
-  const description = document.createElement("p");
-  const userToggle = document.createElement("label");
-  const userInput = document.createElement("input");
-
-  row.className = "notification-preference-row";
-  row.dataset.notificationEventId = preference.id;
-
-  legend.textContent = preference.label || preference.id;
-  description.textContent = preference.description || "";
-  description.className = "muted-text";
-
-  userInput.type = "checkbox";
-  userInput.checked = preference.userEnabled !== false;
-  userInput.dataset.preferenceUserEnabled = "";
-  userToggle.append(userInput, document.createTextNode(" Enabled"));
-
-  row.append(legend, description, userToggle);
-
-  if (canManageWorkspaceDefaults) {
-    const workspaceToggle = document.createElement("label");
-    const workspaceInput = document.createElement("input");
-    const priorityLabel = document.createElement("label");
-    const prioritySelect = document.createElement("select");
-
-    workspaceInput.type = "checkbox";
-    workspaceInput.checked = preference.workspaceEnabled !== false;
-    workspaceInput.dataset.preferenceWorkspaceEnabled = "";
-    workspaceToggle.append(workspaceInput, document.createTextNode(" Workspace default"));
-
-    prioritySelect.dataset.preferenceWorkspacePriority = "";
-    ["low", "normal", "high", "urgent"].forEach((priority) => {
-      prioritySelect.append(optionElement(priority, priority));
-    });
-    prioritySelect.value = preference.workspacePriority || preference.defaultPriority || "normal";
-    priorityLabel.append(document.createTextNode("Priority"), prioritySelect);
-
-    row.append(workspaceToggle, priorityLabel);
-  }
-
-  return row;
+  window.LongtailForge.notificationPreferences.renderPreferenceGroups(preferenceList, state.preferences, {
+    canManageWorkspaceDefaults,
+    emptyText: "No configurable notification types",
+    headingLevel: "h3",
+    includeWorkspaceDefaults: true,
+  });
 }
 
 async function mutateNotification(notificationId, action) {
-  const response = await fetch(`/api/notifications/${encodeURIComponent(notificationId)}/${action}`, {
-    method: "POST",
-  });
-  if (!response.ok) {
-    setStatus("Notification action failed.", true);
-    return;
-  }
+  try {
+    const response = await fetch(`/api/notifications/${encodeURIComponent(notificationId)}/${action}`, {
+      method: "POST",
+    });
+    if (!response.ok) {
+      throw new Error("Notification action failed.");
+    }
 
-  await loadNotifications();
+    await loadNotifications();
+  } catch {
+    setStatus("Notification action failed.", true);
+  }
 }
 
 async function markAllRead() {
@@ -317,45 +272,21 @@ async function markAllRead() {
 
 async function savePreferences(event) {
   event.preventDefault();
-  const rows = [...preferenceList.querySelectorAll("[data-notification-event-id]")];
-  const preferences = rows.map((row) => ({
-    id: row.dataset.notificationEventId,
-    enabled: row.querySelector("[data-preference-user-enabled]")?.checked !== false,
-  }));
-  const defaults = rows
-    .filter((row) => row.querySelector("[data-preference-workspace-enabled]"))
-    .map((row) => ({
-      id: row.dataset.notificationEventId,
-      enabled: row.querySelector("[data-preference-workspace-enabled]")?.checked !== false,
-      priority: row.querySelector("[data-preference-workspace-priority]")?.value || "normal",
-    }));
+  const preferences = window.LongtailForge.notificationPreferences.readUserPreferencesPayload(preferenceList);
+  const defaults = window.LongtailForge.notificationPreferences.readWorkspaceDefaultsPayload(preferenceList);
 
-  const userResponse = await fetch("/api/notifications/preferences", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ preferences }),
-  });
+  try {
+    await window.LongtailForge.notificationPreferences.saveUserPreferences(preferences);
 
-  if (!userResponse.ok) {
-    setStatus("Unable to save preferences.", true);
-    return;
-  }
-
-  if (defaults.length > 0) {
-    const defaultsResponse = await fetch("/api/notifications/workspace-defaults", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ defaults }),
-    });
-
-    if (!defaultsResponse.ok) {
-      setStatus("Unable to save workspace defaults.", true);
-      return;
+    if (defaults.length > 0) {
+      await window.LongtailForge.notificationPreferences.saveWorkspaceDefaults(defaults);
     }
-  }
 
-  await loadPreferences();
-  setStatus("Notification preferences saved.");
+    await loadPreferences();
+    setStatus("Notification preferences saved.");
+  } catch {
+    setStatus("Unable to save preferences.", true);
+  }
 }
 
 function optionElement(value, label) {

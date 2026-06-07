@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 8, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 9, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -74,6 +74,11 @@ ORDER BY version;
     module_id: "core",
     name: "add_project_default_task_assignee",
   });
+  assert.deepEqual(migrations[8], {
+    version: "039",
+    module_id: "core",
+    name: "add_notification_subscriptions",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -94,6 +99,7 @@ ORDER BY name;
     "audit_logs",
     "clients",
     "modules",
+    "notification_subscriptions",
     "notification_user_preferences",
     "notification_workspace_defaults",
     "notifications",
@@ -132,6 +138,9 @@ WHERE type = 'index'
     'idx_active_work_timers_user_slot',
     'idx_active_work_timers_source',
     'idx_api_keys_hash',
+    'idx_notification_subscriptions_target',
+    'idx_notification_subscriptions_unique_active',
+    'idx_notification_subscriptions_user',
     'idx_notifications_created_at',
     'idx_notifications_event_type',
     'idx_notifications_recipient_status_created',
@@ -156,6 +165,9 @@ ORDER BY name;
     "idx_active_work_timers_source",
     "idx_active_work_timers_user_slot",
     "idx_api_keys_hash",
+    "idx_notification_subscriptions_target",
+    "idx_notification_subscriptions_unique_active",
+    "idx_notification_subscriptions_user",
     "idx_notification_user_preferences_user",
     "idx_notification_workspace_defaults_workspace",
     "idx_notifications_created_at",

@@ -16,7 +16,7 @@ const usersModule = {
     },
   },
   category: "core-admin",
-  version: "0.32.5.3",
+  version: "0.32.5.4",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: false,

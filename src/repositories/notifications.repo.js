@@ -71,6 +71,9 @@ VALUES (
 
 async function listForRecipient(workspaceId, recipientUserId, options = {}) {
   const status = normalizeStatusFilter(options.status);
+  const statusClause = status === "active"
+    ? "AND status IN ('unread', 'read')"
+    : status ? `AND status = ${sqlText(status)}` : "";
   const limit = clampLimit(options.limit);
   const offset = clampOffset(options.offset);
   const rows = await querySql(`
@@ -79,7 +82,7 @@ ${NOTIFICATION_COLUMNS}
 FROM notifications
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND recipient_user_id = ${sqlText(recipientUserId)}
-  ${status ? `AND status = ${sqlText(status)}` : ""}
+  ${statusClause}
 ORDER BY created_at DESC, notification_id DESC
 LIMIT ${sqlInteger(limit)}
 OFFSET ${sqlInteger(offset)};
@@ -209,6 +212,93 @@ ORDER BY event_type;
 `);
 }
 
+async function readSubscription(workspaceId, userId, target) {
+  const rows = await querySql(`
+SELECT notification_subscription_id, workspace_id, user_id, module_id, target_type, target_id, event_type, status, created_at, updated_at
+FROM notification_subscriptions
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND user_id = ${sqlText(userId)}
+  AND module_id = ${sqlText(target.module_id)}
+  AND target_type = ${sqlText(target.target_type)}
+  AND target_id = ${sqlText(target.target_id)}
+  AND COALESCE(event_type, '') = ${sqlText(target.event_type || "")}
+LIMIT 1;
+`);
+
+  return rows[0] ? subscriptionRowToAppValue(rows[0]) : null;
+}
+
+async function readSubscriptionsForTarget(workspaceId, target) {
+  const rows = await querySql(`
+SELECT notification_subscription_id, workspace_id, user_id, module_id, target_type, target_id, event_type, status, created_at, updated_at
+FROM notification_subscriptions
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND module_id = ${sqlText(target.module_id)}
+  AND target_type = ${sqlText(target.target_type)}
+  AND target_id = ${sqlText(target.target_id)}
+  AND status = 'active'
+  AND (event_type IS NULL OR event_type = '' OR event_type = ${sqlText(target.event_type || "")})
+ORDER BY created_at;
+`);
+
+  return rows.map(subscriptionRowToAppValue);
+}
+
+async function saveSubscription(workspaceId, userId, target) {
+  const subscriptionId = target.notification_subscription_id || randomUUID();
+  const now = new Date().toISOString();
+
+  await runSql(`
+INSERT INTO notification_subscriptions (
+  notification_subscription_id,
+  workspace_id,
+  user_id,
+  module_id,
+  target_type,
+  target_id,
+  event_type,
+  status,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(subscriptionId)},
+  ${sqlText(workspaceId)},
+  ${sqlText(userId)},
+  ${sqlText(target.module_id)},
+  ${sqlText(target.target_type)},
+  ${sqlText(target.target_id)},
+  ${sqlNullableText(target.event_type)},
+  'active',
+  ${sqlText(now)},
+  ${sqlText(now)}
+)
+ON CONFLICT DO UPDATE SET
+  status = 'active',
+  updated_at = excluded.updated_at;
+`);
+
+  return readSubscription(workspaceId, userId, target);
+}
+
+async function removeSubscription(workspaceId, userId, target) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE notification_subscriptions
+SET status = 'inactive',
+    updated_at = ${sqlText(now)}
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND user_id = ${sqlText(userId)}
+  AND module_id = ${sqlText(target.module_id)}
+  AND target_type = ${sqlText(target.target_type)}
+  AND target_id = ${sqlText(target.target_id)}
+  AND COALESCE(event_type, '') = ${sqlText(target.event_type || "")};
+`);
+
+  return readSubscription(workspaceId, userId, target);
+}
+
 async function saveUserPreferences(workspaceId, userId, preferences) {
   const now = new Date().toISOString();
   const statements = (preferences || []).map((preference) => `
@@ -276,6 +366,21 @@ function notificationRowToAppValue(row) {
   };
 }
 
+function subscriptionRowToAppValue(row) {
+  return {
+    notification_subscription_id: row.notification_subscription_id,
+    workspace_id: row.workspace_id,
+    user_id: row.user_id,
+    module_id: row.module_id,
+    target_type: row.target_type,
+    target_id: row.target_id,
+    event_type: row.event_type || "",
+    status: row.status || "inactive",
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
 function parseMetadata(metadataJson) {
   try {
     const parsed = JSON.parse(metadataJson || "{}");
@@ -287,7 +392,7 @@ function parseMetadata(metadataJson) {
 
 function normalizeStatusFilter(status) {
   const normalizedStatus = String(status || "").trim();
-  return ["unread", "read", "dismissed", "archived"].includes(normalizedStatus) ? normalizedStatus : "";
+  return ["active", "unread", "read", "dismissed", "archived"].includes(normalizedStatus) ? normalizedStatus : "";
 }
 
 function clampLimit(limit) {
@@ -315,8 +420,12 @@ export const notificationsRepository = {
   readById,
   readByIdForRecipient,
   readUserPreferences,
+  readSubscription,
+  readSubscriptionsForTarget,
   readWorkspaceAdminUserIds,
   readWorkspaceDefaults,
+  removeSubscription,
+  saveSubscription,
   saveUserPreferences,
   saveWorkspaceDefaults,
 };

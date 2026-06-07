@@ -26,6 +26,7 @@ try {
   const baseUrl = `http://${server.address().address}:${server.address().port}`;
   const api = createApi(baseUrl);
 
+  await runNotificationUiContractTests();
   await runNotificationApiTests(api, fixtures);
   await runNotificationPreferenceTests(api, fixtures);
   await runNotificationEventTests(fixtures);
@@ -145,11 +146,68 @@ async function runNotificationApiTests(api, fixtures) {
     assert.ok(readResult.body.notification.read_at);
   });
 
+  const activeAfterRead = await api.get("/api/notifications?status=active", { cookie: fixtures.sessions.projectUser });
+  check("active notification filter includes read notifications before dismissal", () => {
+    assert.equal(activeAfterRead.status, 200, JSON.stringify(activeAfterRead.body));
+    assert.ok(activeAfterRead.body.notifications.some((notification) => notification.notification_id === notificationId));
+  });
+
   const deniedRead = await api.post(`/api/notifications/${encodeURIComponent(notificationId)}/read`, {}, {
     cookie: fixtures.sessions.workspaceAdmin,
   });
   check("non-recipient cannot mark another user's notification read", () => {
     assert.equal(deniedRead.status, 404, JSON.stringify(deniedRead.body));
+  });
+
+  const initialSubscription = await api.get(`/api/notifications/subscriptions?moduleId=tasks&targetType=task&targetId=${encodeURIComponent(task.body.task.task_id)}`, {
+    cookie: fixtures.sessions.projectUser,
+  });
+  check("recipient can read task notification follow status", () => {
+    assert.equal(initialSubscription.status, 200, JSON.stringify(initialSubscription.body));
+    assert.equal(initialSubscription.body.isFollowing, false);
+  });
+
+  const followedSubscription = await api.post("/api/notifications/subscriptions", {
+    moduleId: "tasks",
+    targetId: task.body.task.task_id,
+    targetType: "task",
+  }, { cookie: fixtures.sessions.projectUser });
+  check("recipient can follow an accessible task notification target", () => {
+    assert.equal(followedSubscription.status, 200, JSON.stringify(followedSubscription.body));
+    assert.equal(followedSubscription.body.isFollowing, true);
+    assert.equal(followedSubscription.body.subscription.user_id, fixtures.users.projectUser.userId);
+  });
+
+  const subscriptionAuditRows = await querySql(`
+SELECT action, change_type, record_type, record_id
+FROM audit_logs
+WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
+  AND action = 'notification_subscription_followed'
+ORDER BY created_at DESC
+LIMIT 1;
+`);
+  check("notification follows are audited against the user", () => {
+    assert.equal(subscriptionAuditRows.length, 1);
+    assert.equal(subscriptionAuditRows[0].change_type, "settings_change");
+    assert.equal(subscriptionAuditRows[0].record_type, "user");
+    assert.equal(subscriptionAuditRows[0].record_id, fixtures.users.projectUser.userId);
+  });
+
+  const deniedFollow = await api.post("/api/notifications/subscriptions", {
+    moduleId: "tasks",
+    targetId: task.body.task.task_id,
+    targetType: "task",
+  }, { cookie: fixtures.sessions.otherProjectUser });
+  check("user cannot follow a task target they cannot access", () => {
+    assert.equal(deniedFollow.status, 404, JSON.stringify(deniedFollow.body));
+  });
+
+  const unfollowedSubscription = await api.delete(`/api/notifications/subscriptions?moduleId=tasks&targetType=task&targetId=${encodeURIComponent(task.body.task.task_id)}`, {
+    cookie: fixtures.sessions.projectUser,
+  });
+  check("recipient can unfollow a task notification target", () => {
+    assert.equal(unfollowedSubscription.status, 200, JSON.stringify(unfollowedSubscription.body));
+    assert.equal(unfollowedSubscription.body.isFollowing, false);
   });
 
   const dismissResult = await api.post(`/api/notifications/${encodeURIComponent(notificationId)}/dismiss`, {}, {
@@ -159,6 +217,18 @@ async function runNotificationApiTests(api, fixtures) {
     assert.equal(dismissResult.status, 200, JSON.stringify(dismissResult.body));
     assert.equal(dismissResult.body.notification.status, "dismissed");
     assert.ok(dismissResult.body.notification.dismissed_at);
+  });
+
+  const activeAfterDismiss = await api.get("/api/notifications?status=active", { cookie: fixtures.sessions.projectUser });
+  check("active notification filter excludes dismissed notifications", () => {
+    assert.equal(activeAfterDismiss.status, 200, JSON.stringify(activeAfterDismiss.body));
+    assert.equal(activeAfterDismiss.body.notifications.some((notification) => notification.notification_id === notificationId), false);
+  });
+
+  const dismissedList = await api.get("/api/notifications?status=dismissed", { cookie: fixtures.sessions.projectUser });
+  check("dismissed notification filter includes dismissed notifications", () => {
+    assert.equal(dismissedList.status, 200, JSON.stringify(dismissedList.body));
+    assert.ok(dismissedList.body.notifications.some((notification) => notification.notification_id === notificationId));
   });
 
   const hiddenTarget = await notificationsService.create({
@@ -185,6 +255,85 @@ async function runNotificationApiTests(api, fixtures) {
   });
 }
 
+async function runNotificationUiContractTests() {
+  const [navigation, notificationsPage, notificationsScript, notificationPreferences, notificationSubscriptions, tasksPage, tasksScript, taskDialog, tasksModule, userSettingsPage, userSettingsScript, css] = await Promise.all([
+    readProjectFile("public/js/navigation.js"),
+    readProjectFile("views/protected/notifications.html"),
+    readProjectFile("public/js/notifications.js"),
+    readProjectFile("public/js/shared/notification-preferences.js"),
+    readProjectFile("public/js/shared/notification-subscriptions.js"),
+    readProjectFile("views/protected/tasks.html"),
+    readProjectFile("public/js/tasks.js"),
+    readProjectFile("public/js/task-dialog.js"),
+    readProjectFile("src/modules/tasks/module.js"),
+    readProjectFile("views/protected/user-settings.html"),
+    readProjectFile("public/js/user-settings.js"),
+    readProjectFile("public/css/longtail-forge.css"),
+  ]);
+
+  check("notification dropdown loads active notifications only", () => {
+    assert.match(navigation, /\/api\/notifications\?status=active&limit=5/);
+  });
+
+  check("notification dropdown dismiss success removes the visible item", () => {
+    assert.match(navigation, /item\?\.remove\(\)/);
+    assert.match(navigation, /createNotificationPanelEmpty\("No notifications"\)/);
+  });
+
+  check("notification dropdown failed actions keep the item visible and show status", () => {
+    assert.match(navigation, /if \(!response\.ok\) \{\s*throw new Error\("Notification action failed\."\);/);
+    assert.match(navigation, /setNotificationPanelStatus\("Notification action failed\.", true\)/);
+  });
+
+  check("notifications page defaults to the active filter", () => {
+    assert.match(notificationsPage, /data-notification-filter="active" aria-pressed="true">Active/);
+    assert.match(notificationsScript, /filter: "active"/);
+    assert.match(notificationsScript, /params\.set\("status", state\.filter\)/);
+  });
+
+  check("notification dropdown title uses compact panel-specific styling", () => {
+    assert.match(navigation, /title\.className = "notification-panel-title"/);
+    assert.match(css, /\.notification-panel-title \{\s*font-size: 13px;\s*line-height: 1\.3;/);
+  });
+
+  check("notification preferences render through shared grouped helper", () => {
+    assert.match(notificationPreferences, /function renderPreferenceGroups\(container, events, options = \{\}\)/);
+    assert.match(notificationPreferences, /function groupEventsByModule\(events\)/);
+    assert.match(notificationPreferences, /notification-preference-group/);
+    assert.match(notificationsPage, /js\/shared\/notification-preferences\.js/);
+    assert.match(notificationsScript, /notificationPreferences\.renderPreferenceGroups/);
+  });
+
+  check("user settings exposes the same user notification preferences source", () => {
+    assert.match(userSettingsPage, /data-user-notification-preferences-form/);
+    assert.match(userSettingsPage, /data-user-notification-preference-list/);
+    assert.match(userSettingsPage, /js\/shared\/notification-preferences\.js/);
+    assert.match(userSettingsScript, /notificationPreferences\.loadPreferences/);
+    assert.match(userSettingsScript, /notificationPreferences\.saveUserPreferences/);
+    assert.match(userSettingsScript, /includeWorkspaceDefaults: false/);
+  });
+
+  check("workspace-disabled notification events cannot be enabled in user preference controls", () => {
+    assert.match(notificationPreferences, /userInput\.disabled = workspaceDefaultDisabled/);
+    assert.match(notificationPreferences, /Disabled by workspace default\./);
+  });
+
+  check("task notification follow UI uses shared subscription helper", () => {
+    assert.match(notificationSubscriptions, /root\.notificationSubscriptions/);
+    assert.match(notificationSubscriptions, /\/api\/notifications\/subscriptions/);
+    assert.match(tasksPage, /js\/shared\/notification-subscriptions\.js/);
+    assert.match(tasksPage, /data-task-notification-follow/);
+    assert.match(taskDialog, /toggleTaskNotificationFollow/);
+    assert.match(tasksScript, /followTaskNotifications/);
+  });
+
+  check("tasks module declares task notification follow target", () => {
+    assert.match(tasksModule, /notificationFollowTargets/);
+    assert.match(tasksModule, /targetType: "task"/);
+    assert.match(tasksModule, /eventTypes:\s*\[/);
+  });
+}
+
 async function runNotificationPreferenceTests(api, fixtures) {
   const preferences = await api.get("/api/notifications/preferences", { cookie: fixtures.sessions.projectUser });
   check("user can read configurable notification preferences", () => {
@@ -206,6 +355,21 @@ async function runNotificationPreferenceTests(api, fixtures) {
     assert.equal(muted.status, 200, JSON.stringify(muted.body));
     const taskUpdated = muted.body.events.find((event) => event.id === "task.updated");
     assert.equal(taskUpdated.userEnabled, false);
+  });
+
+  const userPreferenceAuditRows = await querySql(`
+SELECT action, change_type, record_type, record_id
+FROM audit_logs
+WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
+  AND action = 'notification_preferences_updated'
+ORDER BY created_at DESC
+LIMIT 1;
+`);
+  check("user notification preference changes are audited", () => {
+    assert.equal(userPreferenceAuditRows.length, 1);
+    assert.equal(userPreferenceAuditRows[0].change_type, "settings_change");
+    assert.equal(userPreferenceAuditRows[0].record_type, "user");
+    assert.equal(userPreferenceAuditRows[0].record_id, fixtures.users.projectUser.userId);
   });
 
   const beforeMutedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
@@ -230,6 +394,82 @@ async function runNotificationPreferenceTests(api, fixtures) {
     assert.equal(afterMutedRows, beforeMutedRows);
   });
 
+  const followedTask = await api.post("/api/tasks", {
+    assignee_ids: [fixtures.users.workspaceAdmin.userId],
+    project_id: fixtures.project.id,
+    title: "Followed notification regression task",
+  }, { cookie: fixtures.sessions.workspaceAdmin });
+  check("followed notification regression task can be created", () => {
+    assert.equal(followedTask.status, 201, JSON.stringify(followedTask.body));
+  });
+
+  const followedTarget = await api.post("/api/notifications/subscriptions", {
+    moduleId: "tasks",
+    targetId: followedTask.body.task.task_id,
+    targetType: "task",
+  }, { cookie: fixtures.sessions.projectUser });
+  check("project user can follow an accessible unassigned-to-them task", () => {
+    assert.equal(followedTarget.status, 200, JSON.stringify(followedTarget.body));
+    assert.equal(followedTarget.body.isFollowing, true);
+  });
+
+  const beforeFollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
+  const beforeOtherFollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.otherProjectUser.userId, "task.updated");
+  await modulesService.emitInternalEvent("task.updated", {
+    actorUserId: fixtures.users.workspaceAdmin.userId,
+    moduleId: "tasks",
+    newValue: {
+      assignee_ids: [fixtures.users.workspaceAdmin.userId],
+      task_id: followedTask.body.task.task_id,
+      title: followedTask.body.task.title,
+    },
+    recordId: followedTask.body.task.task_id,
+    recordType: "task",
+    session: {
+      user_id: fixtures.users.workspaceAdmin.userId,
+      workspace_id: fixtures.workspaceId,
+    },
+    workspaceId: fixtures.workspaceId,
+  });
+  const afterFollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
+  const afterOtherFollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.otherProjectUser.userId, "task.updated");
+  check("followed task notification overrides user event mute for that target", () => {
+    assert.equal(afterFollowedRows, beforeFollowedRows + 1);
+  });
+  check("followed task notification override only sends to the subscribing user", () => {
+    assert.equal(afterOtherFollowedRows, beforeOtherFollowedRows);
+  });
+
+  const unfollowedTarget = await api.delete(`/api/notifications/subscriptions?moduleId=tasks&targetType=task&targetId=${encodeURIComponent(followedTask.body.task.task_id)}`, {
+    cookie: fixtures.sessions.projectUser,
+  });
+  check("project user can remove the followed task notification override", () => {
+    assert.equal(unfollowedTarget.status, 200, JSON.stringify(unfollowedTarget.body));
+    assert.equal(unfollowedTarget.body.isFollowing, false);
+  });
+
+  const beforeUnfollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
+  await modulesService.emitInternalEvent("task.updated", {
+    actorUserId: fixtures.users.workspaceAdmin.userId,
+    moduleId: "tasks",
+    newValue: {
+      assignee_ids: [fixtures.users.workspaceAdmin.userId],
+      task_id: followedTask.body.task.task_id,
+      title: followedTask.body.task.title,
+    },
+    recordId: followedTask.body.task.task_id,
+    recordType: "task",
+    session: {
+      user_id: fixtures.users.workspaceAdmin.userId,
+      workspace_id: fixtures.workspaceId,
+    },
+    workspaceId: fixtures.workspaceId,
+  });
+  const afterUnfollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
+  check("unfollow removes the per-target override without changing broader muted preference", () => {
+    assert.equal(afterUnfollowedRows, beforeUnfollowedRows);
+  });
+
   const defaults = await api.put("/api/notifications/workspace-defaults", {
     defaults: [{ id: "task.overdue", enabled: false, priority: "urgent" }],
   }, { cookie: fixtures.sessions.workspaceAdmin });
@@ -237,6 +477,21 @@ async function runNotificationPreferenceTests(api, fixtures) {
     assert.equal(defaults.status, 200, JSON.stringify(defaults.body));
     const taskOverdue = defaults.body.events.find((event) => event.id === "task.overdue");
     assert.equal(taskOverdue.workspaceEnabled, false);
+  });
+
+  const workspaceDefaultAuditRows = await querySql(`
+SELECT action, change_type, record_type, record_id
+FROM audit_logs
+WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
+  AND action = 'notification_workspace_defaults_updated'
+ORDER BY created_at DESC
+LIMIT 1;
+`);
+  check("workspace notification default changes are audited", () => {
+    assert.equal(workspaceDefaultAuditRows.length, 1);
+    assert.equal(workspaceDefaultAuditRows[0].change_type, "settings_change");
+    assert.equal(workspaceDefaultAuditRows[0].record_type, "workspace_setting");
+    assert.equal(workspaceDefaultAuditRows[0].record_id, "notification_workspace_defaults");
   });
 
   const beforeDefaultRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.overdue");
@@ -344,6 +599,7 @@ function createApi(baseUrl) {
     get: (url, options = {}) => request(baseUrl, "GET", url, null, options),
     post: (url, body, options = {}) => request(baseUrl, "POST", url, body, options),
     put: (url, body, options = {}) => request(baseUrl, "PUT", url, body, options),
+    delete: (url, options = {}) => request(baseUrl, "DELETE", url, null, options),
   };
 }
 
@@ -389,6 +645,10 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 
   return Number(rows[0]?.count || 0);
+}
+
+function readProjectFile(relativePath) {
+  return fs.readFile(new URL(`../${relativePath}`, import.meta.url), "utf8");
 }
 
 function check(name, assertion) {

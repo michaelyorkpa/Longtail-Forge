@@ -111,6 +111,7 @@
     writeReminderFields(task?.reminderDetails);
     writeTaskTimerFields(isDuplicate ? null : task);
     mountTaskTagPicker(isDuplicate ? [] : task?.tags || []);
+    writeTaskNotificationFollowFields(isDuplicate ? null : task);
 
     if (typeof dialog.showModal === "function") {
       dialog.showModal();
@@ -162,6 +163,9 @@
       reminderOverrideFields: dialog.querySelector("[data-task-reminder-override-fields]"),
       status: dialog.querySelector("[data-task-form-status]"),
       tagContainer: dialog.querySelector("[data-task-tags]"),
+      notificationField: dialog.querySelector("[data-task-notification-field]"),
+      notificationFollow: dialog.querySelector("[data-task-notification-follow]"),
+      notificationStatus: dialog.querySelector("[data-task-notification-status]"),
       timerDisplay: dialog.querySelector("[data-task-timer-display]"),
       timerField: dialog.querySelector("[data-task-timer-field]"),
       timerFinalize: dialog.querySelector("[data-task-timer-finalize]"),
@@ -203,6 +207,7 @@
     fields.timerPause?.addEventListener("click", () => saveTaskTimer("paused"));
     fields.timerFinalize?.addEventListener("click", finalizeTaskTimer);
     fields.timerReset?.addEventListener("click", resetTaskTimer);
+    fields.notificationFollow?.addEventListener("click", toggleTaskNotificationFollow);
   }
 
   function decorateTaskDialogControls() {
@@ -343,6 +348,64 @@
 
   function readTaskTagIds() {
     return tagPicker?.readTagIds?.() || [];
+  }
+
+  async function writeTaskNotificationFollowFields(task) {
+    if (!fields.notificationField || !fields.notificationFollow || !fields.notificationStatus) {
+      return;
+    }
+
+    const taskId = task?.task_id || "";
+    fields.notificationField.hidden = !taskId || !namespace.notificationSubscriptions;
+
+    if (!taskId || !namespace.notificationSubscriptions) {
+      return;
+    }
+
+    fields.notificationFollow.disabled = true;
+    fields.notificationFollow.textContent = "Loading";
+    fields.notificationStatus.textContent = "Checking notification follow state...";
+
+    try {
+      const result = await namespace.notificationSubscriptions.readStatus(namespace.notificationSubscriptions.taskTarget(taskId));
+      writeNotificationFollowState(result.isFollowing === true);
+    } catch {
+      fields.notificationStatus.textContent = "Notification follow state unavailable.";
+      fields.notificationFollow.textContent = "Follow Notifications";
+      fields.notificationFollow.disabled = true;
+    }
+  }
+
+  async function toggleTaskNotificationFollow() {
+    if (!currentTaskId || !namespace.notificationSubscriptions) {
+      return;
+    }
+
+    const isFollowing = fields.notificationFollow?.dataset.isFollowing === "true";
+    fields.notificationFollow.disabled = true;
+    fields.notificationStatus.textContent = isFollowing ? "Unfollowing task..." : "Following task...";
+
+    try {
+      const target = namespace.notificationSubscriptions.taskTarget(currentTaskId);
+      const result = isFollowing
+        ? await namespace.notificationSubscriptions.unfollow(target)
+        : await namespace.notificationSubscriptions.follow(target);
+
+      writeNotificationFollowState(result.isFollowing === true);
+      setStatus(result.isFollowing ? "Task notifications followed." : "Task notifications unfollowed.");
+    } catch (error) {
+      fields.notificationStatus.textContent = error.message || "Notification follow change failed.";
+      fields.notificationFollow.disabled = false;
+    }
+  }
+
+  function writeNotificationFollowState(isFollowing) {
+    fields.notificationFollow.dataset.isFollowing = String(isFollowing);
+    fields.notificationFollow.textContent = isFollowing ? "Unfollow Notifications" : "Follow Notifications";
+    fields.notificationFollow.disabled = false;
+    fields.notificationStatus.textContent = isFollowing
+      ? "You are following this task and will receive update notifications."
+      : "Follow this task to receive update notifications for yourself.";
   }
 
   async function loadTagOptions() {
@@ -902,6 +965,7 @@
           <fieldset class="task-timer-field" data-task-timer-field hidden><legend>Task Timer</legend><p data-task-timer-status>No active timer.</p><div class="task-timer-controls"><strong data-task-timer-display>00:00:00</strong><button type="button" data-task-timer-start>Start</button><button type="button" data-task-timer-pause disabled>Pause</button><button type="button" data-task-timer-finalize disabled>Save Time</button><button type="button" data-task-timer-reset disabled>Reset</button></div></fieldset>
           <details class="task-reminder-field" data-task-reminder-details><summary>Reminders</summary><p data-task-effective-reminders></p><label class="inline-option"><input type="checkbox" data-task-reminder-override>Override reminder defaults</label><div class="reminder-offset-grid" data-task-reminder-override-fields hidden><label>Timed Reminder 1 (hours before)<input type="number" min="1" step="1" data-task-reminder-date-time-hours-1></label><label>Timed Reminder 2 (hours before)<input type="number" min="1" step="1" data-task-reminder-date-time-hours-2></label><label>Date-Only Reminder 1 (days before)<input type="number" min="1" step="1" data-task-reminder-date-only-days-1></label><label>Date-Only Reminder 2 (days before)<input type="number" min="1" step="1" data-task-reminder-date-only-days-2></label></div></details>
           <div class="task-tags-field" data-task-tags></div>
+          <fieldset class="task-notification-field" data-task-notification-field hidden><legend>Notifications</legend><p data-task-notification-status>Follow this task to receive update notifications for yourself.</p><button type="button" data-task-notification-follow>Follow Notifications</button></fieldset>
           <label class="task-description-field">Description<textarea rows="5" data-task-description></textarea></label>
           <div class="form-actions task-modal-actions"><button type="button" data-copy-task-link hidden>Copy Link</button><button type="button" data-cancel-task>Cancel</button><button type="submit" data-save-task>Save Task</button></div>
         </form>

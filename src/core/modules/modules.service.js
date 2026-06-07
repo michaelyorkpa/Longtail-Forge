@@ -18,6 +18,7 @@ import {
   listModuleRoutes as listRegisteredModuleRoutes,
   listModules as listRegisteredModules,
   listNotificationEvents as listRegisteredNotificationEvents,
+  listNotificationFollowTargets as listRegisteredNotificationFollowTargets,
   listNotificationTemplates as listRegisteredNotificationTemplates,
   listSearchableTypes as listRegisteredSearchableTypes,
   listTaggableTypes as listRegisteredTaggableTypes,
@@ -118,6 +119,10 @@ function listSearchableTypes() {
 
 function listNotificationEvents() {
   return listRegisteredNotificationEvents();
+}
+
+function listNotificationFollowTargets() {
+  return listRegisteredNotificationFollowTargets();
 }
 
 function listNotificationTemplates() {
@@ -1064,6 +1069,7 @@ export const modulesService = {
   listModuleBrowserAssets,
   listModuleSettings,
   listNotificationEvents,
+  listNotificationFollowTargets,
   listModulePublicViews,
   listModuleResourceDefinitions,
   listModuleRolePermissionDefaults,

@@ -46,6 +46,7 @@ function cloneModuleDefinition(definition) {
     taggableTypes: [...(definition.taggableTypes || [])],
     searchableTypes: [...(definition.searchableTypes || [])],
     notificationEvents: [...(definition.notificationEvents || [])],
+    notificationFollowTargets: [...(definition.notificationFollowTargets || [])],
     notificationTemplates: [...(definition.notificationTemplates || [])],
     auditRecordTypes: [...(definition.auditRecordTypes || [])],
     eventTypes: [...(definition.eventTypes || [])],
@@ -192,6 +193,10 @@ function listNotificationEvents() {
   return listContribution("notificationEvents");
 }
 
+function listNotificationFollowTargets() {
+  return listContribution("notificationFollowTargets");
+}
+
 function listNotificationTemplates() {
   return listContribution("notificationTemplates");
 }
@@ -281,6 +286,7 @@ export {
   listModuleRoutes,
   listModules,
   listNotificationEvents,
+  listNotificationFollowTargets,
   listNotificationTemplates,
   listPublicApiRoutes,
   listSearchableTypes,

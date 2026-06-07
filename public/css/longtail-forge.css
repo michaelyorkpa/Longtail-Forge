@@ -174,11 +174,21 @@ body {
     overflow-wrap: anywhere;
 }
 
+.notification-panel-title {
+    font-size: 13px;
+    line-height: 1.3;
+}
+
 .notification-meta,
-.notification-panel-empty {
+.notification-panel-empty,
+.notification-panel-status {
     margin: 0;
     color: var(--color-muted);
     font-size: 13px;
+}
+
+.notification-panel-status.is-error {
+    color: var(--color-danger);
 }
 
 .notification-panel-actions,
@@ -523,6 +533,16 @@ h1 {
     gap: 10px;
 }
 
+.notification-preference-group {
+    display: grid;
+    gap: 10px;
+}
+
+.notification-preference-group h3 {
+    margin: 0;
+    font-size: 15px;
+}
+
 .notification-preference-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -541,6 +561,13 @@ h1 {
 
 .notification-preference-row select {
     width: 140px;
+}
+
+.notification-workspace-default-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    align-items: center;
 }
 
 .segmented-control {
@@ -1954,6 +1981,7 @@ dialog .form-actions {
 .task-assignee-field,
 .task-recurrence-field,
 .task-timer-field,
+.task-notification-field,
 .task-reminder-field,
 .task-description-field,
 .task-modal-actions {
@@ -1966,6 +1994,7 @@ dialog .form-actions {
 
 .task-reminder-field,
 .task-recurrence-field,
+.task-notification-field,
 .task-timer-field,
 .task-reminder-policy-editor {
     display: grid;
@@ -1974,6 +2003,7 @@ dialog .form-actions {
 
 .task-reminder-field p,
 .task-recurrence-field p,
+.task-notification-field p,
 .task-timer-field p {
     margin: 0;
     color: var(--color-muted);

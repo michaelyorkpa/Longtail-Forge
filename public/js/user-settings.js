@@ -13,6 +13,9 @@ const profileDisplayNameInput = document.querySelector("[data-profile-display-na
 const profileAltEmailInput = document.querySelector("[data-profile-alt-email]");
 const profileTimezoneSelect = document.querySelector("[data-profile-timezone]");
 const saveProfileButton = document.querySelector("[data-save-profile]");
+const notificationPreferencesForm = document.querySelector("[data-user-notification-preferences-form]");
+const notificationPreferenceList = document.querySelector("[data-user-notification-preference-list]");
+const saveNotificationPreferencesButton = document.querySelector("[data-save-notification-preferences]");
 const workspaceCreateForm = document.querySelector("[data-workspace-create-form]");
 const newWorkspaceTypeSelect = document.querySelector("[data-new-workspace-type]");
 const newWorkspaceNameInput = document.querySelector("[data-new-workspace-name]");
@@ -30,6 +33,7 @@ let lastSuggestedWorkspaceName = "";
 let workspaceNameEditedByUser = false;
 
 loadUserSettings();
+loadNotificationPreferences();
 
 themeForm.addEventListener("change", async (event) => {
   if (event.target.matches("[data-theme-mode-toggle]")) {
@@ -45,6 +49,11 @@ passwordForm.addEventListener("submit", async (event) => {
 profileForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   await saveProfile();
+});
+
+notificationPreferencesForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await saveNotificationPreferences();
 });
 
 workspaceCreateForm.addEventListener("submit", async (event) => {
@@ -75,6 +84,47 @@ async function loadUserSettings() {
     setUserSettingsStatus("");
   } catch (error) {
     handleApiError(error, "User settings could not be loaded.");
+  }
+}
+
+async function loadNotificationPreferences() {
+  if (!notificationPreferenceList) {
+    return;
+  }
+
+  try {
+    const body = await window.LongtailForge.notificationPreferences.loadPreferences();
+
+    window.LongtailForge.notificationPreferences.renderPreferenceGroups(notificationPreferenceList, body.events, {
+      canManageWorkspaceDefaults: false,
+      emptyText: "No configurable notification types are available.",
+      headingLevel: "h3",
+      includeWorkspaceDefaults: false,
+    });
+  } catch (error) {
+    notificationPreferenceList.replaceChildren(createPlaceholder("Notification preferences could not be loaded."));
+    handleApiError(error, "Notification preferences could not be loaded.");
+  }
+}
+
+async function saveNotificationPreferences() {
+  if (!notificationPreferenceList) {
+    return;
+  }
+
+  saveNotificationPreferencesButton.disabled = true;
+  setUserSettingsStatus("Saving notification preferences...");
+
+  try {
+    const preferences = window.LongtailForge.notificationPreferences.readUserPreferencesPayload(notificationPreferenceList);
+
+    await window.LongtailForge.notificationPreferences.saveUserPreferences(preferences);
+    await loadNotificationPreferences();
+    flashButtonSavedState(saveNotificationPreferencesButton, "Notification preferences saved.");
+  } catch (error) {
+    handleApiError(error, "Notification preferences were not saved.");
+  } finally {
+    saveNotificationPreferencesButton.disabled = false;
   }
 }
 
@@ -342,6 +392,14 @@ function createWorkspaceRemovalRow(workspace) {
 function createWorkspaceRemovalPlaceholder(message) {
   const placeholder = document.createElement("p");
 
+  placeholder.textContent = message;
+  return placeholder;
+}
+
+function createPlaceholder(message) {
+  const placeholder = document.createElement("p");
+
+  placeholder.className = "placeholder-copy";
   placeholder.textContent = message;
   return placeholder;
 }

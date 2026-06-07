@@ -444,6 +444,7 @@ A module manifest may support:
   searchableTypes,
   notificationEvents,
   notificationTemplates,
+  notificationFollowTargets,
   auditRecordTypes,
   eventTypes,
   eventSummaries,

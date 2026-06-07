@@ -63,6 +63,7 @@ These fields are currently accepted by the manifest validator:
 - `workspaceCapabilityRequirements`: optional workspace capability keys that make the module relevant.
 - `notificationEvents`: optional module-declared notification event descriptors.
 - `notificationTemplates`: optional module-declared notification template descriptors.
+- `notificationFollowTargets`: optional module-declared target types that users may follow for per-record notification overrides.
 - `taggableTypes`: optional module-declared taggable record type descriptors.
 - `seedHooks`: optional reserved startup hook array.
 - `repairHooks`: optional reserved startup repair hook array.
@@ -73,7 +74,7 @@ These fields are accepted only as arrays today. The validator checks their basic
 
 - `searchableTypes`
 
-Notifications are framework-owned. Modules declare notification events and templates through the manifest, but individual modules should not create duplicate notification UI.
+Notifications are framework-owned. Modules declare notification events, templates, and followable target types through the manifest, but individual modules should not create duplicate notification UI.
 
 ## Contribution Shapes
 
@@ -129,9 +130,9 @@ Taggable type descriptors require `targetType`, `moduleId`, `label`, `descriptio
 
 The `tags` module contributes browser routes under `/api/tags`. `GET /api/tags`, `POST /api/tags`, `PUT /api/tags/:tagId`, `POST /api/tags/:tagId/archive`, and `POST /api/tags/:tagId/restore` manage workspace tag definitions. `GET /api/tags/assignments` reads tags for a registered target, and `PUT /api/tags/assignments` replaces that target's manual tag set in one save. The module also contributes `tags.html` and the shared browser tag helper for tag chips and reusable pickers. Disabling the `tags` module removes the interface and blocks tag APIs without requiring first-party record modules to know how tag storage works.
 
-Notification event descriptors require `id`, `moduleId`, `label`, `description`, `defaultEnabled`, and `defaultPriority` (`low`, `normal`, `high`, or `urgent`). They may include `recipientResolver` for a named module/framework resolver or `recipientMode` for a framework-recognized mode such as `actor`, `assignees`, `workspace_admins`, or `explicit_users`. Notification template descriptors require `id`, `moduleId`, `event`, `title`, and `body`; they may include a relative `url` or `recordLinkPattern`. The framework stores notification records in a workspace-scoped, recipient-specific `notifications` table with module, event, record, status, priority, URL, and metadata fields.
+Notification event descriptors require `id`, `moduleId`, `label`, `description`, `defaultEnabled`, and `defaultPriority` (`low`, `normal`, `high`, or `urgent`). They may include `recipientResolver` for a named module/framework resolver or `recipientMode` for a framework-recognized mode such as `actor`, `assignees`, `workspace_admins`, or `explicit_users`. Notification template descriptors require `id`, `moduleId`, `event`, `title`, and `body`; they may include a relative `url` or `recordLinkPattern`. Notification follow target descriptors require `targetType`, `moduleId`, `label`, `description`, and `requiredReadPermission`; they may include an `eventTypes` list to limit which module notification events can be delivered through per-target follows. The framework stores notification records in a workspace-scoped, recipient-specific `notifications` table with module, event, record, status, priority, URL, and metadata fields.
 
-The notification service creates single or multi-recipient records, lists current-user notifications, counts unread records, marks one or all notifications read, dismisses notifications, archives older read/dismissed records, and decorates target metadata before returning links. Browser notification routes are framework routes under `/api/notifications`; they only return the active user's own notifications in the active workspace. Target links are hidden when the recipient cannot access the target record.
+The notification service creates single or multi-recipient records, lists current-user notifications, counts unread records, marks one or all notifications read, dismisses notifications, archives older read/dismissed records, manages per-target follow subscriptions, and decorates target metadata before returning links. Browser notification routes are framework routes under `/api/notifications`; they only return the active user's own notifications in the active workspace. Target links are hidden when the recipient cannot access the target record. Per-target follows are scoped to one workspace, user, module, target type, and target ID; they can override that user's broader event mute for the followed target but do not mutate workspace defaults or other users' preferences.
 
 The authenticated app shell owns the notification bell/dropdown and reads unread counts from `/api/app-shell/bootstrap` plus `/api/notifications/unread-count`. `notifications.html` is a framework-owned protected page for listing, filtering, marking read, dismissing, and configuring notification preferences. User preferences are stored per workspace/user/event type, while workspace defaults are stored per workspace/event type with an enabled flag and priority override.
 

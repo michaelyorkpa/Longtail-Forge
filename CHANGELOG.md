@@ -1,3 +1,30 @@
+## Version 0.32.5.4 - 2026-06-06 20:05 -04:00
+
+- Bumped the app and first-party module versions to `0.32.5.4`.
+- Added an active notification status filter for unread/read notifications so dismissed and archived notifications stay out of the bell dropdown and default inbox view.
+- Updated the notification dropdown to load active notifications, remove dismissed items immediately after successful dismissal, show an empty state after the last dismissal, refresh unread counts, and preserve visible items on failed actions with an error status.
+- Tightened notification dropdown title styling with a compact panel-specific title class while preserving target hover context.
+- Updated the full Notifications page default filter to Active so "View all" from the dropdown shows the same active notification set.
+- Added notification regression coverage for active/dismissed filters and dropdown UI contract behavior.
+- Updated roadmap and decisions bookkeeping for 0.32.5.4 Pass 1.
+- Added a shared browser notification preference helper so Notifications and User Settings render and save the same framework-owned preference model.
+- Grouped notification preferences by module and kept labels user-readable while storing saves by stable event type IDs.
+- Added User Settings notification preference controls separate from module enablement/settings controls.
+- Disabled user-level event toggles when workspace notification defaults disable the event, while preserving the separate workspace default and user preference models.
+- Added audit logging for notification preference and workspace default changes.
+- Added notification regression coverage for shared preference rendering, User Settings wiring, workspace-disabled preference controls, and preference/default audit records.
+- Updated roadmap and decisions bookkeeping for 0.32.5.4 Pass 2.
+- Added framework-owned `notification_subscriptions` storage for per-target notification follows.
+- Added `/api/notifications/subscriptions` browser APIs to read, follow, and unfollow one target for the active user.
+- Added module-declared `notificationFollowTargets` metadata and declared Tasks task records as followable notification targets.
+- Expanded notification delivery so a user following a specific task receives target notifications even when their broader user preference mutes that event type, while workspace defaults still apply.
+- Added task notification follow/unfollow controls in the task dialog and a quick Follow Notifications task row action.
+- Added audit logging for notification follow/unfollow changes.
+- Documented the notification follow target manifest contract and added regression coverage for subscription APIs, delivery overrides, permission checks, and task UI hooks.
+- Updated roadmap and decisions bookkeeping for 0.32.5.4 Pass 3.
+- Completed the 0.32.5.4 regression closeout with explicit checks for dropdown dismissal, dropdown/inbox active filtering, grouped preference rendering/saves, shared User Settings preference wiring, and per-target subscription override/unfollow behavior.
+- Updated roadmap bookkeeping for 0.32.5.4 Pass 4.
+
 ## Version 0.32.5.3 - 2026-06-06 17:24 -04:00
 
 - Bumped the app and first-party module versions to `0.32.5.3`.
