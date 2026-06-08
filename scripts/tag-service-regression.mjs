@@ -52,6 +52,7 @@ try {
 
   const listed = await tagsService.list(session, { search: "client" });
   assert.deepEqual(listed.tags.map((tag) => tag.tag_id), [created.tag.tag_id]);
+  assert.equal(listed.tags[0].usage_count, 0);
 
   const replaced = await tagsService.replaceAssignments(session, {
     tagIds: [created.tag.tag_id, second.tag.tag_id],
@@ -59,6 +60,9 @@ try {
     targetType: "task",
   });
   assert.deepEqual(replaced.assignments.map((assignment) => assignment.tag.slug).sort(), ["client-facing", "research"]);
+  const usedTags = await tagsService.list(session, { status: "all" });
+  const usedTag = usedTags.tags.find((tag) => tag.tag_id === created.tag.tag_id);
+  assert.equal(usedTag.usage_count, 1);
 
   const removed = await tagsService.remove(session, {
     tagId: second.tag.tag_id,
@@ -74,6 +78,53 @@ try {
   assert.equal(assignments.target.label, "Tagged Regression Task");
   assert.deepEqual(assignments.assignments.map((assignment) => assignment.tag_id), [created.tag.tag_id]);
 
+  const permissionTarget = await createTaskTarget(session, "Tag Permission Regression Task");
+  const noTagCreateSession = await createWorkspaceAdminSession(session, "no-tag-create", {
+    operationAccess: {
+      tags: {
+        create: false,
+      },
+    },
+  });
+  await assertRejectsWithMessage(() => tagsService.create(noTagCreateSession, {
+    color: "#f59e0b",
+    name: "Denied Inline Create",
+  }), "You do not have permission to perform that action.");
+
+  const noTagAssignSession = await createWorkspaceAdminSession(session, "no-tag-assign", {
+    operationAccess: {
+      tags: {
+        update: false,
+      },
+    },
+  });
+  await assertRejectsWithMessage(() => tagsService.assign(noTagAssignSession, {
+    tagId: second.tag.tag_id,
+    targetId: permissionTarget.taskId,
+    targetType: "task",
+  }), "You do not have permission to perform that action.");
+
+  const assignSession = await createWorkspaceAdminSession(session, "tag-assign-allowed");
+  const assignedExisting = await tagsService.assign(assignSession, {
+    tagId: second.tag.tag_id,
+    targetId: permissionTarget.taskId,
+    targetType: "task",
+  });
+  assert.deepEqual(assignedExisting.assignments.map((assignment) => assignment.tag_id), [second.tag.tag_id]);
+
+  const noTagRemoveSession = await createWorkspaceAdminSession(session, "no-tag-remove", {
+    operationAccess: {
+      tags: {
+        delete: false,
+      },
+    },
+  });
+  await assertRejectsWithMessage(() => tagsService.remove(noTagRemoveSession, {
+    tagId: second.tag.tag_id,
+    targetId: permissionTarget.taskId,
+    targetType: "task",
+  }), "You do not have permission to perform that action.");
+
   await runSql(`
 UPDATE workspace_modules
 SET status = 'disabled'
@@ -85,6 +136,22 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     targetId: target.taskId,
     targetType: "task",
   }), "That module is disabled for new tag assignments.");
+
+  await runSql(`
+UPDATE workspace_modules
+SET status = 'disabled'
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tags';
+`);
+  await assertRejectsWithMessage(() => tagsService.list(session), "Tagging is disabled for this workspace.");
+  await assertRejectsWithMessage(() => tagsService.create(session, {
+    name: "Disabled Module Tag",
+  }), "Tagging is disabled for this workspace.");
+  await assertRejectsWithMessage(() => tagsService.replaceAssignments(session, {
+    tagIds: [created.tag.tag_id],
+    targetId: permissionTarget.taskId,
+    targetType: "task",
+  }), "Tagging is disabled for this workspace.");
 
   await assertAuditRows(session.workspace_id);
   await assertIntegrity();
@@ -126,7 +193,7 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 `);
 }
 
-async function createTaskTarget(session) {
+async function createTaskTarget(session, title = "Tagged Regression Task") {
   const taskId = randomUUID();
   const now = new Date().toISOString();
 
@@ -150,7 +217,7 @@ VALUES (
   ${sqlText(session.workspace_id)},
   NULL,
   NULL,
-  'Tagged Regression Task',
+  ${sqlText(title)},
   '',
   'open',
   'normal',
@@ -162,6 +229,89 @@ VALUES (
 `);
 
   return { taskId };
+}
+
+async function createWorkspaceAdminSession(session, usernamePrefix, permissionOverrides = null) {
+  const userId = randomUUID();
+  const assignmentId = randomUUID();
+  const userWorkspaceId = randomUUID();
+  const now = new Date().toISOString();
+  const username = `${usernamePrefix}-${randomUUID()}@example.test`;
+  const overridesJson = permissionOverrides ? JSON.stringify(permissionOverrides) : null;
+
+  await runSql(`
+INSERT INTO users (
+  user_id,
+  home_workspace_id,
+  username,
+  display_name,
+  password,
+  protected_user,
+  active_workspace_id
+)
+VALUES (
+  ${sqlText(userId)},
+  ${sqlText(session.workspace_id)},
+  ${sqlText(username)},
+  ${sqlText(usernamePrefix)},
+  'test-password-hash',
+  'no',
+  ${sqlText(session.workspace_id)}
+);
+
+INSERT INTO user_workspaces (
+  user_workspace_id,
+  user_id,
+  workspace_id,
+  status,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(userWorkspaceId)},
+  ${sqlText(userId)},
+  ${sqlText(session.workspace_id)},
+  'active',
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+
+INSERT INTO user_role_assignments (
+  assignment_id,
+  workspace_id,
+  user_id,
+  role_id,
+  scope_type,
+  scope_id,
+  client_id,
+  project_id,
+  permission_overrides_json,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(assignmentId)},
+  ${sqlText(session.workspace_id)},
+  ${sqlText(userId)},
+  'workspace_admin',
+  'workspace',
+  ${sqlText(session.workspace_id)},
+  NULL,
+  NULL,
+  ${overridesJson ? sqlText(overridesJson) : "NULL"},
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+`);
+
+  return {
+    active_workspace_id: session.workspace_id,
+    home_workspace_id: session.workspace_id,
+    timezone: "America/New_York",
+    user_id: userId,
+    username,
+    workspace_id: session.workspace_id,
+  };
 }
 
 async function assertRejectsWithMessage(callback, message) {

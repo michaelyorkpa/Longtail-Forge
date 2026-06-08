@@ -637,7 +637,7 @@ class StopwatchTimer {
   }
 
   mountTagPicker(selectedTagIds = []) {
-    if (!this.tagsContainer || !window.LongtailForge?.tags?.mountPicker || tagOptions.length === 0) {
+    if (!this.tagsContainer || !window.LongtailForge?.tags?.mountPicker) {
       if (this.tagsContainer) {
         this.tagsContainer.hidden = true;
       }

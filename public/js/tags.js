@@ -6,12 +6,14 @@ const tagNameInput = document.querySelector("[data-tag-name]");
 const tagSlugInput = document.querySelector("[data-tag-slug]");
 const tagColorInput = document.querySelector("[data-tag-color]");
 const tagDescriptionInput = document.querySelector("[data-tag-description]");
+const tagConflictMessage = document.querySelector("[data-tag-conflict]");
 const tagSearchInput = document.querySelector("[data-tag-search]");
 const tagRefreshButton = document.querySelector("[data-tag-refresh]");
 const tagResetButton = document.querySelector("[data-tag-reset]");
 const statusButtons = [...document.querySelectorAll("[data-tag-status-filter]")];
 
 const state = {
+  allTags: [],
   status: "active",
   tags: [],
 };
@@ -34,7 +36,9 @@ tagNameInput?.addEventListener("input", () => {
   if (!tagIdInput?.value && tagSlugInput && !tagSlugInput.value.trim()) {
     tagSlugInput.value = slugify(tagNameInput.value);
   }
+  renderTagConflictMessage();
 });
+tagSlugInput?.addEventListener("input", renderTagConflictMessage);
 
 loadTags();
 
@@ -46,14 +50,14 @@ async function loadTags() {
       status: state.status,
       search: tagSearchInput?.value || "",
     });
-    const response = await fetch(`/api/tags?${params}`, { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(await responseError(response, "Tags unavailable."));
-    }
-
-    const body = await response.json();
-    state.tags = Array.isArray(body.tags) ? body.tags : [];
+    const [listedTags, allTags] = await Promise.all([
+      fetchTags(params),
+      fetchTags(new URLSearchParams({ status: "all" })),
+    ]);
+    state.tags = listedTags;
+    state.allTags = allTags;
     renderTags();
+    renderTagConflictMessage();
     setStatus("");
   } catch (error) {
     state.tags = [];
@@ -111,6 +115,7 @@ function createTagRow(tag) {
   const heading = document.createElement("h2");
   const meta = document.createElement("p");
   const description = document.createElement("p");
+  const usage = document.createElement("p");
   const actions = document.createElement("div");
   const archiveLabel = tag.status === "active" ? "Archive" : "Restore";
   const editButton = createTagActionButton("Edit", "edit");
@@ -125,11 +130,13 @@ function createTagRow(tag) {
 
   summary.className = "tag-row-summary";
   heading.textContent = tag.name || "Tag";
-  meta.className = "muted-text";
-  meta.textContent = [tag.slug, tag.status].filter(Boolean).join(" / ");
+  meta.className = "tag-row-meta";
+  renderTagMetadata(meta, tag);
   description.textContent = tag.description || "";
   description.className = "tag-row-description";
-  summary.append(heading, meta, description);
+  usage.className = "tag-row-usage";
+  usage.textContent = usageText(tag);
+  summary.append(heading, meta, usage, description);
 
   actions.className = "tag-row-actions";
   editButton.addEventListener("click", () => editTag(tag));
@@ -175,6 +182,7 @@ function editTag(tag) {
   if (tagDescriptionInput) {
     tagDescriptionInput.value = tag.description || "";
   }
+  renderTagConflictMessage();
 }
 
 async function mutateTagStatus(tag) {
@@ -202,7 +210,76 @@ function resetForm() {
   if (tagColorInput) {
     tagColorInput.value = "#2f6fed";
   }
+  renderTagConflictMessage();
   tagNameInput?.focus();
+}
+
+function renderTagMetadata(container, tag) {
+  container.replaceChildren(
+    metadataBadge(`Slug: ${tag.slug || "none"}`),
+    metadataBadge(`Status: ${tag.status || "active"}`),
+    metadataBadge(`Updated: ${formatDate(tag.updated_at)}`),
+    metadataBadge(`ID: ${tag.tag_id || "unknown"}`),
+  );
+}
+
+function metadataBadge(text) {
+  const badge = document.createElement("span");
+  badge.className = "tag-metadata-badge";
+  badge.textContent = text;
+  return badge;
+}
+
+function usageText(tag) {
+  const count = Number(tag.usage_count || 0);
+  return `${count} ${count === 1 ? "use" : "uses"}`;
+}
+
+function renderTagConflictMessage() {
+  if (!tagConflictMessage) {
+    return;
+  }
+
+  const conflict = findPotentialTagConflict();
+  tagConflictMessage.textContent = conflict
+    ? `Existing tag uses this normalized slug: ${conflict.name || conflict.slug}. Edit that tag or choose a different name.`
+    : "";
+  tagConflictMessage.hidden = !conflict;
+}
+
+function findPotentialTagConflict() {
+  const currentTagId = tagIdInput?.value || "";
+  const normalizedSlug = slugify(tagSlugInput?.value || tagNameInput?.value || "");
+
+  if (!normalizedSlug) {
+    return null;
+  }
+
+  return state.allTags.find((tag) => tag.tag_id !== currentTagId && slugify(tag.slug || tag.name) === normalizedSlug) || null;
+}
+
+async function fetchTags(params) {
+  const response = await fetch(`/api/tags?${params}`, { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(await responseError(response, "Tags unavailable."));
+  }
+
+  const body = await response.json();
+  return Array.isArray(body.tags) ? body.tags : [];
+}
+
+function formatDate(value) {
+  const date = value ? new Date(value) : null;
+
+  if (!date || Number.isNaN(date.getTime())) {
+    return "unknown";
+  }
+
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function setStatus(message, isError = false) {

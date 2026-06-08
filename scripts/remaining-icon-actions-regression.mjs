@@ -7,7 +7,7 @@ const timeEntries = readText("public/js/time-entries.js");
 const notifications = readText("public/js/notifications.js");
 const clientsProjects = readText("public/js/clients-projects.js");
 const css = readText("public/css/longtail-forge.css");
-const roadmap = readText("ROADMAP.md");
+const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 
 ["up", "down"].forEach((iconName) => {
   assert.match(iconHelper, new RegExp(`${iconName}:\\s*Object\\.freeze`), `shared icon helper must include ${iconName} for project default sort controls`);

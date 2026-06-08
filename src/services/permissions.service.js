@@ -565,6 +565,10 @@ function actionToResourceKey(action) {
     return "audit_logs";
   }
 
+  if (action.startsWith("tags.")) {
+    return "tags";
+  }
+
   return "";
 }
 

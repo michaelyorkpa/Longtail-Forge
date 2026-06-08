@@ -2,96 +2,6 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.5.3 - Shared Icon and Compact Action Controls
-
-This section should create a reusable framework-owned icon/action control foundation before converting individual module surfaces. The goal is compact, accessible controls with clear module boundaries, not one-off icon buttons scattered through page scripts.
-
-### Pass 1 - Shared icon and action-control foundation
-
-- [x] Choose the first-party icon source for the app.
-  - [x] Prefer a local inline SVG subset checked into the app over remote icon fonts or CDN assets.
-  - [x] Confirm icon license/attribution requirements before adding assets.
-  - [x] Keep the icon registry framework-owned and module-agnostic.
-- [x] Add a shared browser icon helper.
-  - [x] Render icons by stable semantic names such as `add`, `edit`, `archive`, `restore`, `delete`, `start`, `pause`, `save`, `close`, `copy`, `refresh`, and `more`.
-  - [x] Use inline SVG with `currentColor` so light/dark mode stays theme-token driven.
-  - [x] Prevent arbitrary SVG/string injection through the helper API.
-  - [x] Support icon-only buttons, icon-plus-text buttons, and decorative icons with explicit accessibility handling.
-- [x] Add shared CSS for compact action controls.
-  - [x] Add `.icon`, `.icon-button`, `.action-button`, and compact action-group styles.
-  - [x] Keep icon-only controls at a minimum 44px touch target.
-  - [x] Preserve existing primary, secondary, link, and danger button semantics.
-  - [x] Preserve visible focus states and disabled states.
-  - [x] Avoid creating a module-specific style dependency in framework CSS.
-- [x] Document the contract in module-development docs.
-  - [x] Modules may call the shared icon/action helpers.
-  - [x] Modules should not ship duplicate icon registries for common app actions.
-  - [x] Module-specific icons may be added only through a documented extension point.
-
-### Pass 2 - Convert high-density framework and task controls
-
-- [x] Convert timer controls where compact icons materially improve scanning.
-  - [x] Time Tracker Start/Pause/Save/Discard controls.
-  - [x] Task timer Start/Pause/Save Time/Reset controls.
-  - [x] Keep text visible where the action would be ambiguous or risky.
-- [x] Convert Tasks list/action controls.
-  - [x] Task row edit/open actions.
-  - [x] Task complete/reopen/archive/restore/delete-style actions where present.
-  - [x] Bulk action controls only where icon treatment does not reduce clarity.
-- [x] Keep destructive actions visually and semantically distinct.
-  - [x] Danger icon buttons must keep danger styling.
-  - [x] Destructive icon-only controls must have clear `aria-label` and `title` text.
-  - [x] Do not hide confirmation or permission behavior behind the icon helper.
-- [x] Preserve module ownership.
-  - [x] Tasks module keeps task action behavior and permission checks.
-  - [x] Time Tracking module keeps timer/time-entry behavior and permission checks.
-  - [x] Shared icon helpers only render controls and icons.
-
-### Pass 3 - Convert remaining repeated row actions
-
-- [x] Convert Tags list actions.
-  - [x] Edit.
-  - [x] Archive.
-  - [x] Restore.
-  - [x] Clear/reset only where the icon is obvious with accessible labeling.
-- [x] Convert Clients/Projects repeated row actions.
-  - [x] Edit project/client.
-  - [x] Archive/restore project/client where present.
-  - [x] Move up/down project default sort controls if icon treatment improves clarity.
-- [x] Convert Time Entries row actions.
-  - [x] Edit.
-  - [x] Delete.
-  - [x] Refresh/reload only where repeated in dense areas.
-- [x] Convert notification quick actions only if they remain obvious.
-  - [x] Read/unread.
-  - [x] Dismiss.
-  - [x] Open target.
-  - [x] Leave preference/configuration controls as text-first controls unless a later notification UI pass changes the layout.
-
-### Pass 4 - Regression, accessibility, and visual contract checks
-
-- [x] Add regression coverage for shared icon helper behavior.
-  - [x] Known icon names render stable inline SVG.
-  - [x] Unknown icon names fail safely.
-  - [x] Icons use `currentColor`.
-  - [x] The helper does not depend on Tasks, Time Tracking, Clients/Projects, Tags, or Notifications internals.
-- [x] Add accessibility regression coverage.
-  - [x] Icon-only buttons must have accessible labels.
-  - [x] Decorative icons must be hidden from assistive tech.
-  - [x] Focusable controls must keep visible focus styling.
-  - [x] Disabled icon buttons must remain discoverably disabled.
-- [x] Add UI contract checks.
-  - [x] Danger icon buttons preserve danger styling.
-  - [x] Icon-only controls keep a minimum 44px touch target in shared CSS.
-  - [x] No remote icon font/CDN dependency is introduced.
-  - [x] Converted controls continue to use native `button` elements for commands.
-- [x] Update changelog, decisions, and docs bookkeeping for the completed passes.
-
-### Clarification questions before implementation
-
-- [x] Should the first icon set be a local Lucide-derived SVG subset, or should Longtail Forge define a smaller hand-picked internal SVG set for only the actions we need now? Use local Lucide derived SVGs. These are not installed yet.
-- [x] Should compact icon controls be icon-only in dense table/list rows by default, or should the first pass prefer icon-plus-text until each surface proves it needs tighter controls? Icon only, please.
-
 ## Version 0.32.5.4 - Notification UI Fixes
 
 This section should fix the first-pass notification UI regressions and make notification preferences usable from the framework-owned notification surfaces. Keep notification UI framework-owned; modules declare event types and target metadata, but should not render separate inboxes, bells, or duplicate preference screens.
@@ -168,13 +78,78 @@ This section should fix the first-pass notification UI regressions and make noti
 
 ## Version 0.32.5.5 - Tags Fixes
 
-- Need to be able to add tags on the fly
-  - Going to a whole separate page to add tags is cumbersome and time consuming, and requires that users pre-plan tags, interrupting the workflow and decreasing the usability of tags
+- [ ] Make tagging feel more like WordPress tags: users should be able to type, select, create, and assign tags without leaving the record they are editing.
+  - [x] Treat the existing Tags page as the bulk/admin cleanup surface, not the required first stop for everyday tagging.
+  - [x] Keep tags as shared workspace tag records with assignment rows; do not store comma-separated tag text directly on tasks, time entries, clients, or projects.
+  - [x] Keep record modules integrated through the shared browser tag helper and generic tag services.
 
-## Version 0.32.5.6
+### Pass 1 - Shared Inline Tag Entry Control
 
-- Need to be able to add tags on the fly
-  - Going to a whole separate page to add tags is cumbersome and time consuming, and requires that users pre-plan tags, interrupting the workflow and decreasing the usability of tags
+- [x] Upgrade the shared tag picker into a WordPress-like token entry control.
+  - [x] Let users type tag names directly into the field.
+  - [x] Show matching existing workspace tags while the user types.
+  - [x] Add selected tags as removable chips/tokens.
+  - [x] Support Enter, comma, and selection from the suggestion list.
+  - [x] Prevent duplicate chips for the same tag.
+  - [x] Preserve keyboard navigation and screen-reader labels.
+- [x] Support inline tag creation through the shared helper.
+  - [x] If the typed value does not match an existing tag, offer to create it inline.
+  - [x] Normalize tag names the same way the Tags page does.
+  - [x] Reuse existing tags when the normalized name/slug already exists.
+  - [x] Create the tag record before assigning it to the target record.
+  - [x] Surface validation errors without losing the user's selected tags.
+
+### Pass 2 - Record Workflow Integration
+
+- [x] Add inline tag creation to task add/edit workflows.
+  - [x] Users can create and assign tags from the task dialog.
+  - [x] Existing task tag loading, saving, and filtering continue to work.
+- [x] Add inline tag creation to time entry workflows.
+  - [x] Users can create and assign tags from stopwatch save/finalize flows where tags are editable.
+  - [x] Users can create and assign tags from manual/add/edit time entry dialogs.
+  - [x] Time entry reporting filters continue to match direct time-entry tags only.
+- [x] Add inline tag creation to client/project workflows where tag editing already appears.
+  - [x] Client/project tags remain context metadata.
+  - [x] Client/project tags are not copied automatically onto child tasks or time entries.
+- [x] Keep read-only/history surfaces display-only.
+  - [x] Tag lists render normally on non-editing views.
+  - [x] Inline creation is only available in explicit add/edit contexts.
+
+### Pass 3 - Tags Management Page Improvements
+
+- [x] Keep the Tags page useful for workspace-level tag cleanup.
+  - [x] Show tag search/filtering prominently.
+  - [x] Show enough metadata to distinguish similar tags.
+  - [x] Show usage counts if the service can provide them without expensive page loads.
+  - [x] Make duplicate-name and normalized-slug conflicts obvious.
+- [x] Keep advanced cleanup out of the inline picker.
+  - [x] Renaming, disabling, deleting, merging, or auditing tags should stay on the Tags page.
+  - [x] Inline record workflows should focus on fast create/select/assign behavior.
+
+### Pass 4 - Permissions, Module State, and Regression Coverage
+
+- [x] Enforce tag permissions consistently.
+  - [x] Users with assignment permission can assign existing tags where the target record permits tagging.
+  - [x] Users without tag definition management permission cannot create new tags inline.
+  - [x] Users without assignment permission cannot add or remove record tags inline.
+  - [x] Permission failures show clear inline feedback.
+- [x] Respect the disableable first-party Tags module.
+  - [x] When the Tags module is disabled, inline tag creation and assignment controls are hidden or disabled.
+  - [x] Existing tag displays remain stable where historical/read-only display is allowed.
+  - [x] Tag APIs remain blocked through the existing service-level guards.
+- [x] Add regression checks for the WordPress-like tag workflow.
+  - [x] Creating a new tag inline creates one workspace tag definition and assigns it to the record.
+  - [x] Selecting an existing suggestion assigns the existing tag without creating a duplicate.
+  - [x] Enter and comma tokenization work without submitting the surrounding form unexpectedly.
+  - [x] Removing a chip removes only that record assignment.
+  - [x] Module-disabled and permission-denied states block creation/assignment.
+
+### Version 0.32.5.5.1 - Add update type to notifications, Fix all notifications screen
+
+- [ ] Notifications don't tell you WHAT changed. I need a plain English update type on there (if a task was created, it needs to say "Task Created"; if a task had a description added it needs to say "Description added"; etc.)
+
+- [ ] All notifications (notificaitons.html) screen displays nothing
+  - [ ] Clicking the different filters "Active," "Unread," "Read," "Dismissed" does nothing (the active indiciator doesn't change either, as though the buttons aren't wired)
 
 ## Version 0.32.6 - Search Framework Contract
 

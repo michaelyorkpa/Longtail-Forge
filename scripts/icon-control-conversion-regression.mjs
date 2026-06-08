@@ -6,7 +6,7 @@ const tasks = readText("public/js/tasks.js");
 const taskDialog = readText("public/js/task-dialog.js");
 const stopWatch = readText("public/js/stop-watch.js");
 const css = readText("public/css/longtail-forge.css");
-const roadmap = readText("ROADMAP.md");
+const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 
 ["complete", "duplicate"].forEach((iconName) => {
   assert.match(iconHelper, new RegExp(`${iconName}:\\s*Object\\.freeze`), `shared icon helper must include ${iconName} for Tasks row actions`);

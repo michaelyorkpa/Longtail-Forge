@@ -14,6 +14,19 @@ const TAG_COLUMNS = `
   updated_at
 `;
 
+const QUALIFIED_TAG_COLUMNS = `
+  tags.tag_id,
+  tags.workspace_id,
+  tags.name,
+  tags.slug,
+  tags.description,
+  tags.color,
+  tags.status,
+  tags.created_by_user_id,
+  tags.created_at,
+  tags.updated_at
+`;
+
 const ASSIGNMENT_COLUMNS = `
   tag_assignments.tag_assignment_id,
   tag_assignments.workspace_id,
@@ -74,7 +87,7 @@ SET name = ${sqlText(updates.name)},
     description = ${sqlText(updates.description || "")},
     color = ${sqlNullableText(updates.color)},
     updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
+WHERE tags.workspace_id = ${sqlText(workspaceId)}
   AND tag_id = ${sqlText(tagId)};
 `);
 
@@ -99,15 +112,23 @@ async function listTags(workspaceId, options = {}) {
 
   const rows = await querySql(`
 SELECT
-${TAG_COLUMNS}
+${QUALIFIED_TAG_COLUMNS},
+COALESCE(tag_usage.usage_count, 0) AS usage_count
 FROM tags
-WHERE workspace_id = ${sqlText(workspaceId)}
-  ${statusFilter ? `AND status = ${sqlText(statusFilter)}` : ""}
-  ${search ? `AND (LOWER(name) LIKE ${sqlText(`%${search}%`)} OR LOWER(slug) LIKE ${sqlText(`%${search}%`)})` : ""}
+LEFT JOIN (
+  SELECT workspace_id, tag_id, COUNT(*) AS usage_count
+  FROM tag_assignments
+  GROUP BY workspace_id, tag_id
+) tag_usage
+  ON tag_usage.workspace_id = tags.workspace_id
+  AND tag_usage.tag_id = tags.tag_id
+WHERE tags.workspace_id = ${sqlText(workspaceId)}
+  ${statusFilter ? `AND tags.status = ${sqlText(statusFilter)}` : ""}
+  ${search ? `AND (LOWER(tags.name) LIKE ${sqlText(`%${search}%`)} OR LOWER(tags.slug) LIKE ${sqlText(`%${search}%`)})` : ""}
 ORDER BY
-  CASE status WHEN 'active' THEN 0 WHEN 'disabled' THEN 1 ELSE 2 END,
-  LOWER(name),
-  tag_id;
+  CASE tags.status WHEN 'active' THEN 0 WHEN 'disabled' THEN 1 ELSE 2 END,
+  LOWER(tags.name),
+  tags.tag_id;
 `);
 
   return rows.map(tagRowToAppValue);
@@ -245,6 +266,7 @@ function tagRowToAppValue(row) {
     description: row.description || "",
     color: row.color || "",
     status: row.status || "active",
+    usage_count: Number(row.usage_count || 0),
     created_by_user_id: row.created_by_user_id || "",
     created_at: row.created_at,
     updated_at: row.updated_at,

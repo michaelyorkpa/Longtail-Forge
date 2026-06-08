@@ -433,8 +433,9 @@ function sortProjectRows(projects) {
       return clientCompare;
     }
 
-    return getProjectTreeSortKey(left.project, left.client)
-      .localeCompare(getProjectTreeSortKey(right.project, right.client), undefined, { sensitivity: "base" });
+    const projectOrder = getProjectTreeOrder(left.client);
+    return (projectOrder.get(left.project.id) ?? Number.MAX_SAFE_INTEGER)
+      - (projectOrder.get(right.project.id) ?? Number.MAX_SAFE_INTEGER);
   });
 }
 
@@ -669,7 +670,7 @@ function createTagPickerField(label, tags = [], targetKind = "record") {
 }
 
 function mountTagPicker(container, tags = [], label = "Tags") {
-  if (!container || !window.LongtailForge.tags?.mountPicker || tagOptions.length === 0) {
+  if (!container || !window.LongtailForge.tags?.mountPicker) {
     if (container) {
       container.hidden = true;
     }
@@ -1417,20 +1418,6 @@ function treeIndent(depth) {
   return depth > 0 ? `${"  ".repeat(depth)}- ` : "";
 }
 
-function getProjectTreeSortKey(project, client) {
-  const names = [];
-  let currentProject = project;
-  const visited = new Set();
-
-  while (currentProject && !visited.has(currentProject.id)) {
-    visited.add(currentProject.id);
-    names.unshift(currentProject.name || "");
-    currentProject = (client?.projects || []).find((item) => item.id === currentProject.parent_project_id);
-  }
-
-  return names.join("/");
-}
-
 function sortClientTree(clients) {
   return [...clients].sort((left, right) =>
     getClientTreeSortKey(left).localeCompare(getClientTreeSortKey(right), undefined, { sensitivity: "base" }),
@@ -1438,9 +1425,56 @@ function sortClientTree(clients) {
 }
 
 function sortProjectsForClient(client) {
-  return [...(client.projects || [])].sort((left, right) =>
-    getProjectTreeSortKey(left, client).localeCompare(getProjectTreeSortKey(right, client), undefined, { sensitivity: "base" }),
-  );
+  const projects = [...(client.projects || [])];
+  const projectsByParent = projects.reduce((groups, project) => {
+    const parentId = project.parent_project_id && projects.some((candidate) => candidate.id === project.parent_project_id)
+      ? project.parent_project_id
+      : "";
+
+    if (!groups.has(parentId)) {
+      groups.set(parentId, []);
+    }
+
+    groups.get(parentId).push(project);
+    return groups;
+  }, new Map());
+  const sortedProjects = [];
+  const visited = new Set();
+
+  function appendBranch(parentId) {
+    const siblings = [...(projectsByParent.get(parentId) || [])].sort(compareProjectsByName);
+
+    siblings.forEach((project) => {
+      if (visited.has(project.id)) {
+        return;
+      }
+
+      visited.add(project.id);
+      sortedProjects.push(project);
+      appendBranch(project.id);
+    });
+  }
+
+  appendBranch("");
+
+  projects.forEach((project) => {
+    if (!visited.has(project.id)) {
+      sortedProjects.push(project);
+    }
+  });
+
+  return sortedProjects;
+}
+
+function getProjectTreeOrder(client) {
+  return sortProjectsForClient(client).reduce((order, project, index) => {
+    order.set(project.id, index);
+    return order;
+  }, new Map());
+}
+
+function compareProjectsByName(left, right) {
+  return String(left.name || "").localeCompare(String(right.name || ""), undefined, { sensitivity: "base" });
 }
 
 function getClientTreeSortKey(client) {
@@ -2727,6 +2761,7 @@ async function saveProjectRecord(project, action, viewState = {}) {
       `/api/projects/${encodeURIComponent(project.id)}`,
       {
         ...project,
+        confirm_downstream_update: action.confirm_downstream_update === true,
         action,
       },
     );

@@ -17,6 +17,7 @@
       mode: "add",
       onSaved: null,
       setStatus: null,
+      tagOptions: [],
       ...context,
       ...options,
     };
@@ -287,10 +288,15 @@
     tagPicker = null;
     if (!fields.tags || !namespace.tags?.mountPicker) {
       fields.tags?.replaceChildren();
+      if (fields.tags) {
+        fields.tags.hidden = true;
+      }
       return;
     }
 
+    fields.tags.hidden = false;
     tagPicker = await namespace.tags.mountPicker(fields.tags, {
+      tags: context.tagOptions || [],
       selectedTags: tags,
     });
   }

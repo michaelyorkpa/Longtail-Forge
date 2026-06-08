@@ -23,6 +23,7 @@
       onSaved: null,
       options: defaultTaskOptions(),
       setStatus: null,
+      tagOptions: [],
       taskTimers: [],
       tasks: [],
       ...context,
@@ -338,10 +339,15 @@
     tagPicker = null;
     if (!fields.tagContainer || !namespace.tags?.mountPicker) {
       fields.tagContainer?.replaceChildren();
+      if (fields.tagContainer) {
+        fields.tagContainer.hidden = true;
+      }
       return;
     }
 
+    fields.tagContainer.hidden = false;
     tagPicker = await namespace.tags.mountPicker(fields.tagContainer, {
+      tags: context.tagOptions || [],
       selectedTags: tags,
     });
   }

@@ -21,6 +21,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Tweaks
 
+- [ ] Build Activity feed on top of notification hooks
+
+- [ ] "Open Task" on the Workbench should open the edit modal within the Workbench, not redirect to Tasks -> Edit Task.
+
 - Add Workspace level date format display settings
 - Add Workspace level time format display settings
 - Add user level setting for timezone display "Local Timezone or UTC"
@@ -57,11 +61,16 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## UI clean up/clarification
 
-- [ ] Create list of every form for required entry fields
-  - User Settings
-    - Every field except Alternate Email address
+- [ ] If a client filter is selected on Projects in a business workspace, there's no need to have the client name in Parenthesis behind the project name. This should be reserved for the full list.
 
 - [ ] There should be something in the views/models that indicates whether a field needs to be required so the * becomes automatic as views happen (if this is best practice)
+  - [ ] Create list of every form for required entry fields
+    - User Settings
+      - Every field except Alternate Email address
+
+- [ ] Create a list of notifications per record type for proper notification implementation
+  - [ ] Create a default notifications preference that's adjustable per user
+  - [ ] Notifications are only sent to owners, assignees, or external clients as appropriate
 
 ## UI/Workspace tweaks for better generalized use
 

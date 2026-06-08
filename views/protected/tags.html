@@ -29,6 +29,7 @@
             Slug
             <input type="text" name="slug" data-tag-slug maxlength="80">
           </label>
+          <p class="tag-conflict-message" data-tag-conflict role="status" aria-live="polite"></p>
           <label>
             Color
             <input type="color" name="color" data-tag-color value="#2f6fed">
@@ -44,9 +45,9 @@
         </form>
 
         <div class="notification-list-toolbar">
-          <label>
-            Search
-            <input type="search" data-tag-search placeholder="Filter tags">
+          <label class="tag-search-field">
+            Search tags by name or slug
+            <input type="search" data-tag-search placeholder="Type a tag name or slug">
           </label>
           <button type="button" data-tag-refresh>Refresh</button>
         </div>

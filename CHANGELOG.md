@@ -1,3 +1,29 @@
+## Version 0.32.5.5 - 2026-06-07 19:54 -04:00
+
+- Bumped the app and first-party module versions to `0.32.5.5`.
+- Replaced the shared checkbox-style tag picker with a WordPress-like token entry control that supports typed tag entry, existing-tag suggestions, removable selected chips, Enter/comma tokenization, and inline status feedback.
+- Added shared browser-side tag creation through `window.LongtailForge.tags.createTag`, including duplicate slug/name conflict recovery by reloading and reusing matching active tags.
+- Preserved the existing shared picker API for record dialogs through `readTagIds` and `setSelected`, keeping record modules integrated through the shared tag helper.
+- Added shared tag picker styling and regression coverage for inline creation, tokenization, duplicate reuse, removable chips, accessibility attributes, and selected-ID reads.
+- Updated roadmap and decisions bookkeeping for 0.32.5.5 Pass 1.
+- Wired task add/edit and time entry add/edit dialogs to pass their loaded workspace tag options into the shared inline tag picker while preserving selected tag save payloads.
+- Kept Stopwatch and Clients/Projects tag pickers visible even when the workspace has no pre-created tags, allowing users to create the first tag inline from record workflows.
+- Added record-workflow regression coverage for task, time entry, stopwatch, client, and project tag picker wiring, selected tag payloads, and display-only list rendering.
+- Updated roadmap and decisions bookkeeping for 0.32.5.5 Pass 2.
+- Added tag usage counts to the tag list query and Tags management page without per-tag lookup calls.
+- Enriched Tags page rows with slug, status, updated date, record ID, and usage metadata so similar tags are easier to distinguish.
+- Added proactive normalized-slug conflict feedback on the Tags page while preserving the tag service as the authoritative duplicate guard.
+- Added Tags management page regression coverage and updated tag service coverage for usage counts.
+- Updated roadmap and decisions bookkeeping for 0.32.5.5 Pass 3.
+- Fixed confirmed project hierarchy moves so the browser sends `confirm_downstream_update: true` as a top-level API payload field, allowing parent project changes with historical record maintenance to persist after the Move confirmation.
+- Added project hierarchy move regression coverage for the browser confirmation payload contract.
+- Fixed Project Settings and filtered project table ordering so child projects render immediately below their parent project instead of sorting after similarly named siblings.
+- Extended project hierarchy regression coverage to protect parent-before-child project ordering.
+- Added `tags` to permission operation override resource mapping so tag create/update/delete restrictions apply consistently to non-protected users.
+- Hid task and time-entry inline tag controls when the shared Tags helper is unavailable, while preserving display-only historical tag rendering.
+- Extended tag service and browser-helper regression coverage for denied inline creation, denied assignment/removal, allowed existing-tag assignment, disabled Tags module API guards, clear inline error feedback, and module-disabled picker fallback behavior.
+- Updated roadmap and decisions bookkeeping for 0.32.5.5 Pass 4.
+
 ## Version 0.32.5.4 - 2026-06-06 20:05 -04:00
 
 - Bumped the app and first-party module versions to `0.32.5.4`.
