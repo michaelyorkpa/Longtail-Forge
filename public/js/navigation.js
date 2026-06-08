@@ -72,6 +72,7 @@ siteHeader.addEventListener("toggle", (event) => {
 
 window.LongtailForge = window.LongtailForge || {};
 window.LongtailForge.getWorkspaceProjectsLabel = getWorkspaceProjectsLabel;
+window.LongtailForge.refreshNotifications = refreshNotificationCount;
 window.LongtailForge.workspaceContextReady = loadAppShellBootstrap();
 
 function buildSiteHeader() {
@@ -315,6 +316,7 @@ async function loadNotificationPanel() {
 function createNotificationPanelItem(notification) {
   const item = document.createElement("article");
   const title = notification.url ? document.createElement("a") : document.createElement("span");
+  const type = document.createElement("span");
   const meta = document.createElement("span");
   const actions = document.createElement("span");
   const readButton = document.createElement("button");
@@ -333,6 +335,8 @@ function createNotificationPanelItem(notification) {
     title.href = notification.url;
   }
 
+  type.className = "notification-type-badge";
+  type.textContent = notificationUpdateTypeLabel(notification);
   meta.className = "notification-meta";
   meta.textContent = notificationMetaParts(notification).join(" - ");
 
@@ -347,7 +351,7 @@ function createNotificationPanelItem(notification) {
   dismissButton.addEventListener("click", () => mutateNotification(notification.notification_id, "dismiss", item));
   actions.append(readButton, dismissButton);
 
-  item.append(title, meta, actions);
+  item.append(title, type, meta, actions);
   return item;
 }
 
@@ -380,6 +384,10 @@ function notificationMetaParts(notification) {
   }
 
   return [notification.event_type, date].filter(Boolean);
+}
+
+function notificationUpdateTypeLabel(notification) {
+  return notification.updateTypeLabel || notification.displayType || notification.event_type || "Notification";
 }
 
 function createNotificationPanelEmpty(text) {

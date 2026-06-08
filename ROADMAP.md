@@ -146,10 +146,70 @@ This section should fix the first-pass notification UI regressions and make noti
 
 ### Version 0.32.5.5.1 - Add update type to notifications, Fix all notifications screen
 
-- [ ] Notifications don't tell you WHAT changed. I need a plain English update type on there (if a task was created, it needs to say "Task Created"; if a task had a description added it needs to say "Description added"; etc.)
+### Pass 1 - Restore the Full Notifications Page
 
-- [ ] All notifications (notificaitons.html) screen displays nothing
-  - [ ] Clicking the different filters "Active," "Unread," "Read," "Dismissed" does nothing (the active indiciator doesn't change either, as though the buttons aren't wired)
+- [x] Reproduce the blank `notifications.html` behavior against the running app.
+  - [x] Confirm whether the page script is loading and running.
+  - [x] Confirm whether `/api/notifications` is returning records for the active user.
+  - [x] Confirm whether browser console/API errors are preventing rendering.
+- [x] Fix the page wiring so the full notification inbox renders again.
+  - [x] Ensure the initial Active filter loads notifications by default.
+  - [x] Ensure empty states only show when the API returns an empty result.
+  - [x] Ensure preference loading failures do not prevent the notification list from rendering.
+  - [x] Ensure missing optional helpers fail gracefully instead of stopping the page script.
+- [x] Fix filter interaction on `notifications.html`.
+  - [x] Active, Unread, Read, and Dismissed buttons should visibly update `aria-pressed`.
+  - [x] Each filter should reload `/api/notifications` with the correct status.
+  - [x] The list should refresh after filter changes.
+  - [x] The module/source filter should continue to filter the currently loaded status set.
+- [x] Preserve existing notification actions.
+  - [x] Mark Read should still update the selected notification and refresh the list.
+  - [x] Mark All Read should still refresh counts and the current filter.
+  - [x] Dismiss should still move notifications out of Active and into Dismissed.
+
+### Pass 2 - Add Plain-English Update Type Labels
+
+- [x] Add a notification update type display contract.
+  - [x] Prefer a stable API-decorated field such as `displayType` or `updateTypeLabel`.
+  - [x] Keep raw `event_type` available for preferences, APIs, tests, and debugging.
+  - [x] Use module/event declarations where available instead of hardcoding labels only in the browser.
+- [x] Define first task notification labels.
+  - [x] `task.created` should display as "Task Created".
+  - [x] `task.updated` should display a more specific label when metadata identifies the changed field.
+  - [x] Description changes should display as "Description Added", "Description Updated", or similar plain English wording based on available metadata.
+  - [x] Status, priority, assignment, due date, recurrence, and reminder changes should have readable labels when metadata can identify them.
+  - [x] Unknown task updates should fall back to "Task Updated".
+- [x] Render the update type prominently in notification UI.
+  - [x] Full notifications page rows should show the plain-English update type.
+  - [x] Notification bell/dropdown rows should show the same plain-English update type.
+  - [x] The label should be distinct from unread/read/dismissed status.
+  - [x] Existing target title/context behavior should remain intact.
+- [x] Keep labels consistent across notification surfaces.
+  - [x] Full page, dropdown, and API responses should agree on the same label.
+  - [x] Labels should remain readable if the target record is no longer accessible.
+  - [x] Labels should not expose private target details when target access is denied.
+
+### Pass 3 - Regression and Documentation Closeout
+
+- [x] Add regression coverage for the restored full notifications page.
+  - [x] Protected `notifications.html` includes the required list, filter, status, and script hooks.
+  - [x] Page script initializes the list even if preferences fail.
+  - [x] Filter buttons update pressed state and reload the API with the selected status.
+  - [x] Active/read/unread/dismissed API filters still return the expected records.
+- [x] Add regression coverage for update type labels.
+  - [x] Created task notifications expose and render "Task Created".
+  - [x] Updated task notifications expose and render a field-specific plain-English label when metadata supports it.
+  - [x] Unknown update metadata falls back to "Task Updated".
+  - [x] Dropdown and full-page rendering use the same label source.
+- [x] Update release bookkeeping.
+  - [x] Record the 0.32.5.5.1 decisions in `DECISIONS.md`.
+  - [x] Add 0.32.5.5.1 changes to `CHANGELOG.md` with date/time.
+  - [x] Bump `package.json` and `package-lock.json` to `0.32.5.5.1`.
+  - [x] Verify `/api/app-info` reports `0.32.5.5.1`.
+- [x] Run verification.
+  - [x] Run focused notification regressions.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run test:permissions` if permission-sensitive notification paths change.
 
 ## Version 0.32.6 - Search Framework Contract
 

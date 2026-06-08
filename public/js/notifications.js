@@ -1,3 +1,4 @@
+(function initializeNotificationsPage() {
 const notificationList = document.querySelector("[data-notification-page-list]");
 const notificationStatus = document.querySelector("[data-notification-status]");
 const moduleFilter = document.querySelector("[data-notification-module-filter]");
@@ -18,9 +19,7 @@ filterButtons.forEach((button) => {
   button.addEventListener("click", () => {
     state.filter = button.dataset.notificationFilter || "active";
     state.page = 0;
-    filterButtons.forEach((candidate) => {
-      candidate.setAttribute("aria-pressed", String(candidate === button));
-    });
+    updateFilterPressedState();
     loadNotifications();
   });
 });
@@ -32,7 +31,8 @@ preferenceForm?.addEventListener("submit", savePreferences);
 loadNotificationsPage();
 
 async function loadNotificationsPage() {
-  await Promise.all([loadNotifications(), loadPreferences()]);
+  updateFilterPressedState();
+  await Promise.allSettled([loadNotifications(), loadPreferences()]);
 }
 
 async function loadNotifications() {
@@ -64,8 +64,15 @@ async function loadNotifications() {
 }
 
 async function loadPreferences() {
+  const preferences = getNotificationPreferences();
+  if (!preferences) {
+    state.preferences = [];
+    renderPreferences(false);
+    return;
+  }
+
   try {
-    const body = await window.LongtailForge.notificationPreferences.loadPreferences();
+    const body = await preferences.loadPreferences();
     state.preferences = body.events;
     renderPreferences(body.canManageWorkspaceDefaults === true);
   } catch {
@@ -145,6 +152,7 @@ function createNotificationRow(notification) {
   const row = document.createElement("article");
   const heading = document.createElement("div");
   const title = notification.url ? document.createElement("a") : document.createElement("span");
+  const typeBadge = document.createElement("span");
   const badge = document.createElement("span");
   const body = document.createElement("p");
   const meta = document.createElement("p");
@@ -165,9 +173,11 @@ function createNotificationRow(notification) {
     title.href = notification.url;
   }
 
+  typeBadge.className = "notification-type-badge";
+  typeBadge.textContent = notificationUpdateTypeLabel(notification);
   badge.className = "notification-status-badge";
   badge.textContent = notification.status || "unread";
-  heading.append(title, badge);
+  heading.append(title, typeBadge, badge);
 
   body.textContent = notification.body || "";
   meta.className = "notification-meta";
@@ -185,13 +195,17 @@ function createNotificationRow(notification) {
 }
 
 function createNotificationActionButton(label, icon, options = {}) {
-  if (window.LongtailForge.icons?.createIconButton) {
-    return window.LongtailForge.icons.createIconButton({
-      icon,
-      label,
-      title: label,
-      variant: options.danger ? "danger" : "",
-    });
+  try {
+    if (window.LongtailForge?.icons?.createIconButton) {
+      return window.LongtailForge.icons.createIconButton({
+        icon,
+        label,
+        title: label,
+        variant: options.danger ? "danger" : "",
+      });
+    }
+  } catch {
+    // Fall back to a plain button so optional icon failures cannot blank the notifications list.
   }
 
   const button = document.createElement("button");
@@ -236,8 +250,23 @@ function notificationMetaParts(notification) {
   ].filter(Boolean);
 }
 
+function notificationUpdateTypeLabel(notification) {
+  return notification.updateTypeLabel || notification.displayType || notification.event_type || "Notification";
+}
+
 function renderPreferences(canManageWorkspaceDefaults) {
-  window.LongtailForge.notificationPreferences.renderPreferenceGroups(preferenceList, state.preferences, {
+  const preferences = getNotificationPreferences();
+
+  if (!preferenceList) {
+    return;
+  }
+
+  if (!preferences?.renderPreferenceGroups) {
+    preferenceList.replaceChildren(emptyElement("Notification preferences unavailable."));
+    return;
+  }
+
+  preferences.renderPreferenceGroups(preferenceList, state.preferences, {
     canManageWorkspaceDefaults,
     emptyText: "No configurable notification types",
     headingLevel: "h3",
@@ -255,6 +284,7 @@ async function mutateNotification(notificationId, action) {
     }
 
     await loadNotifications();
+    await refreshNotificationCount();
   } catch {
     setStatus("Notification action failed.", true);
   }
@@ -268,18 +298,25 @@ async function markAllRead() {
   }
 
   await loadNotifications();
+  await refreshNotificationCount();
 }
 
 async function savePreferences(event) {
   event.preventDefault();
-  const preferences = window.LongtailForge.notificationPreferences.readUserPreferencesPayload(preferenceList);
-  const defaults = window.LongtailForge.notificationPreferences.readWorkspaceDefaultsPayload(preferenceList);
+  const preferenceHelper = getNotificationPreferences();
+  if (!preferenceHelper) {
+    setStatus("Notification preferences unavailable.", true);
+    return;
+  }
+
+  const preferences = preferenceHelper.readUserPreferencesPayload(preferenceList);
+  const defaults = preferenceHelper.readWorkspaceDefaultsPayload(preferenceList);
 
   try {
-    await window.LongtailForge.notificationPreferences.saveUserPreferences(preferences);
+    await preferenceHelper.saveUserPreferences(preferences);
 
     if (defaults.length > 0) {
-      await window.LongtailForge.notificationPreferences.saveWorkspaceDefaults(defaults);
+      await preferenceHelper.saveWorkspaceDefaults(defaults);
     }
 
     await loadPreferences();
@@ -312,7 +349,33 @@ function setStatus(message, isError = false) {
   notificationStatus.classList.toggle("is-error", isError);
 }
 
+window.LongtailForge = window.LongtailForge || {};
+window.LongtailForge.notificationsPageReady = true;
+
+function updateFilterPressedState() {
+  filterButtons.forEach((button) => {
+    button.setAttribute("aria-pressed", String((button.dataset.notificationFilter || "active") === state.filter));
+  });
+}
+
+function getNotificationPreferences() {
+  return window.LongtailForge?.notificationPreferences || null;
+}
+
+async function refreshNotificationCount() {
+  if (!window.LongtailForge?.refreshNotifications) {
+    return;
+  }
+
+  try {
+    await window.LongtailForge.refreshNotifications();
+  } catch {
+    // The page list is already refreshed; the shell count can retry on the next shell refresh.
+  }
+}
+
 function formatDate(value) {
   const date = new Date(value || "");
   return Number.isNaN(date.getTime()) ? "" : date.toLocaleString();
 }
+})();

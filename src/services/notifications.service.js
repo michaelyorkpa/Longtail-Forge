@@ -7,6 +7,36 @@ import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 
 const FRAMEWORK_NOTIFICATION_MODULE_ID = "framework";
+const TASK_UPDATE_FIELD_LABELS = new Map([
+  ["description", "Description Updated"],
+  ["status", "Status Updated"],
+  ["priority", "Priority Updated"],
+  ["assignee_ids", "Assignment Updated"],
+  ["due_date", "Due Date Updated"],
+  ["due_time", "Due Date Updated"],
+  ["due_at_utc", "Due Date Updated"],
+  ["recurrence_template_id", "Recurrence Updated"],
+  ["recurrence_instance_date", "Recurrence Updated"],
+  ["reminder_override_enabled", "Reminder Updated"],
+  ["title", "Title Updated"],
+  ["client_id", "Project Updated"],
+  ["project_id", "Project Updated"],
+]);
+const TASK_UPDATE_FIELD_ORDER = [
+  "description",
+  "status",
+  "priority",
+  "assignee_ids",
+  "due_date",
+  "due_time",
+  "due_at_utc",
+  "recurrence_template_id",
+  "recurrence_instance_date",
+  "reminder_override_enabled",
+  "title",
+  "project_id",
+  "client_id",
+];
 let notificationEventUnsubscribers = [];
 let notificationEventHandlersRegistered = false;
 
@@ -317,6 +347,7 @@ async function createFromEvent(event, declaration = null) {
   const enabledRecipients = await filterEnabledRecipients(workspaceId, recipients, notificationDeclaration.id);
   const subscribedRecipients = await readSubscribedRecipientIds(event, notificationDeclaration);
   const finalRecipients = [...new Set([...enabledRecipients, ...subscribedRecipients])];
+  const metadata = buildNotificationEventMetadata(event, notificationDeclaration);
 
   const payloads = finalRecipients.map((recipientUserId) => ({
     workspace_id: workspaceId,
@@ -330,10 +361,7 @@ async function createFromEvent(event, declaration = null) {
     body: template?.body || summary.body,
     url: template?.url || summary.url,
     priority: workspaceDefault.priority || notificationDeclaration.defaultPriority || "normal",
-    metadata: {
-      emitted_at: event.emitted_at,
-      source: event.source || "",
-    },
+    metadata,
   }));
 
   return createMany(payloads, event.session || null);
@@ -485,10 +513,13 @@ async function decorateForSession(notification, session) {
 
   const target = await readTargetMetadata(notification, session);
   const displayTitle = target.label || notification.title;
+  const updateTypeLabel = notificationUpdateTypeLabel(notification);
 
   return {
     ...notification,
+    displayType: updateTypeLabel,
     displayTitle,
+    updateTypeLabel,
     url: target.canOpen ? target.url : "",
     target,
   };
@@ -622,6 +653,119 @@ function normalizeMetadata(metadata) {
   }
 
   return typeof metadata === "object" && !Array.isArray(metadata) ? metadata : {};
+}
+
+function buildNotificationEventMetadata(event, declaration) {
+  const changedFields = readChangedFields(event.previous_value, event.new_value);
+  const metadata = {
+    ...(event.metadata || {}),
+    changed_fields: changedFields,
+    emitted_at: event.emitted_at,
+    source: event.source || "",
+  };
+  const updateTypeLabel = notificationUpdateTypeLabel({
+    event_type: event.name,
+    metadata,
+    module_id: declaration?.moduleId || event.module_id || "",
+  }, {
+    newValue: event.new_value,
+    previousValue: event.previous_value,
+  });
+
+  return {
+    ...metadata,
+    update_type_label: updateTypeLabel,
+  };
+}
+
+function notificationUpdateTypeLabel(notification, options = {}) {
+  const eventType = notification.event_type || notification.eventType || "";
+  const metadata = normalizeMetadata(notification.metadata || notification.metadata_json);
+
+  if (metadata.update_type_label || metadata.updateTypeLabel) {
+    return String(metadata.update_type_label || metadata.updateTypeLabel).trim();
+  }
+
+  if (eventType === "task.updated") {
+    return taskUpdatedLabel(metadata, options);
+  }
+
+  return eventDeclarationLabel(notification) || fallbackEventLabel(eventType);
+}
+
+function taskUpdatedLabel(metadata, options = {}) {
+  if (metadata.transition === "reopened") {
+    return "Task Reopened";
+  }
+
+  const changedFields = normalizeChangedFields(metadata.changed_fields || metadata.changedFields);
+
+  if (changedFields.has("description")) {
+    return descriptionChangeLabel(options.previousValue, options.newValue);
+  }
+
+  for (const field of TASK_UPDATE_FIELD_ORDER) {
+    if (changedFields.has(field)) {
+      return TASK_UPDATE_FIELD_LABELS.get(field) || "Task Updated";
+    }
+  }
+
+  return "Task Updated";
+}
+
+function descriptionChangeLabel(previousValue, newValue) {
+  const previousDescription = String(previousValue?.description || "").trim();
+  const nextDescription = String(newValue?.description || "").trim();
+
+  if (!previousDescription && nextDescription) {
+    return "Description Added";
+  }
+
+  if (previousDescription && !nextDescription) {
+    return "Description Removed";
+  }
+
+  return "Description Updated";
+}
+
+function eventDeclarationLabel(notification) {
+  const eventType = notification.event_type || notification.eventType || "";
+  const moduleId = notification.module_id || notification.moduleId || "";
+  const declaration = modulesService.listNotificationEvents().find((event) => (
+    event.id === eventType && (!moduleId || event.moduleId === moduleId)
+  ));
+
+  return String(declaration?.label || "").trim();
+}
+
+function fallbackEventLabel(eventType) {
+  return String(eventType || "Notification")
+    .split(".")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).replaceAll("_", " "))
+    .join(" ") || "Notification";
+}
+
+function readChangedFields(previousValue, newValue) {
+  return TASK_UPDATE_FIELD_ORDER.filter((field) => !sameNotificationFieldValue(previousValue?.[field], newValue?.[field]));
+}
+
+function sameNotificationFieldValue(left, right) {
+  return JSON.stringify(normalizeNotificationFieldValue(left)) === JSON.stringify(normalizeNotificationFieldValue(right));
+}
+
+function normalizeNotificationFieldValue(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || "").trim()).filter(Boolean).sort();
+  }
+
+  return value ?? "";
+}
+
+function normalizeChangedFields(value) {
+  const fields = Array.isArray(value) ? value : [];
+
+  return new Set(fields.map((field) => String(field || "").trim()).filter(Boolean));
 }
 
 function listConfigurableNotificationEvents() {

@@ -517,7 +517,8 @@ h1 {
     gap: 10px;
 }
 
-.notification-status-badge {
+.notification-status-badge,
+.notification-type-badge {
     flex: 0 0 auto;
     padding: 4px 8px;
     border-radius: 999px;
@@ -526,6 +527,13 @@ h1 {
     font-size: 12px;
     font-weight: 700;
     text-transform: capitalize;
+}
+
+.notification-type-badge {
+    border: 1px solid var(--color-accent);
+    background: var(--color-surface);
+    color: var(--color-accent);
+    text-transform: none;
 }
 
 .notification-preference-list {

@@ -4,8 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Notifications | Longtail Forge</title>
-    <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=10">
+    <script src="/js/theme-init.js"></script>
+    <link rel="stylesheet" href="/css/longtail-forge.css?v=10">
   </head>
   <body data-page-title="Notifications">
     <main class="wide-page notifications-page">
@@ -31,22 +31,39 @@
         </div>
 
         <p data-notification-status role="status" aria-live="polite"></p>
-        <div class="notification-list" data-notification-page-list></div>
+        <div class="notification-list" data-notification-page-list>
+          <p class="placeholder-copy" data-notification-script-fallback>Loading notifications...</p>
+        </div>
       </section>
 
       <section class="notification-preferences">
         <h2>Preferences</h2>
         <form class="settings-form" data-notification-preferences-form>
-          <div class="notification-preference-list" data-notification-preference-list></div>
+          <div class="notification-preference-list" data-notification-preference-list>
+            <p class="placeholder-copy" data-notification-preference-script-fallback>Loading notification preferences...</p>
+          </div>
           <button type="submit">Save Preferences</button>
         </form>
       </section>
     </main>
 
-    <script src="js/navigation.js"></script>
-    <script src="js/shared/icons.js?v=1"></script>
-    <script src="js/shared/notification-preferences.js?v=1"></script>
-    <script src="js/notifications.js"></script>
-    <script src="js/footer.js"></script>
+    <script src="/js/navigation.js"></script>
+    <script src="/js/shared/icons.js?v=1"></script>
+    <script src="/js/shared/notification-preferences.js?v=1"></script>
+    <script src="/js/notifications.js?v=6"></script>
+    <script>
+      window.setTimeout(function () {
+        if (window.LongtailForge && window.LongtailForge.notificationsPageReady) {
+          return;
+        }
+
+        var status = document.querySelector("[data-notification-status]");
+        if (status) {
+          status.textContent = "Notifications script did not finish loading. Refresh the page and try again.";
+          status.classList.add("is-error");
+        }
+      }, 1500);
+    </script>
+    <script src="/js/footer.js"></script>
   </body>
 </html>

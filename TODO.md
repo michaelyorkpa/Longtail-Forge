@@ -17,11 +17,13 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - [ ] Need a way for properly authenticated users to see active/running timers, but not change them
 
+- [ ] Projects -> Projects, Client filter doesn't apply "Active" as a restrainer for display. I, previously, had Raymond Tec as a client, so now I have two Raymond Tec's in the list, one that is the old, inactive client, one that is the workspace projects (correct). Please adjust the filter "Client" to only display active clients. Thank you!
+
 - Review whether the User Settings "Remove Workspace" flow needs clearer wording now that it removes the signed-in user's membership rather than deleting the workspace record.
 
 ## Tweaks
 
-- [ ] Build Activity feed on top of notification hooks
+- [ ] Build Activity feed on top of notification hooks?
 
 - [ ] "Open Task" on the Workbench should open the edit modal within the Workbench, not redirect to Tasks -> Edit Task.
 
@@ -249,6 +251,31 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 ## CRM Features?
 
 - Should CRM features be an additional module?
+  - Yes, add them to 0.4x release
+
+## Version 0.40.0 - CRM Foundation
+
+- [ ] Add CRM as a first-party Business workspace module.
+- [ ] CRM should extend Clients and Projects, not replace them.
+- [ ] Add Contacts as proper records.
+- [ ] Add contact methods and client/contact relationships.
+- [ ] Add contact roles per client/project.
+- [ ] Add CRM permissions.
+- [ ] Register CRM records with tags, search, files, notes, tasks, and activity hooks.
+- [ ] Add client/contact timeline views.
+- [ ] Add manual interaction logging.
+- [ ] Add follow-up task integration.
+- [ ] Keep email/calendar sync out of the first CRM version.
+
+## Version 0.40.1 - CRM Opportunities and Pipeline
+
+- [ ] Add leads.
+- [ ] Add opportunities/deals.
+- [ ] Add configurable pipeline stages.
+- [ ] Add estimated value, probability, expected close date, owner, and next action.
+- [ ] Add won/lost status and reason fields.
+- [ ] Allow won opportunities to become projects.
+- [ ] Add basic pipeline dashboard.
 
 ## Parking Lot / Open Questions
 

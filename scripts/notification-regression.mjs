@@ -108,6 +108,8 @@ async function runNotificationApiTests(api, fixtures) {
     assert.equal(recipientList.status, 200, JSON.stringify(recipientList.body));
     assert.equal(recipientList.body.notifications.length, 1);
     assert.equal(recipientList.body.notifications[0].event_type, "task.created");
+    assert.equal(recipientList.body.notifications[0].updateTypeLabel, "Task Created");
+    assert.equal(recipientList.body.notifications[0].displayType, "Task Created");
     assert.equal(recipientList.body.notifications[0].status, "unread");
     assert.match(recipientList.body.notifications[0].url, /^tasks\.html\?task=/);
   });
@@ -135,6 +137,22 @@ async function runNotificationApiTests(api, fixtures) {
   check("protected notifications page loads for authenticated users", () => {
     assert.equal(page.status, 200, String(page.body).slice(0, 120));
     assert.match(String(page.body), /data-notification-page-list/);
+    assert.match(String(page.body), /data-notification-status/);
+    assert.match(String(page.body), /data-notification-filter="active"/);
+    assert.match(String(page.body), /data-notification-filter="unread"/);
+    assert.match(String(page.body), /data-notification-filter="read"/);
+    assert.match(String(page.body), /data-notification-filter="dismissed"/);
+    assert.match(String(page.body), /data-notification-script-fallback/);
+    assert.match(String(page.body), /data-notification-preference-script-fallback/);
+    assert.match(String(page.body), /\/js\/notifications\.js\?v=6/);
+    assert.doesNotMatch(String(page.body), /src="js\/notifications\.js/);
+    assert.match(String(page.body), /notificationsPageReady/);
+  });
+
+  const unreadList = await api.get("/api/notifications?status=unread", { cookie: fixtures.sessions.projectUser });
+  check("unread notification API filter includes unread notifications", () => {
+    assert.equal(unreadList.status, 200, JSON.stringify(unreadList.body));
+    assert.ok(unreadList.body.notifications.some((notification) => notification.notification_id === notificationId));
   });
 
   const readResult = await api.post(`/api/notifications/${encodeURIComponent(notificationId)}/read`, {}, {
@@ -150,6 +168,12 @@ async function runNotificationApiTests(api, fixtures) {
   check("active notification filter includes read notifications before dismissal", () => {
     assert.equal(activeAfterRead.status, 200, JSON.stringify(activeAfterRead.body));
     assert.ok(activeAfterRead.body.notifications.some((notification) => notification.notification_id === notificationId));
+  });
+
+  const readList = await api.get("/api/notifications?status=read", { cookie: fixtures.sessions.projectUser });
+  check("read notification API filter includes read notifications", () => {
+    assert.equal(readList.status, 200, JSON.stringify(readList.body));
+    assert.ok(readList.body.notifications.some((notification) => notification.notification_id === notificationId));
   });
 
   const deniedRead = await api.post(`/api/notifications/${encodeURIComponent(notificationId)}/read`, {}, {
@@ -250,6 +274,7 @@ LIMIT 1;
     assert.ok(hiddenTarget.notification.notification_id);
     assert.equal(hiddenList.status, 200, JSON.stringify(hiddenList.body));
     const hiddenNotification = hiddenList.body.notifications.find((notification) => notification.title === "Hidden task target");
+    assert.equal(hiddenNotification.updateTypeLabel, "Task Updated");
     assert.equal(hiddenNotification.url, "");
     assert.equal(hiddenNotification.target.canOpen, false);
   });
@@ -287,8 +312,32 @@ async function runNotificationUiContractTests() {
 
   check("notifications page defaults to the active filter", () => {
     assert.match(notificationsPage, /data-notification-filter="active" aria-pressed="true">Active/);
+    assert.match(notificationsPage, /\/js\/notifications\.js\?v=6/);
     assert.match(notificationsScript, /filter: "active"/);
     assert.match(notificationsScript, /params\.set\("status", state\.filter\)/);
+  });
+
+  check("notifications page script is scoped away from app shell globals", () => {
+    assert.match(notificationsScript, /^\(function initializeNotificationsPage\(\) \{/);
+    assert.match(notificationsScript, /\}\)\(\);\s*$/);
+  });
+
+  check("notifications page list initializes independently from optional preference helpers", () => {
+    assert.match(notificationsScript, /Promise\.allSettled\(\[loadNotifications\(\), loadPreferences\(\)\]\)/);
+    assert.match(notificationsScript, /function getNotificationPreferences\(\)/);
+    assert.match(notificationsScript, /if \(!preferences\) \{[\s\S]*renderPreferences\(false\);[\s\S]*return;/);
+    assert.match(notificationsScript, /Notification preferences unavailable\./);
+  });
+
+  check("notifications page filters update pressed state and reload the selected status", () => {
+    assert.match(notificationsScript, /function updateFilterPressedState\(\)/);
+    assert.match(notificationsScript, /button\.setAttribute\("aria-pressed", String\(\(button\.dataset\.notificationFilter \|\| "active"\) === state\.filter\)\)/);
+    assert.match(notificationsScript, /state\.filter = button\.dataset\.notificationFilter \|\| "active"[\s\S]*loadNotifications\(\);/);
+  });
+
+  check("notifications page actions refresh the shell unread count", () => {
+    assert.match(navigation, /window\.LongtailForge\.refreshNotifications = refreshNotificationCount/);
+    assert.match(notificationsScript, /await refreshNotificationCount\(\)/);
   });
 
   check("notification dropdown title uses compact panel-specific styling", () => {
@@ -296,12 +345,25 @@ async function runNotificationUiContractTests() {
     assert.match(css, /\.notification-panel-title \{\s*font-size: 13px;\s*line-height: 1\.3;/);
   });
 
+  check("notification update type labels render on full page and dropdown surfaces", () => {
+    assert.match(notificationsScript, /typeBadge\.className = "notification-type-badge"/);
+    assert.match(notificationsScript, /typeBadge\.textContent = notificationUpdateTypeLabel\(notification\)/);
+    assert.match(navigation, /type\.className = "notification-type-badge"/);
+    assert.match(navigation, /type\.textContent = notificationUpdateTypeLabel\(notification\)/);
+    assert.match(css, /\.notification-type-badge \{/);
+  });
+
+  check("notification icon helper failures fall back to plain buttons", () => {
+    assert.match(notificationsScript, /try \{[\s\S]*LongtailForge\?\.icons\?\.createIconButton/);
+    assert.match(notificationsScript, /Fall back to a plain button so optional icon failures cannot blank the notifications list\./);
+  });
+
   check("notification preferences render through shared grouped helper", () => {
     assert.match(notificationPreferences, /function renderPreferenceGroups\(container, events, options = \{\}\)/);
     assert.match(notificationPreferences, /function groupEventsByModule\(events\)/);
     assert.match(notificationPreferences, /notification-preference-group/);
-    assert.match(notificationsPage, /js\/shared\/notification-preferences\.js/);
-    assert.match(notificationsScript, /notificationPreferences\.renderPreferenceGroups/);
+    assert.match(notificationsPage, /\/js\/shared\/notification-preferences\.js/);
+    assert.match(notificationsScript, /preferences\.renderPreferenceGroups/);
   });
 
   check("user settings exposes the same user notification preferences source", () => {
@@ -549,6 +611,59 @@ WHERE event_type = 'task.assigned';
 
   check("framework event bus can create notifications from module declarations", () => {
     assert.equal(Number(afterRows[0].count), Number(beforeRows[0].count) + 1);
+  });
+
+  await modulesService.emitInternalEvent("task.updated", {
+    actorUserId: fixtures.users.workspaceAdmin.userId,
+    metadata: {
+      recipient_user_ids: [fixtures.users.workspaceAdmin.userId],
+    },
+    moduleId: "tasks",
+    newValue: {
+      assignee_ids: [fixtures.users.workspaceAdmin.userId],
+      description: "New details",
+      task_id: "description-label-task",
+      title: "Description label task",
+    },
+    previousValue: {
+      assignee_ids: [fixtures.users.workspaceAdmin.userId],
+      description: "",
+      task_id: "description-label-task",
+      title: "Description label task",
+    },
+    recordId: "description-label-task",
+    recordType: "task",
+    session: {
+      user_id: fixtures.users.workspaceAdmin.userId,
+      workspace_id: fixtures.workspaceId,
+    },
+    workspaceId: fixtures.workspaceId,
+  });
+  const labelList = await notificationsService.list({
+    user_id: fixtures.users.workspaceAdmin.userId,
+    workspace_id: fixtures.workspaceId,
+  });
+  const descriptionLabelNotification = labelList.notifications.find((notification) => (
+    notification.record_id === "description-label-task" && notification.event_type === "task.updated"
+  ));
+  check("task update notifications expose description-specific update labels", () => {
+    assert.equal(descriptionLabelNotification.updateTypeLabel, "Description Added");
+    assert.equal(descriptionLabelNotification.displayType, "Description Added");
+    assert.ok(descriptionLabelNotification.metadata.changed_fields.includes("description"));
+  });
+
+  const unknownLabel = await notificationsService.create({
+    event_type: "task.updated",
+    metadata: {
+      changed_fields: ["unknown_field"],
+    },
+    module_id: "tasks",
+    recipient_user_id: fixtures.users.workspaceAdmin.userId,
+    title: "Unknown task update",
+    workspace_id: fixtures.workspaceId,
+  });
+  check("unknown task update metadata falls back to Task Updated", () => {
+    assert.equal(unknownLabel.notification.updateTypeLabel, "Task Updated");
   });
 }
 

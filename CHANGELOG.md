@@ -1,3 +1,22 @@
+## Version 0.32.5.5.1 - 2026-06-08 09:53 -04:00
+
+- Bumped the app and first-party module versions to `0.32.5.5.1`.
+- Restored the full Notifications page initialization path so the notification inbox loads independently from preference helper/API availability.
+- Hardened `notifications.html` filter handling so Active, Unread, Read, and Dismissed update `aria-pressed` and reload the selected notification status.
+- Exposed the app-shell notification count refresh hook to full-page notification actions so Mark Read, Mark All Read, and Dismiss keep the list and header badge aligned.
+- Cache-busted the Notifications page script and expanded notification regression coverage for inbox initialization, filter wiring, optional preference fallback, and shell count refresh.
+- Updated roadmap and decisions bookkeeping for 0.32.5.5.1 Pass 1.
+- Added API-decorated notification update type labels through `updateTypeLabel` and `displayType` while preserving raw `event_type`.
+- Stored safe changed-field metadata for new event-created notifications so task updates can display labels like "Description Added", "Status Updated", "Priority Updated", "Due Date Updated", "Recurrence Updated", or the fallback "Task Updated".
+- Rendered update type badges on both the full Notifications page and notification bell dropdown without changing target title/link behavior.
+- Expanded notification regression coverage for created labels, description-specific task update labels, unknown update fallback labels, inaccessible-target label stability, and shared full-page/dropdown rendering.
+- Updated roadmap and decisions bookkeeping for 0.32.5.5.1 Pass 2.
+- Completed the 0.32.5.5.1 regression closeout with explicit checks for Notifications page hooks, Active/Unread/Read/Dismissed API filters, preference-independent page initialization, filter reload behavior, and shared update type label rendering.
+- Updated roadmap and decisions bookkeeping for 0.32.5.5.1 Pass 3.
+- Hardened the Notifications page against optional icon helper failures, added visible loading/script-failure placeholders, and cache-busted the page script again so stale browser assets do not leave the inbox and filters blank.
+- Switched the Notifications page assets to root-relative URLs and cache-busted the page script to `v=5` so the protected-route URL form cannot request login HTML instead of the notification JavaScript.
+- Scoped the Notifications page script and cache-busted it to `v=6` so page-local constants do not redeclare app-shell globals such as `notificationList`.
+
 ## Version 0.32.5.5 - 2026-06-07 19:54 -04:00
 
 - Bumped the app and first-party module versions to `0.32.5.5`.
