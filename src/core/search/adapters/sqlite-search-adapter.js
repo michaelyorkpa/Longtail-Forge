@@ -505,13 +505,15 @@ SELECT
   si.record_created_at,
   si.record_updated_at,
   si.indexed_at,
+  bm25(${SQLITE_SEARCH_FTS_TABLE}) AS search_score,
   'sqlite-fts5' AS search_backend
 FROM ${SQLITE_SEARCH_FTS_TABLE} fts
 JOIN search_index si ON si.search_index_id = fts.search_index_id
 WHERE ${SQLITE_SEARCH_FTS_TABLE} MATCH ${sqlText(ftsQuery)}
 ${where ? `  AND ${where}` : ""}
 ORDER BY bm25(${SQLITE_SEARCH_FTS_TABLE}), si.indexed_at DESC
-LIMIT ${sqlLimit(request?.limit)};
+LIMIT ${sqlLimit(request?.limit)}
+OFFSET ${sqlOffset(request?.offset)};
 `);
 }
 
@@ -554,11 +556,13 @@ SELECT
   si.record_created_at,
   si.record_updated_at,
   si.indexed_at,
+  NULL AS search_score,
   'sqlite-like' AS search_backend
 FROM search_index si
 ${whereParts.length > 0 ? `WHERE ${whereParts.join("\n  AND ")}` : ""}
 ORDER BY si.indexed_at DESC, si.title ASC
-LIMIT ${sqlLimit(request?.limit)};
+LIMIT ${sqlLimit(request?.limit)}
+OFFSET ${sqlOffset(request?.offset)};
 `);
 }
 
@@ -633,6 +637,11 @@ function sqlLikePattern(value) {
 function sqlLimit(value) {
   const limit = Number.parseInt(value, 10);
   return Number.isInteger(limit) && limit > 0 && limit <= 100 ? String(limit) : "25";
+}
+
+function sqlOffset(value) {
+  const offset = Number.parseInt(value, 10);
+  return Number.isInteger(offset) && offset >= 0 ? String(offset) : "0";
 }
 
 function sqlSearchValue(value, options = {}) {

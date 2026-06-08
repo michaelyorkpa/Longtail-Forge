@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Search | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=11">
+  </head>
+  <body data-page-title="Search">
+    <main class="wide-page search-page">
+      <div class="page-heading">
+        <h1>Search</h1>
+      </div>
+
+      <section class="search-workspace" aria-labelledby="search-filters-heading">
+        <form class="search-filter-form" data-search-form>
+          <h2 id="search-filters-heading">Filters</h2>
+          <label class="search-query-field">
+            Search
+            <input type="search" name="text" data-search-text autocomplete="off" placeholder="Search records">
+          </label>
+          <label>
+            Source
+            <select name="module" data-search-module>
+              <option value="">All sources</option>
+            </select>
+          </label>
+          <label>
+            Record Type
+            <select name="recordType" data-search-record-type>
+              <option value="">All record types</option>
+            </select>
+          </label>
+          <label data-search-client-control>
+            Client
+            <select name="clientId" data-search-client>
+              <option value="">All clients</option>
+            </select>
+          </label>
+          <label>
+            Project
+            <select name="projectId" data-search-project>
+              <option value="">All projects</option>
+            </select>
+          </label>
+          <label>
+            Tag
+            <select name="tagId" data-search-tag>
+              <option value="">All tags</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select name="status" data-search-status-filter>
+              <option value="">Any status</option>
+              <option value="active">Active</option>
+              <option value="completed">Completed</option>
+              <option value="archived">Archived</option>
+            </select>
+          </label>
+          <div class="search-filter-actions">
+            <button type="submit">Search</button>
+            <button type="button" data-search-clear>Clear</button>
+          </div>
+        </form>
+
+        <div class="search-results-shell" aria-live="polite">
+          <div class="search-results-summary">
+            <p data-search-status role="status" aria-live="polite">Enter search criteria to begin.</p>
+            <p data-search-meta></p>
+          </div>
+          <div class="search-results-list" data-search-results>
+            <p class="placeholder-copy">Enter search criteria to begin.</p>
+          </div>
+          <div class="search-pagination" data-search-pagination hidden>
+            <button type="button" data-search-previous>Previous</button>
+            <span data-search-page-summary>Page 1</span>
+            <button type="button" data-search-next>Next</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/shared/icons.js?v=1"></script>
+    <script src="js/shared/tags.js?v=1"></script>
+    <script src="js/search.js?v=1"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

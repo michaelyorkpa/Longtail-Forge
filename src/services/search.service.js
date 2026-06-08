@@ -11,7 +11,7 @@ import {
 } from "../core/search/indexer-registry.js";
 import { AppError } from "../utils/app-error.js";
 
-const SEARCH_SERVICE_VERSION = "0.32.7.6";
+const SEARCH_SERVICE_VERSION = "0.32.8.6";
 
 const SEARCH_CAPABILITIES = Object.freeze({
   owner: "framework",
@@ -21,7 +21,7 @@ const SEARCH_CAPABILITIES = Object.freeze({
   permissionAware: true,
   tagAware: true,
   notificationRecordSearchDeferred: true,
-  globalApiEnabled: false,
+  globalApiEnabled: true,
   globalBrowserUiEnabled: false,
   recordIndexingEnabled: true,
   rebuildToolsEnabled: true,

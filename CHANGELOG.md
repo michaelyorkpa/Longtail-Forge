@@ -1,3 +1,56 @@
+## Version 0.32.8.6 - 2026-06-08 17:15 -04:00
+
+- Bumped the app, first-party module, and search service versions to `0.32.8.6`.
+- Moved authenticated-shell search into an icon-triggered dropdown placed before Dashboard.
+- Moved the notifications panel trigger into an icon-only bell at the end of navigation after Settings while retaining unread count, panel actions, and the notifications page link.
+- Updated responsive navigation styling and expanded `scripts/search-shell-regression.mjs` to cover the new shell control placement and accessibility hooks.
+
+## Version 0.32.8.5 - 2026-06-08 17:06 -04:00
+
+- Bumped the app, first-party module, and search service versions to `0.32.8.5`.
+- Added `scripts/search-workflow-regression.mjs` covering indexed Task, Time Entry, Client, and Project discovery through browser search, record edit re-indexing, stable pagination, permission pruning, and global search UI state hooks.
+- Wired the search workflow regression into `npm run check`.
+- Updated README, architecture, module contract, module development docs, decisions, and roadmap closeout notes for the completed 0.32.8 browser search release.
+- Kept public API search deferred to `TODO.md` Medium Term / Search Capability Expansion.
+
+## Version 0.32.8.4 - 2026-06-08 16:50 -04:00
+
+- Bumped the app, first-party module, and search service versions to `0.32.8.4`.
+- Added protected framework-owned `search.html` with URL-driven query, module, record type, client, project, tag, status, and page controls.
+- Added `/js/search.js` to fetch permission-shaped results from `GET /api/search`, render grouped results, route result titles through API-provided target URLs, and keep filter changes reflected in the URL.
+- Added search result loading, prompt, empty, error, and pagination states without exposing hidden/pruned result counts.
+- Added responsive search page styling for the filter panel, grouped result rows, result metadata, tags, and pagination.
+- Added `scripts/search-results-page-regression.mjs` and wired it into `npm run check`.
+- Deferred public API search out of 0.32.8 per the recorded design decision and moved the future `GET /api/v1/search` scope to `TODO.md` under Medium Term / Search Capability Expansion.
+
+## Version 0.32.8.3 - 2026-06-08 16:27 -04:00
+
+- Bumped the app, first-party module, and search service versions to `0.32.8.3`.
+- Added active `searchTargets` to the authenticated app shell bootstrap from enabled module searchable type declarations.
+- Added a compact framework-owned global search form to the shared authenticated header with a query field and all/record-type selector.
+- Kept the header control lightweight by submitting URL parameters to `search.html` without fetching results, adding typeahead, or adding dashboard-specific behavior.
+- Added responsive header search styling that preserves existing page actions and navigation controls on dense pages.
+- Added `scripts/search-shell-regression.mjs` covering shell search target exposure, navigation markup, URL parameter submission, no direct result fetch, and responsive CSS hooks.
+
+## Version 0.32.8.2 - 2026-06-08 16:15 -04:00
+
+- Bumped the app, first-party module, and search service versions to `0.32.8.2`.
+- Added result-level browser search permission shaping after full-text matching, including real client/project record scope checks for visible results.
+- Changed browser search pagination to page over permission-visible results instead of raw adapter matches.
+- Expanded browser search result payloads with snippet, source label, status, score when available, updated timestamp, client/project context, assigned tags, and safe target URL/action hints.
+- Kept raw indexed body text and denormalized tag text out of browser search responses.
+- Expanded `scripts/search-api-regression.mjs` to cover per-result permission pruning, disabled-module hiding, context enrichment, tag enrichment, target hints, and safe payload fields.
+
+## Version 0.32.8.1 - 2026-06-08 16:00 -04:00
+
+- Bumped the app, first-party module, and search service versions to `0.32.8.1`.
+- Added protected browser `GET /api/search` with authenticated active-workspace scope, query/module/record type/client/project/tag filters, and page/limit pagination.
+- Routed browser search through the framework search service while keeping SQLite FTS5 and indexed `LIKE` fallback behind the adapter boundary.
+- Added backend-neutral browser search metadata and pagination metadata while returning a browser-safe result contract without raw indexed body text.
+- Added target-level read-permission filtering for the first browser API pass; deeper per-result shaping remains planned for 0.32.8.2.
+- Added `scripts/search-api-regression.mjs` covering authentication, filter parsing, structured validation errors, stable pagination, safe result payloads, and real HTTP route behavior.
+- Recorded 0.32.8 planning decisions, including no typeahead yet, shared-header placement, no advanced search behavior, and explicit deferral of `GET /api/v1/search`.
+
 ## Version 0.32.7.6 - 2026-06-08 15:28 -04:00
 
 - Bumped the app and first-party module versions to `0.32.7.6`.

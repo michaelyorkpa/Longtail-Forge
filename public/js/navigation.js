@@ -30,6 +30,11 @@ const notificationBell = siteHeader.querySelector("[data-notification-bell]");
 const notificationCount = siteHeader.querySelector("[data-notification-count]");
 const notificationPanel = siteHeader.querySelector("[data-notification-panel]");
 const notificationList = siteHeader.querySelector("[data-notification-list]");
+const globalSearchShell = siteHeader.querySelector("[data-global-search-shell]");
+const globalSearchToggle = siteHeader.querySelector("[data-global-search-toggle]");
+const globalSearchForm = siteHeader.querySelector("[data-global-search-form]");
+const globalSearchInput = siteHeader.querySelector("[data-global-search-input]");
+const globalSearchTarget = siteHeader.querySelector("[data-global-search-target]");
 const workspaceSelector = siteHeader.querySelector("[data-workspace-selector]");
 
 applyCachedWorkspaceContext();
@@ -52,6 +57,23 @@ if (notificationBell) {
       loadNotificationPanel();
     }
   });
+}
+
+if (globalSearchToggle) {
+  globalSearchToggle.addEventListener("click", () => {
+    const isOpen = globalSearchToggle.getAttribute("aria-expanded") === "true";
+
+    setGlobalSearchOpen(!isOpen);
+    if (isOpen) {
+      return;
+    }
+
+    window.setTimeout(() => globalSearchInput?.focus(), 0);
+  });
+}
+
+if (globalSearchForm) {
+  globalSearchForm.addEventListener("submit", submitGlobalSearch);
 }
 
 siteHeader.addEventListener("toggle", (event) => {
@@ -82,8 +104,15 @@ function buildSiteHeader() {
   const brand = document.createElement("div");
   const homeLink = document.createElement("a");
   const workspaceSelect = document.createElement("select");
+  const searchShell = document.createElement("div");
+  const searchButton = document.createElement("button");
+  const searchButtonIcon = document.createElement("span");
+  const searchForm = document.createElement("form");
+  const searchInput = document.createElement("input");
+  const searchTarget = document.createElement("select");
   const notificationWrap = document.createElement("div");
   const notificationButton = document.createElement("button");
+  const notificationIcon = document.createElement("span");
   const notificationBadge = document.createElement("span");
   const notificationPanelElement = document.createElement("div");
   const notificationPanelHeader = document.createElement("div");
@@ -111,6 +140,46 @@ function buildSiteHeader() {
 
   brand.append(homeLink, workspaceSelect);
 
+  searchShell.className = "global-search-shell";
+  searchShell.dataset.globalSearchShell = "";
+  searchShell.hidden = true;
+
+  searchButton.className = "global-search-toggle";
+  searchButton.type = "button";
+  searchButton.dataset.globalSearchToggle = "";
+  searchButton.setAttribute("aria-expanded", "false");
+  searchButton.setAttribute("aria-controls", "global-search-form");
+  searchButton.setAttribute("aria-label", "Search");
+  searchButton.title = "Search";
+
+  searchButtonIcon.className = "global-search-toggle-icon";
+  searchButtonIcon.setAttribute("aria-hidden", "true");
+  searchButton.append(searchButtonIcon);
+
+  searchForm.className = "global-search-form";
+  searchForm.id = "global-search-form";
+  searchForm.dataset.globalSearchForm = "";
+  searchForm.hidden = true;
+  searchForm.setAttribute("role", "search");
+  searchForm.setAttribute("aria-label", "Global search");
+
+  searchInput.className = "global-search-input";
+  searchInput.type = "search";
+  searchInput.name = "text";
+  searchInput.autocomplete = "off";
+  searchInput.placeholder = "Search";
+  searchInput.dataset.globalSearchInput = "";
+  searchInput.setAttribute("aria-label", "Search");
+
+  searchTarget.className = "global-search-target";
+  searchTarget.name = "target";
+  searchTarget.dataset.globalSearchTarget = "";
+  searchTarget.setAttribute("aria-label", "Search record type");
+  searchTarget.append(createSearchTargetOption("", "All"));
+
+  searchForm.append(searchInput, searchTarget);
+  searchShell.append(searchButton, searchForm);
+
   notificationWrap.className = "notification-shell";
 
   notificationButton.className = "notification-bell";
@@ -119,7 +188,11 @@ function buildSiteHeader() {
   notificationButton.setAttribute("aria-expanded", "false");
   notificationButton.setAttribute("aria-controls", "notification-panel");
   notificationButton.setAttribute("aria-label", "Notifications");
-  notificationButton.textContent = "Notifications";
+  notificationButton.title = "Notifications";
+
+  notificationIcon.className = "notification-bell-icon";
+  notificationIcon.setAttribute("aria-hidden", "true");
+  notificationButton.append(notificationIcon);
 
   notificationBadge.className = "notification-count";
   notificationBadge.dataset.notificationCount = "";
@@ -156,11 +229,13 @@ function buildSiteHeader() {
   links.className = "nav-links";
   links.id = "primary-menu";
 
+  links.append(searchShell);
   NAV_ITEMS.forEach((item) => {
     links.append(createNavItem(item, currentPage));
   });
+  links.append(notificationWrap);
 
-  nav.append(brand, notificationWrap, toggle, links);
+  nav.append(brand, toggle, links);
   header.append(nav);
 
   return header;
@@ -173,7 +248,11 @@ function renderNavigation(items) {
 
   const currentPage = getCurrentPage();
 
-  navLinks.replaceChildren(...items.map((item) => createNavItem(item, currentPage)));
+  navLinks.replaceChildren(
+    ...(globalSearchShell ? [globalSearchShell] : []),
+    ...items.map((item) => createNavItem(item, currentPage)),
+    ...(notificationBell?.parentElement ? [notificationBell.parentElement] : []),
+  );
 }
 
 function createNavItem(item, currentPage) {
@@ -258,6 +337,7 @@ async function loadAppShellBootstrap() {
       enabledModules: shell.enabledModules || shell.workspaceContext?.enabledModules || [],
       navigation: shell.navigation || [],
       permissionHints: shell.permissionHints || {},
+      searchTargets: shell.searchTargets || [],
       userId: shell.user?.user_id || "",
       username: shell.user?.username || "",
     };
@@ -265,6 +345,7 @@ async function loadAppShellBootstrap() {
     storeWorkspaceContext(workspaceContext);
     renderNavigation(shell.navigation);
     applyNotificationSummary(shell.notificationSummary);
+    applySearchTargets(shell.searchTargets || []);
     applyWorkspaceName(workspaceContext.workspaceName);
     applyWorkspaceCapabilities(workspaceContext);
     if (shell.themeMode) {
@@ -275,6 +356,88 @@ async function loadAppShellBootstrap() {
     await loadWorkspaceSettings();
     await loadSessionWorkspaces();
   }
+}
+
+function submitGlobalSearch(event) {
+  event.preventDefault();
+
+  const params = new URLSearchParams();
+  const text = String(globalSearchInput?.value || "").trim();
+  const selectedOption = globalSearchTarget?.selectedOptions?.[0] || null;
+
+  if (text) {
+    params.set("text", text);
+  }
+
+  if (selectedOption?.dataset.moduleId && selectedOption?.dataset.recordType) {
+    params.set("module", selectedOption.dataset.moduleId);
+    params.set("recordType", selectedOption.dataset.recordType);
+  }
+
+  const query = params.toString();
+  window.location.href = query ? `search.html?${query}` : "search.html";
+}
+
+function setGlobalSearchOpen(isOpen) {
+  if (!globalSearchToggle || !globalSearchForm) {
+    return;
+  }
+
+  globalSearchToggle.setAttribute("aria-expanded", String(isOpen));
+  globalSearchForm.hidden = !isOpen;
+}
+
+function applySearchTargets(targets = []) {
+  if (!globalSearchShell || !globalSearchForm || !globalSearchTarget) {
+    return;
+  }
+
+  const normalizedTargets = normalizeSearchTargets(targets);
+
+  globalSearchShell.hidden = normalizedTargets.length === 0;
+  if (normalizedTargets.length === 0) {
+    setGlobalSearchOpen(false);
+  }
+  globalSearchTarget.replaceChildren(
+    createSearchTargetOption("", "All"),
+    ...normalizedTargets.map((target) => createSearchTargetOption(target.id, target.label, target)),
+  );
+}
+
+function normalizeSearchTargets(targets = []) {
+  const seen = new Set();
+
+  return (Array.isArray(targets) ? targets : [])
+    .map((target) => ({
+      id: String(target.id || `${target.moduleId || ""}:${target.recordType || ""}`).trim(),
+      label: String(target.label || target.sourceLabel || target.recordType || "").trim(),
+      moduleId: String(target.moduleId || "").trim(),
+      recordType: String(target.recordType || "").trim(),
+    }))
+    .filter((target) => target.moduleId && target.recordType && target.label)
+    .filter((target) => {
+      if (seen.has(target.id)) {
+        return false;
+      }
+
+      seen.add(target.id);
+      return true;
+    })
+    .sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function createSearchTargetOption(value, label, target = null) {
+  const option = document.createElement("option");
+
+  option.value = value;
+  option.textContent = label;
+
+  if (target) {
+    option.dataset.moduleId = target.moduleId;
+    option.dataset.recordType = target.recordType;
+  }
+
+  return option;
 }
 
 function applyNotificationSummary(summary = {}) {
@@ -647,6 +810,7 @@ function applyCachedWorkspaceContext() {
   if (Array.isArray(cachedContext.navigation) && cachedContext.navigation.length > 0) {
     renderNavigation(cachedContext.navigation);
   }
+  applySearchTargets(cachedContext.searchTargets || []);
   applyWorkspaceCapabilities(cachedContext);
 }
 
@@ -666,6 +830,7 @@ function storeWorkspaceContext(settings) {
     modules: Array.isArray(settings.modules) ? settings.modules : previousContext.modules || [],
     navigation: Array.isArray(settings.navigation) ? settings.navigation : previousContext.navigation || [],
     permissionHints: settings.permissionHints || previousContext.permissionHints || {},
+    searchTargets: Array.isArray(settings.searchTargets) ? settings.searchTargets : previousContext.searchTargets || [],
     tasksEnabled: settings.tasksEnabled === false ? false : true,
     timeTrackingEnabled: settings.timeTrackingEnabled !== false,
     userId: settings.userId || settings.user_id || previousContext.userId || "",

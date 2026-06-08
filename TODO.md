@@ -86,6 +86,20 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Search Capability Expansion
 
+- Add public API search after browser search has settled.
+  - Deferred from 0.32.8 by design decision; browser search remains the only 0.32.8 search API surface.
+  - Future endpoint candidate: `GET /api/v1/search`.
+  - Require API key authentication.
+  - Require explicit search/read scopes.
+  - Respect workspace and module permissions.
+  - Hide disabled-module records unless a future explicit administrative API says otherwise.
+  - Use the same framework search service and adapter boundary as browser search.
+  - Return a stable public response shape without browser-only navigation/action data.
+  - Add public API regressions when implemented:
+    - API keys without search scope are rejected.
+    - API keys cannot see records outside their workspace/module permissions.
+    - Disabled-module records remain hidden.
+
 - Add file search indexer tool to search index approved, uploaded files
   - Should index only text
   - Should be able to handle:
@@ -463,6 +477,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - makes an easily human readable report that is chronologically organized
   - make it respect filters
 
+At the end of 0.4x branch:
+
+- Add framework-owned HTTP route contract and adapter boundary so Longtail Forge routes are not permanently coupled to Express. Keep Express as the first adapter; preserve the option to add a Fastify adapter later.
+
 # Long Term
 
 ## Estimation build out
@@ -473,11 +491,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
     - Not an AI estimate, but one that builds an estimate from existing data
 
 ## Employee hour tracking for Payroll/HR purposes
-
-## CRM Features?
-
-- Should CRM features be an additional module?
-  - Yes, add them to 0.4x release
 
 ## Version 0.40.0 - CRM Foundation
 

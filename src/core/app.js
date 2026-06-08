@@ -14,6 +14,7 @@ import { notificationsRoutes } from "../routes/notifications.routes.js";
 import { permissionsRoutes } from "../routes/permissions.routes.js";
 import { reportingRoutes } from "../routes/reporting.routes.js";
 import { searchIndexRoutes } from "../routes/search-index.routes.js";
+import { searchRoutes } from "../routes/search.routes.js";
 import { settingsRoutes } from "../routes/settings.routes.js";
 import { staticRoutes } from "../routes/static.routes.js";
 import { workbenchRoutes } from "../routes/workbench.routes.js";
@@ -42,6 +43,7 @@ function createApp() {
   app.use("/api", permissionsRoutes);
   app.use("/api", reportingRoutes);
   app.use("/api", searchIndexRoutes);
+  app.use("/api", searchRoutes);
   app.use("/api", settingsRoutes);
   app.use("/api", workbenchRoutes);
   for (const moduleRoute of modulesService.listModuleRouteEntries("browser")) {

@@ -6,6 +6,7 @@ import { permissionsService } from "./permissions.service.js";
 import { settingsService } from "./settings.service.js";
 import { normalizeThemeMode } from "../utils/normalizers.js";
 import { notificationsService } from "./notifications.service.js";
+import { searchService } from "./search.service.js";
 
 async function bootstrap(session) {
   const [
@@ -16,6 +17,7 @@ async function bootstrap(session) {
     moduleSettingsNavigation,
     permissionHints,
     notificationSummary,
+    searchTargets,
   ] = await Promise.all([
     settingsService.readWorkspaceBootstrap(session),
     userWorkspacesRepository.readForUser(session.user_id),
@@ -24,6 +26,7 @@ async function bootstrap(session) {
     modulesService.listModuleSettingsNavigation(session.workspace_id, session),
     readPermissionHints(session),
     readNotificationSummary(session),
+    readSearchTargets(session),
   ]);
   const navigation = await buildNavigation(workspaceContext, moduleNavigation, moduleSettingsNavigation, permissionHints);
 
@@ -39,6 +42,7 @@ async function bootstrap(session) {
     navigation,
     notificationSummary,
     permissionHints,
+    searchTargets,
     themeMode: normalizeThemeMode(user?.theme_mode),
     timezone: session.timezone || user?.timezone || "",
     user: {
@@ -50,6 +54,18 @@ async function bootstrap(session) {
     workspaceContext,
     workspaces: normalizeWorkspaceMemberships(workspaces),
   };
+}
+
+async function readSearchTargets(session) {
+  const searchableTypes = await searchService.listActiveSearchableTypes(session.workspace_id);
+
+  return searchableTypes.map((type) => ({
+    id: `${type.moduleId}:${type.recordType}`,
+    moduleId: type.moduleId,
+    recordType: type.recordType,
+    label: type.label || type.sourceLabel || type.recordType,
+    sourceLabel: type.sourceLabel || type.label || type.moduleId,
+  }));
 }
 
 async function readNotificationSummary(session) {

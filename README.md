@@ -22,6 +22,7 @@ Longtail Forge currently includes:
 - Time tracking with manual entry, edit-entry workflows, active timer persistence, and UTC-backed storage
 - A framework-owned Workbench page for daily active timers and task work
 - First-party Tasks with reminders, recurrence, bulk actions, dashboard summaries, task timers, and public API support
+- Framework-owned browser search across indexed Tasks, Time Entries, Clients, and Projects
 - Billable/non-billable reporting, dashboard summaries, audit logging, API keys, and public API foundations
 - Module-ready backend structure with explicit first-party module registration, startup manifest validation, registry-driven navigation/settings/views/assets, lifecycle checks, module permissions/API scopes, internal events, a framework-owned search foundation, and developer example coverage
 - A fresh-start database baseline for new installs, a persistent SQLite adapter for local performance, and regression checks for permissions, accessibility, module sanity, migrations, legacy cleanup, and database performance

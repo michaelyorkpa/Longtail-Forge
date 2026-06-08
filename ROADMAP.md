@@ -2,200 +2,268 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.7 - Search Indexing and Rebuild Tools
+## Version 0.32.8 - Search API and Global Search UI
 
 ### Questions and Design Decisions
 
-- [x] Confirm that 0.32.7 stops at indexing, event synchronization, rebuild/repair tooling, and regression coverage; global search API routes and browser UI remain in 0.32.8.
-  - Confirmed. 0.32.7 should populate and maintain the search index, add rebuild/repair tooling, and prove the indexing lifecycle with tests. Browser-facing search routes, global search UI, result pages, and public API search remain in 0.32.8.
-- [x] Decide whether the first protected rebuild entry point should be admin-only HTTP, a local server script, or both.
-  - Use both, but keep them scoped differently. Add a local maintenance script for app-wide rebuild/repair and emergency recovery. Add an admin-only protected server entry point for workspace/module rebuilds only. Do not expose app-wide rebuild through normal browser/admin UI yet.
-- [x] Decide whether disabled-module records should remain in canonical `search_index` rows but be hidden by active module filters, or be removed during module disable and rebuilt on re-enable.
-  - Keep disabled-module records in canonical search_index rows. Disabled modules should stop contributing active searchable types, so normal active search requests hide those records through module filters. Do not delete canonical search rows just because a module is disabled. Re-enabled modules should be eligible for rebuild/repair. Any future historical/admin search behavior should be explicit, permission-restricted, and not accidental.
-- [x] Decide whether app-wide rebuilds are exposed only as local maintenance tooling at first, with workspace/module rebuilds as the first admin UI/API surface.
-  - Confirmed. App-wide rebuilds should be local maintenance/super-admin tooling at first. The first protected admin surface should be workspace-scoped and module-scoped rebuilds, with active workspace context, module validation, audit logging, and summary counts.
-- [x] Confirm that 0.32.7 does not add fuzzy search, synonyms, external search engines, or advanced relevance tuning.
-  - Confirmed. 0.32.7 should keep indexing boring: canonical search_index writes, SQLite FTS synchronization/repair where available, indexed LIKE fallback, rebuild tooling, and regression coverage only. Fuzzy search, synonyms, external engines, and advanced relevance tuning remain future work.
+- [x] Confirm that 0.32.8 should expose browser-facing search without adding fuzzy search, synonyms, saved searches, external search engines, or advanced relevance tuning.
+  - Proposed default: keep 0.32.8 focused on exact query/filter execution, basic adapter-provided ranking, result shaping, and global UI. Advanced search behavior remains future work.
+  - Go with the proposed default.
+- [x] Confirm whether the app-shell search box should submit to a full results page first, instead of adding typeahead/autocomplete in the first pass.
+  - Proposed default: submit to `search.html` with query/filter parameters. Typeahead can follow after the permission-safe result contract is proven.
+  - Header search submits to search.html; no typeahead yet.
+- [x] Confirm the first global search placement in the authenticated shell.
+  - Proposed default: add a compact search control to the shared authenticated header/top navigation where it is visible across module pages without crowding page-specific actions.
+  - Place the compact search box in the authenticated shared header/top nav.
+- [x] Decide whether public API search belongs in 0.32.8 or should be explicitly deferred.
+  - Proposed default: defer `GET /api/v1/search` unless the browser API and permission tests finish cleanly before closeout. Browser search is the primary user workflow for this version.
+  - Defer GET /api/v1/search from 0.32.8. No ifs.
+- [x] Confirm result links should prefer module-registered record URLs/actions and fall back to a safe module page when a direct record URL is unavailable.
+  - Proposed default: use the registered URL/action when available, and do not invent direct links that bypass module routing or permissions.
+  - Use module-registered URLs/actions; fall back safely; never invent direct record links
 
-### Version 0.32.7.1 - Indexing Service Write Methods
+### Version 0.32.8.1 - Browser Search API Contract
 
-- [x] Add framework-owned search indexing write methods.
-  - [x] Index one normalized search document.
-  - [x] Remove one indexed record by workspace, module, record type, and record ID.
-  - [x] Re-index one record by resolving the module-owned indexer and upserting the normalized document.
-  - [x] Keep `search_index` as the canonical write target.
-  - [x] Keep SQLite FTS synchronization adapter-owned.
-- [x] Add predictable write semantics.
-  - [x] Upserts should not duplicate `search_index` rows.
-  - [x] Removed records should remove matching FTS rows when FTS5 is available.
-  - [x] Empty or non-searchable module indexer results should remove stale index rows.
-  - [x] Indexing failures should return structured errors that rebuild tooling can report.
-- [x] Add focused regression coverage.
-  - [x] Single-record upsert updates the canonical row.
-  - [x] Single-record removal clears canonical and FTS rows.
-  - [x] Re-indexing the same record is idempotent.
-  - [x] FTS fallback behavior still works when FTS5 is unavailable.
+- [x] Add protected browser search endpoint.
+  - [x] Add `GET /api/search`.
+  - [x] Require an authenticated session and active workspace.
+  - [x] Accept query text.
+  - [x] Accept module filter.
+  - [x] Accept record type filter.
+  - [x] Accept client filter.
+  - [x] Accept project filter.
+  - [x] Accept exact tag filter.
+  - [x] Accept pagination parameters.
+  - [x] Return backend-neutral result metadata and paging metadata.
+- [x] Keep API routing framework-owned.
+  - [x] Route through the framework search service.
+  - [x] Do not query SQLite FTS tables directly from routes.
+  - [x] Keep SQLite FTS and indexed `LIKE` fallback hidden behind the adapter.
+  - [x] Keep FTS ranking basic and adapter-provided for now.
+- [x] Add focused API contract regressions.
+  - [x] Authenticated users can search the active workspace.
+  - [x] Unauthenticated requests are rejected.
+  - [x] Invalid filters return structured validation errors.
+  - [x] Pagination returns stable metadata.
 
-### Version 0.32.7.2 - Initial Module Indexers
+### Version 0.32.8.2 - Permission-Safe Result Shaping
 
-- [x] Add first module-owned indexers.
-  - [x] Tasks.
-  - [x] Time entries.
-  - [x] Clients.
-  - [x] Projects.
-- [x] Keep module ownership clear.
-  - [x] Module indexers should read their own records through module services/repositories.
-  - [x] Module indexers should return normalized framework search documents.
-  - [x] Module indexers should not write directly to `search_index` or FTS tables.
-  - [x] Module indexers should map title, summary, body, tags text, client/project scope, visibility, record status, source label, and record timestamps consistently.
-- [x] Preserve permission and lifecycle semantics.
-  - [x] Archived/inactive records should receive a searchable `record_status` instead of inventing a new workflow state.
-  - [x] Client/project scope should match the underlying record's real scope.
-  - [x] Tag text may be denormalized for matching, while exact tag filtering remains canonical.
-- [x] Add module indexer regressions.
-  - [x] Each initial module can produce normalized documents.
-  - [x] Missing optional fields fall back consistently.
-  - [x] Archived/inactive/completed records map to expected search metadata.
+- [x] Apply permission and lifecycle filtering after full-text matching.
+  - [x] Respect active workspace scope.
+  - [x] Respect module read permissions from searchable type declarations.
+  - [x] Hide disabled-module records from normal active search.
+  - [x] Respect record visibility rules already modeled by the search service.
+  - [x] Preserve canonical client/project/tag filters.
+- [x] Normalize browser-facing result payloads.
+  - [x] Include record ID, module ID, record type, title, summary/snippet, source label, status, score/rank when available, and updated timestamp.
+  - [x] Include client/project context where available.
+  - [x] Include tags where useful and permission-safe.
+  - [x] Include registered record URL/action data when available.
+  - [x] Avoid exposing private body text beyond the intended snippet/summary.
+- [x] Add permission/filter regressions.
+  - [x] Users without a module read permission do not receive matching records from that module.
+  - [x] Disabled-module records stay hidden in active browser search.
+  - [x] Client, project, and tag filters narrow results correctly.
+  - [x] Result payloads do not expose fields outside the browser search contract.
 
-### Version 0.32.7.3 - Event-Driven Index Synchronization
+### Version 0.32.8.3 - Authenticated Shell Search Entry
 
-- [x] Connect indexing to existing framework/module events where stable.
-  - [x] Index records on create.
-  - [x] Update index records on update.
-  - [x] Update or remove index records on archive/inactivate.
-  - [x] Restore or re-index records on restore/reactivate where stable service flows exist.
-  - [x] Remove stale index rows when records are hard-deleted by current module code.
-- [x] Keep event wiring boring and traceable.
-  - [x] Prefer service-owned indexing calls after successful record mutations.
-  - [x] Do not index failed or rolled-back writes.
-  - [x] Keep indexing side effects out of browser code.
-  - [x] Log indexing failures clearly without hiding the primary record mutation result unless search consistency would be unsafe.
-- [x] Handle module lifecycle.
-  - [x] Disabled modules should not contribute active searchable types.
-  - [x] Re-enabled modules should be eligible for rebuild.
-  - [x] Historical disabled-module search behavior remains explicit, not accidental.
-- [x] Add synchronization regressions.
-  - [x] Create/update/archive/restore flows update the index for initial searchable modules.
-  - [x] Module-disabled records do not appear through active search request targets.
-  - [x] Failed indexing paths are observable in logs or structured results.
+- [x] Add global search entry to the authenticated app shell.
+  - [x] Add a compact search box to the shared authenticated header/top navigation.
+  - [x] Add a selector for searchable record type or all record types based on active module declarations.
+  - [x] Preserve normal page-specific actions and avoid crowding dense pages.
+  - [x] Submit to the full search results page with URL query parameters.
+- [x] Keep the shell control lightweight.
+  - [x] Do not add typeahead/autocomplete in this pass.
+  - [x] Do not make dashboard search more complex.
+  - [x] Use existing shared browser JavaScript patterns with no build step.
+  - [x] Keep the UI framework-owned and module-aware through registered searchable types.
+- [x] Add browser-level smoke coverage where practical.
+  - [x] Shell search appears on authenticated pages.
+  - [x] Record-type options reflect active searchable types.
+  - [x] Submitting a query navigates to the search page with expected parameters.
 
-### Version 0.32.7.4 - Rebuild Service and Admin Tooling
+### Version 0.32.8.4 - Search Results Page
 
-- [x] Add safe server-side rebuild methods.
-  - [x] Re-index all records for one module.
-  - [x] Re-index all records for one workspace.
-  - [x] Re-index all records for the app through local maintenance tooling if needed.
-  - [x] Support dry-run or summary mode if practical.
-  - [x] Return counts for scanned, indexed, skipped, removed, failed, and repaired records.
-- [x] Add a protected rebuild entry point.
-  - [x] Admin-only endpoint or script for module/workspace rebuilds.
-  - [x] App-wide rebuild should be super-admin/local-maintenance only at first.
-  - [x] Do not expose broad rebuild tools to normal users.
-  - [x] Require active workspace context for workspace rebuilds.
-  - [x] Validate module IDs against enabled/known modules before rebuild.
-- [x] Log rebuild activity clearly.
-  - [x] Audit who started protected rebuilds.
-  - [x] Record workspace/module scope.
-  - [x] Record rebuild counts and failure summaries.
-  - [x] Avoid logging private record body content.
-- [x] Add rebuild regressions.
-  - [x] Workspace rebuild does not duplicate rows.
-  - [x] Module rebuild stays scoped to the requested module.
-  - [x] Unauthorized users cannot trigger rebuilds.
-  - [x] Rebuild summaries report useful counts.
+- [x] Add framework-owned global search results page.
+  - [x] Add `search.html` and matching browser script/style hooks.
+  - [x] Read query/filter/page parameters from the URL.
+  - [x] Fetch results from `GET /api/search`.
+  - [x] Show grouped results by record type or module where useful.
+  - [x] Show title, short summary/snippet, source label, client/project context, tags, status, and updated timestamp.
+  - [x] Link results to registered record URLs/actions when available.
+- [x] Add results-page controls and states.
+  - [x] Support query text editing.
+  - [x] Support module and record type filters.
+  - [x] Support client, project, and tag filters where available.
+  - [x] Support pagination.
+  - [x] Support loading, empty, error, and permission-safe display states.
+  - [x] Keep mobile and desktop layouts scannable without card-in-card nesting.
+- [x] Add page behavior regressions.
+  - [x] Search page loads from URL parameters.
+  - [x] Filter changes update results and URL state.
+  - [x] Empty and no-permission results are clear without leaking hidden result counts.
+  - [x] Result links route through registered module URLs/actions.
 
-### Version 0.32.7.5 - FTS Rebuild and Repair
+### Version 0.32.8.5 - Tests, Documentation, and Release Closeout
 
-- [x] Add FTS rebuild support.
-  - [x] Rebuild FTS rows from canonical `search_index`.
-  - [x] Detect and repair missing FTS rows.
-  - [x] Detect and remove orphaned FTS rows.
-  - [x] Keep FTS rebuild logic inside the SQLite adapter boundary.
-  - [x] Keep rebuild admin/tooling permission-restricted.
-- [x] Preserve adapter fallback behavior.
-  - [x] FTS repair should be skipped safely when FTS5 is unavailable.
-  - [x] Indexed `LIKE` fallback should continue to use canonical `search_index`.
-  - [x] FTS repair should not mutate permission, visibility, workspace, module, or lifecycle metadata.
-- [x] Add FTS repair regressions.
-  - [x] Missing FTS rows are recreated from canonical rows.
-  - [x] Orphaned FTS rows are removed.
-  - [x] Unsupported FTS5 builds report skipped repair instead of failing broad rebuilds.
-
-### Version 0.32.7.6 - Tests, Documentation, and Release Closeout
-
-- [x] Add end-to-end search indexing regressions.
-  - [x] Initial searchable modules populate index rows.
-  - [x] Search index rebuild does not duplicate records.
-  - [x] Search results update after record edits.
-  - [x] Search results hide disabled-module records through active search targets.
-  - [x] Search indexing remains workspace-scoped.
-  - [x] Permission-sensitive search filters still apply before results are returned.
+- [x] Add end-to-end search workflow regressions.
+  - [x] Indexed Tasks, Time Entries, Clients, and Projects are discoverable through browser search.
+  - [x] Search results update after indexed record edits.
+  - [x] Pagination remains stable across repeated requests.
+  - [x] Permission-sensitive filtering still applies before results are returned.
+  - [x] The global search UI handles loading, empty, error, filtered, and paginated states.
 - [x] Update documentation.
-  - [x] Record 0.32.7 indexing/rebuild decisions in `DECISIONS.md`.
-  - [x] Update architecture notes for indexer ownership, event synchronization, rebuild scope, and FTS repair.
-  - [x] Update module development docs for implementing module-owned search indexers.
-  - [x] Keep README cursory unless the current-state overview needs a one-line indexing note.
-  - [x] Add 0.32.7 changes to `CHANGELOG.md` with date/time.
+  - [x] Record 0.32.8 API/UI decisions in `DECISIONS.md`.
+  - [x] Update architecture notes for browser search routing, result shaping, and adapter boundaries.
+  - [x] Update module development docs for registered result URLs/actions if needed.
+  - [x] Keep README cursory unless the current-state overview needs a one-line global search note.
+  - [x] Add 0.32.8 changes to `CHANGELOG.md` with date/time.
 - [x] Update release bookkeeping when implementation is complete.
-  - [x] Bump `package.json` and `package-lock.json` to the completed 0.32.7 sub-version.
-  - [x] Verify `/api/app-info` reports the completed 0.32.7 sub-version.
+  - [x] Bump `package.json` and `package-lock.json` to the completed 0.32.8 sub-version.
+  - [x] Verify `/api/app-info` reports the completed 0.32.8 sub-version.
   - [x] Move all but the most recently completed ROADMAP section to `ROADMAP-ARCHIVE.md`.
 - [x] Run verification.
-  - [x] Run focused search indexing/rebuild regressions.
+  - [x] Run focused search API/UI regressions.
   - [x] Run `npm run check`.
-  - [x] Run `npm run test:permissions` because search indexing and rebuild tools are permission-sensitive.
-  - [x] Run SQLite integrity check after rebuild tests.
+  - [x] Run `npm run test:permissions` because search result access is permission-sensitive.
+  - [x] Run SQLite integrity check after search workflow tests.
 
-## Version 0.32.8 - Search API and Global Search UI
+### Version 0.32.8.6 - Notifications and Search UI Clean up
 
-* [ ] Add browser API search endpoint
+- [x] Move notifications interface into a bell icon; Retain all other functionality
+  - [x] Move bell icon to end of navigation (right of "Settings")
+  - [x] Header width can be wider if necessary
 
-  * [ ] `GET /api/search`
-  * [ ] Support query text
-  * [ ] Support module filter
-  * [ ] Support record type filter
-  * [ ] Support client filter
-  * [ ] Support project filter
-  * [ ] Support tag filter
-  * [ ] Support pagination
-  * [ ] Respect workspace and permissions
+- [x] Move search into openable magnifier icon
+  - [x] This icon should be placed just before "Dashboard"
+  - [x] Icon simply opens downward a small search text input box and the type filter drop down
 
-- [ ] Use the search service adapter from the API layer. 
-  - [ ] API routes should not query SQLite FTS tables directly. 
-  - [ ] API routes should call the framework search service. 
-  - [ ] Search results must still be permission-filtered after full-text matching. 
-  - [ ] FTS ranking can be basic at first.
+### Version 0.32.9 - Help Page Framework and UI
 
-* [ ] Add public API search endpoint only if safe
+Decision:
+Help Center is framework-owned, not a normal disable-able first-party workflow module.
 
-  * [ ] Consider `GET /api/v1/search`
-  * [ ] Require API key scopes
-  * [ ] Respect workspace and module permissions
-  * [ ] Do not expose records from disabled modules unless explicitly allowed
-  * [ ] This can be deferred if browser search is enough for now
+Implementation shape:
+- Add a framework-owned Help Center page/surface.
+- Add a validated module manifest contribution for help/docs.
+- Index help articles as searchable records.
+- Add "Help" as a global search type/source filter.
+- Allow first-party and future third-party modules to contribute docs through manifest metadata.
+- Keep user-authored Knowledge Base separate as a first-party module.
 
-* [ ] Add global search UI
+### Help Center / Documentation Search Decision
 
-  * [ ] Add simple search box to the authenticated app shell
-    * [ ] Searchbox should have a selector drop-down to select record type based on hooked modules
-  * [ ] Show grouped results by record type on new search page
-  * [ ] Show record title
-  * [ ] Show short summary/snippet
-  * [ ] Show module/source label
-  * [ ] Show client/project context where useful
-  * [ ] Show tags where useful
-  * [ ] Link search result to the registered record URL when available
-  * [ ] Keep global search UI framework-owned
+- [ ] Confirm Help Center ownership.
+  - Proposed default: Help Center UI, routes, search integration, and docs contribution validation are framework-owned. Help is not a normal disable-able workflow module.
 
-* [ ] Add search results page
+- [ ] Add module-declared help/documentation contributions.
+  - Proposed default: modules may declare help sections/articles through the manifest. The framework validates these declarations and exposes them in the Help Center.
 
-  * [ ] Support filters
-  * [ ] Support pagination
-  * [ ] Support empty states
-  * [ ] Support permission-safe result display
-  * [ ] Avoid making dashboard search too complex
+- [ ] Add Help as a searchable result type/source.
+  - Proposed default: index framework and module help articles into `search_index` with `record_type = help_article`, `source = Help`, module ownership metadata, and permission/module visibility filters.
 
-## Version 0.32.9 - Framework Integration Tests and Reporting Hooks
+- [ ] Keep product Help separate from user-authored Knowledge Base.
+  - Proposed default: Help Center documents how to use Longtail Forge and installed modules. The future Knowledge Base module stores workspace-authored operational knowledge.
+
+## Version 0.32.10 - Framework Integration Tests and Reporting Hooks
+
+## Version 0.32.10.1 - TypeScript Contract Checking Foundation
+
+This version should introduce TypeScript as a framework contract-checking tool without forcing a full rewrite or changing runtime behavior. Longtail Forge should remain a Node/ESM app, but shared framework contracts should begin moving toward typed definitions so future modules, files, tickets, notes, public API routes, search results, and plugin-style extension points have safer shapes.
+
+### Questions and Design Decisions
+
+- [x] Confirm that TypeScript is introduced incrementally, not as a full immediate rewrite.
+  - Add TypeScript as a dev-time type checker first, allow existing JavaScript to continue running, and convert files only where the contract benefit is clear.
+
+- [x] Confirm that `npm run start` should not run TypeScript compilation or type checking.
+  - Keep runtime startup fast and predictable. Type checking belongs in `npm run typecheck`, `npm run check`, CI, and Codex verification, not normal app boot.
+
+- [x] Decide whether the first TypeScript pass should use JS checking with JSDoc, `.d.ts` contract files, or selective `.ts` conversion.
+  - Start with `allowJs`, `checkJs` in a controlled/limited scope, shared `.d.ts` or `.ts` contract files, and selective conversion of framework contract modules only.
+
+- [x] Confirm that TypeScript should protect framework/module contracts before browser UI conversion.
+  - Type backend and shared framework contracts first. Browser scripts can remain JavaScript until the backend contracts stabilize.
+
+### Version 0.32.10.1.1 - TypeScript Tooling Setup
+
+- [ ] Add TypeScript dev dependency.
+- [ ] Add `tsconfig.json`.
+  - [ ] Use Node/ESM-compatible compiler settings.
+  - [ ] Enable `allowJs` so existing JavaScript can stay in place.
+  - [ ] Start with strictness settings that reveal useful contract issues without blocking the whole project immediately.
+  - [ ] Use `noEmit` for the first pass so TypeScript checks code without producing runtime files.
+- [ ] Add package scripts.
+  - [ ] `npm run typecheck`
+  - [ ] Do not change `npm run start`.
+  - [ ] Decide whether `npm run check` runs `npm run typecheck` immediately or after the first cleanup pass.
+- [ ] Add TypeScript ignores/exclusions for runtime data, generated files, archives, and vendor/build output.
+
+### Version 0.32.10.1.2 - Framework Contract Types
+
+- [ ] Add shared framework type definitions for module contracts.
+  - [ ] Module manifest.
+  - [ ] Module routes.
+  - [ ] Protected/public views.
+  - [ ] Browser assets.
+  - [ ] Navigation contributions.
+  - [ ] Settings contributions.
+  - [ ] Permission descriptors.
+  - [ ] API scope descriptors.
+  - [ ] Event descriptors.
+  - [ ] Notification descriptors.
+  - [ ] Taggable type descriptors.
+  - [ ] Searchable type descriptors.
+  - [ ] Workbench contributions.
+  - [ ] Timer source contributions.
+- [ ] Add shared search contract types.
+  - [ ] Search request shape.
+  - [ ] Search filters.
+  - [ ] Search result shape.
+  - [ ] Search document/indexer shape.
+  - [ ] Search adapter capability shape.
+  - [ ] Rebuild/repair summary shape.
+- [ ] Add shared API response helpers/types where useful.
+  - [ ] Standard success response.
+  - [ ] Standard error response.
+  - [ ] Pagination metadata.
+  - [ ] Permission-denied response shape.
+
+### Version 0.32.10.1.3 - Selective Type Checking of High-Value Files
+
+- [ ] Add `// @ts-check` and JSDoc typing to selected framework files first.
+  - [ ] Module registry and manifest validation.
+  - [ ] Search service and search adapter boundary.
+  - [ ] Notification service contracts.
+  - [ ] Tag service contracts.
+  - [ ] Settings/app-shell bootstrap payloads.
+- [ ] Avoid broad UI conversion in this version unless a file is already being touched for contract cleanup.
+- [ ] Avoid converting every route file in one pass.
+
+### Version 0.32.10.1.4 - Codex and Regression Workflow
+
+- [ ] Update `AGENTS.md` or development docs.
+  - [ ] Codex should run `npm run typecheck` when changing framework contracts, module manifests, search, tags, notifications, files, permissions, public API routes, or shared API payloads.
+  - [ ] Codex should not silence type errors with broad `any` unless the roadmap explicitly allows it.
+  - [ ] New framework contracts should include type definitions or JSDoc-backed shapes.
+- [ ] Add focused regression coverage where type contract changes expose existing weak spots.
+- [ ] Document the difference between runtime validation and TypeScript checking.
+  - [ ] TypeScript helps developers catch wrong shapes before runtime.
+  - [ ] API input, database rows, uploaded files, module manifests, and user data still require runtime validation.
+
+### Version 0.32.10.1.5 - Release Closeout
+
+- [ ] Update documentation.
+  - [ ] Add TypeScript migration notes to architecture/module development docs.
+  - [ ] Note that TypeScript is dev-time checking only in this version.
+- [ ] Update changelog.
+- [ ] Run verification.
+  - [ ] `npm run typecheck`
+  - [ ] `npm run check`
+  - [ ] `npm run test:permissions`
+
+## Version 0.32.10.2
 
 * [ ] Add tag filters to reporting where useful
 
@@ -238,7 +306,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   * [ ] Notifications do not expose records the user cannot access
   * [ ] Disabled modules do not create new notifications
 
-## Version 0.32.10 - File Storage and Attachment Framework Foundation
+## Version 0.32.11 - File Storage and Attachment Framework Foundation
 
 - [ ] Add framework-owned file storage foundation.
   - [ ] File handling should be a shared framework service, not separately implemented by Tasks, Tickets, Notes, Knowledge Base, Creator Studio, or future modules.
@@ -348,7 +416,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] `files.manage_quarantine`
   - [ ] `files.manage_workspace_settings`
 
-## Version 0.32.11 - File Upload, Download, Safety, and API
+## Version 0.32.12 - File Upload, Download, Safety, and API
 
 - [ ] Add secure upload handling.
   - [ ] Allowlist file extensions by business need.
@@ -428,7 +496,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] File reported.
   - [ ] File restored from quarantine if that is ever allowed.
 
-## Version 0.32.12 - File Attachment UI and Module Hooks
+## Version 0.32.13 - File Attachment UI and Module Hooks
 
 - [ ] Add reusable file attachment UI helper.
   - [ ] File picker/upload component.
@@ -473,7 +541,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Original filenames cannot overwrite server files.
   - [ ] File metadata remains after attachment removal unless the file itself is deleted.
 
-## Version 0.32.13 - Final Tweaks for 0.32.x branch
+## Version 0.32.14 - Final Tweaks for 0.32.x branch
 
 ### General UI Fixes/Tweaks
 
@@ -523,7 +591,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Notifications in Business workspaces should be grouped by Client
   - [ ] Notifications in Personal/Family workspaces should be grouped by Project
 
-## Version 0.32.14 - Final 0.32.x review for modularization for first-party modules
+## Version 0.32.15 - Final 0.32.x Review for modularization for first-party modules and Addition of initial Help Pages for Existing modules
 
 - Perform a thorough check to ensure all current and existing modules are properly isolated and related data is owned by the appropriate module (there should be no timer tables in the Tasks module, for example)
 - Ensure proper isolation of core/framework from first-party modules
@@ -1030,6 +1098,14 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 ## Version 0.35.0 - Calendars and Calendar Views
 
 - [ ] Calendars
+  - [ ] Year view
+  - [ ] Month view
+  - [ ] Week view
+  - [ ] Day view
+  - [ ] Filters for client (business workspace only)/project
+
+- [ ] Calendar Events
+  - [ ] Display iCal events from shared calendars
 
 ## Version 0.36.0 - Dashboard and Workbench Formalization as Project hub and work center
 

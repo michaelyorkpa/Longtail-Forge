@@ -47,7 +47,7 @@ check("search capabilities expose framework-owned adapter-backed boundary", () =
   const capabilities = searchService.getCapabilities();
 
   assert.equal(capabilities.owner, "framework");
-  assert.equal(capabilities.serviceVersion, "0.32.7.6");
+  assert.equal(capabilities.serviceVersion, "0.32.8.6");
   assert.equal(capabilities.workspaceAware, true);
   assert.equal(capabilities.moduleAware, true);
   assert.equal(capabilities.permissionAware, true);
@@ -65,7 +65,7 @@ check("search capabilities expose framework-owned adapter-backed boundary", () =
     capabilities.metadataSemantics.visibility,
     "search_visibility_metadata_not_permission_source",
   );
-  assert.equal(capabilities.globalApiEnabled, false);
+  assert.equal(capabilities.globalApiEnabled, true);
   assert.equal(capabilities.globalBrowserUiEnabled, false);
   assert.equal(capabilities.recordIndexingEnabled, true);
   assert.equal(capabilities.rebuildToolsEnabled, true);
@@ -139,7 +139,7 @@ check("manifest validation accepts well-formed searchableTypes and rejects direc
     displayName: "Developer Example",
     description: "Example module.",
     category: "example",
-    version: "0.32.7.6",
+    version: "0.32.8.6",
     enabledByDefault: false,
     searchableTypes: [sampleSearchableType],
   };
@@ -380,7 +380,7 @@ await checkAsync("runtime capabilities report SQLite FTS5 support or indexed LIK
 
   const capabilities = await searchService.getRuntimeCapabilities({ refresh: true });
 
-  assert.equal(capabilities.serviceVersion, "0.32.7.6");
+  assert.equal(capabilities.serviceVersion, "0.32.8.6");
   assert.equal(capabilities.backend.adapterId, "sqlite");
   assert.equal(capabilities.backend.engine, "sqlite");
   assert.equal(typeof capabilities.backend.fts5Supported, "boolean");
@@ -1177,10 +1177,10 @@ ORDER BY name;
   if (capabilities.backend.fts5Supported) {
     assert.ok(
       ftsTables.some((table) => table.name === "search_index_fts"),
-      "0.32.7.6 should create the SQLite FTS table when supported",
+      "0.32.8.6 should create the SQLite FTS table when supported",
     );
   } else {
-    assert.deepEqual(ftsTables, [], "0.32.7.6 should skip FTS tables when SQLite lacks FTS5 support");
+    assert.deepEqual(ftsTables, [], "0.32.8.6 should skip FTS tables when SQLite lacks FTS5 support");
   }
 });
 

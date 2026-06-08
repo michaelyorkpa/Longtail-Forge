@@ -17,6 +17,7 @@ const frameworkProtectedViews = new Map([
   ["dashboard.html", { id: "dashboard", file: "dashboard.html" }],
   ["notifications.html", { id: "notifications", file: "notifications.html" }],
   ["reporting.html", { id: "reporting", file: "reporting.html" }],
+  ["search.html", { id: "search", file: "search.html" }],
   ["user-settings.html", { id: "user-settings", file: "user-settings.html" }],
   ["workbench.html", { id: "workbench", file: "workbench.html" }],
   ["workspace-settings.html", { id: "workspace-settings", file: "workspace-settings.html" }],
