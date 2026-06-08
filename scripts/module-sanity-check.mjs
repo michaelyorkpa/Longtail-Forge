@@ -146,6 +146,25 @@ check("taggable type declarations are well formed", () => {
   assert.ok(taggableTypes.some((type) => type.targetType === "project"), "project taggable type should be registered");
 });
 
+check("searchable type declarations are well formed", () => {
+  const searchableTypes = modulesService.listSearchableTypes();
+
+  assertUnique("searchable record type", searchableTypes.map((type) => type.recordType));
+
+  for (const type of searchableTypes) {
+    assert.ok(type.recordType, "searchable recordType is required");
+    assert.ok(type.moduleId, `searchable type ${type.recordType} moduleId is required`);
+    assert.ok(type.idField, `searchable type ${type.recordType} idField is required`);
+    assert.ok(type.titleField, `searchable type ${type.recordType} titleField is required`);
+    assert.ok(type.summaryField, `searchable type ${type.recordType} summaryField is required`);
+    assert.ok(Array.isArray(type.bodyFields) && type.bodyFields.length > 0, `searchable type ${type.recordType} bodyFields are required`);
+    assert.ok(type.workspaceField, `searchable type ${type.recordType} workspaceField is required`);
+    assert.ok(type.requiredReadPermission, `searchable type ${type.recordType} requiredReadPermission is required`);
+    assert.equal(typeof type.indexer, "string", `searchable type ${type.recordType} indexer must be a registry ID string`);
+    assert.ok(type.indexer, `searchable type ${type.recordType} indexer is required`);
+  }
+});
+
 check("module dependencies reference registered modules", () => {
   const moduleIds = new Set(modules.map((moduleDefinition) => moduleDefinition.id));
 

@@ -1197,7 +1197,7 @@ function createBulkClientFilter() {
     createOption("All", "All projects"),
     createOption("__workspace_projects__", workspaceProjectsLabel()),
   );
-  sortClientTree(getRealClients()).filter((client) => isActiveStatus(client.status)).forEach((client) => {
+  sortClientTree(getActiveRealClients()).forEach((client) => {
     select.appendChild(createOption(client.id, client.name));
   });
   select.value = [...select.options].some((option) => option.value === projectClientFilter?.value)
@@ -1235,7 +1235,7 @@ function createBulkClientSelect() {
     createOption("", "No client change"),
     createOption("__workspace__", "Workspace project"),
   );
-  getRealClients().filter((client) => isActiveStatus(client.status)).forEach((client) => {
+  getActiveRealClients().forEach((client) => {
     select.appendChild(createOption(client.id, client.name));
   });
   label.appendChild(select);
@@ -1375,7 +1375,7 @@ function renderProjectClientFilter() {
   projectClientFilter.replaceChildren(createOption("All", "All clients"));
   projectClientFilter.appendChild(createOption("__workspace_projects__", workspaceProjectsLabel()));
 
-  sortClientTree(getRealClients()).forEach((client) => {
+  sortClientTree(getActiveRealClients()).forEach((client) => {
     projectClientFilter.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
   });
 
@@ -1392,6 +1392,10 @@ function getAllProjects() {
 
 function getRealClients() {
   return clientProjectData.clients.filter((client) => !client.isWorkspaceScope);
+}
+
+function getActiveRealClients() {
+  return getRealClients().filter((client) => isActiveStatus(client.status));
 }
 
 function getClientDepth(client, visited = new Set()) {
@@ -2866,7 +2870,7 @@ function flashSavedButton(selector) {
 function applyInitialClientParam() {
   const clientId = new URLSearchParams(window.location.search).get("client") || "";
 
-  if (clientProjectData.clients.some((client) => client.id === clientId)) {
+  if (clientProjectData.clients.some((client) => client.id === clientId && (client.isWorkspaceScope || isActiveStatus(client.status)))) {
     openClientId = clientId;
     if (isProjectsPage && projectClientFilter) {
       projectClientFilter.value = clientId;

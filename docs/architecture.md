@@ -26,7 +26,7 @@ Modules should provide business/workflow functionality such as tasks, time track
 
 ## Current Architecture Direction
 
-As of version 0.31.25, Longtail Forge has an active first-party module architecture with display-only workspace-aware terminology for framework/module-registry surfaces.
+As of version 0.32.6.7, Longtail Forge has an active first-party module architecture with display-only workspace-aware terminology for framework/module-registry surfaces and a framework-owned search service contract with backend adapter capability detection, canonical search metadata storage, active searchable type discovery, backend-neutral permission-safe search request shaping, and a SQLite FTS5/indexed-LIKE prototype behind the adapter boundary.
 
 Current first-party modules include:
 
@@ -35,9 +35,9 @@ Current first-party modules include:
 * Tasks
 * Time Tracking
 
-These modules are registered explicitly in the static module registry. The current manifest contract includes startup validation, registry-driven navigation, settings, protected views, browser assets, permissions, API scopes, audit record types, internal events, event summaries, Workbench cards, timer sources, work item sources, lifecycle hooks, dependency checks, notification declarations, taggable type declarations, and reserved search declarations.
+These modules are registered explicitly in the static module registry. The current manifest contract includes startup validation, registry-driven navigation, settings, protected views, browser assets, permissions, API scopes, audit record types, internal events, event summaries, Workbench cards, timer sources, work item sources, lifecycle hooks, dependency checks, notification declarations, taggable type declarations, and searchable type declarations.
 
-The next architecture step is not automatic plugin discovery. The next step is to continue building the framework-owned services declared in the roadmap, moving from notifications and tags foundations toward tag APIs, tag UI, and search while keeping first-party modules on the same manifest rails future modules will use.
+The next architecture step is not automatic plugin discovery. The next step is to continue building the framework-owned services declared in the roadmap, moving from the search contract, adapter capability layer, canonical `search_index` metadata table, active searchable type contract, and SQLite FTS/fallback prototype toward indexing/rebuild tools and search UI while keeping first-party modules on the same manifest rails future modules will use.
 
 Longtail Forge should prefer:
 

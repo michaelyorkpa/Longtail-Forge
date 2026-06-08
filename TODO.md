@@ -15,22 +15,13 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
-- [ ] Need a way for properly authenticated users to see active/running timers, but not change them
-
-- [ ] Projects -> Projects, Client filter doesn't apply "Active" as a restrainer for display. I, previously, had Raymond Tec as a client, so now I have two Raymond Tec's in the list, one that is the old, inactive client, one that is the workspace projects (correct). Please adjust the filter "Client" to only display active clients. Thank you!
-
 - Review whether the User Settings "Remove Workspace" flow needs clearer wording now that it removes the signed-in user's membership rather than deleting the workspace record.
 
 ## Tweaks
 
 - [ ] Build Activity feed on top of notification hooks?
 
-- [ ] "Open Task" on the Workbench should open the edit modal within the Workbench, not redirect to Tasks -> Edit Task.
-
-- Add Workspace level date format display settings
-- Add Workspace level time format display settings
-- Add user level setting for timezone display "Local Timezone or UTC"
-  - Does this make sense on a lower level too? (May be useful when freelancers have clients in different timezones)
+- Should there be a client level timezone setting for displaying times in a client's timezone when working on their projects? 
 
 - The workbench should be your daily workspace. The dashboard is where you go to focus/refocus.
   - Workbench should have a focus mode selector: 
@@ -54,23 +45,18 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - How long does archiving last?
   - There should be some mechanism to export archived records for storage to keep database light
 
-- Add Workspace option to set default screen when switching into that workspace.
-  - Current behavior keeps it on Time Tracker, for example, but perhaps a user would always want to default to the dashboard. So, make the starting page selectable and provide a "Stay on Current Workspace's page" option as well (so when a new workspace opens it remains in the time tracker, or tasks, or whatever)
-
 - Add proper billing detalis for: 
   - Clients
   - Business Workspaces
 
 ## UI clean up/clarification
 
-- [ ] If a client filter is selected on Projects in a business workspace, there's no need to have the client name in Parenthesis behind the project name. This should be reserved for the full list.
-
 - [ ] There should be something in the views/models that indicates whether a field needs to be required so the * becomes automatic as views happen (if this is best practice)
   - [ ] Create list of every form for required entry fields
     - User Settings
       - Every field except Alternate Email address
 
-- [ ] Create a list of notifications per record type for proper notification implementation
+- [ ] Create a list of notifications per record type (module) for proper notification implementation
   - [ ] Create a default notifications preference that's adjustable per user
   - [ ] Notifications are only sent to owners, assignees, or external clients as appropriate
 
@@ -78,12 +64,230 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - Timer Concurrency
 
-# Medium Term
+- Secure Notes
 
 - Expand tagging infrastructure to: 
   - normalize capitalization (on input)
     - This should be a default setting ("Normalize/Standardize capitalization?")
   - 
+
+# Medium Term
+
+## 0.4x Expansion Targets - Support Tickets
+
+### 0.40.x - Ticket Automations and Rules
+
+* [ ] Add framework-owned automation/rules foundation before ticket-specific automations.
+
+  * [ ] Rules should be framework-owned.
+  * [ ] Tickets should contribute rule triggers, conditions, and actions.
+  * [ ] Do not hard-code automation behavior only inside Support Tickets.
+
+* [ ] Add ticket rule triggers.
+
+  * [ ] Ticket created.
+  * [ ] Ticket source is client portal/API/WordPress/Shopify/email.
+  * [ ] Ticket category changed.
+  * [ ] Ticket priority changed.
+  * [ ] Ticket status changed.
+  * [ ] Ticket assigned.
+  * [ ] Client reply added.
+  * [ ] Internal note added.
+  * [ ] Ticket idle for X time.
+  * [ ] Ticket overdue or waiting too long.
+
+* [ ] Add ticket rule conditions.
+
+  * [ ] Workspace.
+  * [ ] Client.
+  * [ ] Project.
+  * [ ] Source.
+  * [ ] Category.
+  * [ ] Priority.
+  * [ ] Status.
+  * [ ] Assignee.
+  * [ ] Tags.
+  * [ ] Requester.
+  * [ ] Business hours later.
+  * [ ] SLA target later.
+
+* [ ] Add ticket rule actions.
+
+  * [ ] Assign ticket.
+  * [ ] Change priority.
+  * [ ] Change status.
+  * [ ] Add internal note.
+  * [ ] Add tag.
+  * [ ] Notify user/role.
+  * [ ] Create task.
+  * [ ] Create follow-up reminder later.
+  * [ ] Call webhook later.
+
+### 0.41.x - WordPress and Shopify Ticket Intake Plugins
+
+* [ ] Add external plugin integration plan.
+
+  * [ ] WordPress plugin creates tickets through scoped public API.
+  * [ ] Shopify app/plugin creates tickets through scoped public API.
+  * [ ] Plugins should not receive broad workspace/admin API keys.
+  * [ ] Each plugin should have minimal API scopes.
+  * [ ] Each plugin should identify source application and install context.
+
+* [ ] Add intake-specific API hardening.
+
+  * [ ] Per-token rate limits.
+  * [ ] Replay protection/signature support.
+  * [ ] Origin/source metadata.
+  * [ ] Spam/abuse throttling.
+  * [ ] Optional CAPTCHA or challenge support on public forms.
+  * [ ] Safe attachment policy for public intake.
+  * [ ] Clear error responses for plugin users.
+
+* [ ] Add WordPress plugin MVP.
+
+  * [ ] Admin settings for LTF URL and API key.
+  * [ ] Shortcode/block for ticket form.
+  * [ ] Optional logged-in WordPress user mapping.
+  * [ ] Basic category/project routing.
+  * [ ] Success/error state.
+  * [ ] No internal note support.
+
+* [ ] Add Shopify plugin/app MVP.
+
+  * [ ] Admin settings for LTF URL and API key.
+  * [ ] Ticket form from order/customer context where permitted.
+  * [ ] Include order ID/customer snapshot as metadata where safe.
+  * [ ] Optional category routing.
+  * [ ] No internal note support.
+
+### 0.42.x - SLA, Queues, and Service Desk Views
+
+* [ ] Add ticket queue views.
+
+  * [ ] My assigned tickets.
+  * [ ] Unassigned tickets.
+  * [ ] Waiting on internal.
+  * [ ] Waiting on client.
+  * [ ] High/urgent tickets.
+  * [ ] Recently updated.
+  * [ ] Stale tickets.
+
+* [ ] Add saved ticket views if saved filters are stable.
+
+  * [ ] Personal saved views.
+  * [ ] Workspace/shared saved views later.
+  * [ ] Permission-safe filters only.
+
+* [ ] Add SLA groundwork.
+
+  * [ ] First response target.
+  * [ ] Next response target.
+  * [ ] Resolution target.
+  * [ ] Business hours calendar later.
+  * [ ] Pause while waiting on client.
+  * [ ] SLA status fields should be explicit, not inferred from tags.
+
+* [ ] Add escalation hooks.
+
+  * [ ] Notify assignee.
+  * [ ] Notify workspace admins.
+  * [ ] Raise priority.
+  * [ ] Create task.
+  * [ ] Trigger automation rule.
+
+### 0.43.x - Email-to-Ticket and Ticket Replies
+
+* [ ] Add email intake planning.
+
+  * [ ] Inbound mailbox adapter.
+  * [ ] Message threading.
+  * [ ] Reply token or ticket key parsing.
+  * [ ] Safe sender matching.
+  * [ ] Attachment safety scanning.
+  * [ ] Spam handling.
+  * [ ] Loop prevention.
+
+* [ ] Add outbound email notifications/replies only after notification delivery channels are stable.
+
+  * [ ] Client-visible replies can send email.
+  * [ ] Email replies can add client-visible ticket entries.
+  * [ ] Internal notes should never be emailed to clients.
+  * [ ] Redaction/private metadata rules must be enforced.
+
+### 0.44.x - Advanced Ticket Relationships
+
+* [ ] Add ticket linking.
+
+  * [ ] Related tickets.
+  * [ ] Duplicate tickets.
+  * [ ] Parent/child tickets.
+  * [ ] Blocked by / blocking.
+  * [ ] Linked task.
+  * [ ] Linked note.
+  * [ ] Linked KB article.
+
+* [ ] Add ticket-to-knowledge-base flow.
+
+  * [ ] Create note from ticket.
+  * [ ] Create KB draft from resolved ticket.
+  * [ ] Link ticket to existing KB article.
+  * [ ] Suggest KB articles from ticket text using search later.
+  * [ ] Keep KB publishing separate from ticket replies.
+
+### 0.45.x - Reporting and Analytics
+
+* [ ] Add ticket reports.
+
+  * [ ] Tickets created by period.
+  * [ ] Tickets resolved by period.
+  * [ ] Open ticket aging.
+  * [ ] Average first response time.
+  * [ ] Average resolution time.
+  * [ ] Tickets by client.
+  * [ ] Tickets by project.
+  * [ ] Tickets by category.
+  * [ ] Tickets by source.
+  * [ ] Tickets by assignee.
+  * [ ] Time tracked from tickets if Time Tracking is enabled.
+
+* [ ] Add dashboard cards.
+
+  * [ ] Open ticket count.
+  * [ ] Urgent ticket count.
+  * [ ] My assigned tickets.
+  * [ ] Waiting on client.
+  * [ ] Waiting on internal.
+  * [ ] SLA risk later.
+
+### 0.46.x - Multi-Channel Support and Webhooks
+
+* [ ] Add webhook events for ticket integrations.
+
+  * [ ] Ticket created.
+  * [ ] Ticket updated.
+  * [ ] Ticket assigned.
+  * [ ] Ticket status changed.
+  * [ ] Ticket client reply added.
+  * [ ] Ticket resolved.
+  * [ ] Ticket closed.
+
+* [ ] Add webhook delivery safety.
+
+  * [ ] Signing secret.
+  * [ ] Retry policy.
+  * [ ] Delivery logs.
+  * [ ] Failure backoff.
+  * [ ] Disable broken endpoints.
+  * [ ] Per-workspace webhook permissions.
+
+* [ ] Add future intake channels only after the ticket API and abuse controls are stable.
+
+  * [ ] Static web forms.
+  * [ ] WordPress.
+  * [ ] Shopify.
+  * [ ] Email.
+  * [ ] Webhooks.
+  * [ ] Other first-party or third-party modules.
 
 ## Storage Security Foundation
 
@@ -205,8 +409,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - [ ] Determine what code changes need to happen to create phone/tablet/TV apps
 
 ## Administration and Settings
-
-- Is there a way to encrypt/secure the data in the database?
 
 - [ ] Create app-level settings for:
   - [ ] Total number of personal workspaces per users

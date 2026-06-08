@@ -109,6 +109,16 @@ assert.match(
   /data-workbench-renderer="task-workbench-items"/,
   "workbench task card must declare its registered renderer",
 );
+assert.match(
+  files.workbench,
+  /moduleActions\.open\("tasks\.edit"/,
+  "Workbench Open Task must dispatch the Tasks edit modal action",
+);
+assert.doesNotMatch(
+  files.workbench,
+  /tasks\.html\?task=/,
+  "Workbench Open Task must not redirect to the Tasks page edit URL",
+);
 
 assert.match(
   files.manifestContract,

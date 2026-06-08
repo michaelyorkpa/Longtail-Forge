@@ -244,7 +244,7 @@ function createTaskItem(task) {
   const pauseButton = actionButton("Pause", () => pauseTaskTimer(task));
   const saveButton = actionButton("Save & End", () => finalizeTaskTimer(task));
   const completeButton = actionButton("Complete", () => completeTask(task));
-  const openButton = linkButton("Open Task", task.source_url || `tasks.html?task=${encodeURIComponent(task.task_id)}`);
+  const openButton = actionButton("Open Task", () => openTaskAction(task));
 
   startButton.disabled = running || !taskCanUseTimer(task);
   pauseButton.disabled = !running || !taskCanUseTimer(task);
@@ -398,6 +398,24 @@ async function openAddTaskAction() {
     setStatus("");
   } catch (error) {
     setStatus(error.message || "Task form could not be opened.", { isError: true });
+  }
+}
+
+async function openTaskAction(task) {
+  setStatus("Opening task...");
+  try {
+    const result = await window.LongtailForge.moduleActions.open("tasks.edit", {
+      recordId: task.task_id,
+      taskId: task.task_id,
+    }, { setStatus });
+    if (result.completed) {
+      await loadWorkbench();
+      setStatus("Task updated.");
+      return;
+    }
+    setStatus("");
+  } catch (error) {
+    setStatus(error.message || "Task could not be opened.", { isError: true });
   }
 }
 
@@ -881,14 +899,6 @@ function actionButton(label, handler, options = {}) {
   button.classList.toggle("danger-button", Boolean(options.danger));
   button.addEventListener("click", handler);
   return button;
-}
-
-function linkButton(label, href) {
-  const link = document.createElement("a");
-  link.className = "button-link";
-  link.href = href;
-  link.textContent = label;
-  return link;
 }
 
 function emptyState(message) {

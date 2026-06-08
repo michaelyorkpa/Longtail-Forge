@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 9, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 10, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -79,6 +79,11 @@ ORDER BY version;
     module_id: "core",
     name: "add_notification_subscriptions",
   });
+  assert.deepEqual(migrations[9], {
+    version: "040",
+    module_id: "core",
+    name: "add_search_index",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -108,6 +113,7 @@ ORDER BY name;
     "role_permissions",
     "roles",
     "schema_migrations",
+    "search_index",
     "sessions",
     "tag_assignments",
     "tags",
@@ -148,6 +154,14 @@ WHERE type = 'index'
     'idx_notifications_workspace_module',
     'idx_notification_user_preferences_user',
     'idx_notification_workspace_defaults_workspace',
+    'idx_search_index_workspace_body',
+    'idx_search_index_workspace_client',
+    'idx_search_index_workspace_indexed_at',
+    'idx_search_index_workspace_module',
+    'idx_search_index_workspace_project',
+    'idx_search_index_workspace_record_status',
+    'idx_search_index_workspace_record_type',
+    'idx_search_index_workspace_title',
     'idx_tag_assignments_tag_target',
     'idx_tag_assignments_target',
     'idx_tag_assignments_unique_target_tag',
@@ -175,6 +189,14 @@ ORDER BY name;
     "idx_notifications_recipient_status_created",
     "idx_notifications_record",
     "idx_notifications_workspace_module",
+    "idx_search_index_workspace_body",
+    "idx_search_index_workspace_client",
+    "idx_search_index_workspace_indexed_at",
+    "idx_search_index_workspace_module",
+    "idx_search_index_workspace_project",
+    "idx_search_index_workspace_record_status",
+    "idx_search_index_workspace_record_type",
+    "idx_search_index_workspace_title",
     "idx_tag_assignments_tag_target",
     "idx_tag_assignments_target",
     "idx_tag_assignments_unique_target_tag",

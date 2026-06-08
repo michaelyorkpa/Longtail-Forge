@@ -4,6 +4,8 @@ As of version 0.31.22, new Longtail Forge installs use a fresh-start database ba
 
 As of version 0.31.24.2, the active SQLite helper keeps one queued sqlite process alive briefly between calls instead of spawning a new process for every query. The public database helper API remains `querySql`, `runSql`, `sqlText`, `sqlNullableText`, `sqlInteger`, and `sqlNullableInteger`; callers should continue to use those helpers rather than shelling out directly.
 
+As of version 0.32.6.3, framework search metadata lives in the canonical `search_index` table added by migration `040_add_search_index.sql`. FTS virtual tables are lookup engines only and are not the source of truth for workspace scope, module scope, permissions, visibility, or record lifecycle state.
+
 ## Fresh Baseline
 
 The active schema lives in:

@@ -1,6 +1,71 @@
+## Version 0.32.6.7 - 2026-06-08 13:42 -04:00
+
+- Bumped the app and first-party module versions to `0.32.6.7`.
+- Closed the 0.32.6 search framework contract with expanded regression coverage for adapter-backed search, SQLite FTS5/fallback behavior, canonical `search_index` ownership, client/project scope filters, exact tag filters, and invalid searchable declarations.
+- Updated README, architecture, module contract, roadmap, and decisions documentation for the completed search foundation.
+- Archived older completed roadmap sections while keeping the completed 0.32.6 section as the active roadmap's latest completed section.
+
+## Version 0.32.6.6 - 2026-06-08 12:50 -04:00
+
+- Bumped the app and first-party module versions to `0.32.6.6`.
+- Added adapter-owned SQLite FTS5 setup that creates `search_index_fts` only when the active SQLite build supports FTS5.
+- Added prototype search document writes through the framework search service, keeping `search_index` canonical and synchronizing FTS rows when available.
+- Added SQLite search execution through FTS5 or indexed `LIKE` fallback, with forced fallback support for observable regression coverage.
+- Documented that 0.32.7 rebuild tooling will regenerate FTS rows from canonical `search_index` rows and repair missing/orphaned FTS entries.
+- Updated roadmap, decisions, architecture, and module contract documentation for 0.32.6.6.
+- Fixed the Projects page Client filter so it only offers active clients while preserving the workspace projects option.
+- Fixed Workbench `Open Task` so it opens the Tasks edit modal in place instead of redirecting to the Tasks page edit URL.
+- Added a top-heading Time Entries shortcut to Time Tracker and widened the shared time entry dialog to avoid horizontal modal overflow.
+
+## Version 0.32.6.5 - 2026-06-08 12:29 -04:00
+
+- Bumped the app and first-party module versions to `0.32.6.5`.
+- Added a backend-neutral permission-safe search request model that scopes searches to the active workspace, hides disabled-module targets, and carries declared read permissions per target.
+- Documented search metadata semantics for visibility, record status, source labels, and canonical tag assignment filtering.
+- Expanded search contract regression coverage for workspace escape prevention, disabled-module target hiding, adapter-neutral query shaping, and per-target permission metadata.
+- Updated architecture, module contract, module development, roadmap, and decisions documentation for 0.32.6.5.
+
+## Version 0.32.6.4 - 2026-06-08 11:51 -04:00
+
+- Bumped the app and first-party module versions to `0.32.6.4`.
+- Added active searchable type discovery that filters declarations by enabled workspace modules and required module dependencies.
+- Made `bodyFields` an explicit required searchable type declaration field.
+- Added framework search document normalization so module-owned indexers return normalized `search_index`-shaped documents instead of writing search tables directly.
+- Expanded search and module sanity regressions for required body fields, disabled-module filtering, and normalized search document output.
+- Updated architecture, module contract, module development, roadmap, and decisions documentation for 0.32.6.4.
+
+## Version 0.32.6.3 - 2026-06-08 11:43 -04:00
+
+- Bumped the app and first-party module versions to `0.32.6.3`.
+- Added migration `040_add_search_index.sql` with the canonical `search_index` framework search metadata table.
+- Added basic SQLite fallback/filter indexes for workspace + record type, module, client, project, record status, indexed timestamp, title, and body.
+- Updated search service capabilities to report the canonical `search_index` metadata table.
+- Expanded search and fresh database regressions to verify the `search_index` schema, indexes, migration marker, and absence of FTS virtual tables in this pass.
+- Updated architecture, database, module contract, module development, roadmap, and decisions documentation for 0.32.6.3.
+
+## Version 0.32.6.2 - 2026-06-08 11:33 -04:00
+
+- Bumped the app and first-party module versions to `0.32.6.2`.
+- Added the search backend adapter registry and the first SQLite search adapter.
+- Added SQLite FTS5 capability detection using compile options and a safe temporary virtual-table probe.
+- Reported runtime search backend capabilities from the framework search service, including `sqlite-fts5` versus indexed `LIKE` fallback mode.
+- Expanded search contract regression coverage for adapter discovery, FTS5 detection, fallback reporting, and the no-external-search requirement.
+- Updated architecture, module contract, module development, roadmap, and decisions documentation for 0.32.6.2.
+
+## Version 0.32.6.1 - 2026-06-08 11:13 -04:00
+
+- Bumped the app and first-party module versions to `0.32.6.1`.
+- Added the framework-owned search service shell with capability discovery, searchable declaration validation, registry-driven searchable type lookup, and permission-safe search filter composition.
+- Promoted `searchableTypes` from reserved groundwork to an active validated module manifest contract.
+- Added the framework search indexer registry so module manifests use stable string indexer IDs while backend services can register resolver functions internally.
+- Added `scripts/search-contract-regression.mjs` and wired it into `npm run check`.
+- Expanded module sanity checks and docs for searchable type declarations, search ownership, registry-ID indexers, and the deferred API/UI/indexing/rebuild boundaries.
+- Updated roadmap and decisions bookkeeping for 0.32.6.1.
+
 ## Version 0.32.5.5.1 - 2026-06-08 09:53 -04:00
 
 - Bumped the app and first-party module versions to `0.32.5.5.1`.
+- Reworked the upcoming 0.32.6 search framework roadmap into sub-versioned implementation slices, added open design questions, and recorded the planning boundary in `DECISIONS.md` on 2026-06-08 10:53 -04:00.
 - Restored the full Notifications page initialization path so the notification inbox loads independently from preference helper/API availability.
 - Hardened `notifications.html` filter handling so Active, Unread, Read, and Dismissed update `aria-pressed` and reload the selected notification status.
 - Exposed the app-shell notification count refresh hook to full-page notification actions so Mark Read, Mark All Read, and Dismiss keep the list and header badge aligned.

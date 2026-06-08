@@ -35,6 +35,7 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "timerSources",
   "workItemSources",
   "taggableTypes",
+  "searchableTypes",
   "hooks",
   "frameworkDependencies",
   "moduleDependencies",
@@ -47,7 +48,6 @@ const RESERVED_MANIFEST_FIELDS = new Set([
   "notificationEvents",
   "notificationTemplates",
   "notificationFollowTargets",
-  "searchableTypes",
 ]);
 
 const MODULE_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
@@ -119,6 +119,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateTimerSources(moduleDefinition.timerSources, moduleDefinition.id, errors);
   validateWorkItemSources(moduleDefinition.workItemSources, moduleDefinition.id, errors);
   validateTaggableTypes(moduleDefinition.taggableTypes, moduleDefinition.id, errors);
+  validateSearchableTypes(moduleDefinition.searchableTypes, moduleDefinition.id, errors);
   validateNotificationEvents(moduleDefinition.notificationEvents, moduleDefinition.id, errors);
   validateNotificationTemplates(moduleDefinition.notificationTemplates, moduleDefinition.id, errors);
   validateNotificationFollowTargets(moduleDefinition.notificationFollowTargets, moduleDefinition.id, errors);
@@ -529,6 +530,37 @@ function validateTaggableTypes(taggableTypes, moduleId, errors) {
   });
 }
 
+function validateSearchableTypes(searchableTypes, moduleId, errors) {
+  optionalArrayOfObjects(searchableTypes, "searchableTypes", errors, (item, index) => {
+    requireString(item, "recordType", errors, { prefix: `searchableTypes[${index}]` });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix: `searchableTypes[${index}]` });
+    optionalString(item, "label", errors, { prefix: `searchableTypes[${index}]` });
+    optionalString(item, "description", errors, { prefix: `searchableTypes[${index}]` });
+    requireString(item, "idField", errors, { prefix: `searchableTypes[${index}]` });
+    requireString(item, "titleField", errors, { prefix: `searchableTypes[${index}]` });
+    requireString(item, "summaryField", errors, { prefix: `searchableTypes[${index}]` });
+    requireStringArray(item, "bodyFields", errors, { prefix: `searchableTypes[${index}]` });
+    requireString(item, "workspaceField", errors, { prefix: `searchableTypes[${index}]` });
+    optionalString(item, "clientField", errors, { prefix: `searchableTypes[${index}]` });
+    optionalString(item, "projectField", errors, { prefix: `searchableTypes[${index}]` });
+    requireString(item, "requiredReadPermission", errors, { prefix: `searchableTypes[${index}]` });
+    requireString(item, "indexer", errors, { prefix: `searchableTypes[${index}]` });
+    optionalStringArray(item, "requiredModules", errors, { prefix: `searchableTypes[${index}]` });
+    optionalString(item, "tagsTextField", errors, { prefix: `searchableTypes[${index}]` });
+    optionalString(item, "visibilityField", errors, { prefix: `searchableTypes[${index}]` });
+    optionalString(item, "recordStatusField", errors, { prefix: `searchableTypes[${index}]` });
+    optionalString(item, "sourceLabel", errors, { prefix: `searchableTypes[${index}]` });
+    validateTerminology(item.terminology, `searchableTypes[${index}].terminology`, errors);
+
+    if (Array.isArray(item.bodyFields) && item.bodyFields.length === 0) {
+      errors.push(`searchableTypes[${index}].bodyFields must include at least one field when provided.`);
+    }
+    if (item.indexer !== undefined && typeof item.indexer !== "string") {
+      errors.push(`searchableTypes[${index}].indexer must be a framework search indexer registry ID, not a function reference.`);
+    }
+  });
+}
+
 function validateTerminology(terminology, prefix, errors) {
   if (terminology === undefined) {
     return;
@@ -637,6 +669,13 @@ function optionalStringArray(object, fieldName, errors, options = {}) {
   }
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string" || item.trim() === "")) {
     errors.push(`${formatFieldName(fieldName, options.prefix)} must be an array of non-empty strings.`);
+  }
+}
+
+function requireStringArray(object, fieldName, errors, options = {}) {
+  const value = object[fieldName];
+  if (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== "string" || item.trim() === "")) {
+    errors.push(`${formatFieldName(fieldName, options.prefix)} is required and must be a non-empty array of non-empty strings.`);
   }
 }
 

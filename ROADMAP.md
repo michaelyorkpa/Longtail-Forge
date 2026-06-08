@@ -1,300 +1,170 @@
-# Longtail Forge Roadmap
+﻿# Longtail Forge Roadmap
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.5.4 - Notification UI Fixes
-
-This section should fix the first-pass notification UI regressions and make notification preferences usable from the framework-owned notification surfaces. Keep notification UI framework-owned; modules declare event types and target metadata, but should not render separate inboxes, bells, or duplicate preference screens.
-
-### Pass 1 - Notification dropdown display and dismissal fixes
-
-- [x] Reduce the work item title size in the notification dropdown.
-  - [x] Keep the title readable, but scale it like a compact dropdown row title instead of a page/card heading.
-  - [x] Preserve visible target context such as client/project or project-only labels where already available.
-  - [x] Verify long titles wrap or truncate cleanly without stretching the dropdown.
-- [x] Fix dropdown dismiss behavior.
-  - [x] Dismissing a notification from the dropdown should remove it from the visible dropdown list immediately after a successful save.
-  - [x] Dismissing the last visible notification should update the empty state.
-  - [x] Dismissal should update the unread/count indicator consistently.
-  - [x] Failed dismiss requests should leave the notification visible and show a useful status message.
-- [x] Fix dropdown-to-inbox consistency.
-  - [x] "See all notifications" should show the same active notification that appears in the dropdown when it has not been dismissed or archived.
-  - [x] The dropdown and full notification inbox should use compatible status filters for unread/read/dismissed visibility.
-  - [x] Verify the notification that currently will not clear appears in the full inbox before dismissal and disappears or moves state after dismissal.
-
-### Pass 2 - Notification preferences in both notification surfaces
-
-- [x] Add notification preference controls to the full Notifications screen.
-  - [x] Show preferences in a dedicated section or tab on `notifications.html`.
-  - [x] Group preferences by module.
-  - [x] Render checkbox controls for each configurable notification event type.
-  - [x] Keep labels user-readable while storing preferences by stable event type IDs.
-  - [x] Respect workspace-level notification defaults when deciding whether a user can enable or mute an event.
-- [x] Add the same user notification preferences to User Settings.
-  - [x] Reuse the same framework-owned preference data and rendering contract as the Notifications screen.
-  - [x] Avoid creating a second preference model in User Settings.
-  - [x] Keep notification preferences separate from module enablement/settings controls.
-- [x] Save preference changes through the framework notification preference API.
-  - [x] Save per-user, per-workspace, per-event preferences.
-  - [x] Refresh visible preference state after save.
-  - [x] Show success and error status messages.
-  - [x] Audit preference changes where the existing notification decisions require it.
-
-### Pass 3 - Per-work-item notification follow hooks
-
-- [x] Design a framework-owned per-target notification subscription contract.
-  - [x] Let an individual user follow a specific work item and receive notifications for that target even when their broader preferences would otherwise be muted.
-  - [x] Keep subscriptions scoped to one workspace, one user, one module, one target type, and one target ID.
-  - [x] Keep module ownership limited to declaring followable target types and relevant event types.
-  - [x] Ensure target access is checked before a user can follow or receive notifications for that target.
-- [x] Add follow/unfollow hooks for task/work-item surfaces.
-  - [x] A user should be able to turn on notifications for a specific task or work item.
-  - [x] Example flow: one user creates a task, assigns it to someone else, then follows that task so they receive update notifications.
-  - [x] Following a work item should apply only to the user who turned it on.
-  - [x] Unfollowing should stop that user's per-target override without changing workspace defaults or other users' preferences.
-- [x] Decide whether this pass needs a new database table before implementation.
-  - [x] Consider a `notification_subscriptions` or similarly named framework table.
-  - [x] Store workspace, user, module, target type, target ID, status, created/updated timestamps, and optional event-type filtering.
-  - [x] Add indexes for workspace/user and workspace/target lookup.
-  - [x] Preserve future room for email/push delivery without implementing those channels here.
-
-### Pass 4 - Regression and verification
-
-- [x] Add regression coverage for dropdown dismissal.
-  - [x] Dismiss removes the notification from the dropdown after success.
-  - [x] Dismiss updates unread/count state.
-  - [x] Failed dismiss keeps the notification visible.
-- [x] Add regression coverage for dropdown/full-inbox consistency.
-  - [x] A visible dropdown notification is present in the full inbox under the appropriate active filter.
-  - [x] Read/dismissed status handling is consistent between both surfaces.
-- [x] Add regression coverage for user notification preferences.
-  - [x] Preferences render grouped by module.
-  - [x] Preference changes save per workspace/user/event type.
-  - [x] User Settings and the Notifications screen read/write the same preference source.
-- [x] Add regression coverage for per-target subscriptions if implemented in this version.
-  - [x] Only the subscribing user receives the override.
-  - [x] Target permission checks are enforced before follow and before delivery.
-  - [x] Unfollow removes the override without mutating broader preferences.
-
-## Version 0.32.5.5 - Tags Fixes
-
-- [ ] Make tagging feel more like WordPress tags: users should be able to type, select, create, and assign tags without leaving the record they are editing.
-  - [x] Treat the existing Tags page as the bulk/admin cleanup surface, not the required first stop for everyday tagging.
-  - [x] Keep tags as shared workspace tag records with assignment rows; do not store comma-separated tag text directly on tasks, time entries, clients, or projects.
-  - [x] Keep record modules integrated through the shared browser tag helper and generic tag services.
-
-### Pass 1 - Shared Inline Tag Entry Control
-
-- [x] Upgrade the shared tag picker into a WordPress-like token entry control.
-  - [x] Let users type tag names directly into the field.
-  - [x] Show matching existing workspace tags while the user types.
-  - [x] Add selected tags as removable chips/tokens.
-  - [x] Support Enter, comma, and selection from the suggestion list.
-  - [x] Prevent duplicate chips for the same tag.
-  - [x] Preserve keyboard navigation and screen-reader labels.
-- [x] Support inline tag creation through the shared helper.
-  - [x] If the typed value does not match an existing tag, offer to create it inline.
-  - [x] Normalize tag names the same way the Tags page does.
-  - [x] Reuse existing tags when the normalized name/slug already exists.
-  - [x] Create the tag record before assigning it to the target record.
-  - [x] Surface validation errors without losing the user's selected tags.
-
-### Pass 2 - Record Workflow Integration
-
-- [x] Add inline tag creation to task add/edit workflows.
-  - [x] Users can create and assign tags from the task dialog.
-  - [x] Existing task tag loading, saving, and filtering continue to work.
-- [x] Add inline tag creation to time entry workflows.
-  - [x] Users can create and assign tags from stopwatch save/finalize flows where tags are editable.
-  - [x] Users can create and assign tags from manual/add/edit time entry dialogs.
-  - [x] Time entry reporting filters continue to match direct time-entry tags only.
-- [x] Add inline tag creation to client/project workflows where tag editing already appears.
-  - [x] Client/project tags remain context metadata.
-  - [x] Client/project tags are not copied automatically onto child tasks or time entries.
-- [x] Keep read-only/history surfaces display-only.
-  - [x] Tag lists render normally on non-editing views.
-  - [x] Inline creation is only available in explicit add/edit contexts.
-
-### Pass 3 - Tags Management Page Improvements
-
-- [x] Keep the Tags page useful for workspace-level tag cleanup.
-  - [x] Show tag search/filtering prominently.
-  - [x] Show enough metadata to distinguish similar tags.
-  - [x] Show usage counts if the service can provide them without expensive page loads.
-  - [x] Make duplicate-name and normalized-slug conflicts obvious.
-- [x] Keep advanced cleanup out of the inline picker.
-  - [x] Renaming, disabling, deleting, merging, or auditing tags should stay on the Tags page.
-  - [x] Inline record workflows should focus on fast create/select/assign behavior.
-
-### Pass 4 - Permissions, Module State, and Regression Coverage
-
-- [x] Enforce tag permissions consistently.
-  - [x] Users with assignment permission can assign existing tags where the target record permits tagging.
-  - [x] Users without tag definition management permission cannot create new tags inline.
-  - [x] Users without assignment permission cannot add or remove record tags inline.
-  - [x] Permission failures show clear inline feedback.
-- [x] Respect the disableable first-party Tags module.
-  - [x] When the Tags module is disabled, inline tag creation and assignment controls are hidden or disabled.
-  - [x] Existing tag displays remain stable where historical/read-only display is allowed.
-  - [x] Tag APIs remain blocked through the existing service-level guards.
-- [x] Add regression checks for the WordPress-like tag workflow.
-  - [x] Creating a new tag inline creates one workspace tag definition and assigns it to the record.
-  - [x] Selecting an existing suggestion assigns the existing tag without creating a duplicate.
-  - [x] Enter and comma tokenization work without submitting the surrounding form unexpectedly.
-  - [x] Removing a chip removes only that record assignment.
-  - [x] Module-disabled and permission-denied states block creation/assignment.
-
-### Version 0.32.5.5.1 - Add update type to notifications, Fix all notifications screen
-
-### Pass 1 - Restore the Full Notifications Page
-
-- [x] Reproduce the blank `notifications.html` behavior against the running app.
-  - [x] Confirm whether the page script is loading and running.
-  - [x] Confirm whether `/api/notifications` is returning records for the active user.
-  - [x] Confirm whether browser console/API errors are preventing rendering.
-- [x] Fix the page wiring so the full notification inbox renders again.
-  - [x] Ensure the initial Active filter loads notifications by default.
-  - [x] Ensure empty states only show when the API returns an empty result.
-  - [x] Ensure preference loading failures do not prevent the notification list from rendering.
-  - [x] Ensure missing optional helpers fail gracefully instead of stopping the page script.
-- [x] Fix filter interaction on `notifications.html`.
-  - [x] Active, Unread, Read, and Dismissed buttons should visibly update `aria-pressed`.
-  - [x] Each filter should reload `/api/notifications` with the correct status.
-  - [x] The list should refresh after filter changes.
-  - [x] The module/source filter should continue to filter the currently loaded status set.
-- [x] Preserve existing notification actions.
-  - [x] Mark Read should still update the selected notification and refresh the list.
-  - [x] Mark All Read should still refresh counts and the current filter.
-  - [x] Dismiss should still move notifications out of Active and into Dismissed.
-
-### Pass 2 - Add Plain-English Update Type Labels
-
-- [x] Add a notification update type display contract.
-  - [x] Prefer a stable API-decorated field such as `displayType` or `updateTypeLabel`.
-  - [x] Keep raw `event_type` available for preferences, APIs, tests, and debugging.
-  - [x] Use module/event declarations where available instead of hardcoding labels only in the browser.
-- [x] Define first task notification labels.
-  - [x] `task.created` should display as "Task Created".
-  - [x] `task.updated` should display a more specific label when metadata identifies the changed field.
-  - [x] Description changes should display as "Description Added", "Description Updated", or similar plain English wording based on available metadata.
-  - [x] Status, priority, assignment, due date, recurrence, and reminder changes should have readable labels when metadata can identify them.
-  - [x] Unknown task updates should fall back to "Task Updated".
-- [x] Render the update type prominently in notification UI.
-  - [x] Full notifications page rows should show the plain-English update type.
-  - [x] Notification bell/dropdown rows should show the same plain-English update type.
-  - [x] The label should be distinct from unread/read/dismissed status.
-  - [x] Existing target title/context behavior should remain intact.
-- [x] Keep labels consistent across notification surfaces.
-  - [x] Full page, dropdown, and API responses should agree on the same label.
-  - [x] Labels should remain readable if the target record is no longer accessible.
-  - [x] Labels should not expose private target details when target access is denied.
-
-### Pass 3 - Regression and Documentation Closeout
-
-- [x] Add regression coverage for the restored full notifications page.
-  - [x] Protected `notifications.html` includes the required list, filter, status, and script hooks.
-  - [x] Page script initializes the list even if preferences fail.
-  - [x] Filter buttons update pressed state and reload the API with the selected status.
-  - [x] Active/read/unread/dismissed API filters still return the expected records.
-- [x] Add regression coverage for update type labels.
-  - [x] Created task notifications expose and render "Task Created".
-  - [x] Updated task notifications expose and render a field-specific plain-English label when metadata supports it.
-  - [x] Unknown update metadata falls back to "Task Updated".
-  - [x] Dropdown and full-page rendering use the same label source.
-- [x] Update release bookkeeping.
-  - [x] Record the 0.32.5.5.1 decisions in `DECISIONS.md`.
-  - [x] Add 0.32.5.5.1 changes to `CHANGELOG.md` with date/time.
-  - [x] Bump `package.json` and `package-lock.json` to `0.32.5.5.1`.
-  - [x] Verify `/api/app-info` reports `0.32.5.5.1`.
-- [x] Run verification.
-  - [x] Run focused notification regressions.
-  - [x] Run `npm run check`.
-  - [x] Run `npm run test:permissions` if permission-sensitive notification paths change.
-
 ## Version 0.32.6 - Search Framework Contract
 
-* [ ] Add framework-owned search service
+### Questions and Design Decisions
 
-  * [ ] Search should be a framework service, not a feature owned by Tasks, Notes, Tickets, Messaging, or Time Tracking
-  * [ ] Search should be permission-aware
-  * [ ] Search should be workspace-aware
-  * [ ] Search should be module-aware
-  * [ ] Search should be tag-aware
-  * [ ] Search should be notification-aware only where notification records themselves are searchable later
+- [x] Confirm that 0.32.6 stops at the search contract, schema, adapter capability layer, and regression coverage; record indexing and rebuild workflows remain in 0.32.7. 
+  - Confirmed
+- [x] Confirm that global search API routes and browser UI stay in 0.32.8 after the framework contract and index population tools exist. 
+  - Confirmed.
+- [x] Decide whether module-declared indexer references should be manifest string IDs resolved through a service registry, direct backend service registrations, or both.
+  - Use manifest string IDs resolved through a framework search indexer registry. Allow direct backend service registration internally, but do not put direct function references in module manifests as the long-term contract.
+- [x] Decide whether notification records become searchable in a later notification-specific pass, limited to notification rows themselves instead of making search depend on notification delivery history.
+  - Yes, notification records can become searchable later, but only in a notification-specific pass, and only as notification records. Search should not depend on notification delivery history to find Tasks, Projects, Tickets, Notes, or other real records.
+- [x] Decide how much tag text should be denormalized into `search_index.tags_text` versus joined at query time from canonical tag assignment tables.
+  - Store denormalized tag names/slugs in search_index.tags_text for full-text matching and ranking, but use canonical tag assignment tables for permission-safe tag filtering and exact tag logic.
 
-* [ ] Add search backend adapter contract
+### Version 0.32.6.1 - Search Ownership and Framework Boundaries
 
-  * [ ] Start with a simple database-backed adapter
-  * [ ] Leave room for SQLite FTS5
-  * [ ] Leave room for PostgreSQL full-text search
-  * [ ] Leave room for external search engines later
-  * [ ] Do not require Elasticsearch/OpenSearch at this stage
+- [x] Add a framework-owned search service shell.
+  - [x] Search should be a framework service, not a feature owned by Tasks, Notes, Tickets, Messaging, or Time Tracking.
+  - [x] Search should be workspace-aware.
+  - [x] Search should be module-aware.
+  - [x] Search should be permission-aware.
+  - [x] Search should be tag-aware.
+  - [x] Search should be notification-aware only where notification records themselves are searchable later.
+- [x] Define the first service-level contracts without adding global search UI yet.
+  - [x] Add service methods for capability discovery.
+  - [x] Add service methods for validating searchable type declarations.
+  - [x] Add service methods for composing permission-safe search filters.
+  - [x] Leave record indexing methods for 0.32.7 unless a tiny internal stub is required for tests.
+- [x] Preserve the module/framework boundary.
+  - [x] Modules declare searchable record types and provide indexing data.
+  - [x] The framework owns search storage, adapters, permission filtering, and query orchestration.
+  - [x] The framework should not maintain a permanent hard-coded list of searchable record types.
 
-- [ ] Add SQLite FTS5 as the first real full-text backend where available. 
-  - [ ] Detect whether the active SQLite build supports FTS5. 
-  - [ ] Add a safe fallback to indexed `LIKE` search if FTS5 is unavailable. 
-  - [ ] Prefer FTS5 for local/self-hosted SQLite installs before considering external search services. 
-  - [ ] Keep the search service behind an adapter so PostgreSQL full-text search can be added later. 
-  - [ ] Do not require Elasticsearch/OpenSearch at this stage. 
-- [ ] Add `search_index` as the canonical framework search metadata table. 
-  - [ ] Keep permission, workspace, module, client, project, status, and visibility metadata in normal tables. 
-  - [ ] Use the normal `search_index` table as the source of truth for what records are searchable. 
-  - [ ] Use FTS5 virtual tables only as the full-text lookup engine. 
-  - [ ] Do not use FTS5 as the source of truth for permissions or record visibility. 
-- [ ] Add SQLite FTS5 virtual table/migration if supported. 
-  - [ ] Index searchable text fields such as title, summary, body, tags text, and module/source label. 
-  - [ ] Store enough reference fields to map FTS results back to `search_index`. 
-  - [ ] Keep FTS rows synchronized when `search_index` records are created, updated, removed, or rebuilt. 
-  - [ ] Add rebuild tooling that can regenerate FTS rows from `search_index`. 
-  - [ ] Add tests for FTS availability and fallback behavior.
+### Version 0.32.6.2 - Backend Adapter Contract and Capability Detection
 
-* [ ] Add initial `search_index` table
+- [x] Add a search backend adapter contract.
+  - [x] Start with a simple database-backed adapter.
+  - [x] Leave room for SQLite FTS5.
+  - [x] Leave room for PostgreSQL full-text search.
+  - [x] Leave room for external search engines later.
+  - [x] Do not require Elasticsearch/OpenSearch at this stage.
+- [x] Add adapter capability detection.
+  - [x] Detect whether the active SQLite build supports FTS5.
+  - [x] Report the active search backend and fallback mode through internal service capability data.
+  - [x] Keep capability detection safe for fresh databases and test databases.
+- [x] Define fallback behavior.
+  - [x] Prefer SQLite FTS5 for local/self-hosted SQLite installs when available.
+  - [x] Fall back to indexed `LIKE` search when FTS5 is unavailable.
+  - [x] Keep PostgreSQL full-text search as a future adapter implementation instead of SQLite-specific service logic.
 
-  * [ ] `search_index_id`
-  * [ ] `workspace_id`
-  * [ ] `module_id`
-  * [ ] `record_type`
-  * [ ] `record_id`
-  * [ ] `title`
-  * [ ] `summary`
-  * [ ] `body`
-  * [ ] `tags_text`
-  * [ ] `client_id`
-  * [ ] `project_id`
-  * [ ] `visibility`
-  * [ ] `record_status`
-  * [ ] `source`
-  * [ ] `record_created_at`
-  * [ ] `record_updated_at`
-  * [ ] `indexed_at`
+### Version 0.32.6.3 - Canonical Search Index Schema
 
-* [ ] Add indexes for basic search/filtering
+- [x] Add `search_index` as the canonical framework search metadata table.
+  - [x] Use the normal `search_index` table as the source of truth for what records are searchable.
+  - [x] Keep permission, workspace, module, client, project, status, and visibility metadata in normal tables.
+  - [x] Use FTS5 virtual tables only as the full-text lookup engine.
+  - [x] Do not use FTS5 as the source of truth for permissions or record visibility.
+- [x] Add initial `search_index` fields.
+  - [x] `search_index_id`
+  - [x] `workspace_id`
+  - [x] `module_id`
+  - [x] `record_type`
+  - [x] `record_id`
+  - [x] `title`
+  - [x] `summary`
+  - [x] `body`
+  - [x] `tags_text`
+  - [x] `client_id`
+  - [x] `project_id`
+  - [x] `visibility`
+  - [x] `record_status`
+  - [x] `source`
+  - [x] `record_created_at`
+  - [x] `record_updated_at`
+  - [x] `indexed_at`
+- [x] Add indexes for basic search/filtering.
+  - [x] Workspace + record type.
+  - [x] Workspace + module ID.
+  - [x] Workspace + client ID.
+  - [x] Workspace + project ID.
+  - [x] Workspace + record status.
+  - [x] Workspace + indexed timestamp.
+  - [x] Basic title/body lookup appropriate for the current SQLite fallback approach.
 
-  * [ ] Workspace + record type
-  * [ ] Workspace + module ID
-  * [ ] Workspace + client ID
-  * [ ] Workspace + project ID
-  * [ ] Workspace + record status
-  * [ ] Workspace + indexed timestamp
-  * [ ] Basic title/body lookup appropriate for current SQLite approach
+### Version 0.32.6.4 - Module-Declared Searchable Type Contract
 
-* [ ] Add module-declared searchable type contract
+- [x] Add a module-declared searchable type contract.
+  - [x] Modules should declare which record types are searchable.
+  - [x] Searchable declarations should be validated during module manifest loading or module registry startup.
+  - [x] Disabled modules should not contribute active searchable type declarations.
+  - [x] Required search declaration fields should be explicit and documented.
+- [x] Include the first searchable declaration fields.
+  - [x] `recordType`
+  - [x] `moduleId`
+  - [x] `idField`
+  - [x] `titleField`
+  - [x] `summaryField`
+  - [x] `bodyFields`
+  - [x] `workspaceField`
+  - [x] `clientField` if applicable.
+  - [x] `projectField` if applicable.
+  - [x] Required read permission.
+  - [x] Indexer function/reference.
+- [x] Define validation and failure behavior.
+  - [x] Invalid searchable declarations should fail module sanity checks.
+  - [x] Missing optional fields should fall back consistently.
+  - [x] Module-owned indexers should return normalized framework search documents rather than writing directly to search tables.
 
-  * [ ] Modules should declare which record types are searchable
-  * [ ] Searchable type declarations should include:
+### Version 0.32.6.5 - Permission, Visibility, and Scope Query Contract
 
-    * `recordType`
-    * `moduleId`
-    * `idField`
-    * `titleField`
-    * `summaryField`
-    * `bodyFields`
-    * `workspaceField`
-    * `clientField` if applicable
-    * `projectField` if applicable
-    * required read permission
-    * indexer function/reference
-  * [ ] Framework should not maintain a permanent hard-coded list of searchable record types
+- [x] Define the first permission-safe search filtering contract.
+  - [x] Search queries should always be constrained to the active workspace.
+  - [x] Search results should require the target record's declared read permission.
+  - [x] Client/project scope restrictions should filter results before they are returned.
+  - [x] Disabled modules should hide active search results for those module-owned records unless a future admin/audit search explicitly says otherwise.
+- [x] Define search metadata semantics.
+  - [x] `visibility` should describe search visibility, not replace record permissions.
+  - [x] `record_status` should support active/archived/completed-style filtering without becoming a universal workflow state.
+  - [x] `source` should be a display/search source label and not a permission source of truth.
+  - [x] Tag matching should use canonical tag assignments as the source of truth even if `tags_text` is denormalized for text ranking.
+- [x] Keep query shaping adapter-neutral.
+  - [x] Service filters should produce a backend-neutral search request model.
+  - [x] SQLite-specific FTS syntax should stay inside the SQLite adapter.
+  - [x] Future PostgreSQL full-text syntax should not require module contract changes.
+
+### Version 0.32.6.6 - SQLite FTS5 and Fallback Prototype
+
+- [x] Add SQLite FTS5 virtual table support where available.
+  - [x] Add a migration that creates the FTS5 table only when the active SQLite build supports it, or add startup/setup logic that safely skips it when unsupported.
+  - [x] Index searchable text fields such as title, summary, body, tags text, and module/source label.
+  - [x] Store enough reference fields to map FTS results back to `search_index`.
+  - [x] Keep FTS rows synchronized from `search_index` writes performed in this version's contract tests.
+- [x] Add fallback lookup behavior.
+  - [x] Use indexed `LIKE` search over `search_index` when FTS5 is unavailable.
+  - [x] Keep fallback behavior functional enough for local development and small self-hosted installs.
+  - [x] Make the fallback path observable in tests so unsupported FTS5 does not silently skip search.
+- [x] Defer full rebuild tooling to 0.32.7.
+  - [x] Do not add module-wide or workspace-wide rebuild commands in 0.32.6 unless needed as a private test helper.
+  - [x] Document how 0.32.7 will regenerate FTS rows from canonical `search_index` rows.
+
+### Version 0.32.6.7 - Contract Tests, Documentation, and Release Closeout
+
+- [x] Add search contract regression coverage.
+  - [x] Search service is framework-owned and adapter-backed.
+  - [x] SQLite FTS5 capability detection reports supported/unsupported state safely.
+  - [x] Fallback `LIKE` search works when FTS5 is unavailable.
+  - [x] `search_index` remains the canonical searchable-record source of truth.
+  - [x] Permission/workspace/module filters are applied before results are returned.
+  - [x] Invalid searchable module declarations fail module sanity checks.
+- [x] Update documentation.
+  - [x] Record 0.32.6 search contract decisions in `DECISIONS.md`.
+  - [x] Add or update architecture notes for the search service, adapter boundary, canonical index table, and module declaration contract.
+  - [x] Keep README cursory unless the current-state overview needs a one-line search foundation note.
+  - [x] Add 0.32.6 changes to `CHANGELOG.md` with date/time.
+- [x] Update release bookkeeping when implementation is complete.
+  - [x] Bump `package.json` and `package-lock.json` to `0.32.6.7`.
+  - [x] Verify `/api/app-info` reports `0.32.6.7`.
+  - [x] Move all but the most recently completed ROADMAP section to `ROADMAP-ARCHIVE.md`.
+- [x] Run verification.
+  - [x] Run focused search regressions.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run test:permissions` if permission-sensitive search paths change.
 
 ## Version 0.32.7 - Search Indexing and Rebuild Tools
 
@@ -670,15 +540,515 @@ This section should fix the first-pass notification UI regressions and make noti
   - [ ] Original filenames cannot overwrite server files.
   - [ ] File metadata remains after attachment removal unless the file itself is deleted.
 
-## Version 0.33.0 - Support Tickets
+## Version 0.32.13 - Final Tweaks for 0.32.x branch
 
-- [ ] Support tickets
-  - [ ] Consult with existing support ticket solutions for best path here
-  - [ ] Tickets should be assignable to clients and projects in Business workspaces
-  - [ ] Tickets should support internal notes
-  - [ ] Tickets should support external/client-visible responses later
-  - [ ] Ticket visibility and edit access should respect the roles/permissions system
-  - [ ] Support tickets become requests in Personal/Family workspaces
+### General UI Fixes/Tweaks
+
+- UI size standardization
+  - This needs to be worked into a view helper/screen creator update. All of these screens should have the same standard width and easily navigable layout
+  - Many UI pieces are still different sizes. For now, I'm targeting desktop use and I need this to all be standard sizes, with the ability to easily tweak for mobile down the road. The following are the pages that don't conform to the Dashboard/Workspace width:
+    - [ ] Projects -> Tasks
+    - [ ] Projects -> Projects Settings
+    - [ ] Settings -> Workspace -> Workspace Settings
+    - [ ] Settings -> Workspace -> Clients
+    - [ ] Settings -> Workspace -> Tags
+    - [ ] Settings -> Workspace -> User Admin
+    - [ ] Settings -> Workspace -> Modules -> Tasks Settings
+    - [ ] Settings -> Workspace -> Modules -> Time Tracking Settings
+    - [ ] Settings -> Workspace -> API Keys
+    - [ ] Settings -> User Settings
+
+- [ ] Need a way for properly authenticated users to see active/running timers
+  - [ ] Appropriate admins should be able to stop/pause timers with explicit warning
+
+- [ ] Add Workspace level date format display settings
+
+- [ ] Add Workspace level time format display settings
+
+- [ ] Add user level setting for timezone display "Local Timezone or UTC"
+
+- [ ] Add Workspace option to set default screen when switching into that workspace, per user.
+  - Current behavior keeps it on Time Tracker, for example, but perhaps a user would always want to default to the dashboard. So, make the starting page selectable and provide a "Stay on Current Workspace's page" option as well (so when a new workspace opens it remains in the time tracker, or tasks, or whatever)
+
+- [ ] If a client filter is selected on Projects in a business workspace, there's no need to have the client name in Parenthesis behind the project name. This goes for all places in business workspaces list {{projectName}} ({{clientName}})
+
+### Notification Fixes/Tweaks
+
+- [ ] Move notifications to a Bell icon, to the right of "Settings" menu
+  - On mobile, this can be in mobile hamburger menu, but will need to apply the notifications number alert to the hamburger menu
+
+## Version 0.32.14 - Final 0.32.x review for modularization for first-party modules
+
+- Perform a thorough check to ensure all current and existing modules, detailed below, are properly modularized and related data is owned by the appropriate module (there should be no timer tables in the Tasks module, for example)
+  - Framework
+    - Should include:
+      - Navigation
+      - Views/models
+      - 
+## Version 0.33.0 - Support Tickets Framework Contract
+
+* [ ] Add Support Tickets as a first-party workflow module.
+
+  * [ ] Module ID should be `support-tickets`.
+  * [ ] Tickets are workflow records, not framework/core records.
+  * [ ] Tickets should use framework-owned services for users, workspaces, permissions, tags, search, notifications, audit logging, file attachments, events/hooks, API scopes, and module lifecycle.
+  * [ ] Do not hard-code ticket behavior into framework-owned app shell, search, notification, file, or permission services.
+  * [ ] Support Tickets should be disableable per workspace where appropriate.
+  * [ ] Disabled ticket module should block new ticket writes while preserving historical reads if `historicalReadAccess` is enabled.
+
+* [ ] Define ticket terminology by workspace type.
+
+  * [ ] Business workspaces should display "Support Tickets" / "Tickets".
+  * [ ] Personal and Family workspaces may display "Requests" where terminology is user-facing.
+  * [ ] Terminology must be display-only.
+  * [ ] Stored module IDs, route names, permission IDs, API scopes, audit record types, and database fields should remain stable.
+
+* [ ] Define core ticket record model.
+
+  * [ ] Add `tickets` table.
+  * [ ] Suggested fields:
+
+    * [ ] `ticket_id`
+    * [ ] `workspace_id`
+    * [ ] `ticket_number` or `display_key`
+    * [ ] `client_id` optional
+    * [ ] `project_id` optional
+    * [ ] `requester_user_id` optional
+    * [ ] `requester_name_snapshot`
+    * [ ] `requester_email_snapshot`
+    * [ ] `title`
+    * [ ] `description`
+    * [ ] `status`
+    * [ ] `priority`
+    * [ ] `category`
+    * [ ] `source`
+    * [ ] `visibility`
+    * [ ] `assigned_user_id` optional
+    * [ ] `created_by_user_id`
+    * [ ] `created_at`
+    * [ ] `updated_at`
+    * [ ] `closed_at`
+    * [ ] `archived_at`
+    * [ ] `metadata_json`
+  * [ ] Ticket records must always belong to one workspace.
+  * [ ] Client/project links must belong to the same workspace as the ticket.
+  * [ ] External/client-created tickets should snapshot requester name/email for historical context.
+
+* [ ] Define ticket statuses.
+
+  * [ ] Start with a small boring set:
+
+    * [ ] `new`
+    * [ ] `open`
+    * [ ] `waiting_on_internal`
+    * [ ] `waiting_on_client`
+    * [ ] `resolved`
+    * [ ] `closed`
+    * [ ] `archived`
+  * [ ] Keep status labels configurable/display-friendly later.
+  * [ ] Do not make tags the source of truth for ticket status.
+
+* [ ] Define ticket priorities.
+
+  * [ ] Start with:
+
+    * [ ] `low`
+    * [ ] `normal`
+    * [ ] `high`
+    * [ ] `urgent`
+  * [ ] Priority should be an explicit field.
+  * [ ] Do not infer priority from tags.
+
+* [ ] Define ticket sources.
+
+  * [ ] Start with:
+
+    * [ ] `internal`
+    * [ ] `client_portal`
+    * [ ] `public_api`
+    * [ ] `import`
+  * [ ] Reserve future source values:
+
+    * [ ] `wordpress`
+    * [ ] `shopify`
+    * [ ] `email`
+    * [ ] `webhook`
+    * [ ] `automation`
+  * [ ] Source should be metadata, not permission logic.
+
+* [ ] Add ticket ledger foundation.
+
+  * [ ] Add `ticket_entries` or `ticket_ledger_entries` table.
+  * [ ] A ticket entry represents a visible ticket timeline item, not the security audit log.
+  * [ ] Suggested fields:
+
+    * [ ] `ticket_entry_id`
+    * [ ] `workspace_id`
+    * [ ] `ticket_id`
+    * [ ] `entry_type`
+    * [ ] `visibility`
+    * [ ] `body`
+    * [ ] `created_by_user_id`
+    * [ ] `created_at`
+    * [ ] `updated_at`
+    * [ ] `deleted_at`
+    * [ ] `metadata_json`
+  * [ ] Entry visibility should be explicit:
+
+    * [ ] `internal`
+    * [ ] `client_visible`
+  * [ ] Do not use the word `public` in code for client-visible ticket entries unless the entry is truly public internet visible.
+  * [ ] Internal entries are visible only to internal users with appropriate ticket permissions.
+  * [ ] Client-visible entries are visible to internal users and authorized client/external users who can access the ticket.
+  * [ ] Ticket ledger entries should never replace audit logging.
+
+* [ ] Define first ticket entry types.
+
+  * [ ] `initial_request`
+  * [ ] `client_reply`
+  * [ ] `internal_note`
+  * [ ] `status_change`
+  * [ ] `assignment_change`
+  * [ ] `priority_change`
+  * [ ] `attachment_added`
+  * [ ] `system_event`
+  * [ ] Keep raw audit details out of normal ticket ledger display.
+
+* [ ] Add ticket permissions.
+
+  * [ ] `tickets.view`
+  * [ ] `tickets.view_internal`
+  * [ ] `tickets.create`
+  * [ ] `tickets.create_for_client`
+  * [ ] `tickets.reply_client_visible`
+  * [ ] `tickets.add_internal_note`
+  * [ ] `tickets.update`
+  * [ ] `tickets.assign`
+  * [ ] `tickets.close`
+  * [ ] `tickets.archive`
+  * [ ] `tickets.manage_settings`
+  * [ ] `tickets.view_all`
+  * [ ] Add client/external access checks separately from internal workspace role checks.
+  * [ ] A client user should only see tickets explicitly associated with a client/project they can access.
+
+* [ ] Add ticket resource definition.
+
+  * [ ] Resource key: `tickets`.
+  * [ ] Supported operations:
+
+    * [ ] `read`
+    * [ ] `create`
+    * [ ] `update`
+    * [ ] `archive`
+    * [ ] `restore`
+    * [ ] `assign`
+    * [ ] `manage`
+
+* [ ] Add ticket audit record types.
+
+  * [ ] `ticket`
+  * [ ] `ticket_entry`
+  * [ ] Audit ticket creation, updates, assignment changes, status changes, priority changes, archive/restore, client-visible replies, internal notes, attachment links, and API-created tickets.
+  * [ ] Audit records should remain admin/security records and should not be shown as the normal ticket timeline.
+
+* [ ] Add ticket events.
+
+  * [ ] `ticket.created`
+  * [ ] `ticket.updated`
+  * [ ] `ticket.assigned`
+  * [ ] `ticket.status_changed`
+  * [ ] `ticket.priority_changed`
+  * [ ] `ticket.client_reply_added`
+  * [ ] `ticket.internal_note_added`
+  * [ ] `ticket.resolved`
+  * [ ] `ticket.closed`
+  * [ ] `ticket.archived`
+  * [ ] `ticket.restored`
+  * [ ] Event payloads should include workspace, actor, ticket ID, client/project IDs where applicable, safe previous/new values, source, and metadata.
+  * [ ] Event payloads should leave room for future automations and integrations.
+
+## Version 0.33.1 - Ticket Browser API and Services
+
+* [ ] Add ticket service methods.
+
+  * [ ] Create ticket.
+  * [ ] Read one ticket.
+  * [ ] List tickets.
+  * [ ] Update ticket fields.
+  * [ ] Assign ticket.
+  * [ ] Change ticket status.
+  * [ ] Change ticket priority.
+  * [ ] Archive ticket.
+  * [ ] Restore ticket where appropriate.
+  * [ ] Add client-visible reply.
+  * [ ] Add internal note.
+  * [ ] List ticket ledger entries with permission-safe visibility filtering.
+
+* [ ] Add browser API routes.
+
+  * [ ] `GET /api/tickets`
+  * [ ] `POST /api/tickets`
+  * [ ] `GET /api/tickets/:ticketId`
+  * [ ] `PUT /api/tickets/:ticketId`
+  * [ ] `POST /api/tickets/:ticketId/assign`
+  * [ ] `POST /api/tickets/:ticketId/status`
+  * [ ] `POST /api/tickets/:ticketId/priority`
+  * [ ] `POST /api/tickets/:ticketId/archive`
+  * [ ] `POST /api/tickets/:ticketId/restore`
+  * [ ] `GET /api/tickets/:ticketId/entries`
+  * [ ] `POST /api/tickets/:ticketId/replies`
+  * [ ] `POST /api/tickets/:ticketId/internal-notes`
+
+* [ ] Enforce ticket API permissions.
+
+  * [ ] Every route must validate active workspace.
+  * [ ] Every ticket read must validate workspace membership or authorized client/external access.
+  * [ ] Internal notes must never be returned to client/external users.
+  * [ ] Client-visible replies must be visible only to users allowed to access that ticket.
+  * [ ] Update/assign/status/priority actions must require explicit permissions.
+  * [ ] Disabled ticket module must block writes.
+  * [ ] Historical reads should follow module `historicalReadAccess`.
+
+* [ ] Add ticket list filtering.
+
+  * [ ] Status.
+  * [ ] Priority.
+  * [ ] Assignee.
+  * [ ] Client.
+  * [ ] Project.
+  * [ ] Requester.
+  * [ ] Source.
+  * [ ] Updated date.
+  * [ ] Created date.
+  * [ ] Archived state.
+  * [ ] Pagination.
+
+* [ ] Add ticket number/display key generation.
+
+  * [ ] Generate human-readable ticket keys per workspace.
+  * [ ] Ensure keys do not collide inside a workspace.
+  * [ ] Keep database IDs separate from user-facing ticket keys.
+
+## Version 0.33.2 - Ticket UI MVP
+
+* [ ] Add Tickets navigation and protected views.
+
+  * [ ] Tickets list page.
+  * [ ] Ticket detail page.
+  * [ ] Create ticket dialog/page.
+  * [ ] Edit ticket metadata controls.
+  * [ ] Permission-aware buttons and empty states.
+  * [ ] Disabled-module state.
+
+* [ ] Add internal ticket creation workflow.
+
+  * [ ] Internal users can create tickets.
+  * [ ] Internal users can optionally assign a ticket to a client.
+  * [ ] Internal users can optionally assign a ticket to a project.
+  * [ ] Internal users can set title, description, priority, category, and assignee where permitted.
+  * [ ] Ticket creation should create the first ledger entry.
+
+* [ ] Add ticket detail workflow.
+
+  * [ ] Show ticket title, status, priority, client, project, requester, assignee, created date, updated date, and source.
+  * [ ] Show client-visible ledger entries.
+  * [ ] Show internal ledger entries only to users with internal ticket access.
+  * [ ] Visually distinguish internal notes from client-visible replies.
+  * [ ] Allow permitted users to add internal notes.
+  * [ ] Allow permitted users to add client-visible replies.
+  * [ ] Allow permitted users to change status, priority, and assignment.
+  * [ ] Preserve accessibility behavior for form controls, icon buttons, tabs/filters, and status messages.
+
+* [ ] Add tickets list workflow.
+
+  * [ ] Show ticket key, title, status, priority, client/project context, assignee, requester, source, and updated date.
+  * [ ] Add basic filters.
+  * [ ] Add pagination.
+  * [ ] Add empty state.
+  * [ ] Add archived filter or archived view.
+  * [ ] Keep list UI simple; do not build a full helpdesk dashboard yet.
+
+* [ ] Add client/external ticket visibility groundwork.
+
+  * [ ] Add permission-safe service methods for client-visible ticket reads.
+  * [ ] Add UI/API distinction between internal users and external/client users.
+  * [ ] Client/external users should not see internal notes, internal-only status details, raw audit records, or private metadata.
+  * [ ] Client-facing ticket pages can be minimal in 0.33.x but the permission model must be real.
+
+## Version 0.33.3 - Ticket Integration Hooks
+
+* [ ] Register tickets as searchable records.
+
+  * [ ] Add `searchableTypes` manifest declaration for tickets.
+  * [ ] Index ticket title, description, ticket key, client/project context, status, priority, requester snapshot, and safe ledger text.
+  * [ ] Internal-only ledger text must only appear in search results for users allowed to see internal ticket content.
+  * [ ] Client-visible search results must not expose internal notes.
+  * [ ] Search indexing should use the framework search service and adapter, not ticket-specific search queries.
+
+* [ ] Register tickets as taggable records.
+
+  * [ ] Add `taggableTypes` declaration for tickets.
+  * [ ] Allow permitted users to assign workspace tags to tickets.
+  * [ ] Tags are classification metadata only.
+  * [ ] Do not use tags for visibility, status, billing state, or access control.
+
+* [ ] Register tickets as attachable records.
+
+  * [ ] Use the framework file attachment contract.
+  * [ ] Tickets should not implement separate file storage.
+  * [ ] Attachments should inherit or explicitly declare ticket-entry visibility.
+  * [ ] Client-visible attachments must require public/client-safe file handling.
+  * [ ] Internal attachments must not be downloadable by client/external users.
+  * [ ] Quarantined/pending files must not appear in normal ticket UI.
+
+* [ ] Register ticket notification events.
+
+  * [ ] Notify relevant users when a ticket is created.
+  * [ ] Notify assignee when assigned.
+  * [ ] Notify followers when status/priority/client-visible reply changes.
+  * [ ] Notify internal users when a client-visible reply is added.
+  * [ ] Do not notify client/external users about internal notes.
+  * [ ] Add ticket follow/unfollow support through framework notification subscriptions.
+
+* [ ] Register ticket Workbench contribution.
+
+  * [ ] Tickets can appear as actionable Workbench items.
+  * [ ] Workbench item payload should include ticket key, title, status, priority, client/project context, assignee, due/follow-up date later, source URL, and timer state if Time Tracking is enabled.
+  * [ ] Workbench should remain framework-owned.
+
+* [ ] Register ticket timer source.
+
+  * [ ] If Time Tracking is enabled, internal users can start/resume/pause/finalize timers from tickets.
+  * [ ] Ticket timers should use the shared Time Tracking active timer engine.
+  * [ ] Finalized time entries should preserve ticket metadata.
+  * [ ] Do not create a separate ticket timer engine.
+
+* [ ] Add manual task creation hook.
+
+  * [ ] If Tasks is enabled, permitted users can create a task from a ticket.
+  * [ ] The created task should link back to the source ticket.
+  * [ ] This should be manual in 0.33.x.
+  * [ ] Automatic task creation rules should wait for the automation/rules framework in 0.4x.
+
+## Version 0.33.4 - Client Ticket Portal MVP
+
+* [ ] Add minimal client/external ticket creation surface.
+
+  * [ ] Authorized client users can create tickets for their allowed client/project context.
+  * [ ] Client users can provide title, description, category, and optional attachment only where file safety permits.
+  * [ ] Created tickets should use source `client_portal`.
+  * [ ] Created tickets should create a client-visible initial request entry.
+  * [ ] Internal users should be notified when appropriate.
+
+* [ ] Add minimal client/external ticket detail surface.
+
+  * [ ] Client users can view tickets they are authorized to access.
+  * [ ] Client users can see client-visible entries only.
+  * [ ] Client users can add client-visible replies.
+  * [ ] Client users can see safe status labels.
+  * [ ] Client users cannot see internal notes, internal-only files, raw audit records, private metadata, internal assignment details unless explicitly allowed, or internal search results.
+
+* [ ] Add client/external ticket list surface.
+
+  * [ ] Show ticket key, title, safe status, created date, updated date, and project context where allowed.
+  * [ ] Add basic status filtering.
+  * [ ] Add pagination.
+  * [ ] Keep this portal simple; do not build a full customer support portal yet.
+
+* [ ] Add client ticket access regression tests.
+
+  * [ ] Client users cannot access tickets from another workspace.
+  * [ ] Client users cannot access tickets for another client/project.
+  * [ ] Client users cannot see internal notes.
+  * [ ] Client users cannot download internal-only attachments.
+  * [ ] Client-visible replies are visible to the right client users and internal users.
+  * [ ] Internal users with proper permission can see both internal and client-visible ledger entries.
+
+## Version 0.33.5 - Ticket Public API Groundwork
+
+* [ ] Add ticket API scopes.
+
+  * [ ] `tickets:read`
+  * [ ] `tickets:write`
+  * [ ] `tickets:create`
+  * [ ] `tickets:reply`
+  * [ ] Consider separating `tickets:internal` from client-facing API scopes.
+  * [ ] API scopes should be offered only when the Support Tickets module is enabled.
+
+* [ ] Add first safe public API routes for future plugins.
+
+  * [ ] `POST /api/v1/tickets`
+  * [ ] `GET /api/v1/tickets/:ticketId` only if permission-safe.
+  * [ ] `POST /api/v1/tickets/:ticketId/replies` only if permission-safe.
+  * [ ] Keep public API minimal.
+  * [ ] Require API keys and scopes.
+  * [ ] Validate workspace, client/project context, module state, and allowed source.
+  * [ ] Do not expose internal notes through public API.
+  * [ ] Do not expose raw audit data through public API.
+
+* [ ] Add source attribution for API-created tickets.
+
+  * [ ] Store source application/plugin identifier where available.
+  * [ ] Store safe request metadata.
+  * [ ] Leave room for future webhook signatures, replay protection, and per-plugin rate limits.
+  * [ ] Avoid building WordPress/Shopify plugins in 0.33.x.
+
+* [ ] Add API regression tests.
+
+  * [ ] Missing/invalid API key is rejected.
+  * [ ] Missing scope is rejected.
+  * [ ] Disabled ticket module blocks writes.
+  * [ ] API-created ticket belongs to the correct workspace.
+  * [ ] API-created ticket cannot spoof another workspace/client/project.
+  * [ ] Public API cannot create internal notes unless explicitly using an internal/admin scope.
+  * [ ] Public API cannot read internal ledger entries.
+
+## Version 0.33.6 - Ticket Regression, Polish, and Closeout
+
+* [ ] Add complete ticket regression coverage.
+
+  * [ ] Tickets cannot cross workspace boundaries.
+  * [ ] Client/project links cannot cross workspace boundaries.
+  * [ ] Internal users only see tickets permitted by role/resource checks.
+  * [ ] Client/external users only see authorized client-visible tickets.
+  * [ ] Internal notes are hidden from client/external users.
+  * [ ] Client-visible replies are visible to both authorized client users and appropriate internal users.
+  * [ ] Ticket status, priority, assignment, archive, and restore actions enforce permissions.
+  * [ ] Search does not expose internal ticket content to unauthorized users.
+  * [ ] Tags can be assigned only by users with tag assignment permission and ticket access.
+  * [ ] Attachments follow ticket and entry visibility.
+  * [ ] Notifications do not expose private ticket details.
+  * [ ] Disabled ticket module blocks new ticket writes and hides normal navigation.
+  * [ ] Historical ticket reads work only when module policy allows them.
+  * [ ] Ticket timers require Time Tracking to be enabled.
+  * [ ] Create-task-from-ticket requires Tasks to be enabled.
+
+* [ ] Add accessibility and UI regression coverage.
+
+  * [ ] Ticket forms have labels, validation summaries, and keyboard-friendly controls.
+  * [ ] Ticket ledger entries have readable structure and status labels.
+  * [ ] Internal/client-visible labels are clear.
+  * [ ] Icon buttons have accessible names.
+  * [ ] Empty/error/loading states are clear.
+  * [ ] Client portal views do not leak internal controls.
+
+* [ ] Add documentation notes.
+
+  * [ ] Document ticket visibility rules.
+  * [ ] Document internal notes vs client-visible replies.
+  * [ ] Document ticket permissions.
+  * [ ] Document public API limitations.
+  * [ ] Document future plugin and automation hooks.
+  * [ ] Document that ticket ledger is not the same as audit log.
+
+* [ ] Release bookkeeping.
+
+  * [ ] Update `DECISIONS.md` or product notes with ticket visibility and ledger decisions.
+  * [ ] Update `CHANGELOG.md`.
+  * [ ] Bump `package.json` and `package-lock.json`.
+  * [ ] Run `npm run check`.
+  * [ ] Run `npm run test:permissions`.
+  * [ ] Run ticket-specific regression scripts.
 
 ## Version 0.34.0 - Notes Module Foundation 
 
@@ -1261,3 +1631,4 @@ Auto-routing communications/messaging
   - [ ] Launch website
 
 - [ ] Launch Social Media
+

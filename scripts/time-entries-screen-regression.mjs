@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const moduleSource = readText("src/modules/time-tracking/module.js");
+const stylesheet = readText("public/css/longtail-forge.css");
 const timeEntriesView = readText("views/protected/time-entries.html");
 const timeEntriesScript = readText("public/js/time-entries.js");
 const timeEntryDialogScript = readText("public/js/time-entry-dialog.js");
 const timeEntriesService = readText("src/modules/time-tracking/time-entries.service.js");
+const timeTrackerView = readText("views/protected/time-tracker.html");
+const workbenchView = readText("views/protected/workbench.html");
 
 let checks = 0;
 
@@ -79,6 +82,23 @@ check("unified page registers a Time Entries smoke controller", () => {
   assert.match(timeEntriesScript, /pageController\.register\("time-entries"/);
   assert.match(timeEntriesScript, /pageId: "time-entries"/);
   assert.match(timeEntriesScript, /toolbar controls exist/);
+});
+
+check("Time Tracker exposes a top heading shortcut to Time Entries", () => {
+  assert.match(timeTrackerView, /class="timer-heading-actions"/);
+  assert.match(timeTrackerView, /class="button-link" href="time-entries\.html">Time Entries<\/a>/);
+  assert.match(timeTrackerView, /data-timer-count/);
+});
+
+check("time entry dialog sizing avoids horizontal modal overflow", () => {
+  assert.match(stylesheet, /\.time-entry-dialog\s*\{[^}]*width: min\(94vw, 760px\)/s);
+  assert.match(stylesheet, /\.time-entry-dialog\s*\{[^}]*overflow-x: hidden/s);
+  assert.match(stylesheet, /\.time-entry-dialog \.entry-form\s*\{[^}]*padding: 24px/s);
+  assert.match(stylesheet, /\.time-entry-dialog \.duration-editor\s*\{[^}]*minmax\(96px, 1fr\)/s);
+  assert.match(stylesheet, /@media[\s\S]*\.time-entry-dialog \.duration-editor\s*\{[^}]*grid-template-columns: 1fr/s);
+  assert.match(timeEntriesView, /css\/longtail-forge\.css\?v=11/);
+  assert.match(timeTrackerView, /css\/longtail-forge\.css\?v=11/);
+  assert.match(workbenchView, /css\/longtail-forge\.css\?v=11/);
 });
 
 console.log(`Time Entries screen regression passed ${checks} checks.`);

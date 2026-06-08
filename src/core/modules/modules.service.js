@@ -117,6 +117,17 @@ function listSearchableTypes() {
   return listRegisteredSearchableTypes();
 }
 
+async function listActiveSearchableTypes(workspaceId) {
+  if (!workspaceId) {
+    return [];
+  }
+
+  const enabledModuleIds = new Set(await readEnabledModuleIds(workspaceId));
+
+  return listSearchableTypes()
+    .filter((type) => requiredModulesEnabled(type, enabledModuleIds));
+}
+
 function listNotificationEvents() {
   return listRegisteredNotificationEvents();
 }
@@ -1066,6 +1077,7 @@ export const modulesService = {
   listModuleSettingsForWorkspaceType,
   listModuleSettingsNavigation,
   listModules,
+  listActiveSearchableTypes,
   listModuleBrowserAssets,
   listModuleSettings,
   listNotificationEvents,
