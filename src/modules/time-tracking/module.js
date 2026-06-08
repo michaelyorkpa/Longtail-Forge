@@ -1,5 +1,8 @@
 import { timeEntriesRoutes } from "./time-entries.routes.js";
 import { timeTrackingPublicApiRoutes } from "./public-api.routes.js";
+import { registerTimeTrackingSearchIndexers } from "./search-indexers.js";
+
+registerTimeTrackingSearchIndexers();
 
 const timeTrackingModule = {
   id: "time-tracking",
@@ -17,7 +20,7 @@ const timeTrackingModule = {
     },
   },
   category: "core-workflow",
-  version: "0.32.6.7",
+  version: "0.32.7.6",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -242,6 +245,27 @@ const timeTrackingModule = {
       requiredReadPermission: "reporting.view",
       requiredTagPermission: "tags.assign",
       requiredModules: ["time-tracking"],
+    },
+  ],
+  searchableTypes: [
+    {
+      recordType: "time_entry",
+      moduleId: "time-tracking",
+      label: "Time Entry",
+      description: "Tracked time records searchable by description, project/client context, user, task link, dates, and tags.",
+      idField: "entry_id",
+      titleField: "search_title",
+      summaryField: "description",
+      bodyFields: ["body"],
+      workspaceField: "workspace_id",
+      clientField: "client_id",
+      projectField: "project_id",
+      requiredReadPermission: "reporting.view",
+      indexer: "time-tracking.time-entries",
+      requiredModules: ["time-tracking"],
+      tagsTextField: "tags_text",
+      recordStatusField: "search_status",
+      sourceLabel: "Time Entry",
     },
   ],
   workspaceCapabilityRequirements: ["time_tracking", "time_tracking_optional"],

@@ -15,6 +15,17 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
+- Projects aren't inheriting client billing settings when created in Projects -> Project Settings -> Add Project
+
+- Saving Client billing settings wipes out client tags
+  - Specific path I Took was:
+    - Settings -> Workspace -> Clients -> Add Client button
+      - Added the client and tags
+    - Edited the client to turn off billing and turn on rounding
+    - Saved client
+    - Tags gone
+    - Re-adding tags through Edit Client modal worked
+
 - Review whether the User Settings "Remove Workspace" flow needs clearer wording now that it removes the signed-in user's membership rather than deleting the workspace record.
 
 ## Tweaks
@@ -72,6 +83,19 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - 
 
 # Medium Term
+
+## Search Capability Expansion
+
+- Add file search indexer tool to search index approved, uploaded files
+  - Should index only text
+  - Should be able to handle:
+    - [ ] .txt
+    - [ ] .rtf
+    - [ ] .doc
+    - [ ] .docx
+    - [ ] .pdf
+    - [ ] Identify additional file types to index
+  - Indexing of files should be a deferred service and should factor in active sessions and server load
 
 ## 0.4x Expansion Targets - Support Tickets
 

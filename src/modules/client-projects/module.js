@@ -1,4 +1,7 @@
 import { clientsRoutes } from "./clients.routes.js";
+import { registerClientProjectsSearchIndexers } from "./search-indexers.js";
+
+registerClientProjectsSearchIndexers();
 
 const clientProjectsModule = {
   id: "client-projects",
@@ -26,7 +29,7 @@ const clientProjectsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.32.6.7",
+  version: "0.32.7.6",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: true,
@@ -186,6 +189,43 @@ const clientProjectsModule = {
       requiredReadPermission: "projects.manage",
       requiredTagPermission: "tags.assign",
       requiredModules: ["client-projects"],
+    },
+  ],
+  searchableTypes: [
+    {
+      recordType: "client",
+      moduleId: "client-projects",
+      label: "Client",
+      description: "Client records searchable by name, billing contact context, and tags.",
+      idField: "id",
+      titleField: "name",
+      summaryField: "summary",
+      bodyFields: ["body"],
+      workspaceField: "workspace_id",
+      requiredReadPermission: "clients.manage",
+      indexer: "client-projects.clients",
+      requiredModules: ["client-projects"],
+      tagsTextField: "tags_text",
+      recordStatusField: "search_status",
+      sourceLabel: "Client",
+    },
+    {
+      recordType: "project",
+      moduleId: "client-projects",
+      label: "Project",
+      description: "Project records searchable by name, client/parent project context, defaults, and tags.",
+      idField: "id",
+      titleField: "name",
+      summaryField: "summary",
+      bodyFields: ["body"],
+      workspaceField: "workspace_id",
+      clientField: "client_id",
+      requiredReadPermission: "projects.manage",
+      indexer: "client-projects.projects",
+      requiredModules: ["client-projects"],
+      tagsTextField: "tags_text",
+      recordStatusField: "search_status",
+      sourceLabel: "Project",
     },
   ],
   apiScopes: [

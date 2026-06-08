@@ -45,10 +45,12 @@ function createSqliteSearchAdapter(options = {}) {
         externalSearchRequired: false,
         supportsPostgresFullText: false,
         supportsExternalSearchEngines: false,
-        supportsRecordIndexing: false,
-        supportsRebuildTools: false,
-        supportsPrototypeIndexWrites: true,
+        supportsRecordIndexing: true,
+        supportsRebuildTools: true,
+        supportsFtsRepair: true,
+        supportsPrototypeIndexWrites: false,
         supportsPrototypeSearch: true,
+        supportsSingleRecordRemoval: true,
         ftsTable: fts5.supported ? SQLITE_SEARCH_FTS_TABLE : null,
       };
 
@@ -181,6 +183,112 @@ VALUES (
         storage,
       };
     },
+    async removeDocument(recordReference = {}, runtimeOptions = {}) {
+      const storage = await this.ensureStorage(runtimeOptions);
+      const searchIndexId = normalizeSearchText(recordReference.searchIndexId || recordReference.search_index_id);
+      const workspaceId = normalizeSearchText(recordReference.workspaceId || recordReference.workspace_id);
+      const moduleId = normalizeSearchText(recordReference.moduleId || recordReference.module_id);
+      const recordType = normalizeSearchText(recordReference.recordType || recordReference.record_type);
+      const recordId = normalizeSearchText(recordReference.recordId || recordReference.record_id);
+      const existingRows = await querySql(`
+SELECT search_index_id
+FROM search_index
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND module_id = ${sqlText(moduleId)}
+  AND record_type = ${sqlText(recordType)}
+  AND record_id = ${sqlText(recordId)}
+LIMIT 1;
+`);
+      const resolvedSearchIndexId = searchIndexId || existingRows[0]?.search_index_id ||
+        `${workspaceId}:${moduleId}:${recordType}:${recordId}`;
+      const statements = [
+        `
+DELETE FROM search_index
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND module_id = ${sqlText(moduleId)}
+  AND record_type = ${sqlText(recordType)}
+  AND record_id = ${sqlText(recordId)};
+`,
+      ];
+
+      if (storage.ftsTableReady) {
+        statements.push(`
+DELETE FROM ${SQLITE_SEARCH_FTS_TABLE}
+WHERE search_index_id = ${sqlText(resolvedSearchIndexId)}
+   OR (
+    workspace_id = ${sqlText(workspaceId)}
+    AND module_id = ${sqlText(moduleId)}
+    AND record_type = ${sqlText(recordType)}
+    AND record_id = ${sqlText(recordId)}
+  );
+`);
+      }
+
+      await runSql(statements.join("\n"));
+
+      return {
+        removedCount: existingRows.length > 0 ? 1 : 0,
+        ftsRemovedCount: storage.ftsTableReady ? 1 : 0,
+        storage,
+      };
+    },
+    async repairIndex(scope = {}, runtimeOptions = {}) {
+      const storage = await this.ensureStorage(runtimeOptions);
+      const normalizedScope = normalizeRepairScope(scope);
+
+      if (!storage.ftsTableReady) {
+        return {
+          adapterId: SQLITE_SEARCH_ADAPTER_ID,
+          skipped: true,
+          skippedCount: 1,
+          reason: storage.reason || "SQLite FTS5 storage is unavailable.",
+          scannedCount: 0,
+          rebuiltCount: 0,
+          missingCount: 0,
+          orphanedCount: 0,
+          repairedCount: 0,
+          storage,
+        };
+      }
+
+      const canonicalRows = await readCanonicalRowsForRepair(normalizedScope);
+      const ftsRows = await readFtsRowsForRepair(normalizedScope);
+      const canonicalIds = new Set(canonicalRows.map((row) => row.search_index_id));
+      const ftsIds = new Set(ftsRows.map((row) => row.search_index_id));
+      const missingCount = canonicalRows.filter((row) => !ftsIds.has(row.search_index_id)).length;
+      const orphanedCount = ftsRows.filter((row) => !canonicalIds.has(row.search_index_id)).length;
+
+      if (runtimeOptions.dryRun === true) {
+        return {
+          adapterId: SQLITE_SEARCH_ADAPTER_ID,
+          skipped: false,
+          skippedCount: canonicalRows.length + orphanedCount,
+          scannedCount: canonicalRows.length,
+          rebuiltCount: 0,
+          missingCount,
+          orphanedCount,
+          repairedCount: missingCount + orphanedCount,
+          storage,
+        };
+      }
+
+      await runSql([
+        deleteFtsRowsSql(normalizedScope),
+        insertFtsRowsFromCanonicalSql(normalizedScope),
+      ].join("\n"));
+
+      return {
+        adapterId: SQLITE_SEARCH_ADAPTER_ID,
+        skipped: false,
+        skippedCount: 0,
+        scannedCount: canonicalRows.length,
+        rebuiltCount: canonicalRows.length,
+        missingCount,
+        orphanedCount,
+        repairedCount: missingCount + orphanedCount,
+        storage,
+      };
+    },
     async search(request, runtimeOptions = {}) {
       const storage = await this.ensureStorage(runtimeOptions);
       const useFts = Boolean(storage.ftsTableReady && request?.text && runtimeOptions.forceFallback !== true);
@@ -195,6 +303,101 @@ VALUES (
         ftsTableReady: storage.ftsTableReady,
         results,
       };
+    },
+  };
+}
+
+async function readCanonicalRowsForRepair(scope) {
+  return querySql(`
+SELECT
+  search_index_id,
+  workspace_id,
+  module_id,
+  record_type,
+  record_id,
+  title,
+  summary,
+  body,
+  tags_text,
+  source
+FROM search_index
+${repairWhereClause(scope, "search_index")}
+ORDER BY search_index_id;
+`);
+}
+
+async function readFtsRowsForRepair(scope) {
+  return querySql(`
+SELECT
+  search_index_id,
+  workspace_id,
+  module_id,
+  record_type,
+  record_id
+FROM ${SQLITE_SEARCH_FTS_TABLE}
+${repairWhereClause(scope, SQLITE_SEARCH_FTS_TABLE)}
+ORDER BY search_index_id;
+`);
+}
+
+function deleteFtsRowsSql(scope) {
+  return `
+DELETE FROM ${SQLITE_SEARCH_FTS_TABLE}
+${repairWhereClause(scope, SQLITE_SEARCH_FTS_TABLE)};
+`;
+}
+
+function insertFtsRowsFromCanonicalSql(scope) {
+  return `
+INSERT INTO ${SQLITE_SEARCH_FTS_TABLE} (
+  search_index_id,
+  workspace_id,
+  module_id,
+  record_type,
+  record_id,
+  title,
+  summary,
+  body,
+  tags_text,
+  source
+)
+SELECT
+  search_index_id,
+  workspace_id,
+  module_id,
+  record_type,
+  record_id,
+  title,
+  summary,
+  body,
+  tags_text,
+  source
+FROM search_index
+${repairWhereClause(scope, "search_index")};
+`;
+}
+
+function repairWhereClause(scope, alias) {
+  const whereSql = scope.whereSql(alias);
+
+  return whereSql ? `WHERE ${whereSql}` : "";
+}
+
+function normalizeRepairScope(scope = {}) {
+  const workspaceId = normalizeSearchText(scope.workspaceId || scope.workspace_id);
+  const moduleId = normalizeSearchText(scope.moduleId || scope.module_id);
+  const recordType = normalizeSearchText(scope.recordType || scope.record_type);
+
+  return {
+    moduleId,
+    recordType,
+    workspaceId,
+    whereSql(alias) {
+      return [
+        workspaceId ? `${alias}.workspace_id = ${sqlText(workspaceId)}` : "",
+        moduleId ? `${alias}.module_id = ${sqlText(moduleId)}` : "",
+        recordType ? `${alias}.record_type = ${sqlText(recordType)}` : "",
+      ].filter(Boolean).join("\n  AND ");
     },
   };
 }

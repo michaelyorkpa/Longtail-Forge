@@ -20,6 +20,8 @@ function normalizeTimeEntry(entry) {
     invoice_status: ["unbilled", "billed", "paid"].includes(entry.invoice_status)
       ? entry.invoice_status
       : "unbilled",
+    created_at: String(entry.created_at || "").trim(),
+    updated_at: String(entry.updated_at || "").trim(),
   };
 }
 

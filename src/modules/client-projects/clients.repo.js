@@ -38,7 +38,9 @@ SELECT
   billing_contact_street_address_2,
   billing_contact_city,
   billing_contact_state,
-  billing_contact_zip_code
+  billing_contact_zip_code,
+  created_at,
+  updated_at
 FROM clients
 WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY name;
@@ -71,7 +73,9 @@ SELECT
   billing_contact_street_address_2,
   billing_contact_city,
   billing_contact_state,
-  billing_contact_zip_code
+  billing_contact_zip_code,
+  created_at,
+  updated_at
 FROM clients
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND id = ${sqlText(clientId)}
@@ -240,6 +244,8 @@ function clientRowToAppClient(row) {
       state: row.billing_contact_state,
       zip_code: row.billing_contact_zip_code,
     },
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }
 

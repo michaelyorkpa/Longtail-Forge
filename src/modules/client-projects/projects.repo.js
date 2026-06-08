@@ -16,25 +16,10 @@ import {
 async function readAll(workspaceId) {
   const rows = await querySql(`
 SELECT
-  id,
-  workspace_id,
-  client_id,
-  parent_project_id,
-  name,
-  status,
-  billable,
-  billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  billing_rounding_enabled,
-  billing_rounding_increment,
-  task_default_priority,
-  task_default_status,
-  task_default_sort_order_json,
-  task_default_assignee_mode
-FROM projects
-WHERE workspace_id = ${sqlText(workspaceId)}
-ORDER BY name;
+  ${projectSelectColumnsSql()}
+FROM ${projectSelectFromSql()}
+WHERE projects.workspace_id = ${sqlText(workspaceId)}
+ORDER BY projects.name;
 `);
 
   return rows.map(projectRowToAppProject);
@@ -43,25 +28,10 @@ ORDER BY name;
 async function readById(workspaceId, projectId) {
   const rows = await querySql(`
 SELECT
-  id,
-  workspace_id,
-  client_id,
-  parent_project_id,
-  name,
-  status,
-  billable,
-  billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  billing_rounding_enabled,
-  billing_rounding_increment,
-  task_default_priority,
-  task_default_status,
-  task_default_sort_order_json,
-  task_default_assignee_mode
-FROM projects
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND id = ${sqlText(projectId)}
+  ${projectSelectColumnsSql()}
+FROM ${projectSelectFromSql()}
+WHERE projects.workspace_id = ${sqlText(workspaceId)}
+  AND projects.id = ${sqlText(projectId)}
 LIMIT 1;
 `);
 
@@ -71,26 +41,11 @@ LIMIT 1;
 async function readByClientId(workspaceId, clientId) {
   const rows = await querySql(`
 SELECT
-  id,
-  workspace_id,
-  client_id,
-  parent_project_id,
-  name,
-  status,
-  billable,
-  billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  billing_rounding_enabled,
-  billing_rounding_increment,
-  task_default_priority,
-  task_default_status,
-  task_default_sort_order_json,
-  task_default_assignee_mode
-FROM projects
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND client_id = ${sqlText(clientId)}
-ORDER BY name;
+  ${projectSelectColumnsSql()}
+FROM ${projectSelectFromSql()}
+WHERE projects.workspace_id = ${sqlText(workspaceId)}
+  AND projects.client_id = ${sqlText(clientId)}
+ORDER BY projects.name;
 `);
 
   return rows.map(projectRowToAppProject);
@@ -99,33 +54,18 @@ ORDER BY name;
 async function readByNameInScope(workspaceId, clientId, projectName, excludeProjectId = "") {
   const normalizedClientId = String(clientId || "").trim();
   const clientScopeSql = normalizedClientId
-    ? `client_id = ${sqlText(normalizedClientId)}`
-    : "(client_id IS NULL OR client_id = '')";
+    ? `projects.client_id = ${sqlText(normalizedClientId)}`
+    : "(projects.client_id IS NULL OR projects.client_id = '')";
   const excludeSql = excludeProjectId
-    ? `AND id <> ${sqlText(excludeProjectId)}`
+    ? `AND projects.id <> ${sqlText(excludeProjectId)}`
     : "";
   const rows = await querySql(`
 SELECT
-  id,
-  workspace_id,
-  client_id,
-  parent_project_id,
-  name,
-  status,
-  billable,
-  billing_rate,
-  billing_period_type,
-  billing_period_start_day,
-  billing_rounding_enabled,
-  billing_rounding_increment,
-  task_default_priority,
-  task_default_status,
-  task_default_sort_order_json,
-  task_default_assignee_mode
-FROM projects
-WHERE workspace_id = ${sqlText(workspaceId)}
+  ${projectSelectColumnsSql()}
+FROM ${projectSelectFromSql()}
+WHERE projects.workspace_id = ${sqlText(workspaceId)}
   AND ${clientScopeSql}
-  AND lower(trim(name)) = lower(trim(${sqlText(projectName)}))
+  AND lower(trim(projects.name)) = lower(trim(${sqlText(projectName)}))
   ${excludeSql}
 LIMIT 1;
 `);
@@ -226,7 +166,9 @@ function projectRowToAppProject(row) {
     id: row.id,
     workspace_id: row.workspace_id || "",
     client_id: row.client_id || "",
+    client_name: row.client_name || "",
     parent_project_id: row.parent_project_id || "",
+    parent_project_name: row.parent_project_name || "",
     name: row.name,
     billable: normalizeBillableFlag(row.billable),
     billing_rate: normalizeBillingRate(row.billing_rate),
@@ -239,7 +181,44 @@ function projectRowToAppProject(row) {
       task_default_assignee_mode: row.task_default_assignee_mode,
     }),
     status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   };
+}
+
+function projectSelectFromSql() {
+  return `
+projects
+LEFT JOIN clients
+  ON clients.workspace_id = projects.workspace_id
+  AND clients.id = projects.client_id
+LEFT JOIN projects AS parent_projects
+  ON parent_projects.workspace_id = projects.workspace_id
+  AND parent_projects.id = projects.parent_project_id`;
+}
+
+function projectSelectColumnsSql() {
+  return `
+  projects.id,
+  projects.workspace_id,
+  projects.client_id,
+  clients.name AS client_name,
+  projects.parent_project_id,
+  parent_projects.name AS parent_project_name,
+  projects.name,
+  projects.status,
+  projects.billable,
+  projects.billing_rate,
+  projects.billing_period_type,
+  projects.billing_period_start_day,
+  projects.billing_rounding_enabled,
+  projects.billing_rounding_increment,
+  projects.task_default_priority,
+  projects.task_default_status,
+  projects.task_default_sort_order_json,
+  projects.task_default_assignee_mode,
+  projects.created_at,
+  projects.updated_at`.trim();
 }
 
 function billingPeriodRowToAppValue(row) {

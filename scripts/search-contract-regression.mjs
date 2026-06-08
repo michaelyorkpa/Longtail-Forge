@@ -10,6 +10,9 @@ import {
   registerSearchIndexer,
 } from "../src/core/search/indexer-registry.js";
 import { initializeDatabase, querySql, runSql, sqlText } from "../src/db/index.js";
+import { registerClientProjectsSearchIndexers } from "../src/modules/client-projects/search-indexers.js";
+import { registerTasksSearchIndexers } from "../src/modules/tasks/search-indexers.js";
+import { registerTimeTrackingSearchIndexers } from "../src/modules/time-tracking/search-indexers.js";
 import { searchService } from "../src/services/search.service.js";
 
 await initializeDatabase();
@@ -44,7 +47,7 @@ check("search capabilities expose framework-owned adapter-backed boundary", () =
   const capabilities = searchService.getCapabilities();
 
   assert.equal(capabilities.owner, "framework");
-  assert.equal(capabilities.serviceVersion, "0.32.6.7");
+  assert.equal(capabilities.serviceVersion, "0.32.7.6");
   assert.equal(capabilities.workspaceAware, true);
   assert.equal(capabilities.moduleAware, true);
   assert.equal(capabilities.permissionAware, true);
@@ -64,8 +67,9 @@ check("search capabilities expose framework-owned adapter-backed boundary", () =
   );
   assert.equal(capabilities.globalApiEnabled, false);
   assert.equal(capabilities.globalBrowserUiEnabled, false);
-  assert.equal(capabilities.recordIndexingEnabled, false);
-  assert.equal(capabilities.rebuildToolsEnabled, false);
+  assert.equal(capabilities.recordIndexingEnabled, true);
+  assert.equal(capabilities.rebuildToolsEnabled, true);
+  assert.equal(capabilities.ftsRepairToolsEnabled, true);
   assert.ok(capabilities.availableAdapters.some((adapter) => adapter.id === "sqlite"));
 });
 
@@ -135,7 +139,7 @@ check("manifest validation accepts well-formed searchableTypes and rejects direc
     displayName: "Developer Example",
     description: "Example module.",
     category: "example",
-    version: "0.32.6.7",
+    version: "0.32.7.6",
     enabledByDefault: false,
     searchableTypes: [sampleSearchableType],
   };
@@ -376,16 +380,17 @@ await checkAsync("runtime capabilities report SQLite FTS5 support or indexed LIK
 
   const capabilities = await searchService.getRuntimeCapabilities({ refresh: true });
 
-  assert.equal(capabilities.serviceVersion, "0.32.6.7");
+  assert.equal(capabilities.serviceVersion, "0.32.7.6");
   assert.equal(capabilities.backend.adapterId, "sqlite");
   assert.equal(capabilities.backend.engine, "sqlite");
   assert.equal(typeof capabilities.backend.fts5Supported, "boolean");
   assert.equal(capabilities.backend.externalSearchRequired, false);
   assert.equal(capabilities.backend.supportsPostgresFullText, false);
   assert.equal(capabilities.backend.supportsExternalSearchEngines, false);
-  assert.equal(capabilities.backend.supportsRecordIndexing, false);
-  assert.equal(capabilities.backend.supportsRebuildTools, false);
-  assert.equal(capabilities.backend.supportsPrototypeIndexWrites, true);
+  assert.equal(capabilities.backend.supportsRecordIndexing, true);
+  assert.equal(capabilities.backend.supportsRebuildTools, true);
+  assert.equal(capabilities.backend.supportsFtsRepair, true);
+  assert.equal(capabilities.backend.supportsPrototypeIndexWrites, false);
   assert.equal(capabilities.backend.supportsPrototypeSearch, true);
   assert.ok(["sqlite-fts5", "sqlite-like"].includes(capabilities.backend.activeBackend));
   assert.ok(["none", "indexed-like"].includes(capabilities.backend.fallbackMode));
@@ -562,6 +567,540 @@ VALUES (
   }
 });
 
+await checkAsync("search indexing write methods upsert, remove, and re-index one record predictably", async () => {
+  clearSearchIndexersForTests();
+
+  const workspaceId = "search-indexing-write-workspace";
+  const now = new Date().toISOString();
+  const searchableType = {
+    ...sampleSearchableType,
+    moduleId: "developer-example",
+    recordType: "example_record",
+    indexer: "developer-example.records",
+  };
+
+  await runSql(`
+INSERT OR IGNORE INTO workspaces (workspace_id, name, status, workspace_type, created_at, updated_at)
+VALUES (${sqlText(workspaceId)}, 'Search Indexing Workspace', 'Active', 'business', ${sqlText(now)}, ${sqlText(now)});
+`);
+
+  const firstDocument = searchService.normalizeSearchDocument(searchableType, {
+    workspace_id: workspaceId,
+    example_id: "write-record-1",
+    title: "First indexed title",
+    summary: "Initial summary",
+    body: "Initial searchable body",
+    tags_text: "first tag",
+    indexed_at: "2026-06-08T14:00:00.000Z",
+  });
+  const firstResult = await searchService.indexSearchDocument(firstDocument);
+
+  assert.equal(firstResult.ok, true);
+  assert.equal(firstResult.operation, "index_one");
+  assert.equal(firstResult.indexedCount, 1);
+
+  const updatedDocument = {
+    ...firstDocument,
+    title: "Updated indexed title",
+    body: "Updated searchable body",
+    indexed_at: "2026-06-08T14:01:00.000Z",
+  };
+  const secondResult = await searchService.indexSearchDocument(updatedDocument);
+  const canonicalRows = await querySql(`
+SELECT title, body, COUNT(*) OVER () AS row_count
+FROM search_index
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND module_id = 'developer-example'
+  AND record_type = 'example_record'
+  AND record_id = 'write-record-1';
+`);
+
+  assert.equal(secondResult.ok, true);
+  assert.equal(canonicalRows.length, 1);
+  assert.equal(Number(canonicalRows[0].row_count), 1);
+  assert.equal(canonicalRows[0].title, "Updated indexed title");
+  assert.equal(canonicalRows[0].body, "Updated searchable body");
+
+  const removeResult = await searchService.removeSearchDocument({
+    workspaceId,
+    moduleId: "developer-example",
+    recordType: "example_record",
+    recordId: "write-record-1",
+  });
+  const removedRows = await querySql(`
+SELECT search_index_id
+FROM search_index
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND module_id = 'developer-example'
+  AND record_type = 'example_record'
+  AND record_id = 'write-record-1';
+`);
+
+  assert.equal(removeResult.ok, true);
+  assert.equal(removeResult.operation, "remove_one");
+  assert.equal(removeResult.removedCount, 1);
+  assert.deepEqual(removedRows, []);
+
+  if (firstResult.storage.ftsTableReady) {
+    const removedFtsRows = await querySql(`
+SELECT search_index_id
+FROM search_index_fts
+WHERE search_index_id = ${sqlText(firstDocument.search_index_id)};
+`);
+
+    assert.deepEqual(removedFtsRows, []);
+  }
+
+  const unregister = registerSearchIndexer("developer-example.records", async ({ recordId }) => ({
+    workspace_id: workspaceId,
+    example_id: recordId,
+    title: "Re-indexed title",
+    summary: "Re-indexed summary",
+    body: "Re-indexed body",
+    tags_text: "reindexed",
+    indexed_at: "2026-06-08T14:02:00.000Z",
+  }));
+  const reindexResult = await searchService.reindexSearchRecord({
+    searchableType,
+    workspaceId,
+    recordId: "write-record-1",
+  });
+  const reindexedRows = await querySql(`
+SELECT title, summary, body
+FROM search_index
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND module_id = 'developer-example'
+  AND record_type = 'example_record'
+  AND record_id = 'write-record-1';
+`);
+
+  assert.equal(reindexResult.ok, true);
+  assert.equal(reindexResult.operation, "reindex_one");
+  assert.equal(reindexResult.indexedCount, 1);
+  assert.deepEqual(reindexedRows, [{
+    title: "Re-indexed title",
+    summary: "Re-indexed summary",
+    body: "Re-indexed body",
+  }]);
+
+  unregister();
+
+  const removeStaleUnregister = registerSearchIndexer("developer-example.records", async () => null);
+  const staleRemovalResult = await searchService.reindexSearchRecord({
+    searchableType,
+    workspaceId,
+    recordId: "write-record-1",
+  });
+  const staleRows = await querySql(`
+SELECT search_index_id
+FROM search_index
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND module_id = 'developer-example'
+  AND record_type = 'example_record'
+  AND record_id = 'write-record-1';
+`);
+
+  assert.equal(staleRemovalResult.ok, true);
+  assert.equal(staleRemovalResult.operation, "reindex_one");
+  assert.equal(staleRemovalResult.removedStaleIndex, true);
+  assert.deepEqual(staleRows, []);
+
+  removeStaleUnregister();
+
+  const errorResult = await searchService.reindexSearchRecord({
+    searchableType,
+    workspaceId,
+    recordId: "write-record-2",
+  });
+
+  assert.equal(errorResult.ok, false);
+  assert.equal(errorResult.operation, "reindex_one");
+  assert.ok(errorResult.errors[0].message.includes("is not registered"));
+
+  clearSearchIndexersForTests();
+});
+
+await checkAsync("initial module-owned indexers normalize tasks, time entries, clients, and projects", async () => {
+  clearSearchIndexersForTests();
+  const unregisterClientProjects = registerClientProjectsSearchIndexers();
+  const unregisterTasks = registerTasksSearchIndexers();
+  const unregisterTimeTracking = registerTimeTrackingSearchIndexers();
+  const workspaceId = "search-module-indexers-workspace";
+  const now = "2026-06-08T14:30:00.000Z";
+
+  await runSql(`
+INSERT OR IGNORE INTO workspaces (workspace_id, name, status, workspace_type, created_at, updated_at)
+VALUES (${sqlText(workspaceId)}, 'Search Module Indexers Workspace', 'Active', 'business', ${sqlText(now)}, ${sqlText(now)});
+
+INSERT INTO workspace_modules (workspace_id, module_id, status, enabled_at, disabled_at, updated_at)
+VALUES
+  (${sqlText(workspaceId)}, 'client-projects', 'enabled', ${sqlText(now)}, NULL, ${sqlText(now)}),
+  (${sqlText(workspaceId)}, 'tasks', 'enabled', ${sqlText(now)}, NULL, ${sqlText(now)}),
+  (${sqlText(workspaceId)}, 'time-tracking', 'enabled', ${sqlText(now)}, NULL, ${sqlText(now)})
+ON CONFLICT(workspace_id, module_id) DO UPDATE SET
+  status = 'enabled',
+  enabled_at = COALESCE(enabled_at, excluded.enabled_at),
+  disabled_at = NULL,
+  updated_at = excluded.updated_at;
+
+INSERT OR REPLACE INTO clients (
+  id,
+  workspace_id,
+  parent_client_id,
+  name,
+  status,
+  billable,
+  billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  billing_rounding_enabled,
+  billing_rounding_increment,
+  billing_contact_name,
+  billing_contact_email,
+  billing_contact_alternate_name,
+  billing_contact_alternate_email,
+  billing_contact_phone_number,
+  billing_contact_alternate_phone_number,
+  billing_contact_street_address_1,
+  billing_contact_street_address_2,
+  billing_contact_city,
+  billing_contact_state,
+  billing_contact_zip_code,
+  created_at,
+  updated_at
+)
+VALUES (
+  'search-client-1',
+  ${sqlText(workspaceId)},
+  NULL,
+  'Acme Client',
+  'Active',
+  'yes',
+  '125',
+  'monthly',
+  1,
+  1,
+  '0.25',
+  'Ada Account',
+  'ada@example.test',
+  '',
+  '',
+  '555-0100',
+  '',
+  '1 Main',
+  '',
+  'Forge City',
+  'PA',
+  '17000',
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+
+INSERT OR REPLACE INTO projects (
+  id,
+  workspace_id,
+  client_id,
+  parent_project_id,
+  name,
+  status,
+  billable,
+  billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  billing_rounding_enabled,
+  billing_rounding_increment,
+  task_default_priority,
+  task_default_status,
+  task_default_sort_order_json,
+  task_default_assignee_mode,
+  created_at,
+  updated_at
+)
+VALUES
+  (
+    'search-project-parent',
+    ${sqlText(workspaceId)},
+    'search-client-1',
+    NULL,
+    'Parent Launch',
+    'Active',
+    'yes',
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    'normal',
+    'open',
+    '["due_date","priority"]',
+    'creator',
+    ${sqlText(now)},
+    ${sqlText(now)}
+  ),
+  (
+    'search-project-1',
+    ${sqlText(workspaceId)},
+    'search-client-1',
+    'search-project-parent',
+    'Website Launch',
+    'Completed',
+    'yes',
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    'high',
+    'open',
+    '["due_date","priority"]',
+    'creator',
+    ${sqlText(now)},
+    ${sqlText(now)}
+  );
+
+INSERT OR REPLACE INTO tasks (
+  task_id,
+  workspace_id,
+  client_id,
+  project_id,
+  title,
+  description,
+  status,
+  priority,
+  billable,
+  due_date,
+  due_time,
+  due_timezone,
+  due_at_utc,
+  source_type,
+  source_id,
+  archived_at,
+  reminder_override_enabled,
+  recurrence_template_id,
+  recurrence_instance_date,
+  completed_at,
+  created_by_user_id,
+  updated_by_user_id,
+  completed_by_user_id,
+  archived_by_user_id,
+  created_at,
+  updated_at
+)
+VALUES (
+  'search-task-1',
+  ${sqlText(workspaceId)},
+  'search-client-1',
+  'search-project-1',
+  'Draft launch checklist',
+  'Write the preflight launch checklist.',
+  'open',
+  'high',
+  'yes',
+  '2026-06-09',
+  '10:00',
+  'America/New_York',
+  '2026-06-09T14:00:00.000Z',
+  'manual',
+  NULL,
+  NULL,
+  0,
+  NULL,
+  NULL,
+  NULL,
+  'search-user-1',
+  'search-user-1',
+  NULL,
+  NULL,
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+
+INSERT OR REPLACE INTO users (
+  user_id,
+  home_workspace_id,
+  username,
+  display_name,
+  alt_email,
+  timezone,
+  password,
+  theme_mode,
+  user_status,
+  protected_user,
+  active_workspace_id
+)
+VALUES (
+  'search-user-1',
+  ${sqlText(workspaceId)},
+  'search-user@example.test',
+  'Search User',
+  NULL,
+  'America/New_York',
+  'hash',
+  'light',
+  'active',
+  'no',
+  ${sqlText(workspaceId)}
+);
+
+INSERT OR REPLACE INTO task_assignees (
+  task_assignee_id,
+  workspace_id,
+  task_id,
+  assignee_type,
+  user_id,
+  role_id,
+  assigned_by_user_id,
+  assigned_at,
+  removed_at
+)
+VALUES (
+  'search-task-assignee-1',
+  ${sqlText(workspaceId)},
+  'search-task-1',
+  'user',
+  'search-user-1',
+  NULL,
+  'search-user-1',
+  ${sqlText(now)},
+  NULL
+);
+
+INSERT OR REPLACE INTO time_entries (
+  entry_id,
+  workspace_id,
+  user_id,
+  client_id,
+  client_name,
+  project_id,
+  project_name,
+  task_id,
+  description,
+  start_time,
+  end_time,
+  duration_seconds,
+  duration_hours,
+  billable,
+  invoice_status,
+  created_at,
+  updated_at
+)
+VALUES (
+  'search-time-entry-1',
+  ${sqlText(workspaceId)},
+  'search-user-1',
+  'search-client-1',
+  'Acme Client',
+  'search-project-1',
+  'Website Launch',
+  'search-task-1',
+  'Implementation meeting',
+  '2026-06-08T13:00:00.000Z',
+  '2026-06-08T14:00:00.000Z',
+  3600,
+  '1.00',
+  'yes',
+  'unbilled',
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+
+INSERT OR REPLACE INTO tags (tag_id, workspace_id, name, slug, description, color, status, created_at, updated_at)
+VALUES
+  ('search-module-tag-client', ${sqlText(workspaceId)}, 'VIP', 'vip', '', NULL, 'active', ${sqlText(now)}, ${sqlText(now)}),
+  ('search-module-tag-project', ${sqlText(workspaceId)}, 'Launch', 'launch', '', NULL, 'active', ${sqlText(now)}, ${sqlText(now)}),
+  ('search-module-tag-task', ${sqlText(workspaceId)}, 'Checklist', 'checklist', '', NULL, 'active', ${sqlText(now)}, ${sqlText(now)}),
+  ('search-module-tag-time', ${sqlText(workspaceId)}, 'Meeting', 'meeting', '', NULL, 'active', ${sqlText(now)}, ${sqlText(now)});
+
+INSERT OR REPLACE INTO tag_assignments (
+  tag_assignment_id,
+  workspace_id,
+  tag_id,
+  target_type,
+  target_id,
+  source,
+  created_at
+)
+VALUES
+  ('search-module-tag-assignment-client', ${sqlText(workspaceId)}, 'search-module-tag-client', 'client', 'search-client-1', 'manual', ${sqlText(now)}),
+  ('search-module-tag-assignment-project', ${sqlText(workspaceId)}, 'search-module-tag-project', 'project', 'search-project-1', 'manual', ${sqlText(now)}),
+  ('search-module-tag-assignment-task', ${sqlText(workspaceId)}, 'search-module-tag-task', 'task', 'search-task-1', 'manual', ${sqlText(now)}),
+  ('search-module-tag-assignment-time', ${sqlText(workspaceId)}, 'search-module-tag-time', 'time_entry', 'search-time-entry-1', 'manual', ${sqlText(now)});
+`);
+
+  const activeTypes = await searchService.listActiveSearchableTypes(workspaceId);
+  const expectedTypes = [
+    "client-projects:client",
+    "client-projects:project",
+    "tasks:task",
+    "time-tracking:time_entry",
+  ];
+
+  for (const expectedType of expectedTypes) {
+    assert.ok(
+      activeTypes.some((type) => `${type.moduleId}:${type.recordType}` === expectedType),
+      `${expectedType} should be active and searchable`,
+    );
+  }
+
+  const records = [
+    { moduleId: "client-projects", recordType: "client", recordId: "search-client-1" },
+    { moduleId: "client-projects", recordType: "project", recordId: "search-project-1" },
+    { moduleId: "tasks", recordType: "task", recordId: "search-task-1" },
+    { moduleId: "time-tracking", recordType: "time_entry", recordId: "search-time-entry-1" },
+  ];
+
+  for (const record of records) {
+    const result = await searchService.reindexSearchRecord({
+      workspaceId,
+      ...record,
+    });
+
+    assert.equal(result.ok, true, `${record.recordType} reindex should succeed`);
+    assert.equal(result.indexedCount, 1, `${record.recordType} reindex should upsert one row`);
+  }
+
+  const indexedRows = await querySql(`
+SELECT module_id, record_type, record_id, title, summary, body, tags_text, client_id, project_id, record_status, source
+FROM search_index
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND record_id IN ('search-client-1', 'search-project-1', 'search-task-1', 'search-time-entry-1')
+ORDER BY record_type;
+`);
+
+  assert.deepEqual(indexedRows.map((row) => `${row.module_id}:${row.record_type}`).sort(), expectedTypes.sort());
+
+  const rowsByType = new Map(indexedRows.map((row) => [row.record_type, row]));
+
+  assert.equal(rowsByType.get("client").title, "Acme Client");
+  assert.equal(rowsByType.get("client").record_status, "active");
+  assert.match(rowsByType.get("client").body, /Ada Account/);
+  assert.match(rowsByType.get("client").tags_text, /VIP/);
+
+  assert.equal(rowsByType.get("project").title, "Website Launch");
+  assert.equal(rowsByType.get("project").record_status, "completed");
+  assert.equal(rowsByType.get("project").client_id, "search-client-1");
+  assert.match(rowsByType.get("project").body, /Parent Launch/);
+  assert.match(rowsByType.get("project").tags_text, /Launch/);
+
+  assert.equal(rowsByType.get("task").title, "Draft launch checklist");
+  assert.equal(rowsByType.get("task").record_status, "open");
+  assert.equal(rowsByType.get("task").client_id, "search-client-1");
+  assert.equal(rowsByType.get("task").project_id, "search-project-1");
+  assert.match(rowsByType.get("task").body, /Search User/);
+  assert.match(rowsByType.get("task").tags_text, /Checklist/);
+
+  assert.equal(rowsByType.get("time_entry").title, "Implementation meeting");
+  assert.equal(rowsByType.get("time_entry").record_status, "active");
+  assert.equal(rowsByType.get("time_entry").client_id, "search-client-1");
+  assert.equal(rowsByType.get("time_entry").project_id, "search-project-1");
+  assert.match(rowsByType.get("time_entry").body, /Website Launch/);
+  assert.match(rowsByType.get("time_entry").tags_text, /Meeting/);
+
+  unregisterClientProjects();
+  unregisterTasks();
+  unregisterTimeTracking();
+});
+
 await checkAsync("canonical search_index schema and fallback indexes are present", async () => {
   const columns = await querySql("PRAGMA table_info(search_index);");
   const columnNames = columns.map((column) => column.name);
@@ -638,10 +1177,10 @@ ORDER BY name;
   if (capabilities.backend.fts5Supported) {
     assert.ok(
       ftsTables.some((table) => table.name === "search_index_fts"),
-      "0.32.6.7 should create the SQLite FTS table when supported",
+      "0.32.7.6 should create the SQLite FTS table when supported",
     );
   } else {
-    assert.deepEqual(ftsTables, [], "0.32.6.7 should skip FTS tables when SQLite lacks FTS5 support");
+    assert.deepEqual(ftsTables, [], "0.32.7.6 should skip FTS tables when SQLite lacks FTS5 support");
   }
 });
 

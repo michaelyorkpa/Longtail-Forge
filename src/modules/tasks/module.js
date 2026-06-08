@@ -1,5 +1,8 @@
 import { tasksRoutes } from "./tasks.routes.js";
 import { tasksPublicApiRoutes } from "./public-api.routes.js";
+import { registerTasksSearchIndexers } from "./search-indexers.js";
+
+registerTasksSearchIndexers();
 
 function taskNotificationTitle({ event }) {
   return event.new_value?.title || event.previous_value?.title || event.record_id || "Task";
@@ -21,7 +24,7 @@ const tasksModule = {
     },
   },
   category: "core-workflow",
-  version: "0.32.6.7",
+  version: "0.32.7.6",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -251,6 +254,27 @@ const tasksModule = {
       requiredReadPermission: "tasks.view",
       requiredTagPermission: "tags.assign",
       requiredModules: ["tasks"],
+    },
+  ],
+  searchableTypes: [
+    {
+      recordType: "task",
+      moduleId: "tasks",
+      label: "Task",
+      description: "Task records searchable by title, description, assignment, due date, client/project context, and tags.",
+      idField: "task_id",
+      titleField: "title",
+      summaryField: "summary",
+      bodyFields: ["body"],
+      workspaceField: "workspace_id",
+      clientField: "client_id",
+      projectField: "project_id",
+      requiredReadPermission: "tasks.view",
+      indexer: "tasks.records",
+      requiredModules: ["tasks"],
+      tagsTextField: "tags_text",
+      recordStatusField: "search_status",
+      sourceLabel: "Task",
     },
   ],
   apiScopes: [

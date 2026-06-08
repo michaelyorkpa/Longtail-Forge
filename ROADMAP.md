@@ -1,218 +1,150 @@
-﻿# Longtail Forge Roadmap
+# Longtail Forge Roadmap
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.6 - Search Framework Contract
+## Version 0.32.7 - Search Indexing and Rebuild Tools
 
 ### Questions and Design Decisions
 
-- [x] Confirm that 0.32.6 stops at the search contract, schema, adapter capability layer, and regression coverage; record indexing and rebuild workflows remain in 0.32.7. 
-  - Confirmed
-- [x] Confirm that global search API routes and browser UI stay in 0.32.8 after the framework contract and index population tools exist. 
-  - Confirmed.
-- [x] Decide whether module-declared indexer references should be manifest string IDs resolved through a service registry, direct backend service registrations, or both.
-  - Use manifest string IDs resolved through a framework search indexer registry. Allow direct backend service registration internally, but do not put direct function references in module manifests as the long-term contract.
-- [x] Decide whether notification records become searchable in a later notification-specific pass, limited to notification rows themselves instead of making search depend on notification delivery history.
-  - Yes, notification records can become searchable later, but only in a notification-specific pass, and only as notification records. Search should not depend on notification delivery history to find Tasks, Projects, Tickets, Notes, or other real records.
-- [x] Decide how much tag text should be denormalized into `search_index.tags_text` versus joined at query time from canonical tag assignment tables.
-  - Store denormalized tag names/slugs in search_index.tags_text for full-text matching and ranking, but use canonical tag assignment tables for permission-safe tag filtering and exact tag logic.
+- [x] Confirm that 0.32.7 stops at indexing, event synchronization, rebuild/repair tooling, and regression coverage; global search API routes and browser UI remain in 0.32.8.
+  - Confirmed. 0.32.7 should populate and maintain the search index, add rebuild/repair tooling, and prove the indexing lifecycle with tests. Browser-facing search routes, global search UI, result pages, and public API search remain in 0.32.8.
+- [x] Decide whether the first protected rebuild entry point should be admin-only HTTP, a local server script, or both.
+  - Use both, but keep them scoped differently. Add a local maintenance script for app-wide rebuild/repair and emergency recovery. Add an admin-only protected server entry point for workspace/module rebuilds only. Do not expose app-wide rebuild through normal browser/admin UI yet.
+- [x] Decide whether disabled-module records should remain in canonical `search_index` rows but be hidden by active module filters, or be removed during module disable and rebuilt on re-enable.
+  - Keep disabled-module records in canonical search_index rows. Disabled modules should stop contributing active searchable types, so normal active search requests hide those records through module filters. Do not delete canonical search rows just because a module is disabled. Re-enabled modules should be eligible for rebuild/repair. Any future historical/admin search behavior should be explicit, permission-restricted, and not accidental.
+- [x] Decide whether app-wide rebuilds are exposed only as local maintenance tooling at first, with workspace/module rebuilds as the first admin UI/API surface.
+  - Confirmed. App-wide rebuilds should be local maintenance/super-admin tooling at first. The first protected admin surface should be workspace-scoped and module-scoped rebuilds, with active workspace context, module validation, audit logging, and summary counts.
+- [x] Confirm that 0.32.7 does not add fuzzy search, synonyms, external search engines, or advanced relevance tuning.
+  - Confirmed. 0.32.7 should keep indexing boring: canonical search_index writes, SQLite FTS synchronization/repair where available, indexed LIKE fallback, rebuild tooling, and regression coverage only. Fuzzy search, synonyms, external engines, and advanced relevance tuning remain future work.
 
-### Version 0.32.6.1 - Search Ownership and Framework Boundaries
+### Version 0.32.7.1 - Indexing Service Write Methods
 
-- [x] Add a framework-owned search service shell.
-  - [x] Search should be a framework service, not a feature owned by Tasks, Notes, Tickets, Messaging, or Time Tracking.
-  - [x] Search should be workspace-aware.
-  - [x] Search should be module-aware.
-  - [x] Search should be permission-aware.
-  - [x] Search should be tag-aware.
-  - [x] Search should be notification-aware only where notification records themselves are searchable later.
-- [x] Define the first service-level contracts without adding global search UI yet.
-  - [x] Add service methods for capability discovery.
-  - [x] Add service methods for validating searchable type declarations.
-  - [x] Add service methods for composing permission-safe search filters.
-  - [x] Leave record indexing methods for 0.32.7 unless a tiny internal stub is required for tests.
-- [x] Preserve the module/framework boundary.
-  - [x] Modules declare searchable record types and provide indexing data.
-  - [x] The framework owns search storage, adapters, permission filtering, and query orchestration.
-  - [x] The framework should not maintain a permanent hard-coded list of searchable record types.
+- [x] Add framework-owned search indexing write methods.
+  - [x] Index one normalized search document.
+  - [x] Remove one indexed record by workspace, module, record type, and record ID.
+  - [x] Re-index one record by resolving the module-owned indexer and upserting the normalized document.
+  - [x] Keep `search_index` as the canonical write target.
+  - [x] Keep SQLite FTS synchronization adapter-owned.
+- [x] Add predictable write semantics.
+  - [x] Upserts should not duplicate `search_index` rows.
+  - [x] Removed records should remove matching FTS rows when FTS5 is available.
+  - [x] Empty or non-searchable module indexer results should remove stale index rows.
+  - [x] Indexing failures should return structured errors that rebuild tooling can report.
+- [x] Add focused regression coverage.
+  - [x] Single-record upsert updates the canonical row.
+  - [x] Single-record removal clears canonical and FTS rows.
+  - [x] Re-indexing the same record is idempotent.
+  - [x] FTS fallback behavior still works when FTS5 is unavailable.
 
-### Version 0.32.6.2 - Backend Adapter Contract and Capability Detection
+### Version 0.32.7.2 - Initial Module Indexers
 
-- [x] Add a search backend adapter contract.
-  - [x] Start with a simple database-backed adapter.
-  - [x] Leave room for SQLite FTS5.
-  - [x] Leave room for PostgreSQL full-text search.
-  - [x] Leave room for external search engines later.
-  - [x] Do not require Elasticsearch/OpenSearch at this stage.
-- [x] Add adapter capability detection.
-  - [x] Detect whether the active SQLite build supports FTS5.
-  - [x] Report the active search backend and fallback mode through internal service capability data.
-  - [x] Keep capability detection safe for fresh databases and test databases.
-- [x] Define fallback behavior.
-  - [x] Prefer SQLite FTS5 for local/self-hosted SQLite installs when available.
-  - [x] Fall back to indexed `LIKE` search when FTS5 is unavailable.
-  - [x] Keep PostgreSQL full-text search as a future adapter implementation instead of SQLite-specific service logic.
+- [x] Add first module-owned indexers.
+  - [x] Tasks.
+  - [x] Time entries.
+  - [x] Clients.
+  - [x] Projects.
+- [x] Keep module ownership clear.
+  - [x] Module indexers should read their own records through module services/repositories.
+  - [x] Module indexers should return normalized framework search documents.
+  - [x] Module indexers should not write directly to `search_index` or FTS tables.
+  - [x] Module indexers should map title, summary, body, tags text, client/project scope, visibility, record status, source label, and record timestamps consistently.
+- [x] Preserve permission and lifecycle semantics.
+  - [x] Archived/inactive records should receive a searchable `record_status` instead of inventing a new workflow state.
+  - [x] Client/project scope should match the underlying record's real scope.
+  - [x] Tag text may be denormalized for matching, while exact tag filtering remains canonical.
+- [x] Add module indexer regressions.
+  - [x] Each initial module can produce normalized documents.
+  - [x] Missing optional fields fall back consistently.
+  - [x] Archived/inactive/completed records map to expected search metadata.
 
-### Version 0.32.6.3 - Canonical Search Index Schema
+### Version 0.32.7.3 - Event-Driven Index Synchronization
 
-- [x] Add `search_index` as the canonical framework search metadata table.
-  - [x] Use the normal `search_index` table as the source of truth for what records are searchable.
-  - [x] Keep permission, workspace, module, client, project, status, and visibility metadata in normal tables.
-  - [x] Use FTS5 virtual tables only as the full-text lookup engine.
-  - [x] Do not use FTS5 as the source of truth for permissions or record visibility.
-- [x] Add initial `search_index` fields.
-  - [x] `search_index_id`
-  - [x] `workspace_id`
-  - [x] `module_id`
-  - [x] `record_type`
-  - [x] `record_id`
-  - [x] `title`
-  - [x] `summary`
-  - [x] `body`
-  - [x] `tags_text`
-  - [x] `client_id`
-  - [x] `project_id`
-  - [x] `visibility`
-  - [x] `record_status`
-  - [x] `source`
-  - [x] `record_created_at`
-  - [x] `record_updated_at`
-  - [x] `indexed_at`
-- [x] Add indexes for basic search/filtering.
-  - [x] Workspace + record type.
-  - [x] Workspace + module ID.
-  - [x] Workspace + client ID.
-  - [x] Workspace + project ID.
-  - [x] Workspace + record status.
-  - [x] Workspace + indexed timestamp.
-  - [x] Basic title/body lookup appropriate for the current SQLite fallback approach.
+- [x] Connect indexing to existing framework/module events where stable.
+  - [x] Index records on create.
+  - [x] Update index records on update.
+  - [x] Update or remove index records on archive/inactivate.
+  - [x] Restore or re-index records on restore/reactivate where stable service flows exist.
+  - [x] Remove stale index rows when records are hard-deleted by current module code.
+- [x] Keep event wiring boring and traceable.
+  - [x] Prefer service-owned indexing calls after successful record mutations.
+  - [x] Do not index failed or rolled-back writes.
+  - [x] Keep indexing side effects out of browser code.
+  - [x] Log indexing failures clearly without hiding the primary record mutation result unless search consistency would be unsafe.
+- [x] Handle module lifecycle.
+  - [x] Disabled modules should not contribute active searchable types.
+  - [x] Re-enabled modules should be eligible for rebuild.
+  - [x] Historical disabled-module search behavior remains explicit, not accidental.
+- [x] Add synchronization regressions.
+  - [x] Create/update/archive/restore flows update the index for initial searchable modules.
+  - [x] Module-disabled records do not appear through active search request targets.
+  - [x] Failed indexing paths are observable in logs or structured results.
 
-### Version 0.32.6.4 - Module-Declared Searchable Type Contract
+### Version 0.32.7.4 - Rebuild Service and Admin Tooling
 
-- [x] Add a module-declared searchable type contract.
-  - [x] Modules should declare which record types are searchable.
-  - [x] Searchable declarations should be validated during module manifest loading or module registry startup.
-  - [x] Disabled modules should not contribute active searchable type declarations.
-  - [x] Required search declaration fields should be explicit and documented.
-- [x] Include the first searchable declaration fields.
-  - [x] `recordType`
-  - [x] `moduleId`
-  - [x] `idField`
-  - [x] `titleField`
-  - [x] `summaryField`
-  - [x] `bodyFields`
-  - [x] `workspaceField`
-  - [x] `clientField` if applicable.
-  - [x] `projectField` if applicable.
-  - [x] Required read permission.
-  - [x] Indexer function/reference.
-- [x] Define validation and failure behavior.
-  - [x] Invalid searchable declarations should fail module sanity checks.
-  - [x] Missing optional fields should fall back consistently.
-  - [x] Module-owned indexers should return normalized framework search documents rather than writing directly to search tables.
+- [x] Add safe server-side rebuild methods.
+  - [x] Re-index all records for one module.
+  - [x] Re-index all records for one workspace.
+  - [x] Re-index all records for the app through local maintenance tooling if needed.
+  - [x] Support dry-run or summary mode if practical.
+  - [x] Return counts for scanned, indexed, skipped, removed, failed, and repaired records.
+- [x] Add a protected rebuild entry point.
+  - [x] Admin-only endpoint or script for module/workspace rebuilds.
+  - [x] App-wide rebuild should be super-admin/local-maintenance only at first.
+  - [x] Do not expose broad rebuild tools to normal users.
+  - [x] Require active workspace context for workspace rebuilds.
+  - [x] Validate module IDs against enabled/known modules before rebuild.
+- [x] Log rebuild activity clearly.
+  - [x] Audit who started protected rebuilds.
+  - [x] Record workspace/module scope.
+  - [x] Record rebuild counts and failure summaries.
+  - [x] Avoid logging private record body content.
+- [x] Add rebuild regressions.
+  - [x] Workspace rebuild does not duplicate rows.
+  - [x] Module rebuild stays scoped to the requested module.
+  - [x] Unauthorized users cannot trigger rebuilds.
+  - [x] Rebuild summaries report useful counts.
 
-### Version 0.32.6.5 - Permission, Visibility, and Scope Query Contract
+### Version 0.32.7.5 - FTS Rebuild and Repair
 
-- [x] Define the first permission-safe search filtering contract.
-  - [x] Search queries should always be constrained to the active workspace.
-  - [x] Search results should require the target record's declared read permission.
-  - [x] Client/project scope restrictions should filter results before they are returned.
-  - [x] Disabled modules should hide active search results for those module-owned records unless a future admin/audit search explicitly says otherwise.
-- [x] Define search metadata semantics.
-  - [x] `visibility` should describe search visibility, not replace record permissions.
-  - [x] `record_status` should support active/archived/completed-style filtering without becoming a universal workflow state.
-  - [x] `source` should be a display/search source label and not a permission source of truth.
-  - [x] Tag matching should use canonical tag assignments as the source of truth even if `tags_text` is denormalized for text ranking.
-- [x] Keep query shaping adapter-neutral.
-  - [x] Service filters should produce a backend-neutral search request model.
-  - [x] SQLite-specific FTS syntax should stay inside the SQLite adapter.
-  - [x] Future PostgreSQL full-text syntax should not require module contract changes.
+- [x] Add FTS rebuild support.
+  - [x] Rebuild FTS rows from canonical `search_index`.
+  - [x] Detect and repair missing FTS rows.
+  - [x] Detect and remove orphaned FTS rows.
+  - [x] Keep FTS rebuild logic inside the SQLite adapter boundary.
+  - [x] Keep rebuild admin/tooling permission-restricted.
+- [x] Preserve adapter fallback behavior.
+  - [x] FTS repair should be skipped safely when FTS5 is unavailable.
+  - [x] Indexed `LIKE` fallback should continue to use canonical `search_index`.
+  - [x] FTS repair should not mutate permission, visibility, workspace, module, or lifecycle metadata.
+- [x] Add FTS repair regressions.
+  - [x] Missing FTS rows are recreated from canonical rows.
+  - [x] Orphaned FTS rows are removed.
+  - [x] Unsupported FTS5 builds report skipped repair instead of failing broad rebuilds.
 
-### Version 0.32.6.6 - SQLite FTS5 and Fallback Prototype
+### Version 0.32.7.6 - Tests, Documentation, and Release Closeout
 
-- [x] Add SQLite FTS5 virtual table support where available.
-  - [x] Add a migration that creates the FTS5 table only when the active SQLite build supports it, or add startup/setup logic that safely skips it when unsupported.
-  - [x] Index searchable text fields such as title, summary, body, tags text, and module/source label.
-  - [x] Store enough reference fields to map FTS results back to `search_index`.
-  - [x] Keep FTS rows synchronized from `search_index` writes performed in this version's contract tests.
-- [x] Add fallback lookup behavior.
-  - [x] Use indexed `LIKE` search over `search_index` when FTS5 is unavailable.
-  - [x] Keep fallback behavior functional enough for local development and small self-hosted installs.
-  - [x] Make the fallback path observable in tests so unsupported FTS5 does not silently skip search.
-- [x] Defer full rebuild tooling to 0.32.7.
-  - [x] Do not add module-wide or workspace-wide rebuild commands in 0.32.6 unless needed as a private test helper.
-  - [x] Document how 0.32.7 will regenerate FTS rows from canonical `search_index` rows.
-
-### Version 0.32.6.7 - Contract Tests, Documentation, and Release Closeout
-
-- [x] Add search contract regression coverage.
-  - [x] Search service is framework-owned and adapter-backed.
-  - [x] SQLite FTS5 capability detection reports supported/unsupported state safely.
-  - [x] Fallback `LIKE` search works when FTS5 is unavailable.
-  - [x] `search_index` remains the canonical searchable-record source of truth.
-  - [x] Permission/workspace/module filters are applied before results are returned.
-  - [x] Invalid searchable module declarations fail module sanity checks.
+- [x] Add end-to-end search indexing regressions.
+  - [x] Initial searchable modules populate index rows.
+  - [x] Search index rebuild does not duplicate records.
+  - [x] Search results update after record edits.
+  - [x] Search results hide disabled-module records through active search targets.
+  - [x] Search indexing remains workspace-scoped.
+  - [x] Permission-sensitive search filters still apply before results are returned.
 - [x] Update documentation.
-  - [x] Record 0.32.6 search contract decisions in `DECISIONS.md`.
-  - [x] Add or update architecture notes for the search service, adapter boundary, canonical index table, and module declaration contract.
-  - [x] Keep README cursory unless the current-state overview needs a one-line search foundation note.
-  - [x] Add 0.32.6 changes to `CHANGELOG.md` with date/time.
+  - [x] Record 0.32.7 indexing/rebuild decisions in `DECISIONS.md`.
+  - [x] Update architecture notes for indexer ownership, event synchronization, rebuild scope, and FTS repair.
+  - [x] Update module development docs for implementing module-owned search indexers.
+  - [x] Keep README cursory unless the current-state overview needs a one-line indexing note.
+  - [x] Add 0.32.7 changes to `CHANGELOG.md` with date/time.
 - [x] Update release bookkeeping when implementation is complete.
-  - [x] Bump `package.json` and `package-lock.json` to `0.32.6.7`.
-  - [x] Verify `/api/app-info` reports `0.32.6.7`.
+  - [x] Bump `package.json` and `package-lock.json` to the completed 0.32.7 sub-version.
+  - [x] Verify `/api/app-info` reports the completed 0.32.7 sub-version.
   - [x] Move all but the most recently completed ROADMAP section to `ROADMAP-ARCHIVE.md`.
 - [x] Run verification.
-  - [x] Run focused search regressions.
+  - [x] Run focused search indexing/rebuild regressions.
   - [x] Run `npm run check`.
-  - [x] Run `npm run test:permissions` if permission-sensitive search paths change.
-
-## Version 0.32.7 - Search Indexing and Rebuild Tools
-
-* [ ] Add search indexing methods
-
-  * [ ] Index one record
-  * [ ] Remove one record from index
-  * [ ] Re-index one record
-  * [ ] Re-index all records for one module
-  * [ ] Re-index all records for one workspace
-  * [ ] Re-index all records for the app if needed
-
-* [ ] Connect search indexing to framework events
-
-  * [ ] Index records on create
-  * [ ] Update index records on update
-  * [ ] Update or remove index records on archive
-  * [ ] Restore index records on restore
-  * [ ] Remove index records when a module is disabled if historical search should be hidden
-  * [ ] Rebuild index records when a module is re-enabled
-
-* [ ] Add initial searchable records
-
-  * [ ] Tasks
-  * [ ] Time entries
-  * [ ] Clients
-  * [ ] Projects
-
-* [ ] Add search rebuild admin/tooling path
-
-  * [ ] Add safe server-side method to rebuild search index
-  * [ ] Add admin-only endpoint or script for rebuilding search index
-  * [ ] Do not expose broad rebuild tools to normal users
-  * [ ] Log rebuild activity clearly
-
-- [ ] Add FTS rebuild support. 
-  - [ ] Rebuild FTS rows from `search_index`. 
-  - [ ] Detect and repair missing FTS rows. 
-  - [ ] Detect and remove orphaned FTS rows. 
-  - [ ] Keep rebuild admin/tooling permission-restricted.
-
-* [ ] Keep search indexing boring at first
-
-  * [ ] No external search engine yet
-  * [ ] No fuzzy search yet
-  * [ ] No synonyms yet
-  * [ ] No advanced relevance tuning yet
-  * [ ] Build the contract first so the backend can improve later
+  - [x] Run `npm run test:permissions` because search indexing and rebuild tools are permission-sensitive.
+  - [x] Run SQLite integrity check after rebuild tests.
 
 ## Version 0.32.8 - Search API and Global Search UI
 
@@ -245,7 +177,8 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 * [ ] Add global search UI
 
   * [ ] Add simple search box to the authenticated app shell
-  * [ ] Show grouped results by record type
+    * [ ] Searchbox should have a selector drop-down to select record type based on hooked modules
+  * [ ] Show grouped results by record type on new search page
   * [ ] Show record title
   * [ ] Show short summary/snippet
   * [ ] Show module/source label
@@ -558,6 +491,17 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
     - [ ] Settings -> Workspace -> API Keys
     - [ ] Settings -> User Settings
 
+- [ ] If a client filter is selected on Projects in a business workspace, there's no need to have the client name in Parenthesis behind the project name. This goes for all places in business workspaces list {{projectName}} ({{clientName}})
+
+- Reporting -> Time Reports -> "Reporting Scope"
+  - Doesn't properly nest child clients
+  - Doesn't have parent client properly total child client records
+  - Reporting by project is incorrect if there's a parent/child relationship
+    - Children and parents both factor into the total (instead of being one or the other)
+  - Children aren't properly nested under parents in reporting
+
+### Admin/User Settings
+
 - [ ] Need a way for properly authenticated users to see active/running timers
   - [ ] Appropriate admins should be able to stop/pause timers with explicit warning
 
@@ -570,21 +514,20 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 - [ ] Add Workspace option to set default screen when switching into that workspace, per user.
   - Current behavior keeps it on Time Tracker, for example, but perhaps a user would always want to default to the dashboard. So, make the starting page selectable and provide a "Stay on Current Workspace's page" option as well (so when a new workspace opens it remains in the time tracker, or tasks, or whatever)
 
-- [ ] If a client filter is selected on Projects in a business workspace, there's no need to have the client name in Parenthesis behind the project name. This goes for all places in business workspaces list {{projectName}} ({{clientName}})
-
 ### Notification Fixes/Tweaks
 
 - [ ] Move notifications to a Bell icon, to the right of "Settings" menu
   - On mobile, this can be in mobile hamburger menu, but will need to apply the notifications number alert to the hamburger menu
 
+- [ ] Create Notification grouping options
+  - [ ] Notifications in Business workspaces should be grouped by Client
+  - [ ] Notifications in Personal/Family workspaces should be grouped by Project
+
 ## Version 0.32.14 - Final 0.32.x review for modularization for first-party modules
 
-- Perform a thorough check to ensure all current and existing modules, detailed below, are properly modularized and related data is owned by the appropriate module (there should be no timer tables in the Tasks module, for example)
-  - Framework
-    - Should include:
-      - Navigation
-      - Views/models
-      - 
+- Perform a thorough check to ensure all current and existing modules are properly isolated and related data is owned by the appropriate module (there should be no timer tables in the Tasks module, for example)
+- Ensure proper isolation of core/framework from first-party modules
+
 ## Version 0.33.0 - Support Tickets Framework Contract
 
 * [ ] Add Support Tickets as a first-party workflow module.
@@ -1631,4 +1574,3 @@ Auto-routing communications/messaging
   - [ ] Launch website
 
 - [ ] Launch Social Media
-

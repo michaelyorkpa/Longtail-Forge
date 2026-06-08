@@ -1,9 +1,66 @@
+## Version 0.32.7.6 - 2026-06-08 15:28 -04:00
+
+- Bumped the app and first-party module versions to `0.32.7.6`.
+- Added `scripts/search-lifecycle-regression.mjs` covering initial module indexing, idempotent rebuilds, re-index after edits, workspace scoping, disabled-module active-search hiding, and permission-aware search request filters.
+- Wired the final search lifecycle regression into `npm run check`.
+- Updated module development documentation for rebuild-capable search indexers and the completed 0.32.7 indexing/rebuild lifecycle.
+- Closed the 0.32.7 roadmap checklist while keeping global search API routes, browser UI, public API search, fuzzy search, synonyms, external engines, and advanced relevance tuning in later versions.
+
+## Version 0.32.7.5 - 2026-06-08 15:18 -04:00
+
+- Bumped the app and first-party module versions to `0.32.7.5`.
+- Added SQLite adapter-owned FTS rebuild/repair support that rebuilds FTS rows from canonical `search_index` rows.
+- Added missing FTS row repair, orphaned FTS row cleanup, and dry-run/skipped repair summaries.
+- Exposed framework search service repair plumbing while keeping FTS-specific behavior inside the SQLite adapter boundary.
+- Included FTS repair counts in workspace/module rebuild summaries without exposing broad app-wide repair through protected browser routes.
+- Added `scripts/search-fts-repair-regression.mjs` and wired it into `npm run check`.
+- Updated roadmap, decisions, architecture, and module contract documentation for the 0.32.7.5 FTS repair release.
+
+## Version 0.32.7.4 - 2026-06-08 15:07 -04:00
+
+- Bumped the app and first-party module versions to `0.32.7.4`.
+- Added framework-owned search index rebuild service methods for workspace, module, and local app-wide rebuild scopes.
+- Added a protected active-workspace rebuild endpoint gated by `workspace_settings.manage`, while keeping app-wide rebuilds in local maintenance tooling only.
+- Added `scripts/search-index-rebuild.mjs` for local workspace/module/app-wide rebuilds with optional dry-run mode.
+- Extended initial module indexers so Tasks, Time Entries, Clients, and Projects can enumerate workspace documents for rebuilds.
+- Added rebuild summaries with scanned, indexed, skipped, removed, failed, and repaired counts, plus stale canonical row removal for rebuilt targets.
+- Added `scripts/search-rebuild-regression.mjs` and wired it into `npm run check`.
+- Updated roadmap, decisions, architecture, and module contract documentation for the 0.32.7.4 rebuild tooling release.
+
+## Version 0.32.7.3 - 2026-06-08 14:40 -04:00
+
+- Bumped the app and first-party module versions to `0.32.7.3`.
+- Added a shared server-side search index sync helper for single-record re-index/remove calls with clear failure logging.
+- Wired Tasks, Time Entries, Clients, and Projects mutations to update canonical search rows after successful create/update/archive/restore/delete flows.
+- Re-indexed downstream project/time-entry search rows when client archives or project moves/renames affect indexed metadata.
+- Added `scripts/search-index-sync-regression.mjs` and wired it into `npm run check`.
+- Updated roadmap, decisions, architecture, and module contract documentation for the 0.32.7.3 event-driven synchronization release.
+
+## Version 0.32.7.2 - 2026-06-08 14:24 -04:00
+
+- Bumped the app and first-party module versions to `0.32.7.2`.
+- Added module-owned search indexers for Tasks, Time Entries, Clients, and Projects, each registered by stable framework indexer ID.
+- Added searchable type manifest declarations for `task`, `time_entry`, `client`, and `project` with read permissions, scope fields, status metadata, source labels, and tag text support.
+- Added canonical tag text lookup for module indexers while keeping exact tag filtering tied to canonical tag assignments.
+- Expanded search regression coverage so each initial module can re-index one real record through the framework service and produce normalized `search_index` rows.
+- Updated roadmap, decisions, architecture, module contract, and module development documentation for the 0.32.7.2 module indexer release.
+
+## Version 0.32.7.1 - 2026-06-08 14:12 -04:00
+
+- Bumped the app and first-party module versions to `0.32.7.1`.
+- Added formal framework-owned single-record search indexing methods for indexing one normalized document, removing one indexed record, and re-indexing one record through the module indexer registry.
+- Kept `search_index` as the canonical write target while leaving SQLite FTS synchronization and single-record FTS cleanup inside the SQLite adapter.
+- Added predictable indexing semantics for idempotent upserts, stale-row removal when an indexer returns no searchable document, and structured indexing error results.
+- Expanded search regression coverage for single-record upsert, canonical/FTS removal, idempotent re-indexing, stale-index cleanup, missing-indexer errors, and fallback search behavior.
+- Updated roadmap, decisions, architecture, module contract, and module development documentation for the 0.32.7.1 indexing service write-method release.
+
 ## Version 0.32.6.7 - 2026-06-08 13:42 -04:00
 
 - Bumped the app and first-party module versions to `0.32.6.7`.
 - Closed the 0.32.6 search framework contract with expanded regression coverage for adapter-backed search, SQLite FTS5/fallback behavior, canonical `search_index` ownership, client/project scope filters, exact tag filters, and invalid searchable declarations.
 - Updated README, architecture, module contract, roadmap, and decisions documentation for the completed search foundation.
 - Archived older completed roadmap sections while keeping the completed 0.32.6 section as the active roadmap's latest completed section.
+- Planned 0.32.7 as six search indexing/rebuild sub-version passes on 2026-06-08 13:53 -04:00, keeping global search API/UI work in 0.32.8.
 
 ## Version 0.32.6.6 - 2026-06-08 12:50 -04:00
 

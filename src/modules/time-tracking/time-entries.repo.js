@@ -18,7 +18,9 @@ SELECT
   duration_seconds,
   duration_hours,
   billable,
-  invoice_status
+  invoice_status,
+  created_at,
+  updated_at
 FROM time_entries
 WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY end_time;
@@ -44,7 +46,9 @@ SELECT
   duration_seconds,
   duration_hours,
   billable,
-  invoice_status
+  invoice_status,
+  created_at,
+  updated_at
 FROM time_entries
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND entry_id = ${sqlText(entryId)}
@@ -52,6 +56,35 @@ LIMIT 1;
 `);
 
   return rows[0] ? timeEntryRowToAppValue(rows[0]) : null;
+}
+
+async function readByProjectId(workspaceId, projectId) {
+  const rows = await querySql(`
+SELECT
+  entry_id,
+  workspace_id,
+  user_id,
+  client_id,
+  client_name,
+  project_id,
+  project_name,
+  task_id,
+  description,
+  start_time,
+  end_time,
+  duration_seconds,
+  duration_hours,
+  billable,
+  invoice_status,
+  created_at,
+  updated_at
+FROM time_entries
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND project_id = ${sqlText(projectId)}
+ORDER BY end_time;
+`);
+
+  return rows.map(timeEntryRowToAppValue);
 }
 
 async function create(entry) {
@@ -177,6 +210,8 @@ function timeEntryRowToAppValue(row) {
     duration_hours: row.duration_hours,
     billable: row.billable,
     invoice_status: row.invoice_status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   });
 }
 
@@ -186,6 +221,7 @@ export const timeEntriesRepository = {
   remove,
   readAll,
   readById,
+  readByProjectId,
   update,
   updateProjectScope,
 };

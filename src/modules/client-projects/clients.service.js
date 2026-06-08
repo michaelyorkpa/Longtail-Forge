@@ -3,6 +3,7 @@ import { clientsRepository } from "./clients.repo.js";
 import { projectsRepository } from "./projects.repo.js";
 import { auditService } from "../../core/audit.js";
 import { tagsService } from "../../services/tags.service.js";
+import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { isArchivedRecord, readClientScope } from "../../core/record-scope.js";
@@ -162,6 +163,7 @@ async function createClient(payload, session) {
     newValue: client,
     metadata: clientMetadata(client, parentClient),
   });
+  await syncClientSearchIndex(session.workspace_id, client.id, "client.created");
 
   return { client: (await tagsService.decorateRecordsForTarget(session, "client", [client]))[0] };
 }
@@ -227,6 +229,7 @@ async function updateClient(clientId, payload, session) {
       ...clientMetadata(client, parentClient),
     },
   });
+  await syncClientSearchIndex(session.workspace_id, client.id, "client.updated");
 
   return { client: (await tagsService.decorateRecordsForTarget(session, "client", [client]))[0] };
 }
@@ -265,6 +268,8 @@ async function archiveClient(clientId, payload, session) {
       new_status: "Inactive",
     },
   });
+  await syncClientSearchIndex(session.workspace_id, decodedClientId, "client.archived");
+  await syncProjectSearchIndexForClient(session.workspace_id, decodedClientId, "client.archived_projects");
 
   return { client_id: decodedClientId, archived: true };
 }
@@ -385,6 +390,7 @@ async function createProject(clientId, payload, session) {
     newValue: project,
     metadata: projectMetadata(client, project, parentProject),
   });
+  await syncProjectSearchIndex(session.workspace_id, project.id, "project.created");
 
   return { project: (await tagsService.decorateRecordsForTarget(session, "project", [project]))[0] };
 }
@@ -507,6 +513,10 @@ async function updateProject(projectId, payload, session) {
       ...projectMetadata(client, project, parentProject),
     },
   });
+  await syncProjectSearchIndex(session.workspace_id, project.id, "project.updated");
+  if (downstreamRecords.time_entries_updated > 0) {
+    await syncTimeEntrySearchIndexForProject(session.workspace_id, project.id, "project.updated_time_entries");
+  }
 
   return { project: (await tagsService.decorateRecordsForTarget(session, "project", [project]))[0] };
 }
@@ -607,8 +617,51 @@ async function archiveProject(projectId, payload, session) {
       new_status: "Inactive",
     },
   });
+  await syncProjectSearchIndex(session.workspace_id, decodedProjectId, "project.archived");
 
   return { project_id: decodedProjectId, archived: true };
+}
+
+async function syncClientSearchIndex(workspaceId, clientId, reason) {
+  await searchIndexSyncService.reindexRecord({
+    workspaceId,
+    moduleId: "client-projects",
+    recordType: "client",
+    recordId: clientId,
+    reason,
+  });
+}
+
+async function syncProjectSearchIndex(workspaceId, projectId, reason) {
+  await searchIndexSyncService.reindexRecord({
+    workspaceId,
+    moduleId: "client-projects",
+    recordType: "project",
+    recordId: projectId,
+    reason,
+  });
+}
+
+async function syncProjectSearchIndexForClient(workspaceId, clientId, reason) {
+  const projects = await projectsRepository.readByClientId(workspaceId, clientId);
+  await searchIndexSyncService.reindexRecords(projects.map((project) => ({
+    workspaceId,
+    moduleId: "client-projects",
+    recordType: "project",
+    recordId: project.id,
+    reason,
+  })));
+}
+
+async function syncTimeEntrySearchIndexForProject(workspaceId, projectId, reason) {
+  const entries = await timeEntriesRepository.readByProjectId(workspaceId, projectId);
+  await searchIndexSyncService.reindexRecords(entries.map((entry) => ({
+    workspaceId,
+    moduleId: "time-tracking",
+    recordType: "time_entry",
+    recordId: entry.entry_id,
+    reason,
+  })));
 }
 
 function normalizeClientPayload(payload, fallback = {}) {

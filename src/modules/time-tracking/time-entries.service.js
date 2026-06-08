@@ -3,6 +3,7 @@ import { timeEntriesRepository } from "./time-entries.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
 import { tagsService } from "../../services/tags.service.js";
+import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { resolveProjectRecordScope } from "../../core/record-scope.js";
@@ -61,6 +62,7 @@ async function create(entry, session) {
       storage: "database",
     },
   });
+  await syncTimeEntrySearchIndex(session.workspace_id, entryId, "time_entry.created");
 
   return {
     entry: (await tagsService.decorateRecordsForTarget(session, "time_entry", [data]))[0],
@@ -125,6 +127,7 @@ async function update(payload, entryId, session) {
       new_duration_seconds: updatedEntry.duration_seconds,
     },
   });
+  await syncTimeEntrySearchIndex(session.workspace_id, decodedEntryId, "time_entry.updated");
 
   return { entry: taggedEntry, storage: "database" };
 }
@@ -164,6 +167,13 @@ async function remove(entryId, session) {
       invoice_status: previousEntry.invoice_status,
     },
   });
+  await searchIndexSyncService.removeRecord({
+    workspaceId: session.workspace_id,
+    moduleId: MODULE_ID,
+    recordType: "time_entry",
+    recordId: decodedEntryId,
+    reason: "time_entry.deleted",
+  });
 
   return { entry_id: decodedEntryId, deleted: true };
 }
@@ -201,6 +211,16 @@ async function resolveTimeEntryScope(workspaceId, entry) {
     archivedProjectMessage: "Archived projects cannot receive new time entries.",
     clientNotFoundMessage: "Client not found",
     projectNotFoundMessage: "Project not found",
+  });
+}
+
+async function syncTimeEntrySearchIndex(workspaceId, entryId, reason) {
+  await searchIndexSyncService.reindexRecord({
+    workspaceId,
+    moduleId: MODULE_ID,
+    recordType: "time_entry",
+    recordId: entryId,
+    reason,
   });
 }
 

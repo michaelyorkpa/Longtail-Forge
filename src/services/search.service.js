@@ -4,10 +4,14 @@ import {
   listSearchBackendAdapters,
   SQLITE_SEARCH_ADAPTER_ID,
 } from "../core/search/adapters/registry.js";
-import { hasSearchIndexer, listSearchIndexerIds } from "../core/search/indexer-registry.js";
+import {
+  getSearchIndexer,
+  hasSearchIndexer,
+  listSearchIndexerIds,
+} from "../core/search/indexer-registry.js";
 import { AppError } from "../utils/app-error.js";
 
-const SEARCH_SERVICE_VERSION = "0.32.6.7";
+const SEARCH_SERVICE_VERSION = "0.32.7.6";
 
 const SEARCH_CAPABILITIES = Object.freeze({
   owner: "framework",
@@ -19,8 +23,9 @@ const SEARCH_CAPABILITIES = Object.freeze({
   notificationRecordSearchDeferred: true,
   globalApiEnabled: false,
   globalBrowserUiEnabled: false,
-  recordIndexingEnabled: false,
-  rebuildToolsEnabled: false,
+  recordIndexingEnabled: true,
+  rebuildToolsEnabled: true,
+  ftsRepairToolsEnabled: true,
   adapterBacked: true,
   canonicalIndexEnabled: true,
   canonicalIndexTable: "search_index",
@@ -81,6 +86,20 @@ async function ensureSearchBackendStorage(options = {}) {
   }
 
   return adapter.ensureStorage({ refresh: options.refresh === true });
+}
+
+async function repairSearchBackendIndex(scope = {}, options = {}) {
+  const adapterId = options.adapterId || SQLITE_SEARCH_ADAPTER_ID;
+  const adapter = getSearchBackendAdapter(adapterId);
+
+  if (!adapter?.repairIndex) {
+    throw new AppError(`Search backend adapter '${adapterId}' does not expose search index repair.`, 500);
+  }
+
+  return adapter.repairIndex(scope, {
+    dryRun: options.dryRun === true || options.dry_run === true,
+    refresh: options.refresh === true,
+  });
 }
 
 function listSearchableTypes() {
@@ -295,6 +314,115 @@ async function upsertSearchDocuments(documents = [], options = {}) {
   return adapter.upsertDocuments(documents, options);
 }
 
+async function indexSearchDocument(document, options = {}) {
+  try {
+    validateNormalizedSearchDocument(document);
+
+    const result = await upsertSearchDocuments([document], options);
+
+    return {
+      ok: true,
+      operation: "index_one",
+      searchIndexId: document.search_index_id,
+      workspaceId: document.workspace_id,
+      moduleId: document.module_id,
+      recordType: document.record_type,
+      recordId: document.record_id,
+      indexedCount: result.indexedCount,
+      ftsSyncedCount: result.ftsSyncedCount,
+      storage: result.storage,
+      errors: [],
+    };
+  } catch (error) {
+    return createIndexingErrorResult("index_one", error, {
+      document,
+      throwOnError: options.throwOnError === true,
+    });
+  }
+}
+
+async function removeSearchDocument(recordReference = {}, options = {}) {
+  try {
+    const normalizedReference = normalizeSearchRecordReference(recordReference);
+    const adapterId = options.adapterId || SQLITE_SEARCH_ADAPTER_ID;
+    const adapter = getSearchBackendAdapter(adapterId);
+
+    if (!adapter?.removeDocument) {
+      throw new AppError(`Search backend adapter '${adapterId}' does not support search index removal.`, 500);
+    }
+
+    const result = await adapter.removeDocument(normalizedReference, options);
+
+    return {
+      ok: true,
+      operation: "remove_one",
+      ...normalizedReference,
+      removedCount: result.removedCount,
+      ftsRemovedCount: result.ftsRemovedCount,
+      storage: result.storage,
+      errors: [],
+    };
+  } catch (error) {
+    return createIndexingErrorResult("remove_one", error, {
+      recordReference,
+      throwOnError: options.throwOnError === true,
+    });
+  }
+}
+
+async function reindexSearchRecord(recordReference = {}, options = {}) {
+  try {
+    const declaration = resolveSearchableType(recordReference);
+    const normalizedReference = normalizeSearchRecordReference({
+      ...recordReference,
+      moduleId: declaration.moduleId,
+      recordType: declaration.recordType,
+    });
+    const validation = validateSearchableTypeDeclaration(declaration, {
+      requireRegisteredIndexer: true,
+    });
+
+    if (!validation.valid) {
+      throw new AppError(`Invalid searchable type declaration: ${validation.errors.join("; ")}`, 500);
+    }
+
+    const indexer = getSearchIndexer(validation.declaration.indexer);
+    const indexedRecord = await indexer({
+      ...normalizedReference,
+      declaration: validation.declaration,
+      record: recordReference.record || null,
+      searchService,
+    });
+    const document = extractSingleIndexerDocument(indexedRecord);
+
+    if (!document) {
+      const removal = await removeSearchDocument(normalizedReference, options);
+
+      return {
+        ...removal,
+        operation: "reindex_one",
+        indexedCount: 0,
+        removedStaleIndex: true,
+        reason: "indexer_returned_no_search_document",
+      };
+    }
+
+    const normalizedDocument = normalizeSearchDocument(validation.declaration, document);
+    const indexed = await indexSearchDocument(normalizedDocument, options);
+
+    return {
+      ...indexed,
+      operation: "reindex_one",
+      removedStaleIndex: false,
+    };
+  } catch (error) {
+    return createIndexingErrorResult("reindex_one", error, {
+      recordReference,
+      throwOnError: options.throwOnError === true,
+    });
+  }
+}
+
 async function executeSearch(request, options = {}) {
   const adapterId = options.adapterId || SQLITE_SEARCH_ADAPTER_ID;
   const adapter = getSearchBackendAdapter(adapterId);
@@ -304,6 +432,23 @@ async function executeSearch(request, options = {}) {
   }
 
   return adapter.search(request, options);
+}
+
+function resolveSearchableType(recordReference = {}) {
+  if (recordReference.searchableType) {
+    return normalizeSearchableType(recordReference.searchableType);
+  }
+
+  const moduleId = normalizeString(recordReference.moduleId || recordReference.module_id);
+  const recordType = normalizeString(recordReference.recordType || recordReference.record_type);
+  const declaration = listSearchableTypes()
+    .find((type) => type.moduleId === moduleId && type.recordType === recordType);
+
+  if (!declaration) {
+    throw new AppError(`Searchable type '${moduleId}:${recordType}' is not registered.`, 400);
+  }
+
+  return declaration;
 }
 
 function normalizeSearchableType(declaration = {}) {
@@ -394,6 +539,99 @@ function normalizeSearchDocument(searchableType, document = {}) {
   };
 }
 
+function validateNormalizedSearchDocument(document = {}) {
+  const missingFields = [
+    "search_index_id",
+    "workspace_id",
+    "module_id",
+    "record_type",
+    "record_id",
+  ].filter((fieldName) => !normalizeString(document[fieldName]));
+
+  if (missingFields.length > 0) {
+    throw new AppError(`Invalid normalized search document: ${missingFields.join(", ")} required.`, 400);
+  }
+}
+
+function normalizeSearchRecordReference(recordReference = {}) {
+  const workspaceId = normalizeString(recordReference.workspaceId || recordReference.workspace_id);
+  const moduleId = normalizeString(recordReference.moduleId || recordReference.module_id);
+  const recordType = normalizeString(recordReference.recordType || recordReference.record_type);
+  const recordId = normalizeString(recordReference.recordId || recordReference.record_id);
+  const searchIndexId = normalizeString(recordReference.searchIndexId || recordReference.search_index_id) ||
+    (workspaceId && moduleId && recordType && recordId ? `${workspaceId}:${moduleId}:${recordType}:${recordId}` : "");
+  const missingFields = [];
+
+  for (const [fieldName, value] of Object.entries({
+    workspaceId,
+    moduleId,
+    recordType,
+    recordId,
+  })) {
+    if (!value) {
+      missingFields.push(fieldName);
+    }
+  }
+
+  if (missingFields.length > 0) {
+    throw new AppError(`Invalid search record reference: ${missingFields.join(", ")} required.`, 400);
+  }
+
+  return {
+    searchIndexId,
+    search_index_id: searchIndexId,
+    workspaceId,
+    workspace_id: workspaceId,
+    moduleId,
+    module_id: moduleId,
+    recordType,
+    record_type: recordType,
+    recordId,
+    record_id: recordId,
+  };
+}
+
+function extractSingleIndexerDocument(result) {
+  if (!result || result.searchable === false) {
+    return null;
+  }
+
+  if (Array.isArray(result)) {
+    return result[0] || null;
+  }
+
+  if (Array.isArray(result.documents)) {
+    return result.documents[0] || null;
+  }
+
+  if (result.document) {
+    return result.document;
+  }
+
+  return result;
+}
+
+function createIndexingErrorResult(operation, error, context = {}) {
+  if (context.throwOnError) {
+    throw error;
+  }
+
+  return {
+    ok: false,
+    operation,
+    indexedCount: 0,
+    removedCount: 0,
+    ftsSyncedCount: 0,
+    ftsRemovedCount: 0,
+    errors: [
+      {
+        code: error instanceof AppError ? `search_indexing_${error.statusCode || 500}` : "search_indexing_error",
+        message: error?.message || String(error),
+      },
+    ],
+  };
+}
+
 function normalizeIdList(value) {
   if (!Array.isArray(value)) {
     return [];
@@ -454,9 +692,13 @@ export const searchService = {
   executeSearch,
   getCapabilities,
   getRuntimeCapabilities,
+  indexSearchDocument,
   listActiveSearchableTypes,
   listSearchableTypes,
   normalizeSearchDocument,
+  reindexSearchRecord,
+  repairSearchBackendIndex,
+  removeSearchDocument,
   upsertSearchDocuments,
   validateSearchableTypeDeclaration,
   validateSearchableTypeDeclarations,

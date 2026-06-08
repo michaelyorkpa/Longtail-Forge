@@ -26,7 +26,7 @@ Modules should provide business/workflow functionality such as tasks, time track
 
 ## Current Architecture Direction
 
-As of version 0.32.6.7, Longtail Forge has an active first-party module architecture with display-only workspace-aware terminology for framework/module-registry surfaces and a framework-owned search service contract with backend adapter capability detection, canonical search metadata storage, active searchable type discovery, backend-neutral permission-safe search request shaping, and a SQLite FTS5/indexed-LIKE prototype behind the adapter boundary.
+As of version 0.32.7.6, Longtail Forge has an active first-party module architecture with display-only workspace-aware terminology for framework/module-registry surfaces and a framework-owned search service contract with backend adapter capability detection, canonical search metadata storage, active searchable type discovery, backend-neutral permission-safe search request shaping, formal single-record indexing/removal/re-indexing methods, first module-owned indexers for Tasks, Time Entries, Clients, and Projects, service-owned event synchronization for those initial modules, rebuild tooling for workspace/module/local app-wide scopes, adapter-owned SQLite FTS repair, and SQLite FTS5/indexed-LIKE search behavior behind the adapter boundary.
 
 Current first-party modules include:
 
@@ -37,7 +37,7 @@ Current first-party modules include:
 
 These modules are registered explicitly in the static module registry. The current manifest contract includes startup validation, registry-driven navigation, settings, protected views, browser assets, permissions, API scopes, audit record types, internal events, event summaries, Workbench cards, timer sources, work item sources, lifecycle hooks, dependency checks, notification declarations, taggable type declarations, and searchable type declarations.
 
-The next architecture step is not automatic plugin discovery. The next step is to continue building the framework-owned services declared in the roadmap, moving from the search contract, adapter capability layer, canonical `search_index` metadata table, active searchable type contract, and SQLite FTS/fallback prototype toward indexing/rebuild tools and search UI while keeping first-party modules on the same manifest rails future modules will use.
+The next architecture step is not automatic plugin discovery. The next step is to continue building the framework-owned services declared in the roadmap, moving from the search contract, adapter capability layer, canonical `search_index` metadata table, active searchable type contract, single-record indexing writes, initial module indexers, service-owned event synchronization, rebuild tooling, and SQLite FTS/fallback/repair behavior toward search UI while keeping first-party modules on the same manifest rails future modules will use.
 
 Longtail Forge should prefer:
 
@@ -1261,7 +1261,11 @@ record_updated_at
 indexed_at
 ```
 
-Search index records should be updated by framework events.
+Search index records are written through framework-owned single-record indexing methods. The first module-owned indexers cover Tasks, Time Entries, Clients, and Projects. Module indexers return normalized search documents, while the framework writes canonical `search_index` rows and delegates SQLite FTS synchronization/removal to the adapter. Initial event synchronization is owned by module mutation services: after successful record mutations, Tasks, Time Entries, Clients, and Projects call the framework sync helper to re-index or remove the affected search row, with downstream project/time-entry sync where project scope metadata changes.
+
+Search index rebuilds are framework-owned and count-based. The rebuild service can rebuild one enabled module in an active workspace, all active searchable types in one workspace, or all workspaces through local maintenance tooling. Protected HTTP rebuilds require the active workspace context and `workspace_settings.manage`; app-wide rebuilds are not exposed through browser routes. Rebuilds ask module indexers for workspace documents, normalize those documents through the framework search service, upsert canonical rows idempotently, remove stale canonical rows for the rebuilt target, and then ask the active backend adapter to repair search storage for that same scope.
+
+SQLite FTS repair stays inside the SQLite adapter. When FTS5 is available, repair rebuilds scoped FTS rows from canonical `search_index`, recreates missing FTS rows, removes orphaned FTS rows, and can report dry-run counts without mutation. When FTS5 is unavailable, repair reports a skipped result and indexed `LIKE` fallback continues to query canonical `search_index` fields. FTS repair must not mutate canonical permission, visibility, workspace, module, scope, lifecycle, or timestamp metadata.
 
 Examples:
 

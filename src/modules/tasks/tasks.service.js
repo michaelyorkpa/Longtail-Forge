@@ -12,6 +12,7 @@ import { usersRepository } from "../../repositories/users.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
 import { tagsService } from "../../services/tags.service.js";
+import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
@@ -161,6 +162,7 @@ async function create(payload, session) {
     previousValue: null,
     newValue: taskWithDetails,
   });
+  await syncTaskSearchIndex(session.workspace_id, taskWithDetails.task_id, "task.created");
 
   if (recurrence.enabled) {
     await recordRecurrenceAudit({
@@ -257,6 +259,7 @@ async function update(taskId, payload, session) {
     previousValue: previousTask,
     newValue: taskWithDetails,
   });
+  await syncTaskSearchIndex(session.workspace_id, taskWithDetails.task_id, "task.updated");
   if (assigneesChanged(previousTask, taskWithDetails)) {
     await emitTaskEvent("task.assigned", {
       session,
@@ -297,6 +300,7 @@ async function complete(taskId, session) {
     previousValue: previousTask,
     newValue: task,
   });
+  await syncTaskSearchIndex(session.workspace_id, task.task_id, "task.completed");
 
   const recurrenceResult = await taskRecurrenceService.createNextInstance({
     session,
@@ -337,6 +341,7 @@ async function complete(taskId, session) {
         source_task_id: task.task_id,
       },
     });
+    await syncTaskSearchIndex(session.workspace_id, createdTask.task_id, "task.recurrence_instance_created");
   }
 
   return { task, createdTask };
@@ -370,6 +375,7 @@ async function reopen(taskId, session) {
       transition: "reopened",
     },
   });
+  await syncTaskSearchIndex(session.workspace_id, task.task_id, "task.reopened");
 
   return { task };
 }
@@ -401,6 +407,7 @@ async function archive(taskId, session) {
     previousValue: previousTask,
     newValue: task,
   });
+  await syncTaskSearchIndex(session.workspace_id, task.task_id, "task.archived");
 
   return { task };
 }
@@ -431,6 +438,7 @@ async function restore(taskId, session) {
     previousValue: previousTask,
     newValue: task,
   });
+  await syncTaskSearchIndex(session.workspace_id, task.task_id, "task.restored");
 
   return { task };
 }
@@ -1131,6 +1139,16 @@ async function emitTaskEvent(eventName, { session, previousValue, newValue, meta
       status: task.status || "",
       ...metadata,
     },
+  });
+}
+
+async function syncTaskSearchIndex(workspaceId, taskId, reason) {
+  await searchIndexSyncService.reindexRecord({
+    workspaceId,
+    moduleId: TASKS_MODULE_ID,
+    recordType: "task",
+    recordId: taskId,
+    reason,
   });
 }
 
