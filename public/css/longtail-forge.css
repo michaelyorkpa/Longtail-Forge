@@ -1923,6 +1923,41 @@ button.danger-button {
     font-weight: 700;
 }
 
+.report-project-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: calc(var(--report-project-depth, 0) * 24px);
+}
+
+.report-project-toggle,
+.report-project-toggle-spacer {
+    width: 24px;
+    min-width: 24px;
+    height: 24px;
+}
+
+.report-project-toggle {
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.report-project-toggle:hover,
+.report-project-toggle:focus-visible {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.report-child-row th,
+.report-child-row td {
+    background: var(--color-page-bg);
+}
+
 /* Client/project editor */
 .client-list {
     display: grid;

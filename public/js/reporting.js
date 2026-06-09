@@ -23,6 +23,8 @@ let reportBootstrap = {
   scopes: [],
 };
 let reportTagOptions = [];
+const expandedProjectRows = new Set();
+let currentProjectSummary = null;
 
 setDefaultCustomDates();
 updateCustomDateState();
@@ -173,21 +175,19 @@ async function renderReport() {
 }
 
 function renderProjectSummary(summary) {
+  currentProjectSummary = summary;
+  reportTableBody.innerHTML = "";
+
   if (!summary.rows?.length) {
     reportTotalTime.textContent = formatHours(0);
     reportTotalBillableAmount.textContent = formatCurrency(0);
+    reportTableWrap.hidden = true;
     setReportStatus("No time entries match these filters.");
     return;
   }
 
   summary.rows.forEach((row) => {
-    reportTableBody.appendChild(createReportRow(
-      row.project,
-      row.rate,
-      row.displaySeconds,
-      row.billableSeconds,
-      row.amount,
-    ));
+    appendReportRow(row, { depth: 0 });
   });
 
   reportTotalTime.textContent = formatHours(summary.totals?.seconds || 0);
@@ -196,17 +196,80 @@ function renderProjectSummary(summary) {
   setReportStatus("");
 }
 
-function createReportRow(project, rate, seconds, billableSeconds, billableAmount) {
+function appendReportRow(row, options = {}) {
+  const depth = Number(options.depth) || 0;
+  const childRows = Array.isArray(row.childRows) ? row.childRows : [];
+  const rowId = getReportRowId(row);
+  const isExpanded = expandedProjectRows.has(rowId);
+  const tableRow = createReportRow(row, { depth, hasChildren: childRows.length > 0, isExpanded });
+
+  reportTableBody.appendChild(tableRow);
+
+  if (!isExpanded) {
+    return;
+  }
+
+  childRows.forEach((childRow) => {
+    appendReportRow(childRow, { depth: depth + 1 });
+  });
+}
+
+function createReportRow(row, options = {}) {
+  const { rate, displaySeconds, billableSeconds, amount } = row;
   const hasBillableTime = billableSeconds > 0;
-  const row = document.createElement("tr");
-  row.append(
-    createTableCell(project.name, "th"),
+  const tableRow = document.createElement("tr");
+  tableRow.className = options.depth > 0 ? "report-child-row" : "report-parent-row";
+  tableRow.append(
+    createProjectCell(row, options),
     createTableCell(hasBillableTime ? formatRate(rate) : ""),
-    createTableCell(formatHours(seconds)),
-    createTableCell(hasBillableTime ? formatCurrency(billableAmount) : ""),
+    createTableCell(formatHours(displaySeconds)),
+    createTableCell(hasBillableTime ? formatCurrency(amount) : ""),
   );
-  row.firstElementChild.scope = "row";
-  return row;
+  tableRow.firstElementChild.scope = "row";
+  return tableRow;
+}
+
+function createProjectCell(row, options = {}) {
+  const cell = document.createElement("th");
+  const projectName = row.project?.name || "";
+  const depth = Number(options.depth) || 0;
+  const rowId = getReportRowId(row);
+  const wrapper = document.createElement("span");
+  wrapper.className = "report-project-cell";
+  wrapper.style.setProperty("--report-project-depth", String(depth));
+
+  if (options.hasChildren) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "report-project-toggle";
+    button.setAttribute("aria-expanded", options.isExpanded ? "true" : "false");
+    button.setAttribute("aria-label", `${options.isExpanded ? "Collapse" : "Expand"} ${projectName}`);
+    button.textContent = options.isExpanded ? "v" : ">";
+    button.addEventListener("click", () => {
+      if (expandedProjectRows.has(rowId)) {
+        expandedProjectRows.delete(rowId);
+      } else {
+        expandedProjectRows.add(rowId);
+      }
+
+      renderProjectSummary(currentProjectSummary);
+    });
+    wrapper.appendChild(button);
+  } else {
+    const spacer = document.createElement("span");
+    spacer.className = "report-project-toggle-spacer";
+    wrapper.appendChild(spacer);
+  }
+
+  const label = document.createElement("span");
+  label.textContent = projectName;
+  wrapper.appendChild(label);
+  cell.appendChild(wrapper);
+  return cell;
+}
+
+function getReportRowId(row) {
+  return `${row.project?.id || row.project?.name || ""}`;
 }
 
 function renderExtensionPanels() {
@@ -315,11 +378,44 @@ function createTableCell(text, tagName = "td") {
 }
 
 function sortProjectTree(projects) {
-  return [...projects].sort((left, right) =>
-    getProjectTreeSortKey(left, projects).localeCompare(getProjectTreeSortKey(right, projects), undefined, {
-      sensitivity: "base",
-    }),
-  );
+  const projectsByParentId = new Map();
+  const sortedProjects = [];
+  const visited = new Set();
+
+  projects.forEach((project) => {
+    const parentId = project.parentProjectId || "";
+    const siblings = projectsByParentId.get(parentId) || [];
+    siblings.push(project);
+    projectsByParentId.set(parentId, siblings);
+  });
+
+  const appendBranch = (parentId) => {
+    const siblings = [...(projectsByParentId.get(parentId) || [])].sort((left, right) =>
+      String(left.name || "").localeCompare(String(right.name || ""), undefined, { sensitivity: "base" }),
+    );
+
+    siblings.forEach((project) => {
+      if (visited.has(project.id)) {
+        return;
+      }
+
+      visited.add(project.id);
+      sortedProjects.push(project);
+      appendBranch(project.id);
+    });
+  };
+
+  appendBranch("");
+
+  projects.forEach((project) => {
+    if (!visited.has(project.id)) {
+      visited.add(project.id);
+      sortedProjects.push(project);
+      appendBranch(project.id);
+    }
+  });
+
+  return sortedProjects;
 }
 
 function sortScopeTree(scopes) {
@@ -360,20 +456,6 @@ function getScopeDepth(scope, scopes, visited = new Set()) {
   visited.add(scope.id);
   const parent = scopes.find((item) => item.id === scope.parentScopeId);
   return parent ? 1 + getScopeDepth(parent, scopes, visited) : 0;
-}
-
-function getProjectTreeSortKey(project, projects) {
-  const names = [];
-  let currentProject = project;
-  const visited = new Set();
-
-  while (currentProject && !visited.has(currentProject.id)) {
-    visited.add(currentProject.id);
-    names.unshift(currentProject.name || "");
-    currentProject = projects.find((item) => item.id === currentProject.parentProjectId);
-  }
-
-  return names.join("/");
 }
 
 function getProjectDepth(project, projects, visited = new Set()) {

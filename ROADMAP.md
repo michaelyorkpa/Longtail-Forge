@@ -2,154 +2,6 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.9 - Help Page Framework and UI
-
-Decision:
-Help Center is framework-owned, not a normal disable-able first-party workflow module. Modules provide their own help pages through validated manifest contributions. Help pages are their own record type and are searchable separately from user-authored Knowledge Base content.
-
-Implementation shape:
-- Add a framework-owned Help Center page/surface.
-- Add a validated module manifest contribution for help/docs.
-- Index help articles as searchable records.
-- Add "Help" as a global search type/source filter.
-- Allow first-party and future third-party modules to contribute docs through manifest metadata.
-- Keep user-authored Knowledge Base separate as a first-party module.
-- Help Center link belongs in the Settings menu between User and Log Out.
-
-### Help Center / Documentation Search Decisions
-
-- [x] Confirm Help Center ownership.
-  - Help Center UI, routes, search integration, and docs contribution validation are framework-owned. Help is not a normal disable-able workflow module.
-- [x] Add module-declared help/documentation contributions.
-  - Modules may declare help sections/articles through the manifest. The framework validates these declarations and exposes them in the Help Center.
-- [x] Add Help as a searchable result type/source.
-  - Index framework and module help articles into `search_index` with `record_type = help_article`, `source = Help`, module ownership metadata, and permission/module visibility filters.
-- [x] Keep product Help separate from user-authored Knowledge Base.
-  - Help Center documents how to use Longtail Forge and installed modules. The future Knowledge Base module stores workspace-authored operational knowledge.
-- [x] Confirm first navigation placement.
-  - Add the Help Center link to the Settings menu between User and Log Out.
-
-### Version 0.32.9.1 - Help Contribution Contract
-
-- [x] Add framework-owned help contribution validation.
-  - [x] Extend module manifest validation with an optional `help` contribution block.
-  - [x] Support module-declared help sections.
-  - [x] Support module-declared help articles/pages.
-  - [x] Require stable article IDs or slugs.
-  - [x] Require title, summary/description, and body/content source.
-  - [x] Support optional ordering, category/section, audience, tags, and related article metadata.
-  - [x] Support framework-owned help articles without pretending they belong to a disable-able module.
-  - [x] Reject invalid, duplicate, or unsafe article declarations with structured startup/validation errors.
-- [x] Keep ownership boundaries clear.
-  - [x] Framework owns Help Center routes, rendering shell, contribution validation, indexing, and search exposure.
-  - [x] Modules own the content of their own help pages.
-  - [x] Disabling a module hides its normal active module help from the Help Center and active Help search unless later historical/admin behavior explicitly needs otherwise.
-  - [x] Do not create Knowledge Base tables, authoring workflows, or user-authored article editing in 0.32.9.
-- [x] Add focused contract regressions.
-  - [x] Valid help contributions are accepted from first-party module manifests.
-  - [x] Invalid help declarations fail predictably.
-  - [x] Duplicate article IDs/slugs are rejected.
-  - [x] Disabled-module help is excluded from active Help Center discovery.
-
-### Version 0.32.9.2 - Framework-Owned Help Center Surface
-
-- [x] Add protected Help Center page and route.
-  - [x] Add a framework-owned protected `help.html` view.
-  - [x] Add matching browser script and CSS hooks using existing plain browser JavaScript patterns.
-  - [x] Add a protected API endpoint for Help Center content discovery.
-  - [x] Return framework and active-module help sections/articles in a browser-safe shape.
-  - [x] Support article detail loading by stable ID/slug.
-  - [x] Support category/section navigation.
-  - [x] Support loading, empty, error, and no-visible-content states.
-- [x] Add Help Center navigation.
-  - [x] Add Help to the Settings menu between User and Log Out.
-  - [x] Keep Help visible as a framework surface even though normal workflow modules can be disabled.
-  - [x] Preserve existing Settings menu behavior and responsive navigation.
-- [x] Add page behavior regressions.
-  - [x] Authenticated users can open the Help Center.
-  - [x] The Settings menu shows Help between User and Log Out.
-  - [x] Framework help appears even when optional modules are disabled.
-  - [x] Module help appears only for active/visible modules.
-  - [x] Article navigation loads the expected content without a full app reload where practical.
-
-### Version 0.32.9.3 - Help Search Indexing and Filters
-
-- [x] Add Help as a first-class searchable record type/source.
-  - [x] Use `record_type = help_article`.
-  - [x] Use `source = Help`.
-  - [x] Include framework/module ownership metadata.
-  - [x] Include section/category metadata where useful.
-  - [x] Include permission and module visibility metadata for active Help search.
-  - [x] Keep help body indexing body-safe for browser snippets.
-- [x] Add framework-owned help indexing.
-  - [x] Index framework help articles.
-  - [x] Index active module-declared help articles.
-  - [x] Rebuild Help search rows through the existing search rebuild/repair boundary.
-  - [x] Remove stale Help rows when declarations change or modules are disabled.
-  - [x] Keep SQLite FTS/fallback behavior adapter-owned.
-- [x] Integrate Help into global search UI.
-  - [x] Add Help to the search type/source filter.
-  - [x] Allow Help results to route to the Help Center article view.
-  - [x] Keep Help results separate from future Knowledge Base results.
-  - [x] Do not add typeahead/autocomplete in this pass.
-- [x] Add search regressions.
-  - [x] Framework Help articles are discoverable through `GET /api/search`.
-  - [x] Module Help articles are discoverable only when their module is active/visible.
-  - [x] The Help filter returns only Help articles.
-  - [x] Help result links route to Help Center article URLs/actions.
-  - [x] Knowledge Base is not conflated with Help search metadata.
-
-### Version 0.32.9.4 - Initial Framework Help Articles
-
-- [x] Create baseline framework-owned help pages and identify them as framework help.
-  - [x] Getting Started.
-  - [x] Workspaces and Workspace Switching.
-  - [x] Users, Roles, and Permissions.
-  - [x] Clients and Projects.
-  - [x] Time Tracking Basics.
-  - [x] Tasks Basics.
-  - [x] Notifications.
-  - [x] Tags.
-  - [x] Search.
-  - [x] Settings and User Preferences.
-  - [x] Modules and Optional Features.
-- [x] Keep initial content intentionally basic.
-  - [x] Cover current app behavior, not future roadmap promises.
-  - [x] Prefer short, task-oriented pages over long docs dumps.
-  - [x] Mark framework-owned pages with a framework source/owner label.
-  - [x] Keep module-specific pages ready to move into module declarations when those modules provide richer docs.
-  - [x] Avoid replacing developer docs in `docs/` or detailed roadmap history.
-- [x] Add content regressions.
-  - [x] Framework-owned help pages are returned by Help Center APIs.
-  - [x] Framework-owned help pages are indexed as Help articles.
-  - [x] Framework source/owner metadata appears in Help Center and search results.
-  - [x] Basic article links and headings are valid.
-
-### Version 0.32.9.5 - Documentation, Tests, and Release Closeout
-
-- [x] Add end-to-end Help Center workflow regressions.
-  - [x] Help Center route and API require authentication.
-  - [x] Help Center lists framework and active-module help articles.
-  - [x] Disabled-module help stays hidden from normal Help Center and active Help search.
-  - [x] Help article pages are searchable separately from other record types.
-  - [x] Global search Help filter returns Help articles with safe snippets and Help Center links.
-  - [x] Settings menu placement remains stable.
-- [x] Update documentation.
-  - [x] Record 0.32.9 Help Center decisions in `DECISIONS.md`.
-  - [x] Update architecture notes for framework-owned Help Center routing, content contribution validation, and search indexing.
-  - [x] Update module development docs for manifest-declared help pages.
-  - [x] Keep README cursory unless the current-state overview needs a one-line Help Center note.
-  - [x] Add 0.32.9 changes to `CHANGELOG.md` with date/time.
-- [x] Update release bookkeeping when implementation is complete.
-  - [x] Bump `package.json` and `package-lock.json` to the completed 0.32.9 sub-version.
-  - [x] Verify `/api/app-info` reports the completed 0.32.9 sub-version.
-  - [x] Move all but the most recently completed ROADMAP section to `ROADMAP-ARCHIVE.md`.
-- [x] Run verification.
-  - [x] Run focused Help Center API/UI/search regressions.
-  - [x] Run `npm run check`.
-  - [x] Run `npm run test:permissions` because Help search and module visibility are permission-sensitive.
-  - [x] Run SQLite integrity check after Help indexing workflow tests.
-
 ## Version 0.32.9.6 - Interim Tweaks for 0.32.x branch
 
 ### General UI Fixes/Tweaks
@@ -528,7 +380,1448 @@ Implementation shape:
   - [ ] Run `npm run test:permissions` because file access and module hooks are permission-sensitive.
   - [ ] Run SQLite integrity check after file migration and attachment workflow tests.
 
-## Version 0.33.0 - Support Tickets Framework Contract
+## Version 0.34.0 - Notes Module Contract, Data Model, Permissions, and Revisions
+
+Decision:
+Notes are a first-party workflow module for dynamic working records. Notes are not Knowledge Base articles, Help articles, ticket ledger entries, audit records, or task comments. Notes may later feed Knowledge Base content, but note authoring and KB publishing remain separate workflows.
+
+Implementation shape:
+
+* Add Notes as a durable first-party module with its own data model, permissions, routes, services, manifest declarations, search integration, tag integration, file attachment integration, revision history, and Help contribution.
+
+* Keep Notes internal-first in the initial implementation.
+
+* Store note content as Markdown, even if the first editor is a plain textarea.
+
+* Leave clean hooks for a future WYSIWYG-style Markdown editor that emits valid Markdown instead of storing proprietary rich-text blobs.
+
+* Treat secure notes as a separate privacy/encryption concern, not just a tag or visibility flag.
+
+* [ ] Add Notes as a first-party module.
+
+  * [ ] Module ID should be `notes`.
+  * [ ] Notes are dynamic working records.
+  * [ ] Notes are module records, not framework/core records.
+  * [ ] Notes should use framework-owned services for users, workspaces, permissions, tags, search, notifications, audit logging, file attachments, events/hooks, API scopes, Help contributions, and module lifecycle.
+  * [ ] Do not hard-code note behavior into framework-owned app shell, search, notification, file, tag, or permission services.
+  * [ ] Notes should be disableable per workspace where appropriate.
+  * [ ] Disabled Notes module should block new note writes while preserving historical reads if `historicalReadAccess` is enabled.
+  * [ ] Notes should not become an all-purpose dumping ground for comments, ticket replies, audit events, or KB publishing state.
+
+* [ ] Define note terminology and purpose.
+
+  * [ ] Notes are working records.
+  * [ ] Notes may contain drafts, meeting notes, research, implementation notes, client notes, project notes, task notes, ticket-adjacent notes, user notes, and general workspace notes.
+  * [ ] Notes should be allowed to evolve over time.
+  * [ ] Notes should support links to other records without becoming those records.
+  * [ ] Notes should be internal-first until client/public visibility rules are deliberately added.
+  * [ ] Knowledge Base should remain the curated publishing layer.
+  * [ ] Help Center should remain product/module documentation, not workspace-authored notes.
+
+* [ ] Define core note record model.
+
+  * [ ] Add `notes` table.
+  * [ ] Suggested fields:
+
+    * [ ] `note_id`
+    * [ ] `workspace_id`
+    * [ ] `title`
+    * [ ] `slug` optional, workspace-scoped
+    * [ ] `body_markdown`
+    * [ ] `body_excerpt`
+    * [ ] `body_plaintext_index`
+    * [ ] `note_type`
+    * [ ] `status`
+    * [ ] `visibility`
+    * [ ] `client_id` optional
+    * [ ] `project_id` optional
+    * [ ] `task_id` optional
+    * [ ] `ticket_id` optional
+    * [ ] `linked_user_id` optional
+    * [ ] `owner_user_id` optional
+    * [ ] `created_by_user_id`
+    * [ ] `updated_by_user_id`
+    * [ ] `created_at`
+    * [ ] `updated_at`
+    * [ ] `archived_at`
+    * [ ] `deleted_at`
+    * [ ] `metadata_json`
+  * [ ] Every note must belong to exactly one workspace.
+  * [ ] Optional client/project/task/ticket/user links must belong to the same workspace.
+  * [ ] `body_markdown` is the canonical editable body for normal notes.
+  * [ ] `body_plaintext_index` should be generated server-side from safe Markdown parsing and should not be trusted from the browser.
+  * [ ] Do not store rendered HTML as the source of truth.
+  * [ ] Do not use tags as the source of truth for note visibility, ownership, publication, or security.
+
+* [ ] Define note types.
+
+  * [ ] Start with a small set:
+
+    * [ ] `general`
+    * [ ] `meeting`
+    * [ ] `research`
+    * [ ] `client`
+    * [ ] `project`
+    * [ ] `task`
+    * [ ] `ticket`
+    * [ ] `user`
+  * [ ] Note type should guide labels, filters, and defaults.
+  * [ ] Note type should not replace explicit record links.
+  * [ ] Note type should not define access control by itself.
+  * [ ] Keep custom note types for a later settings pass if needed.
+
+* [ ] Define note statuses.
+
+  * [ ] Start with:
+
+    * [ ] `active`
+    * [ ] `pinned`
+    * [ ] `archived`
+    * [ ] `deleted`
+  * [ ] Keep `deleted` as soft-delete unless a later retention policy explicitly allows hard delete.
+  * [ ] Do not make tags the source of truth for status.
+  * [ ] Avoid overbuilding workflow states here; Knowledge Base will own editorial states.
+
+* [ ] Define note visibility values.
+
+  * [ ] Start with internal-safe visibility:
+
+    * [ ] `internal`
+    * [ ] `private`
+    * [ ] `workspace`
+  * [ ] `internal` means available to internal workspace users with the appropriate note permissions and record-context access.
+  * [ ] `private` means available only to the creator/owner and users with an explicit elevated permission.
+  * [ ] `workspace` means visible to permitted workspace users, subject to workspace and role checks.
+  * [ ] Reserve future visibility values:
+
+    * [ ] `client_visible`
+    * [ ] `public`
+  * [ ] Do not enable `client_visible` or `public` notes in 0.34.0 unless the permission model and public-safe file handling are already stable.
+  * [ ] Do not use tags as the source of truth for public/private access.
+
+* [ ] Add flexible note-linking foundation.
+
+  * [ ] Add `note_links` table if the direct foreign keys on `notes` are not enough.
+  * [ ] Suggested fields:
+
+    * [ ] `note_link_id`
+    * [ ] `workspace_id`
+    * [ ] `note_id`
+    * [ ] `module_id`
+    * [ ] `target_type`
+    * [ ] `target_id`
+    * [ ] `link_role`
+    * [ ] `created_by_user_id`
+    * [ ] `created_at`
+    * [ ] `removed_at`
+    * [ ] `metadata_json`
+  * [ ] Support linking notes to:
+
+    * [ ] Workspace
+    * [ ] Client
+    * [ ] Project
+    * [ ] Task
+    * [ ] Ticket
+    * [ ] User
+    * [ ] Future Knowledge Base article
+    * [ ] Future Creator Studio item
+  * [ ] Validate linked target records through module-declared linkable/searchable contracts where possible.
+  * [ ] Prevent cross-workspace note links.
+  * [ ] Preserve historical links when target modules are disabled if historical read access allows it.
+  * [ ] Do not hard-code all possible note target types into the Notes service.
+
+* [ ] Add Markdown content foundation.
+
+  * [ ] Store note body as Markdown.
+  * [ ] Add safe Markdown parsing/rendering helper.
+  * [ ] Strip or reject unsafe HTML.
+  * [ ] Normalize Markdown before saving where practical.
+  * [ ] Generate safe excerpts/snippets server-side.
+  * [ ] Support headings, bold, italic, links, blockquotes, code blocks, unordered lists, ordered lists, and checklists.
+  * [ ] Do not support arbitrary scriptable embeds.
+  * [ ] Do not trust browser-rendered Markdown output.
+  * [ ] Add rendering tests for unsafe input.
+
+* [ ] Add future editor hooks.
+
+  * [ ] First implementation may use a plain Markdown textarea.
+  * [ ] Leave a clean browser helper boundary for a future toolbar/editor.
+  * [ ] Future editor should emit valid Markdown.
+  * [ ] Future editor should support common controls:
+
+    * [ ] Bold
+    * [ ] Italic
+    * [ ] Headings
+    * [ ] Links
+    * [ ] Checklists
+    * [ ] Unordered lists
+    * [ ] Ordered lists
+    * [ ] Code blocks
+    * [ ] Blockquotes
+  * [ ] Do not store proprietary editor JSON as the canonical note body unless a later migration strategy is explicitly designed.
+  * [ ] Keep editor behavior replaceable without changing the note storage model.
+
+* [ ] Add wiki-style linking groundwork.
+
+  * [ ] Reserve syntax support for wiki-style links such as `[[Note Title]]` or `[[note-slug|Display Text]]`.
+  * [ ] Do not require full wiki-link autocomplete in the first pass.
+  * [ ] Store detected wiki links as metadata or `note_links` records where practical.
+  * [ ] Broken wiki links should render safely.
+  * [ ] Renaming a note should not break stable note IDs.
+  * [ ] Slugs should be display/routing helpers, not primary keys.
+  * [ ] Do not auto-create notes from wiki links until the UX is deliberate.
+
+* [ ] Add persistent note revision support.
+
+  * [ ] Add `note_revisions` table.
+  * [ ] Suggested fields:
+
+    * [ ] `note_revision_id`
+    * [ ] `workspace_id`
+    * [ ] `note_id`
+    * [ ] `revision_number`
+    * [ ] `title`
+    * [ ] `body_markdown`
+    * [ ] `body_excerpt`
+    * [ ] `changed_by_user_id`
+    * [ ] `change_summary`
+    * [ ] `change_reason`
+    * [ ] `created_at`
+    * [ ] `metadata_json`
+  * [ ] Create a revision when meaningful note content changes.
+  * [ ] Create a revision when title changes.
+  * [ ] Avoid creating noisy revisions for only `updated_at` changes.
+  * [ ] Preserve previous body content for restore/diff workflows.
+  * [ ] Note revision history should be permission-protected.
+  * [ ] Revisions should not replace audit logging.
+  * [ ] Revision bodies for normal notes may be searchable only through the current note unless version search is deliberately added later.
+  * [ ] Secure note revisions must follow the secure note encryption rules and must not leak plaintext into normal revision tables or search indexes.
+
+* [ ] Add note changelog display model.
+
+  * [ ] Changelogs should show user-friendly change history.
+  * [ ] Changelogs should include:
+
+    * [ ] Revision number
+    * [ ] Changed by
+    * [ ] Changed at
+    * [ ] Change summary where provided
+    * [ ] Title changed indicator
+    * [ ] Body changed indicator
+    * [ ] Visibility changed indicator where safe
+    * [ ] Link changes where useful
+    * [ ] Attachment changes where useful
+  * [ ] Changelogs should not expose raw audit JSON.
+  * [ ] Changelogs should not expose encrypted secure-note body content unless the viewer can decrypt the secure note.
+  * [ ] Changelogs should be readable by users with note history permissions.
+
+* [ ] Add note permissions.
+
+  * [ ] `notes.view`
+  * [ ] `notes.view_all`
+  * [ ] `notes.view_private`
+  * [ ] `notes.create`
+  * [ ] `notes.update`
+  * [ ] `notes.archive`
+  * [ ] `notes.restore`
+  * [ ] `notes.delete`
+  * [ ] `notes.view_history`
+  * [ ] `notes.restore_revision`
+  * [ ] `notes.manage_links`
+  * [ ] `notes.manage_settings`
+  * [ ] Add context-sensitive access checks for linked client/project/task/ticket/user records.
+  * [ ] Private notes require owner access or elevated permission.
+  * [ ] Note visibility and edit access must respect roles and permissions.
+  * [ ] Leave hooks for future change requests.
+  * [ ] Do not allow users to infer the existence of hidden/private notes through search, tag counts, attachment counts, or linked-record summaries.
+
+* [ ] Add note resource definition.
+
+  * [ ] Resource key: `notes`.
+  * [ ] Supported operations:
+
+    * [ ] `read`
+    * [ ] `create`
+    * [ ] `update`
+    * [ ] `archive`
+    * [ ] `restore`
+    * [ ] `delete`
+    * [ ] `manage`
+    * [ ] `view_history`
+    * [ ] `restore_revision`
+
+* [ ] Add note audit record types.
+
+  * [ ] `note`
+  * [ ] `note_revision`
+  * [ ] `note_link`
+  * [ ] Audit note creation, updates, archive/restore, soft delete, visibility changes, link changes, revision restores, attachment links, and secure-note access events where appropriate.
+  * [ ] Audit records should remain admin/security records and should not be shown as the normal note changelog.
+
+* [ ] Add note lifecycle events.
+
+  * [ ] `note.created`
+  * [ ] `note.updated`
+  * [ ] `note.revision_created`
+  * [ ] `note.archived`
+  * [ ] `note.restored`
+  * [ ] `note.deleted`
+  * [ ] `note.linked`
+  * [ ] `note.unlinked`
+  * [ ] `note.visibility_changed`
+  * [ ] `note.attachment_added`
+  * [ ] `note.attachment_removed`
+  * [ ] Event payloads should include workspace ID, actor user ID, note ID, safe title/excerpt metadata, visibility, linked record context where safe, previous/new values where safe, and timestamps.
+  * [ ] Event payloads should not include raw secure note content, encrypted payloads, decrypted plaintext, unsafe Markdown, secrets, or private attachment details.
+  * [ ] Event payloads should leave room for future notifications, Workbench activity, dashboard activity, and automations.
+
+* [ ] Add note indexes.
+
+  * [ ] Workspace + note ID.
+  * [ ] Workspace + status.
+  * [ ] Workspace + visibility.
+  * [ ] Workspace + owner user ID.
+  * [ ] Workspace + created by user ID.
+  * [ ] Workspace + updated at.
+  * [ ] Workspace + client ID.
+  * [ ] Workspace + project ID.
+  * [ ] Workspace + task ID.
+  * [ ] Workspace + ticket ID.
+  * [ ] Workspace + linked user ID.
+  * [ ] Workspace + slug where slugs are enabled.
+  * [ ] Note links by workspace + module ID + target type + target ID.
+  * [ ] Note revisions by workspace + note ID + revision number.
+
+* [ ] Add focused contract regressions.
+
+  * [ ] Notes cannot cross workspace boundaries.
+  * [ ] Notes cannot link to records from another workspace.
+  * [ ] Private notes are hidden from users without owner/elevated access.
+  * [ ] Disabled Notes module blocks new writes.
+  * [ ] Historical reads follow module lifecycle policy.
+  * [ ] Note revisions are created for meaningful content changes.
+  * [ ] Note changelog does not expose raw audit JSON.
+  * [ ] Unsafe Markdown is rejected or rendered safely.
+  * [ ] Tags do not control note visibility.
+  * [ ] Note lifecycle events emit safe payloads.
+
+## Version 0.34.1 - Notes Browser API, UI MVP, Search, Tags, Files, and Help
+
+Implementation shape:
+
+* Build the practical Notes workflow on top of the 0.34.0 contract.
+
+* Add service methods, browser API routes, permission-safe UI, search registration, tag registration, file attachment integration, revision UI, and Help documentation.
+
+* Keep the first UI boring and useful: list, filters, create/edit, detail, archive, revisions, linked records, tags, and attachments.
+
+* [ ] Add note service methods.
+
+  * [ ] Create note.
+  * [ ] Read one note.
+  * [ ] List notes.
+  * [ ] Update note.
+  * [ ] Archive note.
+  * [ ] Restore note.
+  * [ ] Soft-delete note where allowed.
+  * [ ] List note revisions.
+  * [ ] Read note revision.
+  * [ ] Restore note revision.
+  * [ ] Link note to a target record.
+  * [ ] Remove note link.
+  * [ ] List notes for target record.
+  * [ ] Validate note access.
+  * [ ] Validate note edit access.
+  * [ ] Generate safe Markdown excerpt.
+  * [ ] Generate search indexing payload.
+  * [ ] Emit safe lifecycle events.
+
+* [ ] Add browser API routes.
+
+  * [ ] `GET /api/notes`
+  * [ ] `POST /api/notes`
+  * [ ] `GET /api/notes/:noteId`
+  * [ ] `PUT /api/notes/:noteId`
+  * [ ] `POST /api/notes/:noteId/archive`
+  * [ ] `POST /api/notes/:noteId/restore`
+  * [ ] `POST /api/notes/:noteId/delete`
+  * [ ] `GET /api/notes/:noteId/revisions`
+  * [ ] `GET /api/notes/:noteId/revisions/:revisionId`
+  * [ ] `POST /api/notes/:noteId/revisions/:revisionId/restore`
+  * [ ] `GET /api/notes/:noteId/links`
+  * [ ] `POST /api/notes/:noteId/links`
+  * [ ] `POST /api/notes/:noteId/links/:noteLinkId/remove`
+  * [ ] `GET /api/notes/for-target`
+  * [ ] Keep public/client note APIs deferred until explicit visibility and public-safe file behavior are stable.
+
+* [ ] Enforce note API permissions.
+
+  * [ ] Every route must validate active workspace.
+  * [ ] Every read must validate note visibility, note permissions, and linked-record access where applicable.
+  * [ ] Every write must validate Notes module state.
+  * [ ] Users cannot create notes for records they cannot access.
+  * [ ] Users cannot link notes to records they cannot access.
+  * [ ] Users cannot read private notes unless they own them or have elevated permission.
+  * [ ] Users cannot restore revisions unless they can edit the note and view history.
+  * [ ] Disabled module state blocks new writes.
+  * [ ] Search, tag, file, and revision APIs must use the same access rules as note reads.
+
+* [ ] Add Notes navigation and protected views.
+
+  * [ ] Add Notes navigation when the module is enabled.
+  * [ ] Add Notes list page.
+  * [ ] Add Note detail page.
+  * [ ] Add create note form.
+  * [ ] Add edit note form.
+  * [ ] Add archive/restore actions.
+  * [ ] Add revision history panel.
+  * [ ] Add linked-record context display.
+  * [ ] Add tags panel.
+  * [ ] Add attachments panel through the shared file helper.
+  * [ ] Add disabled-module state.
+  * [ ] Add loading, empty, error, permission-denied, and archived states.
+  * [ ] Keep layout consistent with existing authenticated module pages.
+
+* [ ] Add note list workflow.
+
+  * [ ] Show title.
+  * [ ] Show safe excerpt.
+  * [ ] Show note type.
+  * [ ] Show visibility.
+  * [ ] Show linked client/project/task/ticket/user context where allowed.
+  * [ ] Show tags where allowed.
+  * [ ] Show attachment count where allowed.
+  * [ ] Show updated date.
+  * [ ] Show updated by where allowed.
+  * [ ] Add filters for:
+
+    * [ ] Status
+    * [ ] Visibility
+    * [ ] Note type
+    * [ ] Client
+    * [ ] Project
+    * [ ] Task
+    * [ ] Ticket
+    * [ ] User
+    * [ ] Tag
+    * [ ] Owner
+    * [ ] Updated date
+    * [ ] Archived state
+  * [ ] Add pagination.
+  * [ ] Add sort by updated date, created date, title, and type.
+  * [ ] Do not show hidden/private note counts to unauthorized users.
+
+* [ ] Add note detail workflow.
+
+  * [ ] Render Markdown safely.
+  * [ ] Show title, status, visibility, note type, linked records, tags, attachments, created date, updated date, and author/updater where allowed.
+  * [ ] Allow permitted users to edit note body and title.
+  * [ ] Allow permitted users to archive/restore.
+  * [ ] Allow permitted users to manage links.
+  * [ ] Allow permitted users to manage tags.
+  * [ ] Allow permitted users to manage attachments.
+  * [ ] Show revision history to users with history permission.
+  * [ ] Keep raw Markdown available to the editor.
+  * [ ] Do not expose hidden linked records through note detail metadata.
+
+* [ ] Add Markdown editor MVP.
+
+  * [ ] Start with a textarea if that is the fastest safe implementation.
+  * [ ] Add preview mode if practical.
+  * [ ] Add helper buttons only if they can emit valid Markdown without creating fragile browser code.
+  * [ ] Preserve keyboard accessibility.
+  * [ ] Preserve focus management.
+  * [ ] Show validation errors clearly.
+  * [ ] Prevent accidental loss of unsaved note edits where practical.
+  * [ ] Keep future WYSIWYG editor replacement isolated behind a browser helper.
+
+* [ ] Register notes as searchable records.
+
+  * [ ] Add `searchableTypes` manifest declaration for notes.
+  * [ ] Index title.
+  * [ ] Index safe body plaintext.
+  * [ ] Index safe excerpt.
+  * [ ] Index linked client/project/task/ticket/user context where allowed.
+  * [ ] Index tags as classification metadata.
+  * [ ] Index attachment names only if the file framework exposes permission-safe metadata.
+  * [ ] Search result type should be `note`.
+  * [ ] Search source should be `Notes`.
+  * [ ] Search results should link to Note detail.
+  * [ ] Search must respect workspace, module state, note visibility, private-note rules, linked-record access, and permissions.
+  * [ ] Archived notes should follow the existing search archived-state pattern.
+  * [ ] Secure notes must be excluded from normal search indexing.
+
+* [ ] Register notes as taggable records.
+
+  * [ ] Add `taggableTypes` declaration for notes.
+  * [ ] Allow permitted users to assign workspace tags to notes.
+  * [ ] Tags are classification metadata only.
+  * [ ] Tags must not define public/private access.
+  * [ ] Tags must not define secure-note status.
+  * [ ] Tags must not define Knowledge Base publication state.
+
+* [ ] Register notes as attachable records.
+
+  * [ ] Use the framework file attachment contract.
+  * [ ] Notes should not implement separate file storage.
+  * [ ] Attachments should inherit note access rules unless an explicit attachment visibility rule is added.
+  * [ ] Private note attachments must not be downloadable by users who cannot access the private note.
+  * [ ] Quarantined/pending files must not appear in normal note UI.
+  * [ ] Secure note attachments need a deliberate rule before they are allowed; do not assume normal file encryption covers secure note attachment content.
+
+* [ ] Add note revision UI.
+
+  * [ ] Show revision list.
+  * [ ] Show revision metadata.
+  * [ ] Show safe diff or previous/current view if practical.
+  * [ ] Allow permitted users to restore a revision.
+  * [ ] Create a new revision when restoring an old revision.
+  * [ ] Do not expose revisions to users who cannot view note history.
+  * [ ] Do not expose encrypted secure-note revision plaintext without secure-note access.
+
+* [ ] Add note notifications where useful.
+
+  * [ ] Notify note owner when another user updates their note where appropriate.
+  * [ ] Notify linked-record followers only if a clear subscription rule exists.
+  * [ ] Do not spam users for every small note edit.
+  * [ ] Keep note notifications conservative until notification preferences are richer.
+  * [ ] Notification payloads should use safe title/excerpt metadata only.
+
+* [ ] Add Notes Help contribution.
+
+  * [ ] Add Help page for Notes basics.
+  * [ ] Add Help page for Markdown notes.
+  * [ ] Add Help page for note links.
+  * [ ] Add Help page for note revisions.
+  * [ ] Add Help page for notes and attachments.
+  * [ ] Keep Help pages current-state and task-oriented.
+  * [ ] Do not describe future Knowledge Base publishing as current behavior.
+
+* [ ] Add UI and integration regressions.
+
+  * [ ] Notes navigation appears only when Notes module is enabled.
+  * [ ] Users can create, edit, archive, restore, and read notes according to permissions.
+  * [ ] Private notes are hidden from unauthorized users.
+  * [ ] Linked record access is enforced.
+  * [ ] Notes search does not leak private notes.
+  * [ ] Notes tags do not alter visibility.
+  * [ ] Note attachments use the shared file framework.
+  * [ ] Markdown renders safely.
+  * [ ] Revision restore creates a new revision.
+  * [ ] Disabled Notes module blocks new writes.
+  * [ ] Run `npm run check`.
+  * [ ] Run `npm run test:permissions`.
+  * [ ] Run SQLite integrity check after note migration and revision tests.
+
+## Version 0.34.2 - Secure Notes Foundation, Encryption Contract, and Private Revision Handling
+
+Decision:
+Secure notes are not ordinary notes with a scary label. Secure notes need a clear encryption boundary, reduced metadata exposure, no normal search indexing, no Knowledge Base publishing path, and stricter permissions. The first implementation should be honest about its security model.
+
+Implementation shape:
+
+* Build secure notes as a specialized note mode on top of the Notes module only if the encryption and access model is explicit.
+
+* Start with application-managed encryption-at-rest for self-hosted installs unless a true user-keyed vault is deliberately designed later.
+
+* Do not claim secure notes are zero-knowledge unless the server cannot decrypt them.
+
+* Exclude secure note body content from normal search, snippets, Knowledge Base conversion, Help, notifications, dashboard activity, and public/client surfaces.
+
+* [ ] Define secure note scope.
+
+  * [ ] Secure notes are for sensitive internal notes.
+  * [ ] Secure notes should be excluded from normal search indexing.
+  * [ ] Secure notes should not have Knowledge Base publishing options.
+  * [ ] Secure notes should not create public/client-visible outputs.
+  * [ ] Secure notes should not appear in normal dashboard activity feeds with body excerpts.
+  * [ ] Secure notes should not appear in notification payloads with body excerpts.
+  * [ ] Secure notes should not expose body text through audit logs, lifecycle events, search rows, browser-safe snippets, or metadata JSON.
+  * [ ] Secure notes should use stricter access checks than normal private notes.
+
+* [ ] Decide and document the encryption model.
+
+  * [ ] Recommended first model: application-managed envelope encryption.
+  * [ ] Store the master encryption key outside the database, preferably in environment/config/secrets storage.
+  * [ ] Generate per-note or per-workspace data encryption keys.
+  * [ ] Encrypt secure note body content before storing it.
+  * [ ] Store encrypted payload, algorithm metadata, key version, nonce/IV, and auth tag.
+  * [ ] Do not derive the only decryption key from the user password in the first implementation unless account recovery, password changes, sharing, rotation, and multi-device unlock are fully designed.
+  * [ ] Do not treat "validated session" alone as the encryption secret.
+  * [ ] A valid session may authorize a decrypt request, but the actual decrypt key must come from the server-side key hierarchy or a user-provided vault key.
+  * [ ] Do not store encryption keys in `metadata_json`.
+  * [ ] Do not store encryption keys in browser local storage.
+  * [ ] Document that application-managed encryption protects database-at-rest exposure but does not protect against a compromised app server or operator with access to server secrets.
+  * [ ] Reserve a future user-keyed or workspace-keyed vault model if stronger zero-knowledge behavior is required.
+
+* [ ] Add secure note fields.
+
+  * [ ] Add secure note support to `notes` or a dedicated `secure_notes` table.
+  * [ ] Suggested fields if stored in `notes`:
+
+    * [ ] `is_secure`
+    * [ ] `secure_payload`
+    * [ ] `secure_payload_version`
+    * [ ] `encryption_key_version`
+    * [ ] `encryption_algorithm`
+    * [ ] `encrypted_at`
+    * [ ] `last_decrypted_at` optional and carefully audited
+  * [ ] For secure notes, `body_markdown`, `body_excerpt`, and `body_plaintext_index` must be null or contain only safe placeholders.
+  * [ ] Secure note titles should either be non-sensitive or optionally encrypted in a later pass.
+  * [ ] If titles remain plaintext, label the UI clearly so users know titles are visible to permitted metadata readers.
+  * [ ] Do not put secure note body text in normal note fields.
+
+* [ ] Add secure note revision handling.
+
+  * [ ] Secure note revisions must store encrypted revision payloads.
+  * [ ] Secure note revisions must not store plaintext body markdown.
+  * [ ] Secure note revision metadata should be minimal.
+  * [ ] Secure note revision diffs should require decryption and proper permission checks.
+  * [ ] Secure note revision restores should create a new encrypted revision.
+  * [ ] Secure note revision history should not leak body excerpts.
+
+* [ ] Add secure note permissions.
+
+  * [ ] `notes.secure.create`
+  * [ ] `notes.secure.view`
+  * [ ] `notes.secure.update`
+  * [ ] `notes.secure.archive`
+  * [ ] `notes.secure.restore`
+  * [ ] `notes.secure.delete`
+  * [ ] `notes.secure.view_history`
+  * [ ] `notes.secure.manage`
+  * [ ] Normal `notes.view` should not automatically grant secure note body access.
+  * [ ] Normal `notes.view_history` should not automatically grant secure note revision body access.
+  * [ ] Secure note access should require both Notes module access and secure-note-specific permission.
+  * [ ] Private secure notes should also require owner/elevated checks.
+
+* [ ] Add secure note API behavior.
+
+  * [ ] Secure note create endpoint encrypts body before storage.
+  * [ ] Secure note read endpoint decrypts body only after permission checks.
+  * [ ] Secure note update endpoint decrypts only when needed and writes a new encrypted payload.
+  * [ ] Secure note list endpoints return minimal metadata and no body excerpt.
+  * [ ] Secure note search returns no body matches and preferably no secure note rows unless a title-only secure note search is explicitly allowed.
+  * [ ] Secure note revisions decrypt only through secure revision endpoints.
+  * [ ] Secure note events and audit records use safe metadata only.
+
+* [ ] Add secure note UI behavior.
+
+  * [ ] Clearly label secure notes.
+  * [ ] Do not show secure note body in list excerpts.
+  * [ ] Do not show secure note body in dashboard summaries.
+  * [ ] Do not show secure note body in notifications.
+  * [ ] Do not expose Knowledge Base conversion controls on secure notes.
+  * [ ] Do not expose public/client visibility controls on secure notes.
+  * [ ] Warn users if secure note titles are not encrypted.
+  * [ ] Add locked/permission-denied state.
+  * [ ] Add safe error state for decrypt failures.
+  * [ ] Do not display raw encryption errors to normal users.
+
+* [ ] Add secure note file attachment rule.
+
+  * [ ] Do not allow secure note attachments in the first pass unless attachment encryption is explicitly designed.
+  * [ ] If secure note attachments are allowed later, they must use a compatible encryption and permission model.
+  * [ ] Normal file framework encryption-at-rest is not automatically enough for secure note attachments.
+  * [ ] Secure note attachment metadata must not leak sensitive body context.
+
+* [ ] Add key rotation groundwork.
+
+  * [ ] Store encryption key version.
+  * [ ] Allow future migration/rotation without rewriting the whole Notes model.
+  * [ ] Add health check for missing encryption configuration.
+  * [ ] Block secure note creation if encryption is not configured.
+  * [ ] Allow existing secure notes to fail closed if required keys are unavailable.
+  * [ ] Document backup requirements for encryption keys.
+  * [ ] Warn that losing the server-side encryption key may make secure note content unrecoverable.
+
+* [ ] Add secure note regressions.
+
+  * [ ] Secure note body is encrypted at rest.
+  * [ ] Secure note body does not appear in `search_index`.
+  * [ ] Secure note body does not appear in audit logs.
+  * [ ] Secure note body does not appear in lifecycle events.
+  * [ ] Secure note body does not appear in notifications.
+  * [ ] Secure notes do not show Knowledge Base publishing controls.
+  * [ ] Users with normal note permissions but without secure note permissions cannot read secure note bodies.
+  * [ ] Secure note revisions are encrypted.
+  * [ ] Missing encryption configuration blocks secure note creation.
+  * [ ] Decrypt failures fail closed.
+
+## Version 0.34.3 - Notes Integration Polish, Documentation, and Release Closeout
+
+Implementation shape:
+
+* Stabilize Notes before building Knowledge Base on top of it.
+
+* Verify permissions, search, tags, files, revisions, secure notes, module lifecycle, Help pages, and UI states together.
+
+* Keep this as closeout; do not add Knowledge Base behavior here.
+
+* [ ] Perform Notes module integration review.
+
+  * [ ] Confirm Notes uses framework services for permissions, tags, search, files, audit, notifications, events, Help, and module lifecycle.
+  * [ ] Confirm Notes does not bypass file framework APIs.
+  * [ ] Confirm Notes does not write direct search rows outside the framework search service.
+  * [ ] Confirm Notes does not hard-code unrelated module behavior.
+  * [ ] Confirm linked-record behavior uses stable module contracts where available.
+  * [ ] Confirm secure notes do not leak body content through normal integration surfaces.
+
+* [ ] Update developer documentation.
+
+  * [ ] Document Notes module boundaries.
+  * [ ] Document note data model.
+  * [ ] Document note linking model.
+  * [ ] Document Markdown storage/rendering rules.
+  * [ ] Document revision/changelog behavior.
+  * [ ] Document secure note encryption model and limitations.
+  * [ ] Document Notes searchable/taggable/attachable declarations.
+  * [ ] Document Notes lifecycle events.
+  * [ ] Document what Notes should not own.
+
+* [ ] Update product Help.
+
+  * [ ] Add current-state Notes usage page.
+  * [ ] Add current-state Markdown page.
+  * [ ] Add current-state note linking page.
+  * [ ] Add current-state note revisions page.
+  * [ ] Add current-state secure notes page only if secure notes are implemented.
+  * [ ] Keep Help separate from Knowledge Base.
+
+* [ ] Release bookkeeping.
+
+  * [ ] Record Notes decisions in `DECISIONS.md`.
+  * [ ] Update `CHANGELOG.md`.
+  * [ ] Bump `package.json` and `package-lock.json`.
+  * [ ] Verify `/api/app-info` reports the completed Notes version.
+  * [ ] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process.
+
+* [ ] Run verification.
+
+  * [ ] Run focused Notes API tests.
+  * [ ] Run focused Notes UI tests.
+  * [ ] Run focused Notes search tests.
+  * [ ] Run focused Notes tag tests.
+  * [ ] Run focused Notes file attachment tests.
+  * [ ] Run focused Notes revision tests.
+  * [ ] Run focused secure note tests if secure notes are included.
+  * [ ] Run `npm run check`.
+  * [ ] Run `npm run test:permissions`.
+  * [ ] Run SQLite integrity check after Notes migrations and revision tests.
+
+## Version 0.34.4 - Knowledge Base Module Contract, Publishing Model, and Notes Relationship
+
+Decision:
+Knowledge Base is a separate first-party publishing and curation module. It is not "notes with public enabled." Knowledge Base articles may be created from notes, linked to notes, or written directly, but publication is explicit and permission-protected.
+
+Implementation shape:
+
+* Add Knowledge Base as the curated article layer for workspace-authored operational knowledge.
+
+* Keep Help Center separate as product/module documentation.
+
+* Keep Notes separate as dynamic working records.
+
+* Build internal Knowledge Base authoring first.
+
+* Defer client/public Knowledge Base exposure until permissions, public-safe files, sanitized rendering, and routing are stable.
+
+* [ ] Add Knowledge Base as a first-party module.
+
+  * [ ] Module ID should be `knowledge-base`.
+  * [ ] Knowledge Base is a publishing and curation layer.
+  * [ ] Knowledge Base entries are module records, not framework/core records.
+  * [ ] Knowledge Base should use framework-owned services for users, workspaces, permissions, tags, search, notifications, audit logging, file attachments, events/hooks, API scopes, Help contributions, and module lifecycle.
+  * [ ] Do not hard-code KB behavior into framework-owned app shell, search, notification, file, tag, or permission services.
+  * [ ] Knowledge Base should be disableable per workspace where appropriate.
+  * [ ] Disabled Knowledge Base module should block new writes while preserving historical reads if `historicalReadAccess` is enabled.
+  * [ ] Knowledge Base should not replace Help Center.
+  * [ ] Knowledge Base should not replace Notes.
+
+* [ ] Define Knowledge Base terminology.
+
+  * [ ] User-facing label: `Knowledge Base`.
+  * [ ] Primary record label: `Article`.
+  * [ ] Optional grouping label: `Collection` or `Category`.
+  * [ ] Avoid using "Help" for KB records in code or UI where it can be confused with the framework-owned Help Center.
+  * [ ] Avoid using "public" for client-visible records unless the record is truly public internet visible.
+
+* [ ] Define core KB article record model.
+
+  * [ ] Add `kb_articles` table.
+  * [ ] Suggested fields:
+
+    * [ ] `kb_article_id`
+    * [ ] `workspace_id`
+    * [ ] `title`
+    * [ ] `slug`
+    * [ ] `summary`
+    * [ ] `body_markdown`
+    * [ ] `body_excerpt`
+    * [ ] `body_plaintext_index`
+    * [ ] `status`
+    * [ ] `visibility`
+    * [ ] `collection_id` optional
+    * [ ] `category_id` optional
+    * [ ] `client_id` optional
+    * [ ] `project_id` optional
+    * [ ] `source_mode`
+    * [ ] `created_by_user_id`
+    * [ ] `updated_by_user_id`
+    * [ ] `submitted_for_review_by_user_id` optional
+    * [ ] `reviewed_by_user_id` optional
+    * [ ] `published_by_user_id` optional
+    * [ ] `created_at`
+    * [ ] `updated_at`
+    * [ ] `submitted_for_review_at` optional
+    * [ ] `reviewed_at` optional
+    * [ ] `published_at` optional
+    * [ ] `archived_at` optional
+    * [ ] `deleted_at` optional
+    * [ ] `metadata_json`
+  * [ ] Every KB article must belong to one workspace.
+  * [ ] Slugs should be workspace-scoped and stable enough for internal links.
+  * [ ] Public slugs must be sanitized and collision-safe before public routing is enabled.
+  * [ ] `body_markdown` is the canonical editable body.
+  * [ ] Rendered/static output should be derived from the canonical body and publication snapshot.
+  * [ ] Do not store arbitrary browser HTML as the source of truth.
+
+* [ ] Define KB statuses.
+
+  * [ ] Start with:
+
+    * [ ] `draft`
+    * [ ] `in_review`
+    * [ ] `approved`
+    * [ ] `published`
+    * [ ] `archived`
+    * [ ] `deleted`
+  * [ ] Draft articles are editable working article records.
+  * [ ] In-review articles are awaiting editorial approval.
+  * [ ] Approved articles are ready to publish but not necessarily published.
+  * [ ] Published articles have an explicit published snapshot/version.
+  * [ ] Archived articles are hidden from normal browsing but remain historically available to permitted users.
+  * [ ] Deleted articles are soft-deleted unless retention policy later allows hard delete.
+  * [ ] Do not use tags as the source of truth for status.
+
+* [ ] Define KB visibility values.
+
+  * [ ] Start with internal-safe values:
+
+    * [ ] `internal`
+    * [ ] `workspace`
+  * [ ] Reserve future visibility values:
+
+    * [ ] `client_visible`
+    * [ ] `public`
+  * [ ] `internal` means visible to internal users with appropriate KB permissions.
+  * [ ] `workspace` means visible to permitted workspace users.
+  * [ ] `client_visible` must wait for client/external permissions and public-safe file handling.
+  * [ ] `public` must wait for public routing, public-safe files, safe rendering, metadata stripping, and abuse/reporting decisions.
+  * [ ] Do not use tags as the source of truth for KB visibility.
+  * [ ] Visibility should be an explicit field.
+
+* [ ] Add KB collections/categories foundation.
+
+  * [ ] Add `kb_collections` table if useful for organization.
+  * [ ] Suggested fields:
+
+    * [ ] `kb_collection_id`
+    * [ ] `workspace_id`
+    * [ ] `title`
+    * [ ] `slug`
+    * [ ] `description`
+    * [ ] `visibility`
+    * [ ] `sort_order`
+    * [ ] `created_by_user_id`
+    * [ ] `created_at`
+    * [ ] `updated_at`
+    * [ ] `archived_at`
+    * [ ] `metadata_json`
+  * [ ] Keep first implementation simple.
+  * [ ] Do not build a full CMS taxonomy system in 0.34.x.
+  * [ ] Collections/categories must respect article visibility and permissions.
+
+* [ ] Add KB article revision support.
+
+  * [ ] Add `kb_article_revisions` table.
+  * [ ] Suggested fields:
+
+    * [ ] `kb_article_revision_id`
+    * [ ] `workspace_id`
+    * [ ] `kb_article_id`
+    * [ ] `revision_number`
+    * [ ] `title`
+    * [ ] `summary`
+    * [ ] `body_markdown`
+    * [ ] `body_excerpt`
+    * [ ] `status`
+    * [ ] `visibility`
+    * [ ] `changed_by_user_id`
+    * [ ] `change_summary`
+    * [ ] `created_at`
+    * [ ] `metadata_json`
+  * [ ] Create revisions for meaningful article content, title, summary, status, or visibility changes.
+  * [ ] Revisions should support editorial review and restore.
+  * [ ] Revisions should not replace audit logging.
+
+* [ ] Add KB publication snapshot support.
+
+  * [ ] Add `kb_article_publications` or `kb_published_versions` table.
+  * [ ] Suggested fields:
+
+    * [ ] `kb_publication_id`
+    * [ ] `workspace_id`
+    * [ ] `kb_article_id`
+    * [ ] `kb_article_revision_id`
+    * [ ] `publication_number`
+    * [ ] `title`
+    * [ ] `slug`
+    * [ ] `summary`
+    * [ ] `body_markdown`
+    * [ ] `body_rendered_html` if safe static rendering is stored
+    * [ ] `visibility`
+    * [ ] `published_by_user_id`
+    * [ ] `published_at`
+    * [ ] `unpublished_at` optional
+    * [ ] `archived_at` optional
+    * [ ] `metadata_json`
+  * [ ] Published pages should be snapshots.
+  * [ ] Editing a draft should not silently mutate the published version.
+  * [ ] Publishing should create a deliberate publication record.
+  * [ ] Unpublishing should be explicit and audited.
+  * [ ] Public/client-visible published snapshots must strip internal metadata before exposure.
+
+* [ ] Define relationship between Notes and Knowledge Base.
+
+  * [ ] Notes can be source material for KB entries.
+  * [ ] KB entries can link back to source notes.
+  * [ ] KB entries can be written directly without source notes.
+  * [ ] Updating a note should not automatically publish a KB change.
+  * [ ] Publishing should be explicit.
+  * [ ] KB should not automatically publish tasks, tickets, or notes without review.
+  * [ ] Public/client-visible KB pages should not expose internal comments, audit data, private attachments, secure notes, hidden source notes, raw source metadata, or private linked records.
+  * [ ] Metadata exposed on published KB pages should be intentionally limited.
+
+* [ ] Add KB source-link table.
+
+  * [ ] Add `kb_article_sources` table.
+  * [ ] Suggested fields:
+
+    * [ ] `kb_article_source_id`
+    * [ ] `workspace_id`
+    * [ ] `kb_article_id`
+    * [ ] `source_module_id`
+    * [ ] `source_type`
+    * [ ] `source_id`
+    * [ ] `source_revision_id` optional
+    * [ ] `source_role`
+    * [ ] `sync_mode`
+    * [ ] `created_by_user_id`
+    * [ ] `created_at`
+    * [ ] `last_synced_at` optional
+    * [ ] `removed_at` optional
+    * [ ] `metadata_json`
+  * [ ] Supported first source type should be `note`.
+  * [ ] Reserve future source types:
+
+    * [ ] `task`
+    * [ ] `ticket`
+    * [ ] `project`
+    * [ ] `client`
+    * [ ] `file`
+  * [ ] Default `sync_mode` should be `manual`.
+  * [ ] A future `live_source` mode may update draft/source material, but it should not publish public/client-visible changes unless an explicit publish action or later explicit auto-publish rule exists.
+  * [ ] Secure notes cannot be KB sources.
+  * [ ] Private notes cannot become client/public KB content without explicit copy/review/publish behavior.
+
+* [ ] Add KB permissions.
+
+  * [ ] `kb.view`
+  * [ ] `kb.view_all`
+  * [ ] `kb.create`
+  * [ ] `kb.update`
+  * [ ] `kb.submit_review`
+  * [ ] `kb.review`
+  * [ ] `kb.approve`
+  * [ ] `kb.publish`
+  * [ ] `kb.unpublish`
+  * [ ] `kb.archive`
+  * [ ] `kb.restore`
+  * [ ] `kb.delete`
+  * [ ] `kb.view_history`
+  * [ ] `kb.restore_revision`
+  * [ ] `kb.manage_sources`
+  * [ ] `kb.manage_collections`
+  * [ ] `kb.manage_settings`
+  * [ ] Publishing requires explicit publish permission.
+  * [ ] Review/approval requires explicit review/approve permissions.
+  * [ ] Future client/public visibility requires additional client/public-safe access checks.
+  * [ ] Normal note permissions should not grant KB publishing permission.
+
+* [ ] Add KB resource definition.
+
+  * [ ] Resource key: `knowledge_base`.
+  * [ ] Supported operations:
+
+    * [ ] `read`
+    * [ ] `create`
+    * [ ] `update`
+    * [ ] `submit_review`
+    * [ ] `review`
+    * [ ] `approve`
+    * [ ] `publish`
+    * [ ] `unpublish`
+    * [ ] `archive`
+    * [ ] `restore`
+    * [ ] `delete`
+    * [ ] `manage`
+
+* [ ] Add KB audit record types.
+
+  * [ ] `kb_article`
+  * [ ] `kb_article_revision`
+  * [ ] `kb_article_publication`
+  * [ ] `kb_article_source`
+  * [ ] `kb_collection`
+  * [ ] Audit article creation, updates, review submission, approval, publication, unpublication, archive/restore, deletion, source links, attachment links, visibility changes, and collection changes.
+  * [ ] Audit records should remain admin/security records and should not be exposed on public/client-visible KB pages.
+
+* [ ] Add KB lifecycle events.
+
+  * [ ] `kb.article.created`
+  * [ ] `kb.article.updated`
+  * [ ] `kb.article.submitted_for_review`
+  * [ ] `kb.article.approved`
+  * [ ] `kb.article.published`
+  * [ ] `kb.article.unpublished`
+  * [ ] `kb.article.archived`
+  * [ ] `kb.article.restored`
+  * [ ] `kb.article.deleted`
+  * [ ] `kb.article.source_linked`
+  * [ ] `kb.article.source_unlinked`
+  * [ ] `kb.article.attachment_added`
+  * [ ] `kb.article.attachment_removed`
+  * [ ] Event payloads should include workspace ID, actor user ID, article ID, revision/publication IDs where applicable, safe title/summary metadata, visibility, status, source metadata where safe, and timestamps.
+  * [ ] Event payloads should not include internal-only source note bodies, secure note content, private attachment details, raw audit data, or unsafe rendered HTML.
+
+* [ ] Add KB indexes.
+
+  * [ ] Workspace + article ID.
+  * [ ] Workspace + slug.
+  * [ ] Workspace + status.
+  * [ ] Workspace + visibility.
+  * [ ] Workspace + collection/category.
+  * [ ] Workspace + created by user ID.
+  * [ ] Workspace + updated at.
+  * [ ] Workspace + published at.
+  * [ ] Workspace + source module/type/source ID.
+  * [ ] Article revisions by workspace + article ID + revision number.
+  * [ ] Published versions by workspace + article ID + publication number.
+
+* [ ] Add focused contract regressions.
+
+  * [ ] KB articles cannot cross workspace boundaries.
+  * [ ] KB source links cannot cross workspace boundaries.
+  * [ ] Secure notes cannot be KB sources.
+  * [ ] Publishing requires explicit permission.
+  * [ ] Editing a draft does not mutate the published snapshot.
+  * [ ] KB article visibility is explicit and not tag-driven.
+  * [ ] Public/client visibility remains disabled or guarded until public-safe behavior exists.
+  * [ ] KB events emit safe payloads.
+  * [ ] KB does not replace Help Center records.
+
+## Version 0.34.5 - Knowledge Base Browser API, Editorial Workflow, and Internal UI MVP
+
+Implementation shape:
+
+* Build the internal Knowledge Base authoring and publishing workflow first.
+
+* Add article services, browser APIs, internal list/detail/editor views, review/publish actions, revision history, and source-note linking.
+
+* Keep client/public KB routing deferred unless the permission-safe publication layer is ready.
+
+* [ ] Add KB service methods.
+
+  * [ ] Create article.
+  * [ ] Read one article.
+  * [ ] List articles.
+  * [ ] Update article draft.
+  * [ ] Submit article for review.
+  * [ ] Approve article.
+  * [ ] Publish article.
+  * [ ] Unpublish article.
+  * [ ] Archive article.
+  * [ ] Restore article.
+  * [ ] Soft-delete article.
+  * [ ] List article revisions.
+  * [ ] Read article revision.
+  * [ ] Restore article revision.
+  * [ ] List article publication snapshots.
+  * [ ] Read article publication snapshot.
+  * [ ] Link source note.
+  * [ ] Remove source link.
+  * [ ] Create article from note.
+  * [ ] Update draft from source note where manual sync is requested.
+  * [ ] Validate article access.
+  * [ ] Validate publish access.
+  * [ ] Generate safe Markdown excerpt.
+  * [ ] Generate safe rendered output.
+  * [ ] Generate search indexing payload.
+  * [ ] Emit safe lifecycle events.
+
+* [ ] Add browser API routes.
+
+  * [ ] `GET /api/kb/articles`
+  * [ ] `POST /api/kb/articles`
+  * [ ] `GET /api/kb/articles/:articleId`
+  * [ ] `PUT /api/kb/articles/:articleId`
+  * [ ] `POST /api/kb/articles/:articleId/submit-review`
+  * [ ] `POST /api/kb/articles/:articleId/approve`
+  * [ ] `POST /api/kb/articles/:articleId/publish`
+  * [ ] `POST /api/kb/articles/:articleId/unpublish`
+  * [ ] `POST /api/kb/articles/:articleId/archive`
+  * [ ] `POST /api/kb/articles/:articleId/restore`
+  * [ ] `POST /api/kb/articles/:articleId/delete`
+  * [ ] `GET /api/kb/articles/:articleId/revisions`
+  * [ ] `GET /api/kb/articles/:articleId/revisions/:revisionId`
+  * [ ] `POST /api/kb/articles/:articleId/revisions/:revisionId/restore`
+  * [ ] `GET /api/kb/articles/:articleId/publications`
+  * [ ] `GET /api/kb/articles/:articleId/sources`
+  * [ ] `POST /api/kb/articles/:articleId/sources`
+  * [ ] `POST /api/kb/articles/:articleId/sources/:sourceId/remove`
+  * [ ] `POST /api/kb/articles/from-note`
+  * [ ] Keep public unauthenticated KB routes deferred until public publishing is deliberately enabled.
+
+* [ ] Enforce KB API permissions.
+
+  * [ ] Every route must validate active workspace.
+  * [ ] Every read must validate workspace, module state, article visibility, and permissions.
+  * [ ] Every write must validate Knowledge Base module state.
+  * [ ] Users cannot create KB articles from notes they cannot access.
+  * [ ] Users cannot link hidden/private notes unless they can access those notes.
+  * [ ] Users cannot use secure notes as KB sources.
+  * [ ] Users cannot publish without explicit publish permission.
+  * [ ] Users cannot expose client/public visibility unless those modes are enabled.
+  * [ ] Disabled module state blocks new writes.
+
+* [ ] Add Knowledge Base navigation and protected views.
+
+  * [ ] Add Knowledge Base navigation when module is enabled.
+  * [ ] Add KB article list page.
+  * [ ] Add KB article detail page.
+  * [ ] Add create article form.
+  * [ ] Add edit article form.
+  * [ ] Add review/publish controls.
+  * [ ] Add source notes panel.
+  * [ ] Add revision history panel.
+  * [ ] Add publication history panel.
+  * [ ] Add tags panel.
+  * [ ] Add attachments panel through the shared file helper.
+  * [ ] Add disabled-module state.
+  * [ ] Add loading, empty, error, permission-denied, draft, review, published, archived, and unpublished states.
+  * [ ] Keep layout consistent with existing authenticated module pages.
+
+* [ ] Add KB article list workflow.
+
+  * [ ] Show title.
+  * [ ] Show summary.
+  * [ ] Show status.
+  * [ ] Show visibility.
+  * [ ] Show collection/category.
+  * [ ] Show tags where allowed.
+  * [ ] Show source-note indicator where allowed.
+  * [ ] Show attachment count where allowed.
+  * [ ] Show updated date.
+  * [ ] Show published date where applicable.
+  * [ ] Add filters for:
+
+    * [ ] Status
+    * [ ] Visibility
+    * [ ] Collection/category
+    * [ ] Tag
+    * [ ] Source type
+    * [ ] Author
+    * [ ] Updated date
+    * [ ] Published date
+    * [ ] Archived state
+  * [ ] Add pagination.
+  * [ ] Add sort by updated date, published date, title, and status.
+  * [ ] Do not expose hidden source-note metadata to unauthorized users.
+
+* [ ] Add KB article detail workflow.
+
+  * [ ] Render Markdown safely.
+  * [ ] Show title, summary, status, visibility, collection/category, tags, attachments, sources, created date, updated date, and published date where allowed.
+  * [ ] Show whether the viewed article is draft/current/published.
+  * [ ] Allow permitted users to edit article body, title, summary, collection/category, and visibility.
+  * [ ] Allow permitted users to submit for review.
+  * [ ] Allow permitted users to approve.
+  * [ ] Allow permitted users to publish.
+  * [ ] Allow permitted users to unpublish.
+  * [ ] Allow permitted users to archive/restore.
+  * [ ] Allow permitted users to manage source links.
+  * [ ] Allow permitted users to manage attachments.
+  * [ ] Show revision history to users with history permission.
+  * [ ] Show publication history to users with publish/history permission.
+  * [ ] Keep raw Markdown available to the editor.
+
+* [ ] Add create-from-note workflow.
+
+  * [ ] User selects an accessible note.
+  * [ ] Secure notes are not selectable.
+  * [ ] Private notes require explicit access.
+  * [ ] Note title may seed article title.
+  * [ ] Note body may seed article body.
+  * [ ] Note tags may be suggested but not blindly copied if that creates permission or classification confusion.
+  * [ ] Source link should preserve source note ID and source note revision ID where available.
+  * [ ] Created KB article starts as `draft`.
+  * [ ] Created KB article is not automatically published.
+  * [ ] Private/internal source metadata is hidden from users who cannot access it.
+
+* [ ] Add editorial workflow.
+
+  * [ ] Draft articles can be edited by permitted users.
+  * [ ] Submit for review changes status to `in_review`.
+  * [ ] Reviewers can approve or send back to draft.
+  * [ ] Publish requires explicit publish action.
+  * [ ] Publish creates a publication snapshot.
+  * [ ] Unpublish removes normal access to the published snapshot without deleting article history.
+  * [ ] Archive hides article from normal browsing.
+  * [ ] Restore reactivates archived article where permitted.
+  * [ ] Editing a published article creates draft changes and does not silently alter the published snapshot.
+
+* [ ] Add KB Markdown editor MVP.
+
+  * [ ] Reuse or adapt the Notes Markdown editor helper.
+  * [ ] Support preview.
+  * [ ] Support common Markdown controls where practical.
+  * [ ] Preserve keyboard accessibility.
+  * [ ] Show validation errors clearly.
+  * [ ] Warn users about unpublished draft changes where applicable.
+  * [ ] Keep future WYSIWYG editor replacement isolated behind a browser helper.
+
+* [ ] Add KB UI regressions.
+
+  * [ ] KB navigation appears only when Knowledge Base module is enabled.
+  * [ ] Users can create, edit, review, publish, unpublish, archive, restore, and read articles according to permissions.
+  * [ ] Users cannot publish without publish permission.
+  * [ ] Create-from-note excludes secure notes.
+  * [ ] Create-from-note requires access to the source note.
+  * [ ] Published snapshots do not change when draft edits are saved.
+  * [ ] Public/client visibility is hidden or blocked until enabled.
+  * [ ] Disabled Knowledge Base module blocks new writes.
+
+## Version 0.34.6 - Knowledge Base Search, Tags, Attachments, Static Pages, and Permission Boundaries
+
+Implementation shape:
+
+* Integrate KB articles with framework services after the internal authoring workflow exists.
+
+* Keep Knowledge Base searchable separately from Help and Notes.
+
+* Add tag and file integrations without using either as access-control shortcuts.
+
+* Build the static/published page mechanics in a permission-safe way before exposing client/public routes.
+
+* [ ] Register KB articles as searchable records.
+
+  * [ ] Add `searchableTypes` manifest declaration for KB articles.
+  * [ ] Index article title.
+  * [ ] Index summary.
+  * [ ] Index safe body plaintext.
+  * [ ] Index collection/category labels.
+  * [ ] Index tags as classification metadata.
+  * [ ] Index source-note title only where the searching user can access that source metadata.
+  * [ ] Index attachment names only if the file framework exposes permission-safe metadata.
+  * [ ] Search result type should be `kb_article`.
+  * [ ] Search source should be `Knowledge Base`.
+  * [ ] Search results should link to KB article detail.
+  * [ ] KB search must not be conflated with Help search.
+  * [ ] KB search must not be conflated with Notes search.
+  * [ ] Search must respect workspace, module state, article visibility, status, permissions, and future client/public boundaries.
+
+* [ ] Register KB articles as taggable records.
+
+  * [ ] Add `taggableTypes` declaration for KB articles.
+  * [ ] Allow permitted users to assign workspace tags to KB articles.
+  * [ ] Tags are classification metadata only.
+  * [ ] Tags must not define KB visibility.
+  * [ ] Tags must not define publication state.
+  * [ ] Tags must not define client/public access.
+
+* [ ] Register KB articles as attachable records.
+
+  * [ ] Use the framework file attachment contract.
+  * [ ] KB should not implement separate file storage.
+  * [ ] Internal KB attachments may remain protected.
+  * [ ] Client-visible KB attachments require client-safe file handling.
+  * [ ] Public KB attachments require public-safe file handling.
+  * [ ] Public/client KB pages must not expose private/internal attachments.
+  * [ ] Quarantined/pending files must not appear in normal KB UI.
+  * [ ] Published snapshots should record which attachments were public/client-safe at publish time where applicable.
+
+* [ ] Add static/published page rendering foundation.
+
+  * [ ] Published article snapshot should be renderable independently from draft body.
+  * [ ] Render Markdown to safe HTML through server-side safe renderer.
+  * [ ] Strip unsafe HTML, scripts, dangerous links, and unsafe embeds.
+  * [ ] Generate safe table of contents where useful.
+  * [ ] Generate safe metadata for title, summary, slug, and updated/published dates.
+  * [ ] Do not expose raw source note metadata.
+  * [ ] Do not expose raw audit data.
+  * [ ] Do not expose private attachments.
+  * [ ] Do not expose internal comments.
+  * [ ] Do not expose hidden linked records.
+  * [ ] Do not expose internal author/reviewer metadata on public/client pages unless explicitly allowed.
+
+* [ ] Add internal published preview.
+
+  * [ ] Internal users with proper permission can preview published output.
+  * [ ] Preview should show the sanitized/static version.
+  * [ ] Preview should identify whether it is viewing draft, latest publication, or historical publication.
+  * [ ] Preview should warn when draft changes are unpublished.
+  * [ ] Preview should not bypass article permissions.
+
+* [ ] Add permission boundary tests for future client/public KB.
+
+  * [ ] Internal-only KB articles are never returned to client/public routes.
+  * [ ] Workspace-visible KB articles require authentication and permission.
+  * [ ] Client-visible KB articles require authorized client/project access when enabled.
+  * [ ] Public KB articles require explicit public visibility and published state when enabled.
+  * [ ] Public/client pages do not expose internal source note links.
+  * [ ] Public/client pages do not expose audit records.
+  * [ ] Public/client pages do not expose private attachments.
+  * [ ] Public/client pages do not expose secure note content.
+  * [ ] Public/client search does not expose hidden articles.
+
+* [ ] Add KB Help contribution.
+
+  * [ ] Add Help page for Knowledge Base basics.
+  * [ ] Add Help page for KB articles vs Notes.
+  * [ ] Add Help page for drafts, review, and publishing.
+  * [ ] Add Help page for KB visibility.
+  * [ ] Add Help page for KB attachments.
+  * [ ] Keep Help pages current-state and task-oriented.
+  * [ ] Clearly distinguish Help Center docs from user-authored Knowledge Base content.
+
+* [ ] Add search/tag/file/static regressions.
+
+  * [ ] KB articles are discoverable through global search according to permissions.
+  * [ ] KB filter returns KB articles only.
+  * [ ] Help filter does not return KB articles.
+  * [ ] Notes filter does not return KB articles.
+  * [ ] Tags do not control KB visibility or publication.
+  * [ ] KB attachments use the shared file framework.
+  * [ ] Public/client-unsafe attachments are not exposed on published public/client outputs.
+  * [ ] Rendered KB HTML is sanitized.
+  * [ ] Published snapshot remains stable after draft edits.
+
+## Version 0.34.7 - Knowledge Base Client/Public Groundwork, Documentation, and Closeout
+
+Implementation shape:
+
+* Close the Knowledge Base foundation by documenting boundaries, testing permission-sensitive paths, and leaving clean hooks for future client/public portals.
+
+* Do not fully open public KB pages unless public-safe files, routing, abuse reporting, and visibility controls are ready.
+
+* Keep the release focused so Calendar and later Dashboard work are not dragged into an unfinished CMS.
+
+* [ ] Add future client-visible KB groundwork.
+
+  * [ ] Reserve authenticated client KB route patterns.
+  * [ ] Require client/external user access checks.
+  * [ ] Require article status `published`.
+  * [ ] Require visibility `client_visible`.
+  * [ ] Require client/project context checks if articles are scoped.
+  * [ ] Hide internal source notes.
+  * [ ] Hide internal author/reviewer metadata unless explicitly allowed.
+  * [ ] Hide private/internal attachments.
+  * [ ] Hide audit records.
+  * [ ] Hide unpublished draft changes.
+  * [ ] Do not enable client-visible KB by default until client portal permissions are stable.
+
+* [ ] Add future public KB groundwork.
+
+  * [ ] Reserve public KB route patterns.
+  * [ ] Require article status `published`.
+  * [ ] Require visibility `public`.
+  * [ ] Require public-safe rendered output.
+  * [ ] Require public-safe attachments.
+  * [ ] Require safe metadata.
+  * [ ] Require abuse/reporting plan before broad public user-generated content is exposed.
+  * [ ] Add noindex/private behavior for non-public articles.
+  * [ ] Do not expose public KB routes by default unless explicitly enabled in workspace/module settings.
+  * [ ] Do not expose public KB search until public indexing rules are deliberate.
+
+* [ ] Add KB settings foundation.
+
+  * [ ] Enable/disable Knowledge Base module per workspace.
+  * [ ] Configure default article visibility.
+  * [ ] Configure whether review is required before publishing.
+  * [ ] Configure whether client-visible publishing is allowed once supported.
+  * [ ] Configure whether public publishing is allowed once supported.
+  * [ ] Configure default collection/category behavior.
+  * [ ] Keep settings permission-protected.
+  * [ ] Do not allow settings to bypass file safety or permission boundaries.
+
+* [ ] Perform Knowledge Base module integration review.
+
+  * [ ] Confirm KB uses framework services for permissions, tags, search, files, audit, notifications, events, Help, and module lifecycle.
+  * [ ] Confirm KB does not bypass file framework APIs.
+  * [ ] Confirm KB does not write direct search rows outside the framework search service.
+  * [ ] Confirm KB does not hard-code Notes internals beyond stable source-link/service contracts.
+  * [ ] Confirm KB does not conflate Help Center records with user-authored KB articles.
+  * [ ] Confirm KB does not expose secure note content.
+  * [ ] Confirm client/public visibility is blocked unless intentionally enabled.
+
+* [ ] Update developer documentation.
+
+  * [ ] Document Knowledge Base module boundaries.
+  * [ ] Document article data model.
+  * [ ] Document revision and publication snapshot behavior.
+  * [ ] Document Notes-to-KB source relationship.
+  * [ ] Document editorial workflow states.
+  * [ ] Document visibility rules.
+  * [ ] Document KB searchable/taggable/attachable declarations.
+  * [ ] Document KB lifecycle events.
+  * [ ] Document client/public publishing prerequisites.
+  * [ ] Document what Knowledge Base should not own.
+
+* [ ] Update product Help.
+
+  * [ ] Add current-state Knowledge Base usage page.
+  * [ ] Add current-state article publishing page.
+  * [ ] Add current-state Notes-to-KB page.
+  * [ ] Add current-state KB visibility page.
+  * [ ] Add current-state KB attachments page.
+  * [ ] Keep Help separate from Knowledge Base.
+
+* [ ] Release bookkeeping.
+
+  * [ ] Record Knowledge Base decisions in `DECISIONS.md`.
+  * [ ] Update `CHANGELOG.md`.
+  * [ ] Bump `package.json` and `package-lock.json`.
+  * [ ] Verify `/api/app-info` reports the completed KB version.
+  * [ ] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process.
+
+* [ ] Run verification.
+
+  * [ ] Run focused KB API tests.
+  * [ ] Run focused KB UI tests.
+  * [ ] Run focused KB editorial workflow tests.
+  * [ ] Run focused KB publication snapshot tests.
+  * [ ] Run focused KB search tests.
+  * [ ] Run focused KB tag tests.
+  * [ ] Run focused KB file attachment tests.
+  * [ ] Run focused KB Notes-source tests.
+  * [ ] Run focused client/public boundary tests.
+  * [ ] Run `npm run check`.
+  * [ ] Run `npm run test:permissions`.
+  * [ ] Run SQLite integrity check after KB migrations and publication snapshot tests.
+
+
+## Version 0.34.0 - Support Tickets Framework Contract
 
 * [ ] Add Support Tickets as a first-party workflow module.
 
@@ -710,7 +2003,7 @@ Implementation shape:
   * [ ] Event payloads should include workspace, actor, ticket ID, client/project IDs where applicable, safe previous/new values, source, and metadata.
   * [ ] Event payloads should leave room for future automations and integrations.
 
-## Version 0.33.1 - Ticket Browser API and Services
+## Version 0.34.1 - Ticket Browser API and Services
 
 * [ ] Add ticket service methods.
 
@@ -772,7 +2065,7 @@ Implementation shape:
   * [ ] Ensure keys do not collide inside a workspace.
   * [ ] Keep database IDs separate from user-facing ticket keys.
 
-## Version 0.33.2 - Ticket UI MVP
+## Version 0.34.2 - Ticket UI MVP
 
 * [ ] Add Tickets navigation and protected views.
 
@@ -818,7 +2111,7 @@ Implementation shape:
   * [ ] Client/external users should not see internal notes, internal-only status details, raw audit records, or private metadata.
   * [ ] Client-facing ticket pages can be minimal in 0.33.x but the permission model must be real.
 
-## Version 0.33.3 - Ticket Integration Hooks
+## Version 0.34.3 - Ticket Integration Hooks
 
 * [ ] Register tickets as searchable records.
 
@@ -873,7 +2166,7 @@ Implementation shape:
   * [ ] This should be manual in 0.33.x.
   * [ ] Automatic task creation rules should wait for the automation/rules framework in 0.4x.
 
-## Version 0.33.4 - Client Ticket Portal MVP
+## Version 0.34.4 - Client Ticket Portal MVP
 
 * [ ] Add minimal client/external ticket creation surface.
 
@@ -907,7 +2200,7 @@ Implementation shape:
   * [ ] Client-visible replies are visible to the right client users and internal users.
   * [ ] Internal users with proper permission can see both internal and client-visible ledger entries.
 
-## Version 0.33.5 - Ticket Public API Groundwork
+## Version 0.34.5 - Ticket Public API Groundwork
 
 * [ ] Add ticket API scopes.
 
@@ -946,7 +2239,7 @@ Implementation shape:
   * [ ] Public API cannot create internal notes unless explicitly using an internal/admin scope.
   * [ ] Public API cannot read internal ledger entries.
 
-## Version 0.33.6 - Ticket Regression, Polish, and Closeout
+## Version 0.34.6 - Ticket Regression, Polish, and Closeout
 
 * [ ] Add complete ticket regression coverage.
 
@@ -993,40 +2286,6 @@ Implementation shape:
   * [ ] Run `npm run test:permissions`.
   * [ ] Run ticket-specific regression scripts.
 
-## Version 0.34.0 - Notes Module Foundation 
-
-- [ ] Add Notes as a first-party module. 
-  - [ ] Notes are dynamic working records. 
-  - [ ] Notes may be workspace-level, client-level, project-level, task-linked, ticket-linked, or user-linked. 
-  - [ ] Notes should support internal visibility first. 
-  - [ ] Notes should support markdown or wiki-style linking. 
-  - [ ] Notes should support tags once tagging is stable. 
-  - [ ] Notes should be searchable once search is stable. 
-  - [ ] Notes should support file attachments once the file framework is stable. 
-  - [ ] Notes should have persistent revision/changelog support. 
-  - [ ] Note visibility and edit access should respect roles and permissions. 
-  - [ ] Do not make tags the source of truth for public/private access. 
-  
-## Version 0.34.1 - Knowledge Base Module Foundation 
-
-- [ ] Add Knowledge Base as a separate first-party module/concept. 
-  - [ ] Knowledge Base is a publishing and curation layer, not just "notes with public enabled." 
-  - [ ] KB entries may be created from notes, linked to notes, or written directly. 
-  - [ ] KB entries should support static/published pages. 
-  - [ ] KB entries should have explicit visibility fields. 
-  - [ ] KB entries should support draft/review/published/archived states. 
-  - [ ] KB entries should support internal-only, workspace-visible, client-visible, and public-visible modes later. 
-  - [ ] KB entries should support tags, search, attachments, and revision history. 
-  - [ ] Public/client-visible KB behavior should wait until permissions and public-safe file handling are stable. 
-
-- [ ] Define relationship between Notes and Knowledge Base. 
-  - [ ] Notes can be source material for KB entries. 
-  - [ ] KB entries can link back to source notes. 
-  - [ ] Updating a note should not automatically publish a KB change. 
-  - [ ] Publishing should be explicit. 
-  - [ ] KB should not automatically publish tasks, tickets, or notes without review. 
-  - [ ] Public KB pages should not expose internal comments, audit data, private attachments, or hidden source notes.
-
 ## Version 0.35.0 - Calendars and Calendar Views
 
 - [ ] Calendars
@@ -1043,14 +2302,14 @@ Implementation shape:
 ## Version 0.36.0 - Dashboard and Workbench Formalization as Project hub and work center
 
 - [ ] Dashboard should become the hub for managing projects
-  - [ ] Add "Past Due/Due Soon" section that shows past due and upcoming tasks sorted by client and project
+  - [ ] Add "Urgent" section that shows past due and upcoming tasks, and open support tickets sorted by client and project
   - [ ] Add "Latest Updates" section
     - [ ] Newest clients
     - [ ] Newest projects
     - [ ] Newest tasks
     - [ ] Newest notes
     - [ ] Newest support tickets
-    - [ ] Recent time entries if useful
+    - [ ] Recent time entries with billable amount, if budget tracking is turned on in client/project (eventual feature in 0.4x)
 - [ ] Add activity feed support (can be built onto notifications hooks)
   - [ ] Activity feed may be derived from audit events where appropriate
   - [ ] Activity feed should not expose sensitive audit JSON by default
@@ -1059,14 +2318,6 @@ Implementation shape:
 - [ ] Dashboard sections should respect permissions
   - [ ] Users should only see clients/projects/tasks/notes/tickets they are allowed to see
   - [ ] External client users should not see internal-only notes or admin-only audit details
-
-* [ ] Add notification-aware dashboard helpers
-
-  * [ ] App shell can show unread notification count
-  * [ ] Dashboard can eventually show user-specific notification summaries
-  * [ ] Notification summaries should respect permissions
-  * [ ] Notification summaries should not expose raw audit JSON
-  * [ ] Do not build full activity feed here unless already stable
 
 ## Version 0.37.0 - Expanded Reporting and Invoicing
 
@@ -1157,7 +2408,7 @@ Implementation shape:
 Super Admins should have a backup/restore function on the dashboard that dumps the current database into a clean file with an app meta data file that has app version stamped and datetime (UTC) of backup in it and zips it into a zip file along with any physical settings files on disk (this will be necessary after packaging for self-hosting and may not yet be necessary, but I want uniform functions for backup/restore that can be easily modified in the future)
 
 - [ ] Create backup function to grab and zip:
-  - [ ] Database dump
+  - [ ] Database dump/database file
   - [ ] App meta data file to include app version and datetime stamp of backup
   - [ ] Setup files (can be blank for now)
 - [ ] Add backup to user interface for Super Admins in Settings menu

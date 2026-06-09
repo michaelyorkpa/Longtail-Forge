@@ -7,6 +7,7 @@ const files = {
   dashboard: readText("public/js/dashboard.js"),
   dashboardView: readText("views/protected/dashboard.html"),
   manifestContract: readText("src/core/modules/manifest-contract.js"),
+  reporting: readText("public/js/reporting.js"),
   reportingService: readText("src/services/reporting.service.js"),
   workbench: readText("public/js/workbench.js"),
   workbenchView: readText("views/protected/workbench.html"),
@@ -89,8 +90,23 @@ assert.match(
 );
 assert.match(
   files.reportingService,
+  /childRows:\s*includeDescendants[\s\S]*buildProjectChildRows/,
+  "project summary parent rows must carry nested child display rows without adding them to footer totals",
+);
+assert.match(
+  files.reportingService,
   /filterRollupProjects\(scope\.projects,\s*\{\s*includeDescendants:\s*true\s*\}\)/,
   "dashboard reporting totals must avoid double counting project parent and child rollups",
+);
+assert.match(
+  files.reportingService,
+  /function sortProjectTree\(projects\)[\s\S]*appendBranch\(""\)[\s\S]*return sortedProjects;/,
+  "reporting service project ordering must use parent-before-child tree traversal",
+);
+assert.doesNotMatch(
+  files.reportingService,
+  /getProjectTreeSortKey/,
+  "reporting service project ordering must not use path-string sorting that can separate children from parents",
 );
 assert.match(
   files.workbenchService,
@@ -138,6 +154,21 @@ assert.doesNotMatch(
   files.workbench,
   /tasks\.html\?task=/,
   "Workbench Open Task must not redirect to the Tasks page edit URL",
+);
+assert.match(
+  files.reporting,
+  /function sortProjectTree\(projects\)[\s\S]*appendBranch\(""\)[\s\S]*return sortedProjects;/,
+  "reporting project filter must render projects with parent-before-child tree traversal",
+);
+assert.doesNotMatch(
+  files.reporting,
+  /getProjectTreeSortKey/,
+  "reporting project filter must not use path-string sorting that can separate children from parents",
+);
+assert.match(
+  files.reporting,
+  /expandedProjectRows[\s\S]*appendReportRow[\s\S]*childRows/,
+  "reporting table must render expandable nested project child rows",
 );
 
 assert.match(

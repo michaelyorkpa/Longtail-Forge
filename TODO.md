@@ -15,7 +15,26 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
-- Time entries aren't being index properly
+- Time entries aren't editable by Workspace admin
+  - Tried to add tags as workspace admin to "81c61ec4-ebe4-45c2-a35d-b03e88b45bb9" and got a permissions error (couldn't read the whole thing, it was on the main window and the modal window blocked it)
+  - Had to log in as Super Admin to add tags
+
+- Are time entries from timers storing the actual start and end time with an unconnected duration, or are they adjusting start or end time based on total duration?
+  - It should be the former. I want to see exactly when a timer was started and ended, as well as the total duration the timer was running during that period. Start and End time are informational, not anything to be calculated.
+
+- Add a "No Tags" option to filters to easily identify items that still need to be tagged
+  - Should be directly below all tags
+
+- Tags should be bulk assignable/removable 
+  - In the following contexts:
+    - Projects -> Time Keeping -> Time Entries
+      - This will require checkboxes in a tight leftmost column for this display to enable bulk editing
+    - Projects -> Tasks
+    - Eventually, Projects -> Notes
+  - Bulk tag application should use the same/similar box to initial entry
+    - This entire thing should be owned within tags and be hooked in via the framework, not hard coded anywhere
+
+- Task timers should inherit tags applied to tasks automatically.
 
 - Projects aren't inheriting client billing settings when created in Projects -> Project Settings -> Add Project
 
@@ -83,7 +102,7 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - [ ] Add Workspace option to set default screen when switching into that workspace, per user.
   - Current behavior keeps it on Time Tracker, for example, but perhaps a user would always want to default to the dashboard. So, make the starting page selectable and provide a "Stay on Current Workspace's page" option as well (so when a new workspace opens it remains in the time tracker, or tasks, or whatever)
 
-## UI clean up/clarification
+### UI clean up/clarification
 
 - [ ] There should be something in the views/models that indicates whether a field needs to be required so the * becomes automatic as views happen (if this is best practice)
   - [ ] Create list of every form for required entry fields
@@ -93,6 +112,18 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - [ ] Create a list of notifications per record type (module) for proper notification implementation
   - [ ] Create a default notifications preference that's adjustable per user
   - [ ] Notifications are only sent to owners, assignees, or external clients as appropriate
+
+- Reporting -> Time Reports
+  - Hide Start Date and End Date until billing period is is Custom
+    - Alternately, update Start Date and End Date based on Billing Period Selection
+
+### Notifications
+
+- [ ] Reduce size of {{recordTitle}} further 
+
+- [ ] notifications.html: Notification Type chip should be aligned to right, in board from "Dismissed"
+
+- [ ] Record update notifications should include the changed context human-formatted from the JSON data
 
 ### Tasks
 
@@ -607,7 +638,107 @@ This version should introduce TypeScript as a framework contract-checking tool w
   - makes an easily human readable report that is chronologically organized
   - make it respect filters
 
-At the end of 0.4x branch:
+## Prepare for Internationalization
+
+- Add user locale preference
+  - default to 'en' NOT NULL
+- Add workspace locale preference
+  - default to 'en' NOT NULL
+
+- Make HTML lang dynamic
+  - default to 'en'
+
+- Begin adding translations to server-provided navigation
+
+- Extract static page strings
+  - Being using data-i18n attributes
+
+- Translate runtime messages
+  - rather than returning raw error.message text, it should be sending back something like:
+  {
+    code: "search.results_unavailable",
+    message: t(locale, "errors.search.results_unavailable")
+  }
+
+- User data should never be touched in translations
+
+### Phase 1
+
+- Add locale:
+  - storage
+  - negotiation
+  - translation loader
+  - t() helper
+  - browser window.LongtailForge.i18n
+
+### Phase 2
+
+- Translate:
+  - Navigation
+  - Footer
+  - Search shell
+  - Notification bell/panel
+  - Common buttons: Save, Cancel, Delete, Clear, Search, Previous, Next
+  - Status messages
+  - Error messages
+
+### Phase 3
+
+- Module Manifest Labels
+  - Update module contracts so manifests can provide keys, not only literal labels
+
+### Phase 4
+
+- Pages and Modules
+  - First-part pages:
+    - Login/public splash
+    - Dashboard
+    - Workbench
+    - Search
+    - Notifications
+    - Tasks
+    - Time tracking
+    - Clients/Projects
+    - Tags
+    - Settings
+    - Reporting
+    - Audit Log
+    - API Keys
+    - User admin
+
+### Phase 5
+
+- Locale formatting
+  - Dates
+  - Times
+  - Relative time
+  - Durations
+  - Numbers
+  - Currency
+  - Lists
+
+## Version 0.4x.x - Localization Foundation
+
+- Add framework-owned i18n service.
+- Add locale preference to users.
+- Add optional workspace default locale.
+- Add locale to app-shell bootstrap.
+- Add browser translation helper.
+- Add English locale catalog.
+- Convert app shell, footer, global search shell, notification shell, and common status/error strings to translation keys.
+- Add manifest support for labelKey/descriptionKey or i18n keys.
+- Add pseudo-locale regression coverage.
+- Do not translate user-created content.
+
+## Version 0.4x.x+1 - First Translation Extraction Pass
+
+- Convert static protected/public HTML strings to data-i18n attributes.
+- Convert shared browser JS strings to translation keys.
+- Convert first-party module manifest labels/descriptions/actions to translation keys.
+- Add Spanish, French, Portuguese, and Dutch catalogs.
+- Add missing-key regression checks.
+
+## At the end of 0.4x branch
 
 - Add framework-owned HTTP route contract and adapter boundary so Longtail Forge routes are not permanently coupled to Express. Keep Express as the first adapter; preserve the option to add a Fastify adapter later.
 

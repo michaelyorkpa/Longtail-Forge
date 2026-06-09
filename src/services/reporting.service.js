@@ -48,14 +48,25 @@ async function readProjectSummary(session, query = {}) {
     .filter((entry) => matchesScope(entry, scope, { includeDescendants }))
     .filter((entry) => selectedTaskIds.length === 0 || selectedTaskIds.includes(entry.taskId));
   const rows = filterRollupProjects(projects, { includeDescendants })
-    .map((project) => summarizeProject(
-      settings,
-      scope,
-      project,
-      scopeEntries,
-      readSelectedDateRange(settings, scope, project, query),
-      { includeDescendants },
-    ))
+    .map((project) => {
+      const row = summarizeProject(
+        settings,
+        scope,
+        project,
+        scopeEntries,
+        readSelectedDateRange(settings, scope, project, query),
+        { includeDescendants },
+      );
+
+      return row
+        ? {
+            ...row,
+            childRows: includeDescendants
+              ? buildProjectChildRows(settings, scope, project, scope.projects, scopeEntries, query)
+              : [],
+          }
+        : null;
+    })
     .filter(Boolean);
   const totals = rows.reduce((summary, row) => ({
     amount: summary.amount + row.amount,
@@ -294,6 +305,40 @@ function summarizeProject(settings, scope, project, entries, range, options = {}
   };
 }
 
+function buildProjectChildRows(settings, scope, parentProject, projects, entries, query = {}, depth = 1) {
+  return sortProjectTree(projects)
+    .filter((project) => project.parentProjectId === parentProject.id)
+    .map((project) => {
+      const childRows = buildProjectChildRows(settings, scope, project, projects, entries, query, depth + 1);
+      const row = summarizeProject(
+        settings,
+        scope,
+        project,
+        entries,
+        readSelectedDateRange(settings, scope, project, query),
+        { includeDescendants: true },
+      );
+
+      return {
+        ...(row || emptyProjectRow(settings, scope, project)),
+        childRows,
+        depth,
+      };
+    })
+}
+
+function emptyProjectRow(settings, scope, project) {
+  return {
+    amount: 0,
+    billableSeconds: 0,
+    displaySeconds: 0,
+    project,
+    rate: getProjectBillingRate(settings, scope, project),
+    rawBillableSeconds: 0,
+    rawSeconds: 0,
+  };
+}
+
 function readSelectedDateRange(settings, scope, project, query = {}) {
   if (query.period === "custom") {
     return getCustomDateRange(query.startDate || query.start_date, query.endDate || query.end_date);
@@ -477,6 +522,47 @@ function sortScopeTree(scopes) {
       sensitivity: "base",
     }),
   );
+}
+
+function sortProjectTree(projects) {
+  const projectsByParentId = new Map();
+  const sortedProjects = [];
+  const visited = new Set();
+
+  projects.forEach((project) => {
+    const parentId = project.parentProjectId || "";
+    const siblings = projectsByParentId.get(parentId) || [];
+    siblings.push(project);
+    projectsByParentId.set(parentId, siblings);
+  });
+
+  const appendBranch = (parentId) => {
+    const siblings = [...(projectsByParentId.get(parentId) || [])].sort((left, right) =>
+      String(left.name || "").localeCompare(String(right.name || ""), undefined, { sensitivity: "base" }),
+    );
+
+    siblings.forEach((project) => {
+      if (visited.has(project.id)) {
+        return;
+      }
+
+      visited.add(project.id);
+      sortedProjects.push(project);
+      appendBranch(project.id);
+    });
+  };
+
+  appendBranch("");
+
+  projects.forEach((project) => {
+    if (!visited.has(project.id)) {
+      visited.add(project.id);
+      sortedProjects.push(project);
+      appendBranch(project.id);
+    }
+  });
+
+  return sortedProjects;
 }
 
 function getScopeTreeSortKey(scope, scopes) {

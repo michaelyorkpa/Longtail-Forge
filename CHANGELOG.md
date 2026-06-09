@@ -12,6 +12,8 @@
 - Removed redundant `Project Name (Client Name)` labels from Projects table and bulk edit rows when a specific business-client project filter is selected.
 - Fixed reporting scope hierarchy metadata and tree ordering so child clients nest under parent clients in Reporting.
 - Adjusted reporting project rollups and dashboard reporting totals to avoid double-counting selected child projects when a parent project is already selected with descendants included.
+- Fixed the Reporting project selector to use parent-before-child project tree traversal so child projects remain under their actual parent project.
+- Added expandable Reporting project summary rows so parent project rollups can reveal child project subtotals without changing footer totals.
 - Added a Search page index rebuild control for workspace-settings managers and scheduled a non-fatal startup search index rebuild to automate historical index catch-up.
 - Expanded focused regressions for page width contracts, reporting hierarchy rollups, project labels, and search index maintenance.
 
