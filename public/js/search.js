@@ -100,7 +100,9 @@ async function rebuildSearchIndex() {
 
   try {
     const response = await fetch("/api/search-index/rebuild", {
+      body: "{}",
       cache: "no-store",
+      headers: { "Content-Type": "application/json" },
       method: "POST",
     });
     const body = await readJson(response);
