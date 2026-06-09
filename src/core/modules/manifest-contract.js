@@ -1,3 +1,5 @@
+import { listTagPropagationResolverIds } from "../../services/tag-propagation-registry.js";
+
 const ACTIVE_MANIFEST_FIELDS = new Set([
   "id",
   "name",
@@ -35,6 +37,7 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "timerSources",
   "workItemSources",
   "taggableTypes",
+  "tagPropagation",
   "searchableTypes",
   "help",
   "hooks",
@@ -52,6 +55,7 @@ const RESERVED_MANIFEST_FIELDS = new Set([
 ]);
 
 const MODULE_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const HELP_ID_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
 const HELP_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
@@ -122,6 +126,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateTimerSources(moduleDefinition.timerSources, moduleDefinition.id, errors);
   validateWorkItemSources(moduleDefinition.workItemSources, moduleDefinition.id, errors);
   validateTaggableTypes(moduleDefinition.taggableTypes, moduleDefinition.id, errors);
+  validateTagPropagationDescriptors(moduleDefinition.tagPropagation, moduleDefinition.id, errors);
   validateSearchableTypes(moduleDefinition.searchableTypes, moduleDefinition.id, errors);
   validateHelpContribution(moduleDefinition.help, {
     ownerId: moduleDefinition.id,
@@ -147,6 +152,8 @@ function validateModuleManifests(moduleDefinitions) {
   const errors = [];
   const seenIds = new Set();
   const allModuleIds = new Set();
+  const allTaggableTypes = new Set();
+  const allResolverIds = new Set(listTagPropagationResolverIds());
 
   for (const moduleDefinition of moduleDefinitions) {
     if (moduleDefinition?.id) {
@@ -156,11 +163,26 @@ function validateModuleManifests(moduleDefinitions) {
       seenIds.add(moduleDefinition.id);
       allModuleIds.add(moduleDefinition.id);
     }
+    for (const taggableType of moduleDefinition?.taggableTypes || []) {
+      if (taggableType?.targetType) {
+        allTaggableTypes.add(`${taggableType.moduleId || moduleDefinition.id}:${taggableType.targetType}`);
+      }
+    }
   }
 
   for (const moduleDefinition of moduleDefinitions) {
     errors.push(...validateModuleManifest(moduleDefinition, allModuleIds));
+    errors.push(...validateTagPropagationReferences(moduleDefinition, {
+      allModuleIds,
+      allResolverIds,
+      allTaggableTypes,
+    }));
   }
+
+  const propagationIds = moduleDefinitions.flatMap((moduleDefinition) => (
+    moduleDefinition?.tagPropagation || []
+  ).map((descriptor) => descriptor?.id).filter(Boolean));
+  assertUniqueHelpValues("tagPropagation id", propagationIds, errors);
 
   if (errors.length > 0) {
     throw new Error(`Invalid module manifest configuration:\n- ${errors.join("\n- ")}`);
@@ -537,6 +559,66 @@ function validateTaggableTypes(taggableTypes, moduleId, errors) {
     optionalStringArray(item, "requiredModules", errors, { prefix: `taggableTypes[${index}]` });
     validateTerminology(item.terminology, `taggableTypes[${index}].terminology`, errors);
   });
+}
+
+function validateTagPropagationDescriptors(tagPropagation, moduleId, errors) {
+  optionalArrayOfObjects(tagPropagation, "tagPropagation", errors, (item, index) => {
+    const prefix = `tagPropagation[${index}]`;
+
+    requireString(item, "id", errors, { prefix });
+    requireString(item, "sourceModuleId", errors, { prefix });
+    requireString(item, "sourceTargetType", errors, { prefix });
+    requireString(item, "targetModuleId", errors, { prefix });
+    requireString(item, "targetType", errors, { prefix });
+    requireString(item, "relationshipResolver", errors, { prefix });
+    requireString(item, "workspaceField", errors, { prefix, pattern: IDENTIFIER_PATTERN });
+    requireString(item, "sourceReadPermission", errors, { prefix });
+    requireString(item, "targetReadPermission", errors, { prefix });
+    requireString(item, "targetTagPermission", errors, { prefix });
+    optionalStringArray(item, "requiredModules", errors, { prefix });
+    optionalBoolean(item, "snapshotOnCreate", errors, { prefix });
+    optionalBoolean(item, "propagateOnParentChange", errors, { prefix });
+    optionalBoolean(item, "propagateOnRelationshipChange", errors, { prefix });
+    validateTerminology(item.terminology, `${prefix}.terminology`, errors);
+
+    if (item.sourceModuleId !== undefined && item.sourceModuleId !== moduleId && item.targetModuleId !== moduleId) {
+      errors.push(`${prefix} must declare this module as sourceModuleId or targetModuleId.`);
+    }
+  });
+}
+
+function validateTagPropagationReferences(moduleDefinition, context) {
+  const errors = [];
+  const descriptors = Array.isArray(moduleDefinition?.tagPropagation) ? moduleDefinition.tagPropagation : [];
+
+  descriptors.forEach((descriptor, index) => {
+    const prefix = `tagPropagation[${index}]`;
+    const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
+
+    if (descriptor?.sourceModuleId && !context.allModuleIds.has(descriptor.sourceModuleId)) {
+      errors.push(`${moduleLabel}: ${prefix}.sourceModuleId references unknown module '${descriptor.sourceModuleId}'.`);
+    }
+    if (descriptor?.targetModuleId && !context.allModuleIds.has(descriptor.targetModuleId)) {
+      errors.push(`${moduleLabel}: ${prefix}.targetModuleId references unknown module '${descriptor.targetModuleId}'.`);
+    }
+    if (descriptor?.sourceModuleId && descriptor?.sourceTargetType) {
+      const sourceKey = `${descriptor.sourceModuleId}:${descriptor.sourceTargetType}`;
+      if (!context.allTaggableTypes.has(sourceKey)) {
+        errors.push(`${moduleLabel}: ${prefix}.sourceTargetType references unknown taggable type '${sourceKey}'.`);
+      }
+    }
+    if (descriptor?.targetModuleId && descriptor?.targetType) {
+      const targetKey = `${descriptor.targetModuleId}:${descriptor.targetType}`;
+      if (!context.allTaggableTypes.has(targetKey)) {
+        errors.push(`${moduleLabel}: ${prefix}.targetType references unknown taggable type '${targetKey}'.`);
+      }
+    }
+    if (descriptor?.relationshipResolver && !context.allResolverIds.has(descriptor.relationshipResolver)) {
+      errors.push(`${moduleLabel}: ${prefix}.relationshipResolver references unknown resolver '${descriptor.relationshipResolver}'.`);
+    }
+  });
+
+  return errors;
 }
 
 function validateSearchableTypes(searchableTypes, moduleId, errors) {

@@ -44,6 +44,8 @@ async function create(entry, session) {
 
   await timeEntriesRepository.create(data);
   await saveTargetTags(session, "time_entry", entryId, entry);
+  await snapshotTimeEntryEffectiveTags(session, data, "time_entry.created");
+  await requestTagPropagationRefresh(session, "time_entry", entryId, "time_entry.created");
   await auditService.record({
     session,
     action: "time_entry_created",
@@ -107,6 +109,10 @@ async function update(payload, entryId, session) {
 
   await timeEntriesRepository.update(updatedEntry);
   await saveTargetTags(session, "time_entry", decodedEntryId, payload);
+  await snapshotTimeEntryEffectiveTags(session, updatedEntry, "time_entry.updated");
+  if ((previousEntry.project_id || "") !== (updatedEntry.project_id || "")) {
+    await requestTagPropagationRefresh(session, "time_entry", decodedEntryId, "time_entry.project_changed");
+  }
   const taggedEntry = (await tagsService.decorateRecordsForTarget(session, "time_entry", [updatedEntry]))[0];
   await auditService.record({
     session,
@@ -203,6 +209,47 @@ async function saveTargetTags(session, targetType, targetId, payload = {}) {
     targetType,
     tagIds: payload.tagIds || payload.tag_ids || [],
   });
+}
+
+async function requestTagPropagationRefresh(session, targetType, targetId, reason) {
+  try {
+    await tagsService.refreshPropagatedAssignmentsForTarget(session, {
+      reason,
+      targetId,
+      targetType,
+    });
+  } catch (error) {
+    console.error(`[time-tracking] Tag propagation refresh failed for ${targetType}:${targetId}:`, error);
+  }
+}
+
+async function snapshotTimeEntryEffectiveTags(session, entry, reason) {
+  const sourceTargetType = entry.task_id ? "task" : "project";
+  const sourceTargetId = entry.task_id || entry.project_id || "";
+
+  if (!sourceTargetId) {
+    return null;
+  }
+
+  if (sourceTargetType === "task") {
+    await requestTagPropagationRefresh(session, "task", sourceTargetId, `${reason}.task_context`);
+  }
+
+  try {
+    return await tagsService.snapshotEffectiveTagsForTarget(session, {
+      propagationRuleId: sourceTargetType === "task"
+        ? "time-entry.task-effective-tag-snapshot"
+        : "time-entry.project-effective-tag-snapshot",
+      replaceSnapshot: true,
+      sourceTargetId,
+      sourceTargetType,
+      targetId: entry.entry_id,
+      targetType: "time_entry",
+    });
+  } catch (error) {
+    console.error(`[time-tracking] Effective tag snapshot failed for time_entry:${entry.entry_id}:`, error);
+    return null;
+  }
 }
 
 async function resolveTimeEntryScope(workspaceId, entry) {

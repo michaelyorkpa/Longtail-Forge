@@ -24,6 +24,7 @@ import {
   listNotificationFollowTargets as listRegisteredNotificationFollowTargets,
   listNotificationTemplates as listRegisteredNotificationTemplates,
   listSearchableTypes as listRegisteredSearchableTypes,
+  listTagPropagationRules as listRegisteredTagPropagationRules,
   listTaggableTypes as listRegisteredTaggableTypes,
 } from "./registry.js";
 import { internalEventBus } from "../events/event-bus.js";
@@ -114,6 +115,24 @@ function getModuleForApiScope(scope) {
 
 function listTaggableTypes() {
   return listRegisteredTaggableTypes();
+}
+
+function listTagPropagationRules() {
+  return listRegisteredTagPropagationRules();
+}
+
+async function listActiveTagPropagationRules(workspaceId) {
+  if (!workspaceId) {
+    return [];
+  }
+
+  const enabledModuleIds = new Set(await readEnabledModuleIds(workspaceId));
+
+  return listTagPropagationRules().filter((rule) => (
+    enabledModuleIds.has(rule.sourceModuleId) &&
+    enabledModuleIds.has(rule.targetModuleId) &&
+    requiredModulesEnabled(rule, enabledModuleIds)
+  ));
 }
 
 function listSearchableTypes() {
@@ -1162,6 +1181,8 @@ export const modulesService = {
   listModuleRolePermissionDefaults,
   listNotificationTemplates,
   listSearchableTypes,
+  listTagPropagationRules,
+  listActiveTagPropagationRules,
   listTaggableTypes,
   listTimerSources,
   listWorkbenchCards,

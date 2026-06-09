@@ -26,5 +26,6 @@ The 0.31.x branch completed the core Tasks and module-readiness work needed befo
 - Disabled modules preserve data and block normal writes.
 - Historical reads are allowed only when a module explicitly permits them.
 - Tags must not become the source of truth for security, billing, visibility, workflow status, or archival state.
+- Direct tags are tags a user assigns on the current record. Propagated tags are inherited from related records such as clients, projects, or tasks and can be hidden from the current record without deleting the parent tag. Effective tags are the combined direct, propagated, and system tags used for simple tag filters and discovery.
 - Search is for discovery, not accounting/reporting truth.
 - Audit log is the authoritative admin/security history; activity feeds and notifications are user-facing summaries built from safer contracts.

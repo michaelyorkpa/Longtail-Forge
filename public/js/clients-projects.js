@@ -681,7 +681,7 @@ function mountTagPicker(container, tags = [], label = "Tags") {
   return window.LongtailForge.tags.mountPicker(container, {
     tags: tagOptions,
     label,
-    selectedTagIds: tags.map((tag) => tag.tag_id),
+    selectedTags: tags,
   });
 }
 

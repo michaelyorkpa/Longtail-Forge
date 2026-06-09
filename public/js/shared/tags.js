@@ -35,6 +35,24 @@
     return body?.tag || null;
   }
 
+  async function suppressPropagatedTag(assignmentId) {
+    const response = await fetch(`/api/tags/assignments/${encodeURIComponent(assignmentId)}/suppress`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const body = await readJsonResponse(response);
+
+    if (!response.ok) {
+      const error = new Error(body?.message || body?.error || "Unable to remove inherited tag.");
+      error.status = response.status;
+      error.body = body;
+      throw error;
+    }
+
+    return body;
+  }
+
   function renderTagList(container, tags = []) {
     if (!container) {
       return;
@@ -51,6 +69,11 @@
     const label = document.createElement("span");
 
     chip.className = options.removable ? "tag-chip tag-chip-remove" : "tag-chip";
+    if (isPropagatedTag(tag)) {
+      chip.classList.add("tag-chip-inherited");
+    } else if (isSystemTag(tag)) {
+      chip.classList.add("tag-chip-system");
+    }
     if (options.removable) {
       chip.type = "button";
       chip.dataset.tagPickerRemove = tag.tag_id || "";
@@ -62,6 +85,9 @@
     swatch.setAttribute("aria-hidden", "true");
     label.textContent = tag.name || tag.slug || "Tag";
     chip.append(swatch, label);
+    if (options.showOrigin && !options.suppressible && !options.removable && !isDirectTag(tag)) {
+      chip.append(createOriginBadge(tag));
+    }
     return chip;
   }
 
@@ -197,13 +223,38 @@
       }
     });
 
-    selectedList.addEventListener("click", (event) => {
+    selectedList.addEventListener("click", async (event) => {
+      const suppressButton = event.target.closest("[data-tag-picker-suppress]");
+      if (suppressButton) {
+        const assignmentId = suppressButton.dataset.tagPickerSuppress;
+        if (!assignmentId || state.busy) {
+          return;
+        }
+
+        state.busy = true;
+        suppressButton.disabled = true;
+        setStatus(status, "Removing inherited tag");
+        try {
+          await suppressPropagatedTag(assignmentId);
+          state.selectedTags = state.selectedTags.filter((tag) => tag.tag_assignment_id !== assignmentId);
+          setStatus(status, "Inherited tag removed from this record.");
+        } catch (error) {
+          suppressButton.disabled = false;
+          setStatus(status, error.message || "Unable to remove inherited tag.", true);
+        } finally {
+          state.busy = false;
+          sync();
+          input.focus();
+        }
+        return;
+      }
+
       const button = event.target.closest("[data-tag-picker-remove]");
       if (!button) {
         return;
       }
 
-      state.selectedTags = state.selectedTags.filter((tag) => tag.tag_id !== button.dataset.tagPickerRemove);
+      state.selectedTags = state.selectedTags.filter((tag) => !(tag.tag_id === button.dataset.tagPickerRemove && isDirectTag(tag)));
       sync();
       input.focus();
     });
@@ -211,7 +262,7 @@
     sync();
 
     return {
-      readTagIds: () => state.selectedTags.map((tag) => tag.tag_id).filter(Boolean),
+      readTagIds: () => state.selectedTags.filter(isDirectTag).map((tag) => tag.tag_id).filter(Boolean),
       setSelected: (tagIds = []) => {
         const nextIds = new Set(normalizeTagIds(tagIds));
         state.selectedTags = state.allTags.filter((tag) => nextIds.has(tag.tag_id));
@@ -221,7 +272,7 @@
   }
 
   function renderSelectedTags(container, tags) {
-    const hiddenInputs = tags.map((tag) => {
+    const hiddenInputs = tags.filter(isDirectTag).map((tag) => {
       const input = document.createElement("input");
       input.type = "hidden";
       input.value = tag.tag_id;
@@ -230,9 +281,31 @@
       return input;
     });
     const chips = tags.length > 0
-      ? tags.map((tag) => createTagChip(tag, { removable: true }))
+      ? tags.map((tag) => createSelectedTagChip(tag))
       : [emptySelectedTagHint()];
     container.replaceChildren(...chips, ...hiddenInputs);
+  }
+
+  function createSelectedTagChip(tag) {
+    if (isDirectTag(tag)) {
+      return createTagChip(tag, { removable: true });
+    }
+
+    const wrapper = document.createElement("span");
+    wrapper.className = "tag-picker-readonly-tag";
+    wrapper.append(createTagChip(tag, { showOrigin: true }));
+
+    if (isPropagatedTag(tag) && tag.tag_assignment_id) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "tag-picker-suppress";
+      button.dataset.tagPickerSuppress = tag.tag_assignment_id;
+      button.textContent = "Remove from this record";
+      button.title = "Suppress this inherited tag on the current record";
+      wrapper.append(button);
+    }
+
+    return wrapper;
   }
 
   function renderSuggestions(container, state, rawValue, options = {}) {
@@ -328,6 +401,15 @@
         description: String(tag?.description || "").trim(),
         color: String(tag?.color || "").trim(),
         status: String(tag?.status || "active").trim(),
+        assignment_source: normalizeAssignmentSource(tag?.assignment_source || tag?.origin || tag?.source),
+        origin: normalizeAssignmentSource(tag?.origin || tag?.assignment_source || tag?.source),
+        origin_label: String(tag?.origin_label || "").trim(),
+        source: normalizeAssignmentSource(tag?.source || tag?.assignment_source || tag?.origin),
+        source_assignment_id: String(tag?.source_assignment_id || "").trim(),
+        source_target_type: String(tag?.source_target_type || "").trim(),
+        source_target_id: String(tag?.source_target_id || "").trim(),
+        propagation_rule_id: String(tag?.propagation_rule_id || "").trim(),
+        tag_assignment_id: String(tag?.tag_assignment_id || "").trim(),
       }))
       .filter((tag) => tag.tag_id);
   }
@@ -369,6 +451,30 @@
     return [...byId.values()].sort((a, b) => String(a.name || a.slug).localeCompare(String(b.name || b.slug)));
   }
 
+  function isDirectTag(tag) {
+    return normalizeAssignmentSource(tag?.assignment_source || tag?.origin || tag?.source) === "manual";
+  }
+
+  function isPropagatedTag(tag) {
+    return normalizeAssignmentSource(tag?.assignment_source || tag?.origin || tag?.source) === "propagated";
+  }
+
+  function isSystemTag(tag) {
+    return normalizeAssignmentSource(tag?.assignment_source || tag?.origin || tag?.source) === "system";
+  }
+
+  function normalizeAssignmentSource(value) {
+    const normalized = String(value || "manual").trim().toLowerCase();
+    return ["manual", "propagated", "system"].includes(normalized) ? normalized : "manual";
+  }
+
+  function createOriginBadge(tag) {
+    const badge = document.createElement("span");
+    badge.className = "tag-picker-origin";
+    badge.textContent = tag.origin_label || (isSystemTag(tag) ? "System" : "Inherited");
+    return badge;
+  }
+
   async function readJsonResponse(response) {
     try {
       return await response.json();
@@ -392,5 +498,6 @@
     mountPicker,
     readTagIds,
     renderTagList,
+    suppressPropagatedTag,
   };
 })(window);

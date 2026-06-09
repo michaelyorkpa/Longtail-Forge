@@ -149,6 +149,9 @@ async function create(payload, session) {
   const task = await tasksRepository.create(session.workspace_id, normalizedTask);
   await saveTaskReminderOverride(session.workspace_id, task.task_id, payload);
   await saveTargetTags(session, "task", task.task_id, payload);
+  if (task.project_id) {
+    await requestTagPropagationRefresh(session, "task", task.task_id, "task.created_with_project");
+  }
   const taskWithDetails = await readTaggedTaskWithDetails(session, task.task_id);
   await recordTaskAudit({
     session,
@@ -181,6 +184,7 @@ async function update(taskId, payload, session) {
   await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
   const previousTask = await readTaskOrThrow(session.workspace_id, taskId);
   await assertCanEditTask(session, previousTask);
+  const previousProjectId = previousTask.project_id || "";
 
   const normalizedTask = await normalizeTaskPayload({
     payload,
@@ -246,6 +250,9 @@ async function update(taskId, payload, session) {
   const task = await tasksRepository.update(session.workspace_id, normalizedTask);
   await saveTaskReminderOverride(session.workspace_id, task.task_id, payload);
   await saveTargetTags(session, "task", task.task_id, payload);
+  if (previousProjectId !== (task.project_id || "")) {
+    await requestTagPropagationRefresh(session, "task", task.task_id, "task.project_changed");
+  }
   const taskWithDetails = await readTaggedTaskWithDetails(session, task.task_id);
   await recordTaskAudit({
     session,
@@ -905,6 +912,18 @@ async function saveTargetTags(session, targetType, targetId, payload = {}) {
     targetType,
     tagIds: payload.tagIds || payload.tag_ids || [],
   });
+}
+
+async function requestTagPropagationRefresh(session, targetType, targetId, reason) {
+  try {
+    await tagsService.refreshPropagatedAssignmentsForTarget(session, {
+      reason,
+      targetId,
+      targetType,
+    });
+  } catch (error) {
+    console.error(`[tasks] Tag propagation refresh failed for ${targetType}:${targetId}:`, error);
+  }
 }
 
 async function readTaggedTaskWithDetails(session, taskId) {

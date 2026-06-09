@@ -134,9 +134,10 @@ function populateTagFilter() {
   tagFilterControl.hidden = tags.length === 0;
   replaceOptions(tagFilter, [
     option("all", "All tags"),
+    option("__no_effective_tags__", "No tags"),
     ...tags.map((tag) => option(tag.tag_id, tag.name || tag.slug)),
   ]);
-  tagFilter.value = tags.some((tag) => tag.tag_id === previousValue) ? previousValue : "all";
+  tagFilter.value = previousValue === "__no_effective_tags__" || tags.some((tag) => tag.tag_id === previousValue) ? previousValue : "all";
 }
 
 function renderBulkAssigneeOptions() {
@@ -207,7 +208,8 @@ function filteredTasks() {
       ));
     const clientMatch = clientValue === "all" || (task.client_id || "") === clientValue;
     const projectMatch = projectValue === "all" || (task.project_id || "") === projectValue;
-    const tagMatch = tagValue === "all" || (task.tags || []).some((tag) => tag.tag_id === tagValue);
+    const tagMatch = tagValue === "all" ||
+      (tagValue === "__no_effective_tags__" ? (task.tags || []).length === 0 : (task.tags || []).some((tag) => tag.tag_id === tagValue));
     const quickMatch = matchesQuickFilter(task);
 
     return statusMatch && assigneeMatch && clientMatch && projectMatch && tagMatch && quickMatch;

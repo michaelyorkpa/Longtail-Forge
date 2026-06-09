@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 10, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 11, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -84,6 +84,11 @@ ORDER BY version;
     module_id: "core",
     name: "add_search_index",
   });
+  assert.deepEqual(migrations[10], {
+    version: "041",
+    module_id: "core",
+    name: "add_tag_propagation_foundation",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -115,6 +120,7 @@ ORDER BY name;
     "schema_migrations",
     "search_index",
     "sessions",
+    "tag_assignment_suppressions",
     "tag_assignments",
     "tags",
     "task_assignees",
@@ -162,6 +168,12 @@ WHERE type = 'index'
     'idx_search_index_workspace_record_status',
     'idx_search_index_workspace_record_type',
     'idx_search_index_workspace_title',
+    'idx_tag_assignment_suppressions_source',
+    'idx_tag_assignment_suppressions_tag',
+    'idx_tag_assignment_suppressions_target',
+    'idx_tag_assignment_suppressions_unique',
+    'idx_tag_assignments_propagation_source',
+    'idx_tag_assignments_source_assignment',
     'idx_tag_assignments_tag_target',
     'idx_tag_assignments_target',
     'idx_tag_assignments_unique_target_tag',
@@ -197,6 +209,12 @@ ORDER BY name;
     "idx_search_index_workspace_record_status",
     "idx_search_index_workspace_record_type",
     "idx_search_index_workspace_title",
+    "idx_tag_assignment_suppressions_source",
+    "idx_tag_assignment_suppressions_tag",
+    "idx_tag_assignment_suppressions_target",
+    "idx_tag_assignment_suppressions_unique",
+    "idx_tag_assignments_propagation_source",
+    "idx_tag_assignments_source_assignment",
     "idx_tag_assignments_tag_target",
     "idx_tag_assignments_target",
     "idx_tag_assignments_unique_target_tag",

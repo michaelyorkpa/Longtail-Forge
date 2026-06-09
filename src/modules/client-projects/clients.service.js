@@ -151,6 +151,9 @@ async function createClient(payload, session) {
   await clientsRepository.create(session.workspace_id, client);
   await saveClientReminderPolicy(session.workspace_id, client.id, payload);
   await saveTargetTags(session, "client", client.id, payload);
+  if (client.parent_client_id) {
+    await requestTagPropagationRefresh(session, "client", client.id, "client.created_with_parent");
+  }
   await recordAudit(payload?.action, {
     session,
     action: "client_created",
@@ -208,6 +211,9 @@ async function updateClient(clientId, payload, session) {
   await clientsRepository.update(session.workspace_id, client);
   await saveClientReminderPolicy(session.workspace_id, client.id, payload);
   await saveTargetTags(session, "client", client.id, payload);
+  if (parentChanged) {
+    await requestTagPropagationRefresh(session, "client", client.id, "client.parent_changed");
+  }
   await recordAudit(payload?.action, {
     session,
     action: "client_updated",
@@ -378,6 +384,9 @@ async function createProject(clientId, payload, session) {
   await projectsRepository.create(session.workspace_id, decodedClientId, project);
   await saveProjectReminderPolicy(session.workspace_id, project.id, normalizedPayload);
   await saveTargetTags(session, "project", project.id, normalizedPayload);
+  if (project.client_id || project.parent_project_id) {
+    await requestTagPropagationRefresh(session, "project", project.id, "project.created_with_relationship");
+  }
   await recordAudit(normalizedPayload?.action, {
     session,
     action: "project_created",
@@ -482,6 +491,9 @@ async function updateProject(projectId, payload, session) {
   await projectsRepository.update(session.workspace_id, project);
   await saveProjectReminderPolicy(session.workspace_id, project.id, normalizedPayload);
   await saveTargetTags(session, "project", project.id, normalizedPayload);
+  if (updatePlan.move.isMove || updatePlan.parentMove.isMove) {
+    await requestTagPropagationRefresh(session, "project", project.id, "project.relationship_changed");
+  }
   const downstreamRecords = await applyConfirmedProjectRecordMaintenance({
     workspaceId: session.workspace_id,
     project,
@@ -577,6 +589,18 @@ async function saveTargetTags(session, targetType, targetId, payload = {}) {
     targetType,
     tagIds: payload.tagIds || payload.tag_ids || [],
   });
+}
+
+async function requestTagPropagationRefresh(session, targetType, targetId, reason) {
+  try {
+    await tagsService.refreshPropagatedAssignmentsForTarget(session, {
+      reason,
+      targetId,
+      targetType,
+    });
+  } catch (error) {
+    console.error(`[client-projects] Tag propagation refresh failed for ${targetType}:${targetId}:`, error);
+  }
 }
 
 async function archiveProject(projectId, payload, session) {

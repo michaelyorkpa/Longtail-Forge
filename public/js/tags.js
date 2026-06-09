@@ -232,7 +232,20 @@ function metadataBadge(text) {
 
 function usageText(tag) {
   const count = Number(tag.usage_count || 0);
-  return `${count} ${count === 1 ? "use" : "uses"}`;
+  const direct = Number(tag.direct_usage_count || 0);
+  const propagated = Number(tag.propagated_usage_count || 0);
+  const system = Number(tag.system_usage_count || 0);
+  const parts = [`${count} ${count === 1 ? "use" : "uses"}`];
+
+  if (direct || propagated || system) {
+    parts.push(`${direct} direct`);
+    parts.push(`${propagated} propagated`);
+    if (system) {
+      parts.push(`${system} system`);
+    }
+  }
+
+  return parts.join(" | ");
 }
 
 function renderTagConflictMessage() {

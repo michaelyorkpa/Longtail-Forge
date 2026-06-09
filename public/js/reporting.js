@@ -304,7 +304,10 @@ function renderTagFilter() {
     return;
   }
 
-  reportTagFilterSelect.replaceChildren(createOption("", "All tags"));
+  reportTagFilterSelect.replaceChildren(
+    createOption("", "All tags"),
+    createOption("__no_effective_tags__", "No tags"),
+  );
   reportTagOptions.forEach((tag) => {
     reportTagFilterSelect.appendChild(createOption(tag.tag_id, tag.name));
   });

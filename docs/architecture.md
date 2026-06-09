@@ -1083,6 +1083,10 @@ target_type
 target_id
 created_by_user_id
 source
+source_assignment_id
+source_target_type
+source_target_id
+propagation_rule_id
 created_at
 ```
 
@@ -1127,9 +1131,12 @@ POST /api/tags/:tagId/archive
 POST /api/tags/:tagId/restore
 GET /api/tags/assignments
 PUT /api/tags/assignments
+POST /api/tags/assignments/:assignmentId/suppress
 ```
 
 `tags.html` is a protected settings page contributed by the first-party `tags` module, not hard-coded into the framework static-view list. The `tags` module also contributes the shared browser helper used by first-party record pages for tag chips and reusable pickers. Record modules should integrate through those helpers and the shared tag service rather than owning tag SQL or custom tag pickers.
+
+Tag reads should preserve assignment origin. Direct/manual tags are editable on the current record, propagated tags are inherited from related records and may be suppressed on the current record, and system tags are service-owned snapshots such as finalized time-entry effective tags. Browser payloads may keep a combined `tags` array for compatibility, but module code should prefer the explicit direct, propagated, system, and effective tag fields when it needs to render or save tag state.
 
 ### Tags Are Not Workflow State
 

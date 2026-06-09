@@ -1,3 +1,50 @@
+## Version 0.32.9.7.4 - 2026-06-09 13:15 -04:00
+
+- Added origin-aware effective tag read payloads so records expose direct/manual, propagated, system, and combined effective tags while keeping existing `tags` arrays compatible.
+- Updated the shared tag picker to distinguish inherited/system tags, submit only direct/manual tag IDs, and suppress propagated assignments from the current record through the Tags API.
+- Added simple "No Tags" filtering support for no effective tags in Tasks, Reporting, and backend tag filtering, with a reserved direct-only sentinel for future advanced filters.
+- Expanded Tags management usage counts into total, direct, propagated, and system counts without adding scope controls or bulk assignment UI.
+- Updated tag propagation documentation and added a 0.32.9.7.4 regression covering the UI/read-model contract.
+- Bumped the app, Tags, Clients/Projects, Tasks, and Time Tracking module versions to `0.32.9.7.4`.
+
+## Version 0.32.9.7.3 - 2026-06-09 11:56 -04:00
+
+- Bumped the app, Tags, Clients/Projects, Tasks, and Time Tracking module versions to `0.32.9.7.3`.
+- Added first-party tag propagation declarations for parent client to child client, client to project, parent project to child project, and project to task.
+- Added first-party relationship resolvers for client children, client projects, project children, and project tasks.
+- Implemented tag propagation refresh/rebuild behavior that uses source effective tags, honors propagated-tag suppressions, preserves direct/manual and system assignments, cascades bounded downstream refreshes, and reindexes affected searchable records.
+- Added time-entry effective-tag snapshots so task-bound and manual/project time entries store the effective task/project tags present when the entry is saved/finalized.
+- Kept later parent/client/project/task tag changes from rewriting existing time-entry snapshots.
+- Verified Search exact tag filters and denormalized tag text consume effective tag assignments through canonical tag storage.
+- Verified Reporting tag filters use stored finalized time-entry tags without changing footer totals, permissions, billing status, workflow status, archive status, or record visibility.
+- Added focused propagation path regression coverage for client/project/task propagation, suppression, parent removal, time-entry snapshots, Search, Reporting, and no-semantic-side-effect behavior.
+
+## Version 0.32.9.7.2 - 2026-06-09 11:38 -04:00
+
+- Bumped the app, Tags, Clients/Projects, Tasks, and Time Tracking module versions to `0.32.9.7.2`.
+- Added validated `tagPropagation` module manifest descriptors with source/target module and taggable-type validation, resolver-ID validation, duplicate ID checks, required module metadata, and safe workspace-field checks.
+- Added a tag propagation resolver registry and module-service discovery helpers for registered and active propagation rules.
+- Added safe internal tag assignment events for manual assignment add/remove, propagated assignment add/remove, propagated suppression, and effective-tag refresh.
+- Added non-blocking tag propagation refresh requests for client parent changes, project client/parent changes, task project changes, and time-entry create/update/finalize flows.
+- Added service-owned workspace tag propagation repair reporting with dry-run counts for scanned records, direct assignments, propagated assignments, suppressions, skipped records, repaired records, failed records, and captured hook failures.
+- Added focused tag propagation contract regression coverage for manifest validation, disabled-module guardrails, hook failure reporting, dry-run repair counts, and suppression-aware repair reporting.
+
+## Version 0.32.9.7.1 - 2026-06-09 11:13 -04:00
+
+- Bumped the app version to `0.32.9.7.1` and the Tags module version to `0.32.9.7.1`.
+- Added migration `041_add_tag_propagation_foundation.sql` to extend tag assignments with propagated/system metadata, preserve target/tag uniqueness, add propagation lookup indexes, and create propagated tag suppression storage.
+- Added source-aware tag repository reads/writes plus suppression storage helpers.
+- Added tag service helpers for direct, propagated, and effective tag reads, effective record decoration, manual-only assignment replacement, propagated assignment suppression, and no-op propagation refresh stubs for later module-hook passes.
+- Preserved existing tag picker/save behavior by keeping `/api/tags/assignments` on direct/manual assignments while normal record decoration continues to return effective tags.
+- Added focused tag propagation foundation regression coverage and updated fresh database regression coverage for the new migration, table, and indexes.
+
+## Version 0.32.9.7 Planning - 2026-06-09 10:58 -04:00
+
+- Reworked the 0.32.9.7 roadmap around simple tag definitions plus propagated assignment records, dropping user-facing tag scopes.
+- Split 0.32.9.7 into implementation passes for storage/decisions, propagation contract and repair, first propagation paths plus Search/Reporting, and UI/docs/regression closeout.
+- Recorded planning decisions that tag propagation should flow through the `tags` module, framework tag service, module manifest declarations, resolver registrations, and safe event hooks rather than hard-coded module behavior.
+- No package version was bumped because this was a documentation-only planning pass, not an implemented release.
+
 ## Version 0.32.10-0.32.13 Planning - 2026-06-09 01:59 -04:00
 
 - Reworked the planned file framework roadmap into efficient passes for contract/schema/hooks, secure API and lifecycle events, reusable UI plus first module integrations, and final 0.32.x module-boundary/help closeout.

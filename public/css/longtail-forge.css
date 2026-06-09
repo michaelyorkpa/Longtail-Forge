@@ -1273,6 +1273,12 @@ a.search-result-title:hover {
     color: var(--color-accent);
 }
 
+.tag-chip-inherited,
+.tag-chip-system {
+    border-style: dashed;
+    color: var(--color-text-secondary);
+}
+
 .tag-chip-swatch {
     width: 10px;
     height: 10px;
@@ -1305,6 +1311,35 @@ a.search-result-title:hover {
 .tag-picker-status {
     color: var(--color-muted);
     font-size: 13px;
+}
+
+.tag-picker-readonly-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+}
+
+.tag-picker-origin {
+    color: var(--color-muted);
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.tag-picker-suppress {
+    padding: 2px 6px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.tag-picker-suppress:hover,
+.tag-picker-suppress:focus-visible {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
 }
 
 .tag-picker-entry {

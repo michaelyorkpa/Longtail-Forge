@@ -44,6 +44,7 @@ function cloneModuleDefinition(definition) {
     timerSources: [...(definition.timerSources || [])],
     workItemSources: [...(definition.workItemSources || [])],
     taggableTypes: [...(definition.taggableTypes || [])],
+    tagPropagation: [...(definition.tagPropagation || [])],
     searchableTypes: [...(definition.searchableTypes || [])],
     help: cloneHelpContribution(definition.help),
     notificationEvents: [...(definition.notificationEvents || [])],
@@ -184,6 +185,10 @@ function listModuleApiScopeEntries() {
 
 function listTaggableTypes() {
   return listContribution("taggableTypes");
+}
+
+function listTagPropagationRules() {
+  return listContribution("tagPropagation");
 }
 
 function listSearchableTypes() {
@@ -328,5 +333,6 @@ export {
   listNotificationTemplates,
   listPublicApiRoutes,
   listSearchableTypes,
+  listTagPropagationRules,
   listTaggableTypes,
 };

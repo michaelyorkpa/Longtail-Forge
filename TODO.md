@@ -15,6 +15,9 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
+- Notifications aren't being sent to the workspace admin for new tasks, completed tasks, etc.
+  - Is this intended behavior? I can see these kinds of notifications becoming overwhelming unless specifically requested.
+
 - Time entries aren't editable by Workspace admin
   - Tried to add tags as workspace admin to "81c61ec4-ebe4-45c2-a35d-b03e88b45bb9" and got a permissions error (couldn't read the whole thing, it was on the main window and the modal window blocked it)
   - Had to log in as Super Admin to add tags
@@ -33,8 +36,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
     - Eventually, Projects -> Notes
   - Bulk tag application should use the same/similar box to initial entry
     - This entire thing should be owned within tags and be hooked in via the framework, not hard coded anywhere
-
-- Task timers should inherit tags applied to tasks automatically.
 
 - Projects aren't inheriting client billing settings when created in Projects -> Project Settings -> Add Project
 

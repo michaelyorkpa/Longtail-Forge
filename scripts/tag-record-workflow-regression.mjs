@@ -23,7 +23,7 @@ assert.match(stopWatch, /window\.LongtailForge\.tags\.mountPicker\(this\.tagsCon
 assert.doesNotMatch(readFunctionBody(stopWatch, "mountTagPicker"), /tagOptions\.length === 0/, "Stopwatch tag picker must remain visible when no tags have been pre-created");
 assert.match(stopWatch, /tagIds:\s*this\.readTagIds\(\)/, "Stopwatch save payload must continue to include selected tag IDs");
 
-assert.match(clientsProjects, /window\.LongtailForge\.tags\.mountPicker\(container,\s*\{[\s\S]*tags:\s*tagOptions,[\s\S]*selectedTagIds:\s*tags\.map\(\(tag\) => tag\.tag_id\)/, "Clients/Projects workflows must mount the shared inline tag picker");
+assert.match(clientsProjects, /window\.LongtailForge\.tags\.mountPicker\(container,\s*\{[\s\S]*tags:\s*tagOptions,[\s\S]*selectedTags:\s*tags/, "Clients/Projects workflows must mount the shared inline tag picker with origin-aware selected tags");
 assert.doesNotMatch(readFunctionBody(clientsProjects, "mountTagPicker"), /tagOptions\.length === 0/, "Clients/Projects tag picker must remain visible when no tags have been pre-created");
 assert.match(clientsProjects, /createTagPickerField\("Client Tags", client\.tags, "client"\)/, "Client edit workflow must use the shared tag picker field");
 assert.match(clientsProjects, /createTagPickerField\("Project Tags", project\.tags, "project"\)/, "Project edit workflow must use the shared tag picker field");

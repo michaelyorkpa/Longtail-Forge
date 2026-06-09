@@ -2,43 +2,420 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.9.6 - Interim Tweaks for 0.32.x branch
+## Version 0.32.9.7 - Tag Propagation and Cross-Module Usability
 
-### General UI Fixes/Tweaks
+Decision:
+Tags remain a first-party `tags` module and framework-owned classification service. This release should not add user-facing tag scopes such as `client_only`, `client_down`, `project_only`, or `project_down`.
 
-- UI size standardization
-  - This needs to be worked into a view helper/screen creator update. All of these screens should have the same standard width and easily navigable layout
-  - Many UI pieces are still different sizes. For now, I'm targeting desktop use and I need this to all be standard sizes, with the ability to easily tweak for mobile down the road. The following are the pages that don't conform to the Dashboard/Workspace width:
-    - [x] Projects -> Tasks
-    - [x] Projects -> Projects Settings
-    - [x] Settings -> Workspace -> Workspace Settings
-    - [x] Settings -> Workspace -> Clients
-    - [x] Settings -> Workspace -> Tags
-    - [x] Settings -> Workspace -> User Admin
-    - [x] Settings -> Workspace -> Modules -> Tasks Settings
-    - [x] Settings -> Workspace -> Modules -> Time Tracking Settings
-    - [x] Settings -> Workspace -> API Keys
-    - [x] Settings -> User Settings
-    - [x] Settings -> Help
+Instead, Longtail Forge should add framework-owned tag propagation. Parent/context tags may be copied or materialized onto child records through module-declared propagation rules, while tags themselves remain simple reusable workspace labels.
 
-- [x] If a client filter is selected on Projects in a business workspace, there's no need to have the client name in Parenthesis behind the project name. This goes for all places in business workspaces list {{projectName}} ({{clientName}})
+Implementation shape:
 
-- Reporting -> Time Reports -> "Reporting Scope"
-  - [x] Doesn't properly nest child clients
-  - [x] Doesn't have parent client properly total child client records
-  - [x] Reporting by project is incorrect if there's a parent/child relationship
-    - [x] Children and parents both factor into the total (instead of being one or the other)
-  - [x] Children aren't properly nested under parents in reporting
+* Keep tags simple: name, slug, description, color, status.
+* Keep tag behavior in the tag service, not in individual modules.
+* Add propagated tag assignments as distinguishable assignment records, not as new tag definition scopes.
+* Preserve direct/manual tags separately from propagated tags.
+* Allow users to remove propagated tags from a child record without deleting the parent tag or the parent assignment.
+* Use module-declared taggable types and propagation rules so future modules can join the same contract.
+* Preserve permissions, workspace scope, disabled-module behavior, search indexing, reporting filters, and historical time-entry behavior.
 
-### Search Fixes
+Pass structure:
+- 0.32.9.7.1: settle propagation decisions and add storage/source foundation.
+- 0.32.9.7.2: add module-declared propagation contract, resolver registry, event hooks, and repair tooling.
+- 0.32.9.7.3: wire first client/project/task/timer/time-entry propagation paths plus Search and Reporting behavior.
+- 0.32.9.7.4: add shared UI usability, documentation, regressions, and release closeout.
 
-- [x] It doesn't appear everything has been indexed yet
-  - When I search "Longtail Forge" only one time record shows up. It doesn't show the: 
-    - [x] project
-    - [x] previous time entries
-    - [x] or anything else
-  - How does indexing happen? Is it a manual process? Or is it continually updating?
-    - [x] How do we automate it?
+### Questions and Design Decisions
+
+* [x] Confirm that 0.32.9.7 drops tag scopes.
+
+  * Decision: yes. Do not add `record_only`, `client_only`, `client_down`, `project_only`, or `project_down`.
+  * Rationale: scope-per-tag or scope-per-assignment adds setup complexity and creates confusing cases where the same tag behaves differently depending on where it is assigned.
+
+* [x] Confirm that inherited/propagated tags are materialized assignment records.
+
+  * Proposed default: yes.
+  * Materialized assignments support performance, search, reporting, historical records, and predictable UI behavior.
+  * Propagated assignments should remain distinguishable from direct/manual assignments.
+
+* [x] Confirm assignment source values.
+
+  * Proposed default:
+
+    * `manual`
+    * `propagated`
+    * `system`
+  * `manual` means a user directly assigned the tag to that record.
+  * `propagated` means the tag service copied the tag from a parent/context record.
+  * `system` is reserved for future framework-created tags or imports.
+
+* [x] Confirm whether propagated tags can be removed from child records.
+
+  * Proposed default: yes.
+  * Removing a propagated tag from a child record should suppress that propagated assignment for that child only.
+  * Removing it should not remove the parent assignment and should not delete the tag definition.
+
+* [x] Confirm whether removed propagated tags can return later.
+
+  * Proposed default: not automatically for the same child/context pair.
+  * If a user removes a propagated tag from a child record, the tag service should remember that suppression so repair/rebuild does not immediately put it back.
+  * A future UI may offer "restore propagated tags" for a record.
+
+* [x] Confirm parent tag removal behavior.
+
+  * Proposed default: removing a direct tag from a parent should remove propagated child assignments created from that parent assignment unless those child assignments were converted to direct/manual tags.
+  * Do not prompt on every ordinary parent tag removal in the first pass.
+  * Instead, show a clear warning/count when practical: "This tag is propagated to X child records."
+
+* [x] Confirm finalized time-entry behavior.
+
+  * Proposed default: finalized time entries snapshot propagated tags at save/finalize time.
+  * Later parent tag changes should not rewrite historical time entries unless a future explicit repair option does so.
+
+* [x] Confirm "No Tags" filter semantics.
+
+  * Proposed default: expose separate filter modes where useful:
+
+    * No direct tags.
+    * No effective tags.
+  * In simple screens, "No Tags" should mean no effective tags.
+
+### Version 0.32.9.7.1 - Tag Propagation Decisions and Storage Foundation
+
+Goal:
+Add the data foundation for propagated tag assignments while preserving simple tag definitions and existing direct/manual tag behavior.
+
+Out of scope:
+- No module propagation rules yet.
+- No client/project/task/timer propagation yet.
+- No broad UI redesign beyond any minimum needed to preserve existing tag assignment flows.
+- No tag scopes.
+
+#### Decisions
+
+* [x] Resolve remaining 0.32.9.7 design questions.
+
+  * [x] Confirm materialized propagated assignment records.
+  * [x] Confirm assignment source values: `manual`, `propagated`, `system`.
+  * [x] Confirm propagated tag suppression behavior.
+  * [x] Confirm parent tag removal behavior.
+  * [x] Confirm finalized time-entry snapshot behavior.
+  * [x] Confirm "No Tags" filter semantics.
+  * [x] Record settled answers in `DECISIONS.md`.
+
+#### Storage
+
+* [x] Extend tag assignment storage to support propagation metadata.
+
+  * [x] Keep direct/manual assignments in `tag_assignments`.
+  * [x] Add fields needed to distinguish propagated assignments:
+
+    * [x] `source`
+    * [x] `source_assignment_id` optional
+    * [x] `source_target_type` optional
+    * [x] `source_target_id` optional
+    * [x] `propagation_rule_id` optional
+    * [x] `created_by_user_id` optional
+    * [x] `created_at`
+  * [x] Preserve uniqueness so the same tag is not duplicated on the same target.
+  * [x] Add indexes for workspace + target type + target ID, workspace + tag ID, and propagation source lookup.
+
+* [x] Add propagated tag suppression storage.
+
+  * [x] Add a `tag_assignment_suppressions` table or equivalent.
+  * [x] Track:
+
+    * [x] `workspace_id`
+    * [x] `tag_id`
+    * [x] `target_type`
+    * [x] `target_id`
+    * [x] `source_target_type`
+    * [x] `source_target_id`
+    * [x] `propagation_rule_id`
+    * [x] `suppressed_by_user_id`
+    * [x] `created_at`
+  * [x] Use suppressions during rebuild/repair so removed propagated tags do not immediately reappear.
+  * [x] Do not use suppressions for direct/manual assignments.
+
+#### Tag service foundation
+
+* [x] Add effective tag helper method stubs and direct/manual behavior.
+
+  * [x] `listDirectTagsForTarget`
+  * [x] `listPropagatedTagsForTarget`
+  * [x] `listEffectiveTagsForTarget`
+  * [x] `decorateRecordsWithEffectiveTags`
+  * [x] `replaceManualAssignments`
+  * [x] `suppressPropagatedAssignment`
+  * [x] `refreshPropagatedAssignmentsForTarget`
+  * [x] `refreshPropagatedAssignmentsForWorkspace`
+  * [x] Existing direct/manual assignment saves must continue to work without requiring propagation declarations.
+
+#### 0.32.9.7.1 regressions
+
+* [x] Tags remain simple definitions without scope fields.
+* [x] Tag assignment source validation accepts valid sources and rejects invalid sources.
+* [x] Direct/manual assignment replacement does not wipe propagated assignments or unrelated direct tags.
+* [x] Suppression storage applies only to propagated assignments.
+* [x] Saving client/project billing settings preserves direct and propagated tag assignments.
+
+### Version 0.32.9.7.2 - Tag Propagation Contract, Events, and Repair
+
+Goal:
+Teach the framework and first-party module contract how tag propagation rules are declared, discovered, validated, refreshed, and repaired without hard-coding tag behavior into consuming modules.
+
+Out of scope:
+- No user-facing tag propagation UI beyond existing behavior.
+- No finalized time-entry snapshot integration yet.
+- No Search or Reporting filter changes yet.
+- No tag scopes.
+
+#### Manifest contract
+
+* [x] Extend module manifest validation with optional tag propagation descriptors.
+
+  * [x] Add a `tagPropagation` manifest field or equivalent.
+  * [x] Propagation descriptors should declare:
+
+    * [x] `id`
+    * [x] `sourceModuleId`
+    * [x] `sourceTargetType`
+    * [x] `targetModuleId`
+    * [x] `targetType`
+    * [x] `relationshipResolver`
+    * [x] `workspaceField`
+    * [x] `sourceReadPermission`
+    * [x] `targetReadPermission`
+    * [x] `targetTagPermission`
+    * [x] `requiredModules`
+    * [x] optional `snapshotOnCreate`
+    * [x] optional `propagateOnParentChange`
+    * [x] optional `propagateOnRelationshipChange`
+  * [x] Validate duplicate propagation IDs.
+  * [x] Validate unknown source/target modules.
+  * [x] Validate unknown source/target taggable types.
+  * [x] Validate missing resolver IDs.
+  * [x] Validate unsafe field names.
+  * [x] Validate disabled-module behavior.
+
+* [x] Framework/tag service must discover propagation paths from registered declarations.
+
+  * [x] Do not maintain a permanent hard-coded inheritance list inside Tasks, Time Tracking, Clients/Projects, Reporting, Search, Notes, Tickets, or future modules.
+  * [x] Relationship resolver functions should live in framework-safe resolver registries or module-owned registered resolver maps.
+  * [x] Disabled modules should not receive new propagated tag assignments.
+  * [x] Historical read behavior should not imply new propagation work.
+
+#### Event hooks
+
+* [x] Tag assignment create/update/remove emits safe internal events.
+
+  * [x] Manual assignment added.
+  * [x] Manual assignment removed.
+  * [x] Propagated assignment added.
+  * [x] Propagated assignment removed.
+  * [x] Propagated assignment suppressed.
+  * [x] Effective tags refreshed.
+
+* [x] Relationship changes should request propagation refresh through the tag service.
+
+  * [x] Client parent changes.
+  * [x] Project client changes.
+  * [x] Project parent changes.
+  * [x] Task project changes.
+  * [x] Timer finalize/manual entry save.
+  * [x] Future note/ticket relationship changes.
+
+* [x] Hook failures should be logged and repairable.
+
+  * [x] Hook failures should not block the primary record save unless the primary save depends on tag integrity.
+  * [x] Failed propagation work should be detectable by repair tooling.
+
+#### Repair/rebuild tooling
+
+* [x] Add workspace-scoped tag propagation rebuild/repair.
+
+  * [x] Support dry-run mode.
+  * [x] Count scanned records.
+  * [x] Count direct/manual assignments.
+  * [x] Count propagated assignments.
+  * [x] Count suppressed propagated assignments.
+  * [x] Count skipped records.
+  * [x] Count repaired records.
+  * [x] Count failed records.
+
+* [x] Keep broad app-wide repair as local maintenance tooling unless later admin UI scope is approved.
+
+* [x] Repair should not mutate direct/manual assignments unless explicitly requested.
+
+* [x] Repair should honor propagated tag suppressions.
+
+* [x] Repair should not rewrite finalized historical time-entry tags unless explicitly requested.
+
+#### 0.32.9.7.2 regressions
+
+* [x] Propagation declarations are validated through module manifests.
+* [x] Invalid propagation declarations fail at startup.
+* [x] Duplicate propagation IDs are rejected.
+* [x] Unknown source/target modules and taggable types are rejected.
+* [x] Disabled modules do not receive new tag propagation work.
+* [x] Hook failures are logged and surfaced to repair tooling without breaking unrelated saves.
+* [x] Repair dry-run reports accurate scanned, propagated, suppressed, skipped, repaired, and failed counts.
+* [x] Repair honors propagated tag suppressions.
+
+### Version 0.32.9.7.3 - First Propagation Paths, Search, and Reporting
+
+Goal:
+Use the 0.32.9.7.1 and 0.32.9.7.2 foundation to make first-party records receive propagated tags through the tag service, then make Search and Reporting consume the resulting effective tags.
+
+Out of scope:
+- No broad bulk tag assignment UI.
+- No new permission, visibility, billing, workflow, or archival behavior based on tags.
+- No automatic rewriting of finalized historical time-entry tags after parent/context tag changes.
+- No tag scopes.
+
+#### Client/project propagation
+
+* [x] Child clients may receive propagated tags from parent clients.
+* [x] Business workspace projects may receive propagated tags from linked clients.
+* [x] Child projects may receive propagated tags from parent projects.
+* [x] Direct client/project tags are preserved during relationship changes.
+
+#### Task propagation
+
+* [x] Tasks may receive propagated tags from their linked project.
+* [x] If a task moves projects, propagated project tags should refresh through the tag service.
+* [x] Direct task tags should be preserved during project moves.
+
+#### Timer and time-entry propagation
+
+* [x] Task-bound timers should request effective task/project tags from the tag service.
+* [x] Manual/project timers should request effective project tags from the tag service.
+* [x] Finalized time entries should retain the effective tags that applied when the timer/manual entry was saved.
+* [x] Later parent/client/project/task tag changes should not automatically rewrite finalized time entries.
+
+#### Leave hooks for future modules
+
+* [x] Notes should be able to propagate tags from linked workspace/client/project/task/ticket context.
+* [x] Support Tickets should be able to propagate tags from linked client/project context.
+* [x] Knowledge Base articles should remain manually tagged by default unless a later release defines explicit category/context propagation.
+
+#### Search and Reporting integration
+
+* [x] Search exact tag filters should support effective tags.
+
+  * [x] Proposed default: tag filters match effective tags.
+  * [x] Future advanced search may expose direct-only tag filters.
+
+* [x] Search denormalized tag text should include effective tags through the tag service contract.
+
+  * [x] Do not let individual modules recompute propagation locally.
+  * [x] Tag propagation changes should trigger search re-indexing through existing search sync/rebuild boundaries.
+
+* [x] Reporting tag filters should support effective tags.
+
+  * [x] Proposed default: reporting filters match effective tags.
+  * [x] Time-entry reports should use the tags stored on finalized time entries, not live parent re-resolution.
+  * [x] Future advanced reporting may expose direct-only vs effective tag modes.
+
+#### 0.32.9.7.3 regressions
+
+* [x] Child clients receive propagated tags from parent clients.
+* [x] Business workspace projects receive propagated tags from linked clients.
+* [x] Child projects receive propagated tags from parent projects.
+* [x] Tasks receive propagated tags from linked projects.
+* [x] Task-bound timers receive the expected effective task/project tags.
+* [x] Manual/project timers receive the expected effective project tags.
+* [x] Finalized time entries retain saved effective tags and are not rewritten by later parent changes.
+* [x] Removing a propagated tag from a child record suppresses that propagated assignment only.
+* [x] Removing a direct/manual tag from a child record does not affect parent records.
+* [x] Removing a parent direct/manual tag removes propagated child assignments created from that parent assignment unless converted to manual.
+* [x] Direct/manual assignments survive propagation refresh.
+* [x] Effective/propagated tags do not change footer totals, permissions, billing status, workflow status, archive status, or record visibility.
+* [x] Search tag filters follow effective-tag semantics.
+* [x] Reporting tag filters follow effective-tag semantics.
+
+### Version 0.32.9.7.4 - Tag Usability UI, Documentation, and Closeout
+
+Goal:
+Make propagated tags understandable in the UI, add useful "No Tags" filtering, preserve simple tag management, document the module contract, and close the release with focused regressions.
+
+Out of scope:
+- No broad bulk assign/remove UI unless the propagation contract is already stable and the release owner explicitly expands this pass.
+- No tag scopes.
+- No tags-as-permissions, tags-as-visibility, tags-as-status, or tags-as-billing behavior.
+
+#### Effective tag read model
+
+* [x] APIs that return tags should identify assignment origin.
+
+  * [x] Return direct/manual tags separately from propagated tags.
+  * [x] Return a combined effective tag list where useful.
+  * [x] Include enough metadata for UI labels/tooltips:
+
+    * [x] direct/manual
+    * [x] propagated from client
+    * [x] propagated from project
+    * [x] propagated from task
+    * [x] system
+
+#### Shared tag picker behavior
+
+* [x] Show direct and propagated tags in one readable list.
+* [x] Visually distinguish propagated tags without making the UI noisy.
+* [x] Prevent users from removing propagated tags as if they were direct tags.
+* [x] Allow "remove from this record" for propagated tags when suppression support exists.
+* [x] Allow direct/manual tags to be added and removed normally.
+* [x] Tag assignment save flows must not wipe propagated tags or unrelated direct tags.
+* [x] Saving client/project billing settings must preserve all tag assignments.
+
+#### Tags management UI
+
+* [x] Tags management UI should stay simple.
+
+  * [x] Do not add scope controls.
+  * [x] Show usage count.
+  * [x] Show direct usage count if practical.
+  * [x] Show propagated usage count if practical.
+  * [x] Show archived/disabled status clearly.
+
+* [x] Shared tag picker should support direct vs propagated display.
+
+  * [x] Direct tags are editable.
+  * [x] Propagated tags are visible but marked as inherited/propagated.
+  * [x] Propagated tags can be suppressed from the current record when supported.
+  * [x] Suppressed propagated tags can be restored later if a restore UI is included. Restore UI is deferred; suppressions remain service-owned for future restore tooling.
+
+* [x] Add "No Tags" filter support where useful.
+
+  * [x] Simple screens may use "No effective tags."
+  * [x] Advanced/reporting screens may expose:
+
+    * [x] No direct tags. Reserved as a service sentinel for future advanced UI.
+    * [x] No effective tags.
+
+* [x] Defer broad bulk assign/remove UI unless this release explicitly includes it after the propagation contract is stable.
+
+#### Final regressions
+
+* [x] Shared tag picker distinguishes direct/manual and propagated tags.
+* [x] Propagated tags can be suppressed from a record without removing parent direct/manual assignments.
+* [x] Suppressed propagated tags can be restored if restore UI is included. Restore UI is not included in this pass.
+* [x] "No Tags" filters follow the chosen direct/effective semantics.
+* [x] Tags management usage counts distinguish direct and propagated usage if counts are included.
+* [x] Saving client/project billing settings preserves direct and propagated tag assignments.
+* [x] No UI treats tags as permissions, visibility, billing status, workflow status, archive status, or report total logic.
+* [x] Run `npm run check`.
+* [x] Run `npm run test:permissions` because tag assignment and effective-tag reads are permission-sensitive.
+* [x] Run SQLite integrity check after tag propagation migrations and repair tests.
+
+#### Update documentation and release bookkeeping
+
+* [x] Record 0.32.9.7 tag propagation decisions in `DECISIONS.md`.
+* [x] Update `docs/module-contract.md` for tag propagation descriptors.
+* [x] Update `docs/module-development.md` for consuming effective tags through the tag service.
+* [x] Update user-facing tag documentation to explain direct vs propagated tags.
+* [x] Add 0.32.9.7 changes to `CHANGELOG.md` with date/time when implementation is complete.
+* [x] Bump `package.json` and `package-lock.json` only when implementation is complete.
 
 ## Version 0.32.10 - File Framework Contract, Storage Model, and Module Hooks
 
@@ -380,7 +757,7 @@ Implementation shape:
   - [ ] Run `npm run test:permissions` because file access and module hooks are permission-sensitive.
   - [ ] Run SQLite integrity check after file migration and attachment workflow tests.
 
-## Version 0.34.0 - Notes Module Contract, Data Model, Permissions, and Revisions
+## Version 0.33.0 - Notes Module Contract, Data Model, Permissions, and Revisions
 
 Decision:
 Notes are a first-party workflow module for dynamic working records. Notes are not Knowledge Base articles, Help articles, ticket ledger entries, audit records, or task comments. Notes may later feed Knowledge Base content, but note authoring and KB publishing remain separate workflows.
@@ -705,7 +1082,7 @@ Implementation shape:
   * [ ] Tags do not control note visibility.
   * [ ] Note lifecycle events emit safe payloads.
 
-## Version 0.34.1 - Notes Browser API, UI MVP, Search, Tags, Files, and Help
+## Version 0.33.1 - Notes Browser API, UI MVP, Search, Tags, Files, and Help
 
 Implementation shape:
 
@@ -913,7 +1290,7 @@ Implementation shape:
   * [ ] Run `npm run test:permissions`.
   * [ ] Run SQLite integrity check after note migration and revision tests.
 
-## Version 0.34.2 - Secure Notes Foundation, Encryption Contract, and Private Revision Handling
+## Version 0.33.2 - Secure Notes Foundation, Encryption Contract, and Private Revision Handling
 
 Decision:
 Secure notes are not ordinary notes with a scary label. Secure notes need a clear encryption boundary, reduced metadata exposure, no normal search indexing, no Knowledge Base publishing path, and stricter permissions. The first implementation should be honest about its security model.
@@ -1048,7 +1425,7 @@ Implementation shape:
   * [ ] Missing encryption configuration blocks secure note creation.
   * [ ] Decrypt failures fail closed.
 
-## Version 0.34.3 - Notes Integration Polish, Documentation, and Release Closeout
+## Version 0.33.3 - Notes Integration Polish, Documentation, and Release Closeout
 
 Implementation shape:
 
@@ -1109,7 +1486,62 @@ Implementation shape:
   * [ ] Run `npm run test:permissions`.
   * [ ] Run SQLite integrity check after Notes migrations and revision tests.
 
-## Version 0.34.4 - Knowledge Base Module Contract, Publishing Model, and Notes Relationship
+### Version 0.33.4 - Shopping / Procurement Lists Module
+
+- [ ] Treat this as an official first-party module. 
+  - [ ] The module should ship with Longtail Forge. 
+  - [ ] It should be enable/disable capable per workspace. 
+  - [ ] Personal/family workspaces should label it as "Shopping Lists." 
+  - [ ] Business workspaces should label it as "Procurement Lists." 
+  - [ ] The underlying module ID should remain stable regardless of label. 
+  - [ ] Suggested module ID: `lists` or `procurement-lists`; prefer `lists` if it will cover personal/family shopping use cases cleanly.
+
+- [ ] Add optional first-party lists module for personal/family and business workspaces.
+- [ ] Use workspace-aware labels:
+  - [ ] Personal/family workspaces: "Shopping Lists"
+  - [ ] Business workspaces: "Procurement Lists"
+- [ ] Core list fields:
+  - [ ] `list_id`
+  - [ ] `workspace_id`
+  - [ ] `client_id` optional
+  - [ ] `project_id` optional
+  - [ ] `title`
+  - [ ] `description`
+  - [ ] `list_type`
+  - [ ] `status`
+  - [ ] `created_by_user_id`
+  - [ ] `created_at`
+  - [ ] `updated_at`
+- [ ] List item fields:
+  - [ ] Item name.
+  - [ ] Quantity.
+  - [ ] Unit.
+  - [ ] Needed by date.
+  - [ ] Vendor/store.
+  - [ ] URL.
+  - [ ] Estimated cost.
+  - [ ] Actual cost.
+  - [ ] Purchase/order status.
+  - [ ] Notes.
+  - [ ] Assigned user.
+  - [ ] Sort order.
+  - [ ] Checked/completed state.
+- [ ] Business use cases:
+  - [ ] Project parts list.
+  - [ ] R&D purchasing list.
+  - [ ] Office supply list.
+  - [ ] Client/project procurement checklist.
+- [ ] Personal/family use cases:
+  - [ ] Grocery list.
+  - [ ] Household shopping list.
+  - [ ] Trip packing/shopping list.
+  - [ ] Family project supply list.
+- [ ] Integrations:
+  - [ ] Lists should support tags once tagging is stable.
+  - [ ] Lists should be searchable once framework search is stable.
+  - [ ] List activity should be able to appear in dashboard/activity feed later.
+
+## Version 0.34.1 - Knowledge Base Module Contract, Publishing Model, and Notes Relationship
 
 Decision:
 Knowledge Base is a separate first-party publishing and curation module. It is not "notes with public enabled." Knowledge Base articles may be created from notes, linked to notes, or written directly, but publication is explicit and permission-protected.
@@ -1431,7 +1863,7 @@ Implementation shape:
   * [ ] KB events emit safe payloads.
   * [ ] KB does not replace Help Center records.
 
-## Version 0.34.5 - Knowledge Base Browser API, Editorial Workflow, and Internal UI MVP
+## Version 0.34.2 - Knowledge Base Browser API, Editorial Workflow, and Internal UI MVP
 
 Implementation shape:
 
@@ -1612,7 +2044,7 @@ Implementation shape:
   * [ ] Public/client visibility is hidden or blocked until enabled.
   * [ ] Disabled Knowledge Base module blocks new writes.
 
-## Version 0.34.6 - Knowledge Base Search, Tags, Attachments, Static Pages, and Permission Boundaries
+## Version 0.34.3 - Knowledge Base Search, Tags, Attachments, Static Pages, and Permission Boundaries
 
 Implementation shape:
 
@@ -1717,7 +2149,7 @@ Implementation shape:
   * [ ] Rendered KB HTML is sanitized.
   * [ ] Published snapshot remains stable after draft edits.
 
-## Version 0.34.7 - Knowledge Base Client/Public Groundwork, Documentation, and Closeout
+## Version 0.34.4 - Knowledge Base Client/Public Groundwork, Documentation, and Closeout
 
 Implementation shape:
 
@@ -1820,8 +2252,7 @@ Implementation shape:
   * [ ] Run `npm run test:permissions`.
   * [ ] Run SQLite integrity check after KB migrations and publication snapshot tests.
 
-
-## Version 0.34.0 - Support Tickets Framework Contract
+## Version 0.35.0 - Support Tickets Framework Contract
 
 * [ ] Add Support Tickets as a first-party workflow module.
 
@@ -2003,7 +2434,7 @@ Implementation shape:
   * [ ] Event payloads should include workspace, actor, ticket ID, client/project IDs where applicable, safe previous/new values, source, and metadata.
   * [ ] Event payloads should leave room for future automations and integrations.
 
-## Version 0.34.1 - Ticket Browser API and Services
+## Version 0.35.1 - Ticket Browser API and Services
 
 * [ ] Add ticket service methods.
 
@@ -2065,7 +2496,7 @@ Implementation shape:
   * [ ] Ensure keys do not collide inside a workspace.
   * [ ] Keep database IDs separate from user-facing ticket keys.
 
-## Version 0.34.2 - Ticket UI MVP
+## Version 0.35.2 - Ticket UI MVP
 
 * [ ] Add Tickets navigation and protected views.
 
@@ -2111,7 +2542,7 @@ Implementation shape:
   * [ ] Client/external users should not see internal notes, internal-only status details, raw audit records, or private metadata.
   * [ ] Client-facing ticket pages can be minimal in 0.33.x but the permission model must be real.
 
-## Version 0.34.3 - Ticket Integration Hooks
+## Version 0.35.3 - Ticket Integration Hooks
 
 * [ ] Register tickets as searchable records.
 
@@ -2166,7 +2597,7 @@ Implementation shape:
   * [ ] This should be manual in 0.33.x.
   * [ ] Automatic task creation rules should wait for the automation/rules framework in 0.4x.
 
-## Version 0.34.4 - Client Ticket Portal MVP
+## Version 0.35.4 - Client Ticket Portal MVP
 
 * [ ] Add minimal client/external ticket creation surface.
 
@@ -2200,7 +2631,7 @@ Implementation shape:
   * [ ] Client-visible replies are visible to the right client users and internal users.
   * [ ] Internal users with proper permission can see both internal and client-visible ledger entries.
 
-## Version 0.34.5 - Ticket Public API Groundwork
+## Version 0.35.5 - Ticket Public API Groundwork
 
 * [ ] Add ticket API scopes.
 
@@ -2239,7 +2670,7 @@ Implementation shape:
   * [ ] Public API cannot create internal notes unless explicitly using an internal/admin scope.
   * [ ] Public API cannot read internal ledger entries.
 
-## Version 0.34.6 - Ticket Regression, Polish, and Closeout
+## Version 0.35.6 - Ticket Regression, Polish, and Closeout
 
 * [ ] Add complete ticket regression coverage.
 
@@ -2286,7 +2717,7 @@ Implementation shape:
   * [ ] Run `npm run test:permissions`.
   * [ ] Run ticket-specific regression scripts.
 
-## Version 0.35.0 - Calendars and Calendar Views
+## Version 0.36.0 - Calendars and Calendar Views
 
 - [ ] Calendars
   - [ ] Year view
@@ -2299,7 +2730,7 @@ Implementation shape:
   - [ ] Allow addition of calendar events
   - [ ] Display iCal events from shared calendars
 
-## Version 0.36.0 - Dashboard and Workbench Formalization as Project hub and work center
+## Version 0.37.0 - Dashboard and Workbench Formalization as Project hub and work center
 
 - [ ] Dashboard should become the hub for managing projects
   - [ ] Add "Urgent" section that shows past due and upcoming tasks, and open support tickets sorted by client and project
@@ -2324,7 +2755,7 @@ Implementation shape:
 - [ ] Expanded reporting
 - [ ] Invoicing
 
-## Version 0.38.0 - User Account Security Upgrades and Database/Settings File Backup/Restore
+## Version 0.39.0 - User Account Security Upgrades and Database/Settings File Backup/Restore
 
 ### Two Factor Authentication (TOTP) (2FA)
 
@@ -2332,17 +2763,17 @@ Implementation shape:
 - [ ] Super admins should be able to turn on a setting that requires 2FA setup on next login for individual users
 - [ ] Workspace admins can require users have 2FA to join workspace
 
-### Version 0.38.1 - Passkeys
+### Version 0.39.1 - Passkeys
 
 - [ ] Passkeys
 
-### Version 0.38.2 - User Sessions
+### Version 0.39.2 - User Sessions
 
 - [ ] Sessions should expire after 1 day
 - [ ] Super Admins should have ability to log users out
 - [ ] Workspace admins should have ability to log users out
 
-## Version 0.38.3 - Login Security Monitoring and Risk Scoring
+## Version 0.39.3 - Login Security Monitoring and Risk Scoring
 
 - [ ] Add `user_login_events` table:
   - [ ] `login_event_id`
@@ -2403,7 +2834,7 @@ Implementation shape:
   - [ ] Define retention period for login events.
   - [ ] Restrict access to login security logs.
 
-### Version 0.38.4
+### Version 0.39.4
 
 Super Admins should have a backup/restore function on the dashboard that dumps the current database into a clean file with an app meta data file that has app version stamped and datetime (UTC) of backup in it and zips it into a zip file along with any physical settings files on disk (this will be necessary after packaging for self-hosting and may not yet be necessary, but I want uniform functions for backup/restore that can be easily modified in the future)
 
@@ -2423,62 +2854,7 @@ Super Admins should have a backup/restore function on the dashboard that dumps t
     - this should only accept zip files
     - this should verify files, checksum, etc. before installing/overwriting current data
 
-### Version 0.39.0 - Shopping / Procurement Lists Module
-
-- [ ] Treat this as an official first-party module. 
-  - [ ] The module should ship with Longtail Forge. 
-  - [ ] It should be enable/disable capable per workspace. 
-  - [ ] Personal/family workspaces should label it as "Shopping Lists." 
-  - [ ] Business workspaces should label it as "Procurement Lists." 
-  - [ ] The underlying module ID should remain stable regardless of label. 
-  - [ ] Suggested module ID: `lists` or `procurement-lists`; prefer `lists` if it will cover personal/family shopping use cases cleanly.
-
-- [ ] Add optional first-party lists module for personal/family and business workspaces.
-- [ ] Use workspace-aware labels:
-  - [ ] Personal/family workspaces: "Shopping Lists"
-  - [ ] Business workspaces: "Procurement Lists"
-- [ ] Core list fields:
-  - [ ] `list_id`
-  - [ ] `workspace_id`
-  - [ ] `client_id` optional
-  - [ ] `project_id` optional
-  - [ ] `title`
-  - [ ] `description`
-  - [ ] `list_type`
-  - [ ] `status`
-  - [ ] `created_by_user_id`
-  - [ ] `created_at`
-  - [ ] `updated_at`
-- [ ] List item fields:
-  - [ ] Item name.
-  - [ ] Quantity.
-  - [ ] Unit.
-  - [ ] Needed by date.
-  - [ ] Vendor/store.
-  - [ ] URL.
-  - [ ] Estimated cost.
-  - [ ] Actual cost.
-  - [ ] Purchase/order status.
-  - [ ] Notes.
-  - [ ] Assigned user.
-  - [ ] Sort order.
-  - [ ] Checked/completed state.
-- [ ] Business use cases:
-  - [ ] Project parts list.
-  - [ ] R&D purchasing list.
-  - [ ] Office supply list.
-  - [ ] Client/project procurement checklist.
-- [ ] Personal/family use cases:
-  - [ ] Grocery list.
-  - [ ] Household shopping list.
-  - [ ] Trip packing/shopping list.
-  - [ ] Family project supply list.
-- [ ] Integrations:
-  - [ ] Lists should support tags once tagging is stable.
-  - [ ] Lists should be searchable once framework search is stable.
-  - [ ] List activity should be able to appear in dashboard/activity feed later.
-
-### Version 0.39.1 - Creator Studio / Content Studio Module
+### Version 0.39.5 - Creator Studio / Content Studio Module
 
 - [ ] Core records:
   - [ ] Content ideas.
