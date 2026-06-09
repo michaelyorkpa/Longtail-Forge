@@ -1,3 +1,10 @@
+## Version 0.32.10-0.32.13 Planning - 2026-06-09 01:59 -04:00
+
+- Reworked the planned file framework roadmap into efficient passes for contract/schema/hooks, secure API and lifecycle events, reusable UI plus first module integrations, and final 0.32.x module-boundary/help closeout.
+- Added explicit framework-owned file lifecycle event hooks for upload, attach, scan, quarantine, availability, download, report, remove, and delete flows.
+- Recorded planning decisions that modules consume files through manifest declarations, framework APIs, shared UI helpers, and safe lifecycle events instead of owning separate file storage or attachment systems.
+- No package version was bumped because this was a documentation-only planning pass, not an implemented release.
+
 ## Version 0.32.9.6 - 2026-06-09 01:29 -04:00
 
 - Bumped the app version to `0.32.9.6`.

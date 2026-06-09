@@ -94,6 +94,18 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - [ ] Create a default notifications preference that's adjustable per user
   - [ ] Notifications are only sent to owners, assignees, or external clients as appropriate
 
+### Tasks
+
+In Projects -> Tasks, the task list isn't optimized for efficient viewing.
+
+- [ ] Create a three row listing for each task
+  - [ ] Row one is the task name with tag chips below
+  - [ ] Row two is the rest of the meta data
+    - [ ] Truncate Scope/Assignees harder on mobile
+  - [ ] Row three is the buttons, right aligned
+
+- Tasks should expose "completed" date and "Time to completion"
+
 ## UI/Workspace tweaks for better generalized use
 
 - Timer Concurrency

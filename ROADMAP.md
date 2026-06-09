@@ -188,58 +188,22 @@ Implementation shape:
   - How does indexing happen? Is it a manual process? Or is it continually updating?
     - [x] How do we automate it?
 
-## Version 0.32.10 - Framework Integration Tests and Reporting Hooks
+## Version 0.32.10 - File Framework Contract, Storage Model, and Module Hooks
 
-## Version 0.32.10.1
+Decision:
+File handling is a framework-owned service. First-party and future modules declare attachable record types and use framework APIs, lifecycle events, and shared UI helpers instead of implementing their own storage, metadata, scan, quarantine, download, or deletion logic.
 
-* [ ] Add tag filters to reporting where useful
-
-  * [ ] Filter time reports by direct time-entry tags
-  * [ ] Filter task lists/reports by direct task tags
-  * [ ] Consider client/project tag filters as optional context filters
-  * [ ] Do not automatically treat client/project tags as tags on child records unless explicitly selected
-
-* [ ] Add search-aware reporting helpers
-
-  * [ ] Allow reports to link to filtered search results where useful
-  * [ ] Allow dashboard sections to link to search results where useful
-  * [ ] Keep reporting calculations based on real records, not the search index
-
-* [ ] Add notification-aware dashboard helpers
-
-  * [ ] App shell can show unread notification count
-  * [ ] Dashboard can eventually show user-specific notification summaries
-  * [ ] Notification summaries should respect permissions
-  * [ ] Notification summaries should not expose raw audit JSON
-  * [ ] Do not build full activity feed here unless already stable
-
-* [ ] Add saved filter groundwork if useful
-
-  * [ ] This does not need full saved views yet
-  * [ ] Leave room for future saved views in the project-management expansion
-  * [ ] Search filters and report filters should use compatible naming where practical
-
-* [ ] Add regression tests
-
-  * [ ] Tags cannot cross workspace boundaries
-  * [ ] Tags cannot be assigned to records the user cannot access
-  * [ ] Search does not return records the user cannot access
-  * [ ] Search does not return disabled-module records unless historical access allows it
-  * [ ] Search results update after record edits
-  * [ ] Search index rebuild does not duplicate records
-  * [ ] Reporting tag filters return expected records
-  * [ ] Notifications cannot cross workspace boundaries
-  * [ ] Notifications are only visible to intended recipients
-  * [ ] Notifications do not expose records the user cannot access
-  * [ ] Disabled modules do not create new notifications
-
-## Version 0.32.11 - File Storage and Attachment Framework Foundation
+Implementation shape:
+- Build the durable file framework first: metadata schema, attachment schema, storage adapter contract, attachable manifest validation, core permissions, and lifecycle event names.
+- Keep Tasks, Support Tickets, Notes, Knowledge Base, Creator Studio, Projects, Clients, and future modules on the same attachable-record contract.
+- Leave upload/download UI and broad module integration for later passes so the foundation can be verified before user-facing workflows depend on it.
 
 - [ ] Add framework-owned file storage foundation.
-  - [ ] File handling should be a shared framework service, not separately implemented by Tasks, Tickets, Notes, Knowledge Base, Creator Studio, or future modules.
-  - [ ] Individual modules should attach files through a registered file attachment contract.
-  - [ ] The framework owns file metadata, storage location, scan/quarantine status, download routing, deletion rules, audit events, and storage adapters.
+  - [ ] File handling is a shared framework service, not separately implemented by Tasks, Tickets, Notes, Knowledge Base, Creator Studio, or future modules.
+  - [ ] Individual modules attach files through a registered file attachment contract.
+  - [ ] The framework owns file metadata, storage location, scan/quarantine status, download routing, deletion rules, audit events, lifecycle events, and storage adapters.
   - [ ] Modules own the meaning of the attachment in their own record context.
+  - [ ] Framework code must not hard-code permanent lists of attachable module record types.
 
 - [ ] Add `files` table for stored file metadata.
   - [ ] `file_id`
@@ -272,12 +236,14 @@ Implementation shape:
   - [ ] `target_id`
   - [ ] `client_id` optional
   - [ ] `project_id` optional
+  - [ ] `visibility`
   - [ ] `attachment_role`
   - [ ] `caption`
   - [ ] `sort_order`
   - [ ] `attached_by_user_id`
   - [ ] `created_at`
   - [ ] `removed_at`
+  - [ ] `metadata_json`
 
 - [ ] Add file statuses.
   - [ ] `pending`
@@ -303,8 +269,8 @@ Implementation shape:
   - [ ] Prevent duplicate active attachment of the same file to the same target where practical.
 
 - [ ] Add module-declared attachable type contract.
-  - [ ] Modules declare which record types can accept files.
-  - [ ] Attachable declarations should include:
+  - [ ] Modules declare attachable record types in their manifest.
+  - [ ] Attachable declarations include:
     - [ ] `targetType`
     - [ ] `moduleId`
     - [ ] `idField`
@@ -314,10 +280,14 @@ Implementation shape:
     - [ ] `projectField` if applicable
     - [ ] required read/download permission
     - [ ] required upload/attach permission
+    - [ ] required delete/remove permission if different from upload
     - [ ] allowed file categories
+    - [ ] allowed visibility values
     - [ ] max files per record if applicable
     - [ ] max file size override if applicable
-  - [ ] Framework should not maintain a permanent hard-coded list of attachable target types.
+    - [ ] lifecycle hook subscriptions if the module needs attachment events
+  - [ ] Validate duplicate target types, unsafe field declarations, unknown permissions, disabled-module behavior, and invalid hook names at startup.
+  - [ ] Expose active attachable targets through the module registry for framework routes, UI helpers, search, audit, and later public API work.
 
 - [ ] Add storage adapter contract.
   - [ ] Start with protected local filesystem storage outside the webroot.
@@ -325,6 +295,7 @@ Implementation shape:
   - [ ] Never trust user-provided filenames for stored paths.
   - [ ] Generate server-side filenames/storage keys.
   - [ ] Keep original filename only as metadata.
+  - [ ] Support adapter methods for save, read stream, metadata, delete/soft-delete, quarantine move if needed, and health/capability checks.
   - [ ] Leave room for future adapters:
     - [ ] Local protected filesystem.
     - [ ] OneDrive.
@@ -333,7 +304,7 @@ Implementation shape:
     - [ ] AWS S3.
     - [ ] DigitalOcean Spaces/CDN.
     - [ ] Other S3-compatible storage.
-  - [ ] Storage providers should use the same file metadata and permission layer.
+  - [ ] Storage providers use the same file metadata, permission, event, and audit layer.
 
 - [ ] Add core file permissions.
   - [ ] `files.view`
@@ -343,7 +314,25 @@ Implementation shape:
   - [ ] `files.manage_quarantine`
   - [ ] `files.manage_workspace_settings`
 
-## Version 0.32.12 - File Upload, Download, Safety, and API
+- [ ] Add framework file lifecycle events.
+  - [ ] Define canonical event names for `file.upload.requested`, `file.upload.accepted`, `file.upload.rejected`, `file.scan.pending`, `file.scan.passed`, `file.scan.failed`, `file.quarantined`, `file.available`, `file.downloaded`, `file.reported`, `file.deleted`, `file.attachment.created`, and `file.attachment.removed`.
+  - [ ] Event payloads include workspace ID, file ID, attachment ID when applicable, module ID, target type, target ID, actor user ID, status, scan status, and safe reason metadata.
+  - [ ] Event payloads do not include raw file contents, unsafe path details, secrets, or sensitive scanner details.
+  - [ ] Modules may subscribe to file lifecycle events through the same first-party module hook/event pattern used elsewhere.
+
+- [ ] Add focused contract regressions.
+  - [ ] Manifest-declared attachable targets are accepted for valid first-party modules.
+  - [ ] Invalid attachable declarations fail predictably.
+  - [ ] Storage keys cannot escape approved storage directories.
+  - [ ] Framework routes/services resolve attachable targets through the registry, not hard-coded module lists.
+  - [ ] File lifecycle events are emitted with safe payloads.
+
+## Version 0.32.11 - File Upload, Download, Safety, Browser API, and Event Emission
+
+Implementation shape:
+- Build the secure service and API workflow on top of the 0.32.10 contract.
+- Make upload, attach, scan/quarantine, download, delete/remove, report, audit, and event emission work as one framework-owned lifecycle.
+- Keep first module screen integration mostly deferred to 0.32.12, except for service-level test targets needed to prove the contract works.
 
 - [ ] Add secure upload handling.
   - [ ] Allowlist file extensions by business need.
@@ -355,7 +344,8 @@ Implementation shape:
   - [ ] Validate target module and target record before accepting an attachment.
   - [ ] Validate target record belongs to active workspace.
   - [ ] Validate user can attach files to the target record.
-  - [ ] Block uploads to disabled modules unless explicitly allowed.
+  - [ ] Block uploads to disabled modules unless explicitly allowed by a later historical-read rule.
+  - [ ] Emit upload accepted/rejected lifecycle events.
   - [ ] Log upload attempts, successful uploads, rejected uploads, deletion, quarantine, and scan events.
 
 - [ ] Add upload quarantine workflow.
@@ -364,6 +354,7 @@ Implementation shape:
   - [ ] Failed or suspicious files are quarantined.
   - [ ] Quarantined files are not shown in normal app UI.
   - [ ] Admin access to quarantined files is tightly restricted and audited.
+  - [ ] Quarantine status changes emit file lifecycle events for audit, notifications, and future admin tooling.
   - [ ] Do not build a DIY CSAM review gallery.
   - [ ] Do not require normal admins to manually inspect suspected CSAM.
 
@@ -373,6 +364,7 @@ Implementation shape:
   - [ ] Leave room for ClamAV or similar antivirus scanning.
   - [ ] Leave room for external scanning/sandboxing providers.
   - [ ] Store scan result metadata without exposing sensitive details to normal users.
+  - [ ] Emit scan pending, passed, failed, and error events with safe metadata.
 
 - [ ] Add CSAM prevention planning before broad public/user-generated uploads.
   - [ ] Do not enable public image/video uploads until a specialized detection/reporting plan exists.
@@ -393,11 +385,11 @@ Implementation shape:
   - [ ] Return safe content headers.
   - [ ] Use attachment disposition for risky file types.
   - [ ] Consider short-lived signed download tokens later, but keep first implementation simple and server-checked.
-  - [ ] Log download events where appropriate.
+  - [ ] Emit and audit download events where appropriate.
 
 - [ ] Add abuse reporting for uploaded files.
   - [ ] Users can report illegal, abusive, or inappropriate uploaded content.
-  - [ ] Reports create security/audit events.
+  - [ ] Reports create security/audit events and file lifecycle events.
   - [ ] Reports can hide or disable public access to the file while reviewed.
   - [ ] Reports should not expose quarantined files to normal admins.
 
@@ -423,7 +415,23 @@ Implementation shape:
   - [ ] File reported.
   - [ ] File restored from quarantine if that is ever allowed.
 
-## Version 0.32.13 - File Attachment UI and Module Hooks
+- [ ] Add API and lifecycle regressions.
+  - [ ] Files cannot cross workspace boundaries.
+  - [ ] Users cannot upload to records they cannot access.
+  - [ ] Users cannot download files attached to records they cannot access.
+  - [ ] Disabled modules cannot receive new file attachments.
+  - [ ] Quarantined files do not appear in normal attachment lists.
+  - [ ] Quarantined files cannot be downloaded by normal users.
+  - [ ] Original filenames cannot overwrite server files.
+  - [ ] File metadata remains after attachment removal unless the file itself is deleted.
+  - [ ] Upload, attach, scan, quarantine, download, report, remove, and delete paths emit safe lifecycle events.
+
+## Version 0.32.12 - File Attachment UI, Files Surface, and First Module Integrations
+
+Implementation shape:
+- Add the reusable browser helper and minimal Files/Attachments workspace surface.
+- Integrate files into the first real module screens through manifest-declared attachable targets and framework hooks.
+- Keep record-specific meaning, placement, and labels owned by the module screen, while upload/list/download/remove mechanics stay framework-owned.
 
 - [ ] Add reusable file attachment UI helper.
   - [ ] File picker/upload component.
@@ -435,6 +443,8 @@ Implementation shape:
   - [ ] Empty state.
   - [ ] Error state.
   - [ ] Permission-aware controls.
+  - [ ] Event hooks for upload started/completed/failed, attachment added/removed, status changed, and list refreshed.
+  - [ ] Browser helper accepts module ID, target type, target ID, optional client/project context, accepted categories, and display options rather than hard-coding module behavior.
 
 - [ ] Add initial Files/Attachments module surface.
   - [ ] Add optional first-party Files area for browsing workspace files if useful.
@@ -442,14 +452,22 @@ Implementation shape:
   - [ ] Do not turn the Files area into a full document-management system yet.
   - [ ] Allow users to find files by module, target record, client, project, filename, and status where permissions allow.
   - [ ] Keep actual record-specific attachment management inside the owning module screens.
+  - [ ] Show safe file event/activity summaries when useful without replacing audit logs.
 
-- [ ] Add file hooks for planned modules.
-  - [ ] Tasks should be able to attach files later.
-  - [ ] Support tickets should be able to attach files when built.
+- [ ] Add first module attachment integrations.
+  - [ ] Tasks attach files through the shared framework helper and task manifest declaration.
+  - [ ] Projects and clients may support attachments if useful for immediate project-management workflows.
+  - [ ] Time entries remain out of the first attachment UI unless a concrete use case is identified.
+  - [ ] Support Tickets should be ready to consume the same attachment contract in 0.33.x.
   - [ ] Notes should be able to attach files when built.
   - [ ] Knowledge Base entries should be able to attach public-safe files when built.
   - [ ] Creator Studio should be able to use files as assets/media when built.
-  - [ ] Projects and clients may support attachments later if useful.
+
+- [ ] Add module-facing hooks.
+  - [ ] Modules can refresh local record views after attachment add/remove events.
+  - [ ] Modules can request attachment counts for list rows without duplicating file queries.
+  - [ ] Modules can add attachment summary metadata to search/help/activity surfaces through existing framework contracts where appropriate.
+  - [ ] Modules can opt into notification/event reactions without owning file security checks.
 
 - [ ] Add public-safe file groundwork.
   - [ ] Protected internal files are the default.
@@ -457,21 +475,58 @@ Implementation shape:
   - [ ] Public-safe attachments are required before public KB/client portal features.
   - [ ] Do not use tags as the source of truth for public/private file access.
 
-- [ ] Add regression tests.
-  - [ ] Files cannot cross workspace boundaries.
-  - [ ] Users cannot upload to records they cannot access.
-  - [ ] Users cannot download files attached to records they cannot access.
-  - [ ] Disabled modules cannot receive new file attachments.
-  - [ ] Quarantined files do not appear in normal attachment lists.
-  - [ ] Quarantined files cannot be downloaded by normal users.
-  - [ ] File paths cannot escape approved storage directories.
-  - [ ] Original filenames cannot overwrite server files.
-  - [ ] File metadata remains after attachment removal unless the file itself is deleted.
+- [ ] Add UI and integration regressions.
+  - [ ] Shared helper renders upload, list, pending, quarantine, empty, error, download, and remove states.
+  - [ ] Permission-restricted users see read-only or hidden controls as appropriate.
+  - [ ] Task attachment integration uses the manifest-declared target instead of custom task-only file code.
+  - [ ] Files surface filters by module, target, client, project, filename, and status without leaking hidden records.
+  - [ ] Browser helper event callbacks fire for upload, attach, remove, status change, and refresh flows.
 
-## Version 0.32.15 - Final 0.32.x Review for modularization for first-party modules and Addition of initial Help Pages for Existing modules
+## Version 0.32.13 - 0.32.x Module Contract Review, File Closeout, and Help Updates
 
-- Perform a thorough check to ensure all current and existing modules are properly isolated and related data is owned by the appropriate module (there should be no timer tables in the Tasks module, for example)
-- Ensure proper isolation of core/framework from first-party modules
+Implementation shape:
+- Treat this as the final 0.32.x stabilization and documentation closeout before Support Tickets.
+- Review first-party module isolation, framework/module boundaries, file hooks, event hooks, Help pages, and docs so 0.33.x can use the framework contracts cleanly.
+- Do not add new feature scope here unless review exposes a blocker for Support Tickets or the file framework.
+
+- [ ] Perform a thorough first-party module isolation review.
+  - [ ] Ensure current and existing modules are properly isolated and related data is owned by the appropriate module.
+  - [ ] Confirm there are no misplaced domain tables or services, such as timer tables in the Tasks module.
+  - [ ] Ensure proper isolation of core/framework from first-party modules.
+  - [ ] Confirm framework-owned services remain generic for permissions, tags, search, notifications, audit logging, Help, files, and events.
+  - [ ] Confirm module manifests, settings, navigation, permissions, searchable types, taggable types, help contributions, file attachable types, and event hooks are the primary integration points.
+
+- [ ] Review file framework readiness for other modules.
+  - [ ] Confirm Support Tickets can attach files in 0.33.x without new framework file primitives.
+  - [ ] Confirm future Notes, Knowledge Base, Creator Studio, Lists, Projects, Clients, and Calendar integrations can use the same file attachment contract.
+  - [ ] Confirm public-safe attachment fields and permissions are ready for client portal and Knowledge Base use, even if public workflows remain disabled.
+  - [ ] Confirm file lifecycle events can feed notifications, audit logs, search refreshes, activity summaries, and module UI refreshes without direct module-to-module coupling.
+
+- [ ] Add initial Help pages for existing modules and framework services.
+  - [ ] Add or update Help pages for Tasks.
+  - [ ] Add or update Help pages for Time Tracking.
+  - [ ] Add or update Help pages for Clients and Projects.
+  - [ ] Add or update Help pages for Notifications.
+  - [ ] Add or update Help pages for Tags.
+  - [ ] Add or update Help pages for Search.
+  - [ ] Add or update Help pages for Files and Attachments if the file framework is complete.
+  - [ ] Keep Help pages current-state and task-oriented, not future roadmap promises.
+
+- [ ] Update developer documentation.
+  - [ ] Document file attachable manifest declarations.
+  - [ ] Document file lifecycle event names and payload rules.
+  - [ ] Document storage adapter and scanner adapter contracts.
+  - [ ] Document the browser attachment helper contract.
+  - [ ] Document how modules should consume framework services without hard-coding framework internals.
+
+- [ ] Add final 0.32.x closeout regressions.
+  - [ ] Module manifest validation covers help, search, tags, files, permissions, navigation, and event hooks together.
+  - [ ] First-party modules do not bypass file framework APIs for storage, downloads, or attachment metadata.
+  - [ ] Event hooks do not expose sensitive file contents, storage paths, or scanner details.
+  - [ ] Existing Help, Search, Tags, Notifications, and Files behavior still respects disabled-module visibility.
+  - [ ] Run `npm run check`.
+  - [ ] Run `npm run test:permissions` because file access and module hooks are permission-sensitive.
+  - [ ] Run SQLite integrity check after file migration and attachment workflow tests.
 
 ## Version 0.33.0 - Support Tickets Framework Contract
 
@@ -1004,6 +1059,14 @@ Implementation shape:
 - [ ] Dashboard sections should respect permissions
   - [ ] Users should only see clients/projects/tasks/notes/tickets they are allowed to see
   - [ ] External client users should not see internal-only notes or admin-only audit details
+
+* [ ] Add notification-aware dashboard helpers
+
+  * [ ] App shell can show unread notification count
+  * [ ] Dashboard can eventually show user-specific notification summaries
+  * [ ] Notification summaries should respect permissions
+  * [ ] Notification summaries should not expose raw audit JSON
+  * [ ] Do not build full activity feed here unless already stable
 
 ## Version 0.37.0 - Expanded Reporting and Invoicing
 
