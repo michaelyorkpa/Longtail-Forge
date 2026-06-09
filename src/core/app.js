@@ -9,6 +9,7 @@ import { appShellRoutes } from "../routes/app-shell.routes.js";
 import { apiKeysRoutes } from "../routes/api-keys.routes.js";
 import { auditRoutes } from "../routes/audit.routes.js";
 import { authRoutes } from "../routes/auth.routes.js";
+import { helpRoutes } from "../routes/help.routes.js";
 import { publicApiRoutes } from "../routes/public-api.routes.js";
 import { notificationsRoutes } from "../routes/notifications.routes.js";
 import { permissionsRoutes } from "../routes/permissions.routes.js";
@@ -21,6 +22,7 @@ import { workbenchRoutes } from "../routes/workbench.routes.js";
 import { requireModuleBrowserWritesEnabledForRouter } from "./modules/module-access.js";
 import { modulesService } from "./modules/modules.service.js";
 import { notificationsService } from "../services/notifications.service.js";
+import { searchIndexRebuildService } from "../services/search-index-rebuild.service.js";
 
 function createApp() {
   const app = express();
@@ -39,6 +41,7 @@ function createApp() {
   app.use("/api", appShellRoutes);
   app.use("/api", apiKeysRoutes);
   app.use("/api", auditRoutes);
+  app.use("/api", helpRoutes);
   app.use("/api", notificationsRoutes);
   app.use("/api", permissionsRoutes);
   app.use("/api", reportingRoutes);
@@ -78,6 +81,7 @@ function createApp() {
 async function startServer() {
   try {
     await initializeDatabase();
+    scheduleStartupSearchIndexRebuild();
     const app = createApp();
 
     app.listen(config.port, config.host, () => {
@@ -90,6 +94,24 @@ async function startServer() {
     console.error(error.message || error);
     process.exitCode = 1;
   }
+}
+
+function scheduleStartupSearchIndexRebuild() {
+  setTimeout(async () => {
+    try {
+      const summary = await searchIndexRebuildService.rebuildApp({
+        audit: false,
+        source: "startup",
+      });
+
+      console.log(
+        `[search-index-startup] indexed=${summary.counts.indexed} removed=${summary.counts.removed} repaired=${summary.counts.repaired} failed=${summary.counts.failed}`,
+      );
+    } catch (error) {
+      console.warn("[search-index-startup] Search index rebuild failed.");
+      console.warn(error.message || error);
+    }
+  }, 0);
 }
 
 export { createApp, startServer };

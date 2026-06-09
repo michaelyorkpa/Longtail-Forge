@@ -6,6 +6,9 @@ import {
   listModuleEventHooks as listRegisteredModuleEventHooks,
   listModuleEventSummaries as listRegisteredModuleEventSummaries,
   listModuleEventTypes as listRegisteredModuleEventTypes,
+  listHelpArticles as listRegisteredHelpArticles,
+  listHelpContributions as listRegisteredHelpContributions,
+  listHelpSections as listRegisteredHelpSections,
   listModuleApiScopes as listRegisteredModuleApiScopes,
   listModuleMigrationSources,
   listModulePermissionEntries as listRegisteredModulePermissionEntries,
@@ -115,6 +118,35 @@ function listTaggableTypes() {
 
 function listSearchableTypes() {
   return listRegisteredSearchableTypes();
+}
+
+function listHelpSections() {
+  return listRegisteredHelpSections();
+}
+
+function listHelpArticles() {
+  return listRegisteredHelpArticles();
+}
+
+function listHelpContributions() {
+  return listRegisteredHelpContributions();
+}
+
+async function listActiveHelpContributions(workspaceId, session = null) {
+  const [sections, articles] = await Promise.all([
+    listActiveHelpSections(workspaceId, session),
+    listActiveHelpArticles(workspaceId, session),
+  ]);
+
+  return { sections, articles };
+}
+
+async function listActiveHelpSections(workspaceId, session = null) {
+  return listActiveHelpItems(workspaceId, session, listHelpSections());
+}
+
+async function listActiveHelpArticles(workspaceId, session = null) {
+  return listActiveHelpItems(workspaceId, session, listHelpArticles());
 }
 
 async function listActiveSearchableTypes(workspaceId) {
@@ -853,6 +885,43 @@ async function listWorkspaceContributions(workspaceId, session, fieldName) {
   return contributions;
 }
 
+async function listActiveHelpItems(workspaceId, session, items) {
+  if (!workspaceId) {
+    return [];
+  }
+
+  const [enabledModuleIds, workspaceCapabilities] = await Promise.all([
+    readEnabledModuleIds(workspaceId),
+    readWorkspaceCapabilities(workspaceId),
+  ]);
+  const enabledModuleIdSet = new Set(enabledModuleIds);
+  const availableTools = new Set(workspaceCapabilities.availableTools || []);
+  const workspaceType = workspaceCapabilities.workspaceType || "business";
+  const modulesById = new Map(listModules().map((moduleDefinition) => [moduleDefinition.id, moduleDefinition]));
+  const activeItems = [];
+
+  for (const item of items) {
+    if (!requiredModulesEnabled(item, enabledModuleIdSet)) {
+      continue;
+    }
+
+    const moduleDefinition = modulesById.get(item.moduleId);
+    const resolvedItem = resolveContributionTerminology(item, workspaceType, "help");
+
+    if (moduleDefinition && !requiredCapabilitiesAvailable(resolvedItem, moduleDefinition, availableTools)) {
+      continue;
+    }
+
+    if (!(await requiredPermissionsAllowed(resolvedItem, session))) {
+      continue;
+    }
+
+    activeItems.push(normalizeContribution(moduleDefinition || { id: item.moduleId || "" }, resolvedItem));
+  }
+
+  return activeItems;
+}
+
 function normalizeContribution(moduleDefinition, contribution) {
   return {
     ...contribution,
@@ -1062,12 +1131,18 @@ export const modulesService = {
   listEnabledModules,
   listDashboardPanels,
   listAvailableApiScopes,
+  listActiveHelpArticles,
+  listActiveHelpContributions,
+  listActiveHelpSections,
   listModuleApiScopes,
   listModuleApiScopeEntries,
   listModuleAuditRecordTypes,
   listModuleEventHooks,
   listModuleEventSummaries,
   listModuleEventTypes,
+  listHelpArticles,
+  listHelpContributions,
+  listHelpSections,
   listModuleMigrationSources,
   listModulePermissionEntries,
   listModuleNavigation,

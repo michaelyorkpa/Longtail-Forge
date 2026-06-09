@@ -200,6 +200,11 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
         label: "User",
         href: "user-settings.html",
       },
+      {
+        id: "help",
+        label: "Help",
+        href: "help.html",
+      },
     ].filter((item) => item.href || item.items?.length > 0),
   };
 

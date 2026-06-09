@@ -15,6 +15,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
+- Time entries aren't being index properly
+
 - Projects aren't inheriting client billing settings when created in Projects -> Project Settings -> Add Project
 
 - Saving Client billing settings wipes out client tags
@@ -30,7 +32,14 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Tweaks
 
-- [ ] Build Activity feed on top of notification hooks?
+### Notification Fixes/Tweaks
+
+- [ ] Create Notification grouping options
+  - [ ] Notifications in Business workspaces should be grouped by Client
+  - [ ] Notifications in Personal/Family workspaces should be grouped by Project
+
+- Build Activity feed on top of notification hooks?
+  - No, build the activity feed from event hooks
 
 - Should there be a client level timezone setting for displaying times in a client's timezone when working on their projects? 
 
@@ -60,6 +69,20 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - Clients
   - Business Workspaces
 
+### Admin/User Settings
+
+- [ ] Need a way for properly authenticated users to see active/running timers
+  - [ ] Appropriate admins should be able to stop/pause timers with explicit warning
+
+- [ ] Add Workspace level date format display settings
+
+- [ ] Add Workspace level time format display settings
+
+- [ ] Add user level setting for timezone display "Local Timezone or UTC"
+
+- [ ] Add Workspace option to set default screen when switching into that workspace, per user.
+  - Current behavior keeps it on Time Tracker, for example, but perhaps a user would always want to default to the dashboard. So, make the starting page selectable and provide a "Stay on Current Workspace's page" option as well (so when a new workspace opens it remains in the time tracker, or tasks, or whatever)
+
 ## UI clean up/clarification
 
 - [ ] There should be something in the views/models that indicates whether a field needs to be required so the * becomes automatic as views happen (if this is best practice)
@@ -83,6 +106,101 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - 
 
 # Medium Term
+
+## Version 0.32.10.1 - TypeScript Contract Checking Foundation
+
+This version should introduce TypeScript as a framework contract-checking tool without forcing a full rewrite or changing runtime behavior. Longtail Forge should remain a Node/ESM app, but shared framework contracts should begin moving toward typed definitions so future modules, files, tickets, notes, public API routes, search results, and plugin-style extension points have safer shapes.
+
+### Questions and Design Decisions
+
+- [x] Confirm that TypeScript is introduced incrementally, not as a full immediate rewrite.
+  - Add TypeScript as a dev-time type checker first, allow existing JavaScript to continue running, and convert files only where the contract benefit is clear.
+
+- [x] Confirm that `npm run start` should not run TypeScript compilation or type checking.
+  - Keep runtime startup fast and predictable. Type checking belongs in `npm run typecheck`, `npm run check`, CI, and Codex verification, not normal app boot.
+
+- [x] Decide whether the first TypeScript pass should use JS checking with JSDoc, `.d.ts` contract files, or selective `.ts` conversion.
+  - Start with `allowJs`, `checkJs` in a controlled/limited scope, shared `.d.ts` or `.ts` contract files, and selective conversion of framework contract modules only.
+
+- [x] Confirm that TypeScript should protect framework/module contracts before browser UI conversion.
+  - Type backend and shared framework contracts first. Browser scripts can remain JavaScript until the backend contracts stabilize.
+
+### Version 0.32.10.1.1 - TypeScript Tooling Setup
+
+- [ ] Add TypeScript dev dependency.
+- [ ] Add `tsconfig.json`.
+  - [ ] Use Node/ESM-compatible compiler settings.
+  - [ ] Enable `allowJs` so existing JavaScript can stay in place.
+  - [ ] Start with strictness settings that reveal useful contract issues without blocking the whole project immediately.
+  - [ ] Use `noEmit` for the first pass so TypeScript checks code without producing runtime files.
+- [ ] Add package scripts.
+  - [ ] `npm run typecheck`
+  - [ ] Do not change `npm run start`.
+  - [ ] Decide whether `npm run check` runs `npm run typecheck` immediately or after the first cleanup pass.
+- [ ] Add TypeScript ignores/exclusions for runtime data, generated files, archives, and vendor/build output.
+
+### Version 0.32.10.1.2 - Framework Contract Types
+
+- [ ] Add shared framework type definitions for module contracts.
+  - [ ] Module manifest.
+  - [ ] Module routes.
+  - [ ] Protected/public views.
+  - [ ] Browser assets.
+  - [ ] Navigation contributions.
+  - [ ] Settings contributions.
+  - [ ] Permission descriptors.
+  - [ ] API scope descriptors.
+  - [ ] Event descriptors.
+  - [ ] Notification descriptors.
+  - [ ] Taggable type descriptors.
+  - [ ] Searchable type descriptors.
+  - [ ] Workbench contributions.
+  - [ ] Timer source contributions.
+- [ ] Add shared search contract types.
+  - [ ] Search request shape.
+  - [ ] Search filters.
+  - [ ] Search result shape.
+  - [ ] Search document/indexer shape.
+  - [ ] Search adapter capability shape.
+  - [ ] Rebuild/repair summary shape.
+- [ ] Add shared API response helpers/types where useful.
+  - [ ] Standard success response.
+  - [ ] Standard error response.
+  - [ ] Pagination metadata.
+  - [ ] Permission-denied response shape.
+
+### Version 0.32.10.1.3 - Selective Type Checking of High-Value Files
+
+- [ ] Add `// @ts-check` and JSDoc typing to selected framework files first.
+  - [ ] Module registry and manifest validation.
+  - [ ] Search service and search adapter boundary.
+  - [ ] Notification service contracts.
+  - [ ] Tag service contracts.
+  - [ ] Settings/app-shell bootstrap payloads.
+- [ ] Avoid broad UI conversion in this version unless a file is already being touched for contract cleanup.
+- [ ] Avoid converting every route file in one pass.
+
+### Version 0.32.10.1.4 - Codex and Regression Workflow
+
+- [ ] Update `AGENTS.md` or development docs.
+  - [ ] Codex should run `npm run typecheck` when changing framework contracts, module manifests, search, tags, notifications, files, permissions, public API routes, or shared API payloads.
+  - [ ] Codex should not silence type errors with broad `any` unless the roadmap explicitly allows it.
+  - [ ] New framework contracts should include type definitions or JSDoc-backed shapes.
+- [ ] Add focused regression coverage where type contract changes expose existing weak spots.
+- [ ] Document the difference between runtime validation and TypeScript checking.
+  - [ ] TypeScript helps developers catch wrong shapes before runtime.
+  - [ ] API input, database rows, uploaded files, module manifests, and user data still require runtime validation.
+
+### Version 0.32.10.1.5 - Release Closeout
+
+- [ ] Update documentation.
+  - [ ] Add TypeScript migration notes to architecture/module development docs.
+  - [ ] Note that TypeScript is dev-time checking only in this version.
+- [ ] Update changelog.
+- [ ] Run verification.
+  - [ ] `npm run typecheck`
+  - [ ] `npm run check`
+  - [ ] `npm run test:permissions`
 
 ## Search Capability Expansion
 

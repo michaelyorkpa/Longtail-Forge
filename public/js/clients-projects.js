@@ -404,12 +404,12 @@ function createProjectTable(projects) {
     const editCell = document.createElement("td");
     const checkbox = document.createElement("input");
     const editButton = createClientProjectActionButton("Edit", "edit");
-    const clientName = client.isWorkspaceScope ? workspaceProjectsLabel() : client.name;
+    const clientName = shouldShowProjectClientLabel("table") ? getProjectClientLabel(client) : "";
 
     checkbox.type = "checkbox";
     checkbox.dataset.projectTableSelect = project.id;
     checkbox.addEventListener("change", updateProjectTableBulkState);
-    nameCell.textContent = clientsEnabledForWorkspace()
+    nameCell.textContent = clientName
       ? `${treeIndent(getProjectDepth(project, client))}${project.name} (${clientName})`
       : `${treeIndent(getProjectDepth(project, client))}${project.name}`;
     appendTagChips(nameCell, project.tags);
@@ -1044,6 +1044,28 @@ function getProjectsForCurrentFilters() {
     ));
 }
 
+function shouldShowProjectClientLabel(context, filterValue = "") {
+  if (!clientsEnabledForWorkspace()) {
+    return false;
+  }
+
+  const selectedFilter = filterValue || projectClientFilter?.value || "All";
+
+  if (context === "bulk" && selectedFilter !== "All") {
+    return false;
+  }
+
+  return selectedFilter === "All";
+}
+
+function getProjectClientLabel(client) {
+  if (!client) {
+    return "";
+  }
+
+  return client.isWorkspaceScope ? workspaceProjectsLabel() : client.name || "";
+}
+
 function openProjectBulkEditor() {
   const dialog = document.createElement("dialog");
   const form = document.createElement("form");
@@ -1285,7 +1307,9 @@ function renderBulkProjectList(container, clientFilterValue, statusFilterValue) 
     const checkbox = document.createElement("input");
     const projectName = document.createElement("span");
     const projectClient = projects.find((item) => item.project.id === project.id)?.client;
-    const clientName = projectClient?.isWorkspaceScope ? "Workspace Project" : projectClient?.name || "";
+    const clientName = shouldShowProjectClientLabel("bulk", clientFilterValue)
+      ? getProjectClientLabel(projectClient)
+      : "";
 
     row.className = "project-bulk-row";
     checkbox.type = "checkbox";

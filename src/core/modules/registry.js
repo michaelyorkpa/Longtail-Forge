@@ -45,6 +45,7 @@ function cloneModuleDefinition(definition) {
     workItemSources: [...(definition.workItemSources || [])],
     taggableTypes: [...(definition.taggableTypes || [])],
     searchableTypes: [...(definition.searchableTypes || [])],
+    help: cloneHelpContribution(definition.help),
     notificationEvents: [...(definition.notificationEvents || [])],
     notificationFollowTargets: [...(definition.notificationFollowTargets || [])],
     notificationTemplates: [...(definition.notificationTemplates || [])],
@@ -189,6 +190,25 @@ function listSearchableTypes() {
   return listContribution("searchableTypes");
 }
 
+function listHelpSections() {
+  return moduleDefinitions.flatMap((definition) => (
+    definition.help?.sections || []
+  ).map((section) => normalizeHelpItem(definition, section)));
+}
+
+function listHelpArticles() {
+  return moduleDefinitions.flatMap((definition) => (
+    definition.help?.articles || []
+  ).map((article) => normalizeHelpItem(definition, article)));
+}
+
+function listHelpContributions() {
+  return {
+    sections: listHelpSections(),
+    articles: listHelpArticles(),
+  };
+}
+
 function listNotificationEvents() {
   return listContribution("notificationEvents");
 }
@@ -227,6 +247,21 @@ function listContribution(fieldName) {
   return moduleDefinitions.flatMap((definition) => (
     definition[fieldName] || []
   ).map((item) => ({ ...item, moduleId: item.moduleId || definition.id })));
+}
+
+function normalizeHelpItem(definition, item) {
+  return {
+    ...item,
+    ownerType: item.ownerType || "module",
+    moduleId: item.moduleId || definition.id,
+  };
+}
+
+function cloneHelpContribution(help) {
+  return {
+    sections: [...(help?.sections || [])],
+    articles: [...(help?.articles || [])],
+  };
 }
 
 function normalizePermission(definition, permission) {
@@ -276,6 +311,9 @@ export {
   listModuleEventHooks,
   listModuleEventSummaries,
   listModuleEventTypes,
+  listHelpArticles,
+  listHelpContributions,
+  listHelpSections,
   listModulePermissions,
   listModulePermissionEntries,
   listModuleProtectedViews,

@@ -8,6 +8,8 @@ await initializeDatabase();
 let checks = 0;
 const workspaceId = "search-rebuild-workspace";
 const now = "2026-06-08T16:00:00.000Z";
+const frameworkHelpArticleCount = 12;
+const expectedWorkspaceIndexRows = frameworkHelpArticleCount + 4;
 
 await seedWorkspace();
 
@@ -24,18 +26,24 @@ await checkAsync("workspace rebuild indexes initial module records without dupli
   });
   const rows = await readIndexedRows();
 
-  assert.equal(first.counts.scanned, 4);
-  assert.equal(first.counts.indexed, 4);
+  assert.equal(first.counts.scanned, expectedWorkspaceIndexRows);
+  assert.equal(first.counts.indexed, expectedWorkspaceIndexRows);
   assert.equal(first.counts.failed, 0);
-  assert.equal(second.counts.scanned, 4);
-  assert.equal(second.counts.indexed, 4);
-  assert.equal(rows.length, 4);
-  assert.deepEqual(rows.map((row) => `${row.module_id}:${row.record_type}`).sort(), [
+  assert.equal(second.counts.scanned, expectedWorkspaceIndexRows);
+  assert.equal(second.counts.indexed, expectedWorkspaceIndexRows);
+  assert.equal(rows.length, expectedWorkspaceIndexRows);
+  assert.equal(
+    rows.filter((row) => row.module_id === "framework" && row.record_type === "help_article").length,
+    frameworkHelpArticleCount,
+  );
+  for (const expectedType of [
     "client-projects:client",
     "client-projects:project",
     "tasks:task",
     "time-tracking:time_entry",
-  ]);
+  ]) {
+    assert.ok(rows.some((row) => `${row.module_id}:${row.record_type}` === expectedType), `${expectedType} should be indexed`);
+  }
 });
 
 await checkAsync("module rebuild stays scoped and removes stale canonical rows", async () => {
@@ -62,7 +70,7 @@ ORDER BY record_id;
   assert.equal(result.targets.length, 1);
   assert.equal(result.targets[0].recordType, "task");
   assert.deepEqual(taskRows, [{ record_id: "search-rebuild-task-1" }]);
-  assert.equal(allRows.length, 4);
+  assert.equal(allRows.length, expectedWorkspaceIndexRows);
 });
 
 await checkAsync("dry-run rebuild reports skipped work and leaves stale rows untouched", async () => {

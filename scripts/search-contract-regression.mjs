@@ -47,7 +47,7 @@ check("search capabilities expose framework-owned adapter-backed boundary", () =
   const capabilities = searchService.getCapabilities();
 
   assert.equal(capabilities.owner, "framework");
-  assert.equal(capabilities.serviceVersion, "0.32.8.6");
+  assert.equal(capabilities.serviceVersion, "0.32.9.3");
   assert.equal(capabilities.workspaceAware, true);
   assert.equal(capabilities.moduleAware, true);
   assert.equal(capabilities.permissionAware, true);
@@ -213,12 +213,13 @@ check("search filters cannot escape the active workspace", () => {
 check("registered module searchable type list is registry-driven", () => {
   const searchableTypes = modulesService.listSearchableTypes();
   const serviceTypes = searchService.listSearchableTypes();
+  const serviceTypeIds = serviceTypes.map((type) => `${type.moduleId}:${type.recordType}`).sort();
 
   assert.equal(Array.isArray(searchableTypes), true);
-  assert.deepEqual(
-    serviceTypes.map((type) => `${type.moduleId}:${type.recordType}`).sort(),
-    searchableTypes.map((type) => `${type.moduleId}:${type.recordType}`).sort(),
-  );
+  for (const moduleType of searchableTypes) {
+    assert.ok(serviceTypeIds.includes(`${moduleType.moduleId}:${moduleType.recordType}`));
+  }
+  assert.ok(serviceTypeIds.includes("framework:help_article"));
   assert.ok(serviceTypes.every((type) => type.indexer && type.requiredReadPermission));
 });
 
@@ -380,7 +381,7 @@ await checkAsync("runtime capabilities report SQLite FTS5 support or indexed LIK
 
   const capabilities = await searchService.getRuntimeCapabilities({ refresh: true });
 
-  assert.equal(capabilities.serviceVersion, "0.32.8.6");
+  assert.equal(capabilities.serviceVersion, "0.32.9.3");
   assert.equal(capabilities.backend.adapterId, "sqlite");
   assert.equal(capabilities.backend.engine, "sqlite");
   assert.equal(typeof capabilities.backend.fts5Supported, "boolean");
@@ -1031,6 +1032,7 @@ VALUES
   const expectedTypes = [
     "client-projects:client",
     "client-projects:project",
+    "framework:help_article",
     "tasks:task",
     "time-tracking:time_entry",
   ];
@@ -1067,7 +1069,12 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY record_type;
 `);
 
-  assert.deepEqual(indexedRows.map((row) => `${row.module_id}:${row.record_type}`).sort(), expectedTypes.sort());
+  assert.deepEqual(indexedRows.map((row) => `${row.module_id}:${row.record_type}`).sort(), [
+    "client-projects:client",
+    "client-projects:project",
+    "tasks:task",
+    "time-tracking:time_entry",
+  ].sort());
 
   const rowsByType = new Map(indexedRows.map((row) => [row.record_type, row]));
 

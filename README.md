@@ -22,12 +22,13 @@ Longtail Forge currently includes:
 - Time tracking with manual entry, edit-entry workflows, active timer persistence, and UTC-backed storage
 - A framework-owned Workbench page for daily active timers and task work
 - First-party Tasks with reminders, recurrence, bulk actions, dashboard summaries, task timers, and public API support
-- Framework-owned browser search across indexed Tasks, Time Entries, Clients, and Projects
+- Framework-owned browser search across indexed Tasks, Time Entries, Clients, Projects, and Help articles
+- Framework-owned Help Center with baseline product help and module-declared Help contributions
 - Billable/non-billable reporting, dashboard summaries, audit logging, API keys, and public API foundations
-- Module-ready backend structure with explicit first-party module registration, startup manifest validation, registry-driven navigation/settings/views/assets, lifecycle checks, module permissions/API scopes, internal events, a framework-owned search foundation, and developer example coverage
+- Module-ready backend structure with explicit first-party module registration, startup manifest validation, registry-driven navigation/settings/views/assets, lifecycle checks, module permissions/API scopes, internal events, framework-owned search and Help Center foundations, and developer example coverage
 - A fresh-start database baseline for new installs, a persistent SQLite adapter for local performance, and regression checks for permissions, accessibility, module sanity, migrations, legacy cleanup, and database performance
 
-The near-term roadmap moves into framework services that can be shared by current and future modules: notifications, tags, search, support tickets, notes, calendars, broader reporting, and richer project tools.
+The near-term roadmap continues expanding framework services and module surfaces that can be shared by current and future modules: support tickets, notes, calendars, broader reporting, richer project tools, and UI consistency passes.
 
 ## Documentation
 

@@ -73,6 +73,26 @@ assert.match(
   "dashboard API must read permission-filtered dashboard panel contributions",
 );
 assert.match(
+  files.reportingService,
+  /parentScopeId:\s*String\(client\.parent_client_id/,
+  "reporting scopes must preserve parent client IDs for nested reporting scope display",
+);
+assert.match(
+  files.reportingService,
+  /sortScopeTree\(attachDescendantClientProjects\(decorateScopeDepths\(clientScopes\)\)\)/,
+  "business reporting scopes must be sorted by client tree instead of flat name order",
+);
+assert.match(
+  files.reportingService,
+  /filterRollupProjects\(projects,\s*\{\s*includeDescendants\s*\}\)/,
+  "project summaries must collapse selected child project rows when parent rollups are selected",
+);
+assert.match(
+  files.reportingService,
+  /filterRollupProjects\(scope\.projects,\s*\{\s*includeDescendants:\s*true\s*\}\)/,
+  "dashboard reporting totals must avoid double counting project parent and child rollups",
+);
+assert.match(
   files.workbenchService,
   /modulesService\.listWorkbenchCards/,
   "workbench API must read permission-filtered workbench card contributions",

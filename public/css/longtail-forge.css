@@ -20,6 +20,8 @@
     --shadow-modal: 0 24px 70px rgba(23, 32, 51, 0.24);
     --shadow-control: 0 1px 3px rgba(23, 32, 51, 0.18);
     --color-overlay: rgba(23, 32, 51, 0.45);
+    --page-standard-width: 1120px;
+    --page-form-width: 920px;
 }
 
 html[data-theme="dark"] {
@@ -504,7 +506,7 @@ body {
 }
 
 .site-footer-inner {
-    width: min(1120px, calc(100% - 32px));
+    width: min(var(--page-standard-width), calc(100% - 32px));
     margin: 0 auto;
 }
 
@@ -537,12 +539,12 @@ main {
 }
 
 .wide-page {
-    width: min(94vw, 920px);
+    width: min(94vw, var(--page-standard-width));
     text-align: left;
 }
 
 .timer-page {
-    width: min(94vw, 1120px);
+    width: min(94vw, var(--page-standard-width));
     text-align: left;
 }
 
@@ -628,7 +630,7 @@ h1 {
 }
 
 .settings-page {
-    width: min(90vw, 480px);
+    width: min(94vw, var(--page-form-width));
     text-align: left;
 }
 
@@ -765,6 +767,26 @@ h1 {
     gap: 8px;
 }
 
+.search-index-maintenance {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border-subtle);
+}
+
+.search-index-maintenance p {
+    min-height: 20px;
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+.search-index-maintenance p.is-error {
+    color: var(--color-danger);
+}
+
 .search-results-summary {
     display: flex;
     flex-wrap: wrap;
@@ -877,6 +899,106 @@ a.search-result-title:hover {
     display: none;
 }
 
+.help-page {
+    display: grid;
+    gap: 18px;
+}
+
+.help-workspace {
+    display: grid;
+    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+}
+
+.help-navigation,
+.help-article-shell {
+    display: grid;
+    gap: 14px;
+}
+
+.help-navigation {
+    position: sticky;
+    top: 96px;
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.help-navigation h2,
+.help-section-group h3,
+.help-article-header h2 {
+    margin: 0;
+}
+
+.help-section-list,
+.help-section-group,
+.help-article-list,
+.help-article-body {
+    display: grid;
+    gap: 10px;
+}
+
+.help-section-group h3 {
+    color: var(--color-text-secondary);
+    font-size: 13px;
+    text-transform: uppercase;
+}
+
+.help-article-link {
+    display: grid;
+    gap: 4px;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    text-align: left;
+}
+
+.help-article-link:hover,
+.help-article-link[aria-pressed="true"] {
+    border-color: var(--color-accent);
+    background: var(--color-hover);
+}
+
+.help-article-link span:first-child {
+    font-weight: 700;
+}
+
+.help-article-link span:last-child,
+.help-article-meta,
+.help-article-summary {
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.help-article-shell {
+    min-height: 280px;
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.help-article-header {
+    display: grid;
+    gap: 6px;
+}
+
+.help-article-meta,
+.help-article-summary,
+.help-article-body p {
+    margin: 0;
+}
+
+.help-article-body p {
+    line-height: 1.6;
+}
+
 .segmented-control {
     display: inline-flex;
     flex-wrap: wrap;
@@ -895,11 +1017,11 @@ a.search-result-title:hover {
 }
 
 .workspace-settings-page {
-    width: min(94vw, 920px);
+    width: min(94vw, var(--page-standard-width));
 }
 
 .user-settings-page {
-    width: min(94vw, 920px);
+    width: min(94vw, var(--page-standard-width));
 }
 
 .user-settings-grid {
@@ -922,7 +1044,7 @@ a.search-result-title:hover {
 }
 
 .user-admin-page {
-    width: min(94vw, 760px);
+    width: min(94vw, var(--page-standard-width));
     text-align: left;
 }
 
@@ -3410,6 +3532,7 @@ button:disabled {
     .page-heading,
     .timer-page-heading,
     .search-workspace,
+    .help-workspace,
     .edit-row,
     .project-editor,
     .add-project-form,
@@ -3449,6 +3572,10 @@ button:disabled {
     }
 
     .search-filter-form {
+        position: static;
+    }
+
+    .help-navigation {
         position: static;
     }
 

@@ -2,147 +2,10 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.8 - Search API and Global Search UI
-
-### Questions and Design Decisions
-
-- [x] Confirm that 0.32.8 should expose browser-facing search without adding fuzzy search, synonyms, saved searches, external search engines, or advanced relevance tuning.
-  - Proposed default: keep 0.32.8 focused on exact query/filter execution, basic adapter-provided ranking, result shaping, and global UI. Advanced search behavior remains future work.
-  - Go with the proposed default.
-- [x] Confirm whether the app-shell search box should submit to a full results page first, instead of adding typeahead/autocomplete in the first pass.
-  - Proposed default: submit to `search.html` with query/filter parameters. Typeahead can follow after the permission-safe result contract is proven.
-  - Header search submits to search.html; no typeahead yet.
-- [x] Confirm the first global search placement in the authenticated shell.
-  - Proposed default: add a compact search control to the shared authenticated header/top navigation where it is visible across module pages without crowding page-specific actions.
-  - Place the compact search box in the authenticated shared header/top nav.
-- [x] Decide whether public API search belongs in 0.32.8 or should be explicitly deferred.
-  - Proposed default: defer `GET /api/v1/search` unless the browser API and permission tests finish cleanly before closeout. Browser search is the primary user workflow for this version.
-  - Defer GET /api/v1/search from 0.32.8. No ifs.
-- [x] Confirm result links should prefer module-registered record URLs/actions and fall back to a safe module page when a direct record URL is unavailable.
-  - Proposed default: use the registered URL/action when available, and do not invent direct links that bypass module routing or permissions.
-  - Use module-registered URLs/actions; fall back safely; never invent direct record links
-
-### Version 0.32.8.1 - Browser Search API Contract
-
-- [x] Add protected browser search endpoint.
-  - [x] Add `GET /api/search`.
-  - [x] Require an authenticated session and active workspace.
-  - [x] Accept query text.
-  - [x] Accept module filter.
-  - [x] Accept record type filter.
-  - [x] Accept client filter.
-  - [x] Accept project filter.
-  - [x] Accept exact tag filter.
-  - [x] Accept pagination parameters.
-  - [x] Return backend-neutral result metadata and paging metadata.
-- [x] Keep API routing framework-owned.
-  - [x] Route through the framework search service.
-  - [x] Do not query SQLite FTS tables directly from routes.
-  - [x] Keep SQLite FTS and indexed `LIKE` fallback hidden behind the adapter.
-  - [x] Keep FTS ranking basic and adapter-provided for now.
-- [x] Add focused API contract regressions.
-  - [x] Authenticated users can search the active workspace.
-  - [x] Unauthenticated requests are rejected.
-  - [x] Invalid filters return structured validation errors.
-  - [x] Pagination returns stable metadata.
-
-### Version 0.32.8.2 - Permission-Safe Result Shaping
-
-- [x] Apply permission and lifecycle filtering after full-text matching.
-  - [x] Respect active workspace scope.
-  - [x] Respect module read permissions from searchable type declarations.
-  - [x] Hide disabled-module records from normal active search.
-  - [x] Respect record visibility rules already modeled by the search service.
-  - [x] Preserve canonical client/project/tag filters.
-- [x] Normalize browser-facing result payloads.
-  - [x] Include record ID, module ID, record type, title, summary/snippet, source label, status, score/rank when available, and updated timestamp.
-  - [x] Include client/project context where available.
-  - [x] Include tags where useful and permission-safe.
-  - [x] Include registered record URL/action data when available.
-  - [x] Avoid exposing private body text beyond the intended snippet/summary.
-- [x] Add permission/filter regressions.
-  - [x] Users without a module read permission do not receive matching records from that module.
-  - [x] Disabled-module records stay hidden in active browser search.
-  - [x] Client, project, and tag filters narrow results correctly.
-  - [x] Result payloads do not expose fields outside the browser search contract.
-
-### Version 0.32.8.3 - Authenticated Shell Search Entry
-
-- [x] Add global search entry to the authenticated app shell.
-  - [x] Add a compact search box to the shared authenticated header/top navigation.
-  - [x] Add a selector for searchable record type or all record types based on active module declarations.
-  - [x] Preserve normal page-specific actions and avoid crowding dense pages.
-  - [x] Submit to the full search results page with URL query parameters.
-- [x] Keep the shell control lightweight.
-  - [x] Do not add typeahead/autocomplete in this pass.
-  - [x] Do not make dashboard search more complex.
-  - [x] Use existing shared browser JavaScript patterns with no build step.
-  - [x] Keep the UI framework-owned and module-aware through registered searchable types.
-- [x] Add browser-level smoke coverage where practical.
-  - [x] Shell search appears on authenticated pages.
-  - [x] Record-type options reflect active searchable types.
-  - [x] Submitting a query navigates to the search page with expected parameters.
-
-### Version 0.32.8.4 - Search Results Page
-
-- [x] Add framework-owned global search results page.
-  - [x] Add `search.html` and matching browser script/style hooks.
-  - [x] Read query/filter/page parameters from the URL.
-  - [x] Fetch results from `GET /api/search`.
-  - [x] Show grouped results by record type or module where useful.
-  - [x] Show title, short summary/snippet, source label, client/project context, tags, status, and updated timestamp.
-  - [x] Link results to registered record URLs/actions when available.
-- [x] Add results-page controls and states.
-  - [x] Support query text editing.
-  - [x] Support module and record type filters.
-  - [x] Support client, project, and tag filters where available.
-  - [x] Support pagination.
-  - [x] Support loading, empty, error, and permission-safe display states.
-  - [x] Keep mobile and desktop layouts scannable without card-in-card nesting.
-- [x] Add page behavior regressions.
-  - [x] Search page loads from URL parameters.
-  - [x] Filter changes update results and URL state.
-  - [x] Empty and no-permission results are clear without leaking hidden result counts.
-  - [x] Result links route through registered module URLs/actions.
-
-### Version 0.32.8.5 - Tests, Documentation, and Release Closeout
-
-- [x] Add end-to-end search workflow regressions.
-  - [x] Indexed Tasks, Time Entries, Clients, and Projects are discoverable through browser search.
-  - [x] Search results update after indexed record edits.
-  - [x] Pagination remains stable across repeated requests.
-  - [x] Permission-sensitive filtering still applies before results are returned.
-  - [x] The global search UI handles loading, empty, error, filtered, and paginated states.
-- [x] Update documentation.
-  - [x] Record 0.32.8 API/UI decisions in `DECISIONS.md`.
-  - [x] Update architecture notes for browser search routing, result shaping, and adapter boundaries.
-  - [x] Update module development docs for registered result URLs/actions if needed.
-  - [x] Keep README cursory unless the current-state overview needs a one-line global search note.
-  - [x] Add 0.32.8 changes to `CHANGELOG.md` with date/time.
-- [x] Update release bookkeeping when implementation is complete.
-  - [x] Bump `package.json` and `package-lock.json` to the completed 0.32.8 sub-version.
-  - [x] Verify `/api/app-info` reports the completed 0.32.8 sub-version.
-  - [x] Move all but the most recently completed ROADMAP section to `ROADMAP-ARCHIVE.md`.
-- [x] Run verification.
-  - [x] Run focused search API/UI regressions.
-  - [x] Run `npm run check`.
-  - [x] Run `npm run test:permissions` because search result access is permission-sensitive.
-  - [x] Run SQLite integrity check after search workflow tests.
-
-### Version 0.32.8.6 - Notifications and Search UI Clean up
-
-- [x] Move notifications interface into a bell icon; Retain all other functionality
-  - [x] Move bell icon to end of navigation (right of "Settings")
-  - [x] Header width can be wider if necessary
-
-- [x] Move search into openable magnifier icon
-  - [x] This icon should be placed just before "Dashboard"
-  - [x] Icon simply opens downward a small search text input box and the type filter drop down
-
-### Version 0.32.9 - Help Page Framework and UI
+## Version 0.32.9 - Help Page Framework and UI
 
 Decision:
-Help Center is framework-owned, not a normal disable-able first-party workflow module.
+Help Center is framework-owned, not a normal disable-able first-party workflow module. Modules provide their own help pages through validated manifest contributions. Help pages are their own record type and are searchable separately from user-authored Knowledge Base content.
 
 Implementation shape:
 - Add a framework-owned Help Center page/surface.
@@ -151,119 +14,183 @@ Implementation shape:
 - Add "Help" as a global search type/source filter.
 - Allow first-party and future third-party modules to contribute docs through manifest metadata.
 - Keep user-authored Knowledge Base separate as a first-party module.
+- Help Center link belongs in the Settings menu between User and Log Out.
 
-### Help Center / Documentation Search Decision
+### Help Center / Documentation Search Decisions
 
-- [ ] Confirm Help Center ownership.
-  - Proposed default: Help Center UI, routes, search integration, and docs contribution validation are framework-owned. Help is not a normal disable-able workflow module.
+- [x] Confirm Help Center ownership.
+  - Help Center UI, routes, search integration, and docs contribution validation are framework-owned. Help is not a normal disable-able workflow module.
+- [x] Add module-declared help/documentation contributions.
+  - Modules may declare help sections/articles through the manifest. The framework validates these declarations and exposes them in the Help Center.
+- [x] Add Help as a searchable result type/source.
+  - Index framework and module help articles into `search_index` with `record_type = help_article`, `source = Help`, module ownership metadata, and permission/module visibility filters.
+- [x] Keep product Help separate from user-authored Knowledge Base.
+  - Help Center documents how to use Longtail Forge and installed modules. The future Knowledge Base module stores workspace-authored operational knowledge.
+- [x] Confirm first navigation placement.
+  - Add the Help Center link to the Settings menu between User and Log Out.
 
-- [ ] Add module-declared help/documentation contributions.
-  - Proposed default: modules may declare help sections/articles through the manifest. The framework validates these declarations and exposes them in the Help Center.
+### Version 0.32.9.1 - Help Contribution Contract
 
-- [ ] Add Help as a searchable result type/source.
-  - Proposed default: index framework and module help articles into `search_index` with `record_type = help_article`, `source = Help`, module ownership metadata, and permission/module visibility filters.
+- [x] Add framework-owned help contribution validation.
+  - [x] Extend module manifest validation with an optional `help` contribution block.
+  - [x] Support module-declared help sections.
+  - [x] Support module-declared help articles/pages.
+  - [x] Require stable article IDs or slugs.
+  - [x] Require title, summary/description, and body/content source.
+  - [x] Support optional ordering, category/section, audience, tags, and related article metadata.
+  - [x] Support framework-owned help articles without pretending they belong to a disable-able module.
+  - [x] Reject invalid, duplicate, or unsafe article declarations with structured startup/validation errors.
+- [x] Keep ownership boundaries clear.
+  - [x] Framework owns Help Center routes, rendering shell, contribution validation, indexing, and search exposure.
+  - [x] Modules own the content of their own help pages.
+  - [x] Disabling a module hides its normal active module help from the Help Center and active Help search unless later historical/admin behavior explicitly needs otherwise.
+  - [x] Do not create Knowledge Base tables, authoring workflows, or user-authored article editing in 0.32.9.
+- [x] Add focused contract regressions.
+  - [x] Valid help contributions are accepted from first-party module manifests.
+  - [x] Invalid help declarations fail predictably.
+  - [x] Duplicate article IDs/slugs are rejected.
+  - [x] Disabled-module help is excluded from active Help Center discovery.
 
-- [ ] Keep product Help separate from user-authored Knowledge Base.
-  - Proposed default: Help Center documents how to use Longtail Forge and installed modules. The future Knowledge Base module stores workspace-authored operational knowledge.
+### Version 0.32.9.2 - Framework-Owned Help Center Surface
+
+- [x] Add protected Help Center page and route.
+  - [x] Add a framework-owned protected `help.html` view.
+  - [x] Add matching browser script and CSS hooks using existing plain browser JavaScript patterns.
+  - [x] Add a protected API endpoint for Help Center content discovery.
+  - [x] Return framework and active-module help sections/articles in a browser-safe shape.
+  - [x] Support article detail loading by stable ID/slug.
+  - [x] Support category/section navigation.
+  - [x] Support loading, empty, error, and no-visible-content states.
+- [x] Add Help Center navigation.
+  - [x] Add Help to the Settings menu between User and Log Out.
+  - [x] Keep Help visible as a framework surface even though normal workflow modules can be disabled.
+  - [x] Preserve existing Settings menu behavior and responsive navigation.
+- [x] Add page behavior regressions.
+  - [x] Authenticated users can open the Help Center.
+  - [x] The Settings menu shows Help between User and Log Out.
+  - [x] Framework help appears even when optional modules are disabled.
+  - [x] Module help appears only for active/visible modules.
+  - [x] Article navigation loads the expected content without a full app reload where practical.
+
+### Version 0.32.9.3 - Help Search Indexing and Filters
+
+- [x] Add Help as a first-class searchable record type/source.
+  - [x] Use `record_type = help_article`.
+  - [x] Use `source = Help`.
+  - [x] Include framework/module ownership metadata.
+  - [x] Include section/category metadata where useful.
+  - [x] Include permission and module visibility metadata for active Help search.
+  - [x] Keep help body indexing body-safe for browser snippets.
+- [x] Add framework-owned help indexing.
+  - [x] Index framework help articles.
+  - [x] Index active module-declared help articles.
+  - [x] Rebuild Help search rows through the existing search rebuild/repair boundary.
+  - [x] Remove stale Help rows when declarations change or modules are disabled.
+  - [x] Keep SQLite FTS/fallback behavior adapter-owned.
+- [x] Integrate Help into global search UI.
+  - [x] Add Help to the search type/source filter.
+  - [x] Allow Help results to route to the Help Center article view.
+  - [x] Keep Help results separate from future Knowledge Base results.
+  - [x] Do not add typeahead/autocomplete in this pass.
+- [x] Add search regressions.
+  - [x] Framework Help articles are discoverable through `GET /api/search`.
+  - [x] Module Help articles are discoverable only when their module is active/visible.
+  - [x] The Help filter returns only Help articles.
+  - [x] Help result links route to Help Center article URLs/actions.
+  - [x] Knowledge Base is not conflated with Help search metadata.
+
+### Version 0.32.9.4 - Initial Framework Help Articles
+
+- [x] Create baseline framework-owned help pages and identify them as framework help.
+  - [x] Getting Started.
+  - [x] Workspaces and Workspace Switching.
+  - [x] Users, Roles, and Permissions.
+  - [x] Clients and Projects.
+  - [x] Time Tracking Basics.
+  - [x] Tasks Basics.
+  - [x] Notifications.
+  - [x] Tags.
+  - [x] Search.
+  - [x] Settings and User Preferences.
+  - [x] Modules and Optional Features.
+- [x] Keep initial content intentionally basic.
+  - [x] Cover current app behavior, not future roadmap promises.
+  - [x] Prefer short, task-oriented pages over long docs dumps.
+  - [x] Mark framework-owned pages with a framework source/owner label.
+  - [x] Keep module-specific pages ready to move into module declarations when those modules provide richer docs.
+  - [x] Avoid replacing developer docs in `docs/` or detailed roadmap history.
+- [x] Add content regressions.
+  - [x] Framework-owned help pages are returned by Help Center APIs.
+  - [x] Framework-owned help pages are indexed as Help articles.
+  - [x] Framework source/owner metadata appears in Help Center and search results.
+  - [x] Basic article links and headings are valid.
+
+### Version 0.32.9.5 - Documentation, Tests, and Release Closeout
+
+- [x] Add end-to-end Help Center workflow regressions.
+  - [x] Help Center route and API require authentication.
+  - [x] Help Center lists framework and active-module help articles.
+  - [x] Disabled-module help stays hidden from normal Help Center and active Help search.
+  - [x] Help article pages are searchable separately from other record types.
+  - [x] Global search Help filter returns Help articles with safe snippets and Help Center links.
+  - [x] Settings menu placement remains stable.
+- [x] Update documentation.
+  - [x] Record 0.32.9 Help Center decisions in `DECISIONS.md`.
+  - [x] Update architecture notes for framework-owned Help Center routing, content contribution validation, and search indexing.
+  - [x] Update module development docs for manifest-declared help pages.
+  - [x] Keep README cursory unless the current-state overview needs a one-line Help Center note.
+  - [x] Add 0.32.9 changes to `CHANGELOG.md` with date/time.
+- [x] Update release bookkeeping when implementation is complete.
+  - [x] Bump `package.json` and `package-lock.json` to the completed 0.32.9 sub-version.
+  - [x] Verify `/api/app-info` reports the completed 0.32.9 sub-version.
+  - [x] Move all but the most recently completed ROADMAP section to `ROADMAP-ARCHIVE.md`.
+- [x] Run verification.
+  - [x] Run focused Help Center API/UI/search regressions.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run test:permissions` because Help search and module visibility are permission-sensitive.
+  - [x] Run SQLite integrity check after Help indexing workflow tests.
+
+## Version 0.32.9.6 - Interim Tweaks for 0.32.x branch
+
+### General UI Fixes/Tweaks
+
+- UI size standardization
+  - This needs to be worked into a view helper/screen creator update. All of these screens should have the same standard width and easily navigable layout
+  - Many UI pieces are still different sizes. For now, I'm targeting desktop use and I need this to all be standard sizes, with the ability to easily tweak for mobile down the road. The following are the pages that don't conform to the Dashboard/Workspace width:
+    - [x] Projects -> Tasks
+    - [x] Projects -> Projects Settings
+    - [x] Settings -> Workspace -> Workspace Settings
+    - [x] Settings -> Workspace -> Clients
+    - [x] Settings -> Workspace -> Tags
+    - [x] Settings -> Workspace -> User Admin
+    - [x] Settings -> Workspace -> Modules -> Tasks Settings
+    - [x] Settings -> Workspace -> Modules -> Time Tracking Settings
+    - [x] Settings -> Workspace -> API Keys
+    - [x] Settings -> User Settings
+    - [x] Settings -> Help
+
+- [x] If a client filter is selected on Projects in a business workspace, there's no need to have the client name in Parenthesis behind the project name. This goes for all places in business workspaces list {{projectName}} ({{clientName}})
+
+- Reporting -> Time Reports -> "Reporting Scope"
+  - [x] Doesn't properly nest child clients
+  - [x] Doesn't have parent client properly total child client records
+  - [x] Reporting by project is incorrect if there's a parent/child relationship
+    - [x] Children and parents both factor into the total (instead of being one or the other)
+  - [x] Children aren't properly nested under parents in reporting
+
+### Search Fixes
+
+- [x] It doesn't appear everything has been indexed yet
+  - When I search "Longtail Forge" only one time record shows up. It doesn't show the: 
+    - [x] project
+    - [x] previous time entries
+    - [x] or anything else
+  - How does indexing happen? Is it a manual process? Or is it continually updating?
+    - [x] How do we automate it?
 
 ## Version 0.32.10 - Framework Integration Tests and Reporting Hooks
 
-## Version 0.32.10.1 - TypeScript Contract Checking Foundation
-
-This version should introduce TypeScript as a framework contract-checking tool without forcing a full rewrite or changing runtime behavior. Longtail Forge should remain a Node/ESM app, but shared framework contracts should begin moving toward typed definitions so future modules, files, tickets, notes, public API routes, search results, and plugin-style extension points have safer shapes.
-
-### Questions and Design Decisions
-
-- [x] Confirm that TypeScript is introduced incrementally, not as a full immediate rewrite.
-  - Add TypeScript as a dev-time type checker first, allow existing JavaScript to continue running, and convert files only where the contract benefit is clear.
-
-- [x] Confirm that `npm run start` should not run TypeScript compilation or type checking.
-  - Keep runtime startup fast and predictable. Type checking belongs in `npm run typecheck`, `npm run check`, CI, and Codex verification, not normal app boot.
-
-- [x] Decide whether the first TypeScript pass should use JS checking with JSDoc, `.d.ts` contract files, or selective `.ts` conversion.
-  - Start with `allowJs`, `checkJs` in a controlled/limited scope, shared `.d.ts` or `.ts` contract files, and selective conversion of framework contract modules only.
-
-- [x] Confirm that TypeScript should protect framework/module contracts before browser UI conversion.
-  - Type backend and shared framework contracts first. Browser scripts can remain JavaScript until the backend contracts stabilize.
-
-### Version 0.32.10.1.1 - TypeScript Tooling Setup
-
-- [ ] Add TypeScript dev dependency.
-- [ ] Add `tsconfig.json`.
-  - [ ] Use Node/ESM-compatible compiler settings.
-  - [ ] Enable `allowJs` so existing JavaScript can stay in place.
-  - [ ] Start with strictness settings that reveal useful contract issues without blocking the whole project immediately.
-  - [ ] Use `noEmit` for the first pass so TypeScript checks code without producing runtime files.
-- [ ] Add package scripts.
-  - [ ] `npm run typecheck`
-  - [ ] Do not change `npm run start`.
-  - [ ] Decide whether `npm run check` runs `npm run typecheck` immediately or after the first cleanup pass.
-- [ ] Add TypeScript ignores/exclusions for runtime data, generated files, archives, and vendor/build output.
-
-### Version 0.32.10.1.2 - Framework Contract Types
-
-- [ ] Add shared framework type definitions for module contracts.
-  - [ ] Module manifest.
-  - [ ] Module routes.
-  - [ ] Protected/public views.
-  - [ ] Browser assets.
-  - [ ] Navigation contributions.
-  - [ ] Settings contributions.
-  - [ ] Permission descriptors.
-  - [ ] API scope descriptors.
-  - [ ] Event descriptors.
-  - [ ] Notification descriptors.
-  - [ ] Taggable type descriptors.
-  - [ ] Searchable type descriptors.
-  - [ ] Workbench contributions.
-  - [ ] Timer source contributions.
-- [ ] Add shared search contract types.
-  - [ ] Search request shape.
-  - [ ] Search filters.
-  - [ ] Search result shape.
-  - [ ] Search document/indexer shape.
-  - [ ] Search adapter capability shape.
-  - [ ] Rebuild/repair summary shape.
-- [ ] Add shared API response helpers/types where useful.
-  - [ ] Standard success response.
-  - [ ] Standard error response.
-  - [ ] Pagination metadata.
-  - [ ] Permission-denied response shape.
-
-### Version 0.32.10.1.3 - Selective Type Checking of High-Value Files
-
-- [ ] Add `// @ts-check` and JSDoc typing to selected framework files first.
-  - [ ] Module registry and manifest validation.
-  - [ ] Search service and search adapter boundary.
-  - [ ] Notification service contracts.
-  - [ ] Tag service contracts.
-  - [ ] Settings/app-shell bootstrap payloads.
-- [ ] Avoid broad UI conversion in this version unless a file is already being touched for contract cleanup.
-- [ ] Avoid converting every route file in one pass.
-
-### Version 0.32.10.1.4 - Codex and Regression Workflow
-
-- [ ] Update `AGENTS.md` or development docs.
-  - [ ] Codex should run `npm run typecheck` when changing framework contracts, module manifests, search, tags, notifications, files, permissions, public API routes, or shared API payloads.
-  - [ ] Codex should not silence type errors with broad `any` unless the roadmap explicitly allows it.
-  - [ ] New framework contracts should include type definitions or JSDoc-backed shapes.
-- [ ] Add focused regression coverage where type contract changes expose existing weak spots.
-- [ ] Document the difference between runtime validation and TypeScript checking.
-  - [ ] TypeScript helps developers catch wrong shapes before runtime.
-  - [ ] API input, database rows, uploaded files, module manifests, and user data still require runtime validation.
-
-### Version 0.32.10.1.5 - Release Closeout
-
-- [ ] Update documentation.
-  - [ ] Add TypeScript migration notes to architecture/module development docs.
-  - [ ] Note that TypeScript is dev-time checking only in this version.
-- [ ] Update changelog.
-- [ ] Run verification.
-  - [ ] `npm run typecheck`
-  - [ ] `npm run check`
-  - [ ] `npm run test:permissions`
-
-## Version 0.32.10.2
+## Version 0.32.10.1
 
 * [ ] Add tag filters to reporting where useful
 
@@ -540,56 +467,6 @@ This version should introduce TypeScript as a framework contract-checking tool w
   - [ ] File paths cannot escape approved storage directories.
   - [ ] Original filenames cannot overwrite server files.
   - [ ] File metadata remains after attachment removal unless the file itself is deleted.
-
-## Version 0.32.14 - Final Tweaks for 0.32.x branch
-
-### General UI Fixes/Tweaks
-
-- UI size standardization
-  - This needs to be worked into a view helper/screen creator update. All of these screens should have the same standard width and easily navigable layout
-  - Many UI pieces are still different sizes. For now, I'm targeting desktop use and I need this to all be standard sizes, with the ability to easily tweak for mobile down the road. The following are the pages that don't conform to the Dashboard/Workspace width:
-    - [ ] Projects -> Tasks
-    - [ ] Projects -> Projects Settings
-    - [ ] Settings -> Workspace -> Workspace Settings
-    - [ ] Settings -> Workspace -> Clients
-    - [ ] Settings -> Workspace -> Tags
-    - [ ] Settings -> Workspace -> User Admin
-    - [ ] Settings -> Workspace -> Modules -> Tasks Settings
-    - [ ] Settings -> Workspace -> Modules -> Time Tracking Settings
-    - [ ] Settings -> Workspace -> API Keys
-    - [ ] Settings -> User Settings
-
-- [ ] If a client filter is selected on Projects in a business workspace, there's no need to have the client name in Parenthesis behind the project name. This goes for all places in business workspaces list {{projectName}} ({{clientName}})
-
-- Reporting -> Time Reports -> "Reporting Scope"
-  - Doesn't properly nest child clients
-  - Doesn't have parent client properly total child client records
-  - Reporting by project is incorrect if there's a parent/child relationship
-    - Children and parents both factor into the total (instead of being one or the other)
-  - Children aren't properly nested under parents in reporting
-
-### Admin/User Settings
-
-- [ ] Need a way for properly authenticated users to see active/running timers
-  - [ ] Appropriate admins should be able to stop/pause timers with explicit warning
-
-- [ ] Add Workspace level date format display settings
-
-- [ ] Add Workspace level time format display settings
-
-- [ ] Add user level setting for timezone display "Local Timezone or UTC"
-
-- [ ] Add Workspace option to set default screen when switching into that workspace, per user.
-  - Current behavior keeps it on Time Tracker, for example, but perhaps a user would always want to default to the dashboard. So, make the starting page selectable and provide a "Stay on Current Workspace's page" option as well (so when a new workspace opens it remains in the time tracker, or tasks, or whatever)
-
-### Notification Fixes/Tweaks
-
-- [ ] Move notifications to a Bell icon, to the right of "Settings" menu
-  - On mobile, this can be in mobile hamburger menu, but will need to apply the notifications number alert to the hamburger menu
-
-- [ ] Create Notification grouping options
-  - [ ] Notifications in Business workspaces should be grouped by Client
-  - [ ] Notifications in Personal/Family workspaces should be grouped by Project
 
 ## Version 0.32.15 - Final 0.32.x Review for modularization for first-party modules and Addition of initial Help Pages for Existing modules
 
@@ -1105,6 +982,7 @@ This version should introduce TypeScript as a framework contract-checking tool w
   - [ ] Filters for client (business workspace only)/project
 
 - [ ] Calendar Events
+  - [ ] Allow addition of calendar events
   - [ ] Display iCal events from shared calendars
 
 ## Version 0.36.0 - Dashboard and Workbench Formalization as Project hub and work center

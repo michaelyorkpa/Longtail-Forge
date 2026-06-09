@@ -17,6 +17,7 @@ const NAV_ITEMS = [
         ],
       },
       { label: "User", href: "user-settings.html" },
+      { label: "Help", href: "help.html" },
     ],
   },
 ];

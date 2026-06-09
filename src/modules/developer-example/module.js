@@ -17,7 +17,7 @@ const developerExampleModule = {
     },
   },
   category: "developer",
-  version: "0.32.8.6",
+  version: "0.32.9.5",
   enabledByDefault: false,
   canDisable: true,
   historicalReadAccess: true,
@@ -192,6 +192,38 @@ const developerExampleModule = {
       requiredModules: ["developer-example"],
     },
   ],
+  help: {
+    sections: [
+      {
+        id: "developer-example.overview",
+        moduleId: "developer-example",
+        title: "Developer Example",
+        description: "Sample help section declaration for module developer documentation.",
+        sortOrder: 900,
+        audience: "developer",
+        tags: ["modules", "example"],
+        requiredModules: ["developer-example"],
+        requiredPermissions: ["developer_example.view"],
+      },
+    ],
+    articles: [
+      {
+        id: "developer-example.getting-started",
+        slug: "developer-example-getting-started",
+        sectionId: "developer-example.overview",
+        moduleId: "developer-example",
+        title: "Developer Example Help",
+        summary: "Shows how a module can declare Help Center articles through its manifest.",
+        body: "This sample article is registered through the developer-example module manifest. It exists to exercise the Help Center contribution contract and is hidden while the module is disabled.",
+        sortOrder: 10,
+        audience: "developer",
+        tags: ["modules", "help"],
+        relatedArticleIds: [],
+        requiredModules: ["developer-example"],
+        requiredPermissions: ["developer_example.view"],
+      },
+    ],
+  },
   taggableTypes: [
     {
       targetType: "developer_example",

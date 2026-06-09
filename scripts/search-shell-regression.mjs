@@ -15,7 +15,10 @@ try {
   const session = await readProtectedSession();
   const shell = await appShellService.bootstrap(session);
   const navigation = await readProjectFile("public/js/navigation.js");
+  const searchPage = await readProjectFile("views/protected/search.html");
+  const searchScript = await readProjectFile("public/js/search.js");
   const styles = await readProjectFile("public/css/longtail-forge.css");
+  const appCore = await readProjectFile("src/core/app.js");
 
   assert.ok(Array.isArray(shell.searchTargets), "app shell bootstrap should return searchTargets");
   assert.ok(shell.searchTargets.some((target) => target.moduleId === "tasks" && target.recordType === "task"));
@@ -47,6 +50,14 @@ try {
   assert.match(styles, /\.global-search-input/);
   assert.match(styles, /\.global-search-target/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.global-search-form/);
+
+  assert.match(searchPage, /data-search-index-maintenance/);
+  assert.match(searchPage, /data-search-rebuild-index/);
+  assert.match(searchScript, /workspaceContext\?\.permissionHints\?\.workspaceSettingsManage/);
+  assert.match(searchScript, /fetch\("\/api\/search-index\/rebuild"/);
+  assert.match(styles, /\.search-index-maintenance/);
+  assert.match(appCore, /scheduleStartupSearchIndexRebuild/);
+  assert.match(appCore, /searchIndexRebuildService\.rebuildApp\(\{[\s\S]*source:\s*"startup"/);
 
   console.log("Search shell regression passed.");
 } finally {

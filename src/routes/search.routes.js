@@ -2,6 +2,7 @@ import { Router } from "express";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { tagsRepository } from "../repositories/tags.repo.js";
+import { helpService, HELP_SEARCH_RECORD_TYPE } from "../services/help.service.js";
 import { permissionsService } from "../services/permissions.service.js";
 import { searchService } from "../services/search.service.js";
 import { asyncRoute } from "../utils/http.js";
@@ -127,6 +128,10 @@ async function executeVisibleSearch({ requestedOffset, searchRequest, session, v
 }
 
 async function canReadSearchResult(session, result, target) {
+  if (result.record_type === HELP_SEARCH_RECORD_TYPE) {
+    return helpService.canReadIndexedArticle(session, result.record_id);
+  }
+
   return permissionsService.can(session, target.requiredReadPermission, {
     workspace_id: session.workspace_id,
     client_id: resolvePermissionClientId(result),
@@ -167,6 +172,7 @@ function parseSearchQuery(query = {}) {
   const projectId = firstString(query.projectId, query.project_id, query.project);
   const status = firstString(query.recordStatus, query.record_status, query.status);
   const visibility = firstString(query.visibility);
+  const source = firstString(query.source, query.sourceLabel, query.source_label);
   const page = parsePositiveInteger(firstString(query.page), "page", errors, { defaultValue: 1, max: 10000 });
   const limit = parsePositiveInteger(firstString(query.limit, query.pageSize, query.page_size), "limit", errors, {
     defaultValue: DEFAULT_LIMIT,
@@ -183,7 +189,7 @@ function parseSearchQuery(query = {}) {
     }
   }
 
-  for (const [field, value] of Object.entries({ clientId, projectId, status, visibility })) {
+  for (const [field, value] of Object.entries({ clientId, projectId, status, visibility, source })) {
     if (value && !isSafeFilterValue(value)) {
       errors.push({
         field,
@@ -202,6 +208,7 @@ function parseSearchQuery(query = {}) {
       projectId,
       tagIds,
       recordStatus: status,
+      source,
       visibility,
     },
     pagination: {
@@ -217,6 +224,7 @@ function parseSearchQuery(query = {}) {
       projectId,
       tagIds,
       recordStatus: status,
+      source,
       visibility,
     },
   };
@@ -368,6 +376,14 @@ function buildResultTarget(result) {
       url: `projects.html?project=${recordId}`,
       actionId: "projects.edit",
       params: { projectId: result.record_id },
+    };
+  }
+
+  if (result.record_type === HELP_SEARCH_RECORD_TYPE) {
+    return {
+      url: `help.html?article=${recordId}`,
+      actionId: "help.open",
+      params: { articleId: result.record_id },
     };
   }
 

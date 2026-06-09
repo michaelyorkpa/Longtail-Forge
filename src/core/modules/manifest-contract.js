@@ -36,6 +36,7 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "workItemSources",
   "taggableTypes",
   "searchableTypes",
+  "help",
   "hooks",
   "frameworkDependencies",
   "moduleDependencies",
@@ -51,6 +52,8 @@ const RESERVED_MANIFEST_FIELDS = new Set([
 ]);
 
 const MODULE_ID_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const HELP_ID_PATTERN = /^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/;
+const HELP_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 const SETTING_FIELD_TYPES = new Set(["boolean", "text", "number", "select", "multi-select", "info"]);
 const NOTIFICATION_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
@@ -120,6 +123,12 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateWorkItemSources(moduleDefinition.workItemSources, moduleDefinition.id, errors);
   validateTaggableTypes(moduleDefinition.taggableTypes, moduleDefinition.id, errors);
   validateSearchableTypes(moduleDefinition.searchableTypes, moduleDefinition.id, errors);
+  validateHelpContribution(moduleDefinition.help, {
+    ownerId: moduleDefinition.id,
+    ownerType: "module",
+    fieldName: "help",
+    errors,
+  });
   validateNotificationEvents(moduleDefinition.notificationEvents, moduleDefinition.id, errors);
   validateNotificationTemplates(moduleDefinition.notificationTemplates, moduleDefinition.id, errors);
   validateNotificationFollowTargets(moduleDefinition.notificationFollowTargets, moduleDefinition.id, errors);
@@ -561,6 +570,142 @@ function validateSearchableTypes(searchableTypes, moduleId, errors) {
   });
 }
 
+function validateHelpContribution(help, options = {}) {
+  const {
+    ownerId = "",
+    ownerType = "module",
+    fieldName = "help",
+    errors = [],
+  } = options;
+
+  if (help === undefined) {
+    return errors;
+  }
+
+  if (!isPlainObject(help)) {
+    errors.push(`${fieldName} must be an object.`);
+    return errors;
+  }
+
+  optionalArrayOfObjects(help.sections, `${fieldName}.sections`, errors, (section, index) => {
+    const prefix = `${fieldName}.sections[${index}]`;
+
+    requireString(section, "id", errors, { prefix, pattern: HELP_ID_PATTERN });
+    validateHelpOwner(section, ownerId, ownerType, errors, prefix);
+    requireString(section, "title", errors, { prefix });
+    optionalString(section, "description", errors, { prefix });
+    optionalNumber(section, "sortOrder", errors, { prefix });
+    optionalString(section, "audience", errors, { prefix });
+    optionalStringArray(section, "tags", errors, { prefix });
+    optionalStringArray(section, "requiredPermissions", errors, { prefix });
+    optionalStringArray(section, "requiredWorkspaceCapabilities", errors, { prefix });
+    optionalStringArray(section, "requiredModules", errors, { prefix });
+    validateTerminology(section.terminology, `${prefix}.terminology`, errors);
+  });
+
+  optionalArrayOfObjects(help.articles, `${fieldName}.articles`, errors, (article, index) => {
+    const prefix = `${fieldName}.articles[${index}]`;
+
+    requireString(article, "id", errors, { prefix, pattern: HELP_ID_PATTERN });
+    validateHelpOwner(article, ownerId, ownerType, errors, prefix);
+    optionalString(article, "slug", errors, { prefix });
+    if (typeof article.slug === "string" && !HELP_SLUG_PATTERN.test(article.slug)) {
+      errors.push(`${prefix}.slug has an invalid format.`);
+    }
+    optionalString(article, "sectionId", errors, { prefix });
+    requireString(article, "title", errors, { prefix });
+    optionalString(article, "summary", errors, { prefix });
+    optionalString(article, "description", errors, { prefix });
+    optionalString(article, "body", errors, { prefix });
+    optionalString(article, "contentPath", errors, { prefix });
+    optionalNumber(article, "sortOrder", errors, { prefix });
+    optionalString(article, "audience", errors, { prefix });
+    optionalStringArray(article, "tags", errors, { prefix });
+    optionalStringArray(article, "relatedArticleIds", errors, { prefix });
+    optionalStringArray(article, "requiredPermissions", errors, { prefix });
+    optionalStringArray(article, "requiredWorkspaceCapabilities", errors, { prefix });
+    optionalStringArray(article, "requiredModules", errors, { prefix });
+    validateTerminology(article.terminology, `${prefix}.terminology`, errors);
+
+    if (!article.summary && !article.description) {
+      errors.push(`${prefix} must include summary or description.`);
+    }
+    if (!article.body && !article.contentPath) {
+      errors.push(`${prefix} must include body or contentPath.`);
+    }
+    if (article.contentPath !== undefined) {
+      validateSafeRelativePath(article.contentPath, `${prefix}.contentPath`, errors);
+    }
+  });
+
+  validateHelpUniqueness(help, fieldName, errors);
+  validateHelpArticleSections(help, fieldName, errors);
+
+  return errors;
+}
+
+function validateHelpOwner(item, ownerId, ownerType, errors, prefix) {
+  optionalString(item, "ownerType", errors, { prefix });
+
+  if (item.ownerType !== undefined && item.ownerType !== ownerType) {
+    errors.push(`${prefix}.ownerType must be ${ownerType}.`);
+  }
+
+  if (ownerType === "module") {
+    validateModuleIdValue(item, "moduleId", ownerId, errors, { prefix });
+    return;
+  }
+
+  optionalString(item, "moduleId", errors, { prefix });
+  if (item.moduleId) {
+    errors.push(`${prefix}.moduleId must not be set for framework-owned help.`);
+  }
+}
+
+function validateHelpUniqueness(help, fieldName, errors) {
+  const sections = Array.isArray(help.sections) ? help.sections : [];
+  const articles = Array.isArray(help.articles) ? help.articles : [];
+
+  assertUniqueHelpValues(
+    `${fieldName}.sections`,
+    sections.map((section) => section.id),
+    errors,
+  );
+  assertUniqueHelpValues(
+    `${fieldName}.articles`,
+    articles.map((article) => article.id),
+    errors,
+  );
+  assertUniqueHelpValues(
+    `${fieldName}.articles slug`,
+    articles.map((article) => article.slug),
+    errors,
+  );
+}
+
+function validateHelpArticleSections(help, fieldName, errors) {
+  const sections = Array.isArray(help.sections) ? help.sections : [];
+  const articles = Array.isArray(help.articles) ? help.articles : [];
+  const sectionIds = new Set(sections.map((section) => section.id));
+
+  articles.forEach((article, index) => {
+    if (article.sectionId && !sectionIds.has(article.sectionId)) {
+      errors.push(`${fieldName}.articles[${index}].sectionId references unknown help section '${article.sectionId}'.`);
+    }
+  });
+}
+
+function assertUniqueHelpValues(label, values, errors) {
+  const seen = new Set();
+
+  for (const value of values.filter(Boolean)) {
+    if (seen.has(value)) {
+      errors.push(`${label} '${value}' is duplicated.`);
+    }
+    seen.add(value);
+  }
+}
+
 function validateTerminology(terminology, prefix, errors) {
   if (terminology === undefined) {
     return;
@@ -702,6 +847,19 @@ function validateRelativeUrl(value, fieldName, errors) {
   }
 }
 
+function validateSafeRelativePath(value, fieldName, errors) {
+  validateRelativeUrl(value, fieldName, errors);
+
+  if (typeof value !== "string") {
+    return;
+  }
+
+  const normalized = value.replaceAll("\\", "/").trim();
+  if (!normalized || normalized.startsWith("/") || normalized.startsWith("//") || normalized.split("/").includes("..")) {
+    errors.push(`${fieldName} must be a safe relative path.`);
+  }
+}
+
 function formatFieldName(fieldName, prefix) {
   return prefix ? `${prefix}.${fieldName}` : fieldName;
 }
@@ -713,6 +871,7 @@ function isPlainObject(value) {
 export {
   ACTIVE_MANIFEST_FIELDS,
   RESERVED_MANIFEST_FIELDS,
+  validateHelpContribution,
   validateModuleManifest,
   validateModuleManifests,
 };

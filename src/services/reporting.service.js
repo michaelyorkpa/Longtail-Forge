@@ -47,7 +47,7 @@ async function readProjectSummary(session, query = {}) {
   const scopeEntries = entries
     .filter((entry) => matchesScope(entry, scope, { includeDescendants }))
     .filter((entry) => selectedTaskIds.length === 0 || selectedTaskIds.includes(entry.taskId));
-  const rows = projects
+  const rows = filterRollupProjects(projects, { includeDescendants })
     .map((project) => summarizeProject(
       settings,
       scope,
@@ -169,7 +169,7 @@ function buildReportingScopes(data, settings, options = {}) {
     return workspaceScope;
   }
 
-  return [...workspaceScope, ...sortByName(attachDescendantClientProjects(clientScopes))];
+  return [...workspaceScope, ...sortScopeTree(attachDescendantClientProjects(decorateScopeDepths(clientScopes)))];
 }
 
 function attachDescendantClientProjects(scopes) {
@@ -198,6 +198,8 @@ function normalizeScope(client) {
     billingPeriod: normalizeOptionalBillingPeriod(client.billing_period),
     billingRounding: normalizeOptionalBillingRounding(client.billing_rounding),
     isWorkspaceScope: Boolean(client.isWorkspaceScope),
+    parentScopeId: String(client.parent_client_id || "").trim(),
+    depth: Number.isFinite(Number(client.depth)) ? Number(client.depth) : 0,
     childScopeIds: Array.isArray(client.childScopeIds) ? client.childScopeIds : [],
     projects: decorateProjectDescendants(Array.isArray(client.projects)
       ? client.projects.map((project) => normalizeProject(project, billable))
@@ -235,12 +237,12 @@ function normalizeTimeEntries(entries) {
 }
 
 function summarizeScopesForRange(settings, scopes, entries, range) {
-  return sortByName(scopes).map((scope) => summarizeScopeForRange(settings, scope, entries, range));
+  return sortScopeTree(scopes).map((scope) => summarizeScopeForRange(settings, scope, entries, range));
 }
 
 function summarizeScopeForRange(settings, scope, entries, range) {
   const scopeEntries = entries.filter((entry) => matchesScope(entry, scope, { includeDescendants: true }));
-  const projectSummaries = scope.projects
+  const projectSummaries = filterRollupProjects(scope.projects, { includeDescendants: true })
     .map((project) => summarizeProject(settings, scope, project, scopeEntries, range, { includeDescendants: true }))
     .filter(Boolean);
   const totals = projectSummaries.reduce((summary, projectSummary) => ({
@@ -425,6 +427,76 @@ function decorateProjectDescendants(projects) {
   }));
 }
 
+function filterRollupProjects(projects, options = {}) {
+  if (!options.includeDescendants) {
+    return projects;
+  }
+
+  const selectedIds = new Set(projects.map((project) => project.id));
+
+  return projects.filter((project) => !hasSelectedProjectAncestor(project, projects, selectedIds));
+}
+
+function hasSelectedProjectAncestor(project, projects, selectedIds) {
+  let parentId = project.parentProjectId;
+  const visited = new Set();
+
+  while (parentId && !visited.has(parentId)) {
+    visited.add(parentId);
+
+    if (selectedIds.has(parentId)) {
+      return true;
+    }
+
+    parentId = projects.find((candidate) => candidate.id === parentId)?.parentProjectId || "";
+  }
+
+  return false;
+}
+
+function decorateScopeDepths(scopes) {
+  return scopes.map((scope) => ({
+    ...scope,
+    depth: getScopeDepth(scope, scopes),
+  }));
+}
+
+function getScopeDepth(scope, scopes, visited = new Set()) {
+  if (!scope?.parentScopeId || visited.has(scope.id)) {
+    return 0;
+  }
+
+  visited.add(scope.id);
+  const parent = scopes.find((item) => item.id === scope.parentScopeId);
+  return parent ? 1 + getScopeDepth(parent, scopes, visited) : 0;
+}
+
+function sortScopeTree(scopes) {
+  return [...scopes].sort((left, right) =>
+    getScopeTreeSortKey(left, scopes).localeCompare(getScopeTreeSortKey(right, scopes), undefined, {
+      sensitivity: "base",
+    }),
+  );
+}
+
+function getScopeTreeSortKey(scope, scopes) {
+  if (scope.isWorkspaceScope) {
+    return "";
+  }
+
+  const names = [];
+  let currentScope = scope;
+  const visited = new Set();
+
+  while (currentScope && !visited.has(currentScope.id)) {
+    visited.add(currentScope.id);
+    names.unshift(currentScope.name || "");
+    currentScope = scopes.find((item) => item.id === currentScope.parentScopeId);
+  }
+
+  return names.join("/");
+}
+
 function normalizeKey(value) {
   return String(value || "")
     .trim()
@@ -555,14 +627,6 @@ function getEffectiveScopeBillingRounding(settings, scope) {
 
 function getEffectiveProjectBillingRounding(settings, scope, project) {
   return project.billingRounding || getEffectiveScopeBillingRounding(settings, scope);
-}
-
-function sortByName(items) {
-  return [...items].sort((firstItem, secondItem) =>
-    String(firstItem.name || "").localeCompare(String(secondItem.name || ""), undefined, {
-      sensitivity: "base",
-    }),
-  );
 }
 
 function emptyProjectSummary(scope, taskFilter = []) {

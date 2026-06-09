@@ -9,6 +9,9 @@ const tagSelect = document.querySelector("[data-search-tag]");
 const statusSelect = document.querySelector("[data-search-status-filter]");
 const clientControl = document.querySelector("[data-search-client-control]");
 const clearButton = document.querySelector("[data-search-clear]");
+const indexMaintenance = document.querySelector("[data-search-index-maintenance]");
+const rebuildIndexButton = document.querySelector("[data-search-rebuild-index]");
+const rebuildStatus = document.querySelector("[data-search-rebuild-status]");
 const statusMessage = document.querySelector("[data-search-status]");
 const searchMeta = document.querySelector("[data-search-meta]");
 const resultsList = document.querySelector("[data-search-results]");
@@ -69,18 +72,63 @@ nextButton?.addEventListener("click", () => {
   loadResults();
 });
 
+rebuildIndexButton?.addEventListener("click", rebuildSearchIndex);
+
 initialize();
 
 async function initialize() {
   state.page = readPageFromUrl();
   applyFiltersToControls();
   await Promise.allSettled([loadSearchTargets(), loadFilterOptions()]);
+  updateIndexMaintenanceVisibility();
   applyFiltersToControls();
 
   if (hasSearchCriteria(state.filters)) {
     await loadResults();
   } else {
     renderPromptState();
+  }
+}
+
+async function rebuildSearchIndex() {
+  if (!rebuildIndexButton) {
+    return;
+  }
+
+  rebuildIndexButton.disabled = true;
+  setRebuildStatus("Rebuilding search index...");
+
+  try {
+    const response = await fetch("/api/search-index/rebuild", {
+      cache: "no-store",
+      method: "POST",
+    });
+    const body = await readJson(response);
+
+    if (!response.ok) {
+      throw new Error(errorMessage(body) || "Search index rebuild failed.");
+    }
+
+    const indexed = Number(body?.counts?.indexed) || 0;
+    const removed = Number(body?.counts?.removed) || 0;
+    const repaired = Number(body?.counts?.repaired) || 0;
+    setRebuildStatus(`Index rebuilt. ${indexed} indexed, ${removed} removed, ${repaired} repaired.`);
+
+    if (hasSearchCriteria(state.filters)) {
+      await loadResults();
+    }
+  } catch (error) {
+    setRebuildStatus(error.message || "Search index rebuild failed.", true);
+  } finally {
+    rebuildIndexButton.disabled = false;
+  }
+}
+
+function updateIndexMaintenanceVisibility() {
+  const canRebuild = window.LongtailForge?.workspaceContext?.permissionHints?.workspaceSettingsManage === true;
+
+  if (indexMaintenance) {
+    indexMaintenance.hidden = !canRebuild;
   }
 }
 
@@ -306,18 +354,18 @@ function populateModuleFilter() {
     return;
   }
 
-  const previousValue = state.filters.module || moduleSelect.value;
+  const previousValue = state.filters.source || moduleSelect.value;
   const modules = [...new Map(state.searchTargets.map((target) => [
-    target.moduleId,
-    moduleLabel(target.moduleId),
+    target.sourceLabel,
+    target.sourceLabel || moduleLabel(target.moduleId),
   ])).entries()]
     .sort((left, right) => left[1].localeCompare(right[1]));
 
   moduleSelect.replaceChildren(
     createOption("", "All sources"),
-    ...modules.map(([moduleId, label]) => createOption(moduleId, label)),
+    ...modules.map(([source, label]) => createOption(source, label)),
   );
-  moduleSelect.value = modules.some(([moduleId]) => moduleId === previousValue) ? previousValue : "";
+  moduleSelect.value = modules.some(([source]) => source === previousValue) ? previousValue : "";
 }
 
 function populateRecordTypeFilter() {
@@ -325,10 +373,10 @@ function populateRecordTypeFilter() {
     return;
   }
 
-  const moduleId = moduleSelect?.value || state.filters.module || "";
+  const source = moduleSelect?.value || state.filters.source || "";
   const previousValue = state.filters.recordType || recordTypeSelect.value;
   const targets = state.searchTargets
-    .filter((target) => !moduleId || target.moduleId === moduleId)
+    .filter((target) => !source || target.sourceLabel === source)
     .sort((left, right) => left.label.localeCompare(right.label));
 
   recordTypeSelect.replaceChildren(
@@ -390,7 +438,7 @@ function applyFiltersToControls() {
     textInput.value = state.filters.text || "";
   }
   if (moduleSelect) {
-    moduleSelect.value = state.filters.module || "";
+    moduleSelect.value = state.filters.source || "";
   }
   populateRecordTypeFilter();
   if (recordTypeSelect) {
@@ -413,7 +461,7 @@ function applyFiltersToControls() {
 function readFiltersFromControls() {
   return {
     text: textInput?.value?.trim() || "",
-    module: moduleSelect?.value || "",
+    source: moduleSelect?.value || "",
     recordType: recordTypeSelect?.value || "",
     clientId: clientSelect?.value || "",
     projectId: projectSelect?.value || "",
@@ -427,7 +475,7 @@ function readFiltersFromUrl() {
 
   return {
     text: params.get("text") || params.get("q") || params.get("query") || "",
-    module: params.get("module") || params.get("moduleId") || "",
+    source: params.get("source") || "",
     recordType: params.get("recordType") || params.get("type") || "",
     clientId: params.get("clientId") || params.get("client") || "",
     projectId: params.get("projectId") || params.get("project") || "",
@@ -458,7 +506,7 @@ function buildUrlParams() {
   const params = new URLSearchParams();
 
   appendParam(params, "text", state.filters.text);
-  appendParam(params, "module", state.filters.module);
+  appendParam(params, "source", state.filters.source);
   appendParam(params, "recordType", state.filters.recordType);
   appendParam(params, "clientId", state.filters.clientId);
   appendParam(params, "projectId", state.filters.projectId);
@@ -484,7 +532,7 @@ function hasSearchCriteria(filters) {
 function emptyFilters() {
   return {
     text: "",
-    module: "",
+    source: "",
     recordType: "",
     clientId: "",
     projectId: "",
@@ -573,6 +621,15 @@ function setStatus(message, isError = false) {
 
   statusMessage.textContent = message;
   statusMessage.classList.toggle("is-error", isError);
+}
+
+function setRebuildStatus(message, isError = false) {
+  if (!rebuildStatus) {
+    return;
+  }
+
+  rebuildStatus.textContent = message;
+  rebuildStatus.classList.toggle("is-error", isError);
 }
 
 async function readJson(response) {

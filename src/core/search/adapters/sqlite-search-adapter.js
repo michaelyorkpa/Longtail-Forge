@@ -585,6 +585,7 @@ function buildSearchWhereClause(request, alias) {
   const projectId = normalizeSearchText(request?.scopes?.projectId);
   const recordStatus = normalizeSearchText(request?.recordStatus);
   const visibility = normalizeSearchText(request?.visibility);
+  const source = normalizeSearchText(request?.source);
   const exactTagIds = Array.isArray(request?.exactTagIds)
     ? request.exactTagIds.map(normalizeSearchText).filter(Boolean)
     : [];
@@ -600,6 +601,9 @@ function buildSearchWhereClause(request, alias) {
   }
   if (visibility) {
     whereParts.push(`${alias}.visibility = ${sqlText(visibility)}`);
+  }
+  if (source) {
+    whereParts.push(`${alias}.source = ${sqlText(source)}`);
   }
 
   for (const tagId of exactTagIds) {

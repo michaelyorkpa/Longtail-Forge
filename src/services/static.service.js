@@ -15,6 +15,7 @@ const frameworkProtectedViews = new Map([
   ["api-keys.html", { id: "api-keys", file: "api-keys.html" }],
   ["audit-log.html", { id: "audit-log", file: "audit-log.html" }],
   ["dashboard.html", { id: "dashboard", file: "dashboard.html" }],
+  ["help.html", { id: "help", file: "help.html" }],
   ["notifications.html", { id: "notifications", file: "notifications.html" }],
   ["reporting.html", { id: "reporting", file: "reporting.html" }],
   ["search.html", { id: "search", file: "search.html" }],

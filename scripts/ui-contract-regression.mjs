@@ -13,6 +13,7 @@ const files = {
   workspaceSettings: readText("public/js/workspace-settings.js"),
   workspaceSettingsView: readText("views/protected/workspace-settings.html"),
   tasksSettingsView: readText("views/protected/tasks-settings.html"),
+  styles: readText("public/css/longtail-forge.css"),
 };
 
 const legacyModuleFlagPattern = /\b(?:timeTrackingEnabled|tasksEnabled|taskTimersEnabled)\b/;
@@ -88,6 +89,27 @@ for (const [label, view] of Object.entries({
   assert.match(view, /js\/shared\/settings-controls\.js\?v=2/, `${label} must load settings-controls with the updated cache key`);
   assert.match(view, /js\/shared\/status\.js\?v=1/, `${label} must load status helper with a cache key`);
 }
+
+assert.match(
+  files.styles,
+  /--page-standard-width:\s*1120px/,
+  "workspace page width must be centralized at the dashboard/workspace standard width",
+);
+assert.match(
+  files.styles,
+  /\.wide-page\s*\{[\s\S]*width:\s*min\(94vw,\s*var\(--page-standard-width\)\)/,
+  "wide protected pages must use the standard workspace width",
+);
+assert.match(
+  files.styles,
+  /\.workspace-settings-page\s*\{[\s\S]*width:\s*min\(94vw,\s*var\(--page-standard-width\)\)/,
+  "Workspace Settings must use the standard workspace width",
+);
+assert.match(
+  files.styles,
+  /\.user-admin-page\s*\{[\s\S]*width:\s*min\(94vw,\s*var\(--page-standard-width\)\)/,
+  "User Admin must use the standard workspace width",
+);
 
 console.log("UI contract regression passed.");
 

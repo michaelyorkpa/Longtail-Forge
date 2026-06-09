@@ -9,9 +9,13 @@ import {
   hasSearchIndexer,
   listSearchIndexerIds,
 } from "../core/search/indexer-registry.js";
+import { registerFrameworkHelpSearchIndexers } from "../core/help/search-indexers.js";
+import { helpService } from "./help.service.js";
 import { AppError } from "../utils/app-error.js";
 
-const SEARCH_SERVICE_VERSION = "0.32.8.6";
+const SEARCH_SERVICE_VERSION = "0.32.9.3";
+
+registerFrameworkHelpSearchIndexers();
 
 const SEARCH_CAPABILITIES = Object.freeze({
   owner: "framework",
@@ -103,11 +107,17 @@ async function repairSearchBackendIndex(scope = {}, options = {}) {
 }
 
 function listSearchableTypes() {
-  return modulesService.listSearchableTypes().map(normalizeSearchableType);
+  return [
+    ...modulesService.listSearchableTypes(),
+    ...helpService.listSearchableTypes(),
+  ].map(normalizeSearchableType);
 }
 
 async function listActiveSearchableTypes(workspaceId) {
-  return (await modulesService.listActiveSearchableTypes(workspaceId)).map(normalizeSearchableType);
+  return [
+    ...(await modulesService.listActiveSearchableTypes(workspaceId)),
+    ...(await helpService.listActiveSearchableTypes(workspaceId)),
+  ].map(normalizeSearchableType);
 }
 
 function validateSearchableTypeDeclaration(declaration, options = {}) {
@@ -233,7 +243,7 @@ function composePermissionSafeSearchFilters({ session, searchableType, filters =
     recordStatus: normalizeNullableString(filters.recordStatus || filters.record_status || filters.status),
     status: normalizeNullableString(filters.recordStatus || filters.record_status || filters.status),
     visibility: filters.visibility || null,
-    source: null,
+    source: normalizeNullableString(filters.source),
     permissionFilterRequired: true,
     moduleMustBeEnabled: true,
     tagFilterSource: "canonical_tag_assignments",
@@ -295,6 +305,7 @@ async function composePermissionSafeSearchRequest({ session, filters = {} } = {}
     exactTagIds: normalizeIdList(filters.tagIds || filters.tag_ids),
     recordStatus: normalizeNullableString(filters.recordStatus || filters.record_status || filters.status),
     visibility: normalizeNullableString(filters.visibility),
+    source: normalizeNullableString(filters.source),
     disabledModulePolicy: "hide_active_search_results",
     permissionPolicy: "require_declared_read_permission_per_target",
     tagFilterSource: "canonical_tag_assignments",

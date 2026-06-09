@@ -9,6 +9,8 @@ let checks = 0;
 const workspaceOne = "search-lifecycle-workspace-1";
 const workspaceTwo = "search-lifecycle-workspace-2";
 const now = "2026-06-08T18:00:00.000Z";
+const frameworkHelpArticleCount = 12;
+const expectedWorkspaceIndexRows = frameworkHelpArticleCount + 4;
 
 await seedWorkspace(workspaceOne, {
   clientId: "search-life-client-1",
@@ -36,16 +38,22 @@ await checkAsync("initial searchable modules populate workspace-scoped index row
   const firstRows = await readWorkspaceSearchRows(workspaceOne);
   const secondRows = await readWorkspaceSearchRows(workspaceTwo);
 
-  assert.equal(firstSummary.counts.scanned, 4);
-  assert.equal(secondSummary.counts.scanned, 4);
-  assert.equal(firstRows.length, 4);
-  assert.equal(secondRows.length, 4);
-  assert.deepEqual(firstRows.map((row) => `${row.module_id}:${row.record_type}`).sort(), [
+  assert.equal(firstSummary.counts.scanned, expectedWorkspaceIndexRows);
+  assert.equal(secondSummary.counts.scanned, expectedWorkspaceIndexRows);
+  assert.equal(firstRows.length, expectedWorkspaceIndexRows);
+  assert.equal(secondRows.length, expectedWorkspaceIndexRows);
+  assert.equal(
+    firstRows.filter((row) => row.module_id === "framework" && row.record_type === "help_article").length,
+    frameworkHelpArticleCount,
+  );
+  for (const expectedType of [
     "client-projects:client",
     "client-projects:project",
     "tasks:task",
     "time-tracking:time_entry",
-  ]);
+  ]) {
+    assert.ok(firstRows.some((row) => `${row.module_id}:${row.record_type}` === expectedType), `${expectedType} should be indexed`);
+  }
 });
 
 await checkAsync("search index rebuild stays idempotent", async () => {
@@ -57,8 +65,8 @@ FROM search_index
 WHERE workspace_id = ${sqlText(workspaceOne)};
 `);
 
-  assert.equal(Number(rows[0].row_count), 4);
-  assert.equal(Number(rows[0].distinct_count), 4);
+  assert.equal(Number(rows[0].row_count), expectedWorkspaceIndexRows);
+  assert.equal(Number(rows[0].distinct_count), expectedWorkspaceIndexRows);
 });
 
 await checkAsync("search results update after record edits are re-indexed", async () => {

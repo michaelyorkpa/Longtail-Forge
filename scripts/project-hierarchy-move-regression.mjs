@@ -30,6 +30,16 @@ assert.match(
   /function sortProjectRows\(projects\)[\s\S]*const projectOrder = getProjectTreeOrder\(left\.client\)/,
   "Filtered project tables must use the same parent-before-child project order",
 );
+assert.match(
+  clientsProjects,
+  /function shouldShowProjectClientLabel\(context,\s*filterValue = ""\)[\s\S]*return selectedFilter === "All";/,
+  "Project list labels must hide parenthesized client names when a specific client filter is selected",
+);
+assert.match(
+  clientsProjects,
+  /shouldShowProjectClientLabel\("bulk",\s*clientFilterValue\)/,
+  "Project bulk labels must also respect the active client filter",
+);
 assert.doesNotMatch(
   clientsProjects,
   /getProjectTreeSortKey/,

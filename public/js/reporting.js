@@ -85,8 +85,10 @@ function renderClientFilter() {
   reportClientSelect.replaceChildren(createOption("", "Select a reporting scope"));
   reportScopeControl.hidden = reportBootstrap.clientFiltersVisible === false;
 
-  reportBootstrap.scopes.forEach((scope) => {
-    const optionLabel = scope.isWorkspaceScope ? workspaceProjectsLabel() : scope.name;
+  sortScopeTree(reportBootstrap.scopes).forEach((scope) => {
+    const optionLabel = scope.isWorkspaceScope
+      ? workspaceProjectsLabel()
+      : `${treeIndent(getScopeDepth(scope, reportBootstrap.scopes))}${scope.name}`;
     reportClientSelect.appendChild(createOption(scope.id, optionLabel));
   });
 
@@ -318,6 +320,46 @@ function sortProjectTree(projects) {
       sensitivity: "base",
     }),
   );
+}
+
+function sortScopeTree(scopes) {
+  return [...scopes].sort((left, right) =>
+    getScopeTreeSortKey(left, scopes).localeCompare(getScopeTreeSortKey(right, scopes), undefined, {
+      sensitivity: "base",
+    }),
+  );
+}
+
+function getScopeTreeSortKey(scope, scopes) {
+  if (scope.isWorkspaceScope) {
+    return "";
+  }
+
+  const names = [];
+  let currentScope = scope;
+  const visited = new Set();
+
+  while (currentScope && !visited.has(currentScope.id)) {
+    visited.add(currentScope.id);
+    names.unshift(currentScope.name || "");
+    currentScope = scopes.find((item) => item.id === currentScope.parentScopeId);
+  }
+
+  return names.join("/");
+}
+
+function getScopeDepth(scope, scopes, visited = new Set()) {
+  if (Number.isFinite(Number(scope?.depth))) {
+    return Number(scope.depth);
+  }
+
+  if (!scope?.parentScopeId || visited.has(scope.id)) {
+    return 0;
+  }
+
+  visited.add(scope.id);
+  const parent = scopes.find((item) => item.id === scope.parentScopeId);
+  return parent ? 1 + getScopeDepth(parent, scopes, visited) : 0;
 }
 
 function getProjectTreeSortKey(project, projects) {

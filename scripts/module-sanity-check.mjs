@@ -165,6 +165,35 @@ check("searchable type declarations are well formed", () => {
   }
 });
 
+check("help declarations are well formed", () => {
+  const { sections, articles } = modulesService.listHelpContributions();
+
+  assertUnique("help section id", sections.map((section) => section.id));
+  assertUnique("help article id", articles.map((article) => article.id));
+  assertUnique("help article slug", articles.map((article) => article.slug));
+
+  const sectionIds = new Set(sections.map((section) => section.id));
+
+  for (const section of sections) {
+    assert.ok(section.id, "help section id is required");
+    assert.ok(section.moduleId, `help section ${section.id} moduleId is required`);
+    assert.equal(section.ownerType || "module", "module", `help section ${section.id} should be module-owned in module manifests`);
+    assert.ok(section.title, `help section ${section.id} title is required`);
+  }
+
+  for (const article of articles) {
+    assert.ok(article.id, "help article id is required");
+    assert.ok(article.moduleId, `help article ${article.id} moduleId is required`);
+    assert.equal(article.ownerType || "module", "module", `help article ${article.id} should be module-owned in module manifests`);
+    assert.ok(article.title, `help article ${article.id} title is required`);
+    assert.ok(article.summary || article.description, `help article ${article.id} summary or description is required`);
+    assert.ok(article.body || article.contentPath, `help article ${article.id} body or contentPath is required`);
+    if (article.sectionId) {
+      assert.ok(sectionIds.has(article.sectionId), `help article ${article.id} references unknown section ${article.sectionId}`);
+    }
+  }
+});
+
 check("module dependencies reference registered modules", () => {
   const moduleIds = new Set(modules.map((moduleDefinition) => moduleDefinition.id));
 

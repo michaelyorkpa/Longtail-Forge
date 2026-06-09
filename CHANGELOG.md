@@ -1,3 +1,64 @@
+## Version 0.32.9.6 - 2026-06-09 01:29 -04:00
+
+- Bumped the app version to `0.32.9.6`.
+- Standardized the listed protected workspace pages on the shared dashboard/workspace content width through centralized CSS variables.
+- Removed redundant `Project Name (Client Name)` labels from Projects table and bulk edit rows when a specific business-client project filter is selected.
+- Fixed reporting scope hierarchy metadata and tree ordering so child clients nest under parent clients in Reporting.
+- Adjusted reporting project rollups and dashboard reporting totals to avoid double-counting selected child projects when a parent project is already selected with descendants included.
+- Added a Search page index rebuild control for workspace-settings managers and scheduled a non-fatal startup search index rebuild to automate historical index catch-up.
+- Expanded focused regressions for page width contracts, reporting hierarchy rollups, project labels, and search index maintenance.
+
+## Version 0.32.9.5 - 2026-06-09 00:59 -04:00
+
+- Bumped the app and first-party module versions to `0.32.9.5`.
+- Closed the 0.32.9 Help Center rollout with end-to-end workflow regression coverage for authenticated Help access, framework and active-module Help discovery, disabled-module hiding, Help-specific search, safe Help search links/snippets, and Settings-menu placement.
+- Updated README and framework/module documentation for the completed Help Center route/API, manifest contribution, baseline framework article, and Help search indexing behavior.
+- Recorded 0.32.9 closeout decisions and kept Knowledge Base authoring, public API Help routes, autocomplete/typeahead, and richer module-authored Help content deferred.
+- Archived older completed roadmap material while keeping 0.32.9 as the most recently completed roadmap section and 0.32.9.6 as the next active work.
+
+## Version 0.32.9.4 - 2026-06-09 00:46 -04:00
+
+- Bumped the app and first-party module versions to `0.32.9.4`.
+- Added baseline framework-owned Help articles for getting started, workspaces, users and permissions, clients and projects, time tracking, tasks, notifications, tags, search, settings, modules, and the Help Center itself.
+- Kept the initial framework Help content short, current-state, task-oriented, and separate from developer docs and roadmap history.
+- Preserved framework owner/source metadata in Help Center article payloads and indexed each framework article as a Help search record.
+- Added `scripts/help-content-regression.mjs` and wired it into `npm run check`.
+- Updated search rebuild/lifecycle regressions for the expanded baseline framework Help article count.
+
+## Version 0.32.9.3 - 2026-06-09 00:26 -04:00
+
+- Bumped the app and first-party module versions to `0.32.9.3`.
+- Added framework-owned Help search indexing with `record_type = help_article` and `source = Help`.
+- Indexed framework Help articles and active module-declared Help articles through the existing search indexer registry and rebuild/repair boundary.
+- Added source filtering to `GET /api/search` and updated the Search page Source filter to submit the search source label.
+- Routed Help search results to `help.html?article=<article-id>` without exposing raw indexed Help body text in browser results.
+- Extended rebuild cleanup so rows for inactive module/type pairs are removed during workspace/module rebuilds.
+- Added `scripts/help-search-regression.mjs` and updated existing search regressions for Help search coverage.
+
+## Version 0.32.9.2 - 2026-06-09 00:03 -04:00
+
+- Bumped the app and first-party module versions to `0.32.9.2`.
+- Added protected framework-owned `help.html` with a two-column Help Center layout, active article navigation, and browser loading/empty/error states.
+- Added protected `/api/help` and `/api/help/articles/:articleIdOrSlug` routes backed by the framework Help service.
+- Added a minimal framework-owned Help Center starter article while keeping the fuller framework article set in the later 0.32.9.4 pass.
+- Added Help to the Settings menu after User so it appears before the existing Log Out action.
+- Added `scripts/help-center-surface-regression.mjs` and wired it into `npm run check`.
+
+## Version 0.32.9.1 - 2026-06-08 17:42 -04:00
+
+- Bumped the app and first-party module versions to `0.32.9.1`.
+- Added the framework-owned Help contribution contract with optional module manifest `help.sections` and `help.articles` declarations.
+- Added validation for stable help IDs/slugs, section/article ownership, article summaries/content sources, safe relative content paths, duplicate IDs/slugs, and section references.
+- Added registry/service helpers for listing all Help declarations and active workspace-visible Help declarations, with disabled-module help hidden from active discovery.
+- Added a developer-example help declaration and wired `scripts/help-contract-regression.mjs` into `npm run check`.
+- Updated module contract and development docs for manifest-declared Help pages.
+
+## Version 0.32.9 Planning - 2026-06-08 17:33 -04:00
+
+- Expanded the 0.32.9 roadmap into Help Center implementation passes covering the manifest contribution contract, framework-owned Help Center UI/API, Help search indexing and filters, initial framework help pages, and release closeout.
+- Recorded the planning decision that Help Center is framework-owned product/module documentation, while modules contribute help pages and user-authored Knowledge Base remains separate future module work.
+- No package version was bumped because this was a roadmap/decision planning update, not a completed 0.32.9 implementation pass.
+
 ## Version 0.32.8.6 - 2026-06-08 17:15 -04:00
 
 - Bumped the app, first-party module, and search service versions to `0.32.8.6`.

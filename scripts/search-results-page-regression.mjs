@@ -29,7 +29,7 @@ assert.match(script, /window\.LongtailForge\?\.tags\?\.loadTags/);
 assert.match(script, /window\.history\.replaceState\(\{\},\s*"",\s*nextUrl\)/);
 assert.match(script, /params\.set\("limit",\s*String\(state\.pageSize\)\)/);
 assert.match(script, /appendParam\(params,\s*"text",\s*state\.filters\.text\)/);
-assert.match(script, /appendParam\(params,\s*"module",\s*state\.filters\.module\)/);
+assert.match(script, /appendParam\(params,\s*"source",\s*state\.filters\.source\)/);
 assert.match(script, /appendParam\(params,\s*"recordType",\s*state\.filters\.recordType\)/);
 assert.match(script, /appendParam\(params,\s*"clientId",\s*state\.filters\.clientId\)/);
 assert.match(script, /appendParam\(params,\s*"projectId",\s*state\.filters\.projectId\)/);

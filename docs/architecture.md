@@ -26,7 +26,7 @@ Modules should provide business/workflow functionality such as tasks, time track
 
 ## Current Architecture Direction
 
-As of version 0.32.8.6, Longtail Forge has an active first-party module architecture with display-only workspace-aware terminology for framework/module-registry surfaces and a framework-owned search service contract with backend adapter capability detection, canonical search metadata storage, active searchable type discovery, backend-neutral permission-safe search request shaping, formal single-record indexing/removal/re-indexing methods, first module-owned indexers for Tasks, Time Entries, Clients, and Projects, service-owned event synchronization for those initial modules, rebuild tooling for workspace/module/local app-wide scopes, adapter-owned SQLite FTS repair, SQLite FTS5/indexed-LIKE search behavior behind the adapter boundary, a protected browser `GET /api/search` route that calls the framework search service and returns permission-shaped browser results, a compact authenticated-shell search entry powered by active searchable type declarations, a framework-owned `search.html` results page that reads URL filters and renders permission-safe results, icon-triggered shell controls for search and notifications, and end-to-end workflow regression coverage for browser search discovery, edits, pagination, permission pruning, and UI states.
+As of version 0.32.9.5, Longtail Forge has an active first-party module architecture with display-only workspace-aware terminology for framework/module-registry surfaces, a framework-owned search service contract with backend adapter capability detection, canonical search metadata storage, active searchable type discovery, backend-neutral permission-safe search request shaping, formal single-record indexing/removal/re-indexing methods, first module-owned indexers for Tasks, Time Entries, Clients, and Projects, framework-owned Help article indexing with `record_type = help_article` and `source = Help`, service-owned event synchronization for initial module records, rebuild tooling for workspace/module/local app-wide scopes, adapter-owned SQLite FTS repair, SQLite FTS5/indexed-LIKE search behavior behind the adapter boundary, a protected browser `GET /api/search` route that calls the framework search service and returns permission-shaped browser results, a compact authenticated-shell search entry powered by active searchable type declarations, a framework-owned `search.html` results page that reads URL filters and renders permission-safe results, icon-triggered shell controls for search and notifications, and a framework-owned Help Center surface/API backed by validated framework and module help declarations plus a baseline framework Help article set.
 
 Current first-party modules include:
 
@@ -35,9 +35,9 @@ Current first-party modules include:
 * Tasks
 * Time Tracking
 
-These modules are registered explicitly in the static module registry. The current manifest contract includes startup validation, registry-driven navigation, settings, protected views, browser assets, permissions, API scopes, audit record types, internal events, event summaries, Workbench cards, timer sources, work item sources, lifecycle hooks, dependency checks, notification declarations, taggable type declarations, and searchable type declarations.
+These modules are registered explicitly in the static module registry. The current manifest contract includes startup validation, registry-driven navigation, settings, protected views, browser assets, permissions, API scopes, audit record types, internal events, event summaries, Workbench cards, timer sources, work item sources, lifecycle hooks, dependency checks, notification declarations, taggable type declarations, searchable type declarations, and Help Center contribution declarations.
 
-The next architecture step is not automatic plugin discovery. The next step is to continue building the framework-owned services declared in the roadmap, moving from the search contract, adapter capability layer, canonical `search_index` metadata table, active searchable type contract, single-record indexing writes, initial module indexers, service-owned event synchronization, rebuild tooling, and SQLite FTS/fallback/repair behavior toward search UI while keeping first-party modules on the same manifest rails future modules will use.
+The next architecture step is not automatic plugin discovery. The next step is to continue building the framework-owned services and module surfaces declared in the roadmap while keeping first-party modules on the same manifest rails future modules will use.
 
 Longtail Forge should prefer:
 
@@ -442,6 +442,7 @@ A module manifest may support:
 
   taggableTypes,
   searchableTypes,
+  help,
   notificationEvents,
   notificationTemplates,
   notificationFollowTargets,

@@ -31,8 +31,77 @@ async function rebuildWorkspace(options = {}) {
     }));
   }
 
+  mergeSummary(summary, await removeInactiveSearchRows({
+    activeSearchableTypes: searchableTypes,
+    dryRun,
+    moduleId,
+    workspaceId,
+  }));
+
   if (options.audit !== false && options.session) {
     await recordRebuildAudit(options.session, summary, options.source || "admin-api");
+  }
+
+  return summary;
+}
+
+async function removeInactiveSearchRows({ activeSearchableTypes, dryRun, moduleId, workspaceId }) {
+  const summary = createSummary({
+    scope: "inactive_record_types",
+    workspaceId,
+    moduleId,
+    dryRun,
+  });
+  const targetSummary = {
+    moduleId: moduleId || "",
+    recordType: "inactive_search_rows",
+    scanned: 0,
+    indexed: 0,
+    skipped: 0,
+    removed: 0,
+    failed: 0,
+    repaired: 0,
+    errors: [],
+  };
+  const activeKeys = new Set(activeSearchableTypes.map((type) => `${type.moduleId}:${type.recordType}`));
+  const rows = await querySql(`
+SELECT workspace_id, module_id, record_type, record_id
+FROM search_index
+WHERE workspace_id = ${sqlText(workspaceId)}
+${moduleId ? `  AND module_id = ${sqlText(moduleId)}` : ""}
+ORDER BY module_id, record_type, record_id;
+`);
+  const inactiveRows = rows.filter((row) => !activeKeys.has(`${row.module_id}:${row.record_type}`));
+
+  targetSummary.scanned = inactiveRows.length;
+  summary.counts.scanned = inactiveRows.length;
+
+  for (const row of inactiveRows) {
+    if (dryRun) {
+      targetSummary.skipped += 1;
+      summary.counts.skipped += 1;
+      continue;
+    }
+
+    const removed = await searchService.removeSearchDocument({
+      workspaceId: row.workspace_id,
+      moduleId: row.module_id,
+      recordType: row.record_type,
+      recordId: row.record_id,
+    });
+
+    if (removed.ok) {
+      targetSummary.removed += removed.removedCount;
+      summary.counts.removed += removed.removedCount;
+    } else {
+      targetSummary.failed += 1;
+      summary.counts.failed += 1;
+      targetSummary.errors.push(...removed.errors);
+    }
+  }
+
+  if (inactiveRows.length > 0) {
+    summary.targets.push(targetSummary);
   }
 
   return summary;
