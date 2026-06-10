@@ -15,6 +15,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
+- Need to have a way to limit file uploads, per workspace and per user
+  - This would be quantity/size limits
+  - This would be file types
+
 - Notifications aren't being sent to the workspace admin for new tasks, completed tasks, etc.
   - Is this intended behavior? I can see these kinds of notifications becoming overwhelming unless specifically requested.
 
@@ -54,14 +58,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ### Notification Fixes/Tweaks
 
-- [ ] Create Notification grouping options
-  - [ ] Notifications in Business workspaces should be grouped by Client
-  - [ ] Notifications in Personal/Family workspaces should be grouped by Project
-
-- Build Activity feed on top of notification hooks?
-  - No, build the activity feed from event hooks
-
 - Should there be a client level timezone setting for displaying times in a client's timezone when working on their projects? 
+  - This will come with locale settings in the Internationalization updates
 
 - The workbench should be your daily workspace. The dashboard is where you go to focus/refocus.
   - Workbench should have a focus mode selector: 
@@ -135,14 +133,11 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
   - [ ] Row two is the rest of the meta data
     - [ ] Truncate Scope/Assignees harder on mobile
   - [ ] Row three is the buttons, right aligned
-
-- Tasks should expose "completed" date and "Time to completion"
+    - The icon buttons are great, except for the "Follow Notifications" button, this should be a bell
 
 ## UI/Workspace tweaks for better generalized use
 
 - Timer Concurrency
-
-- Secure Notes
 
 - Expand tagging infrastructure to: 
   - normalize capitalization (on input)
@@ -150,6 +145,18 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
   - 
 
 # Medium Term
+
+## Project Updates
+
+- [ ] Add project types
+  - Short Term/Defined End
+  - Phase (Larger/Longer)
+  - On-Going (Social Media Management/On-going Support)
+
+- [ ] Add project completion
+  - Only for short and medium term projects
+  - [ ] Status bar / Percentage completed for projects
+    - [ ] Totals from tasks within 
 
 ## Version 0.32.10.1 - TypeScript Contract Checking Foundation
 

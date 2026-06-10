@@ -107,8 +107,6 @@
     const row = document.createElement("fieldset");
     const legend = document.createElement("legend");
     const description = document.createElement("p");
-    const userToggle = document.createElement("label");
-    const userInput = document.createElement("input");
     const workspaceDefaultDisabled = preference.workspaceEnabled === false;
 
     row.className = "notification-preference-row";
@@ -118,7 +116,68 @@
     description.textContent = preference.description || "";
     description.className = "muted-text";
 
+    row.append(legend, description, createPreferenceMatrix(preference, {
+      includeWorkspaceDefaults: options.includeWorkspaceDefaults && options.canManageWorkspaceDefaults,
+      workspaceDefaultDisabled,
+    }));
+
+    return row;
+  }
+
+  function createPreferenceMatrix(preference, options = {}) {
+    const matrix = document.createElement("div");
+    const workspaceDefaultDisabled = options.workspaceDefaultDisabled === true;
+
+    matrix.className = "notification-preference-matrix";
+    matrix.append(
+      matrixHeader(""),
+      matrixHeader("Enable?"),
+      matrixHeader("Priority"),
+      createUserPreferenceLabelCell(workspaceDefaultDisabled),
+      createUserPreferenceEnableCell(preference, workspaceDefaultDisabled),
+      createEmptyPriorityCell(),
+    );
+
+    if (options.includeWorkspaceDefaults) {
+      matrix.append(
+        createWorkspaceDefaultLabelCell(),
+        createWorkspaceDefaultEnableCell(preference),
+        createWorkspaceDefaultPriorityCell(preference),
+      );
+    }
+
+    return matrix;
+  }
+
+  function matrixHeader(text) {
+    const header = document.createElement("div");
+
+    header.className = "notification-preference-matrix-header";
+    header.textContent = text;
+    return header;
+  }
+
+  function createUserPreferenceLabelCell(workspaceDefaultDisabled) {
+    const cell = document.createElement("div");
+    const title = document.createElement("strong");
+    const helper = document.createElement("span");
+
+    cell.className = "notification-preference-label-cell";
+    title.textContent = "My preference";
+    helper.textContent = workspaceDefaultDisabled
+      ? "Workspace default is off."
+      : "Personal delivery.";
+    cell.append(title, helper);
+    return cell;
+  }
+
+  function createUserPreferenceEnableCell(preference, workspaceDefaultDisabled) {
+    const cell = document.createElement("div");
+    const userInput = document.createElement("input");
+
+    cell.className = "notification-preference-enable-cell";
     userInput.type = "checkbox";
+    userInput.setAttribute("aria-label", "Enable my preference");
     userInput.checked = preference.userEnabled !== false && !workspaceDefaultDisabled;
     userInput.disabled = workspaceDefaultDisabled;
     userInput.dataset.preferenceUserEnabled = "";
@@ -126,48 +185,56 @@
     if (workspaceDefaultDisabled) {
       userInput.dataset.preferenceDisabledByWorkspaceDefault = "true";
     }
-    userToggle.append(userInput, document.createTextNode(" Enabled"));
-
-    row.append(legend, description, userToggle);
-
-    if (workspaceDefaultDisabled) {
-      const workspaceNotice = document.createElement("p");
-
-      workspaceNotice.className = "settings-help";
-      workspaceNotice.textContent = "Disabled by workspace default.";
-      row.appendChild(workspaceNotice);
-    }
-
-    if (options.includeWorkspaceDefaults && options.canManageWorkspaceDefaults) {
-      row.appendChild(createWorkspaceDefaultControls(preference));
-    }
-
-    return row;
+    cell.appendChild(userInput);
+    return cell;
   }
 
-  function createWorkspaceDefaultControls(preference) {
-    const controls = document.createElement("div");
-    const workspaceToggle = document.createElement("label");
+  function createEmptyPriorityCell() {
+    const cell = document.createElement("div");
+
+    cell.className = "notification-preference-priority-cell is-empty";
+    cell.textContent = "-";
+    return cell;
+  }
+
+  function createWorkspaceDefaultLabelCell() {
+    const cell = document.createElement("div");
+    const title = document.createElement("strong");
+    const helper = document.createElement("span");
+
+    cell.className = "notification-preference-label-cell";
+    title.textContent = "Workspace default";
+    helper.textContent = "Everyone in this workspace.";
+    cell.append(title, helper);
+    return cell;
+  }
+
+  function createWorkspaceDefaultEnableCell(preference) {
+    const cell = document.createElement("div");
     const workspaceInput = document.createElement("input");
-    const priorityLabel = document.createElement("label");
-    const prioritySelect = document.createElement("select");
 
-    controls.className = "notification-workspace-default-controls";
-
+    cell.className = "notification-preference-enable-cell";
     workspaceInput.type = "checkbox";
+    workspaceInput.setAttribute("aria-label", "Enable workspace default");
     workspaceInput.checked = preference.workspaceEnabled !== false;
     workspaceInput.dataset.preferenceWorkspaceEnabled = "";
-    workspaceToggle.append(workspaceInput, document.createTextNode(" Workspace default"));
+    cell.appendChild(workspaceInput);
+    return cell;
+  }
 
+  function createWorkspaceDefaultPriorityCell(preference) {
+    const cell = document.createElement("div");
+    const prioritySelect = document.createElement("select");
+
+    cell.className = "notification-preference-priority-cell";
     prioritySelect.dataset.preferenceWorkspacePriority = "";
+    prioritySelect.setAttribute("aria-label", "Workspace default priority");
     ["low", "normal", "high", "urgent"].forEach((priority) => {
       prioritySelect.append(optionElement(priority, priority));
     });
     prioritySelect.value = preference.workspacePriority || preference.defaultPriority || "normal";
-    priorityLabel.append(document.createTextNode("Priority"), prioritySelect);
-
-    controls.append(workspaceToggle, priorityLabel);
-    return controls;
+    cell.appendChild(prioritySelect);
+    return cell;
   }
 
   function groupEventsByModule(events) {

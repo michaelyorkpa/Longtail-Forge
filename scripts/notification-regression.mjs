@@ -313,6 +313,7 @@ async function runNotificationUiContractTests() {
   check("notifications page defaults to the active filter", () => {
     assert.match(notificationsPage, /data-notification-filter="active" aria-pressed="true">Active/);
     assert.match(notificationsPage, /\/js\/notifications\.js\?v=6/);
+    assert.match(notificationsPage, /\/js\/shared\/notification-preferences\.js\?v=3/);
     assert.match(notificationsScript, /filter: "active"/);
     assert.match(notificationsScript, /params\.set\("status", state\.filter\)/);
   });
@@ -362,14 +363,23 @@ async function runNotificationUiContractTests() {
     assert.match(notificationPreferences, /function renderPreferenceGroups\(container, events, options = \{\}\)/);
     assert.match(notificationPreferences, /function groupEventsByModule\(events\)/);
     assert.match(notificationPreferences, /notification-preference-group/);
+    assert.match(notificationPreferences, /notification-preference-matrix/);
+    assert.match(notificationPreferences, /My preference/);
+    assert.match(notificationPreferences, /Enable\?/);
+    assert.match(notificationPreferences, /Priority/);
+    assert.match(notificationPreferences, /Workspace default/);
+    assert.match(notificationPreferences, /Everyone in this workspace\./);
     assert.match(notificationsPage, /\/js\/shared\/notification-preferences\.js/);
     assert.match(notificationsScript, /preferences\.renderPreferenceGroups/);
+    assert.match(css, /\.notification-preference-matrix \{/);
+    assert.match(css, /\.notification-preference-enable-cell,/);
+    assert.match(css, /\.notification-preference-priority-cell \{/);
   });
 
   check("user settings exposes the same user notification preferences source", () => {
     assert.match(userSettingsPage, /data-user-notification-preferences-form/);
     assert.match(userSettingsPage, /data-user-notification-preference-list/);
-    assert.match(userSettingsPage, /js\/shared\/notification-preferences\.js/);
+    assert.match(userSettingsPage, /js\/shared\/notification-preferences\.js\?v=3/);
     assert.match(userSettingsScript, /notificationPreferences\.loadPreferences/);
     assert.match(userSettingsScript, /notificationPreferences\.saveUserPreferences/);
     assert.match(userSettingsScript, /includeWorkspaceDefaults: false/);
@@ -377,7 +387,7 @@ async function runNotificationUiContractTests() {
 
   check("workspace-disabled notification events cannot be enabled in user preference controls", () => {
     assert.match(notificationPreferences, /userInput\.disabled = workspaceDefaultDisabled/);
-    assert.match(notificationPreferences, /Disabled by workspace default\./);
+    assert.match(notificationPreferences, /Workspace default is off\./);
   });
 
   check("task notification follow UI uses shared subscription helper", () => {
