@@ -44,6 +44,7 @@ const NOTE_STATUS_VALUES = new Set(Object.values(NOTE_STATUSES));
 const NOTE_VISIBILITY_VALUES = new Set(Object.values(NOTE_VISIBILITIES));
 const NOTE_SECURITY_MODE_VALUES = new Set(Object.values(NOTE_SECURITY_MODES));
 const NOTE_PERMISSION_VALUES = Object.values(NOTE_PERMISSIONS);
+const COLLECTION_SOURCE_VALUES = new Set(["manual", "imported"]);
 
 async function list(session, query = {}) {
   const filters = normalizeListFilters(query);
@@ -62,10 +63,10 @@ async function create(payload, session) {
   await assertNotesWriteEnabled(session);
   const normalized = await normalizeNotePayload(payload, session);
   await assertLinkedContextAccess(session, normalized);
+  await assertNoteCollectionAccess(session, normalized);
   await assertCanAccess(session, normalized, "create");
 
   const note = await notesRepository.create(session.workspace_id, normalized);
-  await maybeCreateRevision(session, null, note, "Initial note created.");
   await createLinksFromPayload(session, note.note_id, payload);
   await saveTargetTags(session, note.note_id, payload);
   const noteWithLinks = await attachNoteIntegrations(session, note);
@@ -85,6 +86,7 @@ async function update(noteId, payload, session) {
   await assertCanAccess(session, previousNote, "update");
   const nextNote = await normalizeNotePayload(payload, session, previousNote);
   await assertLinkedContextAccess(session, nextNote);
+  await assertNoteCollectionAccess(session, nextNote);
   await assertCanAccess(session, nextNote, "update");
 
   const note = await notesRepository.update(session.workspace_id, nextNote);
@@ -110,6 +112,7 @@ async function changeLibrary(noteId, payload, session) {
     ...previousNote,
     library_bucket: nextBucket,
     library_bucket_source: NOTE_LIBRARY_BUCKET_SOURCES.MANUAL,
+    note_collection_id: previousNote.library_bucket === nextBucket ? previousNote.note_collection_id : null,
   }, session);
 }
 
@@ -127,7 +130,6 @@ async function archive(noteId, session) {
     updated_by_user_id: session.user_id,
   });
 
-  await maybeCreateRevision(session, previousNote, note, "Note archived.");
   await recordNoteAudit(session, "note_archived", "archive", previousNote, note);
   await emitNoteEvent("note.archived", session, previousNote, note);
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.archived");
@@ -148,7 +150,6 @@ async function restore(noteId, session) {
     updated_by_user_id: session.user_id,
   });
 
-  await maybeCreateRevision(session, previousNote, note, "Note restored.");
   await recordNoteAudit(session, "note_restored", "restore", previousNote, note);
   await emitNoteEvent("note.restored", session, previousNote, note);
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.restored");
@@ -168,7 +169,6 @@ async function softDelete(noteId, session) {
     updated_by_user_id: session.user_id,
   });
 
-  await maybeCreateRevision(session, previousNote, note, "Note deleted.");
   await recordNoteAudit(session, "note_deleted", "delete", previousNote, note);
   await emitNoteEvent("note.deleted", session, previousNote, note);
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.deleted");
@@ -179,7 +179,8 @@ async function listRevisions(noteId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "view_history");
 
-  return { revisions: await notesRepository.listRevisions(session.workspace_id, noteId) };
+  const revisions = await notesRepository.listRevisions(session.workspace_id, noteId);
+  return { revisions: revisions.filter((revision, index) => shouldShowRevisionSnapshot(revision, revisions, index, note)) };
 }
 
 async function readRevision(noteId, revisionId, session) {
@@ -233,6 +234,222 @@ async function listLinks(noteId, session) {
   await assertCanAccess(session, note, "read");
 
   return { links: await notesRepository.listLinks(session.workspace_id, noteId) };
+}
+
+async function listCollections(session, query = {}) {
+  await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.VIEW);
+  const filters = normalizeCollectionListFilters(query);
+  const collections = await notesRepository.listCollections(session.workspace_id, filters);
+  const notes = await list(session, {
+    includeDeleted: false,
+    libraryBucket: filters.libraryBucket,
+    status: filters.includeArchived ? "" : NOTE_STATUSES.ACTIVE,
+  });
+  const accessibleCountByCollectionId = new Map();
+  let uncategorizedCount = 0;
+
+  for (const note of notes.notes) {
+    if (note.note_collection_id) {
+      accessibleCountByCollectionId.set(
+        note.note_collection_id,
+        (accessibleCountByCollectionId.get(note.note_collection_id) || 0) + 1,
+      );
+    } else {
+      uncategorizedCount += 1;
+    }
+  }
+  const rolledUpCountByCollectionId = rollupCollectionCounts(collections, accessibleCountByCollectionId);
+
+  return {
+    collections: collections.map((collection) => ({
+      ...collection,
+      accessibleNoteCount: rolledUpCountByCollectionId.get(collection.note_library_collection_id) || 0,
+      directAccessibleNoteCount: accessibleCountByCollectionId.get(collection.note_library_collection_id) || 0,
+    })),
+    tree: buildCollectionTree(collections, rolledUpCountByCollectionId, accessibleCountByCollectionId),
+    uncategorized: {
+      count: uncategorizedCount,
+      libraryBucket: filters.libraryBucket || "",
+    },
+  };
+}
+
+async function createCollection(payload, session) {
+  await assertCollectionsWriteEnabled(session);
+  const collection = await normalizeCollectionPayload(payload, session);
+  await assertCollectionSiblingAvailable(session.workspace_id, collection);
+  const created = await notesRepository.createCollection(session.workspace_id, collection);
+
+  await recordNoteAudit(session, "note_collection_created", "create", null, created, "note_library");
+  return { collection: created };
+}
+
+async function updateCollection(collectionId, payload, session) {
+  await assertCollectionsWriteEnabled(session);
+  const previous = await readCollectionOrThrow(session, collectionId);
+  const next = await normalizeCollectionPayload(payload, session, previous);
+  await assertCollectionSiblingAvailable(session.workspace_id, next, previous.note_library_collection_id);
+  const updated = await notesRepository.updateCollection(session.workspace_id, next);
+  await updateCollectionDescendantPaths(session, updated);
+  await syncCollectionNotesSearchIndex(session, [updated.note_library_collection_id], "note.collection.updated");
+
+  await recordNoteAudit(session, "note_collection_updated", "update", previous, updated, "note_library");
+  return { collection: await notesRepository.readCollectionById(session.workspace_id, updated.note_library_collection_id) };
+}
+
+async function moveCollection(collectionId, payload, session) {
+  return updateCollection(collectionId, {
+    parentCollectionId: payload.parentCollectionId ?? payload.parent_collection_id ?? null,
+    title: payload.title,
+    name: payload.name,
+    description: payload.description,
+    sortOrder: payload.sortOrder ?? payload.sort_order,
+  }, session);
+}
+
+async function archiveCollection(collectionId, session) {
+  await assertCollectionsWriteEnabled(session);
+  const collection = await readCollectionOrThrow(session, collectionId);
+  const descendants = collectionDescendants(collection, await notesRepository.listCollections(session.workspace_id, {
+    includeArchived: true,
+    includeDeleted: true,
+    libraryBucket: collection.library_bucket,
+  }));
+  const archivedAt = new Date().toISOString();
+  const archived = [];
+
+  for (const item of [collection, ...descendants].filter((candidate) => candidate.status !== "deleted")) {
+    archived.push(await notesRepository.updateCollection(session.workspace_id, {
+      ...item,
+      status: "archived",
+      archived_at: archivedAt,
+      deleted_at: null,
+      updated_at: archivedAt,
+      updated_by_user_id: session.user_id,
+    }));
+  }
+
+  await syncCollectionNotesSearchIndex(session, archived.map((item) => item.note_library_collection_id), "note.collection.archived");
+  await recordNoteAudit(session, "note_collection_archived", "archive", collection, archived[0], "note_library");
+  return { collection: archived[0], archivedCount: archived.length };
+}
+
+async function restoreCollection(collectionId, session) {
+  await assertCollectionsWriteEnabled(session);
+  const collection = await readCollectionOrThrow(session, collectionId, { includeArchived: true, includeDeleted: true });
+  if (collection.status === "deleted") {
+    throw new AppError("Deleted collections cannot be restored in this release.", 400);
+  }
+  const parent = collection.parent_collection_id
+    ? await readCollectionOrThrow(session, collection.parent_collection_id)
+    : null;
+  const next = {
+    ...collection,
+    parent_collection_id: parent?.note_library_collection_id || null,
+    path_cache: collectionPath(collection, parent),
+    depth: parent ? Number(parent.depth || 0) + 1 : 0,
+    status: "active",
+    archived_at: null,
+    deleted_at: null,
+    updated_at: new Date().toISOString(),
+    updated_by_user_id: session.user_id,
+  };
+
+  await assertCollectionSiblingAvailable(session.workspace_id, next, collection.note_library_collection_id);
+  const restored = await notesRepository.updateCollection(session.workspace_id, next);
+  await updateCollectionDescendantPaths(session, restored);
+  await syncCollectionNotesSearchIndex(session, [restored.note_library_collection_id], "note.collection.restored");
+  await recordNoteAudit(session, "note_collection_restored", "restore", collection, restored, "note_library");
+  return { collection: restored };
+}
+
+async function deleteEmptyCollection(collectionId, session) {
+  await assertCollectionsWriteEnabled(session);
+  const collection = await readCollectionOrThrow(session, collectionId, { includeArchived: true, includeDeleted: true });
+  const noteCount = await notesRepository.countNotesInCollection(session.workspace_id, collectionId, { includeDeleted: false });
+  if (noteCount > 0) {
+    throw new AppError("Collection cannot be deleted while it still contains notes.", 400);
+  }
+
+  const childCount = await notesRepository.countChildCollections(session.workspace_id, collectionId, {
+    includeArchived: false,
+    includeDeleted: false,
+  });
+  if (childCount > 0) {
+    throw new AppError("Collection cannot be deleted while it still contains active child collections.", 400);
+  }
+
+  const now = new Date().toISOString();
+  const deleted = await notesRepository.updateCollection(session.workspace_id, {
+    ...collection,
+    status: "deleted",
+    deleted_at: now,
+    updated_at: now,
+    updated_by_user_id: session.user_id,
+  });
+  await recordNoteAudit(session, "note_collection_deleted", "delete", collection, deleted, "note_library");
+  return { collection: deleted, deleted: true };
+}
+
+async function assignNoteCollection(noteId, payload, session) {
+  const previousNote = await readNoteOrThrow(session, noteId);
+  await assertCanAccess(session, previousNote, "update");
+  const noteCollectionId = normalizeOptionalText(payload.noteCollectionId ?? payload.note_collection_id ?? payload.collectionId ?? payload.collection_id);
+
+  return update(noteId, {
+    ...previousNote,
+    note_collection_id: noteCollectionId || null,
+  }, session);
+}
+
+async function ensureCollectionsForImportPath(session, payload = {}) {
+  await assertCollectionsWriteEnabled(session);
+  const libraryBucket = normalizeEnum(
+    payload.libraryBucket || payload.library_bucket || NOTE_LIBRARY_BUCKETS.REFERENCE,
+    LIBRARY_BUCKET_VALUES,
+    "Library bucket",
+  );
+  const parts = normalizeImportCollectionPathParts(payload);
+  let parent = null;
+  const ensured = [];
+
+  for (const title of parts) {
+    const existing = (await notesRepository.listCollections(session.workspace_id, {
+      includeArchived: true,
+      libraryBucket,
+    })).find((collection) => (
+      (collection.parent_collection_id || "") === (parent?.note_library_collection_id || "") &&
+      collection.slug === slugifyNoteTitle(title) &&
+      collection.status !== "deleted"
+    ));
+
+    if (existing) {
+      parent = existing;
+      ensured.push(existing);
+      continue;
+    }
+
+    const created = await createCollection({
+      collectionSource: "imported",
+      libraryBucket,
+      parentCollectionId: parent?.note_library_collection_id || null,
+      title,
+      metadata: {
+        import_source: payload.importSource || payload.import_source || "onenote",
+        import_source_path: payload.importSourcePath || payload.import_source_path || parts.join(" / "),
+        original_notebook: payload.originalNotebook || payload.original_notebook || "",
+        original_section_group: payload.originalSectionGroup || payload.original_section_group || "",
+        original_section: payload.originalSection || payload.original_section || "",
+      },
+    }, session);
+    parent = created.collection;
+    ensured.push(parent);
+  }
+
+  return {
+    collection: parent,
+    collections: ensured,
+  };
 }
 
 async function readForAttachmentAccess(session, noteId, operation = "read") {
@@ -355,6 +572,7 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
     task_id: normalizeOptionalText(payload.taskId ?? payload.task_id ?? previousNote?.task_id),
     ticket_id: normalizeOptionalText(payload.ticketId ?? payload.ticket_id ?? previousNote?.ticket_id),
     linked_user_id: normalizeOptionalText(payload.linkedUserId ?? payload.linked_user_id ?? previousNote?.linked_user_id),
+    note_collection_id: normalizeOptionalText(payload.noteCollectionId ?? payload.note_collection_id ?? payload.collectionId ?? payload.collection_id ?? previousNote?.note_collection_id) || null,
     owner_user_id: normalizeOptionalText(payload.ownerUserId ?? payload.owner_user_id ?? previousNote?.owner_user_id) || session.user_id,
     created_by_user_id: previousNote?.created_by_user_id || session.user_id,
     updated_by_user_id: session.user_id,
@@ -596,18 +814,18 @@ function normalizeLinksInput(links) {
 }
 
 async function maybeCreateRevision(session, previousNote, nextNote, changeSummary) {
-  if (previousNote && !shouldCreateRevision(previousNote, nextNote)) {
+  if (!previousNote || !shouldCreateRevision(previousNote, nextNote)) {
     return null;
   }
 
   const revisionNumber = await notesRepository.nextRevisionNumber(session.workspace_id, nextNote.note_id);
   const revision = await notesRepository.createRevision(session.workspace_id, {
-    ...createRevisionSnapshot(nextNote, {
+    ...createRevisionSnapshot(previousNote, {
       revisionNumber,
       changedByUserId: session.user_id,
       changeSummary,
     }),
-    ...copyImportMetadata(nextNote),
+    ...copyImportMetadata(previousNote),
   });
 
   await emitNoteEvent("note.revision_created", session, previousNote, nextNote, {
@@ -616,6 +834,32 @@ async function maybeCreateRevision(session, previousNote, nextNote, changeSummar
   });
 
   return revision;
+}
+
+function shouldShowRevisionSnapshot(revision, revisions, index, note) {
+  if (revisions.length <= 1) {
+    return true;
+  }
+
+  const isLatestStoredRevision = index === 0;
+  if (!isLatestStoredRevision || !["Note updated.", "Note restored.", "Note archived.", "Note deleted."].includes(revision.change_summary)) {
+    return true;
+  }
+
+  return !revisionMatchesCurrentNote(revision, note);
+}
+
+function revisionMatchesCurrentNote(revision, note) {
+  return [
+    "title",
+    "body_markdown",
+    "body_excerpt",
+    "note_type",
+    "library_bucket",
+    "status",
+    "visibility",
+    "security_mode",
+  ].every((fieldName) => String(revision[fieldName] ?? "") === String(note[fieldName] ?? ""));
 }
 
 async function attachNoteIntegrations(session, note) {
@@ -775,6 +1019,256 @@ function copyImportMetadata(note = {}) {
   return Object.fromEntries(NOTE_IMPORT_METADATA_FIELDS.map((fieldName) => [fieldName, note[fieldName] || null]));
 }
 
+async function assertCollectionsWriteEnabled(session) {
+  await assertNotesWriteEnabled(session);
+  await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.MANAGE_LIBRARY, {
+    workspace_id: session.workspace_id,
+    operation: "manage_library",
+  });
+}
+
+async function readCollectionOrThrow(session, collectionId, options = {}) {
+  const normalizedId = normalizeRequiredText(collectionId, "Collection ID");
+  const collection = await notesRepository.readCollectionById(session.workspace_id, normalizedId);
+
+  if (!collection || (!options.includeDeleted && collection.status === "deleted")) {
+    throw new AppError("Note collection not found.", 404);
+  }
+
+  if (!options.includeArchived && collection.status === "archived") {
+    throw new AppError("Note collection is archived.", 400);
+  }
+
+  return collection;
+}
+
+async function normalizeCollectionPayload(payload = {}, session, previous = null) {
+  const now = new Date().toISOString();
+  const title = normalizeRequiredText(payload.title ?? payload.name ?? previous?.title, "Collection name");
+  const libraryBucket = normalizeEnum(
+    payload.libraryBucket || payload.library_bucket || previous?.library_bucket || NOTE_LIBRARY_BUCKETS.REFERENCE,
+    LIBRARY_BUCKET_VALUES,
+    "Library bucket",
+  );
+  const parentSpecified = Object.hasOwn(payload, "parentCollectionId") ||
+    Object.hasOwn(payload, "parent_collection_id");
+  const parentCollectionId = parentSpecified
+    ? normalizeOptionalText(payload.parentCollectionId ?? payload.parent_collection_id)
+    : previous?.parent_collection_id || "";
+
+  if (previous && libraryBucket !== previous.library_bucket) {
+    throw new AppError("Collection Library bucket cannot be changed by move or rename.", 400);
+  }
+  if (previous && parentCollectionId === previous.note_library_collection_id) {
+    throw new AppError("A collection cannot be its own parent.", 400);
+  }
+
+  const allCollections = await notesRepository.listCollections(session.workspace_id, {
+    includeArchived: true,
+    includeDeleted: true,
+    libraryBucket,
+  });
+  const parent = parentCollectionId
+    ? allCollections.find((collection) => collection.note_library_collection_id === parentCollectionId)
+    : null;
+
+  if (parentCollectionId && (!parent || parent.status === "deleted")) {
+    throw new AppError("Parent collection not found.", 404);
+  }
+  if (parent && parent.library_bucket !== libraryBucket) {
+    throw new AppError("Collection parent must be in the same Library bucket.", 400);
+  }
+  if (previous && parent && collectionDescendants(previous, allCollections)
+    .some((collection) => collection.note_library_collection_id === parent.note_library_collection_id)) {
+    throw new AppError("Collection moves cannot create a cycle.", 400);
+  }
+
+  const metadata = normalizeMetadata(payload.metadata || payload.metadata_json || previous?.metadata || {});
+  return {
+    ...(previous || {}),
+    note_library_collection_id: previous?.note_library_collection_id || payload.noteLibraryCollectionId || payload.note_library_collection_id || randomUUID(),
+    workspace_id: session.workspace_id,
+    title,
+    slug: normalizeOptionalText(payload.slug) || (previous && title === previous.title ? previous.slug : slugifyNoteTitle(title)),
+    description: normalizeOptionalText(payload.description ?? previous?.description),
+    library_bucket: libraryBucket,
+    parent_collection_id: parent?.note_library_collection_id || null,
+    path_cache: collectionPath({ title }, parent),
+    depth: parent ? Number(parent.depth || 0) + 1 : 0,
+    sort_order: Number(payload.sortOrder ?? payload.sort_order ?? previous?.sort_order ?? 0) || 0,
+    collection_source: normalizeEnum(
+      payload.collectionSource || payload.collection_source || previous?.collection_source || "manual",
+      COLLECTION_SOURCE_VALUES,
+      "Collection source",
+    ),
+    status: previous?.status || "active",
+    created_by_user_id: previous?.created_by_user_id || session.user_id,
+    updated_by_user_id: session.user_id,
+    created_at: previous?.created_at || now,
+    updated_at: now,
+    archived_at: previous?.archived_at || null,
+    deleted_at: previous?.deleted_at || null,
+    metadata_json: JSON.stringify(metadata),
+  };
+}
+
+async function assertCollectionSiblingAvailable(workspaceId, collection, currentCollectionId = "") {
+  const siblings = await notesRepository.listCollections(workspaceId, {
+    includeArchived: true,
+    includeDeleted: false,
+    libraryBucket: collection.library_bucket,
+  });
+  const conflict = siblings.find((sibling) => (
+    sibling.note_library_collection_id !== currentCollectionId &&
+    sibling.slug === collection.slug &&
+    (sibling.parent_collection_id || "") === (collection.parent_collection_id || "")
+  ));
+
+  if (conflict) {
+    throw new AppError("A collection with that name already exists in this folder.", 400);
+  }
+}
+
+async function updateCollectionDescendantPaths(session, parent) {
+  const allCollections = await notesRepository.listCollections(session.workspace_id, {
+    includeArchived: true,
+    includeDeleted: true,
+    libraryBucket: parent.library_bucket,
+  });
+  const descendants = collectionDescendants(parent, allCollections);
+  const byParentId = groupCollectionsByParent(allCollections);
+
+  async function updateChildren(collection) {
+    for (const child of byParentId.get(collection.note_library_collection_id) || []) {
+      if (child.status === "deleted") {
+        continue;
+      }
+
+      const updated = await notesRepository.updateCollection(session.workspace_id, {
+        ...child,
+        path_cache: collectionPath(child, collection),
+        depth: Number(collection.depth || 0) + 1,
+        updated_at: new Date().toISOString(),
+        updated_by_user_id: session.user_id,
+      });
+      await syncCollectionNotesSearchIndex(session, [updated.note_library_collection_id], "note.collection.path_updated");
+      await updateChildren(updated);
+    }
+  }
+
+  if (descendants.length > 0) {
+    await updateChildren(parent);
+  }
+}
+
+async function assertNoteCollectionAccess(session, note) {
+  const collectionId = normalizeOptionalText(note.note_collection_id);
+  if (!collectionId) {
+    return;
+  }
+
+  const collection = await notesRepository.readCollectionById(session.workspace_id, collectionId);
+  if (!collection || collection.status === "deleted") {
+    throw new AppError("Note collection not found.", 404);
+  }
+  if (collection.library_bucket !== note.library_bucket) {
+    throw new AppError("Note collection must be in the same Library bucket as the note.", 400);
+  }
+}
+
+function buildCollectionTree(collections, accessibleCountByCollectionId, directCountByCollectionId = new Map()) {
+  const byParentId = groupCollectionsByParent(collections);
+
+  function decorate(collection) {
+    return {
+      ...collection,
+      accessibleNoteCount: accessibleCountByCollectionId.get(collection.note_library_collection_id) || 0,
+      directAccessibleNoteCount: directCountByCollectionId.get(collection.note_library_collection_id) || 0,
+      children: (byParentId.get(collection.note_library_collection_id) || []).map(decorate),
+    };
+  }
+
+  return (byParentId.get("") || []).map(decorate);
+}
+
+function rollupCollectionCounts(collections = [], directCounts = new Map()) {
+  const byParentId = groupCollectionsByParent(collections);
+  const rolledUpCounts = new Map();
+
+  function countSubtree(collection) {
+    const collectionId = collection.note_library_collection_id;
+    const childTotal = (byParentId.get(collectionId) || []).reduce((total, child) => total + countSubtree(child), 0);
+    const total = (directCounts.get(collectionId) || 0) + childTotal;
+    rolledUpCounts.set(collectionId, total);
+    return total;
+  }
+
+  for (const collection of byParentId.get("") || []) {
+    countSubtree(collection);
+  }
+
+  return rolledUpCounts;
+}
+
+function groupCollectionsByParent(collections = []) {
+  return collections.reduce((groups, collection) => {
+    const parentId = collection.parent_collection_id || "";
+    if (!groups.has(parentId)) {
+      groups.set(parentId, []);
+    }
+    groups.get(parentId).push(collection);
+    return groups;
+  }, new Map());
+}
+
+function collectionDescendants(collection, collections = []) {
+  const byParentId = groupCollectionsByParent(collections);
+  const descendants = [];
+  const stack = [...(byParentId.get(collection.note_library_collection_id) || [])];
+
+  while (stack.length > 0) {
+    const next = stack.shift();
+    descendants.push(next);
+    stack.push(...(byParentId.get(next.note_library_collection_id) || []));
+  }
+
+  return descendants;
+}
+
+function collectionPath(collection, parent = null) {
+  return [parent?.path_cache, collection.title].filter(Boolean).join(" / ");
+}
+
+function normalizeCollectionListFilters(query = {}) {
+  return {
+    includeArchived: query.includeArchived === "true" || query.include_archived === "true",
+    includeDeleted: query.includeDeleted === "true" || query.include_deleted === "true",
+    libraryBucket: normalizeOptionalEnum(query.libraryBucket || query.library_bucket, LIBRARY_BUCKET_VALUES, "Library bucket"),
+  };
+}
+
+function normalizeImportCollectionPathParts(payload = {}) {
+  const explicitPath = payload.path || payload.importPath || payload.import_path || payload.importSourcePath || payload.import_source_path;
+  const parts = Array.isArray(payload.parts)
+    ? payload.parts
+    : [
+      payload.originalNotebook || payload.original_notebook,
+      payload.originalSectionGroup || payload.original_section_group,
+      payload.originalSection || payload.original_section,
+    ];
+  const normalized = (explicitPath
+    ? String(explicitPath).split(/[\\/]+|>/)
+    : parts)
+    .map(normalizeOptionalText)
+    .filter(Boolean);
+
+  if (normalized.length === 0) {
+    throw new AppError("Import collection path is required.", 400);
+  }
+
+  return normalized;
+}
+
 function createSearchIndexPayload(note = {}) {
   if (
     note.security_mode === NOTE_SECURITY_MODES.SECURE ||
@@ -795,6 +1289,7 @@ function createSearchIndexPayload(note = {}) {
     body: note.body_plaintext_index || extractPlainTextFromMarkdown(note.body_markdown || ""),
     sourceLabel: "Notes",
     libraryBucket: note.library_bucket,
+    noteCollectionId: note.note_collection_id,
     visibility: note.visibility,
     recordStatus: note.status === NOTE_STATUSES.ARCHIVED || note.archived_at ? "archived" : "active",
     url: `notes.html?note=${encodeURIComponent(note.note_id || "")}`,
@@ -807,6 +1302,7 @@ function createSearchIndexPayload(note = {}) {
       task_id: note.task_id || "",
       ticket_id: note.ticket_id || "",
       linked_user_id: note.linked_user_id || "",
+      note_collection_id: note.note_collection_id || "",
     },
   };
 }
@@ -819,6 +1315,24 @@ async function syncNoteSearchIndex(workspaceId, noteId, reason) {
     recordId: noteId,
     reason,
   });
+}
+
+async function syncCollectionNotesSearchIndex(session, collectionIds, reason) {
+  const ids = [...new Set((collectionIds || []).filter(Boolean))];
+
+  for (const collectionId of ids) {
+    const notes = await notesRepository.list(session.workspace_id, {
+      includeDeleted: false,
+      noteCollectionId: collectionId,
+    });
+    await searchIndexSyncService.reindexRecords(notes.map((note) => ({
+      workspaceId: session.workspace_id,
+      moduleId: NOTES_MODULE_ID,
+      recordType: "note",
+      recordId: note.note_id,
+      reason,
+    })));
+  }
 }
 
 async function recordNoteAudit(session, action, changeType, previousValue, newValue, recordType = "note") {
@@ -966,24 +1480,33 @@ function noteAccessMessage(reason) {
 
 export const notesService = {
   archive,
+  archiveCollection,
+  assignNoteCollection,
   changeLibrary,
   create,
+  createCollection,
   createLink,
   createSearchIndexPayload,
+  deleteEmptyCollection,
   deriveLibrarySuggestion,
+  ensureCollectionsForImportPath,
   list,
   listArchived,
   listByLibraryBucket,
+  listCollections,
   listForTarget,
   listLibrary,
   listLinks,
   listRevisions,
+  moveCollection,
   read,
   readForAttachmentAccess,
   readRevision,
   removeLink,
   restore,
+  restoreCollection,
   restoreRevision,
   softDelete,
+  updateCollection,
   update,
 };

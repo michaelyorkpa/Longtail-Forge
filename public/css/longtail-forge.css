@@ -3017,6 +3017,7 @@ dialog .form-actions {
 
 .notes-library-summary,
 .notes-library-tabs,
+.notes-collections-heading,
 .notes-list-toolbar,
 .notes-detail-actions,
 .notes-pagination,
@@ -3076,6 +3077,126 @@ dialog .form-actions {
     margin-bottom: 12px;
 }
 
+.notes-collections-panel {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.notes-collections-heading {
+    justify-content: space-between;
+}
+
+.notes-collections-heading h2,
+.notes-collection-group h3 {
+    margin: 0;
+    font-size: 15px;
+}
+
+.notes-collection-tree,
+.notes-collection-group,
+.notes-collection-node {
+    display: grid;
+    gap: 6px;
+}
+
+.notes-collection-group {
+    padding-top: 4px;
+}
+
+.notes-collection-row {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) auto auto;
+    gap: 6px;
+    align-items: center;
+    padding-left: calc(var(--collection-depth, 0) * 14px);
+}
+
+.notes-collection-toggle {
+    min-width: 28px;
+    width: 28px;
+    min-height: 28px;
+    padding: 0;
+}
+
+.notes-collection-toggle[hidden] {
+    display: block;
+    visibility: hidden;
+}
+
+.notes-collection-select {
+    min-width: 0;
+    justify-self: stretch;
+    overflow: hidden;
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.notes-collection-select[aria-pressed="true"] {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: #ffffff;
+}
+
+.notes-collection-count {
+    min-width: 2ch;
+    color: var(--color-muted);
+    font-size: 13px;
+    text-align: right;
+}
+
+.notes-collection-actions {
+    position: relative;
+    justify-self: end;
+}
+
+.notes-collection-actions summary {
+    display: grid;
+    min-width: 30px;
+    min-height: 30px;
+    place-items: center;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+    list-style: none;
+}
+
+.notes-collection-actions summary::-webkit-details-marker {
+    display: none;
+}
+
+.notes-collection-actions-menu {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 4px);
+    right: 0;
+    display: grid;
+    min-width: 170px;
+    gap: 4px;
+    padding: 6px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 6px;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-card);
+}
+
+.notes-collection-actions:not([open]) .notes-collection-actions-menu {
+    display: none;
+}
+
+.notes-collection-actions-menu button {
+    width: 100%;
+    min-height: 30px;
+    padding: 4px 7px;
+    font-size: 12px;
+    text-align: left;
+}
+
 .notes-list {
     display: grid;
     gap: 8px;
@@ -3126,6 +3247,12 @@ dialog .form-actions {
     display: grid;
     gap: 8px;
     margin-bottom: 16px;
+}
+
+.notes-collection-breadcrumb {
+    margin: 0 0 12px;
+    color: var(--color-muted);
+    font-size: 14px;
 }
 
 .notes-rendered-body {
@@ -3219,7 +3346,15 @@ dialog .form-actions {
     overflow: hidden;
 }
 
+.notes-collection-dialog {
+    width: min(760px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    padding: 0;
+    overflow: hidden;
+}
+
 .notes-editor-form,
+.notes-collection-form,
 .notes-dialog-heading,
 .notes-form-grid {
     display: grid;
@@ -3227,6 +3362,14 @@ dialog .form-actions {
 }
 
 .notes-editor-form {
+    max-height: calc(100vh - 32px);
+    padding: 18px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.notes-collection-form {
     max-height: calc(100vh - 32px);
     padding: 18px;
     overflow-x: hidden;
@@ -3243,9 +3386,15 @@ dialog .form-actions {
     grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
 }
 
+.notes-collection-form .notes-form-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+}
+
 .notes-editor-form input,
 .notes-editor-form select,
-.notes-editor-form textarea {
+.notes-editor-form textarea,
+.notes-collection-form input,
+.notes-collection-form select {
     min-width: 0;
     width: 100%;
     box-sizing: border-box;

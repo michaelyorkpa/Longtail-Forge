@@ -39,6 +39,9 @@ async function noteToSearchDocument(note = {}) {
   }
 
   const links = await notesRepository.listLinks(note.workspace_id, note.note_id);
+  const collection = note.note_collection_id
+    ? await notesRepository.readCollectionById(note.workspace_id, note.note_collection_id)
+    : null;
   const tagsText = await readSearchTagsText({
     workspaceId: note.workspace_id,
     targetType: "note",
@@ -73,6 +76,8 @@ async function noteToSearchDocument(note = {}) {
     client_id: note.client_id,
     project_id: note.project_id,
     library_bucket: note.library_bucket,
+    note_collection_id: collection?.status !== "deleted" ? note.note_collection_id : "",
+    collection_path: collection?.status !== "deleted" ? collection?.path_cache || collection?.title || "" : "",
     visibility: note.visibility,
     search_status: normalizeNoteSearchStatus(note),
     source: "Notes",

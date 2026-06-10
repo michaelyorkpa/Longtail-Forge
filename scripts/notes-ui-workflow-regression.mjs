@@ -34,7 +34,7 @@ try {
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.1.4");
+  assert.equal(notesModule.version, "0.33.1.6");
   assert.ok(notesModule.navigation.some((item) => item.href === "notes.html" && item.parent === "projects.html"));
   assert.ok(notesModule.protectedViews.some((view) => view.file === "notes.html" && view.allowDisabledRead === true));
   assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/notes.js"));
@@ -51,12 +51,23 @@ async function assertProtectedView(session) {
   assert.match(html, /data-notes-library-summary/);
   assert.match(html, /data-note-body/);
   assert.match(html, /data-note-filter-tags/);
+  assert.match(html, /data-note-filter-collection/);
+  assert.match(html, /data-notes-collections-panel/);
+  assert.match(html, /data-note-collection-dialog/);
+  assert.match(html, /data-note-collection/);
   assert.match(html, /data-note-tags-editor/);
   assert.match(html, /js\/shared\/icons\.js\?v=1/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=1/);
-  assert.match(html, /js\/notes\.js\?v=2/);
+  assert.match(html, /css\/longtail-forge\.css\?v=14/);
+  assert.match(html, /js\/notes\.js\?v=4/);
+
+  const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
+  assert.match(notesJs, /expandedCollectionIds: new Set\(\)/);
+  assert.match(notesJs, /notes-collection-actions-menu/);
+  assert.match(notesJs, /collectionFilterIds/);
+  assert.match(notesJs, /Original/);
 }
 
 async function assertNavigation(session) {

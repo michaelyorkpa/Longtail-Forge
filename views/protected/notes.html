@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Notes | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=11">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=14">
   </head>
   <body data-page-title="Notes">
     <main class="wide-page notes-page">
@@ -70,6 +70,12 @@
           </select>
         </label>
         <label>
+          Collection
+          <select data-note-filter-collection>
+            <option value="">All collections</option>
+          </select>
+        </label>
+        <label>
           Context ID
           <input type="search" data-note-filter-context autocomplete="off">
         </label>
@@ -99,6 +105,14 @@
 
       <section class="notes-workspace" aria-label="Notes workspace">
         <div class="notes-list-panel">
+          <section class="notes-collections-panel" data-notes-collections-panel aria-label="Notes Collections">
+            <div class="notes-collections-heading">
+              <h2>Collections</h2>
+              <button type="button" data-note-collection-create>New Collection</button>
+            </div>
+            <div class="notes-collection-tree" data-notes-collection-tree></div>
+          </section>
+
           <div class="notes-list-toolbar">
             <h2 data-notes-list-title>All Notes</h2>
             <div class="notes-pagination">
@@ -135,6 +149,12 @@
               <option value="active_work">Active Work</option>
               <option value="ongoing_area">Ongoing Areas</option>
               <option value="reference">Reference Library</option>
+            </select>
+          </label>
+          <label>
+            Collection
+            <select data-note-collection>
+              <option value="">Uncategorized</option>
             </select>
           </label>
           <label>
@@ -219,13 +239,52 @@
       </form>
     </dialog>
 
+    <dialog class="notes-collection-dialog" data-note-collection-dialog>
+      <form method="dialog" class="notes-collection-form" data-note-collection-form>
+        <div class="notes-dialog-heading">
+          <h2 data-note-collection-dialog-title>Collection</h2>
+          <button type="button" data-note-collection-dialog-close aria-label="Close">Close</button>
+        </div>
+
+        <label>
+          Name
+          <input type="text" data-note-collection-title required>
+        </label>
+
+        <div class="notes-form-grid">
+          <label>
+            Library
+            <select data-note-collection-library>
+              <option value="active_work">Active Work</option>
+              <option value="ongoing_area">Ongoing Areas</option>
+              <option value="reference">Reference Library</option>
+            </select>
+          </label>
+          <label>
+            Parent
+            <select data-note-collection-parent>
+              <option value="">Root collection</option>
+            </select>
+          </label>
+        </div>
+
+        <p data-note-collection-form-status role="status" aria-live="polite"></p>
+
+        <div class="form-actions">
+          <button type="button" data-note-collection-cancel>Cancel</button>
+          <button type="submit" data-note-collection-save>Save Collection</button>
+        </div>
+      </form>
+    </dialog>
+
     <script src="js/navigation.js"></script>
     <script src="js/shared/api-client.js"></script>
+    <script src="js/shared/modal.js"></script>
     <script src="js/shared/icons.js?v=1"></script>
     <script src="js/shared/tags.js?v=1"></script>
     <script src="js/shared/file-attachments.js?v=1"></script>
     <script src="js/shared/notes-editor.js?v=1"></script>
-    <script src="js/notes.js?v=2"></script>
+    <script src="js/notes.js?v=4"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

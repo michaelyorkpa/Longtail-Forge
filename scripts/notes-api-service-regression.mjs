@@ -53,6 +53,7 @@ async function assertNoteLifecycle(session) {
   assert.equal(createResult.note.links.length, 1);
   assert.equal(createResult.searchDocument.recordType, "note");
   assert.match(createResult.note.body_excerpt, /Heading/);
+  assert.equal((await notesService.listRevisions(noteId, session)).revisions.length, 0);
 
   const listResult = await notesService.list(session);
   assert.ok(listResult.notes.some((note) => note.note_id === noteId));
@@ -72,7 +73,9 @@ async function assertNoteLifecycle(session) {
   assert.equal(updateResult.note.title, "Updated API service note");
 
   const revisionsAfterUpdate = await notesService.listRevisions(noteId, session);
-  assert.ok(revisionsAfterUpdate.revisions.length >= 2);
+  assert.equal(revisionsAfterUpdate.revisions.length, 1);
+  assert.equal(revisionsAfterUpdate.revisions[0].revision_number, 1);
+  assert.equal(revisionsAfterUpdate.revisions[0].title, "API service note");
 
   const archiveResult = await notesService.archive(noteId, session);
   assert.equal(archiveResult.note.status, NOTE_STATUSES.ARCHIVED);

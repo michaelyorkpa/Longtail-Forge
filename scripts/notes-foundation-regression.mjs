@@ -34,7 +34,7 @@ async function assertNotesModuleManifest() {
   const notesModule = modulesService.getModule("notes");
 
   assert.equal(notesModule.id, "notes");
-  assert.equal(notesModule.version, "0.33.1.4");
+  assert.equal(notesModule.version, "0.33.1.6");
   assert.equal(notesModule.enabledByDefault, true);
   assert.equal(notesModule.canDisable, true);
   assert.equal(notesModule.historicalReadAccess, true);
@@ -98,6 +98,7 @@ ORDER BY name;
     "task_id",
     "ticket_id",
     "linked_user_id",
+    "note_collection_id",
     "owner_user_id",
     "created_by_user_id",
     "updated_by_user_id",
@@ -131,9 +132,13 @@ ORDER BY name;
     "description",
     "library_bucket",
     "parent_collection_id",
+    "path_cache",
+    "depth",
     "sort_order",
+    "collection_source",
     "status",
     "created_by_user_id",
+    "updated_by_user_id",
     "created_at",
     "updated_at",
     "archived_at",
@@ -156,6 +161,7 @@ WHERE type = 'index'
     'idx_notes_workspace_created_by',
     'idx_notes_workspace_updated_at',
     'idx_notes_workspace_client',
+    'idx_notes_workspace_collection',
     'idx_notes_workspace_project',
     'idx_notes_workspace_task',
     'idx_notes_workspace_ticket',
@@ -165,14 +171,16 @@ WHERE type = 'index'
     'idx_note_links_workspace_target',
     'idx_note_links_workspace_scope',
     'idx_note_links_unique_active_target',
-    'idx_note_library_collections_workspace_slug',
     'idx_note_library_collections_workspace_bucket',
+    'idx_note_library_collections_workspace_parent',
+    'idx_note_library_collections_workspace_path',
+    'idx_note_library_collections_workspace_sibling_slug',
     'idx_note_library_collections_workspace_status'
   )
 ORDER BY name;
 `);
 
-  assert.equal(indexes.length, 22, "Notes foundation should create the expected lookup and uniqueness indexes");
+  assert.equal(indexes.length, 25, "Notes foundation should create the expected lookup and uniqueness indexes");
 }
 
 async function assertColumns(tableName, expectedColumns) {

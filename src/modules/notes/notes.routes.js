@@ -39,6 +39,50 @@ notesRoutes.get("/notes/for-target", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+notesRoutes.get("/notes/collections", asyncRoute(async (request, response) => {
+  const result = await notesService.listCollections(request.session, request.query);
+  response.status(200).json(result);
+}));
+
+notesRoutes.post("/notes/collections", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await notesService.createCollection(payload, request.session);
+  response.status(201).json(result);
+}));
+
+notesRoutes.post("/notes/collections/import-path", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await notesService.ensureCollectionsForImportPath(request.session, payload);
+  response.status(200).json(result);
+}));
+
+notesRoutes.put("/notes/collections/:collectionId", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await notesService.updateCollection(request.params.collectionId, payload, request.session);
+  response.status(200).json(result);
+}));
+
+notesRoutes.post("/notes/collections/:collectionId/move", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await notesService.moveCollection(request.params.collectionId, payload, request.session);
+  response.status(200).json(result);
+}));
+
+notesRoutes.post("/notes/collections/:collectionId/archive", asyncRoute(async (request, response) => {
+  const result = await notesService.archiveCollection(request.params.collectionId, request.session);
+  response.status(200).json(result);
+}));
+
+notesRoutes.post("/notes/collections/:collectionId/restore", asyncRoute(async (request, response) => {
+  const result = await notesService.restoreCollection(request.params.collectionId, request.session);
+  response.status(200).json(result);
+}));
+
+notesRoutes.post("/notes/collections/:collectionId/delete-empty", asyncRoute(async (request, response) => {
+  const result = await notesService.deleteEmptyCollection(request.params.collectionId, request.session);
+  response.status(200).json(result);
+}));
+
 notesRoutes.get("/notes/:noteId", asyncRoute(async (request, response) => {
   const result = await notesService.read(request.params.noteId, request.session);
   response.status(200).json(result);
@@ -53,6 +97,12 @@ notesRoutes.put("/notes/:noteId", asyncRoute(async (request, response) => {
 notesRoutes.post("/notes/:noteId/library", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await notesService.changeLibrary(request.params.noteId, payload, request.session);
+  response.status(200).json(result);
+}));
+
+notesRoutes.post("/notes/:noteId/collection", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await notesService.assignNoteCollection(request.params.noteId, payload, request.session);
   response.status(200).json(result);
 }));
 

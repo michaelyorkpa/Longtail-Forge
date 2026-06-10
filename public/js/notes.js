@@ -14,6 +14,7 @@ const statusFilter = document.querySelector("[data-note-filter-status]");
 const visibilityFilter = document.querySelector("[data-note-filter-visibility]");
 const securityFilter = document.querySelector("[data-note-filter-security]");
 const typeFilter = document.querySelector("[data-note-filter-type]");
+const collectionFilter = document.querySelector("[data-note-filter-collection]");
 const contextFilter = document.querySelector("[data-note-filter-context]");
 const ownerFilter = document.querySelector("[data-note-filter-owner]");
 const tagFilter = document.querySelector("[data-note-filter-tags]");
@@ -26,12 +27,16 @@ const createButton = document.querySelector("[data-note-create]");
 const prevButton = document.querySelector("[data-notes-prev]");
 const nextButton = document.querySelector("[data-notes-next]");
 const pageLabel = document.querySelector("[data-notes-page]");
+const collectionPanel = document.querySelector("[data-notes-collections-panel]");
+const collectionTree = document.querySelector("[data-notes-collection-tree]");
+const collectionCreateButton = document.querySelector("[data-note-collection-create]");
 const dialog = document.querySelector("[data-note-dialog]");
 const form = document.querySelector("[data-note-form]");
 const dialogTitle = document.querySelector("[data-note-dialog-title]");
 const dialogCloseButton = document.querySelector("[data-note-dialog-close]");
 const titleInput = document.querySelector("[data-note-title]");
 const libraryInput = document.querySelector("[data-note-library]");
+const collectionInput = document.querySelector("[data-note-collection]");
 const typeInput = document.querySelector("[data-note-type]");
 const visibilityInput = document.querySelector("[data-note-visibility]");
 const securityInput = document.querySelector("[data-note-security]");
@@ -47,6 +52,16 @@ const preview = document.querySelector("[data-note-preview]");
 const formStatus = document.querySelector("[data-note-form-status]");
 const cancelButton = document.querySelector("[data-note-cancel]");
 const saveButton = document.querySelector("[data-note-save]");
+const collectionDialog = document.querySelector("[data-note-collection-dialog]");
+const collectionForm = document.querySelector("[data-note-collection-form]");
+const collectionDialogTitle = document.querySelector("[data-note-collection-dialog-title]");
+const collectionDialogCloseButton = document.querySelector("[data-note-collection-dialog-close]");
+const collectionTitleInput = document.querySelector("[data-note-collection-title]");
+const collectionLibraryInput = document.querySelector("[data-note-collection-library]");
+const collectionParentInput = document.querySelector("[data-note-collection-parent]");
+const collectionFormStatus = document.querySelector("[data-note-collection-form-status]");
+const collectionCancelButton = document.querySelector("[data-note-collection-cancel]");
+const collectionSaveButton = document.querySelector("[data-note-collection-save]");
 
 const editor = window.LongtailForge.notesEditor?.createPlainTextarea(bodyInput);
 
@@ -54,18 +69,27 @@ let state = {
   activeBucket: "all",
   availableTags: [],
   attachmentController: null,
+  collectionDialogMode: "create",
+  collectionEditingId: "",
+  collections: [],
   editingNoteId: "",
+  expandedCollectionIds: new Set(),
   notes: [],
   library: [],
   page: 1,
   selectedNote: null,
+  selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
   tagPicker: null,
 };
 
 createButton?.addEventListener("click", () => openEditor());
+collectionCreateButton?.addEventListener("click", () => openCollectionDialog("create"));
 bucketTabs.forEach((button) => button.addEventListener("click", () => selectBucket(button.dataset.notesBucket)));
 filtersForm?.addEventListener("change", () => {
   state.page = 1;
+  state.selectedCollectionId = collectionFilter?.value || "";
+  updateCollectionTreeSelection();
+  updateUrlCollection();
   renderNotes();
 });
 sortSelect?.addEventListener("change", renderNotes);
@@ -80,6 +104,14 @@ nextButton?.addEventListener("click", () => {
 form?.addEventListener("submit", saveNote);
 dialogCloseButton?.addEventListener("click", closeEditor);
 cancelButton?.addEventListener("click", closeEditor);
+collectionForm?.addEventListener("submit", saveCollection);
+collectionDialogCloseButton?.addEventListener("click", closeCollectionDialog);
+collectionCancelButton?.addEventListener("click", closeCollectionDialog);
+collectionLibraryInput?.addEventListener("change", () => populateCollectionParentOptions());
+libraryInput?.addEventListener("change", () => {
+  populateNoteCollectionOptions();
+  updateLibrarySuggestion();
+});
 previewToggle?.addEventListener("click", togglePreview);
 [clientInput, projectInput, taskInput, userInput].forEach((input) => input?.addEventListener("input", updateLibrarySuggestion));
 document.querySelector("[data-note-editor-toolbar]")?.addEventListener("click", handleEditorCommand);
@@ -91,7 +123,9 @@ async function initialize() {
 
   try {
     await window.LongtailForge.workspaceContextReady;
-    await Promise.all([loadTags(), loadLibrary(), loadNotes()]);
+    await Promise.all([loadTags(), loadLibrary(), loadCollections(), loadNotes()]);
+    renderCollections();
+    populateCollectionFilter();
     renderNotes();
     openNoteFromUrl();
     setStatus("");
@@ -115,6 +149,21 @@ async function loadNotes() {
       : `/api/notes/library/${encodeURIComponent(state.activeBucket)}`;
   const result = await api.getJson(url, { cache: "no-store" });
   state.notes = result.notes || [];
+}
+
+async function loadCollections() {
+  const params = new URLSearchParams();
+
+  if (state.activeBucket === "archive") {
+    params.set("includeArchived", "true");
+  }
+  if (["active_work", "ongoing_area", "reference"].includes(state.activeBucket)) {
+    params.set("libraryBucket", state.activeBucket);
+  }
+
+  const query = params.toString();
+  const result = await api.getJson(`/api/notes/collections${query ? `?${query}` : ""}`, { cache: "no-store" });
+  state.collections = normalizeCollections(result.collections || []);
 }
 
 async function loadTags() {
@@ -157,11 +206,14 @@ async function selectBucket(bucket) {
   state.activeBucket = bucket || "all";
   state.page = 1;
   state.selectedNote = null;
+  state.selectedCollectionId = "";
   updateBucketTabs();
   setStatus("Loading notes...");
 
   try {
-    await loadNotes();
+    await Promise.all([loadCollections(), loadNotes()]);
+    renderCollections();
+    populateCollectionFilter();
     renderNotes();
     renderDetailPrompt("Select a note.");
     setStatus("");
@@ -198,6 +250,172 @@ function renderNotes() {
   notesList.replaceChildren(...pageNotes.map(noteListItem));
 }
 
+function renderCollections() {
+  if (!collectionPanel || !collectionTree) {
+    return;
+  }
+
+  if (state.activeBucket === "archive") {
+    collectionPanel.hidden = false;
+    collectionCreateButton.hidden = true;
+  } else {
+    collectionPanel.hidden = false;
+    collectionCreateButton.hidden = false;
+  }
+
+  const visibleCollections = collectionsForActiveBucket();
+  if (visibleCollections.length === 0) {
+    collectionTree.replaceChildren(collectionEmptyButton("No collections", ""));
+    return;
+  }
+
+  const groups = state.activeBucket === "all"
+    ? groupCollectionsByBucket(visibleCollections)
+    : [[state.activeBucket, visibleCollections]];
+  const fragments = groups.map(([bucket, collections]) => {
+    const section = document.createElement("section");
+    const heading = document.createElement("h3");
+
+    heading.textContent = libraryLabel(bucket);
+    section.className = "notes-collection-group";
+    section.append(heading, collectionButton("", "All in Library", "", 0), collectionButton("__uncategorized", "Uncategorized", "", 0));
+    section.append(...collectionTreeNodes(collections));
+    return section;
+  });
+
+  collectionTree.replaceChildren(...fragments);
+}
+
+function collectionTreeNodes(collections) {
+  const byParent = groupCollectionsByParent(collections);
+
+  function renderNode(collection) {
+    const row = document.createElement("div");
+    const children = byParent.get(collection.note_library_collection_id) || [];
+
+    row.className = "notes-collection-node";
+    row.append(collectionButton(
+      collection.note_library_collection_id,
+      collection.title || "Collection",
+      collection,
+      Number(collection.depth || 0),
+      children.length > 0,
+    ));
+    if (children.length > 0 && state.expandedCollectionIds.has(collection.note_library_collection_id)) {
+      row.append(...children.flatMap(renderNode));
+    }
+    return [row];
+  }
+
+  return (byParent.get("") || []).flatMap(renderNode);
+}
+
+function collectionButton(value, label, collection = null, depth = 0, hasChildren = false) {
+  const row = document.createElement("div");
+  const toggle = document.createElement("button");
+  const button = document.createElement("button");
+  const count = document.createElement("span");
+
+  row.className = "notes-collection-row";
+  row.style.setProperty("--collection-depth", String(Math.max(0, depth)));
+  toggle.type = "button";
+  toggle.className = "notes-collection-toggle";
+  toggle.hidden = !hasChildren;
+  toggle.textContent = state.expandedCollectionIds.has(value) ? "-" : "+";
+  toggle.title = state.expandedCollectionIds.has(value) ? "Collapse collection" : "Expand collection";
+  toggle.addEventListener("click", () => toggleCollectionExpanded(value));
+  button.type = "button";
+  button.className = "notes-collection-select";
+  button.dataset.noteCollectionSelect = value;
+  button.setAttribute("aria-pressed", String(state.selectedCollectionId === value));
+  button.textContent = depth > 0 ? `- ${label}` : label;
+  button.addEventListener("click", () => selectCollection(value));
+  count.className = "notes-collection-count";
+  count.textContent = collection ? String(collection.accessibleNoteCount || 0) : String(countNotesForCollection(value));
+  row.append(toggle, button, count);
+
+  if (collection && state.activeBucket !== "archive") {
+    row.append(collectionActions(collection));
+  }
+
+  return row;
+}
+
+function collectionEmptyButton(label, value) {
+  return collectionButton(value, label, null, 0);
+}
+
+function collectionActions(collection) {
+  const actions = document.createElement("details");
+  const summary = document.createElement("summary");
+  const menu = document.createElement("span");
+  const child = actionButton("+", () => openCollectionDialog("create", { parent: collection }));
+  const edit = actionButton("Edit", () => openCollectionDialog("edit", { collection }));
+  const archive = actionButton("Archive", () => archiveCollection(collection));
+  const remove = actionButton("Delete Empty", () => deleteEmptyCollection(collection));
+
+  actions.className = "notes-collection-actions";
+  summary.textContent = "...";
+  summary.title = "Collection actions";
+  menu.className = "notes-collection-actions-menu";
+  child.title = "Create child collection";
+  edit.title = "Rename or move collection";
+  archive.title = "Archive collection";
+  remove.title = "Delete empty collection";
+  menu.append(child, edit, archive, remove);
+  actions.append(summary, menu);
+  return actions;
+}
+
+function toggleCollectionExpanded(collectionId) {
+  if (!collectionId) {
+    return;
+  }
+  if (state.expandedCollectionIds.has(collectionId)) {
+    state.expandedCollectionIds.delete(collectionId);
+  } else {
+    state.expandedCollectionIds.add(collectionId);
+  }
+  renderCollections();
+}
+
+function selectCollection(collectionId) {
+  state.selectedCollectionId = collectionId || "";
+  state.page = 1;
+  if (collectionFilter) {
+    collectionFilter.value = state.selectedCollectionId;
+  }
+  updateCollectionTreeSelection();
+  updateUrlCollection();
+  renderNotes();
+}
+
+function updateCollectionTreeSelection() {
+  collectionTree?.querySelectorAll("[data-note-collection-select]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.noteCollectionSelect === state.selectedCollectionId));
+  });
+}
+
+function populateCollectionFilter() {
+  if (!collectionFilter) {
+    return;
+  }
+
+  const options = [
+    createOption("", "All collections"),
+    createOption("__uncategorized", "Uncategorized"),
+    ...collectionsForActiveBucket().map((collection) => createOption(
+      collection.note_library_collection_id,
+      collectionOptionLabel(collection),
+    )),
+  ];
+  collectionFilter.replaceChildren(...options);
+  collectionFilter.value = options.some((option) => option.value === state.selectedCollectionId)
+    ? state.selectedCollectionId
+    : "";
+  state.selectedCollectionId = collectionFilter.value;
+}
+
 function filteredNotes() {
   const statusValue = statusFilter?.value || "active";
   const visibilityValue = visibilityFilter?.value || "all";
@@ -207,6 +425,8 @@ function filteredNotes() {
   const ownerValue = normalizeText(ownerFilter?.value).toLowerCase();
   const tagValue = normalizeText(tagFilter?.value).toLowerCase();
   const updatedValue = updatedFilter?.value || "";
+  const collectionValue = state.selectedCollectionId || collectionFilter?.value || "";
+  const collectionIds = collectionFilterIds(collectionValue);
 
   return state.notes.filter((note) => {
     const statusMatch = statusValue === "all" ||
@@ -226,8 +446,10 @@ function filteredNotes() {
       tag.description,
     ].filter(Boolean).join(" ").toLowerCase().includes(tagValue));
     const updatedMatch = !updatedValue || String(note.updated_at || "").slice(0, 10) >= updatedValue;
+    const collectionMatch = !collectionValue ||
+      (collectionValue === "__uncategorized" ? !note.note_collection_id : collectionIds.has(note.note_collection_id));
 
-    return statusMatch && visibilityMatch && securityMatch && typeMatch && contextMatch && ownerMatch && tagMatch && updatedMatch;
+    return statusMatch && visibilityMatch && securityMatch && typeMatch && contextMatch && ownerMatch && tagMatch && updatedMatch && collectionMatch;
   });
 }
 
@@ -271,7 +493,12 @@ function noteListItem(note) {
   heading.className = "notes-list-heading";
   title.textContent = note.title || "Untitled note";
   meta.className = "notes-list-meta";
-  meta.textContent = `${libraryLabel(note.library_bucket)} - ${formatToken(note.note_type)} - ${formatToken(note.status)}`;
+  meta.textContent = [
+    libraryLabel(note.library_bucket),
+    collectionLabel(note.note_collection_id),
+    formatToken(note.note_type),
+    formatToken(note.status),
+  ].filter(Boolean).join(" - ");
   heading.append(title, meta);
 
   excerpt.className = "notes-list-excerpt";
@@ -314,6 +541,7 @@ function renderDetail(note) {
     : actionButton("Archive", () => archiveNote(note));
   const body = document.createElement("div");
   const tags = document.createElement("section");
+  const collectionBreadcrumb = document.createElement("p");
   const context = document.createElement("dl");
   const links = renderLinksPanel(note);
   const files = renderFilesPanel();
@@ -335,6 +563,8 @@ function renderDetail(note) {
   }
   actions.append(edit, archiveOrRestore);
   header.append(title, meta, actions);
+  collectionBreadcrumb.className = "notes-collection-breadcrumb";
+  collectionBreadcrumb.textContent = `Collection: ${collectionLabel(note.note_collection_id) || "Uncategorized"}`;
 
   body.className = "notes-rendered-body";
   body.innerHTML = note.body_html || "";
@@ -355,7 +585,7 @@ function renderDetail(note) {
   addContext(context, "Updated", formatDate(note.updated_at));
   addContext(context, "Owner", note.owner_user_id);
 
-  detailPanel.replaceChildren(header, tags, body, context, links, files, revisions);
+  detailPanel.replaceChildren(header, collectionBreadcrumb, tags, body, context, links, files, revisions);
   mountFilesPanel(note, files.querySelector("[data-note-files-mount]"));
   loadRevisions(note, revisions.querySelector("[data-note-revisions-list]"));
 }
@@ -373,6 +603,11 @@ async function openEditor(note = null) {
   dialogTitle.textContent = note ? "Edit Note" : "Create Note";
   titleInput.value = note?.title || "";
   libraryInput.value = note?.library_bucket || state.activeBucketForCreate || defaultLibraryForCreate();
+  populateNoteCollectionOptions(note?.library_bucket || libraryInput.value);
+  collectionInput.value = note?.note_collection_id || "";
+  if (collectionInput.value && ![...collectionInput.options].some((option) => option.value === collectionInput.value)) {
+    collectionInput.value = "";
+  }
   typeInput.value = note?.note_type || "general";
   visibilityInput.value = note?.visibility || "internal";
   securityInput.value = note?.security_mode || "normal";
@@ -422,6 +657,7 @@ function readEditorPayload() {
     title: titleInput.value,
     body_markdown: editor?.getValue() || bodyInput.value,
     library_bucket: libraryInput.value,
+    noteCollectionId: collectionInput.value || null,
     note_type: typeInput.value,
     visibility: visibilityInput.value,
     security_mode: securityInput.value,
@@ -467,6 +703,109 @@ async function archiveNote(note) {
 
 async function restoreNote(note) {
   await mutateNote(`/api/notes/${encodeURIComponent(note.note_id)}/restore`);
+}
+
+function openCollectionDialog(mode, options = {}) {
+  const collection = options.collection || null;
+  const parent = options.parent || null;
+  const libraryBucket = collection?.library_bucket || parent?.library_bucket || defaultLibraryForCreate();
+
+  state.collectionDialogMode = mode || "create";
+  state.collectionEditingId = collection?.note_library_collection_id || "";
+  collectionDialogTitle.textContent = collection ? "Edit Collection" : "Create Collection";
+  collectionTitleInput.value = collection?.title || "";
+  collectionLibraryInput.value = libraryBucket;
+  collectionLibraryInput.disabled = Boolean(collection);
+  populateCollectionParentOptions(collection, parent);
+  collectionFormStatus.textContent = "";
+  collectionSaveButton.disabled = false;
+  collectionDialog.showModal();
+  collectionTitleInput.focus();
+}
+
+function closeCollectionDialog() {
+  collectionDialog?.close();
+  if (collectionLibraryInput) {
+    collectionLibraryInput.disabled = false;
+  }
+}
+
+async function saveCollection(event) {
+  event.preventDefault();
+  collectionSaveButton.disabled = true;
+  collectionFormStatus.textContent = "Saving collection...";
+
+  const payload = {
+    title: collectionTitleInput.value,
+    libraryBucket: collectionLibraryInput.value,
+    parentCollectionId: collectionParentInput.value || null,
+  };
+
+  try {
+    if (state.collectionDialogMode === "edit" && state.collectionEditingId) {
+      await api.putJson(`/api/notes/collections/${encodeURIComponent(state.collectionEditingId)}`, payload);
+    } else {
+      await api.postJson("/api/notes/collections", payload);
+    }
+    await refreshCollectionUi();
+    closeCollectionDialog();
+    setStatus("");
+  } catch (error) {
+    collectionFormStatus.textContent = error.message || "Collection could not be saved.";
+    collectionSaveButton.disabled = false;
+  }
+}
+
+async function archiveCollection(collection) {
+  const confirmed = await window.LongtailForge.modal.confirm({
+    title: "Archive collection",
+    message: `Archive "${collection.title}"? Notes stay in the collection and are not archived.`,
+    confirmLabel: "Archive",
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  await mutateCollection(`/api/notes/collections/${encodeURIComponent(collection.note_library_collection_id)}/archive`);
+}
+
+async function deleteEmptyCollection(collection) {
+  const confirmed = await window.LongtailForge.modal.confirm({
+    title: "Delete empty collection",
+    message: `Delete "${collection.title}" if it has no notes and no active child collections?`,
+    confirmLabel: "Delete Empty",
+    danger: true,
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  await mutateCollection(`/api/notes/collections/${encodeURIComponent(collection.note_library_collection_id)}/delete-empty`);
+}
+
+async function mutateCollection(url) {
+  setStatus("Saving collection...");
+
+  try {
+    await api.postJson(url, {});
+    await refreshCollectionUi();
+    setStatus("");
+  } catch (error) {
+    setStatus(error.message || "Collection could not be updated.", true);
+  }
+}
+
+async function refreshCollectionUi() {
+  await Promise.all([loadCollections(), loadNotes(), loadLibrary()]);
+  renderCollections();
+  populateCollectionFilter();
+  populateNoteCollectionOptions();
+  renderNotes();
+  if (state.selectedNote?.note_id) {
+    await selectNote(state.selectedNote.note_id);
+  }
 }
 
 function renderLinksPanel(note) {
@@ -613,7 +952,7 @@ function revisionItem(note, revision) {
   const restore = document.createElement("button");
 
   item.className = "notes-revision-item";
-  title.textContent = `Revision ${revision.revision_number}`;
+  title.textContent = Number(revision.revision_number) === 1 ? "Original" : `Revision ${revision.revision_number}`;
   meta.textContent = [
     revision.change_summary,
     formatToken(revision.library_bucket),
@@ -666,6 +1005,7 @@ function updateLibrarySuggestion() {
   suggestionMessage.textContent = `Suggested Library: ${libraryLabel(suggestion)}`;
   if (!state.editingNoteId && current !== suggestion && current === defaultLibraryForCreate()) {
     libraryInput.value = suggestion;
+    populateNoteCollectionOptions(suggestion);
   }
 }
 
@@ -705,6 +1045,23 @@ function openNoteFromUrl() {
 function updateUrl(noteId) {
   const url = new window.URL(window.location.href);
   url.searchParams.set("note", noteId);
+  if (state.selectedCollectionId) {
+    url.searchParams.set("collection", state.selectedCollectionId);
+  } else {
+    url.searchParams.delete("collection");
+  }
+  window.history.replaceState({}, "", url);
+}
+
+function updateUrlCollection() {
+  const url = new window.URL(window.location.href);
+
+  if (state.selectedCollectionId) {
+    url.searchParams.set("collection", state.selectedCollectionId);
+  } else {
+    url.searchParams.delete("collection");
+  }
+
   window.history.replaceState({}, "", url);
 }
 
@@ -720,6 +1077,178 @@ function bucketTitle() {
 
 function libraryLabel(value) {
   return BUCKET_LABELS[value] || formatToken(value);
+}
+
+function normalizeCollections(collections) {
+  return (Array.isArray(collections) ? collections : [])
+    .map((collection) => ({
+      ...collection,
+      note_library_collection_id: collection.note_library_collection_id || collection.id || "",
+      parent_collection_id: collection.parent_collection_id || "",
+      library_bucket: collection.library_bucket || "reference",
+      title: collection.title || collection.name || "Collection",
+      depth: Number(collection.depth || 0),
+      accessibleNoteCount: Number(collection.accessibleNoteCount || collection.accessible_note_count || 0),
+      directAccessibleNoteCount: Number(collection.directAccessibleNoteCount || collection.direct_accessible_note_count || 0),
+    }))
+    .filter((collection) => collection.note_library_collection_id)
+    .sort((left, right) => (
+      compareText(left.library_bucket, right.library_bucket) ||
+      compareText(left.path_cache, right.path_cache) ||
+      compareText(left.title, right.title)
+    ));
+}
+
+function collectionsForActiveBucket() {
+  if (["active_work", "ongoing_area", "reference"].includes(state.activeBucket)) {
+    return state.collections.filter((collection) => collection.library_bucket === state.activeBucket);
+  }
+
+  return state.collections.filter((collection) => collection.status !== "deleted");
+}
+
+function groupCollectionsByBucket(collections) {
+  const groups = new Map();
+
+  for (const collection of collections) {
+    const bucket = collection.library_bucket || "reference";
+    groups.set(bucket, [...(groups.get(bucket) || []), collection]);
+  }
+
+  return [...groups.entries()].sort((left, right) => compareText(libraryLabel(left[0]), libraryLabel(right[0])));
+}
+
+function groupCollectionsByParent(collections) {
+  const groups = new Map();
+
+  for (const collection of collections) {
+    const parentId = collection.parent_collection_id || "";
+    groups.set(parentId, [...(groups.get(parentId) || []), collection]);
+  }
+
+  for (const [parentId, children] of groups.entries()) {
+    groups.set(parentId, children.sort((left, right) => compareText(left.title, right.title)));
+  }
+
+  return groups;
+}
+
+function countNotesForCollection(collectionId) {
+  if (collectionId === "__uncategorized") {
+    return state.notes.filter((note) => matchesActiveBucket(note) && !note.note_collection_id).length;
+  }
+
+  if (!collectionId) {
+    return state.notes.filter(matchesActiveBucket).length;
+  }
+
+  const collectionIds = collectionFilterIds(collectionId);
+  return state.notes.filter((note) => matchesActiveBucket(note) && collectionIds.has(note.note_collection_id)).length;
+}
+
+function collectionFilterIds(collectionId) {
+  if (!collectionId || collectionId === "__uncategorized") {
+    return new Set();
+  }
+
+  const byParent = groupCollectionsByParent(collectionsForActiveBucket());
+  const ids = new Set([collectionId]);
+  const stack = [...(byParent.get(collectionId) || [])];
+
+  while (stack.length > 0) {
+    const collection = stack.shift();
+    ids.add(collection.note_library_collection_id);
+    stack.push(...(byParent.get(collection.note_library_collection_id) || []));
+  }
+
+  return ids;
+}
+
+function matchesActiveBucket(note) {
+  if (state.activeBucket === "archive") {
+    return note.status === "archived";
+  }
+  if (["active_work", "ongoing_area", "reference"].includes(state.activeBucket)) {
+    return note.library_bucket === state.activeBucket;
+  }
+  return true;
+}
+
+function collectionLabel(collectionId) {
+  if (!collectionId) {
+    return "";
+  }
+
+  const collection = state.collections.find((item) => item.note_library_collection_id === collectionId);
+  return collection?.path_cache || collection?.title || "Archived or unavailable collection";
+}
+
+function collectionOptionLabel(collection) {
+  const depth = Math.max(0, Number(collection.depth || 0));
+  const prefix = depth > 0 ? `${"  ".repeat(depth)}- ` : "";
+  return `${prefix}${collection.path_cache || collection.title || "Collection"}`;
+}
+
+function populateNoteCollectionOptions(libraryBucket = libraryInput?.value || defaultLibraryForCreate()) {
+  if (!collectionInput) {
+    return;
+  }
+
+  const previousValue = collectionInput.value;
+  const options = [
+    createOption("", "Uncategorized"),
+    ...state.collections
+      .filter((collection) => collection.library_bucket === libraryBucket && collection.status !== "archived")
+      .map((collection) => createOption(collection.note_library_collection_id, collectionOptionLabel(collection))),
+  ];
+
+  collectionInput.replaceChildren(...options);
+  collectionInput.value = options.some((option) => option.value === previousValue) ? previousValue : "";
+}
+
+function populateCollectionParentOptions(currentCollection = null, preferredParent = null) {
+  if (!collectionParentInput) {
+    return;
+  }
+
+  const libraryBucket = collectionLibraryInput?.value || currentCollection?.library_bucket || defaultLibraryForCreate();
+  const excludedIds = new Set([currentCollection?.note_library_collection_id, ...collectionDescendantIds(currentCollection)]);
+  const options = [
+    createOption("", "Root collection"),
+    ...state.collections
+      .filter((collection) => (
+        collection.library_bucket === libraryBucket &&
+        collection.status !== "archived" &&
+        !excludedIds.has(collection.note_library_collection_id)
+      ))
+      .map((collection) => createOption(collection.note_library_collection_id, collectionOptionLabel(collection))),
+  ];
+
+  collectionParentInput.replaceChildren(...options);
+  collectionParentInput.value = preferredParent?.note_library_collection_id ||
+    currentCollection?.parent_collection_id ||
+    "";
+  if (![...collectionParentInput.options].some((option) => option.value === collectionParentInput.value)) {
+    collectionParentInput.value = "";
+  }
+}
+
+function collectionDescendantIds(collection) {
+  if (!collection) {
+    return [];
+  }
+
+  const descendants = [];
+  const byParent = groupCollectionsByParent(state.collections);
+  const stack = [...(byParent.get(collection.note_library_collection_id) || [])];
+
+  while (stack.length > 0) {
+    const next = stack.shift();
+    descendants.push(next.note_library_collection_id);
+    stack.push(...(byParent.get(next.note_library_collection_id) || []));
+  }
+
+  return descendants;
 }
 
 function actionButton(label, handler) {
@@ -822,6 +1351,14 @@ function normalizeText(value) {
 
 function compareText(left, right) {
   return String(left || "").localeCompare(String(right || ""));
+}
+
+function createOption(value, label) {
+  const option = document.createElement("option");
+
+  option.value = value;
+  option.textContent = label;
+  return option;
 }
 
 function setStatus(message, isError = false) {

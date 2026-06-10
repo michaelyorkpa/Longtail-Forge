@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 17, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 18, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -119,6 +119,11 @@ ORDER BY version;
     module_id: "core",
     name: "add_search_index_library_bucket",
   });
+  assert.deepEqual(migrations[17], {
+    version: "048",
+    module_id: "notes",
+    name: "extend_note_library_collections",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -201,7 +206,9 @@ WHERE type = 'index'
     'idx_files_workspace_hash',
     'idx_files_workspace_status',
     'idx_note_library_collections_workspace_bucket',
-    'idx_note_library_collections_workspace_slug',
+    'idx_note_library_collections_workspace_parent',
+    'idx_note_library_collections_workspace_path',
+    'idx_note_library_collections_workspace_sibling_slug',
     'idx_note_library_collections_workspace_status',
     'idx_note_links_unique_active_target',
     'idx_note_links_workspace_note',
@@ -229,6 +236,7 @@ WHERE type = 'index'
     'idx_notes_workspace_library_visibility',
     'idx_notes_workspace_linked_user',
     'idx_notes_workspace_note',
+    'idx_notes_workspace_collection',
     'idx_notes_workspace_owner',
     'idx_notes_workspace_project',
     'idx_notes_workspace_security_mode',
@@ -254,6 +262,7 @@ WHERE type = 'index'
     'idx_search_index_workspace_indexed_at',
     'idx_search_index_workspace_library_bucket',
     'idx_search_index_workspace_module',
+    'idx_search_index_workspace_note_collection',
     'idx_search_index_workspace_project',
     'idx_search_index_workspace_record_status',
     'idx_search_index_workspace_record_type',
@@ -294,7 +303,9 @@ ORDER BY name;
     "idx_files_workspace_hash",
     "idx_files_workspace_status",
     "idx_note_library_collections_workspace_bucket",
-    "idx_note_library_collections_workspace_slug",
+    "idx_note_library_collections_workspace_parent",
+    "idx_note_library_collections_workspace_path",
+    "idx_note_library_collections_workspace_sibling_slug",
     "idx_note_library_collections_workspace_status",
     "idx_note_links_unique_active_target",
     "idx_note_links_workspace_note",
@@ -313,6 +324,7 @@ ORDER BY name;
     "idx_note_wiki_links_workspace_target_note",
     "idx_note_wiki_links_workspace_target_slug",
     "idx_notes_workspace_client",
+    "idx_notes_workspace_collection",
     "idx_notes_workspace_created_by",
     "idx_notes_workspace_import_batch",
     "idx_notes_workspace_import_source",
@@ -347,6 +359,7 @@ ORDER BY name;
     "idx_search_index_workspace_indexed_at",
     "idx_search_index_workspace_library_bucket",
     "idx_search_index_workspace_module",
+    "idx_search_index_workspace_note_collection",
     "idx_search_index_workspace_project",
     "idx_search_index_workspace_record_status",
     "idx_search_index_workspace_record_type",

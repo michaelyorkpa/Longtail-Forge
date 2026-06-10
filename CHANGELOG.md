@@ -1,3 +1,20 @@
+## Version 0.33.1.6 - 2026-06-10 13:00 -04:00
+
+- Added the Notes Collections UI with per-Library collection trees, uncategorized filters, collection counts, and create/edit/archive/delete-empty actions backed by the 0.33.1.5 service.
+- Added collection pickers to note create/edit, collection breadcrumbs on note detail, and collection filters on the Notes list without changing note visibility, security mode, linked records, or permissions.
+- Added collection-aware global search request parameters and collection-path display support for Notes search results.
+- Updated Notes and Search browser assets/styles, refreshed Notes/Search regressions, and bumped the app/package and Notes module versions to `0.33.1.6`.
+- Fixed follow-up collection UI behavior by moving collection actions behind a compact menu, starting parent collections collapsed, and rolling permission-safe child note totals up to parent collections.
+- Updated Notes revision behavior so note creation does not store an initial revision row, saved edits store the before-edit snapshot, the first revision is labeled "Original", and obsolete current-state rows from the old after-save behavior are hidden from revision history.
+
+## Version 0.33.1.5 - 2026-06-10 12:33 -04:00
+
+- Extended the existing `note_library_collections` table for hierarchical Notes Collections with path/depth metadata, import source tracking, sibling-scoped slug uniqueness, and no parallel `note_collections` table.
+- Added nullable `notes.note_collection_id` single-primary collection membership plus collection service/API support for list/tree, create, rename, move, archive, restore, delete-empty, note assignment, and OneNote import-path mapping.
+- Added canonical exact Notes collection search filtering through `search_index.note_collection_id` and safe collection path metadata without overloading note body text.
+- Preserved access boundaries so collections organize notes without granting access; collection counts/tree/search filtering stay permission-safe and note visibility/security/linked-record permissions remain authoritative.
+- Added `scripts/notes-collections-regression.mjs`, updated fresh database/search/Notes regressions, and bumped the app/package and Notes module versions to `0.33.1.5`.
+
 ## Version 0.33.1.4 - 2026-06-10 06:55 -04:00
 
 - Registered Notes as searchable records through the framework search indexer registry, including title, safe body plaintext, excerpt, Library bucket, status, visibility, linked context identifiers, and workspace tags.

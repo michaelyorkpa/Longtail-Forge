@@ -6,6 +6,7 @@ const recordTypeSelect = document.querySelector("[data-search-record-type]");
 const clientSelect = document.querySelector("[data-search-client]");
 const projectSelect = document.querySelector("[data-search-project]");
 const tagSelect = document.querySelector("[data-search-tag]");
+const noteCollectionInput = document.querySelector("[data-search-note-collection]");
 const statusSelect = document.querySelector("[data-search-status-filter]");
 const clientControl = document.querySelector("[data-search-client-control]");
 const clearButton = document.querySelector("[data-search-clear]");
@@ -36,7 +37,7 @@ searchForm?.addEventListener("submit", (event) => {
   loadResults();
 });
 
-[moduleSelect, recordTypeSelect, clientSelect, projectSelect, tagSelect, statusSelect].forEach((control) => {
+[moduleSelect, recordTypeSelect, clientSelect, projectSelect, tagSelect, noteCollectionInput, statusSelect].forEach((control) => {
   control?.addEventListener("change", () => {
     state.filters = readFiltersFromControls();
     state.page = 1;
@@ -455,6 +456,9 @@ function applyFiltersToControls() {
   if (tagSelect) {
     tagSelect.value = state.filters.tagId || "";
   }
+  if (noteCollectionInput) {
+    noteCollectionInput.value = state.filters.noteCollectionId || "";
+  }
   if (statusSelect) {
     statusSelect.value = state.filters.status || "";
   }
@@ -468,6 +472,7 @@ function readFiltersFromControls() {
     clientId: clientSelect?.value || "",
     projectId: projectSelect?.value || "",
     tagId: tagSelect?.value || "",
+    noteCollectionId: noteCollectionInput?.value?.trim() || "",
     status: statusSelect?.value || "",
   };
 }
@@ -482,6 +487,7 @@ function readFiltersFromUrl() {
     clientId: params.get("clientId") || params.get("client") || "",
     projectId: params.get("projectId") || params.get("project") || "",
     tagId: params.get("tagId") || params.get("tag") || "",
+    noteCollectionId: params.get("noteCollectionId") || params.get("note_collection_id") || params.get("collection") || "",
     status: params.get("status") || params.get("recordStatus") || "",
   };
 }
@@ -513,6 +519,7 @@ function buildUrlParams() {
   appendParam(params, "clientId", state.filters.clientId);
   appendParam(params, "projectId", state.filters.projectId);
   appendParam(params, "tagId", state.filters.tagId);
+  appendParam(params, "noteCollectionId", state.filters.noteCollectionId);
   appendParam(params, "status", state.filters.status);
   if (state.page > 1) {
     params.set("page", String(state.page));
@@ -539,6 +546,7 @@ function emptyFilters() {
     clientId: "",
     projectId: "",
     tagId: "",
+    noteCollectionId: "",
     status: "",
   };
 }
@@ -590,6 +598,9 @@ function resultMetaParts(result) {
   }
   if (projectName) {
     parts.push(projectName);
+  }
+  if (result.collectionPath) {
+    parts.push(result.collectionPath);
   }
   if (result.updatedAt) {
     parts.push(`Updated ${formatDate(result.updatedAt)}`);

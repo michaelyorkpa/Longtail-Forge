@@ -15,6 +15,8 @@ const SEARCH_INDEX_COLUMNS = [
   "client_id",
   "project_id",
   "library_bucket",
+  "note_collection_id",
+  "collection_path",
   "visibility",
   "record_status",
   "source",
@@ -116,6 +118,8 @@ CREATE VIRTUAL TABLE IF NOT EXISTS ${SQLITE_SEARCH_FTS_TABLE} USING fts5(
               "client_id",
               "project_id",
               "library_bucket",
+              "note_collection_id",
+              "collection_path",
               "record_created_at",
               "record_updated_at",
             ].includes(columnName),
@@ -132,6 +136,8 @@ ON CONFLICT(workspace_id, module_id, record_type, record_id) DO UPDATE SET
   client_id = excluded.client_id,
   project_id = excluded.project_id,
   library_bucket = excluded.library_bucket,
+  note_collection_id = excluded.note_collection_id,
+  collection_path = excluded.collection_path,
   visibility = excluded.visibility,
   record_status = excluded.record_status,
   source = excluded.source,
@@ -503,6 +509,8 @@ SELECT
   si.client_id,
   si.project_id,
   si.library_bucket,
+  si.note_collection_id,
+  si.collection_path,
   si.visibility,
   si.record_status,
   si.source,
@@ -555,6 +563,8 @@ SELECT
   si.client_id,
   si.project_id,
   si.library_bucket,
+  si.note_collection_id,
+  si.collection_path,
   si.visibility,
   si.record_status,
   si.source,
@@ -589,6 +599,7 @@ function buildSearchWhereClause(request, alias) {
   const clientId = normalizeSearchText(request?.scopes?.clientId);
   const projectId = normalizeSearchText(request?.scopes?.projectId);
   const libraryBucket = normalizeSearchText(request?.libraryBucket || request?.library_bucket);
+  const noteCollectionId = normalizeSearchText(request?.noteCollectionId || request?.note_collection_id);
   const recordStatus = normalizeSearchText(request?.recordStatus);
   const visibility = normalizeSearchText(request?.visibility);
   const source = normalizeSearchText(request?.source);
@@ -604,6 +615,9 @@ function buildSearchWhereClause(request, alias) {
   }
   if (libraryBucket) {
     whereParts.push(`${alias}.library_bucket = ${sqlText(libraryBucket)}`);
+  }
+  if (noteCollectionId) {
+    whereParts.push(`${alias}.note_collection_id = ${sqlText(noteCollectionId)}`);
   }
   if (recordStatus) {
     whereParts.push(`${alias}.record_status = ${sqlText(recordStatus)}`);

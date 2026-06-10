@@ -26,6 +26,7 @@ const NOTE_COLUMNS = [
   "task_id",
   "ticket_id",
   "linked_user_id",
+  "note_collection_id",
   "owner_user_id",
   "created_by_user_id",
   "updated_by_user_id",
@@ -43,6 +44,28 @@ const NOTE_COLUMNS = [
   "original_section_group",
   "original_section",
   "original_page_id",
+];
+
+const COLLECTION_COLUMNS = [
+  "note_library_collection_id",
+  "workspace_id",
+  "title",
+  "slug",
+  "description",
+  "library_bucket",
+  "parent_collection_id",
+  "path_cache",
+  "depth",
+  "sort_order",
+  "collection_source",
+  "status",
+  "created_by_user_id",
+  "updated_by_user_id",
+  "created_at",
+  "updated_at",
+  "archived_at",
+  "deleted_at",
+  "metadata_json",
 ];
 
 async function list(workspaceId, filters = {}) {
@@ -67,6 +90,7 @@ async function list(workspaceId, filters = {}) {
     ticketId: "ticket_id",
     linkedUserId: "linked_user_id",
     ownerUserId: "owner_user_id",
+    noteCollectionId: "note_collection_id",
   })) {
     if (filters[filterKey]) {
       clauses.push(`${columnName} = ${sqlText(filters[filterKey])}`);
@@ -119,6 +143,7 @@ INSERT INTO notes (
   task_id,
   ticket_id,
   linked_user_id,
+  note_collection_id,
   owner_user_id,
   created_by_user_id,
   updated_by_user_id,
@@ -156,6 +181,7 @@ VALUES (
   ${sqlNullableText(note.task_id)},
   ${sqlNullableText(note.ticket_id)},
   ${sqlNullableText(note.linked_user_id)},
+  ${sqlNullableText(note.note_collection_id)},
   ${sqlNullableText(note.owner_user_id)},
   ${sqlNullableText(note.created_by_user_id)},
   ${sqlNullableText(note.updated_by_user_id)},
@@ -199,6 +225,7 @@ SET
   task_id = ${sqlNullableText(note.task_id)},
   ticket_id = ${sqlNullableText(note.ticket_id)},
   linked_user_id = ${sqlNullableText(note.linked_user_id)},
+  note_collection_id = ${sqlNullableText(note.note_collection_id)},
   owner_user_id = ${sqlNullableText(note.owner_user_id)},
   updated_by_user_id = ${sqlNullableText(note.updated_by_user_id)},
   updated_at = ${sqlText(note.updated_at || new Date().toISOString())},
@@ -420,6 +447,163 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   return readLinkById(workspaceId, noteId, linkId);
 }
 
+async function listCollections(workspaceId, filters = {}) {
+  const clauses = [`workspace_id = ${sqlText(workspaceId)}`];
+
+  if (!filters.includeDeleted) {
+    clauses.push("status != 'deleted'");
+  }
+
+  if (!filters.includeArchived) {
+    clauses.push("status != 'archived'");
+  }
+
+  if (filters.libraryBucket) {
+    clauses.push(`library_bucket = ${sqlText(filters.libraryBucket)}`);
+  }
+
+  const rows = await querySql(`
+SELECT ${COLLECTION_COLUMNS.join(", ")}
+FROM note_library_collections
+WHERE ${clauses.join("\n  AND ")}
+ORDER BY library_bucket ASC, path_cache COLLATE NOCASE ASC, sort_order ASC, title COLLATE NOCASE ASC;
+`);
+
+  return rows.map(collectionRowToAppValue);
+}
+
+async function readCollectionById(workspaceId, collectionId) {
+  const rows = await querySql(`
+SELECT ${COLLECTION_COLUMNS.join(", ")}
+FROM note_library_collections
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND note_library_collection_id = ${sqlText(collectionId)}
+LIMIT 1;
+`);
+
+  return rows[0] ? collectionRowToAppValue(rows[0]) : null;
+}
+
+async function createCollection(workspaceId, collection) {
+  const collectionId = collection.note_library_collection_id || randomUUID();
+  const now = collection.created_at || new Date().toISOString();
+
+  await runSql(`
+INSERT INTO note_library_collections (
+  note_library_collection_id,
+  workspace_id,
+  title,
+  slug,
+  description,
+  library_bucket,
+  parent_collection_id,
+  path_cache,
+  depth,
+  sort_order,
+  collection_source,
+  status,
+  created_by_user_id,
+  updated_by_user_id,
+  created_at,
+  updated_at,
+  archived_at,
+  deleted_at,
+  metadata_json
+)
+VALUES (
+  ${sqlText(collectionId)},
+  ${sqlText(workspaceId)},
+  ${sqlText(collection.title)},
+  ${sqlText(collection.slug)},
+  ${sqlNullableText(collection.description)},
+  ${sqlText(collection.library_bucket)},
+  ${sqlNullableText(collection.parent_collection_id)},
+  ${sqlNullableText(collection.path_cache)},
+  ${sqlInteger(collection.depth || 0)},
+  ${sqlInteger(collection.sort_order || 0)},
+  ${sqlText(collection.collection_source || "manual")},
+  ${sqlText(collection.status || "active")},
+  ${sqlNullableText(collection.created_by_user_id)},
+  ${sqlNullableText(collection.updated_by_user_id)},
+  ${sqlText(now)},
+  ${sqlText(collection.updated_at || now)},
+  ${sqlNullableText(collection.archived_at)},
+  ${sqlNullableText(collection.deleted_at)},
+  ${sqlNullableText(collection.metadata_json)}
+);
+`);
+
+  return readCollectionById(workspaceId, collectionId);
+}
+
+async function updateCollection(workspaceId, collection) {
+  await runSql(`
+UPDATE note_library_collections
+SET
+  title = ${sqlText(collection.title)},
+  slug = ${sqlText(collection.slug)},
+  description = ${sqlNullableText(collection.description)},
+  library_bucket = ${sqlText(collection.library_bucket)},
+  parent_collection_id = ${sqlNullableText(collection.parent_collection_id)},
+  path_cache = ${sqlNullableText(collection.path_cache)},
+  depth = ${sqlInteger(collection.depth || 0)},
+  sort_order = ${sqlInteger(collection.sort_order || 0)},
+  collection_source = ${sqlText(collection.collection_source || "manual")},
+  status = ${sqlText(collection.status || "active")},
+  updated_by_user_id = ${sqlNullableText(collection.updated_by_user_id)},
+  updated_at = ${sqlText(collection.updated_at || new Date().toISOString())},
+  archived_at = ${sqlNullableText(collection.archived_at)},
+  deleted_at = ${sqlNullableText(collection.deleted_at)},
+  metadata_json = ${sqlNullableText(collection.metadata_json)}
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND note_library_collection_id = ${sqlText(collection.note_library_collection_id)};
+`);
+
+  return readCollectionById(workspaceId, collection.note_library_collection_id);
+}
+
+async function countNotesInCollection(workspaceId, collectionId, filters = {}) {
+  const clauses = [
+    `workspace_id = ${sqlText(workspaceId)}`,
+    `note_collection_id = ${sqlText(collectionId)}`,
+  ];
+
+  if (!filters.includeDeleted) {
+    clauses.push("status != 'deleted'");
+  }
+
+  const rows = await querySql(`
+SELECT COUNT(*) AS count
+FROM notes
+WHERE ${clauses.join("\n  AND ")};
+`);
+
+  return Number(rows[0]?.count || 0);
+}
+
+async function countChildCollections(workspaceId, collectionId, filters = {}) {
+  const clauses = [
+    `workspace_id = ${sqlText(workspaceId)}`,
+    `parent_collection_id = ${sqlText(collectionId)}`,
+  ];
+
+  if (!filters.includeDeleted) {
+    clauses.push("status != 'deleted'");
+  }
+
+  if (!filters.includeArchived) {
+    clauses.push("status != 'archived'");
+  }
+
+  const rows = await querySql(`
+SELECT COUNT(*) AS count
+FROM note_library_collections
+WHERE ${clauses.join("\n  AND ")};
+`);
+
+  return Number(rows[0]?.count || 0);
+}
+
 async function listForTarget(workspaceId, target) {
   const directColumn = {
     client: "client_id",
@@ -475,6 +659,15 @@ function linkRowToAppValue(row) {
   };
 }
 
+function collectionRowToAppValue(row) {
+  return {
+    ...row,
+    depth: Number(row.depth || 0),
+    sort_order: Number(row.sort_order || 0),
+    metadata: parseJson(row.metadata_json, {}),
+  };
+}
+
 function parseJson(value, fallback) {
   if (!value) {
     return fallback;
@@ -489,17 +682,23 @@ function parseJson(value, fallback) {
 
 export const notesRepository = {
   create,
+  createCollection,
   createLink,
   createRevision,
+  countChildCollections,
+  countNotesInCollection,
   list,
+  listCollections,
   listForTarget,
   listLinks,
   listLinksForNotes,
   listRevisions,
   nextRevisionNumber,
   readById,
+  readCollectionById,
   readLinkById,
   readRevisionById,
   removeLink,
+  updateCollection,
   update,
 };

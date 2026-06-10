@@ -17,10 +17,11 @@ assert.match(html, /data-search-record-type/);
 assert.match(html, /data-search-client/);
 assert.match(html, /data-search-project/);
 assert.match(html, /data-search-tag/);
+assert.match(html, /data-search-note-collection/);
 assert.match(html, /data-search-results/);
 assert.match(html, /data-search-pagination/);
 assert.match(html, /js\/navigation\.js/);
-assert.match(html, /js\/search\.js\?v=1/);
+assert.match(html, /js\/search\.js\?v=2/);
 
 assert.match(script, /new URLSearchParams\(window\.location\.search\)/);
 assert.match(script, /fetch\(`\/api\/search\?\$\{params\}`,\s*\{\s*cache: "no-store"\s*\}\)/);
@@ -34,7 +35,9 @@ assert.match(script, /appendParam\(params,\s*"recordType",\s*state\.filters\.rec
 assert.match(script, /appendParam\(params,\s*"clientId",\s*state\.filters\.clientId\)/);
 assert.match(script, /appendParam\(params,\s*"projectId",\s*state\.filters\.projectId\)/);
 assert.match(script, /appendParam\(params,\s*"tagId",\s*state\.filters\.tagId\)/);
+assert.match(script, /appendParam\(params,\s*"noteCollectionId",\s*state\.filters\.noteCollectionId\)/);
 assert.match(script, /appendParam\(params,\s*"status",\s*state\.filters\.status\)/);
+assert.match(script, /result\.collectionPath/);
 assert.match(script, /title\.href = result\.target\.url/);
 assert.match(script, /groupResults\(results\)/);
 assert.match(script, /renderPromptState/);

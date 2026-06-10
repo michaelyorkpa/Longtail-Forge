@@ -360,6 +360,8 @@ check("module indexer documents normalize to framework search_index shape", () =
     client_id: "client-1",
     project_id: "project-1",
     library_bucket: "reference",
+    note_collection_id: null,
+    collection_path: null,
     visibility: "normal",
     record_status: "open",
     source: "Example",
@@ -1133,6 +1135,8 @@ await checkAsync("canonical search_index schema and fallback indexes are present
     "record_updated_at",
     "indexed_at",
     "library_bucket",
+    "note_collection_id",
+    "collection_path",
   ]);
 
   for (const requiredColumn of [
@@ -1168,6 +1172,7 @@ ORDER BY name;
     "idx_search_index_workspace_indexed_at",
     "idx_search_index_workspace_library_bucket",
     "idx_search_index_workspace_module",
+    "idx_search_index_workspace_note_collection",
     "idx_search_index_workspace_project",
     "idx_search_index_workspace_record_status",
     "idx_search_index_workspace_record_type",
