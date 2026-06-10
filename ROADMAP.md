@@ -2086,6 +2086,24 @@ Auto-routing communications/messaging
 - [ ] Mastodon
 - [ ] Buffer
 
+### Publishing (Creator Studio)
+
+The Creator studio tool can be much richer if it pushes content out to these platforms, or stores them there until ready for publishing.
+
+- [ ] WordPress (Posts first, the Custom Post Types)
+- [ ] Shopify (Blogs)
+- [ ] Social Media
+  - [ ] YouTube
+  - [ ] TikTok
+  - [ ] Twitch
+  - [ ] Facebook
+  - [ ] Instagram
+  - [ ] Threads
+  - [ ] X
+  - [ ] BlueSky
+  - [ ] Mastodon
+  - [ ] Buffer
+
 ## Version 0.71.0
 
 - [ ] Buy domain name

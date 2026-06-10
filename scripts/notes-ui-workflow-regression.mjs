@@ -48,24 +48,35 @@ async function assertProtectedView(session) {
   const html = result.contents.toString("utf8");
 
   assert.equal(result.statusCode, 200);
-  assert.match(html, /data-notes-library-summary/);
   assert.match(html, /data-note-body/);
   assert.match(html, /data-note-filter-tags/);
   assert.match(html, /data-note-filter-collection/);
   assert.match(html, /data-notes-collections-panel/);
+  assert.match(html, /data-note-collection-library-filter/);
+  assert.match(html, /data-note-collection-actions/);
   assert.match(html, /data-note-collection-dialog/);
   assert.match(html, /data-note-collection/);
   assert.match(html, /data-note-tags-editor/);
+  assert.match(html, /<details class="notes-filters-panel">/);
+  assert.doesNotMatch(html, /<details class="notes-filters-panel"[^>]* open/);
+  assert.match(html, /<div class="notes-library-tabs" role="tablist" aria-label="Library buckets">/);
+  assert.doesNotMatch(html, /data-notes-library-summary/);
   assert.match(html, /js\/shared\/icons\.js\?v=1/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=1/);
-  assert.match(html, /css\/longtail-forge\.css\?v=14/);
-  assert.match(html, /js\/notes\.js\?v=4/);
+  assert.match(html, /css\/longtail-forge\.css\?v=17/);
+  assert.match(html, /js\/notes\.js\?v=6/);
 
   const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
-  assert.match(notesJs, /expandedCollectionIds: new Set\(\)/);
   assert.match(notesJs, /notes-collection-actions-menu/);
+  assert.match(notesJs, /collectionFilterOptions/);
+  assert.match(notesJs, /hierarchicalCollectionOptions/);
+  assert.match(notesJs, /notes-detail-rule/);
+  assert.match(notesJs, /notes-revisions-panel/);
+  assert.match(notesJs, /notes-detail-actions-menu/);
+  assert.match(notesJs, /detailMetaItems/);
+  assert.doesNotMatch(notesJs, /loadLibrary/);
   assert.match(notesJs, /collectionFilterIds/);
   assert.match(notesJs, /Original/);
 }

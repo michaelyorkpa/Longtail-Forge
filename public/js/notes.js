@@ -5,9 +5,9 @@ const BUCKET_LABELS = {
   ongoing_area: "Ongoing Areas",
   reference: "Reference Library",
 };
+const COLLECTION_BUCKET_ORDER = ["active_work", "ongoing_area", "reference"];
 
 const statusMessage = document.querySelector("[data-notes-status]");
-const librarySummary = document.querySelector("[data-notes-library-summary]");
 const bucketTabs = [...document.querySelectorAll("[data-notes-bucket]")];
 const filtersForm = document.querySelector("[data-notes-filters]");
 const statusFilter = document.querySelector("[data-note-filter-status]");
@@ -28,8 +28,9 @@ const prevButton = document.querySelector("[data-notes-prev]");
 const nextButton = document.querySelector("[data-notes-next]");
 const pageLabel = document.querySelector("[data-notes-page]");
 const collectionPanel = document.querySelector("[data-notes-collections-panel]");
-const collectionTree = document.querySelector("[data-notes-collection-tree]");
 const collectionCreateButton = document.querySelector("[data-note-collection-create]");
+const collectionLibraryFilter = document.querySelector("[data-note-collection-library-filter]");
+const collectionActionsMount = document.querySelector("[data-note-collection-actions]");
 const dialog = document.querySelector("[data-note-dialog]");
 const form = document.querySelector("[data-note-form]");
 const dialogTitle = document.querySelector("[data-note-dialog-title]");
@@ -73,9 +74,7 @@ let state = {
   collectionEditingId: "",
   collections: [],
   editingNoteId: "",
-  expandedCollectionIds: new Set(),
   notes: [],
-  library: [],
   page: 1,
   selectedNote: null,
   selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
@@ -85,10 +84,12 @@ let state = {
 createButton?.addEventListener("click", () => openEditor());
 collectionCreateButton?.addEventListener("click", () => openCollectionDialog("create"));
 bucketTabs.forEach((button) => button.addEventListener("click", () => selectBucket(button.dataset.notesBucket)));
+collectionLibraryFilter?.addEventListener("change", () => selectBucket(collectionLibraryFilter.value === "all" ? "all" : collectionLibraryFilter.value));
+collectionFilter?.addEventListener("change", () => selectCollection(collectionFilter.value));
 filtersForm?.addEventListener("change", () => {
   state.page = 1;
   state.selectedCollectionId = collectionFilter?.value || "";
-  updateCollectionTreeSelection();
+  updateCollectionPanelSelection();
   updateUrlCollection();
   renderNotes();
 });
@@ -123,7 +124,7 @@ async function initialize() {
 
   try {
     await window.LongtailForge.workspaceContextReady;
-    await Promise.all([loadTags(), loadLibrary(), loadCollections(), loadNotes()]);
+    await Promise.all([loadTags(), loadCollections(), loadNotes()]);
     renderCollections();
     populateCollectionFilter();
     renderNotes();
@@ -133,12 +134,6 @@ async function initialize() {
     renderEmptyList(error.message || "Notes could not be loaded.");
     setStatus(error.message || "Notes could not be loaded.", true);
   }
-}
-
-async function loadLibrary() {
-  const result = await api.getJson("/api/notes/library", { cache: "no-store" });
-  state.library = result.buckets || [];
-  renderLibrarySummary();
 }
 
 async function loadNotes() {
@@ -177,29 +172,6 @@ async function loadTags() {
   } catch {
     state.availableTags = [];
   }
-}
-
-function renderLibrarySummary() {
-  if (!librarySummary) {
-    return;
-  }
-
-  const cards = state.library.map((bucket) => {
-    const button = document.createElement("button");
-    const label = document.createElement("strong");
-    const count = document.createElement("span");
-
-    button.type = "button";
-    button.className = "notes-library-card";
-    button.dataset.notesSummaryBucket = bucket.libraryBucket;
-    button.addEventListener("click", () => selectBucket(bucket.libraryBucket));
-    label.textContent = BUCKET_LABELS[bucket.libraryBucket] || formatToken(bucket.libraryBucket);
-    count.textContent = `${bucket.count || 0} active / ${bucket.archivedCount || 0} archived`;
-    button.append(label, count);
-    return button;
-  });
-
-  librarySummary.replaceChildren(...cards);
 }
 
 async function selectBucket(bucket) {
@@ -251,7 +223,7 @@ function renderNotes() {
 }
 
 function renderCollections() {
-  if (!collectionPanel || !collectionTree) {
+  if (!collectionPanel || !collectionFilter) {
     return;
   }
 
@@ -263,89 +235,27 @@ function renderCollections() {
     collectionCreateButton.hidden = false;
   }
 
-  const visibleCollections = collectionsForActiveBucket();
-  if (visibleCollections.length === 0) {
-    collectionTree.replaceChildren(collectionEmptyButton("No collections", ""));
-    return;
+  if (collectionLibraryFilter) {
+    collectionLibraryFilter.value = ["active_work", "ongoing_area", "reference"].includes(state.activeBucket)
+      ? state.activeBucket
+      : "all";
   }
-
-  const groups = state.activeBucket === "all"
-    ? groupCollectionsByBucket(visibleCollections)
-    : [[state.activeBucket, visibleCollections]];
-  const fragments = groups.map(([bucket, collections]) => {
-    const section = document.createElement("section");
-    const heading = document.createElement("h3");
-
-    heading.textContent = libraryLabel(bucket);
-    section.className = "notes-collection-group";
-    section.append(heading, collectionButton("", "All in Library", "", 0), collectionButton("__uncategorized", "Uncategorized", "", 0));
-    section.append(...collectionTreeNodes(collections));
-    return section;
-  });
-
-  collectionTree.replaceChildren(...fragments);
-}
-
-function collectionTreeNodes(collections) {
-  const byParent = groupCollectionsByParent(collections);
-
-  function renderNode(collection) {
-    const row = document.createElement("div");
-    const children = byParent.get(collection.note_library_collection_id) || [];
-
-    row.className = "notes-collection-node";
-    row.append(collectionButton(
-      collection.note_library_collection_id,
-      collection.title || "Collection",
-      collection,
-      Number(collection.depth || 0),
-      children.length > 0,
-    ));
-    if (children.length > 0 && state.expandedCollectionIds.has(collection.note_library_collection_id)) {
-      row.append(...children.flatMap(renderNode));
-    }
-    return [row];
-  }
-
-  return (byParent.get("") || []).flatMap(renderNode);
-}
-
-function collectionButton(value, label, collection = null, depth = 0, hasChildren = false) {
-  const row = document.createElement("div");
-  const toggle = document.createElement("button");
-  const button = document.createElement("button");
-  const count = document.createElement("span");
-
-  row.className = "notes-collection-row";
-  row.style.setProperty("--collection-depth", String(Math.max(0, depth)));
-  toggle.type = "button";
-  toggle.className = "notes-collection-toggle";
-  toggle.hidden = !hasChildren;
-  toggle.textContent = state.expandedCollectionIds.has(value) ? "-" : "+";
-  toggle.title = state.expandedCollectionIds.has(value) ? "Collapse collection" : "Expand collection";
-  toggle.addEventListener("click", () => toggleCollectionExpanded(value));
-  button.type = "button";
-  button.className = "notes-collection-select";
-  button.dataset.noteCollectionSelect = value;
-  button.setAttribute("aria-pressed", String(state.selectedCollectionId === value));
-  button.textContent = depth > 0 ? `- ${label}` : label;
-  button.addEventListener("click", () => selectCollection(value));
-  count.className = "notes-collection-count";
-  count.textContent = collection ? String(collection.accessibleNoteCount || 0) : String(countNotesForCollection(value));
-  row.append(toggle, button, count);
-
-  if (collection && state.activeBucket !== "archive") {
-    row.append(collectionActions(collection));
-  }
-
-  return row;
-}
-
-function collectionEmptyButton(label, value) {
-  return collectionButton(value, label, null, 0);
+  populateCollectionFilter();
+  updateCollectionPanelSelection();
 }
 
 function collectionActions(collection) {
+  if (!collection || state.activeBucket === "archive") {
+    const disabled = document.createElement("button");
+
+    disabled.type = "button";
+    disabled.className = "notes-collection-actions-disabled";
+    disabled.textContent = "...";
+    disabled.disabled = true;
+    disabled.title = "Select a collection to manage it.";
+    return disabled;
+  }
+
   const actions = document.createElement("details");
   const summary = document.createElement("summary");
   const menu = document.createElement("span");
@@ -367,33 +277,22 @@ function collectionActions(collection) {
   return actions;
 }
 
-function toggleCollectionExpanded(collectionId) {
-  if (!collectionId) {
-    return;
-  }
-  if (state.expandedCollectionIds.has(collectionId)) {
-    state.expandedCollectionIds.delete(collectionId);
-  } else {
-    state.expandedCollectionIds.add(collectionId);
-  }
-  renderCollections();
-}
-
 function selectCollection(collectionId) {
   state.selectedCollectionId = collectionId || "";
   state.page = 1;
   if (collectionFilter) {
     collectionFilter.value = state.selectedCollectionId;
   }
-  updateCollectionTreeSelection();
+  updateCollectionPanelSelection();
   updateUrlCollection();
   renderNotes();
 }
 
-function updateCollectionTreeSelection() {
-  collectionTree?.querySelectorAll("[data-note-collection-select]").forEach((button) => {
-    button.setAttribute("aria-pressed", String(button.dataset.noteCollectionSelect === state.selectedCollectionId));
-  });
+function updateCollectionPanelSelection() {
+  if (collectionFilter && collectionFilter.value !== state.selectedCollectionId) {
+    collectionFilter.value = state.selectedCollectionId;
+  }
+  collectionActionsMount?.replaceChildren(collectionActions(selectedCollection()));
 }
 
 function populateCollectionFilter() {
@@ -401,19 +300,13 @@ function populateCollectionFilter() {
     return;
   }
 
-  const options = [
-    createOption("", "All collections"),
-    createOption("__uncategorized", "Uncategorized"),
-    ...collectionsForActiveBucket().map((collection) => createOption(
-      collection.note_library_collection_id,
-      collectionOptionLabel(collection),
-    )),
-  ];
+  const options = collectionFilterOptions();
   collectionFilter.replaceChildren(...options);
-  collectionFilter.value = options.some((option) => option.value === state.selectedCollectionId)
+  collectionFilter.value = collectionFilterHasValue(collectionFilter, state.selectedCollectionId)
     ? state.selectedCollectionId
     : "";
   state.selectedCollectionId = collectionFilter.value;
+  updateCollectionPanelSelection();
 }
 
 function filteredNotes() {
@@ -532,15 +425,17 @@ async function selectNote(noteId) {
 
 function renderDetail(note) {
   const header = document.createElement("header");
+  const titleRow = document.createElement("div");
   const title = document.createElement("h2");
+  const titleRule = document.createElement("hr");
   const meta = document.createElement("p");
-  const actions = document.createElement("div");
   const edit = actionButton("Edit", () => openEditor(note));
   const archiveOrRestore = note.status === "archived"
     ? actionButton("Restore", () => restoreNote(note))
     : actionButton("Archive", () => archiveNote(note));
   const body = document.createElement("div");
-  const tags = document.createElement("section");
+  const tags = document.createElement("div");
+  const tagsRule = document.createElement("hr");
   const collectionBreadcrumb = document.createElement("p");
   const context = document.createElement("dl");
   const links = renderLinksPanel(note);
@@ -548,21 +443,17 @@ function renderDetail(note) {
   const revisions = renderRevisionsPanel(note);
 
   header.className = "notes-detail-header";
+  titleRow.className = "notes-detail-title-row";
   title.textContent = note.title || "Untitled note";
-  meta.textContent = [
-    libraryLabel(note.library_bucket),
-    formatToken(note.note_type),
-    formatToken(note.status),
-    formatToken(note.visibility),
-    formatToken(note.security_mode),
-  ].filter(Boolean).join(" - ");
-  actions.className = "notes-detail-actions";
+  titleRule.className = "notes-detail-rule";
+  meta.className = "notes-detail-meta";
+  meta.append(...detailMetaItems(note));
   if (note.status === "archived") {
     edit.disabled = true;
     edit.title = "Restore archived notes before editing.";
   }
-  actions.append(edit, archiveOrRestore);
-  header.append(title, meta, actions);
+  titleRow.append(title, detailActionsMenu([edit, archiveOrRestore]));
+  header.append(titleRow, titleRule, meta);
   collectionBreadcrumb.className = "notes-collection-breadcrumb";
   collectionBreadcrumb.textContent = `Collection: ${collectionLabel(note.note_collection_id) || "Uncategorized"}`;
 
@@ -572,8 +463,9 @@ function renderDetail(note) {
     body.textContent = note.security_mode === "secure" ? "Secure note body is not shown here." : "No body.";
   }
 
-  tags.className = "notes-detail-section";
-  tags.append(sectionHeading("Tags"), tagChips(note.tags || []));
+  tags.className = "notes-detail-tags";
+  tags.append(tagChips(note.tags || []));
+  tagsRule.className = "notes-detail-rule";
 
   context.className = "notes-context-list";
   addContext(context, "Client", note.client_id);
@@ -585,7 +477,7 @@ function renderDetail(note) {
   addContext(context, "Updated", formatDate(note.updated_at));
   addContext(context, "Owner", note.owner_user_id);
 
-  detailPanel.replaceChildren(header, collectionBreadcrumb, tags, body, context, links, files, revisions);
+  detailPanel.replaceChildren(header, collectionBreadcrumb, tags, tagsRule, body, context, links, files, revisions);
   mountFilesPanel(note, files.querySelector("[data-note-files-mount]"));
   loadRevisions(note, revisions.querySelector("[data-note-revisions-list]"));
 }
@@ -642,7 +534,7 @@ async function saveNote(event) {
       ? await api.putJson(`/api/notes/${encodeURIComponent(state.editingNoteId)}`, payload)
       : await api.postJson("/api/notes", payload);
 
-    await Promise.all([loadLibrary(), loadNotes()]);
+    await Promise.all([loadCollections(), loadNotes()]);
     closeEditor();
     await selectNote(result.note.note_id);
     formStatus.textContent = "";
@@ -798,7 +690,7 @@ async function mutateCollection(url) {
 }
 
 async function refreshCollectionUi() {
-  await Promise.all([loadCollections(), loadNotes(), loadLibrary()]);
+  await Promise.all([loadCollections(), loadNotes()]);
   renderCollections();
   populateCollectionFilter();
   populateNoteCollectionOptions();
@@ -917,13 +809,15 @@ function fileVisibilityForNote(note) {
 }
 
 function renderRevisionsPanel(note) {
-  const section = document.createElement("section");
+  const section = document.createElement("details");
+  const summary = document.createElement("summary");
   const list = document.createElement("div");
 
-  section.className = "notes-detail-section";
+  section.className = "notes-detail-section notes-revisions-panel";
+  summary.textContent = "Revisions";
   list.dataset.noteRevisionsList = "";
   list.textContent = "Loading revisions...";
-  section.append(sectionHeading("Revisions"), list);
+  section.append(summary, list);
   if (note.status === "archived") {
     list.dataset.archived = "true";
   }
@@ -990,7 +884,7 @@ async function mutateNote(url) {
 
   try {
     const result = await api.postJson(url, {});
-    await Promise.all([loadLibrary(), loadNotes()]);
+    await Promise.all([loadCollections(), loadNotes()]);
     await selectNote(result.note.note_id);
     setStatus("");
   } catch (error) {
@@ -1115,7 +1009,7 @@ function groupCollectionsByBucket(collections) {
     groups.set(bucket, [...(groups.get(bucket) || []), collection]);
   }
 
-  return [...groups.entries()].sort((left, right) => compareText(libraryLabel(left[0]), libraryLabel(right[0])));
+  return [...groups.entries()].sort((left, right) => bucketSortValue(left[0]) - bucketSortValue(right[0]));
 }
 
 function groupCollectionsByParent(collections) {
@@ -1144,6 +1038,72 @@ function countNotesForCollection(collectionId) {
 
   const collectionIds = collectionFilterIds(collectionId);
   return state.notes.filter((note) => matchesActiveBucket(note) && collectionIds.has(note.note_collection_id)).length;
+}
+
+function selectedCollection() {
+  if (!state.selectedCollectionId || state.selectedCollectionId === "__uncategorized") {
+    return null;
+  }
+
+  return state.collections.find((collection) => collection.note_library_collection_id === state.selectedCollectionId) || null;
+}
+
+function collectionFilterOptions() {
+  const controls = [
+    createOption("", "All collections"),
+    createOption("__uncategorized", "Uncategorized"),
+  ];
+  const visibleCollections = collectionsForActiveBucket().filter((collection) => collection.status !== "deleted");
+  const groupedCollections = groupCollectionsByBucket(visibleCollections);
+
+  for (const [bucket, collections] of groupedCollections) {
+    const bucketOptions = hierarchicalCollectionOptions(collections);
+
+    if (bucketOptions.length === 0) {
+      continue;
+    }
+
+    if (state.activeBucket === "all" || state.activeBucket === "archive") {
+      const group = document.createElement("optgroup");
+      group.label = libraryLabel(bucket);
+      group.append(...bucketOptions);
+      controls.push(group);
+    } else {
+      controls.push(...bucketOptions);
+    }
+  }
+
+  return controls;
+}
+
+function hierarchicalCollectionOptions(collections = []) {
+  const byParent = groupCollectionsByParent(collections);
+
+  function optionsForCollection(collection, depth = 0) {
+    const option = createOption(
+      collection.note_library_collection_id,
+      collectionSelectLabel(collection, depth),
+    );
+    const children = (byParent.get(collection.note_library_collection_id) || [])
+      .flatMap((child) => optionsForCollection(child, depth + 1));
+
+    return [option, ...children];
+  }
+
+  return (byParent.get("") || []).flatMap((collection) => optionsForCollection(collection, 0));
+}
+
+function collectionSelectLabel(collection, depth = 0) {
+  return `${depth > 0 ? `${"  ".repeat(depth)}- ` : ""}${collection.title || "Collection"}`;
+}
+
+function collectionFilterHasValue(select, value) {
+  return [...(select?.querySelectorAll("option") || [])].some((option) => option.value === value);
+}
+
+function bucketSortValue(bucket) {
+  const index = COLLECTION_BUCKET_ORDER.indexOf(bucket);
+  return index === -1 ? COLLECTION_BUCKET_ORDER.length : index;
 }
 
 function collectionFilterIds(collectionId) {
@@ -1258,6 +1218,44 @@ function actionButton(label, handler) {
   button.textContent = label;
   button.addEventListener("click", handler);
   return button;
+}
+
+function detailActionsMenu(buttons = []) {
+  const actions = document.createElement("details");
+  const summary = document.createElement("summary");
+  const menu = document.createElement("span");
+
+  actions.className = "notes-detail-actions";
+  summary.textContent = "...";
+  summary.title = "Note actions";
+  menu.className = "notes-detail-actions-menu";
+  menu.append(...buttons);
+  actions.append(summary, menu);
+  return actions;
+}
+
+function detailMetaItems(note = {}) {
+  const items = [
+    ["Library", libraryLabel(note.library_bucket)],
+    ["Type", formatToken(note.note_type)],
+    ["Status", formatToken(note.status)],
+    ["Visibility", formatToken(note.visibility)],
+    ["Security", formatToken(note.security_mode)],
+  ].filter(([, value]) => value);
+
+  return items.flatMap(([label, value], index) => {
+    const item = document.createElement("span");
+    const nodes = [];
+
+    item.textContent = value;
+    item.title = `${label}: ${value}`;
+    item.setAttribute("aria-label", `${label}: ${value}`);
+    nodes.push(item);
+    if (index < items.length - 1) {
+      nodes.push(document.createTextNode(" - "));
+    }
+    return nodes;
+  });
 }
 
 function addContext(list, label, value) {

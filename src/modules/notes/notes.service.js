@@ -180,7 +180,7 @@ async function listRevisions(noteId, session) {
   await assertCanAccess(session, note, "view_history");
 
   const revisions = await notesRepository.listRevisions(session.workspace_id, noteId);
-  return { revisions: revisions.filter((revision, index) => shouldShowRevisionSnapshot(revision, revisions, index, note)) };
+  return { revisions: visibleRevisionSnapshots(revisions, note) };
 }
 
 async function readRevision(noteId, revisionId, session) {
@@ -836,11 +836,17 @@ async function maybeCreateRevision(session, previousNote, nextNote, changeSummar
   return revision;
 }
 
-function shouldShowRevisionSnapshot(revision, revisions, index, note) {
-  if (revisions.length <= 1) {
-    return true;
+function visibleRevisionSnapshots(revisions = [], note = {}) {
+  const visible = revisions.filter((revision, index) => shouldShowRevisionSnapshot(revision, revisions, index, note));
+
+  if (visible.length === 1 && Number(visible[0].revision_number) === 1) {
+    return [];
   }
 
+  return visible;
+}
+
+function shouldShowRevisionSnapshot(revision, revisions, index, note) {
   const isLatestStoredRevision = index === 0;
   if (!isLatestStoredRevision || !["Note updated.", "Note restored.", "Note archived.", "Note deleted."].includes(revision.change_summary)) {
     return true;

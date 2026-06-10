@@ -73,9 +73,20 @@ async function assertNoteLifecycle(session) {
   assert.equal(updateResult.note.title, "Updated API service note");
 
   const revisionsAfterUpdate = await notesService.listRevisions(noteId, session);
-  assert.equal(revisionsAfterUpdate.revisions.length, 1);
-  assert.equal(revisionsAfterUpdate.revisions[0].revision_number, 1);
-  assert.equal(revisionsAfterUpdate.revisions[0].title, "API service note");
+  assert.equal(revisionsAfterUpdate.revisions.length, 0);
+
+  const secondUpdateResult = await notesService.update(noteId, {
+    ...updateResult.note,
+    title: "Second API service note update",
+    body_markdown: "Second updated body",
+  }, session);
+  assert.equal(secondUpdateResult.note.title, "Second API service note update");
+
+  const revisionsAfterSecondUpdate = await notesService.listRevisions(noteId, session);
+  assert.equal(revisionsAfterSecondUpdate.revisions.length, 2);
+  assert.deepEqual(revisionsAfterSecondUpdate.revisions.map((revision) => revision.revision_number), [2, 1]);
+  assert.equal(revisionsAfterSecondUpdate.revisions[0].title, "Updated API service note");
+  assert.equal(revisionsAfterSecondUpdate.revisions[1].title, "API service note");
 
   const archiveResult = await notesService.archive(noteId, session);
   assert.equal(archiveResult.note.status, NOTE_STATUSES.ARCHIVED);
@@ -87,7 +98,7 @@ async function assertNoteLifecycle(session) {
   const restoreResult = await notesService.restore(noteId, session);
   assert.equal(restoreResult.note.status, NOTE_STATUSES.ACTIVE);
 
-  const revisionToRestore = revisionsAfterUpdate.revisions.at(-1);
+  const revisionToRestore = revisionsAfterSecondUpdate.revisions.at(-1);
   const revisionRestoreResult = await notesService.restoreRevision(noteId, revisionToRestore.note_revision_id, session);
   assert.equal(revisionRestoreResult.restoredRevision.note_revision_id, revisionToRestore.note_revision_id);
 

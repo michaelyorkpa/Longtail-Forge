@@ -6,6 +6,10 @@
 - Updated Notes and Search browser assets/styles, refreshed Notes/Search regressions, and bumped the app/package and Notes module versions to `0.33.1.6`.
 - Fixed follow-up collection UI behavior by moving collection actions behind a compact menu, starting parent collections collapsed, and rolling permission-safe child note totals up to parent collections.
 - Updated Notes revision behavior so note creation does not store an initial revision row, saved edits store the before-edit snapshot, the first revision is labeled "Original", and obsolete current-state rows from the old after-save behavior are hidden from revision history.
+- Tightened the Notes page header area by starting the Notes Library and Filters sections collapsed and removing empty status-line spacing above the workspace.
+- Folded Library bucket controls into the collapsed Filters section, removed the Library count cards, tightened note preview title spacing, added hover labels to preview metadata, moved preview actions into a top-right compact menu, and rendered note tags as chips beneath the collection breadcrumb.
+- Hid the lone "Original" revision entry until at least one later revision is available to compare against.
+- Started note revisions collapsed by default, added note preview separators around metadata/content, and changed the Collections panel to Library and Collection dropdown controls with hierarchy-sorted collection options and a selected-collection actions menu.
 
 ## Version 0.33.1.5 - 2026-06-10 12:33 -04:00
 
