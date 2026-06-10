@@ -9,7 +9,7 @@ let checks = 0;
 const workspaceOne = "search-lifecycle-workspace-1";
 const workspaceTwo = "search-lifecycle-workspace-2";
 const now = "2026-06-08T18:00:00.000Z";
-const frameworkHelpArticleCount = 12;
+const frameworkHelpArticleCount = 13;
 const expectedWorkspaceIndexRows = frameworkHelpArticleCount + 4;
 
 await seedWorkspace(workspaceOne, {

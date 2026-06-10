@@ -2213,6 +2213,20 @@ button.danger-button {
     min-width: 220px;
 }
 
+.task-attachment-count {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    margin-left: 8px;
+    padding: 0 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    color: var(--color-muted);
+    font-size: 13px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
 .task-scope-cell,
 .task-assignee-cell {
     max-width: 220px;
@@ -2278,6 +2292,105 @@ dialog .form-actions {
     border: 1px solid var(--color-border);
     border-radius: 8px;
     background: var(--color-surface);
+}
+
+.file-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    align-items: end;
+    margin: 0 0 18px;
+}
+
+.file-filters button {
+    min-height: 42px;
+}
+
+.files-table td {
+    vertical-align: top;
+}
+
+.file-status-cell {
+    white-space: nowrap;
+}
+
+.file-attachments {
+    display: grid;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.file-attachments-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.file-attachments-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.file-attachments-status,
+.file-attachments-empty,
+.file-attachment-meta {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+.file-attachments-status.is-error,
+.file-attachments-empty.is-error {
+    color: var(--color-danger);
+}
+
+.file-attachment-upload {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+}
+
+.file-attachment-upload label {
+    display: grid;
+    gap: 6px;
+}
+
+.file-attachments-list {
+    display: grid;
+    gap: 8px;
+}
+
+.file-attachment-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.file-attachment-summary {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+}
+
+.file-attachment-summary strong,
+.file-attachment-meta {
+    overflow-wrap: anywhere;
+}
+
+.file-attachment-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+    align-items: center;
 }
 
 .task-summary-counts strong {

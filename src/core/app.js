@@ -9,6 +9,7 @@ import { appShellRoutes } from "../routes/app-shell.routes.js";
 import { apiKeysRoutes } from "../routes/api-keys.routes.js";
 import { auditRoutes } from "../routes/audit.routes.js";
 import { authRoutes } from "../routes/auth.routes.js";
+import { filesRoutes } from "../routes/files.routes.js";
 import { helpRoutes } from "../routes/help.routes.js";
 import { publicApiRoutes } from "../routes/public-api.routes.js";
 import { notificationsRoutes } from "../routes/notifications.routes.js";
@@ -41,6 +42,7 @@ function createApp() {
   app.use("/api", appShellRoutes);
   app.use("/api", apiKeysRoutes);
   app.use("/api", auditRoutes);
+  app.use("/api", filesRoutes);
   app.use("/api", helpRoutes);
   app.use("/api", notificationsRoutes);
   app.use("/api", permissionsRoutes);

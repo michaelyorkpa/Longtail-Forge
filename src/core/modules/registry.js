@@ -46,6 +46,7 @@ function cloneModuleDefinition(definition) {
     taggableTypes: [...(definition.taggableTypes || [])],
     tagPropagation: [...(definition.tagPropagation || [])],
     searchableTypes: [...(definition.searchableTypes || [])],
+    attachableTypes: [...(definition.attachableTypes || [])],
     help: cloneHelpContribution(definition.help),
     notificationEvents: [...(definition.notificationEvents || [])],
     notificationFollowTargets: [...(definition.notificationFollowTargets || [])],
@@ -195,6 +196,10 @@ function listSearchableTypes() {
   return listContribution("searchableTypes");
 }
 
+function listAttachableTypes() {
+  return listContribution("attachableTypes");
+}
+
 function listHelpSections() {
   return moduleDefinitions.flatMap((definition) => (
     definition.help?.sections || []
@@ -332,6 +337,7 @@ export {
   listNotificationFollowTargets,
   listNotificationTemplates,
   listPublicApiRoutes,
+  listAttachableTypes,
   listSearchableTypes,
   listTagPropagationRules,
   listTaggableTypes,

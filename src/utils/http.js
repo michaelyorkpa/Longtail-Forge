@@ -4,14 +4,15 @@ function asyncRoute(handler) {
   };
 }
 
-function readJsonBody(request) {
+function readJsonBody(request, options = {}) {
   return new Promise((resolve, reject) => {
     let body = "";
+    const maxBytes = options.maxBytes || 100000;
 
     request.on("data", (chunk) => {
       body += chunk;
 
-      if (body.length > 100000) {
+      if (body.length > maxBytes) {
         request.destroy();
         reject(new Error("Request body is too large"));
       }

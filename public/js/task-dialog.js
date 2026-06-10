@@ -5,6 +5,7 @@
   const pageController = namespace.pageController;
 
   let context = null;
+  let fileAttachmentsController = null;
   let tagPicker = null;
   let recurrenceDraft = defaultRecurrenceDraft();
   let taskTimers = [];
@@ -112,6 +113,7 @@
     writeReminderFields(task?.reminderDetails);
     writeTaskTimerFields(isDuplicate ? null : task);
     mountTaskTagPicker(isDuplicate ? [] : task?.tags || []);
+    mountTaskFileAttachments(isDuplicate ? null : task);
     writeTaskNotificationFollowFields(isDuplicate ? null : task);
 
     if (typeof dialog.showModal === "function") {
@@ -124,6 +126,8 @@
     return new Promise((resolve) => {
       dialog.addEventListener("close", () => {
         clearTaskTimerInterval();
+        fileAttachmentsController?.destroy?.();
+        fileAttachmentsController = null;
         resolve(dialog.returnValue || "closed");
       }, { once: true });
     });
@@ -151,6 +155,7 @@
       dueDate: dialog.querySelector("[data-task-due-date]"),
       dueTime: dialog.querySelector("[data-task-due-time]"),
       effectiveReminders: dialog.querySelector("[data-task-effective-reminders]"),
+      fileContainer: dialog.querySelector("[data-task-files]"),
       priority: dialog.querySelector("[data-task-priority]"),
       project: dialog.querySelector("[data-task-project]"),
       recurrenceDetails: dialog.querySelector("[data-task-recurrence-details]"),
@@ -349,6 +354,36 @@
     tagPicker = await namespace.tags.mountPicker(fields.tagContainer, {
       tags: context.tagOptions || [],
       selectedTags: tags,
+    });
+  }
+
+  function mountTaskFileAttachments(task) {
+    fileAttachmentsController?.destroy?.();
+    fileAttachmentsController = null;
+
+    if (!fields.fileContainer || !namespace.fileAttachments?.mount) {
+      fields.fileContainer?.replaceChildren();
+      return;
+    }
+
+    fileAttachmentsController = namespace.fileAttachments.mount(fields.fileContainer, {
+      acceptedCategories: ["document", "image", "pdf", "text", "other"],
+      canRemove: Boolean(task?.task_id),
+      canUpload: Boolean(task?.task_id),
+      clientId: task?.client_id || fields.client?.value || "",
+      moduleId: "tasks",
+      projectId: task?.project_id || fields.project?.value || "",
+      saveFirstMessage: "Save the task before adding files.",
+      targetId: task?.task_id || "",
+      targetType: "task",
+      title: "Task Files",
+      visibility: "private",
+      onAttachmentAdded: (detail) => context?.onAttachmentsChanged?.(detail),
+      onAttachmentRemoved: (detail) => context?.onAttachmentsChanged?.(detail),
+      onRefresh: (detail) => context?.onAttachmentsRefreshed?.(detail),
+      onUploadFailed: ({ error } = {}) => setStatus(error?.message || "Task file upload failed.", { isError: true }),
+      onUploadStarted: () => setStatus("Uploading task file..."),
+      onUploadCompleted: () => setStatus("Task file uploaded."),
     });
   }
 
@@ -971,6 +1006,7 @@
           <fieldset class="task-timer-field" data-task-timer-field hidden><legend>Task Timer</legend><p data-task-timer-status>No active timer.</p><div class="task-timer-controls"><strong data-task-timer-display>00:00:00</strong><button type="button" data-task-timer-start>Start</button><button type="button" data-task-timer-pause disabled>Pause</button><button type="button" data-task-timer-finalize disabled>Save Time</button><button type="button" data-task-timer-reset disabled>Reset</button></div></fieldset>
           <details class="task-reminder-field" data-task-reminder-details><summary>Reminders</summary><p data-task-effective-reminders></p><label class="inline-option"><input type="checkbox" data-task-reminder-override>Override reminder defaults</label><div class="reminder-offset-grid" data-task-reminder-override-fields hidden><label>Timed Reminder 1 (hours before)<input type="number" min="1" step="1" data-task-reminder-date-time-hours-1></label><label>Timed Reminder 2 (hours before)<input type="number" min="1" step="1" data-task-reminder-date-time-hours-2></label><label>Date-Only Reminder 1 (days before)<input type="number" min="1" step="1" data-task-reminder-date-only-days-1></label><label>Date-Only Reminder 2 (days before)<input type="number" min="1" step="1" data-task-reminder-date-only-days-2></label></div></details>
           <div class="task-tags-field" data-task-tags></div>
+          <div class="task-files-field" data-task-files></div>
           <fieldset class="task-notification-field" data-task-notification-field hidden><legend>Notifications</legend><p data-task-notification-status>Follow this task to receive update notifications for yourself.</p><button type="button" data-task-notification-follow>Follow Notifications</button></fieldset>
           <label class="task-description-field">Description<textarea rows="5" data-task-description></textarea></label>
           <div class="form-actions task-modal-actions"><button type="button" data-copy-task-link hidden>Copy Link</button><button type="button" data-cancel-task>Cancel</button><button type="submit" data-save-task>Save Task</button></div>

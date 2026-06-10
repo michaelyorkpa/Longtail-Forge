@@ -1,3 +1,40 @@
+## Version 0.32.13 - 2026-06-09 15:14 -04:00
+
+- Added the 0.32 module/file closeout review in `docs/0.32-module-file-closeout.md`, covering first-party module isolation, file framework readiness, Help/docs coverage, and 0.33 Notes readiness.
+- Added the in-app Files and Attachments Help article and expanded Help content regression coverage for it.
+- Updated module contract and module development docs to reference the 0.32.13 file closeout and the existing attachment helper/permission/lifecycle contracts.
+- Added `scripts/module-file-closeout-regression.mjs` and wired it into `npm run check` to guard combined manifest, Help, Search, Tags, Notifications, Files, and event-boundary assumptions.
+- Confirmed the 0.32 file framework is ready for Notes without new file primitives unless implementation exposes a concrete gap.
+- Bumped the app, Tags, Clients/Projects, Tasks, and Time Tracking module versions to `0.32.13`.
+
+## Version 0.32.12 - 2026-06-09 14:58 -04:00
+
+- Added the shared `LongtailForge.fileAttachments.mount()` browser helper for upload, list, download, remove, status, empty/error, permission-aware, and event callback flows.
+- Added a protected Files page with module, target, client, project, filename, and status filters for workspace attachment browsing without turning Files into a full document-management system.
+- Integrated task attachments through the shared framework helper and the existing `tasks` / `task` manifest-declared attachable target.
+- Added framework-owned attachment count reads through `GET /api/files/attachments/counts` and task list count chips.
+- Extended attachment listing with client, project, filename, and safe status filters while failing closed for disabled/unreadable attachable targets.
+- Added `scripts/file-ui-integration-regression.mjs`, wired it into `npm run check`, and updated file framework docs and decisions.
+- Bumped the app, Tags, Clients/Projects, Tasks, and Time Tracking module versions to `0.32.12`.
+
+## Version 0.32.11 - 2026-06-09 14:34 -04:00
+
+- Added authenticated browser file API routes for upload/attach, metadata reads, protected downloads, attachment listing/removal, soft deletion, reporting, and admin quarantine.
+- Implemented secure JSON/base64 upload handling with extension allowlists, content signature checks, file size enforcement, server-generated storage keys, active attachable target validation, workspace checks, permission checks, no-op scanner hooks, audit logging, and lifecycle event emission.
+- Added `file_reports` persistence and report-driven quarantine behavior so reported files are hidden from normal attachment lists and blocked from normal downloads.
+- Added safe download handling with authenticated route checks, available/passed scan enforcement, readable attachment validation, and safe content headers.
+- Added `scripts/file-api-lifecycle-regression.mjs`, updated fresh database coverage for migration `043`, and wired the lifecycle regression into `npm run check`.
+- Bumped the app, Tags, Clients/Projects, Tasks, and Time Tracking module versions to `0.32.11`.
+
+## Version 0.32.10 - 2026-06-09 14:12 -04:00
+
+- Added the framework-owned file storage foundation with `files` and `file_attachments` tables, status/scan-status constraints, workspace/hash/target indexes, duplicate-active-attachment protection, and core file permissions.
+- Added manifest-declared `attachableTypes`, registry/service accessors for active attachable targets, a protected local storage adapter contract with path containment, and safe file lifecycle event emission.
+- Declared first attachable targets for clients, projects, tasks, and time entries while leaving upload/download UI and broader module screen integration to later file passes.
+- Updated module contract, module development, architecture, and README documentation for the file attachment foundation.
+- Added `scripts/file-framework-contract-regression.mjs` and wired it into `npm run check`.
+- Bumped the app, Tags, Clients/Projects, Tasks, and Time Tracking module versions to `0.32.10`.
+
 ## Version 0.32.9.7.4 - 2026-06-09 13:15 -04:00
 
 - Added origin-aware effective tag read payloads so records expose direct/manual, propagated, system, and combined effective tags while keeping existing `tags` arrays compatible.

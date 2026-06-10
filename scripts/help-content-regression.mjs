@@ -22,6 +22,7 @@ const expectedFrameworkArticles = [
   "framework.notifications",
   "framework.tags",
   "framework.search",
+  "framework.files-attachments",
   "framework.settings",
   "framework.modules",
 ];
@@ -36,6 +37,7 @@ const expectedTitles = [
   "Notifications",
   "Tags",
   "Search",
+  "Files and Attachments",
   "Settings and User Preferences",
   "Modules and Optional Features",
 ];
@@ -104,6 +106,7 @@ ORDER BY record_id;
     assert.ok(rows.every((row) => row.source === HELP_SEARCH_SOURCE));
     assert.ok(rows.every((row) => row.body.length >= 120));
     assert.ok(rows.some((row) => /Search results are permission-shaped/.test(row.body)));
+    assert.ok(rows.some((row) => /Protected internal files are the default/.test(row.body)));
   });
 
   console.log(`Help content regression passed ${checks} checks.`);

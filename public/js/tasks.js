@@ -45,6 +45,7 @@ let state = {
   currentUserId: "",
   quickFilter: "",
   selectedTaskIds: new Set(),
+  attachmentCounts: {},
   taskTimers: [],
   tagOptions: [],
 };
@@ -75,12 +76,14 @@ async function loadTasks() {
     const result = await api.getJson("/api/tasks", { cache: "no-store" });
     const tagOptions = await loadTagOptions();
     const timersResult = await loadTaskTimers();
+    const attachmentCounts = await loadAttachmentCounts(result.tasks || []);
     state = {
       ...state,
       tasks: result.tasks || [],
       taskTimers: timersResult.timers || [],
       currentUserId: result.currentUserId || state.currentUserId,
       options: result.options || state.options,
+      attachmentCounts,
       tagOptions,
     };
     restoreFilterState();
@@ -357,6 +360,7 @@ function createTaskRow(task) {
   titleCell.className = "task-title-cell";
   titleCell.appendChild(titleButton);
   appendTagChips(titleCell, task.tags);
+  appendAttachmentCount(titleCell, task);
   scopeCell.className = "task-scope-cell";
   scopeCell.textContent = scopeText;
   scopeCell.title = scopeText;
@@ -425,6 +429,40 @@ function taskActionIcon(label) {
     Reopen: "restore",
     Restore: "restore",
   }[label] || "more";
+}
+
+async function loadAttachmentCounts(tasks) {
+  const targetIds = tasks.map((task) => task.task_id).filter(Boolean);
+
+  if (targetIds.length === 0) {
+    return {};
+  }
+
+  try {
+    const result = await api.getJson(`/api/files/attachments/counts?${new URLSearchParams({
+      moduleId: "tasks",
+      targetType: "task",
+      targetIds: targetIds.join(","),
+    }).toString()}`, { cache: "no-store" });
+
+    return result.counts || {};
+  } catch {
+    return {};
+  }
+}
+
+function appendAttachmentCount(target, task) {
+  const count = Number(state.attachmentCounts[task.task_id] || 0);
+
+  if (count <= 0) {
+    return;
+  }
+
+  const chip = document.createElement("span");
+
+  chip.className = "task-attachment-count";
+  chip.textContent = `${count} file${count === 1 ? "" : "s"}`;
+  target.appendChild(chip);
 }
 
 async function followTaskNotifications(task) {
@@ -496,12 +534,19 @@ function configureTaskDialog() {
       }
       renderTasks();
     },
+    onAttachmentsChanged: refreshTaskAttachmentCounts,
+    onAttachmentsRefreshed: refreshTaskAttachmentCounts,
     options: state.options,
     setStatus,
     tagOptions: state.tagOptions,
     taskTimers: state.taskTimers,
     tasks: state.tasks,
   });
+}
+
+async function refreshTaskAttachmentCounts() {
+  state.attachmentCounts = await loadAttachmentCounts(state.tasks);
+  renderTasks();
 }
 
 async function loadTaskTimers() {

@@ -182,6 +182,12 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     });
   }
 
+  workspaceSettingsMenu.items.push({
+    id: "files",
+    label: "Files",
+    href: "files.html",
+  });
+
   if (permissionHints.auditLogsView) {
     workspaceSettingsMenu.items.push({
       id: "audit-log",

@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 11, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 13, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -89,6 +89,16 @@ ORDER BY version;
     module_id: "core",
     name: "add_tag_propagation_foundation",
   });
+  assert.deepEqual(migrations[11], {
+    version: "042",
+    module_id: "core",
+    name: "add_file_framework",
+  });
+  assert.deepEqual(migrations[12], {
+    version: "043",
+    module_id: "core",
+    name: "add_file_reports",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -108,6 +118,9 @@ ORDER BY name;
     "app_settings",
     "audit_logs",
     "clients",
+    "file_attachments",
+    "file_reports",
+    "files",
     "modules",
     "notification_subscriptions",
     "notification_user_preferences",
@@ -150,6 +163,18 @@ WHERE type = 'index'
     'idx_active_work_timers_user_slot',
     'idx_active_work_timers_source',
     'idx_api_keys_hash',
+    'idx_file_attachments_unique_active_target',
+    'idx_file_attachments_workspace_client',
+    'idx_file_attachments_workspace_file',
+    'idx_file_attachments_workspace_module',
+    'idx_file_attachments_workspace_project',
+    'idx_file_attachments_workspace_target',
+    'idx_file_reports_workspace_attachment',
+    'idx_file_reports_workspace_file',
+    'idx_files_storage_provider_key',
+    'idx_files_workspace_file',
+    'idx_files_workspace_hash',
+    'idx_files_workspace_status',
     'idx_notification_subscriptions_target',
     'idx_notification_subscriptions_unique_active',
     'idx_notification_subscriptions_user',
@@ -191,6 +216,18 @@ ORDER BY name;
     "idx_active_work_timers_source",
     "idx_active_work_timers_user_slot",
     "idx_api_keys_hash",
+    "idx_file_attachments_unique_active_target",
+    "idx_file_attachments_workspace_client",
+    "idx_file_attachments_workspace_file",
+    "idx_file_attachments_workspace_module",
+    "idx_file_attachments_workspace_project",
+    "idx_file_attachments_workspace_target",
+    "idx_file_reports_workspace_attachment",
+    "idx_file_reports_workspace_file",
+    "idx_files_storage_provider_key",
+    "idx_files_workspace_file",
+    "idx_files_workspace_hash",
+    "idx_files_workspace_status",
     "idx_notification_subscriptions_target",
     "idx_notification_subscriptions_unique_active",
     "idx_notification_subscriptions_user",
@@ -233,7 +270,7 @@ async function assertSeedRows() {
     querySql("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'yes';"),
     querySql("SELECT COUNT(*) AS count FROM modules;"),
     querySql("SELECT COUNT(*) AS count FROM roles WHERE role_id IN ('super_admin', 'workspace_admin');"),
-    querySql("SELECT COUNT(*) AS count FROM permissions WHERE permission_id IN ('workspace_settings.manage', 'tasks.view', 'time_entries.create', 'notifications.view_own', 'notifications.manage_preferences', 'notifications.manage_workspace_defaults', 'tags.manage', 'tags.view', 'tags.assign', 'tags.remove');"),
+    querySql("SELECT COUNT(*) AS count FROM permissions WHERE permission_id IN ('workspace_settings.manage', 'tasks.view', 'time_entries.create', 'notifications.view_own', 'notifications.manage_preferences', 'notifications.manage_workspace_defaults', 'tags.manage', 'tags.view', 'tags.assign', 'tags.remove', 'files.view', 'files.upload', 'files.download', 'files.delete', 'files.manage_quarantine', 'files.manage_workspace_settings');"),
     querySql("SELECT COUNT(*) AS count FROM workspace_modules;"),
     querySql("SELECT COUNT(*) AS count FROM app_settings;"),
   ]);
@@ -242,7 +279,7 @@ async function assertSeedRows() {
   assert.equal(Number(users[0].count), 1, "fresh startup should create one protected super admin");
   assert.ok(Number(modules[0].count) >= 4, "fresh startup should sync registered modules");
   assert.equal(Number(roles[0].count), 2, "fresh baseline should seed current core roles");
-  assert.equal(Number(permissions[0].count), 10, "fresh startup should seed core, module, notification, and tag permissions");
+  assert.equal(Number(permissions[0].count), 16, "fresh startup should seed core, module, notification, tag, and file permissions");
   assert.ok(Number(workspaceModules[0].count) >= 4, "fresh startup should create workspace module status rows");
   assert.ok(Number(appSettings[0].count) >= 3, "fresh startup should seed app settings");
 }

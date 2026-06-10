@@ -25,7 +25,7 @@ Longtail Forge currently includes:
 - Framework-owned browser search across indexed Tasks, Time Entries, Clients, Projects, and Help articles
 - Framework-owned Help Center with baseline product help and module-declared Help contributions
 - Billable/non-billable reporting, dashboard summaries, audit logging, API keys, and public API foundations
-- Module-ready backend structure with explicit first-party module registration, startup manifest validation, registry-driven navigation/settings/views/assets, lifecycle checks, module permissions/API scopes, internal events, framework-owned search and Help Center foundations, and developer example coverage
+- Module-ready backend structure with explicit first-party module registration, startup manifest validation, registry-driven navigation/settings/views/assets, lifecycle checks, module permissions/API scopes, internal events, framework-owned search, file attachment, and Help Center foundations, and developer example coverage
 - A fresh-start database baseline for new installs, a persistent SQLite adapter for local performance, and regression checks for permissions, accessibility, module sanity, migrations, legacy cleanup, and database performance
 
 The near-term roadmap continues expanding framework services and module surfaces that can be shared by current and future modules: support tickets, notes, calendars, broader reporting, richer project tools, and UI consistency passes.

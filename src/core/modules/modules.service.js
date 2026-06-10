@@ -23,6 +23,7 @@ import {
   listNotificationEvents as listRegisteredNotificationEvents,
   listNotificationFollowTargets as listRegisteredNotificationFollowTargets,
   listNotificationTemplates as listRegisteredNotificationTemplates,
+  listAttachableTypes as listRegisteredAttachableTypes,
   listSearchableTypes as listRegisteredSearchableTypes,
   listTagPropagationRules as listRegisteredTagPropagationRules,
   listTaggableTypes as listRegisteredTaggableTypes,
@@ -137,6 +138,21 @@ async function listActiveTagPropagationRules(workspaceId) {
 
 function listSearchableTypes() {
   return listRegisteredSearchableTypes();
+}
+
+function listAttachableTypes() {
+  return listRegisteredAttachableTypes();
+}
+
+async function listActiveAttachableTypes(workspaceId) {
+  if (!workspaceId) {
+    return [];
+  }
+
+  const enabledModuleIds = new Set(await readEnabledModuleIds(workspaceId));
+
+  return listAttachableTypes()
+    .filter((type) => requiredModulesEnabled(type, enabledModuleIds));
 }
 
 function listHelpSections() {
@@ -1171,6 +1187,8 @@ export const modulesService = {
   listModuleSettingsForWorkspaceType,
   listModuleSettingsNavigation,
   listModules,
+  listAttachableTypes,
+  listActiveAttachableTypes,
   listActiveSearchableTypes,
   listModuleBrowserAssets,
   listModuleSettings,

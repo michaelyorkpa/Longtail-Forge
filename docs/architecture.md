@@ -35,7 +35,7 @@ Current first-party modules include:
 * Tasks
 * Time Tracking
 
-These modules are registered explicitly in the static module registry. The current manifest contract includes startup validation, registry-driven navigation, settings, protected views, browser assets, permissions, API scopes, audit record types, internal events, event summaries, Workbench cards, timer sources, work item sources, lifecycle hooks, dependency checks, notification declarations, taggable type declarations, searchable type declarations, and Help Center contribution declarations.
+These modules are registered explicitly in the static module registry. The current manifest contract includes startup validation, registry-driven navigation, settings, protected views, browser assets, permissions, API scopes, audit record types, internal events, event summaries, Workbench cards, timer sources, work item sources, lifecycle hooks, dependency checks, notification declarations, taggable type declarations, searchable type declarations, attachable file target declarations, framework-owned file API routing, and Help Center contribution declarations.
 
 The next architecture step is not automatic plugin discovery. The next step is to continue building the framework-owned services and module surfaces declared in the roadmap while keeping first-party modules on the same manifest rails future modules will use.
 
@@ -121,6 +121,8 @@ Examples:
 * Approvals/change requests
 
 Some first-party modules may feel essential, but they should still follow the module contract wherever possible.
+
+As of the 0.32.13 closeout, file storage, attachment metadata, download routing, scan/quarantine state, abuse reports, attachment counts, the reusable browser attachment helper, and the simple Files browse page are framework-owned. Modules declare attachable target types and choose record-screen placement, labels, and callbacks; they should not duplicate file storage, security checks, or attachment query logic.
 
 ---
 
@@ -442,6 +444,7 @@ A module manifest may support:
 
   taggableTypes,
   searchableTypes,
+  attachableTypes,
   help,
   notificationEvents,
   notificationTemplates,

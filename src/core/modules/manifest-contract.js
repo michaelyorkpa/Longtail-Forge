@@ -39,6 +39,7 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "taggableTypes",
   "tagPropagation",
   "searchableTypes",
+  "attachableTypes",
   "help",
   "hooks",
   "frameworkDependencies",
@@ -63,6 +64,31 @@ const SETTING_FIELD_TYPES = new Set(["boolean", "text", "number", "select", "mul
 const NOTIFICATION_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 const NOTIFICATION_RECIPIENT_MODES = new Set(["actor", "assignees", "workspace_admins", "explicit_users"]);
 const TERMINOLOGY_WORKSPACE_TYPES = new Set(["default", "business", "personal", "family"]);
+const CORE_PERMISSION_IDS = new Set([
+  "files.view",
+  "files.upload",
+  "files.download",
+  "files.delete",
+  "files.manage_quarantine",
+  "files.manage_workspace_settings",
+]);
+const ATTACHMENT_VISIBILITY_VALUES = new Set(["private", "workspace", "client", "public"]);
+const FILE_CATEGORY_VALUES = new Set(["document", "image", "audio", "video", "archive", "spreadsheet", "presentation", "pdf", "text", "other"]);
+const FILE_LIFECYCLE_EVENT_VALUES = new Set([
+  "file.upload.requested",
+  "file.upload.accepted",
+  "file.upload.rejected",
+  "file.scan.pending",
+  "file.scan.passed",
+  "file.scan.failed",
+  "file.quarantined",
+  "file.available",
+  "file.downloaded",
+  "file.reported",
+  "file.deleted",
+  "file.attachment.created",
+  "file.attachment.removed",
+]);
 const TERMINOLOGY_FIELDS = new Set([
   "label",
   "singular",
@@ -128,6 +154,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateTaggableTypes(moduleDefinition.taggableTypes, moduleDefinition.id, errors);
   validateTagPropagationDescriptors(moduleDefinition.tagPropagation, moduleDefinition.id, errors);
   validateSearchableTypes(moduleDefinition.searchableTypes, moduleDefinition.id, errors);
+  validateAttachableTypes(moduleDefinition.attachableTypes, moduleDefinition.id, errors);
   validateHelpContribution(moduleDefinition.help, {
     ownerId: moduleDefinition.id,
     ownerType: "module",
@@ -153,6 +180,8 @@ function validateModuleManifests(moduleDefinitions) {
   const seenIds = new Set();
   const allModuleIds = new Set();
   const allTaggableTypes = new Set();
+  const allAttachableTypes = new Set();
+  const allPermissionIds = new Set(CORE_PERMISSION_IDS);
   const allResolverIds = new Set(listTagPropagationResolverIds());
 
   for (const moduleDefinition of moduleDefinitions) {
@@ -168,6 +197,23 @@ function validateModuleManifests(moduleDefinitions) {
         allTaggableTypes.add(`${taggableType.moduleId || moduleDefinition.id}:${taggableType.targetType}`);
       }
     }
+    for (const attachableType of moduleDefinition?.attachableTypes || []) {
+      if (attachableType?.targetType) {
+        const attachableKey = `${attachableType.moduleId || moduleDefinition.id}:${attachableType.targetType}`;
+        if (allAttachableTypes.has(attachableKey)) {
+          errors.push(`${moduleDefinition.id}: attachableTypes target '${attachableKey}' is duplicated.`);
+        }
+        allAttachableTypes.add(attachableKey);
+      }
+    }
+    for (const permission of moduleDefinition?.requiredPermissions || []) {
+      allPermissionIds.add(permission);
+    }
+    for (const permission of moduleDefinition?.permissions || []) {
+      if (permission?.id) {
+        allPermissionIds.add(permission.id);
+      }
+    }
   }
 
   for (const moduleDefinition of moduleDefinitions) {
@@ -176,6 +222,10 @@ function validateModuleManifests(moduleDefinitions) {
       allModuleIds,
       allResolverIds,
       allTaggableTypes,
+    }));
+    errors.push(...validateAttachableTypeReferences(moduleDefinition, {
+      allModuleIds,
+      allPermissionIds,
     }));
   }
 
@@ -652,6 +702,77 @@ function validateSearchableTypes(searchableTypes, moduleId, errors) {
   });
 }
 
+function validateAttachableTypes(attachableTypes, moduleId, errors) {
+  optionalArrayOfObjects(attachableTypes, "attachableTypes", errors, (item, index) => {
+    const prefix = `attachableTypes[${index}]`;
+
+    requireString(item, "targetType", errors, { prefix });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix });
+    requireString(item, "label", errors, { prefix });
+    requireString(item, "description", errors, { prefix });
+    requireString(item, "tableName", errors, { prefix, pattern: IDENTIFIER_PATTERN });
+    requireString(item, "idField", errors, { prefix, pattern: IDENTIFIER_PATTERN });
+    requireString(item, "labelField", errors, { prefix, pattern: IDENTIFIER_PATTERN });
+    requireString(item, "workspaceField", errors, { prefix, pattern: IDENTIFIER_PATTERN });
+    optionalString(item, "clientField", errors, { prefix, pattern: IDENTIFIER_PATTERN });
+    optionalString(item, "projectField", errors, { prefix, pattern: IDENTIFIER_PATTERN });
+    requireString(item, "requiredReadPermission", errors, { prefix });
+    requireString(item, "requiredAttachPermission", errors, { prefix });
+    optionalString(item, "requiredRemovePermission", errors, { prefix });
+    optionalStringArray(item, "allowedFileCategories", errors, { prefix });
+    optionalStringArray(item, "allowedVisibilityValues", errors, { prefix });
+    optionalStringArray(item, "lifecycleEvents", errors, { prefix });
+    optionalNumber(item, "maxFilesPerRecord", errors, { prefix });
+    optionalNumber(item, "maxFileSizeBytes", errors, { prefix });
+    optionalStringArray(item, "requiredModules", errors, { prefix });
+    validateTerminology(item.terminology, `${prefix}.terminology`, errors);
+
+    for (const category of item.allowedFileCategories || []) {
+      if (!FILE_CATEGORY_VALUES.has(category)) {
+        errors.push(`${prefix}.allowedFileCategories contains unsupported category '${category}'.`);
+      }
+    }
+    for (const visibility of item.allowedVisibilityValues || []) {
+      if (!ATTACHMENT_VISIBILITY_VALUES.has(visibility)) {
+        errors.push(`${prefix}.allowedVisibilityValues contains unsupported visibility '${visibility}'.`);
+      }
+    }
+    for (const eventName of item.lifecycleEvents || []) {
+      if (!FILE_LIFECYCLE_EVENT_VALUES.has(eventName)) {
+        errors.push(`${prefix}.lifecycleEvents contains invalid hook name '${eventName}'.`);
+      }
+    }
+    if (item.maxFilesPerRecord !== undefined && item.maxFilesPerRecord < 1) {
+      errors.push(`${prefix}.maxFilesPerRecord must be at least 1.`);
+    }
+    if (item.maxFileSizeBytes !== undefined && item.maxFileSizeBytes < 1) {
+      errors.push(`${prefix}.maxFileSizeBytes must be at least 1.`);
+    }
+  });
+}
+
+function validateAttachableTypeReferences(moduleDefinition, context) {
+  const errors = [];
+  const descriptors = Array.isArray(moduleDefinition?.attachableTypes) ? moduleDefinition.attachableTypes : [];
+
+  descriptors.forEach((descriptor, index) => {
+    const prefix = `attachableTypes[${index}]`;
+    const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
+
+    if (descriptor?.moduleId && !context.allModuleIds.has(descriptor.moduleId)) {
+      errors.push(`${moduleLabel}: ${prefix}.moduleId references unknown module '${descriptor.moduleId}'.`);
+    }
+    for (const fieldName of ["requiredReadPermission", "requiredAttachPermission", "requiredRemovePermission"]) {
+      const permissionId = descriptor?.[fieldName];
+      if (permissionId && !context.allPermissionIds.has(permissionId)) {
+        errors.push(`${moduleLabel}: ${prefix}.${fieldName} references unknown permission '${permissionId}'.`);
+      }
+    }
+  });
+
+  return errors;
+}
+
 function validateHelpContribution(help, options = {}) {
   const {
     ownerId = "",
@@ -859,6 +980,10 @@ function optionalString(object, fieldName, errors, options = {}) {
   const value = object[fieldName];
   if (value !== undefined && typeof value !== "string") {
     errors.push(`${formatFieldName(fieldName, options.prefix)} must be a string.`);
+    return;
+  }
+  if (value !== undefined && options.pattern && !options.pattern.test(value)) {
+    errors.push(`${formatFieldName(fieldName, options.prefix)} has an invalid format.`);
   }
 }
 
