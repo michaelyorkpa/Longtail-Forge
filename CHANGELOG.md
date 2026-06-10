@@ -5,6 +5,7 @@
 - Updated module contract and module development docs to reference the 0.32.13 file closeout and the existing attachment helper/permission/lifecycle contracts.
 - Added `scripts/module-file-closeout-regression.mjs` and wired it into `npm run check` to guard combined manifest, Help, Search, Tags, Notifications, Files, and event-boundary assumptions.
 - Confirmed the 0.32 file framework is ready for Notes without new file primitives unless implementation exposes a concrete gap.
+- Clarified Help wording so Tasks and Time Tracking are described as first-party modules, and bumped Tasks page script query strings so cached dialog assets do not hide the task attachment panel.
 - Bumped the app, Tags, Clients/Projects, Tasks, and Time Tracking module versions to `0.32.13`.
 
 ## Version 0.32.12 - 2026-06-09 14:58 -04:00
