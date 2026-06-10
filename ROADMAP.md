@@ -38,22 +38,45 @@ Sub-version plan:
   * [x] Do not show collection counts that would reveal hidden/private/secure notes.
   * [x] Moving a note between collections must not change visibility, security mode, linked records, or permissions.
 
-## Version 0.33.2 - Secure Notes Foundation, Encryption Contract, and Private Revision Handling
+## Version 0.33.2 Planning - Secure Notes Foundation, Encryption Contract, and Private Revision Handling
 
 Decision:
-Secure notes are not ordinary notes with a scary label. Secure notes need a clear encryption boundary, reduced metadata exposure, no normal search indexing, no Knowledge Base publishing path, stricter permissions, and careful interaction with the Notes Library model. The first implementation should be honest about its security model.
+0.33.2 is too broad for one implementation release. It is split into sub-versioned passes so secure notes can establish an honest encryption contract before API, UI, revision, integration, and regression work depends on it.
+
+Clarification questions before starting 0.33.2.1:
+
+* Should the first secure-note model be application-managed envelope encryption with a server-side key from environment/config, as recommended here?
+* Should secure note titles stay plaintext in the first release with clear UI warnings, or should title encryption be included before secure notes ship?
+* Should secure notes start owner-only plus admins, or should explicit permitted-user sharing be part of the first secure-note release?
+* Should `last_decrypted_at` be recorded for auditability, or avoided to reduce sensitive access metadata?
+* Should existing `security_mode = secure` placeholder notes be migrated into encrypted secure notes, or should the release block until they are recreated through the secure-note flow?
 
 Implementation shape:
 
-* Build secure notes as a specialized note security mode on top of the Notes module only if the encryption and access model is explicit.
-
+* Build secure notes as a specialized note security mode on top of the Notes module only after the encryption and access model is explicit.
 * Start with application-managed encryption-at-rest for self-hosted installs unless a true user-keyed vault is deliberately designed later.
-
 * Do not claim secure notes are zero-knowledge unless the server cannot decrypt them.
-
 * Exclude secure note body content from normal search, snippets, Knowledge Base conversion, Help, notifications, dashboard activity, and public/client surfaces.
+* Allow secure notes to have a Library bucket and collection for organization, but do not let Library or collection metadata make secure content discoverable to unauthorized users.
 
-* Allow secure notes to have a Library bucket for organization, but do not let the Library bucket make secure content discoverable to unauthorized users.
+Sub-version plan:
+
+* 0.33.2.1 - Secure Notes Scope, Encryption Contract, Schema, and Configuration.
+* 0.33.2.2 - Secure Notes Service, Permissions, and API Behavior.
+* 0.33.2.3 - Encrypted Revisions and Leakage-Safe Integration Boundaries.
+* 0.33.2.4 - Secure Notes UI, Locked States, and Safe Error Handling.
+* 0.33.2.5 - Key Rotation Groundwork, Regressions, Documentation, and Release Closeout.
+
+Rollup acceptance criteria:
+
+* [ ] Secure notes are for sensitive internal notes and use stricter access checks than normal private notes.
+* [ ] Secure note body content is encrypted before storage and is never stored in normal note body, excerpt, plaintext index, audit, event, notification, search, metadata JSON, or browser-safe snippet fields.
+* [ ] Secure notes are excluded from normal search indexing, Knowledge Base publishing paths, public/client-visible outputs, dashboard excerpts, notification excerpts, and normal file-attachment behavior.
+* [ ] Secure notes may belong to Active Work, Ongoing Areas, Reference Library, Archive, and visible collections for authorized users without leaking secure-note existence to unauthorized users.
+* [ ] Secure note revisions store encrypted payloads, require secure revision permissions to decrypt, and restore through a new encrypted revision.
+* [ ] Missing encryption configuration blocks secure note creation and existing secure notes fail closed if required keys are unavailable.
+
+## Version 0.33.2.1 - Secure Notes Scope, Encryption Contract, Schema, and Configuration
 
 * [ ] Define secure note scope.
 
@@ -67,7 +90,7 @@ Implementation shape:
   * [ ] Secure notes should use stricter access checks than normal private notes.
   * [ ] Secure notes may belong to Active Work, Ongoing Areas, or Reference Library for owner/permitted-user organization.
   * [ ] Secure notes may be archived, but archived secure notes remain excluded from normal search indexing.
-  * [ ] Secure note Library bucket labels must not leak secure note existence to unauthorized users.
+  * [ ] Secure note Library bucket and collection labels must not leak secure note existence to unauthorized users.
 
 * [ ] Decide and document the encryption model.
 
@@ -86,40 +109,16 @@ Implementation shape:
 
 * [ ] Add secure note fields.
 
-  * [ ] Add secure note support to `notes` or a dedicated `secure_notes` table.
-
-  * [ ] Suggested fields if stored in `notes`:
-
-    * [ ] `security_mode`
-    * [ ] `is_secure`
-    * [ ] `secure_payload`
-    * [ ] `secure_payload_version`
-    * [ ] `encryption_key_version`
-    * [ ] `encryption_algorithm`
-    * [ ] `encrypted_at`
-    * [ ] `last_decrypted_at` optional and carefully audited
-
+  * [ ] Prefer extending `notes` unless implementation review proves a dedicated `secure_notes` table is cleaner.
+  * [ ] Add `security_mode`, `is_secure`, `secure_payload`, `secure_payload_version`, `encryption_key_version`, `encryption_algorithm`, `encrypted_at`, and optional `last_decrypted_at`.
   * [ ] For secure notes, `body_markdown`, `body_excerpt`, and `body_plaintext_index` must be null or contain only safe placeholders.
-
   * [ ] Secure note titles should either be non-sensitive or optionally encrypted in a later pass.
-
   * [ ] If titles remain plaintext, label the UI clearly so users know titles are visible to permitted metadata readers.
-
-  * [ ] Secure notes may still store Library bucket metadata.
-
-  * [ ] Secure Library bucket metadata must be treated as sensitive where note existence is not visible to the current user.
-
+  * [ ] Secure notes may still store Library bucket and collection metadata.
+  * [ ] Secure Library and collection metadata must be treated as sensitive where note existence is not visible to the current user.
   * [ ] Do not put secure note body text in normal note fields.
 
-* [ ] Add secure note revision handling.
-
-  * [ ] Secure note revisions must store encrypted revision payloads.
-  * [ ] Secure note revisions must not store plaintext body markdown.
-  * [ ] Secure note revision metadata should be minimal.
-  * [ ] Secure note revision diffs should require decryption and proper permission checks.
-  * [ ] Secure note revision restores should create a new encrypted revision.
-  * [ ] Secure note revision history should not leak body excerpts.
-  * [ ] Secure note revision history may show Library bucket changes only to users who can access secure note metadata.
+## Version 0.33.2.2 - Secure Notes Service, Permissions, and API Behavior
 
 * [ ] Add secure note permissions.
 
@@ -135,25 +134,49 @@ Implementation shape:
   * [ ] Normal `notes.view_history` should not automatically grant secure note revision body access.
   * [ ] Secure note access should require both Notes module access and secure-note-specific permission.
   * [ ] Private secure notes should also require owner/elevated checks.
-  * [ ] Library bucket permissions should not grant secure note access by themselves.
+  * [ ] Library bucket and collection permissions should not grant secure note access by themselves.
 
-* [ ] Add secure note API behavior.
+* [ ] Add secure note service and API behavior.
 
   * [ ] Secure note create endpoint encrypts body before storage.
   * [ ] Secure note read endpoint decrypts body only after permission checks.
   * [ ] Secure note update endpoint decrypts only when needed and writes a new encrypted payload.
   * [ ] Secure note list endpoints return minimal metadata and no body excerpt.
-  * [ ] Secure note Library views return only secure notes the user can access.
+  * [ ] Secure note Library and collection views return only secure notes the user can access.
   * [ ] Secure note search returns no body matches and preferably no secure note rows unless a title-only secure note search is explicitly allowed.
-  * [ ] Secure note revisions decrypt only through secure revision endpoints.
   * [ ] Secure note events and audit records use safe metadata only.
   * [ ] Secure note API responses must not leak hidden linked-record context.
+
+## Version 0.33.2.3 - Encrypted Revisions and Leakage-Safe Integration Boundaries
+
+* [ ] Add secure note revision handling.
+
+  * [ ] Secure note revisions must store encrypted revision payloads.
+  * [ ] Secure note revisions must not store plaintext body markdown.
+  * [ ] Secure note revision metadata should be minimal.
+  * [ ] Secure note revision diffs should require decryption and proper permission checks.
+  * [ ] Secure note revision restores should create a new encrypted revision.
+  * [ ] Secure note revision history should not leak body excerpts.
+  * [ ] Secure note revision history may show Library bucket and collection changes only to users who can access secure note metadata.
+  * [ ] Secure note revisions decrypt only through secure revision endpoints.
+
+* [ ] Enforce leakage-safe integration boundaries.
+
+  * [ ] Secure note body does not enter `search_index` or SQLite FTS.
+  * [ ] Secure note body does not enter audit logs, lifecycle events, notifications, dashboard summaries, or Help/Knowledge Base payloads.
+  * [ ] Secure notes do not expose public/client visibility controls.
+  * [ ] Secure notes do not expose Knowledge Base conversion controls.
+  * [ ] Secure notes do not leak hidden Library counts, collection counts, linked-record context, or previews.
+  * [ ] Secure note attachments remain blocked unless attachment encryption is explicitly designed.
+  * [ ] Normal file framework encryption-at-rest is not automatically enough for secure note attachments.
+
+## Version 0.33.2.4 - Secure Notes UI, Locked States, and Safe Error Handling
 
 * [ ] Add secure note UI behavior.
 
   * [ ] Clearly label secure notes.
   * [ ] Do not show secure note body in list excerpts.
-  * [ ] Do not show secure note body in Library previews.
+  * [ ] Do not show secure note body in Library or collection previews.
   * [ ] Do not show secure note body in dashboard summaries.
   * [ ] Do not show secure note body in notifications.
   * [ ] Do not expose Knowledge Base conversion controls on secure notes.
@@ -162,15 +185,9 @@ Implementation shape:
   * [ ] Add locked/permission-denied state.
   * [ ] Add safe error state for decrypt failures.
   * [ ] Do not display raw encryption errors to normal users.
-  * [ ] Preserve Library organization for secure notes visible to permitted users.
+  * [ ] Preserve Library and collection organization for secure notes visible to permitted users.
 
-* [ ] Add secure note file attachment rule.
-
-  * [ ] Do not allow secure note attachments in the first pass unless attachment encryption is explicitly designed.
-  * [ ] If secure note attachments are allowed later, they must use a compatible encryption and permission model.
-  * [ ] Normal file framework encryption-at-rest is not automatically enough for secure note attachments.
-  * [ ] Secure note attachment metadata must not leak sensitive body context.
-  * [ ] Secure note attachments must not appear in normal Library attachment counts for unauthorized users.
+## Version 0.33.2.5 - Key Rotation Groundwork, Regressions, Documentation, and Release Closeout
 
 * [ ] Add key rotation groundwork.
 
@@ -189,25 +206,35 @@ Implementation shape:
   * [ ] Secure note body does not appear in audit logs.
   * [ ] Secure note body does not appear in lifecycle events.
   * [ ] Secure note body does not appear in notifications.
-  * [ ] Secure note body does not appear in Library previews.
+  * [ ] Secure note body does not appear in Library or collection previews.
   * [ ] Secure notes do not show Knowledge Base publishing controls.
   * [ ] Secure notes do not allow client-visible/public visibility controls.
-  * [ ] Secure notes can retain Library bucket organization for authorized users.
-  * [ ] Secure notes do not leak Library counts to unauthorized users.
+  * [ ] Secure notes can retain Library bucket and collection organization for authorized users.
+  * [ ] Secure notes do not leak Library or collection counts to unauthorized users.
   * [ ] Users with normal note permissions but without secure note permissions cannot read secure note bodies.
   * [ ] Secure note revisions are encrypted.
   * [ ] Missing encryption configuration blocks secure note creation.
   * [ ] Decrypt failures fail closed.
 
-## Version 0.33.3 - Notes Library Integration Polish, Documentation, and Release Closeout
+## Version 0.33.3 Planning - Notes Library Integration Polish, Documentation, and Release Closeout
+
+Decision:
+0.33.3 is a closeout line rather than a new feature line. It is split into sub-versioned passes so integration review, documentation, Help, import planning, verification, and release bookkeeping can happen without accidentally starting Knowledge Base behavior.
 
 Implementation shape:
 
 * Stabilize Notes before building Knowledge Base on top of it.
-
-* Verify Library buckets, permissions, search, tags, files, revisions, secure notes, module lifecycle, Help pages, and UI states together.
-
+* Verify Library buckets, collections, permissions, search, tags, files, revisions, secure notes, module lifecycle, Help pages, and UI states together.
 * Keep this as closeout; do not add Knowledge Base behavior here.
+
+Sub-version plan:
+
+* 0.33.3.1 - Notes Integration Review and Gap Fixes.
+* 0.33.3.2 - Notes Developer Documentation.
+* 0.33.3.3 - Product Help and Current-State User Guidance.
+* 0.33.3.4 - Import Planning, Verification, Bookkeeping, and Roadmap Archive.
+
+## Version 0.33.3.1 - Notes Integration Review and Gap Fixes
 
 * [ ] Perform Notes module integration review.
 
@@ -215,24 +242,28 @@ Implementation shape:
   * [ ] Confirm Notes does not bypass file framework APIs.
   * [ ] Confirm Notes does not write direct search rows outside the framework search service.
   * [ ] Confirm Notes does not hard-code unrelated module behavior.
-  * [ ] Confirm Notes Library bucket logic uses linked-record context and does not replace permissions.
+  * [ ] Confirm Notes Library bucket and collection logic uses linked-record context and does not replace permissions.
   * [ ] Confirm Active Work, Ongoing Areas, Reference Library, and Archive behave consistently across API, UI, search, and permissions.
-  * [ ] Confirm archived notes preserve their original Library bucket.
+  * [ ] Confirm archived notes preserve their original Library bucket and collection.
   * [ ] Confirm linked-record behavior uses stable module contracts where available.
   * [ ] Confirm secure notes do not leak body content through normal integration surfaces.
-  * [ ] Confirm secure notes do not leak hidden Library counts or previews.
+  * [ ] Confirm secure notes do not leak hidden Library counts, collection counts, or previews.
+  * [ ] Fix only integration gaps found during this review; defer new workflows to later roadmap sections.
+
+## Version 0.33.3.2 - Notes Developer Documentation
 
 * [ ] Update developer documentation.
 
   * [ ] Document Notes module boundaries.
   * [ ] Document Notes Library model.
+  * [ ] Document Notes collection model.
   * [ ] Document Active Work behavior.
   * [ ] Document Ongoing Areas behavior.
   * [ ] Document Reference Library behavior.
   * [ ] Document Archive behavior.
   * [ ] Document Library bucket derivation rules.
-  * [ ] Document Library bucket and visibility interaction.
-  * [ ] Document Library bucket and permission interaction.
+  * [ ] Document Library bucket, collection, and visibility interaction.
+  * [ ] Document Library bucket, collection, and permission interaction.
   * [ ] Document note data model.
   * [ ] Document note linking model.
   * [ ] Document Markdown storage/rendering rules.
@@ -243,10 +274,13 @@ Implementation shape:
   * [ ] Document OneNote/import-friendly metadata rules.
   * [ ] Document what Notes should not own.
 
+## Version 0.33.3.3 - Product Help and Current-State User Guidance
+
 * [ ] Update product Help.
 
   * [ ] Add current-state Notes usage page.
   * [ ] Add current-state Notes Library page.
+  * [ ] Add current-state Notes Collections page.
   * [ ] Add current-state Active Work page.
   * [ ] Add current-state Ongoing Areas page.
   * [ ] Add current-state Reference Library page.
@@ -258,29 +292,23 @@ Implementation shape:
   * [ ] Keep Help separate from Knowledge Base.
   * [ ] Avoid using external productivity-method branding as the primary product language.
 
+## Version 0.33.3.4 - Import Planning, Verification, Bookkeeping, and Roadmap Archive
+
 * [ ] Add migration/import planning notes.
 
   * [ ] Leave room for a future OneNote import workflow.
-  * [ ] Map imported notebooks, section groups, sections, pages, and subpages into Notes metadata and future collection structures.
+  * [ ] Map imported notebooks, section groups, sections, pages, and subpages into Notes metadata and collection structures.
   * [ ] Preserve source paths for troubleshooting.
   * [ ] Suggest Library buckets during import where possible.
   * [ ] Do not grant access based on import source.
   * [ ] Do not assume imported notes are safe to make client-visible.
   * [ ] Do not import secure/private source material into normal notes without a deliberate user choice.
 
-* [ ] Release bookkeeping.
-
-  * [ ] Record Notes and Notes Library decisions in `DECISIONS.md`.
-  * [ ] Update `CHANGELOG.md`.
-  * [ ] Bump `package.json` and `package-lock.json`.
-  * [ ] Verify `/api/app-info` reports the completed Notes version.
-  * [ ] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process.
-
 * [ ] Run verification.
 
   * [ ] Run focused Notes API tests.
   * [ ] Run focused Notes UI tests.
-  * [ ] Run focused Notes Library tests.
+  * [ ] Run focused Notes Library and collection tests.
   * [ ] Run focused Notes search tests.
   * [ ] Run focused Notes tag tests.
   * [ ] Run focused Notes file attachment tests.
@@ -291,6 +319,14 @@ Implementation shape:
   * [ ] Run `npm run check`.
   * [ ] Run `npm run test:permissions`.
   * [ ] Run SQLite integrity check after Notes migrations, Library changes, and revision tests.
+
+* [ ] Release bookkeeping.
+
+  * [ ] Record Notes and Notes Library decisions in `DECISIONS.md`.
+  * [ ] Update `CHANGELOG.md`.
+  * [ ] Bump `package.json` and `package-lock.json`.
+  * [ ] Verify `/api/app-info` reports the completed Notes version.
+  * [ ] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process.
 
 ## Version 0.33.4 - Shopping / Procurement Lists Module
 
@@ -2110,5 +2146,4 @@ The Creator studio tool can be much richer if it pushes content out to these pla
   - [ ] Launch website
 
 - [ ] Launch Social Media
-
 

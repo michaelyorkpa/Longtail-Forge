@@ -1,3 +1,9 @@
+## Version 0.33.2/0.33.3 Planning - 2026-06-10 17:02 -04:00
+
+- Split the broad 0.33.2 secure-notes scope into implementation passes 0.33.2.1 through 0.33.2.5, with up-front clarification questions for encryption model, title visibility, sharing, decrypt audit metadata, and existing secure-note placeholders.
+- Split the 0.33.3 Notes closeout scope into implementation passes 0.33.3.1 through 0.33.3.4 for integration review, developer docs, product Help, import planning, verification, and release bookkeeping.
+- Recorded the planning boundary in `DECISIONS.md`; no package version was bumped because this was a planning split, not a code release.
+
 ## Version 0.33.1.6 - 2026-06-10 13:00 -04:00
 
 - Added the Notes Collections UI with per-Library collection trees, uncategorized filters, collection counts, and create/edit/archive/delete-empty actions backed by the 0.33.1.5 service.
