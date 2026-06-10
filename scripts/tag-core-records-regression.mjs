@@ -53,11 +53,46 @@ try {
   assert.equal((await tasksService.list(session, { tagIds: [tag.tag_id] })).tasks.length, 1);
   assert.equal((await timeEntriesService.list(session, { tagIds: [tag.tag_id] })).entries.length, 1);
 
-  await modulesService.setModuleStatus(session.workspace_id, "tags", false, { session });
   await assert.rejects(
-    () => tagsService.list(session),
-    (error) => error.message === "Tagging is disabled for this workspace.",
+    () => modulesService.setModuleStatus(session.workspace_id, "tags", false, { session }),
+    (error) => error.message === "Module 'tags' cannot be disabled because it is a core framework module.",
   );
+  await runSql(`
+UPDATE workspace_modules
+SET status = 'disabled'
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tags';
+`);
+  await modulesService.syncModuleRegistry(session.workspace_id);
+  assert.deepEqual(
+    await querySql(`
+SELECT status
+FROM workspace_modules
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tags';
+`),
+    [{ status: "enabled" }],
+  );
+  await runSql(`
+DELETE FROM workspace_modules
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tags';
+`);
+  assert.equal(
+    await modulesService.canWriteModule(session.workspace_id, "tags"),
+    true,
+    "Missing required Tags rows should be backfilled on module-state reads.",
+  );
+  assert.deepEqual(
+    await querySql(`
+SELECT status
+FROM workspace_modules
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tags';
+`),
+    [{ status: "enabled" }],
+  );
+  assert.equal((await tagsService.list(session)).tags.length, 1);
 
   await assertIntegrity();
   console.log("Tag core records regression passed.");

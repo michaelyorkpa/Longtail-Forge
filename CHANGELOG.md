@@ -1,3 +1,82 @@
+## Version 0.33.1.4 - 2026-06-10 06:55 -04:00
+
+- Registered Notes as searchable records through the framework search indexer registry, including title, safe body plaintext, excerpt, Library bucket, status, visibility, linked context identifiers, and workspace tags.
+- Added a canonical `search_index.library_bucket` field and filter so Notes search can filter by Library bucket without overloading status or visibility.
+- Kept secure notes and private notes out of normal shared search indexing; private owner-scoped search remains deferred until there is an explicit owner-safe search path.
+- Added conservative Notes owner-update notification metadata through the existing explicit-recipient notification path, without linked-record follower notifications or secure body exposure.
+- Added current-state Notes Help articles for basics, Library buckets, Markdown/links/revisions, attachments, and search.
+- Added `scripts/notes-search-help-regression.mjs`, updated shared search and Notes regressions, and bumped the app/package and Notes module versions to `0.33.1.4`.
+
+## Version 0.33.1.3 - 2026-06-10 06:19 -04:00
+
+- Registered Notes as a framework taggable and attachable `note` target, bumped the app/package and Notes module versions to `0.33.1.3`, and kept Notes search registration deferred to `0.33.1.4`.
+- Wired Notes create/update responses and list results through the shared tag service so users can assign workspace tags, see tag chips, and filter Notes without changing Library bucket, visibility, or security mode semantics.
+- Added Notes detail workflows for linked-record add/remove, shared file attachments, and revision history/restore while keeping archived and secure Notes read-only for attachment mutation.
+- Added a Notes-specific file-service access guard so private, archived, and secure note rules are respected by attachment listing/download/mutation paths; secure-note attachments are blocked until a deliberate secure attachment policy exists.
+- Updated Notes UI scripts/styles and regressions for shared Tags/Files helpers, target lookup coverage, tag filtering, attachment integration, and revision restore behavior.
+- Fixed Time Tracker, Workbench manual timers, and Time Entry client selectors to use one shared parent/child client hierarchy: workspace projects first under the workspace name, then top-level clients alphabetically with indented child clients.
+
+## Version 0.33.1.2 - 2026-06-10 05:31 -04:00
+
+- Added the protected Notes UI with module-owned navigation, Library summary cards, Library bucket tabs, filters, paginated list, detail panel, archive/restore actions, and create/edit workflow.
+- Added `public/js/notes.js` on top of the 0.33.1.1 Notes API and wired it to the existing `LongtailForge.notesEditor` Markdown textarea helper.
+- Added server-rendered safe note body HTML for detail views while keeping browser preview text-safe and non-canonical.
+- Added a generic app-shell slot for enabled unparented module navigation contributions so Notes can appear without framework-owned Notes-specific navigation code.
+- Added `scripts/notes-ui-workflow-regression.mjs`, wired it into `npm run check`, and bumped the app, Tags, Clients/Projects, Tasks, Time Tracking, and Notes module versions to `0.33.1.2`.
+- Fixed follow-up issues by making Tags a required framework module for every workspace, loading the shared file attachment helper on Workbench task dialogs, and restyling the shared attachment panel with a normal bordered container.
+- Fixed the Add Client parent selector so the new-client modal no longer treats the blank new-record ID as the root of every top-level client branch, and cache-busted the shared Clients/Projects browser script.
+- Fixed Notes navigation so Notes lives under the Projects menu, prevented the module-owned Projects link from duplicating the framework Projects menu in the main nav, and widened/contained the Create Note modal to avoid horizontal scrolling.
+- Fixed older workspaces missing newer module rows so required Tags backfills as enabled on module-state reads, and preserved the keyed Workspace Settings `moduleSettings` payload when enabling modules such as Notes.
+- Fixed Projects menu composition so Time Keeping contains Time Tracker and Time Entries, direct items follow Tasks, Notes, Files, then Project Settings, and Clients remains only under Settings -> Workspace.
+
+## Version 0.33.1.1 - 2026-06-10 04:38 -04:00
+
+- Added module-owned Notes repository, service, and browser API routes for note create/read/list/update, Library filters, archive/restore/delete, revisions, revision restore, links, target lookups, and Library summaries.
+- Enforced Library-aware Notes access through the 0.33.0.3 access policy, linked-record access checks, private-note filtering, secure-note permissions, archived read-only behavior, disabled-module write blocking, and client-visible permission checks.
+- Added safe Markdown excerpt/plaintext generation, search-document payload preparation for later search registration, safe audit records, and safe Notes lifecycle event emission.
+- Added `scripts/notes-api-service-regression.mjs`, wired it into `npm run check`, and updated Notes foundation/access regressions for the new browser API boundary.
+- Bumped the app, Tags, Clients/Projects, Tasks, Time Tracking, and Notes module versions to `0.33.1.1`.
+
+## Version 0.33.1 Planning - 2026-06-10 04:23 -04:00
+
+- Split the broad 0.33.1 Notes browser API, Library UI, search, tags, files, and Help scope into implementation passes 0.33.1.1 through 0.33.1.4.
+- Preserved the original 0.33.1 checklist as rollup acceptance criteria while assigning service/API/access, UI/editor, links/tags/files/revisions, and search/notifications/help closeout work to separate passes.
+- Recorded the planning boundary in `DECISIONS.md`; no package version was bumped because this was a planning split, not a code release.
+
+## Version 0.33.0.3 - 2026-06-10 04:05 -04:00
+
+- Added Notes permission/resource declarations, default role grants, secure-note-specific permissions, and an explicit client-visible publication permission.
+- Added Notes audit record types and lifecycle event declarations for note, revision, link, Library, visibility, security, and attachment-related activity.
+- Added the Notes access-policy helper for workspace, module-state, Library, visibility, private-note, secure-note, archived-note, linked-record, aggregate-leakage, and safe lifecycle payload rules.
+- Added migration `046_add_note_access_indexes_and_import_metadata.sql` for import metadata fields and access/import lookup indexes.
+- Added `scripts/notes-access-contract-regression.mjs`, updated fresh database coverage, and wired the new Notes access contract regression into `npm run check`.
+- Updated architecture/module-contract docs, roadmap status, and decisions for the Notes backend contract closeout.
+- Bumped the app, Tags, Clients/Projects, Tasks, Time Tracking, and Notes module versions to `0.33.0.3`.
+
+## Version 0.33.0.2 - 2026-06-10 03:47 -04:00
+
+- Added Notes Markdown helpers for normalization, unsafe-input rejection, conservative safe HTML rendering, plain-text extraction, excerpt generation, wiki-link extraction, revision snapshots, and changelog summaries.
+- Added the replaceable `LongtailForge.notesEditor` plain-textarea browser helper with Markdown command boundaries for future editor UI work.
+- Added migration `045_add_note_revisions_and_wiki_links.sql` for `note_revisions` and `note_wiki_links`, including revision, wiki target, status, and uniqueness indexes.
+- Added `scripts/notes-markdown-revision-regression.mjs`, updated fresh database regression coverage, and wired the new Notes regression into `npm run check`.
+- Updated architecture/module-contract docs, roadmap status, and decisions for the Notes Markdown/revision boundary.
+- Bumped the app, Tags, Clients/Projects, Tasks, Time Tracking, and Notes module versions to `0.33.0.2`.
+
+## Version 0.33.0.1 - 2026-06-10 00:24 -04:00
+
+- Added the first-party Notes module foundation with workspace enablement metadata, module-owned migration source, and a Notes module-status setting.
+- Added migration `044_add_notes_foundation.sql` for `notes`, `note_links`, and `note_library_collections`, including Library bucket/status/visibility/security constraints and lookup indexes.
+- Added the Notes Library contract helper for deriving suggested Library buckets from linked record context without using the bucket as a permission shortcut.
+- Added `scripts/notes-foundation-regression.mjs`, updated fresh database regression expectations, and wired the Notes foundation regression into `npm run check`.
+- Updated architecture/module-contract docs, roadmap status, and release decisions for the Notes foundation boundary.
+- Bumped the app, Tags, Clients/Projects, Tasks, Time Tracking, and Notes module versions to `0.33.0.1`.
+
+## Version 0.33.0 Planning - 2026-06-10 00:16 -04:00
+
+- Reworked the 0.33.0 Notes roadmap into sub-versioned implementation passes for module contract/schema/links, Markdown/editor/revision foundations, and permissions/access/audit/index/import closeout.
+- Preserved the existing 0.33.1 browser API, Library UI, Search, Tags, Files, and Help pass as the follow-on user-facing Notes implementation slice.
+- Recorded the planning decision that 0.33.0.1 is the first implementation pass and that no package version is bumped for this documentation-only split.
+
 ## Version 0.32.13 - 2026-06-09 15:14 -04:00
 
 - Added the 0.32 module/file closeout review in `docs/0.32-module-file-closeout.md`, covering first-party module isolation, file framework readiness, Help/docs coverage, and 0.33 Notes readiness.

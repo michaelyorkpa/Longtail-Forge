@@ -2,641 +2,10 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.32.13 - 0.32.x Module Contract Review, File Closeout, and Help Updates
-
-Implementation shape:
-- Treat this as the final 0.32.x stabilization and documentation closeout before Notes.
-- Review first-party module isolation, framework/module boundaries, file hooks, event hooks, Help pages, and docs so 0.33.x can use the framework contracts cleanly.
-- Do not add new feature scope here unless review exposes a blocker for Notes or the file framework.
-
-- [x] Perform a thorough first-party module isolation review.
-  - [x] Ensure current and existing modules are properly isolated and related data is owned by the appropriate module.
-  - [x] Confirm there are no misplaced domain tables or services, such as timer tables in the Tasks module.
-  - [x] Ensure proper isolation of core/framework from first-party modules.
-  - [x] Confirm framework-owned services remain generic for permissions, tags, search, notifications, audit logging, Help, files, and events.
-  - [x] Confirm module manifests, settings, navigation, permissions, searchable types, taggable types, help contributions, file attachable types, and event hooks are the primary integration points.
-
-- [x] Review file framework readiness for other modules.
-  - [x] Confirm Support Tickets can attach files in 0.33.x without new framework file primitives.
-  - [x] Confirm future Notes, Knowledge Base, Creator Studio, Lists, Projects, Clients, and Calendar integrations can use the same file attachment contract.
-  - [x] Confirm public-safe attachment fields and permissions are ready for client portal and Knowledge Base use, even if public workflows remain disabled.
-  - [x] Confirm file lifecycle events can feed notifications, audit logs, search refreshes, activity summaries, and module UI refreshes without direct module-to-module coupling.
-
-- [x] Add initial Help pages for existing modules and framework services.
-  - [x] Add or update Help pages for Tasks.
-  - [x] Add or update Help pages for Time Tracking.
-  - [x] Add or update Help pages for Clients and Projects.
-  - [x] Add or update Help pages for Notifications.
-  - [x] Add or update Help pages for Tags.
-  - [x] Add or update Help pages for Search.
-  - [x] Add or update Help pages for Files and Attachments if the file framework is complete.
-  - [x] Keep Help pages current-state and task-oriented, not future roadmap promises.
-
-- [x] Update developer documentation.
-  - [x] Document file attachable manifest declarations.
-  - [x] Document file lifecycle event names and payload rules.
-  - [x] Document storage adapter and scanner adapter contracts.
-  - [x] Document the browser attachment helper contract.
-  - [x] Document how modules should consume framework services without hard-coding framework internals.
-
-- [x] Add final 0.32.x closeout regressions.
-  - [x] Module manifest validation covers help, search, tags, files, permissions, navigation, and event hooks together.
-  - [x] First-party modules do not bypass file framework APIs for storage, downloads, or attachment metadata.
-  - [x] Event hooks do not expose sensitive file contents, storage paths, or scanner details.
-  - [x] Existing Help, Search, Tags, Notifications, and Files behavior still respects disabled-module visibility.
-  - [x] Run `npm run check`.
-  - [x] Run `npm run test:permissions` because file access and module hooks are permission-sensitive.
-  - [x] Run SQLite integrity check after file migration and attachment workflow tests.
-
-## Version 0.33.0 - Notes Module Contract, Library Model, Data Model, Permissions, and Revisions
+## Version 0.33.1 Planning - Notes Browser API, Library UI MVP, Search, Tags, Files, and Help
 
 Decision:
-Notes are a first-party workflow module for dynamic working records. Notes are not Knowledge Base articles, Help articles, ticket ledger entries, audit records, or task comments. Notes may later feed Knowledge Base content, but note authoring and KB publishing remain separate workflows.
-
-Notes use a built-in Library organization model to keep working knowledge organized without cloning OneNote or hard-coding an external productivity method. Library buckets help define note scope and default permission behavior, while visibility, security mode, explicit permissions, and linked-record access remain the final access-control gates.
-
-Implementation shape:
-
-* Add Notes as a durable first-party module with its own data model, Library bucket model, permissions, routes, services, manifest declarations, search integration, tag integration, file attachment integration, revision history, and Help contribution.
-
-* Keep Notes internal-first in the initial implementation.
-
-* Store note content as Markdown, even if the first editor is a plain textarea.
-
-* Leave clean hooks for a future WYSIWYG-style Markdown editor that emits valid Markdown instead of storing proprietary rich-text blobs.
-
-* Treat secure notes as a separate privacy/encryption concern, not just a tag, Library bucket, or visibility flag.
-
-* Treat Library buckets as organization and scope helpers, not as standalone permission grants.
-
-* Effective note access should be resolved from Library bucket, linked record context, visibility, security mode, role permissions, and ownership.
-
-* [ ] Add Notes as a first-party module.
-
-  * [ ] Module ID should be `notes`.
-  * [ ] Notes are dynamic working records.
-  * [ ] Notes are module records, not framework/core records.
-  * [ ] Notes should use framework-owned services for users, workspaces, permissions, tags, search, notifications, audit logging, file attachments, events/hooks, API scopes, Help contributions, and module lifecycle.
-  * [ ] Do not hard-code note behavior into framework-owned app shell, search, notification, file, tag, or permission services.
-  * [ ] Notes should be disableable per workspace where appropriate.
-  * [ ] Disabled Notes module should block new note writes while preserving historical reads if `historicalReadAccess` is enabled.
-  * [ ] Notes should not become an all-purpose dumping ground for comments, ticket replies, audit events, or KB publishing state.
-  * [ ] Notes should include Library organization from the start so imported notes can be organized cleanly.
-
-* [ ] Define note terminology and purpose.
-
-  * [ ] Notes are working records.
-  * [ ] Notes may contain drafts, meeting notes, research, implementation notes, client notes, project notes, task notes, ticket-adjacent notes, user notes, and general workspace notes.
-  * [ ] Notes should be allowed to evolve over time.
-  * [ ] Notes should support links to other records without becoming those records.
-  * [ ] Notes should be internal-first until client/public visibility rules are deliberately added.
-  * [ ] Knowledge Base should remain the curated publishing layer.
-  * [ ] Help Center should remain product/module documentation, not workspace-authored notes.
-  * [ ] Library should be the primary organizational layer for Notes.
-  * [ ] Tags should remain classification metadata, not the main organizational structure.
-  * [ ] Visibility should remain the audience/access layer, not the organizational structure.
-  * [ ] Security mode should remain the storage/indexing/privacy layer, not the organizational structure.
-
-* [ ] Define Notes Library terminology.
-
-  * [ ] Use `Library` as the broad user-facing organization concept.
-  * [ ] Use Library buckets to describe where a note lives in the user's working knowledge system.
-  * [ ] Start with these Library buckets:
-
-    * [ ] `active_work`
-    * [ ] `ongoing_area`
-    * [ ] `reference`
-  * [ ] User-facing labels:
-
-    * [ ] `Active Work`
-    * [ ] `Ongoing Areas`
-    * [ ] `Reference Library`
-  * [ ] Treat `Archive` as a top-level Library view backed by note status, not as the only stored Library bucket.
-  * [ ] A note may be `active_work` and later archived.
-  * [ ] A note may be `ongoing_area` and later archived.
-  * [ ] A note may be `reference` and later archived.
-  * [ ] The UI may display all archived notes under an `Archive` Library section.
-  * [ ] Preserve the original Library bucket when a note is archived.
-  * [ ] Do not use external productivity-method names as feature names in the product UI unless a future legal/product decision explicitly allows it.
-
-* [ ] Define Library bucket behavior.
-
-  * [ ] `active_work` means the note belongs to active project/task/ticket work.
-  * [ ] `active_work` notes should normally be assigned to a single project, task, ticket, or project-scoped target.
-  * [ ] `active_work` notes should default to project-scoped access checks.
-  * [ ] `ongoing_area` means the note belongs to an ongoing client/workspace responsibility rather than a single project.
-  * [ ] `ongoing_area` notes should normally be assigned to a single client, or to multiple projects within the same client.
-  * [ ] `ongoing_area` notes should default to client-scoped access checks.
-  * [ ] `reference` means the note belongs to workspace-wide or cross-context reference material.
-  * [ ] `reference` notes may be assigned to the workspace only, multiple clients, or multiple projects across multiple clients.
-  * [ ] `reference` notes should default to workspace-scoped access checks.
-  * [ ] `Archive` means the note is out of active circulation but still viewable/searchable by users with access.
-  * [ ] Archived notes should be read-only by default.
-  * [ ] Archived notes should remain searchable unless the note is secure or search rules explicitly exclude archived records.
-  * [ ] Archived notes should not be edited directly by normal users unless restored.
-  * [ ] Tags may help users find notes within any Library bucket, but tags must not determine Library bucket, visibility, or security mode.
-
-* [ ] Add Library bucket derivation rules.
-
-  * [ ] Add a server-side helper to derive or suggest a Library bucket from linked record context.
-  * [ ] If a note is assigned to one project, one task, one ticket, or another single project-scoped target, suggest `active_work`.
-  * [ ] If a note is assigned to one client and no project, suggest `ongoing_area`.
-  * [ ] If a note is assigned to multiple projects under the same client, suggest `ongoing_area`.
-  * [ ] If a note is assigned only to the workspace, suggest `reference`.
-  * [ ] If a note is assigned to multiple clients, suggest `reference`.
-  * [ ] If a note is assigned to multiple projects across multiple clients, suggest `reference`.
-  * [ ] If a note has no linked record context, default to `reference` unless the user explicitly chooses another bucket.
-  * [ ] Allow users with edit permission to manually choose or override the Library bucket where appropriate.
-  * [ ] Store whether the Library bucket was automatically derived or manually selected.
-  * [ ] Recalculate suggested Library bucket when note links change, but do not silently override a manual bucket without a deliberate rule.
-  * [ ] Provide safe UI hints when links and Library bucket do not match expected behavior.
-  * [ ] Do not allow Library derivation to bypass permission checks.
-
-* [ ] Define Library bucket and visibility interaction.
-
-  * [ ] Library bucket helps determine scope.
-  * [ ] Visibility determines audience.
-  * [ ] Permissions determine whether a specific user can perform a specific action.
-  * [ ] Security mode determines whether the note can be indexed, previewed, rendered normally, or stored normally.
-  * [ ] Effective access should be evaluated as:
-
-    * [ ] Workspace membership or authorized external/client access.
-    * [ ] Notes module enabled state.
-    * [ ] Library bucket scope.
-    * [ ] Linked-record access.
-    * [ ] Visibility.
-    * [ ] Security mode.
-    * [ ] Role/resource permissions.
-    * [ ] Ownership where applicable.
-  * [ ] Library bucket must not grant access by itself.
-  * [ ] Visibility must not grant access by itself.
-  * [ ] Tags must not grant access by themselves.
-  * [ ] Search results, tag counts, attachment counts, linked-record summaries, and dashboard widgets must use the same effective access checks.
-
-* [ ] Define core note record model.
-
-  * [ ] Add `notes` table.
-
-  * [ ] Suggested fields:
-
-    * [ ] `note_id`
-    * [ ] `workspace_id`
-    * [ ] `title`
-    * [ ] `slug` optional, workspace-scoped
-    * [ ] `body_markdown`
-    * [ ] `body_excerpt`
-    * [ ] `body_plaintext_index`
-    * [ ] `note_type`
-    * [ ] `library_bucket`
-    * [ ] `library_bucket_source`
-    * [ ] `status`
-    * [ ] `visibility`
-    * [ ] `security_mode`
-    * [ ] `client_id` optional
-    * [ ] `project_id` optional
-    * [ ] `task_id` optional
-    * [ ] `ticket_id` optional
-    * [ ] `linked_user_id` optional
-    * [ ] `owner_user_id` optional
-    * [ ] `created_by_user_id`
-    * [ ] `updated_by_user_id`
-    * [ ] `created_at`
-    * [ ] `updated_at`
-    * [ ] `archived_at`
-    * [ ] `deleted_at`
-    * [ ] `metadata_json`
-
-  * [ ] Every note must belong to exactly one workspace.
-
-  * [ ] Optional client/project/task/ticket/user links must belong to the same workspace.
-
-  * [ ] `library_bucket` should use stable stored values such as `active_work`, `ongoing_area`, and `reference`.
-
-  * [ ] `library_bucket_source` should support values such as `derived`, `manual`, and `imported`.
-
-  * [ ] `security_mode` should support at least `normal` and `secure`.
-
-  * [ ] `body_markdown` is the canonical editable body for normal notes.
-
-  * [ ] `body_plaintext_index` should be generated server-side from safe Markdown parsing and should not be trusted from the browser.
-
-  * [ ] Do not store rendered HTML as the source of truth.
-
-  * [ ] Do not use tags as the source of truth for note Library bucket, visibility, ownership, publication, or security.
-
-  * [ ] Do not use Library bucket as the source of truth for public/private/client visibility.
-
-* [ ] Define note types.
-
-  * [ ] Start with a small set:
-
-    * [ ] `general`
-    * [ ] `meeting`
-    * [ ] `research`
-    * [ ] `client`
-    * [ ] `project`
-    * [ ] `task`
-    * [ ] `ticket`
-    * [ ] `user`
-
-  * [ ] Note type should guide labels, filters, and defaults.
-
-  * [ ] Note type should not replace explicit record links.
-
-  * [ ] Note type should not define access control by itself.
-
-  * [ ] Note type should not replace Library bucket.
-
-  * [ ] Keep custom note types for a later settings pass if needed.
-
-* [ ] Define note statuses.
-
-  * [ ] Start with:
-
-    * [ ] `active`
-    * [ ] `pinned`
-    * [ ] `archived`
-    * [ ] `deleted`
-
-  * [ ] Keep `deleted` as soft-delete unless a later retention policy explicitly allows hard delete.
-
-  * [ ] Do not make tags the source of truth for status.
-
-  * [ ] Do not make Library bucket the source of truth for status.
-
-  * [ ] Treat archived notes as read-only by default.
-
-  * [ ] Avoid overbuilding workflow states here; Knowledge Base will own editorial states.
-
-* [ ] Define note visibility values.
-
-  * [ ] Start with internal-safe visibility:
-
-    * [ ] `internal`
-    * [ ] `private`
-    * [ ] `workspace`
-
-  * [ ] `internal` means available to internal workspace users with the appropriate note permissions and record-context access.
-
-  * [ ] `private` means available only to the creator/owner and users with an explicit elevated permission.
-
-  * [ ] `workspace` means visible to permitted workspace users, subject to workspace and role checks.
-
-  * [ ] Reserve future visibility values:
-
-    * [ ] `client_visible`
-    * [ ] `public`
-
-  * [ ] Prefer user-facing label `Client-visible` over `External` when the intended audience is authorized client/external users.
-
-  * [ ] Do not enable `client_visible` or `public` notes until the permission model and public-safe file handling are already stable.
-
-  * [ ] `client_visible` notes should require a clear client/project scope.
-
-  * [ ] `client_visible` notes should generally be blocked for cross-client Reference Library notes.
-
-  * [ ] `client_visible` notes should generally be blocked for workspace-wide Reference Library notes unless a future portal-wide note/reference concept is explicitly added.
-
-  * [ ] Do not use tags as the source of truth for public/private/client access.
-
-  * [ ] Do not use Library bucket as the source of truth for public/private/client access.
-
-* [ ] Define note security modes.
-
-  * [ ] Start with:
-
-    * [ ] `normal`
-    * [ ] `secure`
-  * [ ] `normal` notes may be indexed, previewed, rendered, included in safe snippets, and attached to normal file workflows according to permissions.
-  * [ ] `secure` notes are excluded from normal search indexing.
-  * [ ] `secure` notes may be encrypted.
-  * [ ] `secure` notes should not expose body content through snippets, notifications, dashboard widgets, activity feeds, audit logs, lifecycle events, or metadata JSON.
-  * [ ] `secure` notes should not expose Knowledge Base publishing controls.
-  * [ ] `secure` notes should not expose client-visible or public visibility controls.
-  * [ ] `secure` is not a Library bucket.
-  * [ ] `secure` is not a visibility value.
-  * [ ] `secure` is not a tag.
-
-* [ ] Add flexible note-linking foundation.
-
-  * [ ] Add `note_links` table if the direct foreign keys on `notes` are not enough.
-
-  * [ ] Suggested fields:
-
-    * [ ] `note_link_id`
-    * [ ] `workspace_id`
-    * [ ] `note_id`
-    * [ ] `module_id`
-    * [ ] `target_type`
-    * [ ] `target_id`
-    * [ ] `link_role`
-    * [ ] `scope_role`
-    * [ ] `created_by_user_id`
-    * [ ] `created_at`
-    * [ ] `removed_at`
-    * [ ] `metadata_json`
-
-  * [ ] Support linking notes to:
-
-    * [ ] Workspace
-    * [ ] Client
-    * [ ] Project
-    * [ ] Task
-    * [ ] Ticket
-    * [ ] User
-    * [ ] Future Knowledge Base article
-    * [ ] Future Creator Studio item
-
-  * [ ] Validate linked target records through module-declared linkable/searchable contracts where possible.
-
-  * [ ] Prevent cross-workspace note links.
-
-  * [ ] Preserve historical links when target modules are disabled if historical read access allows it.
-
-  * [ ] Use note links when deriving or suggesting Library bucket.
-
-  * [ ] Do not hard-code all possible note target types into the Notes service.
-
-  * [ ] Do not let note links leak hidden target records to unauthorized users.
-
-* [ ] Add optional Library collection groundwork.
-
-  * [ ] Leave room for a future `note_collections` or `note_library_collections` table if simple buckets are not enough.
-  * [ ] Collections may later help organize notes inside Active Work, Ongoing Areas, and Reference Library.
-  * [ ] Collections should not replace clients, projects, tasks, or tickets.
-  * [ ] Collections should not grant access by themselves.
-  * [ ] Collections should not become Knowledge Base categories.
-  * [ ] Collections should support OneNote-style import organization later without forcing that structure into every workspace.
-
-* [ ] Add Markdown content foundation.
-
-  * [ ] Store note body as Markdown.
-  * [ ] Add safe Markdown parsing/rendering helper.
-  * [ ] Strip or reject unsafe HTML.
-  * [ ] Normalize Markdown before saving where practical.
-  * [ ] Generate safe excerpts/snippets server-side.
-  * [ ] Support headings, bold, italic, links, blockquotes, code blocks, unordered lists, ordered lists, and checklists.
-  * [ ] Do not support arbitrary scriptable embeds.
-  * [ ] Do not trust browser-rendered Markdown output.
-  * [ ] Add rendering tests for unsafe input.
-
-* [ ] Add future editor hooks.
-
-  * [ ] First implementation may use a plain Markdown textarea.
-
-  * [ ] Leave a clean browser helper boundary for a future toolbar/editor.
-
-  * [ ] Future editor should emit valid Markdown.
-
-  * [ ] Future editor should support common controls:
-
-    * [ ] Bold
-    * [ ] Italic
-    * [ ] Headings
-    * [ ] Links
-    * [ ] Checklists
-    * [ ] Unordered lists
-    * [ ] Ordered lists
-    * [ ] Code blocks
-    * [ ] Blockquotes
-
-  * [ ] Do not store proprietary editor JSON as the canonical note body unless a later migration strategy is explicitly designed.
-
-  * [ ] Keep editor behavior replaceable without changing the note storage model.
-
-* [ ] Add wiki-style linking groundwork.
-
-  * [ ] Reserve syntax support for wiki-style links such as `[[Note Title]]` or `[[note-slug|Display Text]]`.
-  * [ ] Do not require full wiki-link autocomplete in the first pass.
-  * [ ] Store detected wiki links as metadata or `note_links` records where practical.
-  * [ ] Broken wiki links should render safely.
-  * [ ] Renaming a note should not break stable note IDs.
-  * [ ] Slugs should be display/routing helpers, not primary keys.
-  * [ ] Do not auto-create notes from wiki links until the UX is deliberate.
-  * [ ] Wiki-style links should respect Library bucket, visibility, security mode, and permissions.
-  * [ ] Users should not be able to discover private or secure notes through wiki-link autocomplete unless they can access those notes.
-
-* [ ] Add persistent note revision support.
-
-  * [ ] Add `note_revisions` table.
-
-  * [ ] Suggested fields:
-
-    * [ ] `note_revision_id`
-    * [ ] `workspace_id`
-    * [ ] `note_id`
-    * [ ] `revision_number`
-    * [ ] `title`
-    * [ ] `body_markdown`
-    * [ ] `body_excerpt`
-    * [ ] `note_type`
-    * [ ] `library_bucket`
-    * [ ] `status`
-    * [ ] `visibility`
-    * [ ] `security_mode`
-    * [ ] `changed_by_user_id`
-    * [ ] `change_summary`
-    * [ ] `change_reason`
-    * [ ] `created_at`
-    * [ ] `metadata_json`
-
-  * [ ] Create a revision when meaningful note content changes.
-
-  * [ ] Create a revision when title changes.
-
-  * [ ] Create a revision when Library bucket changes.
-
-  * [ ] Create a revision when visibility changes.
-
-  * [ ] Create a revision when security mode changes.
-
-  * [ ] Avoid creating noisy revisions for only `updated_at` changes.
-
-  * [ ] Preserve previous body content for restore/diff workflows.
-
-  * [ ] Preserve previous Library bucket values for restore/diff workflows.
-
-  * [ ] Note revision history should be permission-protected.
-
-  * [ ] Revisions should not replace audit logging.
-
-  * [ ] Revision bodies for normal notes may be searchable only through the current note unless version search is deliberately added later.
-
-  * [ ] Secure note revisions must follow the secure note encryption rules and must not leak plaintext into normal revision tables or search indexes.
-
-* [ ] Add note changelog display model.
-
-  * [ ] Changelogs should show user-friendly change history.
-
-  * [ ] Changelogs should include:
-
-    * [ ] Revision number
-    * [ ] Changed by
-    * [ ] Changed at
-    * [ ] Change summary where provided
-    * [ ] Title changed indicator
-    * [ ] Body changed indicator
-    * [ ] Library bucket changed indicator
-    * [ ] Visibility changed indicator where safe
-    * [ ] Security mode changed indicator where safe
-    * [ ] Link changes where useful
-    * [ ] Attachment changes where useful
-
-  * [ ] Changelogs should not expose raw audit JSON.
-
-  * [ ] Changelogs should not expose encrypted secure-note body content unless the viewer can decrypt the secure note.
-
-  * [ ] Changelogs should be readable by users with note history permissions.
-
-  * [ ] Changelogs should not reveal hidden linked records to unauthorized users.
-
-* [ ] Add note permissions.
-
-  * [ ] `notes.view`
-  * [ ] `notes.view_all`
-  * [ ] `notes.view_private`
-  * [ ] `notes.create`
-  * [ ] `notes.update`
-  * [ ] `notes.archive`
-  * [ ] `notes.restore`
-  * [ ] `notes.delete`
-  * [ ] `notes.view_history`
-  * [ ] `notes.restore_revision`
-  * [ ] `notes.manage_links`
-  * [ ] `notes.manage_library`
-  * [ ] `notes.manage_settings`
-  * [ ] Add context-sensitive access checks for linked client/project/task/ticket/user records.
-  * [ ] Add Library bucket scope checks for Active Work, Ongoing Areas, and Reference Library.
-  * [ ] Private notes require owner access or elevated permission.
-  * [ ] Client-visible notes require explicit permission before users can expose note content to authorized external/client users.
-  * [ ] Note visibility and edit access must respect roles and permissions.
-  * [ ] Leave hooks for future change requests.
-  * [ ] Do not allow users to infer the existence of hidden/private/secure notes through search, tag counts, Library counts, attachment counts, or linked-record summaries.
-
-* [ ] Add Library-aware access behavior.
-
-  * [ ] Active Work notes should use project/task/ticket/project-context access checks.
-  * [ ] Active Work notes should be visible to Project Users and above when visibility and permissions allow.
-  * [ ] Ongoing Areas notes should use client-level access checks.
-  * [ ] Ongoing Areas notes should be visible to Client Users and above when visibility and permissions allow.
-  * [ ] Reference Library notes should use workspace-level access checks.
-  * [ ] Reference Library notes should be visible to workspace users when visibility and permissions allow.
-  * [ ] Archived notes should remain viewable/searchable by users who would otherwise have access, but should be read-only by default.
-  * [ ] Client-visible notes should require client/project scope and explicit client-visible permission.
-  * [ ] Private notes should ignore broad Library visibility and remain owner/elevated access only.
-  * [ ] Secure notes should require secure-note permissions in addition to normal note access.
-  * [ ] Library bucket should help automate default access checks, but should never bypass visibility, security mode, ownership, or explicit permissions.
-
-* [ ] Add note resource definition.
-
-  * [ ] Resource key: `notes`.
-  * [ ] Supported operations:
-
-    * [ ] `read`
-    * [ ] `create`
-    * [ ] `update`
-    * [ ] `archive`
-    * [ ] `restore`
-    * [ ] `delete`
-    * [ ] `manage`
-    * [ ] `view_history`
-    * [ ] `restore_revision`
-    * [ ] `manage_library`
-
-* [ ] Add note audit record types.
-
-  * [ ] `note`
-  * [ ] `note_revision`
-  * [ ] `note_link`
-  * [ ] `note_library`
-  * [ ] Audit note creation, updates, archive/restore, soft delete, Library bucket changes, visibility changes, security mode changes, link changes, revision restores, attachment links, and secure-note access events where appropriate.
-  * [ ] Audit records should remain admin/security records and should not be shown as the normal note changelog.
-  * [ ] Audit records should not expose secure note body content.
-
-* [ ] Add note lifecycle events.
-
-  * [ ] `note.created`
-  * [ ] `note.updated`
-  * [ ] `note.revision_created`
-  * [ ] `note.library_changed`
-  * [ ] `note.archived`
-  * [ ] `note.restored`
-  * [ ] `note.deleted`
-  * [ ] `note.linked`
-  * [ ] `note.unlinked`
-  * [ ] `note.visibility_changed`
-  * [ ] `note.security_mode_changed`
-  * [ ] `note.attachment_added`
-  * [ ] `note.attachment_removed`
-  * [ ] Event payloads should include workspace ID, actor user ID, note ID, safe title/excerpt metadata, Library bucket, visibility, security mode where safe, linked record context where safe, previous/new values where safe, and timestamps.
-  * [ ] Event payloads should not include raw secure note content, encrypted payloads, decrypted plaintext, unsafe Markdown, secrets, private attachment details, or hidden linked-record details.
-  * [ ] Event payloads should leave room for future notifications, Workbench activity, dashboard activity, Library activity summaries, and automations.
-
-* [ ] Add note indexes.
-
-  * [ ] Workspace + note ID.
-  * [ ] Workspace + Library bucket.
-  * [ ] Workspace + Library bucket + status.
-  * [ ] Workspace + Library bucket + visibility.
-  * [ ] Workspace + status.
-  * [ ] Workspace + visibility.
-  * [ ] Workspace + security mode.
-  * [ ] Workspace + owner user ID.
-  * [ ] Workspace + created by user ID.
-  * [ ] Workspace + updated at.
-  * [ ] Workspace + client ID.
-  * [ ] Workspace + project ID.
-  * [ ] Workspace + task ID.
-  * [ ] Workspace + ticket ID.
-  * [ ] Workspace + linked user ID.
-  * [ ] Workspace + slug where slugs are enabled.
-  * [ ] Note links by workspace + module ID + target type + target ID.
-  * [ ] Note revisions by workspace + note ID + revision number.
-  * [ ] Note revisions by workspace + note ID + Library bucket where useful.
-
-* [ ] Add OneNote/import-friendly metadata groundwork.
-
-  * [ ] Leave room for imported note metadata.
-  * [ ] Suggested metadata:
-
-    * [ ] `import_source`
-    * [ ] `import_source_id`
-    * [ ] `import_source_path`
-    * [ ] `imported_at`
-    * [ ] `import_batch_id`
-    * [ ] `original_notebook`
-    * [ ] `original_section_group`
-    * [ ] `original_section`
-    * [ ] `original_page_id`
-  * [ ] Imported notes should be mapped into Library buckets where possible.
-  * [ ] Imported notebooks/sections should be preserved as metadata or future collections.
-  * [ ] Import metadata should not grant access.
-  * [ ] Import metadata should not be shown to unauthorized users.
-
-* [ ] Add focused contract regressions.
-
-  * [ ] Notes cannot cross workspace boundaries.
-  * [ ] Notes cannot link to records from another workspace.
-  * [ ] Library bucket is derived or suggested correctly from linked context.
-  * [ ] Manual Library bucket overrides are preserved.
-  * [ ] Active Work notes require project/task/ticket/project-context access where applicable.
-  * [ ] Ongoing Areas notes require client-context access where applicable.
-  * [ ] Reference Library notes require workspace-level access where applicable.
-  * [ ] Archived notes are read-only by default.
-  * [ ] Archived notes preserve their original Library bucket.
-  * [ ] Private notes are hidden from users without owner/elevated access.
-  * [ ] Client-visible notes cannot be created from unsafe cross-client Reference Library notes.
-  * [ ] Secure notes are not normal indexed records.
-  * [ ] Disabled Notes module blocks new writes.
-  * [ ] Historical reads follow module lifecycle policy.
-  * [ ] Note revisions are created for meaningful content, Library bucket, visibility, and security mode changes.
-  * [ ] Note changelog does not expose raw audit JSON.
-  * [ ] Unsafe Markdown is rejected or rendered safely.
-  * [ ] Tags do not control note Library bucket, visibility, or security mode.
-  * [ ] Library bucket does not bypass permissions.
-  * [ ] Note lifecycle events emit safe payloads.
-
-## Version 0.33.1 - Notes Browser API, Library UI MVP, Search, Tags, Files, and Help
+0.33.1 is too broad for one implementation release. It is split into four sub-versioned passes so Notes can ship from a stable service/API core into UI, integrations, and final search/help closeout without mixing every workflow in one change set.
 
 Implementation shape:
 
@@ -646,357 +15,483 @@ Implementation shape:
 
 * Keep the first UI boring and useful: Library buckets, list, filters, create/edit, detail, archive, revisions, linked records, tags, and attachments.
 
-* [ ] Add note service methods.
+Sub-version plan:
 
-  * [ ] Create note.
-  * [ ] Read one note.
-  * [ ] List notes.
-  * [ ] Update note.
-  * [ ] Archive note.
-  * [ ] Restore note.
-  * [ ] Soft-delete note where allowed.
-  * [ ] List note revisions.
-  * [ ] Read note revision.
-  * [ ] Restore note revision.
-  * [ ] Link note to a target record.
-  * [ ] Remove note link.
-  * [ ] List notes for target record.
-  * [ ] List notes by Library bucket.
-  * [ ] List archived notes by original Library bucket.
-  * [ ] Derive suggested Library bucket from linked context.
-  * [ ] Apply manual Library bucket override.
-  * [ ] Validate note access.
-  * [ ] Validate note edit access.
-  * [ ] Validate Library-aware note access.
-  * [ ] Generate safe Markdown excerpt.
-  * [ ] Generate search indexing payload.
-  * [ ] Emit safe lifecycle events.
+* 0.33.1.1 - Notes Service, Browser API, and Access Enforcement.
+* 0.33.1.2 - Notes Navigation, Library UI, List/Detail, and Markdown Editor MVP.
+* 0.33.1.3 - Notes Links, Tags, Attachments, Revisions, and Archive Workflows.
+* 0.33.1.4 - Notes Search, Notifications, Help, Integration Regressions, and Release Closeout.
 
-* [ ] Add browser API routes.
+## Version 0.33.1.4 - Notes Search, Notifications, Help, Integration Regressions, and Release Closeout
 
-  * [ ] `GET /api/notes`
-  * [ ] `POST /api/notes`
-  * [ ] `GET /api/notes/library`
-  * [ ] `GET /api/notes/library/:libraryBucket`
-  * [ ] `GET /api/notes/archive`
-  * [ ] `GET /api/notes/:noteId`
-  * [ ] `PUT /api/notes/:noteId`
-  * [ ] `POST /api/notes/:noteId/library`
-  * [ ] `POST /api/notes/:noteId/archive`
-  * [ ] `POST /api/notes/:noteId/restore`
-  * [ ] `POST /api/notes/:noteId/delete`
-  * [ ] `GET /api/notes/:noteId/revisions`
-  * [ ] `GET /api/notes/:noteId/revisions/:revisionId`
-  * [ ] `POST /api/notes/:noteId/revisions/:revisionId/restore`
-  * [ ] `GET /api/notes/:noteId/links`
-  * [ ] `POST /api/notes/:noteId/links`
-  * [ ] `POST /api/notes/:noteId/links/:noteLinkId/remove`
-  * [ ] `GET /api/notes/for-target`
-  * [ ] Keep public/client note APIs deferred until explicit visibility and public-safe file behavior are stable.
+Implementation shape:
 
-* [ ] Enforce note API permissions.
+* Close the 0.33.1 Notes browser workflow with search registration, conservative notifications, Help content, full integration regressions, documentation, version bumps, and roadmap closeout.
 
-  * [ ] Every route must validate active workspace.
-  * [ ] Every read must validate note Library bucket, note visibility, security mode, note permissions, and linked-record access where applicable.
-  * [ ] Every write must validate Notes module state.
-  * [ ] Users cannot create notes for records they cannot access.
-  * [ ] Users cannot link notes to records they cannot access.
-  * [ ] Users cannot assign a Library bucket that conflicts with access rules without elevated permission.
-  * [ ] Users cannot read private notes unless they own them or have elevated permission.
-  * [ ] Users cannot read secure notes unless they have secure-note access.
-  * [ ] Users cannot expose notes as client-visible without explicit permission.
-  * [ ] Users cannot restore revisions unless they can edit the note and view history.
-  * [ ] Archived notes are read-only by default unless restored.
-  * [ ] Disabled module state blocks new writes.
-  * [ ] Search, tag, file, Library, and revision APIs must use the same access rules as note reads.
+* [x] Register notes as searchable records.
 
-* [ ] Add Notes navigation and protected views.
+  * [x] Add `searchableTypes` manifest declaration for notes.
+  * [x] Index title.
+  * [x] Index safe body plaintext.
+  * [x] Index safe excerpt.
+  * [x] Index Library bucket.
+  * [x] Index status.
+  * [x] Index visibility.
+  * [x] Index linked client/project/task/ticket/user context where allowed.
+  * [x] Index tags as classification metadata.
+  * [x] Index attachment names only if the file framework exposes permission-safe metadata.
+  * [x] Search result type should be `note`.
+  * [x] Search source should be `Notes`.
+  * [x] Search results should link to Note detail.
+  * [x] Search results should support Library bucket filtering.
+  * [x] Search must respect workspace, module state, Library bucket scope, note visibility, private-note rules, security mode, linked-record access, and permissions.
+  * [x] Archived notes should follow the existing search archived-state pattern.
+  * [x] Secure notes must be excluded from normal search indexing.
+  * [x] Private notes may be indexed only for the owner or through an owner-safe search path.
+  * [x] Search must not leak hidden Library bucket counts.
 
-  * [ ] Add Notes navigation when the module is enabled.
-  * [ ] Add Notes Library landing page.
-  * [ ] Add Active Work Library view.
-  * [ ] Add Ongoing Areas Library view.
-  * [ ] Add Reference Library view.
-  * [ ] Add Archive Library view.
-  * [ ] Add Notes list page.
-  * [ ] Add Note detail page.
-  * [ ] Add create note form.
-  * [ ] Add edit note form.
-  * [ ] Add Library bucket selector.
-  * [ ] Add Library bucket suggestion when linked context changes.
-  * [ ] Add archive/restore actions.
-  * [ ] Add revision history panel.
-  * [ ] Add linked-record context display.
-  * [ ] Add tags panel.
-  * [ ] Add attachments panel through the shared file helper.
-  * [ ] Add disabled-module state.
-  * [ ] Add loading, empty, error, permission-denied, and archived states.
-  * [ ] Keep layout consistent with existing authenticated module pages.
+* [x] Add note notifications where useful.
 
-* [ ] Add Notes Library landing workflow.
+  * [x] Notify note owner when another user updates their note where appropriate.
+  * [x] Notify linked-record followers only if a clear subscription rule exists.
+  * [x] Do not spam users for every small note edit.
+  * [x] Keep note notifications conservative until notification preferences are richer.
+  * [x] Notification payloads should use safe title/excerpt metadata only.
+  * [x] Notification payloads may include Library bucket where safe.
+  * [x] Notifications must not expose secure note body content.
+  * [x] Notifications must not expose hidden linked-record context.
 
-  * [ ] Show Active Work count where user has access.
-  * [ ] Show Ongoing Areas count where user has access.
-  * [ ] Show Reference Library count where user has access.
-  * [ ] Show Archive count where user has access.
-  * [ ] Do not show hidden/private/secure note counts to unauthorized users.
-  * [ ] Provide quick create actions where permitted.
-  * [ ] Provide recent notes grouped by Library bucket where useful.
-  * [ ] Keep Library landing simple and permission-safe.
+* [x] Add Notes Help contribution.
 
-* [ ] Add Active Work workflow.
+  * [x] Add Help page for Notes basics.
+  * [x] Add Help page for Notes Library.
+  * [x] Add Help page for Active Work.
+  * [x] Add Help page for Ongoing Areas.
+  * [x] Add Help page for Reference Library.
+  * [x] Add Help page for Archive.
+  * [x] Add Help page for Markdown notes.
+  * [x] Add Help page for note links.
+  * [x] Add Help page for note revisions.
+  * [x] Add Help page for notes and attachments.
+  * [x] Keep Help pages current-state and task-oriented.
+  * [x] Do not describe future Knowledge Base publishing as current behavior.
 
-  * [ ] Show notes assigned to a single project, task, ticket, or project-scoped context.
-  * [ ] Group or filter by client and project where useful.
-  * [ ] Show linked project/task/ticket context where allowed.
-  * [ ] Show active notes by default.
-  * [ ] Hide archived notes unless Archive is selected.
-  * [ ] Allow permitted users to create Active Work notes from project/task/ticket context.
-  * [ ] Use project-level access checks.
-  * [ ] Do not show project context the user cannot access.
+* [x] Add 0.33.1.4 UI and integration regressions.
 
-* [ ] Add Ongoing Areas workflow.
+  * [x] Notes search does not leak private or secure notes.
+  * [x] Notes search supports Library bucket filters.
+  * [x] Secure notes are hidden from normal search indexing.
+  * [x] Search, tag, file, Library, and revision APIs use the same access rules as note reads.
+  * [x] Notes Help pages reflect current implemented behavior only.
+  * [x] Run `npm run check`.
+  * [x] Run `npm run test:permissions`.
+  * [x] Run SQLite integrity check after note migration, Library, revision, and search tests.
+  * [x] Verify `/api/app-info` reports the completed Notes version.
+  * [x] Bump the app and Notes module versions to `0.33.1.4`.
+  * [x] Update `CHANGELOG.md`, `DECISIONS.md`, package metadata, module metadata, and roadmap/archive state for the completed 0.33.1 line.
 
-  * [ ] Show notes assigned to one client or multiple projects within one client.
-  * [ ] Group or filter by client where useful.
-  * [ ] Show linked client/project context where allowed.
-  * [ ] Show active notes by default.
-  * [ ] Hide archived notes unless Archive is selected.
-  * [ ] Allow permitted users to create Ongoing Areas notes from client context.
-  * [ ] Use client-level access checks.
-  * [ ] Do not show client context the user cannot access.
+Rollup acceptance criteria for the 0.33.1.x line:
 
-* [ ] Add Reference Library workflow.
+* [x] Add note service methods.
 
-  * [ ] Show workspace-level notes.
-  * [ ] Show notes assigned to multiple clients.
-  * [ ] Show notes assigned to multiple projects across multiple clients.
-  * [ ] Show general reference notes with no linked target.
-  * [ ] Support tag filtering for easier discovery.
-  * [ ] Show active notes by default.
-  * [ ] Hide archived notes unless Archive is selected.
-  * [ ] Use workspace-level access checks plus visibility/security checks.
-  * [ ] Block or warn before making cross-client Reference Library notes client-visible.
-  * [ ] Do not expose hidden client/project context to unauthorized users.
+  * [x] Create note.
+  * [x] Read one note.
+  * [x] List notes.
+  * [x] Update note.
+  * [x] Archive note.
+  * [x] Restore note.
+  * [x] Soft-delete note where allowed.
+  * [x] List note revisions.
+  * [x] Read note revision.
+  * [x] Restore note revision.
+  * [x] Link note to a target record.
+  * [x] Remove note link.
+  * [x] List notes for target record.
+  * [x] List notes by Library bucket.
+  * [x] List archived notes by original Library bucket.
+  * [x] Derive suggested Library bucket from linked context.
+  * [x] Apply manual Library bucket override.
+  * [x] Validate note access.
+  * [x] Validate note edit access.
+  * [x] Validate Library-aware note access.
+  * [x] Generate safe Markdown excerpt.
+  * [x] Generate search indexing payload.
+  * [x] Emit safe lifecycle events.
 
-* [ ] Add Archive workflow.
+* [x] Add browser API routes.
 
-  * [ ] Show archived notes the user is allowed to view.
-  * [ ] Group archived notes by original Library bucket where useful.
-  * [ ] Preserve original Library bucket labels in archived views.
-  * [ ] Archived notes are read-only by default.
-  * [ ] Users with restore permission can restore archived notes.
-  * [ ] Restored notes return to their previous Library bucket unless changed by a permitted user.
-  * [ ] Archived notes remain searchable where permissions and security mode allow.
-  * [ ] Secure archived notes remain excluded from normal search.
-  * [ ] Do not treat archive as delete.
+  * [x] `GET /api/notes`
+  * [x] `POST /api/notes`
+  * [x] `GET /api/notes/library`
+  * [x] `GET /api/notes/library/:libraryBucket`
+  * [x] `GET /api/notes/archive`
+  * [x] `GET /api/notes/:noteId`
+  * [x] `PUT /api/notes/:noteId`
+  * [x] `POST /api/notes/:noteId/library`
+  * [x] `POST /api/notes/:noteId/archive`
+  * [x] `POST /api/notes/:noteId/restore`
+  * [x] `POST /api/notes/:noteId/delete`
+  * [x] `GET /api/notes/:noteId/revisions`
+  * [x] `GET /api/notes/:noteId/revisions/:revisionId`
+  * [x] `POST /api/notes/:noteId/revisions/:revisionId/restore`
+  * [x] `GET /api/notes/:noteId/links`
+  * [x] `POST /api/notes/:noteId/links`
+  * [x] `POST /api/notes/:noteId/links/:noteLinkId/remove`
+  * [x] `GET /api/notes/for-target`
+  * [x] Keep public/client note APIs deferred until explicit visibility and public-safe file behavior are stable.
 
-* [ ] Add note list workflow.
+* [x] Enforce note API permissions.
 
-  * [ ] Show title.
+  * [x] Every route must validate active workspace.
+  * [x] Every read must validate note Library bucket, note visibility, security mode, note permissions, and linked-record access where applicable.
+  * [x] Every write must validate Notes module state.
+  * [x] Users cannot create notes for records they cannot access.
+  * [x] Users cannot link notes to records they cannot access.
+  * [x] Users cannot assign a Library bucket that conflicts with access rules without elevated permission.
+  * [x] Users cannot read private notes unless they own them or have elevated permission.
+  * [x] Users cannot read secure notes unless they have secure-note access.
+  * [x] Users cannot expose notes as client-visible without explicit permission.
+  * [x] Users cannot restore revisions unless they can edit the note and view history.
+  * [x] Archived notes are read-only by default unless restored.
+  * [x] Disabled module state blocks new writes.
+  * [x] Search, tag, file, Library, and revision APIs must use the same access rules as note reads.
 
-  * [ ] Show safe excerpt.
+* [x] Add Notes navigation and protected views.
 
-  * [ ] Show note type.
+  * [x] Add Notes navigation when the module is enabled.
+  * [x] Add Notes Library landing page.
+  * [x] Add Active Work Library view.
+  * [x] Add Ongoing Areas Library view.
+  * [x] Add Reference Library view.
+  * [x] Add Archive Library view.
+  * [x] Add Notes list page.
+  * [x] Add Note detail page.
+  * [x] Add create note form.
+  * [x] Add edit note form.
+  * [x] Add Library bucket selector.
+  * [x] Add Library bucket suggestion when linked context changes.
+  * [x] Add archive/restore actions.
+  * [x] Add revision history panel.
+  * [x] Add linked-record context display.
+  * [x] Add tags panel.
+  * [x] Add attachments panel through the shared file helper.
+  * [x] Add disabled-module state.
+  * [x] Add loading, empty, error, permission-denied, and archived states.
+  * [x] Keep layout consistent with existing authenticated module pages.
 
-  * [ ] Show Library bucket.
+* [x] Add Notes Library landing workflow.
 
-  * [ ] Show status.
+  * [x] Show Active Work count where user has access.
+  * [x] Show Ongoing Areas count where user has access.
+  * [x] Show Reference Library count where user has access.
+  * [x] Show Archive count where user has access.
+  * [x] Do not show hidden/private/secure note counts to unauthorized users.
+  * [x] Provide quick create actions where permitted.
+  * [x] Provide recent notes grouped by Library bucket where useful.
+  * [x] Keep Library landing simple and permission-safe.
 
-  * [ ] Show visibility.
+* [x] Add Active Work workflow.
 
-  * [ ] Show security mode label where useful.
+  * [x] Show notes assigned to a single project, task, ticket, or project-scoped context.
+  * [x] Group or filter by client and project where useful.
+  * [x] Show linked project/task/ticket context where allowed.
+  * [x] Show active notes by default.
+  * [x] Hide archived notes unless Archive is selected.
+  * [x] Allow permitted users to create Active Work notes from project/task/ticket context.
+  * [x] Use project-level access checks.
+  * [x] Do not show project context the user cannot access.
 
-  * [ ] Show linked client/project/task/ticket/user context where allowed.
+* [x] Add Ongoing Areas workflow.
 
-  * [ ] Show tags where allowed.
+  * [x] Show notes assigned to one client or multiple projects within one client.
+  * [x] Group or filter by client where useful.
+  * [x] Show linked client/project context where allowed.
+  * [x] Show active notes by default.
+  * [x] Hide archived notes unless Archive is selected.
+  * [x] Allow permitted users to create Ongoing Areas notes from client context.
+  * [x] Use client-level access checks.
+  * [x] Do not show client context the user cannot access.
 
-  * [ ] Show attachment count where allowed.
+* [x] Add Reference Library workflow.
 
-  * [ ] Show updated date.
+  * [x] Show workspace-level notes.
+  * [x] Show notes assigned to multiple clients.
+  * [x] Show notes assigned to multiple projects across multiple clients.
+  * [x] Show general reference notes with no linked target.
+  * [x] Support tag filtering for easier discovery.
+  * [x] Show active notes by default.
+  * [x] Hide archived notes unless Archive is selected.
+  * [x] Use workspace-level access checks plus visibility/security checks.
+  * [x] Block or warn before making cross-client Reference Library notes client-visible.
+  * [x] Do not expose hidden client/project context to unauthorized users.
 
-  * [ ] Show updated by where allowed.
+* [x] Add Archive workflow.
 
-  * [ ] Add filters for:
+  * [x] Show archived notes the user is allowed to view.
+  * [x] Group archived notes by original Library bucket where useful.
+  * [x] Preserve original Library bucket labels in archived views.
+  * [x] Archived notes are read-only by default.
+  * [x] Users with restore permission can restore archived notes.
+  * [x] Restored notes return to their previous Library bucket unless changed by a permitted user.
+  * [x] Archived notes remain searchable where permissions and security mode allow.
+  * [x] Secure archived notes remain excluded from normal search.
+  * [x] Do not treat archive as delete.
 
-    * [ ] Library bucket
-    * [ ] Status
-    * [ ] Visibility
-    * [ ] Security mode
-    * [ ] Note type
-    * [ ] Client
-    * [ ] Project
-    * [ ] Task
-    * [ ] Ticket
-    * [ ] User
-    * [ ] Tag
-    * [ ] Owner
-    * [ ] Updated date
-    * [ ] Archived state
+* [x] Add note list workflow.
 
-  * [ ] Add pagination.
+  * [x] Show title.
 
-  * [ ] Add sort by updated date, created date, title, Library bucket, and type.
+  * [x] Show safe excerpt.
 
-  * [ ] Do not show hidden/private/secure note counts to unauthorized users.
+  * [x] Show note type.
 
-* [ ] Add note detail workflow.
+  * [x] Show Library bucket.
 
-  * [ ] Render Markdown safely.
-  * [ ] Show title, Library bucket, status, visibility, security mode, note type, linked records, tags, attachments, created date, updated date, and author/updater where allowed.
-  * [ ] Allow permitted users to edit note body and title.
-  * [ ] Allow permitted users to change Library bucket.
-  * [ ] Allow permitted users to accept or override the suggested Library bucket.
-  * [ ] Allow permitted users to archive/restore.
-  * [ ] Allow permitted users to manage links.
-  * [ ] Allow permitted users to manage tags.
-  * [ ] Allow permitted users to manage attachments.
-  * [ ] Show revision history to users with history permission.
-  * [ ] Keep raw Markdown available to the editor.
-  * [ ] Do not expose hidden linked records through note detail metadata.
-  * [ ] Do not expose secure note body without secure-note access.
-  * [ ] Do not allow archived note body edits unless the note is restored or the user has elevated archived-edit permission.
+  * [x] Show status.
 
-* [ ] Add note creation workflow.
+  * [x] Show visibility.
 
-  * [ ] Allow users to create notes from the Notes Library.
-  * [ ] Allow users to create notes from workspace context.
-  * [ ] Allow users to create notes from client context.
-  * [ ] Allow users to create notes from project context.
-  * [ ] Allow users to create notes from task context.
-  * [ ] Allow users to create notes from ticket context where tickets are available.
-  * [ ] Suggest Library bucket based on creation context.
-  * [ ] Default project/task/ticket notes to Active Work.
-  * [ ] Default client notes without a project to Ongoing Areas.
-  * [ ] Default workspace/general notes to Reference Library.
-  * [ ] Allow manual Library bucket selection where permitted.
-  * [ ] Validate that chosen visibility is allowed for the chosen Library bucket and linked context.
-  * [ ] Block unsafe client-visible choices.
+  * [x] Show security mode label where useful.
 
-* [ ] Add Markdown editor MVP.
+  * [x] Show linked client/project/task/ticket/user context where allowed.
 
-  * [ ] Start with a textarea if that is the fastest safe implementation.
-  * [ ] Add preview mode if practical.
-  * [ ] Add helper buttons only if they can emit valid Markdown without creating fragile browser code.
-  * [ ] Preserve keyboard accessibility.
-  * [ ] Preserve focus management.
-  * [ ] Show validation errors clearly.
-  * [ ] Prevent accidental loss of unsaved note edits where practical.
-  * [ ] Keep future WYSIWYG editor replacement isolated behind a browser helper.
+  * [x] Show tags where allowed.
 
-* [ ] Register notes as searchable records.
+  * [x] Show attachment count where allowed.
 
-  * [ ] Add `searchableTypes` manifest declaration for notes.
-  * [ ] Index title.
-  * [ ] Index safe body plaintext.
-  * [ ] Index safe excerpt.
-  * [ ] Index Library bucket.
-  * [ ] Index status.
-  * [ ] Index visibility.
-  * [ ] Index linked client/project/task/ticket/user context where allowed.
-  * [ ] Index tags as classification metadata.
-  * [ ] Index attachment names only if the file framework exposes permission-safe metadata.
-  * [ ] Search result type should be `note`.
-  * [ ] Search source should be `Notes`.
-  * [ ] Search results should link to Note detail.
-  * [ ] Search results should support Library bucket filtering.
-  * [ ] Search must respect workspace, module state, Library bucket scope, note visibility, private-note rules, security mode, linked-record access, and permissions.
-  * [ ] Archived notes should follow the existing search archived-state pattern.
-  * [ ] Secure notes must be excluded from normal search indexing.
-  * [ ] Private notes may be indexed only for the owner or through an owner-safe search path.
-  * [ ] Search must not leak hidden Library bucket counts.
+  * [x] Show updated date.
 
-* [ ] Register notes as taggable records.
+  * [x] Show updated by where allowed.
 
-  * [ ] Add `taggableTypes` declaration for notes.
-  * [ ] Allow permitted users to assign workspace tags to notes.
-  * [ ] Tags are classification metadata only.
-  * [ ] Tags may help filter notes inside Active Work, Ongoing Areas, Reference Library, and Archive.
-  * [ ] Tags must not define Library bucket.
-  * [ ] Tags must not define public/private/client access.
-  * [ ] Tags must not define secure-note status.
-  * [ ] Tags must not define Knowledge Base publication state.
+  * [x] Add filters for:
 
-* [ ] Register notes as attachable records.
+    * [x] Library bucket
+    * [x] Status
+    * [x] Visibility
+    * [x] Security mode
+    * [x] Note type
+    * [x] Client
+    * [x] Project
+    * [x] Task
+    * [x] Ticket
+    * [x] User
+    * [x] Tag
+    * [x] Owner
+    * [x] Updated date
+    * [x] Archived state
 
-  * [ ] Use the framework file attachment contract.
-  * [ ] Notes should not implement separate file storage.
-  * [ ] Attachments should inherit note access rules unless an explicit attachment visibility rule is added.
-  * [ ] Active Work attachments follow project/task/ticket note access.
-  * [ ] Ongoing Areas attachments follow client note access.
-  * [ ] Reference Library attachments follow workspace note access.
-  * [ ] Archived note attachments are read-only by default.
-  * [ ] Private note attachments must not be downloadable by users who cannot access the private note.
-  * [ ] Client-visible note attachments require client-safe file handling.
-  * [ ] Quarantined/pending files must not appear in normal note UI.
-  * [ ] Secure note attachments need a deliberate rule before they are allowed; do not assume normal file encryption covers secure note attachment content.
+  * [x] Add pagination.
 
-* [ ] Add note revision UI.
+  * [x] Add sort by updated date, created date, title, Library bucket, and type.
 
-  * [ ] Show revision list.
-  * [ ] Show revision metadata.
-  * [ ] Show Library bucket changes.
-  * [ ] Show visibility changes where safe.
-  * [ ] Show security mode changes where safe.
-  * [ ] Show safe diff or previous/current view if practical.
-  * [ ] Allow permitted users to restore a revision.
-  * [ ] Create a new revision when restoring an old revision.
-  * [ ] Do not expose revisions to users who cannot view note history.
-  * [ ] Do not expose encrypted secure-note revision plaintext without secure-note access.
-  * [ ] Restoring a revision should preserve or deliberately restore Library bucket according to explicit service rules.
+  * [x] Do not show hidden/private/secure note counts to unauthorized users.
 
-* [ ] Add note notifications where useful.
+* [x] Add note detail workflow.
 
-  * [ ] Notify note owner when another user updates their note where appropriate.
-  * [ ] Notify linked-record followers only if a clear subscription rule exists.
-  * [ ] Do not spam users for every small note edit.
-  * [ ] Keep note notifications conservative until notification preferences are richer.
-  * [ ] Notification payloads should use safe title/excerpt metadata only.
-  * [ ] Notification payloads may include Library bucket where safe.
-  * [ ] Notifications must not expose secure note body content.
-  * [ ] Notifications must not expose hidden linked-record context.
+  * [x] Render Markdown safely.
+  * [x] Show title, Library bucket, status, visibility, security mode, note type, linked records, tags, attachments, created date, updated date, and author/updater where allowed.
+  * [x] Allow permitted users to edit note body and title.
+  * [x] Allow permitted users to change Library bucket.
+  * [x] Allow permitted users to accept or override the suggested Library bucket.
+  * [x] Allow permitted users to archive/restore.
+  * [x] Allow permitted users to manage links.
+  * [x] Allow permitted users to manage tags.
+  * [x] Allow permitted users to manage attachments.
+  * [x] Show revision history to users with history permission.
+  * [x] Keep raw Markdown available to the editor.
+  * [x] Do not expose hidden linked records through note detail metadata.
+  * [x] Do not expose secure note body without secure-note access.
+  * [x] Do not allow archived note body edits unless the note is restored or the user has elevated archived-edit permission.
 
-* [ ] Add Notes Help contribution.
+* [x] Add note creation workflow.
 
-  * [ ] Add Help page for Notes basics.
-  * [ ] Add Help page for Notes Library.
-  * [ ] Add Help page for Active Work.
-  * [ ] Add Help page for Ongoing Areas.
-  * [ ] Add Help page for Reference Library.
-  * [ ] Add Help page for Archive.
-  * [ ] Add Help page for Markdown notes.
-  * [ ] Add Help page for note links.
-  * [ ] Add Help page for note revisions.
-  * [ ] Add Help page for notes and attachments.
-  * [ ] Keep Help pages current-state and task-oriented.
-  * [ ] Do not describe future Knowledge Base publishing as current behavior.
+  * [x] Allow users to create notes from the Notes Library.
+  * [x] Allow users to create notes from workspace context.
+  * [x] Allow users to create notes from client context.
+  * [x] Allow users to create notes from project context.
+  * [x] Allow users to create notes from task context.
+  * [x] Allow users to create notes from ticket context where tickets are available.
+  * [x] Suggest Library bucket based on creation context.
+  * [x] Default project/task/ticket notes to Active Work.
+  * [x] Default client notes without a project to Ongoing Areas.
+  * [x] Default workspace/general notes to Reference Library.
+  * [x] Allow manual Library bucket selection where permitted.
+  * [x] Validate that chosen visibility is allowed for the chosen Library bucket and linked context.
+  * [x] Block unsafe client-visible choices.
 
-* [ ] Add UI and integration regressions.
+* [x] Add Markdown editor MVP.
 
-  * [ ] Notes navigation appears only when Notes module is enabled.
-  * [ ] Notes Library landing page shows only accessible counts and notes.
-  * [ ] Active Work view shows project/task/ticket-scoped notes the user can access.
-  * [ ] Ongoing Areas view shows client-scoped notes the user can access.
-  * [ ] Reference Library view shows workspace/cross-context notes the user can access.
-  * [ ] Archive view shows archived notes the user can access.
-  * [ ] Users can create, edit, archive, restore, and read notes according to permissions.
-  * [ ] Library bucket suggestions match linked context.
-  * [ ] Manual Library bucket overrides are preserved.
-  * [ ] Archived notes are read-only by default.
-  * [ ] Restored notes return to their previous Library bucket.
-  * [ ] Private notes are hidden from unauthorized users.
-  * [ ] Secure notes are hidden from normal search indexing.
-  * [ ] Linked record access is enforced.
-  * [ ] Notes search does not leak private or secure notes.
-  * [ ] Notes search supports Library bucket filters.
-  * [ ] Notes tags do not alter Library bucket, visibility, or security mode.
-  * [ ] Note attachments use the shared file framework.
-  * [ ] Markdown renders safely.
-  * [ ] Revision restore creates a new revision.
-  * [ ] Disabled Notes module blocks new writes.
-  * [ ] Run `npm run check`.
-  * [ ] Run `npm run test:permissions`.
-  * [ ] Run SQLite integrity check after note migration, Library, and revision tests.
+  * [x] Start with a textarea if that is the fastest safe implementation.
+  * [x] Add preview mode if practical.
+  * [x] Add helper buttons only if they can emit valid Markdown without creating fragile browser code.
+  * [x] Preserve keyboard accessibility.
+  * [x] Preserve focus management.
+  * [x] Show validation errors clearly.
+  * [x] Prevent accidental loss of unsaved note edits where practical.
+  * [x] Keep future WYSIWYG editor replacement isolated behind a browser helper.
+
+* [x] Register notes as searchable records.
+
+  * [x] Add `searchableTypes` manifest declaration for notes.
+  * [x] Index title.
+  * [x] Index safe body plaintext.
+  * [x] Index safe excerpt.
+  * [x] Index Library bucket.
+  * [x] Index status.
+  * [x] Index visibility.
+  * [x] Index linked client/project/task/ticket/user context where allowed.
+  * [x] Index tags as classification metadata.
+  * [x] Index attachment names only if the file framework exposes permission-safe metadata.
+  * [x] Search result type should be `note`.
+  * [x] Search source should be `Notes`.
+  * [x] Search results should link to Note detail.
+  * [x] Search results should support Library bucket filtering.
+  * [x] Search must respect workspace, module state, Library bucket scope, note visibility, private-note rules, security mode, linked-record access, and permissions.
+  * [x] Archived notes should follow the existing search archived-state pattern.
+  * [x] Secure notes must be excluded from normal search indexing.
+  * [x] Private notes may be indexed only for the owner or through an owner-safe search path.
+  * [x] Search must not leak hidden Library bucket counts.
+
+* [x] Register notes as taggable records.
+
+  * [x] Add `taggableTypes` declaration for notes.
+  * [x] Allow permitted users to assign workspace tags to notes.
+  * [x] Tags are classification metadata only.
+  * [x] Tags may help filter notes inside Active Work, Ongoing Areas, Reference Library, and Archive.
+  * [x] Tags must not define Library bucket.
+  * [x] Tags must not define public/private/client access.
+  * [x] Tags must not define secure-note status.
+  * [x] Tags must not define Knowledge Base publication state.
+
+* [x] Register notes as attachable records.
+
+  * [x] Use the framework file attachment contract.
+  * [x] Notes should not implement separate file storage.
+  * [x] Attachments should inherit note access rules unless an explicit attachment visibility rule is added.
+  * [x] Active Work attachments follow project/task/ticket note access.
+  * [x] Ongoing Areas attachments follow client note access.
+  * [x] Reference Library attachments follow workspace note access.
+  * [x] Archived note attachments are read-only by default.
+  * [x] Private note attachments must not be downloadable by users who cannot access the private note.
+  * [x] Client-visible note attachments require client-safe file handling.
+  * [x] Quarantined/pending files must not appear in normal note UI.
+  * [x] Secure note attachments need a deliberate rule before they are allowed; do not assume normal file encryption covers secure note attachment content.
+
+* [x] Add note revision UI.
+
+  * [x] Show revision list.
+  * [x] Show revision metadata.
+  * [x] Show Library bucket changes.
+  * [x] Show visibility changes where safe.
+  * [x] Show security mode changes where safe.
+  * [x] Show safe diff or previous/current view if practical.
+  * [x] Allow permitted users to restore a revision.
+  * [x] Create a new revision when restoring an old revision.
+  * [x] Do not expose revisions to users who cannot view note history.
+  * [x] Do not expose encrypted secure-note revision plaintext without secure-note access.
+  * [x] Restoring a revision should preserve or deliberately restore Library bucket according to explicit service rules.
+
+* [x] Add note notifications where useful.
+
+  * [x] Notify note owner when another user updates their note where appropriate.
+  * [x] Notify linked-record followers only if a clear subscription rule exists.
+  * [x] Do not spam users for every small note edit.
+  * [x] Keep note notifications conservative until notification preferences are richer.
+  * [x] Notification payloads should use safe title/excerpt metadata only.
+  * [x] Notification payloads may include Library bucket where safe.
+  * [x] Notifications must not expose secure note body content.
+  * [x] Notifications must not expose hidden linked-record context.
+
+* [x] Add Notes Help contribution.
+
+  * [x] Add Help page for Notes basics.
+  * [x] Add Help page for Notes Library.
+  * [x] Add Help page for Active Work.
+  * [x] Add Help page for Ongoing Areas.
+  * [x] Add Help page for Reference Library.
+  * [x] Add Help page for Archive.
+  * [x] Add Help page for Markdown notes.
+  * [x] Add Help page for note links.
+  * [x] Add Help page for note revisions.
+  * [x] Add Help page for notes and attachments.
+  * [x] Keep Help pages current-state and task-oriented.
+  * [x] Do not describe future Knowledge Base publishing as current behavior.
+
+* [x] Add UI and integration regressions.
+
+  * [x] Notes navigation appears only when Notes module is enabled.
+  * [x] Notes Library landing page shows only accessible counts and notes.
+  * [x] Active Work view shows project/task/ticket-scoped notes the user can access.
+  * [x] Ongoing Areas view shows client-scoped notes the user can access.
+  * [x] Reference Library view shows workspace/cross-context notes the user can access.
+  * [x] Archive view shows archived notes the user can access.
+  * [x] Users can create, edit, archive, restore, and read notes according to permissions.
+  * [x] Library bucket suggestions match linked context.
+  * [x] Manual Library bucket overrides are preserved.
+  * [x] Archived notes are read-only by default.
+  * [x] Restored notes return to their previous Library bucket.
+  * [x] Private notes are hidden from unauthorized users.
+  * [x] Secure notes are hidden from normal search indexing.
+  * [x] Linked record access is enforced.
+  * [x] Notes search does not leak private or secure notes.
+  * [x] Notes search supports Library bucket filters.
+  * [x] Notes tags do not alter Library bucket, visibility, or security mode.
+  * [x] Note attachments use the shared file framework.
+  * [x] Markdown renders safely.
+  * [x] Revision restore creates a new revision.
+  * [x] Disabled Notes module blocks new writes.
+  * [x] Run `npm run check`.
+  * [x] Run `npm run test:permissions`.
+  * [x] Run SQLite integrity check after note migration, Library, and revision tests.
+
+## Version 0.33.1.5 - Hierarchical Notes Collections
+
+* [ ] Add hierarchical Notes Collections.
+
+  * [ ] Add `note_collections` table for folder-like organization inside Library buckets.
+  * [ ] Collections belong to exactly one workspace.
+  * [ ] Collections belong to exactly one Library bucket.
+  * [ ] Collections may have a nullable parent collection for hierarchy.
+  * [ ] Collection parent/child chains must not cross workspace boundaries.
+  * [ ] Collection parent/child chains must not cross Library buckets.
+  * [ ] Suggested fields:
+    * [ ] `note_collection_id`
+    * [ ] `workspace_id`
+    * [ ] `library_bucket`
+    * [ ] `parent_collection_id`
+    * [ ] `name`
+    * [ ] `slug`
+    * [ ] `path_cache`
+    * [ ] `depth`
+    * [ ] `sort_order`
+    * [ ] `collection_source`
+    * [ ] `created_by_user_id`
+    * [ ] `updated_by_user_id`
+    * [ ] `created_at`
+    * [ ] `updated_at`
+    * [ ] `archived_at`
+    * [ ] `metadata_json`
+  * [ ] Add nullable `note_collection_id` to `notes`.
+  * [ ] A note may belong to zero or one primary collection.
+  * [ ] Collections are organizational containers only.
+  * [ ] Collections must not grant access by themselves.
+  * [ ] Collections must not replace clients, projects, tasks, tickets, users, tags, Library buckets, visibility, security mode, or Knowledge Base categories.
+  * [ ] Imported OneNote notebook/section paths should map to Collections where possible.
+  * [ ] Preserve original import path metadata even when mapped into Collections.
+
+## Version 0.33.1.6 - Notes Collection UI
+
+* [ ] Add Notes Collection UI.
+
+  * [ ] Show collection tree inside each Library bucket.
+  * [ ] Add uncategorized/default view for notes without a collection.
+  * [ ] Add create, rename, move, archive, and delete-empty collection actions where permitted.
+  * [ ] Add collection picker to note create/edit forms.
+  * [ ] Add collection breadcrumb to note detail pages.
+  * [ ] Add collection filter to note list pages.
+  * [ ] Add collection-aware search/filter parameters.
+  * [ ] Do not show collection counts that would reveal hidden/private/secure notes.
+  * [ ] Moving a note between collections must not change visibility, security mode, linked records, or permissions.
 
 ## Version 0.33.2 - Secure Notes Foundation, Encryption Contract, and Private Revision Handling
 
@@ -1308,24 +803,52 @@ Implementation shape:
   - [ ] Lists should be searchable once framework search is stable.
   - [ ] List activity should be able to appear in dashboard/activity feed later.
 
-## Version 0.33.5 - Task Module Updates
+## Version 0.33.6 - Task Module Updates
+
+### Parent/Child Tasks
 
 - [ ] Add parent/child task relationships
   - [ ] Prevent circular references
   - [ ] Parent tasks can be part of different projects
     - Should this be an adjustable setting within the workspace? Should you only be allowed to pull from the same project/client for parent tasks? I can see this being a useful setting, but I'm open to ideas.
 
-- [ ] Add task checklists
-  - These would be checklists within the context of a task
-  - Items that aren't large enough to be tasks on their own, and can contribute to the completion of the task
+### Task Checklists
+
+Decision: Task checklists are lightweight completion aids inside a task. Full subtasks are separate task records and should be deferred until the Tasks module needs parent-child task planning, dependencies, or nested assignment workflows.
+
+- [ ] Add lightweight checklist support to Tasks.
+  - [ ] Checklist items belong to a single task.
+  - [ ] Checklist items are not full subtasks.
+  - [ ] Checklist items should support:
+    - [ ] Checklist item ID
+    - [ ] Workspace ID
+    - [ ] Task ID
+    - [ ] Label/title
+    - [ ] Checked/completed state
+    - [ ] Completed at
+    - [ ] Completed by user ID
+    - [ ] Sort order
+    - [ ] Created at
+    - [ ] Updated at
+  - [ ] Allow permitted users to add, edit, reorder, check, uncheck, and delete checklist items.
+  - [ ] Display checklist progress on the task detail view.
+    - [ ] Example: `3 / 7 complete`
+  - [ ] Optionally show checklist progress on task cards/list rows after the task UI is cleaned up.
+  - [ ] Do not make checklist items separately taggable in the first pass.
+  - [ ] Do not make checklist items separately assignable in the first pass.
+  - [ ] Do not attach timers directly to checklist items in the first pass.
+  - [ ] Do not treat checklist items as dependencies or project schedule records.
+  - [ ] Leave full subtasks/parent-child tasks as future work.
+
+### Task Metadata Update
 
 - [ ] Inside the task details, completed and archived tasks should display "Time to completion" which is calculated from created date/time and completed date/time
 
-- [ ] Add progress bars
+- [ ] Add progress/completion information
   - Stand alone tasks
     - Use status as task completion tracker
 
-## Version 0.33.6 - UI QoL Updates
+## Version 0.33.7 - UI QoL Updates
 
 - [ ] Create Notification grouping options
   - [ ] Notifications in Business workspaces should be grouped by Client
@@ -1336,9 +859,9 @@ Implementation shape:
   - Task updated
   - etc.
 
-- [ ] All Notifications Page -> Notification type chip is floating weird, it should be just to the left of the Unread/Read/Dismissed chip
+- [ ] All Notifications Page -> Notification type chip is floating weird, it should be anchored just left of the Unread/Read/Dismissed chip
 
-- [ ] "Developer Example Sample" shows "Enabled" in the All Notifications Preferences
+- [ ] Add tag chips between task title and task meta data on Workbench
 
 ## Version 0.33.7 - Notifications QoL Updates
 
@@ -3024,5 +2547,3 @@ Auto-routing communications/messaging
   - [ ] Launch website
 
 - [ ] Launch Social Media
-
-

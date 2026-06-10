@@ -41,6 +41,11 @@ assert.match(
   /moduleSettings:\s*window\.LongtailForge\.settingsControls\.readModuleSettingsPayload\(workspaceCreateForm\)/,
   "Create Workspace must submit initial module state through moduleSettings",
 );
+assert.match(
+  readFunctionBody(files.workspaceSettings, "saveSettings"),
+  /settings\.moduleSettings\s*=\s*readModuleSettingsPayload\(\)/,
+  "Workspace Settings save must preserve the keyed moduleSettings payload shape",
+);
 assert.doesNotMatch(
   readFunctionBody(files.userSettings, "createWorkspace"),
   /\btimeTrackingEnabled\b/,

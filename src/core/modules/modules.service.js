@@ -255,11 +255,8 @@ async function syncModuleRegistry(workspaceId) {
   const existingModuleRows = await querySql("SELECT module_id, version FROM modules;");
   const existingModulesById = new Map(existingModuleRows.map((row) => [row.module_id, row]));
   const now = new Date().toISOString();
-  const statements = modules.flatMap((moduleDefinition) => {
-    const moduleStatus = "active";
-    const workspaceStatus = moduleDefinition.enabledByDefault ? "enabled" : "disabled";
-
-    return [
+  const statements = [
+    ...modules.map((moduleDefinition) => (
       `
 INSERT INTO modules (module_id, name, description, category, status, version, created_at, updated_at)
 VALUES (
@@ -267,7 +264,7 @@ VALUES (
   ${sqlText(moduleDefinition.name)},
   ${sqlText(moduleDefinition.description)},
   ${sqlText(moduleDefinition.category)},
-  ${sqlText(moduleStatus)},
+  'active',
   ${sqlText(moduleDefinition.version)},
   ${sqlText(now)},
   ${sqlText(now)}
@@ -279,25 +276,16 @@ ON CONFLICT(module_id) DO UPDATE SET
   status = excluded.status,
   version = excluded.version,
   updated_at = excluded.updated_at;
-`,
-      `
-INSERT INTO workspace_modules (workspace_id, module_id, status, enabled_at, disabled_at, updated_at)
-VALUES (
-  ${sqlText(workspaceId)},
-  ${sqlText(moduleDefinition.id)},
-  ${sqlText(workspaceStatus)},
-  ${moduleDefinition.enabledByDefault ? sqlText(now) : "NULL"},
-  ${moduleDefinition.enabledByDefault ? "NULL" : sqlText(now)},
-  ${sqlText(now)}
-)
-ON CONFLICT(workspace_id, module_id) DO NOTHING;
-`,
-    ];
-  });
+`
+    )),
+    buildWorkspaceModuleSyncSql(workspaceId, modules, now),
+  ];
 
   if (statements.length > 0) {
     await runSql(statements.join("\n"));
   }
+
+  await repairRequiredWorkspaceModules(workspaceId, modules, now);
 
   for (const moduleDefinition of modules) {
     const existingModule = existingModulesById.get(moduleDefinition.id);
@@ -362,6 +350,7 @@ async function readWorkspaceModuleSettings(workspaceId, settings, moduleContext 
 
 async function readWorkspaceModuleContext(workspaceId) {
   const installedModules = listModules();
+  await ensureWorkspaceModuleRows(workspaceId, installedModules);
   const [rows, workspaceCapabilities] = await Promise.all([
     querySql(`
 SELECT module_id, status
@@ -480,6 +469,14 @@ async function canWriteModule(workspaceId, moduleId) {
 }
 
 async function readModuleStatus(workspaceId, moduleId) {
+  const moduleDefinition = getModule(moduleId);
+
+  if (!workspaceId || !moduleDefinition) {
+    return "disabled";
+  }
+
+  await ensureWorkspaceModuleRows(workspaceId, [moduleDefinition]);
+
   const rows = await querySql(`
 SELECT status
 FROM workspace_modules
@@ -489,6 +486,59 @@ LIMIT 1;
 `);
 
   return rows[0]?.status === "enabled" ? "enabled" : "disabled";
+}
+
+async function ensureWorkspaceModuleRows(workspaceId, modules) {
+  const moduleDefinitions = modules.filter(Boolean);
+
+  if (!workspaceId || moduleDefinitions.length === 0) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  await runSql(buildWorkspaceModuleSyncSql(workspaceId, moduleDefinitions, now));
+  await repairRequiredWorkspaceModules(workspaceId, moduleDefinitions, now);
+}
+
+function buildWorkspaceModuleSyncSql(workspaceId, modules, now) {
+  return modules.map((moduleDefinition) => {
+    const workspaceStatus = moduleDefinition.enabledByDefault ? "enabled" : "disabled";
+
+    return `
+INSERT INTO workspace_modules (workspace_id, module_id, status, enabled_at, disabled_at, updated_at)
+VALUES (
+  ${sqlText(workspaceId)},
+  ${sqlText(moduleDefinition.id)},
+  ${sqlText(workspaceStatus)},
+  ${moduleDefinition.enabledByDefault ? sqlText(now) : "NULL"},
+  ${moduleDefinition.enabledByDefault ? "NULL" : sqlText(now)},
+  ${sqlText(now)}
+)
+ON CONFLICT(workspace_id, module_id) DO NOTHING;
+`;
+  }).join("\n");
+}
+
+async function repairRequiredWorkspaceModules(workspaceId, modules, now) {
+  const requiredModuleIds = modules
+    .filter((moduleDefinition) => moduleDefinition.canDisable === false)
+    .map((moduleDefinition) => moduleDefinition.id);
+
+  if (requiredModuleIds.length === 0) {
+    return;
+  }
+
+  await runSql(`
+UPDATE workspace_modules
+SET status = 'enabled',
+    enabled_at = COALESCE(enabled_at, ${sqlText(now)}),
+    disabled_at = NULL,
+    updated_at = ${sqlText(now)}
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND module_id IN (${requiredModuleIds.map(sqlText).join(", ")})
+  AND status <> 'enabled';
+`);
 }
 
 async function setModuleStatus(workspaceId, moduleId, enabled, options = {}) {

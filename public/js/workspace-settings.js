@@ -105,6 +105,7 @@ async function saveSettings() {
     },
     taskReminderDefaults: readReminderDefaults(),
   });
+  settings.moduleSettings = readModuleSettingsPayload();
 
   if (!settings.workspaceName) {
     setWorkspaceSettingsStatus("Workspace name is required.");

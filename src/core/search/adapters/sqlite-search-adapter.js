@@ -14,6 +14,7 @@ const SEARCH_INDEX_COLUMNS = [
   "tags_text",
   "client_id",
   "project_id",
+  "library_bucket",
   "visibility",
   "record_status",
   "source",
@@ -114,6 +115,7 @@ CREATE VIRTUAL TABLE IF NOT EXISTS ${SQLITE_SEARCH_FTS_TABLE} USING fts5(
             nullable: [
               "client_id",
               "project_id",
+              "library_bucket",
               "record_created_at",
               "record_updated_at",
             ].includes(columnName),
@@ -129,6 +131,7 @@ ON CONFLICT(workspace_id, module_id, record_type, record_id) DO UPDATE SET
   tags_text = excluded.tags_text,
   client_id = excluded.client_id,
   project_id = excluded.project_id,
+  library_bucket = excluded.library_bucket,
   visibility = excluded.visibility,
   record_status = excluded.record_status,
   source = excluded.source,
@@ -499,6 +502,7 @@ SELECT
   si.tags_text,
   si.client_id,
   si.project_id,
+  si.library_bucket,
   si.visibility,
   si.record_status,
   si.source,
@@ -550,6 +554,7 @@ SELECT
   si.tags_text,
   si.client_id,
   si.project_id,
+  si.library_bucket,
   si.visibility,
   si.record_status,
   si.source,
@@ -583,6 +588,7 @@ function buildSearchWhereClause(request, alias) {
 
   const clientId = normalizeSearchText(request?.scopes?.clientId);
   const projectId = normalizeSearchText(request?.scopes?.projectId);
+  const libraryBucket = normalizeSearchText(request?.libraryBucket || request?.library_bucket);
   const recordStatus = normalizeSearchText(request?.recordStatus);
   const visibility = normalizeSearchText(request?.visibility);
   const source = normalizeSearchText(request?.source);
@@ -595,6 +601,9 @@ function buildSearchWhereClause(request, alias) {
   }
   if (projectId) {
     whereParts.push(`${alias}.project_id = ${sqlText(projectId)}`);
+  }
+  if (libraryBucket) {
+    whereParts.push(`${alias}.library_bucket = ${sqlText(libraryBucket)}`);
   }
   if (recordStatus) {
     whereParts.push(`${alias}.record_status = ${sqlText(recordStatus)}`);

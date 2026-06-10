@@ -37,6 +37,16 @@ assert.match(
 );
 assert.match(
   clientsProjects,
+  /function getClientDescendantIds\(clientId\) \{[\s\S]*if \(!clientId\) \{[\s\S]*return \[\];/,
+  "New-client parent selection must not treat blank parent IDs as the root of every top-level client branch",
+);
+assert.match(
+  clientsProjects,
+  /const excludedIds = new Set\(excludedClientId[\s\S]*\? \[excludedClientId, \.\.\.getClientDescendantIds\(excludedClientId\)\][\s\S]*: \[\]\);/,
+  "Parent client options should exclude descendants only when editing an existing client",
+);
+assert.match(
+  clientsProjects,
   /shouldShowProjectClientLabel\("bulk",\s*clientFilterValue\)/,
   "Project bulk labels must also respect the active client filter",
 );

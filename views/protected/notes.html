@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Notes | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=11">
+  </head>
+  <body data-page-title="Notes">
+    <main class="wide-page notes-page">
+      <div class="page-heading">
+        <h1>Notes</h1>
+        <button type="button" data-note-create>Create Note</button>
+      </div>
+
+      <p data-notes-status role="status" aria-live="polite"></p>
+
+      <section class="notes-library" aria-label="Notes Library">
+        <div class="notes-library-summary" data-notes-library-summary></div>
+        <div class="notes-library-tabs" role="tablist" aria-label="Library buckets">
+          <button type="button" data-notes-bucket="all" aria-pressed="true">All</button>
+          <button type="button" data-notes-bucket="active_work">Active Work</button>
+          <button type="button" data-notes-bucket="ongoing_area">Ongoing Areas</button>
+          <button type="button" data-notes-bucket="reference">Reference Library</button>
+          <button type="button" data-notes-bucket="archive">Archive</button>
+        </div>
+      </section>
+
+      <form class="notes-filters" data-notes-filters>
+        <label>
+          Status
+          <select data-note-filter-status>
+            <option value="active" selected>Active</option>
+            <option value="pinned">Pinned</option>
+            <option value="archived">Archived</option>
+            <option value="all">All visible</option>
+          </select>
+        </label>
+        <label>
+          Visibility
+          <select data-note-filter-visibility>
+            <option value="all" selected>All visible</option>
+            <option value="internal">Internal</option>
+            <option value="private">Private</option>
+            <option value="workspace">Workspace</option>
+            <option value="client_visible">Client Visible</option>
+          </select>
+        </label>
+        <label>
+          Security
+          <select data-note-filter-security>
+            <option value="all" selected>All</option>
+            <option value="normal">Normal</option>
+            <option value="secure">Secure</option>
+          </select>
+        </label>
+        <label>
+          Type
+          <select data-note-filter-type>
+            <option value="all" selected>All types</option>
+            <option value="general">General</option>
+            <option value="meeting">Meeting</option>
+            <option value="research">Research</option>
+            <option value="client">Client</option>
+            <option value="project">Project</option>
+            <option value="task">Task</option>
+            <option value="ticket">Ticket</option>
+            <option value="user">User</option>
+          </select>
+        </label>
+        <label>
+          Context ID
+          <input type="search" data-note-filter-context autocomplete="off">
+        </label>
+        <label>
+          Owner ID
+          <input type="search" data-note-filter-owner autocomplete="off">
+        </label>
+        <label>
+          Tags
+          <input type="search" data-note-filter-tags autocomplete="off">
+        </label>
+        <label>
+          Updated Since
+          <input type="date" data-note-filter-updated>
+        </label>
+        <label>
+          Sort
+          <select data-note-sort>
+            <option value="updated_desc" selected>Updated</option>
+            <option value="created_desc">Created</option>
+            <option value="title_asc">Title</option>
+            <option value="library_asc">Library</option>
+            <option value="type_asc">Type</option>
+          </select>
+        </label>
+      </form>
+
+      <section class="notes-workspace" aria-label="Notes workspace">
+        <div class="notes-list-panel">
+          <div class="notes-list-toolbar">
+            <h2 data-notes-list-title>All Notes</h2>
+            <div class="notes-pagination">
+              <button type="button" data-notes-prev disabled>Previous</button>
+              <span data-notes-page>Page 1</span>
+              <button type="button" data-notes-next disabled>Next</button>
+            </div>
+          </div>
+          <div class="notes-list" data-notes-list></div>
+        </div>
+
+        <article class="notes-detail-panel" data-note-detail>
+          <p class="notes-empty-state">Select a note.</p>
+        </article>
+      </section>
+    </main>
+
+    <dialog class="notes-editor-dialog" data-note-dialog>
+      <form method="dialog" class="notes-editor-form" data-note-form>
+        <div class="notes-dialog-heading">
+          <h2 data-note-dialog-title>Note</h2>
+          <button type="button" data-note-dialog-close aria-label="Close">Close</button>
+        </div>
+
+        <label>
+          Title
+          <input type="text" data-note-title required>
+        </label>
+
+        <div class="notes-form-grid">
+          <label>
+            Library
+            <select data-note-library>
+              <option value="active_work">Active Work</option>
+              <option value="ongoing_area">Ongoing Areas</option>
+              <option value="reference">Reference Library</option>
+            </select>
+          </label>
+          <label>
+            Type
+            <select data-note-type>
+              <option value="general">General</option>
+              <option value="meeting">Meeting</option>
+              <option value="research">Research</option>
+              <option value="client">Client</option>
+              <option value="project">Project</option>
+              <option value="task">Task</option>
+              <option value="ticket">Ticket</option>
+              <option value="user">User</option>
+            </select>
+          </label>
+          <label>
+            Visibility
+            <select data-note-visibility>
+              <option value="internal">Internal</option>
+              <option value="private">Private</option>
+              <option value="workspace">Workspace</option>
+              <option value="client_visible">Client Visible</option>
+            </select>
+          </label>
+          <label>
+            Security
+            <select data-note-security>
+              <option value="normal">Normal</option>
+              <option value="secure">Secure</option>
+            </select>
+          </label>
+        </div>
+
+        <details class="notes-context-panel">
+          <summary>Linked Context</summary>
+          <div class="notes-form-grid">
+            <label>
+              Client ID
+              <input type="text" data-note-client-id autocomplete="off">
+            </label>
+            <label>
+              Project ID
+              <input type="text" data-note-project-id autocomplete="off">
+            </label>
+            <label>
+              Task ID
+              <input type="text" data-note-task-id autocomplete="off">
+            </label>
+            <label>
+              User ID
+              <input type="text" data-note-user-id autocomplete="off">
+            </label>
+          </div>
+          <p data-note-library-suggestion></p>
+        </details>
+
+        <div data-note-tags-editor></div>
+
+        <div class="notes-editor-toolbar" data-note-editor-toolbar>
+          <button type="button" data-note-command="bold" title="Bold">B</button>
+          <button type="button" data-note-command="italic" title="Italic">I</button>
+          <button type="button" data-note-command="heading" title="Heading">H</button>
+          <button type="button" data-note-command="unorderedList" title="List">List</button>
+          <button type="button" data-note-command="checklist" title="Checklist">Check</button>
+          <button type="button" data-note-command="link" title="Link">Link</button>
+          <button type="button" data-note-command="wikiLink" title="Wiki link">Wiki</button>
+          <button type="button" data-note-preview-toggle aria-pressed="false">Preview</button>
+        </div>
+
+        <label>
+          Body
+          <textarea data-note-body rows="14"></textarea>
+        </label>
+
+        <div class="notes-preview" data-note-preview hidden></div>
+        <p data-note-form-status role="status" aria-live="polite"></p>
+
+        <div class="form-actions">
+          <button type="button" data-note-cancel>Cancel</button>
+          <button type="submit" data-note-save>Save Note</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/shared/api-client.js"></script>
+    <script src="js/shared/icons.js?v=1"></script>
+    <script src="js/shared/tags.js?v=1"></script>
+    <script src="js/shared/file-attachments.js?v=1"></script>
+    <script src="js/shared/notes-editor.js?v=1"></script>
+    <script src="js/notes.js?v=2"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

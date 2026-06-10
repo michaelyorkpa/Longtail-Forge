@@ -1520,6 +1520,10 @@ function getClientTreeSortKey(client) {
 }
 
 function getClientDescendantIds(clientId) {
+  if (!clientId) {
+    return [];
+  }
+
   const descendants = new Set();
   const pending = [clientId];
 
@@ -1637,7 +1641,9 @@ function populateParentClientSelect(select, excludedClientId = "") {
     return;
   }
 
-  const excludedIds = new Set([excludedClientId, ...getClientDescendantIds(excludedClientId)]);
+  const excludedIds = new Set(excludedClientId
+    ? [excludedClientId, ...getClientDescendantIds(excludedClientId)]
+    : []);
   const currentValue = select.value || "";
   select.replaceChildren(createOption("", "No parent client"));
   sortClientTree(getRealClients())

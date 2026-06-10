@@ -460,8 +460,8 @@ class StopwatchTimer {
     this.clientSelect.innerHTML = "";
     this.clientSelect.appendChild(createOption("", "Select a client"));
 
-    sortByName(this.clients).forEach((client) => {
-      this.clientSelect.appendChild(createOption(client.id, client.name));
+    this.clients.forEach((client) => {
+      this.clientSelect.appendChild(createOption(client.id, clientOptionLabel(client)));
     });
 
     this.clientSelect.value = this.clients.some(
@@ -1032,42 +1032,11 @@ function sortByName(items) {
 }
 
 function normalizeClientProjectOptions(data) {
-  const normalizedClients = Array.isArray(data.clients)
-    ? data.clients
-        .filter((client) => !isInactiveRecord(client))
-        .map((client) => ({
-          ...client,
-          projects: Array.isArray(client.projects)
-            ? client.projects.filter((project) => !isInactiveRecord(project))
-            : [],
-        }))
-    : [];
-  const workspaceProjects = Array.isArray(data.workspaceProjects)
-    ? data.workspaceProjects.filter((project) => !isInactiveRecord(project))
-    : [];
-
-  if (workspaceProjects.length === 0) {
-    return normalizedClients;
-  }
-
-  return [
-    {
-      id: "__workspace_projects__",
-      name: workspaceProjectsLabel(),
-      billable: "yes",
-      isWorkspaceScope: true,
-      projects: workspaceProjects,
-    },
-    ...normalizedClients,
-  ];
+  return window.LongtailForge.clientProjectOptions.normalizeClients(data);
 }
 
-function workspaceProjectsLabel() {
-  return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
-}
-
-function isInactiveRecord(record) {
-  return String(record?.status || "").trim().toLowerCase() === "inactive";
+function clientOptionLabel(client) {
+  return window.LongtailForge.clientProjectOptions.optionLabel(client);
 }
 
 function workspaceShowsClientTools() {

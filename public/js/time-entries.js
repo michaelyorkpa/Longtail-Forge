@@ -94,8 +94,8 @@ async function initializeTimeEntries() {
 function populateClientOptions(select, placeholder) {
   select.replaceChildren(createOption("", placeholder));
 
-  sortByName(timeEntryClients).forEach((client) => {
-    select.appendChild(createOption(client.id, client.name));
+  timeEntryClients.forEach((client) => {
+    select.appendChild(createOption(client.id, clientOptionLabel(client)));
   });
 }
 
@@ -317,41 +317,11 @@ function openAddFromUrl() {
 }
 
 function normalizeClients(data) {
-  const clients = Array.isArray(data?.clients)
-    ? data.clients.map((client) => ({
-        id: String(client.id || "").trim(),
-        name: String(client.name || "").trim(),
-        billable: normalizeEntryBillable(client.billable) || "yes",
-        projects: Array.isArray(client.projects)
-          ? client.projects.map((project) => ({
-              id: String(project.id || "").trim(),
-              name: String(project.name || "").trim(),
-              billable: normalizeEntryBillable(project.billable) || normalizeEntryBillable(client.billable) || "yes",
-            }))
-          : [],
-      }))
-    : [];
-  const workspaceProjects = Array.isArray(data?.workspaceProjects) ? data.workspaceProjects : [];
-
-  if (workspaceProjects.length > 0) {
-    clients.unshift({
-      id: "__workspace_projects__",
-      name: workspaceProjectsLabel(),
-      billable: "yes",
-      isWorkspaceScope: true,
-      projects: workspaceProjects.map((project) => ({
-        id: String(project.id || "").trim(),
-        name: String(project.name || "").trim(),
-        billable: normalizeEntryBillable(project.billable) || "yes",
-      })),
-    });
-  }
-
-  return clients;
+  return window.LongtailForge.clientProjectOptions.normalizeClients(data);
 }
 
-function workspaceProjectsLabel() {
-  return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
+function clientOptionLabel(client) {
+  return window.LongtailForge.clientProjectOptions.optionLabel(client);
 }
 
 function normalizeTimeEntries(data) {

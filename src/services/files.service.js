@@ -14,6 +14,8 @@ import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/in
 import { permissionsService } from "./permissions.service.js";
 import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
+import { notesService } from "../modules/notes/notes.service.js";
+import { NOTE_SECURITY_MODES } from "../modules/notes/library.js";
 
 const DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_ALLOWED_VISIBILITY = new Set(["private", "workspace", "client"]);
@@ -629,6 +631,8 @@ async function assertCanUseAttachableTarget(session, attachableType, operation, 
     project_id: resolvePermissionProjectId(attachableType, target),
     operation,
   });
+
+  await assertModuleTargetAccess(session, attachableType, operation, target);
 }
 
 async function emitFileLifecycleEvent(eventName, payload = {}) {
@@ -1075,12 +1079,44 @@ async function canReadAttachment(session, attachment) {
     return false;
   }
 
-  return permissionsService.can(session, attachableType.requiredReadPermission, {
+  const hasPermission = await permissionsService.can(session, attachableType.requiredReadPermission, {
     workspace_id: session.workspace_id,
     client_id: attachment.client_id || "",
     project_id: attachment.project_id || "",
     operation: "read",
   });
+
+  if (!hasPermission) {
+    return false;
+  }
+
+  return canReadModuleTargetAttachment(session, attachableType, attachment);
+}
+
+async function assertModuleTargetAccess(session, attachableType, operation, target = null) {
+  if (attachableType.moduleId !== "notes" || attachableType.targetType !== "note") {
+    return;
+  }
+
+  const accessOperation = operation === "read" || operation === "download" ? "read" : "update";
+  const note = await notesService.readForAttachmentAccess(session, target?.target_id || "", accessOperation);
+
+  if (note.security_mode === NOTE_SECURITY_MODES.SECURE) {
+    throw new AppError("Secure notes do not allow framework file attachments yet.", 403);
+  }
+}
+
+async function canReadModuleTargetAttachment(session, attachableType, attachment) {
+  if (attachableType.moduleId !== "notes" || attachableType.targetType !== "note") {
+    return true;
+  }
+
+  try {
+    const note = await notesService.readForAttachmentAccess(session, attachment.target_id || "", "read");
+    return note.security_mode !== NOTE_SECURITY_MODES.SECURE;
+  } catch {
+    return false;
+  }
 }
 
 function attachmentSelectColumns() {

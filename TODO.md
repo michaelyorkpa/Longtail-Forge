@@ -15,6 +15,21 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Fixes
 
+### Sorting logic for clients and projects
+
+- Move logic for sorting of clients to the clients module and have that called every time clients are listed somewhere
+- Move logic for sorting of projects to the projects module and have that called every time clients are listed somewhere
+
+### API Keys
+
+- Audit the API keys available
+
+### Files module
+
+- There's no way to delete files??
+- Multiple file upload at once
+- Drag and Drop file upload
+
 - Need to have a way to limit file uploads, per workspace and per user
   - This would be quantity/size limits
   - This would be file types
@@ -752,6 +767,11 @@ This version should introduce TypeScript as a framework contract-checking tool w
 
 # Long Term
 
+## Secrets and Credential Registry
+
+- Start with metadata and external-vault references. 
+- Do not store secret values in LTF until secure notes, 2FA/passkeys, account recovery, audit-safe redaction, encryption/key-management design, and backup/restore protections are mature.
+
 ## Estimation build out
 
 - Build out of estimatation module
@@ -785,9 +805,19 @@ This version should introduce TypeScript as a framework contract-checking tool w
 - [ ] Allow won opportunities to become projects.
 - [ ] Add basic pipeline dashboard.
 
+## Browser Extensions
+
+- Add products/items to list
+
+- Create notes from highlight
+
 ## Parking Lot / Open Questions
 
+- [ ] File viewer?
+
 - [ ] Add hotkeys for menus/functions
+
+- [ ] Should/can I build a password vault?
 
 - [ ] Should plugins/externally developed modules use the public API or internal/browser API?
 

@@ -2388,9 +2388,10 @@ dialog .form-actions {
 .file-attachments {
     display: grid;
     gap: 12px;
-    padding: 12px 0;
-    border-top: 1px solid var(--color-border);
-    border-bottom: 1px solid var(--color-border);
+    padding: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
 }
 
 .file-attachments-header {
@@ -2992,6 +2993,278 @@ dialog .form-actions {
     width: 16px;
     height: 16px;
     margin: 0;
+}
+
+.notes-page {
+    display: grid;
+    gap: 18px;
+}
+
+.notes-library,
+.notes-list-panel,
+.notes-detail-panel,
+.notes-filters {
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.notes-library,
+.notes-list-panel,
+.notes-detail-panel {
+    padding: 16px;
+}
+
+.notes-library-summary,
+.notes-library-tabs,
+.notes-list-toolbar,
+.notes-detail-actions,
+.notes-pagination,
+.notes-editor-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.notes-library-summary {
+    margin-bottom: 12px;
+}
+
+.notes-library-card {
+    min-width: 160px;
+    display: grid;
+    gap: 4px;
+    justify-items: start;
+    text-align: left;
+}
+
+.notes-library-card span,
+.notes-list-meta,
+.notes-list-footer,
+.notes-list-excerpt,
+.notes-detail-header p,
+.notes-context-list,
+.notes-empty-state,
+[data-note-library-suggestion],
+[data-note-form-status] {
+    color: var(--color-muted);
+}
+
+.notes-library-tabs button[aria-pressed="true"],
+.notes-editor-toolbar button[aria-pressed="true"] {
+    background: var(--color-accent);
+    color: #ffffff;
+}
+
+.notes-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    padding: 12px;
+}
+
+.notes-workspace {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.3fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.notes-list-toolbar {
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.notes-list {
+    display: grid;
+    gap: 8px;
+}
+
+.notes-list-item {
+    width: 100%;
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    text-align: left;
+}
+
+.notes-list-item[aria-pressed="true"] {
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow-control);
+}
+
+.notes-list-heading {
+    display: grid;
+    gap: 2px;
+}
+
+.notes-list-heading strong,
+.notes-detail-header h2 {
+    overflow-wrap: anywhere;
+}
+
+.notes-list-excerpt {
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.notes-list-footer,
+.notes-list-meta {
+    font-size: 13px;
+}
+
+.notes-detail-panel {
+    min-height: 360px;
+}
+
+.notes-detail-header {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.notes-rendered-body {
+    line-height: 1.55;
+}
+
+.notes-detail-section {
+    display: grid;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 12px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+}
+
+.notes-detail-section h3 {
+    margin: 0;
+    font-size: 15px;
+}
+
+.notes-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.notes-link-list,
+.notes-link-form,
+.notes-revision-item {
+    display: grid;
+    gap: 8px;
+}
+
+.notes-link-form {
+    grid-template-columns: minmax(120px, 0.35fr) minmax(0, 1fr) auto;
+    align-items: end;
+}
+
+.notes-link-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 6px;
+}
+
+.notes-revision-item {
+    padding: 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 6px;
+}
+
+.notes-revision-item p {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.notes-rendered-body pre {
+    overflow: auto;
+    padding: 12px;
+    border-radius: 8px;
+    background: var(--color-page-bg);
+}
+
+.notes-context-list {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 6px 12px;
+    margin-top: 16px;
+}
+
+.notes-context-list dt {
+    font-weight: 700;
+}
+
+.notes-context-list dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.notes-editor-dialog {
+    width: min(1040px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    padding: 0;
+    overflow: hidden;
+}
+
+.notes-editor-form,
+.notes-dialog-heading,
+.notes-form-grid {
+    display: grid;
+    gap: 12px;
+}
+
+.notes-editor-form {
+    max-height: calc(100vh - 32px);
+    padding: 18px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    box-sizing: border-box;
+}
+
+.notes-dialog-heading {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+}
+
+.notes-form-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+}
+
+.notes-editor-form input,
+.notes-editor-form select,
+.notes-editor-form textarea {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.notes-editor-toolbar button {
+    min-width: 40px;
+}
+
+[data-note-tags-editor] .tag-picker {
+    margin: 0;
+}
+
+.notes-preview {
+    min-height: 120px;
+    padding: 12px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-page-bg);
 }
 
 .client-item {
@@ -3716,6 +3989,10 @@ button:disabled {
 
 @media (max-width: 700px) {
     /* Collapse the shared nav and single-column the dense editor/report layouts on phones. */
+    .notes-workspace {
+        grid-template-columns: 1fr;
+    }
+
     .site-nav {
         min-height: auto;
         padding: 12px 0;

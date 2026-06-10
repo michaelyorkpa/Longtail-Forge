@@ -1,0 +1,505 @@
+import { randomUUID } from "node:crypto";
+import {
+  querySql,
+  runSql,
+  sqlInteger,
+  sqlNullableText,
+  sqlText,
+} from "../../core/database.js";
+
+const NOTE_COLUMNS = [
+  "note_id",
+  "workspace_id",
+  "title",
+  "slug",
+  "body_markdown",
+  "body_excerpt",
+  "body_plaintext_index",
+  "note_type",
+  "library_bucket",
+  "library_bucket_source",
+  "status",
+  "visibility",
+  "security_mode",
+  "client_id",
+  "project_id",
+  "task_id",
+  "ticket_id",
+  "linked_user_id",
+  "owner_user_id",
+  "created_by_user_id",
+  "updated_by_user_id",
+  "created_at",
+  "updated_at",
+  "archived_at",
+  "deleted_at",
+  "metadata_json",
+  "import_source",
+  "import_source_id",
+  "import_source_path",
+  "imported_at",
+  "import_batch_id",
+  "original_notebook",
+  "original_section_group",
+  "original_section",
+  "original_page_id",
+];
+
+async function list(workspaceId, filters = {}) {
+  const clauses = [`workspace_id = ${sqlText(workspaceId)}`];
+
+  if (!filters.includeDeleted) {
+    clauses.push("status != 'deleted'");
+  }
+
+  if (filters.status) {
+    clauses.push(`status = ${sqlText(filters.status)}`);
+  }
+
+  if (filters.libraryBucket) {
+    clauses.push(`library_bucket = ${sqlText(filters.libraryBucket)}`);
+  }
+
+  for (const [filterKey, columnName] of Object.entries({
+    clientId: "client_id",
+    projectId: "project_id",
+    taskId: "task_id",
+    ticketId: "ticket_id",
+    linkedUserId: "linked_user_id",
+    ownerUserId: "owner_user_id",
+  })) {
+    if (filters[filterKey]) {
+      clauses.push(`${columnName} = ${sqlText(filters[filterKey])}`);
+    }
+  }
+
+  const rows = await querySql(`
+SELECT ${NOTE_COLUMNS.join(", ")}
+FROM notes
+WHERE ${clauses.join("\n  AND ")}
+ORDER BY updated_at DESC, title COLLATE NOCASE ASC;
+`);
+
+  return rows.map(noteRowToAppValue);
+}
+
+async function readById(workspaceId, noteId) {
+  const rows = await querySql(`
+SELECT ${NOTE_COLUMNS.join(", ")}
+FROM notes
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND note_id = ${sqlText(noteId)}
+LIMIT 1;
+`);
+
+  return rows[0] ? noteRowToAppValue(rows[0]) : null;
+}
+
+async function create(workspaceId, note) {
+  const noteId = note.note_id || randomUUID();
+  const now = note.created_at || new Date().toISOString();
+
+  await runSql(`
+INSERT INTO notes (
+  note_id,
+  workspace_id,
+  title,
+  slug,
+  body_markdown,
+  body_excerpt,
+  body_plaintext_index,
+  note_type,
+  library_bucket,
+  library_bucket_source,
+  status,
+  visibility,
+  security_mode,
+  client_id,
+  project_id,
+  task_id,
+  ticket_id,
+  linked_user_id,
+  owner_user_id,
+  created_by_user_id,
+  updated_by_user_id,
+  created_at,
+  updated_at,
+  archived_at,
+  deleted_at,
+  metadata_json,
+  import_source,
+  import_source_id,
+  import_source_path,
+  imported_at,
+  import_batch_id,
+  original_notebook,
+  original_section_group,
+  original_section,
+  original_page_id
+)
+VALUES (
+  ${sqlText(noteId)},
+  ${sqlText(workspaceId)},
+  ${sqlText(note.title)},
+  ${sqlNullableText(note.slug)},
+  ${sqlText(note.body_markdown || "")},
+  ${sqlNullableText(note.body_excerpt)},
+  ${sqlNullableText(note.body_plaintext_index)},
+  ${sqlText(note.note_type || "general")},
+  ${sqlText(note.library_bucket || "reference")},
+  ${sqlText(note.library_bucket_source || "derived")},
+  ${sqlText(note.status || "active")},
+  ${sqlText(note.visibility || "internal")},
+  ${sqlText(note.security_mode || "normal")},
+  ${sqlNullableText(note.client_id)},
+  ${sqlNullableText(note.project_id)},
+  ${sqlNullableText(note.task_id)},
+  ${sqlNullableText(note.ticket_id)},
+  ${sqlNullableText(note.linked_user_id)},
+  ${sqlNullableText(note.owner_user_id)},
+  ${sqlNullableText(note.created_by_user_id)},
+  ${sqlNullableText(note.updated_by_user_id)},
+  ${sqlText(now)},
+  ${sqlText(note.updated_at || now)},
+  ${sqlNullableText(note.archived_at)},
+  ${sqlNullableText(note.deleted_at)},
+  ${sqlNullableText(note.metadata_json)},
+  ${sqlNullableText(note.import_source)},
+  ${sqlNullableText(note.import_source_id)},
+  ${sqlNullableText(note.import_source_path)},
+  ${sqlNullableText(note.imported_at)},
+  ${sqlNullableText(note.import_batch_id)},
+  ${sqlNullableText(note.original_notebook)},
+  ${sqlNullableText(note.original_section_group)},
+  ${sqlNullableText(note.original_section)},
+  ${sqlNullableText(note.original_page_id)}
+);
+`);
+
+  return readById(workspaceId, noteId);
+}
+
+async function update(workspaceId, note) {
+  await runSql(`
+UPDATE notes
+SET
+  title = ${sqlText(note.title)},
+  slug = ${sqlNullableText(note.slug)},
+  body_markdown = ${sqlText(note.body_markdown || "")},
+  body_excerpt = ${sqlNullableText(note.body_excerpt)},
+  body_plaintext_index = ${sqlNullableText(note.body_plaintext_index)},
+  note_type = ${sqlText(note.note_type || "general")},
+  library_bucket = ${sqlText(note.library_bucket || "reference")},
+  library_bucket_source = ${sqlText(note.library_bucket_source || "derived")},
+  status = ${sqlText(note.status || "active")},
+  visibility = ${sqlText(note.visibility || "internal")},
+  security_mode = ${sqlText(note.security_mode || "normal")},
+  client_id = ${sqlNullableText(note.client_id)},
+  project_id = ${sqlNullableText(note.project_id)},
+  task_id = ${sqlNullableText(note.task_id)},
+  ticket_id = ${sqlNullableText(note.ticket_id)},
+  linked_user_id = ${sqlNullableText(note.linked_user_id)},
+  owner_user_id = ${sqlNullableText(note.owner_user_id)},
+  updated_by_user_id = ${sqlNullableText(note.updated_by_user_id)},
+  updated_at = ${sqlText(note.updated_at || new Date().toISOString())},
+  archived_at = ${sqlNullableText(note.archived_at)},
+  deleted_at = ${sqlNullableText(note.deleted_at)},
+  metadata_json = ${sqlNullableText(note.metadata_json)},
+  import_source = ${sqlNullableText(note.import_source)},
+  import_source_id = ${sqlNullableText(note.import_source_id)},
+  import_source_path = ${sqlNullableText(note.import_source_path)},
+  imported_at = ${sqlNullableText(note.imported_at)},
+  import_batch_id = ${sqlNullableText(note.import_batch_id)},
+  original_notebook = ${sqlNullableText(note.original_notebook)},
+  original_section_group = ${sqlNullableText(note.original_section_group)},
+  original_section = ${sqlNullableText(note.original_section)},
+  original_page_id = ${sqlNullableText(note.original_page_id)}
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND note_id = ${sqlText(note.note_id)};
+`);
+
+  return readById(workspaceId, note.note_id);
+}
+
+async function createRevision(workspaceId, revision) {
+  const revisionId = revision.note_revision_id || randomUUID();
+
+  await runSql(`
+INSERT INTO note_revisions (
+  note_revision_id,
+  workspace_id,
+  note_id,
+  revision_number,
+  title,
+  body_markdown,
+  body_excerpt,
+  note_type,
+  library_bucket,
+  status,
+  visibility,
+  security_mode,
+  changed_by_user_id,
+  change_summary,
+  change_reason,
+  created_at,
+  metadata_json,
+  import_source,
+  import_source_id,
+  import_source_path,
+  imported_at,
+  import_batch_id,
+  original_notebook,
+  original_section_group,
+  original_section,
+  original_page_id
+)
+VALUES (
+  ${sqlText(revisionId)},
+  ${sqlText(workspaceId)},
+  ${sqlText(revision.note_id)},
+  ${sqlInteger(revision.revision_number)},
+  ${sqlText(revision.title)},
+  ${sqlText(revision.body_markdown || "")},
+  ${sqlNullableText(revision.body_excerpt)},
+  ${sqlText(revision.note_type || "general")},
+  ${sqlText(revision.library_bucket || "reference")},
+  ${sqlText(revision.status || "active")},
+  ${sqlText(revision.visibility || "internal")},
+  ${sqlText(revision.security_mode || "normal")},
+  ${sqlNullableText(revision.changed_by_user_id)},
+  ${sqlNullableText(revision.change_summary)},
+  ${sqlNullableText(revision.change_reason)},
+  ${sqlText(revision.created_at || new Date().toISOString())},
+  ${sqlNullableText(revision.metadata_json)},
+  ${sqlNullableText(revision.import_source)},
+  ${sqlNullableText(revision.import_source_id)},
+  ${sqlNullableText(revision.import_source_path)},
+  ${sqlNullableText(revision.imported_at)},
+  ${sqlNullableText(revision.import_batch_id)},
+  ${sqlNullableText(revision.original_notebook)},
+  ${sqlNullableText(revision.original_section_group)},
+  ${sqlNullableText(revision.original_section)},
+  ${sqlNullableText(revision.original_page_id)}
+);
+`);
+
+  return readRevisionById(workspaceId, revision.note_id, revisionId);
+}
+
+async function nextRevisionNumber(workspaceId, noteId) {
+  const rows = await querySql(`
+SELECT COALESCE(MAX(revision_number), 0) + 1 AS revision_number
+FROM note_revisions
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND note_id = ${sqlText(noteId)};
+`);
+
+  return Number(rows[0]?.revision_number || 1);
+}
+
+async function listRevisions(workspaceId, noteId) {
+  const rows = await querySql(`
+SELECT *
+FROM note_revisions
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND note_id = ${sqlText(noteId)}
+ORDER BY revision_number DESC;
+`);
+
+  return rows.map(revisionRowToAppValue);
+}
+
+async function readRevisionById(workspaceId, noteId, revisionId) {
+  const rows = await querySql(`
+SELECT *
+FROM note_revisions
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND note_id = ${sqlText(noteId)}
+  AND note_revision_id = ${sqlText(revisionId)}
+LIMIT 1;
+`);
+
+  return rows[0] ? revisionRowToAppValue(rows[0]) : null;
+}
+
+async function createLink(workspaceId, link) {
+  const linkId = link.note_link_id || randomUUID();
+  const now = link.created_at || new Date().toISOString();
+
+  await runSql(`
+INSERT INTO note_links (
+  note_link_id,
+  workspace_id,
+  note_id,
+  module_id,
+  target_type,
+  target_id,
+  link_role,
+  scope_role,
+  created_by_user_id,
+  created_at,
+  removed_at,
+  metadata_json
+)
+VALUES (
+  ${sqlText(linkId)},
+  ${sqlText(workspaceId)},
+  ${sqlText(link.note_id)},
+  ${sqlText(link.module_id)},
+  ${sqlText(link.target_type)},
+  ${sqlText(link.target_id)},
+  ${sqlText(link.link_role || "related")},
+  ${sqlText(link.scope_role || "related")},
+  ${sqlNullableText(link.created_by_user_id)},
+  ${sqlText(now)},
+  NULL,
+  ${sqlNullableText(link.metadata_json)}
+);
+`);
+
+  return readLinkById(workspaceId, link.note_id, linkId);
+}
+
+async function listLinks(workspaceId, noteId) {
+  const rows = await querySql(`
+SELECT *
+FROM note_links
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND note_id = ${sqlText(noteId)}
+  AND removed_at IS NULL
+ORDER BY created_at ASC;
+`);
+
+  return rows.map(linkRowToAppValue);
+}
+
+async function listLinksForNotes(workspaceId, noteIds) {
+  const ids = [...new Set((noteIds || []).filter(Boolean))];
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const rows = await querySql(`
+SELECT *
+FROM note_links
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND note_id IN (${ids.map((id) => sqlText(id)).join(", ")})
+  AND removed_at IS NULL
+ORDER BY created_at ASC;
+`);
+
+  return rows.map(linkRowToAppValue);
+}
+
+async function readLinkById(workspaceId, noteId, linkId) {
+  const rows = await querySql(`
+SELECT *
+FROM note_links
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND note_id = ${sqlText(noteId)}
+  AND note_link_id = ${sqlText(linkId)}
+LIMIT 1;
+`);
+
+  return rows[0] ? linkRowToAppValue(rows[0]) : null;
+}
+
+async function removeLink(workspaceId, noteId, linkId) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE note_links
+SET removed_at = ${sqlText(now)}
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND note_id = ${sqlText(noteId)}
+  AND note_link_id = ${sqlText(linkId)}
+  AND removed_at IS NULL;
+`);
+
+  return readLinkById(workspaceId, noteId, linkId);
+}
+
+async function listForTarget(workspaceId, target) {
+  const directColumn = {
+    client: "client_id",
+    project: "project_id",
+    task: "task_id",
+    ticket: "ticket_id",
+    user: "linked_user_id",
+  }[target.target_type];
+  const directClause = directColumn
+    ? `OR notes.${directColumn} = ${sqlText(target.target_id)}`
+    : "";
+  const rows = await querySql(`
+SELECT DISTINCT ${NOTE_COLUMNS.map((column) => `notes.${column}`).join(", ")}
+FROM notes
+LEFT JOIN note_links
+  ON note_links.workspace_id = notes.workspace_id
+  AND note_links.note_id = notes.note_id
+  AND note_links.removed_at IS NULL
+WHERE notes.workspace_id = ${sqlText(workspaceId)}
+  AND (
+    (
+      note_links.module_id = ${sqlText(target.module_id)}
+      AND note_links.target_type = ${sqlText(target.target_type)}
+      AND note_links.target_id = ${sqlText(target.target_id)}
+    )
+    ${directClause}
+  )
+  AND notes.status != 'deleted'
+ORDER BY notes.updated_at DESC, notes.title COLLATE NOCASE ASC;
+`);
+
+  return rows.map(noteRowToAppValue);
+}
+
+function noteRowToAppValue(row) {
+  return {
+    ...row,
+    metadata: parseJson(row.metadata_json, {}),
+  };
+}
+
+function revisionRowToAppValue(row) {
+  return {
+    ...row,
+    metadata: parseJson(row.metadata_json, {}),
+  };
+}
+
+function linkRowToAppValue(row) {
+  return {
+    ...row,
+    metadata: parseJson(row.metadata_json, {}),
+  };
+}
+
+function parseJson(value, fallback) {
+  if (!value) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return fallback;
+  }
+}
+
+export const notesRepository = {
+  create,
+  createLink,
+  createRevision,
+  list,
+  listForTarget,
+  listLinks,
+  listLinksForNotes,
+  listRevisions,
+  nextRevisionNumber,
+  readById,
+  readLinkById,
+  readRevisionById,
+  removeLink,
+  update,
+};

@@ -136,6 +136,13 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     targetId: target.taskId,
     targetType: "task",
   }), "That module is disabled for new tag assignments.");
+  await runSql(`
+UPDATE workspace_modules
+SET status = 'enabled',
+    disabled_at = NULL
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tasks';
+`);
 
   await runSql(`
 UPDATE workspace_modules
@@ -143,15 +150,16 @@ SET status = 'disabled'
 WHERE workspace_id = ${sqlText(session.workspace_id)}
   AND module_id = 'tags';
 `);
-  await assertRejectsWithMessage(() => tagsService.list(session), "Tagging is disabled for this workspace.");
-  await assertRejectsWithMessage(() => tagsService.create(session, {
+  assert.ok((await tagsService.list(session)).tags.length > 0, "Required Tags module should repair before tag reads.");
+  const repairedTag = await tagsService.create(session, {
     name: "Disabled Module Tag",
-  }), "Tagging is disabled for this workspace.");
-  await assertRejectsWithMessage(() => tagsService.replaceAssignments(session, {
-    tagIds: [created.tag.tag_id],
+  });
+  assert.equal(repairedTag.tag.name, "Disabled Module Tag");
+  await tagsService.replaceAssignments(session, {
+    tagIds: [repairedTag.tag.tag_id],
     targetId: permissionTarget.taskId,
     targetType: "task",
-  }), "Tagging is disabled for this workspace.");
+  });
 
   await assertAuditRows(session.workspace_id);
   await assertIntegrity();

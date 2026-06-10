@@ -18,6 +18,8 @@ Unknown arbitrary manifest fields are rejected. Future extension data should wai
 
 Workspace-aware contribution helpers filter disabled modules, missing module dependencies, workspace capability mismatches, and user permission mismatches. Capability lists are treated as "any of these capabilities makes the contribution relevant" so Business, Personal, and Family workspaces can share module manifests without duplicate definitions.
 
+As of 0.33.1.2, Notes is registered as a first-party workflow module with a module-owned migration source and a workspace module-status setting. The current Notes foundation contributes storage, Library-linking contracts, safe Markdown normalization/rendering helpers, wiki-style link extraction, a replaceable plain-textarea browser editor boundary, persistent revision storage, detected wiki-link storage, backend permissions, a Library-aware access-policy helper, note resource definitions, audit record types, lifecycle event declarations, access/import lookup indexes, OneNote/import metadata fields, module-owned service/repository/browser routes for note CRUD, Library filtering, archive/restore/delete, links, revisions, and target lookups, plus the first protected Notes Library UI for list/detail/create/edit/archive/restore workflows. Searchable/taggable/attachable declarations, Help pages, notifications, richer revision UI, and public/client APIs remain in later Notes passes.
+
 ## Active Fields
 
 These fields are currently accepted by the manifest validator:

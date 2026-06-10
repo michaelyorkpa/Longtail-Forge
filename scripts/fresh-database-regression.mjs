@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 13, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 17, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -99,6 +99,26 @@ ORDER BY version;
     module_id: "core",
     name: "add_file_reports",
   });
+  assert.deepEqual(migrations[13], {
+    version: "044",
+    module_id: "notes",
+    name: "add_notes_foundation",
+  });
+  assert.deepEqual(migrations[14], {
+    version: "045",
+    module_id: "notes",
+    name: "add_note_revisions_and_wiki_links",
+  });
+  assert.deepEqual(migrations[15], {
+    version: "046",
+    module_id: "notes",
+    name: "add_note_access_indexes_and_import_metadata",
+  });
+  assert.deepEqual(migrations[16], {
+    version: "047",
+    module_id: "core",
+    name: "add_search_index_library_bucket",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -122,6 +142,11 @@ ORDER BY name;
     "file_reports",
     "files",
     "modules",
+    "note_library_collections",
+    "note_links",
+    "note_revisions",
+    "note_wiki_links",
+    "notes",
     "notification_subscriptions",
     "notification_user_preferences",
     "notification_workspace_defaults",
@@ -175,6 +200,45 @@ WHERE type = 'index'
     'idx_files_workspace_file',
     'idx_files_workspace_hash',
     'idx_files_workspace_status',
+    'idx_note_library_collections_workspace_bucket',
+    'idx_note_library_collections_workspace_slug',
+    'idx_note_library_collections_workspace_status',
+    'idx_note_links_unique_active_target',
+    'idx_note_links_workspace_note',
+    'idx_note_links_workspace_scope',
+    'idx_note_links_workspace_target',
+    'idx_note_revisions_workspace_changed_by',
+    'idx_note_revisions_workspace_created_at',
+    'idx_note_revisions_workspace_import_batch',
+    'idx_note_revisions_workspace_import_source',
+    'idx_note_revisions_workspace_note',
+    'idx_note_revisions_workspace_note_library',
+    'idx_note_revisions_workspace_note_revision',
+    'idx_note_wiki_links_unique_active_target',
+    'idx_note_wiki_links_workspace_note',
+    'idx_note_wiki_links_workspace_status',
+    'idx_note_wiki_links_workspace_target_note',
+    'idx_note_wiki_links_workspace_target_slug',
+    'idx_notes_workspace_client',
+    'idx_notes_workspace_created_by',
+    'idx_notes_workspace_import_batch',
+    'idx_notes_workspace_import_source',
+    'idx_notes_workspace_library',
+    'idx_notes_workspace_library_security',
+    'idx_notes_workspace_library_status',
+    'idx_notes_workspace_library_visibility',
+    'idx_notes_workspace_linked_user',
+    'idx_notes_workspace_note',
+    'idx_notes_workspace_owner',
+    'idx_notes_workspace_project',
+    'idx_notes_workspace_security_mode',
+    'idx_notes_workspace_slug',
+    'idx_notes_workspace_slug_lookup',
+    'idx_notes_workspace_status',
+    'idx_notes_workspace_task',
+    'idx_notes_workspace_ticket',
+    'idx_notes_workspace_updated_at',
+    'idx_notes_workspace_visibility',
     'idx_notification_subscriptions_target',
     'idx_notification_subscriptions_unique_active',
     'idx_notification_subscriptions_user',
@@ -188,6 +252,7 @@ WHERE type = 'index'
     'idx_search_index_workspace_body',
     'idx_search_index_workspace_client',
     'idx_search_index_workspace_indexed_at',
+    'idx_search_index_workspace_library_bucket',
     'idx_search_index_workspace_module',
     'idx_search_index_workspace_project',
     'idx_search_index_workspace_record_status',
@@ -228,6 +293,45 @@ ORDER BY name;
     "idx_files_workspace_file",
     "idx_files_workspace_hash",
     "idx_files_workspace_status",
+    "idx_note_library_collections_workspace_bucket",
+    "idx_note_library_collections_workspace_slug",
+    "idx_note_library_collections_workspace_status",
+    "idx_note_links_unique_active_target",
+    "idx_note_links_workspace_note",
+    "idx_note_links_workspace_scope",
+    "idx_note_links_workspace_target",
+    "idx_note_revisions_workspace_changed_by",
+    "idx_note_revisions_workspace_created_at",
+    "idx_note_revisions_workspace_import_batch",
+    "idx_note_revisions_workspace_import_source",
+    "idx_note_revisions_workspace_note",
+    "idx_note_revisions_workspace_note_library",
+    "idx_note_revisions_workspace_note_revision",
+    "idx_note_wiki_links_unique_active_target",
+    "idx_note_wiki_links_workspace_note",
+    "idx_note_wiki_links_workspace_status",
+    "idx_note_wiki_links_workspace_target_note",
+    "idx_note_wiki_links_workspace_target_slug",
+    "idx_notes_workspace_client",
+    "idx_notes_workspace_created_by",
+    "idx_notes_workspace_import_batch",
+    "idx_notes_workspace_import_source",
+    "idx_notes_workspace_library",
+    "idx_notes_workspace_library_security",
+    "idx_notes_workspace_library_status",
+    "idx_notes_workspace_library_visibility",
+    "idx_notes_workspace_linked_user",
+    "idx_notes_workspace_note",
+    "idx_notes_workspace_owner",
+    "idx_notes_workspace_project",
+    "idx_notes_workspace_security_mode",
+    "idx_notes_workspace_slug",
+    "idx_notes_workspace_slug_lookup",
+    "idx_notes_workspace_status",
+    "idx_notes_workspace_task",
+    "idx_notes_workspace_ticket",
+    "idx_notes_workspace_updated_at",
+    "idx_notes_workspace_visibility",
     "idx_notification_subscriptions_target",
     "idx_notification_subscriptions_unique_active",
     "idx_notification_subscriptions_user",
@@ -241,6 +345,7 @@ ORDER BY name;
     "idx_search_index_workspace_body",
     "idx_search_index_workspace_client",
     "idx_search_index_workspace_indexed_at",
+    "idx_search_index_workspace_library_bucket",
     "idx_search_index_workspace_module",
     "idx_search_index_workspace_project",
     "idx_search_index_workspace_record_status",
@@ -270,7 +375,7 @@ async function assertSeedRows() {
     querySql("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'yes';"),
     querySql("SELECT COUNT(*) AS count FROM modules;"),
     querySql("SELECT COUNT(*) AS count FROM roles WHERE role_id IN ('super_admin', 'workspace_admin');"),
-    querySql("SELECT COUNT(*) AS count FROM permissions WHERE permission_id IN ('workspace_settings.manage', 'tasks.view', 'time_entries.create', 'notifications.view_own', 'notifications.manage_preferences', 'notifications.manage_workspace_defaults', 'tags.manage', 'tags.view', 'tags.assign', 'tags.remove', 'files.view', 'files.upload', 'files.download', 'files.delete', 'files.manage_quarantine', 'files.manage_workspace_settings');"),
+    querySql("SELECT COUNT(*) AS count FROM permissions WHERE permission_id IN ('workspace_settings.manage', 'tasks.view', 'time_entries.create', 'notifications.view_own', 'notifications.manage_preferences', 'notifications.manage_workspace_defaults', 'tags.manage', 'tags.view', 'tags.assign', 'tags.remove', 'files.view', 'files.upload', 'files.download', 'files.delete', 'files.manage_quarantine', 'files.manage_workspace_settings', 'notes.view', 'notes.view_all', 'notes.view_private', 'notes.view_secure', 'notes.create', 'notes.update', 'notes.update_secure', 'notes.archive', 'notes.restore', 'notes.delete', 'notes.view_history', 'notes.restore_revision', 'notes.manage_links', 'notes.manage_library', 'notes.manage_settings', 'notes.publish_client_visible');"),
     querySql("SELECT COUNT(*) AS count FROM workspace_modules;"),
     querySql("SELECT COUNT(*) AS count FROM app_settings;"),
   ]);
@@ -279,7 +384,7 @@ async function assertSeedRows() {
   assert.equal(Number(users[0].count), 1, "fresh startup should create one protected super admin");
   assert.ok(Number(modules[0].count) >= 4, "fresh startup should sync registered modules");
   assert.equal(Number(roles[0].count), 2, "fresh baseline should seed current core roles");
-  assert.equal(Number(permissions[0].count), 16, "fresh startup should seed core, module, notification, tag, and file permissions");
+  assert.equal(Number(permissions[0].count), 32, "fresh startup should seed core, module, notification, tag, file, and note permissions");
   assert.ok(Number(workspaceModules[0].count) >= 4, "fresh startup should create workspace module status rows");
   assert.ok(Number(appSettings[0].count) >= 3, "fresh startup should seed app settings");
 }

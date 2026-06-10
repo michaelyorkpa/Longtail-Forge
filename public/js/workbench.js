@@ -471,7 +471,7 @@ async function discardTimer(timer) {
 function populateManualTimerForm() {
   replaceOptions(manualClientInput, [
     option("", "Select a client"),
-    ...state.clients.map((client) => option(client.id, client.name)),
+    ...state.clients.map((client) => option(client.id, clientOptionLabel(client))),
   ]);
   if (state.clients.length === 1 && state.clients[0].isWorkspaceScope) {
     manualClientInput.value = state.clients[0].id;
@@ -797,29 +797,11 @@ function readElapsedSeconds(timer) {
 }
 
 function normalizeClientProjectOptions(data) {
-  const normalizedClients = Array.isArray(data.clients)
-    ? data.clients
-        .filter((client) => !isInactiveRecord(client))
-        .map((client) => ({
-          ...client,
-          projects: Array.isArray(client.projects)
-            ? client.projects.filter((project) => !isInactiveRecord(project))
-            : [],
-        }))
-    : [];
-  const workspaceProjects = Array.isArray(data.workspaceProjects)
-    ? data.workspaceProjects.filter((project) => !isInactiveRecord(project))
-    : [];
+  return window.LongtailForge.clientProjectOptions.normalizeClients(data);
+}
 
-  return workspaceProjects.length > 0
-    ? [{
-        id: "__workspace_projects__",
-        name: window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Workspace Projects",
-        billable: "yes",
-        isWorkspaceScope: true,
-        projects: workspaceProjects,
-      }, ...normalizedClients]
-    : normalizedClients;
+function clientOptionLabel(client) {
+  return window.LongtailForge.clientProjectOptions.optionLabel(client);
 }
 
 function taskCanUseTimer(task) {
@@ -922,10 +904,6 @@ function replaceOptions(select, options) {
 
 function option(value, label) {
   return window.LongtailForge.pageController.createOption(value, label);
-}
-
-function isInactiveRecord(record) {
-  return String(record?.status || "").trim().toLowerCase() === "inactive";
 }
 
 function formatDuration(totalSeconds) {

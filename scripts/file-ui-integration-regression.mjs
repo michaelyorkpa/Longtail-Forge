@@ -13,6 +13,7 @@ function read(relativePath) {
 const helper = read("public/js/shared/file-attachments.js");
 const taskDialog = read("public/js/task-dialog.js");
 const tasksPage = read("views/protected/tasks.html");
+const workbenchPage = read("views/protected/workbench.html");
 const tasksScript = read("public/js/tasks.js");
 const filesPage = read("views/protected/files.html");
 const filesScript = read("public/js/files.js");
@@ -52,6 +53,10 @@ assert.ok(tasksPage.includes("data-task-files"), "Tasks page should reserve task
 assert.ok(
   tasksPage.indexOf("js/shared/file-attachments.js") < tasksPage.indexOf("js/task-dialog.js"),
   "Task attachment helper must load before task dialog.",
+);
+assert.ok(
+  workbenchPage.indexOf("js/shared/file-attachments.js") < workbenchPage.indexOf("js/task-dialog.js"),
+  "Workbench task dialog host must load task attachment helper before task dialog.",
 );
 assert.ok(taskDialog.includes("namespace.fileAttachments.mount"), "Task dialog should mount shared file helper.");
 assert.ok(taskDialog.includes('moduleId: "tasks"'), "Task dialog should pass manifest module ID.");

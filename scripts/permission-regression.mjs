@@ -563,20 +563,20 @@ async function runTaskMutationTests(api, fixtures) {
     api.post("/api/tasks", {
       title: "Recurring project task",
       project_id: fixtures.projects.alpha.id,
-      due_date: "2026-06-08",
+      due_date: localDateOffset(0),
       assignee_ids: [fixtures.users.projectUser.userId],
       recurrence: {
         enabled: true,
         frequency: "DAILY",
         interval: 1,
-        endDate: "2026-06-10",
+        endDate: localDateOffset(2),
       },
     }, { cookie: fixtures.sessions.workspaceAdmin }),
     201,
   );
   check("recurring task returns recurrence details", () => {
     assert.ok(recurringTask.body.task.recurrence_template_id);
-    assert.equal(recurringTask.body.task.recurrence_instance_date, "2026-06-08");
+    assert.equal(recurringTask.body.task.recurrence_instance_date, localDateOffset(0));
     assert.equal(recurringTask.body.task.recurrenceDetails.frequency, "DAILY");
   });
   const completedRecurringTask = await expectStatus(
@@ -586,7 +586,7 @@ async function runTaskMutationTests(api, fixtures) {
   );
   check("recurring completion creates next dated task", () => {
     assert.equal(completedRecurringTask.body.task.status, "complete");
-    assert.equal(completedRecurringTask.body.createdTask.due_date, "2026-06-09");
+    assert.equal(completedRecurringTask.body.createdTask.due_date, localDateOffset(1));
     assert.equal(completedRecurringTask.body.createdTask.recurrence_template_id, recurringTask.body.task.recurrence_template_id);
   });
   await expectStatus(
@@ -596,7 +596,7 @@ async function runTaskMutationTests(api, fixtures) {
   ).then((response) => {
     check("recurring retry does not duplicate next instance", () => {
       assert.equal(response.body.createdTask.task_id, completedRecurringTask.body.createdTask.task_id);
-      assert.equal(response.body.createdTask.recurrence_instance_date, "2026-06-09");
+      assert.equal(response.body.createdTask.recurrence_instance_date, localDateOffset(1));
     });
   });
   await expectStatus(
@@ -2021,6 +2021,18 @@ function localPastMinuteDue(timeZone = "America/New_York") {
     date: `${parts.year}-${parts.month}-${parts.day}`,
     time: `${parts.hour}:${String(minute).padStart(2, "0")}`,
   };
+}
+
+function localDateOffset(days = 0, timeZone = "America/New_York") {
+  const date = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date).map((part) => [part.type, part.value]));
+
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 function listen(app) {

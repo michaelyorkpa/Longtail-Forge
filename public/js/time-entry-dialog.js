@@ -173,8 +173,8 @@
 
   function populateClientOptions(placeholder) {
     fields.client.replaceChildren(createOption("", placeholder));
-    sortByName(clients).forEach((client) => {
-      fields.client.appendChild(createOption(client.id, client.name));
+    clients.forEach((client) => {
+      fields.client.appendChild(createOption(client.id, clientOptionLabel(client)));
     });
   }
 
@@ -314,43 +314,7 @@
   }
 
   function normalizeClients(data, options = {}) {
-    const includeInactive = options.includeInactive === true;
-    const sourceClients = Array.isArray(data?.clients) ? data.clients : [];
-    const normalizedClients = sourceClients
-      .filter((client) => includeInactive || !isInactiveRecord(client))
-      .map((client) => ({
-        id: String(client.id || "").trim(),
-        name: String(client.name || "").trim(),
-        billable: normalizeBillable(client.billable) || "yes",
-        projects: Array.isArray(client.projects)
-          ? client.projects
-              .filter((project) => includeInactive || !isInactiveRecord(project))
-              .map((project) => ({
-                id: String(project.id || "").trim(),
-                name: String(project.name || "").trim(),
-                billable: normalizeBillable(project.billable) || normalizeBillable(client.billable) || "yes",
-              }))
-          : [],
-      }));
-    const workspaceProjects = Array.isArray(data?.workspaceProjects)
-      ? data.workspaceProjects.filter((project) => includeInactive || !isInactiveRecord(project))
-      : [];
-
-    if (workspaceProjects.length > 0) {
-      normalizedClients.unshift({
-        id: "__workspace_projects__",
-        name: namespace.getWorkspaceProjectsLabel?.() || "Projects",
-        billable: "yes",
-        isWorkspaceScope: true,
-        projects: workspaceProjects.map((project) => ({
-          id: String(project.id || "").trim(),
-          name: String(project.name || "").trim(),
-          billable: normalizeBillable(project.billable) || "yes",
-        })),
-      });
-    }
-
-    return normalizedClients;
+    return namespace.clientProjectOptions.normalizeClients(data, options);
   }
 
   function normalizeTimeEntries(data) {
@@ -373,8 +337,8 @@
       : [];
   }
 
-  function isInactiveRecord(record) {
-    return String(record?.status || "").trim().toLowerCase() === "inactive";
+  function clientOptionLabel(client) {
+    return namespace.clientProjectOptions.optionLabel(client);
   }
 
   function findClientIdForEntry(entry) {

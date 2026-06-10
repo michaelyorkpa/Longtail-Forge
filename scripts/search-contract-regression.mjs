@@ -339,6 +339,7 @@ check("module indexer documents normalize to framework search_index shape", () =
     tags_text: ["urgent", { name: "Client" }, { slug: "internal" }],
     client_id: "client-1",
     project_id: "project-1",
+    library_bucket: "reference",
     visibility: "",
     status: "open",
     created_at: "2026-06-08T10:00:00.000Z",
@@ -358,6 +359,7 @@ check("module indexer documents normalize to framework search_index shape", () =
     tags_text: "urgent Client internal",
     client_id: "client-1",
     project_id: "project-1",
+    library_bucket: "reference",
     visibility: "normal",
     record_status: "open",
     source: "Example",
@@ -1130,6 +1132,7 @@ await checkAsync("canonical search_index schema and fallback indexes are present
     "record_created_at",
     "record_updated_at",
     "indexed_at",
+    "library_bucket",
   ]);
 
   for (const requiredColumn of [
@@ -1163,6 +1166,7 @@ ORDER BY name;
     "idx_search_index_workspace_body",
     "idx_search_index_workspace_client",
     "idx_search_index_workspace_indexed_at",
+    "idx_search_index_workspace_library_bucket",
     "idx_search_index_workspace_module",
     "idx_search_index_workspace_project",
     "idx_search_index_workspace_record_status",

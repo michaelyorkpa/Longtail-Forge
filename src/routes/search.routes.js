@@ -170,6 +170,7 @@ function parseSearchQuery(query = {}) {
   const tagIds = readStringList(query.tagIds, query.tag_ids, query.tagId, query.tag_id, query.tag);
   const clientId = firstString(query.clientId, query.client_id, query.client);
   const projectId = firstString(query.projectId, query.project_id, query.project);
+  const libraryBucket = firstString(query.libraryBucket, query.library_bucket, query.library);
   const status = firstString(query.recordStatus, query.record_status, query.status);
   const visibility = firstString(query.visibility);
   const source = firstString(query.source, query.sourceLabel, query.source_label);
@@ -189,7 +190,7 @@ function parseSearchQuery(query = {}) {
     }
   }
 
-  for (const [field, value] of Object.entries({ clientId, projectId, status, visibility, source })) {
+  for (const [field, value] of Object.entries({ clientId, projectId, libraryBucket, status, visibility, source })) {
     if (value && !isSafeFilterValue(value)) {
       errors.push({
         field,
@@ -206,6 +207,7 @@ function parseSearchQuery(query = {}) {
       recordTypes,
       clientId,
       projectId,
+      libraryBucket,
       tagIds,
       recordStatus: status,
       source,
@@ -222,6 +224,7 @@ function parseSearchQuery(query = {}) {
       recordTypes,
       clientId,
       projectId,
+      libraryBucket,
       tagIds,
       recordStatus: status,
       source,
@@ -242,6 +245,7 @@ function toBrowserSearchResult(result = {}, target = {}) {
     summary: result.summary || "",
     clientId: result.client_id || "",
     projectId: result.project_id || "",
+    libraryBucket: result.library_bucket || "",
     visibility: result.visibility || "",
     status: result.record_status || "",
     recordStatus: result.record_status || "",

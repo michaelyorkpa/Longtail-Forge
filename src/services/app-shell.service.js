@@ -116,6 +116,12 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
   const modulesById = new Map((workspaceContext.modules || []).map((moduleDefinition) => [moduleDefinition.id, moduleDefinition]));
   const clientProjectsLabel = moduleDisplayLabel(modulesById, "client-projects", "Projects");
   const moduleNavByHref = new Map(moduleNavigation.map((item) => [item.href, item]));
+  const frameworkOwnedTopLevelHrefs = new Set(["time-tracker.html", "tasks.html", "projects.html", "clients.html", "reporting.html"]);
+  const standaloneModuleNavigation = moduleNavigation.filter((item) => (
+    item.href &&
+    !item.parent &&
+    !frameworkOwnedTopLevelHrefs.has(item.href)
+  ));
   const projectsMenu = {
     id: "projects",
     label: clientProjectsLabel,
@@ -139,11 +145,17 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
 
   addTimeKeepingNavigation(projectsMenu.items, moduleNavigation);
   addModuleNavItem(projectsMenu.items, moduleNavByHref.get("tasks.html"));
+  addModuleNavItem(projectsMenu.items, moduleNavByHref.get("notes.html"));
+  projectsMenu.items.push({
+    id: "files",
+    label: "Files",
+    href: "files.html",
+  });
 
   if (availableTools.has("projects") || availableTools.has("clients_projects")) {
     projectsMenu.items.push({
       id: "projects-settings",
-      label: "Projects Settings",
+      label: "Project Settings",
       href: "projects.html",
     });
   }
@@ -182,12 +194,6 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     });
   }
 
-  workspaceSettingsMenu.items.push({
-    id: "files",
-    label: "Files",
-    href: "files.html",
-  });
-
   if (permissionHints.auditLogsView) {
     workspaceSettingsMenu.items.push({
       id: "audit-log",
@@ -217,6 +223,12 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
   return [
     { id: "dashboard", label: "Dashboard", href: "dashboard.html" },
     { id: "workbench", label: "Workbench", href: "workbench.html" },
+    ...standaloneModuleNavigation.map((item) => ({
+      id: item.id || item.href.replace(/\.html$/, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase(),
+      label: item.label,
+      href: item.href,
+      moduleId: item.moduleId,
+    })),
     projectsMenu,
     reportingMenu,
     settingsMenu,
