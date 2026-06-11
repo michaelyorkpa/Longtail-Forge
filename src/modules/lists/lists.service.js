@@ -40,7 +40,7 @@ async function list(session, query = {}) {
 
   for (const listRecord of lists) {
     if (await canReadList(session, listRecord)) {
-      readableLists.push(shapeListForBrowser(listRecord));
+      readableLists.push(await shapeListForBrowser(session, listRecord));
     }
   }
 
@@ -57,7 +57,7 @@ async function read(listId, session, options = {}) {
       });
 
   return {
-    list: shapeListForBrowser(listRecord),
+    list: await shapeListForBrowser(session, listRecord),
     items: items.map(shapeItemForBrowser),
   };
 }
@@ -85,7 +85,7 @@ async function create(payload, session) {
   await recordListAudit(session, "list_created", "create", null, listRecord);
   await emitListEvent("lists.list.created", session, null, listRecord);
 
-  return { list: shapeListForBrowser(listRecord) };
+  return { list: await shapeListForBrowser(session, listRecord) };
 }
 
 async function update(listId, payload, session) {
@@ -105,7 +105,7 @@ async function update(listId, payload, session) {
   await recordListAudit(session, "list_updated", "update", previousList, listRecord);
   await emitListEvent("lists.list.updated", session, previousList, listRecord);
 
-  return { list: shapeListForBrowser(listRecord) };
+  return { list: await shapeListForBrowser(session, listRecord) };
 }
 
 async function complete(listId, session) {
@@ -229,7 +229,7 @@ async function duplicate(listId, payload = {}, session) {
 
   return {
     items: copiedItems.map(shapeItemForBrowser),
-    list: shapeListForBrowser(createdList),
+    list: await shapeListForBrowser(session, createdList),
   };
 }
 
@@ -390,7 +390,7 @@ async function transitionList(listId, session, transition) {
 
   await recordListAudit(session, transition.action, transition.changeType, previousList, listRecord);
   await emitListEvent(transition.eventName, session, previousList, listRecord);
-  return { list: shapeListForBrowser(listRecord) };
+  return { list: await shapeListForBrowser(session, listRecord) };
 }
 
 async function transitionItem(listId, itemId, session, transition) {
@@ -781,12 +781,47 @@ function normalizeMetadata(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
 }
 
-function shapeListForBrowser(listRecord = {}) {
+async function shapeListForBrowser(session, listRecord = {}) {
   return {
     ...listRecord,
     id: listRecord.list_id,
     isBillOfMaterials: listRecord.list_type === LIST_TYPES.BILL_OF_MATERIALS,
     isReusable: Boolean(listRecord.is_reusable),
+    sourceContext: await readSourceContext(session, listRecord),
+  };
+}
+
+async function readSourceContext(session, listRecord = {}) {
+  const [duplicatedFrom, sourceList] = await Promise.all([
+    readSourceSummary(session, listRecord.duplicated_from_list_id),
+    readSourceSummary(session, listRecord.source_list_id),
+  ]);
+
+  return {
+    duplicatedFrom,
+    sourceList,
+  };
+}
+
+async function readSourceSummary(session, listId) {
+  const normalizedId = normalizeOptionalText(listId);
+
+  if (!normalizedId) {
+    return null;
+  }
+
+  const sourceList = await listsRepository.readById(session.workspace_id, normalizedId);
+  if (!sourceList || !(await canReadList(session, sourceList))) {
+    return null;
+  }
+
+  return {
+    finalized_at: sourceList.finalized_at || null,
+    is_reusable: Boolean(sourceList.is_reusable),
+    list_id: sourceList.list_id,
+    list_type: sourceList.list_type,
+    status: sourceList.status,
+    title: sourceList.title,
   };
 }
 

@@ -37,7 +37,7 @@ async function assertManifestContracts() {
   const listsModule = modulesService.getModule("lists");
   const permissionIds = new Set(listsModule.permissions.map((permission) => permission.id));
 
-  assert.equal(listsModule.version, "0.33.4.5");
+  assert.equal(listsModule.version, "0.33.4.5.2");
   assert.equal(listsModule.resourceDefinitions[0].key, "lists");
   assert.deepEqual(listsModule.resourceDefinitions[0].operations, [
     "read",
@@ -146,6 +146,8 @@ async function assertServiceLifecycle(session) {
     assert.equal(duplicated.list.is_reusable, false);
     assert.equal(duplicated.list.source_list_id, created.list.list_id);
     assert.equal(duplicated.list.duplicated_from_list_id, created.list.list_id);
+    assert.equal(duplicated.list.sourceContext.duplicatedFrom.title, "R&D Procurement Updated");
+    assert.equal(duplicated.list.sourceContext.sourceList.title, "R&D Procurement Updated");
     assert.equal(duplicated.items.length, 1);
     assert.equal(duplicated.items[0].actual_cost, null);
     assert.equal(duplicated.items[0].checked_at, null);
@@ -161,6 +163,7 @@ async function assertServiceLifecycle(session) {
     const duplicatedRead = await listsService.read(duplicated.list.list_id, session);
     assert.equal(duplicatedRead.items[0].item_name, "Aluminum extrusion");
     assert.equal(duplicatedRead.items[0].quantity, 4);
+    assert.equal(duplicatedRead.list.sourceContext.duplicatedFrom.title, "R&D Procurement Updated");
 
     const normalAgain = await listsService.unmarkReusable(created.list.list_id, session);
     assert.equal(normalAgain.list.is_reusable, false);
@@ -184,6 +187,8 @@ async function assertServiceLifecycle(session) {
     const duplicatedBom = await listsService.duplicate(bom.list.list_id, {}, session);
     assert.equal(duplicatedBom.list.status, "active");
     assert.equal(duplicatedBom.list.list_type, "bill_of_materials");
+    assert.equal(duplicatedBom.list.sourceContext.duplicatedFrom.title, "Prototype BOM");
+    assert.equal(duplicatedBom.list.sourceContext.duplicatedFrom.status, "finalized");
     assert.equal(duplicatedBom.items[0].actual_cost, null);
     assert.equal(duplicatedBom.items[0].purchase_status, "needed");
 

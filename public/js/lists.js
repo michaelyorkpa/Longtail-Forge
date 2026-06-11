@@ -72,6 +72,7 @@ listDialogClose?.addEventListener("click", closeListDialog);
 listCancelButton?.addEventListener("click", closeListDialog);
 listClientInput?.addEventListener("change", () => populateProjectOptions(listProjectInput, listClientInput.value));
 listProjectInput?.addEventListener("change", syncClientFromProject);
+listTypeInput?.addEventListener("change", () => setContextControlsVisible(shouldShowContextControls(listTypeInput.value)));
 detailPanel?.addEventListener("click", handleDetailClick);
 detailPanel?.addEventListener("submit", handleDetailSubmit);
 
@@ -111,6 +112,7 @@ function applyWorkspaceContext() {
   }
   document.body.dataset.listsWorkspaceType = state.workspaceType;
   setBusinessControlsVisible(usesBusinessScope());
+  setContextControlsVisible(usesBusinessScope());
 }
 
 async function loadOptions() {
@@ -185,9 +187,9 @@ function renderLists() {
   listTableBody.replaceChildren();
 
   if (lists.length === 0) {
-    renderListPlaceholder("No lists match the current filters.");
+    renderListPlaceholder(emptyListMessage());
     if (!selectedList()) {
-      renderDetailPrompt("Create or adjust filters to see a list.");
+      renderDetailPrompt("Create a list or adjust filters to resume one.");
     }
     return;
   }
@@ -263,6 +265,7 @@ function createListRow(list) {
   const titleButton = document.createElement("button");
   const badges = document.createElement("span");
   const meta = document.createElement("span");
+  const summary = document.createElement("span");
   const statusCell = document.createElement("td");
   const typeCell = document.createElement("td");
   const neededCell = document.createElement("td");
@@ -278,7 +281,10 @@ function createListRow(list) {
   badges.append(...listBadges(list));
   meta.className = "lists-row-meta";
   meta.textContent = listContextLabel(list);
-  titleCell.append(titleButton, badges, meta);
+  summary.className = "lists-state-summary";
+  summary.dataset.listStateSummary = "";
+  summary.textContent = compactStateSummary(list);
+  titleCell.append(titleButton, badges, meta, summary);
   statusCell.appendChild(statusBadge(list.status));
   typeCell.textContent = LIST_TYPE_LABELS[list.list_type] || list.list_type || "";
   neededCell.textContent = nextNeededDate(list) || "-";
@@ -324,6 +330,8 @@ function renderDetail(list) {
   const badges = document.createElement("span");
   const meta = document.createElement("p");
   const actions = document.createElement("div");
+  const nextAction = createNextActionStrip(list);
+  const sourceContext = createSourceContextPanel(list);
   const description = document.createElement("p");
   const itemForm = createItemForm(list, locked);
   const items = document.createElement("div");
@@ -344,7 +352,7 @@ function renderDetail(list) {
   items.className = "lists-items";
   items.appendChild(createItemsTable(list, locked));
 
-  article.append(header, description, itemForm, items);
+  article.append(header, nextAction, sourceContext, description, itemForm, items);
   detailPanel.replaceChildren(article);
 }
 
@@ -352,7 +360,7 @@ function detailActionButtons(list, locked) {
   const buttons = [];
 
   if (list.status !== "deleted") {
-    buttons.push(actionButton("Duplicate", "duplicate-list", list.list_id));
+    buttons.push(actionButton(duplicateActionLabel(list), "duplicate-list", list.list_id));
   }
   if (!locked) {
     buttons.push(actionButton("Edit", "edit-list", list.list_id));
@@ -403,7 +411,7 @@ function createItemForm(list, locked) {
   if (locked) {
     const notice = document.createElement("p");
     notice.className = "lists-locked-note";
-    notice.textContent = `${STATUS_LABELS[list.status] || "Locked"} lists are read-only.`;
+    notice.textContent = readOnlyStateMessage(list);
     section.append(title, notice);
   } else {
     section.append(title);
@@ -535,6 +543,7 @@ async function runAction(action, list, itemId) {
     if (archiveFilter) {
       archiveFilter.value = "current";
     }
+    setStatus("Created active working copy.");
     return result.list?.list_id || result.list?.id || "";
   } else if (action === "mark-reusable-list") {
     await api.postJson(`/api/lists/${listId}/mark-reusable`, {});
@@ -630,6 +639,7 @@ function openListDialog(list = null) {
   listTitleInput.value = list?.title || "";
   listDescriptionInput.value = list?.description || "";
   listTypeInput.value = list?.list_type || defaultListType();
+  setContextControlsVisible(shouldShowContextControls(listTypeInput.value));
   populateClientOptions(list?.client_id || "");
   populateProjectOptions(listProjectInput, list?.client_id || "", list?.project_id || "");
   listFormStatus.textContent = "";
@@ -721,6 +731,16 @@ function setBusinessControlsVisible(visible) {
   });
 }
 
+function setContextControlsVisible(visible) {
+  document.querySelectorAll("[data-list-context-control]").forEach((element) => {
+    element.hidden = !visible;
+  });
+}
+
+function shouldShowContextControls(listType = defaultListType()) {
+  return usesBusinessScope() || ["procurement", "parts", "supplies", "bill_of_materials"].includes(listType);
+}
+
 function normalizeListRecord(list = {}, items = []) {
   return {
     ...list,
@@ -729,6 +749,7 @@ function normalizeListRecord(list = {}, items = []) {
     is_reusable: Boolean(list.is_reusable ?? list.isReusable),
     items: items.map((item) => ({ ...item, id: item.list_item_id || item.id })),
     list_id: list.list_id || list.id,
+    sourceContext: list.sourceContext || list.source_context || { duplicatedFrom: null, sourceList: null },
   };
 }
 
@@ -741,9 +762,23 @@ function renderListPlaceholder(message) {
   listTableBody.replaceChildren(row);
 }
 
+function emptyListMessage() {
+  if (reusableFilter?.value === "yes") {
+    return "No reusable lists match the current filters. Create a reusable checklist so routine work does not have to be rebuilt from memory.";
+  }
+  if (archiveFilter?.value === "archived") {
+    return "No archived lists match the current filters.";
+  }
+  if (archiveFilter?.value === "deleted") {
+    return "No deleted lists match the current filters.";
+  }
+  return "No lists match the current filters. Create a list or adjust filters to resume work.";
+}
+
 function renderDetailPrompt(message) {
   const prompt = document.createElement("p");
   prompt.className = "lists-empty-state";
+  prompt.dataset.listNextAction = "";
   prompt.textContent = message;
   detailPanel.replaceChildren(prompt);
 }
@@ -780,6 +815,164 @@ function statusBadge(status) {
   return badge;
 }
 
+function createNextActionStrip(list) {
+  const section = document.createElement("section");
+  const heading = document.createElement("strong");
+  const message = document.createElement("span");
+  const facts = document.createElement("div");
+
+  section.className = "lists-next-action";
+  section.dataset.listNextAction = "";
+  heading.textContent = "Next";
+  message.textContent = nextActionText(list);
+  facts.className = "lists-next-action-facts";
+  facts.append(...stateFacts(list).map((fact) => {
+    const chip = document.createElement("span");
+    chip.textContent = fact;
+    return chip;
+  }));
+  section.append(heading, message, facts);
+  return section;
+}
+
+function nextActionText(list) {
+  const state = listState(list);
+  if (list.status === "deleted") {
+    return "Restore this list if it still belongs in the workspace.";
+  }
+  if (list.status === "archived") {
+    return "Restore to resume work, or duplicate it as a new active list.";
+  }
+  if (list.status === "finalized") {
+    return "Create an active working copy when this historical record should be used again.";
+  }
+  if (list.status === "completed") {
+    return "Reopen if more work is needed, or duplicate this list for a new run.";
+  }
+  if (state.totalItems === 0) {
+    return list.is_reusable
+      ? "Add starter items so this reusable list can become a useful working copy later."
+      : "Add the first item so this list is ready to use.";
+  }
+  if (state.incompleteItems > 0) {
+    return `Resume with ${state.incompleteItems} incomplete ${state.incompleteItems === 1 ? "item" : "items"}.`;
+  }
+  return "Everything is checked. Complete or finalize the list when it is ready.";
+}
+
+function createSourceContextPanel(list) {
+  const sourceContext = sourceContextLabel(list);
+  const section = document.createElement("section");
+  const title = document.createElement("strong");
+  const message = document.createElement("span");
+
+  section.className = "lists-source-context";
+  section.dataset.listSourceContext = "";
+  title.textContent = list.is_reusable ? "Reusable workflow" : "Source";
+  message.textContent = sourceContext || defaultSourceContextText(list);
+  section.append(title, message);
+  return section;
+}
+
+function sourceContextLabel(list) {
+  const context = list.sourceContext || {};
+  const duplicatedFrom = context.duplicatedFrom || context.duplicated_from;
+  const sourceList = context.sourceList || context.source_list;
+
+  if (duplicatedFrom?.title && sourceList?.title && duplicatedFrom.list_id !== sourceList.list_id) {
+    return `Independent working copy from ${duplicatedFrom.title}; original template ${sourceList.title}.`;
+  }
+  if (duplicatedFrom?.title) {
+    return `Independent working copy from ${duplicatedFrom.title}.`;
+  }
+  if (sourceList?.title) {
+    return `Independent working copy from reusable source ${sourceList.title}.`;
+  }
+  return "";
+}
+
+function defaultSourceContextText(list) {
+  if (list.is_reusable) {
+    return "Template for repeatable work. Duplicate it to create an independent active list.";
+  }
+  if (list.status === "finalized" || list.isBillOfMaterials || list.list_type === "bill_of_materials") {
+    return "Historical context is preserved here. Duplicate it to start new active work.";
+  }
+  return "This active list is independent. Future template edits will not change it.";
+}
+
+function duplicateActionLabel(list) {
+  if (list.is_reusable) {
+    return "Create Working Copy";
+  }
+  if (list.status === "finalized" || list.isBillOfMaterials || list.list_type === "bill_of_materials") {
+    return "Duplicate into Active Work";
+  }
+  return "Duplicate";
+}
+
+function compactStateSummary(list) {
+  const state = listState(list);
+  const pieces = [
+    `${state.checkedItems} checked`,
+    `${state.incompleteItems} open`,
+  ];
+  if (state.nextNeededDate) {
+    pieces.push(`next ${state.nextNeededDate}`);
+  }
+  if (state.assignedUsers > 0) {
+    pieces.push(`${state.assignedUsers} assigned`);
+  }
+  pieces.push(state.resumeLabel);
+  return pieces.join(" / ");
+}
+
+function stateFacts(list) {
+  const state = listState(list);
+  return [
+    `${state.checkedItems}/${state.totalItems} checked`,
+    `${state.incompleteItems} incomplete`,
+    state.nextNeededDate ? `Next needed ${state.nextNeededDate}` : "No needed date",
+    state.assignedUsers > 0 ? `${state.assignedUsers} assigned` : "No assignee",
+    state.contextLabel,
+    sourceContextLabel(list) ? "Has source context" : "Independent list",
+  ];
+}
+
+function listState(list) {
+  const items = visibleItems(list);
+  const checkedItems = items.filter((item) => item.checked_at || item.completed_at).length;
+  const incompleteItems = Math.max(items.length - checkedItems, 0);
+  const assignedUsers = new Set(items.map((item) => item.assigned_user_id).filter(Boolean)).size;
+  const nextDate = nextNeededDate(list);
+  const context = listContextLabel(list);
+  const interrupted = list.status === "active" && items.length > 0 && incompleteItems > 0 && checkedItems > 0;
+  const resumeLabel = interrupted ? "Resume" : STATUS_LABELS[list.status] || "Review";
+  return {
+    assignedUsers,
+    checkedItems,
+    contextLabel: context,
+    incompleteItems,
+    interrupted,
+    nextNeededDate: nextDate,
+    resumeLabel,
+    totalItems: items.length,
+  };
+}
+
+function readOnlyStateMessage(list) {
+  if (list.status === "finalized") {
+    return "Finalized lists are read-only. Duplicate this record to start new active work.";
+  }
+  if (list.status === "archived") {
+    return "Archived lists are read-only. Restore or duplicate this list to resume work.";
+  }
+  if (list.status === "deleted") {
+    return "Deleted lists are read-only. Restore this list before continuing.";
+  }
+  return `${STATUS_LABELS[list.status] || "Locked"} lists are read-only.`;
+}
+
 function listBadges(list) {
   const badges = [];
   if (list.is_reusable) {
@@ -789,7 +982,7 @@ function listBadges(list) {
     badges.push(badge("BOM", "is-bom"));
   }
   if (list.duplicated_from_list_id) {
-    badges.push(badge("Duplicated", "is-duplicated"));
+    badges.push(badge("Working Copy", "is-duplicated"));
   }
   return badges;
 }

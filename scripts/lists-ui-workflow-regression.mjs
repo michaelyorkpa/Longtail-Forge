@@ -33,7 +33,7 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
-  assert.equal(listsModule.version, "0.33.4.5");
+  assert.equal(listsModule.version, "0.33.4.5.2");
   assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
   assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
@@ -57,6 +57,7 @@ async function assertProtectedView(session) {
   assert.match(html, /data-list-detail/);
   assert.match(html, /data-list-dialog/);
   assert.match(html, /data-list-business-control/);
+  assert.match(html, /data-list-context-control/);
   assert.match(html, /js\/shared\/icons\.js\?v=1/);
   assert.match(html, /js\/shared\/client-project-options\.js\?v=1/);
   assert.match(html, /js\/lists\.js\?v=1/);
@@ -83,8 +84,29 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /move-item-up/);
   assert.match(listsJs, /move-item-down/);
   assert.match(listsJs, /setBusinessControlsVisible\(usesBusinessScope\(\)\)/);
+  assert.match(listsJs, /compactStateSummary/);
+  assert.match(listsJs, /dataset\.listStateSummary/);
+  assert.match(listsJs, /createNextActionStrip/);
+  assert.match(listsJs, /dataset\.listNextAction/);
+  assert.match(listsJs, /readOnlyStateMessage/);
+  assert.match(listsJs, /setContextControlsVisible/);
+  assert.match(listsJs, /shouldShowContextControls/);
+  assert.match(listsJs, /Create a list or adjust filters to resume work/);
+  assert.match(listsJs, /Create an active working copy when this historical record should be used again/);
+  assert.match(listsJs, /Create Working Copy/);
+  assert.match(listsJs, /Duplicate into Active Work/);
+  assert.match(listsJs, /createSourceContextPanel/);
+  assert.match(listsJs, /dataset\.listSourceContext/);
+  assert.match(listsJs, /sourceContextLabel/);
+  assert.match(listsJs, /Independent working copy from/);
+  assert.match(listsJs, /Template for repeatable work/);
+  assert.match(listsJs, /Working Copy/);
 
   assert.match(styles, /\.lists-workspace/);
+  assert.match(styles, /\.lists-state-summary/);
+  assert.match(styles, /\.lists-next-action/);
+  assert.match(styles, /\.lists-next-action-facts/);
+  assert.match(styles, /\.lists-source-context/);
   assert.match(styles, /\.lists-badge\.is-reusable/);
   assert.match(styles, /\.lists-badge\.is-bom/);
   assert.match(styles, /\.lists-badge\.is-duplicated/);

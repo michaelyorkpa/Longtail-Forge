@@ -139,6 +139,8 @@ async function assertBusinessListApiFlow(api, fixtures) {
   assert.equal(duplicated.body.list.is_reusable, false);
   assert.equal(duplicated.body.list.source_list_id, fixtures.businessListId);
   assert.equal(duplicated.body.list.duplicated_from_list_id, fixtures.businessListId);
+  assert.equal(duplicated.body.list.sourceContext.duplicatedFrom.title, "API Procurement List");
+  assert.equal(duplicated.body.list.sourceContext.sourceList.title, "API Procurement List");
   assert.equal(duplicated.body.items.length, 2);
   assert.ok(duplicated.body.items.every((entry) => entry.purchase_status === "needed"));
   assert.ok(duplicated.body.items.every((entry) => entry.checked_at === null && entry.completed_at === null));
@@ -205,6 +207,8 @@ async function assertBusinessListApiFlow(api, fixtures) {
   const duplicatedBom = await api.post(`/api/lists/${bom.body.list.list_id}/duplicate`, {}, { cookie: fixtures.adminSessionId });
   assert.equal(duplicatedBom.status, 201);
   assert.equal(duplicatedBom.body.list.status, "active");
+  assert.equal(duplicatedBom.body.list.sourceContext.duplicatedFrom.title, "API BOM");
+  assert.equal(duplicatedBom.body.list.sourceContext.duplicatedFrom.status, "finalized");
   assert.equal(duplicatedBom.body.items[0].actual_cost, null);
   assert.equal(duplicatedBom.body.items[0].purchase_status, "needed");
 }

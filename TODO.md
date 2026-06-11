@@ -78,6 +78,20 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Medium Term
 
+## "What are you trying to do right now?"
+
+- Focus modes:
+  - Start my day
+  - Pick up where I left off
+  - Show what's due next
+  - Work this week
+  - Review blocked work
+  - Focus on a project
+  - Focus on a client
+  - Capture something quickly
+
+- A simple question to pick a focus workbench
+
 ## Project Updates
 
 - [ ] Add project types

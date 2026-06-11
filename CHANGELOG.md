@@ -1,9 +1,24 @@
+## Version 0.33.4.5.2 - 2026-06-11 13:31 -04:00
+
+- Added permission-safe Lists source-context summaries for duplicated-from and reusable/source lists.
+- Added a Lists source-context panel, working-copy badge language, reusable-template copy, and duplicate action labels for reusable and bill-of-materials workflows.
+- Kept duplicated Lists visually independent from reusable templates while preserving source lineage for recovery and historical review.
+- Expanded Lists service, API, and UI regressions for source-context payloads and duplicate/BOM context behavior.
+
+## Version 0.33.4.5.1 - 2026-06-11 13:17 -04:00
+
+- Added compact Lists row summaries with checked/open counts, next needed date, assignee coverage, and resume status.
+- Added a detail-panel next-action strip for active, completed, finalized, archived, deleted, empty, and partially checked lists.
+- Refined Lists capture and context controls so personal/family flows avoid secondary procurement context by default while business flows keep client/project context visible.
+- Added focused Lists UI regression coverage for resume summaries, next-action states, context control visibility, and read-only recovery guidance.
+
 ## Version 0.33.4.5 - 2026-06-11 11:44 -04:00
 
 - Added reusable-list mark/unmark behavior, dedicated normal/reusable filtering defaults, and clear Reusable List, BOM, and duplicated-list badges in the protected Lists UI.
 - Added list duplication for accessible lists, creating independent active lists with source and duplicated-from references while resetting checked/completed state, tracking IDs, actual costs, and purchase/order status.
 - Added finalize behavior for reproducible historical records, keeping finalized and bill-of-materials-style lists read-only while still allowing duplicate/archive/restore workflows where permitted.
 - Expanded Lists service, API, and UI regressions to prove reusable-list duplicate independence and finalized BOM duplication behavior.
+- Documentation update 2026-06-11 13:12 -04:00: Clarified 0.33.4.5.1 and 0.33.4.5.2 as real follow-up code-update passes for Lists capture/resume UI and reusable/BOM source-context workflows.
 
 ## Version 0.33.4.4 - 2026-06-11 11:24 -04:00
 

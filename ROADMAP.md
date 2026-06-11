@@ -47,78 +47,19 @@ Use the following decisions for the Lists module:
 
 Use these sub-versions as the implementation order for the Lists module. The detailed checklist below remains the source backlog; each sub-version owns the relevant checklist items and should be closed out with package version, changelog, decisions, and verification when implemented.
 
-#### Version 0.33.4.1 - Lists Module Contract, Labels, and Core Storage
+#### Version 0.33.4.5.2 - Reusable Lists, Duplication, and BOM Context Update
 
-* [x] Register Lists as a first-party module with module ID `lists`.
-* [x] Add workspace enable/disable support with historical read behavior.
-* [x] Add workspace-aware module labels: `Shopping Lists` for personal/family workspaces and `Procurement Lists` for business workspaces.
-* [x] Add module-owned migrations for `lists` and `list_items`.
-* [x] Implement list and item core record validation, including workspace, client, project, status, type, and soft-delete boundaries.
-* [x] Define initial list types, list statuses, and item purchase/order statuses.
-* [x] Add indexes needed for core list and item reads.
-* [x] Add contract tests for workspace isolation, module-disabled writes, project/client relationship validation, and item/list ownership.
-* [x] Record the module contract and label decisions in `DECISIONS.md`.
+This is a real code-update pass for reusable-list and BOM workflows. It should turn the product-philosophy additions from 0.33.4.5 into concrete source-context and duplicate-resumption behavior.
 
-#### Version 0.33.4.2 - Permissions, Resources, Services, Audit, and Events
-
-* [x] Add Lists permissions and resource operations.
-* [x] Add default role grants consistent with existing first-party module patterns.
-* [x] Implement service methods for creating, reading, listing, updating, completing, reopening, archiving, restoring, and soft-deleting lists.
-* [x] Implement service methods for creating, updating, reordering, checking, unchecking, completing, and deleting list items.
-* [x] Add list and item access-policy helpers.
-* [x] Add Lists audit record types and audit writes for list and item lifecycle actions.
-* [x] Emit safe Lists lifecycle events for list and item actions.
-* [x] Add regressions for permissions, audit shape, event payload safety, finalized-list edit protection, and soft-delete behavior.
-
-#### Version 0.33.4.3 - Browser API Foundation
-
-* [x] Add browser API routes for core list CRUD and lifecycle actions.
-* [x] Add browser API routes for list item CRUD, reorder, check/uncheck, completion, and deletion.
-* [x] Return permission-safe list and item payloads.
-* [x] Normalize validation errors into existing API error shapes.
-* [x] Ensure disabled-module behavior blocks writes but preserves historical reads where allowed.
-* [x] Add focused API tests for core personal/family and business list flows.
-* [x] Add focused API tests for unauthorized reads/writes, workspace crossing, and project/client mismatch protection.
-
-#### Version 0.33.4.4 - Protected Lists UI MVP
-
-* [x] Add Lists navigation only when the module is enabled, using the workspace-aware label.
-* [x] Add protected list index and list detail pages.
-* [x] Add create/edit list forms and basic list status controls.
-* [x] Add list item add/edit/check/uncheck/delete controls.
-* [x] Add manual item reordering.
-* [x] Add index filters for status, list type, reusable flag, client, project, assigned user, needed date, and archived state where supported by the API.
-* [x] Add index sorting by updated date, title, list type, status, needed date, and finalized date where supported by the API.
-* [x] Keep personal/family shopping flows fast and avoid forcing business procurement fields into the primary personal/family UI.
-* [x] Expose business procurement fields clearly for business workspaces.
-* [x] Add loading, empty, error, permission-denied, disabled-module, active, completed, finalized, archived, and deleted states.
-* [x] Add focused UI smoke coverage for creating a list, adding items, checking items, filtering, and editing list details.
-
-#### Version 0.33.4.5 - Reusable Lists, Duplication, and Bill of Materials
-
-* [x] Add mark/unmark Reusable List behavior.
-* [x] Add Reusable Lists index filter/view and clear UI badges.
-* [x] Add list duplication for any accessible list.
-* [x] Ensure duplicated lists are independent active lists by default.
-* [x] Reset checked/completed state, tracking IDs, actual costs, and purchase/order status during normal duplication.
-* [x] Store source and duplicated-from list references where useful.
-* [x] Add `bill_of_materials` behavior for reproducible historical records.
-* [x] Add finalize/reopen protections for finalized lists and BOM-style lists.
-* [x] Add tests proving reusable-list edits do not mutate previous duplicates and finalized BOM lists remain duplicate-able.
-
-#### Version 0.33.4.5.1 - Protected Lists UI MVP Update
-
-* [ ] Make Lists UI optimized for fast capture, visible item state, simple checking, and low-friction resumption.
-* [ ] Avoid making users choose business procurement fields in personal/family flows unless the selected list type needs them.
-* [ ] Show enough list context to make the next action obvious without turning the index/detail screen into a full project dashboard.
-* [ ] For interrupted lists, make status, checked items, incomplete items, needed dates, assigned users, and linked records easy to recover at a glance.
-
-#### Version 0.33.4.5.2 - Reusable Lists, Duplication, and Bill of Materials Update
-
-* [ ] Treat reusable lists as repeatable execution aids for known workflows, not as generic information containers.
-* [ ] Duplicating a reusable list should create a clear active working copy with reset item states and preserved source context.
-* [ ] Reusable list templates should help users avoid rebuilding routine checklists from memory.
-* [ ] BOM-style finalized lists should preserve historical context while remaining easy to duplicate into new active work.
+* [x] Treat reusable lists in UI copy and action placement as repeatable execution aids for known workflows, not generic information containers.
+* [x] Add source-context display for duplicated lists, including duplicated-from/source template labels where permission-safe data is available.
+* [x] Ensure duplicating a reusable list lands the user on the new active working copy with clear reset state, source context, and a next action to begin execution.
+* [x] Make reusable list templates help users avoid rebuilding routine checklists from memory by improving the reusable-only view, badges, empty states, and duplicate action labels.
+* [x] Preserve BOM-style finalized historical context by showing finalized metadata, source/duplicate lineage, and read-only state clearly while keeping duplicate into active work prominent.
+* [x] Verify duplicated working copies do not visually imply live inheritance from reusable templates after duplication.
+* [x] Add service/API support if source-context reads require lightweight permission-safe source list summaries beyond existing IDs.
+* [x] Update `public/js/lists.js`, `src/modules/lists/lists.service.js`, `src/modules/lists/lists.routes.js`, and Lists regressions only where needed for source-context and duplicate-resumption behavior.
+* [x] Add or extend service/API/UI regressions proving reusable template edits do not mutate duplicates, duplicate landing behavior remains active/resumable, and finalized BOM source context remains duplicate-able.
 
 #### Version 0.33.4.6 - Catalog Items, Usage Tracking, and Suggestions
 
