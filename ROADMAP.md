@@ -79,6 +79,13 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Assigned user. (Default to Item creator)
   - [ ] Sort order.
   - [ ] Checked/completed state.
+- [ ] List Types:
+  - [ ] Shopping
+  - [ ] Procurement
+  - [ ] Packing
+  - [ ] Supplies
+  - [ ] Parts
+  - [ ] Checklist
 - [ ] Business use cases:
   - [ ] Project parts list.
   - [ ] R&D purchasing list.
@@ -94,7 +101,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Lists should be searchable once framework search is stable.
   - [ ] List activity should be able to appear in dashboard/activity feed later.
 
-## Version 0.33.6 - Task Module Updates
+## Version 0.33.5.0 - Task Module QoL Updates
 
 ### Parent/Child Tasks
 
@@ -139,9 +146,84 @@ Decision: Task checklists are lightweight completion aids inside a task. Full su
   - Stand alone tasks
     - Use status as task completion tracker
 
-## Version 0.33.7 - UI QoL Updates
+### Task UI
 
-- [ ] Create Notification grouping options
+In Projects -> Tasks, the task list isn't optimized for efficient viewing.
+- [ ] Create a three row listing for each task
+  - [ ] Row one is the task name with tag chips below
+  - [ ] Row two is the rest of the meta data
+    - [ ] Truncate Scope/Assignees harder on mobile
+  - [ ] Row three is the buttons, right aligned
+    - The icon buttons are great, except for the "Follow Notifications" button, this should be a bell
+
+
+## Version 0.33.5.2 - Reporting, Clients and Projects, and API QoL Update
+
+### Reporting
+
+- For proper calculation, each sub project must total all time entries and round to the nearest
+  - Parent projects should then take that total and add it to sum of all sub project time entries
+  - This will produce a sub-client total which can then be added to parent client totals
+
+- Reporting -> Time Reports
+  - Hide Start Date and End Date until billing period is is Custom
+    - Alternately, update Start Date and End Date based on Billing Period Selection
+
+### Sorting logic for clients and projects
+
+- Move logic for sorting of clients to the clients module and have that called every time clients are listed somewhere
+- Move logic for sorting of projects to the projects module and have that called every time clients are listed somewhere
+
+### API Keys
+
+- Audit the API keys available
+  - It doesn't appear that I'm seeing the correct API Keys for workspace admin account. Here's what shows:
+    - clients:read
+    - projects:read
+    - tasks:read
+    - tasks:write
+    - time_entries:read
+    - time_entries:write
+  - There's nothing for files, search, notes or anything else in there. And there's no write for clients or projects
+
+## Version 0.33.5.4 - Files and Time Tracking QoL Updates
+
+### Files module
+
+- There's no way to delete files??
+- Multiple file upload at once
+- Drag and Drop file upload
+
+- Need to have a way to limit file uploads, per workspace and per user
+  - This would be quantity/size limits
+  - This would be file types
+
+### Time Entries
+
+- Time entries aren't editable by Workspace admin
+  - Tried to add tags as workspace admin to "81c61ec4-ebe4-45c2-a35d-b03e88b45bb9" and got a permissions error (couldn't read the whole thing, it was on the main window and the modal window blocked it)
+  - Had to log in as Super Admin to add tags
+
+- Are time entries from timers storing the actual start and end time with an unconnected duration, or are they adjusting start or end time based on total duration?
+  - It should be the former. I want to see exactly when a timer was started and ended, as well as the total duration the timer was running during that period. Start and End time are informational, not anything to be calculated.
+
+## Version 0.33.5.6 - Search, Notification, and Tag QoL Updates
+
+### Search Fixes/Tweaks
+
+- Help is in the record types twice
+
+### Notification Fixes/Tweaks
+
+- Users who perform the action, don't need notifications of the action happening, e.g.
+  - Creators of records don't need {{recordType}} created notifications
+  - Modifiers of records don't need {{recordType}} updated notifications
+
+- [ ] notifications.html: Notification Type chip should be aligned to right, in board from "Dismissed"
+
+- [ ] Record update notifications should include the changed context human-formatted from the JSON data
+
+- [ ] Create Notification grouping
   - [ ] Notifications in Business workspaces should be grouped by Client
   - [ ] Notifications in Personal/Family workspaces should be grouped by Project
 
@@ -152,14 +234,87 @@ Decision: Task checklists are lightweight completion aids inside a task. Full su
 
 - [ ] All Notifications Page -> Notification type chip is floating weird, it should be anchored just left of the Unread/Read/Dismissed chip
 
-- [ ] Add tag chips between task title and task meta data on Workbench
-
-## Notifications QoL Updates
-
 - "Urgent" priority notifications should turn the bell icon red and, optionally, show an in-app alert modal
 - "High" priority notifications should turn the bell icon red and not be grouped
 - "Normal" priority should be grouped and increment the number on the bell icon
 - "Low" priority should be grouped and NOT increase the number on the bell icon
+
+### Tags Fixes/Tweaks
+
+- [ ] Anywhere there's a Tag filter, add a "No Tags" option to easily identify items that still need to be tagged
+  - Should be directly below "All tags" option
+
+- Tags should be bulk assignable/removable in the following contexts:
+  - Projects -> Time Keeping -> Time Entries
+    - This will require checkboxes in a tight leftmost column for this display to enable bulk editing
+  - Projects -> Tasks
+  - Eventually, Projects -> Notes
+  - Bulk tag application should use the same/similar box to initial entry
+    - This entire thing should be owned within tags and be hooked in via the framework, not hard coded anywhere
+
+- [ ] Add tag chips between task title and task meta data on Workbench; keep it tight
+
+## Version 0.33.5.8 - Client/Projects Fixes/Tweaks
+
+### Client/Projects Fixes/Tweaks
+
+- Projects aren't inheriting client billing settings when created in Projects -> Project Settings -> Add Project
+
+- Saving Client billing settings wipes out client tags
+  - Specific path I Took was:
+    - Settings -> Workspace -> Clients -> Add Client button
+      - Added the client and tags
+    - Edited the client to turn off billing and turn on rounding
+    - Saved client
+    - Tags gone
+    - Re-adding tags through Edit Client modal worked
+
+## Version 0.33.5.10 - Glaring Holes Patched
+
+- [ ] Need a way to search for records to link notes to
+- [ ] Needs to be a way to display linked notes to records
+
+## Version 0.33.5.12 - Help Center Re-work
+
+- Need a way to edit and expand the help center records
+  - Can we create an editor, only for me? It doesn't need to be fancy, just basic markdown/wiki links and a way to edit the content that's already there
+
+- Table of Contents (ToC) sections should be collapsible
+  - Help Center
+  - Getting Started
+  - Framework (Collapsible)
+    - Worspaces and Workspace Switching
+    - Users, Roles and Permissions
+    - Clients and Projects
+    - Notifications
+    - Search
+    - Tags
+    - Files
+    - Settings and User Preferences
+    - Modules and Optional Features
+  - Time Tracking (Module, Collapsible)
+    - Time Tracking Basics
+    - Time Entries Editing
+    - Manual Time Entries
+  - Tasks (Module, Collapsible)
+    - Tasks Basics
+    - Task Recurrence
+  - Notes (Module, Collapsible)
+    - Using Notes
+    - Notes Library
+      - Active Work
+      - Ongoing Area
+      - Reference Library
+      - Archive
+    - Notes Collections
+    - Markdown
+    - Note Linking
+    - Note Revisions
+    - Secure Notes
+    - Notes, Files, and Search
+
+- Help Center (doc) should explain what framework, first-party, and third-party modules are
+- Getting Started should explain the key concepts that make LTF unique and how they're all inter-linked
 
 ## Version 0.34.1 - Knowledge Base Module Contract, Publishing Model, and Notes Relationship
 
