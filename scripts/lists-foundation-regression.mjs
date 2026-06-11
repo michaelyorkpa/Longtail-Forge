@@ -39,13 +39,15 @@ async function assertListsModuleManifest() {
   const listsModule = modulesService.getModule("lists");
 
   assert.equal(listsModule.id, "lists");
-  assert.equal(listsModule.version, "0.33.4.3");
+  assert.equal(listsModule.version, "0.33.4.4");
   assert.equal(listsModule.enabledByDefault, true);
   assert.equal(listsModule.canDisable, true);
   assert.equal(listsModule.historicalReadAccess, true);
   assert.ok(listsModule.migrationsDir, "Lists should contribute module-owned migrations");
   assert.equal(listsModule.browserApiRoutes.length, 1, "Lists should expose its browser API router in 0.33.4.3");
-  assert.equal(listsModule.protectedViews.length, 0, "Lists protected UI is deferred past 0.33.4.1");
+  assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
+  assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
+  assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
   assert.equal(listsModule.settings.some((setting) => setting.id === "listsEnabled" && setting.moduleStatus === true), true);
 
   const businessModule = resolveModuleDefinitionTerminology(listsModule, "business");

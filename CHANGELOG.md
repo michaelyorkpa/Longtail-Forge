@@ -1,3 +1,10 @@
+## Version 0.33.4.4 - 2026-06-11 11:24 -04:00
+
+- Added the protected Lists UI MVP with module-owned navigation, workspace-aware Shopping/Procurement labels, list index/detail panels, create/edit forms, lifecycle controls, and inline item management.
+- Added browser-side filters and sorting for status, type, reusable state, client, project, assignee, needed date, archive/deleted state, updated date, title, type, status, needed date, and finalized date.
+- Added responsive Lists styling, business-only procurement context controls, personal/family shopping defaults, and read-only states for archived, deleted, and finalized lists.
+- Added `scripts/lists-ui-workflow-regression.mjs`, updated navigation regressions for the new Lists menu item, and wired the Lists UI smoke into `npm run check`.
+
 ## Version 0.33.4.3 - 2026-06-11 10:52 -04:00
 
 - Added module-owned Lists browser API routes for list CRUD, lifecycle actions, item CRUD, reorder, check/uncheck, completion, and deletion.

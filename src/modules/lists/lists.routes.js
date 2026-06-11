@@ -17,6 +17,7 @@ listsRoutes.post("/lists", asyncRoute(async (request, response) => {
 
 listsRoutes.get("/lists/:listId", asyncRoute(async (request, response) => {
   const result = await listsService.read(request.params.listId, request.session, {
+    includeDeleted: request.query.includeDeleted === "true" || request.query.include_deleted === "true",
     includeDeletedItems: request.query.includeDeletedItems === "true" || request.query.include_deleted_items === "true",
     includeItems: request.query.includeItems !== "false" && request.query.include_items !== "false",
   });

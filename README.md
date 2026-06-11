@@ -4,6 +4,13 @@ Plan the project. Track the work. Preserve the knowledge.
 
 Longtail Forge started as a simple time tracker and is growing into a small-project operations hub for freelancers, small agencies, self-hosted teams, and eventually personal/family workspaces.
 
+## Longtail Forge: Product Philosophy
+
+- Never make the user rebuild context from memory.
+- Never show twenty choices when one next action will do.
+- Never punish drift; help the user recover.
+- Make work visible, startable, and resumable.
+
 ## Table of Contents
 
 - [Current State](#current-state)
@@ -35,7 +42,6 @@ The near-term roadmap continues expanding framework services and module surfaces
 
 - [ROADMAP.md](ROADMAP.md): detailed per-version plan and forward roadmap
 - [CHANGELOG.md](CHANGELOG.md): completed release notes
-- [DECISIONS.md](DECISIONS.md): settled product and architecture decisions
 - [docs/architecture.md](docs/architecture.md): framework/module architecture direction
 - [docs/module-contract.md](docs/module-contract.md): current module definition contract
 - [docs/notes-module.md](docs/notes-module.md): Notes module developer guide

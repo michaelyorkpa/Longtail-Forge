@@ -146,6 +146,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
   addTimeKeepingNavigation(projectsMenu.items, moduleNavigation);
   addModuleNavItem(projectsMenu.items, moduleNavByHref.get("tasks.html"));
   addModuleNavItem(projectsMenu.items, moduleNavByHref.get("notes.html"));
+  addModuleNavItem(projectsMenu.items, moduleNavByHref.get("lists.html"));
   projectsMenu.items.push({
     id: "files",
     label: "Files",

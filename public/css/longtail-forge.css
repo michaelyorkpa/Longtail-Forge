@@ -3596,6 +3596,204 @@ dialog .form-actions {
     background: var(--color-page-bg);
 }
 
+.lists-page {
+    display: grid;
+    gap: 12px;
+}
+
+.lists-page .page-heading {
+    margin-bottom: 0;
+}
+
+.lists-page [data-lists-status]:empty,
+.lists-page [data-list-form-status]:empty {
+    display: none;
+}
+
+.lists-filters-panel,
+.lists-index-panel,
+.lists-detail-panel {
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.lists-filters-panel summary {
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.lists-filters-panel[open] summary {
+    margin-bottom: 12px;
+}
+
+.lists-filters,
+.lists-form-grid,
+.lists-item-form {
+    display: grid;
+    gap: 12px;
+}
+
+.lists-filters {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.lists-form-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.lists-workspace {
+    display: grid;
+    grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.2fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.lists-list-toolbar,
+.lists-detail-header,
+.lists-detail-actions,
+.lists-dialog-heading,
+.lists-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lists-list-toolbar,
+.lists-detail-header,
+.lists-dialog-heading {
+    justify-content: space-between;
+}
+
+.lists-detail-heading {
+    min-width: 0;
+}
+
+.lists-detail-heading h2,
+.lists-list-toolbar h2 {
+    margin: 0;
+}
+
+.lists-detail-heading p,
+.lists-row-meta,
+.lists-description,
+.lists-empty-state,
+.lists-locked-note {
+    color: var(--color-muted);
+}
+
+.lists-row-title {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-accent);
+    font: inherit;
+    font-weight: 700;
+    text-align: left;
+}
+
+.lists-row-meta {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.85rem;
+}
+
+.lists-table tr.is-selected td {
+    background: var(--color-hover);
+}
+
+.lists-status-badge,
+.lists-readonly-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.lists-status-badge.is-active {
+    border-color: #86efac;
+    background: #ecfdf5;
+    color: #166534;
+}
+
+.lists-status-badge.is-completed {
+    border-color: #93c5fd;
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.lists-status-badge.is-finalized {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+    color: #334155;
+}
+
+.lists-status-badge.is-archived,
+.lists-status-badge.is-deleted,
+.lists-readonly-badge {
+    border-color: #fecaca;
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.lists-item-entry {
+    display: grid;
+    gap: 10px;
+    margin: 16px 0;
+    padding: 12px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-page-bg);
+}
+
+.lists-item-entry h3 {
+    margin: 0;
+}
+
+.lists-item-form {
+    grid-template-columns: minmax(180px, 1.3fr) 80px 90px 130px minmax(140px, 1fr) minmax(130px, 1fr) auto;
+    align-items: end;
+}
+
+.lists-items {
+    overflow-x: auto;
+}
+
+.lists-items-table {
+    min-width: 760px;
+}
+
+.lists-items-table th:first-child,
+.lists-items-table td:first-child {
+    width: 52px;
+    text-align: center;
+}
+
+.lists-item-actions {
+    flex-wrap: nowrap;
+}
+
+.lists-item-actions button {
+    min-width: 58px;
+    padding-inline: 8px;
+}
+
+.lists-dialog {
+    max-width: min(720px, 94vw);
+}
+
+.lists-form {
+    display: grid;
+    gap: 14px;
+}
+
 .client-item {
     border: 1px solid var(--color-border);
     border-radius: 8px;
@@ -4318,7 +4516,8 @@ button:disabled {
 
 @media (max-width: 700px) {
     /* Collapse the shared nav and single-column the dense editor/report layouts on phones. */
-    .notes-workspace {
+    .notes-workspace,
+    .lists-workspace {
         grid-template-columns: 1fr;
     }
 
@@ -4401,6 +4600,8 @@ button:disabled {
     .task-page-toolbar,
     .task-filter-grid,
     .task-bulk-grid,
+    .lists-form-grid,
+    .lists-item-form,
     .workbench-manual-timer-form,
     .workbench-timer-body,
     .workbench-task-header,

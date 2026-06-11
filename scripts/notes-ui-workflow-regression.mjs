@@ -103,7 +103,7 @@ async function assertNavigation(session) {
   assert.equal(topLevelProjectLink, undefined, "Projects page should not duplicate the framework-owned Projects menu");
   assert.deepEqual(
     projectsMenu.items.map((item) => item.label),
-    ["Time Keeping", "Tasks", "Notes", "Files", "Project Settings"],
+    ["Time Keeping", "Tasks", "Notes", "Procurement Lists", "Files", "Project Settings"],
     "Projects menu should keep the requested direct item order",
   );
   assert.deepEqual(

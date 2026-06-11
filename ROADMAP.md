@@ -82,17 +82,17 @@ Use these sub-versions as the implementation order for the Lists module. The det
 
 #### Version 0.33.4.4 - Protected Lists UI MVP
 
-* [ ] Add Lists navigation only when the module is enabled, using the workspace-aware label.
-* [ ] Add protected list index and list detail pages.
-* [ ] Add create/edit list forms and basic list status controls.
-* [ ] Add list item add/edit/check/uncheck/delete controls.
-* [ ] Add manual item reordering.
-* [ ] Add index filters for status, list type, reusable flag, client, project, assigned user, needed date, and archived state where supported by the API.
-* [ ] Add index sorting by updated date, title, list type, status, needed date, and finalized date where supported by the API.
-* [ ] Keep personal/family shopping flows fast and avoid forcing business procurement fields into the primary personal/family UI.
-* [ ] Expose business procurement fields clearly for business workspaces.
-* [ ] Add loading, empty, error, permission-denied, disabled-module, active, completed, finalized, archived, and deleted states.
-* [ ] Add focused UI smoke coverage for creating a list, adding items, checking items, filtering, and editing list details.
+* [x] Add Lists navigation only when the module is enabled, using the workspace-aware label.
+* [x] Add protected list index and list detail pages.
+* [x] Add create/edit list forms and basic list status controls.
+* [x] Add list item add/edit/check/uncheck/delete controls.
+* [x] Add manual item reordering.
+* [x] Add index filters for status, list type, reusable flag, client, project, assigned user, needed date, and archived state where supported by the API.
+* [x] Add index sorting by updated date, title, list type, status, needed date, and finalized date where supported by the API.
+* [x] Keep personal/family shopping flows fast and avoid forcing business procurement fields into the primary personal/family UI.
+* [x] Expose business procurement fields clearly for business workspaces.
+* [x] Add loading, empty, error, permission-denied, disabled-module, active, completed, finalized, archived, and deleted states.
+* [x] Add focused UI smoke coverage for creating a list, adding items, checking items, filtering, and editing list details.
 
 #### Version 0.33.4.5 - Reusable Lists, Duplication, and Bill of Materials
 
