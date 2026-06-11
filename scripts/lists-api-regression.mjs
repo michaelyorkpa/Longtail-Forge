@@ -129,6 +129,24 @@ async function assertBusinessListApiFlow(api, fixtures) {
   assert.equal(read.status, 200);
   assert.equal(read.body.items.length, 2);
 
+  const reusable = await api.post(`/api/lists/${fixtures.businessListId}/mark-reusable`, {}, { cookie: fixtures.adminSessionId });
+  assert.equal(reusable.status, 200);
+  assert.equal(reusable.body.list.is_reusable, true);
+
+  const duplicated = await api.post(`/api/lists/${fixtures.businessListId}/duplicate`, {}, { cookie: fixtures.adminSessionId });
+  assert.equal(duplicated.status, 201);
+  assert.equal(duplicated.body.list.status, "active");
+  assert.equal(duplicated.body.list.is_reusable, false);
+  assert.equal(duplicated.body.list.source_list_id, fixtures.businessListId);
+  assert.equal(duplicated.body.list.duplicated_from_list_id, fixtures.businessListId);
+  assert.equal(duplicated.body.items.length, 2);
+  assert.ok(duplicated.body.items.every((entry) => entry.purchase_status === "needed"));
+  assert.ok(duplicated.body.items.every((entry) => entry.checked_at === null && entry.completed_at === null));
+
+  const unmarkedReusable = await api.post(`/api/lists/${fixtures.businessListId}/unmark-reusable`, {}, { cookie: fixtures.adminSessionId });
+  assert.equal(unmarkedReusable.status, 200);
+  assert.equal(unmarkedReusable.body.list.is_reusable, false);
+
   const completed = await api.post(`/api/lists/${fixtures.businessListId}/complete`, {}, { cookie: fixtures.adminSessionId });
   assert.equal(completed.status, 200);
   assert.equal(completed.body.list.status, "completed");
@@ -163,6 +181,32 @@ async function assertBusinessListApiFlow(api, fixtures) {
   });
   assert.equal(restoredDeleted.status, 200);
   assert.equal(restoredDeleted.body.list.status, "active");
+
+  const bom = await api.post("/api/lists", {
+    list_type: "bill_of_materials",
+    title: "API BOM",
+  }, { cookie: fixtures.adminSessionId });
+  assert.equal(bom.status, 201);
+  const bomItem = await api.post(`/api/lists/${bom.body.list.list_id}/items`, {
+    actual_cost: 32,
+    item_name: "BOM Part",
+    purchase_status: "received",
+    tracking_id: "API-BOM-TRACK",
+  }, { cookie: fixtures.adminSessionId });
+  assert.equal(bomItem.status, 201);
+  const finalizedBom = await api.post(`/api/lists/${bom.body.list.list_id}/finalize`, {}, { cookie: fixtures.adminSessionId });
+  assert.equal(finalizedBom.status, 200);
+  assert.equal(finalizedBom.body.list.status, "finalized");
+  const finalizedEdit = await api.post(`/api/lists/${bom.body.list.list_id}/items`, {
+    item_name: "Blocked finalized edit",
+  }, { cookie: fixtures.adminSessionId });
+  assert.equal(finalizedEdit.status, 400);
+  assert.match(finalizedEdit.body.error, /finalized/i);
+  const duplicatedBom = await api.post(`/api/lists/${bom.body.list.list_id}/duplicate`, {}, { cookie: fixtures.adminSessionId });
+  assert.equal(duplicatedBom.status, 201);
+  assert.equal(duplicatedBom.body.list.status, "active");
+  assert.equal(duplicatedBom.body.items[0].actual_cost, null);
+  assert.equal(duplicatedBom.body.items[0].purchase_status, "needed");
 }
 
 async function assertFamilyListApiFlow(api, fixtures) {

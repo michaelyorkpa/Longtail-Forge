@@ -14,6 +14,7 @@ import {
   LIST_MODULE_ID,
   LIST_STATUSES,
   LIST_STATUS_VALUES,
+  LIST_TYPES,
   LIST_TYPE_VALUES,
   defaultListTypeForWorkspaceType,
   validateListContext,
@@ -122,6 +123,23 @@ async function complete(listId, session) {
   });
 }
 
+async function finalize(listId, session) {
+  return transitionList(listId, session, {
+    action: "list_finalized",
+    changeType: "update",
+    eventName: "lists.list.finalized",
+    operation: "finalize",
+    patch: (_previousList, now) => ({
+      status: LIST_STATUSES.FINALIZED,
+      completed_at: now,
+      finalized_at: now,
+      finalized_by_user_id: session.user_id,
+      archived_at: null,
+      deleted_at: null,
+    }),
+  });
+}
+
 async function reopen(listId, session) {
   return transitionList(listId, session, {
     action: "list_reopened",
@@ -137,6 +155,82 @@ async function reopen(listId, session) {
       deleted_at: null,
     }),
   });
+}
+
+async function markReusable(listId, session) {
+  return transitionList(listId, session, {
+    action: "list_reusable_marked",
+    changeType: "update",
+    eventName: "lists.list.reusable_marked",
+    operation: "manage_reusable",
+    patch: () => ({
+      is_reusable: true,
+    }),
+  });
+}
+
+async function unmarkReusable(listId, session) {
+  return transitionList(listId, session, {
+    action: "list_reusable_unmarked",
+    changeType: "update",
+    eventName: "lists.list.reusable_unmarked",
+    operation: "manage_reusable",
+    patch: () => ({
+      is_reusable: false,
+    }),
+  });
+}
+
+async function duplicate(listId, payload = {}, session) {
+  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
+  const sourceList = await readListOrThrow(session, listId);
+  await assertCanAccessList(session, sourceList, "duplicate");
+
+  const sourceItems = await listsRepository.listItems(session.workspace_id, sourceList.list_id);
+  const title = normalizeOptionalText(payload.title || payload.copyTitle) || `Copy of ${sourceList.title}`;
+  const duplicatedList = await normalizeListPayload({
+    client_id: sourceList.client_id,
+    description: sourceList.description,
+    duplicated_from_list_id: sourceList.list_id,
+    is_reusable: false,
+    list_id: payload.list_id || payload.id || randomUUID(),
+    list_type: sourceList.list_type,
+    project_id: sourceList.project_id,
+    source_list_id: sourceList.is_reusable ? sourceList.list_id : sourceList.source_list_id,
+    title,
+  }, session, {
+    created_by_user_id: session.user_id,
+    status: LIST_STATUSES.ACTIVE,
+    updated_by_user_id: session.user_id,
+  });
+
+  const createdList = await listsRepository.create(session.workspace_id, {
+    ...duplicatedList,
+    completed_at: null,
+    finalized_at: null,
+    finalized_by_user_id: null,
+    archived_at: null,
+    deleted_at: null,
+  });
+
+  const copiedItems = [];
+  for (const [index, item] of sourceItems.entries()) {
+    copiedItems.push(await listsRepository.createItem(session.workspace_id, duplicateItemPayload(item, createdList, session, index)));
+  }
+
+  await recordListAudit(session, "list_duplicated", "create", sourceList, createdList, {
+    duplicated_from_list_id: sourceList.list_id,
+    source_list_id: createdList.source_list_id,
+  });
+  await emitListEvent("lists.list.duplicated", session, sourceList, createdList, {
+    duplicated_from_list_id: sourceList.list_id,
+    source_list_id: createdList.source_list_id,
+  });
+
+  return {
+    items: copiedItems.map(shapeItemForBrowser),
+    list: shapeListForBrowser(createdList),
+  };
 }
 
 async function archive(listId, session) {
@@ -284,6 +378,9 @@ async function transitionList(listId, session, transition) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const previousList = await readListOrThrow(session, listId, transition.options || {});
   await assertCanAccessList(session, previousList, transition.operation);
+  if (transition.operation === "finalize" && previousList.status === LIST_STATUSES.FINALIZED) {
+    throw new AppError("List is already finalized.", 400);
+  }
   const now = new Date().toISOString();
   const listRecord = await listsRepository.update(session.workspace_id, {
     ...previousList,
@@ -374,10 +471,13 @@ async function assertCanAccessList(session, listRecord, operation) {
         create: LIST_PERMISSIONS.CREATE,
         update: LIST_PERMISSIONS.UPDATE,
         complete: LIST_PERMISSIONS.COMPLETE,
+        duplicate: LIST_PERMISSIONS.DUPLICATE,
+        finalize: LIST_PERMISSIONS.FINALIZE,
         archive: LIST_PERMISSIONS.ARCHIVE,
         restore: LIST_PERMISSIONS.RESTORE,
         delete: LIST_PERMISSIONS.DELETE,
         manage_items: LIST_PERMISSIONS.MANAGE_ITEMS,
+        manage_reusable: LIST_PERMISSIONS.MANAGE_REUSABLE,
       }[operation] || LIST_PERMISSIONS.VIEW;
 
   if (operation === "read" && await permissionsService.can(session, LIST_PERMISSIONS.VIEW_ALL, listResource(listRecord))) {
@@ -521,6 +621,40 @@ function normalizeItemPayload(payload = {}, session, listRecord, fallback = {}) 
   };
 }
 
+function duplicateItemPayload(item, listRecord, session, index) {
+  return {
+    assigned_user_id: item.assigned_user_id || "",
+    actual_cost: null,
+    catalog_item_id: item.catalog_item_id || "",
+    checked_at: null,
+    checked_by_user_id: null,
+    completed_at: null,
+    completed_by_user_id: null,
+    created_by_user_id: session.user_id,
+    deleted_at: null,
+    estimated_cost: item.estimated_cost,
+    item_name: item.item_name,
+    list_id: listRecord.list_id,
+    list_item_id: randomUUID(),
+    metadata_json: {
+      ...(item.metadata_json || {}),
+      duplicated_from_list_item_id: item.list_item_id,
+      source_list_id: listRecord.source_list_id || listRecord.duplicated_from_list_id || "",
+    },
+    needed_by_date: item.needed_by_date || "",
+    notes: item.notes || "",
+    purchase_status: LIST_ITEM_PURCHASE_STATUSES.NEEDED,
+    quantity: item.quantity ?? 1,
+    sort_order: index * 10,
+    tracking_id: "",
+    unit: item.unit || "",
+    updated_by_user_id: session.user_id,
+    url: item.url || "",
+    vendor_name: item.vendor_name || "",
+    workspace_id: listRecord.workspace_id,
+  };
+}
+
 async function nextSortOrder(workspaceId, listId) {
   const items = await listsRepository.listItems(workspaceId, listId);
   return items.length === 0 ? 0 : Math.max(...items.map((item) => Number(item.sort_order) || 0)) + 10;
@@ -651,6 +785,7 @@ function shapeListForBrowser(listRecord = {}) {
   return {
     ...listRecord,
     id: listRecord.list_id,
+    isBillOfMaterials: listRecord.list_type === LIST_TYPES.BILL_OF_MATERIALS,
     isReusable: Boolean(listRecord.is_reusable),
   };
 }
@@ -750,13 +885,17 @@ const listsService = {
   create,
   createItem,
   deleteItem,
+  duplicate,
+  finalize,
   list,
+  markReusable,
   read,
   reopen,
   reorderItems,
   restore,
   softDelete,
   uncheckItem,
+  unmarkReusable,
   update,
   updateItem,
 };

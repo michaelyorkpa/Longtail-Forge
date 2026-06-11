@@ -4,6 +4,17 @@ Plan the project. Track the work. Preserve the knowledge.
 
 Longtail Forge started as a simple time tracker and is growing into a small-project operations hub for freelancers, small agencies, self-hosted teams, and eventually personal/family workspaces.
 
+## Table of Contents
+
+- [Longtail Forge: Product Philosophy](#longtail-forge-product-philosophy)
+- [Current State](#current-state)
+- [How the Core Modules Work Together](#how-the-core-modules-work-together)
+- [Documentation](#documentation)
+- [Getting Started](#getting-started)
+- [Development Checks](#development-checks)
+- [License](#license)
+- [Trademark](#trademark)
+
 ## Longtail Forge: Product Philosophy
 
 - Never make the user rebuild context from memory.
@@ -11,14 +22,7 @@ Longtail Forge started as a simple time tracker and is growing into a small-proj
 - Never punish drift; help the user recover.
 - Make work visible, startable, and resumable.
 
-## Table of Contents
-
-- [Current State](#current-state)
-- [Documentation](#documentation)
-- [Getting Started](#getting-started)
-- [Development Checks](#development-checks)
-- [License](#license)
-- [Trademark](#trademark)
+Longtail Forge is designed to reduce the amount of work a user has to keep in their head. Projects, tasks, notes, lists, files, time entries, reminders, search, and knowledge records should work together as structured context so users can capture information quickly, decide the next action, resume interrupted work, and preserve what was learned.
 
 ## Current State
 
@@ -37,6 +41,18 @@ Longtail Forge currently includes:
 - A fresh-start database baseline for new installs, a persistent SQLite adapter for local performance, and regression checks for permissions, accessibility, module sanity, migrations, legacy cleanup, and database performance
 
 The near-term roadmap continues expanding framework services and module surfaces that can be shared by current and future modules: support tickets, calendars, broader reporting, richer project tools, and UI consistency passes.
+
+## How the Core Modules Work Together
+
+Longtail Forge keeps different kinds of work in distinct but connected places:
+
+- **Workbench** is the daily work surface. It should help users see what is active, resume what was interrupted, start the next useful action, and recover from drift without digging through every module.
+- **Tasks** are commitments and outcomes. A good task should make the next action, ownership, status, due date, project context, reminders, files, notes, and time history easy to find.
+- **Lists** are operational checklists, shopping/procurement lists, packing lists, supply lists, parts lists, and reusable repeatable workflows. Lists should help users execute known steps without turning into Notes, Tasks, Files, bookmarks, inventory, purchasing, or ERP.
+- **Notes** are working memory and reference context. Notes should collect details, decisions, research, links, and reusable knowledge around clients, projects, tasks, tickets, and other records.
+- **Knowledge Base** is the curated publishing layer for reviewed knowledge. Notes can feed KB review workflows, but KB should remain separate from active working notes.
+- **Files** are supporting artifacts attached to records. Files should preserve source material where work happens instead of becoming a separate place users have to search first.
+- **Search, tags, reminders, notifications, and Help** are recovery systems. They should help users find, resume, understand, and complete work without making the app feel noisy or punitive.
 
 ## Documentation
 

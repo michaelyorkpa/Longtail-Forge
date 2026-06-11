@@ -3699,6 +3699,43 @@ dialog .form-actions {
     font-size: 0.85rem;
 }
 
+.lists-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.lists-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 2px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.lists-badge.is-reusable {
+    border-color: #facc15;
+    background: #fef9c3;
+    color: #854d0e;
+}
+
+.lists-badge.is-bom {
+    border-color: #a5b4fc;
+    background: #eef2ff;
+    color: #3730a3;
+}
+
+.lists-badge.is-duplicated {
+    border-color: #99f6e4;
+    background: #f0fdfa;
+    color: #115e59;
+}
+
 .lists-table tr.is-selected td {
     background: var(--color-hover);
 }

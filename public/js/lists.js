@@ -204,7 +204,7 @@ function renderLists() {
 function filteredLists() {
   const statusValue = statusFilter?.value || "active";
   const typeValue = typeFilter?.value || "all";
-  const reusableValue = reusableFilter?.value || "all";
+  const reusableValue = reusableFilter?.value || "no";
   const clientValue = usesBusinessScope() ? clientFilter?.value || "all" : "all";
   const projectValue = projectFilter?.value || "all";
   const assigneeValue = assigneeFilter?.value || "all";
@@ -261,6 +261,7 @@ function createListRow(list) {
   const row = document.createElement("tr");
   const titleCell = document.createElement("td");
   const titleButton = document.createElement("button");
+  const badges = document.createElement("span");
   const meta = document.createElement("span");
   const statusCell = document.createElement("td");
   const typeCell = document.createElement("td");
@@ -273,9 +274,11 @@ function createListRow(list) {
   titleButton.className = "lists-row-title";
   titleButton.textContent = list.title || "Untitled list";
   titleButton.addEventListener("click", () => selectList(list.list_id));
+  badges.className = "lists-badges";
+  badges.append(...listBadges(list));
   meta.className = "lists-row-meta";
   meta.textContent = listContextLabel(list);
-  titleCell.append(titleButton, meta);
+  titleCell.append(titleButton, badges, meta);
   statusCell.appendChild(statusBadge(list.status));
   typeCell.textContent = LIST_TYPE_LABELS[list.list_type] || list.list_type || "";
   neededCell.textContent = nextNeededDate(list) || "-";
@@ -318,6 +321,7 @@ function renderDetail(list) {
   const header = document.createElement("div");
   const heading = document.createElement("div");
   const title = document.createElement("h2");
+  const badges = document.createElement("span");
   const meta = document.createElement("p");
   const actions = document.createElement("div");
   const description = document.createElement("p");
@@ -327,8 +331,10 @@ function renderDetail(list) {
   header.className = "lists-detail-header";
   heading.className = "lists-detail-heading";
   title.textContent = list.title || "Untitled list";
+  badges.className = "lists-badges";
+  badges.append(...listBadges(list));
   meta.textContent = detailMeta(list);
-  heading.append(title, meta);
+  heading.append(title, badges, meta);
   actions.className = "lists-detail-actions";
   actions.append(...detailActionButtons(list, locked));
   header.append(heading, actions);
@@ -345,9 +351,18 @@ function renderDetail(list) {
 function detailActionButtons(list, locked) {
   const buttons = [];
 
+  if (list.status !== "deleted") {
+    buttons.push(actionButton("Duplicate", "duplicate-list", list.list_id));
+  }
   if (!locked) {
     buttons.push(actionButton("Edit", "edit-list", list.list_id));
-    buttons.push(actionButton("Complete", "complete-list", list.list_id));
+    if (list.status === "active") {
+      buttons.push(actionButton("Complete", "complete-list", list.list_id));
+    }
+    if (["active", "completed"].includes(list.status)) {
+      buttons.push(actionButton("Finalize", "finalize-list", list.list_id));
+    }
+    buttons.push(actionButton(list.is_reusable ? "Unmark Reusable" : "Mark Reusable", list.is_reusable ? "unmark-reusable-list" : "mark-reusable-list", list.list_id));
     buttons.push(actionButton("Archive", "archive-list", list.list_id));
     buttons.push(actionButton("Delete", "delete-list", list.list_id, "secondary"));
   }
@@ -491,8 +506,8 @@ async function handleDetailClick(event) {
       setStatus("");
       return;
     }
-    await runAction(action, list, itemId);
-    await refreshLists(list?.list_id || state.selectedListId);
+    const selectedId = await runAction(action, list, itemId);
+    await refreshLists(selectedId || list?.list_id || state.selectedListId);
     setStatus("");
   } catch (error) {
     setStatus(error.message || "List action failed.", true);
@@ -505,8 +520,26 @@ async function runAction(action, list, itemId) {
 
   if (action === "complete-list") {
     await api.postJson(`/api/lists/${listId}/complete`, {});
+  } else if (action === "finalize-list") {
+    await api.postJson(`/api/lists/${listId}/finalize`, {});
   } else if (action === "reopen-list") {
     await api.postJson(`/api/lists/${listId}/reopen`, {});
+  } else if (action === "duplicate-list") {
+    const result = await api.postJson(`/api/lists/${listId}/duplicate`, {});
+    if (reusableFilter) {
+      reusableFilter.value = "no";
+    }
+    if (statusFilter) {
+      statusFilter.value = "active";
+    }
+    if (archiveFilter) {
+      archiveFilter.value = "current";
+    }
+    return result.list?.list_id || result.list?.id || "";
+  } else if (action === "mark-reusable-list") {
+    await api.postJson(`/api/lists/${listId}/mark-reusable`, {});
+  } else if (action === "unmark-reusable-list") {
+    await api.postJson(`/api/lists/${listId}/unmark-reusable`, {});
   } else if (action === "archive-list") {
     await api.postJson(`/api/lists/${listId}/archive`, {});
   } else if (action === "restore-list") {
@@ -520,6 +553,7 @@ async function runAction(action, list, itemId) {
   } else if (action === "move-item-up" || action === "move-item-down") {
     await moveItem(list, itemId, action === "move-item-up" ? -1 : 1);
   }
+  return "";
 }
 
 async function moveItem(list, itemId, direction) {
@@ -691,6 +725,7 @@ function normalizeListRecord(list = {}, items = []) {
   return {
     ...list,
     id: list.list_id || list.id,
+    isBillOfMaterials: Boolean(list.isBillOfMaterials || list.list_type === "bill_of_materials"),
     is_reusable: Boolean(list.is_reusable ?? list.isReusable),
     items: items.map((item) => ({ ...item, id: item.list_item_id || item.id })),
     list_id: list.list_id || list.id,
@@ -743,6 +778,27 @@ function statusBadge(status) {
   badge.className = `lists-status-badge is-${status || "unknown"}`;
   badge.textContent = STATUS_LABELS[status] || status || "Unknown";
   return badge;
+}
+
+function listBadges(list) {
+  const badges = [];
+  if (list.is_reusable) {
+    badges.push(badge("Reusable List", "is-reusable"));
+  }
+  if (list.isBillOfMaterials || list.list_type === "bill_of_materials") {
+    badges.push(badge("BOM", "is-bom"));
+  }
+  if (list.duplicated_from_list_id) {
+    badges.push(badge("Duplicated", "is-duplicated"));
+  }
+  return badges;
+}
+
+function badge(label, modifier) {
+  const element = document.createElement("span");
+  element.className = `lists-badge ${modifier}`;
+  element.textContent = label;
+  return element;
 }
 
 function inputField(labelText, type, name, attributes = {}) {

@@ -41,7 +41,7 @@ const LIST_PERMISSION_DEFINITIONS = [
   {
     id: LIST_PERMISSIONS.FINALIZE,
     label: "Finalize Lists",
-    description: "Finalize reproducible historical lists when that workflow ships.",
+    description: "Finalize reproducible historical lists and bill-of-materials records.",
     operation: "finalize",
   },
   {
@@ -65,7 +65,7 @@ const LIST_PERMISSION_DEFINITIONS = [
   {
     id: LIST_PERMISSIONS.DUPLICATE,
     label: "Duplicate Lists",
-    description: "Duplicate accessible lists when reusable-list workflows ship.",
+    description: "Duplicate accessible lists into independent active working lists.",
     operation: "duplicate",
   },
   {
@@ -77,7 +77,7 @@ const LIST_PERMISSION_DEFINITIONS = [
   {
     id: LIST_PERMISSIONS.MANAGE_REUSABLE,
     label: "Manage Reusable Lists",
-    description: "Mark and manage reusable lists when that workflow ships.",
+    description: "Mark and manage reusable lists used as reusable starting points.",
     operation: "manage_reusable",
   },
   {
@@ -163,7 +163,7 @@ const listsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.4.4",
+  version: "0.33.4.5",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,

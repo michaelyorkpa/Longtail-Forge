@@ -37,7 +37,7 @@ async function assertManifestContracts() {
   const listsModule = modulesService.getModule("lists");
   const permissionIds = new Set(listsModule.permissions.map((permission) => permission.id));
 
-  assert.equal(listsModule.version, "0.33.4.4");
+  assert.equal(listsModule.version, "0.33.4.5");
   assert.equal(listsModule.resourceDefinitions[0].key, "lists");
   assert.deepEqual(listsModule.resourceDefinitions[0].operations, [
     "read",
@@ -74,6 +74,8 @@ async function assertManifestContracts() {
     ["list", "list_item"],
   );
   assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.list.created"));
+  assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.list.duplicated"));
+  assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.list.finalized"));
   assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.item.checked"));
 
   const rows = await querySql(`
@@ -127,6 +129,63 @@ async function assertServiceLifecycle(session) {
     const unchecked = await listsService.uncheckItem(created.list.list_id, item.item.list_item_id, session);
     assert.equal(unchecked.item.checked_at, null);
     assert.ok(unchecked.item.completed_at, "Unchecking should not silently remove item completion state");
+
+    await listsService.updateItem(created.list.list_id, item.item.list_item_id, {
+      actual_cost: 42,
+      item_name: "Aluminum extrusion",
+      purchase_status: "ordered",
+      quantity: 4,
+      tracking_id: "TRACK-123",
+    }, session);
+
+    const reusable = await listsService.markReusable(created.list.list_id, session);
+    assert.equal(reusable.list.is_reusable, true);
+
+    const duplicated = await listsService.duplicate(created.list.list_id, {}, session);
+    assert.equal(duplicated.list.status, "active");
+    assert.equal(duplicated.list.is_reusable, false);
+    assert.equal(duplicated.list.source_list_id, created.list.list_id);
+    assert.equal(duplicated.list.duplicated_from_list_id, created.list.list_id);
+    assert.equal(duplicated.items.length, 1);
+    assert.equal(duplicated.items[0].actual_cost, null);
+    assert.equal(duplicated.items[0].checked_at, null);
+    assert.equal(duplicated.items[0].completed_at, null);
+    assert.equal(duplicated.items[0].purchase_status, "needed");
+    assert.equal(duplicated.items[0].tracking_id, null);
+
+    await listsService.updateItem(created.list.list_id, item.item.list_item_id, {
+      item_name: "Edited reusable item",
+      purchase_status: "planned",
+      quantity: 8,
+    }, session);
+    const duplicatedRead = await listsService.read(duplicated.list.list_id, session);
+    assert.equal(duplicatedRead.items[0].item_name, "Aluminum extrusion");
+    assert.equal(duplicatedRead.items[0].quantity, 4);
+
+    const normalAgain = await listsService.unmarkReusable(created.list.list_id, session);
+    assert.equal(normalAgain.list.is_reusable, false);
+
+    const bom = await listsService.create({
+      list_type: "bill_of_materials",
+      title: "Prototype BOM",
+    }, session);
+    await listsService.createItem(bom.list.list_id, {
+      actual_cost: 12,
+      item_name: "Control board",
+      purchase_status: "received",
+      tracking_id: "BOM-TRACK",
+    }, session);
+    const finalizedBom = await listsService.finalize(bom.list.list_id, session);
+    assert.equal(finalizedBom.list.status, "finalized");
+    await assert.rejects(
+      () => listsService.createItem(bom.list.list_id, { item_name: "Should not edit finalized" }, session),
+      /finalized_read_only/,
+    );
+    const duplicatedBom = await listsService.duplicate(bom.list.list_id, {}, session);
+    assert.equal(duplicatedBom.list.status, "active");
+    assert.equal(duplicatedBom.list.list_type, "bill_of_materials");
+    assert.equal(duplicatedBom.items[0].actual_cost, null);
+    assert.equal(duplicatedBom.items[0].purchase_status, "needed");
 
     const completed = await listsService.complete(created.list.list_id, session);
     assert.equal(completed.list.status, "completed");

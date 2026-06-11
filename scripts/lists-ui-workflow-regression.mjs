@@ -33,7 +33,7 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
-  assert.equal(listsModule.version, "0.33.4.4");
+  assert.equal(listsModule.version, "0.33.4.5");
   assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
   assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
@@ -50,6 +50,7 @@ async function assertProtectedView(session) {
   assert.match(html, /data-list-create/);
   assert.match(html, /data-list-filter-status/);
   assert.match(html, /data-list-filter-reusable/);
+  assert.match(html, /<option value="no" selected>Normal lists<\/option>/);
   assert.match(html, /data-list-filter-assignee/);
   assert.match(html, /data-list-filter-needed/);
   assert.match(html, /data-list-filter-archive/);
@@ -65,6 +66,13 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /\/api\/client-projects/);
   assert.match(listsJs, /\/api\/users/);
   assert.match(listsJs, /complete-list/);
+  assert.match(listsJs, /finalize-list/);
+  assert.match(listsJs, /duplicate-list/);
+  assert.match(listsJs, /mark-reusable-list/);
+  assert.match(listsJs, /unmark-reusable-list/);
+  assert.match(listsJs, /\/api\/lists\/\$\{listId\}\/duplicate/);
+  assert.match(listsJs, /Reusable List/);
+  assert.match(listsJs, /BOM/);
   assert.match(listsJs, /reopen-list/);
   assert.match(listsJs, /archive-list/);
   assert.match(listsJs, /restore-list/);
@@ -77,6 +85,9 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /setBusinessControlsVisible\(usesBusinessScope\(\)\)/);
 
   assert.match(styles, /\.lists-workspace/);
+  assert.match(styles, /\.lists-badge\.is-reusable/);
+  assert.match(styles, /\.lists-badge\.is-bom/);
+  assert.match(styles, /\.lists-badge\.is-duplicated/);
   assert.match(styles, /\.lists-item-form/);
   assert.match(styles, /\.lists-status-badge\.is-active/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.lists-workspace/);

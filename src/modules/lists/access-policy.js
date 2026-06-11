@@ -62,10 +62,14 @@ const LIST_EVENT_TYPES = Object.freeze([
   eventType("lists.list.created", "List Created", "Emitted after a list is created.", "list"),
   eventType("lists.list.updated", "List Updated", "Emitted after a list is updated.", "list"),
   eventType("lists.list.completed", "List Completed", "Emitted after a list is completed.", "list"),
+  eventType("lists.list.finalized", "List Finalized", "Emitted after a list is finalized.", "list"),
   eventType("lists.list.reopened", "List Reopened", "Emitted after a completed list is reopened.", "list"),
   eventType("lists.list.archived", "List Archived", "Emitted after a list is archived.", "list"),
   eventType("lists.list.restored", "List Restored", "Emitted after a list is restored.", "list"),
   eventType("lists.list.deleted", "List Deleted", "Emitted after a list is soft-deleted.", "list"),
+  eventType("lists.list.duplicated", "List Duplicated", "Emitted after a list is duplicated.", "list"),
+  eventType("lists.list.reusable_marked", "Reusable List Marked", "Emitted after a list is marked reusable.", "list"),
+  eventType("lists.list.reusable_unmarked", "Reusable List Unmarked", "Emitted after a list is unmarked reusable.", "list"),
   eventType("lists.item.created", "List Item Created", "Emitted after a list item is created.", "list_item"),
   eventType("lists.item.updated", "List Item Updated", "Emitted after a list item is updated.", "list_item"),
   eventType("lists.item.checked", "List Item Checked", "Emitted after a list item is checked.", "list_item"),
@@ -78,10 +82,13 @@ const LIST_WRITE_OPERATIONS = new Set([
   "create",
   "update",
   "complete",
+  "finalize",
   "archive",
   "restore",
   "delete",
+  "duplicate",
   "manage_items",
+  "manage_reusable",
 ]);
 
 const LIST_OPERATION_PERMISSIONS = Object.freeze({
@@ -89,10 +96,13 @@ const LIST_OPERATION_PERMISSIONS = Object.freeze({
   create: LIST_PERMISSIONS.CREATE,
   update: LIST_PERMISSIONS.UPDATE,
   complete: LIST_PERMISSIONS.COMPLETE,
+  finalize: LIST_PERMISSIONS.FINALIZE,
   archive: LIST_PERMISSIONS.ARCHIVE,
   restore: LIST_PERMISSIONS.RESTORE,
   delete: LIST_PERMISSIONS.DELETE,
+  duplicate: LIST_PERMISSIONS.DUPLICATE,
   manage_items: LIST_PERMISSIONS.MANAGE_ITEMS,
+  manage_reusable: LIST_PERMISSIONS.MANAGE_REUSABLE,
 });
 
 function eventType(event, label, description, recordType) {
@@ -163,11 +173,11 @@ function canAccessList({
     return deny("deleted_list");
   }
 
-  if (list.status === LIST_STATUSES.FINALIZED && LIST_WRITE_OPERATIONS.has(normalizedOperation) && normalizedOperation !== "archive" && normalizedOperation !== "restore") {
+  if (list.status === LIST_STATUSES.FINALIZED && LIST_WRITE_OPERATIONS.has(normalizedOperation) && normalizedOperation !== "archive" && normalizedOperation !== "restore" && normalizedOperation !== "duplicate") {
     return deny("finalized_read_only");
   }
 
-  if (list.status === LIST_STATUSES.ARCHIVED && LIST_WRITE_OPERATIONS.has(normalizedOperation) && normalizedOperation !== "restore" && normalizedOperation !== "delete") {
+  if (list.status === LIST_STATUSES.ARCHIVED && LIST_WRITE_OPERATIONS.has(normalizedOperation) && normalizedOperation !== "restore" && normalizedOperation !== "delete" && normalizedOperation !== "duplicate") {
     return deny("archived_read_only");
   }
 

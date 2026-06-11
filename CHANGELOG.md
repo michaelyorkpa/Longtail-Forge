@@ -1,3 +1,10 @@
+## Version 0.33.4.5 - 2026-06-11 11:44 -04:00
+
+- Added reusable-list mark/unmark behavior, dedicated normal/reusable filtering defaults, and clear Reusable List, BOM, and duplicated-list badges in the protected Lists UI.
+- Added list duplication for accessible lists, creating independent active lists with source and duplicated-from references while resetting checked/completed state, tracking IDs, actual costs, and purchase/order status.
+- Added finalize behavior for reproducible historical records, keeping finalized and bill-of-materials-style lists read-only while still allowing duplicate/archive/restore workflows where permitted.
+- Expanded Lists service, API, and UI regressions to prove reusable-list duplicate independence and finalized BOM duplication behavior.
+
 ## Version 0.33.4.4 - 2026-06-11 11:24 -04:00
 
 - Added the protected Lists UI MVP with module-owned navigation, workspace-aware Shopping/Procurement labels, list index/detail panels, create/edit forms, lifecycle controls, and inline item management.

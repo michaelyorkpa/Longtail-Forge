@@ -96,15 +96,29 @@ Use these sub-versions as the implementation order for the Lists module. The det
 
 #### Version 0.33.4.5 - Reusable Lists, Duplication, and Bill of Materials
 
-* [ ] Add mark/unmark Reusable List behavior.
-* [ ] Add Reusable Lists index filter/view and clear UI badges.
-* [ ] Add list duplication for any accessible list.
-* [ ] Ensure duplicated lists are independent active lists by default.
-* [ ] Reset checked/completed state, tracking IDs, actual costs, and purchase/order status during normal duplication.
-* [ ] Store source and duplicated-from list references where useful.
-* [ ] Add `bill_of_materials` behavior for reproducible historical records.
-* [ ] Add finalize/reopen protections for finalized lists and BOM-style lists.
-* [ ] Add tests proving reusable-list edits do not mutate previous duplicates and finalized BOM lists remain duplicate-able.
+* [x] Add mark/unmark Reusable List behavior.
+* [x] Add Reusable Lists index filter/view and clear UI badges.
+* [x] Add list duplication for any accessible list.
+* [x] Ensure duplicated lists are independent active lists by default.
+* [x] Reset checked/completed state, tracking IDs, actual costs, and purchase/order status during normal duplication.
+* [x] Store source and duplicated-from list references where useful.
+* [x] Add `bill_of_materials` behavior for reproducible historical records.
+* [x] Add finalize/reopen protections for finalized lists and BOM-style lists.
+* [x] Add tests proving reusable-list edits do not mutate previous duplicates and finalized BOM lists remain duplicate-able.
+
+#### Version 0.33.4.5.1 - Protected Lists UI MVP Update
+
+* [ ] Make Lists UI optimized for fast capture, visible item state, simple checking, and low-friction resumption.
+* [ ] Avoid making users choose business procurement fields in personal/family flows unless the selected list type needs them.
+* [ ] Show enough list context to make the next action obvious without turning the index/detail screen into a full project dashboard.
+* [ ] For interrupted lists, make status, checked items, incomplete items, needed dates, assigned users, and linked records easy to recover at a glance.
+
+#### Version 0.33.4.5.2 - Reusable Lists, Duplication, and Bill of Materials Update
+
+* [ ] Treat reusable lists as repeatable execution aids for known workflows, not as generic information containers.
+* [ ] Duplicating a reusable list should create a clear active working copy with reset item states and preserved source context.
+* [ ] Reusable list templates should help users avoid rebuilding routine checklists from memory.
+* [ ] BOM-style finalized lists should preserve historical context while remaining easy to duplicate into new active work.
 
 #### Version 0.33.4.6 - Catalog Items, Usage Tracking, and Suggestions
 
@@ -130,6 +144,10 @@ Use these sub-versions as the implementation order for the Lists module. The det
 * [ ] Register Lists attachment target integration if Files supports module attachments generically.
 * [ ] Keep search, tags, files, notes, dashboard activity, and task-link integration optional for the Lists MVP unless their framework contracts are already stable enough.
 * [ ] Add tests proving list access does not grant access to linked notes, tasks, projects, clients, files, tickets, or future KB records.
+* [ ] Linked records should make list work easier to resume by showing permission-safe task, note, project, client, and file context.
+* [ ] Lists linked to tasks should support execution context without making list items become full task records.
+* [ ] Lists linked to notes should support reference/context lookup without making notes become checklist storage.
+* [ ] Search/tag/file integrations should help users recover the list and its related context without bypassing module permissions.
 
 #### Version 0.33.4.8 - Use Case Coverage, Help, Verification, and Release Closeout
 
@@ -144,6 +162,9 @@ Use these sub-versions as the implementation order for the Lists module. The det
 * [ ] Run SQLite integrity check after Lists migrations and destructive lifecycle tests.
 * [ ] Verify `/api/app-info` reports the completed Lists closeout version.
 * [ ] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process.
+* [ ] Add Help content explaining how Lists work with Tasks, Notes, Files, Projects, Search, and reusable workflows.
+* [ ] Verify that list workflows support capture, execution, interruption, resumption, completion, duplication, and historical review.
+* [ ] Verify that empty, completed, finalized, archived, and deleted states provide useful next actions instead of dead ends.
 
 ### Detailed Requirements Backlog
 
@@ -804,6 +825,13 @@ Use these sub-versions as the implementation order for the Lists module. The det
 - [ ] Inside the task details (Edit Task Modal), completed and archived tasks should display "Time to completion" which is calculated from created date/time and completed date/time
   - This number should be usable by reporting module for efficiency numbers
 
+### Recurrence Update
+
+- [ ] Add Weekdays and Weekends to Frequency options, below Daily
+  - Weekdays means Monday, Tuesday, Wednesday, Thursday, Friday
+  - Weekends means Saturday, Sunday
+  - Daily means 7 days a week
+
 ### Task Checklists
 
 Decision: Task checklists are lightweight completion aids inside a task. Full subtasks are separate task records and should be deferred until the Tasks module needs parent-child task planning, dependencies, or nested assignment workflows.
@@ -963,7 +991,7 @@ Verify public API key permissions exist for read/write of all framework and firs
 
 ### Files module
 
-- There's no way to delete files??
+- There's no way to delete files?!
 - Multiple file upload at once
 - Drag and Drop file upload
 
@@ -1224,7 +1252,10 @@ Verify public API key permissions exist for read/write of all framework and firs
 
 - [ ] Dashboard should no longer be hardcoded, it should be a framework owned framework for displaying widgetized information from the framework and first-party modules
 
-- [ ] Will likely need a manifest from each module for what data can be widgetized
+- [ ] Workbench should no logner be hardcoded, it should become it's own framework-owned framework for displaying focused, widgetized information with easy-access to the workflow tools in LTF
+  - Workbench is the live work surface. It should help users decide what to do now, resume interrupted work, see active timers, recover stale/blocked work, and quickly capture new thoughts without navigating away from the current workflow. Workbench should consume module-contributed actions and context rather than owning module-specific task, time, note, list, or file logic.
+
+- [ ] Will we need a manifest from each module for what data can be widgetized?
 
 - [ ] Dashboard should be the hub for getting overviews of projects
   - [ ] Dashboard should start with a view of all projects in Workspace

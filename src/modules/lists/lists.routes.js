@@ -40,8 +40,29 @@ listsRoutes.post("/lists/:listId/complete", asyncRoute(async (request, response)
   response.status(200).json(result);
 }));
 
+listsRoutes.post("/lists/:listId/finalize", asyncRoute(async (request, response) => {
+  const result = await listsService.finalize(request.params.listId, request.session);
+  response.status(200).json(result);
+}));
+
 listsRoutes.post("/lists/:listId/reopen", asyncRoute(async (request, response) => {
   const result = await listsService.reopen(request.params.listId, request.session);
+  response.status(200).json(result);
+}));
+
+listsRoutes.post("/lists/:listId/duplicate", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await listsService.duplicate(request.params.listId, payload, request.session);
+  response.status(201).json(result);
+}));
+
+listsRoutes.post("/lists/:listId/mark-reusable", asyncRoute(async (request, response) => {
+  const result = await listsService.markReusable(request.params.listId, request.session);
+  response.status(200).json(result);
+}));
+
+listsRoutes.post("/lists/:listId/unmark-reusable", asyncRoute(async (request, response) => {
+  const result = await listsService.unmarkReusable(request.params.listId, request.session);
   response.status(200).json(result);
 }));
 
