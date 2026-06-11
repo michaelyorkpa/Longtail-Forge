@@ -47,34 +47,27 @@ Use the following decisions for the Lists module:
 
 Use these sub-versions as the implementation order for the Lists module. The detailed checklist below remains the source backlog; each sub-version owns the relevant checklist items and should be closed out with package version, changelog, decisions, and verification when implemented.
 
-#### Version 0.33.4.6 - Catalog Items, Usage Tracking, and Suggestions
+#### Version 0.33.4.7.1 - Linked Records and Framework Integrations - Resume State Update
 
-* [x] Add `list_item_catalog` or the chosen equivalent service-owned reusable item table.
-* [x] Add usage tracking through either `list_item_usage` or catalog-level metrics.
-* [x] Add catalog create/update service behavior and API routes.
-* [x] Add item suggestion API route and deterministic ranking.
-* [x] Rank suggestions by workspace, list type, recency, frequency, and safe client/project context where available.
-* [x] Copy catalog values into list items as snapshots.
-* [x] Prevent catalog edits from rewriting historical list items.
-* [x] Add autocomplete/suggestion UI for list item creation.
-* [x] Add tests for workspace-scoped suggestions, repeated item ranking, catalog snapshots, and historical item immutability.
+* [x] Add resume-safe list context metadata for linked records.
+  * [x] List linked-record metadata should expose safe labels for linked task, note, project, and client records where permitted.
+  * [x] List access must not grant linked-record access.
+  * [x] Linked-record metadata should include enough context for a future Workbench candidate without making Lists depend on Workbench.
+  * [x] Suggested safe fields: linked record type, linked record ID, label, module ID, source URL, unavailable/inaccessible state, and link role.
 
-#### Version 0.33.4.7 - Linked Records and Framework Integrations
+* [x] Add list progress fields to list detail and list index payloads where cheap and permission-safe.
+  * [x] Total item count.
+  * [x] Checked item count.
+  * [x] Completed item count.
+  * [x] Next unchecked item label where permitted.
+  * [x] Earliest needed-by date.
+  * [x] Last list/item activity timestamp.
+  * [x] Do not add Workbench ranking in this release.
 
-* [ ] Add `list_links` storage and indexes.
-* [ ] Add service/API behavior for linking and unlinking lists to supported records.
-* [ ] Support initial links to tasks, notes, projects, and business-workspace clients.
-* [ ] Enforce workspace boundaries and linked-record permission checks.
-* [ ] Show permission-safe linked-record metadata on list pages.
-* [ ] Register Lists search integration if the search contract is ready for module records.
-* [ ] Register Lists tag integration if the tag contract is ready for module records.
-* [ ] Register Lists attachment target integration if Files supports module attachments generically.
-* [ ] Keep search, tags, files, notes, dashboard activity, and task-link integration optional for the Lists MVP unless their framework contracts are already stable enough.
-* [ ] Add tests proving list access does not grant access to linked notes, tasks, projects, clients, files, tickets, or future KB records.
-* [ ] Linked records should make list work easier to resume by showing permission-safe task, note, project, client, and file context.
-* [ ] Lists linked to tasks should support execution context without making list items become full task records.
-* [ ] Lists linked to notes should support reference/context lookup without making notes become checklist storage.
-* [ ] Search/tag/file integrations should help users recover the list and its related context without bypassing module permissions.
+* [x] Add safe Lists lifecycle event metadata for future resume state.
+  * [x] List created/updated/completed/reopened/finalized/archived/restored/deleted.
+  * [x] List item created/updated/checked/unchecked/completed/deleted/reordered.
+  * [x] Event summaries should include safe list title, status, linked project/client IDs, progress counts, and no inaccessible linked-record details.
 
 #### Version 0.33.4.8 - Use Case Coverage, Help, Verification, and Release Closeout
 
@@ -92,6 +85,13 @@ Use these sub-versions as the implementation order for the Lists module. The det
 * [ ] Add Help content explaining how Lists work with Tasks, Notes, Files, Projects, Search, and reusable workflows.
 * [ ] Verify that list workflows support capture, execution, interruption, resumption, completion, duplication, and historical review.
 * [ ] Verify that empty, completed, finalized, archived, and deleted states provide useful next actions instead of dead ends.
+
+* [ ] Verify Lists expose enough safe state for future Workbench/resume use.
+  * [ ] Active incomplete lists expose progress.
+  * [ ] Interrupted lists expose last updated activity.
+  * [ ] Linked lists expose permission-safe task/project/client/note context.
+  * [ ] Finalized and archived lists remain useful historical context without appearing as active work by default.
+  * [ ] Deleted lists do not appear as resume candidates.
 
 ### Detailed Requirements Backlog
 
@@ -411,31 +411,31 @@ Use these sub-versions as the implementation order for the Lists module. The det
 
 * Add generic list links.
 
-  * [ ] Add `list_links` table.
-  * [ ] Suggested fields:
+  * [x] Add `list_links` table.
+  * [x] Suggested fields:
 
-    * [ ] `list_link_id`
-    * [ ] `workspace_id`
-    * [ ] `list_id`
-    * [ ] `linked_module_id`
-    * [ ] `linked_record_type`
-    * [ ] `linked_record_id`
-    * [ ] `link_role`
-    * [ ] `created_by_user_id`
-    * [ ] `created_at`
-    * [ ] `removed_at` optional
-    * [ ] `metadata_json`
+    * [x] `list_link_id`
+    * [x] `workspace_id`
+    * [x] `list_id`
+    * [x] `linked_module_id`
+    * [x] `linked_record_type`
+    * [x] `linked_record_id`
+    * [x] `link_role`
+    * [x] `created_by_user_id`
+    * [x] `created_at`
+    * [x] `removed_at` optional
+    * [x] `metadata_json`
 
-  * [ ] Lists should be linkable to tasks.
-  * [ ] Lists should be linkable to notes.
-  * [ ] Lists should be linkable to projects.
-  * [ ] Lists should be linkable to clients in business workspaces.
-  * [ ] Client linking should be unavailable or hidden in personal/family workspaces.
+  * [x] Lists should be linkable to tasks.
+  * [x] Lists should be linkable to notes.
+  * [x] Lists should be linkable to projects.
+  * [x] Lists should be linkable to clients in business workspaces.
+  * [x] Client linking should be unavailable or hidden in personal/family workspaces.
   * [ ] Future supported linked records may include tickets, files, and Knowledge Base articles.
-  * [ ] List links must not cross workspace boundaries.
-  * [ ] Linked-record reads must respect the linked module's permissions.
-  * [ ] List access should not automatically grant access to linked notes, tasks, projects, clients, files, tickets, or KB articles.
-  * [ ] Linked-record metadata shown on list pages must be permission-safe.
+  * [x] List links must not cross workspace boundaries.
+  * [x] Linked-record reads must respect the linked module's permissions.
+  * [x] List access should not automatically grant access to linked notes, tasks, projects, clients, files, tickets, or KB articles.
+  * [x] Linked-record metadata shown on list pages must be permission-safe.
 
 * Add Lists permissions.
 
@@ -490,8 +490,8 @@ Use these sub-versions as the implementation order for the Lists module. The det
   * [ ] `list_item`
   * [ ] `list_item_catalog`
   * [ ] `list_item_usage`
-  * [ ] `list_link`
-  * [ ] Audit list creation, updates, completion, finalization, archive/restore, deletion, duplication, reusable-list changes, item creation, item updates, item check/uncheck, item completion, item status changes, item deletion, catalog item creation/update, usage tracking where appropriate, and list link creation/removal.
+  * [x] `list_link`
+  * [x] Audit list creation, updates, completion, finalization, archive/restore, deletion, duplication, reusable-list changes, item creation, item updates, item check/uncheck, item completion, item status changes, item deletion, catalog item creation/update, usage tracking where appropriate, and list link creation/removal.
   * [ ] Audit records should include workspace ID, actor user ID, list ID, item ID where applicable, safe title/item metadata, status, list type, and timestamps.
   * [ ] Audit records should not expose unsafe URL metadata or private linked-record details to unauthorized users.
 
@@ -516,8 +516,8 @@ Use these sub-versions as the implementation order for the Lists module. The det
   * [ ] `lists.item.deleted`
   * [ ] `lists.catalog_item.created`
   * [ ] `lists.catalog_item.updated`
-  * [ ] `lists.link.created`
-  * [ ] `lists.link.removed`
+  * [x] `lists.link.created`
+  * [x] `lists.link.removed`
   * [ ] Event payloads should include workspace ID, actor user ID, list ID, item ID where applicable, source list ID where applicable, safe title/item metadata, status, list type, context IDs where safe, and timestamps.
   * [ ] Event payloads should not include unsafe URL previews, hidden linked-record details, or private metadata.
 
@@ -608,9 +608,9 @@ Use these sub-versions as the implementation order for the Lists module. The det
   * [x] `GET /api/lists/catalog-items`
   * [x] `POST /api/lists/catalog-items`
   * [x] `PUT /api/lists/catalog-items/:catalogItemId`
-  * [ ] `GET /api/lists/:listId/links`
-  * [ ] `POST /api/lists/:listId/links`
-  * [ ] `POST /api/lists/:listId/links/:linkId/remove`
+  * [x] `GET /api/lists/:listId/links`
+  * [x] `POST /api/lists/:listId/links`
+  * [x] `POST /api/lists/:listId/links/:linkId/remove`
 
 * Add Lists navigation and protected views.
 
@@ -628,7 +628,7 @@ Use these sub-versions as the implementation order for the Lists module. The det
   * [ ] Add reorder controls.
   * [ ] Add list status controls.
   * [ ] Add finalize controls for bill of materials and historical production/R&D lists.
-  * [ ] Add linked-record panel.
+  * [x] Add linked-record panel.
   * [ ] Add disabled-module state.
   * [ ] Add loading, empty, error, permission-denied, active, completed, finalized, archived, and deleted states.
   * [ ] Keep layout consistent with existing authenticated module pages.
@@ -707,10 +707,10 @@ Use these sub-versions as the implementation order for the Lists module. The det
 
 * Add Lists framework integrations.
 
-  * [ ] Lists should support tags once tagging integration is stable.
-  * [ ] Lists should be searchable once framework search integration is stable.
+  * [x] Lists should support tags once tagging integration is stable.
+  * [x] Lists should be searchable once framework search integration is stable.
   * [ ] List records should be eligible for dashboard/activity feed events later.
-  * [ ] Lists should be available as a future attachment target if Files supports module attachments generically.
+  * [x] Lists should be available as a future attachment target if Files supports module attachments generically.
   * [ ] Lists should be available as a future note-link target if Notes supports module record linking generically.
   * [ ] Lists should be available as a future task-link target if Tasks supports module record linking generically.
   * [ ] Lists should not require search, tags, dashboard activity, files, or notes integration to ship the first usable MVP.
@@ -743,9 +743,50 @@ Use these sub-versions as the implementation order for the Lists module. The det
   * [ ] Archived lists are hidden from normal browsing but remain available to permitted historical reads.
   * [ ] Deleted lists and deleted items are soft-deleted where consistent with existing module behavior.
   * [ ] List events emit safe payloads.
-  * [ ] Lists do not replace Notes, Tasks, Files, Search, or Knowledge Base records.
+  * [x] Lists do not replace Notes, Tasks, Files, Search, or Knowledge Base records.
 
 ## Version 0.33.5.0 - Task Module QoL Updates
+
+### Task Next Action and Resume Metadata
+
+Decision:
+Tasks should carry enough plain-language context for Dashboard, Workbench, notifications, search, and future resume state to explain what the user can do next without guessing from title/status/due date alone.
+
+- [ ] Add optional `next_action` field to tasks.
+  - [ ] Keep it short and plain-language.
+  - [ ] Example: "Send draft invoice to CTU."
+  - [ ] Show it in the task detail dialog.
+  - [ ] Include it in task API responses where the user can read the task.
+  - [ ] Include it in task search/resume-safe payloads where appropriate.
+
+- [ ] Add optional `blocked_reason` field to tasks.
+  - [ ] Show when task status is `blocked`.
+  - [ ] Prompt for it when moving a task to `blocked`, but do not hard-require it in the first pass unless implementation is simple.
+  - [ ] Include it in safe task summaries for Workbench and notifications.
+
+- [ ] Add optional `resume_note` or `handoff_note` field to tasks.
+  - [ ] This is the human-written "where I left off" field.
+  - [ ] Example: "Waiting on CTU to confirm PO number; invoice draft is otherwise ready."
+  - [ ] Keep it separate from the full task description.
+  - [ ] Include it in task detail and permission-safe task reads.
+  - [ ] Do not auto-generate this in 0.33.5.0.
+
+- [ ] Add task activity timestamps useful for resume ranking.
+  - [ ] `last_worked_at` may be stored or derived, but the service should expose a normalized value.
+  - [ ] Timer start/pause/finalize, checklist changes, task edits, status changes, linked notes, and file attachments may update/derive it later.
+  - [ ] Do not make Workbench ranking depend on browser-local timestamps.
+
+- [ ] Update task checklist payloads to expose progress.
+  - [ ] Total checklist item count.
+  - [ ] Completed checklist item count.
+  - [ ] Next incomplete checklist item label where permitted.
+  - [ ] Do not make checklist items full Workbench records.
+
+- [ ] Add task service/API regression coverage.
+  - [ ] `next_action`, `blocked_reason`, and `resume_note` survive create/update/read.
+  - [ ] Blocked tasks can safely expose blocked reason.
+  - [ ] Completed/archived tasks remain readable without becoming active resume candidates by default.
+  - [ ] Private/inaccessible linked context is not leaked through task summary payloads.
 
 ### Task Metadata Update
 
@@ -875,31 +916,89 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
   * [ ] Workspace-type differences between business, personal, and family workspaces.
   * [ ] Existing pages stop relying on page-local client/project sorting helpers once canonical payloads are available.
 
-### Version 0.33.5.8.2 - Task list filtering/sorting/options
+### Version 0.33.5.2.2 - Canonical Task Query and Work Item Summary Payloads
+
+- [ ] Move task filtering/sorting used by Tasks, Dashboard, and Workbench into the Tasks service layer.
+  - [ ] Supported filters:
+    - [ ] Assigned to current user.
+    - [ ] Due today.
+    - [ ] Next due.
+    - [ ] Due this week.
+    - [ ] Overdue.
+    - [ ] In progress.
+    - [ ] Blocked.
+    - [ ] Has running/paused timer.
+    - [ ] Recently updated/worked.
+    - [ ] Project.
+    - [ ] Client for Business workspaces.
+    - [ ] Tags / no tags where tag contract supports it.
+  - [ ] Supported sorts:
+    - [ ] Due date/time.
+    - [ ] Priority.
+    - [ ] Status.
+    - [ ] Last worked.
+    - [ ] Recently updated.
+    - [ ] Project/client context.
+
+- [ ] Add normalized task work item summary payload.
+  - [ ] This should be usable by Tasks list, Dashboard summaries, Workbench, and future resume state.
+  - [ ] Suggested fields:
+    - [ ] `source_module_id`
+    - [ ] `source_type`
+    - [ ] `source_id`
+    - [ ] `source_label`
+    - [ ] `source_url`
+    - [ ] `title`
+    - [ ] `description_excerpt`
+    - [ ] `client_id`
+    - [ ] `client_name`
+    - [ ] `project_id`
+    - [ ] `project_name`
+    - [ ] `status`
+    - [ ] `priority`
+    - [ ] `due_date`
+    - [ ] `due_time`
+    - [ ] `due_at`
+    - [ ] `assignee_ids`
+    - [ ] `assigned_to_current_user`
+    - [ ] `next_action`
+    - [ ] `blocked_reason`
+    - [ ] `handoff_note`
+    - [ ] `checklist_progress`
+    - [ ] `timer_status`
+    - [ ] `elapsed_seconds`
+    - [ ] `last_worked_at`
+    - [ ] `updated_at`
+
+- [ ] Keep ranking deterministic.
+  - [ ] Do not add AI ranking in this release.
+  - [ ] Do not make browser-local sorting the source of truth for Workbench behavior.
+
+### Version 0.33.5.2.3 - Task list filtering/sorting/options
 
 Task list filtering/sorting/options. The tasks service already returns tasks plus options, but the browser still owns status/client/project/tag filtering and multi-mode sorting. That should become a canonical task query contract, especially before tasks become the center of Workbench/Dashboard views.
 
-### Version 0.33.5.2.3 - Task/client/project picker options
+### Version 0.33.5.2.4 - Task/client/project picker options
 
 tasksService.readOptions returns visible active clients/projects/users, but the client/project option ordering and indentation still happen in browser code. That should reuse the new client-projects canonical option payload.
 
-### Version 0.33.5.2.4 - Notes linked-record panels and collection trees
+### Version 0.33.5.2.5 - Notes linked-record panels and collection trees
 
 This is already mostly headed the right direction: /api/notes/for-target and /api/notes/collections exist, and the roadmap already says the reusable notes panel should use /api/notes/for-target rather than duplicating lookup logic inside Tasks, Clients, Projects, or Tickets. Keep leaning into that.
 
-### Version 0.33.5.2.5 - Files attachment lists/counts
+### Version 0.33.5.2.6 - Files attachment lists/counts
 
 Files attachment lists/counts. There are canonical attachment and count endpoints already, but as Files gets more UI surface area, attachment list sorting/filtering/pagination should stay service-owned instead of each detail page making its own “files attached to this thing” logic.
 
-### Version 0.33.5.2.6 - Lists module index filters/sorts and item suggestions
+### Version 0.33.5.2.7 - Lists module index filters/sorts and item suggestions
 
 The Lists roadmap already calls for API-supported filters/sorts and deterministic suggestion ranking. Keep those server/module-owned from day one; do not let the Lists browser UI become the canonical source for list ordering or suggestions.
 
-### Version 0.33.5.2.7 - Tags filters and bulk tag assignment
+### Version 0.33.5.2.8 - Tags filters and bulk tag assignment
 
 Your 0.33.5.6 note already has the right instinct: “No Tags” and bulk tag assignment should be owned by Tags/framework hooks, not hard-coded per module. That is the same pattern.
 
-### Version 0.33.5.2.8 - API Key cleanup
+### Version 0.33.5.2.9 - API Key cleanup
 
 Verify public API key permissions exist for read/write of all framework and first-party modules. Currently the set is very limited.
 
@@ -934,6 +1033,30 @@ Verify public API key permissions exist for read/write of all framework and firs
 
 - Are time entries from timers storing the actual start and end time with an unconnected duration, or are they adjusting start or end time based on total duration?
   - It should be the former. I want to see exactly when a timer was started and ended, as well as the total duration the timer was running during that period. Start and End time are informational, not anything to be calculated.
+
+### Timer Resume Metadata
+
+- [ ] Preserve exact timer start/end timestamps when finalizing active timers.
+  - [ ] Start/end timestamps are informational facts.
+  - [ ] Duration is stored separately and should not rewrite the start/end facts.
+
+- [ ] Ensure active/paused timer payloads expose resume-safe source metadata.
+  - [ ] Source module ID.
+  - [ ] Source type.
+  - [ ] Source record ID.
+  - [ ] Source label.
+  - [ ] Source URL.
+  - [ ] Client/project context.
+  - [ ] Timer status.
+  - [ ] Last active start time.
+  - [ ] Accumulated elapsed seconds.
+
+- [ ] Emit or preserve safe timer lifecycle metadata for future resume state.
+  - [ ] Timer started.
+  - [ ] Timer paused.
+  - [ ] Timer finalized.
+  - [ ] Timer discarded.
+  - [ ] Do not expose inaccessible source-record details.
 
 ## Version 0.33.5.6 - Search, Notification, and Tag QoL Updates
 
@@ -993,6 +1116,19 @@ Verify public API key permissions exist for read/write of all framework and firs
     - This entire thing should be owned within tags and be hooked in via the framework, not hard coded anywhere
 
 - [ ] Add tag chips between task title and task meta data on Workbench; keep it tight
+
+### Resume-Safe Event Summary Cleanup
+
+- [ ] Update event/notification summary helpers so user-facing changed context can be reused by activity feed and future resume state.
+  - [ ] Summaries should be human-readable.
+  - [ ] Summaries should be permission-safe.
+  - [ ] Summaries should avoid raw audit JSON.
+  - [ ] Summaries should include safe record labels, record type, module ID, action type, actor where allowed, and changed field labels where useful.
+
+- [ ] Do not make notifications the source of truth for resume state.
+  - [ ] Notifications are directed attention items.
+  - [ ] Activity/resume summaries are recovery context.
+  - [ ] Audit remains the admin/security truth.
 
 ## Version 0.33.5.8 - Notes Cleanup
 
@@ -1069,8 +1205,12 @@ Verify public API key permissions exist for read/write of all framework and firs
     * [ ] Set `task_id`.
     * [ ] Set `project_id` and `client_id` from the task where available.
     * [ ] Default Library bucket to Active Work.
-    * [ ] Default note type to `task`.
-    * [ ] Default visibility to `internal` unless the user chooses otherwise.
+    * [ ] New task-created notes should:
+      * [ ] Link to the task through `task_id` and/or `note_links`.
+      * [ ] Set `project_id` and `client_id` from the task where available.
+      * [ ] Default Library bucket to Active Work.
+      * [ ] Default Note Kind / Content Type to `log` or `general`, not `task`.
+      * [ ] Default visibility to `internal` unless the user chooses otherwise.
   * [ ] Allow permitted users to link an existing note to the task.
   * [ ] Allow permitted users to unlink a note from the task.
   * [ ] Do not show the panel for unsaved tasks except for a “Save the task before adding notes” state.
@@ -1096,6 +1236,15 @@ Verify public API key permissions exist for read/write of all framework and firs
   * [ ] Client/project/task/user links should open the appropriate record view where available.
   * [ ] Missing or inaccessible records should show a safe unavailable state.
 
+### Notes Resume Context
+
+- [ ] Notes should provide supporting context for resume state.
+  - [ ] Active Work notes linked to tasks/projects/lists may appear as supporting context.
+  - [ ] Recently edited Active Work notes may be eligible for "Pick up where I left off."
+  - [ ] Normal notes should not become primary next-action candidates unless explicitly marked as Active Work or linked to active work.
+  - [ ] Secure/private notes must not expose body previews, excerpts, or hidden counts in Workbench/resume contexts.
+  - [ ] Linked-note panels should provide safe note count, title, status, visibility/security badges, and source URL where permitted.
+
 ### Regressions
 
 * [ ] Notes target picker only returns records the user can read.
@@ -1107,6 +1256,114 @@ Verify public API key permissions exist for read/write of all framework and firs
 * [ ] Linked-note counts do not leak inaccessible notes.
 * [ ] Archived notes are read-only from embedded panels.
 * [ ] Disabled Notes module blocks new note/link writes but preserves historical reads where allowed.
+
+## Version 0.33.5.9 - Work Resume State Foundation
+
+Decision:
+Work resume state is framework-owned recovery infrastructure. It records where a user left off across enabled modules without making Dashboard, Workbench, Tasks, Lists, Notes, Files, Time Tracking, or future Tickets own separate resume systems.
+
+This release should add backend storage, service contracts, safe update hooks, and regressions only. The user-facing guided Workbench remains deferred to 0.33.7.
+
+### Resume State Storage
+
+- [ ] Add framework-owned `work_resume_state` storage.
+- [ ] Each row represents one resumable record for one user in one workspace.
+- [ ] Suggested fields:
+  - [ ] `resume_state_id`
+  - [ ] `workspace_id`
+  - [ ] `user_id`
+  - [ ] `module_id`
+  - [ ] `record_type`
+  - [ ] `record_id`
+  - [ ] `client_id` optional
+  - [ ] `project_id` optional
+  - [ ] `source_url`
+  - [ ] `title_snapshot`
+  - [ ] `context_label_snapshot`
+  - [ ] `last_action_type`
+  - [ ] `last_action_label`
+  - [ ] `last_worked_at`
+  - [ ] `handoff_note`
+  - [ ] `next_action`
+  - [ ] `blocked_reason`
+  - [ ] `status_snapshot`
+  - [ ] `priority_snapshot`
+  - [ ] `due_at_snapshot`
+  - [ ] `resume_rank_hint`
+  - [ ] `metadata_json`
+  - [ ] `created_at`
+  - [ ] `updated_at`
+  - [ ] `dismissed_at` optional
+
+### Resume State Service
+
+- [ ] Add framework-owned resume state service.
+- [ ] Add service methods:
+  - [ ] `upsertResumeState(session, payload)`
+  - [ ] `dismissResumeState(session, resumeStateId)`
+  - [ ] `listResumeState(session, query)`
+  - [ ] `removeResumeStateForRecord(workspaceId, moduleId, recordType, recordId)`
+- [ ] Resume state writes must validate workspace/user ownership.
+- [ ] Resume state reads must re-check record/module permissions where possible.
+- [ ] Disabled modules should hide active resume candidates unless historical read access explicitly allows safe read-only context.
+- [ ] Deleted records should not appear as active resume candidates.
+- [ ] Archived/completed records should appear only in historical/recent contexts, not primary next-action contexts.
+
+### Initial Resume State Producers
+
+- [ ] Tasks should update resume state when:
+  - [ ] Task is created or updated by the current user.
+  - [ ] Task status changes.
+  - [ ] Task timer starts, pauses, finalizes, or is discarded.
+  - [ ] Task checklist changes.
+  - [ ] Task `next_action`, `blocked_reason`, or `handoff_note` changes.
+
+- [ ] Lists should update resume state when:
+  - [ ] List is created or updated.
+  - [ ] List item is checked/unchecked/completed/updated/reordered.
+  - [ ] List is linked to or unlinked from a task/project/client/note.
+  - [ ] List is completed/reopened/finalized/archived/restored/deleted.
+
+- [ ] Notes should update resume state when:
+  - [ ] Active Work note is created or edited.
+  - [ ] Note is linked to a task/project/list/client.
+  - [ ] Note is archived/restored/deleted.
+  - [ ] Secure/private notes must not write body/excerpt content into resume state.
+
+- [ ] Time Tracking should update resume state when:
+  - [ ] Manual timer starts/pauses/finalizes/discards.
+  - [ ] Sourced task timer starts/pauses/finalizes/discards.
+  - [ ] Resume state should preserve source metadata without making Time Tracking own the source record.
+
+### Resume State API
+
+- [ ] Add protected browser API route for resume state reads.
+  - [ ] Suggested route: `GET /api/work-resume`
+  - [ ] Support filters:
+    - [ ] `mode=recent`
+    - [ ] `mode=left_off`
+    - [ ] `mode=active`
+    - [ ] `module_id`
+    - [ ] `client_id`
+    - [ ] `project_id`
+    - [ ] `record_type`
+  - [ ] Do not add public API routes in this release.
+
+- [ ] Add protected browser API route to dismiss a resume candidate.
+  - [ ] Suggested route: `POST /api/work-resume/:resumeStateId/dismiss`
+
+### Regressions
+
+- [ ] Resume state cannot cross workspace boundaries.
+- [ ] Resume state cannot expose records the user can no longer read.
+- [ ] Disabled modules hide active resume state safely.
+- [ ] Deleted records are removed from active resume results.
+- [ ] Completed/archived records are not ranked as primary active work.
+- [ ] Private notes do not leak title/body/counts to unauthorized users.
+- [ ] Secure notes never write decrypted body, excerpt, rendered HTML, or encryption metadata into resume state.
+- [ ] List access does not grant linked task/note/project/client access through resume state.
+- [ ] Task/list/note/timer updates produce deterministic resume state rows.
+- [ ] Dismissed resume rows do not appear in default "left off" results.
 
 ## Version 0.33.5.10 - Help Center Re-work
 
@@ -1180,47 +1437,76 @@ Verify public API key permissions exist for read/write of all framework and firs
 
 ## Version 0.33.7 - Dashboard and Workbench Formalization as Project hub and work center
 
-- [ ] Dashboard should no longer be hardcoded, it should be a framework owned framework for displaying widgetized information from the framework and first-party modules
+### Version 0.33.7.1 - Dashboard and Workbench Surface Contracts
 
-- [ ] Workbench should no logner be hardcoded, it should become it's own framework-owned framework for displaying focused, widgetized information with easy-access to the workflow tools in LTF
-  - Workbench is the live work surface. It should help users decide what to do now, resume interrupted work, see active timers, recover stale/blocked work, and quickly capture new thoughts without navigating away from the current workflow. Workbench should consume module-contributed actions and context rather than owning module-specific task, time, note, list, or file logic.
+- [ ] Define Dashboard as the workspace overview/orientation surface.
+- [ ] Define Workbench as the active work/resumption/focus surface.
+- [ ] Keep Dashboard and Workbench separate.
+- [ ] Add framework-owned contribution contracts for:
+  - [ ] Dashboard panels.
+  - [ ] Workbench cards.
+  - [ ] Focus modes.
+  - [ ] Work item sources.
+  - [ ] Next action candidates.
+  - [ ] Resume state/context snippets.
+- [ ] Remove remaining hardcoded Task/Time assumptions from Dashboard and Workbench where a module contribution can own the behavior.
+- [ ] Preserve permission checks, module enabled/disabled checks, and workspace boundaries for every contribution.
 
-- [ ] Will we need a manifest from each module for what data can be widgetized?
+### Version 0.33.7.2 - Workbench Focus Modes
 
-- [ ] Dashboard should be the hub for getting overviews of projects
-  - [ ] Dashboard should start with a view of all projects in Workspace
-  - [ ] Add "Urgent" section that shows past due and upcoming tasks, and open support tickets sorted by client and project
-  - [ ] Add "Activity Feed" section
-    - [ ] Newest clients 
-    - [ ] Newest projects
-    - [ ] Newest tasks
-    - [ ] Newest notes
-    - [ ] Newest support tickets (eventually)
-    - [ ] Recent time entries with billable amount, if budget tracking is turned on in client/project (eventual feature in 0.4x)
+- [ ] Add Workbench focus selector.
+- [ ] Initial modes:
+  - [ ] Pick up where I left off.
+  - [ ] Today.
+  - [ ] Next due.
+  - [ ] This week.
+  - [ ] Blocked.
+  - [ ] In progress.
+  - [ ] Project focus.
+  - [ ] Client focus for Business workspaces.
+- [ ] Each focus mode should resolve to a normalized focus context passed to module work item providers.
+- [ ] Focus modes should be user-friendly labels over deterministic filters, not separate hardcoded pages.
 
-- [ ] Add activity feed support
-  - [ ] Activity feed may be derived from audit events where appropriate
-  - [ ] Activity feed should not expose sensitive audit JSON by default
-  - [ ] Activity feed should be user-friendly and dashboard-focused
-  - [ ] Keep audit log as the authoritative admin/security record
-- [ ] Dashboard sections should respect permissions
-  - [ ] Users should only see clients/projects/tasks/notes/tickets they are allowed to see
-  - [ ] External client users should not see internal-only notes or admin-only audit details
+### Version 0.33.7.3 - Next Action Candidates
 
-- The workbench should be your daily workspace. The dashboard is where you go to get overviews of the Past Due and upcoming work
-  - Workbench should have a focus mode selector:
-    - Month
-    - Week
-    - Day
-    - Open/In Progress Tasks
-    - Blocked tasks
-    - Workload view (all clients, projects, tasks, etc.)
-    - Client (for business)
-    - Project
-    - Ticket (Eventually)
-  - Workbench uses tags and hard connected metadata to create the focus
-    - If in project focus mode, all tasks from that project that are open/in progress
-  - Clicking on task chips should open selector to adjust it (status/priority)
+- [ ] Add normalized next action candidate shape.
+- [ ] Tasks should provide first next action candidates.
+- [ ] Time Tracking should provide running/paused timer candidates.
+- [ ] Lists should provide active/incomplete/needed-soon list candidates when Lists integrations are ready.
+- [ ] Notes should provide resume/supporting-context candidates for Active Work notes when Notes integrations are ready.
+- [ ] Future Tickets should provide waiting/urgent/assigned ticket candidates.
+- [ ] Add deterministic ranking:
+  - [ ] Running timers.
+  - [ ] Paused timers.
+  - [ ] Overdue assigned work.
+  - [ ] Due today.
+  - [ ] Blocked/stale work.
+  - [ ] Recently touched work.
+  - [ ] Due this week.
+- [ ] Every candidate should provide a reason string, primary action, safe context label, and source URL.
+
+### Version 0.33.7.4 - Resume State / Where I Left Off
+
+- [ ] Add framework-owned resume state storage.
+- [ ] Track per-user, per-workspace resumable records.
+- [ ] Update resume state from timers, task edits, checklist changes, note edits, list item activity, file attachments, and future ticket updates.
+- [ ] Workbench "Pick up where I left off" should use resume state first, then fall back to recent activity.
+- [ ] Resume hints must be permission-safe and must not expose secure/private content.
+- [ ] Add regressions for permission changes, disabled modules, deleted/archived records, and inaccessible linked context.
+
+### Version 0.33.7.5 - Guided Workbench UI
+
+- [ ] Add question-led Workbench entry:
+  - [ ] "Pick up where I left off"
+  - [ ] "Start with what’s due"
+  - [ ] "Work this week"
+  - [ ] "Review blocked work"
+  - [ ] "Focus on a project"
+  - [ ] "Capture something"
+- [ ] Show one recommended next action before showing longer lists.
+- [ ] Keep secondary lists available but visually subordinate.
+- [ ] Avoid turning Workbench into another full module index.
+- [ ] Add empty states that suggest a useful next step instead of dead ends.
 
 ## Version 0.34 - Knowledge Base Module
 

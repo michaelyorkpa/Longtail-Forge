@@ -28,6 +28,9 @@ import { AppError } from "../../core/errors.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
+import { tasksRepository } from "../tasks/tasks.repo.js";
+import { notesRepository } from "../notes/notes.repo.js";
+import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 
 const LIST_TYPE_SET = new Set(LIST_TYPE_VALUES);
 const LIST_STATUS_SET = new Set(LIST_STATUS_VALUES);
@@ -59,6 +62,7 @@ async function read(listId, session, options = {}) {
   return {
     list: await shapeListForBrowser(session, listRecord),
     items: items.map(shapeItemForBrowser),
+    links: await readPermissionSafeLinks(session, listRecord),
   };
 }
 
@@ -84,6 +88,7 @@ async function create(payload, session) {
   const listRecord = await listsRepository.create(session.workspace_id, normalized);
   await recordListAudit(session, "list_created", "create", null, listRecord);
   await emitListEvent("lists.list.created", session, null, listRecord);
+  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.created");
 
   return { list: await shapeListForBrowser(session, listRecord) };
 }
@@ -104,6 +109,7 @@ async function update(listId, payload, session) {
   const listRecord = await listsRepository.update(session.workspace_id, normalized);
   await recordListAudit(session, "list_updated", "update", previousList, listRecord);
   await emitListEvent("lists.list.updated", session, previousList, listRecord);
+  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.updated");
 
   return { list: await shapeListForBrowser(session, listRecord) };
 }
@@ -226,6 +232,7 @@ async function duplicate(listId, payload = {}, session) {
     duplicated_from_list_id: sourceList.list_id,
     source_list_id: createdList.source_list_id,
   });
+  await syncListSearchIndex(session.workspace_id, createdList.list_id, "list.duplicated");
 
   return {
     items: copiedItems.map(shapeItemForBrowser),
@@ -274,6 +281,50 @@ async function softDelete(listId, session) {
       deleted_at: now,
     }),
   });
+}
+
+async function listLinks(listId, session) {
+  const listRecord = await readListOrThrow(session, listId, { includeDeleted: true });
+  await assertCanAccessList(session, listRecord, "read");
+
+  return { links: await readPermissionSafeLinks(session, listRecord) };
+}
+
+async function createLink(listId, payload, session) {
+  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
+  const listRecord = await readListOrThrow(session, listId);
+  await assertCanAccessList(session, listRecord, "manage_links");
+  const link = normalizeLinkPayload(payload, listRecord, session);
+  const target = await readLinkedTargetSummary(session, link, { requireAccess: true });
+  const createdLink = await listsRepository.createLink(session.workspace_id, link);
+  await recordLinkAudit(session, "list_link_created", "create", null, createdLink, listRecord);
+  await emitListEvent("lists.link.created", session, null, listRecord, {
+    link: sanitizeLinkForAudit(createdLink),
+  });
+  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.linked");
+
+  return { link: shapeLinkForBrowser(createdLink, target) };
+}
+
+async function removeLink(listId, linkId, session) {
+  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
+  const listRecord = await readListOrThrow(session, listId);
+  await assertCanAccessList(session, listRecord, "manage_links");
+  const previousLink = await listsRepository.readLinkById(session.workspace_id, listRecord.list_id, normalizeRequiredText(linkId, "List link ID"));
+
+  if (!previousLink || previousLink.removed_at) {
+    throw new AppError("List link not found.", 404);
+  }
+
+  await readLinkedTargetSummary(session, previousLink, { requireAccess: true });
+  const link = await listsRepository.removeLink(session.workspace_id, listRecord.list_id, previousLink.list_link_id);
+  await recordLinkAudit(session, "list_link_removed", "delete", previousLink, link, listRecord);
+  await emitListEvent("lists.link.removed", session, listRecord, listRecord, {
+    link: sanitizeLinkForAudit(link),
+  });
+  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.unlinked");
+
+  return { link: shapeLinkForBrowser(link, null) };
 }
 
 async function createCatalogItem(payload, session) {
@@ -358,6 +409,7 @@ async function createItem(listId, payload, session) {
   }
   await recordItemAudit(session, "list_item_created", "create", null, storedItem, listRecord);
   await emitItemEvent("lists.item.created", session, null, storedItem, listRecord);
+  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.item_created");
 
   return { item: shapeItemForBrowser(storedItem) };
 }
@@ -381,6 +433,7 @@ async function updateItem(listId, itemId, payload, session) {
   }
   await recordItemAudit(session, "list_item_updated", "update", item, storedItem, listRecord);
   await emitItemEvent("lists.item.updated", session, item, storedItem, listRecord);
+  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.item_updated");
 
   return { item: shapeItemForBrowser(storedItem) };
 }
@@ -398,6 +451,7 @@ async function reorderItems(listId, payload, session) {
     item_orders: itemOrders,
     reason: "reorder",
   });
+  await syncListSearchIndex(session.workspace_id, listRecord.list_id, "list.items_reordered");
 
   return { items: items.map(shapeItemForBrowser) };
 }
@@ -462,6 +516,7 @@ async function transitionList(listId, session, transition) {
 
   await recordListAudit(session, transition.action, transition.changeType, previousList, listRecord);
   await emitListEvent(transition.eventName, session, previousList, listRecord);
+  await syncListSearchIndex(session.workspace_id, listRecord.list_id, transition.eventName);
   return { list: await shapeListForBrowser(session, listRecord) };
 }
 
@@ -478,6 +533,7 @@ async function transitionItem(listId, itemId, session, transition) {
 
   await recordItemAudit(session, transition.action, transition.changeType || "update", item, updatedItem, listRecord);
   await emitItemEvent(transition.eventName, session, item, updatedItem, listRecord);
+  await syncListSearchIndex(session.workspace_id, listRecord.list_id, transition.eventName);
   return { item: shapeItemForBrowser(updatedItem) };
 }
 
@@ -607,6 +663,127 @@ async function readCatalogItemOrThrow(session, catalogItemId) {
   }
 
   return catalogItem;
+}
+
+async function readPermissionSafeLinks(session, listRecord) {
+  const links = await listsRepository.listLinks(session.workspace_id, listRecord.list_id);
+  const visible = [];
+
+  for (const link of links) {
+    const target = await readLinkedTargetSummary(session, link, { requireAccess: false });
+    visible.push(shapeLinkForBrowser(link, target));
+  }
+
+  return visible;
+}
+
+async function readLinkedTargetSummary(session, link, options = {}) {
+  const target = normalizeTarget(link);
+  const summary = await readLinkedTargetRecord(session, target);
+
+  if (!summary && options.requireAccess) {
+    throw new AppError("You do not have access to the linked list target.", 403);
+  }
+
+  return summary;
+}
+
+async function readLinkedTargetRecord(session, target) {
+  if (target.target_type === "client") {
+    const client = await clientsRepository.readById(session.workspace_id, target.target_id);
+    if (!client || !(await permissionsService.can(session, "clients.manage", {
+      client_id: client.id,
+      operation: "read",
+      workspace_id: session.workspace_id,
+    }))) {
+      return null;
+    }
+
+    return {
+      label: client.name,
+      module_id: "client-projects",
+      target_id: client.id,
+      target_type: "client",
+      url: `clients-projects.html?client=${encodeURIComponent(client.id)}`,
+    };
+  }
+
+  if (target.target_type === "project") {
+    const project = await projectsRepository.readById(session.workspace_id, target.target_id);
+    if (!project || !(await permissionsService.can(session, "projects.manage", {
+      client_id: project.client_id,
+      operation: "read",
+      project_id: project.id,
+      workspace_id: session.workspace_id,
+    }))) {
+      return null;
+    }
+
+    return {
+      label: project.name,
+      module_id: "client-projects",
+      target_id: project.id,
+      target_type: "project",
+      url: `clients-projects.html?project=${encodeURIComponent(project.id)}`,
+    };
+  }
+
+  if (target.target_type === "task") {
+    const task = await tasksRepository.readById(session.workspace_id, target.target_id);
+    if (!task || !(await permissionsService.can(session, "tasks.view", {
+      client_id: task.client_id,
+      operation: "read",
+      project_id: task.project_id,
+      task_id: task.task_id,
+      workspace_id: session.workspace_id,
+    }))) {
+      return null;
+    }
+
+    return {
+      label: task.title,
+      module_id: "tasks",
+      target_id: task.task_id,
+      target_type: "task",
+      url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
+    };
+  }
+
+  if (target.target_type === "note") {
+    const note = await notesRepository.readById(session.workspace_id, target.target_id);
+    if (!note || note.status === "deleted" || note.deleted_at) {
+      return null;
+    }
+    if (note.visibility === "private" && note.owner_user_id !== session.user_id) {
+      return null;
+    }
+    if (note.security_mode === "secure" && note.owner_user_id !== session.user_id && !(await permissionsService.can(session, "notes.secure.view_all", {
+      note_id: note.note_id,
+      operation: "read",
+      workspace_id: session.workspace_id,
+    }))) {
+      return null;
+    }
+    if (!(await permissionsService.can(session, "notes.view", {
+      client_id: note.client_id,
+      note_id: note.note_id,
+      operation: "read",
+      project_id: note.project_id,
+      workspace_id: session.workspace_id,
+    }))) {
+      return null;
+    }
+
+    return {
+      label: note.title,
+      module_id: "notes",
+      target_id: note.note_id,
+      target_type: "note",
+      url: `notes.html?note=${encodeURIComponent(note.note_id)}`,
+    };
+  }
+
+  return null;
 }
 
 async function normalizeListPayload(payload = {}, session, fallback = {}) {
@@ -959,6 +1136,51 @@ function normalizeCatalogName(value) {
   return normalizeOptionalText(value).toLowerCase().replace(/\s+/g, " ");
 }
 
+function normalizeLinkPayload(payload = {}, listRecord, session) {
+  const target = normalizeTarget(payload);
+
+  return {
+    created_by_user_id: session.user_id,
+    link_role: normalizeOptionalText(payload.linkRole || payload.link_role) || "related",
+    list_id: listRecord.list_id,
+    list_link_id: normalizeOptionalText(payload.listLinkId || payload.list_link_id || payload.id) || randomUUID(),
+    metadata_json: normalizeMetadata(payload.metadata_json || payload.metadata),
+    module_id: target.module_id,
+    target_id: target.target_id,
+    target_type: target.target_type,
+    workspace_id: session.workspace_id,
+  };
+}
+
+function normalizeTarget(payload = {}) {
+  const targetType = normalizeRequiredText(payload.targetType || payload.target_type, "Target type");
+  const targetId = normalizeRequiredText(payload.targetId || payload.target_id, "Target ID");
+  const moduleId = normalizeOptionalText(payload.moduleId || payload.module_id) || moduleIdForTargetType(targetType);
+
+  if (!["client", "project", "task", "note"].includes(targetType)) {
+    throw new AppError(`Linked target type '${targetType}' is not supported for Lists.`, 400);
+  }
+
+  if (!moduleId) {
+    throw new AppError(`Linked target type '${targetType}' is not supported for Lists.`, 400);
+  }
+
+  return {
+    module_id: moduleId,
+    target_id: targetId,
+    target_type: targetType,
+  };
+}
+
+function moduleIdForTargetType(targetType) {
+  return {
+    client: "client-projects",
+    note: "notes",
+    project: "client-projects",
+    task: "tasks",
+  }[targetType] || "";
+}
+
 function normalizeMetadata(value) {
   if (typeof value === "string") {
     try {
@@ -972,12 +1194,77 @@ function normalizeMetadata(value) {
 }
 
 async function shapeListForBrowser(session, listRecord = {}) {
+  const [progress, linkedRecords, sourceContext] = await Promise.all([
+    readListProgressSummary(session, listRecord),
+    readPermissionSafeLinks(session, listRecord),
+    readSourceContext(session, listRecord),
+  ]);
+
   return {
     ...listRecord,
     id: listRecord.list_id,
     isBillOfMaterials: listRecord.list_type === LIST_TYPES.BILL_OF_MATERIALS,
     isReusable: Boolean(listRecord.is_reusable),
-    sourceContext: await readSourceContext(session, listRecord),
+    progress,
+    resumeContext: buildListResumeContext(listRecord, progress, linkedRecords),
+    sourceContext,
+  };
+}
+
+async function readListProgressSummary(session, listRecord = {}) {
+  const items = listRecord.list_id
+    ? await listsRepository.listItems(session.workspace_id, listRecord.list_id, { includeDeleted: false })
+    : [];
+  const nextUncheckedItem = items
+    .slice()
+    .sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))
+    .find((item) => !item.checked_at && !item.completed_at);
+  const neededDates = items
+    .map((item) => item.needed_by_date)
+    .filter(Boolean)
+    .sort();
+  const activityCandidates = [
+    listRecord.updated_at,
+    listRecord.created_at,
+    ...items.flatMap((item) => [
+      item.updated_at,
+      item.checked_at,
+      item.completed_at,
+      item.deleted_at,
+      item.created_at,
+    ]),
+  ].filter(Boolean).sort();
+
+  return {
+    checkedItemCount: items.filter((item) => Boolean(item.checked_at)).length,
+    completedItemCount: items.filter((item) => Boolean(item.completed_at)).length,
+    earliestNeededByDate: neededDates[0] || null,
+    lastActivityAt: activityCandidates.at(-1) || null,
+    nextUncheckedItemLabel: nextUncheckedItem?.item_name || "",
+    totalItemCount: items.length,
+  };
+}
+
+function buildListResumeContext(listRecord = {}, progress = {}, links = []) {
+  const sourceUrl = listRecord.list_id ? `lists.html?list=${encodeURIComponent(listRecord.list_id)}` : "lists.html";
+
+  return {
+    client_id: listRecord.client_id || "",
+    linkedRecords: links.map((link) => ({
+      id: link.list_link_id || link.id || "",
+      isAvailable: Boolean(link.target),
+      label: link.target?.label || "",
+      linkRole: link.link_role || "",
+      moduleId: link.module_id || link.target?.module_id || "",
+      sourceUrl: link.target?.url || "",
+      targetId: link.target_id || link.target?.target_id || "",
+      targetType: link.target_type || link.target?.target_type || "",
+    })),
+    project_id: listRecord.project_id || "",
+    progress: { ...progress },
+    sourceUrl,
+    status: listRecord.status || "",
+    title: listRecord.title || "",
   };
 }
 
@@ -1029,6 +1316,35 @@ function shapeCatalogItemForBrowser(item = {}) {
   };
 }
 
+function shapeLinkForBrowser(link = {}, target = null) {
+  return {
+    ...link,
+    id: link.list_link_id,
+    target: target ? { ...target } : null,
+    targetAccess: target ? "available" : "unavailable",
+  };
+}
+
+function sanitizeLinkForAudit(link = {}) {
+  return {
+    link_role: link.link_role || "",
+    list_link_id: link.list_link_id || "",
+    module_id: link.module_id || "",
+    target_id: link.target_id || "",
+    target_type: link.target_type || "",
+  };
+}
+
+async function syncListSearchIndex(workspaceId, listId, reason) {
+  await searchIndexSyncService.reindexRecord({
+    moduleId: LIST_MODULE_ID,
+    reason,
+    recordId: listId,
+    recordType: "list",
+    workspaceId,
+  }, { swallowErrors: true });
+}
+
 async function recordListAudit(session, action, changeType, previousValue, newValue, metadata = {}) {
   await auditService.record({
     session,
@@ -1072,11 +1388,42 @@ async function recordItemAudit(session, action, changeType, previousValue, newVa
   });
 }
 
+async function recordLinkAudit(session, action, changeType, previousValue, newValue, listRecord) {
+  await auditService.record({
+    session,
+    action,
+    allowUnknownRecordType: true,
+    changeType,
+    recordType: "list_link",
+    recordId: newValue?.list_link_id || previousValue?.list_link_id,
+    recordLabel: `${newValue?.target_type || previousValue?.target_type || "Link"}:${newValue?.target_id || previousValue?.target_id || ""}`,
+    recordUrl: "",
+    previousValue,
+    newValue,
+    metadata: sanitizeListLifecyclePayload({
+      metadata: {
+        list_id: listRecord?.list_id,
+        title: listRecord?.title,
+        ...sanitizeLinkForAudit(newValue || previousValue),
+      },
+      newValue,
+      previousValue,
+    }),
+  });
+}
+
 async function emitListEvent(eventName, session, previousValue, newValue, metadata = {}) {
+  const progress = newValue?.list_id
+    ? await readListProgressSummary(session, newValue)
+    : {};
+
   await modulesService.emitInternalEvent(eventName, {
     actorUserId: session.user_id,
     metadata: sanitizeListLifecyclePayload({
-      metadata,
+      metadata: {
+        ...metadata,
+        ...safeResumeMetadataForList(newValue || previousValue || {}, progress),
+      },
       newValue,
       previousValue,
     }),
@@ -1090,11 +1437,16 @@ async function emitListEvent(eventName, session, previousValue, newValue, metada
 }
 
 async function emitItemEvent(eventName, session, previousValue, newValue, listRecord) {
+  const progress = listRecord?.list_id
+    ? await readListProgressSummary(session, listRecord)
+    : {};
+
   await modulesService.emitInternalEvent(eventName, {
     actorUserId: session.user_id,
     metadata: sanitizeListLifecyclePayload({
       metadata: {
         list_id: listRecord?.list_id,
+        ...safeResumeMetadataForList(listRecord || {}, progress),
         title: listRecord?.title,
       },
       newValue,
@@ -1109,6 +1461,20 @@ async function emitItemEvent(eventName, session, previousValue, newValue, listRe
   });
 }
 
+function safeResumeMetadataForList(listRecord = {}, progress = {}) {
+  return {
+    checked_item_count: progress.checkedItemCount ?? 0,
+    client_id: listRecord.client_id || "",
+    completed_item_count: progress.completedItemCount ?? 0,
+    earliest_needed_by_date: progress.earliestNeededByDate || "",
+    last_activity_at: progress.lastActivityAt || listRecord.updated_at || listRecord.created_at || "",
+    next_unchecked_item_label: progress.nextUncheckedItemLabel || "",
+    project_id: listRecord.project_id || "",
+    source_url: listRecord.list_id ? `lists.html?list=${encodeURIComponent(listRecord.list_id)}` : "lists.html",
+    total_item_count: progress.totalItemCount ?? 0,
+  };
+}
+
 const listsService = {
   archive,
   checkItem,
@@ -1120,12 +1486,15 @@ const listsService = {
   deleteItem,
   duplicate,
   finalize,
+  createLink,
   list,
+  listLinks,
   markReusable,
   read,
   reopen,
   reorderItems,
   restore,
+  removeLink,
   softDelete,
   suggestItems,
   uncheckItem,

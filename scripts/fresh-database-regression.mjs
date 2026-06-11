@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 21, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 22, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -139,6 +139,11 @@ ORDER BY version;
     module_id: "lists",
     name: "add_list_item_catalog",
   });
+  assert.deepEqual(migrations[21], {
+    version: "052",
+    module_id: "lists",
+    name: "add_list_links",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -163,6 +168,7 @@ ORDER BY name;
     "files",
     "list_item_catalog",
     "list_items",
+    "list_links",
     "lists",
     "modules",
     "note_library_collections",
@@ -228,6 +234,9 @@ WHERE type = 'index'
     'idx_list_item_catalog_workspace_name',
     'idx_list_item_catalog_workspace_type',
     'idx_list_item_catalog_workspace_usage',
+    'idx_list_links_workspace_created',
+    'idx_list_links_workspace_list',
+    'idx_list_links_workspace_target',
     'idx_list_items_workspace_catalog',
     'idx_list_items_workspace_assigned_user',
     'idx_list_items_workspace_list_sort',
@@ -350,6 +359,9 @@ ORDER BY name;
     "idx_list_items_workspace_list_sort",
     "idx_list_items_workspace_list_status",
     "idx_list_items_workspace_needed_by",
+    "idx_list_links_workspace_created",
+    "idx_list_links_workspace_list",
+    "idx_list_links_workspace_target",
     "idx_lists_workspace_client",
     "idx_lists_workspace_created_by",
     "idx_lists_workspace_duplicated_from",

@@ -128,6 +128,10 @@ async function assertBusinessListApiFlow(api, fixtures) {
   const read = await api.get(`/api/lists/${fixtures.businessListId}`, { cookie: fixtures.adminSessionId });
   assert.equal(read.status, 200);
   assert.equal(read.body.items.length, 2);
+  assert.equal(read.body.list.progress.totalItemCount, 2);
+  assert.equal(read.body.list.progress.nextUncheckedItemLabel, "API Cable");
+  assert.equal(read.body.list.resumeContext.sourceUrl, `lists.html?list=${encodeURIComponent(fixtures.businessListId)}`);
+  assert.equal(read.body.list.resumeContext.progress.totalItemCount, 2);
 
   const reusable = await api.post(`/api/lists/${fixtures.businessListId}/mark-reusable`, {}, { cookie: fixtures.adminSessionId });
   assert.equal(reusable.status, 200);
@@ -201,6 +205,37 @@ async function assertBusinessListApiFlow(api, fixtures) {
   }, { cookie: fixtures.adminSessionId });
   assert.equal(savedCatalogItem.status, 201);
   assert.ok(savedCatalogItem.body.item.catalog_item_id);
+
+  const projectLink = await api.post(`/api/lists/${fixtures.businessListId}/links`, {
+    targetId: fixtures.projectId,
+    targetType: "project",
+  }, { cookie: fixtures.adminSessionId });
+  assert.equal(projectLink.status, 201);
+  assert.equal(projectLink.body.link.target.target_type, "project");
+  assert.equal(projectLink.body.link.target.label, "Lists API Project");
+
+  const clientLink = await api.post(`/api/lists/${fixtures.businessListId}/links`, {
+    targetId: fixtures.clientId,
+    targetType: "client",
+  }, { cookie: fixtures.adminSessionId });
+  assert.equal(clientLink.status, 201);
+  assert.equal(clientLink.body.link.target.label, "Lists API Client");
+
+  const links = await api.get(`/api/lists/${fixtures.businessListId}/links`, { cookie: fixtures.adminSessionId });
+  assert.equal(links.status, 200);
+  assert.equal(links.body.links.length, 2);
+
+  const readWithLinks = await api.get(`/api/lists/${fixtures.businessListId}`, { cookie: fixtures.adminSessionId });
+  assert.equal(readWithLinks.body.links.length, 2);
+  assert.ok(readWithLinks.body.links.every((link) => link.target?.label));
+  assert.equal(readWithLinks.body.list.resumeContext.linkedRecords.length, 2);
+  assert.ok(readWithLinks.body.list.resumeContext.linkedRecords.every((link) => link.isAvailable && link.sourceUrl));
+
+  const removedLink = await api.post(`/api/lists/${fixtures.businessListId}/links/${projectLink.body.link.list_link_id}/remove`, {}, {
+    cookie: fixtures.adminSessionId,
+  });
+  assert.equal(removedLink.status, 200);
+  assert.ok(removedLink.body.link.removed_at);
 
   const unmarkedReusable = await api.post(`/api/lists/${fixtures.businessListId}/unmark-reusable`, {}, { cookie: fixtures.adminSessionId });
   assert.equal(unmarkedReusable.status, 200);
@@ -303,6 +338,12 @@ async function assertUnauthorizedAndIsolation(api, fixtures) {
     title: "External List",
   }, { cookie: fixtures.externalSessionId });
   assert.equal(externalCreate.status, 403);
+
+  const externalLink = await api.post(`/api/lists/${fixtures.businessListId}/links`, {
+    targetId: fixtures.projectId,
+    targetType: "project",
+  }, { cookie: fixtures.externalSessionId });
+  assert.equal(externalLink.status, 403);
 
   const crossWorkspaceRead = await api.get(`/api/lists/${fixtures.familyListId}`, {
     cookie: fixtures.adminSessionId,

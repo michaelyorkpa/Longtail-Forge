@@ -1,3 +1,19 @@
+## Version 0.33.4.7.1 - 2026-06-11 15:08 -04:00
+
+- Added server-provided Lists `progress` summaries for list index/detail payloads, including item counts, next unchecked item, needed-by date, and last activity.
+- Added safe Lists `resumeContext` metadata for future Workbench/resume-state use without coupling Lists to Workbench.
+- Preserved linked-record permission boundaries by returning unavailable linked-record placeholders without inaccessible labels or URLs.
+- Added safe progress/source metadata to Lists lifecycle events for future framework-owned resume-state producers.
+- Expanded Lists service, API, UI, foundation, and fresh-database regressions for resume-safe payloads and event metadata.
+
+## Version 0.33.4.7 - 2026-06-11 14:23 -04:00
+
+- Added module-owned `list_links` storage and link APIs for permission-safe task, note, project, and client context.
+- Added a protected Lists linked-record panel with add/remove actions and permission-safe target labels.
+- Registered Lists as a searchable, taggable, and file-attachable framework target through module manifest contracts.
+- Added a Lists search indexer covering list details, items, linked context, and tag text.
+- Expanded Lists foundation, service, API, UI, and fresh-database regressions for linked records and framework integrations.
+
 ## Version 0.33.4.6 - 2026-06-11 13:52 -04:00
 
 - Added module-owned `list_item_catalog` storage, catalog usage metrics, and catalog lookup indexes for Lists item suggestions.

@@ -5,7 +5,10 @@ import {
   LIST_RESOURCE_DEFINITION,
 } from "./access-policy.js";
 import { listsRoutes } from "./lists.routes.js";
+import { registerListsSearchIndexers } from "./search-indexers.js";
 import { LIST_MODULE_ID } from "./storage-contract.js";
+
+registerListsSearchIndexers();
 
 const LIST_PERMISSION_DEFINITIONS = [
   {
@@ -163,7 +166,7 @@ const listsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.4.6",
+  version: "0.33.4.7.1",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -252,10 +255,66 @@ const listsModule = {
   hooks: { events: [] },
   timerSources: [],
   workItemSources: [],
-  taggableTypes: [],
+  taggableTypes: [
+    {
+      targetType: "list",
+      moduleId: LIST_MODULE_ID,
+      label: "List",
+      description: "List records that can receive workspace tags.",
+      tableName: "lists",
+      idField: "list_id",
+      labelField: "title",
+      workspaceField: "workspace_id",
+      clientField: "client_id",
+      projectField: "project_id",
+      requiredReadPermission: LIST_PERMISSIONS.VIEW,
+      requiredTagPermission: "tags.assign",
+      requiredModules: ["lists"],
+    },
+  ],
   tagPropagation: [],
-  searchableTypes: [],
-  attachableTypes: [],
+  searchableTypes: [
+    {
+      recordType: "list",
+      moduleId: LIST_MODULE_ID,
+      label: "List",
+      description: "Lists searchable by title, description, list type, item names, linked context, and tags.",
+      idField: "list_id",
+      titleField: "title",
+      summaryField: "summary",
+      bodyFields: ["body"],
+      workspaceField: "workspace_id",
+      clientField: "client_id",
+      projectField: "project_id",
+      requiredReadPermission: LIST_PERMISSIONS.VIEW,
+      indexer: "lists.records",
+      requiredModules: ["lists"],
+      tagsTextField: "tags_text",
+      recordStatusField: "search_status",
+      sourceLabel: "Lists",
+    },
+  ],
+  attachableTypes: [
+    {
+      targetType: "list",
+      moduleId: LIST_MODULE_ID,
+      label: "List",
+      description: "List records that can receive framework-managed file attachments.",
+      tableName: "lists",
+      idField: "list_id",
+      labelField: "title",
+      workspaceField: "workspace_id",
+      clientField: "client_id",
+      projectField: "project_id",
+      requiredReadPermission: LIST_PERMISSIONS.VIEW,
+      requiredAttachPermission: "files.upload",
+      requiredRemovePermission: "files.delete",
+      allowedFileCategories: ["document", "image", "pdf", "spreadsheet", "presentation", "text", "other"],
+      allowedVisibilityValues: ["private", "workspace", "client"],
+      lifecycleEvents: ["file.attachment.created", "file.attachment.removed"],
+      requiredModules: ["lists"],
+    },
+  ],
   notificationEvents: [],
   notificationFollowTargets: [],
   help: { sections: [], articles: [] },

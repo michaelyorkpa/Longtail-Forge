@@ -3840,6 +3840,49 @@ dialog .form-actions {
     letter-spacing: 0;
 }
 
+.lists-links-panel {
+    display: grid;
+    gap: 10px;
+    margin: 0 0 14px;
+}
+
+.lists-links-panel h3 {
+    margin: 0;
+}
+
+.lists-link-list {
+    display: grid;
+    gap: 8px;
+}
+
+.lists-link-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-surface);
+}
+
+.lists-link-item[data-link-access="unavailable"] span,
+.lists-link-item[data-link-access="unavailable"] a {
+    color: var(--color-text-muted);
+}
+
+.lists-link-item[data-link-access="unavailable"] a {
+    cursor: default;
+    text-decoration: none;
+}
+
+.lists-link-form {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.5fr) minmax(180px, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+}
+
 .lists-item-entry {
     display: grid;
     gap: 10px;

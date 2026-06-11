@@ -16,7 +16,9 @@ const {
 } = await import("../src/modules/lists/access-policy.js");
 const { listsRepository } = await import("../src/modules/lists/lists.repo.js");
 const { listsService } = await import("../src/modules/lists/lists.service.js");
-const { closeSqlite, initializeDatabase, querySql } = await import("../src/db/index.js");
+const { notesService } = await import("../src/modules/notes/notes.service.js");
+const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
+const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 try {
   await initializeDatabase();
@@ -37,7 +39,7 @@ async function assertManifestContracts() {
   const listsModule = modulesService.getModule("lists");
   const permissionIds = new Set(listsModule.permissions.map((permission) => permission.id));
 
-  assert.equal(listsModule.version, "0.33.4.6");
+  assert.equal(listsModule.version, "0.33.4.7.1");
   assert.equal(listsModule.resourceDefinitions[0].key, "lists");
   assert.deepEqual(listsModule.resourceDefinitions[0].operations, [
     "read",
@@ -71,12 +73,16 @@ async function assertManifestContracts() {
   );
   assert.deepEqual(
     listsModule.auditRecordTypes.map((recordType) => recordType.recordType).sort(),
-    ["list", "list_item"],
+    ["list", "list_item", "list_link"],
   );
   assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.list.created"));
   assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.list.duplicated"));
   assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.list.finalized"));
   assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.item.checked"));
+  assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.link.created"));
+  assert.ok(listsModule.searchableTypes.some((entry) => entry.recordType === "list"));
+  assert.ok(listsModule.taggableTypes.some((entry) => entry.targetType === "list"));
+  assert.ok(listsModule.attachableTypes.some((entry) => entry.targetType === "list"));
 
   const rows = await querySql(`
 SELECT permission_id
@@ -113,6 +119,7 @@ async function assertServiceLifecycle(session) {
 
     const item = await listsService.createItem(created.list.list_id, {
       item_name: "Aluminum extrusion",
+      needed_by_date: "2026-06-20",
       purchase_status: "needed",
       quantity: 4,
       unit: "piece",
@@ -172,9 +179,57 @@ async function assertServiceLifecycle(session) {
     });
     assert.equal(savedSuggestions.suggestions[0].item_name, "Explicit reusable washer");
 
+    const linkedTask = await tasksService.create({
+      description: "Task context for list link",
+      title: "Linked List Task",
+    }, session);
+    const linkedNote = await notesService.create({
+      body_markdown: "Note context for list link",
+      title: "Linked List Note",
+    }, session);
+    const taskLink = await listsService.createLink(created.list.list_id, {
+      targetId: linkedTask.task.task_id,
+      targetType: "task",
+    }, session);
+    assert.equal(taskLink.link.target.label, "Linked List Task");
+    assert.equal(taskLink.link.target.target_type, "task");
+    const noteLink = await listsService.createLink(created.list.list_id, {
+      targetId: linkedNote.note.note_id,
+      targetType: "note",
+    }, session);
+    assert.equal(noteLink.link.target.label, "Linked List Note");
+    const linkedRead = await listsService.read(created.list.list_id, session);
+    assert.equal(linkedRead.links.length, 2);
+    assert.ok(linkedRead.links.every((link) => link.target?.label));
+    assert.equal(linkedRead.list.progress.totalItemCount, 3);
+    assert.equal(linkedRead.list.progress.checkedItemCount, 0);
+    assert.equal(linkedRead.list.progress.completedItemCount, 0);
+    assert.equal(linkedRead.list.progress.nextUncheckedItemLabel, "Aluminum extrusion");
+    assert.equal(linkedRead.list.progress.earliestNeededByDate, "2026-06-20");
+    assert.equal(linkedRead.list.resumeContext.sourceUrl, `lists.html?list=${encodeURIComponent(created.list.list_id)}`);
+    assert.equal(linkedRead.list.resumeContext.linkedRecords.length, 2);
+    assert.ok(linkedRead.list.resumeContext.linkedRecords.every((link) => link.isAvailable && link.label));
+    const removedLink = await listsService.removeLink(created.list.list_id, taskLink.link.list_link_id, session);
+    assert.ok(removedLink.link.removed_at);
+    const afterRemoveLinks = await listsService.listLinks(created.list.list_id, session);
+    assert.deepEqual(afterRemoveLinks.links.map((link) => link.list_link_id), [noteLink.link.list_link_id]);
+    await runSql(`
+UPDATE notes
+SET status = 'deleted', deleted_at = '2026-06-11T12:00:00.000Z'
+WHERE note_id = ${sqlText(linkedNote.note.note_id)};
+`);
+    const unavailableLinkRead = await listsService.read(created.list.list_id, session);
+    assert.equal(unavailableLinkRead.links[0].target, null);
+    assert.equal(unavailableLinkRead.links[0].targetAccess, "unavailable");
+    assert.equal(unavailableLinkRead.list.resumeContext.linkedRecords[0].isAvailable, false);
+    assert.equal(unavailableLinkRead.list.resumeContext.linkedRecords[0].label, "");
+
     const checked = await listsService.checkItem(created.list.list_id, item.item.list_item_id, session);
     assert.ok(checked.item.checked_at);
     assert.equal(checked.item.completed_at, null);
+    const checkedRead = await listsService.read(created.list.list_id, session);
+    assert.equal(checkedRead.list.progress.checkedItemCount, 1);
+    assert.equal(checkedRead.list.progress.completedItemCount, 0);
 
     const completedItem = await listsService.completeItem(created.list.list_id, item.item.list_item_id, session);
     assert.ok(completedItem.item.completed_at);
@@ -297,6 +352,14 @@ async function assertServiceLifecycle(session) {
       event.metadata.item_name === "Aluminum extrusion" &&
       !("url" in event.metadata)
     )), "Item checked event should use safe item metadata");
+    const createdEvent = capturedEvents.find((event) => event.record_type === "list" && event.metadata.title === "R&D Procurement");
+    assert.equal(createdEvent?.metadata.source_url, `lists.html?list=${encodeURIComponent(created.list.list_id)}`);
+    assert.equal(createdEvent?.metadata.total_item_count, 0);
+    const checkedEvent = capturedEvents.find((event) => event.record_type === "list_item" && event.metadata.item_name === "Aluminum extrusion");
+    assert.equal(checkedEvent?.metadata.total_item_count, 3);
+    assert.equal(checkedEvent?.metadata.checked_item_count, 1);
+    assert.equal(checkedEvent?.metadata.next_unchecked_item_label, "Catalog Fastener");
+    assert.equal(checkedEvent?.metadata.project_id, "");
 
     const auditRows = await querySql(`
 SELECT action, record_type, record_label, metadata_json
@@ -367,17 +430,29 @@ function assertAccessPolicy() {
     timestamp: "2026-06-11T00:00:00.000Z",
   }), {
     actor_user_id: "",
+    checked_item_count: 0,
     client_id: "",
+    completed_item_count: 0,
+    earliest_needed_by_date: "",
     item_name: "Part",
+    last_activity_at: "",
+    link_role: "",
     list_id: "list-1",
     list_item_id: "",
+    list_link_id: "",
     list_type: "",
+    module_id: "",
+    next_unchecked_item_label: "",
     project_id: "",
     purchase_status: "",
     reason: "",
+    source_url: "",
     status: "",
+    target_id: "",
+    target_type: "",
     timestamp: "2026-06-11T00:00:00.000Z",
     title: "",
+    total_item_count: 0,
     workspace_id: "workspace-1",
   });
 }

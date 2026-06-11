@@ -39,7 +39,7 @@ async function assertListsModuleManifest() {
   const listsModule = modulesService.getModule("lists");
 
   assert.equal(listsModule.id, "lists");
-  assert.equal(listsModule.version, "0.33.4.6");
+  assert.equal(listsModule.version, "0.33.4.7.1");
   assert.equal(listsModule.enabledByDefault, true);
   assert.equal(listsModule.canDisable, true);
   assert.equal(listsModule.historicalReadAccess, true);
@@ -49,6 +49,9 @@ async function assertListsModuleManifest() {
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
   assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
   assert.equal(listsModule.settings.some((setting) => setting.id === "listsEnabled" && setting.moduleStatus === true), true);
+  assert.ok(listsModule.taggableTypes.some((target) => target.targetType === "list"));
+  assert.ok(listsModule.searchableTypes.some((target) => target.recordType === "list" && target.indexer === "lists.records"));
+  assert.ok(listsModule.attachableTypes.some((target) => target.targetType === "list"));
 
   const businessModule = resolveModuleDefinitionTerminology(listsModule, "business");
   const personalModule = resolveModuleDefinitionTerminology(listsModule, "personal");
@@ -66,7 +69,7 @@ async function assertListsMigrationApplied() {
   const rows = await querySql(`
 SELECT version, module_id, name
 FROM schema_migrations
-WHERE version IN ('050', '051')
+WHERE version IN ('050', '051', '052')
 ORDER BY version;
 `);
 
@@ -80,6 +83,11 @@ ORDER BY version;
     module_id: "lists",
     name: "add_list_item_catalog",
   });
+  assert.deepEqual(rows[2], {
+    version: "052",
+    module_id: "lists",
+    name: "add_list_links",
+  });
 }
 
 async function assertListsSchema() {
@@ -87,10 +95,10 @@ async function assertListsSchema() {
 SELECT name
 FROM sqlite_master
 WHERE type = 'table'
-  AND name IN ('lists', 'list_items', 'list_item_catalog')
+  AND name IN ('lists', 'list_items', 'list_item_catalog', 'list_links')
 ORDER BY name;
 `);
-  assert.deepEqual(tables.map((row) => row.name), ["list_item_catalog", "list_items", "lists"]);
+  assert.deepEqual(tables.map((row) => row.name), ["list_item_catalog", "list_items", "list_links", "lists"]);
 
   await assertColumns("lists", [
     "list_id",
@@ -170,6 +178,20 @@ ORDER BY name;
     "metadata_json",
   ]);
 
+  await assertColumns("list_links", [
+    "list_link_id",
+    "workspace_id",
+    "list_id",
+    "module_id",
+    "target_type",
+    "target_id",
+    "link_role",
+    "created_by_user_id",
+    "created_at",
+    "removed_at",
+    "metadata_json",
+  ]);
+
   const indexes = await querySql(`
 SELECT name
 FROM sqlite_master
@@ -194,12 +216,15 @@ WHERE type = 'index'
     'idx_list_item_catalog_workspace_name',
     'idx_list_item_catalog_workspace_type',
     'idx_list_item_catalog_workspace_context',
-    'idx_list_item_catalog_workspace_usage'
+    'idx_list_item_catalog_workspace_usage',
+    'idx_list_links_workspace_list',
+    'idx_list_links_workspace_target',
+    'idx_list_links_workspace_created'
   )
 ORDER BY name;
 `);
 
-  assert.equal(indexes.length, 20, "Lists foundation should create the expected lookup indexes");
+  assert.equal(indexes.length, 23, "Lists foundation should create the expected lookup indexes");
 }
 
 async function assertColumns(tableName, expectedColumns) {

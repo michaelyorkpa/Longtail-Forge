@@ -85,6 +85,20 @@ const CATALOG_COLUMNS = [
   "metadata_json",
 ];
 
+const LINK_COLUMNS = [
+  "list_link_id",
+  "workspace_id",
+  "list_id",
+  "module_id",
+  "target_type",
+  "target_id",
+  "link_role",
+  "created_by_user_id",
+  "created_at",
+  "removed_at",
+  "metadata_json",
+];
+
 async function list(workspaceId, filters = {}) {
   const clauses = [`workspace_id = ${sqlText(workspaceId)}`];
 
@@ -540,6 +554,83 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   return readCatalogItemById(workspaceId, catalogItemId);
 }
 
+async function createLink(workspaceId, link) {
+  const linkId = link.list_link_id || randomUUID();
+  const now = link.created_at || new Date().toISOString();
+
+  await runSql(`
+INSERT INTO list_links (
+  list_link_id,
+  workspace_id,
+  list_id,
+  module_id,
+  target_type,
+  target_id,
+  link_role,
+  created_by_user_id,
+  created_at,
+  removed_at,
+  metadata_json
+)
+VALUES (
+  ${sqlText(linkId)},
+  ${sqlText(workspaceId)},
+  ${sqlText(link.list_id)},
+  ${sqlText(link.module_id)},
+  ${sqlText(link.target_type)},
+  ${sqlText(link.target_id)},
+  ${sqlText(link.link_role || "related")},
+  ${sqlNullableText(link.created_by_user_id)},
+  ${sqlText(now)},
+  NULL,
+  ${sqlNullableText(serializeMetadata(link.metadata_json))}
+);
+`);
+
+  return readLinkById(workspaceId, link.list_id, linkId);
+}
+
+async function listLinks(workspaceId, listId) {
+  const rows = await querySql(`
+SELECT ${LINK_COLUMNS.join(", ")}
+FROM list_links
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND list_id = ${sqlText(listId)}
+  AND removed_at IS NULL
+ORDER BY created_at ASC;
+`);
+
+  return rows.map(linkRowToAppValue);
+}
+
+async function readLinkById(workspaceId, listId, linkId) {
+  const rows = await querySql(`
+SELECT ${LINK_COLUMNS.join(", ")}
+FROM list_links
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND list_id = ${sqlText(listId)}
+  AND list_link_id = ${sqlText(linkId)}
+LIMIT 1;
+`);
+
+  return rows[0] ? linkRowToAppValue(rows[0]) : null;
+}
+
+async function removeLink(workspaceId, listId, linkId) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE list_links
+SET removed_at = ${sqlText(now)}
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND list_id = ${sqlText(listId)}
+  AND list_link_id = ${sqlText(linkId)}
+  AND removed_at IS NULL;
+`);
+
+  return readLinkById(workspaceId, listId, linkId);
+}
+
 function serializeMetadata(value) {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -589,6 +680,13 @@ function catalogRowToAppValue(row = {}) {
   };
 }
 
+function linkRowToAppValue(row = {}) {
+  return {
+    ...row,
+    metadata_json: parseMetadata(row.metadata_json),
+  };
+}
+
 function parseMetadata(value) {
   if (!value) {
     return {};
@@ -605,13 +703,17 @@ const listsRepository = {
   createCatalogItem,
   create,
   createItem,
+  createLink,
   incrementCatalogUsage,
   list,
   listCatalogSuggestions,
   listItems,
+  listLinks,
   readCatalogItemById,
   readById,
   readItemById,
+  readLinkById,
+  removeLink,
   reorderItems,
   update,
   updateCatalogItem,

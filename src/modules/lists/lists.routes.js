@@ -165,4 +165,20 @@ listsRoutes.post("/lists/:listId/items/:itemId/delete", asyncRoute(async (reques
   response.status(200).json(result);
 }));
 
+listsRoutes.get("/lists/:listId/links", asyncRoute(async (request, response) => {
+  const result = await listsService.listLinks(request.params.listId, request.session);
+  response.status(200).json(result);
+}));
+
+listsRoutes.post("/lists/:listId/links", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await listsService.createLink(request.params.listId, payload, request.session);
+  response.status(201).json(result);
+}));
+
+listsRoutes.post("/lists/:listId/links/:linkId/remove", asyncRoute(async (request, response) => {
+  const result = await listsService.removeLink(request.params.listId, request.params.linkId, request.session);
+  response.status(200).json(result);
+}));
+
 export { listsRoutes };

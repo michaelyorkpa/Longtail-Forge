@@ -56,6 +56,12 @@ const LIST_AUDIT_RECORD_TYPES = Object.freeze([
     label: "List Item",
     description: "List item lifecycle and status audit history.",
   },
+  {
+    recordType: "list_link",
+    moduleId: LIST_MODULE_ID,
+    label: "List Link",
+    description: "List linked-record lifecycle audit history.",
+  },
 ]);
 
 const LIST_EVENT_TYPES = Object.freeze([
@@ -76,6 +82,8 @@ const LIST_EVENT_TYPES = Object.freeze([
   eventType("lists.item.unchecked", "List Item Unchecked", "Emitted after a list item is unchecked.", "list_item"),
   eventType("lists.item.completed", "List Item Completed", "Emitted after a list item is completed.", "list_item"),
   eventType("lists.item.deleted", "List Item Deleted", "Emitted after a list item is soft-deleted.", "list_item"),
+  eventType("lists.link.created", "List Link Created", "Emitted after a list is linked to another record.", "list_link"),
+  eventType("lists.link.removed", "List Link Removed", "Emitted after a list link is removed.", "list_link"),
 ]);
 
 const LIST_WRITE_OPERATIONS = new Set([
@@ -89,6 +97,7 @@ const LIST_WRITE_OPERATIONS = new Set([
   "duplicate",
   "manage_items",
   "manage_reusable",
+  "manage_links",
 ]);
 
 const LIST_OPERATION_PERMISSIONS = Object.freeze({
@@ -103,6 +112,7 @@ const LIST_OPERATION_PERMISSIONS = Object.freeze({
   duplicate: LIST_PERMISSIONS.DUPLICATE,
   manage_items: LIST_PERMISSIONS.MANAGE_ITEMS,
   manage_reusable: LIST_PERMISSIONS.MANAGE_REUSABLE,
+  manage_links: LIST_PERMISSIONS.MANAGE_LINKS,
 });
 
 function eventType(event, label, description, recordType) {
@@ -228,6 +238,7 @@ function sanitizeListLifecyclePayload(payload = {}) {
   return {
     workspace_id: source.workspace_id || metadata.workspace_id || "",
     list_id: source.list_id || metadata.list_id || "",
+    list_link_id: source.list_link_id || metadata.list_link_id || "",
     list_item_id: source.list_item_id || metadata.list_item_id || "",
     actor_user_id: payload.actorUserId || payload.actor_user_id || metadata.actor_user_id || "",
     title: source.title || metadata.title || "",
@@ -235,8 +246,19 @@ function sanitizeListLifecyclePayload(payload = {}) {
     status: source.status || metadata.status || "",
     list_type: source.list_type || metadata.list_type || "",
     purchase_status: source.purchase_status || metadata.purchase_status || "",
+    link_role: source.link_role || metadata.link_role || "",
+    module_id: source.module_id || metadata.module_id || "",
+    target_type: source.target_type || metadata.target_type || "",
+    target_id: source.target_id || metadata.target_id || "",
     client_id: source.client_id || metadata.client_id || "",
     project_id: source.project_id || metadata.project_id || "",
+    source_url: source.source_url || metadata.source_url || "",
+    total_item_count: source.total_item_count ?? metadata.total_item_count ?? 0,
+    checked_item_count: source.checked_item_count ?? metadata.checked_item_count ?? 0,
+    completed_item_count: source.completed_item_count ?? metadata.completed_item_count ?? 0,
+    next_unchecked_item_label: source.next_unchecked_item_label || metadata.next_unchecked_item_label || "",
+    earliest_needed_by_date: source.earliest_needed_by_date || metadata.earliest_needed_by_date || "",
+    last_activity_at: source.last_activity_at || metadata.last_activity_at || "",
     timestamp: payload.timestamp || metadata.timestamp || new Date().toISOString(),
     reason: payload.reason || metadata.reason || "",
   };

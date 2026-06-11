@@ -24,6 +24,12 @@ const PURCHASE_STATUS_LABELS = {
   planned: "Planned",
   received: "Received",
 };
+const LIST_LINK_TYPE_LABELS = {
+  client: "Client",
+  note: "Note",
+  project: "Project",
+  task: "Task",
+};
 
 const pageTitle = document.querySelector("[data-lists-title]");
 const createButton = document.querySelector("[data-list-create]");
@@ -156,7 +162,7 @@ async function loadListDetail(listId, fallback = null) {
     const result = await api.getJson(`/api/lists/${encodeURIComponent(listId)}?includeDeleted=true&includeDeletedItems=true`, {
       cache: "no-store",
     });
-    return normalizeListRecord(result.list, result.items || []);
+    return normalizeListRecord(result.list, result.items || [], result.links || []);
   } catch {
     return fallback ? normalizeListRecord(fallback, []) : null;
   }
@@ -333,6 +339,7 @@ function renderDetail(list) {
   const actions = document.createElement("div");
   const nextAction = createNextActionStrip(list);
   const sourceContext = createSourceContextPanel(list);
+  const linkedRecords = createLinkedRecordsPanel(list, locked);
   const description = document.createElement("p");
   const itemForm = createItemForm(list, locked);
   const items = document.createElement("div");
@@ -353,7 +360,7 @@ function renderDetail(list) {
   items.className = "lists-items";
   items.appendChild(createItemsTable(list, locked));
 
-  article.append(header, nextAction, sourceContext, description, itemForm, items);
+  article.append(header, nextAction, sourceContext, linkedRecords, description, itemForm, items);
   detailPanel.replaceChildren(article);
   void loadItemSuggestions(list).then(() => updateSuggestionDatalist(itemForm, list));
 }
@@ -489,6 +496,70 @@ function createItemsTable(list, locked) {
   return table;
 }
 
+function createLinkedRecordsPanel(list, locked) {
+  const section = document.createElement("section");
+  const title = document.createElement("h3");
+  const records = document.createElement("div");
+  const form = document.createElement("form");
+  const targetType = selectField("Type", "target_type", [
+    option("task", "Task"),
+    option("note", "Note"),
+    option("project", "Project"),
+    option("client", "Client"),
+  ]);
+  const targetId = inputField("Record ID", "text", "target_id", { required: true });
+  const submit = document.createElement("button");
+
+  section.className = "lists-links-panel";
+  section.dataset.listLinksPanel = "";
+  title.textContent = "Linked Records";
+  records.className = "lists-link-list";
+  records.replaceChildren(...(list.links || []).map((link) => createLinkItem(list, link, locked)));
+  if ((list.links || []).length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "lists-empty-state";
+    empty.textContent = "No linked records yet.";
+    records.appendChild(empty);
+  }
+
+  form.className = "lists-link-form";
+  form.dataset.listLinkForm = "";
+  form.dataset.listId = list.list_id;
+  form.hidden = locked;
+  submit.type = "submit";
+  submit.textContent = "Add Link";
+  form.append(targetType, targetId, submit);
+  section.append(title, records, form);
+  return section;
+}
+
+function createLinkItem(list, link, locked) {
+  const item = document.createElement("div");
+  const label = document.createElement("span");
+  const anchor = document.createElement("a");
+  const remove = document.createElement("button");
+  const target = link.target || {};
+  const typeLabel = LIST_LINK_TYPE_LABELS[link.target_type] || formatToken(link.target_type);
+  const unavailable = !target.label;
+
+  item.className = "lists-link-item";
+  item.dataset.linkAccess = unavailable ? "unavailable" : "available";
+  anchor.href = target.url || "#";
+  anchor.textContent = target.label || "Unavailable linked record";
+  if (!target.url) {
+    anchor.removeAttribute("href");
+  }
+  label.append(`${typeLabel}: `, anchor);
+  remove.type = "button";
+  remove.textContent = "Remove";
+  remove.dataset.listAction = "remove-link";
+  remove.dataset.listId = list.list_id;
+  remove.dataset.linkId = link.list_link_id;
+  remove.hidden = locked;
+  item.append(label, remove);
+  return item;
+}
+
 function createItemRow(list, item, index, total, locked) {
   const row = document.createElement("tr");
   const doneCell = document.createElement("td");
@@ -538,6 +609,7 @@ async function handleDetailClick(event) {
 
   const list = state.lists.find((entry) => entry.list_id === actionElement.dataset.listId);
   const itemId = actionElement.dataset.itemId || "";
+  const linkId = actionElement.dataset.linkId || "";
   const action = actionElement.dataset.listAction || actionElement.dataset.itemAction;
 
   try {
@@ -552,7 +624,7 @@ async function handleDetailClick(event) {
       setStatus("");
       return;
     }
-    const selectedId = await runAction(action, list, itemId);
+    const selectedId = await runAction(action, list, itemId, linkId);
     await refreshLists(selectedId || list?.list_id || state.selectedListId);
     setStatus("");
   } catch (error) {
@@ -560,7 +632,7 @@ async function handleDetailClick(event) {
   }
 }
 
-async function runAction(action, list, itemId) {
+async function runAction(action, list, itemId, linkId = "") {
   const listId = encodeURIComponent(list.list_id);
   const itemPath = itemId ? `/items/${encodeURIComponent(itemId)}` : "";
 
@@ -599,6 +671,10 @@ async function runAction(action, list, itemId) {
     await api.deleteJson(`/api/lists/${listId}${itemPath}`);
   } else if (action === "move-item-up" || action === "move-item-down") {
     await moveItem(list, itemId, action === "move-item-up" ? -1 : 1);
+  } else if (action === "remove-link") {
+    if (linkId) {
+      await api.postJson(`/api/lists/${listId}/links/${encodeURIComponent(linkId)}/remove`, {});
+    }
   }
   return "";
 }
@@ -624,6 +700,24 @@ async function moveItem(list, itemId, direction) {
 }
 
 async function handleDetailSubmit(event) {
+  if (event.target.matches("[data-list-link-form]")) {
+    event.preventDefault();
+    const form = event.target;
+    const listId = form.dataset.listId;
+    const payload = Object.fromEntries(new FormData(form).entries());
+
+    try {
+      setStatus("Adding link...");
+      await api.postJson(`/api/lists/${encodeURIComponent(listId)}/links`, payload);
+      form.reset();
+      await refreshLists(listId);
+      setStatus("");
+    } catch (error) {
+      setStatus(error.message || "Link could not be added.", true);
+    }
+    return;
+  }
+
   if (!event.target.matches("[data-list-item-form]")) {
     return;
   }
@@ -736,6 +830,12 @@ function suggestionLabel(suggestion) {
   return pieces.length > 0 ? `${suggestion.item_name} - ${pieces.join(" / ")}` : suggestion.item_name;
 }
 
+function formatToken(value) {
+  return String(value || "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 function openListDialog(list = null) {
   state.editingListId = list?.list_id || "";
   listDialogTitle.textContent = list ? "Edit List" : "Create List";
@@ -844,15 +944,46 @@ function shouldShowContextControls(listType = defaultListType()) {
   return usesBusinessScope() || ["procurement", "parts", "supplies", "bill_of_materials"].includes(listType);
 }
 
-function normalizeListRecord(list = {}, items = []) {
+function normalizeListRecord(list = {}, items = [], links = []) {
+  const normalizedItems = items.map((item) => ({ ...item, id: item.list_item_id || item.id }));
+  const progress = normalizeListProgress(list.progress, normalizedItems);
+  const normalizedLinks = links.map((link) => ({ ...link, id: link.list_link_id || link.id }));
+  const resumeContext = list.resumeContext || list.resume_context || {};
+
   return {
     ...list,
     id: list.list_id || list.id,
     isBillOfMaterials: Boolean(list.isBillOfMaterials || list.list_type === "bill_of_materials"),
     is_reusable: Boolean(list.is_reusable ?? list.isReusable),
-    items: items.map((item) => ({ ...item, id: item.list_item_id || item.id })),
+    items: normalizedItems,
+    links: normalizedLinks,
     list_id: list.list_id || list.id,
+    progress,
+    resumeContext: {
+      ...resumeContext,
+      progress: resumeContext.progress || progress,
+      sourceUrl: resumeContext.sourceUrl || resumeContext.source_url || `lists.html?list=${encodeURIComponent(list.list_id || list.id || "")}`,
+    },
     sourceContext: list.sourceContext || list.source_context || { duplicatedFrom: null, sourceList: null },
+  };
+}
+
+function normalizeListProgress(progress = {}, items = []) {
+  const visible = items.filter((item) => !item.deleted_at);
+  const checkedCount = visible.filter((item) => item.checked_at).length;
+  const completedCount = visible.filter((item) => item.completed_at).length;
+  const nextUnchecked = visible
+    .slice()
+    .sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))
+    .find((item) => !item.checked_at && !item.completed_at);
+
+  return {
+    checkedItemCount: Number(progress.checkedItemCount ?? progress.checked_item_count ?? checkedCount),
+    completedItemCount: Number(progress.completedItemCount ?? progress.completed_item_count ?? completedCount),
+    earliestNeededByDate: progress.earliestNeededByDate || progress.earliest_needed_by_date || nextNeededDateFromItems(visible) || null,
+    lastActivityAt: progress.lastActivityAt || progress.last_activity_at || "",
+    nextUncheckedItemLabel: progress.nextUncheckedItemLabel || progress.next_unchecked_item_label || nextUnchecked?.item_name || "",
+    totalItemCount: Number(progress.totalItemCount ?? progress.total_item_count ?? visible.length),
   };
 }
 
@@ -1044,12 +1175,15 @@ function stateFacts(list) {
 
 function listState(list) {
   const items = visibleItems(list);
-  const checkedItems = items.filter((item) => item.checked_at || item.completed_at).length;
-  const incompleteItems = Math.max(items.length - checkedItems, 0);
+  const checkedItems = list.progress
+    ? Math.max(list.progress.checkedItemCount || 0, list.progress.completedItemCount || 0)
+    : items.filter((item) => item.checked_at || item.completed_at).length;
+  const totalItems = list.progress?.totalItemCount ?? items.length;
+  const incompleteItems = Math.max(totalItems - checkedItems, 0);
   const assignedUsers = new Set(items.map((item) => item.assigned_user_id).filter(Boolean)).size;
   const nextDate = nextNeededDate(list);
   const context = listContextLabel(list);
-  const interrupted = list.status === "active" && items.length > 0 && incompleteItems > 0 && checkedItems > 0;
+  const interrupted = list.status === "active" && totalItems > 0 && incompleteItems > 0 && checkedItems > 0;
   const resumeLabel = interrupted ? "Resume" : STATUS_LABELS[list.status] || "Review";
   return {
     assignedUsers,
@@ -1059,7 +1193,7 @@ function listState(list) {
     interrupted,
     nextNeededDate: nextDate,
     resumeLabel,
-    totalItems: items.length,
+    totalItems,
   };
 }
 
@@ -1172,13 +1306,24 @@ function defaultListType() {
 }
 
 function nextNeededDate(list) {
-  return visibleItems(list)
+  if (list.progress?.earliestNeededByDate) {
+    return list.progress.earliestNeededByDate;
+  }
+  return nextNeededDateFromItems(visibleItems(list));
+}
+
+function nextNeededDateFromItems(items = []) {
+  return items
     .map((item) => item.needed_by_date)
     .filter(Boolean)
     .sort()[0] || "";
 }
 
 function itemSummary(list) {
+  if (list.progress) {
+    const checked = Math.max(list.progress.checkedItemCount || 0, list.progress.completedItemCount || 0);
+    return `${checked}/${list.progress.totalItemCount || 0}`;
+  }
   const items = visibleItems(list);
   const checked = items.filter((item) => item.checked_at || item.completed_at).length;
   return `${checked}/${items.length}`;

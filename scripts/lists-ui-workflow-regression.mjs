@@ -33,7 +33,7 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
-  assert.equal(listsModule.version, "0.33.4.6");
+  assert.equal(listsModule.version, "0.33.4.7.1");
   assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
   assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
@@ -89,6 +89,9 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /dataset\.listStateSummary/);
   assert.match(listsJs, /createNextActionStrip/);
   assert.match(listsJs, /dataset\.listNextAction/);
+  assert.match(listsJs, /normalizeListProgress/);
+  assert.match(listsJs, /resumeContext/);
+  assert.match(listsJs, /sourceUrl/);
   assert.match(listsJs, /readOnlyStateMessage/);
   assert.match(listsJs, /setContextControlsVisible/);
   assert.match(listsJs, /shouldShowContextControls/);
@@ -108,6 +111,13 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /catalog_item_id/);
   assert.match(listsJs, /applySuggestionSelection/);
   assert.match(listsJs, /Save as reusable item/);
+  assert.match(listsJs, /createLinkedRecordsPanel/);
+  assert.match(listsJs, /data-list-link-form/);
+  assert.match(listsJs, /\/api\/lists\/\$\{encodeURIComponent\(listId\)\}\/links/);
+  assert.match(listsJs, /remove-link/);
+  assert.match(listsJs, /Linked Records/);
+  assert.match(listsJs, /dataset\.linkAccess/);
+  assert.match(listsJs, /Unavailable linked record/);
 
   assert.match(styles, /\.lists-workspace/);
   assert.match(styles, /\.lists-state-summary/);
@@ -115,6 +125,9 @@ async function assertProtectedView(session) {
   assert.match(styles, /\.lists-next-action-facts/);
   assert.match(styles, /\.lists-source-context/);
   assert.match(styles, /\.lists-checkbox-field/);
+  assert.match(styles, /\.lists-links-panel/);
+  assert.match(styles, /\.lists-link-form/);
+  assert.match(styles, /\.lists-link-item\[data-link-access="unavailable"\]/);
   assert.match(styles, /\.lists-badge\.is-reusable/);
   assert.match(styles, /\.lists-badge\.is-bom/);
   assert.match(styles, /\.lists-badge\.is-duplicated/);
