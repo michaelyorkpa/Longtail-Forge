@@ -2,7 +2,7 @@
 
 This guide explains how to build against the current first-party module contract. The contract source of truth is `docs/module-contract.md`; the disabled-by-default `developer-example` module shows a compact working manifest.
 
-For a current first-party workflow module with storage, browser routes, Library behavior, tags, search, files, Help, revisions, and secure-note boundaries, see `docs/notes-module.md`.
+For current first-party workflow modules, see `docs/notes-module.md` for Notes and `docs/lists-module.md` for Lists. Notes demonstrates Library behavior, revisions, Markdown, secure-note boundaries, tags, search, files, and Help. Lists demonstrates operational list storage, item execution, reusable workflows, catalog suggestions, linked records, search/tags/files declarations, Help, and resume-safe context.
 
 ## Create A Module Manifest
 

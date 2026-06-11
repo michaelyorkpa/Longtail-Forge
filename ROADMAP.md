@@ -47,76 +47,54 @@ Use the following decisions for the Lists module:
 
 Use these sub-versions as the implementation order for the Lists module. The detailed checklist below remains the source backlog; each sub-version owns the relevant checklist items and should be closed out with package version, changelog, decisions, and verification when implemented.
 
-#### Version 0.33.4.7.1 - Linked Records and Framework Integrations - Resume State Update
-
-* [x] Add resume-safe list context metadata for linked records.
-  * [x] List linked-record metadata should expose safe labels for linked task, note, project, and client records where permitted.
-  * [x] List access must not grant linked-record access.
-  * [x] Linked-record metadata should include enough context for a future Workbench candidate without making Lists depend on Workbench.
-  * [x] Suggested safe fields: linked record type, linked record ID, label, module ID, source URL, unavailable/inaccessible state, and link role.
-
-* [x] Add list progress fields to list detail and list index payloads where cheap and permission-safe.
-  * [x] Total item count.
-  * [x] Checked item count.
-  * [x] Completed item count.
-  * [x] Next unchecked item label where permitted.
-  * [x] Earliest needed-by date.
-  * [x] Last list/item activity timestamp.
-  * [x] Do not add Workbench ranking in this release.
-
-* [x] Add safe Lists lifecycle event metadata for future resume state.
-  * [x] List created/updated/completed/reopened/finalized/archived/restored/deleted.
-  * [x] List item created/updated/checked/unchecked/completed/deleted/reordered.
-  * [x] Event summaries should include safe list title, status, linked project/client IDs, progress counts, and no inaccessible linked-record details.
-
 #### Version 0.33.4.8 - Use Case Coverage, Help, Verification, and Release Closeout
 
-* [ ] Verify personal/family workflows: grocery list, household shopping list, trip packing list, family project supply list, reusable grocery starter, reusable packing list, item suggestions, and shared item checking.
-* [ ] Verify business workflows: project parts list, R&D purchasing list, office supply list, on-site visit checklist, client/project procurement checklist, reusable project parts starter, reusable on-site checklist, finalized BOM-style list, and historical duplication.
-* [ ] Add or update Help Center content for Lists without turning Help into roadmap documentation.
-* [ ] Update developer/module docs where Lists exercises framework module contracts.
-* [ ] Run focused Lists service/API/UI tests.
-* [ ] Run focused permission, event, audit, search/tag/file integration tests where those integrations ship.
-* [ ] Run `npm run check`.
-* [ ] Run `npm run test:permissions`.
-* [ ] Run SQLite integrity check after Lists migrations and destructive lifecycle tests.
-* [ ] Verify `/api/app-info` reports the completed Lists closeout version.
-* [ ] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process.
-* [ ] Add Help content explaining how Lists work with Tasks, Notes, Files, Projects, Search, and reusable workflows.
-* [ ] Verify that list workflows support capture, execution, interruption, resumption, completion, duplication, and historical review.
-* [ ] Verify that empty, completed, finalized, archived, and deleted states provide useful next actions instead of dead ends.
+* [x] Verify personal/family workflows: grocery list, household shopping list, trip packing list, family project supply list, reusable grocery starter, reusable packing list, item suggestions, and shared item checking.
+* [x] Verify business workflows: project parts list, R&D purchasing list, office supply list, on-site visit checklist, client/project procurement checklist, reusable project parts starter, reusable on-site checklist, finalized BOM-style list, and historical duplication.
+* [x] Add or update Help Center content for Lists without turning Help into roadmap documentation.
+* [x] Update developer/module docs where Lists exercises framework module contracts.
+* [x] Run focused Lists service/API/UI tests.
+* [x] Run focused permission, event, audit, search/tag/file integration tests where those integrations ship.
+* [x] Run `npm run check`.
+* [x] Run `npm run test:permissions`.
+* [x] Run SQLite integrity check after Lists migrations and destructive lifecycle tests.
+* [x] Verify `/api/app-info` reports the completed Lists closeout version.
+* [x] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process.
+* [x] Add Help content explaining how Lists work with Tasks, Notes, Files, Projects, Search, and reusable workflows.
+* [x] Verify that list workflows support capture, execution, interruption, resumption, completion, duplication, and historical review.
+* [x] Verify that empty, completed, finalized, archived, and deleted states provide useful next actions instead of dead ends.
 
-* [ ] Verify Lists expose enough safe state for future Workbench/resume use.
-  * [ ] Active incomplete lists expose progress.
-  * [ ] Interrupted lists expose last updated activity.
-  * [ ] Linked lists expose permission-safe task/project/client/note context.
-  * [ ] Finalized and archived lists remain useful historical context without appearing as active work by default.
-  * [ ] Deleted lists do not appear as resume candidates.
+* [x] Verify Lists expose enough safe state for future Workbench/resume use.
+  * [x] Active incomplete lists expose progress.
+  * [x] Interrupted lists expose last updated activity.
+  * [x] Linked lists expose permission-safe task/project/client/note context.
+  * [x] Finalized and archived lists remain useful historical context without appearing as active work by default.
+  * [x] Deleted lists do not appear as resume candidates.
 
 ### Detailed Requirements Backlog
 
 * Add Lists as an official first-party module.
 
-  * [ ] Module ID should be `lists`.
-  * [ ] Module should ship with Longtail Forge.
-  * [ ] Module should be enable/disable capable per workspace.
-  * [ ] Module should use framework-owned services for users, workspaces, permissions, module lifecycle, audit logging, events/hooks, search, tags, and notifications where available.
-  * [ ] Do not hard-code Lists behavior into framework-owned app shell, search, notification, file, tag, or permission services.
-  * [ ] Disabled Lists module should block new writes while preserving historical reads if `historicalReadAccess` is enabled.
-  * [ ] Lists should not replace Notes.
-  * [ ] Lists should not replace Tasks.
-  * [ ] Lists should not replace Files.
-  * [ ] Lists should not become a generic bookmarks/information-database module in the first pass.
-  * [ ] Lists should not become inventory, purchasing, accounting, vendor management, manufacturing, or ERP software in 0.33.4.
+  * [x] Module ID should be `lists`.
+  * [x] Module should ship with Longtail Forge.
+  * [x] Module should be enable/disable capable per workspace.
+  * [x] Module should use framework-owned services for users, workspaces, permissions, module lifecycle, audit logging, events/hooks, search, tags, and notifications where available.
+  * [x] Do not hard-code Lists behavior into framework-owned app shell, search, notification, file, tag, or permission services.
+  * [x] Disabled Lists module should block new writes while preserving historical reads if `historicalReadAccess` is enabled.
+  * [x] Lists should not replace Notes.
+  * [x] Lists should not replace Tasks.
+  * [x] Lists should not replace Files.
+  * [x] Lists should not become a generic bookmarks/information-database module in the first pass.
+  * [x] Lists should not become inventory, purchasing, accounting, vendor management, manufacturing, or ERP software in 0.33.4.
 
 * Define workspace-aware module labels.
 
-  * [ ] Underlying module ID remains `lists` regardless of workspace type.
-  * [ ] Personal/family workspaces should label the module as `Shopping Lists`.
-  * [ ] Business workspaces should label the module as `Procurement Lists`.
-  * [ ] Shared code, permissions, API scopes, events, and database tables should use stable Lists terminology instead of label-specific Shopping/Procurement naming.
-  * [ ] UI copy may adapt based on workspace type.
-  * [ ] Do not create separate `shopping` and `procurement` modules.
+  * [x] Underlying module ID remains `lists` regardless of workspace type.
+  * [x] Personal/family workspaces should label the module as `Shopping Lists`.
+  * [x] Business workspaces should label the module as `Procurement Lists`.
+  * [x] Shared code, permissions, API scopes, events, and database tables should use stable Lists terminology instead of label-specific Shopping/Procurement naming.
+  * [x] UI copy may adapt based on workspace type.
+  * [x] Do not create separate `shopping` and `procurement` modules.
 
 * Define core list record model.
 
@@ -681,29 +659,29 @@ Use these sub-versions as the implementation order for the Lists module. The det
 
 * Add personal/family use case coverage.
 
-  * [ ] Grocery list.
-  * [ ] Household shopping list.
-  * [ ] Trip packing/shopping list.
-  * [ ] Family project supply list.
-  * [ ] Reusable grocery list starter.
-  * [ ] Reusable packing list.
+  * [x] Grocery list.
+  * [x] Household shopping list.
+  * [x] Trip packing/shopping list.
+  * [x] Family project supply list.
+  * [x] Reusable grocery list starter.
+  * [x] Reusable packing list.
   * [x] Workspace-scoped grocery item suggestions.
-  * [ ] Shared list item checking should work cleanly for family-style workflows.
-  * [ ] UI should not feel overly procurement-heavy in personal/family workspaces.
+  * [x] Shared list item checking should work cleanly for family-style workflows.
+  * [x] UI should not feel overly procurement-heavy in personal/family workspaces.
 
 * Add business use case coverage.
 
-  * [ ] Project parts list.
-  * [ ] R&D purchasing list.
-  * [ ] Office supply list.
-  * [ ] On-site visit packing/checklist.
-  * [ ] Client/project procurement checklist.
-  * [ ] Reusable on-site checklist.
-  * [ ] Reusable project parts starter.
-  * [ ] Bill of materials for reproducible R&D/prototype work.
-  * [ ] Finalized BOM-style historical list.
-  * [ ] Business UI should expose vendor/store, needed date, estimated cost, actual cost, purchase status, tracking ID, assignment, client/project context, and linked records clearly.
-  * [ ] Do not build purchase approvals, purchase orders, receiving, inventory, vendor catalogs, accounting export, production runs, or multi-level BOM assemblies in 0.33.4.
+  * [x] Project parts list.
+  * [x] R&D purchasing list.
+  * [x] Office supply list.
+  * [x] On-site visit packing/checklist.
+  * [x] Client/project procurement checklist.
+  * [x] Reusable on-site checklist.
+  * [x] Reusable project parts starter.
+  * [x] Bill of materials for reproducible R&D/prototype work.
+  * [x] Finalized BOM-style historical list.
+  * [x] Business UI should expose vendor/store, needed date, estimated cost, actual cost, purchase status, tracking ID, assignment, client/project context, and linked records clearly.
+  * [x] Do not build purchase approvals, purchase orders, receiving, inventory, vendor catalogs, accounting export, production runs, or multi-level BOM assemblies in 0.33.4.
 
 * Add Lists framework integrations.
 
@@ -713,36 +691,36 @@ Use these sub-versions as the implementation order for the Lists module. The det
   * [x] Lists should be available as a future attachment target if Files supports module attachments generically.
   * [ ] Lists should be available as a future note-link target if Notes supports module record linking generically.
   * [ ] Lists should be available as a future task-link target if Tasks supports module record linking generically.
-  * [ ] Lists should not require search, tags, dashboard activity, files, or notes integration to ship the first usable MVP.
+  * [x] Lists should not require search, tags, dashboard activity, files, or notes integration to ship the first usable MVP.
 
 * Add focused contract regressions.
 
-  * [ ] Lists cannot cross workspace boundaries.
-  * [ ] List items cannot cross workspace boundaries.
-  * [ ] List items cannot belong to a list in another workspace.
-  * [ ] Project-linked lists cannot reference projects outside the active workspace.
-  * [ ] Client-linked lists are hidden or blocked in personal/family workspaces.
-  * [ ] List links cannot cross workspace boundaries.
-  * [ ] List access does not grant unauthorized access to linked records.
-  * [ ] Disabled Lists module blocks new writes.
-  * [ ] Workspace-aware labels do not change the underlying module ID.
-  * [ ] Users without list read permission cannot read lists.
-  * [ ] Users without list write permission cannot create or update lists.
-  * [ ] Users without item management permission cannot add, edit, check, uncheck, reorder, or delete list items.
-  * [ ] Users without duplicate permission cannot duplicate lists.
-  * [ ] Users without finalize permission cannot finalize lists.
-  * [ ] Checking one item does not complete the whole list unless all-items-complete behavior is deliberately implemented.
-  * [ ] Duplicating a list resets checked/completed state by default.
-  * [ ] Duplicating a list creates an independent list, not a live synced child.
-  * [ ] Editing a Reusable List does not mutate previous duplicated lists.
+  * [x] Lists cannot cross workspace boundaries.
+  * [x] List items cannot cross workspace boundaries.
+  * [x] List items cannot belong to a list in another workspace.
+  * [x] Project-linked lists cannot reference projects outside the active workspace.
+  * [x] Client-linked lists are hidden or blocked in personal/family workspaces.
+  * [x] List links cannot cross workspace boundaries.
+  * [x] List access does not grant unauthorized access to linked records.
+  * [x] Disabled Lists module blocks new writes.
+  * [x] Workspace-aware labels do not change the underlying module ID.
+  * [x] Users without list read permission cannot read lists.
+  * [x] Users without list write permission cannot create or update lists.
+  * [x] Users without item management permission cannot add, edit, check, uncheck, reorder, or delete list items.
+  * [x] Users without duplicate permission cannot duplicate lists.
+  * [x] Users without finalize permission cannot finalize lists.
+  * [x] Checking one item does not complete the whole list unless all-items-complete behavior is deliberately implemented.
+  * [x] Duplicating a list resets checked/completed state by default.
+  * [x] Duplicating a list creates an independent list, not a live synced child.
+  * [x] Editing a Reusable List does not mutate previous duplicated lists.
   * [x] Updating a catalog item does not rewrite historical list items.
   * [x] Item suggestions are scoped to the current workspace only.
   * [x] Item suggestions prefer recent and frequent items from matching list types.
-  * [ ] Finalized lists are protected from casual edits.
-  * [ ] Finalized bill of materials lists remain duplicate-able.
-  * [ ] Archived lists are hidden from normal browsing but remain available to permitted historical reads.
-  * [ ] Deleted lists and deleted items are soft-deleted where consistent with existing module behavior.
-  * [ ] List events emit safe payloads.
+  * [x] Finalized lists are protected from casual edits.
+  * [x] Finalized bill of materials lists remain duplicate-able.
+  * [x] Archived lists are hidden from normal browsing but remain available to permitted historical reads.
+  * [x] Deleted lists and deleted items are soft-deleted where consistent with existing module behavior.
+  * [x] List events emit safe payloads.
   * [x] Lists do not replace Notes, Tasks, Files, Search, or Knowledge Base records.
 
 ## Version 0.33.5.0 - Task Module QoL Updates

@@ -1,3 +1,11 @@
+## Version 0.33.4.8 - 2026-06-11 15:42 -04:00
+
+- Added current-state Lists Help Center articles for list usage, items, statuses, reusable workflows, business context, linked records, search/tags/files, and resume context.
+- Added `docs/lists-module.md` and updated shared module documentation so Lists is documented as a current first-party module.
+- Added `scripts/lists-closeout-regression.mjs` and wired it into `npm run check` for Help discovery/search indexing, docs, use cases, framework boundaries, and resume-safe state.
+- Verified business and personal/family Lists workflows including reusable lists, catalog-backed suggestions, finalized BOM duplication, linked context, and deleted-list resume boundaries.
+- Closed the 0.33.4 Lists roadmap section with version, decision, changelog, verification, and archive updates.
+
 ## Version 0.33.4.7.1 - 2026-06-11 15:08 -04:00
 
 - Added server-provided Lists `progress` summaries for list index/detail payloads, including item counts, next unchecked item, needed-by date, and last activity.
