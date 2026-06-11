@@ -47,31 +47,17 @@ Use the following decisions for the Lists module:
 
 Use these sub-versions as the implementation order for the Lists module. The detailed checklist below remains the source backlog; each sub-version owns the relevant checklist items and should be closed out with package version, changelog, decisions, and verification when implemented.
 
-#### Version 0.33.4.5.2 - Reusable Lists, Duplication, and BOM Context Update
-
-This is a real code-update pass for reusable-list and BOM workflows. It should turn the product-philosophy additions from 0.33.4.5 into concrete source-context and duplicate-resumption behavior.
-
-* [x] Treat reusable lists in UI copy and action placement as repeatable execution aids for known workflows, not generic information containers.
-* [x] Add source-context display for duplicated lists, including duplicated-from/source template labels where permission-safe data is available.
-* [x] Ensure duplicating a reusable list lands the user on the new active working copy with clear reset state, source context, and a next action to begin execution.
-* [x] Make reusable list templates help users avoid rebuilding routine checklists from memory by improving the reusable-only view, badges, empty states, and duplicate action labels.
-* [x] Preserve BOM-style finalized historical context by showing finalized metadata, source/duplicate lineage, and read-only state clearly while keeping duplicate into active work prominent.
-* [x] Verify duplicated working copies do not visually imply live inheritance from reusable templates after duplication.
-* [x] Add service/API support if source-context reads require lightweight permission-safe source list summaries beyond existing IDs.
-* [x] Update `public/js/lists.js`, `src/modules/lists/lists.service.js`, `src/modules/lists/lists.routes.js`, and Lists regressions only where needed for source-context and duplicate-resumption behavior.
-* [x] Add or extend service/API/UI regressions proving reusable template edits do not mutate duplicates, duplicate landing behavior remains active/resumable, and finalized BOM source context remains duplicate-able.
-
 #### Version 0.33.4.6 - Catalog Items, Usage Tracking, and Suggestions
 
-* [ ] Add `list_item_catalog` or the chosen equivalent service-owned reusable item table.
-* [ ] Add usage tracking through either `list_item_usage` or catalog-level metrics.
-* [ ] Add catalog create/update service behavior and API routes.
-* [ ] Add item suggestion API route and deterministic ranking.
-* [ ] Rank suggestions by workspace, list type, recency, frequency, and safe client/project context where available.
-* [ ] Copy catalog values into list items as snapshots.
-* [ ] Prevent catalog edits from rewriting historical list items.
-* [ ] Add autocomplete/suggestion UI for list item creation.
-* [ ] Add tests for workspace-scoped suggestions, repeated item ranking, catalog snapshots, and historical item immutability.
+* [x] Add `list_item_catalog` or the chosen equivalent service-owned reusable item table.
+* [x] Add usage tracking through either `list_item_usage` or catalog-level metrics.
+* [x] Add catalog create/update service behavior and API routes.
+* [x] Add item suggestion API route and deterministic ranking.
+* [x] Rank suggestions by workspace, list type, recency, frequency, and safe client/project context where available.
+* [x] Copy catalog values into list items as snapshots.
+* [x] Prevent catalog edits from rewriting historical list items.
+* [x] Add autocomplete/suggestion UI for list item creation.
+* [x] Add tests for workspace-scoped suggestions, repeated item ranking, catalog snapshots, and historical item immutability.
 
 #### Version 0.33.4.7 - Linked Records and Framework Integrations
 
@@ -339,47 +325,47 @@ This is a real code-update pass for reusable-list and BOM workflows. It should t
 
 * Add reusable item catalog/suggestions.
 
-  * [ ] Add `list_item_catalog` table or equivalent service-owned reusable item table.
-  * [ ] Catalog items are workspace-scoped.
-  * [ ] Catalog items should not be shared across workspaces in 0.33.4.
+  * [x] Add `list_item_catalog` table or equivalent service-owned reusable item table.
+  * [x] Catalog items are workspace-scoped.
+  * [x] Catalog items should not be shared across workspaces in 0.33.4.
   * [ ] Suggested fields:
 
-    * [ ] `catalog_item_id`
-    * [ ] `workspace_id`
-    * [ ] `canonical_name`
-    * [ ] `normalized_name`
-    * [ ] `default_quantity` optional
-    * [ ] `default_unit` optional
-    * [ ] `default_vendor_name` optional
-    * [ ] `default_url` optional
-    * [ ] `default_estimated_cost` optional
-    * [ ] `default_notes` optional
-    * [ ] `list_type` optional
-    * [ ] `created_by_user_id`
-    * [ ] `updated_by_user_id`
-    * [ ] `usage_count`
-    * [ ] `last_used_at` optional
-    * [ ] `created_at`
-    * [ ] `updated_at`
-    * [ ] `archived_at` optional
-    * [ ] `metadata_json`
+    * [x] `catalog_item_id`
+    * [x] `workspace_id`
+    * [x] `item_name`
+    * [x] `normalized_name`
+    * [x] `quantity` optional
+    * [x] `unit` optional
+    * [x] `vendor_name` optional
+    * [x] `url` optional
+    * [x] `estimated_cost` optional
+    * [x] `notes` optional
+    * [x] `list_type` optional
+    * [x] `created_by_user_id`
+    * [x] `updated_by_user_id`
+    * [x] `use_count`
+    * [x] `last_used_at` optional
+    * [x] `created_at`
+    * [x] `updated_at`
+    * [x] `archived_at` optional
+    * [x] `metadata_json`
 
-  * [ ] Catalog items should support item autocomplete/suggestions.
-  * [ ] Catalog items may be tied to list types.
-  * [ ] Catalog items may be reused across lists in the same workspace.
-  * [ ] Creating a list item from a catalog item should copy values into the new list item.
-  * [ ] The list item remains the historical source of truth for that list.
-  * [ ] Updating a catalog item should not rewrite historical list items.
-  * [ ] Do not create global/shared item catalogs in 0.33.4.
-  * [ ] Do not build SKU, inventory, or vendor catalog management in 0.33.4.
+  * [x] Catalog items should support item autocomplete/suggestions.
+  * [x] Catalog items may be tied to list types.
+  * [x] Catalog items may be reused across lists in the same workspace.
+  * [x] Creating a list item from a catalog item should copy values into the new list item.
+  * [x] The list item remains the historical source of truth for that list.
+  * [x] Updating a catalog item should not rewrite historical list items.
+  * [x] Do not create global/shared item catalogs in 0.33.4.
+  * [x] Do not build SKU, inventory, or vendor catalog management in 0.33.4.
 
 * Add item usage tracking.
 
-  * [ ] Track item usage so Lists can suggest likely items for future lists.
-  * [ ] Usage tracking should be workspace-scoped.
-  * [ ] Usage tracking should consider list type.
-  * [ ] Usage tracking may consider client/project context in business workspaces.
-  * [ ] Add `list_item_usage` table if useful, or maintain usage metrics on `list_item_catalog` if that is sufficient for 0.33.4.
+  * [x] Track item usage so Lists can suggest likely items for future lists.
+  * [x] Usage tracking should be workspace-scoped.
+  * [x] Usage tracking should consider list type.
+  * [x] Usage tracking may consider client/project context in business workspaces.
+  * [x] Add `list_item_usage` table if useful, or maintain usage metrics on `list_item_catalog` if that is sufficient for 0.33.4.
   * [ ] Suggested usage fields if using a separate table:
 
     * [ ] `list_item_usage_id`
@@ -394,22 +380,22 @@ This is a real code-update pass for reusable-list and BOM workflows. It should t
     * [ ] `completed_at` optional
     * [ ] `metadata_json`
 
-  * [ ] Track when catalog-backed items are added to lists.
+  * [x] Track when catalog-backed items are added to lists.
   * [ ] Track when repeated manually-entered item names appear often enough to suggest catalog creation.
   * [ ] Do not require users to manually maintain a catalog before suggestions become useful.
 
 * Add item suggestion ranking.
 
-  * [ ] Suggest items based on current workspace only.
-  * [ ] Prioritize items that frequently appear on recent lists.
-  * [ ] Prioritize items that match the current list type.
-  * [ ] Prioritize items that match current client/project context where applicable.
-  * [ ] Prioritize recently used items.
+  * [x] Suggest items based on current workspace only.
+  * [x] Prioritize items that frequently appear on recent lists.
+  * [x] Prioritize items that match the current list type.
+  * [x] Prioritize items that match current client/project context where applicable.
+  * [x] Prioritize recently used items.
   * [ ] Down-rank items that were recently dismissed, cancelled, or marked not needed if dismissal tracking exists.
-  * [ ] First version may use a simple deterministic scoring function.
+  * [x] First version may use a simple deterministic scoring function.
   * [ ] Example behavior: if `Milk` appeared on 5 of the last 8 shopping lists, it should rank near the top of suggested items for a new shopping list.
-  * [ ] Do not require machine learning or AI suggestions in 0.33.4.
-  * [ ] Keep suggestion behavior explainable and testable.
+  * [x] Do not require machine learning or AI suggestions in 0.33.4.
+  * [x] Keep suggestion behavior explainable and testable.
 
 * Add bill of materials behavior.
 
@@ -618,10 +604,10 @@ This is a real code-update pass for reusable-list and BOM workflows. It should t
   * [ ] `POST /api/lists/:listId/items/:itemId/uncheck`
   * [ ] `POST /api/lists/:listId/items/:itemId/complete`
   * [ ] `POST /api/lists/:listId/items/:itemId/delete`
-  * [ ] `GET /api/lists/item-suggestions`
-  * [ ] `GET /api/lists/catalog-items`
-  * [ ] `POST /api/lists/catalog-items`
-  * [ ] `PUT /api/lists/catalog-items/:catalogItemId`
+  * [x] `GET /api/lists/item-suggestions`
+  * [x] `GET /api/lists/catalog-items`
+  * [x] `POST /api/lists/catalog-items`
+  * [x] `PUT /api/lists/catalog-items/:catalogItemId`
   * [ ] `GET /api/lists/:listId/links`
   * [ ] `POST /api/lists/:listId/links`
   * [ ] `POST /api/lists/:listId/links/:linkId/remove`
@@ -637,7 +623,7 @@ This is a real code-update pass for reusable-list and BOM workflows. It should t
   * [ ] Add duplicate list workflow.
   * [ ] Add Reusable Lists filter/view.
   * [ ] Add list item add/edit controls.
-  * [ ] Add item suggestion/autocomplete controls.
+  * [x] Add item suggestion/autocomplete controls.
   * [ ] Add item check/uncheck controls.
   * [ ] Add reorder controls.
   * [ ] Add list status controls.
@@ -682,7 +668,7 @@ This is a real code-update pass for reusable-list and BOM workflows. It should t
   * [ ] Show list items in sort order.
   * [ ] Allow permitted users to add, edit, reorder, check, uncheck, complete, and delete items.
   * [ ] Allow permitted users to update quantity, unit, needed date, vendor/store, URL, estimated cost, actual cost, purchase status, tracking ID, notes, and assigned user.
-  * [ ] Show item suggestions while adding items.
+  * [x] Show item suggestions while adding items.
   * [ ] Show estimated and actual cost totals.
   * [ ] Show purchase/order status clearly on business/procurement lists.
   * [ ] Show finalized/BOM state clearly when applicable.
@@ -701,7 +687,7 @@ This is a real code-update pass for reusable-list and BOM workflows. It should t
   * [ ] Family project supply list.
   * [ ] Reusable grocery list starter.
   * [ ] Reusable packing list.
-  * [ ] Workspace-scoped grocery item suggestions.
+  * [x] Workspace-scoped grocery item suggestions.
   * [ ] Shared list item checking should work cleanly for family-style workflows.
   * [ ] UI should not feel overly procurement-heavy in personal/family workspaces.
 
@@ -749,9 +735,9 @@ This is a real code-update pass for reusable-list and BOM workflows. It should t
   * [ ] Duplicating a list resets checked/completed state by default.
   * [ ] Duplicating a list creates an independent list, not a live synced child.
   * [ ] Editing a Reusable List does not mutate previous duplicated lists.
-  * [ ] Updating a catalog item does not rewrite historical list items.
-  * [ ] Item suggestions are scoped to the current workspace only.
-  * [ ] Item suggestions prefer recent and frequent items from matching list types.
+  * [x] Updating a catalog item does not rewrite historical list items.
+  * [x] Item suggestions are scoped to the current workspace only.
+  * [x] Item suggestions prefer recent and frequent items from matching list types.
   * [ ] Finalized lists are protected from casual edits.
   * [ ] Finalized bill of materials lists remain duplicate-able.
   * [ ] Archived lists are hidden from normal browsing but remain available to permitted historical reads.

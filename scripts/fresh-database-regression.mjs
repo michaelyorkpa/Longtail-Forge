@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 20, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 21, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -134,6 +134,11 @@ ORDER BY version;
     module_id: "lists",
     name: "add_lists_foundation",
   });
+  assert.deepEqual(migrations[20], {
+    version: "051",
+    module_id: "lists",
+    name: "add_list_item_catalog",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -156,6 +161,7 @@ ORDER BY name;
     "file_attachments",
     "file_reports",
     "files",
+    "list_item_catalog",
     "list_items",
     "lists",
     "modules",
@@ -218,6 +224,11 @@ WHERE type = 'index'
     'idx_files_workspace_file',
     'idx_files_workspace_hash',
     'idx_files_workspace_status',
+    'idx_list_item_catalog_workspace_context',
+    'idx_list_item_catalog_workspace_name',
+    'idx_list_item_catalog_workspace_type',
+    'idx_list_item_catalog_workspace_usage',
+    'idx_list_items_workspace_catalog',
     'idx_list_items_workspace_assigned_user',
     'idx_list_items_workspace_list_sort',
     'idx_list_items_workspace_list_status',
@@ -330,7 +341,12 @@ ORDER BY name;
     "idx_files_workspace_file",
     "idx_files_workspace_hash",
     "idx_files_workspace_status",
+    "idx_list_item_catalog_workspace_context",
+    "idx_list_item_catalog_workspace_name",
+    "idx_list_item_catalog_workspace_type",
+    "idx_list_item_catalog_workspace_usage",
     "idx_list_items_workspace_assigned_user",
+    "idx_list_items_workspace_catalog",
     "idx_list_items_workspace_list_sort",
     "idx_list_items_workspace_list_status",
     "idx_list_items_workspace_needed_by",

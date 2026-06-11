@@ -58,6 +58,7 @@ let state = {
   clients: [],
   currentUserId: "",
   editingListId: "",
+  itemSuggestions: new Map(),
   lists: [],
   selectedListId: new URLSearchParams(window.location.search).get("list") || "",
   users: [],
@@ -354,6 +355,7 @@ function renderDetail(list) {
 
   article.append(header, nextAction, sourceContext, description, itemForm, items);
   detailPanel.replaceChildren(article);
+  void loadItemSuggestions(list).then(() => updateSuggestionDatalist(itemForm, list));
 }
 
 function detailActionButtons(list, locked) {
@@ -388,7 +390,8 @@ function createItemForm(list, locked) {
   const section = document.createElement("section");
   const title = document.createElement("h3");
   const form = document.createElement("form");
-  const name = inputField("Item", "text", "item_name", { required: true });
+  const name = createItemNameField(list);
+  const catalogItemId = document.createElement("input");
   const quantity = inputField("Qty", "number", "quantity", { min: "0", step: "0.01", value: "1" });
   const unit = inputField("Unit", "text", "unit");
   const needed = inputField("Needed", "date", "needed_by_date");
@@ -397,8 +400,12 @@ function createItemForm(list, locked) {
     ...state.users.map((user) => option(user.user_id, displayUser(user))),
   ]);
   const purchase = selectField("Status", "purchase_status", Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => option(value, label)));
+  const saveToCatalog = checkboxField("Save as reusable item", "save_to_catalog", "true");
   const submit = document.createElement("button");
 
+  catalogItemId.type = "hidden";
+  catalogItemId.name = "catalog_item_id";
+  catalogItemId.dataset.listCatalogItemId = "";
   section.className = "lists-item-entry";
   title.textContent = "Items";
   form.dataset.listItemForm = "";
@@ -407,7 +414,7 @@ function createItemForm(list, locked) {
   submit.type = "submit";
   submit.textContent = "Add Item";
   submit.disabled = locked;
-  form.append(name, quantity, unit, needed, assigned, purchase, submit);
+  form.append(name, catalogItemId, quantity, unit, needed, assigned, purchase, saveToCatalog, submit);
   if (locked) {
     const notice = document.createElement("p");
     notice.className = "lists-locked-note";
@@ -418,6 +425,37 @@ function createItemForm(list, locked) {
   }
   section.appendChild(form);
   return section;
+}
+
+function createItemNameField(list) {
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+  const dataList = document.createElement("datalist");
+  const listId = `list-item-suggestions-${list.list_id}`;
+
+  input.type = "text";
+  input.name = "item_name";
+  input.required = true;
+  input.setAttribute("list", listId);
+  input.autocomplete = "off";
+  input.dataset.listItemName = "";
+  dataList.id = listId;
+  dataList.dataset.listItemSuggestions = "";
+  label.append("Item", input, dataList);
+  input.addEventListener("input", () => applySuggestionSelection(input.form, list, input.value));
+  return label;
+}
+
+function checkboxField(labelText, name, value) {
+  const label = document.createElement("label");
+  const input = document.createElement("input");
+
+  label.className = "lists-checkbox-field";
+  input.type = "checkbox";
+  input.name = name;
+  input.value = value;
+  label.append(input, labelText);
+  return label;
 }
 
 function createItemsTable(list, locked) {
@@ -597,6 +635,7 @@ async function handleDetailSubmit(event) {
   const payload = Object.fromEntries(new FormData(form).entries());
 
   payload.quantity = payload.quantity || 1;
+  payload.save_to_catalog = payload.save_to_catalog === "true";
   try {
     setStatus("Saving item...");
     if (editingItemId) {
@@ -606,6 +645,7 @@ async function handleDetailSubmit(event) {
     }
     form.reset();
     form.dataset.editingItemId = "";
+    setFormValue(form, "catalog_item_id", "");
     form.querySelector("button[type='submit']").textContent = "Add Item";
     await refreshLists(listId);
     setStatus("");
@@ -628,9 +668,72 @@ function populateItemForm(list, itemId) {
   setFormValue(form, "unit", item.unit);
   setFormValue(form, "needed_by_date", item.needed_by_date);
   setFormValue(form, "assigned_user_id", item.assigned_user_id);
+  setFormValue(form, "catalog_item_id", item.catalog_item_id);
   setFormValue(form, "purchase_status", item.purchase_status || "needed");
+  setFormValue(form, "save_to_catalog", "");
   form.querySelector("button[type='submit']").textContent = "Save Item";
   form.querySelector("[name='item_name']")?.focus();
+}
+
+async function loadItemSuggestions(list) {
+  if (!list?.list_id) {
+    return [];
+  }
+
+  const params = new URLSearchParams({
+    limit: "12",
+    listId: list.list_id,
+  });
+  try {
+    const result = await api.getJson(`/api/lists/item-suggestions?${params}`, { cache: "no-store" });
+    const suggestions = result.suggestions || [];
+    state.itemSuggestions.set(list.list_id, suggestions);
+    return suggestions;
+  } catch {
+    state.itemSuggestions.set(list.list_id, []);
+    return [];
+  }
+}
+
+function updateSuggestionDatalist(container, list) {
+  const dataList = container.querySelector("[data-list-item-suggestions]");
+  if (!dataList) {
+    return;
+  }
+
+  dataList.replaceChildren(...itemSuggestionsForList(list).map((suggestion) => {
+    const entry = option(suggestion.item_name, suggestionLabel(suggestion));
+    entry.dataset.catalogItemId = suggestion.catalog_item_id;
+    return entry;
+  }));
+}
+
+function applySuggestionSelection(form, list, value) {
+  const suggestion = itemSuggestionsForList(list).find((entry) => (
+    (entry.item_name || "").toLowerCase() === String(value || "").trim().toLowerCase()
+  ));
+
+  setFormValue(form, "catalog_item_id", suggestion?.catalog_item_id || "");
+  if (!suggestion) {
+    return;
+  }
+
+  setFormValue(form, "quantity", suggestion.quantity ?? 1);
+  setFormValue(form, "unit", suggestion.unit || "");
+}
+
+function itemSuggestionsForList(list) {
+  return state.itemSuggestions.get(list?.list_id) || [];
+}
+
+function suggestionLabel(suggestion) {
+  const pieces = [
+    [suggestion.quantity ?? "", suggestion.unit || ""].filter(Boolean).join(" "),
+    suggestion.vendor_name || "",
+    suggestion.use_count ? `used ${suggestion.use_count}` : "",
+  ].filter(Boolean);
+
+  return pieces.length > 0 ? `${suggestion.item_name} - ${pieces.join(" / ")}` : suggestion.item_name;
 }
 
 function openListDialog(list = null) {
@@ -1018,7 +1121,11 @@ function selectField(labelText, name, options) {
 function setFormValue(form, name, value) {
   const input = form.elements[name];
   if (input) {
-    input.value = value ?? "";
+    if (input.type === "checkbox") {
+      input.checked = value === true || value === "true";
+    } else {
+      input.value = value ?? "";
+    }
   }
 }
 

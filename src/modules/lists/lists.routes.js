@@ -15,6 +15,40 @@ listsRoutes.post("/lists", asyncRoute(async (request, response) => {
   response.status(201).json(result);
 }));
 
+listsRoutes.get("/lists/item-suggestions", asyncRoute(async (request, response) => {
+  const result = await listsService.suggestItems(request.session, request.query);
+  response.status(200).json(result);
+}));
+
+listsRoutes.get("/lists/catalog-items", asyncRoute(async (request, response) => {
+  const result = await listsService.suggestItems(request.session, request.query);
+  response.status(200).json({ catalogItems: result.suggestions });
+}));
+
+listsRoutes.post("/lists/catalog-items", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await listsService.createCatalogItem(payload, request.session);
+  response.status(201).json(result);
+}));
+
+listsRoutes.put("/lists/catalog-items/:catalogItemId", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await listsService.updateCatalogItem(request.params.catalogItemId, payload, request.session);
+  response.status(200).json(result);
+}));
+
+listsRoutes.post("/lists/item-catalog", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await listsService.createCatalogItem(payload, request.session);
+  response.status(201).json(result);
+}));
+
+listsRoutes.put("/lists/item-catalog/:catalogItemId", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await listsService.updateCatalogItem(request.params.catalogItemId, payload, request.session);
+  response.status(200).json(result);
+}));
+
 listsRoutes.get("/lists/:listId", asyncRoute(async (request, response) => {
   const result = await listsService.read(request.params.listId, request.session, {
     includeDeleted: request.query.includeDeleted === "true" || request.query.include_deleted === "true",

@@ -39,7 +39,7 @@ async function assertListsModuleManifest() {
   const listsModule = modulesService.getModule("lists");
 
   assert.equal(listsModule.id, "lists");
-  assert.equal(listsModule.version, "0.33.4.5.2");
+  assert.equal(listsModule.version, "0.33.4.6");
   assert.equal(listsModule.enabledByDefault, true);
   assert.equal(listsModule.canDisable, true);
   assert.equal(listsModule.historicalReadAccess, true);
@@ -66,13 +66,19 @@ async function assertListsMigrationApplied() {
   const rows = await querySql(`
 SELECT version, module_id, name
 FROM schema_migrations
-WHERE version = '050';
+WHERE version IN ('050', '051')
+ORDER BY version;
 `);
 
   assert.deepEqual(rows[0], {
     version: "050",
     module_id: "lists",
     name: "add_lists_foundation",
+  });
+  assert.deepEqual(rows[1], {
+    version: "051",
+    module_id: "lists",
+    name: "add_list_item_catalog",
   });
 }
 
@@ -81,10 +87,10 @@ async function assertListsSchema() {
 SELECT name
 FROM sqlite_master
 WHERE type = 'table'
-  AND name IN ('lists', 'list_items')
+  AND name IN ('lists', 'list_items', 'list_item_catalog')
 ORDER BY name;
 `);
-  assert.deepEqual(tables.map((row) => row.name), ["list_items", "lists"]);
+  assert.deepEqual(tables.map((row) => row.name), ["list_item_catalog", "list_items", "lists"]);
 
   await assertColumns("lists", [
     "list_id",
@@ -140,6 +146,30 @@ ORDER BY name;
     "metadata_json",
   ]);
 
+  await assertColumns("list_item_catalog", [
+    "catalog_item_id",
+    "workspace_id",
+    "item_name",
+    "normalized_name",
+    "list_type",
+    "client_id",
+    "project_id",
+    "quantity",
+    "unit",
+    "vendor_name",
+    "url",
+    "estimated_cost",
+    "notes",
+    "use_count",
+    "last_used_at",
+    "created_by_user_id",
+    "updated_by_user_id",
+    "created_at",
+    "updated_at",
+    "archived_at",
+    "metadata_json",
+  ]);
+
   const indexes = await querySql(`
 SELECT name
 FROM sqlite_master
@@ -159,12 +189,17 @@ WHERE type = 'index'
     'idx_list_items_workspace_list_sort',
     'idx_list_items_workspace_list_status',
     'idx_list_items_workspace_assigned_user',
-    'idx_list_items_workspace_needed_by'
+    'idx_list_items_workspace_needed_by',
+    'idx_list_items_workspace_catalog',
+    'idx_list_item_catalog_workspace_name',
+    'idx_list_item_catalog_workspace_type',
+    'idx_list_item_catalog_workspace_context',
+    'idx_list_item_catalog_workspace_usage'
   )
 ORDER BY name;
 `);
 
-  assert.equal(indexes.length, 15, "Lists foundation should create the expected lookup indexes");
+  assert.equal(indexes.length, 20, "Lists foundation should create the expected lookup indexes");
 }
 
 async function assertColumns(tableName, expectedColumns) {

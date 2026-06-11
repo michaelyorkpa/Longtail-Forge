@@ -1,3 +1,11 @@
+## Version 0.33.4.6 - 2026-06-11 13:52 -04:00
+
+- Added module-owned `list_item_catalog` storage, catalog usage metrics, and catalog lookup indexes for Lists item suggestions.
+- Added Lists catalog create/update service behavior and browser API routes, plus a deterministic `/api/lists/item-suggestions` endpoint.
+- Added item-entry autocomplete support with explicit `Save as reusable item` behavior and catalog-backed snapshot creation.
+- Preserved historical list-item snapshots when catalog entries change, while tracking catalog use counts for future suggestion ranking.
+- Expanded Lists foundation, service, API, and UI regressions for catalog storage, workspace-scoped suggestions, usage ranking, and snapshot immutability.
+
 ## Version 0.33.4.5.2 - 2026-06-11 13:31 -04:00
 
 - Added permission-safe Lists source-context summaries for duplicated-from and reusable/source lists.

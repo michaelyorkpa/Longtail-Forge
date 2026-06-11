@@ -61,6 +61,30 @@ const ITEM_COLUMNS = [
   "metadata_json",
 ];
 
+const CATALOG_COLUMNS = [
+  "catalog_item_id",
+  "workspace_id",
+  "item_name",
+  "normalized_name",
+  "list_type",
+  "client_id",
+  "project_id",
+  "quantity",
+  "unit",
+  "vendor_name",
+  "url",
+  "estimated_cost",
+  "notes",
+  "use_count",
+  "last_used_at",
+  "created_by_user_id",
+  "updated_by_user_id",
+  "created_at",
+  "updated_at",
+  "archived_at",
+  "metadata_json",
+];
+
 async function list(workspaceId, filters = {}) {
   const clauses = [`workspace_id = ${sqlText(workspaceId)}`];
 
@@ -354,6 +378,168 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   return listItems(workspaceId, listId);
 }
 
+async function createCatalogItem(workspaceId, item) {
+  const catalogItemId = item.catalog_item_id || randomUUID();
+  const now = item.created_at || new Date().toISOString();
+
+  await runSql(`
+INSERT INTO list_item_catalog (
+  catalog_item_id,
+  workspace_id,
+  item_name,
+  normalized_name,
+  list_type,
+  client_id,
+  project_id,
+  quantity,
+  unit,
+  vendor_name,
+  url,
+  estimated_cost,
+  notes,
+  use_count,
+  last_used_at,
+  created_by_user_id,
+  updated_by_user_id,
+  created_at,
+  updated_at,
+  archived_at,
+  metadata_json
+)
+VALUES (
+  ${sqlText(catalogItemId)},
+  ${sqlText(workspaceId)},
+  ${sqlText(item.item_name)},
+  ${sqlText(item.normalized_name)},
+  ${sqlNullableText(item.list_type)},
+  ${sqlNullableText(item.client_id)},
+  ${sqlNullableText(item.project_id)},
+  ${numberOrNullSql(item.quantity ?? 1)},
+  ${sqlNullableText(item.unit)},
+  ${sqlNullableText(item.vendor_name)},
+  ${sqlNullableText(item.url)},
+  ${numberOrNullSql(item.estimated_cost)},
+  ${sqlNullableText(item.notes)},
+  ${sqlInteger(item.use_count || 0)},
+  ${sqlNullableText(item.last_used_at)},
+  ${sqlNullableText(item.created_by_user_id)},
+  ${sqlNullableText(item.updated_by_user_id)},
+  ${sqlText(now)},
+  ${sqlText(now)},
+  ${sqlNullableText(item.archived_at)},
+  ${sqlNullableText(serializeMetadata(item.metadata_json))}
+);
+`);
+
+  return readCatalogItemById(workspaceId, catalogItemId);
+}
+
+async function updateCatalogItem(workspaceId, item) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE list_item_catalog
+SET
+  item_name = ${sqlText(item.item_name)},
+  normalized_name = ${sqlText(item.normalized_name)},
+  list_type = ${sqlNullableText(item.list_type)},
+  client_id = ${sqlNullableText(item.client_id)},
+  project_id = ${sqlNullableText(item.project_id)},
+  quantity = ${numberOrNullSql(item.quantity ?? 1)},
+  unit = ${sqlNullableText(item.unit)},
+  vendor_name = ${sqlNullableText(item.vendor_name)},
+  url = ${sqlNullableText(item.url)},
+  estimated_cost = ${numberOrNullSql(item.estimated_cost)},
+  notes = ${sqlNullableText(item.notes)},
+  use_count = ${sqlInteger(item.use_count || 0)},
+  last_used_at = ${sqlNullableText(item.last_used_at)},
+  updated_by_user_id = ${sqlNullableText(item.updated_by_user_id)},
+  updated_at = ${sqlText(now)},
+  archived_at = ${sqlNullableText(item.archived_at)},
+  metadata_json = ${sqlNullableText(serializeMetadata(item.metadata_json))}
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND catalog_item_id = ${sqlText(item.catalog_item_id)};
+`);
+
+  return readCatalogItemById(workspaceId, item.catalog_item_id);
+}
+
+async function readCatalogItemById(workspaceId, catalogItemId) {
+  const rows = await querySql(`
+SELECT ${CATALOG_COLUMNS.join(", ")}
+FROM list_item_catalog
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND catalog_item_id = ${sqlText(catalogItemId)}
+LIMIT 1;
+`);
+
+  return rows[0] ? catalogRowToAppValue(rows[0]) : null;
+}
+
+async function listCatalogSuggestions(workspaceId, filters = {}) {
+  const clauses = [
+    `workspace_id = ${sqlText(workspaceId)}`,
+    "archived_at IS NULL",
+  ];
+
+  if (filters.query) {
+    clauses.push(`normalized_name LIKE ${sqlText(`%${filters.query}%`)}`);
+  }
+
+  if (filters.listType) {
+    clauses.push(`(list_type IS NULL OR list_type = '' OR list_type = ${sqlText(filters.listType)})`);
+  }
+
+  if (filters.clientId) {
+    clauses.push(`(client_id IS NULL OR client_id = '' OR client_id = ${sqlText(filters.clientId)})`);
+  } else {
+    clauses.push("(client_id IS NULL OR client_id = '')");
+  }
+
+  if (filters.projectId) {
+    clauses.push(`(project_id IS NULL OR project_id = '' OR project_id = ${sqlText(filters.projectId)})`);
+  } else {
+    clauses.push("(project_id IS NULL OR project_id = '')");
+  }
+
+  const limit = Math.max(1, Math.min(Number(filters.limit) || 8, 20));
+  const rows = await querySql(`
+SELECT ${CATALOG_COLUMNS.join(", ")},
+  CASE WHEN list_type = ${sqlNullableText(filters.listType)} THEN 1 ELSE 0 END AS list_type_match,
+  CASE WHEN client_id = ${sqlNullableText(filters.clientId)} THEN 1 ELSE 0 END AS client_match,
+  CASE WHEN project_id = ${sqlNullableText(filters.projectId)} THEN 1 ELSE 0 END AS project_match
+FROM list_item_catalog
+WHERE ${clauses.join("\n  AND ")}
+ORDER BY
+  project_match DESC,
+  client_match DESC,
+  list_type_match DESC,
+  use_count DESC,
+  last_used_at DESC,
+  item_name COLLATE NOCASE ASC
+LIMIT ${sqlInteger(limit)};
+`);
+
+  return rows.map(catalogRowToAppValue);
+}
+
+async function incrementCatalogUsage(workspaceId, catalogItemId, updatedByUserId = "") {
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE list_item_catalog
+SET use_count = use_count + 1,
+    last_used_at = ${sqlText(now)},
+    updated_by_user_id = ${sqlNullableText(updatedByUserId)},
+    updated_at = ${sqlText(now)}
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND catalog_item_id = ${sqlText(catalogItemId)}
+  AND archived_at IS NULL;
+`);
+
+  return readCatalogItemById(workspaceId, catalogItemId);
+}
+
 function serializeMetadata(value) {
   if (value === null || value === undefined || value === "") {
     return null;
@@ -393,6 +579,16 @@ function itemRowToAppValue(row = {}) {
   };
 }
 
+function catalogRowToAppValue(row = {}) {
+  return {
+    ...row,
+    estimated_cost: row.estimated_cost === null || row.estimated_cost === undefined ? null : Number(row.estimated_cost),
+    metadata_json: parseMetadata(row.metadata_json),
+    quantity: row.quantity === null || row.quantity === undefined ? null : Number(row.quantity),
+    use_count: Number(row.use_count) || 0,
+  };
+}
+
 function parseMetadata(value) {
   if (!value) {
     return {};
@@ -406,14 +602,19 @@ function parseMetadata(value) {
 }
 
 const listsRepository = {
+  createCatalogItem,
   create,
   createItem,
+  incrementCatalogUsage,
   list,
+  listCatalogSuggestions,
   listItems,
+  readCatalogItemById,
   readById,
   readItemById,
   reorderItems,
   update,
+  updateCatalogItem,
   updateItem,
 };
 

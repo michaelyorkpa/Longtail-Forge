@@ -37,7 +37,7 @@ async function assertManifestContracts() {
   const listsModule = modulesService.getModule("lists");
   const permissionIds = new Set(listsModule.permissions.map((permission) => permission.id));
 
-  assert.equal(listsModule.version, "0.33.4.5.2");
+  assert.equal(listsModule.version, "0.33.4.6");
   assert.equal(listsModule.resourceDefinitions[0].key, "lists");
   assert.deepEqual(listsModule.resourceDefinitions[0].operations, [
     "read",
@@ -119,6 +119,59 @@ async function assertServiceLifecycle(session) {
     }, session);
     assert.equal(item.item.assigned_user_id, session.user_id);
 
+    const catalog = await listsService.createCatalogItem({
+      estimated_cost: 18,
+      item_name: "Catalog Fastener",
+      list_type: "procurement",
+      quantity: 12,
+      unit: "pack",
+      vendor_name: "Fastener Co",
+    }, session);
+    assert.equal(catalog.catalogItem.item_name, "Catalog Fastener");
+    assert.equal(catalog.catalogItem.use_count, 0);
+
+    const catalogItem = await listsService.createItem(created.list.list_id, {
+      catalog_item_id: catalog.catalogItem.catalog_item_id,
+      item_name: "Catalog Fastener",
+      purchase_status: "needed",
+    }, session);
+    assert.equal(catalogItem.item.catalog_item_id, catalog.catalogItem.catalog_item_id);
+    assert.equal(catalogItem.item.quantity, 12);
+    assert.equal(catalogItem.item.unit, "pack");
+    assert.equal(catalogItem.item.estimated_cost, 18);
+
+    const usedSuggestions = await listsService.suggestItems(session, {
+      listId: created.list.list_id,
+      q: "catalog",
+    });
+    assert.equal(usedSuggestions.suggestions[0].catalog_item_id, catalog.catalogItem.catalog_item_id);
+    assert.equal(usedSuggestions.suggestions[0].use_count, 1);
+
+    await listsService.updateCatalogItem(catalog.catalogItem.catalog_item_id, {
+      item_name: "Catalog Fastener Revised",
+      list_type: "procurement",
+      quantity: 99,
+      unit: "crate",
+    }, session);
+    const catalogSnapshotRead = await listsService.read(created.list.list_id, session);
+    const catalogSnapshotItem = catalogSnapshotRead.items.find((entry) => entry.list_item_id === catalogItem.item.list_item_id);
+    assert.equal(catalogSnapshotItem.item_name, "Catalog Fastener");
+    assert.equal(catalogSnapshotItem.quantity, 12);
+    assert.equal(catalogSnapshotItem.unit, "pack");
+
+    const savedCatalogItem = await listsService.createItem(created.list.list_id, {
+      item_name: "Explicit reusable washer",
+      quantity: 20,
+      save_to_catalog: true,
+      unit: "bag",
+    }, session);
+    assert.ok(savedCatalogItem.item.catalog_item_id, "Explicit saved item should point at a catalog row");
+    const savedSuggestions = await listsService.suggestItems(session, {
+      listId: created.list.list_id,
+      q: "washer",
+    });
+    assert.equal(savedSuggestions.suggestions[0].item_name, "Explicit reusable washer");
+
     const checked = await listsService.checkItem(created.list.list_id, item.item.list_item_id, session);
     assert.ok(checked.item.checked_at);
     assert.equal(checked.item.completed_at, null);
@@ -148,7 +201,7 @@ async function assertServiceLifecycle(session) {
     assert.equal(duplicated.list.duplicated_from_list_id, created.list.list_id);
     assert.equal(duplicated.list.sourceContext.duplicatedFrom.title, "R&D Procurement Updated");
     assert.equal(duplicated.list.sourceContext.sourceList.title, "R&D Procurement Updated");
-    assert.equal(duplicated.items.length, 1);
+    assert.equal(duplicated.items.length, 3);
     assert.equal(duplicated.items[0].actual_cost, null);
     assert.equal(duplicated.items[0].checked_at, null);
     assert.equal(duplicated.items[0].completed_at, null);

@@ -3855,8 +3855,19 @@ dialog .form-actions {
 }
 
 .lists-item-form {
-    grid-template-columns: minmax(180px, 1.3fr) 80px 90px 130px minmax(140px, 1fr) minmax(130px, 1fr) auto;
+    grid-template-columns: minmax(180px, 1.3fr) 80px 90px 130px minmax(140px, 1fr) minmax(130px, 1fr) minmax(150px, 0.8fr) auto;
     align-items: end;
+}
+
+.lists-checkbox-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 38px;
+}
+
+.lists-checkbox-field input {
+    width: auto;
 }
 
 .lists-items {

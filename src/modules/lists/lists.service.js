@@ -276,21 +276,86 @@ async function softDelete(listId, session) {
   });
 }
 
+async function createCatalogItem(payload, session) {
+  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
+  await assertCanManageCatalog(session);
+  const normalized = await normalizeCatalogPayload(payload, session, {
+    catalog_item_id: payload?.catalog_item_id || payload?.id || randomUUID(),
+    created_by_user_id: session.user_id,
+    updated_by_user_id: session.user_id,
+  });
+  const catalogItem = await listsRepository.createCatalogItem(session.workspace_id, normalized);
+
+  return { catalogItem: shapeCatalogItemForBrowser(catalogItem) };
+}
+
+async function updateCatalogItem(catalogItemId, payload, session) {
+  await assertModuleWriteEnabled(session, LIST_MODULE_ID);
+  await assertCanManageCatalog(session);
+  const previousItem = await readCatalogItemOrThrow(session, catalogItemId);
+  const normalized = await normalizeCatalogPayload(payload, session, {
+    ...previousItem,
+    updated_by_user_id: session.user_id,
+  });
+  const catalogItem = await listsRepository.updateCatalogItem(session.workspace_id, normalized);
+
+  return { catalogItem: shapeCatalogItemForBrowser(catalogItem) };
+}
+
+async function suggestItems(session, query = {}) {
+  await assertListsReadable(session);
+  const listRecord = query.listId || query.list_id
+    ? await readListOrThrow(session, query.listId || query.list_id, { includeDeleted: true })
+    : null;
+
+  if (listRecord) {
+    await assertCanAccessList(session, listRecord, "read");
+  } else {
+    await permissionsService.assertCan(session, LIST_PERMISSIONS.VIEW, listResource({ workspace_id: session.workspace_id }));
+  }
+
+  const suggestions = await listsRepository.listCatalogSuggestions(session.workspace_id, {
+    clientId: normalizeOptionalText(query.clientId || query.client_id || listRecord?.client_id),
+    limit: normalizeSuggestionLimit(query.limit),
+    listType: normalizeOptionalText(query.listType || query.list_type || listRecord?.list_type),
+    projectId: normalizeOptionalText(query.projectId || query.project_id || listRecord?.project_id),
+    query: normalizeCatalogName(query.q || query.query || ""),
+  });
+
+  return { suggestions: suggestions.map(shapeCatalogItemForBrowser) };
+}
+
 async function createItem(listId, payload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const listRecord = await readListOrThrow(session, listId);
   await assertCanManageItem(session, listRecord, null);
+  const catalogItem = await resolveCatalogItemSnapshot(payload, session);
+  const itemFallback = catalogItem ? catalogItemToItemFallback(catalogItem) : {};
   const item = normalizeItemPayload(payload, session, listRecord, {
+    ...itemFallback,
     list_item_id: payload?.list_item_id || payload?.id || randomUUID(),
     purchase_status: LIST_ITEM_PURCHASE_STATUSES.NEEDED,
-    quantity: 1,
+    quantity: itemFallback.quantity ?? 1,
     sort_order: await nextSortOrder(session.workspace_id, listRecord.list_id),
     assigned_user_id: payload?.assigned_user_id || payload?.assignedUserId || session.user_id,
     created_by_user_id: session.user_id,
     updated_by_user_id: session.user_id,
   });
 
+  if (payload?.save_to_catalog === true || payload?.save_to_catalog === "true" || payload?.saveToCatalog === true || payload?.saveToCatalog === "true") {
+    const createdCatalog = await createCatalogItem({
+      ...item,
+      client_id: listRecord.client_id || "",
+      list_type: listRecord.list_type,
+      project_id: listRecord.project_id || "",
+    }, session);
+    item.catalog_item_id = createdCatalog.catalogItem.catalog_item_id;
+  }
+
   const storedItem = await listsRepository.createItem(session.workspace_id, item);
+  if (storedItem.catalog_item_id) {
+    await listsRepository.incrementCatalogUsage(session.workspace_id, storedItem.catalog_item_id, session.user_id);
+  }
   await recordItemAudit(session, "list_item_created", "create", null, storedItem, listRecord);
   await emitItemEvent("lists.item.created", session, null, storedItem, listRecord);
 
@@ -301,12 +366,19 @@ async function updateItem(listId, itemId, payload, session) {
   await assertModuleWriteEnabled(session, LIST_MODULE_ID);
   const { listRecord, item } = await readItemWithListOrThrow(session, listId, itemId);
   await assertCanManageItem(session, listRecord, item);
+  const catalogItem = await resolveCatalogItemSnapshot(payload, session);
+  const itemFallback = catalogItem ? catalogItemToItemFallback(catalogItem) : {};
   const normalized = normalizeItemPayload(payload, session, listRecord, {
+    ...itemFallback,
     ...item,
+    catalog_item_id: itemFallback.catalog_item_id || item.catalog_item_id,
     updated_by_user_id: session.user_id,
   });
 
   const storedItem = await listsRepository.updateItem(session.workspace_id, normalized);
+  if (catalogItem && storedItem.catalog_item_id) {
+    await listsRepository.incrementCatalogUsage(session.workspace_id, storedItem.catalog_item_id, session.user_id);
+  }
   await recordItemAudit(session, "list_item_updated", "update", item, storedItem, listRecord);
   await emitItemEvent("lists.item.updated", session, item, storedItem, listRecord);
 
@@ -510,6 +582,13 @@ async function assertCanManageItem(session, listRecord, item) {
   await permissionsService.assertCan(session, LIST_PERMISSIONS.MANAGE_ITEMS, itemResource(listRecord, item || {}));
 }
 
+async function assertCanManageCatalog(session) {
+  await permissionsService.assertCan(session, LIST_PERMISSIONS.MANAGE_CATALOG, {
+    operation: "manage_catalog",
+    workspace_id: session.workspace_id,
+  });
+}
+
 async function readRelevantPermissions(session, listRecord) {
   const checks = await Promise.all(Object.values(LIST_PERMISSIONS).map(async (permission) => [
     permission,
@@ -517,6 +596,17 @@ async function readRelevantPermissions(session, listRecord) {
   ]));
 
   return checks.filter(([, allowed]) => allowed).map(([permission]) => permission);
+}
+
+async function readCatalogItemOrThrow(session, catalogItemId) {
+  const normalizedId = normalizeRequiredText(catalogItemId, "Catalog item ID");
+  const catalogItem = await listsRepository.readCatalogItemById(session.workspace_id, normalizedId);
+
+  if (!catalogItem || catalogItem.archived_at) {
+    throw new AppError("Catalog item not found.", 404);
+  }
+
+  return catalogItem;
 }
 
 async function normalizeListPayload(payload = {}, session, fallback = {}) {
@@ -618,6 +708,92 @@ function normalizeItemPayload(payload = {}, session, listRecord, fallback = {}) 
     sort_order: normalizeInteger(valueOrFallback(payload, "sort_order", fallback.sort_order) || 0, "Sort order"),
     deleted_at: normalizeOptionalText(valueOrFallback(payload, "deleted_at", fallback.deleted_at)),
     metadata_json: normalizeMetadata(valueOrFallback(payload, "metadata_json", fallback.metadata_json)),
+  };
+}
+
+async function normalizeCatalogPayload(payload = {}, session, fallback = {}) {
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
+  const workspaceType = settings.workspaceType || "business";
+  const itemName = normalizeRequiredText(valueOrFallback(payload, "item_name", fallback.item_name) || payload.itemName || payload.name, "Catalog item name");
+  const listType = normalizeOptionalText(valueOrFallback(payload, "list_type", fallback.list_type));
+  const projectId = normalizeOptionalText(valueOrFallback(payload, "project_id", fallback.project_id));
+  const explicitClientId = normalizeOptionalText(valueOrFallback(payload, "client_id", fallback.client_id));
+  const project = projectId ? await projectsRepository.readById(session.workspace_id, projectId) : null;
+
+  if (listType && !LIST_TYPE_SET.has(listType)) {
+    throw new AppError(`List type '${listType}' is not supported.`, 400);
+  }
+
+  if (projectId && !project) {
+    throw new AppError("Project not found.", 404);
+  }
+
+  const context = validateListContext({
+    clientId: explicitClientId,
+    project: project ? { workspace_id: project.workspace_id, client_id: project.client_id || "" } : null,
+    workspaceId: session.workspace_id,
+    workspaceType,
+  });
+
+  if (!context.ok) {
+    throw new AppError(context.message, 400);
+  }
+
+  if (explicitClientId && !project) {
+    const client = await clientsRepository.readById(session.workspace_id, explicitClientId);
+
+    if (!client) {
+      throw new AppError("Client not found.", 404);
+    }
+  }
+
+  const now = new Date().toISOString();
+
+  return {
+    archived_at: normalizeOptionalText(valueOrFallback(payload, "archived_at", fallback.archived_at)),
+    catalog_item_id: normalizeOptionalText(fallback.catalog_item_id || payload.catalog_item_id || payload.catalogItemId || payload.id),
+    client_id: context.clientId,
+    created_at: fallback.created_at || now,
+    created_by_user_id: fallback.created_by_user_id || session.user_id,
+    estimated_cost: normalizeOptionalNonNegativeNumber(valueOrFallback(payload, "estimated_cost", fallback.estimated_cost), "Estimated cost"),
+    item_name: itemName,
+    last_used_at: normalizeOptionalText(valueOrFallback(payload, "last_used_at", fallback.last_used_at)),
+    list_type: listType,
+    metadata_json: normalizeMetadata(valueOrFallback(payload, "metadata_json", fallback.metadata_json)),
+    normalized_name: normalizeCatalogName(itemName),
+    notes: normalizeOptionalText(valueOrFallback(payload, "notes", fallback.notes)),
+    project_id: projectId || "",
+    quantity: normalizeNonNegativeNumber(valueOrFallback(payload, "quantity", fallback.quantity) ?? 1, "Quantity"),
+    unit: normalizeOptionalText(valueOrFallback(payload, "unit", fallback.unit)),
+    updated_at: now,
+    updated_by_user_id: session.user_id,
+    url: normalizeOptionalText(valueOrFallback(payload, "url", fallback.url)),
+    use_count: normalizeInteger(valueOrFallback(payload, "use_count", fallback.use_count) || 0, "Use count"),
+    vendor_name: normalizeOptionalText(valueOrFallback(payload, "vendor_name", fallback.vendor_name)),
+    workspace_id: session.workspace_id,
+  };
+}
+
+async function resolveCatalogItemSnapshot(payload = {}, session) {
+  const catalogItemId = normalizeOptionalText(payload.catalog_item_id || payload.catalogItemId);
+
+  if (!catalogItemId) {
+    return null;
+  }
+
+  return readCatalogItemOrThrow(session, catalogItemId);
+}
+
+function catalogItemToItemFallback(catalogItem = {}) {
+  return {
+    catalog_item_id: catalogItem.catalog_item_id,
+    estimated_cost: catalogItem.estimated_cost,
+    item_name: catalogItem.item_name,
+    notes: catalogItem.notes,
+    quantity: catalogItem.quantity ?? 1,
+    unit: catalogItem.unit,
+    url: catalogItem.url,
+    vendor_name: catalogItem.vendor_name,
   };
 }
 
@@ -769,6 +945,20 @@ function normalizeInteger(value, label) {
   return number;
 }
 
+function normalizeSuggestionLimit(value) {
+  const number = Number(value || 8);
+
+  if (!Number.isFinite(number)) {
+    return 8;
+  }
+
+  return Math.max(1, Math.min(Math.trunc(number), 20));
+}
+
+function normalizeCatalogName(value) {
+  return normalizeOptionalText(value).toLowerCase().replace(/\s+/g, " ");
+}
+
 function normalizeMetadata(value) {
   if (typeof value === "string") {
     try {
@@ -829,6 +1019,13 @@ function shapeItemForBrowser(item = {}) {
   return {
     ...item,
     id: item.list_item_id,
+  };
+}
+
+function shapeCatalogItemForBrowser(item = {}) {
+  return {
+    ...item,
+    id: item.catalog_item_id,
   };
 }
 
@@ -917,6 +1114,7 @@ const listsService = {
   checkItem,
   complete,
   completeItem,
+  createCatalogItem,
   create,
   createItem,
   deleteItem,
@@ -929,9 +1127,11 @@ const listsService = {
   reorderItems,
   restore,
   softDelete,
+  suggestItems,
   uncheckItem,
   unmarkReusable,
   update,
+  updateCatalogItem,
   updateItem,
 };
 

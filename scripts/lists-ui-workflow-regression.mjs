@@ -33,7 +33,7 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
-  assert.equal(listsModule.version, "0.33.4.5.2");
+  assert.equal(listsModule.version, "0.33.4.6");
   assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
   assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
@@ -72,6 +72,7 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /mark-reusable-list/);
   assert.match(listsJs, /unmark-reusable-list/);
   assert.match(listsJs, /\/api\/lists\/\$\{listId\}\/duplicate/);
+  assert.match(listsJs, /\/api\/lists\/item-suggestions/);
   assert.match(listsJs, /Reusable List/);
   assert.match(listsJs, /BOM/);
   assert.match(listsJs, /reopen-list/);
@@ -101,12 +102,19 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /Independent working copy from/);
   assert.match(listsJs, /Template for repeatable work/);
   assert.match(listsJs, /Working Copy/);
+  assert.match(listsJs, /createItemNameField/);
+  assert.match(listsJs, /data-list-item-suggestions/);
+  assert.match(listsJs, /save_to_catalog/);
+  assert.match(listsJs, /catalog_item_id/);
+  assert.match(listsJs, /applySuggestionSelection/);
+  assert.match(listsJs, /Save as reusable item/);
 
   assert.match(styles, /\.lists-workspace/);
   assert.match(styles, /\.lists-state-summary/);
   assert.match(styles, /\.lists-next-action/);
   assert.match(styles, /\.lists-next-action-facts/);
   assert.match(styles, /\.lists-source-context/);
+  assert.match(styles, /\.lists-checkbox-field/);
   assert.match(styles, /\.lists-badge\.is-reusable/);
   assert.match(styles, /\.lists-badge\.is-bom/);
   assert.match(styles, /\.lists-badge\.is-duplicated/);

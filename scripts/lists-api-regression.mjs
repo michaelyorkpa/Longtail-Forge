@@ -145,6 +145,63 @@ async function assertBusinessListApiFlow(api, fixtures) {
   assert.ok(duplicated.body.items.every((entry) => entry.purchase_status === "needed"));
   assert.ok(duplicated.body.items.every((entry) => entry.checked_at === null && entry.completed_at === null));
 
+  const catalog = await api.post("/api/lists/item-catalog", {
+    estimated_cost: 9,
+    item_name: "API Catalog Tape",
+    list_type: "procurement",
+    quantity: 6,
+    unit: "roll",
+  }, { cookie: fixtures.adminSessionId });
+  assert.equal(catalog.status, 201);
+  assert.equal(catalog.body.catalogItem.use_count, 0);
+
+  const catalogSuggestions = await api.get(`/api/lists/item-suggestions?listId=${fixtures.businessListId}&q=tape`, {
+    cookie: fixtures.adminSessionId,
+  });
+  assert.equal(catalogSuggestions.status, 200);
+  assert.equal(catalogSuggestions.body.suggestions[0].catalog_item_id, catalog.body.catalogItem.catalog_item_id);
+  const catalogList = await api.get(`/api/lists/catalog-items?listId=${fixtures.businessListId}&q=tape`, {
+    cookie: fixtures.adminSessionId,
+  });
+  assert.equal(catalogList.status, 200);
+  assert.equal(catalogList.body.catalogItems[0].catalog_item_id, catalog.body.catalogItem.catalog_item_id);
+
+  const catalogBackedItem = await api.post(`/api/lists/${fixtures.businessListId}/items`, {
+    catalog_item_id: catalog.body.catalogItem.catalog_item_id,
+    item_name: "API Catalog Tape",
+  }, { cookie: fixtures.adminSessionId });
+  assert.equal(catalogBackedItem.status, 201);
+  assert.equal(catalogBackedItem.body.item.quantity, 6);
+  assert.equal(catalogBackedItem.body.item.unit, "roll");
+  assert.equal(catalogBackedItem.body.item.estimated_cost, 9);
+
+  const usedSuggestions = await api.get(`/api/lists/item-suggestions?listId=${fixtures.businessListId}&q=tape`, {
+    cookie: fixtures.adminSessionId,
+  });
+  assert.equal(usedSuggestions.body.suggestions[0].use_count, 1);
+
+  const updatedCatalog = await api.put(`/api/lists/item-catalog/${catalog.body.catalogItem.catalog_item_id}`, {
+    item_name: "API Catalog Tape Revised",
+    list_type: "procurement",
+    quantity: 100,
+    unit: "case",
+  }, { cookie: fixtures.adminSessionId });
+  assert.equal(updatedCatalog.status, 200);
+  const snapshotRead = await api.get(`/api/lists/${fixtures.businessListId}`, { cookie: fixtures.adminSessionId });
+  const snapshotItem = snapshotRead.body.items.find((entry) => entry.list_item_id === catalogBackedItem.body.item.list_item_id);
+  assert.equal(snapshotItem.item_name, "API Catalog Tape");
+  assert.equal(snapshotItem.quantity, 6);
+  assert.equal(snapshotItem.unit, "roll");
+
+  const savedCatalogItem = await api.post(`/api/lists/${fixtures.businessListId}/items`, {
+    item_name: "API Saved Reusable Item",
+    quantity: 2,
+    save_to_catalog: true,
+    unit: "kit",
+  }, { cookie: fixtures.adminSessionId });
+  assert.equal(savedCatalogItem.status, 201);
+  assert.ok(savedCatalogItem.body.item.catalog_item_id);
+
   const unmarkedReusable = await api.post(`/api/lists/${fixtures.businessListId}/unmark-reusable`, {}, { cookie: fixtures.adminSessionId });
   assert.equal(unmarkedReusable.status, 200);
   assert.equal(unmarkedReusable.body.list.is_reusable, false);
@@ -228,6 +285,12 @@ async function assertFamilyListApiFlow(api, fixtures) {
   }, { cookie: fixtures.familySessionId });
   assert.equal(blockedClientContext.status, 400);
   assert.match(blockedClientContext.body.error, /business workspaces/i);
+
+  const familySuggestions = await api.get(`/api/lists/item-suggestions?listId=${fixtures.familyListId}&q=tape`, {
+    cookie: fixtures.familySessionId,
+  });
+  assert.equal(familySuggestions.status, 200);
+  assert.deepEqual(familySuggestions.body.suggestions, []);
 }
 
 async function assertUnauthorizedAndIsolation(api, fixtures) {
