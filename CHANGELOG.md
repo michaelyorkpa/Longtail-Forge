@@ -1,3 +1,10 @@
+## Version 0.33.4.3 - 2026-06-11 10:52 -04:00
+
+- Added module-owned Lists browser API routes for list CRUD, lifecycle actions, item CRUD, reorder, check/uncheck, completion, and deletion.
+- Registered the Lists API router through the module manifest and bumped the Lists/app package version to `0.33.4.3`.
+- Added `scripts/lists-api-regression.mjs` and wired it into `npm run check` to cover business and family list flows, project/client mismatch validation, unauthorized access, workspace isolation, standard API errors, and disabled-module read/write behavior.
+- Updated Lists foundation/service regressions for the 0.33.4.3 route contract.
+
 ## Version 0.33.4.2 - 2026-06-11 03:50 -04:00
 
 - Added the Lists permission/resource contract with `lists.*` permissions, role defaults, module audit record types, and lifecycle event declarations.

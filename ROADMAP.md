@@ -72,13 +72,13 @@ Use these sub-versions as the implementation order for the Lists module. The det
 
 #### Version 0.33.4.3 - Browser API Foundation
 
-* [ ] Add browser API routes for core list CRUD and lifecycle actions.
-* [ ] Add browser API routes for list item CRUD, reorder, check/uncheck, completion, and deletion.
-* [ ] Return permission-safe list and item payloads.
-* [ ] Normalize validation errors into existing API error shapes.
-* [ ] Ensure disabled-module behavior blocks writes but preserves historical reads where allowed.
-* [ ] Add focused API tests for core personal/family and business list flows.
-* [ ] Add focused API tests for unauthorized reads/writes, workspace crossing, and project/client mismatch protection.
+* [x] Add browser API routes for core list CRUD and lifecycle actions.
+* [x] Add browser API routes for list item CRUD, reorder, check/uncheck, completion, and deletion.
+* [x] Return permission-safe list and item payloads.
+* [x] Normalize validation errors into existing API error shapes.
+* [x] Ensure disabled-module behavior blocks writes but preserves historical reads where allowed.
+* [x] Add focused API tests for core personal/family and business list flows.
+* [x] Add focused API tests for unauthorized reads/writes, workspace crossing, and project/client mismatch protection.
 
 #### Version 0.33.4.4 - Protected Lists UI MVP
 

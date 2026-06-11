@@ -4,6 +4,7 @@ import {
   LIST_PERMISSIONS,
   LIST_RESOURCE_DEFINITION,
 } from "./access-policy.js";
+import { listsRoutes } from "./lists.routes.js";
 import { LIST_MODULE_ID } from "./storage-contract.js";
 
 const LIST_PERMISSION_DEFINITIONS = [
@@ -162,11 +163,11 @@ const listsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.4.2",
+  version: "0.33.4.3",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
-  browserApiRoutes: [],
+  browserApiRoutes: [listsRoutes],
   publicApiRoutes: [],
   migrationsDir: new URL("./migrations/", import.meta.url),
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
