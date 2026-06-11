@@ -2,104 +2,800 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.3.4 - Import Planning, Verification, Bookkeeping, and Roadmap Archive
-
-* [x] Add migration/import planning notes.
-
-  * [x] Leave room for a future OneNote import workflow.
-  * [x] Map imported notebooks, section groups, sections, pages, and subpages into Notes metadata and collection structures.
-  * [x] Preserve source paths for troubleshooting.
-  * [x] Suggest Library buckets during import where possible.
-  * [x] Do not grant access based on import source.
-  * [x] Do not assume imported notes are safe to make client-visible.
-  * [x] Do not import secure/private source material into normal notes without a deliberate user choice.
-
-* [x] Run verification.
-
-  * [x] Run focused Notes API tests.
-  * [x] Run focused Notes UI tests.
-  * [x] Run focused Notes Library and collection tests.
-  * [x] Run focused Notes search tests.
-  * [x] Run focused Notes tag tests.
-  * [x] Run focused Notes file attachment tests.
-  * [x] Run focused Notes revision tests.
-  * [x] Run focused secure note tests if secure notes are included.
-  * [x] Run focused Library permission tests.
-  * [x] Run focused archived note read-only tests.
-  * [x] Run `npm run check`.
-  * [x] Run `npm run test:permissions`.
-  * [x] Run SQLite integrity check after Notes migrations, Library changes, and revision tests.
-
-* [x] Release bookkeeping.
-
-  * [x] Record Notes and Notes Library decisions in `DECISIONS.md`.
-  * [x] Update `CHANGELOG.md`.
-  * [x] Bump `package.json` and `package-lock.json`.
-  * [x] Verify `/api/app-info` reports the completed Notes version.
-  * [x] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process.
-
 ## Version 0.33.4 - Shopping / Procurement Lists Module
 
-- [ ] Treat this as an official first-party module. 
-  - [ ] The module should ship with Longtail Forge. 
-  - [ ] It should be enable/disable capable per workspace.
-  - [ ] Personal/family workspaces should label it as "Shopping Lists." 
-  - [ ] Business workspaces should label it as "Procurement Lists."
-  - [ ] The underlying module ID should remain stable regardless of label.
-  - [ ] Suggested module ID: `lists`.
+Decision:
+Lists are a first-party operational list module for shopping, procurement, packing, supplies, parts, bill of materials, and checklist-style item tracking. Lists should support both one-off use and reusable workflows without becoming a general-purpose bookmarks, notes, inventory, or ERP module.
 
-- [ ] Add optional first-party lists module for personal/family and business workspaces.
-- [ ] Use workspace-aware labels:
-  - [ ] Personal/family workspaces: "Shopping Lists"
-  - [ ] Business workspaces: "Procurement Lists"
-- [ ] Core list fields:
-  - [ ] `list_id`
-  - [ ] `workspace_id`
-  - [ ] `client_id` optional
-  - [ ] `project_id` optional
-  - [ ] `title`
-  - [ ] `description`
-  - [ ] `list_type`
-  - [ ] `status`
-  - [ ] `created_by_user_id`
-  - [ ] `created_at`
-  - [ ] `updated_at`
-- [ ] List item fields:
-  - [ ] Item name.
-  - [ ] Quantity.
-  - [ ] Unit.
-  - [ ] Needed by date.
-  - [ ] Vendor/store.
-  - [ ] URL.
-  - [ ] Estimated cost.
-  - [ ] Actual cost.
-  - [ ] Purchase/order status.
-  - [ ] Tracking ID.
-  - [ ] Notes.
-  - [ ] Assigned user. (Default to Item creator)
-  - [ ] Sort order.
-  - [ ] Checked/completed state.
-- [ ] List Types:
-  - [ ] Shopping
-  - [ ] Procurement
-  - [ ] Packing
-  - [ ] Supplies
-  - [ ] Parts
-  - [ ] Checklist
-- [ ] Business use cases:
-  - [ ] Project parts list.
-  - [ ] R&D purchasing list.
-  - [ ] Office supply list.
-  - [ ] Client/project procurement checklist.
-- [ ] Personal/family use cases:
-  - [ ] Grocery list.
-  - [ ] Household shopping list.
-  - [ ] Trip packing/shopping list.
-  - [ ] Family project supply list.
-- [ ] Integrations:
-  - [ ] Lists should support tags once tagging is stable.
-  - [ ] Lists should be searchable once framework search is stable.
-  - [ ] List activity should be able to appear in dashboard/activity feed later.
+Reusable Lists and reusable item suggestions are part of the first design pass. Historical lists should remain useful as records of what was bought, packed, ordered, or used, especially for business/R&D workflows where a prior list may become the basis for a repeatable build or bill of materials.
+
+### Questions and Design Clarifications
+
+* [ ] Should `received` automatically check/complete a list item, or should receiving and checking remain separate user actions?
+* [ ] Should finalized lists be strictly read-only except for duplicate/archive/restore actions, or should users with `lists.finalize` also be able to make correction edits with an audit trail?
+* [ ] Should item suggestions be created automatically from repeated manual entries in the first release, or should the first release only suggest explicit catalog-backed items?
+* [ ] Should reusable lists appear in the normal list index by default with a clear badge, or should the default index hide them behind a Reusable Lists filter/view?
+* [ ] For business workspaces, should project-linked lists infer the client from the project and lock it, or allow users to choose client first and then filter projects?
+
+Use the following decisions for the Lists module:
+
+1. Receiving and checking/completion should remain separate.
+   - Setting an item purchase/order status to `received` should not automatically mark the item checked/completed.
+   - Keep purchase/order status and checked/completed state separate in the data model and API.
+   - The UI may offer a convenience action such as "Receive and check off," but no silent automatic completion.
+
+2. Finalized lists should be read-only in the first release.
+   - Allow view, duplicate, archive, and restore actions.
+   - Do not allow `lists.finalize` to imply correction-edit permission.
+   - If finalized correction edits are added later, use a separate permission such as `lists.correct_finalized` and require an audit trail/change reason.
+
+3. Item suggestions in the first release should only come from explicit/catalog-backed or explicitly saved reusable items.
+   - Do not automatically generate suggestions from repeated manual entries in v1.
+   - Leave room for future opt-in learned suggestions with normalization, dedupe rules, workspace scope, ignore/delete controls, and thresholds.
+
+4. Reusable lists should not appear in the normal active list index by default.
+   - Put them behind a dedicated Reusable Lists/Templates view or filter.
+   - When shown, display a clear "Reusable" badge.
+   - Primary action should be something like "Create list from reusable list."
+
+5. In business workspaces, project-linked lists should infer and lock the client from the selected project.
+   - The UI may let users choose client first to filter the project picker.
+   - Once `project_id` is selected, derive `client_id` from the project.
+   - Server-side validation should reject mismatched `client_id` / `project_id` combinations.
+
+### Implementation Sub-Versions
+
+Use these sub-versions as the implementation order for the Lists module. The detailed checklist below remains the source backlog; each sub-version owns the relevant checklist items and should be closed out with package version, changelog, decisions, and verification when implemented.
+
+#### Version 0.33.4.1 - Lists Module Contract, Labels, and Core Storage
+
+* [x] Register Lists as a first-party module with module ID `lists`.
+* [x] Add workspace enable/disable support with historical read behavior.
+* [x] Add workspace-aware module labels: `Shopping Lists` for personal/family workspaces and `Procurement Lists` for business workspaces.
+* [x] Add module-owned migrations for `lists` and `list_items`.
+* [x] Implement list and item core record validation, including workspace, client, project, status, type, and soft-delete boundaries.
+* [x] Define initial list types, list statuses, and item purchase/order statuses.
+* [x] Add indexes needed for core list and item reads.
+* [x] Add contract tests for workspace isolation, module-disabled writes, project/client relationship validation, and item/list ownership.
+* [x] Record the module contract and label decisions in `DECISIONS.md`.
+
+#### Version 0.33.4.2 - Permissions, Resources, Services, Audit, and Events
+
+* [ ] Add Lists permissions and resource operations.
+* [ ] Add default role grants consistent with existing first-party module patterns.
+* [ ] Implement service methods for creating, reading, listing, updating, completing, reopening, archiving, restoring, and soft-deleting lists.
+* [ ] Implement service methods for creating, updating, reordering, checking, unchecking, completing, and deleting list items.
+* [ ] Add list and item access-policy helpers.
+* [ ] Add Lists audit record types and audit writes for list and item lifecycle actions.
+* [ ] Emit safe Lists lifecycle events for list and item actions.
+* [ ] Add regressions for permissions, audit shape, event payload safety, finalized-list edit protection, and soft-delete behavior.
+
+#### Version 0.33.4.3 - Browser API Foundation
+
+* [ ] Add browser API routes for core list CRUD and lifecycle actions.
+* [ ] Add browser API routes for list item CRUD, reorder, check/uncheck, completion, and deletion.
+* [ ] Return permission-safe list and item payloads.
+* [ ] Normalize validation errors into existing API error shapes.
+* [ ] Ensure disabled-module behavior blocks writes but preserves historical reads where allowed.
+* [ ] Add focused API tests for core personal/family and business list flows.
+* [ ] Add focused API tests for unauthorized reads/writes, workspace crossing, and project/client mismatch protection.
+
+#### Version 0.33.4.4 - Protected Lists UI MVP
+
+* [ ] Add Lists navigation only when the module is enabled, using the workspace-aware label.
+* [ ] Add protected list index and list detail pages.
+* [ ] Add create/edit list forms and basic list status controls.
+* [ ] Add list item add/edit/check/uncheck/delete controls.
+* [ ] Add manual item reordering.
+* [ ] Add index filters for status, list type, reusable flag, client, project, assigned user, needed date, and archived state where supported by the API.
+* [ ] Add index sorting by updated date, title, list type, status, needed date, and finalized date where supported by the API.
+* [ ] Keep personal/family shopping flows fast and avoid forcing business procurement fields into the primary personal/family UI.
+* [ ] Expose business procurement fields clearly for business workspaces.
+* [ ] Add loading, empty, error, permission-denied, disabled-module, active, completed, finalized, archived, and deleted states.
+* [ ] Add focused UI smoke coverage for creating a list, adding items, checking items, filtering, and editing list details.
+
+#### Version 0.33.4.5 - Reusable Lists, Duplication, and Bill of Materials
+
+* [ ] Add mark/unmark Reusable List behavior.
+* [ ] Add Reusable Lists index filter/view and clear UI badges.
+* [ ] Add list duplication for any accessible list.
+* [ ] Ensure duplicated lists are independent active lists by default.
+* [ ] Reset checked/completed state, tracking IDs, actual costs, and purchase/order status during normal duplication.
+* [ ] Store source and duplicated-from list references where useful.
+* [ ] Add `bill_of_materials` behavior for reproducible historical records.
+* [ ] Add finalize/reopen protections for finalized lists and BOM-style lists.
+* [ ] Add tests proving reusable-list edits do not mutate previous duplicates and finalized BOM lists remain duplicate-able.
+
+#### Version 0.33.4.6 - Catalog Items, Usage Tracking, and Suggestions
+
+* [ ] Add `list_item_catalog` or the chosen equivalent service-owned reusable item table.
+* [ ] Add usage tracking through either `list_item_usage` or catalog-level metrics.
+* [ ] Add catalog create/update service behavior and API routes.
+* [ ] Add item suggestion API route and deterministic ranking.
+* [ ] Rank suggestions by workspace, list type, recency, frequency, and safe client/project context where available.
+* [ ] Copy catalog values into list items as snapshots.
+* [ ] Prevent catalog edits from rewriting historical list items.
+* [ ] Add autocomplete/suggestion UI for list item creation.
+* [ ] Add tests for workspace-scoped suggestions, repeated item ranking, catalog snapshots, and historical item immutability.
+
+#### Version 0.33.4.7 - Linked Records and Framework Integrations
+
+* [ ] Add `list_links` storage and indexes.
+* [ ] Add service/API behavior for linking and unlinking lists to supported records.
+* [ ] Support initial links to tasks, notes, projects, and business-workspace clients.
+* [ ] Enforce workspace boundaries and linked-record permission checks.
+* [ ] Show permission-safe linked-record metadata on list pages.
+* [ ] Register Lists search integration if the search contract is ready for module records.
+* [ ] Register Lists tag integration if the tag contract is ready for module records.
+* [ ] Register Lists attachment target integration if Files supports module attachments generically.
+* [ ] Keep search, tags, files, notes, dashboard activity, and task-link integration optional for the Lists MVP unless their framework contracts are already stable enough.
+* [ ] Add tests proving list access does not grant access to linked notes, tasks, projects, clients, files, tickets, or future KB records.
+
+#### Version 0.33.4.8 - Use Case Coverage, Help, Verification, and Release Closeout
+
+* [ ] Verify personal/family workflows: grocery list, household shopping list, trip packing list, family project supply list, reusable grocery starter, reusable packing list, item suggestions, and shared item checking.
+* [ ] Verify business workflows: project parts list, R&D purchasing list, office supply list, on-site visit checklist, client/project procurement checklist, reusable project parts starter, reusable on-site checklist, finalized BOM-style list, and historical duplication.
+* [ ] Add or update Help Center content for Lists without turning Help into roadmap documentation.
+* [ ] Update developer/module docs where Lists exercises framework module contracts.
+* [ ] Run focused Lists service/API/UI tests.
+* [ ] Run focused permission, event, audit, search/tag/file integration tests where those integrations ship.
+* [ ] Run `npm run check`.
+* [ ] Run `npm run test:permissions`.
+* [ ] Run SQLite integrity check after Lists migrations and destructive lifecycle tests.
+* [ ] Verify `/api/app-info` reports the completed Lists closeout version.
+* [ ] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process.
+
+### Detailed Requirements Backlog
+
+* Add Lists as an official first-party module.
+
+  * [ ] Module ID should be `lists`.
+  * [ ] Module should ship with Longtail Forge.
+  * [ ] Module should be enable/disable capable per workspace.
+  * [ ] Module should use framework-owned services for users, workspaces, permissions, module lifecycle, audit logging, events/hooks, search, tags, and notifications where available.
+  * [ ] Do not hard-code Lists behavior into framework-owned app shell, search, notification, file, tag, or permission services.
+  * [ ] Disabled Lists module should block new writes while preserving historical reads if `historicalReadAccess` is enabled.
+  * [ ] Lists should not replace Notes.
+  * [ ] Lists should not replace Tasks.
+  * [ ] Lists should not replace Files.
+  * [ ] Lists should not become a generic bookmarks/information-database module in the first pass.
+  * [ ] Lists should not become inventory, purchasing, accounting, vendor management, manufacturing, or ERP software in 0.33.4.
+
+* Define workspace-aware module labels.
+
+  * [ ] Underlying module ID remains `lists` regardless of workspace type.
+  * [ ] Personal/family workspaces should label the module as `Shopping Lists`.
+  * [ ] Business workspaces should label the module as `Procurement Lists`.
+  * [ ] Shared code, permissions, API scopes, events, and database tables should use stable Lists terminology instead of label-specific Shopping/Procurement naming.
+  * [ ] UI copy may adapt based on workspace type.
+  * [ ] Do not create separate `shopping` and `procurement` modules.
+
+* Define core list record model.
+
+  * [ ] Add `lists` table.
+  * [ ] Suggested fields:
+
+    * [ ] `list_id`
+    * [ ] `workspace_id`
+    * [ ] `client_id` optional
+    * [ ] `project_id` optional
+    * [ ] `title`
+    * [ ] `description`
+    * [ ] `list_type`
+    * [ ] `status`
+    * [ ] `is_reusable`
+    * [ ] `source_list_id` optional
+    * [ ] `duplicated_from_list_id` optional
+    * [ ] `created_by_user_id`
+    * [ ] `updated_by_user_id`
+    * [ ] `finalized_by_user_id` optional
+    * [ ] `created_at`
+    * [ ] `updated_at`
+    * [ ] `completed_at` optional
+    * [ ] `finalized_at` optional
+    * [ ] `archived_at` optional
+    * [ ] `deleted_at` optional
+    * [ ] `metadata_json`
+
+  * [ ] Every list must belong to one workspace.
+  * [ ] Lists may optionally belong to one client in business workspaces.
+  * [ ] Lists may optionally belong to one project.
+  * [ ] A project-linked list must not cross workspace boundaries.
+  * [ ] A project-linked list must not reference a project outside its client relationship.
+  * [ ] Client linking should be hidden or unavailable in personal/family workspaces.
+  * [ ] Keep list ownership simple in the first pass.
+  * [ ] Do not support nested lists in 0.33.4.
+  * [ ] Do not support complex list inheritance in 0.33.4.
+
+* Define list item record model.
+
+  * [ ] Add `list_items` table.
+  * [ ] Suggested fields:
+
+    * [ ] `list_item_id`
+    * [ ] `workspace_id`
+    * [ ] `list_id`
+    * [ ] `catalog_item_id` optional
+    * [ ] `item_name`
+    * [ ] `quantity`
+    * [ ] `unit`
+    * [ ] `needed_by_date` optional
+    * [ ] `vendor_name` optional
+    * [ ] `url` optional
+    * [ ] `estimated_cost` optional
+    * [ ] `actual_cost` optional
+    * [ ] `purchase_status`
+    * [ ] `tracking_id` optional
+    * [ ] `notes` optional
+    * [ ] `assigned_user_id` optional
+    * [ ] `created_by_user_id`
+    * [ ] `updated_by_user_id`
+    * [ ] `checked_at` optional
+    * [ ] `checked_by_user_id` optional
+    * [ ] `completed_at` optional
+    * [ ] `completed_by_user_id` optional
+    * [ ] `sort_order`
+    * [ ] `created_at`
+    * [ ] `updated_at`
+    * [ ] `deleted_at` optional
+    * [ ] `metadata_json`
+
+  * [ ] Default `assigned_user_id` to the item creator where appropriate.
+  * [ ] Items inherit workspace context from their parent list.
+  * [ ] Items cannot move across workspace boundaries.
+  * [ ] Items should support manual sort order.
+  * [ ] Items should support checked/completed state.
+  * [ ] Checking an item should not require the whole list to be completed.
+  * [ ] Deleting a list item should soft-delete it where consistent with existing module behavior.
+  * [ ] Do not make list items separately taggable in the first pass.
+  * [ ] Do not attach timers directly to list items in the first pass.
+  * [ ] Do not make list items full task records in the first pass.
+  * [ ] List items copied from reusable item suggestions should store their own snapshot values.
+  * [ ] Updating a reusable/catalog item later should not rewrite old list items.
+
+* Define list types.
+
+  * [ ] Start with:
+
+    * [ ] `shopping`
+    * [ ] `procurement`
+    * [ ] `packing`
+    * [ ] `supplies`
+    * [ ] `parts`
+    * [ ] `checklist`
+    * [ ] `bill_of_materials`
+
+  * [ ] Personal/family workspaces should default to `shopping`.
+  * [ ] Business workspaces should default to `procurement`.
+  * [ ] Packing lists should be available in both personal/family and business workspaces.
+  * [ ] `checklist` is for lightweight list completion, not task checklists.
+  * [ ] `parts` is for project/client/workbench part lists, not inventory management.
+  * [ ] `bill_of_materials` is for reproducible historical or production-oriented item lists.
+  * [ ] Do not add `bookmarks` as a list type in 0.33.4.
+  * [ ] Do not build procurement approvals, purchase orders, inventory, receiving, vendor management, or manufacturing production runs in 0.33.4.
+
+* Define list statuses.
+
+  * [ ] Start with:
+
+    * [ ] `active`
+    * [ ] `completed`
+    * [ ] `finalized`
+    * [ ] `archived`
+    * [ ] `deleted`
+
+  * [ ] Active lists are normal editable lists.
+  * [ ] Completed lists remain readable and may be reopened by permitted users.
+  * [ ] Finalized lists represent reproducible historical records, such as a bill of materials or completed R&D/prototype order list.
+  * [ ] Finalized lists should be read-only or mostly read-only for normal users.
+  * [ ] Finalized lists may be duplicated into a new active list.
+  * [ ] Archived lists are hidden from normal browsing but remain historically available to permitted users.
+  * [ ] Deleted lists are soft-deleted unless a future retention policy allows hard delete.
+  * [ ] Do not use tags as the source of truth for list status.
+
+* Define list item purchase/order statuses.
+
+  * [ ] Start with:
+
+    * [ ] `needed`
+    * [ ] `planned`
+    * [ ] `ordered`
+    * [ ] `received`
+    * [ ] `cancelled`
+    * [ ] `not_needed`
+
+  * [ ] `needed` should be the default item status.
+  * [ ] `ordered` may use tracking ID where available.
+  * [ ] `received` may also mark the item checked/completed if that is the least surprising behavior.
+  * [ ] Cancelled and not-needed items should remain visible unless filtered out.
+  * [ ] Do not build a full order-management workflow in 0.33.4.
+
+* Add Reusable Lists.
+
+  * [ ] Allow permitted users to mark a list as reusable.
+  * [ ] UI label should be `Reusable List`.
+  * [ ] Internal field may be `is_reusable`.
+  * [ ] Reusable Lists are normal list records that can be duplicated as starting points for future lists.
+  * [ ] Reusable Lists should be useful for:
+
+    * [ ] Grocery list starters.
+    * [ ] Household shopping list starters.
+    * [ ] Trip packing lists.
+    * [ ] On-site visit packing/checklists.
+    * [ ] Project parts starters.
+    * [ ] Office supply lists.
+    * [ ] R&D procurement starters.
+    * [ ] Bill of materials starters.
+
+  * [ ] Reusable Lists should not behave as live parents for duplicated lists.
+  * [ ] Duplicating a Reusable List should create an independent list instance.
+  * [ ] Editing a Reusable List after duplication should not mutate previous duplicated lists.
+  * [ ] Reusable Lists may be active, archived, or deleted.
+  * [ ] Reusable Lists should not usually be finalized unless the user deliberately wants a reusable finalized reference.
+  * [ ] Reusable Lists should be filterable from the list index.
+  * [ ] Reusable Lists should be clearly labeled in the UI.
+  * [ ] Do not create a separate `list_templates` table unless implementation strongly favors it.
+  * [ ] Prefer keeping reusable behavior on the `lists` table unless Codex identifies a cleaner existing module pattern.
+
+* Add list duplication.
+
+  * [ ] Allow permitted users to duplicate any accessible list.
+  * [ ] Duplicating a list should create a new independent list record.
+  * [ ] Duplicating should copy:
+
+    * [ ] List title, with a safe generated title such as `Copy of {title}` or user-provided title.
+    * [ ] Description.
+    * [ ] List type.
+    * [ ] Client/project context where permitted.
+    * [ ] Items.
+    * [ ] Item names.
+    * [ ] Quantities.
+    * [ ] Units.
+    * [ ] Needed dates where appropriate.
+    * [ ] Vendor/store.
+    * [ ] URL.
+    * [ ] Estimated cost.
+    * [ ] Notes.
+    * [ ] Assigned user where appropriate.
+    * [ ] Sort order.
+
+  * [ ] Duplicating should reset by default:
+
+    * [ ] List status to `active`.
+    * [ ] Item checked/completed state.
+    * [ ] Item completed timestamps.
+    * [ ] Item completed users.
+    * [ ] Actual cost unless the duplication mode deliberately preserves it.
+    * [ ] Purchase/order status back to `needed` or another safe default.
+    * [ ] Tracking ID.
+
+  * [ ] Duplicating a finalized list or bill of materials should preserve enough item detail to reproduce the work.
+  * [ ] Duplicating a finalized list should still create a new active list by default.
+  * [ ] Store `duplicated_from_list_id` on the new list where useful.
+  * [ ] Do not create a live sync relationship between the source list and duplicated list in 0.33.4.
+  * [ ] A future duplicate-exactly option may preserve checked state, actual costs, and purchase statuses, but this is not required in the first pass.
+
+* Add reusable item catalog/suggestions.
+
+  * [ ] Add `list_item_catalog` table or equivalent service-owned reusable item table.
+  * [ ] Catalog items are workspace-scoped.
+  * [ ] Catalog items should not be shared across workspaces in 0.33.4.
+  * [ ] Suggested fields:
+
+    * [ ] `catalog_item_id`
+    * [ ] `workspace_id`
+    * [ ] `canonical_name`
+    * [ ] `normalized_name`
+    * [ ] `default_quantity` optional
+    * [ ] `default_unit` optional
+    * [ ] `default_vendor_name` optional
+    * [ ] `default_url` optional
+    * [ ] `default_estimated_cost` optional
+    * [ ] `default_notes` optional
+    * [ ] `list_type` optional
+    * [ ] `created_by_user_id`
+    * [ ] `updated_by_user_id`
+    * [ ] `usage_count`
+    * [ ] `last_used_at` optional
+    * [ ] `created_at`
+    * [ ] `updated_at`
+    * [ ] `archived_at` optional
+    * [ ] `metadata_json`
+
+  * [ ] Catalog items should support item autocomplete/suggestions.
+  * [ ] Catalog items may be tied to list types.
+  * [ ] Catalog items may be reused across lists in the same workspace.
+  * [ ] Creating a list item from a catalog item should copy values into the new list item.
+  * [ ] The list item remains the historical source of truth for that list.
+  * [ ] Updating a catalog item should not rewrite historical list items.
+  * [ ] Do not create global/shared item catalogs in 0.33.4.
+  * [ ] Do not build SKU, inventory, or vendor catalog management in 0.33.4.
+
+* Add item usage tracking.
+
+  * [ ] Track item usage so Lists can suggest likely items for future lists.
+  * [ ] Usage tracking should be workspace-scoped.
+  * [ ] Usage tracking should consider list type.
+  * [ ] Usage tracking may consider client/project context in business workspaces.
+  * [ ] Add `list_item_usage` table if useful, or maintain usage metrics on `list_item_catalog` if that is sufficient for 0.33.4.
+  * [ ] Suggested usage fields if using a separate table:
+
+    * [ ] `list_item_usage_id`
+    * [ ] `workspace_id`
+    * [ ] `catalog_item_id`
+    * [ ] `list_id`
+    * [ ] `list_type`
+    * [ ] `client_id` optional
+    * [ ] `project_id` optional
+    * [ ] `used_at`
+    * [ ] `checked_at` optional
+    * [ ] `completed_at` optional
+    * [ ] `metadata_json`
+
+  * [ ] Track when catalog-backed items are added to lists.
+  * [ ] Track when repeated manually-entered item names appear often enough to suggest catalog creation.
+  * [ ] Do not require users to manually maintain a catalog before suggestions become useful.
+
+* Add item suggestion ranking.
+
+  * [ ] Suggest items based on current workspace only.
+  * [ ] Prioritize items that frequently appear on recent lists.
+  * [ ] Prioritize items that match the current list type.
+  * [ ] Prioritize items that match current client/project context where applicable.
+  * [ ] Prioritize recently used items.
+  * [ ] Down-rank items that were recently dismissed, cancelled, or marked not needed if dismissal tracking exists.
+  * [ ] First version may use a simple deterministic scoring function.
+  * [ ] Example behavior: if `Milk` appeared on 5 of the last 8 shopping lists, it should rank near the top of suggested items for a new shopping list.
+  * [ ] Do not require machine learning or AI suggestions in 0.33.4.
+  * [ ] Keep suggestion behavior explainable and testable.
+
+* Add bill of materials behavior.
+
+  * [ ] Add `bill_of_materials` as a first-class list type.
+  * [ ] Bill of materials lists should support business/R&D workflows where old lists become reproducible build records.
+  * [ ] BOM-style lists should preserve historical item names, quantities, vendors, URLs, estimated costs, actual costs, and notes.
+  * [ ] BOM-style lists may be finalized when they represent a known reproducible build.
+  * [ ] Finalized BOM lists should be protected from casual edits.
+  * [ ] Finalized BOM lists should be duplicate-able into a new active list.
+  * [ ] Finalized BOM lists should remain searchable and historically readable by permitted users.
+  * [ ] BOM behavior should not become inventory management in 0.33.4.
+  * [ ] BOM behavior should not support multi-level assemblies, production runs, stock counts, or automatic purchasing in 0.33.4.
+
+* Add generic list links.
+
+  * [ ] Add `list_links` table.
+  * [ ] Suggested fields:
+
+    * [ ] `list_link_id`
+    * [ ] `workspace_id`
+    * [ ] `list_id`
+    * [ ] `linked_module_id`
+    * [ ] `linked_record_type`
+    * [ ] `linked_record_id`
+    * [ ] `link_role`
+    * [ ] `created_by_user_id`
+    * [ ] `created_at`
+    * [ ] `removed_at` optional
+    * [ ] `metadata_json`
+
+  * [ ] Lists should be linkable to tasks.
+  * [ ] Lists should be linkable to notes.
+  * [ ] Lists should be linkable to projects.
+  * [ ] Lists should be linkable to clients in business workspaces.
+  * [ ] Client linking should be unavailable or hidden in personal/family workspaces.
+  * [ ] Future supported linked records may include tickets, files, and Knowledge Base articles.
+  * [ ] List links must not cross workspace boundaries.
+  * [ ] Linked-record reads must respect the linked module's permissions.
+  * [ ] List access should not automatically grant access to linked notes, tasks, projects, clients, files, tickets, or KB articles.
+  * [ ] Linked-record metadata shown on list pages must be permission-safe.
+
+* Add Lists permissions.
+
+  * [ ] `lists.view`
+  * [ ] `lists.view_all`
+  * [ ] `lists.create`
+  * [ ] `lists.update`
+  * [ ] `lists.complete`
+  * [ ] `lists.finalize`
+  * [ ] `lists.archive`
+  * [ ] `lists.restore`
+  * [ ] `lists.delete`
+  * [ ] `lists.duplicate`
+  * [ ] `lists.manage_items`
+  * [ ] `lists.manage_reusable`
+  * [ ] `lists.manage_catalog`
+  * [ ] `lists.manage_links`
+  * [ ] `lists.manage_settings`
+  * [ ] List reads must validate workspace, module state, and permissions.
+  * [ ] List writes must validate workspace, module state, and permissions.
+  * [ ] Item writes require access to the parent list.
+  * [ ] Duplicating a list requires read access to the source list and create permission in the destination workspace.
+  * [ ] Finalizing a list requires explicit finalize permission.
+  * [ ] Managing reusable lists requires explicit reusable-list permission or normal list update permission where appropriate.
+  * [ ] Managing catalog items requires explicit catalog permission or safe automatic catalog-upsert behavior.
+  * [ ] Workspace admins should be able to manage all lists in their workspace unless a future private-list mode is added.
+  * [ ] Do not add private/user-only lists in 0.33.4 unless already supported by the permission model.
+
+* Add Lists resource definition.
+
+  * [ ] Resource key: `lists`.
+  * [ ] Supported operations:
+
+    * [ ] `read`
+    * [ ] `create`
+    * [ ] `update`
+    * [ ] `complete`
+    * [ ] `finalize`
+    * [ ] `archive`
+    * [ ] `restore`
+    * [ ] `delete`
+    * [ ] `duplicate`
+    * [ ] `manage_items`
+    * [ ] `manage_reusable`
+    * [ ] `manage_catalog`
+    * [ ] `manage_links`
+    * [ ] `manage`
+
+* Add Lists audit record types.
+
+  * [ ] `list`
+  * [ ] `list_item`
+  * [ ] `list_item_catalog`
+  * [ ] `list_item_usage`
+  * [ ] `list_link`
+  * [ ] Audit list creation, updates, completion, finalization, archive/restore, deletion, duplication, reusable-list changes, item creation, item updates, item check/uncheck, item completion, item status changes, item deletion, catalog item creation/update, usage tracking where appropriate, and list link creation/removal.
+  * [ ] Audit records should include workspace ID, actor user ID, list ID, item ID where applicable, safe title/item metadata, status, list type, and timestamps.
+  * [ ] Audit records should not expose unsafe URL metadata or private linked-record details to unauthorized users.
+
+* Add Lists lifecycle events.
+
+  * [ ] `lists.list.created`
+  * [ ] `lists.list.updated`
+  * [ ] `lists.list.completed`
+  * [ ] `lists.list.reopened`
+  * [ ] `lists.list.finalized`
+  * [ ] `lists.list.archived`
+  * [ ] `lists.list.restored`
+  * [ ] `lists.list.deleted`
+  * [ ] `lists.list.duplicated`
+  * [ ] `lists.list.marked_reusable`
+  * [ ] `lists.list.unmarked_reusable`
+  * [ ] `lists.item.created`
+  * [ ] `lists.item.updated`
+  * [ ] `lists.item.checked`
+  * [ ] `lists.item.unchecked`
+  * [ ] `lists.item.completed`
+  * [ ] `lists.item.deleted`
+  * [ ] `lists.catalog_item.created`
+  * [ ] `lists.catalog_item.updated`
+  * [ ] `lists.link.created`
+  * [ ] `lists.link.removed`
+  * [ ] Event payloads should include workspace ID, actor user ID, list ID, item ID where applicable, source list ID where applicable, safe title/item metadata, status, list type, context IDs where safe, and timestamps.
+  * [ ] Event payloads should not include unsafe URL previews, hidden linked-record details, or private metadata.
+
+* Add Lists indexes.
+
+  * [ ] Workspace + list ID.
+  * [ ] Workspace + status.
+  * [ ] Workspace + list type.
+  * [ ] Workspace + reusable flag.
+  * [ ] Workspace + source list ID.
+  * [ ] Workspace + duplicated from list ID.
+  * [ ] Workspace + client ID.
+  * [ ] Workspace + project ID.
+  * [ ] Workspace + created by user ID.
+  * [ ] Workspace + updated at.
+  * [ ] Workspace + finalized at.
+  * [ ] List items by workspace + list ID + sort order.
+  * [ ] List items by workspace + list ID + purchase status.
+  * [ ] List items by workspace + assigned user ID.
+  * [ ] List items by workspace + needed by date.
+  * [ ] Catalog items by workspace + normalized name.
+  * [ ] Catalog items by workspace + list type.
+  * [ ] Catalog items by workspace + usage count.
+  * [ ] Catalog items by workspace + last used at.
+  * [ ] Usage records by workspace + catalog item ID.
+  * [ ] Usage records by workspace + list type + used at.
+  * [ ] List links by workspace + list ID.
+  * [ ] List links by workspace + linked module/type/record ID.
+
+* Add Lists service methods.
+
+  * [ ] Create list.
+  * [ ] Read one list.
+  * [ ] List lists.
+  * [ ] Update list.
+  * [ ] Complete list.
+  * [ ] Reopen list.
+  * [ ] Finalize list.
+  * [ ] Archive list.
+  * [ ] Restore list.
+  * [ ] Soft-delete list.
+  * [ ] Mark list reusable.
+  * [ ] Unmark list reusable.
+  * [ ] Duplicate list.
+  * [ ] Create list item.
+  * [ ] Update list item.
+  * [ ] Reorder list items.
+  * [ ] Check list item.
+  * [ ] Uncheck list item.
+  * [ ] Complete list item.
+  * [ ] Delete list item.
+  * [ ] Create or update catalog item.
+  * [ ] Suggest catalog items.
+  * [ ] Track catalog item usage.
+  * [ ] Link list to record.
+  * [ ] Remove list link.
+  * [ ] List linked records.
+  * [ ] Validate list access.
+  * [ ] Validate item access through parent list.
+  * [ ] Validate linked record access.
+  * [ ] Generate search indexing payload.
+  * [ ] Emit safe lifecycle events.
+
+* Add browser API routes.
+
+  * [ ] `GET /api/lists`
+  * [ ] `POST /api/lists`
+  * [ ] `GET /api/lists/:listId`
+  * [ ] `PUT /api/lists/:listId`
+  * [ ] `POST /api/lists/:listId/complete`
+  * [ ] `POST /api/lists/:listId/reopen`
+  * [ ] `POST /api/lists/:listId/finalize`
+  * [ ] `POST /api/lists/:listId/archive`
+  * [ ] `POST /api/lists/:listId/restore`
+  * [ ] `POST /api/lists/:listId/delete`
+  * [ ] `POST /api/lists/:listId/mark-reusable`
+  * [ ] `POST /api/lists/:listId/unmark-reusable`
+  * [ ] `POST /api/lists/:listId/duplicate`
+  * [ ] `GET /api/lists/:listId/items`
+  * [ ] `POST /api/lists/:listId/items`
+  * [ ] `PUT /api/lists/:listId/items/:itemId`
+  * [ ] `POST /api/lists/:listId/items/reorder`
+  * [ ] `POST /api/lists/:listId/items/:itemId/check`
+  * [ ] `POST /api/lists/:listId/items/:itemId/uncheck`
+  * [ ] `POST /api/lists/:listId/items/:itemId/complete`
+  * [ ] `POST /api/lists/:listId/items/:itemId/delete`
+  * [ ] `GET /api/lists/item-suggestions`
+  * [ ] `GET /api/lists/catalog-items`
+  * [ ] `POST /api/lists/catalog-items`
+  * [ ] `PUT /api/lists/catalog-items/:catalogItemId`
+  * [ ] `GET /api/lists/:listId/links`
+  * [ ] `POST /api/lists/:listId/links`
+  * [ ] `POST /api/lists/:listId/links/:linkId/remove`
+
+* Add Lists navigation and protected views.
+
+  * [ ] Add Lists navigation only when module is enabled.
+  * [ ] Use workspace-aware label in navigation.
+  * [ ] Add list index page.
+  * [ ] Add list detail page.
+  * [ ] Add create list form.
+  * [ ] Add edit list form.
+  * [ ] Add duplicate list workflow.
+  * [ ] Add Reusable Lists filter/view.
+  * [ ] Add list item add/edit controls.
+  * [ ] Add item suggestion/autocomplete controls.
+  * [ ] Add item check/uncheck controls.
+  * [ ] Add reorder controls.
+  * [ ] Add list status controls.
+  * [ ] Add finalize controls for bill of materials and historical production/R&D lists.
+  * [ ] Add linked-record panel.
+  * [ ] Add disabled-module state.
+  * [ ] Add loading, empty, error, permission-denied, active, completed, finalized, archived, and deleted states.
+  * [ ] Keep layout consistent with existing authenticated module pages.
+
+* Add list index workflow.
+
+  * [ ] Show title.
+  * [ ] Show description excerpt where useful.
+  * [ ] Show list type.
+  * [ ] Show status.
+  * [ ] Show Reusable List indicator where applicable.
+  * [ ] Show client/project context where applicable.
+  * [ ] Show linked-record indicators where useful and permission-safe.
+  * [ ] Show item progress.
+  * [ ] Example: `7 / 12 complete`
+  * [ ] Show estimated total cost where useful.
+  * [ ] Show actual total cost where useful.
+  * [ ] Show updated date.
+  * [ ] Show finalized date where applicable.
+  * [ ] Add filters for:
+
+    * [ ] Status
+    * [ ] List type
+    * [ ] Reusable Lists
+    * [ ] Client
+    * [ ] Project
+    * [ ] Assigned user
+    * [ ] Needed by date
+    * [ ] Archived state
+
+  * [ ] Add sort by updated date, title, list type, status, needed by date, and finalized date.
+  * [ ] Add pagination if the existing UI pattern expects it.
+
+* Add list detail workflow.
+
+  * [ ] Show title, description, type, status, reusable indicator, client/project context, created date, updated date, finalized date, and item progress.
+  * [ ] Show list items in sort order.
+  * [ ] Allow permitted users to add, edit, reorder, check, uncheck, complete, and delete items.
+  * [ ] Allow permitted users to update quantity, unit, needed date, vendor/store, URL, estimated cost, actual cost, purchase status, tracking ID, notes, and assigned user.
+  * [ ] Show item suggestions while adding items.
+  * [ ] Show estimated and actual cost totals.
+  * [ ] Show purchase/order status clearly on business/procurement lists.
+  * [ ] Show finalized/BOM state clearly when applicable.
+  * [ ] Allow permitted users to duplicate the list.
+  * [ ] Allow permitted users to mark/unmark a list as reusable.
+  * [ ] Allow permitted users to manage linked records.
+  * [ ] Keep personal shopping list UI simple and fast.
+  * [ ] Avoid forcing business procurement fields into the primary personal/family shopping flow.
+  * [ ] Finalized lists should prevent normal edits unless the user has permission to reopen or modify finalized records.
+
+* Add personal/family use case coverage.
+
+  * [ ] Grocery list.
+  * [ ] Household shopping list.
+  * [ ] Trip packing/shopping list.
+  * [ ] Family project supply list.
+  * [ ] Reusable grocery list starter.
+  * [ ] Reusable packing list.
+  * [ ] Workspace-scoped grocery item suggestions.
+  * [ ] Shared list item checking should work cleanly for family-style workflows.
+  * [ ] UI should not feel overly procurement-heavy in personal/family workspaces.
+
+* Add business use case coverage.
+
+  * [ ] Project parts list.
+  * [ ] R&D purchasing list.
+  * [ ] Office supply list.
+  * [ ] On-site visit packing/checklist.
+  * [ ] Client/project procurement checklist.
+  * [ ] Reusable on-site checklist.
+  * [ ] Reusable project parts starter.
+  * [ ] Bill of materials for reproducible R&D/prototype work.
+  * [ ] Finalized BOM-style historical list.
+  * [ ] Business UI should expose vendor/store, needed date, estimated cost, actual cost, purchase status, tracking ID, assignment, client/project context, and linked records clearly.
+  * [ ] Do not build purchase approvals, purchase orders, receiving, inventory, vendor catalogs, accounting export, production runs, or multi-level BOM assemblies in 0.33.4.
+
+* Add Lists framework integrations.
+
+  * [ ] Lists should support tags once tagging integration is stable.
+  * [ ] Lists should be searchable once framework search integration is stable.
+  * [ ] List records should be eligible for dashboard/activity feed events later.
+  * [ ] Lists should be available as a future attachment target if Files supports module attachments generically.
+  * [ ] Lists should be available as a future note-link target if Notes supports module record linking generically.
+  * [ ] Lists should be available as a future task-link target if Tasks supports module record linking generically.
+  * [ ] Lists should not require search, tags, dashboard activity, files, or notes integration to ship the first usable MVP.
+
+* Add focused contract regressions.
+
+  * [ ] Lists cannot cross workspace boundaries.
+  * [ ] List items cannot cross workspace boundaries.
+  * [ ] List items cannot belong to a list in another workspace.
+  * [ ] Project-linked lists cannot reference projects outside the active workspace.
+  * [ ] Client-linked lists are hidden or blocked in personal/family workspaces.
+  * [ ] List links cannot cross workspace boundaries.
+  * [ ] List access does not grant unauthorized access to linked records.
+  * [ ] Disabled Lists module blocks new writes.
+  * [ ] Workspace-aware labels do not change the underlying module ID.
+  * [ ] Users without list read permission cannot read lists.
+  * [ ] Users without list write permission cannot create or update lists.
+  * [ ] Users without item management permission cannot add, edit, check, uncheck, reorder, or delete list items.
+  * [ ] Users without duplicate permission cannot duplicate lists.
+  * [ ] Users without finalize permission cannot finalize lists.
+  * [ ] Checking one item does not complete the whole list unless all-items-complete behavior is deliberately implemented.
+  * [ ] Duplicating a list resets checked/completed state by default.
+  * [ ] Duplicating a list creates an independent list, not a live synced child.
+  * [ ] Editing a Reusable List does not mutate previous duplicated lists.
+  * [ ] Updating a catalog item does not rewrite historical list items.
+  * [ ] Item suggestions are scoped to the current workspace only.
+  * [ ] Item suggestions prefer recent and frequent items from matching list types.
+  * [ ] Finalized lists are protected from casual edits.
+  * [ ] Finalized bill of materials lists remain duplicate-able.
+  * [ ] Archived lists are hidden from normal browsing but remain available to permitted historical reads.
+  * [ ] Deleted lists and deleted items are soft-deleted where consistent with existing module behavior.
+  * [ ] List events emit safe payloads.
+  * [ ] Lists do not replace Notes, Tasks, Files, Search, or Knowledge Base records.
 
 ## Version 0.33.5.0 - Task Module QoL Updates
 
@@ -140,11 +836,7 @@ Decision: Task checklists are lightweight completion aids inside a task. Full su
 
 ### Task Metadata Update
 
-- [ ] Inside the task details, completed and archived tasks should display "Time to completion" which is calculated from created date/time and completed date/time
-
-- [ ] Add progress/completion information
-  - Stand alone tasks
-    - Use status as task completion tracker
+- [ ] Inside the task details (Edit Task Modal), completed and archived tasks should display "Time to completion" which is calculated from created date/time and completed date/time
 
 ### Task UI
 
@@ -157,12 +849,6 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
     - The icon buttons are great, except for the "Follow Notifications" button, this should be a bell
 
 ## Version 0.33.5.2 - Reporting, Clients and Projects, and API QoL Update
-
-### Reporting
-
-- For proper calculation, each sub project must total all time entries and round to the nearest
-  - Parent projects should then take that total and add it to sum of all sub project time entries
-  - This will produce a sub-client total which can then be added to parent client totals
 
 - Reporting -> Time Reports
   - Hide Start Date and End Date until billing period is is Custom
@@ -286,7 +972,7 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
   - `log`
 - [ ] Stop offering `client`, `project`, `task`, `ticket`, and `user` as new note type choices.
 - [ ] Preserve legacy values in existing records and display them safely.
-- [ ] Do not migrate existing rows yet unless the implementation already needs a migration.
+- [ ] There are some existing rows, but none use the deprecated type
 - [ ] Use linked context and `note_links` for client/project/task/user/ticket association.
 - [ ] Add regression coverage that `note_type` does not control permissions, visibility, Library bucket, collection membership, or KB publication.
 
@@ -425,6 +1111,36 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
 
 - Help Center (doc) should explain what framework, first-party, and third-party modules are
 - Getting Started should explain the key concepts that make LTF unique and how they're all inter-linked
+
+## Version 0.33.6 - Reporting Module
+
+- Create a reporting module
+
+- For proper calculation in time/billable reports, each sub project must sum all time entries and apply rounding rules (if enabled)
+  - Parent projects should then sum their direct time entries, round as appropriate, and add that to the sum of all sub project time entries
+  - This will produce a sub-client total which can then be added to parent client totals in the same fashion
+
+## Version 0.33.7 - Dashboard and Workbench Formalization as Project hub and work center
+
+- [ ] Dashboard should become the hub for managing projects
+  - [ ] Add "Urgent" section that shows past due and upcoming tasks, and open support tickets sorted by client and project
+  - [ ] Add "Latest Updates" section
+    - [ ] Newest clients
+    - [ ] Newest projects
+    - [ ] Newest tasks
+    - [ ] Newest notes
+    - [ ] Newest support tickets
+    - [ ] Recent time entries with billable amount, if budget tracking is turned on in client/project (eventual feature in 0.4x)
+- [ ] Add activity feed support (can be built onto notifications hooks)
+  - [ ] Activity feed may be derived from audit events where appropriate
+  - [ ] Activity feed should not expose sensitive audit JSON by default
+  - [ ] Activity feed should be user-friendly and dashboard-focused
+  - [ ] Keep audit log as the authoritative admin/security record
+- [ ] Dashboard sections should respect permissions
+  - [ ] Users should only see clients/projects/tasks/notes/tickets they are allowed to see
+  - [ ] External client users should not see internal-only notes or admin-only audit details
+
+## Version 0.34 - Knowledge Base Module
 
 ## Knowledge Base Direction Adjustment
 
@@ -1033,32 +1749,12 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   - [ ] Allow addition of calendar events
   - [ ] Display iCal events from shared calendars
 
-## Version 0.37.0 - Dashboard and Workbench Formalization as Project hub and work center
-
-- [ ] Dashboard should become the hub for managing projects
-  - [ ] Add "Urgent" section that shows past due and upcoming tasks, and open support tickets sorted by client and project
-  - [ ] Add "Latest Updates" section
-    - [ ] Newest clients
-    - [ ] Newest projects
-    - [ ] Newest tasks
-    - [ ] Newest notes
-    - [ ] Newest support tickets
-    - [ ] Recent time entries with billable amount, if budget tracking is turned on in client/project (eventual feature in 0.4x)
-- [ ] Add activity feed support (can be built onto notifications hooks)
-  - [ ] Activity feed may be derived from audit events where appropriate
-  - [ ] Activity feed should not expose sensitive audit JSON by default
-  - [ ] Activity feed should be user-friendly and dashboard-focused
-  - [ ] Keep audit log as the authoritative admin/security record
-- [ ] Dashboard sections should respect permissions
-  - [ ] Users should only see clients/projects/tasks/notes/tickets they are allowed to see
-  - [ ] External client users should not see internal-only notes or admin-only audit details
-
 ## Version 0.37.0 - Expanded Reporting and Invoicing
 
 - [ ] Expanded reporting
 - [ ] Invoicing
 
-## Version 0.39.0 - User Account Security Upgrades and Database/Settings File Backup/Restore
+## Version 0.38.0 - User Account Security Upgrades and Database/Settings File Backup/Restore
 
 ### Two Factor Authentication (TOTP) (2FA)
 
@@ -1066,17 +1762,17 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
 - [ ] Super admins should be able to turn on a setting that requires 2FA setup on next login for individual users
 - [ ] Workspace admins can require users have 2FA to join workspace
 
-### Version 0.39.1 - Passkeys
+### Version 0.38.1 - Passkeys
 
 - [ ] Passkeys
 
-### Version 0.39.2 - User Sessions
+### Version 0.38.2 - User Sessions
 
 - [ ] Sessions should expire after 1 day
 - [ ] Super Admins should have ability to log users out
 - [ ] Workspace admins should have ability to log users out
 
-## Version 0.39.3 - Login Security Monitoring and Risk Scoring
+## Version 0.38.3 - Login Security Monitoring and Risk Scoring
 
 - [ ] Add `user_login_events` table:
   - [ ] `login_event_id`
@@ -1137,7 +1833,7 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   - [ ] Define retention period for login events.
   - [ ] Restrict access to login security logs.
 
-### Version 0.39.4
+### Version 0.38.4
 
 Super Admins should have a backup/restore function on the dashboard that dumps the current database into a clean file with an app meta data file that has app version stamped and datetime (UTC) of backup in it and zips it into a zip file along with any physical settings files on disk (this will be necessary after packaging for self-hosting and may not yet be necessary, but I want uniform functions for backup/restore that can be easily modified in the future)
 
@@ -1157,7 +1853,7 @@ Super Admins should have a backup/restore function on the dashboard that dumps t
     - this should only accept zip files
     - this should verify files, checksum, etc. before installing/overwriting current data
 
-### Version 0.39.5 - Creator Studio / Content Studio Module
+### Version 0.39.0 - Creator Studio / Content Studio Module
 
 - [ ] Core records:
   - [ ] Content ideas.
@@ -1270,6 +1966,18 @@ Super Admins should have a backup/restore function on the dashboard that dumps t
   - [ ] Workbench card/area declarations. 
 - [ ] Update `docs/architecture.md` to reflect the completed 0.3x architecture. 
 - [ ] Verify `ROADMAP.md`, `TODO.md`, `DECISIONS.md`, `CHANGELOG.md`, and package versions are consistent.
+
+- [ ] Wipe existing DB migrations and create a new DB baseline
+
+- [ ] Evaluate all existing regressions and see what can be eliminated/lightened
+
+- [ ] Determine where efficiencies can be made in the code/Perform an efficiency refactor
+
+- [ ] Evaluate whether TypeScript would be a useful addition for ensure module/framework contracts are adhered to
+
+- [ ] Audit all Public API calls and make a list for review and modification. Sort by module.
+
+- [ ] Audit all event hooks by module and make a list for review and modification.
 
 ## Version 0.40.0 - Project Tools expansion & Database extraction layer for use with SQLite or PostGRES
 

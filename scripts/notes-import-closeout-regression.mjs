@@ -5,6 +5,7 @@ import path from "node:path";
 const importPlanning = await fs.readFile(path.join(process.cwd(), "docs/notes-import-planning.md"), "utf8");
 const notesDocs = await fs.readFile(path.join(process.cwd(), "docs/notes-module.md"), "utf8");
 const roadmap = await fs.readFile(path.join(process.cwd(), "ROADMAP.md"), "utf8");
+const roadmapArchive = await fs.readFile(path.join(process.cwd(), "ROADMAP-ARCHIVE.md"), "utf8");
 const decisions = await fs.readFile(path.join(process.cwd(), "DECISIONS.md"), "utf8");
 
 for (const heading of [
@@ -52,7 +53,7 @@ for (const metadataField of [
 }
 
 assert.match(decisions, /0\.33\.3\.4[\s\S]*import planning/i, "Decisions should record the 0.33.3.4 import closeout");
-assert.match(roadmap, /Version 0\.33\.3\.4[\s\S]*\[x\] Add migration\/import planning notes/i, "Roadmap should mark import planning complete");
+assert.match(`${roadmap}\n${roadmapArchive}`, /Version 0\.33\.3\.4[\s\S]*\[x\] Add migration\/import planning notes/i, "Roadmap or archive should mark import planning complete");
 assert.doesNotMatch(importPlanning, /Knowledge Base publishing controls are implemented|import automatically publishes/i);
 
 console.log("Notes import closeout regression passed.");

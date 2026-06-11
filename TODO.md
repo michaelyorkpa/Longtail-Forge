@@ -679,6 +679,10 @@ This version should introduce TypeScript as a framework contract-checking tool w
 
 # Long Term
 
+## Shareable Templates
+
+I'd love to have a system that allows templates to be shareable (think Steam workshop, but for projects, tasks, lists, etc.)
+
 ## Secrets and Credential Registry
 
 - Start with metadata and external-vault references. 

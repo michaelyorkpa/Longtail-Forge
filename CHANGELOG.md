@@ -1,3 +1,10 @@
+## Version 0.33.4.1 - 2026-06-11 03:10 -04:00
+
+- Registered Lists as a first-party module with stable module ID `lists`, workspace-aware Shopping/Procurement terminology, default enablement, disable support, and historical read access.
+- Added module-owned Lists foundation storage with `lists` and `list_items` tables, core list/item status constraints, context fields, reusable-list groundwork, soft-delete timestamps, and workspace-focused indexes.
+- Added Lists storage contract helpers and `scripts/lists-foundation-regression.mjs`, then wired the regression into `npm run check` to guard module labels, migration application, schema constraints, workspace/project/client validation, disabled-module writes, and received-versus-checked separation.
+- Updated 0.33.4.1 release decisions, roadmap status, package metadata, and archived the previous completed roadmap section.
+
 ## Version 0.33.3.4 - 2026-06-10 23:56 -04:00
 
 - Added `docs/notes-import-planning.md` as the Notes import closeout artifact, covering future OneNote notebook/section/page mapping, source path preservation, Library bucket suggestions, and import safety rules.

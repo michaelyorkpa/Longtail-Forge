@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 19, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 20, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -129,6 +129,11 @@ ORDER BY version;
     module_id: "notes",
     name: "add_secure_note_encryption_fields",
   });
+  assert.deepEqual(migrations[19], {
+    version: "050",
+    module_id: "lists",
+    name: "add_lists_foundation",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -151,6 +156,8 @@ ORDER BY name;
     "file_attachments",
     "file_reports",
     "files",
+    "list_items",
+    "lists",
     "modules",
     "note_library_collections",
     "note_links",
@@ -211,6 +218,21 @@ WHERE type = 'index'
     'idx_files_workspace_file',
     'idx_files_workspace_hash',
     'idx_files_workspace_status',
+    'idx_list_items_workspace_assigned_user',
+    'idx_list_items_workspace_list_sort',
+    'idx_list_items_workspace_list_status',
+    'idx_list_items_workspace_needed_by',
+    'idx_lists_workspace_client',
+    'idx_lists_workspace_created_by',
+    'idx_lists_workspace_duplicated_from',
+    'idx_lists_workspace_finalized_at',
+    'idx_lists_workspace_list',
+    'idx_lists_workspace_project',
+    'idx_lists_workspace_reusable',
+    'idx_lists_workspace_source',
+    'idx_lists_workspace_status',
+    'idx_lists_workspace_type',
+    'idx_lists_workspace_updated_at',
     'idx_note_library_collections_workspace_bucket',
     'idx_note_library_collections_workspace_parent',
     'idx_note_library_collections_workspace_path',
@@ -308,6 +330,21 @@ ORDER BY name;
     "idx_files_workspace_file",
     "idx_files_workspace_hash",
     "idx_files_workspace_status",
+    "idx_list_items_workspace_assigned_user",
+    "idx_list_items_workspace_list_sort",
+    "idx_list_items_workspace_list_status",
+    "idx_list_items_workspace_needed_by",
+    "idx_lists_workspace_client",
+    "idx_lists_workspace_created_by",
+    "idx_lists_workspace_duplicated_from",
+    "idx_lists_workspace_finalized_at",
+    "idx_lists_workspace_list",
+    "idx_lists_workspace_project",
+    "idx_lists_workspace_reusable",
+    "idx_lists_workspace_source",
+    "idx_lists_workspace_status",
+    "idx_lists_workspace_type",
+    "idx_lists_workspace_updated_at",
     "idx_note_library_collections_workspace_bucket",
     "idx_note_library_collections_workspace_parent",
     "idx_note_library_collections_workspace_path",
