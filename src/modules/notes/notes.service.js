@@ -25,6 +25,15 @@ import {
   shouldCreateRevision,
   slugifyNoteTitle,
 } from "./markdown.js";
+import {
+  assertEncryptedPayloadPresent,
+  assertSecureNotesConfigured,
+  decryptSecureNoteBody,
+  describeSecureNotesConfiguration,
+  encryptSecureNoteBody,
+  hasEncryptedSecurePayload,
+  safeSecurePlaceholders,
+} from "./secure-crypto.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
 import { tasksRepository } from "../tasks/tasks.repo.js";
@@ -45,23 +54,55 @@ const NOTE_VISIBILITY_VALUES = new Set(Object.values(NOTE_VISIBILITIES));
 const NOTE_SECURITY_MODE_VALUES = new Set(Object.values(NOTE_SECURITY_MODES));
 const NOTE_PERMISSION_VALUES = Object.values(NOTE_PERMISSIONS);
 const COLLECTION_SOURCE_VALUES = new Set(["manual", "imported"]);
+const SECURE_NOTE_TITLE_WARNING = "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.";
+const SECURE_STORAGE_FIELDS = Object.freeze([
+  "secure_payload",
+  "secure_payload_version",
+  "encrypted_data_key",
+  "encryption_key_version",
+  "encryption_algorithm",
+  "key_wrapping_algorithm",
+  "encryption_nonce",
+  "encryption_auth_tag",
+  "key_wrapping_nonce",
+  "key_wrapping_auth_tag",
+  "encrypted_at",
+]);
 
 async function list(session, query = {}) {
   const filters = normalizeListFilters(query);
   const notes = await notesRepository.list(session.workspace_id, filters);
-  return { notes: await decorateAndFilterNotesByTags(session, await filterAccessibleNotes(session, notes), filters) };
+  const decorated = await decorateAndFilterNotesByTags(session, await filterAccessibleNotes(session, notes), filters);
+  return { notes: decorated.map((note) => shapeNoteForBrowser(note, { includeBodyHtml: true })) };
+}
+
+async function secureHealth(session) {
+  await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.SECURE_MANAGE);
+  const configuration = describeSecureNotesConfiguration();
+  return {
+    secureNotes: {
+      configured: configuration.configured,
+      keyVersion: configuration.keyVersion,
+      payloadVersion: configuration.payloadVersion,
+      encryptionAlgorithm: configuration.bodyAlgorithm,
+      keyWrappingAlgorithm: configuration.keyWrappingAlgorithm,
+      status: configuration.configured ? "ready" : "not_configured",
+      reason: configuration.configured ? undefined : configuration.reason,
+    },
+  };
 }
 
 async function read(noteId, session) {
   const note = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, note, "read");
 
-  return { note: await attachNoteIntegrations(session, note) };
+  return { note: shapeNoteForBrowser(await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note)), { includeBodyHtml: true }) };
 }
 
 async function create(payload, session) {
   await assertNotesWriteEnabled(session);
   const normalized = await normalizeNotePayload(payload, session);
+  await assertSecureNoteCanBePersisted(session, normalized);
   await assertLinkedContextAccess(session, normalized);
   await assertNoteCollectionAccess(session, normalized);
   await assertCanAccess(session, normalized, "create");
@@ -69,13 +110,13 @@ async function create(payload, session) {
   const note = await notesRepository.create(session.workspace_id, normalized);
   await createLinksFromPayload(session, note.note_id, payload);
   await saveTargetTags(session, note.note_id, payload);
-  const noteWithLinks = await attachNoteIntegrations(session, note);
+  const noteWithLinks = await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note));
   await recordNoteAudit(session, "note_created", "create", null, noteWithLinks);
   await emitNoteEvent("note.created", session, null, noteWithLinks);
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.created");
 
   return {
-    note: noteWithLinks,
+    note: shapeNoteForBrowser(noteWithLinks, { includeBodyHtml: true }),
     searchDocument: createSearchIndexPayload(noteWithLinks),
   };
 }
@@ -85,6 +126,7 @@ async function update(noteId, payload, session) {
   const previousNote = await readNoteOrThrow(session, noteId);
   await assertCanAccess(session, previousNote, "update");
   const nextNote = await normalizeNotePayload(payload, session, previousNote);
+  await assertSecureNoteCanBePersisted(session, nextNote, previousNote);
   await assertLinkedContextAccess(session, nextNote);
   await assertNoteCollectionAccess(session, nextNote);
   await assertCanAccess(session, nextNote, "update");
@@ -92,14 +134,14 @@ async function update(noteId, payload, session) {
   const note = await notesRepository.update(session.workspace_id, nextNote);
   await maybeCreateRevision(session, previousNote, note, "Note updated.");
   await saveTargetTags(session, note.note_id, payload);
-  const noteWithLinks = await attachNoteIntegrations(session, note);
+  const noteWithLinks = await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note));
   await recordNoteAudit(session, "note_updated", "update", previousNote, noteWithLinks);
   await emitNoteEvent("note.updated", session, previousNote, noteWithLinks);
   await emitChangeEvents(session, previousNote, noteWithLinks);
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.updated");
 
   return {
-    note: noteWithLinks,
+    note: shapeNoteForBrowser(noteWithLinks, { includeBodyHtml: true }),
     searchDocument: createSearchIndexPayload(noteWithLinks),
   };
 }
@@ -133,7 +175,7 @@ async function archive(noteId, session) {
   await recordNoteAudit(session, "note_archived", "archive", previousNote, note);
   await emitNoteEvent("note.archived", session, previousNote, note);
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.archived");
-  return { note };
+  return { note: shapeNoteForBrowser(note) };
 }
 
 async function restore(noteId, session) {
@@ -153,7 +195,7 @@ async function restore(noteId, session) {
   await recordNoteAudit(session, "note_restored", "restore", previousNote, note);
   await emitNoteEvent("note.restored", session, previousNote, note);
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.restored");
-  return { note };
+  return { note: shapeNoteForBrowser(note) };
 }
 
 async function softDelete(noteId, session) {
@@ -172,7 +214,7 @@ async function softDelete(noteId, session) {
   await recordNoteAudit(session, "note_deleted", "delete", previousNote, note);
   await emitNoteEvent("note.deleted", session, previousNote, note);
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.deleted");
-  return { note };
+  return { note: shapeNoteForBrowser(note) };
 }
 
 async function listRevisions(noteId, session) {
@@ -180,7 +222,7 @@ async function listRevisions(noteId, session) {
   await assertCanAccess(session, note, "view_history");
 
   const revisions = await notesRepository.listRevisions(session.workspace_id, noteId);
-  return { revisions: visibleRevisionSnapshots(revisions, note) };
+  return { revisions: visibleRevisionSnapshots(revisions, note).map((revision) => shapeRevisionForBrowser(revision, { includeBody: false })) };
 }
 
 async function readRevision(noteId, revisionId, session) {
@@ -192,7 +234,7 @@ async function readRevision(noteId, revisionId, session) {
     throw new AppError("Note revision not found.", 404);
   }
 
-  return { revision };
+  return { revision: shapeRevisionForBrowser(decryptSecureRevisionForRead(revision), { includeBody: true }) };
 }
 
 async function restoreRevision(noteId, revisionId, session) {
@@ -207,17 +249,24 @@ async function restoreRevision(noteId, revisionId, session) {
   }
 
   const now = new Date().toISOString();
+  const restoredBody = revision.security_mode === NOTE_SECURITY_MODES.SECURE
+    ? decryptSecureRevisionForRead(revision).body_markdown
+    : revision.body_markdown;
+  const securePayload = revision.security_mode === NOTE_SECURITY_MODES.SECURE
+    ? encryptSecureNoteBody(restoredBody)
+    : clearSecureEncryptionFields();
   const note = await notesRepository.update(session.workspace_id, {
     ...previousNote,
     title: revision.title,
-    body_markdown: revision.body_markdown,
-    body_excerpt: revision.body_excerpt,
-    body_plaintext_index: extractPlainTextFromMarkdown(revision.body_markdown),
+    body_markdown: revision.security_mode === NOTE_SECURITY_MODES.SECURE ? "" : restoredBody,
+    body_excerpt: revision.security_mode === NOTE_SECURITY_MODES.SECURE ? null : revision.body_excerpt,
+    body_plaintext_index: revision.security_mode === NOTE_SECURITY_MODES.SECURE ? null : extractPlainTextFromMarkdown(restoredBody),
     note_type: revision.note_type,
     library_bucket: revision.library_bucket,
     status: revision.status === NOTE_STATUSES.DELETED ? NOTE_STATUSES.ACTIVE : revision.status,
     visibility: revision.visibility,
     security_mode: revision.security_mode,
+    ...securePayload,
     updated_by_user_id: session.user_id,
     updated_at: now,
   });
@@ -226,7 +275,10 @@ async function restoreRevision(noteId, revisionId, session) {
   await recordNoteAudit(session, "note_revision_restored", "update", previousNote, note);
   await emitNoteEvent("note.updated", session, previousNote, note, { restored_revision_id: revisionId });
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.revision_restored");
-  return { note: await attachNoteIntegrations(session, note), restoredRevision: revision };
+  return {
+    note: shapeNoteForBrowser(await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note)), { includeBodyHtml: true }),
+    restoredRevision: shapeRevisionForBrowser(decryptSecureRevisionForRead(revision), { includeBody: false }),
+  };
 }
 
 async function listLinks(noteId, session) {
@@ -495,7 +547,8 @@ async function listForTarget(session, query = {}) {
   await assertTargetAccess(session, target);
   const notes = await notesRepository.listForTarget(session.workspace_id, target);
 
-  return { notes: await decorateAndFilterNotesByTags(session, await filterAccessibleNotes(session, notes), normalizeListFilters(query)) };
+  const decorated = await decorateAndFilterNotesByTags(session, await filterAccessibleNotes(session, notes), normalizeListFilters(query));
+  return { notes: decorated.map((note) => shapeNoteForBrowser(note, { includeBodyHtml: true })) };
 }
 
 async function listLibrary(session) {
@@ -533,7 +586,15 @@ function deriveLibrarySuggestion(payload = {}) {
 }
 
 async function normalizeNotePayload(payload = {}, session, previousNote = null) {
-  const bodyMarkdown = normalizeAndValidateMarkdown(payload.body_markdown ?? payload.bodyMarkdown ?? previousNote?.body_markdown ?? "");
+  const bodyWasProvided = Object.hasOwn(payload || {}, "body_markdown") || Object.hasOwn(payload || {}, "bodyMarkdown");
+  const previousBodyMarkdown = previousNote?.security_mode === NOTE_SECURITY_MODES.SECURE && hasEncryptedSecurePayload(previousNote)
+    ? decryptSecureNoteBody(previousNote)
+    : previousNote?.body_markdown || "";
+  const bodyMarkdown = normalizeAndValidateMarkdown(
+    bodyWasProvided
+      ? payload.body_markdown ?? payload.bodyMarkdown ?? ""
+      : previousBodyMarkdown,
+  );
   const title = normalizeRequiredText(payload.title ?? previousNote?.title, "Note title");
   const links = normalizeLinksInput(payload.links || []);
   const suggestedLibraryBucket = deriveLibrarySuggestion({
@@ -548,15 +609,47 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
   const now = new Date().toISOString();
   const metadata = normalizeMetadata(payload.metadata || payload.metadata_json || previousNote?.metadata || {});
 
+  const securityMode = normalizeEnum(payload.securityMode || payload.security_mode || previousNote?.security_mode || NOTE_SECURITY_MODES.NORMAL, NOTE_SECURITY_MODE_VALUES, "Note security mode");
+  if (previousNote?.security_mode === NOTE_SECURITY_MODES.SECURE && securityMode !== NOTE_SECURITY_MODES.SECURE) {
+    throw new AppError("Secure notes cannot be converted back to normal notes in this release.", 400);
+  }
+  if (previousNote?.security_mode !== NOTE_SECURITY_MODES.SECURE && previousNote && securityMode === NOTE_SECURITY_MODES.SECURE) {
+    throw new AppError("Convert-to-secure is deferred; recreate the note through the secure-note flow.", 400);
+  }
+
+  const visibility = normalizeEnum(payload.visibility || previousNote?.visibility || NOTE_VISIBILITIES.INTERNAL, NOTE_VISIBILITY_VALUES, "Note visibility");
+  if (securityMode === NOTE_SECURITY_MODES.SECURE && visibility === NOTE_VISIBILITIES.CLIENT_VISIBLE) {
+    throw new AppError("Secure notes cannot be client-visible or public in this release.", 400);
+  }
+  const noteCollectionId = Object.hasOwn(payload, "noteCollectionId")
+    ? payload.noteCollectionId
+    : Object.hasOwn(payload, "note_collection_id")
+      ? payload.note_collection_id
+      : Object.hasOwn(payload, "collectionId")
+        ? payload.collectionId
+        : Object.hasOwn(payload, "collection_id")
+          ? payload.collection_id
+          : previousNote?.note_collection_id;
+
+  const secureFields = securityMode === NOTE_SECURITY_MODES.SECURE
+    ? {
+        ...safeSecurePlaceholders(),
+        ...(bodyWasProvided || !previousNote ? encryptSecureNoteBody(bodyMarkdown) : copySecureEncryptionFields(previousNote)),
+      }
+    : {
+        body_markdown: bodyMarkdown,
+        body_excerpt: createMarkdownExcerpt(bodyMarkdown),
+        body_plaintext_index: extractPlainTextFromMarkdown(bodyMarkdown),
+        ...clearSecureEncryptionFields(),
+      };
+
   return {
     ...(previousNote || {}),
     note_id: previousNote?.note_id || payload.note_id || payload.noteId || randomUUID(),
     workspace_id: session.workspace_id,
     title,
     slug: normalizeOptionalText(payload.slug ?? previousNote?.slug) || slugifyNoteTitle(title),
-    body_markdown: bodyMarkdown,
-    body_excerpt: createMarkdownExcerpt(bodyMarkdown),
-    body_plaintext_index: extractPlainTextFromMarkdown(bodyMarkdown),
+    ...secureFields,
     note_type: normalizeEnum(payload.noteType || payload.note_type || previousNote?.note_type || NOTE_TYPES.GENERAL, NOTE_TYPE_VALUES, "Note type"),
     library_bucket: libraryBucket,
     library_bucket_source: normalizeEnum(
@@ -565,14 +658,14 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
       "Library bucket source",
     ),
     status: normalizeEnum(payload.status || previousNote?.status || NOTE_STATUSES.ACTIVE, NOTE_STATUS_VALUES, "Note status"),
-    visibility: normalizeEnum(payload.visibility || previousNote?.visibility || NOTE_VISIBILITIES.INTERNAL, NOTE_VISIBILITY_VALUES, "Note visibility"),
-    security_mode: normalizeEnum(payload.securityMode || payload.security_mode || previousNote?.security_mode || NOTE_SECURITY_MODES.NORMAL, NOTE_SECURITY_MODE_VALUES, "Note security mode"),
+    visibility,
+    security_mode: securityMode,
     client_id: normalizeOptionalText(payload.clientId ?? payload.client_id ?? previousNote?.client_id),
     project_id: normalizeOptionalText(payload.projectId ?? payload.project_id ?? previousNote?.project_id),
     task_id: normalizeOptionalText(payload.taskId ?? payload.task_id ?? previousNote?.task_id),
     ticket_id: normalizeOptionalText(payload.ticketId ?? payload.ticket_id ?? previousNote?.ticket_id),
     linked_user_id: normalizeOptionalText(payload.linkedUserId ?? payload.linked_user_id ?? previousNote?.linked_user_id),
-    note_collection_id: normalizeOptionalText(payload.noteCollectionId ?? payload.note_collection_id ?? payload.collectionId ?? payload.collection_id ?? previousNote?.note_collection_id) || null,
+    note_collection_id: normalizeOptionalText(noteCollectionId) || null,
     owner_user_id: normalizeOptionalText(payload.ownerUserId ?? payload.owner_user_id ?? previousNote?.owner_user_id) || session.user_id,
     created_by_user_id: previousNote?.created_by_user_id || session.user_id,
     updated_by_user_id: session.user_id,
@@ -656,6 +749,63 @@ async function assertCanAccess(session, note, operation) {
   if (!access.allowed) {
     throw new AppError(noteAccessMessage(access.reason), 403);
   }
+
+  if (
+    note.security_mode === NOTE_SECURITY_MODES.SECURE &&
+    ["read", "update", "view_history", "restore_revision"].includes(operation) &&
+    !hasEncryptedSecurePayload(note)
+  ) {
+    assertEncryptedPayloadPresent(note);
+  }
+}
+
+async function assertSecureNoteCanBePersisted(session, note, previousNote = null) {
+  if (note.security_mode !== NOTE_SECURITY_MODES.SECURE) {
+    return;
+  }
+
+  assertSecureNotesConfigured();
+  if (!previousNote) {
+    const placeholderCount = await notesRepository.countPlaintextSecurePlaceholders(session.workspace_id);
+    if (placeholderCount > 0) {
+      throw new AppError("Secure notes cannot be activated while plaintext secure-note placeholders exist. Recreate or explicitly migrate them first.", 409);
+    }
+  }
+  if (!hasEncryptedSecurePayload(note)) {
+    throw new AppError("Secure note body was not encrypted.", 500);
+  }
+}
+
+async function decryptSecureNoteForRead(session, note = {}) {
+  if (note.security_mode !== NOTE_SECURITY_MODES.SECURE) {
+    return note;
+  }
+
+  try {
+    return {
+      ...note,
+      body_markdown: decryptSecureNoteBody(note),
+      body_excerpt: null,
+      body_plaintext_index: null,
+      secure_body_decrypted: true,
+      secure_title_warning: SECURE_NOTE_TITLE_WARNING,
+    };
+  } catch (error) {
+    await recordSecureDecryptFailure(session, note, error);
+    throw error;
+  }
+}
+
+function decryptSecureRevisionForRead(revision = {}) {
+  if (revision.security_mode !== NOTE_SECURITY_MODES.SECURE) {
+    return revision;
+  }
+
+  return {
+    ...revision,
+    body_markdown: decryptSecureNoteBody(revision),
+    body_excerpt: null,
+  };
 }
 
 async function canAccessLinkedContext(session, note, links = []) {
@@ -814,7 +964,7 @@ function normalizeLinksInput(links) {
 }
 
 async function maybeCreateRevision(session, previousNote, nextNote, changeSummary) {
-  if (!previousNote || !shouldCreateRevision(previousNote, nextNote)) {
+  if (!previousNote || !shouldCreateNoteRevision(previousNote, nextNote)) {
     return null;
   }
 
@@ -825,6 +975,7 @@ async function maybeCreateRevision(session, previousNote, nextNote, changeSummar
       changedByUserId: session.user_id,
       changeSummary,
     }),
+    ...(previousNote.security_mode === NOTE_SECURITY_MODES.SECURE ? copySecureEncryptionFields(previousNote) : clearSecureEncryptionFields()),
     ...copyImportMetadata(previousNote),
   });
 
@@ -834,6 +985,24 @@ async function maybeCreateRevision(session, previousNote, nextNote, changeSummar
   });
 
   return revision;
+}
+
+function shouldCreateNoteRevision(previousNote, nextNote) {
+  if (previousNote.security_mode === NOTE_SECURITY_MODES.SECURE || nextNote.security_mode === NOTE_SECURITY_MODES.SECURE) {
+    return [
+      "title",
+      "note_type",
+      "library_bucket",
+      "status",
+      "visibility",
+      "security_mode",
+      "secure_payload",
+      "encrypted_data_key",
+      "encrypted_at",
+    ].some((fieldName) => String(previousNote[fieldName] ?? "") !== String(nextNote[fieldName] ?? ""));
+  }
+
+  return shouldCreateRevision(previousNote, nextNote);
 }
 
 function visibleRevisionSnapshots(revisions = [], note = {}) {
@@ -847,6 +1016,10 @@ function visibleRevisionSnapshots(revisions = [], note = {}) {
 }
 
 function shouldShowRevisionSnapshot(revision, revisions, index, note) {
+  if (revision.security_mode === NOTE_SECURITY_MODES.SECURE || note.security_mode === NOTE_SECURITY_MODES.SECURE) {
+    return true;
+  }
+
   const isLatestStoredRevision = index === 0;
   if (!isLatestStoredRevision || !["Note updated.", "Note restored.", "Note archived.", "Note deleted."].includes(revision.change_summary)) {
     return true;
@@ -877,6 +1050,48 @@ async function attachNoteIntegrations(session, note) {
     body_html: renderNoteBodyHtml(note),
     links: await notesRepository.listLinks(session.workspace_id, note.note_id),
   };
+}
+
+function shapeNoteForBrowser(note = {}, { includeBodyHtml = false } = {}) {
+  const shaped = stripSecureStorageFields(note);
+
+  if (shaped.security_mode === NOTE_SECURITY_MODES.SECURE) {
+    shaped.body_excerpt = null;
+    shaped.body_plaintext_index = null;
+    shaped.secure_title_warning = SECURE_NOTE_TITLE_WARNING;
+    delete shaped.secure_body_decrypted;
+  }
+
+  if (!includeBodyHtml) {
+    delete shaped.body_html;
+  }
+
+  return shaped;
+}
+
+function shapeRevisionForBrowser(revision = {}, { includeBody = true } = {}) {
+  const shaped = stripSecureStorageFields(revision);
+
+  if (shaped.security_mode === NOTE_SECURITY_MODES.SECURE) {
+    if (!includeBody) {
+      delete shaped.body_markdown;
+    }
+    shaped.body_excerpt = null;
+    shaped.secure_title_warning = SECURE_NOTE_TITLE_WARNING;
+    delete shaped.secure_body_decrypted;
+  }
+
+  return shaped;
+}
+
+function stripSecureStorageFields(value = {}) {
+  const safe = { ...value };
+
+  for (const fieldName of SECURE_STORAGE_FIELDS) {
+    delete safe[fieldName];
+  }
+
+  return safe;
 }
 
 async function readNoteOrThrow(session, noteId) {
@@ -1369,6 +1584,32 @@ async function recordNoteAudit(session, action, changeType, previousValue, newVa
   });
 }
 
+async function recordSecureDecryptFailure(session, note, error) {
+  await auditService.record({
+    session,
+    action: "note_secure_decrypt_failed",
+    changeType: "update",
+    recordType: "note",
+    recordId: note.note_id,
+    recordLabel: note.title || "Secure note",
+    recordUrl: `notes.html?note=${encodeURIComponent(note.note_id || "")}`,
+    previousValue: null,
+    newValue: null,
+    metadata: {
+      ...sanitizeNoteLifecyclePayload({
+        workspace_id: session.workspace_id,
+        actor_user_id: session.user_id,
+        note_id: note.note_id,
+        title: note.title,
+        library_bucket: note.library_bucket,
+        visibility: note.visibility,
+        security_mode: note.security_mode,
+      }),
+      reason: error?.code || "secure_note_decrypt_failed",
+    },
+  });
+}
+
 async function emitNoteEvent(eventName, session, previousValue, newValue, metadata = {}) {
   const note = newValue || previousValue || {};
   const recipientUserIds = noteOwnerNotificationRecipients(eventName, session, note);
@@ -1440,14 +1681,55 @@ function safeAuditValue(value) {
   const safeValue = { ...value };
   if (safeValue.security_mode === NOTE_SECURITY_MODES.SECURE) {
     delete safeValue.body_markdown;
+    delete safeValue.body_html;
+    delete safeValue.body_excerpt;
     delete safeValue.body_plaintext_index;
+    delete safeValue.secure_payload;
+    delete safeValue.encrypted_data_key;
+    delete safeValue.encryption_nonce;
+    delete safeValue.encryption_auth_tag;
+    delete safeValue.key_wrapping_nonce;
+    delete safeValue.key_wrapping_auth_tag;
+    delete safeValue.secure_body_decrypted;
   }
   delete safeValue.metadata_json;
   return safeValue;
 }
 
+function copySecureEncryptionFields(note = {}) {
+  return {
+    secure_payload: note.secure_payload || null,
+    secure_payload_version: note.secure_payload_version || null,
+    encrypted_data_key: note.encrypted_data_key || null,
+    encryption_key_version: note.encryption_key_version || null,
+    encryption_algorithm: note.encryption_algorithm || null,
+    key_wrapping_algorithm: note.key_wrapping_algorithm || null,
+    encryption_nonce: note.encryption_nonce || null,
+    encryption_auth_tag: note.encryption_auth_tag || null,
+    key_wrapping_nonce: note.key_wrapping_nonce || null,
+    key_wrapping_auth_tag: note.key_wrapping_auth_tag || null,
+    encrypted_at: note.encrypted_at || null,
+  };
+}
+
+function clearSecureEncryptionFields() {
+  return {
+    secure_payload: null,
+    secure_payload_version: null,
+    encrypted_data_key: null,
+    encryption_key_version: null,
+    encryption_algorithm: null,
+    key_wrapping_algorithm: null,
+    encryption_nonce: null,
+    encryption_auth_tag: null,
+    key_wrapping_nonce: null,
+    key_wrapping_auth_tag: null,
+    encrypted_at: null,
+  };
+}
+
 function renderNoteBodyHtml(note = {}) {
-  if (note.security_mode === NOTE_SECURITY_MODES.SECURE) {
+  if (note.security_mode === NOTE_SECURITY_MODES.SECURE && !note.secure_body_decrypted) {
     return "";
   }
 
@@ -1479,6 +1761,7 @@ function noteAccessMessage(reason) {
     module_disabled: "This module is disabled for this workspace.",
     private_note: "You do not have access to this private note.",
     secure_note_permission: "You do not have secure-note access.",
+    secure_note_owner_or_admin: "Secure notes are limited to the owner or an explicit secure-note administrator.",
     secure_note_update_permission: "You do not have secure-note update access.",
     workspace_mismatch: "Note workspace does not match the active workspace.",
   }[reason] || "You do not have access to this note.";
@@ -1512,6 +1795,7 @@ export const notesService = {
   restore,
   restoreCollection,
   restoreRevision,
+  secureHealth,
   softDelete,
   updateCollection,
   update,

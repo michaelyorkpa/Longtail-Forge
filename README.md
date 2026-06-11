@@ -24,11 +24,12 @@ Longtail Forge currently includes:
 - First-party Tasks with reminders, recurrence, bulk actions, dashboard summaries, task timers, and public API support
 - Framework-owned browser search across indexed Tasks, Time Entries, Clients, Projects, and Help articles
 - Framework-owned Help Center with baseline product help and module-declared Help contributions
+- First-party Notes with Library buckets, collections, Markdown, links, revisions, tags, files, search, Help, and secure-note encryption-at-rest boundaries
 - Billable/non-billable reporting, dashboard summaries, audit logging, API keys, and public API foundations
 - Module-ready backend structure with explicit first-party module registration, startup manifest validation, registry-driven navigation/settings/views/assets, lifecycle checks, module permissions/API scopes, internal events, framework-owned search, file attachment, and Help Center foundations, and developer example coverage
 - A fresh-start database baseline for new installs, a persistent SQLite adapter for local performance, and regression checks for permissions, accessibility, module sanity, migrations, legacy cleanup, and database performance
 
-The near-term roadmap continues expanding framework services and module surfaces that can be shared by current and future modules: support tickets, notes, calendars, broader reporting, richer project tools, and UI consistency passes.
+The near-term roadmap continues expanding framework services and module surfaces that can be shared by current and future modules: support tickets, calendars, broader reporting, richer project tools, and UI consistency passes.
 
 ## Documentation
 
@@ -37,6 +38,7 @@ The near-term roadmap continues expanding framework services and module surfaces
 - [DECISIONS.md](DECISIONS.md): settled product and architecture decisions
 - [docs/architecture.md](docs/architecture.md): framework/module architecture direction
 - [docs/module-contract.md](docs/module-contract.md): current module definition contract
+- [docs/notes-module.md](docs/notes-module.md): Notes module developer guide
 - [docs/time-tracking-module.md](docs/time-tracking-module.md): Time Tracking module boundary
 - [docs/accessibility.md](docs/accessibility.md): accessibility target, checks, and manual release checklist
 - [docs/public-api.md](docs/public-api.md): public API and API key documentation

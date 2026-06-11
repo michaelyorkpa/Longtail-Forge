@@ -9,10 +9,8 @@ const NOTE_PERMISSIONS = Object.freeze({
   VIEW: "notes.view",
   VIEW_ALL: "notes.view_all",
   VIEW_PRIVATE: "notes.view_private",
-  VIEW_SECURE: "notes.view_secure",
   CREATE: "notes.create",
   UPDATE: "notes.update",
-  UPDATE_SECURE: "notes.update_secure",
   ARCHIVE: "notes.archive",
   RESTORE: "notes.restore",
   DELETE: "notes.delete",
@@ -22,6 +20,14 @@ const NOTE_PERMISSIONS = Object.freeze({
   MANAGE_LIBRARY: "notes.manage_library",
   MANAGE_SETTINGS: "notes.manage_settings",
   PUBLISH_CLIENT_VISIBLE: "notes.publish_client_visible",
+  SECURE_CREATE: "notes.secure.create",
+  SECURE_VIEW: "notes.secure.view",
+  SECURE_UPDATE: "notes.secure.update",
+  SECURE_ARCHIVE: "notes.secure.archive",
+  SECURE_RESTORE: "notes.secure.restore",
+  SECURE_DELETE: "notes.secure.delete",
+  SECURE_VIEW_HISTORY: "notes.secure.view_history",
+  SECURE_MANAGE: "notes.secure.manage",
 });
 
 const NOTE_RESOURCE_DEFINITION = Object.freeze({
@@ -189,12 +195,9 @@ function canAccessNote({
   }
 
   if (note.security_mode === NOTE_SECURITY_MODES.SECURE) {
-    if (normalizedOperation === "update" && !permissionSet.has(NOTE_PERMISSIONS.UPDATE_SECURE)) {
-      return deny("secure_note_update_permission");
-    }
-
-    if (!permissionSet.has(NOTE_PERMISSIONS.VIEW_SECURE)) {
-      return deny("secure_note_permission");
+    const secureAccess = canAccessSecureNote(note, session, permissionSet, normalizedOperation);
+    if (!secureAccess.allowed) {
+      return secureAccess;
     }
   }
 
@@ -248,6 +251,35 @@ function canReadPrivateNote(note, session, permissionSet) {
     note.created_by_user_id === session.user_id ||
     permissionSet.has(NOTE_PERMISSIONS.VIEW_PRIVATE) ||
     permissionSet.has(NOTE_PERMISSIONS.VIEW_ALL);
+}
+
+function canAccessSecureNote(note, session, permissionSet, operation) {
+  const securePermission = securePermissionForOperation(operation);
+  if (!permissionSet.has(securePermission) && !permissionSet.has(NOTE_PERMISSIONS.SECURE_MANAGE)) {
+    return deny("secure_note_permission");
+  }
+
+  const isOwner = note.owner_user_id === session.user_id || note.created_by_user_id === session.user_id;
+  const isSecureAdmin = permissionSet.has(NOTE_PERMISSIONS.SECURE_MANAGE);
+  if (!isOwner && !isSecureAdmin) {
+    return deny("secure_note_owner_or_admin");
+  }
+
+  return allow();
+}
+
+function securePermissionForOperation(operation) {
+  return {
+    create: NOTE_PERMISSIONS.SECURE_CREATE,
+    update: NOTE_PERMISSIONS.SECURE_UPDATE,
+    archive: NOTE_PERMISSIONS.SECURE_ARCHIVE,
+    restore: NOTE_PERMISSIONS.SECURE_RESTORE,
+    delete: NOTE_PERMISSIONS.SECURE_DELETE,
+    view_history: NOTE_PERMISSIONS.SECURE_VIEW_HISTORY,
+    restore_revision: NOTE_PERMISSIONS.SECURE_VIEW_HISTORY,
+    manage_links: NOTE_PERMISSIONS.SECURE_UPDATE,
+    manage_library: NOTE_PERMISSIONS.SECURE_UPDATE,
+  }[operation] || NOTE_PERMISSIONS.SECURE_VIEW;
 }
 
 function sanitizeNoteLifecyclePayload(payload = {}) {

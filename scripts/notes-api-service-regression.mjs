@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-api-service-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-api-service.db");
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Api-Service-Test-123!";
+process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "notes-api-service-secure-note-test-key";
 
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { tagsService } = await import("../src/services/tags.service.js");

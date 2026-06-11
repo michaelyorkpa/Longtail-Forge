@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 18, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 19, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -124,6 +124,11 @@ ORDER BY version;
     module_id: "notes",
     name: "extend_note_library_collections",
   });
+  assert.deepEqual(migrations[18], {
+    version: "049",
+    module_id: "notes",
+    name: "add_secure_note_encryption_fields",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -162,6 +167,7 @@ ORDER BY name;
     "roles",
     "schema_migrations",
     "search_index",
+    "secure_note_placeholder_warnings",
     "sessions",
     "tag_assignment_suppressions",
     "tag_assignments",
@@ -388,7 +394,7 @@ async function assertSeedRows() {
     querySql("SELECT COUNT(*) AS count FROM users WHERE protected_user = 'yes';"),
     querySql("SELECT COUNT(*) AS count FROM modules;"),
     querySql("SELECT COUNT(*) AS count FROM roles WHERE role_id IN ('super_admin', 'workspace_admin');"),
-    querySql("SELECT COUNT(*) AS count FROM permissions WHERE permission_id IN ('workspace_settings.manage', 'tasks.view', 'time_entries.create', 'notifications.view_own', 'notifications.manage_preferences', 'notifications.manage_workspace_defaults', 'tags.manage', 'tags.view', 'tags.assign', 'tags.remove', 'files.view', 'files.upload', 'files.download', 'files.delete', 'files.manage_quarantine', 'files.manage_workspace_settings', 'notes.view', 'notes.view_all', 'notes.view_private', 'notes.view_secure', 'notes.create', 'notes.update', 'notes.update_secure', 'notes.archive', 'notes.restore', 'notes.delete', 'notes.view_history', 'notes.restore_revision', 'notes.manage_links', 'notes.manage_library', 'notes.manage_settings', 'notes.publish_client_visible');"),
+    querySql("SELECT COUNT(*) AS count FROM permissions WHERE permission_id IN ('workspace_settings.manage', 'tasks.view', 'time_entries.create', 'notifications.view_own', 'notifications.manage_preferences', 'notifications.manage_workspace_defaults', 'tags.manage', 'tags.view', 'tags.assign', 'tags.remove', 'files.view', 'files.upload', 'files.download', 'files.delete', 'files.manage_quarantine', 'files.manage_workspace_settings', 'notes.view', 'notes.view_all', 'notes.view_private', 'notes.create', 'notes.update', 'notes.archive', 'notes.restore', 'notes.delete', 'notes.view_history', 'notes.restore_revision', 'notes.manage_links', 'notes.manage_library', 'notes.manage_settings', 'notes.publish_client_visible', 'notes.secure.create', 'notes.secure.view', 'notes.secure.update', 'notes.secure.archive', 'notes.secure.restore', 'notes.secure.delete', 'notes.secure.view_history', 'notes.secure.manage');"),
     querySql("SELECT COUNT(*) AS count FROM workspace_modules;"),
     querySql("SELECT COUNT(*) AS count FROM app_settings;"),
   ]);
@@ -397,7 +403,7 @@ async function assertSeedRows() {
   assert.equal(Number(users[0].count), 1, "fresh startup should create one protected super admin");
   assert.ok(Number(modules[0].count) >= 4, "fresh startup should sync registered modules");
   assert.equal(Number(roles[0].count), 2, "fresh baseline should seed current core roles");
-  assert.equal(Number(permissions[0].count), 32, "fresh startup should seed core, module, notification, tag, file, and note permissions");
+  assert.equal(Number(permissions[0].count), 38, "fresh startup should seed core, module, notification, tag, file, and note permissions");
   assert.ok(Number(workspaceModules[0].count) >= 4, "fresh startup should create workspace module status rows");
   assert.ok(Number(appSettings[0].count) >= 3, "fresh startup should seed app settings");
 }

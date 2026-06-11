@@ -6,6 +6,7 @@ import path from "node:path";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-search-help-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-search-help.db");
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Search-Help-Test-123!";
+process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "notes-search-help-secure-note-test-key";
 
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { hasSearchIndexer } = await import("../src/core/search/indexer-registry.js");
@@ -44,7 +45,8 @@ async function assertNotesManifestContributions() {
   assert.equal(searchableType.indexer, "notes.records");
   assert.equal(searchableType.sourceLabel, "Notes");
   assert.equal(hasSearchIndexer("notes.records"), true);
-  assert.ok(notesModule.help.articles.length >= 4, "Notes should contribute current-state Help articles");
+  assert.equal(notesModule.version, "0.33.3.4");
+  assert.ok(notesModule.help.articles.length >= 11, "Notes should contribute current-state Help articles");
   assert.ok(notesModule.notificationEvents.some((event) => event.id === "note.updated"));
 }
 
@@ -134,11 +136,41 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 async function assertNotesHelpContribution() {
   const help = modulesService.getModule("notes").help;
   const articleText = help.articles.map((article) => `${article.title}\n${article.summary}\n${article.body}`).join("\n");
+  const articlesById = new Map(help.articles.map((article) => [article.id, article]));
 
-  for (const phrase of ["Active Work", "Ongoing Areas", "Reference Library", "Archive", "Markdown", "revision", "file attachments"]) {
+  for (const articleId of [
+    "notes.basics",
+    "notes.library",
+    "notes.collections",
+    "notes.active-work",
+    "notes.ongoing-areas",
+    "notes.reference-library",
+    "notes.archive",
+    "notes.markdown",
+    "notes.linking",
+    "notes.revisions",
+    "notes.secure-notes",
+  ]) {
+    assert.ok(articlesById.has(articleId), `${articleId} should be declared as a current-state Notes Help page`);
+  }
+
+  for (const phrase of [
+    "Active Work",
+    "Ongoing Areas",
+    "Reference Library",
+    "Archive",
+    "Markdown",
+    "Revision history",
+    "file attachments",
+    "Collections are classification metadata",
+    "Links make a note easier to find",
+    "Secure note titles are visible",
+    "not zero-knowledge",
+  ]) {
     assert.match(articleText, new RegExp(phrase, "i"));
   }
-  assert.doesNotMatch(articleText, /knowledge base publishing/i, "Help should not describe future KB publishing as current behavior");
+  assert.doesNotMatch(articleText, /knowledge base publishing|publish to knowledge base|create knowledge base/i, "Help should not describe future KB publishing as current behavior");
+  assert.doesNotMatch(articleText, /\bPARA\b|\bGTD\b|Getting Things Done|second brain|Zettelkasten/i, "Notes Help should use Longtail Forge product language instead of external productivity-method branding");
 }
 
 async function assertNotesNotificationContribution(session) {

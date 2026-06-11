@@ -13,18 +13,29 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
-## Fixes
+## Reporting
 
-### Sorting logic for clients and projects
+- For proper calculation, each sub project must total all time entries and round to the nearest
+  - Parent projects should then take that total and add it to sum of all sub project time entries
+  - This will produce a sub-client total which can then be added to parent client totals
+
+## Sorting logic for clients and projects
 
 - Move logic for sorting of clients to the clients module and have that called every time clients are listed somewhere
 - Move logic for sorting of projects to the projects module and have that called every time clients are listed somewhere
 
-### API Keys
+## API Keys
 
 - Audit the API keys available
+  - It doesn't appear that I'm seeing the correct API Keys for workspace admin account. Here's what shows:
+    - clients:read
+    - projects:read
+    - tasks:read
+    - tasks:write
+    - time_entries:read
+    - time_entries:write
 
-### Files module
+## Files module
 
 - There's no way to delete files??
 - Multiple file upload at once
@@ -34,8 +45,7 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - This would be quantity/size limits
   - This would be file types
 
-- Notifications aren't being sent to the workspace admin for new tasks, completed tasks, etc.
-  - Is this intended behavior? I can see these kinds of notifications becoming overwhelming unless specifically requested.
+## Time Entries
 
 - Time entries aren't editable by Workspace admin
   - Tried to add tags as workspace admin to "81c61ec4-ebe4-45c2-a35d-b03e88b45bb9" and got a permissions error (couldn't read the whole thing, it was on the main window and the modal window blocked it)
@@ -43,6 +53,28 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - Are time entries from timers storing the actual start and end time with an unconnected duration, or are they adjusting start or end time based on total duration?
   - It should be the former. I want to see exactly when a timer was started and ended, as well as the total duration the timer was running during that period. Start and End time are informational, not anything to be calculated.
+
+## Search Fixes/Tweaks
+
+- Help is in the record types twice
+
+## Notification Fixes/Tweaks
+
+- Notifications aren't being sent to the workspace admin for new tasks, completed tasks, etc.
+  - Is this intended behavior? I can see these kinds of notifications becoming overwhelming unless specifically requested.
+
+- Should there be a client level timezone setting for displaying times in a client's timezone when working on their projects? 
+  - This will come with locale settings in the Internationalization updates
+
+- Users who perform the action, don't need notifications of the action happening, e.g.
+  - Creators of records don't need {{recordType}} created notifications
+  - Modifiers of records don't need {{recordType}} updated notifications
+
+- [ ] notifications.html: Notification Type chip should be aligned to right, in board from "Dismissed"
+
+- [ ] Record update notifications should include the changed context human-formatted from the JSON data
+
+## Tags Fixes/Tweaks
 
 - Add a "No Tags" option to filters to easily identify items that still need to be tagged
   - Should be directly below all tags
@@ -55,6 +87,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
     - Eventually, Projects -> Notes
   - Bulk tag application should use the same/similar box to initial entry
     - This entire thing should be owned within tags and be hooked in via the framework, not hard coded anywhere
+
+## Client/Projects Fixes/Tweaks
 
 - Projects aren't inheriting client billing settings when created in Projects -> Project Settings -> Add Project
 
@@ -69,12 +103,7 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - Review whether the User Settings "Remove Workspace" flow needs clearer wording now that it removes the signed-in user's membership rather than deleting the workspace record.
 
-## Tweaks
-
-### Notification Fixes/Tweaks
-
-- Should there be a client level timezone setting for displaying times in a client's timezone when working on their projects? 
-  - This will come with locale settings in the Internationalization updates
+## Near Term Ideas
 
 - The workbench should be your daily workspace. The dashboard is where you go to focus/refocus.
   - Workbench should have a focus mode selector: 
@@ -90,6 +119,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
     - If in project focus mode, all tasks from that project that are open/in progress
   - Clicking on task chips should open selector to adjust it (status/priority)
 
+## Questions/Thoughts
+
 - We need a way to define "default settings" for first and third party modules. e.g. default sort order, default filtering, etc.
   - These are settings that apply module-wide and can affect the default module behavior.
 
@@ -102,44 +133,26 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - Clients
   - Business Workspaces
 
-### Admin/User Settings
+## Admin/User Settings
 
 - [ ] Need a way for properly authenticated users to see active/running timers
   - [ ] Appropriate admins should be able to stop/pause timers with explicit warning
 
-- [ ] Add Workspace level date format display settings
-
-- [ ] Add Workspace level time format display settings
-
-- [ ] Add user level setting for timezone display "Local Timezone or UTC"
-
 - [ ] Add Workspace option to set default screen when switching into that workspace, per user.
   - Current behavior keeps it on Time Tracker, for example, but perhaps a user would always want to default to the dashboard. So, make the starting page selectable and provide a "Stay on Current Workspace's page" option as well (so when a new workspace opens it remains in the time tracker, or tasks, or whatever)
 
-### UI clean up/clarification
+## UI clean up/clarification
 
 - [ ] There should be something in the views/models that indicates whether a field needs to be required so the * becomes automatic as views happen (if this is best practice)
   - [ ] Create list of every form for required entry fields
     - User Settings
       - Every field except Alternate Email address
 
-- [ ] Create a list of notifications per record type (module) for proper notification implementation
-  - [ ] Create a default notifications preference that's adjustable per user
-  - [ ] Notifications are only sent to owners, assignees, or external clients as appropriate
-
 - Reporting -> Time Reports
   - Hide Start Date and End Date until billing period is is Custom
     - Alternately, update Start Date and End Date based on Billing Period Selection
 
-### Notifications
-
-- [ ] Reduce size of {{recordTitle}} further 
-
-- [ ] notifications.html: Notification Type chip should be aligned to right, in board from "Dismissed"
-
-- [ ] Record update notifications should include the changed context human-formatted from the JSON data
-
-### Tasks
+## Tasks
 
 In Projects -> Tasks, the task list isn't optimized for efficient viewing.
 

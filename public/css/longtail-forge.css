@@ -3076,6 +3076,28 @@ dialog .form-actions {
     color: var(--color-muted);
 }
 
+.notes-secure-warning {
+    background: #fff7ed;
+    border: 1px solid #fdba74;
+    border-radius: 6px;
+    color: #7c2d12;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    margin: 0;
+    padding: 0.6rem 0.75rem;
+}
+
+.notes-locked-state {
+    margin: 0;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 6px;
+    background: var(--color-page-bg);
+    color: var(--color-muted);
+    font-size: 14px;
+    font-style: italic;
+}
+
 .notes-library-tabs button[aria-pressed="true"],
 .notes-editor-toolbar button[aria-pressed="true"] {
     background: var(--color-accent);
@@ -3275,6 +3297,23 @@ dialog .form-actions {
     gap: 2px;
 }
 
+.notes-list-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.notes-status-badge {
+    width: fit-content;
+    padding: 2px 6px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 6px;
+    background: var(--color-page-bg);
+    color: var(--color-muted);
+    font-size: 12px;
+    line-height: 1.3;
+}
+
 .notes-list-heading strong,
 .notes-detail-header h2 {
     overflow-wrap: anywhere;
@@ -3283,6 +3322,11 @@ dialog .form-actions {
 .notes-list-excerpt {
     font-size: 14px;
     line-height: 1.4;
+}
+
+.notes-list-item.is-secure .notes-list-excerpt {
+    color: var(--color-muted);
+    font-style: italic;
 }
 
 .notes-list-footer,

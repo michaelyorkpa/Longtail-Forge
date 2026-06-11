@@ -41,6 +41,7 @@ const collectionInput = document.querySelector("[data-note-collection]");
 const typeInput = document.querySelector("[data-note-type]");
 const visibilityInput = document.querySelector("[data-note-visibility]");
 const securityInput = document.querySelector("[data-note-security]");
+const secureWarning = document.querySelector("[data-note-secure-warning]");
 const clientInput = document.querySelector("[data-note-client-id]");
 const projectInput = document.querySelector("[data-note-project-id]");
 const taskInput = document.querySelector("[data-note-task-id]");
@@ -113,6 +114,7 @@ libraryInput?.addEventListener("change", () => {
   populateNoteCollectionOptions();
   updateLibrarySuggestion();
 });
+securityInput?.addEventListener("change", updateSecureUiState);
 previewToggle?.addEventListener("click", togglePreview);
 [clientInput, projectInput, taskInput, userInput].forEach((input) => input?.addEventListener("input", updateLibrarySuggestion));
 document.querySelector("[data-note-editor-toolbar]")?.addEventListener("click", handleEditorCommand);
@@ -374,17 +376,25 @@ function noteListItem(note) {
   const button = document.createElement("button");
   const heading = document.createElement("span");
   const title = document.createElement("strong");
+  const badges = document.createElement("span");
   const meta = document.createElement("span");
   const excerpt = document.createElement("span");
   const footer = document.createElement("span");
 
   button.type = "button";
   button.className = "notes-list-item";
+  if (isSecureNote(note)) {
+    button.classList.add("is-secure");
+  }
   button.setAttribute("aria-pressed", String(state.selectedNote?.note_id === note.note_id));
   button.addEventListener("click", () => selectNote(note.note_id));
 
   heading.className = "notes-list-heading";
   title.textContent = note.title || "Untitled note";
+  badges.className = "notes-list-badges";
+  if (isSecureNote(note)) {
+    badges.append(statusBadge("Secure"));
+  }
   meta.className = "notes-list-meta";
   meta.textContent = [
     libraryLabel(note.library_bucket),
@@ -392,10 +402,10 @@ function noteListItem(note) {
     formatToken(note.note_type),
     formatToken(note.status),
   ].filter(Boolean).join(" - ");
-  heading.append(title, meta);
+  heading.append(title, badges, meta);
 
   excerpt.className = "notes-list-excerpt";
-  excerpt.textContent = note.body_excerpt || "";
+  excerpt.textContent = isSecureNote(note) ? "Secure note body hidden from previews." : note.body_excerpt || "";
   footer.className = "notes-list-footer";
   footer.textContent = [
     formatToken(note.visibility),
@@ -418,8 +428,9 @@ async function selectNote(noteId) {
     updateUrl(noteId);
     setStatus("");
   } catch (error) {
-    renderDetailPrompt(error.message || "Note could not be loaded.");
-    setStatus(error.message || "Note could not be loaded.", true);
+    const message = safeNoteErrorMessage(error, "Note could not be loaded.");
+    renderDetailPrompt(message, { locked: isSecureError(error) });
+    setStatus(message, true);
   }
 }
 
@@ -439,7 +450,7 @@ function renderDetail(note) {
   const collectionBreadcrumb = document.createElement("p");
   const context = document.createElement("dl");
   const links = renderLinksPanel(note);
-  const files = renderFilesPanel();
+  const files = renderFilesPanel(note);
   const revisions = renderRevisionsPanel(note);
 
   header.className = "notes-detail-header";
@@ -454,13 +465,19 @@ function renderDetail(note) {
   }
   titleRow.append(title, detailActionsMenu([edit, archiveOrRestore]));
   header.append(titleRow, titleRule, meta);
+  if (isSecureNote(note)) {
+    const warning = document.createElement("p");
+    warning.className = "notes-secure-warning";
+    warning.textContent = note.secure_title_warning || "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.";
+    header.append(warning);
+  }
   collectionBreadcrumb.className = "notes-collection-breadcrumb";
   collectionBreadcrumb.textContent = `Collection: ${collectionLabel(note.note_collection_id) || "Uncategorized"}`;
 
   body.className = "notes-rendered-body";
   body.innerHTML = note.body_html || "";
   if (!body.textContent.trim() && !note.body_html) {
-    body.textContent = note.security_mode === "secure" ? "Secure note body is not shown here." : "No body.";
+    body.textContent = isSecureNote(note) ? "Secure note body is locked or unavailable." : "No body.";
   }
 
   tags.className = "notes-detail-tags";
@@ -482,10 +499,10 @@ function renderDetail(note) {
   loadRevisions(note, revisions.querySelector("[data-note-revisions-list]"));
 }
 
-function renderDetailPrompt(message) {
+function renderDetailPrompt(message, options = {}) {
   const prompt = document.createElement("p");
 
-  prompt.className = "notes-empty-state";
+  prompt.className = options.locked ? "notes-empty-state notes-locked-state" : "notes-empty-state";
   prompt.textContent = message;
   detailPanel.replaceChildren(prompt);
 }
@@ -503,6 +520,8 @@ async function openEditor(note = null) {
   typeInput.value = note?.note_type || "general";
   visibilityInput.value = note?.visibility || "internal";
   securityInput.value = note?.security_mode || "normal";
+  securityInput.disabled = Boolean(note);
+  updateSecureUiState();
   clientInput.value = note?.client_id || "";
   projectInput.value = note?.project_id || "";
   taskInput.value = note?.task_id || "";
@@ -517,6 +536,38 @@ async function openEditor(note = null) {
   updateLibrarySuggestion();
   dialog.showModal();
   titleInput.focus();
+}
+
+function updateSecureWarning() {
+  if (!secureWarning) {
+    return;
+  }
+
+  secureWarning.hidden = !isSecureEditorMode();
+}
+
+function updateSecureUiState() {
+  const secureMode = isSecureEditorMode();
+
+  updateSecureWarning();
+  updateSecureVisibilityOptions(secureMode);
+}
+
+function updateSecureVisibilityOptions(secureMode = false) {
+  if (!visibilityInput) {
+    return;
+  }
+
+  const clientVisibleOption = [...visibilityInput.options].find((option) => option.value === "client_visible");
+  if (!clientVisibleOption) {
+    return;
+  }
+
+  clientVisibleOption.disabled = secureMode;
+  clientVisibleOption.hidden = secureMode;
+  if (secureMode && visibilityInput.value === "client_visible") {
+    visibilityInput.value = "internal";
+  }
 }
 
 function closeEditor() {
@@ -539,7 +590,7 @@ async function saveNote(event) {
     await selectNote(result.note.note_id);
     formStatus.textContent = "";
   } catch (error) {
-    formStatus.textContent = error.message || "Note could not be saved.";
+    formStatus.textContent = safeNoteErrorMessage(error, "Note could not be saved.");
     saveButton.disabled = false;
   }
 }
@@ -767,26 +818,30 @@ async function removeNoteLink(note, link) {
   await selectNote(note.note_id);
 }
 
-function renderFilesPanel() {
+function renderFilesPanel(note = {}) {
   const section = document.createElement("section");
   const mount = document.createElement("div");
 
   section.className = "notes-detail-section";
   mount.dataset.noteFilesMount = "";
+  if (isSecureNote(note)) {
+    section.append(sectionHeading("Files"), lockedNotice("Secure notes do not allow framework file attachments yet."));
+    return section;
+  }
   section.append(mount);
   return section;
 }
 
 function mountFilesPanel(note, mount) {
-  if (!mount || !window.LongtailForge.fileAttachments) {
+  if (!mount || isSecureNote(note) || !window.LongtailForge.fileAttachments) {
     return;
   }
 
   state.attachmentController?.destroy?.();
   state.attachmentController = window.LongtailForge.fileAttachments.mount(mount, {
     acceptedCategories: ["document", "image", "pdf", "spreadsheet", "presentation", "text", "other"],
-    canRemove: note.status !== "archived" && note.security_mode !== "secure",
-    canUpload: note.status !== "archived" && note.security_mode !== "secure",
+    canRemove: note.status !== "archived",
+    canUpload: note.status !== "archived",
     clientId: note.client_id || "",
     moduleId: "notes",
     projectId: note.project_id || "",
@@ -834,7 +889,7 @@ async function loadRevisions(note, list) {
     const revisions = result.revisions || [];
     list.replaceChildren(...(revisions.length ? revisions.map((revision) => revisionItem(note, revision)) : [emptyText("No revisions.")]));
   } catch (error) {
-    list.replaceChildren(emptyText(error.message || "Revisions could not be loaded."));
+    list.replaceChildren(emptyText(safeNoteErrorMessage(error, "Revisions could not be loaded.")));
   }
 }
 
@@ -854,13 +909,20 @@ function revisionItem(note, revision) {
     formatToken(revision.security_mode),
     formatDate(revision.created_at),
   ].filter(Boolean).join(" - ");
-  excerpt.textContent = revision.body_excerpt || revision.title || "";
+  excerpt.textContent = isSecureNote(revision) ? "Secure revision body hidden from history." : revision.body_excerpt || revision.title || "";
   restore.type = "button";
   restore.textContent = "Restore";
   restore.hidden = note.status === "archived";
+  if (isSecureNote(note)) {
+    restore.title = "Secure revision restore re-encrypts the restored body.";
+  }
   restore.addEventListener("click", async () => {
-    await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/revisions/${encodeURIComponent(revision.note_revision_id)}/restore`, {});
-    await selectNote(note.note_id);
+    try {
+      await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/revisions/${encodeURIComponent(revision.note_revision_id)}/restore`, {});
+      await selectNote(note.note_id);
+    } catch (error) {
+      setStatus(safeNoteErrorMessage(error, "Revision could not be restored."), true);
+    }
   });
   item.append(title, meta, excerpt, restore);
   return item;
@@ -888,7 +950,7 @@ async function mutateNote(url) {
     await selectNote(result.note.note_id);
     setStatus("");
   } catch (error) {
-    setStatus(error.message || "Note could not be updated.", true);
+    setStatus(safeNoteErrorMessage(error, "Note could not be updated."), true);
   }
 }
 
@@ -1027,19 +1089,6 @@ function groupCollectionsByParent(collections) {
   return groups;
 }
 
-function countNotesForCollection(collectionId) {
-  if (collectionId === "__uncategorized") {
-    return state.notes.filter((note) => matchesActiveBucket(note) && !note.note_collection_id).length;
-  }
-
-  if (!collectionId) {
-    return state.notes.filter(matchesActiveBucket).length;
-  }
-
-  const collectionIds = collectionFilterIds(collectionId);
-  return state.notes.filter((note) => matchesActiveBucket(note) && collectionIds.has(note.note_collection_id)).length;
-}
-
 function selectedCollection() {
   if (!state.selectedCollectionId || state.selectedCollectionId === "__uncategorized") {
     return null;
@@ -1122,16 +1171,6 @@ function collectionFilterIds(collectionId) {
   }
 
   return ids;
-}
-
-function matchesActiveBucket(note) {
-  if (state.activeBucket === "archive") {
-    return note.status === "archived";
-  }
-  if (["active_work", "ongoing_area", "reference"].includes(state.activeBucket)) {
-    return note.library_bucket === state.activeBucket;
-  }
-  return true;
 }
 
 function collectionLabel(collectionId) {
@@ -1286,6 +1325,22 @@ function emptyText(message) {
   return empty;
 }
 
+function lockedNotice(message) {
+  const notice = document.createElement("p");
+
+  notice.className = "notes-locked-state";
+  notice.textContent = message;
+  return notice;
+}
+
+function statusBadge(label) {
+  const badge = document.createElement("span");
+
+  badge.className = "notes-status-badge";
+  badge.textContent = label;
+  return badge;
+}
+
 function tagChips(tags = []) {
   const wrapper = document.createElement("span");
   const normalizedTags = Array.isArray(tags) ? tags : [];
@@ -1345,6 +1400,26 @@ function formatToken(value) {
 
 function normalizeText(value) {
   return String(value || "").trim();
+}
+
+function isSecureNote(note = {}) {
+  return note.security_mode === "secure";
+}
+
+function isSecureEditorMode() {
+  return securityInput?.value === "secure";
+}
+
+function isSecureError(error = {}) {
+  return /secure|decrypt|encrypt|cipher|crypto|key|nonce|auth|authenticate|unsupported state|payload/i.test(String(error?.message || error || ""));
+}
+
+function safeNoteErrorMessage(error = {}, fallback = "Note action failed.") {
+  if (isSecureError(error)) {
+    return "Secure note is locked or could not be decrypted. Check secure-note access and server key configuration.";
+  }
+
+  return error?.message || fallback;
 }
 
 function compareText(left, right) {

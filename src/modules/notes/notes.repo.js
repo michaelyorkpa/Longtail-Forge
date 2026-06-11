@@ -21,6 +21,17 @@ const NOTE_COLUMNS = [
   "status",
   "visibility",
   "security_mode",
+  "secure_payload",
+  "secure_payload_version",
+  "encrypted_data_key",
+  "encryption_key_version",
+  "encryption_algorithm",
+  "key_wrapping_algorithm",
+  "encryption_nonce",
+  "encryption_auth_tag",
+  "key_wrapping_nonce",
+  "key_wrapping_auth_tag",
+  "encrypted_at",
   "client_id",
   "project_id",
   "task_id",
@@ -138,6 +149,17 @@ INSERT INTO notes (
   status,
   visibility,
   security_mode,
+  secure_payload,
+  secure_payload_version,
+  encrypted_data_key,
+  encryption_key_version,
+  encryption_algorithm,
+  key_wrapping_algorithm,
+  encryption_nonce,
+  encryption_auth_tag,
+  key_wrapping_nonce,
+  key_wrapping_auth_tag,
+  encrypted_at,
   client_id,
   project_id,
   task_id,
@@ -176,6 +198,17 @@ VALUES (
   ${sqlText(note.status || "active")},
   ${sqlText(note.visibility || "internal")},
   ${sqlText(note.security_mode || "normal")},
+  ${sqlNullableText(note.secure_payload)},
+  ${sqlNullableText(note.secure_payload_version)},
+  ${sqlNullableText(note.encrypted_data_key)},
+  ${sqlNullableText(note.encryption_key_version)},
+  ${sqlNullableText(note.encryption_algorithm)},
+  ${sqlNullableText(note.key_wrapping_algorithm)},
+  ${sqlNullableText(note.encryption_nonce)},
+  ${sqlNullableText(note.encryption_auth_tag)},
+  ${sqlNullableText(note.key_wrapping_nonce)},
+  ${sqlNullableText(note.key_wrapping_auth_tag)},
+  ${sqlNullableText(note.encrypted_at)},
   ${sqlNullableText(note.client_id)},
   ${sqlNullableText(note.project_id)},
   ${sqlNullableText(note.task_id)},
@@ -220,6 +253,17 @@ SET
   status = ${sqlText(note.status || "active")},
   visibility = ${sqlText(note.visibility || "internal")},
   security_mode = ${sqlText(note.security_mode || "normal")},
+  secure_payload = ${sqlNullableText(note.secure_payload)},
+  secure_payload_version = ${sqlNullableText(note.secure_payload_version)},
+  encrypted_data_key = ${sqlNullableText(note.encrypted_data_key)},
+  encryption_key_version = ${sqlNullableText(note.encryption_key_version)},
+  encryption_algorithm = ${sqlNullableText(note.encryption_algorithm)},
+  key_wrapping_algorithm = ${sqlNullableText(note.key_wrapping_algorithm)},
+  encryption_nonce = ${sqlNullableText(note.encryption_nonce)},
+  encryption_auth_tag = ${sqlNullableText(note.encryption_auth_tag)},
+  key_wrapping_nonce = ${sqlNullableText(note.key_wrapping_nonce)},
+  key_wrapping_auth_tag = ${sqlNullableText(note.key_wrapping_auth_tag)},
+  encrypted_at = ${sqlNullableText(note.encrypted_at)},
   client_id = ${sqlNullableText(note.client_id)},
   project_id = ${sqlNullableText(note.project_id)},
   task_id = ${sqlNullableText(note.task_id)},
@@ -265,6 +309,17 @@ INSERT INTO note_revisions (
   status,
   visibility,
   security_mode,
+  secure_payload,
+  secure_payload_version,
+  encrypted_data_key,
+  encryption_key_version,
+  encryption_algorithm,
+  key_wrapping_algorithm,
+  encryption_nonce,
+  encryption_auth_tag,
+  key_wrapping_nonce,
+  key_wrapping_auth_tag,
+  encrypted_at,
   changed_by_user_id,
   change_summary,
   change_reason,
@@ -293,6 +348,17 @@ VALUES (
   ${sqlText(revision.status || "active")},
   ${sqlText(revision.visibility || "internal")},
   ${sqlText(revision.security_mode || "normal")},
+  ${sqlNullableText(revision.secure_payload)},
+  ${sqlNullableText(revision.secure_payload_version)},
+  ${sqlNullableText(revision.encrypted_data_key)},
+  ${sqlNullableText(revision.encryption_key_version)},
+  ${sqlNullableText(revision.encryption_algorithm)},
+  ${sqlNullableText(revision.key_wrapping_algorithm)},
+  ${sqlNullableText(revision.encryption_nonce)},
+  ${sqlNullableText(revision.encryption_auth_tag)},
+  ${sqlNullableText(revision.key_wrapping_nonce)},
+  ${sqlNullableText(revision.key_wrapping_auth_tag)},
+  ${sqlNullableText(revision.encrypted_at)},
   ${sqlNullableText(revision.changed_by_user_id)},
   ${sqlNullableText(revision.change_summary)},
   ${sqlNullableText(revision.change_reason)},
@@ -638,6 +704,23 @@ ORDER BY notes.updated_at DESC, notes.title COLLATE NOCASE ASC;
   return rows.map(noteRowToAppValue);
 }
 
+async function countPlaintextSecurePlaceholders(workspaceId) {
+  const rows = await querySql(`
+SELECT COUNT(*) AS count
+FROM notes
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND security_mode = 'secure'
+  AND secure_payload IS NULL
+  AND (
+    COALESCE(body_markdown, '') != ''
+    OR COALESCE(body_excerpt, '') != ''
+    OR COALESCE(body_plaintext_index, '') != ''
+  );
+`);
+
+  return Number(rows[0]?.count || 0);
+}
+
 function noteRowToAppValue(row) {
   return {
     ...row,
@@ -685,6 +768,7 @@ export const notesRepository = {
   createCollection,
   createLink,
   createRevision,
+  countPlaintextSecurePlaceholders,
   countChildCollections,
   countNotesInCollection,
   list,

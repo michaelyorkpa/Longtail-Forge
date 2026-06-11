@@ -2,6 +2,8 @@
 
 This guide explains how to build against the current first-party module contract. The contract source of truth is `docs/module-contract.md`; the disabled-by-default `developer-example` module shows a compact working manifest.
 
+For a current first-party workflow module with storage, browser routes, Library behavior, tags, search, files, Help, revisions, and secure-note boundaries, see `docs/notes-module.md`.
+
 ## Create A Module Manifest
 
 Create a static ESM module record and register it in `src/core/modules/registry.js`. Third-party discovery is still deferred, so modules are intentionally explicit.

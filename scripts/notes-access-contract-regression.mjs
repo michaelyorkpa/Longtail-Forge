@@ -44,7 +44,7 @@ async function assertNotesManifestContract() {
   const eventNames = notesModule.eventTypes.map((eventType) => eventType.event);
   const auditTypes = notesModule.auditRecordTypes.map((recordType) => recordType.recordType);
 
-  assert.equal(notesModule.version, "0.33.1.6");
+  assert.equal(notesModule.version, "0.33.3.4");
   assert.deepEqual(permissionIds, Object.values(NOTE_PERMISSIONS));
   assert.deepEqual(notesModule.resourceDefinitions, [NOTE_RESOURCE_DEFINITION]);
   assert.deepEqual(auditTypes, NOTE_AUDIT_RECORD_TYPES.map((recordType) => recordType.recordType));
@@ -150,7 +150,7 @@ async function assertAccessPolicy() {
   assert.equal(canExposeNoteInAggregate({
     note: { ...baseNote, security_mode: NOTE_SECURITY_MODES.SECURE },
     session,
-    permissions: [NOTE_PERMISSIONS.VIEW, NOTE_PERMISSIONS.VIEW_SECURE],
+    permissions: [NOTE_PERMISSIONS.VIEW, NOTE_PERMISSIONS.SECURE_VIEW],
   }), false, "secure notes should not appear in aggregate/count surfaces by default");
 
   assert.equal(canAccessNote({

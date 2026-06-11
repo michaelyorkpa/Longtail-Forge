@@ -34,7 +34,7 @@ try {
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.1.6");
+  assert.equal(notesModule.version, "0.33.3.4");
   assert.ok(notesModule.navigation.some((item) => item.href === "notes.html" && item.parent === "projects.html"));
   assert.ok(notesModule.protectedViews.some((view) => view.file === "notes.html" && view.allowDisabledRead === true));
   assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/notes.js"));
@@ -65,11 +65,18 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=1/);
-  assert.match(html, /css\/longtail-forge\.css\?v=17/);
-  assert.match(html, /js\/notes\.js\?v=6/);
+  assert.match(html, /css\/longtail-forge\.css\?v=18/);
+  assert.match(html, /js\/notes\.js\?v=7/);
 
   const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
   assert.match(notesJs, /notes-collection-actions-menu/);
+  assert.match(notesJs, /safeNoteErrorMessage/);
+  assert.match(notesJs, /notes-locked-state/);
+  assert.match(notesJs, /notes-status-badge/);
+  assert.match(notesJs, /clientVisibleOption\.disabled = secureMode/);
+  assert.match(notesJs, /Secure note body hidden from previews\./);
+  assert.match(notesJs, /Secure notes do not allow framework file attachments yet\./);
+  assert.match(notesJs, /securityInput\.disabled = Boolean\(note\)/);
   assert.match(notesJs, /collectionFilterOptions/);
   assert.match(notesJs, /hierarchicalCollectionOptions/);
   assert.match(notesJs, /notes-detail-rule/);

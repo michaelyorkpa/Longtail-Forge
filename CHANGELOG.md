@@ -1,3 +1,65 @@
+## Version 0.33.3.4 - 2026-06-10 23:56 -04:00
+
+- Added `docs/notes-import-planning.md` as the Notes import closeout artifact, covering future OneNote notebook/section/page mapping, source path preservation, Library bucket suggestions, and import safety rules.
+- Added `scripts/notes-import-closeout-regression.mjs` and wired it into `npm run check` to guard the import-planning checklist and no-Knowledge-Base/no-access-inheritance boundaries.
+- Ran the 0.33.3.4 closeout verification set, updated release decisions/docs/roadmap archive status, and bumped the app/package and Notes module versions to `0.33.3.4`.
+
+## Version 0.33.3.3 - 2026-06-10 23:44 -04:00
+
+- Expanded the Notes module's product Help into current-state pages for usage, Library, Collections, Active Work, Ongoing Areas, Reference Library, Archive, Markdown, linking, revisions, secure notes, files, and search.
+- Added Help regression coverage for the 0.33.3.3 Notes article set, secure-note warnings, Knowledge Base separation, and avoidance of external productivity-method branding.
+- Updated 0.33.3.3 release bookkeeping and bumped the app/package and Notes module versions to `0.33.3.3`.
+
+## Version 0.33.3.2 - 2026-06-10 23:17 -04:00
+
+- Added `docs/notes-module.md` as the current-state developer guide for Notes boundaries, Library buckets, collections, permissions, data model, links, Markdown, revisions, secure notes, manifest declarations, lifecycle events, import metadata, and non-ownership boundaries.
+- Linked the Notes developer guide from `README.md` and `docs/module-development.md`, and added a docs regression to keep the 0.33.3.2 developer-documentation checklist covered.
+- Updated 0.33.3.2 release bookkeeping and bumped the app/package and Notes module versions to `0.33.3.2`.
+
+## Version 0.33.3.1 - 2026-06-10 20:08 -04:00
+
+- Added a Notes integration closeout regression covering framework service usage, no direct search/file storage writes, archive/search/collection consistency, permission-safe collection counts, secure/private hidden counts, and linked-record access hiding.
+- Fixed Library bucket moves so explicit `null` collection assignments survive note payload normalization and stale cross-bucket collection links are cleared.
+- Updated 0.33.3.1 release bookkeeping and bumped the app/package and Notes module versions to `0.33.3.1`.
+
+## Version 0.33.2.5 - 2026-06-10 19:55 -04:00
+
+- Added secure-note key-rotation groundwork with persisted key-version metadata, a permission-gated secure-note health surface, and fail-closed missing/wrong-key behavior.
+- Expanded secure-note regressions for encrypted note/revision envelopes, secure health reporting, search/audit/notification leakage boundaries, blocked attachments, secure permissions, and decrypt failures.
+- Updated secure-note documentation, decisions, roadmap closeout status, and bumped the app/package and Notes module versions to `0.33.2.5`.
+
+## Version 0.33.2.4 - 2026-06-10 19:46 -04:00
+
+- Added secure-note UI labeling with secure badges in Notes list rows and safe preview placeholders instead of body excerpts.
+- Hid client-visible visibility while creating secure notes, locked security-mode changes for existing notes, and kept the plaintext-title warning visible for secure-note flows.
+- Added locked UI states for secure note file attachments and secure/decrypt failure messages so raw crypto errors are not displayed to normal users.
+- Kept secure revision history body-closed in the browser and routed revision restore failures through the safe secure-note error path.
+- Updated Notes UI/cache-busting regressions and bumped the app/package and Notes module versions to `0.33.2.4`.
+
+## Version 0.33.2.3 - 2026-06-10 19:28 -04:00
+
+- Tightened secure revision responses so secure revision lists and restore responses return metadata only; decrypted revision bodies are returned only from the dedicated revision-read path after secure revision access checks.
+- Blocked secure notes from using `client_visible` visibility in this release, preserving the no public/client secure-note surface boundary.
+- Hardened secure audit sanitization by stripping rendered `body_html` alongside Markdown, excerpts, plaintext indexes, and encryption envelope fields.
+- Expanded `scripts/notes-secure-regression.mjs` to assert secure bodies stay out of `search_index`, SQLite FTS, audit logs, and notifications, and to verify secure notes still reject framework-managed file attachments.
+- Bumped the app/package and Notes module versions to `0.33.2.3`.
+
+## Version 0.33.2.2 - 2026-06-10 19:15 -04:00
+
+- Hardened secure-note browser/API responses so encrypted payloads, wrapped data keys, encryption algorithms, key versions, nonces, auth tags, and encrypted timestamps remain server-side storage metadata.
+- Shaped secure-note create/read/update/list/archive/restore/delete and revision responses to preserve authorized decrypted bodies only where intended while keeping list rows minimal and excerpt-free.
+- Confirmed secure-note service behavior uses explicit `notes.secure.*` permissions, owner/elevated secure-admin checks, encryption-before-storage create/update paths, and no normal search document for secure notes.
+- Extended `scripts/notes-secure-regression.mjs` to assert that secure note and revision responses do not expose encryption envelope fields, and bumped the app/package and Notes module versions to `0.33.2.2`.
+
+## Version 0.33.2.1 - 2026-06-10 17:52 -04:00
+
+- Added the secure-note encryption foundation with application-managed envelope encryption, per-note data keys, AES-256-GCM encrypted bodies, wrapped data keys, key/version/nonce/auth-tag metadata, and encrypted secure revisions.
+- Added migration `049_add_secure_note_encryption_fields.sql` for secure payload fields on notes and revisions plus plaintext secure-placeholder warning detection.
+- Enforced secure-note fail-safe behavior: secure creation requires configured server-side key material, plaintext secure placeholders block activation, missing/decrypt-failed secure content fails closed, and secure note bodies stay out of normal body/excerpt/index fields.
+- Replaced the old secure-note placeholder permissions with explicit `notes.secure.*` permissions and kept secure access owner-only plus explicit secure admins; normal Notes, Library, collection, linked-record, tag, and file permissions do not grant secure body access.
+- Added plaintext secure-title warnings in the Notes UI and documented that this is encryption-at-rest, not zero-knowledge, because a configured app server can decrypt after session and permission checks.
+- Added `scripts/notes-secure-regression.mjs`, wired it into `npm run check`, refreshed Notes/fresh-database regressions, archived older completed 0.33.1 roadmap sections, and bumped the app/package and Notes module versions to `0.33.2.1`.
+
 ## Version 0.33.2/0.33.3 Planning - 2026-06-10 17:02 -04:00
 
 - Split the broad 0.33.2 secure-notes scope into implementation passes 0.33.2.1 through 0.33.2.5, with up-front clarification questions for encryption model, title visibility, sharing, decrypt audit metadata, and existing secure-note placeholders.

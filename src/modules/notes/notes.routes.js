@@ -44,6 +44,11 @@ notesRoutes.get("/notes/collections", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+notesRoutes.get("/notes/secure/health", asyncRoute(async (request, response) => {
+  const result = await notesService.secureHealth(request.session);
+  response.status(200).json(result);
+}));
+
 notesRoutes.post("/notes/collections", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await notesService.createCollection(payload, request.session);
