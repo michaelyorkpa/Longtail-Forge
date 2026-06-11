@@ -1,4 +1,126 @@
+import {
+  LIST_AUDIT_RECORD_TYPES,
+  LIST_EVENT_TYPES,
+  LIST_PERMISSIONS,
+  LIST_RESOURCE_DEFINITION,
+} from "./access-policy.js";
 import { LIST_MODULE_ID } from "./storage-contract.js";
+
+const LIST_PERMISSION_DEFINITIONS = [
+  {
+    id: LIST_PERMISSIONS.VIEW,
+    label: "View Lists",
+    description: "View lists in authorized workspace, client, or project scopes.",
+    operation: "read",
+  },
+  {
+    id: LIST_PERMISSIONS.VIEW_ALL,
+    label: "View All Lists",
+    description: "View all lists in an authorized workspace scope.",
+    operation: "read",
+  },
+  {
+    id: LIST_PERMISSIONS.CREATE,
+    label: "Create Lists",
+    description: "Create lists in authorized workspace, client, or project scopes.",
+    operation: "create",
+  },
+  {
+    id: LIST_PERMISSIONS.UPDATE,
+    label: "Update Lists",
+    description: "Update list title, description, type, context, and editable metadata.",
+    operation: "update",
+  },
+  {
+    id: LIST_PERMISSIONS.COMPLETE,
+    label: "Complete Lists",
+    description: "Complete and reopen lists.",
+    operation: "complete",
+  },
+  {
+    id: LIST_PERMISSIONS.FINALIZE,
+    label: "Finalize Lists",
+    description: "Finalize reproducible historical lists when that workflow ships.",
+    operation: "finalize",
+  },
+  {
+    id: LIST_PERMISSIONS.ARCHIVE,
+    label: "Archive Lists",
+    description: "Archive lists while preserving historical access.",
+    operation: "archive",
+  },
+  {
+    id: LIST_PERMISSIONS.RESTORE,
+    label: "Restore Lists",
+    description: "Restore archived or deleted lists where allowed.",
+    operation: "restore",
+  },
+  {
+    id: LIST_PERMISSIONS.DELETE,
+    label: "Delete Lists",
+    description: "Soft-delete lists where allowed.",
+    operation: "delete",
+  },
+  {
+    id: LIST_PERMISSIONS.DUPLICATE,
+    label: "Duplicate Lists",
+    description: "Duplicate accessible lists when reusable-list workflows ship.",
+    operation: "duplicate",
+  },
+  {
+    id: LIST_PERMISSIONS.MANAGE_ITEMS,
+    label: "Manage List Items",
+    description: "Add, edit, reorder, check, uncheck, complete, and delete list items.",
+    operation: "manage_items",
+  },
+  {
+    id: LIST_PERMISSIONS.MANAGE_REUSABLE,
+    label: "Manage Reusable Lists",
+    description: "Mark and manage reusable lists when that workflow ships.",
+    operation: "manage_reusable",
+  },
+  {
+    id: LIST_PERMISSIONS.MANAGE_CATALOG,
+    label: "Manage List Catalog",
+    description: "Manage reusable list item catalog entries when catalog workflows ship.",
+    operation: "manage_catalog",
+  },
+  {
+    id: LIST_PERMISSIONS.MANAGE_LINKS,
+    label: "Manage List Links",
+    description: "Link and unlink lists to authorized records when linked-record workflows ship.",
+    operation: "manage_links",
+  },
+  {
+    id: LIST_PERMISSIONS.MANAGE_SETTINGS,
+    label: "Manage Lists Settings",
+    description: "Manage workspace-level Lists settings.",
+    operation: "manage",
+  },
+].map((permission) => ({
+  ...permission,
+  moduleId: LIST_MODULE_ID,
+  resource: "lists",
+}));
+
+const ALL_LIST_PERMISSION_IDS = LIST_PERMISSION_DEFINITIONS.map((permission) => permission.id);
+const INTERNAL_LIST_PERMISSION_IDS = [
+  LIST_PERMISSIONS.VIEW,
+  LIST_PERMISSIONS.CREATE,
+  LIST_PERMISSIONS.UPDATE,
+  LIST_PERMISSIONS.COMPLETE,
+  LIST_PERMISSIONS.ARCHIVE,
+  LIST_PERMISSIONS.RESTORE,
+  LIST_PERMISSIONS.DELETE,
+  LIST_PERMISSIONS.MANAGE_ITEMS,
+];
+const BASIC_LIST_PERMISSION_IDS = [
+  LIST_PERMISSIONS.VIEW,
+  LIST_PERMISSIONS.CREATE,
+  LIST_PERMISSIONS.UPDATE,
+  LIST_PERMISSIONS.COMPLETE,
+  LIST_PERMISSIONS.MANAGE_ITEMS,
+];
 
 const listsModule = {
   id: LIST_MODULE_ID,
@@ -40,7 +162,7 @@ const listsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.4.1",
+  version: "0.33.4.2",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -77,14 +199,22 @@ const listsModule = {
       },
     },
   ],
-  requiredPermissions: [],
-  permissions: [],
-  defaultRolePermissions: [],
-  resourceDefinitions: [],
-  auditRecordTypes: [],
+  requiredPermissions: ALL_LIST_PERMISSION_IDS,
+  permissions: LIST_PERMISSION_DEFINITIONS,
+  defaultRolePermissions: [
+    { roleId: "super_admin", permissions: ALL_LIST_PERMISSION_IDS },
+    { roleId: "workspace_admin", permissions: ALL_LIST_PERMISSION_IDS },
+    { roleId: "client_admin", permissions: INTERNAL_LIST_PERMISSION_IDS },
+    { roleId: "project_admin", permissions: INTERNAL_LIST_PERMISSION_IDS },
+    { roleId: "client_user", permissions: BASIC_LIST_PERMISSION_IDS },
+    { roleId: "project_user", permissions: BASIC_LIST_PERMISSION_IDS },
+    { roleId: "client_external_user", permissions: [] },
+  ],
+  resourceDefinitions: [LIST_RESOURCE_DEFINITION],
+  auditRecordTypes: LIST_AUDIT_RECORD_TYPES,
   publicApiEndpoints: [],
   apiScopes: [],
-  eventTypes: [],
+  eventTypes: LIST_EVENT_TYPES,
   eventSummaries: [],
   hooks: { events: [] },
   timerSources: [],

@@ -1,3 +1,10 @@
+## Version 0.33.4.2 - 2026-06-11 03:50 -04:00
+
+- Added the Lists permission/resource contract with `lists.*` permissions, role defaults, module audit record types, and lifecycle event declarations.
+- Added module-owned Lists repository, access-policy, and service layers for core list lifecycle and list-item lifecycle operations while keeping browser routes deferred to 0.33.4.3.
+- Added safe Lists audit/event emission for list and item actions, finalized-list read-only enforcement, disabled-module write blocking, and separation between item checked/completed/purchase states.
+- Added `scripts/lists-service-regression.mjs` and wired it into `npm run check` to cover permissions, service lifecycle, audit/event payload safety, soft-delete/restore, and finalized edit protection.
+
 ## Version 0.33.4.1 - 2026-06-11 03:10 -04:00
 
 - Registered Lists as a first-party module with stable module ID `lists`, workspace-aware Shopping/Procurement terminology, default enablement, disable support, and historical read access.

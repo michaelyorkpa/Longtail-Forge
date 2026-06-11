@@ -13,25 +13,26 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Views/Lists/Queries/etc.
+
+- Audit the code sometime before the start of the Knowledge Base to ensure all front end/UI/views and lists/queries are owned by the proper modules and not hard-coded anywhere; I want total seperation of duties
+
+## Administration/Settings
+
+- Many modules aren't exposing admin/settings properly
+  - Perform an audit and figure out what settings are missing and how to get them where they need to be
+
+## Theme
+
+- Make dark mode prettier (manual color adjustments)
+
+- Create dark mode automation based on timezone and sunrise/sunset
+
 ## Client/Projects Fixes/Tweaks
 
 - Review whether the User Settings "Remove Workspace" flow needs clearer wording now that it removes the signed-in user's membership rather than deleting the workspace record.
 
 ## Near Term Ideas
-
-- The workbench should be your daily workspace. The dashboard is where you go to focus/refocus.
-  - Workbench should have a focus mode selector: 
-    - Week
-    - Day
-    - Open/In Progress Tasks
-    - Blocked tasks
-    - Workload view (all clients, projects, tasks, etc.)
-    - Client (for business)
-    - Project
-    - Ticket (Eventually)
-  - Workbench uses tags and hard connected records to create the focus
-    - If in project focus mode, all tasks from that project that are open/in progress
-  - Clicking on task chips should open selector to adjust it (status/priority)
 
 ## Questions/Thoughts
 
@@ -678,6 +679,20 @@ This version should introduce TypeScript as a framework contract-checking tool w
 - Add framework-owned HTTP route contract and adapter boundary so Longtail Forge routes are not permanently coupled to Express. Keep Express as the first adapter; preserve the option to add a Fastify adapter later.
 
 # Long Term
+
+## Figure out "Family calendar" or "Family chore" or "Digital kanban board" configuration
+
+- Ideally I'd like to be able to have a view-only user that can be used for display/kiosk use in all workspace contexts
+
+- Would be able to display a month/week/day view
+
+- Would be able to display either a chore list (for Family/Personal) or Group task list
+
+- Possibly some sort of Kanban board for larger teams/groups in shared office settings
+
+- All of this would be available to each user in the app too, already, but I'd like to figure out the permissions, access, and naming around what this would be for display/kiosk use
+
+- It'd be super cool if it worked with an eInk display too (Special theme, maybe?)
 
 ## Shareable Templates
 

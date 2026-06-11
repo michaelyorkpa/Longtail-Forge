@@ -61,14 +61,14 @@ Use these sub-versions as the implementation order for the Lists module. The det
 
 #### Version 0.33.4.2 - Permissions, Resources, Services, Audit, and Events
 
-* [ ] Add Lists permissions and resource operations.
-* [ ] Add default role grants consistent with existing first-party module patterns.
-* [ ] Implement service methods for creating, reading, listing, updating, completing, reopening, archiving, restoring, and soft-deleting lists.
-* [ ] Implement service methods for creating, updating, reordering, checking, unchecking, completing, and deleting list items.
-* [ ] Add list and item access-policy helpers.
-* [ ] Add Lists audit record types and audit writes for list and item lifecycle actions.
-* [ ] Emit safe Lists lifecycle events for list and item actions.
-* [ ] Add regressions for permissions, audit shape, event payload safety, finalized-list edit protection, and soft-delete behavior.
+* [x] Add Lists permissions and resource operations.
+* [x] Add default role grants consistent with existing first-party module patterns.
+* [x] Implement service methods for creating, reading, listing, updating, completing, reopening, archiving, restoring, and soft-deleting lists.
+* [x] Implement service methods for creating, updating, reordering, checking, unchecking, completing, and deleting list items.
+* [x] Add list and item access-policy helpers.
+* [x] Add Lists audit record types and audit writes for list and item lifecycle actions.
+* [x] Emit safe Lists lifecycle events for list and item actions.
+* [x] Add regressions for permissions, audit shape, event payload safety, finalized-list edit protection, and soft-delete behavior.
 
 #### Version 0.33.4.3 - Browser API Foundation
 
@@ -799,12 +799,10 @@ Use these sub-versions as the implementation order for the Lists module. The det
 
 ## Version 0.33.5.0 - Task Module QoL Updates
 
-### Parent/Child Tasks
+### Task Metadata Update
 
-- [ ] Add parent/child task relationships
-  - [ ] Prevent circular references
-  - [ ] Parent tasks can be part of different projects
-    - Should this be an adjustable setting within the workspace? Should you only be allowed to pull from the same project/client for parent tasks? I can see this being a useful setting, but I'm open to ideas.
+- [ ] Inside the task details (Edit Task Modal), completed and archived tasks should display "Time to completion" which is calculated from created date/time and completed date/time
+  - This number should be usable by reporting module for efficiency numbers
 
 ### Task Checklists
 
@@ -832,37 +830,126 @@ Decision: Task checklists are lightweight completion aids inside a task. Full su
   - [ ] Do not make checklist items separately assignable in the first pass.
   - [ ] Do not attach timers directly to checklist items in the first pass.
   - [ ] Do not treat checklist items as dependencies or project schedule records.
-  - [ ] Leave full subtasks/parent-child tasks as future work.
 
-### Task Metadata Update
+### Parent/Child Tasks
 
-- [ ] Inside the task details (Edit Task Modal), completed and archived tasks should display "Time to completion" which is calculated from created date/time and completed date/time
+- [ ] Add parent/child task relationships
+  - [ ] Prevent circular references
+  - [ ] Parent tasks can be part of different projects, but, within Business workspaces, must be part of the same client
+    - Should this be an adjustable setting within the workspace? Should you only be allowed to pull from the same project/client for parent tasks? I can see this being a useful setting, but I'm open to ideas.
+  - [ ] Child tasks can be markable as "blocking"
+    - If a child is marked as blocking, and incomplete, it sets the status of parent tasks to "blocked" until the child task is completed
+      - Before moving parent tasks to In Progress, logic should check that no other blocking child tasks are incomplete
 
 ### Task UI
 
 In Projects -> Tasks, the task list isn't optimized for efficient viewing.
 - [ ] Create a three row listing for each task
-  - [ ] Row one is the task name with tag chips below
-  - [ ] Row two is the rest of the meta data
+  - [ ] Row one is the task name with tag chips below (Kept tight)
+  - [ ] Row two is the rest of the meta data (Very Tight)
     - [ ] Truncate Scope/Assignees harder on mobile
   - [ ] Row three is the buttons, right aligned
     - The icon buttons are great, except for the "Follow Notifications" button, this should be a bell
+  - [ ] No horizontal rules/borders for these 3 rows, to keep it as tight as possible
 
-## Version 0.33.5.2 - Reporting, Clients and Projects, and API QoL Update
+## Version 0.33.5.2 - Client/Projects Fixes, Listing/View Ownership and Availability Refinement
 
-- Reporting -> Time Reports
-  - Hide Start Date and End Date until billing period is is Custom
-    - Alternately, update Start Date and End Date based on Billing Period Selection
+### Version 0.33.5.2.0 - Client/Projects Fixes
 
-### Sorting logic for clients and projects
+- Projects aren't inheriting client billing settings when created in Projects -> Project Settings -> Add Project
 
-- Move logic for sorting of clients to the clients module and have that called every time clients are listed somewhere
-- Move logic for sorting of projects to the projects module and have that called every time clients are listed somewhere
+- Saving Client billing settings wipes out client tags
+  - Specific path I took was:
+    - Settings -> Workspace -> Clients -> Add Client button
+      - Added the client and tags
+    - Edited the client to turn off billing and turn on rounding
+    - Saved client
+    - Tags gone
+    - Re-adding tags through Edit Client modal worked
 
-### API Keys
+### Version 0.33.5.2.1 - Canonical client and project list payloads
+
+* [ ] Move client/project list shaping into the `client-projects` module so every UI surface, picker, embedded panel, and public API read uses the same permission-safe query contract instead of reimplementing sort/filter/tree logic in browser code.
+
+  * [ ] Own canonical filtering, hierarchy shaping, display-label metadata, and sorting in the client/projects service layer.
+  * [ ] Browser code may cache returned payloads for the current page/dialog, but should not own canonical client/project ordering rules.
+  * [ ] Prefer enhancing the existing `/api/clients`, `/api/projects`, `/api/client-projects`, `/api/v1/clients`, and `/api/v1/projects` contracts instead of adding a separate “sorting” endpoint unless implementation strongly favors a dedicated options route.
+  * [ ] Public API responses should reuse the same underlying query helpers but return a stable external contract with API-key scopes, pagination, and no browser-only fields.
+
+* [ ] Add canonical client list behavior.
+
+  * [ ] Default filter: `status=Active`.
+  * [ ] Explicit filters: `status=Active|Inactive|All`.
+  * [ ] Supported shapes:
+
+    * [ ] `shape=flat&scope=top_level`: top-level clients only, alphabetical by display name.
+    * [ ] `shape=tree`: top-level clients alphabetical, with child clients nested below each parent alphabetically.
+    * [ ] `shape=flat&include_depth=true`: flattened tree order for selects/dropdowns, including `depth`, `parent_client_id`, and safe display-label metadata.
+  * [ ] Preserve workspace and permission boundaries before sorting/shaping.
+  * [ ] Include stable IDs, parent IDs, status, display name, depth/path metadata where useful, and optional tag metadata where the caller requests it.
+
+* [ ] Add canonical project list behavior.
+
+  * [ ] Default filters:
+
+    * [ ] `status=Active`.
+    * [ ] `client=All`.
+  * [ ] Explicit filters:
+
+    * [ ] `status=Active|Inactive|Completed|All`.
+    * [ ] `client=All|<client_id>|workspace`.
+  * [ ] Supported shapes:
+
+    * [ ] `shape=flat`: alphabetical project list, optionally filtered by client/workspace scope.
+    * [ ] `shape=tree`: parent projects alphabetical, with child projects nested below each parent alphabetically.
+    * [ ] `shape=flat&include_depth=true`: flattened tree order for selects/dropdowns, including `depth`, `parent_project_id`, `client_id`, and safe display-label metadata.
+  * [ ] Project queries must support workspace-level projects in personal/family workspaces and business workspaces where `client_id` is empty.
+  * [ ] Preserve readable-project filtering before sorting/shaping.
+
+* [ ] Add regression coverage.
+
+  * [ ] Active defaults.
+  * [ ] Inactive/all client filters.
+  * [ ] Inactive/completed/all project filters.
+  * [ ] Top-level-only client/project views.
+  * [ ] Nested tree views.
+  * [ ] Flattened picker labels and depth values.
+  * [ ] Permission filtering before shaping.
+  * [ ] Orphan/cycle-safe behavior.
+  * [ ] Public API pagination.
+  * [ ] Workspace-type differences between business, personal, and family workspaces.
+  * [ ] Existing pages stop relying on page-local client/project sorting helpers once canonical payloads are available.
+
+### Version 0.33.5.8.2 - Task list filtering/sorting/options
+
+Task list filtering/sorting/options. The tasks service already returns tasks plus options, but the browser still owns status/client/project/tag filtering and multi-mode sorting. That should become a canonical task query contract, especially before tasks become the center of Workbench/Dashboard views.
+
+### Version 0.33.5.2.3 - Task/client/project picker options
+
+tasksService.readOptions returns visible active clients/projects/users, but the client/project option ordering and indentation still happen in browser code. That should reuse the new client-projects canonical option payload.
+
+### Version 0.33.5.2.4 - Notes linked-record panels and collection trees
+
+This is already mostly headed the right direction: /api/notes/for-target and /api/notes/collections exist, and the roadmap already says the reusable notes panel should use /api/notes/for-target rather than duplicating lookup logic inside Tasks, Clients, Projects, or Tickets. Keep leaning into that.
+
+### Version 0.33.5.2.5 - Files attachment lists/counts
+
+Files attachment lists/counts. There are canonical attachment and count endpoints already, but as Files gets more UI surface area, attachment list sorting/filtering/pagination should stay service-owned instead of each detail page making its own “files attached to this thing” logic.
+
+### Version 0.33.5.2.6 - Lists module index filters/sorts and item suggestions
+
+The Lists roadmap already calls for API-supported filters/sorts and deterministic suggestion ranking. Keep those server/module-owned from day one; do not let the Lists browser UI become the canonical source for list ordering or suggestions.
+
+### Version 0.33.5.2.7 - Tags filters and bulk tag assignment
+
+Your 0.33.5.6 note already has the right instinct: “No Tags” and bulk tag assignment should be owned by Tags/framework hooks, not hard-coded per module. That is the same pattern.
+
+### Version 0.33.5.2.8 - API Key cleanup
+
+Verify public API key permissions exist for read/write of all framework and first-party modules. Currently the set is very limited.
 
 - Audit the API keys available
-  - It doesn't appear that I'm seeing the correct API Keys for workspace admin account. Here's what shows:
+  - It doesn't appear that I'm seeing the correct API Keys. I checked both Workspace and Super admin accounts. Here's what shows:
     - clients:read
     - projects:read
     - tasks:read
@@ -870,6 +957,7 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
     - time_entries:read
     - time_entries:write
   - There's nothing for files, search, notes or anything else in there. And there's no write for clients or projects
+  - Place updated ROADMAP to address missing API keys in 0.33.5.3.x
 
 ## Version 0.33.5.4 - Files and Time Tracking QoL Updates
 
@@ -904,25 +992,34 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
   - Creators of records don't need {{recordType}} created notifications
   - Modifiers of records don't need {{recordType}} updated notifications
 
-- [ ] notifications.html: Notification Type chip should be aligned to right, in board from "Dismissed"
-
-- [ ] Record update notifications should include the changed context human-formatted from the JSON data
-
-- [ ] Create Notification grouping
-  - [ ] Notifications in Business workspaces should be grouped by Client
-  - [ ] Notifications in Personal/Family workspaces should be grouped by Project
-
-- [ ] Notifications should display a truncated plain English explanation of what changed for things like:
-  - Description added
-  - Task updated
-  - etc.
-
-- [ ] All Notifications Page -> Notification type chip is floating weird, it should be anchored just left of the Unread/Read/Dismissed chip
+- [ ] Record update notifications should include the changed context human-formatted from the event
+  - [ ] Notifications should display a truncated example of the change for things like:
+    - Description added
+    - Task updated
+    - etc.
 
 - "Urgent" priority notifications should turn the bell icon red and, optionally, show an in-app alert modal
 - "High" priority notifications should turn the bell icon red and not be grouped
 - "Normal" priority should be grouped and increment the number on the bell icon
 - "Low" priority should be grouped and NOT increase the number on the bell icon
+
+- [ ] Use icons from notifications.html in the Notifications bell drop-down instead of full text buttons
+  - [ ] Be sure to use hover-over titles on these icons
+
+#### All notifications Page
+- [ ] notifications.html: Notification Type chip should be aligned to right, left of "Dismissed"
+- [ ] Read/Dismiss icon buttons do not have hover over titles (required for Accessibility and clarity)
+
+- [ ] Disabled modules' preferences should be moved to the bottom of the preferences section automatically; not hard-coded by order
+  - [ ] Listing of preferences should be a view provided by notification module
+
+- [ ] Users should be able to adjust notification grouping (In notification Preferences in Settings -> User)
+  - Workspace notifications cab be grouped by:
+    - [ ] Client (Business Only)/Project (Default)
+    - [ ] Notification type (Updated/Created/etc.)
+    - [ ] Record Type
+
+- [ ] Notification type chip is floating weird, it should be anchored just left of the Unread/Read/Dismissed chip
 
 ### Tags Fixes/Tweaks
 
@@ -939,24 +1036,9 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
 
 - [ ] Add tag chips between task title and task meta data on Workbench; keep it tight
 
-## Version 0.33.5.8 - Client/Projects Fixes/Tweaks
+## Version 0.33.5.8 - Notes Cleanup
 
-### Client/Projects Fixes/Tweaks
-
-- Projects aren't inheriting client billing settings when created in Projects -> Project Settings -> Add Project
-
-- Saving Client billing settings wipes out client tags
-  - Specific path I Took was:
-    - Settings -> Workspace -> Clients -> Add Client button
-      - Added the client and tags
-    - Edited the client to turn off billing and turn on rounding
-    - Saved client
-    - Tags gone
-    - Re-adding tags through Edit Client modal worked
-
-## Version 0.33.5.9 - Notes Type Cleanup
-
-## Notes Type Cleanup
+### Notes Type Cleanup
 
 - [ ] Reframe `note_type` as content kind, not linked-record context.
 - [ ] Keep the database column name `note_type` for compatibility.
@@ -975,8 +1057,6 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
 - [ ] There are some existing rows, but none use the deprecated type
 - [ ] Use linked context and `note_links` for client/project/task/user/ticket association.
 - [ ] Add regression coverage that `note_type` does not control permissions, visibility, Library bucket, collection membership, or KB publication.
-
-## Version 0.33.5.10 - Glaring Holes Patched
 
 ### Notes Linked Record Usability
 
@@ -1070,10 +1150,24 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
 * [ ] Archived notes are read-only from embedded panels.
 * [ ] Disabled Notes module blocks new note/link writes but preserves historical reads where allowed.
 
-## Version 0.33.5.12 - Help Center Re-work
+## Version 0.33.5.10 - Help Center Re-work
 
-- Need a way to edit and expand the help center records
-  - Can we create an editor, only for me? It doesn't need to be fancy, just basic markdown/wiki links and a way to edit the content that's already there
+- Need a way to edit and expand the help center records easily
+  - Place a help directory wherever makes sense
+    - Within the help directory, create directories for each first-party module
+  - Take the .js that contains the help "files" and convert each help "file" to .md and place them in the appropriate spot within the help directory structure
+  - In top level help/ add toc.md to build the Table of Contents on the left
+    - Special processing for the toc.md:
+      - The first line in the file will be the first help center page that opens (Either "Help Center or Getting Started")
+      - All headings should be collapsible 
+      - All headings represent a directory within the help/ structure
+        - Headings should have a link behind them that allows you specify the directory name
+      - Headings can be nested
+      - Nested headings can also be collapsed
+
+- Update Help Center framework module to dynamically load the toc.md and help files
+
+### Potential Help Directory Structure
 
 - Table of Contents (ToC) sections should be collapsible
   - Help Center
@@ -1110,11 +1204,17 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
     - Notes, Files, and Search
 
 - Help Center (doc) should explain what framework, first-party, and third-party modules are
-- Getting Started should explain the key concepts that make LTF unique and how they're all inter-linked
+- Getting Started should explain the key concepts within LTF, how they're inter-linked, and what makes it all unique
 
 ## Version 0.33.6 - Reporting Module
 
 - Create a reporting module
+
+### Guidance for details in Reporting Module
+
+- Reporting -> Time Reports
+  - Hide Start Date and End Date until billing period is set to Custom
+    - Alternately, update Start Date and End Date based on Billing Period Selection (currently always shows current billing period)
 
 - For proper calculation in time/billable reports, each sub project must sum all time entries and apply rounding rules (if enabled)
   - Parent projects should then sum their direct time entries, round as appropriate, and add that to the sum of all sub project time entries
@@ -1122,16 +1222,22 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
 
 ## Version 0.33.7 - Dashboard and Workbench Formalization as Project hub and work center
 
-- [ ] Dashboard should become the hub for managing projects
+- [ ] Dashboard should no longer be hardcoded, it should be a framework owned framework for displaying widgetized information from the framework and first-party modules
+
+- [ ] Will likely need a manifest from each module for what data can be widgetized
+
+- [ ] Dashboard should be the hub for getting overviews of projects
+  - [ ] Dashboard should start with a view of all projects in Workspace
   - [ ] Add "Urgent" section that shows past due and upcoming tasks, and open support tickets sorted by client and project
-  - [ ] Add "Latest Updates" section
-    - [ ] Newest clients
+  - [ ] Add "Activity Feed" section
+    - [ ] Newest clients 
     - [ ] Newest projects
     - [ ] Newest tasks
     - [ ] Newest notes
-    - [ ] Newest support tickets
+    - [ ] Newest support tickets (eventually)
     - [ ] Recent time entries with billable amount, if budget tracking is turned on in client/project (eventual feature in 0.4x)
-- [ ] Add activity feed support (can be built onto notifications hooks)
+
+- [ ] Add activity feed support
   - [ ] Activity feed may be derived from audit events where appropriate
   - [ ] Activity feed should not expose sensitive audit JSON by default
   - [ ] Activity feed should be user-friendly and dashboard-focused
@@ -1139,6 +1245,21 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
 - [ ] Dashboard sections should respect permissions
   - [ ] Users should only see clients/projects/tasks/notes/tickets they are allowed to see
   - [ ] External client users should not see internal-only notes or admin-only audit details
+
+- The workbench should be your daily workspace. The dashboard is where you go to get overviews of the Past Due and upcoming work
+  - Workbench should have a focus mode selector:
+    - Month
+    - Week
+    - Day
+    - Open/In Progress Tasks
+    - Blocked tasks
+    - Workload view (all clients, projects, tasks, etc.)
+    - Client (for business)
+    - Project
+    - Ticket (Eventually)
+  - Workbench uses tags and hard connected metadata to create the focus
+    - If in project focus mode, all tasks from that project that are open/in progress
+  - Clicking on task chips should open selector to adjust it (status/priority)
 
 ## Version 0.34 - Knowledge Base Module
 
