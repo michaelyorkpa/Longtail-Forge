@@ -1034,6 +1034,9 @@ Verify public API key permissions exist for read/write of all framework and firs
 - [ ] Use icons from notifications.html in the Notifications bell drop-down instead of full text buttons
   - [ ] Be sure to use hover-over titles on these icons
 
+- [ ] Place "Read all" and "Dismiss all" text at bottom of notification bell drop-down
+  - Font size should match "View all"
+
 #### All notifications Page
 - [ ] notifications.html: Notification Type chip should be aligned to right, left of "Dismissed"
 - [ ] Read/Dismiss icon buttons do not have hover over titles (required for Accessibility and clarity)
