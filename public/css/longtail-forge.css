@@ -3823,7 +3823,8 @@ dialog .form-actions {
     font-weight: 700;
 }
 
-.lists-source-context {
+.lists-source-context,
+.lists-cost-summary {
     display: grid;
     gap: 6px;
     margin: 0 0 14px;
@@ -3834,7 +3835,14 @@ dialog .form-actions {
     color: #115e59;
 }
 
-.lists-source-context strong {
+.lists-cost-summary {
+    border-color: #fed7aa;
+    background: #fff7ed;
+    color: #9a3412;
+}
+
+.lists-source-context strong,
+.lists-cost-summary strong {
     text-transform: uppercase;
     font-size: 0.78rem;
     letter-spacing: 0;
@@ -3898,8 +3906,35 @@ dialog .form-actions {
 }
 
 .lists-item-form {
-    grid-template-columns: minmax(180px, 1.3fr) 80px 90px 130px minmax(140px, 1fr) minmax(130px, 1fr) minmax(150px, 0.8fr) auto;
+    grid-template-columns: minmax(180px, 1.3fr) 80px 90px 130px minmax(140px, 1fr) minmax(130px, 1fr) minmax(150px, 0.8fr) auto auto;
     align-items: end;
+}
+
+.lists-item-advanced {
+    min-width: 160px;
+}
+
+.lists-item-advanced summary {
+    min-height: 38px;
+    display: grid;
+    align-items: center;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.lists-item-advanced[open] {
+    grid-column: 1 / -1;
+}
+
+.lists-item-advanced-fields {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.lists-item-advanced-fields label:last-child {
+    grid-column: 1 / -1;
 }
 
 .lists-checkbox-field {
@@ -4776,6 +4811,16 @@ button:disabled {
 
     .tag-description-field {
         grid-column: auto;
+    }
+
+    .lists-item-advanced[open],
+    .lists-item-advanced-fields,
+    .lists-item-advanced-fields label:last-child {
+        grid-column: auto;
+    }
+
+    .lists-item-advanced-fields {
+        grid-template-columns: 1fr;
     }
 
     .page-heading,

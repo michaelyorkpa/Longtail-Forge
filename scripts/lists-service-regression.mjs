@@ -39,7 +39,7 @@ async function assertManifestContracts() {
   const listsModule = modulesService.getModule("lists");
   const permissionIds = new Set(listsModule.permissions.map((permission) => permission.id));
 
-  assert.equal(listsModule.version, "0.33.4.8");
+  assert.equal(listsModule.version, "0.33.4.8.1");
   assert.equal(listsModule.resourceDefinitions[0].key, "lists");
   assert.deepEqual(listsModule.resourceDefinitions[0].operations, [
     "read",
@@ -73,12 +73,14 @@ async function assertManifestContracts() {
   );
   assert.deepEqual(
     listsModule.auditRecordTypes.map((recordType) => recordType.recordType).sort(),
-    ["list", "list_item", "list_link"],
+    ["list", "list_item", "list_item_catalog", "list_link"],
   );
   assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.list.created"));
   assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.list.duplicated"));
   assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.list.finalized"));
   assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.item.checked"));
+  assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.catalog_item.created"));
+  assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.catalog_item.updated"));
   assert.ok(listsModule.eventTypes.some((event) => event.event === "lists.link.created"));
   assert.ok(listsModule.searchableTypes.some((entry) => entry.recordType === "list"));
   assert.ok(listsModule.taggableTypes.some((entry) => entry.targetType === "list"));
@@ -101,6 +103,12 @@ async function assertServiceLifecycle(session) {
   const unsubscribeItem = modulesService.onInternalEvent("lists.item.checked", (event) => {
     capturedEvents.push(event);
   }, { id: "lists-service-regression:item-checked" });
+  const unsubscribeCatalogCreated = modulesService.onInternalEvent("lists.catalog_item.created", (event) => {
+    capturedEvents.push(event);
+  }, { id: "lists-service-regression:catalog-created" });
+  const unsubscribeCatalogUpdated = modulesService.onInternalEvent("lists.catalog_item.updated", (event) => {
+    capturedEvents.push(event);
+  }, { id: "lists-service-regression:catalog-updated" });
 
   try {
     const created = await listsService.create({
@@ -132,6 +140,7 @@ async function assertServiceLifecycle(session) {
       list_type: "procurement",
       quantity: 12,
       unit: "pack",
+      url: "https://example.invalid/catalog-fastener",
       vendor_name: "Fastener Co",
     }, session);
     assert.equal(catalog.catalogItem.item_name, "Catalog Fastener");
@@ -159,7 +168,28 @@ async function assertServiceLifecycle(session) {
       list_type: "procurement",
       quantity: 99,
       unit: "crate",
+      url: "https://example.invalid/revised-fastener",
     }, session);
+    assert.ok(capturedEvents.some((event) => (
+      event.record_type === "list_item_catalog" &&
+      event.metadata.catalog_item_id === catalog.catalogItem.catalog_item_id &&
+      !JSON.stringify(event.metadata).includes("example.invalid")
+    )), "Catalog create events should use safe metadata");
+    assert.ok(capturedEvents.some((event) => (
+      event.record_type === "list_item_catalog" &&
+      event.metadata.catalog_item_id === catalog.catalogItem.catalog_item_id &&
+      !JSON.stringify(event.new_value).includes("example.invalid")
+    )), "Catalog update events should sanitize raw URL metadata");
+    const catalogAuditRows = await querySql(`
+SELECT action, record_type, record_id, metadata_json, previous_value_json, new_value_json
+FROM audit_logs
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND record_type = 'list_item_catalog'
+ORDER BY created_at;
+`);
+    assert.deepEqual(catalogAuditRows.map((row) => row.action), ["list_item_catalog_created", "list_item_catalog_updated"]);
+    assert.ok(catalogAuditRows.every((row) => row.record_id === catalog.catalogItem.catalog_item_id));
+    assert.ok(catalogAuditRows.every((row) => !JSON.stringify(row).includes("example.invalid")));
     const catalogSnapshotRead = await listsService.read(created.list.list_id, session);
     const catalogSnapshotItem = catalogSnapshotRead.items.find((entry) => entry.list_item_id === catalogItem.item.list_item_id);
     assert.equal(catalogSnapshotItem.item_name, "Catalog Fastener");
@@ -374,6 +404,8 @@ ORDER BY created_at;
   } finally {
     unsubscribe();
     unsubscribeItem();
+    unsubscribeCatalogCreated();
+    unsubscribeCatalogUpdated();
   }
 }
 
@@ -430,6 +462,7 @@ function assertAccessPolicy() {
     timestamp: "2026-06-11T00:00:00.000Z",
   }), {
     actor_user_id: "",
+    catalog_item_id: "",
     checked_item_count: 0,
     client_id: "",
     completed_item_count: 0,

@@ -1,3 +1,10 @@
+## Version 0.33.4.8.1 - 2026-06-11 15:42 -04:00
+
+- Added Lists row/detail polish for description excerpts, permission-safe linked-record indicators, updated/finalized dates, and estimated/actual cost totals.
+- Added secondary item detail controls for vendor/store, URL, estimated cost, actual cost, tracking ID, and notes while keeping the quick item capture path compact.
+- Added `list_item_catalog` audit record declarations plus sanitized catalog create/update audit rows and lifecycle events.
+- Bumped the app/package and Lists module versions to `0.33.4.8.1` and updated Lists regressions/docs for the backlog reconciliation follow-up.
+
 ## Version 0.33.4.8 - 2026-06-11 15:42 -04:00
 
 - Added current-state Lists Help Center articles for list usage, items, statuses, reusable workflows, business context, linked records, search/tags/files, and resume context.
@@ -5,6 +12,7 @@
 - Added `scripts/lists-closeout-regression.mjs` and wired it into `npm run check` for Help discovery/search indexing, docs, use cases, framework boundaries, and resume-safe state.
 - Verified business and personal/family Lists workflows including reusable lists, catalog-backed suggestions, finalized BOM duplication, linked context, and deleted-list resume boundaries.
 - Closed the 0.33.4 Lists roadmap section with version, decision, changelog, verification, and archive updates.
+- Documentation update 2026-06-11 15:23 -04:00: Reconciled the 0.33.4 detailed backlog against the implemented Lists module and added 0.33.4.8.1 as the remaining business-detail/catalog-history follow-up scope.
 
 ## Version 0.33.4.7.1 - 2026-06-11 15:08 -04:00
 

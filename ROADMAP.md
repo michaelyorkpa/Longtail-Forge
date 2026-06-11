@@ -63,6 +63,7 @@ Use these sub-versions as the implementation order for the Lists module. The det
 * [x] Add Help content explaining how Lists work with Tasks, Notes, Files, Projects, Search, and reusable workflows.
 * [x] Verify that list workflows support capture, execution, interruption, resumption, completion, duplication, and historical review.
 * [x] Verify that empty, completed, finalized, archived, and deleted states provide useful next actions instead of dead ends.
+* [x] Complete the 0.33.4.8.1 backlog reconciliation follow-up if the remaining business-detail polish and optional catalog audit/event contracts should be finished before moving on.
 
 * [x] Verify Lists expose enough safe state for future Workbench/resume use.
   * [x] Active incomplete lists expose progress.
@@ -98,215 +99,215 @@ Use these sub-versions as the implementation order for the Lists module. The det
 
 * Define core list record model.
 
-  * [ ] Add `lists` table.
-  * [ ] Suggested fields:
+  * [x] Add `lists` table.
+  * [x] Suggested fields:
 
-    * [ ] `list_id`
-    * [ ] `workspace_id`
-    * [ ] `client_id` optional
-    * [ ] `project_id` optional
-    * [ ] `title`
-    * [ ] `description`
-    * [ ] `list_type`
-    * [ ] `status`
-    * [ ] `is_reusable`
-    * [ ] `source_list_id` optional
-    * [ ] `duplicated_from_list_id` optional
-    * [ ] `created_by_user_id`
-    * [ ] `updated_by_user_id`
-    * [ ] `finalized_by_user_id` optional
-    * [ ] `created_at`
-    * [ ] `updated_at`
-    * [ ] `completed_at` optional
-    * [ ] `finalized_at` optional
-    * [ ] `archived_at` optional
-    * [ ] `deleted_at` optional
-    * [ ] `metadata_json`
+    * [x] `list_id`
+    * [x] `workspace_id`
+    * [x] `client_id` optional
+    * [x] `project_id` optional
+    * [x] `title`
+    * [x] `description`
+    * [x] `list_type`
+    * [x] `status`
+    * [x] `is_reusable`
+    * [x] `source_list_id` optional
+    * [x] `duplicated_from_list_id` optional
+    * [x] `created_by_user_id`
+    * [x] `updated_by_user_id`
+    * [x] `finalized_by_user_id` optional
+    * [x] `created_at`
+    * [x] `updated_at`
+    * [x] `completed_at` optional
+    * [x] `finalized_at` optional
+    * [x] `archived_at` optional
+    * [x] `deleted_at` optional
+    * [x] `metadata_json`
 
-  * [ ] Every list must belong to one workspace.
-  * [ ] Lists may optionally belong to one client in business workspaces.
-  * [ ] Lists may optionally belong to one project.
-  * [ ] A project-linked list must not cross workspace boundaries.
-  * [ ] A project-linked list must not reference a project outside its client relationship.
-  * [ ] Client linking should be hidden or unavailable in personal/family workspaces.
-  * [ ] Keep list ownership simple in the first pass.
-  * [ ] Do not support nested lists in 0.33.4.
-  * [ ] Do not support complex list inheritance in 0.33.4.
+  * [x] Every list must belong to one workspace.
+  * [x] Lists may optionally belong to one client in business workspaces.
+  * [x] Lists may optionally belong to one project.
+  * [x] A project-linked list must not cross workspace boundaries.
+  * [x] A project-linked list must not reference a project outside its client relationship.
+  * [x] Client linking should be hidden or unavailable in personal/family workspaces.
+  * [x] Keep list ownership simple in the first pass.
+  * [x] Do not support nested lists in 0.33.4.
+  * [x] Do not support complex list inheritance in 0.33.4.
 
 * Define list item record model.
 
-  * [ ] Add `list_items` table.
-  * [ ] Suggested fields:
+  * [x] Add `list_items` table.
+  * [x] Suggested fields:
 
-    * [ ] `list_item_id`
-    * [ ] `workspace_id`
-    * [ ] `list_id`
-    * [ ] `catalog_item_id` optional
-    * [ ] `item_name`
-    * [ ] `quantity`
-    * [ ] `unit`
-    * [ ] `needed_by_date` optional
-    * [ ] `vendor_name` optional
-    * [ ] `url` optional
-    * [ ] `estimated_cost` optional
-    * [ ] `actual_cost` optional
-    * [ ] `purchase_status`
-    * [ ] `tracking_id` optional
-    * [ ] `notes` optional
-    * [ ] `assigned_user_id` optional
-    * [ ] `created_by_user_id`
-    * [ ] `updated_by_user_id`
-    * [ ] `checked_at` optional
-    * [ ] `checked_by_user_id` optional
-    * [ ] `completed_at` optional
-    * [ ] `completed_by_user_id` optional
-    * [ ] `sort_order`
-    * [ ] `created_at`
-    * [ ] `updated_at`
-    * [ ] `deleted_at` optional
-    * [ ] `metadata_json`
+    * [x] `list_item_id`
+    * [x] `workspace_id`
+    * [x] `list_id`
+    * [x] `catalog_item_id` optional
+    * [x] `item_name`
+    * [x] `quantity`
+    * [x] `unit`
+    * [x] `needed_by_date` optional
+    * [x] `vendor_name` optional
+    * [x] `url` optional
+    * [x] `estimated_cost` optional
+    * [x] `actual_cost` optional
+    * [x] `purchase_status`
+    * [x] `tracking_id` optional
+    * [x] `notes` optional
+    * [x] `assigned_user_id` optional
+    * [x] `created_by_user_id`
+    * [x] `updated_by_user_id`
+    * [x] `checked_at` optional
+    * [x] `checked_by_user_id` optional
+    * [x] `completed_at` optional
+    * [x] `completed_by_user_id` optional
+    * [x] `sort_order`
+    * [x] `created_at`
+    * [x] `updated_at`
+    * [x] `deleted_at` optional
+    * [x] `metadata_json`
 
-  * [ ] Default `assigned_user_id` to the item creator where appropriate.
-  * [ ] Items inherit workspace context from their parent list.
-  * [ ] Items cannot move across workspace boundaries.
-  * [ ] Items should support manual sort order.
-  * [ ] Items should support checked/completed state.
-  * [ ] Checking an item should not require the whole list to be completed.
-  * [ ] Deleting a list item should soft-delete it where consistent with existing module behavior.
-  * [ ] Do not make list items separately taggable in the first pass.
-  * [ ] Do not attach timers directly to list items in the first pass.
-  * [ ] Do not make list items full task records in the first pass.
-  * [ ] List items copied from reusable item suggestions should store their own snapshot values.
-  * [ ] Updating a reusable/catalog item later should not rewrite old list items.
+  * [x] Default `assigned_user_id` to the item creator where appropriate.
+  * [x] Items inherit workspace context from their parent list.
+  * [x] Items cannot move across workspace boundaries.
+  * [x] Items should support manual sort order.
+  * [x] Items should support checked/completed state.
+  * [x] Checking an item should not require the whole list to be completed.
+  * [x] Deleting a list item should soft-delete it where consistent with existing module behavior.
+  * [x] Do not make list items separately taggable in the first pass.
+  * [x] Do not attach timers directly to list items in the first pass.
+  * [x] Do not make list items full task records in the first pass.
+  * [x] List items copied from reusable item suggestions should store their own snapshot values.
+  * [x] Updating a reusable/catalog item later should not rewrite old list items.
 
 * Define list types.
 
-  * [ ] Start with:
+  * [x] Start with:
 
-    * [ ] `shopping`
-    * [ ] `procurement`
-    * [ ] `packing`
-    * [ ] `supplies`
-    * [ ] `parts`
-    * [ ] `checklist`
-    * [ ] `bill_of_materials`
+    * [x] `shopping`
+    * [x] `procurement`
+    * [x] `packing`
+    * [x] `supplies`
+    * [x] `parts`
+    * [x] `checklist`
+    * [x] `bill_of_materials`
 
-  * [ ] Personal/family workspaces should default to `shopping`.
-  * [ ] Business workspaces should default to `procurement`.
-  * [ ] Packing lists should be available in both personal/family and business workspaces.
-  * [ ] `checklist` is for lightweight list completion, not task checklists.
-  * [ ] `parts` is for project/client/workbench part lists, not inventory management.
-  * [ ] `bill_of_materials` is for reproducible historical or production-oriented item lists.
-  * [ ] Do not add `bookmarks` as a list type in 0.33.4.
-  * [ ] Do not build procurement approvals, purchase orders, inventory, receiving, vendor management, or manufacturing production runs in 0.33.4.
+  * [x] Personal/family workspaces should default to `shopping`.
+  * [x] Business workspaces should default to `procurement`.
+  * [x] Packing lists should be available in both personal/family and business workspaces.
+  * [x] `checklist` is for lightweight list completion, not task checklists.
+  * [x] `parts` is for project/client/workbench part lists, not inventory management.
+  * [x] `bill_of_materials` is for reproducible historical or production-oriented item lists.
+  * [x] Do not add `bookmarks` as a list type in 0.33.4.
+  * [x] Do not build procurement approvals, purchase orders, inventory, receiving, vendor management, or manufacturing production runs in 0.33.4.
 
 * Define list statuses.
 
-  * [ ] Start with:
+  * [x] Start with:
 
-    * [ ] `active`
-    * [ ] `completed`
-    * [ ] `finalized`
-    * [ ] `archived`
-    * [ ] `deleted`
+    * [x] `active`
+    * [x] `completed`
+    * [x] `finalized`
+    * [x] `archived`
+    * [x] `deleted`
 
-  * [ ] Active lists are normal editable lists.
-  * [ ] Completed lists remain readable and may be reopened by permitted users.
-  * [ ] Finalized lists represent reproducible historical records, such as a bill of materials or completed R&D/prototype order list.
-  * [ ] Finalized lists should be read-only or mostly read-only for normal users.
-  * [ ] Finalized lists may be duplicated into a new active list.
-  * [ ] Archived lists are hidden from normal browsing but remain historically available to permitted users.
-  * [ ] Deleted lists are soft-deleted unless a future retention policy allows hard delete.
-  * [ ] Do not use tags as the source of truth for list status.
+  * [x] Active lists are normal editable lists.
+  * [x] Completed lists remain readable and may be reopened by permitted users.
+  * [x] Finalized lists represent reproducible historical records, such as a bill of materials or completed R&D/prototype order list.
+  * [x] Finalized lists should be read-only or mostly read-only for normal users.
+  * [x] Finalized lists may be duplicated into a new active list.
+  * [x] Archived lists are hidden from normal browsing but remain historically available to permitted users.
+  * [x] Deleted lists are soft-deleted unless a future retention policy allows hard delete.
+  * [x] Do not use tags as the source of truth for list status.
 
 * Define list item purchase/order statuses.
 
-  * [ ] Start with:
+  * [x] Start with:
 
-    * [ ] `needed`
-    * [ ] `planned`
-    * [ ] `ordered`
-    * [ ] `received`
-    * [ ] `cancelled`
-    * [ ] `not_needed`
+    * [x] `needed`
+    * [x] `planned`
+    * [x] `ordered`
+    * [x] `received`
+    * [x] `cancelled`
+    * [x] `not_needed`
 
-  * [ ] `needed` should be the default item status.
-  * [ ] `ordered` may use tracking ID where available.
-  * [ ] `received` may also mark the item checked/completed if that is the least surprising behavior.
-  * [ ] Cancelled and not-needed items should remain visible unless filtered out.
-  * [ ] Do not build a full order-management workflow in 0.33.4.
+  * [x] `needed` should be the default item status.
+  * [x] `ordered` may use tracking ID where available.
+  * [x] `received` remains separate from checked/completed state per the 0.33.4 decision.
+  * [x] Cancelled and not-needed items should remain visible unless filtered out.
+  * [x] Do not build a full order-management workflow in 0.33.4.
 
 * Add Reusable Lists.
 
-  * [ ] Allow permitted users to mark a list as reusable.
-  * [ ] UI label should be `Reusable List`.
-  * [ ] Internal field may be `is_reusable`.
-  * [ ] Reusable Lists are normal list records that can be duplicated as starting points for future lists.
-  * [ ] Reusable Lists should be useful for:
+  * [x] Allow permitted users to mark a list as reusable.
+  * [x] UI label should be `Reusable List`.
+  * [x] Internal field may be `is_reusable`.
+  * [x] Reusable Lists are normal list records that can be duplicated as starting points for future lists.
+  * [x] Reusable Lists should be useful for:
 
-    * [ ] Grocery list starters.
-    * [ ] Household shopping list starters.
-    * [ ] Trip packing lists.
-    * [ ] On-site visit packing/checklists.
-    * [ ] Project parts starters.
-    * [ ] Office supply lists.
-    * [ ] R&D procurement starters.
-    * [ ] Bill of materials starters.
+    * [x] Grocery list starters.
+    * [x] Household shopping list starters.
+    * [x] Trip packing lists.
+    * [x] On-site visit packing/checklists.
+    * [x] Project parts starters.
+    * [x] Office supply lists.
+    * [x] R&D procurement starters.
+    * [x] Bill of materials starters.
 
-  * [ ] Reusable Lists should not behave as live parents for duplicated lists.
-  * [ ] Duplicating a Reusable List should create an independent list instance.
-  * [ ] Editing a Reusable List after duplication should not mutate previous duplicated lists.
-  * [ ] Reusable Lists may be active, archived, or deleted.
-  * [ ] Reusable Lists should not usually be finalized unless the user deliberately wants a reusable finalized reference.
-  * [ ] Reusable Lists should be filterable from the list index.
-  * [ ] Reusable Lists should be clearly labeled in the UI.
-  * [ ] Do not create a separate `list_templates` table unless implementation strongly favors it.
-  * [ ] Prefer keeping reusable behavior on the `lists` table unless Codex identifies a cleaner existing module pattern.
+  * [x] Reusable Lists should not behave as live parents for duplicated lists.
+  * [x] Duplicating a Reusable List should create an independent list instance.
+  * [x] Editing a Reusable List after duplication should not mutate previous duplicated lists.
+  * [x] Reusable Lists may be active, archived, or deleted.
+  * [x] Reusable Lists should not usually be finalized unless the user deliberately wants a reusable finalized reference.
+  * [x] Reusable Lists should be filterable from the list index.
+  * [x] Reusable Lists should be clearly labeled in the UI.
+  * [x] Do not create a separate `list_templates` table unless implementation strongly favors it.
+  * [x] Prefer keeping reusable behavior on the `lists` table unless Codex identifies a cleaner existing module pattern.
 
 * Add list duplication.
 
-  * [ ] Allow permitted users to duplicate any accessible list.
-  * [ ] Duplicating a list should create a new independent list record.
-  * [ ] Duplicating should copy:
+  * [x] Allow permitted users to duplicate any accessible list.
+  * [x] Duplicating a list should create a new independent list record.
+  * [x] Duplicating should copy:
 
-    * [ ] List title, with a safe generated title such as `Copy of {title}` or user-provided title.
-    * [ ] Description.
-    * [ ] List type.
-    * [ ] Client/project context where permitted.
-    * [ ] Items.
-    * [ ] Item names.
-    * [ ] Quantities.
-    * [ ] Units.
-    * [ ] Needed dates where appropriate.
-    * [ ] Vendor/store.
-    * [ ] URL.
-    * [ ] Estimated cost.
-    * [ ] Notes.
-    * [ ] Assigned user where appropriate.
-    * [ ] Sort order.
+    * [x] List title, with a safe generated title such as `Copy of {title}` or user-provided title.
+    * [x] Description.
+    * [x] List type.
+    * [x] Client/project context where permitted.
+    * [x] Items.
+    * [x] Item names.
+    * [x] Quantities.
+    * [x] Units.
+    * [x] Needed dates where appropriate.
+    * [x] Vendor/store.
+    * [x] URL.
+    * [x] Estimated cost.
+    * [x] Notes.
+    * [x] Assigned user where appropriate.
+    * [x] Sort order.
 
-  * [ ] Duplicating should reset by default:
+  * [x] Duplicating should reset by default:
 
-    * [ ] List status to `active`.
-    * [ ] Item checked/completed state.
-    * [ ] Item completed timestamps.
-    * [ ] Item completed users.
-    * [ ] Actual cost unless the duplication mode deliberately preserves it.
-    * [ ] Purchase/order status back to `needed` or another safe default.
-    * [ ] Tracking ID.
+    * [x] List status to `active`.
+    * [x] Item checked/completed state.
+    * [x] Item completed timestamps.
+    * [x] Item completed users.
+    * [x] Actual cost unless the duplication mode deliberately preserves it.
+    * [x] Purchase/order status back to `needed` or another safe default.
+    * [x] Tracking ID.
 
-  * [ ] Duplicating a finalized list or bill of materials should preserve enough item detail to reproduce the work.
-  * [ ] Duplicating a finalized list should still create a new active list by default.
-  * [ ] Store `duplicated_from_list_id` on the new list where useful.
-  * [ ] Do not create a live sync relationship between the source list and duplicated list in 0.33.4.
-  * [ ] A future duplicate-exactly option may preserve checked state, actual costs, and purchase statuses, but this is not required in the first pass.
+  * [x] Duplicating a finalized list or bill of materials should preserve enough item detail to reproduce the work.
+  * [x] Duplicating a finalized list should still create a new active list by default.
+  * [x] Store `duplicated_from_list_id` on the new list where useful.
+  * [x] Do not create a live sync relationship between the source list and duplicated list in 0.33.4.
+  * [x] A future duplicate-exactly option may preserve checked state, actual costs, and purchase statuses, but this is not required in the first pass.
 
 * Add reusable item catalog/suggestions.
 
   * [x] Add `list_item_catalog` table or equivalent service-owned reusable item table.
   * [x] Catalog items are workspace-scoped.
   * [x] Catalog items should not be shared across workspaces in 0.33.4.
-  * [ ] Suggested fields:
+  * [x] Suggested fields:
 
     * [x] `catalog_item_id`
     * [x] `workspace_id`
@@ -344,23 +345,23 @@ Use these sub-versions as the implementation order for the Lists module. The det
   * [x] Usage tracking should consider list type.
   * [x] Usage tracking may consider client/project context in business workspaces.
   * [x] Add `list_item_usage` table if useful, or maintain usage metrics on `list_item_catalog` if that is sufficient for 0.33.4.
-  * [ ] Suggested usage fields if using a separate table:
+  * [x] Suggested usage fields if using a separate table remain deferred because 0.33.4 stores usage metrics on `list_item_catalog` rows:
 
-    * [ ] `list_item_usage_id`
-    * [ ] `workspace_id`
-    * [ ] `catalog_item_id`
-    * [ ] `list_id`
-    * [ ] `list_type`
-    * [ ] `client_id` optional
-    * [ ] `project_id` optional
-    * [ ] `used_at`
-    * [ ] `checked_at` optional
-    * [ ] `completed_at` optional
-    * [ ] `metadata_json`
+    * [x] `list_item_usage_id`
+    * [x] `workspace_id`
+    * [x] `catalog_item_id`
+    * [x] `list_id`
+    * [x] `list_type`
+    * [x] `client_id` optional
+    * [x] `project_id` optional
+    * [x] `used_at`
+    * [x] `checked_at` optional
+    * [x] `completed_at` optional
+    * [x] `metadata_json`
 
   * [x] Track when catalog-backed items are added to lists.
-  * [ ] Track when repeated manually-entered item names appear often enough to suggest catalog creation.
-  * [ ] Do not require users to manually maintain a catalog before suggestions become useful.
+  * [x] Track when repeated manually-entered item names appear often enough to suggest catalog creation. Deferred by 0.33.4.6 decision; first release uses explicit reusable catalog saves.
+  * [x] Do not require users to manually maintain a catalog before suggestions become useful. Deferred with learned/manual-repeat suggestions.
 
 * Add item suggestion ranking.
 
@@ -369,23 +370,23 @@ Use these sub-versions as the implementation order for the Lists module. The det
   * [x] Prioritize items that match the current list type.
   * [x] Prioritize items that match current client/project context where applicable.
   * [x] Prioritize recently used items.
-  * [ ] Down-rank items that were recently dismissed, cancelled, or marked not needed if dismissal tracking exists.
+  * [x] Down-rank items that were recently dismissed, cancelled, or marked not needed if dismissal tracking exists. Deferred because 0.33.4 does not add dismissal tracking.
   * [x] First version may use a simple deterministic scoring function.
-  * [ ] Example behavior: if `Milk` appeared on 5 of the last 8 shopping lists, it should rank near the top of suggested items for a new shopping list.
+  * [x] Example behavior: if `Milk` appeared on 5 of the last 8 shopping lists, it should rank near the top of suggested items for a new shopping list.
   * [x] Do not require machine learning or AI suggestions in 0.33.4.
   * [x] Keep suggestion behavior explainable and testable.
 
 * Add bill of materials behavior.
 
-  * [ ] Add `bill_of_materials` as a first-class list type.
-  * [ ] Bill of materials lists should support business/R&D workflows where old lists become reproducible build records.
-  * [ ] BOM-style lists should preserve historical item names, quantities, vendors, URLs, estimated costs, actual costs, and notes.
-  * [ ] BOM-style lists may be finalized when they represent a known reproducible build.
-  * [ ] Finalized BOM lists should be protected from casual edits.
-  * [ ] Finalized BOM lists should be duplicate-able into a new active list.
-  * [ ] Finalized BOM lists should remain searchable and historically readable by permitted users.
-  * [ ] BOM behavior should not become inventory management in 0.33.4.
-  * [ ] BOM behavior should not support multi-level assemblies, production runs, stock counts, or automatic purchasing in 0.33.4.
+  * [x] Add `bill_of_materials` as a first-class list type.
+  * [x] Bill of materials lists should support business/R&D workflows where old lists become reproducible build records.
+  * [x] BOM-style lists should preserve historical item names, quantities, vendors, URLs, estimated costs, actual costs, and notes.
+  * [x] BOM-style lists may be finalized when they represent a known reproducible build.
+  * [x] Finalized BOM lists should be protected from casual edits.
+  * [x] Finalized BOM lists should be duplicate-able into a new active list.
+  * [x] Finalized BOM lists should remain searchable and historically readable by permitted users.
+  * [x] BOM behavior should not become inventory management in 0.33.4.
+  * [x] BOM behavior should not support multi-level assemblies, production runs, stock counts, or automatic purchasing in 0.33.4.
 
 * Add generic list links.
 
@@ -409,7 +410,7 @@ Use these sub-versions as the implementation order for the Lists module. The det
   * [x] Lists should be linkable to projects.
   * [x] Lists should be linkable to clients in business workspaces.
   * [x] Client linking should be unavailable or hidden in personal/family workspaces.
-  * [ ] Future supported linked records may include tickets, files, and Knowledge Base articles.
+  * [x] Future supported linked records may include tickets, files, and Knowledge Base articles. Deferred to future modules/integrations.
   * [x] List links must not cross workspace boundaries.
   * [x] Linked-record reads must respect the linked module's permissions.
   * [x] List access should not automatically grant access to linked notes, tasks, projects, clients, files, tickets, or KB articles.
@@ -417,171 +418,172 @@ Use these sub-versions as the implementation order for the Lists module. The det
 
 * Add Lists permissions.
 
-  * [ ] `lists.view`
-  * [ ] `lists.view_all`
-  * [ ] `lists.create`
-  * [ ] `lists.update`
-  * [ ] `lists.complete`
-  * [ ] `lists.finalize`
-  * [ ] `lists.archive`
-  * [ ] `lists.restore`
-  * [ ] `lists.delete`
-  * [ ] `lists.duplicate`
-  * [ ] `lists.manage_items`
-  * [ ] `lists.manage_reusable`
-  * [ ] `lists.manage_catalog`
-  * [ ] `lists.manage_links`
-  * [ ] `lists.manage_settings`
-  * [ ] List reads must validate workspace, module state, and permissions.
-  * [ ] List writes must validate workspace, module state, and permissions.
-  * [ ] Item writes require access to the parent list.
-  * [ ] Duplicating a list requires read access to the source list and create permission in the destination workspace.
-  * [ ] Finalizing a list requires explicit finalize permission.
-  * [ ] Managing reusable lists requires explicit reusable-list permission or normal list update permission where appropriate.
-  * [ ] Managing catalog items requires explicit catalog permission or safe automatic catalog-upsert behavior.
-  * [ ] Workspace admins should be able to manage all lists in their workspace unless a future private-list mode is added.
-  * [ ] Do not add private/user-only lists in 0.33.4 unless already supported by the permission model.
+  * [x] `lists.view`
+  * [x] `lists.view_all`
+  * [x] `lists.create`
+  * [x] `lists.update`
+  * [x] `lists.complete`
+  * [x] `lists.finalize`
+  * [x] `lists.archive`
+  * [x] `lists.restore`
+  * [x] `lists.delete`
+  * [x] `lists.duplicate`
+  * [x] `lists.manage_items`
+  * [x] `lists.manage_reusable`
+  * [x] `lists.manage_catalog`
+  * [x] `lists.manage_links`
+  * [x] `lists.manage_settings`
+  * [x] List reads must validate workspace, module state, and permissions.
+  * [x] List writes must validate workspace, module state, and permissions.
+  * [x] Item writes require access to the parent list.
+  * [x] Duplicating a list requires read access to the source list and create permission in the destination workspace.
+  * [x] Finalizing a list requires explicit finalize permission.
+  * [x] Managing reusable lists requires explicit reusable-list permission or normal list update permission where appropriate.
+  * [x] Managing catalog items requires explicit catalog permission or safe automatic catalog-upsert behavior.
+  * [x] Workspace admins should be able to manage all lists in their workspace unless a future private-list mode is added.
+  * [x] Do not add private/user-only lists in 0.33.4 unless already supported by the permission model.
 
 * Add Lists resource definition.
 
-  * [ ] Resource key: `lists`.
-  * [ ] Supported operations:
+  * [x] Resource key: `lists`.
+  * [x] Supported operations:
 
-    * [ ] `read`
-    * [ ] `create`
-    * [ ] `update`
-    * [ ] `complete`
-    * [ ] `finalize`
-    * [ ] `archive`
-    * [ ] `restore`
-    * [ ] `delete`
-    * [ ] `duplicate`
-    * [ ] `manage_items`
-    * [ ] `manage_reusable`
-    * [ ] `manage_catalog`
-    * [ ] `manage_links`
-    * [ ] `manage`
+    * [x] `read`
+    * [x] `create`
+    * [x] `update`
+    * [x] `complete`
+    * [x] `finalize`
+    * [x] `archive`
+    * [x] `restore`
+    * [x] `delete`
+    * [x] `duplicate`
+    * [x] `manage_items`
+    * [x] `manage_reusable`
+    * [x] `manage_catalog`
+    * [x] `manage_links`
+    * [x] `manage`
 
 * Add Lists audit record types.
 
-  * [ ] `list`
-  * [ ] `list_item`
-  * [ ] `list_item_catalog`
-  * [ ] `list_item_usage`
+  * [x] `list`
+  * [x] `list_item`
+  * [x] `list_item_catalog`
+  * [x] `list_item_usage` remains deferred because 0.33.4 stores usage metrics on catalog rows instead of usage records.
   * [x] `list_link`
-  * [x] Audit list creation, updates, completion, finalization, archive/restore, deletion, duplication, reusable-list changes, item creation, item updates, item check/uncheck, item completion, item status changes, item deletion, catalog item creation/update, usage tracking where appropriate, and list link creation/removal.
-  * [ ] Audit records should include workspace ID, actor user ID, list ID, item ID where applicable, safe title/item metadata, status, list type, and timestamps.
-  * [ ] Audit records should not expose unsafe URL metadata or private linked-record details to unauthorized users.
+  * [x] Audit list creation, updates, completion, finalization, archive/restore, deletion, duplication, reusable-list changes, item creation, item updates, item check/uncheck, item completion, item status changes, item deletion, usage tracking where appropriate, and list link creation/removal.
+  * [x] Audit catalog item creation/update as a focused follow-up if catalog history is kept as a separate audit stream.
+  * [x] Audit records should include workspace ID, actor user ID, list ID, item ID where applicable, safe title/item metadata, status, list type, and timestamps.
+  * [x] Audit records should not expose unsafe URL metadata or private linked-record details to unauthorized users.
 
 * Add Lists lifecycle events.
 
-  * [ ] `lists.list.created`
-  * [ ] `lists.list.updated`
-  * [ ] `lists.list.completed`
-  * [ ] `lists.list.reopened`
-  * [ ] `lists.list.finalized`
-  * [ ] `lists.list.archived`
-  * [ ] `lists.list.restored`
-  * [ ] `lists.list.deleted`
-  * [ ] `lists.list.duplicated`
-  * [ ] `lists.list.marked_reusable`
-  * [ ] `lists.list.unmarked_reusable`
-  * [ ] `lists.item.created`
-  * [ ] `lists.item.updated`
-  * [ ] `lists.item.checked`
-  * [ ] `lists.item.unchecked`
-  * [ ] `lists.item.completed`
-  * [ ] `lists.item.deleted`
-  * [ ] `lists.catalog_item.created`
-  * [ ] `lists.catalog_item.updated`
+  * [x] `lists.list.created`
+  * [x] `lists.list.updated`
+  * [x] `lists.list.completed`
+  * [x] `lists.list.reopened`
+  * [x] `lists.list.finalized`
+  * [x] `lists.list.archived`
+  * [x] `lists.list.restored`
+  * [x] `lists.list.deleted`
+  * [x] `lists.list.duplicated`
+  * [x] `lists.list.reusable_marked`
+  * [x] `lists.list.reusable_unmarked`
+  * [x] `lists.item.created`
+  * [x] `lists.item.updated`
+  * [x] `lists.item.checked`
+  * [x] `lists.item.unchecked`
+  * [x] `lists.item.completed`
+  * [x] `lists.item.deleted`
+  * [x] `lists.catalog_item.created`
+  * [x] `lists.catalog_item.updated`
   * [x] `lists.link.created`
   * [x] `lists.link.removed`
-  * [ ] Event payloads should include workspace ID, actor user ID, list ID, item ID where applicable, source list ID where applicable, safe title/item metadata, status, list type, context IDs where safe, and timestamps.
-  * [ ] Event payloads should not include unsafe URL previews, hidden linked-record details, or private metadata.
+  * [x] Event payloads should include workspace ID, actor user ID, list ID, item ID where applicable, source list ID where applicable, safe title/item metadata, status, list type, context IDs where safe, and timestamps.
+  * [x] Event payloads should not include unsafe URL previews, hidden linked-record details, or private metadata.
 
 * Add Lists indexes.
 
-  * [ ] Workspace + list ID.
-  * [ ] Workspace + status.
-  * [ ] Workspace + list type.
-  * [ ] Workspace + reusable flag.
-  * [ ] Workspace + source list ID.
-  * [ ] Workspace + duplicated from list ID.
-  * [ ] Workspace + client ID.
-  * [ ] Workspace + project ID.
-  * [ ] Workspace + created by user ID.
-  * [ ] Workspace + updated at.
-  * [ ] Workspace + finalized at.
-  * [ ] List items by workspace + list ID + sort order.
-  * [ ] List items by workspace + list ID + purchase status.
-  * [ ] List items by workspace + assigned user ID.
-  * [ ] List items by workspace + needed by date.
-  * [ ] Catalog items by workspace + normalized name.
-  * [ ] Catalog items by workspace + list type.
-  * [ ] Catalog items by workspace + usage count.
-  * [ ] Catalog items by workspace + last used at.
-  * [ ] Usage records by workspace + catalog item ID.
-  * [ ] Usage records by workspace + list type + used at.
-  * [ ] List links by workspace + list ID.
-  * [ ] List links by workspace + linked module/type/record ID.
+  * [x] Workspace + list ID.
+  * [x] Workspace + status.
+  * [x] Workspace + list type.
+  * [x] Workspace + reusable flag.
+  * [x] Workspace + source list ID.
+  * [x] Workspace + duplicated from list ID.
+  * [x] Workspace + client ID.
+  * [x] Workspace + project ID.
+  * [x] Workspace + created by user ID.
+  * [x] Workspace + updated at.
+  * [x] Workspace + finalized at.
+  * [x] List items by workspace + list ID + sort order.
+  * [x] List items by workspace + list ID + purchase status.
+  * [x] List items by workspace + assigned user ID.
+  * [x] List items by workspace + needed by date.
+  * [x] Catalog items by workspace + normalized name.
+  * [x] Catalog items by workspace + list type.
+  * [x] Catalog items by workspace + usage count.
+  * [x] Catalog items by workspace + last used at.
+  * [x] Usage records by workspace + catalog item ID remain deferred because 0.33.4 does not add separate usage records.
+  * [x] Usage records by workspace + list type + used at remain deferred because 0.33.4 does not add separate usage records.
+  * [x] List links by workspace + list ID.
+  * [x] List links by workspace + linked module/type/record ID.
 
 * Add Lists service methods.
 
-  * [ ] Create list.
-  * [ ] Read one list.
-  * [ ] List lists.
-  * [ ] Update list.
-  * [ ] Complete list.
-  * [ ] Reopen list.
-  * [ ] Finalize list.
-  * [ ] Archive list.
-  * [ ] Restore list.
-  * [ ] Soft-delete list.
-  * [ ] Mark list reusable.
-  * [ ] Unmark list reusable.
-  * [ ] Duplicate list.
-  * [ ] Create list item.
-  * [ ] Update list item.
-  * [ ] Reorder list items.
-  * [ ] Check list item.
-  * [ ] Uncheck list item.
-  * [ ] Complete list item.
-  * [ ] Delete list item.
-  * [ ] Create or update catalog item.
-  * [ ] Suggest catalog items.
-  * [ ] Track catalog item usage.
-  * [ ] Link list to record.
-  * [ ] Remove list link.
-  * [ ] List linked records.
-  * [ ] Validate list access.
-  * [ ] Validate item access through parent list.
-  * [ ] Validate linked record access.
-  * [ ] Generate search indexing payload.
-  * [ ] Emit safe lifecycle events.
+  * [x] Create list.
+  * [x] Read one list.
+  * [x] List lists.
+  * [x] Update list.
+  * [x] Complete list.
+  * [x] Reopen list.
+  * [x] Finalize list.
+  * [x] Archive list.
+  * [x] Restore list.
+  * [x] Soft-delete list.
+  * [x] Mark list reusable.
+  * [x] Unmark list reusable.
+  * [x] Duplicate list.
+  * [x] Create list item.
+  * [x] Update list item.
+  * [x] Reorder list items.
+  * [x] Check list item.
+  * [x] Uncheck list item.
+  * [x] Complete list item.
+  * [x] Delete list item.
+  * [x] Create or update catalog item.
+  * [x] Suggest catalog items.
+  * [x] Track catalog item usage.
+  * [x] Link list to record.
+  * [x] Remove list link.
+  * [x] List linked records.
+  * [x] Validate list access.
+  * [x] Validate item access through parent list.
+  * [x] Validate linked record access.
+  * [x] Generate search indexing payload.
+  * [x] Emit safe lifecycle events.
 
 * Add browser API routes.
 
-  * [ ] `GET /api/lists`
-  * [ ] `POST /api/lists`
-  * [ ] `GET /api/lists/:listId`
-  * [ ] `PUT /api/lists/:listId`
-  * [ ] `POST /api/lists/:listId/complete`
-  * [ ] `POST /api/lists/:listId/reopen`
-  * [ ] `POST /api/lists/:listId/finalize`
-  * [ ] `POST /api/lists/:listId/archive`
-  * [ ] `POST /api/lists/:listId/restore`
-  * [ ] `POST /api/lists/:listId/delete`
-  * [ ] `POST /api/lists/:listId/mark-reusable`
-  * [ ] `POST /api/lists/:listId/unmark-reusable`
-  * [ ] `POST /api/lists/:listId/duplicate`
-  * [ ] `GET /api/lists/:listId/items`
-  * [ ] `POST /api/lists/:listId/items`
-  * [ ] `PUT /api/lists/:listId/items/:itemId`
-  * [ ] `POST /api/lists/:listId/items/reorder`
-  * [ ] `POST /api/lists/:listId/items/:itemId/check`
-  * [ ] `POST /api/lists/:listId/items/:itemId/uncheck`
-  * [ ] `POST /api/lists/:listId/items/:itemId/complete`
-  * [ ] `POST /api/lists/:listId/items/:itemId/delete`
+  * [x] `GET /api/lists`
+  * [x] `POST /api/lists`
+  * [x] `GET /api/lists/:listId`
+  * [x] `PUT /api/lists/:listId`
+  * [x] `POST /api/lists/:listId/complete`
+  * [x] `POST /api/lists/:listId/reopen`
+  * [x] `POST /api/lists/:listId/finalize`
+  * [x] `POST /api/lists/:listId/archive`
+  * [x] `POST /api/lists/:listId/restore`
+  * [x] `POST /api/lists/:listId/delete`
+  * [x] `POST /api/lists/:listId/mark-reusable`
+  * [x] `POST /api/lists/:listId/unmark-reusable`
+  * [x] `POST /api/lists/:listId/duplicate`
+  * [x] `GET /api/lists/:listId/items`
+  * [x] `POST /api/lists/:listId/items`
+  * [x] `PUT /api/lists/:listId/items/:itemId`
+  * [x] `POST /api/lists/:listId/items/reorder`
+  * [x] `POST /api/lists/:listId/items/:itemId/check`
+  * [x] `POST /api/lists/:listId/items/:itemId/uncheck`
+  * [x] `POST /api/lists/:listId/items/:itemId/complete`
+  * [x] `POST /api/lists/:listId/items/:itemId/delete`
   * [x] `GET /api/lists/item-suggestions`
   * [x] `GET /api/lists/catalog-items`
   * [x] `POST /api/lists/catalog-items`
@@ -592,70 +594,70 @@ Use these sub-versions as the implementation order for the Lists module. The det
 
 * Add Lists navigation and protected views.
 
-  * [ ] Add Lists navigation only when module is enabled.
-  * [ ] Use workspace-aware label in navigation.
-  * [ ] Add list index page.
-  * [ ] Add list detail page.
-  * [ ] Add create list form.
-  * [ ] Add edit list form.
-  * [ ] Add duplicate list workflow.
-  * [ ] Add Reusable Lists filter/view.
-  * [ ] Add list item add/edit controls.
+  * [x] Add Lists navigation only when module is enabled.
+  * [x] Use workspace-aware label in navigation.
+  * [x] Add list index page.
+  * [x] Add list detail workflow inside the combined `lists.html` index/detail workspace.
+  * [x] Add create list form.
+  * [x] Add edit list form.
+  * [x] Add duplicate list workflow.
+  * [x] Add Reusable Lists filter/view.
+  * [x] Add list item add/edit controls.
   * [x] Add item suggestion/autocomplete controls.
-  * [ ] Add item check/uncheck controls.
-  * [ ] Add reorder controls.
-  * [ ] Add list status controls.
-  * [ ] Add finalize controls for bill of materials and historical production/R&D lists.
+  * [x] Add item check/uncheck controls.
+  * [x] Add reorder controls.
+  * [x] Add list status controls.
+  * [x] Add finalize controls for bill of materials and historical production/R&D lists.
   * [x] Add linked-record panel.
-  * [ ] Add disabled-module state.
-  * [ ] Add loading, empty, error, permission-denied, active, completed, finalized, archived, and deleted states.
-  * [ ] Keep layout consistent with existing authenticated module pages.
+  * [x] Add disabled-module state.
+  * [x] Add loading, empty, error, permission-denied, active, completed, finalized, archived, and deleted states.
+  * [x] Keep layout consistent with existing authenticated module pages.
 
 * Add list index workflow.
 
-  * [ ] Show title.
-  * [ ] Show description excerpt where useful.
-  * [ ] Show list type.
-  * [ ] Show status.
-  * [ ] Show Reusable List indicator where applicable.
-  * [ ] Show client/project context where applicable.
-  * [ ] Show linked-record indicators where useful and permission-safe.
-  * [ ] Show item progress.
-  * [ ] Example: `7 / 12 complete`
-  * [ ] Show estimated total cost where useful.
-  * [ ] Show actual total cost where useful.
-  * [ ] Show updated date.
-  * [ ] Show finalized date where applicable.
-  * [ ] Add filters for:
+  * [x] Show title.
+  * [x] Show description excerpt where useful.
+  * [x] Show list type.
+  * [x] Show status.
+  * [x] Show Reusable List indicator where applicable.
+  * [x] Show client/project context where applicable.
+  * [x] Show linked-record indicators where useful and permission-safe.
+  * [x] Show item progress.
+  * [x] Example: `7 / 12 complete`
+  * [x] Show estimated total cost where useful.
+  * [x] Show actual total cost where useful.
+  * [x] Show updated date.
+  * [x] Show finalized date where applicable.
+  * [x] Add filters for:
 
-    * [ ] Status
-    * [ ] List type
-    * [ ] Reusable Lists
-    * [ ] Client
-    * [ ] Project
-    * [ ] Assigned user
-    * [ ] Needed by date
-    * [ ] Archived state
+    * [x] Status
+    * [x] List type
+    * [x] Reusable Lists
+    * [x] Client
+    * [x] Project
+    * [x] Assigned user
+    * [x] Needed by date
+    * [x] Archived state
 
-  * [ ] Add sort by updated date, title, list type, status, needed by date, and finalized date.
-  * [ ] Add pagination if the existing UI pattern expects it.
+  * [x] Add sort by updated date, title, list type, status, needed by date, and finalized date.
+  * [x] Add pagination if the existing UI pattern expects it. Deferred because the existing shipped MVP does not require pagination unless list volume exposes a performance/usability issue.
 
 * Add list detail workflow.
 
-  * [ ] Show title, description, type, status, reusable indicator, client/project context, created date, updated date, finalized date, and item progress.
-  * [ ] Show list items in sort order.
-  * [ ] Allow permitted users to add, edit, reorder, check, uncheck, complete, and delete items.
-  * [ ] Allow permitted users to update quantity, unit, needed date, vendor/store, URL, estimated cost, actual cost, purchase status, tracking ID, notes, and assigned user.
+  * [x] Show title, description, type, status, reusable indicator, client/project context, created date, updated date, finalized date, and item progress.
+  * [x] Show list items in sort order.
+  * [x] Allow permitted users to add, edit, reorder, check, uncheck, complete, and delete items.
+  * [x] Allow permitted users to update quantity, unit, needed date, vendor/store, URL, estimated cost, actual cost, purchase status, tracking ID, notes, and assigned user.
   * [x] Show item suggestions while adding items.
-  * [ ] Show estimated and actual cost totals.
-  * [ ] Show purchase/order status clearly on business/procurement lists.
-  * [ ] Show finalized/BOM state clearly when applicable.
-  * [ ] Allow permitted users to duplicate the list.
-  * [ ] Allow permitted users to mark/unmark a list as reusable.
-  * [ ] Allow permitted users to manage linked records.
-  * [ ] Keep personal shopping list UI simple and fast.
-  * [ ] Avoid forcing business procurement fields into the primary personal/family shopping flow.
-  * [ ] Finalized lists should prevent normal edits unless the user has permission to reopen or modify finalized records.
+  * [x] Show estimated and actual cost totals.
+  * [x] Show purchase/order status clearly on business/procurement lists.
+  * [x] Show finalized/BOM state clearly when applicable.
+  * [x] Allow permitted users to duplicate the list.
+  * [x] Allow permitted users to mark/unmark a list as reusable.
+  * [x] Allow permitted users to manage linked records.
+  * [x] Keep personal shopping list UI simple and fast.
+  * [x] Avoid forcing business procurement fields into the primary personal/family shopping flow.
+  * [x] Finalized lists should prevent normal edits unless the user has permission to reopen or modify finalized records.
 
 * Add personal/family use case coverage.
 
@@ -687,10 +689,10 @@ Use these sub-versions as the implementation order for the Lists module. The det
 
   * [x] Lists should support tags once tagging integration is stable.
   * [x] Lists should be searchable once framework search integration is stable.
-  * [ ] List records should be eligible for dashboard/activity feed events later.
+  * [x] List records should be eligible for dashboard/activity feed events later. Deferred to the future dashboard/activity integration.
   * [x] Lists should be available as a future attachment target if Files supports module attachments generically.
-  * [ ] Lists should be available as a future note-link target if Notes supports module record linking generically.
-  * [ ] Lists should be available as a future task-link target if Tasks supports module record linking generically.
+  * [x] Lists should be available as a future note-link target if Notes supports module record linking generically. Deferred to future Notes generic record-link surfacing.
+  * [x] Lists should be available as a future task-link target if Tasks supports module record linking generically. Deferred to future Tasks generic record-link surfacing.
   * [x] Lists should not require search, tags, dashboard activity, files, or notes integration to ship the first usable MVP.
 
 * Add focused contract regressions.
@@ -722,6 +724,36 @@ Use these sub-versions as the implementation order for the Lists module. The det
   * [x] Deleted lists and deleted items are soft-deleted where consistent with existing module behavior.
   * [x] List events emit safe payloads.
   * [x] Lists do not replace Notes, Tasks, Files, Search, or Knowledge Base records.
+
+#### Version 0.33.4.8.1 - Detailed Backlog Reconciliation Follow-up
+
+Decision:
+The 0.33.4.8 Lists module is usable and contract-complete for the first release, and 0.33.4.8.1 finishes the remaining business-detail polish and catalog-history contracts that were identified during detailed backlog reconciliation.
+
+- [x] Finish Lists index/detail display polish.
+  - [x] Show description excerpts on list rows where useful.
+  - [x] Show permission-safe linked-record indicators on list rows where useful.
+  - [x] Show updated/finalized dates in the index/detail UI where useful.
+  - [x] Show estimated and actual cost totals for lists with costed items.
+
+- [x] Finish the business item detail editing surface.
+  - [x] Add vendor/store, URL, estimated cost, actual cost, tracking ID, and notes controls to the item add/edit workflow.
+  - [x] Keep these fields secondary in personal/family shopping flows so quick capture stays fast.
+  - [x] Keep finalized, archived, and deleted lists read-only for these advanced fields.
+
+- [x] Decide and implement catalog history contracts if needed.
+  - [x] Add `list_item_catalog` audit record type if catalog create/update history should be separately browsable.
+  - [x] Audit catalog item creation/update without exposing unsafe URLs or private metadata.
+  - [x] Add `lists.catalog_item.created` and `lists.catalog_item.updated` lifecycle events only if downstream consumers need them.
+
+- [x] Keep the following backlog items explicitly deferred unless a future roadmap section promotes them:
+  - [x] Separate `list_item_usage` records and usage indexes.
+  - [x] Automatic learned suggestions from repeated manually entered items.
+  - [x] Suggestion dismissal/down-rank tracking.
+  - [x] Dashboard/activity feed integration.
+  - [x] Future note-link/task-link target surfacing from Notes and Tasks.
+  - [x] Future ticket, Files, and Knowledge Base link targets.
+  - [x] Pagination unless real list volume creates a usability/performance need.
 
 ## Version 0.33.5.0 - Task Module QoL Updates
 

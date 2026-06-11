@@ -57,6 +57,12 @@ const LIST_AUDIT_RECORD_TYPES = Object.freeze([
     description: "List item lifecycle and status audit history.",
   },
   {
+    recordType: "list_item_catalog",
+    moduleId: LIST_MODULE_ID,
+    label: "List Item Catalog",
+    description: "Reusable list item catalog audit history.",
+  },
+  {
     recordType: "list_link",
     moduleId: LIST_MODULE_ID,
     label: "List Link",
@@ -82,6 +88,8 @@ const LIST_EVENT_TYPES = Object.freeze([
   eventType("lists.item.unchecked", "List Item Unchecked", "Emitted after a list item is unchecked.", "list_item"),
   eventType("lists.item.completed", "List Item Completed", "Emitted after a list item is completed.", "list_item"),
   eventType("lists.item.deleted", "List Item Deleted", "Emitted after a list item is soft-deleted.", "list_item"),
+  eventType("lists.catalog_item.created", "Catalog Item Created", "Emitted after a reusable list item catalog entry is created.", "list_item_catalog"),
+  eventType("lists.catalog_item.updated", "Catalog Item Updated", "Emitted after a reusable list item catalog entry is updated.", "list_item_catalog"),
   eventType("lists.link.created", "List Link Created", "Emitted after a list is linked to another record.", "list_link"),
   eventType("lists.link.removed", "List Link Removed", "Emitted after a list link is removed.", "list_link"),
 ]);
@@ -240,6 +248,7 @@ function sanitizeListLifecyclePayload(payload = {}) {
     list_id: source.list_id || metadata.list_id || "",
     list_link_id: source.list_link_id || metadata.list_link_id || "",
     list_item_id: source.list_item_id || metadata.list_item_id || "",
+    catalog_item_id: source.catalog_item_id || metadata.catalog_item_id || "",
     actor_user_id: payload.actorUserId || payload.actor_user_id || metadata.actor_user_id || "",
     title: source.title || metadata.title || "",
     item_name: source.item_name || metadata.item_name || "",

@@ -33,7 +33,7 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
-  assert.equal(listsModule.version, "0.33.4.8");
+  assert.equal(listsModule.version, "0.33.4.8.1");
   assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
   assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
@@ -60,8 +60,8 @@ async function assertProtectedView(session) {
   assert.match(html, /data-list-context-control/);
   assert.match(html, /js\/shared\/icons\.js\?v=1/);
   assert.match(html, /js\/shared\/client-project-options\.js\?v=1/);
-  assert.match(html, /js\/lists\.js\?v=1/);
-  assert.match(html, /css\/longtail-forge\.css\?v=19/);
+  assert.match(html, /js\/lists\.js\?v=2/);
+  assert.match(html, /css\/longtail-forge\.css\?v=20/);
 
   assert.match(listsJs, /\/api\/lists\?includeDeleted=true/);
   assert.match(listsJs, /\/api\/client-projects/);
@@ -118,6 +118,16 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /Linked Records/);
   assert.match(listsJs, /dataset\.linkAccess/);
   assert.match(listsJs, /Unavailable linked record/);
+  assert.match(listsJs, /listDescriptionExcerpt/);
+  assert.match(listsJs, /linkedRecordSummary/);
+  assert.match(listsJs, /listTimelineSummary/);
+  assert.match(listsJs, /createCostSummaryPanel/);
+  assert.match(listsJs, /dataset\.listCostSummary/);
+  assert.match(listsJs, /vendor_name/);
+  assert.match(listsJs, /estimated_cost/);
+  assert.match(listsJs, /actual_cost/);
+  assert.match(listsJs, /tracking_id/);
+  assert.match(listsJs, /formatCurrency/);
 
   assert.match(styles, /\.lists-workspace/);
   assert.match(styles, /\.lists-state-summary/);
@@ -128,6 +138,9 @@ async function assertProtectedView(session) {
   assert.match(styles, /\.lists-links-panel/);
   assert.match(styles, /\.lists-link-form/);
   assert.match(styles, /\.lists-link-item\[data-link-access="unavailable"\]/);
+  assert.match(styles, /\.lists-cost-summary/);
+  assert.match(styles, /\.lists-item-advanced/);
+  assert.match(styles, /\.lists-item-advanced-fields/);
   assert.match(styles, /\.lists-badge\.is-reusable/);
   assert.match(styles, /\.lists-badge\.is-bom/);
   assert.match(styles, /\.lists-badge\.is-duplicated/);

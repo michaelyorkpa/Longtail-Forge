@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.4.8. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.4.8.1. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
@@ -66,6 +66,8 @@ Reusable lists are normal `lists` rows marked with `is_reusable`. They are not l
 Catalog-backed item suggestions live in `list_item_catalog`. Suggestions are explicit catalog rows or explicitly saved reusable items, not automatic learning from every manual item entry. Ranking is deterministic and scoped by workspace, list type, project/client context, use count, and recency.
 
 Historical list items snapshot values from catalog suggestions. Later catalog edits update future suggestions and do not rewrite existing list items.
+
+Catalog item create/update history uses the `list_item_catalog` audit record type and `lists.catalog_item.created` / `lists.catalog_item.updated` lifecycle events. Catalog audit/event payloads must stay permission-safe and should not expose raw item URLs or private catalog metadata.
 
 ## Linked Records
 

@@ -272,6 +272,10 @@ function createListRow(list) {
   const titleButton = document.createElement("button");
   const badges = document.createElement("span");
   const meta = document.createElement("span");
+  const description = document.createElement("span");
+  const linked = document.createElement("span");
+  const timeline = document.createElement("span");
+  const costs = document.createElement("span");
   const summary = document.createElement("span");
   const statusCell = document.createElement("td");
   const typeCell = document.createElement("td");
@@ -288,10 +292,21 @@ function createListRow(list) {
   badges.append(...listBadges(list));
   meta.className = "lists-row-meta";
   meta.textContent = listContextLabel(list);
+  description.className = "lists-row-meta";
+  description.textContent = listDescriptionExcerpt(list);
+  description.hidden = !description.textContent;
+  linked.className = "lists-row-meta";
+  linked.textContent = linkedRecordSummary(list);
+  linked.hidden = !linked.textContent;
+  timeline.className = "lists-row-meta";
+  timeline.textContent = listTimelineSummary(list);
+  costs.className = "lists-row-meta";
+  costs.textContent = listCostSummary(list);
+  costs.hidden = !costs.textContent;
   summary.className = "lists-state-summary";
   summary.dataset.listStateSummary = "";
   summary.textContent = compactStateSummary(list);
-  titleCell.append(titleButton, badges, meta, summary);
+  titleCell.append(titleButton, badges, meta, description, linked, timeline, costs, summary);
   statusCell.appendChild(statusBadge(list.status));
   typeCell.textContent = LIST_TYPE_LABELS[list.list_type] || list.list_type || "";
   neededCell.textContent = nextNeededDate(list) || "-";
@@ -340,6 +355,7 @@ function renderDetail(list) {
   const nextAction = createNextActionStrip(list);
   const sourceContext = createSourceContextPanel(list);
   const linkedRecords = createLinkedRecordsPanel(list, locked);
+  const costSummary = createCostSummaryPanel(list);
   const description = document.createElement("p");
   const itemForm = createItemForm(list, locked);
   const items = document.createElement("div");
@@ -360,7 +376,7 @@ function renderDetail(list) {
   items.className = "lists-items";
   items.appendChild(createItemsTable(list, locked));
 
-  article.append(header, nextAction, sourceContext, linkedRecords, description, itemForm, items);
+  article.append(header, nextAction, sourceContext, costSummary, linkedRecords, description, itemForm, items);
   detailPanel.replaceChildren(article);
   void loadItemSuggestions(list).then(() => updateSuggestionDatalist(itemForm, list));
 }
@@ -407,6 +423,9 @@ function createItemForm(list, locked) {
     ...state.users.map((user) => option(user.user_id, displayUser(user))),
   ]);
   const purchase = selectField("Status", "purchase_status", Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => option(value, label)));
+  const advanced = document.createElement("details");
+  const advancedSummary = document.createElement("summary");
+  const advancedFields = document.createElement("div");
   const saveToCatalog = checkboxField("Save as reusable item", "save_to_catalog", "true");
   const submit = document.createElement("button");
 
@@ -418,10 +437,22 @@ function createItemForm(list, locked) {
   form.dataset.listItemForm = "";
   form.dataset.listId = list.list_id;
   form.className = "lists-item-form";
+  advanced.className = "lists-item-advanced";
+  advancedSummary.textContent = "Details";
+  advancedFields.className = "lists-item-advanced-fields";
+  advancedFields.append(
+    inputField("Vendor or Store", "text", "vendor_name"),
+    inputField("URL", "url", "url"),
+    inputField("Estimated Cost", "number", "estimated_cost", { min: "0", step: "0.01" }),
+    inputField("Actual Cost", "number", "actual_cost", { min: "0", step: "0.01" }),
+    inputField("Tracking ID", "text", "tracking_id"),
+    textareaField("Notes", "notes", { rows: "2" }),
+  );
+  advanced.append(advancedSummary, advancedFields);
   submit.type = "submit";
   submit.textContent = "Add Item";
   submit.disabled = locked;
-  form.append(name, catalogItemId, quantity, unit, needed, assigned, purchase, saveToCatalog, submit);
+  form.append(name, catalogItemId, quantity, unit, needed, assigned, purchase, advanced, saveToCatalog, submit);
   if (locked) {
     const notice = document.createElement("p");
     notice.className = "lists-locked-note";
@@ -583,7 +614,7 @@ function createItemRow(list, item, index, total, locked) {
 
   itemTitle.textContent = item.item_name || "Untitled item";
   itemNotes.className = "lists-row-meta";
-  itemNotes.textContent = [item.vendor_name, item.notes].filter(Boolean).join(" - ");
+  itemNotes.textContent = itemDetailSummary(item);
   itemCell.append(itemTitle, itemNotes);
   qtyCell.textContent = [item.quantity ?? "", item.unit || ""].filter(Boolean).join(" ") || "-";
   neededCell.textContent = item.needed_by_date || "-";
@@ -764,7 +795,14 @@ function populateItemForm(list, itemId) {
   setFormValue(form, "assigned_user_id", item.assigned_user_id);
   setFormValue(form, "catalog_item_id", item.catalog_item_id);
   setFormValue(form, "purchase_status", item.purchase_status || "needed");
+  setFormValue(form, "vendor_name", item.vendor_name);
+  setFormValue(form, "url", item.url);
+  setFormValue(form, "estimated_cost", item.estimated_cost);
+  setFormValue(form, "actual_cost", item.actual_cost);
+  setFormValue(form, "tracking_id", item.tracking_id);
+  setFormValue(form, "notes", item.notes);
   setFormValue(form, "save_to_catalog", "");
+  form.querySelector(".lists-item-advanced")?.setAttribute("open", "open");
   form.querySelector("button[type='submit']").textContent = "Save Item";
   form.querySelector("[name='item_name']")?.focus();
 }
@@ -814,6 +852,10 @@ function applySuggestionSelection(form, list, value) {
 
   setFormValue(form, "quantity", suggestion.quantity ?? 1);
   setFormValue(form, "unit", suggestion.unit || "");
+  setFormValue(form, "vendor_name", suggestion.vendor_name || "");
+  setFormValue(form, "url", suggestion.url || "");
+  setFormValue(form, "estimated_cost", suggestion.estimated_cost ?? "");
+  setFormValue(form, "notes", suggestion.notes || "");
 }
 
 function itemSuggestionsForList(list) {
@@ -1069,6 +1111,20 @@ function createNextActionStrip(list) {
   return section;
 }
 
+function createCostSummaryPanel(list) {
+  const section = document.createElement("section");
+  const title = document.createElement("strong");
+  const summary = document.createElement("span");
+  const costText = listCostSummary(list);
+
+  section.className = "lists-cost-summary";
+  section.dataset.listCostSummary = "";
+  title.textContent = "Costs";
+  summary.textContent = costText || "No item costs recorded.";
+  section.append(title, summary);
+  return section;
+}
+
 function nextActionText(list) {
   const state = listState(list);
   if (list.status === "deleted") {
@@ -1161,6 +1217,62 @@ function compactStateSummary(list) {
   return pieces.join(" / ");
 }
 
+function listDescriptionExcerpt(list) {
+  const text = String(list.description || "").trim().replace(/\s+/g, " ");
+  if (!text) {
+    return "";
+  }
+  return text.length > 96 ? `${text.slice(0, 93)}...` : text;
+}
+
+function linkedRecordSummary(list) {
+  const links = list.links || [];
+  const available = links.filter((link) => link.target?.label).length;
+  const unavailable = links.length - available;
+  if (links.length === 0) {
+    return "";
+  }
+  return `${available} linked ${available === 1 ? "record" : "records"}${unavailable > 0 ? `, ${unavailable} unavailable` : ""}`;
+}
+
+function listTimelineSummary(list) {
+  const pieces = [];
+  if (list.updated_at) {
+    pieces.push(`Updated ${formatDateTime(list.updated_at)}`);
+  }
+  if (list.finalized_at) {
+    pieces.push(`Finalized ${formatDateTime(list.finalized_at)}`);
+  }
+  return pieces.join(" / ");
+}
+
+function listCostSummary(list) {
+  const totals = visibleItems(list).reduce((accumulator, item) => {
+    accumulator.estimated += Number(item.estimated_cost) || 0;
+    accumulator.actual += Number(item.actual_cost) || 0;
+    return accumulator;
+  }, { actual: 0, estimated: 0 });
+  const pieces = [];
+  if (totals.estimated > 0) {
+    pieces.push(`Estimated ${formatCurrency(totals.estimated)}`);
+  }
+  if (totals.actual > 0) {
+    pieces.push(`Actual ${formatCurrency(totals.actual)}`);
+  }
+  return pieces.join(" / ");
+}
+
+function itemDetailSummary(item) {
+  return [
+    item.vendor_name,
+    item.url ? "Has URL" : "",
+    item.estimated_cost ? `est. ${formatCurrency(item.estimated_cost)}` : "",
+    item.actual_cost ? `actual ${formatCurrency(item.actual_cost)}` : "",
+    item.tracking_id ? `tracking ${item.tracking_id}` : "",
+    item.notes,
+  ].filter(Boolean).join(" - ");
+}
+
 function stateFacts(list) {
   const state = listState(list);
   return [
@@ -1240,6 +1352,17 @@ function inputField(labelText, type, name, attributes = {}) {
     input.setAttribute(key, value);
   });
   label.append(labelText, input);
+  return label;
+}
+
+function textareaField(labelText, name, attributes = {}) {
+  const label = document.createElement("label");
+  const textarea = document.createElement("textarea");
+  textarea.name = name;
+  Object.entries(attributes).forEach(([key, value]) => {
+    textarea.setAttribute(key, value);
+  });
+  label.append(labelText, textarea);
   return label;
 }
 
@@ -1340,7 +1463,9 @@ function detailMeta(list) {
     STATUS_LABELS[list.status] || list.status,
     LIST_TYPE_LABELS[list.list_type] || list.list_type,
     listContextLabel(list),
+    list.created_at ? `Created ${formatDateTime(list.created_at)}` : "",
     list.updated_at ? `Updated ${formatDateTime(list.updated_at)}` : "",
+    list.finalized_at ? `Finalized ${formatDateTime(list.finalized_at)}` : "",
   ].filter(Boolean).join(" - ");
 }
 
@@ -1358,6 +1483,18 @@ function displayUser(user) {
 function formatDateTime(value) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function formatCurrency(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return "";
+  }
+  return new Intl.NumberFormat(undefined, {
+    currency: "USD",
+    maximumFractionDigits: 2,
+    style: "currency",
+  }).format(number);
 }
 
 function compareText(left, right) {

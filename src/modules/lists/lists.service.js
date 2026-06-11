@@ -336,6 +336,8 @@ async function createCatalogItem(payload, session) {
     updated_by_user_id: session.user_id,
   });
   const catalogItem = await listsRepository.createCatalogItem(session.workspace_id, normalized);
+  await recordCatalogAudit(session, "list_item_catalog_created", "create", null, catalogItem);
+  await emitCatalogEvent("lists.catalog_item.created", session, null, catalogItem);
 
   return { catalogItem: shapeCatalogItemForBrowser(catalogItem) };
 }
@@ -349,6 +351,8 @@ async function updateCatalogItem(catalogItemId, payload, session) {
     updated_by_user_id: session.user_id,
   });
   const catalogItem = await listsRepository.updateCatalogItem(session.workspace_id, normalized);
+  await recordCatalogAudit(session, "list_item_catalog_updated", "update", previousItem, catalogItem);
+  await emitCatalogEvent("lists.catalog_item.updated", session, previousItem, catalogItem);
 
   return { catalogItem: shapeCatalogItemForBrowser(catalogItem) };
 }
@@ -1412,6 +1416,30 @@ async function recordLinkAudit(session, action, changeType, previousValue, newVa
   });
 }
 
+async function recordCatalogAudit(session, action, changeType, previousValue, newValue) {
+  await auditService.record({
+    session,
+    action,
+    allowUnknownRecordType: true,
+    changeType,
+    recordType: "list_item_catalog",
+    recordId: newValue?.catalog_item_id || previousValue?.catalog_item_id,
+    recordLabel: newValue?.item_name || previousValue?.item_name || "Catalog Item",
+    recordUrl: "",
+    previousValue: previousValue ? sanitizeCatalogForAudit(previousValue) : null,
+    newValue: newValue ? sanitizeCatalogForAudit(newValue) : null,
+    metadata: sanitizeListLifecyclePayload({
+      metadata: sanitizeCatalogForAudit(newValue || previousValue || {}),
+      newValue: {
+        ...(newValue || previousValue || {}),
+        list_id: "",
+        list_item_id: "",
+        status: "",
+      },
+    }),
+  });
+}
+
 async function emitListEvent(eventName, session, previousValue, newValue, metadata = {}) {
   const progress = newValue?.list_id
     ? await readListProgressSummary(session, newValue)
@@ -1432,6 +1460,27 @@ async function emitListEvent(eventName, session, previousValue, newValue, metada
     previousValue: previousValue ? sanitizeListLifecyclePayload({ newValue: previousValue }) : null,
     recordId: newValue?.list_id || previousValue?.list_id || "",
     recordType: "list",
+    workspaceId: session.workspace_id,
+  });
+}
+
+async function emitCatalogEvent(eventName, session, previousValue, newValue) {
+  await modulesService.emitInternalEvent(eventName, {
+    actorUserId: session.user_id,
+    metadata: sanitizeListLifecyclePayload({
+      metadata: sanitizeCatalogForAudit(newValue || previousValue || {}),
+      newValue: {
+        ...(newValue || previousValue || {}),
+        list_id: "",
+        list_item_id: "",
+        status: "",
+      },
+    }),
+    moduleId: LIST_MODULE_ID,
+    newValue: newValue ? sanitizeCatalogForAudit(newValue) : null,
+    previousValue: previousValue ? sanitizeCatalogForAudit(previousValue) : null,
+    recordId: newValue?.catalog_item_id || previousValue?.catalog_item_id || "",
+    recordType: "list_item_catalog",
     workspaceId: session.workspace_id,
   });
 }
@@ -1459,6 +1508,25 @@ async function emitItemEvent(eventName, session, previousValue, newValue, listRe
     recordType: "list_item",
     workspaceId: session.workspace_id,
   });
+}
+
+function sanitizeCatalogForAudit(item = {}) {
+  return {
+    archived_at: item.archived_at || "",
+    catalog_item_id: item.catalog_item_id || "",
+    client_id: item.client_id || "",
+    created_at: item.created_at || "",
+    item_name: item.item_name || "",
+    list_type: item.list_type || "",
+    normalized_name: item.normalized_name || "",
+    project_id: item.project_id || "",
+    quantity: item.quantity ?? null,
+    unit: item.unit || "",
+    updated_at: item.updated_at || "",
+    use_count: item.use_count ?? 0,
+    vendor_name: item.vendor_name || "",
+    workspace_id: item.workspace_id || "",
+  };
 }
 
 function safeResumeMetadataForList(listRecord = {}, progress = {}) {
