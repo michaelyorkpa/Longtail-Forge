@@ -13,6 +13,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+- Make the "Reporting" menu a sub-menu of "Projects"
+  - I think I need a better name for "Projects" because this is where you access specific module interfaces per workspace.
+  - I think I need to consider moving Project Settings from Projects to Settings -> Workspace
+
 ## Views/Lists/Queries/etc.
 
 - Audit the code sometime before the start of the Knowledge Base to ensure all front end/UI/views and lists/queries are owned by the proper modules and not hard-coded anywhere; I want total seperation of duties

@@ -1904,6 +1904,24 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   - [ ] Allow addition of calendar events
   - [ ] Display iCal events from shared calendars
 
+## Version 0.36.5 - Account Home / Cross-Workspace Attention View
+
+Add a framework-owned Account Home view for users who belong to multiple workspaces.
+
+This view must not weaken workspace isolation. It should aggregate only permission-safe summaries from workspaces the current user can access.
+
+Account Home should not query module tables directly. It should use framework-owned summary services, notification records, announcement records, activity-feed records, and module-declared attention providers where available.
+
+The first version should include:
+
+- Workspace cards showing unread/attention counts.
+- Active workspace announcements.
+- Current-user notifications across accessible workspaces.
+- Permission-safe attention items such as overdue tasks, assigned tickets, pending reviews, and stale timers where those modules are enabled.
+- Links that switch/open the correct workspace before navigating to the target record.
+
+Do not expose raw audit records, raw event payloads, private module records, or cross-workspace administrative data. Every item must be visible only if the user could read the source record inside that workspace.
+
 ## Version 0.37.0 - Expanded Reporting and Invoicing
 
 - [ ] Expanded reporting
