@@ -660,36 +660,110 @@ Out of scope:
 
 ## Version 0.33.5.4 - Files and Time Tracking QoL Updates
 
-### Files module
+### Questions and Design Clarifications
 
-- There's no way to delete files?!
-- Multiple file upload at once
-- Drag and Drop file upload
+- File deletion lifecycle: should Files support soft delete/restore first, immediate hard delete, or both with separate permissions?
+  - Soft delete/restore, with admins given the ability to hard delete
+- File deletion ownership: can workspace admins delete any workspace file they can access, or only files they own plus explicit admin-level cleanup flows?
+  - Workspace admins can delete any workspace file they can access.
+- File retention: should deleted file rows remain as historical attachment/audit references even after the protected bytes are removed?
+- Multi-file upload conflict handling: if one file fails validation or scanning, should the successful files still attach, with per-file errors shown?
+- File type controls: should the first Workspace -> Files setting be an allow-list, a block-list, or both with a safe default?
+- Storage accounting: should external files count only as metadata/link availability in 0.33.5.4, or should external providers contribute reported byte usage when integrations can supply it?
+- Time entry admin correction scope: should workspace-admin edits be fully equivalent to owner edits inside the workspace, or should sensitive correction fields require an explicit admin correction permission/audit reason?
+- Timer timestamp semantics: when a timer is paused/resumed multiple times, should the finalized entry preserve the first start and final end as facts while duration stores only accumulated active seconds?
 
-## File Storage and Per User Limits
+### Implementation Sub-Versions
 
-- Need to introduce a way to track file storage per user to enforce limits in the future
-  - This should keep track of internal file storage
-  - This should have a seperate way to keep track of external file storage and availability
-    - To include all future integrations
+#### Version 0.33.5.4.1 - Files Deletion and Upload QoL
 
-- Also need control for file types
-  - This should become a Workspace-wide setting in Settings -> Workspace -> Files (Doesn't exist as of 0.33.5.2.9)
+- [ ] Add a Files-owned delete workflow for files and attachments.
+  - [ ] Respect workspace, module, attachable-target, and file permissions before exposing delete actions.
+  - [ ] Decide and document whether deletion is soft delete, hard delete, or staged delete/restore.
+  - [ ] Preserve audit and lifecycle-event metadata without exposing protected storage paths.
+- [ ] Add multiple file upload support.
+  - [ ] Allow users to choose more than one file in Files-owned upload controls.
+  - [ ] Return per-file success and failure results instead of hiding partial upload outcomes.
+  - [ ] Keep scanner, storage, permission, attachment, audit, and lifecycle behavior centralized in Files-owned services.
+- [ ] Add drag-and-drop upload support.
+  - [ ] Support drag-and-drop in the Files module and reusable attachment surfaces where appropriate.
+  - [ ] Keep keyboard/file-picker upload available.
+  - [ ] Show quiet, recoverable validation states for rejected files.
+- [ ] Verification.
+  - [ ] Verify delete permissions for owner, workspace admin, and inaccessible records.
+  - [ ] Verify multi-upload and drag-and-drop partial failures.
+  - [ ] Verify attachment counts and linked-record panels remain permission-safe after deletion.
 
-### Time Entries
+#### Version 0.33.5.4.2 - File Storage Accounting Foundation
 
-- Time entries aren't editable by Workspace admin (Everything within a workspace scope should be editable by the Workspace admin)
-  - Tried to add tags as workspace admin to "81c61ec4-ebe4-45c2-a35d-b03e88b45bb9" and got a permissions error (couldn't read the whole thing, it was on the main window and the modal window blocked it)
-  - Had to log in as Super Admin to add tags
+- [ ] Introduce workspace/user file storage accounting for future limits.
+  - [ ] Track internal protected-file storage by workspace and uploader/user.
+  - [ ] Keep accounting separate from visibility permissions; storage totals must not leak inaccessible file labels or paths.
+  - [ ] Update accounting when files are uploaded, replaced, deleted, restored, or purged.
+- [ ] Add external file storage and availability accounting fields/contracts.
+  - [ ] Track external storage separately from internal protected-file bytes.
+  - [ ] Preserve provider/source availability status for future integrations.
+  - [ ] Do not require any external file-sharing integration in this slice.
+- [ ] Keep storage limits enforcement deferred unless explicitly enabled by later settings.
+  - [ ] Provide service-level read models future Settings, admin reports, and notifications can consume.
+  - [ ] Avoid blocking uploads by quota until the workspace limit policy exists.
+- [ ] Verification.
+  - [ ] Verify internal storage totals update after upload/delete lifecycle actions.
+  - [ ] Verify external accounting can exist without an integration provider.
+  - [ ] Verify inaccessible file metadata does not leak through storage summaries.
 
-- Are time entries from timers storing the actual start and end time with an unconnected duration, or are they adjusting start or end time based on total duration?
-  - It should be the former. I want to see exactly when a timer was started and ended, as well as the total duration the timer was running during that period. Start and End time are informational, not anything to be calculated.
+#### Version 0.33.5.4.3 - Workspace Files Settings and File Type Controls
 
-### Timer Resume Metadata
+- [ ] Add Settings -> Workspace -> Files.
+  - [ ] Create the workspace-level Files settings surface if it does not already exist.
+  - [ ] Keep settings framework-owned where they are storage/security policy and Files-owned where they are file workflow behavior.
+  - [ ] Show current workspace file policy without requiring users to inspect environment/config files.
+- [ ] Add workspace-wide file type controls.
+  - [ ] Support configured file type allow/block behavior based on the clarification decision above.
+  - [ ] Enforce file type policy in Files-owned upload services, not only in browser validation.
+  - [ ] Return clear per-file rejection reasons for multi-upload and drag-and-drop flows.
+- [ ] Prepare storage-limit controls without enforcing unfinished quota policy.
+  - [ ] Display available storage accounting read models from 0.33.5.4.2.
+  - [ ] Reserve fields for future per-user/workspace limits where the policy is not implemented yet.
+- [ ] Verification.
+  - [ ] Verify workspace admins can view and update Files settings.
+  - [ ] Verify file type policy blocks disallowed uploads across Files module and attachment surfaces.
+  - [ ] Verify disabled/inaccessible settings do not expose protected file metadata.
+
+#### Version 0.33.5.4.4 - Time Entry Workspace Admin Editing
+
+- [ ] Fix workspace-admin edit access for time entries within the workspace.
+  - [ ] Workspace admins must be able to edit workspace-scoped time entries according to the app's workspace administration model.
+  - [ ] Include tag edits on time entries; admins should not need Super Admin access for normal workspace corrections.
+  - [ ] Reproduce and cover the reported entry `81c61ec4-ebe4-45c2-a35d-b03e88b45bb9` if it still exists in local/dev data.
+- [ ] Keep time-entry permission boundaries module-owned.
+  - [ ] Do not bypass Time Tracking service permissions from browser code.
+  - [ ] Ensure cross-workspace entries remain inaccessible.
+  - [ ] Preserve audit/search/tag lifecycle behavior for admin corrections.
+- [ ] Improve blocked/error feedback where the modal can hide the underlying page error.
+  - [ ] Surface permission and save errors inside the active dialog or form.
+  - [ ] Keep error text useful without exposing internal permission implementation details.
+- [ ] Verification.
+  - [ ] Verify owner, workspace admin, non-admin member, and Super Admin edit behavior.
+  - [ ] Verify admin tag edits preserve manual/propagated tag semantics.
+  - [ ] Verify reporting and time-entry lists reflect admin corrections.
+
+#### Version 0.33.5.4.5 - Timer Timestamp Integrity and Duration Model
 
 - [ ] Preserve exact timer start/end timestamps when finalizing active timers.
   - [ ] Start/end timestamps are informational facts.
   - [ ] Duration is stored separately and should not rewrite the start/end facts.
+  - [ ] Finalized entries should show exactly when the timer was started and ended, plus the total duration the timer was running during that period.
+- [ ] Review timer finalization math.
+  - [ ] Confirm timers are not adjusting start or end time based on total duration.
+  - [ ] Confirm paused/resumed timers store accumulated active duration without falsifying start/end facts.
+  - [ ] Preserve timezone-aware display behavior while keeping stored timestamps consistent with the existing UTC standard.
+- [ ] Verification.
+  - [ ] Verify active, paused, resumed, finalized, and discarded timer flows.
+  - [ ] Verify manual time-entry edits do not inherit timer-only timestamp behavior incorrectly.
+  - [ ] Verify reporting totals still use stored duration rather than recalculating from display timestamps.
+
+#### Version 0.33.5.4.6 - Timer Resume Metadata and Lifecycle Events
 
 - [ ] Ensure active/paused timer payloads expose resume-safe source metadata.
   - [ ] Source module ID.
@@ -701,13 +775,35 @@ Out of scope:
   - [ ] Timer status.
   - [ ] Last active start time.
   - [ ] Accumulated elapsed seconds.
-
 - [ ] Emit or preserve safe timer lifecycle metadata for future resume state.
   - [ ] Timer started.
   - [ ] Timer paused.
   - [ ] Timer finalized.
   - [ ] Timer discarded.
   - [ ] Do not expose inaccessible source-record details.
+- [ ] Keep resume metadata producer-only in this slice.
+  - [ ] Do not build the Workbench resume feed here.
+  - [ ] Do not create framework-owned resume-state storage beyond safe event/payload metadata needed by 0.33.5.9.
+  - [ ] Document the payload contract for future Dashboard, Workbench, Search, Notifications, and reporting consumers.
+- [ ] Verification.
+  - [ ] Verify active/paused timer API payloads include safe source context.
+  - [ ] Verify lifecycle events exclude inaccessible source labels and unsafe internal details.
+  - [ ] Verify timer metadata works for task-linked, project-linked, and unlinked timers where those flows exist.
+
+#### Version 0.33.5.4.7 - Files and Time Tracking QoL Closeout
+
+- [ ] Run permissions, module-contract, and regression checks for all 0.33.5.4 slices.
+  - [ ] Files delete/upload/settings behavior is permission-safe.
+  - [ ] Storage accounting does not leak inaccessible records.
+  - [ ] Workspace-admin time entry edits work without Super Admin fallback.
+  - [ ] Timer timestamps, duration, resume metadata, and lifecycle events remain consistent.
+- [ ] Update user-facing Help/docs for current behavior only.
+  - [ ] Document file deletion/upload/settings behavior that actually shipped.
+  - [ ] Document time-entry admin correction behavior.
+  - [ ] Document timer start/end/duration semantics without promising future Workbench resume UI.
+- [ ] Update release bookkeeping.
+  - [ ] Update `CHANGELOG.md`, `DECISIONS.md`, package metadata, and app-info version when the implementation slices ship.
+  - [ ] Move completed roadmap content to `ROADMAP-ARCHIVE.md` according to the existing release process.
 
 ## Version 0.33.5.6 - Search, Notification, and Tag QoL Updates
 
