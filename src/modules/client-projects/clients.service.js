@@ -26,11 +26,11 @@ async function readClientProjects(session) {
   const readableProjectClientIds = new Set(readableProjects.map((project) => project.client_id));
   const readableProjectIds = new Set(readableProjects.map((project) => project.id));
 
-  const workspaceProjects = await tagsService.decorateRecordsForTarget(
+  const workspaceProjects = buildProjectShape(await tagsService.decorateRecordsForTarget(
     session,
     "project",
     (data.workspaceProjects || []).filter((project) => readableProjectIds.has(project.id)),
-  );
+  ), { shape: "flat", includeDepth: true }).map(stripProjectClientIdForWorkspacePayload);
   const decoratedClients = await tagsService.decorateRecordsForTarget(
     session,
     "client",
@@ -38,15 +38,19 @@ async function readClientProjects(session) {
   );
   const projectAssignments = await tagsService.decorateRecordsForTarget(session, "project", readableProjects);
   const projectsById = new Map(projectAssignments.map((project) => [project.id, project]));
+  const shapedClients = buildClientShape(decoratedClients, { shape: "flat", includeDepth: true });
 
   return {
     workspaceProjects,
-    clients: decoratedClients
+    clients: shapedClients
       .map((client) => ({
         ...client,
-        projects: client.projects.filter((project) => (
+        projects: buildProjectShape(client.projects.filter((project) => (
           readableClientIds.has(client.id) || readableProjectIds.has(project.id)
-        )).map((project) => projectsById.get(project.id) || project),
+        )).map((project) => projectsById.get(project.id) || project), {
+          shape: "flat",
+          includeDepth: true,
+        }).map(stripProjectClientIdForNestedPayload),
       })),
   };
 }
@@ -99,18 +103,263 @@ function buildDescendantIdMap(records, parentField) {
   }, new Map());
 }
 
+function buildClientShape(clients, options = {}) {
+  const includeDepth = options.includeDepth === true;
+  const shape = options.shape === "tree" ? "tree" : "flat";
+  const orderedClients = sortHierarchy(clients, {
+    idField: "id",
+    parentField: "parent_client_id",
+    labelField: "name",
+  }).map(({ record, depth, path }) => decorateClientShape(record, { depth, includeDepth, path }));
+
+  if (shape === "tree") {
+    return buildNestedTree(orderedClients, {
+      idField: "id",
+      parentField: "parent_client_id",
+      childrenField: "children",
+    });
+  }
+
+  return orderedClients;
+}
+
+function buildProjectShape(projects, options = {}) {
+  const includeDepth = options.includeDepth === true;
+  const shape = options.shape === "tree" ? "tree" : "flat";
+  const orderedProjects = sortHierarchy(projects, {
+    idField: "id",
+    parentField: "parent_project_id",
+    labelField: "name",
+  }).map(({ record, depth, path }) => decorateProjectShape(record, { depth, includeDepth, path }));
+
+  if (shape === "tree") {
+    return buildNestedTree(orderedProjects, {
+      idField: "id",
+      parentField: "parent_project_id",
+      childrenField: "children",
+    });
+  }
+
+  return orderedProjects;
+}
+
+function sortHierarchy(records, { idField, parentField, labelField }) {
+  const byParentId = records.reduce((map, record) => {
+    const parentId = String(record[parentField] || "").trim();
+
+    if (!map.has(parentId)) {
+      map.set(parentId, []);
+    }
+
+    map.get(parentId).push(record);
+    return map;
+  }, new Map());
+  const sorted = [];
+  const visited = new Set();
+  const visit = (parentId, depth, path) => {
+    const children = [...(byParentId.get(parentId) || [])].sort((left, right) => (
+      String(left[labelField] || "").localeCompare(String(right[labelField] || ""), undefined, {
+        sensitivity: "base",
+      }) || String(left[idField] || "").localeCompare(String(right[idField] || ""))
+    ));
+
+    children.forEach((record) => {
+      const id = String(record[idField] || "").trim();
+
+      if (!id || visited.has(id)) {
+        return;
+      }
+
+      visited.add(id);
+      const nextPath = [...path, String(record[labelField] || "").trim()].filter(Boolean);
+      sorted.push({ depth, path: nextPath, record });
+      visit(id, depth + 1, nextPath);
+    });
+  };
+
+  visit("", 0, []);
+
+  [...byParentId.keys()]
+    .filter((parentId) => parentId && !records.some((record) => String(record[idField] || "").trim() === parentId))
+    .sort()
+    .forEach((orphanParentId) => visit(orphanParentId, 0, []));
+
+  records
+    .filter((record) => !visited.has(String(record[idField] || "").trim()))
+    .sort((left, right) => (
+      String(left[labelField] || "").localeCompare(String(right[labelField] || ""), undefined, {
+        sensitivity: "base",
+      }) || String(left[idField] || "").localeCompare(String(right[idField] || ""))
+    ))
+    .forEach((record) => {
+      const id = String(record[idField] || "").trim();
+      if (!id || visited.has(id)) {
+        return;
+      }
+      visited.add(id);
+      sorted.push({ depth: 0, path: [String(record[labelField] || "").trim()].filter(Boolean), record });
+    });
+
+  return sorted;
+}
+
+function buildNestedTree(flatRecords, { idField, parentField, childrenField }) {
+  const nodesById = new Map(flatRecords.map((record) => [record[idField], { ...record, [childrenField]: [] }]));
+  const roots = [];
+
+  flatRecords.forEach((record) => {
+    const node = nodesById.get(record[idField]);
+    const parentId = record[parentField] || "";
+    const parentNode = parentId ? nodesById.get(parentId) : null;
+
+    if (parentNode && parentNode !== node) {
+      parentNode[childrenField].push(node);
+    } else {
+      roots.push(node);
+    }
+  });
+
+  return roots;
+}
+
+function decorateClientShape(client, { depth, includeDepth, path }) {
+  return {
+    ...client,
+    ...(includeDepth ? {
+      depth,
+      display_label: formatIndentedLabel(client.name, depth),
+      display_path: path,
+    } : {}),
+  };
+}
+
+function decorateProjectShape(project, { depth, includeDepth, path }) {
+  return {
+    ...project,
+    ...(includeDepth ? {
+      depth,
+      display_label: formatIndentedLabel(project.name, depth),
+      display_path: path,
+    } : {}),
+  };
+}
+
+function formatIndentedLabel(label, depth) {
+  const text = String(label || "").trim();
+  return depth > 0 ? `${"  ".repeat(depth)}- ${text}` : text;
+}
+
+function normalizeClientShapeOptions(query = {}) {
+  return {
+    includeDepth: readBoolean(query.include_depth || query.includeDepth),
+    scope: String(query.scope || "").trim() === "top_level" ? "top_level" : "all",
+    shape: String(query.shape || "").trim() === "tree" ? "tree" : "flat",
+  };
+}
+
+function normalizeProjectShapeOptions(query = {}) {
+  return {
+    includeDepth: readBoolean(query.include_depth || query.includeDepth),
+    shape: String(query.shape || "").trim() === "tree" ? "tree" : "flat",
+  };
+}
+
+function normalizeClientStatusFilter(status) {
+  const normalizedStatus = String(status || "Active").trim().toLowerCase();
+
+  if (normalizedStatus === "inactive") {
+    return "Inactive";
+  }
+
+  if (normalizedStatus === "all") {
+    return "All";
+  }
+
+  return "Active";
+}
+
+function normalizeProjectStatusFilter(status) {
+  const normalizedStatus = String(status || "Active").trim().toLowerCase();
+
+  if (normalizedStatus === "inactive") {
+    return "Inactive";
+  }
+
+  if (normalizedStatus === "completed") {
+    return "Completed";
+  }
+
+  if (normalizedStatus === "all") {
+    return "All";
+  }
+
+  return "Active";
+}
+
+function normalizeProjectClientFilter(clientFilter) {
+  const value = String(clientFilter || "All").trim();
+
+  if (!value || value.toLowerCase() === "all") {
+    return { type: "all", value: "" };
+  }
+
+  if (value.toLowerCase() === "workspace") {
+    return { type: "workspace", value: "" };
+  }
+
+  return { type: "client", value };
+}
+
+function filterProjectsByClient(projects, clientFilter) {
+  if (clientFilter.type === "workspace") {
+    return projects.filter((project) => !project.client_id);
+  }
+
+  if (clientFilter.type === "client") {
+    return projects.filter((project) => project.client_id === clientFilter.value);
+  }
+
+  return projects;
+}
+
+function readBoolean(value) {
+  return value === true || value === "true" || value === "1" || value === 1;
+}
+
+function stripProjectClientIdForNestedPayload(project) {
+  const nextProject = { ...project };
+  delete nextProject.client_id;
+  return nextProject;
+}
+
+function stripProjectClientIdForWorkspacePayload(project) {
+  return {
+    ...project,
+    client_id: "",
+  };
+}
+
 async function listClients(session, query = {}) {
   await assertBusinessWorkspace(session);
   const clients = await clientsRepository.readAll(session.workspace_id);
   const readableClients = await permissionsService.filterReadableClients(session, clients);
+  const status = normalizeClientStatusFilter(query.status);
+  const shapeOptions = normalizeClientShapeOptions(query);
+  const statusFilteredClients = status === "All"
+    ? readableClients
+    : readableClients.filter((client) => client.status === status);
+  const scopedClients = shapeOptions.scope === "top_level"
+    ? statusFilteredClients.filter((client) => !client.parent_client_id)
+    : statusFilteredClients;
   const filteredClients = await tagsService.filterRecordsByTags(
     session,
     "client",
-    readableClients,
+    scopedClients,
     query.tagIds || query.tag_ids || query.tags,
   );
 
-  return { clients: await tagsService.decorateRecordsForTarget(session, "client", filteredClients) };
+  const decoratedClients = await tagsService.decorateRecordsForTarget(session, "client", filteredClients);
+  return { clients: buildClientShape(decoratedClients, shapeOptions) };
 }
 
 async function readClient(clientId, session) {
@@ -283,14 +532,22 @@ async function archiveClient(clientId, payload, session) {
 async function listProjects(session, query = {}) {
   const projects = await projectsRepository.readAll(session.workspace_id);
   const readableProjects = await permissionsService.filterReadableProjects(session, projects);
+  const status = normalizeProjectStatusFilter(query.status);
+  const clientFilter = normalizeProjectClientFilter(query.client || query.client_id || query.clientId);
+  const shapeOptions = normalizeProjectShapeOptions(query);
+  const statusFilteredProjects = status === "All"
+    ? readableProjects
+    : readableProjects.filter((project) => project.status === status);
+  const clientFilteredProjects = filterProjectsByClient(statusFilteredProjects, clientFilter);
   const filteredProjects = await tagsService.filterRecordsByTags(
     session,
     "project",
-    readableProjects,
+    clientFilteredProjects,
     query.tagIds || query.tag_ids || query.tags,
   );
 
-  return { projects: await tagsService.decorateRecordsForTarget(session, "project", filteredProjects) };
+  const decoratedProjects = await tagsService.decorateRecordsForTarget(session, "project", filteredProjects);
+  return { projects: buildProjectShape(decoratedProjects, shapeOptions) };
 }
 
 async function listClientProjects(clientId, session) {

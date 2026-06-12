@@ -1,3 +1,4 @@
+import { clientsService } from "../modules/client-projects/clients.service.js";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { settingsRepository } from "../repositories/settings.repo.js";
@@ -5,7 +6,7 @@ import { AppError } from "../utils/app-error.js";
 
 async function listClients(context, query) {
   await assertBusinessWorkspace(context);
-  const clients = await clientsRepository.readAll(context.workspace_id);
+  const { clients } = await clientsService.listClients(context, query);
   return paged(clients.map((client) => withWorkspaceAlias(client, context)), query);
 }
 
@@ -31,7 +32,7 @@ async function assertBusinessWorkspace(context) {
 }
 
 async function listProjects(context, query) {
-  const projects = await projectsRepository.readAll(context.workspace_id);
+  const { projects } = await clientsService.listProjects(context, query);
   return paged(projects.map((project) => withWorkspaceAlias(project, context)), query);
 }
 

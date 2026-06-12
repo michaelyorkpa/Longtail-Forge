@@ -1,3 +1,11 @@
+## Version 0.33.5.2.1 - 2026-06-12 09:21 -04:00
+
+- Added Client/Projects-owned canonical client and project list shaping with active/default filters, explicit status filters, client/workspace project filters, flattened hierarchy ordering, tree payloads, depth metadata, display labels, and permission-safe sorting before shaping.
+- Updated `/api/clients`, `/api/projects`, `/api/v1/clients`, and `/api/v1/projects` list reads to reuse the Client/Projects canonical query helpers while preserving public API pagination.
+- Kept `/api/client-projects` response compatibility while deriving nested client/project ordering and depth metadata from the same canonical helpers.
+- Added `scripts/client-projects-canonical-payload-regression.mjs` for active defaults, inactive/completed/all filters, tree/depth labels, workspace project filters, scoped-user visibility, and public API pagination, and wired it into `npm run check`.
+- Bumped the app/package and Client/Projects module versions to `0.33.5.2.1`.
+
 ## Version 0.33.5.2.0 - 2026-06-12 08:49 -04:00
 
 - Fixed Projects -> Project Settings -> Add Project so new client-linked projects no longer snapshot the client billing rate as an explicit project override when the user has not entered a project-specific rate.

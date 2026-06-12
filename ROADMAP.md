@@ -276,40 +276,40 @@ Out of scope:
 - Do not add unrelated API-key scopes; public API scope cleanup is tracked in 0.33.5.2.9 and later 0.33.5.3.x.
 - Do not move tag semantics into Client/Projects. Tags remain framework classification metadata consumed through the Tags contract.
 
-- [ ] Add module-owned client/project query helpers in `client-projects`.
-  - [ ] Filter by workspace and readable scope before sorting or shaping.
-  - [ ] Return stable IDs, parent IDs, status, display names, depth/path metadata where useful, and optional tag metadata only when requested.
-  - [ ] Keep orphan/cycle-safe behavior deterministic and non-crashing.
-  - [ ] Support business, personal, and family workspace differences without browser-specific branches becoming canonical.
-- [ ] Add canonical client list behavior.
-  - [ ] Default filter: `status=Active`.
-  - [ ] Explicit filters: `status=Active|Inactive|All`.
-  - [ ] `shape=flat&scope=top_level`: top-level clients only, alphabetical by display name.
-  - [ ] `shape=tree`: top-level clients alphabetical, with child clients nested below each parent alphabetically.
-  - [ ] `shape=flat&include_depth=true`: flattened tree order for selects/dropdowns with `depth`, `parent_client_id`, and safe display-label metadata.
-- [ ] Add canonical project list behavior.
-  - [ ] Default filters: `status=Active` and `client=All`.
-  - [ ] Explicit filters: `status=Active|Inactive|Completed|All`.
-  - [ ] Explicit client scopes: `client=All|<client_id>|workspace`.
-  - [ ] `shape=flat`: alphabetical project list, optionally filtered by client/workspace scope.
-  - [ ] `shape=tree`: parent projects alphabetical, with child projects nested below each parent alphabetically.
-  - [ ] `shape=flat&include_depth=true`: flattened tree order for selects/dropdowns with `depth`, `parent_project_id`, `client_id`, and safe display-label metadata.
-  - [ ] Support workspace-level projects in personal/family workspaces and business workspaces where `client_id` is empty.
-- [ ] Enhance existing browser and public API contracts where practical.
-  - [ ] Prefer `/api/clients`, `/api/projects`, `/api/client-projects`, `/api/v1/clients`, and `/api/v1/projects` enhancements over a separate sorting endpoint unless a dedicated options route is clearly simpler.
-  - [ ] Keep public API responses stable, paginated where needed, API-key scoped, and free of browser-only fields.
-  - [ ] Move existing page-local client/project sorting helpers toward rendering-only use once canonical payloads are available.
-- [ ] Add regression coverage.
-  - [ ] Active defaults.
-  - [ ] Inactive/all client filters.
-  - [ ] Inactive/completed/all project filters.
-  - [ ] Top-level-only client/project views.
-  - [ ] Nested tree views.
-  - [ ] Flattened picker labels and depth values.
-  - [ ] Permission filtering before shaping.
-  - [ ] Orphan/cycle-safe behavior.
-  - [ ] Public API pagination.
-  - [ ] Workspace-type differences between business, personal, and family workspaces.
+- [x] Add module-owned client/project query helpers in `client-projects`.
+  - [x] Filter by workspace and readable scope before sorting or shaping.
+  - [x] Return stable IDs, parent IDs, status, display names, depth/path metadata where useful, and optional tag metadata only when requested.
+  - [x] Keep orphan/cycle-safe behavior deterministic and non-crashing.
+  - [x] Support business, personal, and family workspace differences without browser-specific branches becoming canonical.
+- [x] Add canonical client list behavior.
+  - [x] Default filter: `status=Active`.
+  - [x] Explicit filters: `status=Active|Inactive|All`.
+  - [x] `shape=flat&scope=top_level`: top-level clients only, alphabetical by display name.
+  - [x] `shape=tree`: top-level clients alphabetical, with child clients nested below each parent alphabetically.
+  - [x] `shape=flat&include_depth=true`: flattened tree order for selects/dropdowns with `depth`, `parent_client_id`, and safe display-label metadata.
+- [x] Add canonical project list behavior.
+  - [x] Default filters: `status=Active` and `client=All`.
+  - [x] Explicit filters: `status=Active|Inactive|Completed|All`.
+  - [x] Explicit client scopes: `client=All|<client_id>|workspace`.
+  - [x] `shape=flat`: alphabetical project list, optionally filtered by client/workspace scope.
+  - [x] `shape=tree`: parent projects alphabetical, with child projects nested below each parent alphabetically.
+  - [x] `shape=flat&include_depth=true`: flattened tree order for selects/dropdowns with `depth`, `parent_project_id`, `client_id`, and safe display-label metadata.
+  - [x] Support workspace-level projects in personal/family workspaces and business workspaces where `client_id` is empty.
+- [x] Enhance existing browser and public API contracts where practical.
+  - [x] Prefer `/api/clients`, `/api/projects`, `/api/client-projects`, `/api/v1/clients`, and `/api/v1/projects` enhancements over a separate sorting endpoint unless a dedicated options route is clearly simpler.
+  - [x] Keep public API responses stable, paginated where needed, API-key scoped, and free of browser-only fields.
+  - [x] Move existing page-local client/project sorting helpers toward rendering-only use once canonical payloads are available.
+- [x] Add regression coverage.
+  - [x] Active defaults.
+  - [x] Inactive/all client filters.
+  - [x] Inactive/completed/all project filters.
+  - [x] Top-level-only client/project views.
+  - [x] Nested tree views.
+  - [x] Flattened picker labels and depth values.
+  - [x] Permission filtering before shaping.
+  - [x] Orphan/cycle-safe behavior.
+  - [x] Public API pagination.
+  - [x] Workspace-type differences between business, personal, and family workspaces.
 
 ### Version 0.33.5.2.2 - Canonical Task Query and Work Item Summary Payloads
 
