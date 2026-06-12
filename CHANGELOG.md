@@ -1,3 +1,11 @@
+## Version 0.33.5.4.2 - 2026-06-12 17:16 -04:00
+
+- Added `057_add_file_storage_accounting.sql` with aggregate `file_storage_accounting` storage plus internal/external accounting fields on `files`.
+- Added Files-owned storage accounting refresh/read helpers and a permission-gated `/api/files/storage/accounting` read model for future Settings, admin reports, notifications, and quota policies.
+- Internal protected bytes now aggregate by workspace, uploader/user, provider, and file status; soft-deleted files continue to count until a later purge flow removes protected bytes.
+- Added an external storage accounting contract that tracks provider/source availability and `external_reported_bytes` separately from internal protected storage, without requiring an integration or enforcing quotas.
+- Added `scripts/file-storage-accounting-regression.mjs`, refreshed fresh-database/schema regressions, and bumped the app/package version to `0.33.5.4.2`.
+
 ## Version 0.33.5.4.1 - 2026-06-12 16:47 -04:00
 
 - Added staged Files deletion: normal delete now marks files deleted, preserves safe attachment/history rows for linked-record context, emits sanitized lifecycle/audit records, and leaves hard purge for a later admin-managed policy.

@@ -27,6 +27,11 @@ filesRoutes.get("/files/attachments/counts", asyncRoute(async (request, response
   response.status(200).json(result);
 }));
 
+filesRoutes.get("/files/storage/accounting", asyncRoute(async (request, response) => {
+  const result = await filesService.readStorageAccounting(request.session, request.query);
+  response.status(200).json(result);
+}));
+
 filesRoutes.post("/files/attachments", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await filesService.attachExistingFile(request.session, payload);

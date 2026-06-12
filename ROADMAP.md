@@ -694,21 +694,21 @@ Out of scope:
 
 #### Version 0.33.5.4.2 - File Storage Accounting Foundation
 
-- [ ] Introduce workspace/user file storage accounting for future limits.
-  - [ ] Track internal protected-file storage by workspace and uploader/user.
-  - [ ] Keep accounting separate from visibility permissions; storage totals must not leak inaccessible file labels or paths.
-  - [ ] Update accounting when files are uploaded, replaced, deleted, restored, or purged.
-- [ ] Add external file storage and availability accounting fields/contracts.
-  - [ ] Track external storage separately from internal protected-file bytes.
-  - [ ] Preserve provider/source availability status for future integrations.
-  - [ ] Do not require any external file-sharing integration in this slice.
-- [ ] Keep storage limits enforcement deferred unless explicitly enabled by later settings.
-  - [ ] Provide service-level read models future Settings, admin reports, and notifications can consume.
-  - [ ] Avoid blocking uploads by quota until the workspace limit policy exists.
-- [ ] Verification.
-  - [ ] Verify internal storage totals update after upload/delete lifecycle actions.
-  - [ ] Verify external accounting can exist without an integration provider.
-  - [ ] Verify inaccessible file metadata does not leak through storage summaries.
+- [x] Introduce workspace/user file storage accounting for future limits.
+  - [x] Track internal protected-file storage by workspace and uploader/user.
+  - [x] Keep accounting separate from visibility permissions; storage totals must not leak inaccessible file labels or paths.
+  - [x] Update accounting when files are uploaded, deleted, or restored, with a refresh contract future replace/purge flows can call.
+- [x] Add external file storage and availability accounting fields/contracts.
+  - [x] Track external storage separately from internal protected-file bytes.
+  - [x] Preserve provider/source availability status for future integrations.
+  - [x] Do not require any external file-sharing integration in this slice.
+- [x] Keep storage limits enforcement deferred unless explicitly enabled by later settings.
+  - [x] Provide service-level read models future Settings, admin reports, and notifications can consume.
+  - [x] Avoid blocking uploads by quota until the workspace limit policy exists.
+- [x] Verification.
+  - [x] Verify internal storage totals update after upload/delete lifecycle actions.
+  - [x] Verify external accounting can exist without an integration provider.
+  - [x] Verify inaccessible file metadata does not leak through storage summaries.
 
 #### Version 0.33.5.4.3 - Workspace Files Settings and File Type Controls
 

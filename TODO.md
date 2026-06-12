@@ -11,6 +11,13 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - When promoting a TODO item into `ROADMAP.md`, remove it from this file.
 - Avoid duplicating full feature specs here once they are already represented in the roadmap.
 
+# Short Term
+
+- There should be no API access for clients in Personal or Family Workspaces
+  - I see both read and write Public API access for clients in a Personal workspace right now (0.33.5.4.1)
+
+- There are still no notes or lists public API key options listed.
+
 ## Clients
 
 ## Mobile Tweaks - Fill this section out after the above section standardizes the modal display

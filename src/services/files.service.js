@@ -604,6 +604,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
       staged_delete: true,
     },
   });
+  await refreshStorageAccounting(session.workspace_id);
 
   return { file: await readFileForAdmin(session, file.file_id) };
 }
@@ -654,8 +655,122 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     recordLabel: file.display_name,
     metadata: { restored_from_status: file.status },
   });
+  await refreshStorageAccounting(session.workspace_id);
 
   return { file: await readFileForAdmin(session, file.file_id) };
+}
+
+async function readStorageAccounting(session, filters = {}) {
+  await permissionsService.assertCan(session, "files.manage_workspace_settings", {
+    workspace_id: session.workspace_id,
+    operation: "read",
+  });
+  await refreshStorageAccounting(session.workspace_id);
+
+  const storageKind = normalizeStorageKind(filters.storageKind || filters.storage_kind);
+  const conditions = [`workspace_id = ${sqlText(session.workspace_id)}`];
+
+  if (storageKind) {
+    conditions.push(`storage_kind = ${sqlText(storageKind)}`);
+  }
+
+  const rows = await querySql(`
+SELECT
+  storage_accounting_id,
+  workspace_id,
+  user_id,
+  storage_kind,
+  storage_provider,
+  external_source_provider,
+  availability_status,
+  file_count,
+  internal_bytes,
+  external_reported_bytes,
+  calculated_at
+FROM file_storage_accounting
+WHERE ${conditions.join("\n  AND ")}
+ORDER BY storage_kind, user_id, storage_provider, external_source_provider, availability_status;
+`);
+  const entries = rows.map(shapeStorageAccountingRow);
+
+  return {
+    entries,
+    totals: summarizeStorageAccounting(entries),
+  };
+}
+
+async function recordExternalStorageAccounting(session, payload = {}) {
+  await permissionsService.assertCan(session, "files.manage_workspace_settings", {
+    workspace_id: session.workspace_id,
+    operation: "update",
+  });
+
+  const sourceProvider = normalizeRequiredText(payload.externalSourceProvider || payload.external_source_provider, "External source provider is required.");
+  const availabilityStatus = normalizeOptionalText(payload.availabilityStatus || payload.availability_status, { maxLength: 80 }) || "unknown";
+  const userId = normalizeOptionalText(payload.userId || payload.user_id, { maxLength: 120 });
+  const fileCount = clampInteger(payload.fileCount || payload.file_count, 0, 0, Number.MAX_SAFE_INTEGER);
+  const externalReportedBytes = clampInteger(
+    payload.externalReportedBytes || payload.external_reported_bytes,
+    0,
+    0,
+    Number.MAX_SAFE_INTEGER,
+  );
+  const now = new Date().toISOString();
+  const accountingId = storageAccountingId({
+    availabilityStatus,
+    externalSourceProvider: sourceProvider,
+    storageKind: "external",
+    storageProvider: "external",
+    userId,
+    workspaceId: session.workspace_id,
+  });
+
+  await runSql(`
+INSERT INTO file_storage_accounting (
+  storage_accounting_id,
+  workspace_id,
+  user_id,
+  storage_kind,
+  storage_provider,
+  external_source_provider,
+  availability_status,
+  file_count,
+  internal_bytes,
+  external_reported_bytes,
+  calculated_at,
+  metadata_json
+)
+VALUES (
+  ${sqlText(accountingId)},
+  ${sqlText(session.workspace_id)},
+  ${sqlText(userId)},
+  'external',
+  'external',
+  ${sqlText(sourceProvider)},
+  ${sqlText(availabilityStatus)},
+  ${sqlInteger(fileCount)},
+  0,
+  ${sqlInteger(externalReportedBytes)},
+  ${sqlText(now)},
+  ${sqlText(JSON.stringify({ source: "external_accounting_contract" }))}
+)
+ON CONFLICT (
+  workspace_id,
+  user_id,
+  storage_kind,
+  storage_provider,
+  external_source_provider,
+  availability_status
+)
+DO UPDATE SET
+  file_count = excluded.file_count,
+  internal_bytes = 0,
+  external_reported_bytes = excluded.external_reported_bytes,
+  calculated_at = excluded.calculated_at,
+  metadata_json = excluded.metadata_json;
+`);
+
+  return readStorageAccounting(session, { storageKind: "external" });
 }
 
 async function reportFile(session, fileId, payload = {}) {
@@ -910,7 +1025,51 @@ VALUES (
     },
   });
 
+  await refreshStorageAccounting(session.workspace_id);
   return readFileRow(session.workspace_id, fileId);
+}
+
+async function refreshStorageAccounting(workspaceId) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+DELETE FROM file_storage_accounting
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND storage_kind = 'internal';
+
+INSERT INTO file_storage_accounting (
+  storage_accounting_id,
+  workspace_id,
+  user_id,
+  storage_kind,
+  storage_provider,
+  external_source_provider,
+  availability_status,
+  file_count,
+  internal_bytes,
+  external_reported_bytes,
+  calculated_at,
+  metadata_json
+)
+SELECT
+  workspace_id || ':internal:' || COALESCE(uploaded_by_user_id, '') || ':' || COALESCE(storage_provider, 'local') || ':' || COALESCE(status, ''),
+  workspace_id,
+  COALESCE(uploaded_by_user_id, ''),
+  'internal',
+  COALESCE(storage_provider, 'local'),
+  '',
+  COALESCE(status, ''),
+  COUNT(*),
+  COALESCE(SUM(file_size_bytes), 0),
+  0,
+  ${sqlText(now)},
+  '{}'
+FROM files
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND COALESCE(storage_kind, 'internal') = 'internal'
+  AND status IN ('pending', 'available', 'quarantined', 'deleted')
+GROUP BY workspace_id, COALESCE(uploaded_by_user_id, ''), COALESCE(storage_provider, 'local'), COALESCE(status, '');
+`);
 }
 
 async function scanFile(session, file) {
@@ -1501,6 +1660,12 @@ function normalizeFileStatusFilter(value) {
   return ["all", "available", "deleted", "pending", "quarantined"].includes(status) ? status : "available";
 }
 
+function normalizeStorageKind(value) {
+  const storageKind = String(value || "").trim().toLowerCase();
+
+  return ["internal", "external"].includes(storageKind) ? storageKind : "";
+}
+
 function normalizeAttachmentListOptions(filters = {}) {
   const paginate = filters.allPages !== true && filters.all_pages !== "true";
   const limit = clampInteger(filters.limit || filters.pageSize || filters.page_size, DEFAULT_ATTACHMENT_LIMIT, 1, MAX_ATTACHMENT_LIMIT);
@@ -1673,6 +1838,54 @@ function normalizeRestorableStatus(previousStatus, scanStatus) {
   return "pending";
 }
 
+function shapeStorageAccountingRow(row) {
+  return {
+    availabilityStatus: row.availability_status || "",
+    calculatedAt: row.calculated_at,
+    externalReportedBytes: Number(row.external_reported_bytes || 0),
+    externalSourceProvider: row.external_source_provider || "",
+    fileCount: Number(row.file_count || 0),
+    internalBytes: Number(row.internal_bytes || 0),
+    storageAccountingId: row.storage_accounting_id,
+    storageKind: row.storage_kind,
+    storageProvider: row.storage_provider || "",
+    userId: row.user_id || "",
+    workspaceId: row.workspace_id,
+  };
+}
+
+function summarizeStorageAccounting(entries = []) {
+  return entries.reduce((totals, entry) => {
+    totals.fileCount += entry.fileCount;
+    totals.internalBytes += entry.internalBytes;
+    totals.externalReportedBytes += entry.externalReportedBytes;
+    if (entry.storageKind === "internal") {
+      totals.internalFileCount += entry.fileCount;
+    }
+    if (entry.storageKind === "external") {
+      totals.externalFileCount += entry.fileCount;
+    }
+    return totals;
+  }, {
+    externalFileCount: 0,
+    externalReportedBytes: 0,
+    fileCount: 0,
+    internalBytes: 0,
+    internalFileCount: 0,
+  });
+}
+
+function storageAccountingId(scope = {}) {
+  return [
+    scope.workspaceId || "",
+    scope.storageKind || "",
+    scope.userId || "",
+    scope.storageProvider || "",
+    scope.externalSourceProvider || "",
+    scope.availabilityStatus || "",
+  ].join(":");
+}
+
 async function recordFileAudit(session, event = {}) {
   return auditService.record({
     session,
@@ -1704,12 +1917,15 @@ export const filesService = {
   listScanStatuses,
   quarantineFile,
   readFileForSession,
+  readStorageAccounting,
+  recordExternalStorageAccounting,
   registerFileScannerAdapter,
   registerFileStorageAdapter,
   removeAttachment,
   reportFile,
   resolveAttachableType,
   restoreFile,
+  refreshStorageAccounting,
   uploadAndAttach,
   uploadBatchAndAttach,
 };

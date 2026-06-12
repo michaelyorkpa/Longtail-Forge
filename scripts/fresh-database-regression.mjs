@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 26, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 27, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -164,6 +164,11 @@ ORDER BY version;
     module_id: "core",
     name: "add_task_relationships",
   });
+  assert.deepEqual(migrations[26], {
+    version: "057",
+    module_id: "core",
+    name: "add_file_storage_accounting",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -185,6 +190,7 @@ ORDER BY name;
     "clients",
     "file_attachments",
     "file_reports",
+    "file_storage_accounting",
     "files",
     "list_item_catalog",
     "list_items",
@@ -248,6 +254,8 @@ WHERE type = 'index'
     'idx_file_attachments_workspace_target',
     'idx_file_reports_workspace_attachment',
     'idx_file_reports_workspace_file',
+    'idx_file_storage_accounting_unique_scope',
+    'idx_file_storage_accounting_workspace_kind',
     'idx_files_storage_provider_key',
     'idx_files_workspace_file',
     'idx_files_workspace_hash',
@@ -375,6 +383,8 @@ ORDER BY name;
     "idx_file_attachments_workspace_target",
     "idx_file_reports_workspace_attachment",
     "idx_file_reports_workspace_file",
+    "idx_file_storage_accounting_unique_scope",
+    "idx_file_storage_accounting_workspace_kind",
     "idx_files_storage_provider_key",
     "idx_files_workspace_file",
     "idx_files_workspace_hash",
