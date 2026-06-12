@@ -666,13 +666,21 @@ Out of scope:
 - Multiple file upload at once
 - Drag and Drop file upload
 
-- Need to have a way to limit file uploads, per workspace and per user
-  - This would be quantity/size limits
-  - This would be file types
+## File Storage and Per User Limits
+
+- Need to introduce a way to track file storage per user to enforce limits in the future
+  - This should keep track of internal file storage
+  - This should have a seperate way to keep track of external file storage and availability
+    - To include all future integrations
+
+- Also need control for file types
+  - This should become a Workspace-wide setting in Settings -> Workspace -> Files (Doesn't exist as of 0.33.5.2.9)
+
+
 
 ### Time Entries
 
-- Time entries aren't editable by Workspace admin
+- Time entries aren't editable by Workspace admin (Everything within a workspace scope should be editable by the Workspace admin)
   - Tried to add tags as workspace admin to "81c61ec4-ebe4-45c2-a35d-b03e88b45bb9" and got a permissions error (couldn't read the whole thing, it was on the main window and the modal window blocked it)
   - Had to log in as Super Admin to add tags
 
@@ -707,7 +715,7 @@ Out of scope:
 
 ### Search Fixes/Tweaks
 
-- Help is in the record types twice
+- Help is in the record types four times
 
 ### Notification Fixes/Tweaks
 
@@ -748,6 +756,8 @@ Out of scope:
 - [ ] Notification type chip is floating weird, it should be anchored just left of the Unread/Read/Dismissed chip
 
 ### Tags Fixes/Tweaks
+
+- If I create a new client and add a new tag the tag doesn't show up if I don't refresh/change the page
 
 - [ ] Anywhere there's a Tag filter, add a "No Tags" option to easily identify items that still need to be tagged
   - Should be directly below "All tags" option
@@ -1066,10 +1076,92 @@ This release should add backend storage, service contracts, safe update hooks, a
 - Help Center (doc) should explain what framework, first-party, and third-party modules are
 - Getting Started should explain the key concepts within LTF, how they're inter-linked, and what makes it all unique
 
-## Version 0.33.6 - Reporting Module
+## Version 0.33.5.12 - UI Clean up Pass
 
-- Create a reporting module
+### Settings -> Workspace -> Clients
+
+- [ ] Need a filter for Parent/Top-Level clients
+
+#### Clients Edit Modal
+
+- "Save Client" and "Edit Projects" buttons need to be moved to modal footer
+
+- Removing parent tags from child clients by opening the client edit modal, clicking on the tags you want removed, then clicking save client, doesn't actually remove those tags
+  - Example: Appaloosa News, a child of Dr. Jennifer Weeks client should not have the "Mental Health Provider" or "Healthcare Provider" tags, as this is a personal project I manage for Dr. Weeks
+
+## Task Tweaks / Potential UI/Modal Overhaul
+
+- Projects -> Tasks
+  - Things I'd like to be able to bulk edit (Add and Remove), in addition to what I can already change:
+    - If there's a multi-select and the due dates/due times/tags are different before the bulk edit, be sure to warn the user with an in-app warning about 
+    - [ ] Due date & Time (Can be clearable/set to NULL through bulk; Time should be optional/clearable as well)
+    - [ ] Tags
+
+- Add/Edit Tasks Modal Appearance Fixes
+
+  - While doing the documentation step for this portion of the tasks modals, create an appropriate ROADMAP entry to standardize the headings, boxes, and other visual styles across the entire framework for main screens, modals, drawers, slideouts, etc.
+    - Convert all footer buttons to icons on all modals
+      - Save/Close/Cancel/etc.
+    - Taggable work items should have a Tags button to open a tiny tag modal centered in the current modal
+    - Work items with file attachment abilities should have a Files button to open a tiny files modal centered in the current modal
+
+  - Tighten up overall white space between all fields
+
+  - Modal internal headings need to be standardized 
+    - Checklist is different from Assignees
+    - Recurrence is different from reminders
+    - Assignees and Checklist are different from Reminders
+    - Make all internal headings for sub-boxes match Reminders
+  
+  - Internal boxes need to be standardized
+    - Notifications and task timer are dark and square
+    - Checklist is light and rounded
+  
+  - Horizontal Rules around Reminders
+    - Horizontal rules should only be at the top of the option that's being toggled.
+
+  - Notifications should be moved to a single bell icon at the top; this isn't important enough to warrant using as much real estate as it does
+    - Put the bell right-aligned across from the Add/Edit Task heading
+
+  - Between the title box and the Heading should be a small, full-modal-width chip ribbon
+    - Should contain: Status, Priority, Client, Project, Due Date + time (if applicable) and any additions below as applicable
+
+  - Time to completion should only appear when the task is marked complete
+      - Time to completion should be moved into a chip ribbon below the heading/notification bell
+      - Time to completion can be abbreviated "TTC: "
+      - Chip should, initially, read: "TTC: 4:3:15:30" for days:hours:minutes:seconds
+
+  - Maximize the visual efficiency of the two-column layout of the current Add/Edit Task modal
+    - Any item that needs more space than the tightened two-column layout can provide can open a pop over that uses the full width of the modal until focus is changed; This piece might need some more brainstorming
+    - Title should remain full width across both columns
+    - Collapsible two-column box with "Task Details" as heading 
+      - Box should start off open if this is an "Add Task" modal and collapsed if an "Edit Task" modal
+      - This box should contain:
+        - Parent Task (Across both columns! Currently Missing as of 0.33.5.2.3)
+        - Column 1 should contain (in order):
+          - Status
+          - Client
+          - Due Date
+        - Column 2 should contain (in order):
+          - Priority
+          - Project
+          - Due Time
+    - Below the two column box, in two columns:
+      - Resume Note
+      - Next Action
+    - Move back to single column layout (full modal width minus space for scroll bar) for remaining items
+      - Blocked Reason (Full width; Should only appear when Status is "Blocked")
+      - Checklist (Collapsible, starts open)
+      - Assignees (Collapsible, starts open)
+      - Recurrence (Collapsible, starts closed)
+      - Reminders (Collapsible, starts closed)
+    - Tags and "Task Files" should be moved to buttons in the footer (icon described buttons)
+
+## Version 0.33.6 - Reports Module
+
+- Create a Reports module
   - I believe, currently, reporting is hard coded. This needs to be fixed and aligned with the current product models and philosophies.
+  - For starters, only time tracking and billing needs to be dealt with within reporting, additional reporting is scheduled for later in the ROADMAP
 
 ### Guidance for details in Reporting Module
 
@@ -2227,22 +2319,26 @@ Below is a rough road map for all of the 0.40 branch, this is not finalized yet
 
 - [ ] ZenDesk
 - [ ] FreshDesk
+- [ ] GitHub Issues
 
 ### Calendars
 
 - [ ] Google Calendar
 - [ ] Outlook Calendar
 
-### Task App Integrations
+### Task/To Do App Integrations
 
 - [ ] Microsoft To Do
 - [ ] Google Tasks
-
+- [ ] Identify others in the marketplace
 
 ### File Sharing and Storage
 
 Is it possible to get notifications from any of these sources?
 
+- [ ] DigitalOcean Spaces
+- [ ] AWS
+- [ ] Microsoft Azure
 - [ ] Microsoft OneDrive 
 - [ ] Google Drive
 - [ ] DropBox
@@ -2250,6 +2346,7 @@ Is it possible to get notifications from any of these sources?
   - File sharing
   - Knowledgebase pages
   - Input for tickets/notes/tasks/etc.
+- [ ] GitHub (Repository Linking)
 
 ### Email integrations
 
