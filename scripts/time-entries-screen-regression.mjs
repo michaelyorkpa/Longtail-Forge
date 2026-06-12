@@ -68,6 +68,8 @@ check("dialog helper preserves tag and billable payload ownership", () => {
   assert.match(timeEntryDialogScript, /billable: fields\.billable\.value/);
   assert.match(timeEntryDialogScript, /tagIds: tagPicker\?\.readTagIds\?\.\(\) \|\| \[\]/);
   assert.match(timeEntryDialogScript, /updateBillableDefault/);
+  assert.match(timeEntryDialogScript, /data-time-entry-dialog-status/);
+  assert.match(timeEntryDialogScript, /fields\.status\.textContent = message \|\| ""/);
   assert.match(timeEntryDialogScript, /api\.postJson\("\/api\/time-entries", payload\)/);
   assert.match(timeEntryDialogScript, /api\.putJson\(`\/api\/time-entries\/\$\{encodeURIComponent\(selectedEntry\.entryId\)\}`, payload\)/);
 });

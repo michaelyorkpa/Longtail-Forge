@@ -82,18 +82,19 @@ async function update(payload, entryId, session) {
     throw new AppError("Time entry not found", 404);
   }
 
-  const action = previousEntry.user_id === session.user_id ? "time_entries.edit_own" : "time_entries.edit_all";
-  await permissionsService.assertCan(session, action, {
-    workspace_id: session.workspace_id,
-    client_id: previousEntry.client_id,
-    project_id: previousEntry.project_id,
-    operation: "update",
-  });
+  const action = resolveTimeEntryEditPermission(session, previousEntry);
+  await assertCanCorrectTimeEntry(session, action, previousEntry, previousEntry);
 
   const scope = await resolveTimeEntryScope(session.workspace_id, {
     ...previousEntry,
     ...payload,
   });
+  const nextScopeResource = {
+    client_id: scope.client?.id || "",
+    project_id: scope.project.id,
+    workspace_id: session.workspace_id,
+  };
+  await assertCanCorrectTimeEntry(session, action, previousEntry, nextScopeResource);
   const updatedEntry = normalizeTimeEntry({
     ...payload,
     start_time: normalizeUtcIso(payload.start_time, session.timezone),
@@ -127,10 +128,13 @@ async function update(payload, entryId, session) {
     previousValue: previousEntry,
     newValue: taggedEntry,
     metadata: {
+      admin_correction: previousEntry.user_id !== session.user_id,
+      corrected_user_id: previousEntry.user_id,
       old_client_id: previousEntry.client_id,
       old_project_id: previousEntry.project_id,
       old_duration_seconds: previousEntry.duration_seconds,
       new_duration_seconds: updatedEntry.duration_seconds,
+      sensitive_fields_changed: sensitiveTimeEntryCorrectionFields(previousEntry, updatedEntry),
     },
   });
   await syncTimeEntrySearchIndex(session.workspace_id, decodedEntryId, "time_entry.updated");
@@ -147,7 +151,7 @@ async function remove(entryId, session) {
     throw new AppError("Time entry not found", 404);
   }
 
-  const action = previousEntry.user_id === session.user_id ? "time_entries.edit_own" : "time_entries.edit_all";
+  const action = resolveTimeEntryEditPermission(session, previousEntry);
   await permissionsService.assertCan(session, action, {
     workspace_id: session.workspace_id,
     client_id: previousEntry.client_id,
@@ -209,6 +213,38 @@ async function saveTargetTags(session, targetType, targetId, payload = {}) {
     targetType,
     tagIds: payload.tagIds || payload.tag_ids || [],
   });
+}
+
+function resolveTimeEntryEditPermission(session, entry) {
+  return entry.user_id === session.user_id ? "time_entries.edit_own" : "time_entries.edit_all";
+}
+
+async function assertCanCorrectTimeEntry(session, action, previousEntry, resource) {
+  await permissionsService.assertCan(session, action, {
+    workspace_id: session.workspace_id,
+    client_id: resource.client_id || "",
+    project_id: resource.project_id || "",
+    operation: "update",
+  });
+
+  if (previousEntry.user_id !== session.user_id) {
+    await permissionsService.assertCan(session, "time_entries.edit_all", {
+      workspace_id: session.workspace_id,
+      client_id: resource.client_id || "",
+      project_id: resource.project_id || "",
+      operation: "update",
+    });
+  }
+}
+
+function sensitiveTimeEntryCorrectionFields(previousEntry, updatedEntry) {
+  return [
+    previousEntry.user_id !== updatedEntry.user_id ? "user_id" : "",
+    previousEntry.billable !== updatedEntry.billable ? "billable" : "",
+    previousEntry.invoice_status !== updatedEntry.invoice_status ? "invoice_status" : "",
+    previousEntry.client_id !== updatedEntry.client_id ? "client_id" : "",
+    previousEntry.project_id !== updatedEntry.project_id ? "project_id" : "",
+  ].filter(Boolean);
 }
 
 async function requestTagPropagationRefresh(session, targetType, targetId, reason) {

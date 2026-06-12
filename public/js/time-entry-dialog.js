@@ -103,6 +103,7 @@
 
     fields.duration.hidden = !isEdit;
     fields.save.textContent = isEdit ? "Save Changes" : "Save Entry";
+    setStatus("");
 
     if (typeof dialog.showModal === "function") {
       dialog.showModal();
@@ -145,6 +146,7 @@
       project: dialog.querySelector("[data-time-entry-dialog-project]"),
       save: dialog.querySelector("[data-time-entry-dialog-save]"),
       startTime: dialog.querySelector("[data-time-entry-dialog-start-time]"),
+      status: dialog.querySelector("[data-time-entry-dialog-status]"),
       tags: dialog.querySelector("[data-time-entry-dialog-tags]"),
     };
 
@@ -494,6 +496,11 @@
   }
 
   function setStatus(message, options = {}) {
+    if (fields.status) {
+      fields.status.textContent = message || "";
+      fields.status.classList.toggle("error-text", Boolean(options.isError));
+    }
+
     if (typeof context?.setStatus === "function") {
       context.setStatus(message, options);
       return;
@@ -522,6 +529,7 @@
           <label>Billable<select data-time-entry-dialog-billable><option value="yes">Yes</option><option value="no">No</option></select></label>
           <label>Invoice Status<select data-time-entry-dialog-invoice-status><option value="unbilled">Unbilled</option><option value="billed">Billed</option><option value="paid">Paid</option></select></label>
           <div data-time-entry-dialog-tags></div>
+          <p data-time-entry-dialog-status role="status" aria-live="polite"></p>
           <div class="form-actions entry-actions"><button type="button" data-time-entry-dialog-cancel>Cancel</button><button type="submit" data-time-entry-dialog-save>Save Entry</button></div>
         </form>
       </dialog>

@@ -730,21 +730,21 @@ Out of scope:
 
 #### Version 0.33.5.4.4 - Time Entry Workspace Admin Editing
 
-- [ ] Fix workspace-admin edit access for time entries within the workspace.
-  - [ ] Workspace admins must be able to edit workspace-scoped time entries according to the app's workspace administration model.
-  - [ ] Include tag edits on time entries; admins should not need Super Admin access for normal workspace corrections.
-  - [ ] Reproduce and cover the reported entry `81c61ec4-ebe4-45c2-a35d-b03e88b45bb9` if it still exists in local/dev data.
-- [ ] Keep time-entry permission boundaries module-owned.
-  - [ ] Do not bypass Time Tracking service permissions from browser code.
-  - [ ] Ensure cross-workspace entries remain inaccessible.
-  - [ ] Preserve audit/search/tag lifecycle behavior for admin corrections.
-- [ ] Improve blocked/error feedback where the modal can hide the underlying page error.
-  - [ ] Surface permission and save errors inside the active dialog or form.
-  - [ ] Keep error text useful without exposing internal permission implementation details.
-- [ ] Verification.
-  - [ ] Verify owner, workspace admin, non-admin member, and Super Admin edit behavior.
-  - [ ] Verify admin tag edits preserve manual/propagated tag semantics.
-  - [ ] Verify reporting and time-entry lists reflect admin corrections.
+- [x] Fix workspace-admin edit access for time entries within the workspace.
+  - [x] Workspace admins must be able to edit workspace-scoped time entries according to the app's workspace administration model.
+  - [x] Include tag edits on time entries; admins should not need Super Admin access for normal workspace corrections.
+  - [x] Reproduce and cover the reported entry `81c61ec4-ebe4-45c2-a35d-b03e88b45bb9` if it still exists in local/dev data.
+- [x] Keep time-entry permission boundaries module-owned.
+  - [x] Do not bypass Time Tracking service permissions from browser code.
+  - [x] Ensure cross-workspace entries remain inaccessible.
+  - [x] Preserve audit/search/tag lifecycle behavior for admin corrections.
+- [x] Improve blocked/error feedback where the modal can hide the underlying page error.
+  - [x] Surface permission and save errors inside the active dialog or form.
+  - [x] Keep error text useful without exposing internal permission implementation details.
+- [x] Verification.
+  - [x] Verify owner, workspace admin, non-admin member, and Super Admin edit behavior.
+  - [x] Verify admin tag edits preserve manual/propagated tag semantics.
+  - [x] Verify reporting and time-entry lists reflect admin corrections.
 
 #### Version 0.33.5.4.5 - Timer Timestamp Integrity and Duration Model
 

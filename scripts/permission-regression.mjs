@@ -845,6 +845,7 @@ async function runTaskMutationTests(api, fixtures) {
 
 async function runTimeEntryMutationTests(api, fixtures) {
   const entry = await createTimeEntry(api, fixtures.sessions.projectUser, fixtures.projects.alpha.id);
+  const correctionTag = await createTag(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "Admin Correction");
   await expectStatus(
     "project user can update own time entries",
     api.put(`/api/time-entries/${encodeURIComponent(entry.entry_id)}`, timeEntryPayload(fixtures.projects.alpha.id, { description: "Updated own entry" }), { cookie: fixtures.sessions.projectUser }),
@@ -855,6 +856,74 @@ async function runTimeEntryMutationTests(api, fixtures) {
     api.put(`/api/time-entries/${encodeURIComponent(entry.entry_id)}`, timeEntryPayload(fixtures.projects.alpha.id, { description: "Denied edit all" }), { cookie: fixtures.sessions.clientUser }),
     403,
   );
+  const adminCorrection = await expectStatus(
+    "workspace admin can correct another user's workspace time entry with tags",
+    api.put(`/api/time-entries/${encodeURIComponent(entry.entry_id)}`, timeEntryPayload(fixtures.projects.alpha.id, {
+      billable: "no",
+      description: "Workspace admin corrected entry",
+      duration_hours: "1.50",
+      duration_seconds: 5400,
+      end_time: "2026-06-02T14:30:00.000Z",
+      tagIds: [correctionTag.tagId],
+    }), { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("workspace admin correction preserves original time entry owner", () => {
+    assert.equal(adminCorrection.body.entry.user_id, fixtures.users.projectUser.userId);
+  });
+  check("workspace admin correction returns updated manual tag", () => {
+    assert.ok((adminCorrection.body.entry.tags || []).some((tag) => tag.tag_id === correctionTag.tagId));
+  });
+  const correctedList = await expectStatus(
+    "workspace admin corrected time entry appears in time-entry list",
+    api.get("/api/time-entries", { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("time-entry list reflects workspace admin correction fields", () => {
+    const corrected = correctedList.body.entries.find((item) => item.entry_id === entry.entry_id);
+    assert.equal(corrected?.description, "Workspace admin corrected entry");
+    assert.equal(Number(corrected?.duration_seconds), 5400);
+    assert.ok((corrected?.tags || []).some((tag) => tag.tag_id === correctionTag.tagId));
+  });
+  const reporting = await expectStatus(
+    "reporting reflects workspace admin time entry correction",
+    api.get(`/api/reporting/project-summary?scopeId=${encodeURIComponent(fixtures.clients.alpha.id)}&projectIds=${encodeURIComponent(fixtures.projects.alpha.id)}`, { cookie: fixtures.sessions.workspaceAdmin }),
+    200,
+  );
+  check("reporting summary includes corrected raw duration", () => {
+    const row = reporting.body.rows.find((item) => item.project.id === fixtures.projects.alpha.id);
+    assert.ok(row?.rawSeconds >= 5400);
+  });
+  const auditRows = await querySql(`
+SELECT metadata_json
+FROM audit_logs
+WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
+  AND record_type = 'time_entry'
+  AND record_id = ${sqlText(entry.entry_id)}
+  AND action = 'time_entry_updated'
+ORDER BY created_at DESC
+LIMIT 1;
+`);
+  check("workspace admin correction audit records admin metadata", () => {
+    assert.ok(auditRows.length > 0);
+    const metadata = JSON.parse(auditRows[0].metadata_json || "{}");
+    assert.equal(metadata.admin_correction, true);
+    assert.equal(metadata.corrected_user_id, fixtures.users.projectUser.userId);
+    assert.ok((metadata.sensitive_fields_changed || []).includes("billable"));
+  });
+  const searchRows = await querySql(`
+SELECT title, body, tags_text
+FROM search_index
+WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
+  AND module_id = 'time-tracking'
+  AND record_type = 'time_entry'
+  AND record_id = ${sqlText(entry.entry_id)}
+LIMIT 1;
+`);
+  check("search index reflects workspace admin correction and tag", () => {
+    assert.equal(searchRows[0]?.title, "Workspace admin corrected entry");
+    assert.ok(String(searchRows[0]?.tags_text || "").includes("Admin Correction"));
+  });
   await expectStatus(
     "project user can delete own time entries",
     api.delete(`/api/time-entries/${encodeURIComponent(entry.entry_id)}`, { cookie: fixtures.sessions.projectUser }),
@@ -864,6 +933,17 @@ async function runTimeEntryMutationTests(api, fixtures) {
     "project user cannot create time entries outside assigned project",
     api.post("/api/time-entries", timeEntryPayload(fixtures.projects.beta.id), { cookie: fixtures.sessions.projectUser }),
     403,
+  );
+  const crossWorkspaceEntryId = `cross-workspace-entry-${randomUUID()}`;
+  await insertTimeEntry(fixtures.otherWorkspace.id, {
+    entryId: crossWorkspaceEntryId,
+    projectId: "other-project",
+    userId: fixtures.users.projectUser.userId,
+  });
+  await expectStatus(
+    "workspace admin cannot correct cross-workspace time entries",
+    api.put(`/api/time-entries/${encodeURIComponent(crossWorkspaceEntryId)}`, timeEntryPayload(fixtures.projects.alpha.id, { description: "Denied cross workspace correction" }), { cookie: fixtures.sessions.workspaceAdmin }),
+    404,
   );
 }
 
@@ -1595,6 +1675,85 @@ async function createTimeEntry(api, cookie, projectId) {
   const response = await api.post("/api/time-entries", timeEntryPayload(projectId), { cookie });
   await expectStatus(`created time entry for ${projectId}`, response, 201);
   return response.body;
+}
+
+async function createTag(workspaceId, userId, name) {
+  const tagId = `tag-${randomUUID()}`;
+  const now = new Date().toISOString();
+
+  await runSql(`
+INSERT INTO tags (
+  tag_id,
+  workspace_id,
+  name,
+  slug,
+  description,
+  color,
+  status,
+  created_by_user_id,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(tagId)},
+  ${sqlText(workspaceId)},
+  ${sqlText(name)},
+  ${sqlText(name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))},
+  '',
+  '#2563eb',
+  'active',
+  ${sqlText(userId)},
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+`);
+
+  return { name, tagId };
+}
+
+async function insertTimeEntry(workspaceId, options = {}) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+INSERT INTO time_entries (
+  entry_id,
+  workspace_id,
+  user_id,
+  client_id,
+  client_name,
+  project_id,
+  project_name,
+  task_id,
+  description,
+  start_time,
+  end_time,
+  duration_seconds,
+  duration_hours,
+  billable,
+  invoice_status,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(options.entryId || `entry-${randomUUID()}`)},
+  ${sqlText(workspaceId)},
+  ${sqlText(options.userId || "")},
+  '',
+  '',
+  ${sqlText(options.projectId || "")},
+  'Other Workspace Project',
+  NULL,
+  'Cross-workspace time entry',
+  '2026-06-02T13:00:00.000Z',
+  '2026-06-02T14:00:00.000Z',
+  3600,
+  '1.00',
+  'yes',
+  'unbilled',
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+`);
 }
 
 async function assertUnifiedTimerState({ label, workspaceId, userId, expected }) {

@@ -1,3 +1,11 @@
+## Version 0.33.5.4.4 - 2026-06-12 18:05 -04:00
+
+- Fixed workspace-admin time-entry correction access so admins can edit another user's workspace-scoped entries, including direct time-entry tags, through the Time Tracking service.
+- Added destination-scope authorization for time-entry corrections so project/client changes remain permission-safe and cross-workspace entries stay inaccessible.
+- Added admin-correction audit metadata for time-entry updates while preserving the original entry owner.
+- Added in-dialog Time Entry save/error status so permission and validation errors remain visible inside the active modal.
+- Expanded permission and Time Entries screen regressions for admin corrections, tag edits, audit/search/reporting/list reflection, and dialog error feedback, and bumped the app/package version to `0.33.5.4.4`.
+
 ## Version 0.33.5.4.3 - 2026-06-12 17:31 -04:00
 
 - Added `058_add_file_workspace_settings.sql` with Files-owned workspace policy storage for file type controls and reserved storage limit metadata.
