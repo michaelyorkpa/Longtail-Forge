@@ -266,7 +266,7 @@
       ? [
         option("all", "All Projects"),
         option("", getWorkspaceScopeLabel()),
-        ...sortClientOptions(options.clients).map((client) => option(client.id, `${treeIndent(getClientDepth(client))}${client.name}`)),
+        ...(options.clients || []).map((client) => option(client.id, optionLabel(client))),
       ]
       : [option("all", "All Projects")]);
     populateProjectInput(fields.project?.value || "");
@@ -284,7 +284,7 @@
 
     replaceOptions(fields.project, [
       option("", selectedClientId === "" ? getWorkspaceScopeLabel() : "No project"),
-      ...sortProjectOptions(projects).map((project) => option(project.id, `${treeIndent(getProjectDepth(project))}${project.name}`)),
+      ...projects.map((project) => option(project.id, optionLabel(project))),
     ]);
 
     if (projects.some((project) => project.id === selectedProjectId)) {
@@ -1045,74 +1045,12 @@
     }
   }
 
-  function sortClientOptions(clients = []) {
-    return [...clients].sort((left, right) =>
-      getClientTreeSortKey(left).localeCompare(getClientTreeSortKey(right), undefined, { sensitivity: "base" }),
-    );
-  }
-
-  function sortProjectOptions(projects = []) {
-    return [...projects].sort((left, right) =>
-      getProjectTreeSortKey(left).localeCompare(getProjectTreeSortKey(right), undefined, { sensitivity: "base" }),
-    );
-  }
-
-  function getClientTreeSortKey(client) {
-    const names = [];
-    let currentClient = client;
-    const visited = new Set();
-    const clients = context?.options?.clients || [];
-
-    while (currentClient && !visited.has(currentClient.id)) {
-      visited.add(currentClient.id);
-      names.unshift(currentClient.name || "");
-      currentClient = clients.find((item) => item.id === currentClient.parent_client_id);
-    }
-
-    return names.join("/");
-  }
-
-  function getProjectTreeSortKey(project) {
-    const names = [];
-    let currentProject = project;
-    const visited = new Set();
-    const projects = context?.options?.projects || [];
-
-    while (currentProject && !visited.has(currentProject.id)) {
-      visited.add(currentProject.id);
-      names.unshift(currentProject.name || "");
-      currentProject = projects.find((item) => item.id === currentProject.parent_project_id);
-    }
-
-    return names.join("/");
-  }
-
-  function getClientDepth(client, visited = new Set()) {
-    if (!client?.parent_client_id || visited.has(client.id)) {
-      return 0;
-    }
-
-    visited.add(client.id);
-    const parent = (context?.options?.clients || []).find((item) => item.id === client.parent_client_id);
-    return parent ? 1 + getClientDepth(parent, visited) : 0;
-  }
-
-  function getProjectDepth(project, visited = new Set()) {
-    if (!project?.parent_project_id || visited.has(project.id)) {
-      return 0;
-    }
-
-    visited.add(project.id);
-    const parent = (context?.options?.projects || []).find((item) => item.id === project.parent_project_id);
-    return parent ? 1 + getProjectDepth(parent, visited) : 0;
-  }
-
-  function treeIndent(depth) {
-    return depth > 0 ? `${"  ".repeat(depth)}- ` : "";
-  }
-
   function option(value, label) {
     return pageController.createOption(value, label);
+  }
+
+  function optionLabel(record) {
+    return record?.optionLabel || record?.display_label || record?.displayName || record?.name || record?.title || "";
   }
 
   function displayUser(user) {

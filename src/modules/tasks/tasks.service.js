@@ -5,6 +5,7 @@ import { taskRecurrenceService } from "./task-recurrence.service.js";
 import { taskRelationshipsRepository } from "./task-relationships.repo.js";
 import { taskRemindersService } from "./task-reminders.service.js";
 import { taskTimersService } from "./task-timers.service.js";
+import { clientsService } from "../client-projects/clients.service.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
@@ -729,28 +730,106 @@ async function bulkUpdate(payload, session) {
 }
 
 async function readOptions(session) {
-  const [settings, clients, projects, users] = await Promise.all([
+  const [settings, users] = await Promise.all([
     settingsRepository.readWorkspaceSettings(session.workspace_id),
-    clientsRepository.readAll(session.workspace_id),
-    projectsRepository.readAll(session.workspace_id),
     usersRepository.readAll(session.workspace_id),
   ]);
-  const moduleContext = await modulesService.readWorkspaceModuleContext(session.workspace_id);
-  const visibleProjects = await permissionsService.filterReadableProjects(session, projects);
-  const visibleClients = settings.workspaceType === "business"
-    ? await permissionsService.filterReadableClients(session, clients)
-    : [];
+  const [moduleContext, clientOptions, projectOptions, taskOptions] = await Promise.all([
+    modulesService.readWorkspaceModuleContext(session.workspace_id),
+    readClientOptionPayload(session, settings),
+    readProjectOptionPayload(session),
+    readTaskOptionPayload(session),
+  ]);
 
   return {
     workspaceType: settings.workspaceType,
-    clients: visibleClients.filter((client) => isActiveStatus(client.status)),
-    projects: visibleProjects.filter((project) => isActiveStatus(project.status)),
+    clients: clientOptions,
+    projects: projectOptions,
+    tasks: taskOptions,
     users: users.filter((user) => user.userStatus === "active"),
     priorities: [...PRIORITIES],
     statuses: [...STATUSES],
     taskTimersEnabled: settings.taskTimersEnabled !== false,
     timeTrackingEnabled: moduleContext.moduleStatusById["time-tracking"] === "enabled",
   };
+}
+
+async function readClientOptionPayload(session, settings) {
+  if (settings.workspaceType !== "business") {
+    return [];
+  }
+
+  const result = await clientsService.listClients(session, {
+    include_depth: true,
+    shape: "flat",
+    status: "Active",
+  });
+
+  return (result.clients || []).map((client) => ({
+    ...client,
+    optionLabel: client.display_label || client.name || "",
+    displayName: client.display_label || client.name || "",
+    hierarchyDepth: Number(client.depth) || 0,
+  }));
+}
+
+async function readProjectOptionPayload(session) {
+  const result = await clientsService.listProjects(session, {
+    client: "All",
+    include_depth: true,
+    shape: "flat",
+    status: "Active",
+  });
+
+  return (result.projects || []).map((project) => ({
+    ...project,
+    optionLabel: project.display_label || project.name || "",
+    displayName: project.display_label || project.name || "",
+    hierarchyDepth: Number(project.depth) || 0,
+  }));
+}
+
+async function readTaskOptionPayload(session, query = {}) {
+  const includeCompleted = readBoolean(query.include_completed || query.includeCompleted);
+  const includeArchived = readBoolean(query.include_archived || query.includeArchived);
+  const status = includeArchived
+    ? "all"
+    : includeCompleted
+      ? "history"
+      : "active";
+  const tasks = await tasksRepository.readAll(session.workspace_id);
+  const readable = [];
+
+  for (const task of tasks) {
+    if (await canReadTask(session, task) && matchesStatusFilter(task, status)) {
+      readable.push(task);
+    }
+  }
+
+  return sortCanonicalTasks(readable, { sort: "context" }).map(taskPickerOption);
+}
+
+function taskPickerOption(task) {
+  return {
+    task_id: task.task_id,
+    id: task.task_id,
+    label: task.title || "Untitled Task",
+    optionLabel: taskOptionLabel(task),
+    displayName: taskOptionLabel(task),
+    status: task.status || "open",
+    priority: task.priority || "normal",
+    client_id: task.client_id || "",
+    client_name: task.client_name || "",
+    project_id: task.project_id || "",
+    project_name: task.project_name || "",
+    due_date: task.due_date || "",
+    due_time: task.due_time || "",
+  };
+}
+
+function taskOptionLabel(task) {
+  const context = [task.client_name, task.project_name].filter(Boolean).join(" / ");
+  return context ? `${task.title || "Untitled Task"} (${context})` : task.title || "Untitled Task";
 }
 
 async function readProjectTaskDefaults(session, projectId) {
@@ -1779,6 +1858,10 @@ function taskDueSortValue(task) {
 
 function normalizedTaskFilter(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function readBoolean(value) {
+  return value === true || value === "true" || value === "1" || value === 1;
 }
 
 function hasQueryFilter(query, keys) {

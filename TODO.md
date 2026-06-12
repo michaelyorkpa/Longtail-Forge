@@ -13,6 +13,18 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Tags Fixes
+
+- If I create a new client and add a new tag the tag doesn't show up if I don't refresh/change the page
+
+## Clients
+
+- Need a filter for Parent/Top-Level clients
+
+### Edit Modal
+
+- "Save Client" and "Edit Projects" buttons need to be moved to modal footer
+
 ## Task Tweaks
 
 - Projects -> Tasks
@@ -21,6 +33,12 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
     - [ ] Tags
 
 - Add/Edit Tasks Modal Appearance Fixes
+
+  - While doing the documentation step for this portion of the tasks modals, create an appropriate ROADMAP entry to standardize the headings, boxes, and other visual styles across the entire framework for main screens, modals, drawers, slideouts, etc.
+    - Convert all footer buttons to icons on all modals
+      - Save/Close/Cancel/etc.
+    - Taggable work items should have a Tags button to open a tiny tag modal centered in the current modal
+    - Work items with file attachment abilities should have a Files button to open a tiny files modal centered in the current modal
 
   - Tighten up overall white space between all fields
 
@@ -33,9 +51,9 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - Internal boxes need to be standardized
     - Notifications and task timer are dark and square
     - Checklist is light and rounded
-    - Assignees 
-
-  - While doing the documentation step for this portion of the tasks, determine if the modal headings and boxes 
+  
+  - Horizontal Rules around Reminders
+    - Horizontal rules should only be at the top of the option that's being toggled.
 
   - Notifications should be moved to a single bell icon at the top; this isn't important enough to warrant using as much real estate as it does
     - Put the bell right-aligned across from the Add/Edit Task heading
@@ -68,12 +86,13 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
       - Next Action
     - Move back to single column layout (full modal width minus space for scroll bar) for remaining items
       - Blocked Reason (Full width; Should only appear when Status is "Blocked")
-      - Checklist (Collapsiable, starts open)
-      - Assignees (Collapsiable, starts open)
-      - Recurrence (Collapsiable, starts closed)
+      - Checklist (Collapsible, starts open)
+      - Assignees (Collapsible, starts open)
+      - Recurrence (Collapsible, starts closed)
+      - Reminders (Collapsible, starts closed)
+    - Tags and "Task Files" should be moved to buttons in the footer (icon described buttons)
 
-
-## Mobile Tweaks
+## Mobile Tweaks - Fill this section out after the above section standardizes the modal display
 
 - Projects -> Tasks
   - Get rid of "Task Details" heading (mobile & desktop)

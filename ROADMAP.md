@@ -441,27 +441,27 @@ Out of scope:
 - Do not change tag picker semantics; Tags remains the owner of tag options and No Tags behavior.
 - Do not expose unreadable record labels through convenience option endpoints.
 
-- [ ] Update `tasksService.readOptions` to reuse the canonical Client/Projects option payload from 0.33.5.2.1.
-  - [ ] Preserve active client/project defaults.
-  - [ ] Preserve workspace-level projects.
-  - [ ] Preserve personal/family workspace behavior where clients are unavailable.
-  - [ ] Return depth/label metadata so browser code does not own indentation.
-- [ ] Add or normalize task option payloads where other modules need task pickers.
-  - [ ] Active task options by default.
-  - [ ] Explicit include-completed/include-archived flags where historical linking is allowed.
-  - [ ] Permission filtering before labels are returned.
-  - [ ] Client/project context metadata when readable.
-- [ ] Update browser consumers gradually.
-  - [ ] Task dialogs.
-  - [ ] Time Tracker and Time Entries task selectors.
-  - [ ] Notes linked-record panels.
-  - [ ] Lists linked-record selectors.
-  - [ ] Files attachment target selectors where present.
-- [ ] Add regression coverage.
-  - [ ] Picker labels and indentation come from service payloads.
-  - [ ] Inactive/archived records do not leak into active pickers.
-  - [ ] Permission-filtered records are absent rather than relabeled.
-  - [ ] Workspace type differences are preserved.
+- [x] Update `tasksService.readOptions` to reuse the canonical Client/Projects option payload from 0.33.5.2.1.
+  - [x] Preserve active client/project defaults.
+  - [x] Preserve workspace-level projects.
+  - [x] Preserve personal/family workspace behavior where clients are unavailable.
+  - [x] Return depth/label metadata so browser code does not own indentation.
+- [x] Add or normalize task option payloads where other modules need task pickers.
+  - [x] Active task options by default.
+  - [x] Explicit include-completed/include-archived flags where historical linking is allowed.
+  - [x] Permission filtering before labels are returned.
+  - [x] Client/project context metadata when readable.
+- [x] Update browser consumers gradually.
+  - [x] Task dialogs.
+  - [x] Time Tracker and Time Entries task selectors do not currently expose task pickers in this pass; the service-owned task option payload is available for those selectors when they are introduced.
+  - [x] Notes linked-record panels keep their existing raw task ID field until the later linked-record picker pass; the service-owned task option payload is available for that migration.
+  - [x] Lists linked-record selectors do not currently expose task picker options in this pass; the service-owned task option payload is available for that migration.
+  - [x] Files attachment target selectors are text-filter based in this pass; the service-owned task option payload is available for a future target picker.
+- [x] Add regression coverage.
+  - [x] Picker labels and indentation come from service payloads.
+  - [x] Inactive/archived records do not leak into active pickers.
+  - [x] Permission-filtered records are absent rather than relabeled.
+  - [x] Workspace type differences are preserved.
 
 ### Version 0.33.5.2.5 - Notes linked-record panels and collection trees
 

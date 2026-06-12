@@ -1,3 +1,12 @@
+## Version 0.33.5.2.4 - 2026-06-12 11:08 -04:00
+
+- Updated `tasksService.readOptions` to reuse canonical Client/Projects list payloads for active, permission-filtered client and project picker options with depth and display-label metadata.
+- Added service-owned active task picker options with readable task labels, status, priority, due date/time, and readable client/project context.
+- Updated Tasks list filters and Task dialogs to render service-provided `optionLabel`/`display_label` values instead of rebuilding client/project hierarchy and indentation in browser code.
+- Preserved business, personal, and family workspace differences by hiding clients outside business workspaces while keeping workspace-level projects available.
+- Added `scripts/task-options-payload-regression.mjs` for picker option labels, active defaults, permission filtering, workspace type behavior, and browser consumer checks, and wired it into `npm run check`.
+- Bumped the app/package and Tasks module versions to `0.33.5.2.4`.
+
 ## Version 0.33.5.2.3 - 2026-06-12 10:48 -04:00
 
 - Updated the protected Tasks list to send canonical query parameters to `/api/tasks` for status, quick/assignee, client, project, tag/No Tags, and sort intent instead of filtering and sorting the canonical result set in browser code.

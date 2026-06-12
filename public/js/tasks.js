@@ -219,7 +219,7 @@ function populateFilters() {
     replaceOptions(clientFilter, [
       option("all", "All"),
       option("", workspaceScopeLabel),
-      ...sortClientOptions(state.options.clients).map((client) => option(client.id, `${treeIndent(getClientDepth(client))}${client.name}`)),
+      ...state.options.clients.map((client) => option(client.id, optionLabel(client))),
     ]);
   } else {
     replaceOptions(clientFilter, [option("all", "All")]);
@@ -227,7 +227,7 @@ function populateFilters() {
   replaceOptions(projectFilter, [
     option("all", "All Projects"),
     option("", "No project"),
-    ...sortProjectOptions(state.options.projects).map((project) => option(project.id, `${treeIndent(getProjectDepth(project))}${project.name}`)),
+    ...state.options.projects.map((project) => option(project.id, optionLabel(project))),
   ]);
   populateTagFilter();
   renderBulkAssigneeOptions();
@@ -952,72 +952,12 @@ function replaceOptions(select, options) {
   }
 }
 
-function sortClientOptions(clients) {
-  return [...(clients || [])].sort((left, right) =>
-    getClientTreeSortKey(left).localeCompare(getClientTreeSortKey(right), undefined, { sensitivity: "base" }),
-  );
-}
-
-function sortProjectOptions(projects) {
-  return [...(projects || [])].sort((left, right) =>
-    getProjectTreeSortKey(left).localeCompare(getProjectTreeSortKey(right), undefined, { sensitivity: "base" }),
-  );
-}
-
-function getClientTreeSortKey(client) {
-  const names = [];
-  let currentClient = client;
-  const visited = new Set();
-
-  while (currentClient && !visited.has(currentClient.id)) {
-    visited.add(currentClient.id);
-    names.unshift(currentClient.name || "");
-    currentClient = state.options.clients.find((item) => item.id === currentClient.parent_client_id);
-  }
-
-  return names.join("/");
-}
-
-function getProjectTreeSortKey(project) {
-  const names = [];
-  let currentProject = project;
-  const visited = new Set();
-
-  while (currentProject && !visited.has(currentProject.id)) {
-    visited.add(currentProject.id);
-    names.unshift(currentProject.name || "");
-    currentProject = state.options.projects.find((item) => item.id === currentProject.parent_project_id);
-  }
-
-  return names.join("/");
-}
-
-function getClientDepth(client, visited = new Set()) {
-  if (!client?.parent_client_id || visited.has(client.id)) {
-    return 0;
-  }
-
-  visited.add(client.id);
-  const parent = state.options.clients.find((item) => item.id === client.parent_client_id);
-  return parent ? 1 + getClientDepth(parent, visited) : 0;
-}
-
-function getProjectDepth(project, visited = new Set()) {
-  if (!project?.parent_project_id || visited.has(project.id)) {
-    return 0;
-  }
-
-  visited.add(project.id);
-  const parent = state.options.projects.find((item) => item.id === project.parent_project_id);
-  return parent ? 1 + getProjectDepth(parent, visited) : 0;
-}
-
-function treeIndent(depth) {
-  return depth > 0 ? `${"  ".repeat(depth)}- ` : "";
-}
-
 function option(value, label) {
   return pageController.createOption(value, label);
+}
+
+function optionLabel(record) {
+  return record?.optionLabel || record?.display_label || record?.displayName || record?.name || record?.title || "";
 }
 
 function displayUser(user) {
