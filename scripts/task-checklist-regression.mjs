@@ -20,6 +20,7 @@ try {
 
   await assertChecklistLifecycleAndProgress(session);
   await assertChecklistPermissionBoundaries(session, noRoleSession);
+  await assertTaskViewDialogIncludesChecklistControls();
 
   console.log("Task checklist regression passed.");
 } finally {
@@ -112,6 +113,15 @@ async function assertChecklistPermissionBoundaries(session, noRoleSession) {
     () => tasksService.addChecklistItem(task.task_id, { label: "Should fail" }, noRoleSession),
     /permission/i,
   );
+}
+
+async function assertTaskViewDialogIncludesChecklistControls() {
+  const tasksView = await fs.readFile(new URL("../views/protected/tasks.html", import.meta.url), "utf8");
+
+  assert.match(tasksView, /data-task-checklist-field/, "Tasks view dialog must include checklist field markup");
+  assert.match(tasksView, /data-task-checklist-input/, "Tasks view dialog must include checklist input markup");
+  assert.match(tasksView, /data-task-checklist-add/, "Tasks view dialog must include checklist add control markup");
+  assert.match(tasksView, /data-task-checklist-list/, "Tasks view dialog must include checklist list markup");
 }
 
 async function createNoRoleSession(workspaceId) {

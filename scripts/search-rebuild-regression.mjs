@@ -9,7 +9,8 @@ let checks = 0;
 const workspaceId = "search-rebuild-workspace";
 const now = "2026-06-08T16:00:00.000Z";
 const frameworkHelpArticleCount = 13;
-const expectedWorkspaceIndexRows = frameworkHelpArticleCount + 4;
+const moduleHelpArticleCount = 1;
+const expectedWorkspaceIndexRows = frameworkHelpArticleCount + moduleHelpArticleCount + 4;
 
 await seedWorkspace();
 
@@ -35,6 +36,10 @@ await checkAsync("workspace rebuild indexes initial module records without dupli
   assert.equal(
     rows.filter((row) => row.module_id === "framework" && row.record_type === "help_article").length,
     frameworkHelpArticleCount,
+  );
+  assert.equal(
+    rows.filter((row) => row.module_id === "tasks" && row.record_type === "help_article").length,
+    moduleHelpArticleCount,
   );
   for (const expectedType of [
     "client-projects:client",
@@ -65,10 +70,10 @@ ORDER BY record_id;
   const allRows = await readIndexedRows();
 
   assert.equal(result.moduleId, "tasks");
-  assert.equal(result.counts.scanned, 1);
+  assert.equal(result.counts.scanned, 2);
   assert.equal(result.counts.removed, 1);
-  assert.equal(result.targets.length, 1);
-  assert.equal(result.targets[0].recordType, "task");
+  assert.equal(result.targets.length, 2);
+  assert.deepEqual(result.targets.map((target) => target.recordType).sort(), ["help_article", "task"]);
   assert.deepEqual(taskRows, [{ record_id: "search-rebuild-task-1" }]);
   assert.equal(allRows.length, expectedWorkspaceIndexRows);
 });

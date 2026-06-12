@@ -29,9 +29,14 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - Projects -> Tasks
   - Get rid of "Task Details" heading (mobile & desktop)
     - It's right aligned and isn't necessary
-  - 
+  - Meta data should each get its own line on mobile (keep line spacing tight)
   - Task name doesn't wrap and gets cut off
     - Should truncate after a character limit
+
+- Projects -> Notes
+  - On mobile, everything stacks neatly, but the collections selector and notes list makes it tough to find the actual content
+    - On desktop, make the collections box and notes list right aligned and put the content viewpane on the left
+    - On mobile, hide the content viewpane unless content is loaded
 
 ## Views/Lists/Queries/etc.
 

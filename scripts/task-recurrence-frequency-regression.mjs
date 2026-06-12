@@ -18,6 +18,7 @@ try {
   await assertWeekdayRecurrenceSkipsWeekends(session);
   await assertWeekendRecurrenceSkipsWeekdays(session);
   await assertDailyRecurrenceRemainsSevenDays(session);
+  await assertTaskViewDialogIncludesFrequencyOptions();
 
   console.log("Task recurrence frequency regression passed.");
 } finally {
@@ -99,6 +100,13 @@ async function assertDailyRecurrenceRemainsSevenDays(session) {
   const completed = await tasksService.complete(task.task_id, session);
   assert.equal(completed.createdTask.due_date, "2026-06-13");
   assert.equal(completed.createdTask.recurrence_instance_date, "2026-06-13");
+}
+
+async function assertTaskViewDialogIncludesFrequencyOptions() {
+  const tasksView = await fs.readFile(new URL("../views/protected/tasks.html", import.meta.url), "utf8");
+
+  assert.match(tasksView, /<option value="WEEKDAYS">Weekdays<\/option>/, "Tasks view dialog must expose Weekdays recurrence");
+  assert.match(tasksView, /<option value="WEEKENDS">Weekends<\/option>/, "Tasks view dialog must expose Weekends recurrence");
 }
 
 async function readSeedSession() {

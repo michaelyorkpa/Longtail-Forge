@@ -1,9 +1,19 @@
+## Version 0.33.5.0.7 - 2026-06-12 08:10 -04:00
+
+- Closed out the Tasks QoL line by adding `scripts/task-qol-closeout-regression.mjs` for resume-safe task reads, summaries, Workbench items, search documents, lifecycle event metadata, inactive-task candidacy, and inaccessible-task boundaries.
+- Emitted `task.updated` events for automatic parent task blocking and recovery when child blocking relationships change, with transition metadata for future resume-state producers.
+- Added current-state Tasks Help content for resuming task work without documenting the future global resume-state framework as shipped behavior.
+- Added `docs/tasks-module.md` and updated module/architecture docs to describe Tasks-owned context, checklists, parent/child blockers, recurrence, events, search, and resume-safe hooks.
+- Documented that Tasks currently uses archive/restore for inactive task history and does not expose a task delete workflow.
+- Bumped the app/package and Tasks module versions to `0.33.5.0.7`.
+
 ## Version 0.33.5.0.6 - 2026-06-12 07:25 -04:00
 
 - Converted the Projects -> Tasks list to a compact single-row-per-task layout with internal title, metadata/context, and right-aligned action bands.
 - Kept task names and tag chips tight in the first band while moving scope, assignees, status, priority, due date, next action, blocked state, checklist progress, blocking child count, and resume-note indicators into a compact metadata band.
 - Tightened mobile Scope and Assignee truncation so dense task rows stay scannable on narrow screens.
 - Changed the task-row "Follow Notifications" action to a bell icon and added the shared `bell` icon.
+- Fixed the static Projects -> Tasks dialog markup so Edit and Duplicate load the 0.33.5 task context, completion, checklist, and recurrence controls instead of failing on missing resume fields.
 - Added `scripts/task-list-density-regression.mjs` and wired it into `npm run check`.
 - Bumped the app/package and Tasks module versions to `0.33.5.0.6`.
 

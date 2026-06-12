@@ -174,6 +174,36 @@
             <input type="time" data-task-due-time>
           </label>
 
+          <label class="task-next-action-field">
+            Next action
+            <input type="text" maxlength="240" data-task-next-action placeholder="Send draft invoice to CTU.">
+          </label>
+
+          <label class="task-blocked-reason-field" data-task-blocked-reason-field hidden>
+            Blocked reason
+            <textarea rows="3" data-task-blocked-reason></textarea>
+          </label>
+
+          <label class="task-resume-note-field">
+            Resume note
+            <textarea rows="3" data-task-resume-note placeholder="Where did you leave off?"></textarea>
+          </label>
+
+          <div class="task-completion-field" data-task-completion-field hidden>
+            <span>Time to completion</span>
+            <strong data-task-completion-time></strong>
+          </div>
+
+          <fieldset class="task-checklist-field" data-task-checklist-field>
+            <legend>Checklist</legend>
+            <p data-task-checklist-status>0 / 0 complete</p>
+            <div class="task-checklist-add-row">
+              <input type="text" maxlength="240" data-task-checklist-input aria-label="Checklist item" placeholder="Add checklist item">
+              <button type="button" data-task-checklist-add>Add</button>
+            </div>
+            <div class="task-checklist-list" data-task-checklist-list></div>
+          </fieldset>
+
           <label class="task-assignee-field">
             Assignees
             <select multiple data-task-assignees></select>
@@ -261,6 +291,8 @@
             Frequency
             <select data-task-recurrence-frequency>
               <option value="DAILY">Daily</option>
+              <option value="WEEKDAYS">Weekdays</option>
+              <option value="WEEKENDS">Weekends</option>
               <option value="WEEKLY" selected>Weekly</option>
               <option value="MONTHLY">Monthly</option>
             </select>

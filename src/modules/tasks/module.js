@@ -60,7 +60,7 @@ const tasksModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.0.6",
+  version: "0.33.5.0.7",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -809,6 +809,37 @@ const tasksModule = {
       ],
     },
   ],
+  help: {
+    sections: [
+      {
+        id: "tasks.overview",
+        moduleId: "tasks",
+        title: "Tasks",
+        description: "Current Tasks behavior for task context, checklists, parent/child planning, recurrence, timers, notifications, search, and recovery context.",
+        sortOrder: 110,
+        audience: "user",
+        tags: ["tasks", "resume work", "next action"],
+        requiredModules: ["tasks"],
+        requiredPermissions: ["tasks.view"],
+      },
+    ],
+    articles: [
+      {
+        id: "tasks.resume-context",
+        slug: "tasks-resume-context",
+        sectionId: "tasks.overview",
+        moduleId: "tasks",
+        title: "Resuming Task Work",
+        summary: "Use next actions, blocked reasons, resume notes, checklist progress, and child-task blockers to recover task context.",
+        body: "Tasks are commitments and outcomes. A task can carry a next action, blocked reason, resume note, due date and time, assignees, tags, files, checklist progress, parent/child relationships, recurrence, reminders, and timer state.\n\nUse Next action for the immediate step, Blocked reason when work cannot continue, and Resume note for where the work paused. Checklists keep lightweight progress inside the task. Parent/child task links can show when incomplete child work is blocking a parent task. Completed and archived tasks remain readable history and are not treated as active resume candidates by default.\n\nTasks expose this context through task reads, summaries, Workbench task items, search, audit, and internal task event metadata. The global resume-state service, ranking, dismissal, and cross-module resume feed are future framework work; current Tasks behavior supplies safe source context for those consumers without owning the future framework surface.",
+        sortOrder: 10,
+        audience: "user",
+        tags: ["tasks", "resume work", "blocked", "checklists"],
+        requiredModules: ["tasks"],
+        requiredPermissions: ["tasks.view"],
+      },
+    ],
+  },
   timerSources: [
     {
       sourceType: "task",

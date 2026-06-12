@@ -90,17 +90,17 @@ Projects -> Tasks should become easier to scan and resume from without becoming 
 Goal:
 Close the Tasks QoL line by proving Tasks expose useful, permission-safe state for future framework resume consumers while leaving the global resume-state service, ranking, dismissal, API, and Workbench feed to the framework-owned resume-state release.
 
-- [ ] Verify task reads, summaries, search payloads, events, and hooks expose only permission-safe task context.
-- [ ] Verify completed, archived, deleted, private, or inaccessible tasks do not become active resume candidates by default.
-- [ ] Verify task lifecycle events include safe source/activity/progress metadata needed by future resume-state producers.
-- [ ] Verify blocked and interrupted task states offer useful recovery actions instead of dead ends.
-- [ ] Update Help and developer/module docs for current Tasks behavior without documenting future promises as shipped behavior.
-- [ ] Run focused Tasks service/API/UI regressions.
-- [ ] Run permission regressions covering task summaries, checklists, parent/child links, and resume-safe payloads.
-- [ ] Run `npm run check`.
-- [ ] Run `npm run test:permissions`.
-- [ ] Verify `/api/app-info` reports the completed Tasks QoL closeout version.
-- [ ] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process.
+- [x] Verify task reads, summaries, search payloads, events, and hooks expose only permission-safe task context.
+- [x] Verify completed, archived, deleted, private, or inaccessible tasks do not become active resume candidates by default. Tasks do not expose a shipped task delete workflow; archive/restore remains the inactive-history path.
+- [x] Verify task lifecycle events include safe source/activity/progress metadata needed by future resume-state producers.
+- [x] Verify blocked and interrupted task states offer useful recovery actions instead of dead ends.
+- [x] Update Help and developer/module docs for current Tasks behavior without documenting future promises as shipped behavior.
+- [x] Run focused Tasks service/API/UI regressions.
+- [x] Run permission regressions covering task summaries, checklists, parent/child links, and resume-safe payloads.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Verify `/api/app-info` reports the completed Tasks QoL closeout version.
+- [x] Move completed roadmap sections to `ROADMAP-ARCHIVE.md` according to the existing release process. No older completed top-level roadmap section is ahead of 0.33.5.0, so 0.33.5.0 remains the most recently completed active section.
 
 ### Detailed Requirements Backlog
 

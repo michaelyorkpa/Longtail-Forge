@@ -1164,6 +1164,17 @@ async function blockParentForChild(session, parentTask, childTask) {
     updated_by_user_id: session.user_id,
     assignee_ids: parentTask.assignee_ids || [],
   });
+  const updatedTask = await readTaggedTaskWithDetails(session, parentTask.task_id);
+  await emitTaskEvent("task.updated", {
+    session,
+    previousValue: parentTask,
+    newValue: updatedTask,
+    metadata: {
+      status_transition_reason: "blocked_by_child",
+      blocking_child_task_id: childTask.task_id,
+      blocking_child_title: childTask.title || "",
+    },
+  });
   await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.blocked_by_child");
 }
 
@@ -1202,6 +1213,15 @@ async function recoverParentIfNoBlockingChildren(session, parentTask) {
     last_worked_at: now,
     updated_by_user_id: session.user_id,
     assignee_ids: parentTask.assignee_ids || [],
+  });
+  const updatedTask = await readTaggedTaskWithDetails(session, parentTask.task_id);
+  await emitTaskEvent("task.updated", {
+    session,
+    previousValue: parentTask,
+    newValue: updatedTask,
+    metadata: {
+      status_transition_reason: "unblocked_by_child",
+    },
   });
   await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.unblocked_by_child");
 }

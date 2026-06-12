@@ -10,7 +10,8 @@ const workspaceOne = "search-lifecycle-workspace-1";
 const workspaceTwo = "search-lifecycle-workspace-2";
 const now = "2026-06-08T18:00:00.000Z";
 const frameworkHelpArticleCount = 13;
-const expectedWorkspaceIndexRows = frameworkHelpArticleCount + 4;
+const moduleHelpArticleCount = 1;
+const expectedWorkspaceIndexRows = frameworkHelpArticleCount + moduleHelpArticleCount + 4;
 
 await seedWorkspace(workspaceOne, {
   clientId: "search-life-client-1",
@@ -45,6 +46,10 @@ await checkAsync("initial searchable modules populate workspace-scoped index row
   assert.equal(
     firstRows.filter((row) => row.module_id === "framework" && row.record_type === "help_article").length,
     frameworkHelpArticleCount,
+  );
+  assert.equal(
+    firstRows.filter((row) => row.module_id === "tasks" && row.record_type === "help_article").length,
+    moduleHelpArticleCount,
   );
   for (const expectedType of [
     "client-projects:client",
