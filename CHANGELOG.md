@@ -1,3 +1,20 @@
+## Version 0.33.5.2.9 - 2026-06-12 14:16 -04:00
+
+- Audited the current API key scope catalog and confirmed the visible enabled-module scopes remain `clients:read`, `projects:read`, `tasks:read`, `tasks:write`, `time_entries:read`, and `time_entries:write`.
+- Documented missing/deferred public scopes for client/project writes, Files, Search, Notes, Lists, Tags, Notifications, Help, settings, and discovery in `docs/public-api.md`.
+- Added the 0.33.5.3.x API key scope repair roadmap with scope source-of-truth, UI display, public route coverage, permission regression, and documentation tasks.
+- Added `scripts/api-key-scope-audit-regression.mjs` to lock the current scope audit, deferred scope gaps, route-scope declarations, and public API documentation coverage, and wired it into `npm run check`.
+- Bumped the app/package version to `0.33.5.2.9`.
+
+## Version 0.33.5.2.8 - 2026-06-12 14:00 -04:00
+
+- Added a Tags-owned bulk assignment service and `/api/tags/bulk-assignments` route for direct/manual add, remove, and replace workflows with per-record permission checks and safe partial-failure reporting.
+- Formalized shared tag filter intent normalization so simple No Tags uses effective tags while the reserved direct-only sentinel remains available for future advanced UI.
+- Updated Tasks bulk actions with Add tags, Remove tags, and Replace direct tags controls that call the Tags bulk assignment contract.
+- Preserved propagated and system tag assignments during bulk add, replace, and remove operations, keeping tags as classification metadata only.
+- Added `scripts/tag-bulk-assignment-regression.mjs` for No Tags semantics, bulk assignment preservation, permission-safe failures, and Tasks browser wiring, and wired it into `npm run check`.
+- Bumped the app/package and Tags module versions to `0.33.5.2.8`.
+
 ## Version 0.33.5.2.7 - 2026-06-12 13:47 -04:00
 
 - Added Lists-owned canonical index query behavior for default active working lists, status/type/reusable/client/project/assigned/needed-by/linked-record/tag/No Tags filters, and deterministic sort modes.

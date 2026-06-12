@@ -26,6 +26,12 @@ tagsRoutes.put("/tags/assignments", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+tagsRoutes.post("/tags/bulk-assignments", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await tagsService.bulkAssign(request.session, payload);
+  response.status(200).json(result);
+}));
+
 tagsRoutes.post("/tags/assignments/:assignmentId/suppress", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await tagsService.suppressAssignment(request.session, {

@@ -176,6 +176,112 @@ async function replaceAssignments(session, payload = {}) {
   return replaceManualAssignments(session, payload);
 }
 
+async function bulkAssign(session, payload = {}) {
+  await assertTaggingWriteEnabled(session);
+  const targetType = String(payload.targetType || payload.target_type || "").trim();
+  const targetIds = normalizeBulkTargetIds(payload.targetIds || payload.target_ids || payload.ids || []);
+  const action = normalizeBulkTagAction(payload.action);
+  const tagIds = normalizeTagIds(payload.tagIds || payload.tag_ids || []);
+  const results = [];
+  const errors = [];
+
+  if (!targetType) {
+    throw new AppError("Bulk tag target type is required.", 400);
+  }
+  if (targetIds.length === 0) {
+    throw new AppError("Bulk tag target IDs are required.", 400);
+  }
+  if (tagIds.length === 0) {
+    throw new AppError("Bulk tag changes need at least one tag.", 400);
+  }
+  await readAssignableTags(session.workspace_id, tagIds);
+
+  for (const targetId of targetIds) {
+    try {
+      const result = await applyBulkTagAction(session, {
+        action,
+        tagIds,
+        targetId,
+        targetType,
+      });
+      results.push(result);
+    } catch (error) {
+      errors.push({
+        message: error.message || "Tags could not be updated.",
+        status: error.status || error.statusCode || 500,
+        target_id: targetId,
+        target_type: targetType,
+      });
+    }
+  }
+
+  await auditService.record({
+    session,
+    action: "tag.bulk_assignments_updated",
+    changeType: "update",
+    recordType: "tag_assignment",
+    recordId: `${targetType}:bulk`,
+    recordLabel: `${results.length} ${targetType} tag updates`,
+    recordUrl: "",
+    previousValue: null,
+    newValue: {
+      action,
+      changed_count: results.length,
+      skipped_count: errors.length,
+      target_type: targetType,
+    },
+    metadata: {
+      action,
+      changed_count: results.length,
+      skipped_count: errors.length,
+      tag_ids: tagIds,
+      target_type: targetType,
+    },
+  });
+
+  return {
+    action,
+    changed: results,
+    changed_count: results.length,
+    errors,
+    skipped_count: errors.length,
+    target_type: targetType,
+  };
+}
+
+async function applyBulkTagAction(session, payload = {}) {
+  const target = await readTargetForSession(session, payload.targetType, payload.targetId, "replace");
+  const currentDirectAssignments = await listDirectTagsForTarget(session, target.targetType, target.targetId);
+  const currentDirectIds = new Set(currentDirectAssignments.map((assignment) => assignment.tag_id));
+  const tagIds = payload.tagIds || [];
+  let nextTagIds = [];
+
+  if (payload.action === "replace") {
+    nextTagIds = tagIds;
+  } else if (payload.action === "add") {
+    nextTagIds = [...new Set([...currentDirectIds, ...tagIds])];
+  } else if (payload.action === "remove") {
+    nextTagIds = [...currentDirectIds].filter((tagId) => !tagIds.includes(tagId));
+  }
+
+  const result = await replaceManualAssignments(session, {
+    tagIds: nextTagIds,
+    targetId: target.targetId,
+    targetType: target.targetType,
+  });
+  const effectiveAssignments = await listEffectiveTagsForTarget(session, target.targetType, target.targetId);
+  const shaped = shapeAssignmentReadModel(effectiveAssignments);
+
+  return {
+    assignments: result.assignments,
+    directTags: result.assignments.map((assignment) => assignment.tag),
+    effectiveTags: shaped.effectiveTags,
+    target: result.target,
+    target_id: target.targetId,
+    target_type: target.targetType,
+  };
+}
+
 async function replaceManualAssignments(session, payload = {}) {
   await assertTaggingWriteEnabled(session);
   const target = await readTargetForSession(session, payload.targetType || payload.target_type, payload.targetId || payload.target_id, "replace");
@@ -615,7 +721,7 @@ async function decorateRecordsForTarget(session, targetType, records, options = 
 }
 
 async function filterRecordsByTags(session, targetType, records, tagIds, options = {}) {
-  const normalizedFilters = normalizeOptionalTagFilters(tagIds);
+  const normalizedFilters = normalizeTagFilterIntent(tagIds);
   const normalizedTagIds = normalizedFilters.tagIds;
   const noTagsMode = normalizedFilters.noTagsMode;
 
@@ -1109,7 +1215,7 @@ function normalizeOptionalTagIds(value) {
     .filter(Boolean))];
 }
 
-function normalizeOptionalTagFilters(value) {
+function normalizeTagFilterIntent(value) {
   const filters = normalizeOptionalTagIds(value);
   let noTagsMode = "";
   const tagIds = [];
@@ -1131,6 +1237,24 @@ function normalizeOptionalTagFilters(value) {
     noTagsMode,
     tagIds: [...new Set(tagIds)],
   };
+}
+
+function normalizeBulkTargetIds(value) {
+  if (!Array.isArray(value)) {
+    throw new AppError("Bulk tag target IDs must be an array.", 400);
+  }
+
+  return [...new Set(value.map((targetId) => String(targetId || "").trim()).filter(Boolean))];
+}
+
+function normalizeBulkTagAction(value) {
+  const action = String(value || "").trim().toLowerCase();
+
+  if (["add", "remove", "replace"].includes(action)) {
+    return action;
+  }
+
+  throw new AppError("Bulk tag action must be add, remove, or replace.", 400);
 }
 
 function groupAssignmentsByTarget(assignments) {
@@ -1264,6 +1388,7 @@ export const tagsService = {
   addPropagatedAssignment,
   archive,
   assign,
+  bulkAssign,
   create,
   decorateRecordsForTarget,
   decorateRecordsWithEffectiveTags,
@@ -1278,6 +1403,7 @@ export const tagsService = {
   repairTagPropagation,
   replaceAssignments,
   replaceManualAssignments,
+  normalizeTagFilterIntent,
   refreshPropagatedAssignmentsForTarget,
   refreshPropagatedAssignmentsForWorkspace,
   restore,

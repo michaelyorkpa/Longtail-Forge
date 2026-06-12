@@ -108,6 +108,19 @@
             Assignees
             <div class="task-bulk-assignee-list" data-task-bulk-assignees></div>
           </label>
+          <label data-task-bulk-tag-action-control hidden>
+            Tag Action
+            <select data-task-bulk-tag-action>
+              <option value="" selected>-</option>
+              <option value="tag_add">Add tags</option>
+              <option value="tag_remove">Remove tags</option>
+              <option value="tag_replace">Replace direct tags</option>
+            </select>
+          </label>
+          <label data-task-bulk-tags-control hidden>
+            Tags
+            <select data-task-bulk-tags multiple size="4"></select>
+          </label>
           <button type="button" data-task-bulk-apply disabled>Apply to 0</button>
         </div>
       </details>

@@ -570,27 +570,27 @@ Out of scope:
 - Do not make tags drive permissions, visibility, billing status, workflow status, archive state, or report totals.
 - Do not force every module to expose bulk tag UI in this slice; the contract should allow safe adoption by module.
 
-- [ ] Formalize shared tag filter semantics.
-  - [ ] Simple No Tags means no effective tags.
-  - [ ] Preserve the reserved direct-only sentinel for future advanced UI without exposing broad advanced controls here.
-  - [ ] Tag filters should use the Tags service/effective-tag contract rather than module-local string matching.
-  - [ ] Modules should pass tag filter intent to their owning query helpers.
-- [ ] Add a safe bulk tag assignment contract.
-  - [ ] Bulk assignment operates on direct/manual assignments unless an explicit future workflow says otherwise.
-  - [ ] Propagated and system assignments must be preserved.
-  - [ ] Per-record permission checks happen before mutation.
-  - [ ] Partial success/failure reporting identifies skipped records without leaking inaccessible labels.
-  - [ ] Bulk remove must not delete parent assignments or propagated/system tags.
-- [ ] Wire first consumers where the UI already needs the pattern.
-  - [ ] Tasks filters and bulk tag assignment.
-  - [ ] Clients/Projects filters and bulk tag assignment where appropriate.
-  - [ ] Lists filters and bulk tag assignment where Lists taggable contracts are active.
-  - [ ] Time Entries/Reporting filters continue to use stored/effective tag semantics already defined for finalized entries.
-- [ ] Add regression coverage.
-  - [ ] No Tags filters use effective-tag semantics.
-  - [ ] Bulk tag assignment preserves propagated/system assignments.
-  - [ ] Per-record permissions are enforced before mutation.
-  - [ ] Tags remain classification metadata only.
+- [x] Formalize shared tag filter semantics.
+  - [x] Simple No Tags means no effective tags.
+  - [x] Preserve the reserved direct-only sentinel for future advanced UI without exposing broad advanced controls here.
+  - [x] Tag filters should use the Tags service/effective-tag contract rather than module-local string matching.
+  - [x] Modules should pass tag filter intent to their owning query helpers.
+- [x] Add a safe bulk tag assignment contract.
+  - [x] Bulk assignment operates on direct/manual assignments unless an explicit future workflow says otherwise.
+  - [x] Propagated and system assignments must be preserved.
+  - [x] Per-record permission checks happen before mutation.
+  - [x] Partial success/failure reporting identifies skipped records without leaking inaccessible labels.
+  - [x] Bulk remove must not delete parent assignments or propagated/system tags.
+- [x] Wire first consumers where the UI already needs the pattern.
+  - [x] Tasks filters and bulk tag assignment.
+  - [x] Clients/Projects filters and bulk tag assignment where appropriate.
+  - [x] Lists filters and bulk tag assignment where Lists taggable contracts are active.
+  - [x] Time Entries/Reporting filters continue to use stored/effective tag semantics already defined for finalized entries.
+- [x] Add regression coverage.
+  - [x] No Tags filters use effective-tag semantics.
+  - [x] Bulk tag assignment preserves propagated/system assignments.
+  - [x] Per-record permissions are enforced before mutation.
+  - [x] Tags remain classification metadata only.
 
 ### Version 0.33.5.2.9 - API Key cleanup
 
@@ -602,26 +602,61 @@ Out of scope:
 - Do not expose new public API routes without a dedicated implementation/version slice.
 - Do not bypass module permissions; API keys must map through stable module/framework permission contracts.
 
-- [ ] Audit current API key scopes visible to Workspace Admin and Super Admin users.
-  - [ ] Confirm existing scopes: `clients:read`, `projects:read`, `tasks:read`, `tasks:write`, `time_entries:read`, and `time_entries:write`.
-  - [ ] Confirm missing write scopes for clients/projects if still absent.
-  - [ ] Confirm missing public scopes for files, search, notes, lists, tags, notifications, Help/read-only discovery, and any other active first-party modules.
-  - [ ] Compare UI-visible scopes with seeded/default API-key scope definitions.
-- [ ] Map desired scopes to owning contracts.
-  - [ ] Framework-owned scopes such as files, search, notifications, Help, and settings/discovery.
-  - [ ] Module-owned scopes such as notes, lists, tasks, client-projects, time-tracking, and tags.
-  - [ ] Read/write/admin/manage distinctions where the module permission model supports them.
-  - [ ] Explicitly identify scopes that should remain internal-only for now.
-- [ ] Add a 0.33.5.3.x roadmap plan for API key scope repair.
-  - [ ] Scope registration/source-of-truth update.
-  - [ ] UI display/update behavior for new scopes.
-  - [ ] Public API route coverage or explicit route deferrals.
-  - [ ] Permission regression coverage for API-key-scoped reads/writes.
-  - [ ] Documentation updates to `docs/public-api.md`.
-- [ ] Add audit/regression checklist for the future implementation.
-  - [ ] Workspace Admin and Super Admin see the same allowed scope catalog where appropriate.
+- [x] Audit current API key scopes visible to Workspace Admin and Super Admin users.
+  - [x] Confirm existing scopes: `clients:read`, `projects:read`, `tasks:read`, `tasks:write`, `time_entries:read`, and `time_entries:write`.
+  - [x] Confirm missing write scopes for clients/projects if still absent.
+  - [x] Confirm missing public scopes for files, search, notes, lists, tags, notifications, Help/read-only discovery, and any other active first-party modules.
+  - [x] Compare UI-visible scopes with seeded/default API-key scope definitions.
+- [x] Map desired scopes to owning contracts.
+  - [x] Framework-owned scopes such as files, search, notifications, Help, and settings/discovery.
+  - [x] Module-owned scopes such as notes, lists, tasks, client-projects, time-tracking, and tags.
+  - [x] Read/write/admin/manage distinctions where the module permission model supports them.
+  - [x] Explicitly identify scopes that should remain internal-only for now.
+- [x] Add a 0.33.5.3.x roadmap plan for API key scope repair.
+  - [x] Scope registration/source-of-truth update.
+  - [x] UI display/update behavior for new scopes.
+  - [x] Public API route coverage or explicit route deferrals.
+  - [x] Permission regression coverage for API-key-scoped reads/writes.
+  - [x] Documentation updates to `docs/public-api.md`.
+- [x] Add audit/regression checklist for the future implementation.
+  - [x] Workspace Admin and Super Admin see the same allowed scope catalog where appropriate.
+  - [x] API-key reads/writes enforce the same module boundaries as browser/session permissions.
+  - [x] Missing modules are either intentionally absent and documented or available through scopes.
+
+### Version 0.33.5.3 - API key scope repair
+
+Goal:
+Repair the API key scope catalog and public API route plan so framework and first-party module capabilities are either intentionally exposed through permission-safe public API scopes or explicitly documented as internal-only.
+
+Out of scope:
+- Do not add public routes without matching API key scope checks, module permission checks, docs, and regressions.
+- Do not make API key scopes bypass browser/session module boundaries.
+- Do not expose admin-only internals such as audit logs, permission administration, module enablement, search index repair, raw file storage, scanner/quarantine details, secure-note internals, or notification delivery internals unless a future dedicated version explicitly changes that boundary.
+
+- [ ] Scope registration and source-of-truth repair.
+  - [ ] Add missing module-owned scope declarations where public route coverage is intended.
+  - [ ] Add framework-owned scope declarations for files, search, notifications, Help, and discovery only where public routes are intentionally supported.
+  - [ ] Preserve disabled-module filtering in the API key UI for module-owned scopes.
+  - [ ] Keep internal-only surfaces out of the visible scope catalog.
+- [ ] UI display/update behavior for new scopes.
+  - [ ] Group scopes by owner/module so large catalogs remain readable.
+  - [ ] Show read/write/manage distinctions without implying unavailable public routes.
+  - [ ] Verify Workspace Admin and Super Admin see the same allowed scope catalog where appropriate.
+- [ ] Public API route coverage or explicit route deferrals.
+  - [ ] Add `clients:write` and `projects:write` only with dedicated client/project public write routes.
+  - [ ] Add Files public routes only after target access, file lifecycle, scanner metadata, and download safety are mapped.
+  - [ ] Add Search public routes only with permission-pruned result shaping.
+  - [ ] Add Notes, Lists, Tags, Notifications, and Help public routes only through their owning service contracts.
+  - [ ] Document any first-party module that remains intentionally absent from public API coverage.
+- [ ] Permission regression coverage for API-key-scoped reads and writes.
   - [ ] API-key reads/writes enforce the same module boundaries as browser/session permissions.
-  - [ ] Missing modules are either intentionally absent and documented or available through scopes.
+  - [ ] Disabled optional modules hide new key scopes and block writes.
+  - [ ] Inaccessible records do not leak labels, counts, file metadata, search snippets, note excerpts, list item labels, or tag labels.
+  - [ ] Public API errors keep the versioned envelope and do not expose internal implementation details.
+- [ ] Documentation updates to `docs/public-api.md`.
+  - [ ] Keep the current scope catalog, route coverage, deferred scopes, and internal-only surfaces current with implementation.
+  - [ ] Add examples for each newly exposed route family.
+  - [ ] Update changelog and decisions whenever a scope changes public integration behavior.
 
 ## Version 0.33.5.4 - Files and Time Tracking QoL Updates
 

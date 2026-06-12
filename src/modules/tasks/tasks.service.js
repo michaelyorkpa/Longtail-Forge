@@ -713,6 +713,27 @@ async function bulkUpdate(payload, session) {
   const results = [];
   const errors = [];
 
+  if (["tag_add", "tag_remove", "tag_replace"].includes(action)) {
+    const tagResult = await tagsService.bulkAssign(session, {
+      action: action.replace("tag_", ""),
+      tagIds: payload.tagIds || payload.tag_ids || [],
+      targetIds: taskIds,
+      targetType: "task",
+    });
+    for (const changed of tagResult.changed || []) {
+      results.push(await readTaggedTaskWithDetails(session, changed.target_id));
+    }
+    return {
+      tasks: results,
+      errors: (tagResult.errors || []).map((error) => ({
+        message: error.message || "Task tags could not be updated.",
+        status: error.status || 500,
+        task_id: error.target_id,
+      })),
+      tagBulkResult: tagResult,
+    };
+  }
+
   for (const taskId of taskIds) {
     try {
       const result = await applyBulkAction(taskId, action, payload, session);

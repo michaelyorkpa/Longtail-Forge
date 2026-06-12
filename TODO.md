@@ -175,7 +175,18 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Medium Term
 
+## File Storage and Per User Limits
 
+- Need to introduce a way to track file storage per user to enforce limits in the future
+  - This should keep track of internal file storage
+  - This should keep track of external file storage and availability
+    - To include:
+      - DigitalOcean Spaces
+      - AWS
+      - Microsoft Azure
+      - Microsoft OneDrive
+      - GoogleDrive
+      - Dropbox
 
 ## "What are you trying to do right now?"
 

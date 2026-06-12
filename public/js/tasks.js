@@ -23,6 +23,10 @@ const bulkPriorityControl = document.querySelector("[data-task-bulk-priority-con
 const bulkPriorityInput = document.querySelector("[data-task-bulk-priority]");
 const bulkAssigneeControl = document.querySelector("[data-task-bulk-assignee-control]");
 const bulkAssigneesControl = document.querySelector("[data-task-bulk-assignees]");
+const bulkTagActionControl = document.querySelector("[data-task-bulk-tag-action-control]");
+const bulkTagActionInput = document.querySelector("[data-task-bulk-tag-action]");
+const bulkTagsControl = document.querySelector("[data-task-bulk-tags-control]");
+const bulkTagsInput = document.querySelector("[data-task-bulk-tags]");
 const bulkApplyButton = document.querySelector("[data-task-bulk-apply]");
 const recurringInput = document.querySelector("[data-task-recurring]");
 const recurrenceDetailsButton = document.querySelector("[data-task-recurrence-details]");
@@ -57,6 +61,8 @@ filterDetails?.addEventListener("toggle", handleFilterDetailsToggle);
 bulkStatusInput?.addEventListener("change", updateBulkControls);
 bulkPriorityInput?.addEventListener("change", updateBulkControls);
 bulkAssigneesControl?.addEventListener("change", updateBulkControls);
+bulkTagActionInput?.addEventListener("change", updateBulkControls);
+bulkTagsInput?.addEventListener("change", updateBulkControls);
 bulkApplyButton?.addEventListener("click", applyBulkAction);
 selectAllInput?.addEventListener("change", toggleVisibleSelection);
 [sortInput, statusFilter, assigneeFilter, clientFilter, projectFilter, tagFilter].forEach((input) => {
@@ -230,6 +236,7 @@ function populateFilters() {
     ...state.options.projects.map((project) => option(project.id, optionLabel(project))),
   ]);
   populateTagFilter();
+  populateBulkTagOptions();
   renderBulkAssigneeOptions();
 }
 
@@ -274,6 +281,22 @@ function renderBulkAssigneeOptions() {
   });
 
   bulkAssigneesControl.replaceChildren(...controls);
+}
+
+function populateBulkTagOptions() {
+  if (!bulkTagsInput || !bulkTagActionControl || !bulkTagsControl) {
+    return;
+  }
+
+  const tags = state.tagOptions || [];
+  const selectedIds = new Set(selectedBulkTagIds());
+  bulkTagActionControl.hidden = tags.length === 0;
+  bulkTagsControl.hidden = tags.length === 0;
+  bulkTagsInput.replaceChildren(...tags.map((tag) => {
+    const entry = option(tag.tag_id, tag.name || tag.slug);
+    entry.selected = selectedIds.has(tag.tag_id);
+    return entry;
+  }));
 }
 
 function renderTasks() {
@@ -718,6 +741,10 @@ function updateBulkControls() {
   bulkStatusControl?.removeAttribute("hidden");
   bulkPriorityControl?.removeAttribute("hidden");
   bulkAssigneeControl?.removeAttribute("hidden");
+  if ((state.tagOptions || []).length > 0) {
+    bulkTagActionControl?.removeAttribute("hidden");
+    bulkTagsControl?.removeAttribute("hidden");
+  }
 
   if (bulkApplyButton) {
     bulkApplyButton.disabled = selectedCount === 0 || !hasSelectedAction;
@@ -738,6 +765,8 @@ function selectedBulkActions(taskIds) {
   const status = bulkStatusInput?.value || "";
   const priority = bulkPriorityInput?.value || "";
   const assigneeIds = selectedBulkAssigneeIds();
+  const tagAction = bulkTagActionInput?.value || "";
+  const tagIds = selectedBulkTagIds();
 
   if (status) {
     actions.push({ action: "status", task_ids: taskIds, status });
@@ -751,12 +780,22 @@ function selectedBulkActions(taskIds) {
     actions.push({ action: "assignee_replace", task_ids: taskIds, assignee_ids: assigneeIds });
   }
 
+  if (tagAction && tagIds.length > 0) {
+    actions.push({ action: tagAction, task_ids: taskIds, tagIds });
+  }
+
   return actions;
 }
 
 function selectedBulkAssigneeIds() {
   return [...(bulkAssigneesControl?.querySelectorAll("input[type='checkbox']:checked") || [])]
     .map((input) => input.value)
+    .filter(Boolean);
+}
+
+function selectedBulkTagIds() {
+  return [...(bulkTagsInput?.selectedOptions || [])]
+    .map((option) => option.value)
     .filter(Boolean);
 }
 
@@ -770,6 +809,14 @@ function resetBulkInputs() {
   bulkAssigneesControl?.querySelectorAll("input[type='checkbox']").forEach((input) => {
     input.checked = false;
   });
+  if (bulkTagActionInput) {
+    bulkTagActionInput.value = "";
+  }
+  if (bulkTagsInput) {
+    [...bulkTagsInput.options].forEach((entry) => {
+      entry.selected = false;
+    });
+  }
 }
 
 function toggleVisibleSelection() {

@@ -62,6 +62,40 @@ Error responses:
 
 ## Endpoints By Module
 
+## API Key Scope Audit
+
+Version 0.33.5.2.9 audits the API key scope catalog without expanding public API route coverage. Workspace Admin and Super Admin users currently create keys from the same module-owned available scope catalog for enabled modules.
+
+Current visible scopes:
+
+| Scope | Owner | Access | Route coverage |
+| --- | --- | --- | --- |
+| `clients:read` | Client/Projects | Read | `GET /api/v1/clients`, `GET /api/v1/clients/:clientId` |
+| `projects:read` | Client/Projects | Read | `GET /api/v1/projects`, `GET /api/v1/projects/:projectId` |
+| `tasks:read` | Tasks | Read | `GET /api/v1/tasks`, `GET /api/v1/tasks/:taskId` |
+| `tasks:write` | Tasks | Write | Task create, update, complete, reopen, archive, and restore routes |
+| `time_entries:read` | Time Tracking | Read | `GET /api/v1/time-entries` |
+| `time_entries:write` | Time Tracking | Write | `POST /api/v1/time-entries` |
+
+Deferred scope gaps for the 0.33.5.3.x repair line:
+
+| Candidate scope | Owner | Intended status |
+| --- | --- | --- |
+| `clients:write` | Client/Projects | Add only with dedicated client write routes and permission regressions. |
+| `projects:write` | Client/Projects | Add only with dedicated project write routes and permission regressions. |
+| `files:read`, `files:write`, `files:download`, `files:delete`, `files:manage` | Framework Files service | Defer until public file route shape, storage safety, scanner metadata, and target access rules are explicit. |
+| `search:read` | Framework Search service | Defer until public search result shaping and permission pruning are specified. |
+| `notes:read`, `notes:write`, `notes:manage` | Notes | Defer until note access policy, secure note handling, revisions, collections, and linked-record behavior are mapped to public routes. |
+| `lists:read`, `lists:write`, `lists:manage` | Lists | Defer until list, item, reusable-list, catalog, and finalization operations have stable public contracts. |
+| `tags:read`, `tags:write`, `tags:assign`, `tags:manage` | Tags | Defer until tag assignment semantics, propagated/system preservation, and target permission checks are mapped to public routes. |
+| `notifications:read`, `notifications:write`, `notifications:manage` | Framework Notifications service | Defer until notification preference/default/event surfaces are intentionally public. |
+| `help:read` | Framework Help Center | Defer until Help discovery routes are intentionally public and documented. |
+| `settings:read`, `settings:write`, `discovery:read` | Framework settings/discovery | Keep internal unless a dedicated integration use case needs them. |
+
+Internal-only for now:
+
+- Audit logs, permission and role administration, module enablement, workspace ownership, API key management, search index rebuild/repair, raw file storage paths, scanner/quarantine details, secure-note internals, and notification delivery internals remain browser/admin surfaces rather than public API scopes.
+
 ### Clients and Projects
 
 - `GET /api/v1/clients` requires `clients:read`
