@@ -151,14 +151,14 @@ async function assertProtectedView(session) {
 
 async function assertNavigation(session) {
   const bootstrap = await appShellService.bootstrap(session);
-  const projectsMenu = bootstrap.navigation.find((item) => item.id === "projects" && Array.isArray(item.items));
-  const listsLink = flattenNavigation(projectsMenu?.items).find((item) => item.href === "lists.html");
+  const actionsMenu = bootstrap.navigation.find((item) => item.id === "actions" && Array.isArray(item.items));
+  const listsLink = flattenNavigation(actionsMenu?.items).find((item) => item.href === "lists.html");
 
   assert.ok(listsLink, "Lists should appear in authenticated navigation while enabled");
   assert.equal(listsLink.label, "Procurement Lists");
   assert.deepEqual(
-    projectsMenu.items.map((item) => item.label),
-    ["Time Keeping", "Tasks", "Notes", "Procurement Lists", "Files", "Project Settings"],
+    actionsMenu.items.map((item) => item.label),
+    ["Time Keeping", "Tasks", "Notes", "Procurement Lists", "Files", "Project Settings", "Reporting"],
   );
 }
 

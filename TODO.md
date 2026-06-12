@@ -13,16 +13,35 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
-- Make the "Reporting" menu a sub-menu of "Projects"
-  - I think I need a better name for "Projects" because this is where you access specific module interfaces per workspace.
-  - I think I need to consider moving Project Settings from Projects to Settings -> Workspace
-
 ## Task Tweaks
 
 - Projects -> Tasks
-  - Things I'd like to be able to bulk edit:
-    - [ ] Due date
+  - Things I'd like to be able to bulk edit (Add and Remove):
+    - [ ] Due date & Time (Can be clearable/set to NULL through bulk; Time should be optional/clearable as well)
+    - [ ] Tags
     - [ ] 
+
+- Add/Edit Tasks modal
+  - Tighten up overall white space
+  - Notifications should be moved to a single bell icon at the top; this isn't important enough to warrant using as much real estate as it does
+    - Put the bell right-aligned across from the Add/Edit Task heading
+  - Time to completion should only appear when the task is marked complete
+     - 
+  - Maximize the visual efficiency of the two-column layout of the current Add/Edit Task modal
+    - Any item that needs more space than the tightened two-column layout can provide can open a pop over that uses the full width of the modal until focus is changed; This piece might need some more brainstorming
+    - Title should remain full width across both columns
+      - Reduce the whitespace between Title and Heading/Notification Bell
+    - Column 1 should contain (in order):
+      - Client
+      - Project
+      - Status
+      - Priority
+      - Due Date / Due Time
+        - These two should be compressed into the first column
+    - Column 2 should contain (in order):
+      - Next Action
+      - Blocked Reason
+      - Resume Note
 
 ## Mobile Tweaks
 

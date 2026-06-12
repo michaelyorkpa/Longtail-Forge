@@ -1,3 +1,11 @@
+## Version 0.33.5.2.1.1 - 2026-06-12 10:12 -04:00
+
+- Renamed the authenticated app-shell top-level Projects menu to Actions.
+- Moved Project Settings and a Reporting slide-out directly under Actions, with Reporting keeping the single Reporting entry for now.
+- Preserved Clients under Settings -> Workspace and kept browser fallback navigation framework-owned until the app-shell bootstrap loads.
+- Added `scripts/app-shell-navigation-regression.mjs` for the Actions/Reporting app-shell shape and wired it into `npm run check`.
+- Bumped the app/package version to `0.33.5.2.1.1`.
+
 ## Version 0.33.5.2.1 - 2026-06-12 09:21 -04:00
 
 - Added Client/Projects-owned canonical client and project list shaping with active/default filters, explicit status filters, client/workspace project filters, flattened hierarchy ordering, tree payloads, depth metadata, display labels, and permission-safe sorting before shaping.

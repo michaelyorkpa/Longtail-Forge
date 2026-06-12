@@ -90,29 +90,29 @@ async function assertProtectedView(session) {
 
 async function assertNavigation(session) {
   const bootstrap = await appShellService.bootstrap(session);
-  const projectsMenu = bootstrap.navigation.find((item) => item.id === "projects" && Array.isArray(item.items));
+  const actionsMenu = bootstrap.navigation.find((item) => item.id === "actions" && Array.isArray(item.items));
   const settingsMenu = bootstrap.navigation.find((item) => item.id === "settings" && Array.isArray(item.items));
   const workspaceSettingsMenu = settingsMenu?.items?.find((item) => item.id === "workspace-settings-group");
   const topLevelNotesLink = bootstrap.navigation.find((item) => item.href === "notes.html");
   const topLevelProjectLink = bootstrap.navigation.find((item) => item.href === "projects.html");
-  const notesLink = flattenNavigation(projectsMenu?.items).find((item) => item.href === "notes.html");
-  const timeKeepingMenu = projectsMenu?.items?.find((item) => item.id === "time-keeping");
+  const notesLink = flattenNavigation(actionsMenu?.items).find((item) => item.href === "notes.html");
+  const timeKeepingMenu = actionsMenu?.items?.find((item) => item.id === "time-keeping");
 
-  assert.ok(projectsMenu, "Projects menu should appear in authenticated navigation");
-  assert.equal(topLevelNotesLink, undefined, "Notes should live under Projects instead of top-level navigation");
-  assert.equal(topLevelProjectLink, undefined, "Projects page should not duplicate the framework-owned Projects menu");
+  assert.ok(actionsMenu, "Actions menu should appear in authenticated navigation");
+  assert.equal(topLevelNotesLink, undefined, "Notes should live under Actions instead of top-level navigation");
+  assert.equal(topLevelProjectLink, undefined, "Project Settings should not duplicate the framework-owned Actions menu");
   assert.deepEqual(
-    projectsMenu.items.map((item) => item.label),
-    ["Time Keeping", "Tasks", "Notes", "Procurement Lists", "Files", "Project Settings"],
-    "Projects menu should keep the requested direct item order",
+    actionsMenu.items.map((item) => item.label),
+    ["Time Keeping", "Tasks", "Notes", "Procurement Lists", "Files", "Project Settings", "Reporting"],
+    "Actions menu should keep the requested direct item order",
   );
   assert.deepEqual(
     (timeKeepingMenu?.items || []).map((item) => item.label),
     ["Time Tracker", "Time Entries"],
     "Time Keeping should contain Time Tracker and Time Entries only",
   );
-  assert.equal(projectsMenu.items.some((item) => item.href === "clients.html"), false, "Clients should stay under Settings -> Workspace");
-  assert.equal(projectsMenu.items.some((item) => item.href === "time-tracker.html"), false, "Time Tracker should only appear inside Time Keeping");
+  assert.equal(actionsMenu.items.some((item) => item.href === "clients.html"), false, "Clients should stay under Settings -> Workspace");
+  assert.equal(actionsMenu.items.some((item) => item.href === "time-tracker.html"), false, "Time Tracker should only appear inside Time Keeping");
   assert.equal(flattenNavigation(workspaceSettingsMenu?.items).some((item) => item.href === "files.html"), false, "Files should not appear under Settings -> Workspace");
   assert.ok(notesLink, "Notes should appear in authenticated navigation while module is enabled");
   assert.equal(notesLink.label, "Notes");

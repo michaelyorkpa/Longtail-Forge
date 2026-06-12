@@ -311,6 +311,38 @@ Out of scope:
   - [x] Public API pagination.
   - [x] Workspace-type differences between business, personal, and family workspaces.
 
+### Version 0.33.5.2.1.1 - Main Navigation Actions Rename and Reporting Placement
+
+Goal:
+Apply the Short Term -> Main Navigation Update by making the top-level project-adjacent work menu read as "Actions" across current user-facing navigation/docs and moving Reporting under Actions.
+
+Implementation interpretation:
+- The original TODO line that mentioned "Projects" for Reporting placement was a typo; Reporting belongs directly under Actions.
+- The former top-level Projects menu becomes the top-level Actions menu.
+- There is no Projects submenu under Actions.
+- Reporting remains a slide-out menu with a single Reporting entry for now, but that slide-out lives directly under Actions instead of being top-level.
+- Clients remains under Settings -> Workspace and does not move into the Actions menu.
+
+- [x] Update the roadmap from the TODO Short Term -> Main Navigation Update.
+- [x] Rename the app-shell top-level Projects menu to Actions.
+- [x] Keep existing project-adjacent entries under Actions:
+  - [x] Time Keeping.
+  - [x] Tasks.
+  - [x] Notes.
+  - [x] Lists when enabled.
+  - [x] Files.
+  - [x] Project Settings.
+  - [x] Reporting.
+- [x] Move Project Settings directly under Actions.
+- [x] Move Reporting directly under Actions.
+- [x] Keep Reporting as a slide-out submenu with one Reporting entry for now.
+- [x] Preserve Clients under Settings -> Workspace.
+- [x] Add focused regression coverage for the app-shell navigation shape.
+- [x] Run focused navigation/app-shell regressions.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Update `CHANGELOG.md`, `DECISIONS.md`, package metadata, and TODO cleanup.
+
 ### Version 0.33.5.2.2 - Canonical Task Query and Work Item Summary Payloads
 
 Goal:
@@ -1002,6 +1034,7 @@ This release should add backend storage, service contracts, safe update hooks, a
 ## Version 0.33.6 - Reporting Module
 
 - Create a reporting module
+  - I believe, currently, reporting is hard coded. This needs to be fixed and aligned with the current product models and philosophies.
 
 ### Guidance for details in Reporting Module
 
@@ -1080,11 +1113,48 @@ This release should add backend storage, service contracts, safe update hooks, a
   - [ ] "Work this week"
   - [ ] "Review blocked work"
   - [ ] "Focus on a project"
-  - [ ] "Capture something"
 - [ ] Show one recommended next action before showing longer lists.
 - [ ] Keep secondary lists available but visually subordinate.
 - [ ] Avoid turning Workbench into another full module index.
 - [ ] Add empty states that suggest a useful next step instead of dead ends.
+
+### Version 0.33.7.6 - Quick Action Capture Utility Rail
+
+Decision:
+
+Quick Action Capture (QAC) is app-shell utility behavior, not a Workbench focus mode. It should provide low-distraction access to common capture and recovery tools without navigating away from the user’s current work surface. QAC should keep the user on the existing screen and simply open modals (where available). The basic concept is to: 
+
+- Reduce the likelihood of focus/workflow being interrupted 
+- Keep productivity focused 
+- Allow easy idea/concept/thought expungement without derailing the entire work train
+
+- [ ] Add a compact right-side Utility Rail on protected app pages.
+  - [ ] Should be icons + small text on wide screens, can be narrowed to strictly icons on narrow screens
+  - [ ] Should be available on ALL protected screens (not just the workbench)
+  - [ ] A single, drawer-style Quick Action Capture button should float on mobile
+    - [ ] The QAC menu drawer button should be an icon that indicates what it is, rather than words that would steal valuable screen real estate
+      - Action or Capture should be the main icon driver; Perhaps a fast moving runner? Is there an icon for that?
+
+- [ ] Rail actions should be contributed by enabled modules or mapped from registered module actions.
+  - Since we don't know if the user has an idea/thought to contribute to an existing, task, list, or note we should offer an initial modal that allows for finding of the item or creating a new one.
+  - [ ] Timer (Should open a modal capable of 2 timers, eventually; for now take you to time-tracker.html)
+    - [ ] Add documentation for 0.33.7.7 for creating the timer modal funcationality with a limit of 2 timers
+      - Within this documentation include instructions to redirect the QAC timer button to this new modal timer.
+  - [ ] Task (Should open a picker to find a task with a button to Add Task, then open the appropriate modal)
+  - [ ] Note (Should open a picker to find a note with a button to Add Note, then direct to the appropriate modal)
+  - [ ] List (Should open a picker to add an item to a list or add a list, then open the appropriate modal)
+  - [ ] Reporting (Should open a report creation modal, eventually; for now take you to reporting.html)
+    - [ ] Add documentation for 0.37.5 for creating the reporting modal
+  - [ ] File (Should open the Add file modal)
+  - [ ] Search (Should open an advanced search modal, eventually; for now take you to search.html)
+    - [ ] Add documentation for 0.33.7.8 for creating the advanced search modal functionality with a search result display modal
+      - Add documentation in 0.33.7.9 to update all search results to display in this modal, even searches from the main menu ribbon. Yes, this might be a complete overhaul of the search system (or at least a major extension of it) if this needs to go into its own ROADMAP version in 0.33.8, that's also fine. Evaluate at the time of building the documentation, please
+
+- [ ] Actions should open modals without changing the current page.
+- [ ] Actions should receive safe current-page context when available.
+- [ ] Actions must return focus to the triggering control when closed.
+- [ ] The rail must stay visually quiet unless opened by the user.
+- [ ] Do not use badges, alerts, or recommendation behavior in the rail; notifications and Workbench own those concerns.
 
 ## Version 0.34 - Knowledge Base Module
 

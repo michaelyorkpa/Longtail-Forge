@@ -113,8 +113,6 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
   const capabilities = workspaceContext.workspaceCapabilities || {};
   const workspaceType = workspaceContext.workspaceType || capabilities.workspaceType || "business";
   const availableTools = new Set(Array.isArray(capabilities.availableTools) ? capabilities.availableTools : []);
-  const modulesById = new Map((workspaceContext.modules || []).map((moduleDefinition) => [moduleDefinition.id, moduleDefinition]));
-  const clientProjectsLabel = moduleDisplayLabel(modulesById, "client-projects", "Projects");
   const moduleNavByHref = new Map(moduleNavigation.map((item) => [item.href, item]));
   const frameworkOwnedTopLevelHrefs = new Set(["time-tracker.html", "tasks.html", "projects.html", "clients.html", "reporting.html"]);
   const standaloneModuleNavigation = moduleNavigation.filter((item) => (
@@ -122,9 +120,9 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     !item.parent &&
     !frameworkOwnedTopLevelHrefs.has(item.href)
   ));
-  const projectsMenu = {
-    id: "projects",
-    label: clientProjectsLabel,
+  const actionsMenu = {
+    id: "actions",
+    label: "Actions",
     items: [],
   };
   const reportingMenu = {
@@ -143,18 +141,18 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
     items: [],
   };
 
-  addTimeKeepingNavigation(projectsMenu.items, moduleNavigation);
-  addModuleNavItem(projectsMenu.items, moduleNavByHref.get("tasks.html"));
-  addModuleNavItem(projectsMenu.items, moduleNavByHref.get("notes.html"));
-  addModuleNavItem(projectsMenu.items, moduleNavByHref.get("lists.html"));
-  projectsMenu.items.push({
+  addTimeKeepingNavigation(actionsMenu.items, moduleNavigation);
+  addModuleNavItem(actionsMenu.items, moduleNavByHref.get("tasks.html"));
+  addModuleNavItem(actionsMenu.items, moduleNavByHref.get("notes.html"));
+  addModuleNavItem(actionsMenu.items, moduleNavByHref.get("lists.html"));
+  actionsMenu.items.push({
     id: "files",
     label: "Files",
     href: "files.html",
   });
 
   if (availableTools.has("projects") || availableTools.has("clients_projects")) {
-    projectsMenu.items.push({
+    actionsMenu.items.push({
       id: "projects-settings",
       label: "Project Settings",
       href: "projects.html",
@@ -162,6 +160,9 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
   }
 
   addModuleNavItem(reportingMenu.items, moduleNavByHref.get("reporting.html"));
+  if (reportingMenu.items.length > 0) {
+    actionsMenu.items.push(reportingMenu);
+  }
 
   if (permissionHints.workspaceSettingsManage) {
     workspaceSettingsMenu.items.push({
@@ -230,8 +231,7 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
       href: item.href,
       moduleId: item.moduleId,
     })),
-    projectsMenu,
-    reportingMenu,
+    actionsMenu,
     settingsMenu,
   ].filter((item) => item.href || item.items?.length > 0);
 }
@@ -283,11 +283,6 @@ function addModuleNavItem(targetItems, item) {
     href: item.href,
     moduleId: item.moduleId,
   });
-}
-
-function moduleDisplayLabel(modulesById, moduleId, fallback) {
-  const moduleDefinition = modulesById.get(moduleId);
-  return moduleDefinition?.shortLabel || moduleDefinition?.displayName || moduleDefinition?.name || fallback;
 }
 
 function normalizeWorkspaceMemberships(memberships) {
