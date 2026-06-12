@@ -8,6 +8,42 @@ function taskNotificationTitle({ event }) {
   return event.new_value?.title || event.previous_value?.title || event.record_id || "Task";
 }
 
+async function markTaskActivityFromEvent(event, reason) {
+  const taskId = taskIdFromActivityEvent(event);
+  const workspaceId = event.workspace_id || event.session?.workspace_id || "";
+
+  if (!workspaceId || !taskId) {
+    return;
+  }
+
+  const [{ tasksRepository }, { searchIndexSyncService }] = await Promise.all([
+    import("./tasks.repo.js"),
+    import("../../services/search-index-sync.service.js"),
+  ]);
+  await tasksRepository.markWorkedAt(workspaceId, taskId, event.emitted_at || new Date().toISOString(), event.actor_user_id || "");
+  await searchIndexSyncService.reindexRecord({
+    workspaceId,
+    moduleId: "tasks",
+    recordType: "task",
+    recordId: taskId,
+    reason,
+  });
+}
+
+function taskIdFromActivityEvent(event = {}) {
+  const metadata = event.metadata || {};
+
+  if (metadata.module_id === "tasks" && metadata.target_type === "task") {
+    return metadata.target_id || "";
+  }
+
+  if (event.module_id === "tasks" && event.record_type === "task") {
+    return event.record_id || "";
+  }
+
+  return metadata.task_id || "";
+}
+
 const tasksModule = {
   id: "tasks",
   name: "Tasks",
@@ -24,7 +60,7 @@ const tasksModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.1.2",
+  version: "0.33.5.0.6",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -32,6 +68,30 @@ const tasksModule = {
   publicApiRoutes: [tasksPublicApiRoutes],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
   migrationsDir: null,
+  hooks: {
+    events: [
+      {
+        id: "tasks-file-attachment-activity",
+        event: "file.attachment.created",
+        handler: async ({ event }) => markTaskActivityFromEvent(event, "task.file_attachment_created"),
+      },
+      {
+        id: "tasks-file-attachment-removed-activity",
+        event: "file.attachment.removed",
+        handler: async ({ event }) => markTaskActivityFromEvent(event, "task.file_attachment_removed"),
+      },
+      {
+        id: "tasks-linked-note-created-activity",
+        event: "note.created",
+        handler: async ({ event }) => markTaskActivityFromEvent(event, "task.linked_note_created"),
+      },
+      {
+        id: "tasks-linked-note-updated-activity",
+        event: "note.updated",
+        handler: async ({ event }) => markTaskActivityFromEvent(event, "task.linked_note_updated"),
+      },
+    ],
+  },
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
   seedHooks: [],
   repairHooks: [],
@@ -238,6 +298,18 @@ const tasksModule = {
       label: "Task Recurrence Template",
       description: "Recurring task series templates and recurrence audit history.",
     },
+    {
+      recordType: "task_checklist_item",
+      moduleId: "tasks",
+      label: "Task Checklist Item",
+      description: "Lightweight checklist items owned by parent task records.",
+    },
+    {
+      recordType: "task_relationship",
+      moduleId: "tasks",
+      label: "Task Relationship",
+      description: "Parent/child task planning links and blocking relationship history.",
+    },
   ],
   taggableTypes: [
     {
@@ -388,6 +460,69 @@ const tasksModule = {
       description: "Reserved notification event for future task overdue checks.",
       recordType: "task",
     },
+    {
+      event: "task.checklist_item.created",
+      moduleId: "tasks",
+      label: "Task Checklist Item Created",
+      description: "Emitted after a checklist item is added to a task.",
+      recordType: "task_checklist_item",
+    },
+    {
+      event: "task.checklist_item.updated",
+      moduleId: "tasks",
+      label: "Task Checklist Item Updated",
+      description: "Emitted after a task checklist item label or state changes.",
+      recordType: "task_checklist_item",
+    },
+    {
+      event: "task.checklist_item.checked",
+      moduleId: "tasks",
+      label: "Task Checklist Item Checked",
+      description: "Emitted after a task checklist item is checked.",
+      recordType: "task_checklist_item",
+    },
+    {
+      event: "task.checklist_item.unchecked",
+      moduleId: "tasks",
+      label: "Task Checklist Item Unchecked",
+      description: "Emitted after a task checklist item is unchecked.",
+      recordType: "task_checklist_item",
+    },
+    {
+      event: "task.checklist_item.deleted",
+      moduleId: "tasks",
+      label: "Task Checklist Item Deleted",
+      description: "Emitted after a task checklist item is removed.",
+      recordType: "task_checklist_item",
+    },
+    {
+      event: "task.checklist_items.reordered",
+      moduleId: "tasks",
+      label: "Task Checklist Items Reordered",
+      description: "Emitted after task checklist item order changes.",
+      recordType: "task_checklist_item",
+    },
+    {
+      event: "task.relationship.created",
+      moduleId: "tasks",
+      label: "Task Relationship Created",
+      description: "Emitted after a parent/child task relationship is created.",
+      recordType: "task_relationship",
+    },
+    {
+      event: "task.relationship.updated",
+      moduleId: "tasks",
+      label: "Task Relationship Updated",
+      description: "Emitted after a parent/child task relationship changes.",
+      recordType: "task_relationship",
+    },
+    {
+      event: "task.relationship.removed",
+      moduleId: "tasks",
+      label: "Task Relationship Removed",
+      description: "Emitted after a parent/child task relationship is removed.",
+      recordType: "task_relationship",
+    },
   ],
   eventSummaries: [
     {
@@ -498,6 +633,87 @@ const tasksModule = {
         body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" is overdue.`,
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
         recipientHints: ["assignees"],
+      },
+    },
+    {
+      event: "task.checklist_item.created",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Checklist Updated",
+        summary: ({ event }) => `Added checklist item to task "${event.metadata?.task_title || event.metadata?.task_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.task_id || "")}`,
+      },
+    },
+    {
+      event: "task.checklist_item.updated",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Checklist Updated",
+        summary: ({ event }) => `Updated checklist item for task "${event.metadata?.task_title || event.metadata?.task_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.task_id || "")}`,
+      },
+    },
+    {
+      event: "task.checklist_item.checked",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Checklist Progress",
+        summary: ({ event }) => `Checked checklist item for task "${event.metadata?.task_title || event.metadata?.task_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.task_id || "")}`,
+      },
+    },
+    {
+      event: "task.checklist_item.unchecked",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Checklist Progress",
+        summary: ({ event }) => `Unchecked checklist item for task "${event.metadata?.task_title || event.metadata?.task_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.task_id || "")}`,
+      },
+    },
+    {
+      event: "task.checklist_item.deleted",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Checklist Updated",
+        summary: ({ event }) => `Removed checklist item from task "${event.metadata?.task_title || event.metadata?.task_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.task_id || "")}`,
+      },
+    },
+    {
+      event: "task.checklist_items.reordered",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Checklist Reordered",
+        summary: ({ event }) => `Reordered checklist items for task "${event.metadata?.task_title || event.metadata?.task_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.task_id || "")}`,
+      },
+    },
+    {
+      event: "task.relationship.created",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Relationship Added",
+        summary: ({ event }) => `Linked child task "${event.metadata?.child_title || event.metadata?.child_task_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.parent_task_id || "")}`,
+      },
+    },
+    {
+      event: "task.relationship.updated",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Relationship Updated",
+        summary: ({ event }) => `Updated child task relationship for "${event.metadata?.child_title || event.metadata?.child_task_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.parent_task_id || "")}`,
+      },
+    },
+    {
+      event: "task.relationship.removed",
+      moduleId: "tasks",
+      activity: {
+        label: "Task Relationship Removed",
+        summary: ({ event }) => `Removed child task relationship for "${event.metadata?.child_title || event.metadata?.child_task_id || "Task"}".`,
+        url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.metadata?.parent_task_id || "")}`,
       },
     },
   ],

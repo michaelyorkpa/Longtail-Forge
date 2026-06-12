@@ -8,14 +8,15 @@ const stopWatch = readText("public/js/stop-watch.js");
 const css = readText("public/css/longtail-forge.css");
 const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 
-["complete", "duplicate"].forEach((iconName) => {
+["bell", "complete", "duplicate"].forEach((iconName) => {
   assert.match(iconHelper, new RegExp(`${iconName}:\\s*Object\\.freeze`), `shared icon helper must include ${iconName} for Tasks row actions`);
 });
 
 assert.match(tasks, /window\.LongtailForge\.icons\?\.createIconButton/, "Tasks row actions must use the shared icon button helper");
 assert.match(tasks, /function taskActionIcon\(label\)/, "Tasks row action icons must be mapped through semantic labels");
 assert.match(tasks, /label === "Archive" \? "danger" : ""/, "Tasks archive row action must preserve danger styling");
-assert.match(tasks, /title:\s*label/, "Tasks icon-only row actions must preserve title text");
+assert.match(tasks, /title:\s*options\.title \|\| label/, "Tasks icon-only row actions must preserve title text");
+assert.match(tasks, /"Follow Notifications": "bell"/, "Tasks notification follow action must use the bell icon");
 
 assert.match(taskDialog, /function decorateTaskDialogControls\(\)/, "Task dialog must decorate task timer controls through a local helper");
 assert.match(taskDialog, /icons\.decorateButton\(fields\.timerStart,\s*\{ icon: "start"[\s\S]*text: "Start"[\s\S]*iconOnly: false/, "Task timer Start must be icon-plus-text");

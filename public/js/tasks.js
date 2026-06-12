@@ -317,26 +317,19 @@ function compareByProjectSortOrder(firstTask, secondTask, sortOrder) {
 
 function createTaskRow(task) {
   const row = document.createElement("tr");
-  const actionsRow = document.createElement("tr");
   const selectCell = document.createElement("td");
-  const titleCell = document.createElement("td");
-  const scopeCell = document.createElement("td");
-  const assigneeCell = document.createElement("td");
-  const statusCell = document.createElement("td");
-  const priorityCell = document.createElement("td");
-  const dueCell = document.createElement("td");
-  const actionsCell = document.createElement("td");
+  const contentCell = document.createElement("td");
   const checkbox = document.createElement("input");
   const titleButton = document.createElement("button");
-  const scopeText = formatScope(task);
+  const titleBand = document.createElement("div");
+  const titleWrap = document.createElement("div");
+  const metaBand = document.createElement("div");
+  const actionsBand = document.createElement("div");
 
   row.dataset.taskStatus = task.status || "open";
-  actionsRow.dataset.taskStatus = task.status || "open";
+  row.classList.add("task-density-row");
   row.classList.toggle("is-task-complete", task.status === "complete");
   row.classList.toggle("is-task-archived", task.status === "archived");
-  actionsRow.classList.toggle("is-task-complete", task.status === "complete");
-  actionsRow.classList.toggle("is-task-archived", task.status === "archived");
-  actionsRow.classList.add("task-actions-row");
 
   checkbox.type = "checkbox";
   checkbox.value = task.task_id;
@@ -357,29 +350,26 @@ function createTaskRow(task) {
   titleButton.className = "link-button";
   titleButton.textContent = task.title;
   titleButton.addEventListener("click", () => openTaskDialog(task));
-  titleCell.className = "task-title-cell";
-  titleCell.appendChild(titleButton);
-  appendTagChips(titleCell, task.tags);
-  appendAttachmentCount(titleCell, task);
-  scopeCell.className = "task-scope-cell";
-  scopeCell.textContent = scopeText;
-  scopeCell.title = scopeText;
-  const assigneeText = task.assignees?.length
-    ? task.assignees.map(displayUser).join(", ")
-    : "Unassigned";
-  assigneeCell.className = "task-assignee-cell";
-  assigneeCell.textContent = assigneeText;
-  assigneeCell.title = assigneeText;
-  statusCell.textContent = formatToken(task.status);
-  priorityCell.textContent = formatToken(task.priority);
-  dueCell.textContent = formatDue(task);
+  titleWrap.className = "task-title-wrap";
+  titleWrap.appendChild(titleButton);
+  appendAttachmentCount(titleWrap, task);
 
-  actionsCell.colSpan = 7;
-  actionsCell.appendChild(createActions(task));
+  titleBand.className = "task-density-title";
+  titleBand.appendChild(titleWrap);
+  appendTagChips(titleBand, task.tags);
 
-  row.append(selectCell, titleCell, scopeCell, assigneeCell, statusCell, priorityCell, dueCell);
-  actionsRow.appendChild(actionsCell);
-  return [row, actionsRow];
+  metaBand.className = "task-density-meta";
+  appendTaskMetadata(metaBand, task);
+  appendTaskContext(metaBand, task);
+
+  actionsBand.className = "task-density-actions";
+  actionsBand.appendChild(createActions(task));
+
+  contentCell.colSpan = 6;
+  contentCell.className = "task-density-cell";
+  contentCell.append(titleBand, metaBand, actionsBand);
+  row.append(selectCell, contentCell);
+  return [row];
 }
 
 function createActions(task) {
@@ -387,7 +377,10 @@ function createActions(task) {
   const editButton = actionButton("Edit", () => openTaskDialog(task));
   const duplicateButton = actionButton("Duplicate", () => duplicateTask(task));
   const copyButton = actionButton("Copy Link", () => copyTaskLink(task));
-  const followButton = actionButton("Follow Notifications", () => followTaskNotifications(task));
+  const followButton = actionButton("Follow Notifications", () => followTaskNotifications(task), {
+    icon: "bell",
+    title: "Follow notifications",
+  });
   const completeButton = task.status === "complete"
     ? actionButton("Reopen", () => postTaskAction(task, "reopen"))
     : actionButton("Complete", () => postTaskAction(task, "complete"));
@@ -400,12 +393,74 @@ function createActions(task) {
   return wrap;
 }
 
-function actionButton(label, handler) {
+function appendTaskMetadata(container, task) {
+  const assigneeText = task.assignees?.length
+    ? task.assignees.map(displayUser).join(", ")
+    : "Unassigned";
+  const items = [
+    { label: "Scope", value: formatScope(task), className: "task-scope-cell" },
+    { label: "Assignees", value: assigneeText, className: "task-assignee-cell" },
+    { label: "Status", value: formatToken(task.status) },
+    { label: "Priority", value: formatToken(task.priority) },
+    { label: "Due", value: formatDue(task) },
+  ];
+
+  items.forEach((item) => {
+    const node = document.createElement("span");
+    node.className = ["task-meta-item", item.className].filter(Boolean).join(" ");
+    node.textContent = `${item.label}: ${item.value}`;
+    node.title = `${item.label}: ${item.value}`;
+    container.appendChild(node);
+  });
+}
+
+function appendTaskContext(container, task) {
+  const chips = [];
+
+  if (task.next_action) {
+    chips.push({ label: "Next", value: task.next_action, className: "is-next" });
+  }
+
+  if (task.status === "blocked" && task.blocked_reason) {
+    chips.push({ label: "Blocked", value: task.blocked_reason, className: "is-blocked" });
+  }
+
+  const checklistText = checklistProgressText(task.checklistProgress);
+  if (checklistText) {
+    chips.push({ label: "Checklist", value: checklistText, className: "is-progress" });
+  }
+
+  const blockingText = blockingSummaryText(task.relationshipSummary);
+  if (blockingText) {
+    chips.push({ label: "Blocking", value: blockingText, className: "is-blocked" });
+  }
+
+  if (task.resume_note) {
+    chips.push({ label: "Resume", value: "Note saved", title: task.resume_note, className: "is-resume" });
+  }
+
+  if (chips.length === 0) {
+    return;
+  }
+
+  const summary = document.createElement("div");
+  summary.className = "task-context-summary";
+  chips.forEach((chip) => {
+    const node = document.createElement("span");
+    node.className = ["task-context-chip", chip.className].filter(Boolean).join(" ");
+    node.textContent = `${chip.label}: ${chip.value}`;
+    node.title = chip.title || `${chip.label}: ${chip.value}`;
+    summary.appendChild(node);
+  });
+  container.appendChild(summary);
+}
+
+function actionButton(label, handler, options = {}) {
   const button = window.LongtailForge.icons?.createIconButton
     ? window.LongtailForge.icons.createIconButton({
-      icon: taskActionIcon(label),
+      icon: options.icon || taskActionIcon(label),
       label,
-      title: label,
+      title: options.title || label,
       variant: label === "Archive" ? "danger" : "",
     })
     : document.createElement("button");
@@ -425,10 +480,32 @@ function taskActionIcon(label) {
     "Copy Link": "copy",
     Duplicate: "duplicate",
     Edit: "edit",
-    "Follow Notifications": "more",
+    "Follow Notifications": "bell",
     Reopen: "restore",
     Restore: "restore",
   }[label] || "more";
+}
+
+function checklistProgressText(progress = {}) {
+  const total = Number(progress.total_count) || 0;
+
+  if (total <= 0) {
+    return "";
+  }
+
+  const completed = Number(progress.completed_count) || 0;
+  const next = progress.next_incomplete_item_label ? `, next: ${progress.next_incomplete_item_label}` : "";
+  return `${completed}/${total}${next}`;
+}
+
+function blockingSummaryText(summary = {}) {
+  const blockers = Number(summary.incomplete_blocking_child_count) || 0;
+
+  if (blockers <= 0) {
+    return "";
+  }
+
+  return `${blockers} child${blockers === 1 ? "" : "ren"}`;
 }
 
 async function loadAttachmentCounts(tasks) {

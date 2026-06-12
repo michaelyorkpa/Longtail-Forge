@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 22, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 26, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -144,6 +144,26 @@ ORDER BY version;
     module_id: "lists",
     name: "add_list_links",
   });
+  assert.deepEqual(migrations[22], {
+    version: "053",
+    module_id: "core",
+    name: "add_task_resume_context_fields",
+  });
+  assert.deepEqual(migrations[23], {
+    version: "054",
+    module_id: "core",
+    name: "add_task_activity_metrics",
+  });
+  assert.deepEqual(migrations[24], {
+    version: "055",
+    module_id: "core",
+    name: "add_task_checklist_items",
+  });
+  assert.deepEqual(migrations[25], {
+    version: "056",
+    module_id: "core",
+    name: "add_task_relationships",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -192,8 +212,10 @@ ORDER BY name;
     "tag_assignments",
     "tags",
     "task_assignees",
+    "task_checklist_items",
     "task_recurrence_assignees",
     "task_recurrence_templates",
+    "task_relationships",
     "task_reminder_offsets",
     "tasks",
     "time_entries",
@@ -326,7 +348,14 @@ WHERE type = 'index'
     'idx_tag_assignments_unique_target_tag',
     'idx_tags_workspace_slug',
     'idx_tags_workspace_status',
+    'idx_task_checklist_items_task',
+    'idx_task_checklist_items_workspace_updated',
+    'idx_task_relationships_active_pair',
+    'idx_task_relationships_child',
+    'idx_task_relationships_parent',
     'idx_tasks_workspace_due_date',
+    'idx_tasks_workspace_last_worked_at',
+    'idx_tasks_workspace_resume_context',
     'idx_time_entries_workspace_task',
     'idx_user_workspaces_workspace_status',
     'idx_workspace_modules_workspace_status'
@@ -446,7 +475,14 @@ ORDER BY name;
     "idx_tag_assignments_unique_target_tag",
     "idx_tags_workspace_slug",
     "idx_tags_workspace_status",
+    "idx_task_checklist_items_task",
+    "idx_task_checklist_items_workspace_updated",
+    "idx_task_relationships_active_pair",
+    "idx_task_relationships_child",
+    "idx_task_relationships_parent",
     "idx_tasks_workspace_due_date",
+    "idx_tasks_workspace_last_worked_at",
+    "idx_tasks_workspace_resume_context",
     "idx_time_entries_workspace_task",
     "idx_user_workspaces_workspace_status",
     "idx_workspace_modules_workspace_status",

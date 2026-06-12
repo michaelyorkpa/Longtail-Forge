@@ -2248,13 +2248,73 @@ button.danger-button {
     text-align: left;
 }
 
+.task-density-row td {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    vertical-align: top;
+}
+
+.task-density-cell {
+    min-width: 0;
+}
+
+.task-density-title,
+.task-density-meta,
+.task-density-actions {
+    min-width: 0;
+}
+
+.task-density-title {
+    display: grid;
+    gap: 4px;
+}
+
+.task-title-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.task-title-wrap .link-button {
+    max-width: min(100%, 44rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.task-density-title .tag-chip-list {
+    gap: 4px;
+    margin: 0;
+}
+
+.task-density-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+    margin-top: 3px;
+    color: var(--color-muted);
+    font-size: 13px;
+    line-height: 1.25;
+}
+
+.task-meta-item {
+    min-width: 0;
+    max-width: 22rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .task-row-actions {
     display: flex;
     flex-wrap: nowrap;
-    justify-content: flex-start;
+    justify-content: flex-end;
     gap: 6px;
     overflow-x: auto;
-    padding: 0 0 10px 60px;
+    padding: 4px 0 0;
 }
 
 .task-row-actions button {
@@ -2267,21 +2327,23 @@ button.danger-button {
     padding: 0;
 }
 
-.task-actions-row td {
-    padding-top: 0;
-    border-top: 0;
+.task-context-summary {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-width: 0;
 }
 
-.task-table tr:not(.task-actions-row) td {
-    padding-bottom: 6px;
+.task-context-chip {
+    max-width: 24rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-muted);
 }
 
-.task-table tr:not(.task-actions-row) + .task-actions-row td {
-    border-bottom: 1px solid var(--color-border);
-}
-
-.task-title-cell {
-    min-width: 220px;
+.task-context-chip.is-blocked {
+    color: var(--color-danger);
 }
 
 .task-attachment-count {
@@ -2792,6 +2854,11 @@ dialog .form-actions {
 
 .task-form h2,
 .task-title-field,
+.task-next-action-field,
+.task-blocked-reason-field,
+.task-resume-note-field,
+.task-completion-field,
+.task-checklist-field,
 .task-assignee-field,
 .task-recurrence-field,
 .task-timer-field,
@@ -2804,6 +2871,50 @@ dialog .form-actions {
 
 .task-assignee-field select {
     min-height: 132px;
+}
+
+.task-completion-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    background: var(--color-page-bg);
+}
+
+.task-completion-field span {
+    color: var(--color-muted);
+}
+
+.task-checklist-field {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.task-checklist-field p {
+    margin: 0;
+    color: var(--color-muted);
+}
+
+.task-checklist-add-row,
+.task-checklist-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.task-checklist-item {
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+}
+
+.task-checklist-list {
+    display: grid;
+    gap: 8px;
 }
 
 .task-reminder-field,
@@ -4842,6 +4953,19 @@ button:disabled {
 
     .search-pagination button {
         flex: 1 1 0;
+    }
+
+    .task-density-meta {
+        gap: 3px 8px;
+    }
+
+    .task-scope-cell,
+    .task-assignee-cell {
+        max-width: 11rem;
+    }
+
+    .task-row-actions {
+        justify-content: flex-end;
     }
 
     .timer-count-control {

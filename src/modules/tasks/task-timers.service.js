@@ -4,6 +4,7 @@ import { tasksRepository } from "./tasks.repo.js";
 import { activeTimersService } from "../time-tracking/active-timers.service.js";
 import { modulesService } from "../../core/modules/modules.service.js";
 import { auditService } from "../../core/audit.js";
+import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
@@ -44,6 +45,7 @@ async function save(taskId, payload, session) {
     },
     timer_status: timerStatus,
   }, session);
+  await markTaskWorked(session, task.task_id, `task_timer_${timerStatus}`);
 
   return { timer: taskTimerFromUnified(result.timer, task) };
 }
@@ -54,6 +56,7 @@ async function remove(taskId, session) {
   const timer = await taskTimersRepository.readByTask(session.workspace_id, session.user_id, task.task_id);
   await activeTimersService.removeSourced(taskTimerSource(task), session);
   await revertTaskTimerStartTransition(task, timer, session);
+  await markTaskWorked(session, task.task_id, "task_timer_removed");
 
   return {
     task_id: task.task_id,
@@ -98,6 +101,7 @@ async function finalize(taskId, payload, session) {
       time_entry_id: result.entry_id,
     },
   });
+  await markTaskWorked(session, task.task_id, "task_timer_finalized");
 
   return {
     ...result,
@@ -181,6 +185,7 @@ async function transitionTaskToInProgressForTimerStart(task, existingTimer, sess
   const updatedTask = await tasksRepository.update(session.workspace_id, {
     ...task,
     status: "in_progress",
+    last_worked_at: new Date().toISOString(),
     updated_by_user_id: session.user_id,
     assignee_ids: task.assignee_ids,
   });
@@ -212,6 +217,7 @@ async function revertTaskTimerStartTransition(task, timer, session) {
   const updatedTask = await tasksRepository.update(session.workspace_id, {
     ...task,
     status: "open",
+    last_worked_at: new Date().toISOString(),
     updated_by_user_id: session.user_id,
     assignee_ids: task.assignee_ids,
   });
@@ -228,6 +234,17 @@ async function revertTaskTimerStartTransition(task, timer, session) {
   });
 
   return updatedTask;
+}
+
+async function markTaskWorked(session, taskId, reason) {
+  await tasksRepository.markWorkedAt(session.workspace_id, taskId, new Date().toISOString(), session.user_id);
+  await searchIndexSyncService.reindexRecord({
+    workspaceId: session.workspace_id,
+    moduleId: TASKS_MODULE_ID,
+    recordType: "task",
+    recordId: taskId,
+    reason,
+  });
 }
 
 function taskTimerTransitionMetadata(timer) {

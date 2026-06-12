@@ -33,7 +33,7 @@ assert.match(clientsProjects, /client\.tagIds = tagPicker\?\.readTagIds\?\.?\(\)
 assert.match(clientsProjects, /project\.tagIds = tagPicker\.readTagIds\(\)/, "Project edit workflow must save selected tag IDs");
 assert.match(clientsProjects, /tagIds:\s*tagPicker\.readTagIds\(\)/, "Project add workflow must save selected tag IDs");
 
-assert.match(tasksPage, /appendTagChips\(titleCell, task\.tags\)/, "Task list tag rendering must remain display-only");
+assert.match(tasksPage, /appendTagChips\(titleBand, task\.tags\)/, "Task list tag rendering must remain display-only");
 assert.match(timeEntriesPage, /renderTagList\(tagList, entry\.tags\)/, "Time Entries list tag rendering must remain display-only");
 assert.match(helper, /options\.allowCreate !== false/, "Shared picker must default to inline creation for record workflows");
 

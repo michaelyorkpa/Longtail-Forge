@@ -17,6 +17,22 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - I think I need a better name for "Projects" because this is where you access specific module interfaces per workspace.
   - I think I need to consider moving Project Settings from Projects to Settings -> Workspace
 
+## Task Tweaks
+
+- Projects -> Tasks
+  - Things I'd like to be able to bulk edit:
+    - [ ] Due date
+    - [ ] 
+
+## Mobile Tweaks
+
+- Projects -> Tasks
+  - Get rid of "Task Details" heading (mobile & desktop)
+    - It's right aligned and isn't necessary
+  - 
+  - Task name doesn't wrap and gets cut off
+    - Should truncate after a character limit
+
 ## Views/Lists/Queries/etc.
 
 - Audit the code sometime before the start of the Knowledge Base to ensure all front end/UI/views and lists/queries are owned by the proper modules and not hard-coded anywhere; I want total seperation of duties

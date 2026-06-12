@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { tasksRepository } from "./tasks.repo.js";
+import { taskChecklistsRepository } from "./task-checklists.repo.js";
 import { taskRecurrenceService } from "./task-recurrence.service.js";
+import { taskRelationshipsRepository } from "./task-relationships.repo.js";
 import { taskRemindersService } from "./task-reminders.service.js";
 import { taskTimersService } from "./task-timers.service.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
@@ -131,6 +133,7 @@ async function create(payload, session) {
       assignee_ids: defaultAssigneeIds,
     },
   });
+  normalizedTask.last_worked_at = new Date().toISOString();
 
   await permissionsService.assertCan(session, "tasks.create", taskResource(normalizedTask));
   await assertAssigneesEligible(session, normalizedTask);
@@ -195,6 +198,7 @@ async function update(taskId, payload, session) {
       updated_by_user_id: session.user_id,
     },
   });
+  normalizedTask.last_worked_at = new Date().toISOString();
 
   if (
     previousTask.client_id !== normalizedTask.client_id ||
@@ -204,6 +208,7 @@ async function update(taskId, payload, session) {
   }
 
   await assertStatusTransitionAllowed(session, previousTask, normalizedTask);
+  await assertBlockingChildrenAllowStatus(session, normalizedTask);
   await assertAssigneesEligible(session, normalizedTask);
 
   if (assigneesChanged(previousTask, normalizedTask)) {
@@ -267,6 +272,13 @@ async function update(taskId, payload, session) {
     newValue: taskWithDetails,
   });
   await syncTaskSearchIndex(session.workspace_id, taskWithDetails.task_id, "task.updated");
+  if (previousTask.status !== taskWithDetails.status) {
+    if (isIncompleteBlockingChild(taskWithDetails)) {
+      await blockParentsForIncompleteChild(session, taskWithDetails);
+    } else {
+      await recoverParentsAfterChildStatusChange(session, taskWithDetails);
+    }
+  }
   if (assigneesChanged(previousTask, taskWithDetails)) {
     await emitTaskEvent("task.assigned", {
       session,
@@ -291,6 +303,7 @@ async function complete(taskId, session) {
     status: "complete",
     completed_at: completedAt,
     completed_by_user_id: session.user_id,
+    last_worked_at: completedAt,
     updated_by_user_id: session.user_id,
     assignee_ids: previousTask.assignee_ids,
   }));
@@ -308,6 +321,7 @@ async function complete(taskId, session) {
     newValue: task,
   });
   await syncTaskSearchIndex(session.workspace_id, task.task_id, "task.completed");
+  await recoverParentsAfterChildStatusChange(session, task);
 
   const recurrenceResult = await taskRecurrenceService.createNextInstance({
     session,
@@ -363,6 +377,7 @@ async function reopen(taskId, session) {
     status: "open",
     completed_at: "",
     completed_by_user_id: "",
+    last_worked_at: new Date().toISOString(),
     updated_by_user_id: session.user_id,
     assignee_ids: previousTask.assignee_ids,
   }));
@@ -383,6 +398,7 @@ async function reopen(taskId, session) {
     },
   });
   await syncTaskSearchIndex(session.workspace_id, task.task_id, "task.reopened");
+  await blockParentsForIncompleteChild(session, task);
 
   return { task };
 }
@@ -398,6 +414,7 @@ async function archive(taskId, session) {
     status: "archived",
     archived_at: archivedAt,
     archived_by_user_id: session.user_id,
+    last_worked_at: archivedAt,
     updated_by_user_id: session.user_id,
     assignee_ids: previousTask.assignee_ids,
   }));
@@ -429,6 +446,7 @@ async function restore(taskId, session) {
     status: previousTask.completed_at ? "complete" : "open",
     archived_at: "",
     archived_by_user_id: "",
+    last_worked_at: new Date().toISOString(),
     updated_by_user_id: session.user_id,
     assignee_ids: previousTask.assignee_ids,
   }));
@@ -446,8 +464,211 @@ async function restore(taskId, session) {
     newValue: task,
   });
   await syncTaskSearchIndex(session.workspace_id, task.task_id, "task.restored");
+  if (task.status === "complete") {
+    await recoverParentsAfterChildStatusChange(session, task);
+  } else {
+    await blockParentsForIncompleteChild(session, task);
+  }
 
   return { task };
+}
+
+async function listRelationships(taskId, session) {
+  const task = await readTaskOrThrow(session.workspace_id, taskId);
+  await assertCanReadTask(session, task);
+
+  return {
+    relationships: await readableRelationshipsForTask(session, task.task_id),
+    relationshipSummary: await taskRelationshipsRepository.relationshipSummary(session.workspace_id, task.task_id),
+  };
+}
+
+async function addChildTask(parentTaskId, payload, session) {
+  await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const parentTask = await readTaskOrThrow(session.workspace_id, parentTaskId);
+  const childTask = await readTaskOrThrow(session.workspace_id, payload?.child_task_id || payload?.childTaskId);
+  await assertCanEditTask(session, parentTask);
+  await assertCanReadTask(session, childTask);
+  await assertCanRelateTasks(session, parentTask, childTask);
+
+  const existing = await taskRelationshipsRepository.readActivePair(session.workspace_id, parentTask.task_id, childTask.task_id);
+  const relationship = existing
+    ? await taskRelationshipsRepository.update(session.workspace_id, {
+      ...existing,
+      is_blocking: Boolean(payload?.is_blocking ?? payload?.blocking),
+      updated_by_user_id: session.user_id,
+    })
+    : await taskRelationshipsRepository.create(session.workspace_id, {
+      parent_task_id: parentTask.task_id,
+      child_task_id: childTask.task_id,
+      is_blocking: Boolean(payload?.is_blocking ?? payload?.blocking),
+      created_by_user_id: session.user_id,
+      updated_by_user_id: session.user_id,
+    });
+
+  if (relationship.is_blocking && isIncompleteBlockingChild(childTask)) {
+    await blockParentForChild(session, parentTask, childTask);
+  }
+
+  await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.relationship_added");
+  await syncTaskSearchIndex(session.workspace_id, childTask.task_id, "task.relationship_added");
+  await emitTaskRelationshipEvent("task.relationship.created", { session, relationship, parentTask, childTask });
+
+  return listRelationships(parentTask.task_id, session);
+}
+
+async function updateChildTaskRelationship(parentTaskId, childTaskId, payload, session) {
+  await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const parentTask = await readTaskOrThrow(session.workspace_id, parentTaskId);
+  const childTask = await readTaskOrThrow(session.workspace_id, childTaskId);
+  await assertCanEditTask(session, parentTask);
+  await assertCanReadTask(session, childTask);
+  const relationship = await readActiveRelationshipOrThrow(session.workspace_id, parentTask.task_id, childTask.task_id);
+  const updated = await taskRelationshipsRepository.update(session.workspace_id, {
+    ...relationship,
+    is_blocking: Boolean(payload?.is_blocking ?? payload?.blocking),
+    updated_by_user_id: session.user_id,
+  });
+
+  if (updated.is_blocking && isIncompleteBlockingChild(childTask)) {
+    await blockParentForChild(session, parentTask, childTask);
+  } else {
+    await recoverParentIfNoBlockingChildren(session, parentTask);
+  }
+
+  await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.relationship_updated");
+  await emitTaskRelationshipEvent("task.relationship.updated", { session, relationship: updated, parentTask, childTask });
+
+  return listRelationships(parentTask.task_id, session);
+}
+
+async function removeChildTaskRelationship(parentTaskId, childTaskId, session) {
+  await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const parentTask = await readTaskOrThrow(session.workspace_id, parentTaskId);
+  const childTask = await readTaskOrThrow(session.workspace_id, childTaskId);
+  await assertCanEditTask(session, parentTask);
+  const relationship = await readActiveRelationshipOrThrow(session.workspace_id, parentTask.task_id, childTask.task_id);
+  await taskRelationshipsRepository.remove(session.workspace_id, relationship.task_relationship_id, session.user_id);
+  await recoverParentIfNoBlockingChildren(session, parentTask);
+  await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.relationship_removed");
+  await syncTaskSearchIndex(session.workspace_id, childTask.task_id, "task.relationship_removed");
+  await emitTaskRelationshipEvent("task.relationship.removed", { session, relationship, parentTask, childTask });
+
+  return listRelationships(parentTask.task_id, session);
+}
+
+async function listChecklistItems(taskId, session) {
+  const task = await readTaskOrThrow(session.workspace_id, taskId);
+  await assertCanReadTask(session, task);
+
+  const items = await taskChecklistsRepository.readForTask(session.workspace_id, task.task_id);
+  return {
+    items,
+    checklistProgress: taskChecklistProgress(items),
+  };
+}
+
+async function addChecklistItem(taskId, payload, session) {
+  await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const task = await readTaskOrThrow(session.workspace_id, taskId);
+  await assertCanEditTask(session, task);
+
+  const item = await taskChecklistsRepository.create(session.workspace_id, task.task_id, {
+    label: normalizeChecklistLabel(payload?.label || payload?.title),
+    created_by_user_id: session.user_id,
+    updated_by_user_id: session.user_id,
+  });
+
+  return finalizeChecklistMutation({
+    session,
+    task,
+    action: "task_checklist_item_created",
+    eventName: "task.checklist_item.created",
+    previousItem: null,
+    item,
+  });
+}
+
+async function updateChecklistItem(taskId, itemId, payload, session) {
+  await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const task = await readTaskOrThrow(session.workspace_id, taskId);
+  await assertCanEditTask(session, task);
+  const previousItem = await readChecklistItemOrThrow(session.workspace_id, itemId, task.task_id);
+  const nextChecked = Object.hasOwn(payload || {}, "is_checked")
+    ? Boolean(payload.is_checked)
+    : Object.hasOwn(payload || {}, "checked")
+      ? Boolean(payload.checked)
+      : previousItem.is_checked;
+  const item = await taskChecklistsRepository.update(session.workspace_id, {
+    ...previousItem,
+    label: normalizeChecklistLabel(valueOrFallback(payload, "label", previousItem.label)),
+    is_checked: nextChecked,
+    completed_at: nextChecked
+      ? previousItem.completed_at || new Date().toISOString()
+      : "",
+    completed_by_user_id: nextChecked
+      ? previousItem.completed_by_user_id || session.user_id
+      : "",
+    updated_by_user_id: session.user_id,
+  });
+
+  return finalizeChecklistMutation({
+    session,
+    task,
+    action: "task_checklist_item_updated",
+    eventName: "task.checklist_item.updated",
+    previousItem,
+    item,
+  });
+}
+
+async function checkChecklistItem(taskId, itemId, session) {
+  return setChecklistItemChecked(taskId, itemId, true, session);
+}
+
+async function uncheckChecklistItem(taskId, itemId, session) {
+  return setChecklistItemChecked(taskId, itemId, false, session);
+}
+
+async function reorderChecklistItems(taskId, payload, session) {
+  await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const task = await readTaskOrThrow(session.workspace_id, taskId);
+  await assertCanEditTask(session, task);
+  const currentItems = await taskChecklistsRepository.readForTask(session.workspace_id, task.task_id);
+  const requestedIds = normalizeChecklistItemIds(payload?.item_ids || payload?.itemIds || []);
+  const currentIds = currentItems.map((item) => item.task_checklist_item_id);
+
+  if (requestedIds.length !== currentIds.length || requestedIds.some((itemId) => !currentIds.includes(itemId))) {
+    throw new AppError("Checklist reorder must include each active checklist item once.", 400);
+  }
+
+  const items = await taskChecklistsRepository.reorder(session.workspace_id, task.task_id, requestedIds, session.user_id);
+  return finalizeChecklistMutation({
+    session,
+    task,
+    action: "task_checklist_items_reordered",
+    eventName: "task.checklist_items.reordered",
+    previousItem: null,
+    item: null,
+    items,
+  });
+}
+
+async function deleteChecklistItem(taskId, itemId, session) {
+  await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const task = await readTaskOrThrow(session.workspace_id, taskId);
+  await assertCanEditTask(session, task);
+  const previousItem = await readChecklistItemOrThrow(session.workspace_id, itemId, task.task_id);
+  await taskChecklistsRepository.softDelete(session.workspace_id, previousItem.task_checklist_item_id, session.user_id);
+
+  return finalizeChecklistMutation({
+    session,
+    task,
+    action: "task_checklist_item_deleted",
+    eventName: "task.checklist_item.deleted",
+    previousItem,
+    item: null,
+  });
 }
 
 async function bulkUpdate(payload, session) {
@@ -690,6 +911,13 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
     project_id: scope.projectId,
     title,
     description: String(valueOrFallback(payload, "description", fallback.description) || "").trim(),
+    next_action: normalizeTaskContextText(valueOrFallback(payload, "next_action", fallback.next_action)),
+    blocked_reason: normalizeTaskContextText(valueOrFallback(payload, "blocked_reason", fallback.blocked_reason)),
+    resume_note: normalizeTaskContextText(
+      Object.hasOwn(payload || {}, "handoff_note")
+        ? payload.handoff_note
+        : valueOrFallback(payload, "resume_note", fallback.resume_note),
+    ),
     status,
     priority,
     billable,
@@ -704,6 +932,7 @@ async function normalizeTaskPayload({ payload = {}, session, fallback }) {
     recurrence_template_id: recurrenceTemplateId,
     recurrence_instance_date: recurrenceTemplateId ? recurrenceInstanceDate || dueDate : "",
     completed_at: preserveCompletedState ? fallback.completed_at || now : "",
+    last_worked_at: valueOrFallback(payload, "last_worked_at", fallback.last_worked_at) || now,
     created_by_user_id: fallback.created_by_user_id || session.user_id,
     updated_by_user_id: session.user_id,
     completed_by_user_id: preserveCompletedState ? fallback.completed_by_user_id || session.user_id : "",
@@ -858,6 +1087,138 @@ async function assertStatusTransitionAllowed(session, previousTask, nextTask) {
   }
 }
 
+async function assertBlockingChildrenAllowStatus(session, task) {
+  if (task.status !== "in_progress") {
+    return;
+  }
+
+  const blockingChildren = await taskRelationshipsRepository.readBlockingChildren(session.workspace_id, task.task_id);
+  const incomplete = blockingChildren.filter((relationship) => !isCompleteOrArchivedStatus(relationship.child_status));
+
+  if (incomplete.length > 0) {
+    throw new AppError("Task cannot move to In Progress while blocking child tasks are incomplete.", 400);
+  }
+}
+
+async function assertCanRelateTasks(session, parentTask, childTask) {
+  if (parentTask.task_id === childTask.task_id) {
+    throw new AppError("A task cannot be its own child.", 400);
+  }
+
+  if (parentTask.workspace_id !== childTask.workspace_id || parentTask.workspace_id !== session.workspace_id) {
+    throw new AppError("Task relationships must stay within the same workspace.", 400);
+  }
+
+  const settings = await settingsRepository.readWorkspaceSettings(session.workspace_id);
+  if (
+    settings.workspaceType === "business" &&
+    parentTask.client_id &&
+    childTask.client_id &&
+    parentTask.client_id !== childTask.client_id
+  ) {
+    throw new AppError("Parent and child tasks with client context must stay within the same client.", 400);
+  }
+
+  if (await taskRelationshipsRepository.hasPath(session.workspace_id, childTask.task_id, parentTask.task_id)) {
+    throw new AppError("Task relationship would create a circular reference.", 400);
+  }
+}
+
+async function readActiveRelationshipOrThrow(workspaceId, parentTaskId, childTaskId) {
+  const relationship = await taskRelationshipsRepository.readActivePair(workspaceId, parentTaskId, childTaskId);
+
+  if (!relationship) {
+    throw new AppError("Task relationship not found.", 404);
+  }
+
+  return relationship;
+}
+
+async function blockParentsForIncompleteChild(session, childTask) {
+  if (!isIncompleteBlockingChild(childTask)) {
+    return;
+  }
+
+  const relationships = await taskRelationshipsRepository.readParents(session.workspace_id, childTask.task_id);
+  for (const relationship of relationships.filter((item) => item.is_blocking)) {
+    const parentTask = await tasksRepository.readById(session.workspace_id, relationship.parent_task_id);
+    if (parentTask) {
+      await blockParentForChild(session, parentTask, childTask);
+    }
+  }
+}
+
+async function blockParentForChild(session, parentTask, childTask) {
+  if (isCompleteOrArchivedStatus(parentTask.status)) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const blockedReason = parentTask.blocked_reason ||
+    autoBlockedReason([childTask.title || childTask.task_id]);
+  await tasksRepository.update(session.workspace_id, {
+    ...parentTask,
+    status: "blocked",
+    blocked_reason: blockedReason,
+    last_worked_at: now,
+    updated_by_user_id: session.user_id,
+    assignee_ids: parentTask.assignee_ids || [],
+  });
+  await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.blocked_by_child");
+}
+
+async function recoverParentsAfterChildStatusChange(session, childTask) {
+  const relationships = await taskRelationshipsRepository.readParents(session.workspace_id, childTask.task_id);
+
+  for (const relationship of relationships.filter((item) => item.is_blocking)) {
+    const parentTask = await tasksRepository.readById(session.workspace_id, relationship.parent_task_id);
+    if (parentTask) {
+      await recoverParentIfNoBlockingChildren(session, parentTask);
+    }
+  }
+}
+
+async function recoverParentIfNoBlockingChildren(session, parentTask) {
+  if (parentTask.status !== "blocked") {
+    return;
+  }
+
+  const blockingChildren = await taskRelationshipsRepository.readBlockingChildren(session.workspace_id, parentTask.task_id);
+  const incomplete = blockingChildren.filter((relationship) => !isCompleteOrArchivedStatus(relationship.child_status));
+
+  if (incomplete.length > 0) {
+    return;
+  }
+
+  if (parentTask.blocked_reason && !parentTask.blocked_reason.startsWith("Blocked by incomplete child task")) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  await tasksRepository.update(session.workspace_id, {
+    ...parentTask,
+    status: "open",
+    blocked_reason: "",
+    last_worked_at: now,
+    updated_by_user_id: session.user_id,
+    assignee_ids: parentTask.assignee_ids || [],
+  });
+  await syncTaskSearchIndex(session.workspace_id, parentTask.task_id, "task.unblocked_by_child");
+}
+
+function isIncompleteBlockingChild(task) {
+  return !isCompleteOrArchivedStatus(task.status);
+}
+
+function isCompleteOrArchivedStatus(status) {
+  return status === "complete" || status === "archived";
+}
+
+function autoBlockedReason(childTitles) {
+  const label = childTitles.filter(Boolean).slice(0, 2).join(", ") || "blocking child task";
+  return `Blocked by incomplete child task: ${label}`;
+}
+
 function isOwnTask(session, task) {
   return task.created_by_user_id === session.user_id ||
     (task.assignee_ids || []).includes(session.user_id);
@@ -931,6 +1292,142 @@ async function readTaggedTaskWithDetails(session, taskId) {
   return attachTaskDetails((await tagsService.decorateRecordsForTarget(session, "task", [task]))[0]);
 }
 
+async function readableRelationshipsForTask(session, taskId) {
+  const relationships = await taskRelationshipsRepository.readForTask(session.workspace_id, taskId);
+  const readable = [];
+
+  for (const relationship of relationships) {
+    const isParentSide = relationship.parent_task_id === taskId;
+    const relatedTaskId = isParentSide ? relationship.child_task_id : relationship.parent_task_id;
+    const relatedTask = await tasksRepository.readById(session.workspace_id, relatedTaskId);
+    const canReadRelated = relatedTask ? await canReadTask(session, relatedTask) : false;
+
+    readable.push({
+      task_relationship_id: relationship.task_relationship_id,
+      direction: isParentSide ? "child" : "parent",
+      parent_task_id: relationship.parent_task_id,
+      child_task_id: relationship.child_task_id,
+      is_blocking: relationship.is_blocking,
+      related_task_id: relatedTaskId,
+      related_task_readable: canReadRelated,
+      related_task: canReadRelated && relatedTask
+        ? taskRelationshipTaskSummary(relatedTask)
+        : null,
+      created_at: relationship.created_at,
+      updated_at: relationship.updated_at,
+    });
+  }
+
+  return readable;
+}
+
+function taskRelationshipTaskSummary(task) {
+  return {
+    task_id: task.task_id,
+    title: task.title,
+    status: task.status,
+    client_id: task.client_id || "",
+    client_name: task.client_name || "",
+    project_id: task.project_id || "",
+    project_name: task.project_name || "",
+    url: taskUrl(task),
+  };
+}
+
+async function setChecklistItemChecked(taskId, itemId, checked, session) {
+  await assertModuleWriteEnabled(session, TASKS_MODULE_ID);
+  const task = await readTaskOrThrow(session.workspace_id, taskId);
+  await assertCanEditTask(session, task);
+  const previousItem = await readChecklistItemOrThrow(session.workspace_id, itemId, task.task_id);
+
+  if (previousItem.is_checked === checked) {
+    return {
+      item: previousItem,
+      task: await readTaggedTaskWithDetails(session, task.task_id),
+      items: await taskChecklistsRepository.readForTask(session.workspace_id, task.task_id),
+    };
+  }
+
+  const item = await taskChecklistsRepository.update(session.workspace_id, {
+    ...previousItem,
+    is_checked: checked,
+    completed_at: checked ? new Date().toISOString() : "",
+    completed_by_user_id: checked ? session.user_id : "",
+    updated_by_user_id: session.user_id,
+  });
+
+  return finalizeChecklistMutation({
+    session,
+    task,
+    action: checked ? "task_checklist_item_checked" : "task_checklist_item_unchecked",
+    eventName: checked ? "task.checklist_item.checked" : "task.checklist_item.unchecked",
+    previousItem,
+    item,
+  });
+}
+
+async function readChecklistItemOrThrow(workspaceId, itemId, taskId) {
+  const item = await taskChecklistsRepository.readById(workspaceId, decodeURIComponent(itemId || ""));
+
+  if (!item || item.task_id !== taskId || item.deleted_at) {
+    throw new AppError("Checklist item not found.", 404);
+  }
+
+  return item;
+}
+
+async function finalizeChecklistMutation({ session, task, action, eventName, previousItem, item, items = null }) {
+  const workedAt = new Date().toISOString();
+  await tasksRepository.markWorkedAt(session.workspace_id, task.task_id, workedAt, session.user_id);
+  const currentItems = items || await taskChecklistsRepository.readForTask(session.workspace_id, task.task_id);
+  const checklistProgress = taskChecklistProgress(currentItems);
+  const taskWithDetails = await readTaggedTaskWithDetails(session, task.task_id);
+  const nextItem = item || previousItem || currentItems[0] || {};
+
+  await auditService.record({
+    session,
+    action,
+    changeType: action.endsWith("_deleted") ? "delete" : action.endsWith("_created") ? "create" : "update",
+    recordType: "task_checklist_item",
+    recordId: nextItem.task_checklist_item_id || task.task_id,
+    recordLabel: nextItem.label || task.title,
+    recordUrl: taskUrl(task),
+    previousValue: previousItem,
+    newValue: item,
+    metadata: {
+      task_id: task.task_id,
+      task_title: task.title,
+      checklist_progress: checklistProgress,
+    },
+  });
+  await modulesService.emitInternalEvent(eventName, {
+    session,
+    moduleId: TASKS_MODULE_ID,
+    recordType: "task_checklist_item",
+    recordId: nextItem.task_checklist_item_id || task.task_id,
+    previousValue: previousItem,
+    newValue: item,
+    source: session?.api_key_id ? "public_api" : "manual",
+    metadata: {
+      task_id: task.task_id,
+      task_title: task.title,
+      target_type: "task",
+      target_id: task.task_id,
+      checklist_progress: checklistProgress,
+      item_count: checklistProgress.total_count,
+      completed_count: checklistProgress.completed_count,
+    },
+  });
+  await syncTaskSearchIndex(session.workspace_id, task.task_id, eventName);
+
+  return {
+    item,
+    items: currentItems,
+    checklistProgress,
+    task: taskWithDetails,
+  };
+}
+
 async function attachReminderDetails(tasks) {
   return Promise.all(tasks.map(attachTaskDetails));
 }
@@ -952,8 +1449,16 @@ async function attachTaskDetails(task) {
   }
 
   const taskWithReminders = await attachReminderDetailsToTask(task);
+  const checklistItems = await taskChecklistsRepository.readForTask(task.workspace_id, task.task_id);
+  const checklistProgress = taskChecklistProgress(checklistItems);
+  const relationshipSummary = await taskRelationshipsRepository.relationshipSummary(task.workspace_id, task.task_id);
   return {
     ...taskWithReminders,
+    checklistItems,
+    checklistProgress,
+    relationshipSummary,
+    completionMetrics: taskCompletionMetrics(taskWithReminders),
+    resumeContext: taskResumeContext({ ...taskWithReminders, checklistProgress, relationshipSummary }),
     recurrenceDetails: await taskRecurrenceService.readTaskRecurrenceDetails(taskWithReminders),
   };
 }
@@ -996,6 +1501,24 @@ function normalizeDueTime(value) {
 
 function normalizeAssigneeIds(assigneeIds) {
   return [...new Set((assigneeIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
+}
+
+function normalizeTaskContextText(value) {
+  return String(value || "").trim();
+}
+
+function normalizeChecklistLabel(value) {
+  const label = String(value || "").trim();
+
+  if (!label) {
+    throw new AppError("Checklist item label is required.", 400);
+  }
+
+  return label.slice(0, 240);
+}
+
+function normalizeChecklistItemIds(itemIds) {
+  return [...new Set((itemIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
 }
 
 function normalizeBillableFlag(value, fallback = "yes") {
@@ -1043,6 +1566,9 @@ function taskSummaryRow(task) {
   return {
     task_id: task.task_id,
     title: task.title,
+    next_action: task.next_action || "",
+    blocked_reason: task.status === "blocked" ? task.blocked_reason || "" : "",
+    resume_note: task.resume_note || "",
     status: task.status,
     priority: task.priority,
     billable: task.billable,
@@ -1050,12 +1576,17 @@ function taskSummaryRow(task) {
     due_time: task.due_time,
     due_timezone: task.due_timezone,
     due_at_utc: task.due_at_utc,
+    last_worked_at: task.last_worked_at || task.updated_at || task.created_at || "",
+    completionMetrics: taskCompletionMetrics(task),
+    checklistProgress: task.checklistProgress || emptyChecklistProgress(),
+    relationshipSummary: task.relationshipSummary || emptyRelationshipSummary(),
     client_id: task.client_id,
     client_name: task.client_name,
     project_id: task.project_id,
     project_name: task.project_name,
     assignee_ids: task.assignee_ids || [],
     url: taskUrl(task),
+    resumeContext: taskResumeContext(task),
   };
 }
 
@@ -1136,6 +1667,12 @@ async function recordTaskAudit({ session, action, changeType, previousValue, new
       project_id: newValue?.project_id || previousValue?.project_id || "",
       project_name: newValue?.project_name || previousValue?.project_name || "",
       assignee_ids: newValue?.assignee_ids || [],
+      next_action: newValue?.next_action || previousValue?.next_action || "",
+      blocked_reason: newValue?.blocked_reason || previousValue?.blocked_reason || "",
+      resume_note: newValue?.resume_note || previousValue?.resume_note || "",
+      checklist_progress: (newValue || previousValue)?.checklistProgress || emptyChecklistProgress(),
+      relationship_summary: (newValue || previousValue)?.relationshipSummary || emptyRelationshipSummary(),
+      resume_context: taskResumeContext(newValue || previousValue || {}),
     },
   });
 }
@@ -1156,7 +1693,38 @@ async function emitTaskEvent(eventName, { session, previousValue, newValue, meta
       client_id: task.client_id || "",
       project_id: task.project_id || "",
       status: task.status || "",
+      last_worked_at: task.last_worked_at || "",
+      completion_metrics: taskCompletionMetrics(task),
+      checklist_progress: task.checklistProgress || emptyChecklistProgress(),
+      relationship_summary: task.relationshipSummary || emptyRelationshipSummary(),
+      next_action: task.next_action || "",
+      blocked_reason: task.status === "blocked" ? task.blocked_reason || "" : "",
+      resume_note: task.resume_note || "",
+      resume_context: taskResumeContext(task),
       ...metadata,
+    },
+  });
+}
+
+async function emitTaskRelationshipEvent(eventName, { session, relationship, parentTask, childTask }) {
+  await modulesService.emitInternalEvent(eventName, {
+    session,
+    moduleId: TASKS_MODULE_ID,
+    recordType: "task_relationship",
+    recordId: relationship.task_relationship_id,
+    previousValue: null,
+    newValue: relationship,
+    source: session?.api_key_id ? "public_api" : "manual",
+    metadata: {
+      task_relationship_id: relationship.task_relationship_id,
+      parent_task_id: parentTask.task_id,
+      parent_title: parentTask.title,
+      child_task_id: childTask.task_id,
+      child_title: childTask.title,
+      is_blocking: relationship.is_blocking,
+      relationship_summary: taskRelationshipsRepository.relationshipSummary
+        ? await taskRelationshipsRepository.relationshipSummary(session.workspace_id, parentTask.task_id)
+        : emptyRelationshipSummary(),
     },
   });
 }
@@ -1231,6 +1799,18 @@ function taskAuditSummary(previousTask, nextTask) {
     changes.push(`due ${formatAuditDue(previousTask)} to ${formatAuditDue(nextTask)}`);
   }
 
+  if (previousTask?.next_action !== nextTask?.next_action) {
+    changes.push("next action");
+  }
+
+  if (previousTask?.blocked_reason !== nextTask?.blocked_reason) {
+    changes.push("blocked reason");
+  }
+
+  if (previousTask?.resume_note !== nextTask?.resume_note) {
+    changes.push("resume note");
+  }
+
   if (previousTask?.client_id !== nextTask?.client_id || previousTask?.project_id !== nextTask?.project_id) {
     changes.push(`scope ${formatAuditScope(previousTask)} to ${formatAuditScope(nextTask)}`);
   }
@@ -1264,16 +1844,126 @@ function formatAuditScope(task) {
   return task?.project_name || task?.client_name || "workspace";
 }
 
+function taskResumeContext(task = {}) {
+  const activeCandidate = !["complete", "archived"].includes(task.status || "");
+
+  return {
+    source_module_id: TASKS_MODULE_ID,
+    source_type: "task",
+    source_id: task.task_id || "",
+    source_label: task.title || "",
+    source_url: task.task_id ? taskUrl(task) : "",
+    status: task.status || "open",
+    last_worked_at: task.last_worked_at || task.updated_at || task.created_at || "",
+    completion_metrics: taskCompletionMetrics(task),
+    next_action: task.next_action || "",
+    blocked_reason: task.status === "blocked" ? task.blocked_reason || "" : "",
+    resume_note: task.resume_note || "",
+    checklist_progress: task.checklistProgress || emptyChecklistProgress(),
+    relationship_summary: task.relationshipSummary || emptyRelationshipSummary(),
+    active_candidate: activeCandidate,
+    client_id: task.client_id || "",
+    client_name: task.client_name || "",
+    project_id: task.project_id || "",
+    project_name: task.project_name || "",
+    updated_at: task.updated_at || "",
+  };
+}
+
+function taskChecklistProgress(items = []) {
+  const activeItems = Array.isArray(items) ? items.filter((item) => !item.deleted_at) : [];
+  const completedCount = activeItems.filter((item) => item.is_checked).length;
+  const nextIncomplete = activeItems.find((item) => !item.is_checked);
+
+  return {
+    total_count: activeItems.length,
+    completed_count: completedCount,
+    open_count: activeItems.length - completedCount,
+    next_incomplete_item_label: nextIncomplete?.label || "",
+    percent_complete: activeItems.length > 0 ? Math.round((completedCount / activeItems.length) * 100) : 0,
+  };
+}
+
+function emptyChecklistProgress() {
+  return taskChecklistProgress([]);
+}
+
+function emptyRelationshipSummary() {
+  return {
+    child_count: 0,
+    blocking_child_count: 0,
+    incomplete_blocking_child_count: 0,
+    parent_count: 0,
+    blocking_parent_count: 0,
+  };
+}
+
+function taskCompletionMetrics(task = {}) {
+  const createdAt = task.created_at || "";
+  const completedAt = task.completed_at || "";
+  const durationSeconds = completedAt ? secondsBetweenIso(createdAt, completedAt) : null;
+
+  return {
+    created_at: createdAt,
+    completed_at: completedAt,
+    duration_seconds: durationSeconds,
+    duration_label: durationSeconds === null ? "" : formatDurationLabel(durationSeconds),
+  };
+}
+
+function secondsBetweenIso(start, end) {
+  const startTime = Date.parse(start || "");
+  const endTime = Date.parse(end || "");
+
+  if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime < startTime) {
+    return null;
+  }
+
+  return Math.round((endTime - startTime) / 1000);
+}
+
+function formatDurationLabel(totalSeconds) {
+  const seconds = Math.max(0, Number(totalSeconds) || 0);
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  if (days > 0) {
+    return `${days}d ${hours}h`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m`;
+  }
+
+  return `${seconds}s`;
+}
+
 export const tasksService = {
+  addChecklistItem,
+  addChildTask,
   archive,
   bulkUpdate,
   calendarWindow,
+  checkChecklistItem,
   complete,
   create,
+  deleteChecklistItem,
   list,
+  listChecklistItems,
+  listRelationships,
   read,
   reopen,
+  removeChildTaskRelationship,
+  reorderChecklistItems,
   restore,
   summary,
+  uncheckChecklistItem,
   update,
+  updateChecklistItem,
+  updateChildTaskRelationship,
 };

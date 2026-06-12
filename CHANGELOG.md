@@ -1,9 +1,63 @@
+## Version 0.33.5.0.6 - 2026-06-12 07:25 -04:00
+
+- Converted the Projects -> Tasks list to a compact single-row-per-task layout with internal title, metadata/context, and right-aligned action bands.
+- Kept task names and tag chips tight in the first band while moving scope, assignees, status, priority, due date, next action, blocked state, checklist progress, blocking child count, and resume-note indicators into a compact metadata band.
+- Tightened mobile Scope and Assignee truncation so dense task rows stay scannable on narrow screens.
+- Changed the task-row "Follow Notifications" action to a bell icon and added the shared `bell` icon.
+- Added `scripts/task-list-density-regression.mjs` and wired it into `npm run check`.
+- Bumped the app/package and Tasks module versions to `0.33.5.0.6`.
+
+## Version 0.33.5.0.5 - 2026-06-12 07:12 -04:00
+
+- Added module-owned parent/child task relationship storage with active-pair uniqueness and parent/child lookup indexes.
+- Added task relationship service and browser API behavior for listing relationships, adding child tasks, toggling blocking status, and removing child links.
+- Added circular-reference, same-workspace, and business same-client validation while keeping configurable same-project/same-client policy deferred.
+- Added blocking child rules that move or keep parent tasks blocked while incomplete blocking children remain, preserve manual blocked reasons, and recover auto-blocked parents when blockers clear.
+- Exposed relationship summaries on task reads, summaries, Workbench task items, resume-safe payloads, audit/event metadata, and parent task search documents.
+- Added `scripts/task-relationships-regression.mjs` and wired it into `npm run check`.
+- Bumped the app/package and Tasks module versions to `0.33.5.0.5`.
+
+## Version 0.33.5.0.4 - 2026-06-11 17:31 -04:00
+
+- Added module-owned lightweight task checklist storage with item labels, checked state, completion metadata, ordering, and soft deletion.
+- Added task checklist service and browser API behavior for add, edit, reorder, check, uncheck, delete, and progress reads through the parent task permission boundary.
+- Added a Task detail modal checklist panel with progress text, next incomplete item context, inline item editing, checkboxes, reorder actions, and removal.
+- Exposed checklist progress on task reads, summaries, Workbench task items, resume-safe payloads, audit/event metadata, and parent task search documents without making checklist items independently taggable, assignable, timed, or searchable records.
+- Added `scripts/task-checklist-regression.mjs` and wired it into `npm run check`.
+- Bumped the app/package and Tasks module versions to `0.33.5.0.4`.
+
+## Version 0.33.5.0.3 - 2026-06-11 17:03 -04:00
+
+- Added `Weekdays` and `Weekends` recurrence frequency options below `Daily` in the Task detail recurrence dialog.
+- Encoded weekday/weekend recurrence templates as daily RRULEs with `BYDAY` filters while preserving `Daily` as seven-day recurrence behavior.
+- Updated recurrence parsing and next-instance generation so weekday tasks skip weekends and weekend tasks skip weekdays.
+- Added `scripts/task-recurrence-frequency-regression.mjs` and wired it into `npm run check`.
+- Bumped the app/package and Tasks module versions to `0.33.5.0.3`.
+
+## Version 0.33.5.0.2 - 2026-06-11 16:29 -04:00
+
+- Added task `last_worked_at` activity metadata with migration/index coverage and service/repository normalization.
+- Updated task edits, status changes, task timer start/pause/finalize/remove flows, linked-note events, and task file-attachment events to refresh task activity without adding Workbench ranking.
+- Added derived task completion metrics with duration seconds and display label for reporting-ready task reads and summaries.
+- Added a Task detail modal "Time to completion" display for completed and archived tasks.
+- Added `scripts/task-activity-metrics-regression.mjs` and wired it into `npm run check`.
+- Bumped the app/package and Tasks module versions to `0.33.5.0.2`.
+
+## Version 0.33.5.0.1 - 2026-06-11 16:12 -04:00
+
+- Added persisted task `next_action`, `blocked_reason`, and `resume_note` fields with a migration and task service/repository normalization.
+- Added Task detail modal controls for next action, blocked reason, and resume note, plus compact task-row context summaries.
+- Exposed task-owned resume-safe context through task reads, Dashboard summaries, Workbench task items, search indexing, audit metadata, and lifecycle event metadata without adding global resume-state storage.
+- Added `scripts/task-resume-context-regression.mjs` and wired it into `npm run check`.
+- Bumped the app/package and Tasks module versions to `0.33.5.0.1`.
+
 ## Version 0.33.4.8.1 - 2026-06-11 15:42 -04:00
 
 - Added Lists row/detail polish for description excerpts, permission-safe linked-record indicators, updated/finalized dates, and estimated/actual cost totals.
 - Added secondary item detail controls for vendor/store, URL, estimated cost, actual cost, tracking ID, and notes while keeping the quick item capture path compact.
 - Added `list_item_catalog` audit record declarations plus sanitized catalog create/update audit rows and lifecycle events.
 - Bumped the app/package and Lists module versions to `0.33.4.8.1` and updated Lists regressions/docs for the backlog reconciliation follow-up.
+- Documentation update 2026-06-11 15:57 -04:00: Split the upcoming 0.33.5.0 Tasks QoL roadmap into slice-worthy sub-versions and recorded the resume-hook planning boundary for future framework-owned resume state.
 
 ## Version 0.33.4.8 - 2026-06-11 15:42 -04:00
 

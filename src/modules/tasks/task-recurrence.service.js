@@ -2,7 +2,9 @@ import { taskRecurrenceRepository } from "./task-recurrence.repo.js";
 import { AppError } from "../../core/errors.js";
 import { normalizeUtcIso } from "../../utils/timezones.js";
 
-const FREQUENCIES = new Set(["DAILY", "WEEKLY", "MONTHLY"]);
+const FREQUENCIES = new Set(["DAILY", "WEEKDAYS", "WEEKENDS", "WEEKLY", "MONTHLY"]);
+const WEEKDAY_CODES = ["MO", "TU", "WE", "TH", "FR"];
+const WEEKEND_CODES = ["SA", "SU"];
 
 async function createTemplateFromTask({ session, task, recurrence }) {
   const normalized = normalizeRecurrencePayload(recurrence);
@@ -143,7 +145,7 @@ function normalizeRecurrencePayload(payload = {}, fallback = {}) {
   const endDate = normalizeDate(payload.endDate || payload.end_date || fallback.recurrence_end_date || "");
 
   if (!FREQUENCIES.has(frequency)) {
-    throw new AppError("Recurrence frequency must be daily, weekly, or monthly.", 400);
+    throw new AppError("Recurrence frequency must be daily, weekdays, weekends, weekly, or monthly.", 400);
   }
 
   return {
@@ -155,7 +157,14 @@ function normalizeRecurrencePayload(payload = {}, fallback = {}) {
 }
 
 function buildRRule({ frequency, interval, endDate }) {
-  const parts = [`FREQ=${frequency}`, `INTERVAL=${interval}`];
+  const rruleFrequency = frequency === "WEEKDAYS" || frequency === "WEEKENDS" ? "DAILY" : frequency;
+  const parts = [`FREQ=${rruleFrequency}`, `INTERVAL=${interval}`];
+
+  if (frequency === "WEEKDAYS") {
+    parts.push(`BYDAY=${WEEKDAY_CODES.join(",")}`);
+  } else if (frequency === "WEEKENDS") {
+    parts.push(`BYDAY=${WEEKEND_CODES.join(",")}`);
+  }
 
   if (endDate) {
     parts.push(`UNTIL=${endDate.replaceAll("-", "")}`);
@@ -173,8 +182,13 @@ function parseRRule(rrule = "") {
     return map;
   }, {});
 
+  const byDay = String(values.BYDAY || "")
+    .split(",")
+    .map((day) => day.trim().toUpperCase())
+    .filter(Boolean);
+
   return {
-    frequency: FREQUENCIES.has(values.FREQ) ? values.FREQ : "WEEKLY",
+    frequency: recurrenceFrequencyFromParts(values.FREQ, byDay),
     interval: Math.max(1, Number.parseInt(values.INTERVAL, 10) || 1),
     endDate: normalizeUntilDate(values.UNTIL || ""),
   };
@@ -188,7 +202,11 @@ function nextOccurrenceDate(currentDate, rrule, endDate) {
     return "";
   }
 
-  if (parsed.frequency === "DAILY") {
+  if (parsed.frequency === "WEEKDAYS") {
+    advanceToMatchingDay(date, parsed.interval, new Set([1, 2, 3, 4, 5]));
+  } else if (parsed.frequency === "WEEKENDS") {
+    advanceToMatchingDay(date, parsed.interval, new Set([0, 6]));
+  } else if (parsed.frequency === "DAILY") {
     date.setUTCDate(date.getUTCDate() + parsed.interval);
   } else if (parsed.frequency === "WEEKLY") {
     date.setUTCDate(date.getUTCDate() + (parsed.interval * 7));
@@ -200,6 +218,33 @@ function nextOccurrenceDate(currentDate, rrule, endDate) {
   const finalEndDate = normalizeDate(endDate || parsed.endDate || "");
 
   return finalEndDate && nextDate > finalEndDate ? "" : nextDate;
+}
+
+function recurrenceFrequencyFromParts(frequency, byDay) {
+  const normalizedFrequency = String(frequency || "").trim().toUpperCase();
+  const sortedByDay = [...new Set(byDay)].sort().join(",");
+
+  if (normalizedFrequency === "DAILY" && sortedByDay === [...WEEKDAY_CODES].sort().join(",")) {
+    return "WEEKDAYS";
+  }
+
+  if (normalizedFrequency === "DAILY" && sortedByDay === [...WEEKEND_CODES].sort().join(",")) {
+    return "WEEKENDS";
+  }
+
+  return FREQUENCIES.has(normalizedFrequency) ? normalizedFrequency : "WEEKLY";
+}
+
+function advanceToMatchingDay(date, interval, allowedDays) {
+  let matches = 0;
+
+  while (matches < interval) {
+    date.setUTCDate(date.getUTCDate() + 1);
+
+    if (allowedDays.has(date.getUTCDay())) {
+      matches += 1;
+    }
+  }
 }
 
 function normalizeDate(value) {

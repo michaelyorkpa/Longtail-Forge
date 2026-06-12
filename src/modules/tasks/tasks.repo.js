@@ -50,6 +50,9 @@ INSERT INTO tasks (
   project_id,
   title,
   description,
+  next_action,
+  blocked_reason,
+  resume_note,
   status,
   priority,
   billable,
@@ -68,6 +71,7 @@ INSERT INTO tasks (
   updated_by_user_id,
   completed_by_user_id,
   archived_by_user_id,
+  last_worked_at,
   created_at,
   updated_at
 )
@@ -78,6 +82,9 @@ VALUES (
   ${sqlNullableText(task.project_id)},
   ${sqlText(task.title)},
   ${sqlText(task.description)},
+  ${sqlText(task.next_action)},
+  ${sqlText(task.blocked_reason)},
+  ${sqlText(task.resume_note)},
   ${sqlText(task.status)},
   ${sqlText(task.priority)},
   ${sqlText(task.billable === "no" ? "no" : "yes")},
@@ -96,6 +103,7 @@ VALUES (
   ${sqlNullableText(task.updated_by_user_id)},
   ${sqlNullableText(task.completed_by_user_id)},
   ${sqlNullableText(task.archived_by_user_id)},
+  ${sqlNullableText(task.last_worked_at)},
   ${sqlText(now)},
   ${sqlText(now)}
 );
@@ -115,6 +123,9 @@ SET
   project_id = ${sqlNullableText(task.project_id)},
   title = ${sqlText(task.title)},
   description = ${sqlText(task.description)},
+  next_action = ${sqlText(task.next_action)},
+  blocked_reason = ${sqlText(task.blocked_reason)},
+  resume_note = ${sqlText(task.resume_note)},
   status = ${sqlText(task.status)},
   priority = ${sqlText(task.priority)},
   billable = ${sqlText(task.billable === "no" ? "no" : "yes")},
@@ -132,6 +143,7 @@ SET
   updated_by_user_id = ${sqlNullableText(task.updated_by_user_id)},
   completed_by_user_id = ${sqlNullableText(task.completed_by_user_id)},
   archived_by_user_id = ${sqlNullableText(task.archived_by_user_id)},
+  last_worked_at = ${sqlNullableText(task.last_worked_at)},
   updated_at = ${sqlText(now)}
 WHERE workspace_id = ${sqlText(workspaceId)}
   AND task_id = ${sqlText(task.task_id)};
@@ -237,6 +249,21 @@ ORDER BY users.username;
 `));
 }
 
+async function markWorkedAt(workspaceId, taskId, workedAt, userId = "") {
+  const timestamp = workedAt || new Date().toISOString();
+
+  await runSql(`
+UPDATE tasks
+SET last_worked_at = ${sqlText(timestamp)},
+    updated_by_user_id = COALESCE(${sqlNullableText(userId)}, updated_by_user_id),
+    updated_at = ${sqlText(timestamp)}
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND task_id = ${sqlText(taskId)};
+`);
+
+  return readById(workspaceId, taskId);
+}
+
 function taskSelectSql(whereSql) {
   return `
 SELECT
@@ -248,6 +275,9 @@ SELECT
   projects.name AS project_name,
   tasks.title,
   tasks.description,
+  tasks.next_action,
+  tasks.blocked_reason,
+  tasks.resume_note,
   tasks.status,
   tasks.priority,
   tasks.billable,
@@ -266,6 +296,7 @@ SELECT
   tasks.updated_by_user_id,
   tasks.completed_by_user_id,
   tasks.archived_by_user_id,
+  tasks.last_worked_at,
   tasks.created_at,
   tasks.updated_at
 FROM tasks
@@ -320,6 +351,9 @@ function taskRowToAppValue(row) {
     project_name: row.project_name || "",
     title: row.title,
     description: row.description || "",
+    next_action: row.next_action || "",
+    blocked_reason: row.blocked_reason || "",
+    resume_note: row.resume_note || "",
     status: row.status || "open",
     priority: row.priority || "normal",
     billable: row.billable === "no" ? "no" : "yes",
@@ -338,6 +372,7 @@ function taskRowToAppValue(row) {
     updated_by_user_id: row.updated_by_user_id || "",
     completed_by_user_id: row.completed_by_user_id || "",
     archived_by_user_id: row.archived_by_user_id || "",
+    last_worked_at: row.last_worked_at || row.updated_at || row.created_at || "",
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -358,5 +393,6 @@ export const tasksRepository = {
   readById,
   readByRecurrenceInstance,
   readDueBetween,
+  markWorkedAt,
   update,
 };

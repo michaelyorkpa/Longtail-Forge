@@ -43,6 +43,34 @@ tasksRoutes.get("/tasks/:taskId", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+tasksRoutes.get("/tasks/:taskId/checklist", asyncRoute(async (request, response) => {
+  const result = await tasksService.listChecklistItems(request.params.taskId, request.session);
+  response.status(200).json(result);
+}));
+
+tasksRoutes.get("/tasks/:taskId/relationships", asyncRoute(async (request, response) => {
+  const result = await tasksService.listRelationships(request.params.taskId, request.session);
+  response.status(200).json(result);
+}));
+
+tasksRoutes.post("/tasks/:taskId/children", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await tasksService.addChildTask(request.params.taskId, payload, request.session);
+  response.status(201).json(result);
+}));
+
+tasksRoutes.post("/tasks/:taskId/checklist", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await tasksService.addChecklistItem(request.params.taskId, payload, request.session);
+  response.status(201).json(result);
+}));
+
+tasksRoutes.post("/tasks/:taskId/checklist/reorder", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await tasksService.reorderChecklistItems(request.params.taskId, payload, request.session);
+  response.status(200).json(result);
+}));
+
 tasksRoutes.put("/tasks/:taskId", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await tasksService.update(request.params.taskId, payload, request.session);
@@ -66,6 +94,47 @@ tasksRoutes.post("/tasks/:taskId/archive", asyncRoute(async (request, response) 
 
 tasksRoutes.post("/tasks/:taskId/restore", asyncRoute(async (request, response) => {
   const result = await tasksService.restore(request.params.taskId, request.session);
+  response.status(200).json(result);
+}));
+
+tasksRoutes.put("/tasks/:taskId/children/:childTaskId", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await tasksService.updateChildTaskRelationship(
+    request.params.taskId,
+    request.params.childTaskId,
+    payload,
+    request.session,
+  );
+  response.status(200).json(result);
+}));
+
+tasksRoutes.delete("/tasks/:taskId/children/:childTaskId", asyncRoute(async (request, response) => {
+  const result = await tasksService.removeChildTaskRelationship(
+    request.params.taskId,
+    request.params.childTaskId,
+    request.session,
+  );
+  response.status(200).json(result);
+}));
+
+tasksRoutes.put("/tasks/:taskId/checklist/:itemId", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await tasksService.updateChecklistItem(request.params.taskId, request.params.itemId, payload, request.session);
+  response.status(200).json(result);
+}));
+
+tasksRoutes.post("/tasks/:taskId/checklist/:itemId/check", asyncRoute(async (request, response) => {
+  const result = await tasksService.checkChecklistItem(request.params.taskId, request.params.itemId, request.session);
+  response.status(200).json(result);
+}));
+
+tasksRoutes.post("/tasks/:taskId/checklist/:itemId/uncheck", asyncRoute(async (request, response) => {
+  const result = await tasksService.uncheckChecklistItem(request.params.taskId, request.params.itemId, request.session);
+  response.status(200).json(result);
+}));
+
+tasksRoutes.delete("/tasks/:taskId/checklist/:itemId", asyncRoute(async (request, response) => {
+  const result = await tasksService.deleteChecklistItem(request.params.taskId, request.params.itemId, request.session);
   response.status(200).json(result);
 }));
 

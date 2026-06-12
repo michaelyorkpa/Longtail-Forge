@@ -107,7 +107,13 @@
     }
     fields.dueDate.value = task?.due_date || defaults.dueDate || defaults.due_date || "";
     fields.dueTime.value = task?.due_time || defaults.dueTime || defaults.due_time || "";
+    fields.nextAction.value = task?.next_action || defaults.nextAction || defaults.next_action || "";
+    fields.blockedReason.value = task?.blocked_reason || defaults.blockedReason || defaults.blocked_reason || "";
+    fields.resumeNote.value = task?.resume_note || defaults.resumeNote || defaults.resume_note || "";
     fields.description.value = task?.description || defaults.description || "";
+    updateBlockedReasonState();
+    writeTaskCompletionFields(isDuplicate ? null : task);
+    writeChecklistFields(isDuplicate ? null : task);
     selectAssignees(task?.assignee_ids || (task ? [] : [currentUserId()]));
     writeRecurrenceFields(isDuplicate ? null : task?.recurrenceDetails);
     writeReminderFields(task?.reminderDetails);
@@ -150,6 +156,11 @@
       assignees: dialog.querySelector("[data-task-assignees]"),
       cancel: dialog.querySelector("[data-cancel-task]"),
       client: dialog.querySelector("[data-task-client]"),
+      checklistAdd: dialog.querySelector("[data-task-checklist-add]"),
+      checklistField: dialog.querySelector("[data-task-checklist-field]"),
+      checklistInput: dialog.querySelector("[data-task-checklist-input]"),
+      checklistList: dialog.querySelector("[data-task-checklist-list]"),
+      checklistStatus: dialog.querySelector("[data-task-checklist-status]"),
       copyLink: dialog.querySelector("[data-copy-task-link]"),
       description: dialog.querySelector("[data-task-description]"),
       dueDate: dialog.querySelector("[data-task-due-date]"),
@@ -172,6 +183,12 @@
       notificationField: dialog.querySelector("[data-task-notification-field]"),
       notificationFollow: dialog.querySelector("[data-task-notification-follow]"),
       notificationStatus: dialog.querySelector("[data-task-notification-status]"),
+      blockedReason: dialog.querySelector("[data-task-blocked-reason]"),
+      blockedReasonField: dialog.querySelector("[data-task-blocked-reason-field]"),
+      completionField: dialog.querySelector("[data-task-completion-field]"),
+      completionTime: dialog.querySelector("[data-task-completion-time]"),
+      nextAction: dialog.querySelector("[data-task-next-action]"),
+      resumeNote: dialog.querySelector("[data-task-resume-note]"),
       timerDisplay: dialog.querySelector("[data-task-timer-display]"),
       timerField: dialog.querySelector("[data-task-timer-field]"),
       timerFinalize: dialog.querySelector("[data-task-timer-finalize]"),
@@ -204,8 +221,12 @@
     fields.copyLink?.addEventListener("click", copyCurrentTaskLink);
     fields.client?.addEventListener("change", () => populateProjectInput(fields.project.value));
     fields.project?.addEventListener("change", applySelectedProjectTaskDefaults);
+    fields.status?.addEventListener("change", updateBlockedReasonState);
     fields.reminderOverride?.addEventListener("change", updateReminderOverrideState);
     fields.recurring?.addEventListener("change", updateRecurrenceState);
+    fields.checklistAdd?.addEventListener("click", addChecklistItem);
+    fields.checklistList?.addEventListener("click", handleChecklistClick);
+    fields.checklistList?.addEventListener("change", handleChecklistChange);
     fields.recurrenceDetails?.addEventListener("click", openRecurrenceDialog);
     fields.recurrence.cancel?.addEventListener("click", () => recurrenceDialog?.close());
     fields.recurrence.form?.addEventListener("submit", saveRecurrenceDraft);
@@ -331,6 +352,9 @@
       project_id: fields.project.value,
       due_date: fields.dueDate.value,
       due_time: fields.dueTime.value,
+      next_action: fields.nextAction.value,
+      blocked_reason: fields.blockedReason.value,
+      resume_note: fields.resumeNote.value,
       description: fields.description.value,
       assignee_ids: [...fields.assignees.selectedOptions].map((selected) => selected.value),
       recurrence: readRecurrencePayload(),
@@ -591,6 +615,159 @@
     }
   }
 
+  async function addChecklistItem() {
+    if (!currentTaskId || !fields.checklistInput) {
+      return;
+    }
+
+    const label = fields.checklistInput.value.trim();
+    if (!label) {
+      fields.checklistInput.focus();
+      return;
+    }
+
+    setStatus("Adding checklist item...");
+
+    try {
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist`, { label });
+      applyChecklistResult(result);
+      fields.checklistInput.value = "";
+      setStatus("");
+    } catch (error) {
+      setStatus(error.message || "Checklist item was not added.", { isError: true });
+    }
+  }
+
+  async function handleChecklistChange(event) {
+    const checkbox = event.target.closest("[data-task-checklist-toggle]");
+    if (!checkbox || !currentTaskId) {
+      return;
+    }
+
+    const itemId = checkbox.closest("[data-task-checklist-item]")?.dataset.taskChecklistItem || "";
+    if (!itemId) {
+      return;
+    }
+
+    const action = checkbox.checked ? "check" : "uncheck";
+    setStatus(checkbox.checked ? "Checking item..." : "Unchecking item...");
+
+    try {
+      applyChecklistResult(await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/${encodeURIComponent(itemId)}/${action}`, {}));
+      setStatus("");
+    } catch (error) {
+      checkbox.checked = !checkbox.checked;
+      setStatus(error.message || "Checklist item was not updated.", { isError: true });
+    }
+  }
+
+  async function handleChecklistClick(event) {
+    const button = event.target.closest("[data-task-checklist-action]");
+    if (!button || !currentTaskId) {
+      return;
+    }
+
+    const row = button.closest("[data-task-checklist-item]");
+    const itemId = row?.dataset.taskChecklistItem || "";
+    const action = button.dataset.taskChecklistAction;
+
+    if (!itemId) {
+      return;
+    }
+
+    if (action === "save") {
+      await saveChecklistItemLabel(row, itemId);
+    } else if (action === "delete") {
+      await deleteChecklistItem(row, itemId);
+    } else if (action === "up" || action === "down") {
+      await moveChecklistItem(itemId, action);
+    }
+  }
+
+  async function saveChecklistItemLabel(row, itemId) {
+    const input = row.querySelector("[data-task-checklist-label]");
+    const label = input?.value.trim() || "";
+
+    if (!label) {
+      input?.focus();
+      return;
+    }
+
+    setStatus("Saving checklist item...");
+
+    try {
+      applyChecklistResult(await api.putJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/${encodeURIComponent(itemId)}`, { label }));
+      setStatus("");
+    } catch (error) {
+      setStatus(error.message || "Checklist item was not saved.", { isError: true });
+    }
+  }
+
+  async function deleteChecklistItem(row, itemId) {
+    const label = row.querySelector("[data-task-checklist-label]")?.value || "this checklist item";
+    const confirmed = await modal.confirm({
+      title: "Remove checklist item",
+      message: `Remove "${label}" from this task?`,
+      confirmLabel: "Remove",
+      danger: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    setStatus("Removing checklist item...");
+
+    try {
+      applyChecklistResult(await api.deleteJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/${encodeURIComponent(itemId)}`));
+      setStatus("");
+    } catch (error) {
+      setStatus(error.message || "Checklist item was not removed.", { isError: true });
+    }
+  }
+
+  async function moveChecklistItem(itemId, direction) {
+    const items = [...(currentTask?.checklistItems || [])];
+    const index = items.findIndex((item) => item.task_checklist_item_id === itemId);
+    const nextIndex = direction === "up" ? index - 1 : index + 1;
+
+    if (index < 0 || nextIndex < 0 || nextIndex >= items.length) {
+      return;
+    }
+
+    const [item] = items.splice(index, 1);
+    items.splice(nextIndex, 0, item);
+    setStatus("Reordering checklist...");
+
+    try {
+      applyChecklistResult(await api.postJson(`/api/tasks/${encodeURIComponent(currentTaskId)}/checklist/reorder`, {
+        item_ids: items.map((candidate) => candidate.task_checklist_item_id),
+      }));
+      setStatus("");
+    } catch (error) {
+      setStatus(error.message || "Checklist was not reordered.", { isError: true });
+    }
+  }
+
+  function applyChecklistResult(result) {
+    if (result?.task) {
+      currentTask = result.task;
+      currentTaskId = result.task.task_id || currentTaskId;
+    } else if (currentTask) {
+      currentTask = {
+        ...currentTask,
+        checklistItems: result?.items || currentTask.checklistItems || [],
+        checklistProgress: result?.checklistProgress || currentTask.checklistProgress,
+      };
+    }
+
+    writeChecklistFields(currentTask);
+
+    if (typeof context?.onSaved === "function" && result?.task) {
+      context.onSaved(result);
+    }
+  }
+
   function readTaskTimerIneligibleReason(task) {
     const options = context?.options || defaultTaskOptions();
 
@@ -748,15 +925,28 @@
 
   function formatRecurrenceSummary(recurrence) {
     const interval = Number.parseInt(recurrence.interval, 10) || 1;
-    const frequency = String(recurrence.frequency || "WEEKLY").toLowerCase();
-    const unit = {
-      daily: "day",
-      weekly: "week",
-      monthly: "month",
-    }[frequency] || "week";
-    const cadence = interval === 1 ? `Every ${unit}` : `Every ${interval} ${unit}s`;
+    const frequency = String(recurrence.frequency || "WEEKLY").toUpperCase();
+    const cadence = recurrenceCadenceLabel(frequency, interval);
 
     return recurrence.endDate ? `${cadence} until ${recurrence.endDate}.` : `${cadence}.`;
+  }
+
+  function recurrenceCadenceLabel(frequency, interval) {
+    if (frequency === "WEEKDAYS") {
+      return interval === 1 ? "Every weekday" : `Every ${interval} weekdays`;
+    }
+
+    if (frequency === "WEEKENDS") {
+      return interval === 1 ? "Every weekend day" : `Every ${interval} weekend days`;
+    }
+
+    const unit = {
+      DAILY: "day",
+      WEEKLY: "week",
+      MONTHLY: "month",
+    }[frequency] || "week";
+
+    return interval === 1 ? `Every ${unit}` : `Every ${interval} ${unit}s`;
   }
 
   function writeReminderFields(details = {}) {
@@ -978,6 +1168,115 @@
     context?.hostContext?.setStatus?.(message, options);
   }
 
+  function updateBlockedReasonState() {
+    if (!fields?.blockedReasonField || !fields?.blockedReason) {
+      return;
+    }
+
+    const isBlocked = fields.status?.value === "blocked";
+    fields.blockedReasonField.hidden = !isBlocked;
+    fields.blockedReason.disabled = !isBlocked;
+
+    if (isBlocked && !fields.blockedReason.value.trim() && document.activeElement === fields.status) {
+      fields.blockedReason.focus();
+    }
+  }
+
+  function writeChecklistFields(task) {
+    if (!fields?.checklistField || !fields?.checklistList || !fields?.checklistStatus) {
+      return;
+    }
+
+    const canUseChecklist = Boolean(task?.task_id);
+    const items = task?.checklistItems || [];
+    const progress = task?.checklistProgress || checklistProgress(items);
+
+    fields.checklistInput.disabled = !canUseChecklist;
+    fields.checklistAdd.disabled = !canUseChecklist;
+    fields.checklistStatus.textContent = canUseChecklist
+      ? formatChecklistProgress(progress)
+      : "Save the task before adding checklist items.";
+    fields.checklistList.replaceChildren(...items.map((item, index) => checklistItemRow(item, index, items.length)));
+  }
+
+  function checklistItemRow(item, index, totalItems) {
+    const row = document.createElement("div");
+    row.className = "task-checklist-item";
+    row.dataset.taskChecklistItem = item.task_checklist_item_id;
+
+    const toggle = document.createElement("input");
+    toggle.type = "checkbox";
+    toggle.checked = Boolean(item.is_checked);
+    toggle.dataset.taskChecklistToggle = "true";
+    toggle.setAttribute("aria-label", `Mark ${item.label} complete`);
+
+    const label = document.createElement("input");
+    label.type = "text";
+    label.value = item.label || "";
+    label.maxLength = 240;
+    label.dataset.taskChecklistLabel = "true";
+    label.setAttribute("aria-label", "Checklist item label");
+
+    const save = checklistActionButton("save", "Save", "Save checklist item");
+    const up = checklistActionButton("up", "Up", "Move checklist item up");
+    const down = checklistActionButton("down", "Down", "Move checklist item down");
+    const remove = checklistActionButton("delete", "Remove", "Remove checklist item");
+    up.disabled = index === 0;
+    down.disabled = index >= totalItems - 1;
+
+    row.append(toggle, label, save, up, down, remove);
+    return row;
+  }
+
+  function checklistActionButton(action, text, label) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = text;
+    button.dataset.taskChecklistAction = action;
+    button.setAttribute("aria-label", label);
+    return button;
+  }
+
+  function formatChecklistProgress(progress) {
+    const total = Number(progress?.total_count) || 0;
+    const completed = Number(progress?.completed_count) || 0;
+    const nextLabel = progress?.next_incomplete_item_label || "";
+    const base = `${completed} / ${total} complete`;
+
+    return nextLabel ? `${base}. Next: ${nextLabel}` : base;
+  }
+
+  function checklistProgress(items = []) {
+    const activeItems = Array.isArray(items) ? items : [];
+    const completed = activeItems.filter((item) => item.is_checked).length;
+    const next = activeItems.find((item) => !item.is_checked);
+
+    return {
+      total_count: activeItems.length,
+      completed_count: completed,
+      next_incomplete_item_label: next?.label || "",
+    };
+  }
+
+  function writeTaskCompletionFields(task) {
+    if (!fields?.completionField || !fields?.completionTime) {
+      return;
+    }
+
+    const show = task?.status === "complete" || task?.status === "archived";
+    fields.completionField.hidden = !show;
+
+    if (!show) {
+      fields.completionTime.textContent = "";
+      return;
+    }
+
+    const metrics = task.completionMetrics || {};
+    fields.completionTime.textContent = metrics.duration_label
+      ? metrics.duration_label
+      : "Not completed";
+  }
+
   function defaultTaskOptions() {
     return {
       clients: [],
@@ -1001,6 +1300,11 @@
           <label>Project<select data-task-project></select></label>
           <label>Due Date<input type="date" data-task-due-date></label>
           <label>Due Time<input type="time" data-task-due-time></label>
+          <label class="task-next-action-field">Next action<input type="text" maxlength="240" data-task-next-action placeholder="Send draft invoice to CTU."></label>
+          <label class="task-blocked-reason-field" data-task-blocked-reason-field hidden>Blocked reason<textarea rows="3" data-task-blocked-reason></textarea></label>
+          <label class="task-resume-note-field">Resume note<textarea rows="3" data-task-resume-note placeholder="Where did you leave off?"></textarea></label>
+          <div class="task-completion-field" data-task-completion-field hidden><span>Time to completion</span><strong data-task-completion-time></strong></div>
+          <fieldset class="task-checklist-field" data-task-checklist-field><legend>Checklist</legend><p data-task-checklist-status>0 / 0 complete</p><div class="task-checklist-add-row"><input type="text" maxlength="240" data-task-checklist-input placeholder="Add checklist item"><button type="button" data-task-checklist-add>Add</button></div><div class="task-checklist-list" data-task-checklist-list></div></fieldset>
           <label class="task-assignee-field">Assignees<select multiple data-task-assignees></select></label>
           <details class="task-recurrence-field" data-task-recurrence-panel><summary>Recurrence</summary><div class="task-recurrence-controls"><label class="inline-option"><input type="checkbox" data-task-recurring>Recurring?</label><button type="button" data-task-recurrence-details disabled>Details</button></div><p data-task-recurrence-summary>Not recurring.</p></details>
           <fieldset class="task-timer-field" data-task-timer-field hidden><legend>Task Timer</legend><p data-task-timer-status>No active timer.</p><div class="task-timer-controls"><strong data-task-timer-display>00:00:00</strong><button type="button" data-task-timer-start>Start</button><button type="button" data-task-timer-pause disabled>Pause</button><button type="button" data-task-timer-finalize disabled>Save Time</button><button type="button" data-task-timer-reset disabled>Reset</button></div></fieldset>
@@ -1015,7 +1319,7 @@
       <dialog class="task-recurrence-dialog" data-task-recurrence-dialog>
         <form method="dialog" class="task-recurrence-form" data-task-recurrence-form>
           <h2>Recurrence</h2>
-          <label>Frequency<select data-task-recurrence-frequency><option value="DAILY">Daily</option><option value="WEEKLY" selected>Weekly</option><option value="MONTHLY">Monthly</option></select></label>
+          <label>Frequency<select data-task-recurrence-frequency><option value="DAILY">Daily</option><option value="WEEKDAYS">Weekdays</option><option value="WEEKENDS">Weekends</option><option value="WEEKLY" selected>Weekly</option><option value="MONTHLY">Monthly</option></select></label>
           <label>Every<input type="number" min="1" step="1" value="1" data-task-recurrence-interval></label>
           <label>End Date<input type="date" data-task-recurrence-end-date></label>
           <div class="form-actions task-modal-actions"><button type="button" data-task-recurrence-cancel>Cancel</button><button type="submit">Save Recurrence</button></div>
