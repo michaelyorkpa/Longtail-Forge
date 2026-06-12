@@ -108,7 +108,7 @@ function fileRow(attachment) {
 
     deleteButton.type = "button";
     deleteButton.textContent = "Delete";
-    deleteButton.addEventListener("click", () => deleteFile(fileId));
+    deleteButton.addEventListener("click", () => deleteFile(fileId, file));
     actions.appendChild(deleteButton);
   }
   if (fileId && file.status === "deleted") {
@@ -125,7 +125,18 @@ function fileRow(attachment) {
   return row;
 }
 
-async function deleteFile(fileId) {
+async function deleteFile(fileId, file = {}) {
+  const confirmed = await window.LongtailForge.modal.confirm({
+    title: "Delete file?",
+    message: `Delete "${file.displayName || file.originalFilename || "this file"}"? The file will be unavailable from attachments, but workspace admins can restore it during the retention window.`,
+    confirmLabel: "Delete File",
+    danger: true,
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
   setStatus("Deleting file...");
 
   try {

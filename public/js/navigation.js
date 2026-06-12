@@ -11,6 +11,7 @@ const NAV_ITEMS = [
         label: "Workspace",
         items: [
           { label: "Workspace Settings", href: "workspace-settings.html" },
+          { label: "Files", href: "files-settings.html" },
           { label: "User Admin", href: "user-admin.html" },
           { label: "API Keys", href: "api-keys.html" },
           { label: "Audit Log", href: "audit-log.html" },

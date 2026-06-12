@@ -22,6 +22,7 @@ const DEFAULT_ALLOWED_VISIBILITY = new Set(["private", "workspace", "client"]);
 const DEFAULT_ATTACHMENT_LIMIT = 50;
 const MAX_ATTACHMENT_LIMIT = 200;
 const ATTACHMENT_SORT_MODES = new Set(["newest", "oldest", "filename", "size", "status"]);
+const FILE_TYPE_POLICY_MODES = new Set(["safe_default", "allowlist", "blocklist"]);
 const ALLOWED_EXTENSIONS = new Map([
   [".csv", { category: "spreadsheet", mime: "text/csv", risky: false }],
   [".doc", { category: "document", mime: "application/msword", risky: true }],
@@ -38,6 +39,40 @@ const ALLOWED_EXTENSIONS = new Map([
   [".xls", { category: "spreadsheet", mime: "application/vnd.ms-excel", risky: true }],
   [".xlsx", { category: "spreadsheet", mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", risky: true }],
   [".zip", { category: "archive", mime: "application/zip", risky: true }],
+]);
+const DEFAULT_SAFE_ALLOWED_EXTENSIONS = Object.freeze([
+  ".csv",
+  ".doc",
+  ".docx",
+  ".gif",
+  ".jpg",
+  ".jpeg",
+  ".md",
+  ".pdf",
+  ".png",
+  ".ppt",
+  ".pptx",
+  ".txt",
+  ".xls",
+  ".xlsx",
+]);
+const DEFAULT_BLOCKED_EXTENSIONS = Object.freeze([
+  ".exe",
+  ".bat",
+  ".cmd",
+  ".com",
+  ".msi",
+  ".ps1",
+  ".sh",
+  ".js",
+  ".vbs",
+  ".jar",
+  ".dll",
+  ".zip",
+  ".rar",
+  ".7z",
+  ".tar",
+  ".gz",
 ]);
 
 const storageAdapters = new Map([
@@ -135,7 +170,8 @@ async function uploadAndAttach(session, payload = {}) {
     const target = await readAttachableTarget(session.workspace_id, attachableType, payload.targetId);
     await assertCanUseAttachableTarget(session, attachableType, "upload", target);
 
-    const prepared = prepareUpload(payload, attachableType);
+    const fileSettings = await readWorkspaceFileSettingsForWorkspace(session.workspace_id);
+    const prepared = prepareUpload(payload, attachableType, fileSettings);
     const storageAdapter = getFileStorageAdapter("local");
     const storage = await storageAdapter.save(prepared.buffer, { workspaceId: session.workspace_id });
     const file = await createFileRecord(session, {
@@ -773,6 +809,80 @@ DO UPDATE SET
   return readStorageAccounting(session, { storageKind: "external" });
 }
 
+async function readWorkspaceFileSettings(session) {
+  await permissionsService.assertCan(session, "files.manage_workspace_settings", {
+    workspace_id: session.workspace_id,
+    operation: "read",
+  });
+
+  const settings = await readWorkspaceFileSettingsForWorkspace(session.workspace_id);
+  const accounting = await readStorageAccounting(session);
+
+  return {
+    accounting,
+    settings: shapeWorkspaceFileSettings(settings),
+  };
+}
+
+async function saveWorkspaceFileSettings(session, payload = {}) {
+  await permissionsService.assertCan(session, "files.manage_workspace_settings", {
+    workspace_id: session.workspace_id,
+    operation: "update",
+  });
+
+  const previous = await readWorkspaceFileSettingsForWorkspace(session.workspace_id);
+  const next = normalizeWorkspaceFileSettingsPayload(payload, previous);
+  const now = new Date().toISOString();
+
+  await runSql(`
+INSERT INTO file_workspace_settings (
+  workspace_id,
+  file_type_policy_mode,
+  allowed_extensions_json,
+  blocked_extensions_json,
+  internal_storage_limit_bytes,
+  per_user_storage_limit_bytes,
+  created_at,
+  updated_at,
+  metadata_json
+)
+VALUES (
+  ${sqlText(session.workspace_id)},
+  ${sqlText(next.fileTypePolicyMode)},
+  ${sqlText(JSON.stringify(next.allowedExtensions))},
+  ${sqlText(JSON.stringify(next.blockedExtensions))},
+  ${sqlNullableInteger(next.internalStorageLimitBytes)},
+  ${sqlNullableInteger(next.perUserStorageLimitBytes)},
+  ${sqlText(now)},
+  ${sqlText(now)},
+  ${sqlText(JSON.stringify({ source: "files_settings" }))}
+)
+ON CONFLICT (workspace_id)
+DO UPDATE SET
+  file_type_policy_mode = excluded.file_type_policy_mode,
+  allowed_extensions_json = excluded.allowed_extensions_json,
+  blocked_extensions_json = excluded.blocked_extensions_json,
+  internal_storage_limit_bytes = excluded.internal_storage_limit_bytes,
+  per_user_storage_limit_bytes = excluded.per_user_storage_limit_bytes,
+  updated_at = excluded.updated_at,
+  metadata_json = excluded.metadata_json;
+`);
+
+  const saved = await readWorkspaceFileSettingsForWorkspace(session.workspace_id);
+  await recordFileAudit(session, {
+    action: "file.workspace_settings_updated",
+    changeType: "settings_change",
+    recordId: session.workspace_id,
+    recordLabel: "Files settings",
+    metadata: {
+      next: shapeWorkspaceFileSettings(saved),
+      previous: shapeWorkspaceFileSettings(previous),
+    },
+  });
+
+  return readWorkspaceFileSettings(session);
+}
+
 async function reportFile(session, fileId, payload = {}) {
   const file = await readFileRow(session.workspace_id, fileId);
 
@@ -1252,7 +1362,7 @@ LIMIT 1;
   return rows[0];
 }
 
-function prepareUpload(payload = {}, attachableType = {}) {
+function prepareUpload(payload = {}, attachableType = {}, fileSettings = defaultWorkspaceFileSettings("")) {
   const originalFilename = sanitizeFilename(payload.originalFilename || payload.filename || "");
   const extension = path.extname(originalFilename).toLowerCase();
   const extensionRule = ALLOWED_EXTENSIONS.get(extension);
@@ -1260,6 +1370,7 @@ function prepareUpload(payload = {}, attachableType = {}) {
   if (!extensionRule) {
     throw new AppError("That file extension is not allowed.", 400);
   }
+  assertExtensionAllowedByWorkspacePolicy(extension, fileSettings);
   if (!isCategoryAllowed(extensionRule.category, attachableType.allowedFileCategories)) {
     throw new AppError("That file category is not allowed for this record type.", 400);
   }
@@ -1362,6 +1473,48 @@ LIMIT 1;
 `);
 
   return rows[0] || null;
+}
+
+async function readWorkspaceFileSettingsForWorkspace(workspaceId) {
+  const rows = await querySql(`
+SELECT *
+FROM file_workspace_settings
+WHERE workspace_id = ${sqlText(workspaceId)}
+LIMIT 1;
+`);
+
+  if (rows[0]) {
+    return normalizeWorkspaceFileSettingsRow(rows[0]);
+  }
+
+  const defaults = defaultWorkspaceFileSettings(workspaceId);
+  const now = new Date().toISOString();
+  await runSql(`
+INSERT OR IGNORE INTO file_workspace_settings (
+  workspace_id,
+  file_type_policy_mode,
+  allowed_extensions_json,
+  blocked_extensions_json,
+  internal_storage_limit_bytes,
+  per_user_storage_limit_bytes,
+  created_at,
+  updated_at,
+  metadata_json
+)
+VALUES (
+  ${sqlText(workspaceId)},
+  ${sqlText(defaults.fileTypePolicyMode)},
+  ${sqlText(JSON.stringify(defaults.allowedExtensions))},
+  ${sqlText(JSON.stringify(defaults.blockedExtensions))},
+  NULL,
+  NULL,
+  ${sqlText(now)},
+  ${sqlText(now)},
+  '{}'
+);
+`);
+
+  return defaults;
 }
 
 async function readAttachmentById(workspaceId, attachmentId) {
@@ -1666,6 +1819,20 @@ function normalizeStorageKind(value) {
   return ["internal", "external"].includes(storageKind) ? storageKind : "";
 }
 
+function assertExtensionAllowedByWorkspacePolicy(extension, settings) {
+  const normalizedExtension = normalizeExtension(extension);
+  const mode = settings.fileTypePolicyMode || "safe_default";
+  const allowed = new Set(settings.allowedExtensions || DEFAULT_SAFE_ALLOWED_EXTENSIONS);
+  const blocked = new Set(settings.blockedExtensions || DEFAULT_BLOCKED_EXTENSIONS);
+
+  if (blocked.has(normalizedExtension)) {
+    throw new AppError("That file type is blocked by workspace Files settings.", 400);
+  }
+  if ((mode === "safe_default" || mode === "allowlist") && !allowed.has(normalizedExtension)) {
+    throw new AppError("That file type is not allowed by workspace Files settings.", 400);
+  }
+}
+
 function normalizeAttachmentListOptions(filters = {}) {
   const paginate = filters.allPages !== true && filters.all_pages !== "true";
   const limit = clampInteger(filters.limit || filters.pageSize || filters.page_size, DEFAULT_ATTACHMENT_LIMIT, 1, MAX_ATTACHMENT_LIMIT);
@@ -1817,6 +1984,106 @@ function parseJsonObject(value) {
   }
 }
 
+function parseJsonArray(value) {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function defaultWorkspaceFileSettings(workspaceId) {
+  return {
+    allowedExtensions: [...DEFAULT_SAFE_ALLOWED_EXTENSIONS],
+    blockedExtensions: [...DEFAULT_BLOCKED_EXTENSIONS],
+    createdAt: "",
+    fileTypePolicyMode: "safe_default",
+    internalStorageLimitBytes: null,
+    perUserStorageLimitBytes: null,
+    updatedAt: "",
+    workspaceId,
+  };
+}
+
+function normalizeWorkspaceFileSettingsRow(row = {}) {
+  return {
+    allowedExtensions: normalizeExtensionList(parseJsonArray(row.allowed_extensions_json), DEFAULT_SAFE_ALLOWED_EXTENSIONS),
+    blockedExtensions: normalizeExtensionList(parseJsonArray(row.blocked_extensions_json), DEFAULT_BLOCKED_EXTENSIONS),
+    createdAt: row.created_at || "",
+    fileTypePolicyMode: FILE_TYPE_POLICY_MODES.has(row.file_type_policy_mode) ? row.file_type_policy_mode : "safe_default",
+    internalStorageLimitBytes: nullableInteger(row.internal_storage_limit_bytes),
+    perUserStorageLimitBytes: nullableInteger(row.per_user_storage_limit_bytes),
+    updatedAt: row.updated_at || "",
+    workspaceId: row.workspace_id || "",
+  };
+}
+
+function normalizeWorkspaceFileSettingsPayload(payload = {}, previous = defaultWorkspaceFileSettings("")) {
+  const mode = String(payload.fileTypePolicyMode || payload.file_type_policy_mode || previous.fileTypePolicyMode || "safe_default").trim();
+
+  return {
+    allowedExtensions: normalizeExtensionList(payload.allowedExtensions || payload.allowed_extensions, previous.allowedExtensions),
+    blockedExtensions: normalizeExtensionList(payload.blockedExtensions || payload.blocked_extensions, previous.blockedExtensions),
+    fileTypePolicyMode: FILE_TYPE_POLICY_MODES.has(mode) ? mode : "safe_default",
+    internalStorageLimitBytes: nullableInteger(payload.internalStorageLimitBytes ?? payload.internal_storage_limit_bytes ?? previous.internalStorageLimitBytes),
+    perUserStorageLimitBytes: nullableInteger(payload.perUserStorageLimitBytes ?? payload.per_user_storage_limit_bytes ?? previous.perUserStorageLimitBytes),
+  };
+}
+
+function normalizeExtensionList(value, fallback = []) {
+  const source = Array.isArray(value) ? value : String(value || "").split(/[\s,]+/);
+  const normalized = source
+    .map(normalizeExtension)
+    .filter(Boolean)
+    .filter((extension, index, list) => list.indexOf(extension) === index);
+
+  return normalized.length > 0 ? normalized : [...fallback];
+}
+
+function normalizeExtension(value) {
+  const text = String(value || "").trim().toLowerCase();
+
+  if (!text) {
+    return "";
+  }
+
+  const extension = text.startsWith(".") ? text : `.${text}`;
+  return /^\.[a-z0-9]+$/.test(extension) ? extension : "";
+}
+
+function nullableInteger(value) {
+  if (value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
+function sqlNullableInteger(value) {
+  const parsed = nullableInteger(value);
+  return parsed === null ? "NULL" : sqlInteger(parsed);
+}
+
+function shapeWorkspaceFileSettings(settings) {
+  return {
+    allowedExtensions: settings.allowedExtensions || [],
+    blockedExtensions: settings.blockedExtensions || [],
+    createdAt: settings.createdAt || "",
+    fileTypePolicyMode: settings.fileTypePolicyMode || "safe_default",
+    internalStorageLimitBytes: settings.internalStorageLimitBytes,
+    perUserStorageLimitBytes: settings.perUserStorageLimitBytes,
+    policyModes: [...FILE_TYPE_POLICY_MODES],
+    updatedAt: settings.updatedAt || "",
+    workspaceId: settings.workspaceId || "",
+  };
+}
+
 function mergeFileMetadata(value, patch = {}) {
   return {
     ...parseJsonObject(value),
@@ -1917,6 +2184,7 @@ export const filesService = {
   listScanStatuses,
   quarantineFile,
   readFileForSession,
+  readWorkspaceFileSettings,
   readStorageAccounting,
   recordExternalStorageAccounting,
   registerFileScannerAdapter,
@@ -1926,6 +2194,7 @@ export const filesService = {
   resolveAttachableType,
   restoreFile,
   refreshStorageAccounting,
+  saveWorkspaceFileSettings,
   uploadAndAttach,
   uploadBatchAndAttach,
 };

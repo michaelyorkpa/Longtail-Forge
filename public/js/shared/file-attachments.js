@@ -317,8 +317,20 @@
 
   async function deleteFile(container, state, attachment) {
     const fileId = attachment.fileId || attachment.file_id;
+    const file = attachment.file || {};
 
     if (!fileId) {
+      return;
+    }
+
+    const confirmed = await global.LongtailForge.modal.confirm({
+      title: "Delete file?",
+      message: `Delete "${file.displayName || file.originalFilename || "this file"}"? The file will be unavailable from attachments, but workspace admins can restore it during the retention window.`,
+      confirmLabel: "Delete File",
+      danger: true,
+    });
+
+    if (!confirmed) {
       return;
     }
 

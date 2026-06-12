@@ -16,6 +16,7 @@ const frameworkProtectedViews = new Map([
   ["audit-log.html", { id: "audit-log", file: "audit-log.html" }],
   ["dashboard.html", { id: "dashboard", file: "dashboard.html" }],
   ["files.html", { id: "files", file: "files.html" }],
+  ["files-settings.html", { id: "files-settings", file: "files-settings.html" }],
   ["help.html", { id: "help", file: "help.html" }],
   ["notifications.html", { id: "notifications", file: "notifications.html" }],
   ["reporting.html", { id: "reporting", file: "reporting.html" }],

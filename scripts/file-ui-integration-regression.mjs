@@ -71,6 +71,7 @@ assert.ok(tasksScript.includes('targetType: "task"'), "Task count request should
 assert.ok(tasksScript.includes("task-attachment-count"), "Task rows should render attachment count chips.");
 
 assert.ok(filesPage.includes("data-file-filters"), "Files page should expose filter form.");
+assert.ok(filesPage.includes("js/shared/modal.js"), "Files page should load the shared modal helper for in-app warnings.");
 ["data-file-filter-module", "data-file-filter-target-type", "data-file-filter-target-id", "data-file-filter-client", "data-file-filter-project", "data-file-filter-filename", "data-file-filter-status"].forEach((selector) => {
   assert.ok(filesPage.includes(selector), `Files page should expose ${selector}.`);
 });
@@ -81,6 +82,8 @@ assert.ok(filesScript.includes("clientId"), "Files surface should filter by clie
 assert.ok(filesScript.includes("projectId"), "Files surface should filter by project.");
 assert.ok(filesScript.includes("filename"), "Files surface should filter by filename.");
 assert.ok(filesScript.includes("status"), "Files surface should filter by status.");
+assert.ok(filesScript.includes('title: "Delete file?"'), "Files surface should warn before deleting files.");
+assert.ok(helper.includes('title: "Delete file?"'), "Attachment helper should warn before deleting files.");
 assert.ok(staticService.includes('"files.html"'), "Files page should be a framework protected view.");
 assert.ok(appShell.includes('href: "files.html"'), "Files page should appear in app navigation.");
 

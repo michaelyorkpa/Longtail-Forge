@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Files Settings | Longtail Forge</title>
+    <script src="js/theme-init.js"></script>
+    <link rel="stylesheet" href="css/longtail-forge.css?v=5">
+  </head>
+  <body data-page-title="Files Settings">
+    <main class="settings-page files-settings-page">
+      <h1>Files Settings</h1>
+
+      <form class="settings-form" data-files-settings-form>
+        <fieldset class="settings-fieldset">
+          <legend>File Type Policy</legend>
+          <label>
+            Policy Mode
+            <select data-file-policy-mode>
+              <option value="safe_default">Safe default</option>
+              <option value="allowlist">Allow-list only</option>
+              <option value="blocklist">Block-list only</option>
+            </select>
+          </label>
+          <label>
+            Allowed Extensions
+            <textarea data-allowed-extensions rows="4" spellcheck="false"></textarea>
+          </label>
+          <label>
+            Blocked Extensions
+            <textarea data-blocked-extensions rows="4" spellcheck="false"></textarea>
+          </label>
+        </fieldset>
+
+        <fieldset class="settings-fieldset">
+          <legend>Storage</legend>
+          <div class="settings-summary-grid" data-storage-accounting></div>
+          <label>
+            Workspace Storage Limit
+            <input type="number" min="0" step="1" inputmode="numeric" data-internal-storage-limit>
+          </label>
+          <label>
+            Per-user Storage Limit
+            <input type="number" min="0" step="1" inputmode="numeric" data-per-user-storage-limit>
+          </label>
+        </fieldset>
+
+        <button type="submit" data-save-files-settings>Save Settings</button>
+      </form>
+
+      <p data-files-settings-status role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="js/navigation.js"></script>
+    <script src="js/shared/api-client.js"></script>
+    <script src="js/shared/icons.js?v=1"></script>
+    <script src="js/files-settings.js"></script>
+    <script src="js/footer.js"></script>
+  </body>
+</html>

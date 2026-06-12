@@ -712,21 +712,21 @@ Out of scope:
 
 #### Version 0.33.5.4.3 - Workspace Files Settings and File Type Controls
 
-- [ ] Add Settings -> Workspace -> Files.
-  - [ ] Create the workspace-level Files settings surface if it does not already exist.
-  - [ ] Keep settings framework-owned where they are storage/security policy and Files-owned where they are file workflow behavior.
-  - [ ] Show current workspace file policy without requiring users to inspect environment/config files.
-- [ ] Add workspace-wide file type controls.
-  - [ ] Support configured file type allow/block behavior based on the clarification decision above.
-  - [ ] Enforce file type policy in Files-owned upload services, not only in browser validation.
-  - [ ] Return clear per-file rejection reasons for multi-upload and drag-and-drop flows.
-- [ ] Prepare storage-limit controls without enforcing unfinished quota policy.
-  - [ ] Display available storage accounting read models from 0.33.5.4.2.
-  - [ ] Reserve fields for future per-user/workspace limits where the policy is not implemented yet.
-- [ ] Verification.
-  - [ ] Verify workspace admins can view and update Files settings.
-  - [ ] Verify file type policy blocks disallowed uploads across Files module and attachment surfaces.
-  - [ ] Verify disabled/inaccessible settings do not expose protected file metadata.
+- [x] Add Settings -> Workspace -> Files.
+  - [x] Create the workspace-level Files settings surface if it does not already exist.
+  - [x] Keep settings framework-owned where they are storage/security policy and Files-owned where they are file workflow behavior.
+  - [x] Show current workspace file policy without requiring users to inspect environment/config files.
+- [x] Add workspace-wide file type controls.
+  - [x] Support configured file type allow/block behavior based on the clarification decision above.
+  - [x] Enforce file type policy in Files-owned upload services, not only in browser validation.
+  - [x] Return clear per-file rejection reasons for multi-upload and drag-and-drop flows.
+- [x] Prepare storage-limit controls without enforcing unfinished quota policy.
+  - [x] Display available storage accounting read models from 0.33.5.4.2.
+  - [x] Reserve fields for future per-user/workspace limits where the policy is not implemented yet.
+- [x] Verification.
+  - [x] Verify workspace admins can view and update Files settings.
+  - [x] Verify file type policy blocks disallowed uploads across Files module and attachment surfaces.
+  - [x] Verify disabled/inaccessible settings do not expose protected file metadata.
 
 #### Version 0.33.5.4.4 - Time Entry Workspace Admin Editing
 

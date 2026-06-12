@@ -1510,6 +1510,26 @@ a.search-result-title:hover {
     font-size: 15px;
 }
 
+.settings-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+
+.settings-summary-item {
+    display: grid;
+    gap: 4px;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-page-bg);
+}
+
+.settings-summary-item span {
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
 .workspace-create-module-settings {
     display: grid;
     gap: 12px;

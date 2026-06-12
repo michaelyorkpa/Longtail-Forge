@@ -79,10 +79,10 @@ async function assertSchemaAndPermissions() {
 SELECT name
 FROM sqlite_master
 WHERE type = 'table'
-  AND name IN ('files', 'file_attachments', 'file_storage_accounting')
+  AND name IN ('files', 'file_attachments', 'file_storage_accounting', 'file_workspace_settings')
 ORDER BY name;
 `);
-  assert.deepEqual(tables.map((row) => row.name), ["file_attachments", "file_storage_accounting", "files"]);
+  assert.deepEqual(tables.map((row) => row.name), ["file_attachments", "file_storage_accounting", "file_workspace_settings", "files"]);
 
   const fileColumns = await querySql("PRAGMA table_info(files);");
   for (const columnName of [
@@ -131,6 +131,21 @@ ORDER BY name;
     "metadata_json",
   ]) {
     assert.ok(accountingColumns.some((column) => column.name === columnName), `file_storage_accounting.${columnName} should exist`);
+  }
+
+  const settingsColumns = await querySql("PRAGMA table_info(file_workspace_settings);");
+  for (const columnName of [
+    "workspace_id",
+    "file_type_policy_mode",
+    "allowed_extensions_json",
+    "blocked_extensions_json",
+    "internal_storage_limit_bytes",
+    "per_user_storage_limit_bytes",
+    "created_at",
+    "updated_at",
+    "metadata_json",
+  ]) {
+    assert.ok(settingsColumns.some((column) => column.name === columnName), `file_workspace_settings.${columnName} should exist`);
   }
 
   const attachmentColumns = await querySql("PRAGMA table_info(file_attachments);");

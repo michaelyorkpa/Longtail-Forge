@@ -32,6 +32,17 @@ filesRoutes.get("/files/storage/accounting", asyncRoute(async (request, response
   response.status(200).json(result);
 }));
 
+filesRoutes.get("/files/settings", asyncRoute(async (request, response) => {
+  const result = await filesService.readWorkspaceFileSettings(request.session);
+  response.status(200).json(result);
+}));
+
+filesRoutes.put("/files/settings", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await filesService.saveWorkspaceFileSettings(request.session, payload);
+  response.status(200).json(result);
+}));
+
 filesRoutes.post("/files/attachments", asyncRoute(async (request, response) => {
   const payload = await readJsonBody(request);
   const result = await filesService.attachExistingFile(request.session, payload);

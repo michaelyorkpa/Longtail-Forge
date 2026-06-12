@@ -79,11 +79,16 @@ async function readNotificationSummary(session) {
 async function readPermissionHints(session) {
   const [
     canManageWorkspaceSettings,
+    canManageFileSettings,
     canManageProjects,
     canManageUsers,
     canViewAuditLogs,
   ] = await Promise.all([
     permissionsService.can(session, "workspace_settings.manage", {
+      workspace_id: session.workspace_id,
+      operation: "read",
+    }),
+    permissionsService.can(session, "files.manage_workspace_settings", {
       workspace_id: session.workspace_id,
       operation: "read",
     }),
@@ -103,6 +108,7 @@ async function readPermissionHints(session) {
 
   return {
     auditLogsView: canViewAuditLogs,
+    filesSettingsManage: canManageFileSettings,
     projectsManage: canManageProjects,
     usersManage: canManageUsers,
     workspaceSettingsManage: canManageWorkspaceSettings,
@@ -169,6 +175,14 @@ async function buildNavigation(workspaceContext, moduleNavigation, moduleSetting
       id: "workspace-settings",
       label: "Workspace Settings",
       href: "workspace-settings.html",
+    });
+  }
+
+  if (permissionHints.filesSettingsManage) {
+    workspaceSettingsMenu.items.push({
+      id: "files-settings",
+      label: "Files",
+      href: "files-settings.html",
     });
   }
 

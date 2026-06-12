@@ -1,3 +1,12 @@
+## Version 0.33.5.4.3 - 2026-06-12 17:31 -04:00
+
+- Added `058_add_file_workspace_settings.sql` with Files-owned workspace policy storage for file type controls and reserved storage limit metadata.
+- Added permission-gated Files settings APIs plus a Settings -> Workspace -> Files page showing file type policy controls and aggregate storage accounting from 0.33.5.4.2.
+- Enforced workspace file type policy in the Files service so single, batch, multi-select, and drag-and-drop uploads use backend-authoritative allow/block rules.
+- Added default `safe_default` policy with common business/document/image/text formats allowed and risky executable/script/archive extensions blocked.
+- Added in-app confirmation warnings before staged file deletion from the Files page and reusable attachment panels.
+- Added `scripts/file-settings-regression.mjs`, refreshed schema/fresh-database/navigation/accessibility coverage, and bumped the app/package version to `0.33.5.4.3`.
+
 ## Version 0.33.5.4.2 - 2026-06-12 17:16 -04:00
 
 - Added `057_add_file_storage_accounting.sql` with aggregate `file_storage_accounting` storage plus internal/external accounting fields on `files`.
