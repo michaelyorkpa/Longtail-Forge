@@ -1,3 +1,4 @@
+/* global fetch */
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -8,6 +9,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-se
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Search-Help-Test-123!";
 process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "notes-search-help-secure-note-test-key";
 
+const { createApp } = await import("../src/core/app.js");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { hasSearchIndexer } = await import("../src/core/search/indexer-registry.js");
 const { summarizeNotificationEvent } = await import("../src/core/events/event-summaries.js");
@@ -17,7 +19,10 @@ const { indexNoteRecord } = await import("../src/modules/notes/search-indexers.j
 const { notificationsService } = await import("../src/services/notifications.service.js");
 const { searchService } = await import("../src/services/search.service.js");
 const { tagsService } = await import("../src/services/tags.service.js");
+const { createSession } = await import("../src/security/sessions.js");
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
+
+let server;
 
 try {
   await initializeDatabase();
@@ -25,14 +30,23 @@ try {
 
   const workspace = await readWorkspace();
   const session = await readProtectedSession(workspace.workspace_id);
+  const browserSession = await createSession(session);
+  server = await listen(createApp());
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
 
   await assertNotesManifestContributions();
-  await assertNotesSearchIndexing(session);
+  await assertNotesSearchIndexing(session, {
+    baseUrl,
+    sessionId: browserSession.sessionId,
+  });
   await assertNotesHelpContribution();
   await assertNotesNotificationContribution(session);
 
   console.log("Notes search and Help regression passed.");
 } finally {
+  if (server) {
+    await new Promise((resolve) => server.close(resolve));
+  }
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
@@ -50,7 +64,7 @@ async function assertNotesManifestContributions() {
   assert.ok(notesModule.notificationEvents.some((event) => event.id === "note.updated"));
 }
 
-async function assertNotesSearchIndexing(session) {
+async function assertNotesSearchIndexing(session, browserContext) {
   const tag = await tagsService.create(session, {
     color: "#0f766e",
     name: "Notes Search Needle",
@@ -117,6 +131,16 @@ async function assertNotesSearchIndexing(session) {
   assert.equal(result.results.some((row) => row.record_id === activeWork.note.note_id), false);
   assert.equal(result.results.some((row) => row.record_id === secure.note.note_id), false);
   assert.equal(result.results.some((row) => row.record_id === privateNote.note.note_id), false);
+
+  const browserResult = await apiGet(browserContext.baseUrl, "/api/search?text=Needle&recordType=note&limit=5", {
+    cookie: browserContext.sessionId,
+  });
+  const browserNote = browserResult.body.results.find((row) => row.recordId === normal.note.note_id);
+
+  assert.equal(browserResult.status, 200);
+  assert.ok(browserNote, "browser search should return the matching note");
+  assert.equal(browserNote.target.url, `notes.html?note=${encodeURIComponent(normal.note.note_id)}`);
+  assert.equal(browserNote.target.actionId, "notes.open");
 
   const rows = await querySql(`
 SELECT library_bucket, record_status, source
@@ -226,9 +250,29 @@ LIMIT 1;
   return {
     workspace_id: workspaceId,
     active_workspace_id: workspaceId,
+    home_workspace_id: workspaceId,
     user_id: rows[0].user_id,
     username: rows[0].username,
     display_name: rows[0].display_name,
     timezone: rows[0].timezone || "America/New_York",
   };
+}
+
+async function apiGet(baseUrl, pathname, options = {}) {
+  const response = await fetch(`${baseUrl}${pathname}`, {
+    headers: options.cookie ? { Cookie: `longtail_forge_session=${options.cookie}` } : {},
+  });
+  const body = await response.json().catch(() => ({}));
+
+  return {
+    body,
+    status: response.status,
+  };
+}
+
+function listen(app) {
+  return new Promise((resolve, reject) => {
+    const nextServer = app.listen(0, "127.0.0.1", () => resolve(nextServer));
+    nextServer.on("error", reject);
+  });
 }

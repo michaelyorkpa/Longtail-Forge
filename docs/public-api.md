@@ -64,14 +64,16 @@ Error responses:
 
 ## API Key Scope Audit
 
-Version 0.33.5.2.9 audits the API key scope catalog without expanding public API route coverage. Workspace Admin and Super Admin users currently create keys from the same module-owned available scope catalog for enabled modules.
+Version 0.33.5.3 repairs the first API key scope gap by adding Client/Projects write scopes and public write route coverage. Workspace Admin and Super Admin users create keys from the same module-owned available scope catalog for enabled modules.
 
 Current visible scopes:
 
 | Scope | Owner | Access | Route coverage |
 | --- | --- | --- | --- |
 | `clients:read` | Client/Projects | Read | `GET /api/v1/clients`, `GET /api/v1/clients/:clientId` |
+| `clients:write` | Client/Projects | Write | `POST /api/v1/clients`, `PUT /api/v1/clients/:clientId`, `DELETE /api/v1/clients/:clientId` |
 | `projects:read` | Client/Projects | Read | `GET /api/v1/projects`, `GET /api/v1/projects/:projectId` |
+| `projects:write` | Client/Projects | Write | `POST /api/v1/projects`, `POST /api/v1/clients/:clientId/projects`, `PUT /api/v1/projects/:projectId`, `DELETE /api/v1/projects/:projectId` |
 | `tasks:read` | Tasks | Read | `GET /api/v1/tasks`, `GET /api/v1/tasks/:taskId` |
 | `tasks:write` | Tasks | Write | Task create, update, complete, reopen, archive, and restore routes |
 | `time_entries:read` | Time Tracking | Read | `GET /api/v1/time-entries` |
@@ -81,8 +83,6 @@ Deferred scope gaps for the 0.33.5.3.x repair line:
 
 | Candidate scope | Owner | Intended status |
 | --- | --- | --- |
-| `clients:write` | Client/Projects | Add only with dedicated client write routes and permission regressions. |
-| `projects:write` | Client/Projects | Add only with dedicated project write routes and permission regressions. |
 | `files:read`, `files:write`, `files:download`, `files:delete`, `files:manage` | Framework Files service | Defer until public file route shape, storage safety, scanner metadata, and target access rules are explicit. |
 | `search:read` | Framework Search service | Defer until public search result shaping and permission pruning are specified. |
 | `notes:read`, `notes:write`, `notes:manage` | Notes | Defer until note access policy, secure note handling, revisions, collections, and linked-record behavior are mapped to public routes. |
@@ -99,11 +99,51 @@ Internal-only for now:
 ### Clients and Projects
 
 - `GET /api/v1/clients` requires `clients:read`
+- `POST /api/v1/clients` requires `clients:write`
 - `GET /api/v1/clients/:clientId` requires `clients:read`
+- `PUT /api/v1/clients/:clientId` requires `clients:write`
+- `DELETE /api/v1/clients/:clientId` requires `clients:write`
 - `GET /api/v1/projects` requires `projects:read`
+- `POST /api/v1/projects` requires `projects:write`
+- `POST /api/v1/clients/:clientId/projects` requires `projects:write`
 - `GET /api/v1/projects/:projectId` requires `projects:read`
+- `PUT /api/v1/projects/:projectId` requires `projects:write`
+- `DELETE /api/v1/projects/:projectId` requires `projects:write`
 
 Client endpoints are available only for Business workspaces. Project endpoints remain available for Business, Personal, and Family workspaces.
+
+Client and project writes use the same Client/Projects service contracts as the browser workflow. Public API keys must have the matching write scope, and the key creator's user/workspace permission context must also be allowed to manage the target client or project. Project writes that move or rename a project with downstream time entries may require `confirm_downstream_update: true`, matching the browser maintenance workflow.
+
+Create a client:
+
+```http
+POST /api/v1/clients
+Authorization: Bearer ltf_live_...
+Content-Type: application/json
+
+{
+  "name": "Example Client"
+}
+```
+
+Create a client-linked project:
+
+```http
+POST /api/v1/clients/client-id/projects
+Authorization: Bearer ltf_live_...
+Content-Type: application/json
+
+{
+  "name": "Example Project"
+}
+```
+
+Archive a project:
+
+```http
+DELETE /api/v1/projects/project-id
+Authorization: Bearer ltf_live_...
+```
 
 ### Time Tracking
 

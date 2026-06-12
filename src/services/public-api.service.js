@@ -21,6 +21,32 @@ async function readClient(context, clientId) {
   return withWorkspaceAlias(client, context);
 }
 
+async function createClient(context, payload) {
+  const result = await clientsService.createClient({
+    ...payload,
+    action: payload?.action || "public_api_client_created",
+  }, context);
+
+  return withWorkspaceAlias(result.client, context);
+}
+
+async function updateClient(context, clientId, payload) {
+  const result = await clientsService.updateClient(clientId, {
+    ...payload,
+    action: payload?.action || "public_api_client_updated",
+  }, context);
+
+  return withWorkspaceAlias(result.client, context);
+}
+
+async function archiveClient(context, clientId) {
+  const result = await clientsService.archiveClient(clientId, {
+    action: "public_api_client_archived",
+  }, context);
+
+  return withWorkspaceAlias(result, context);
+}
+
 async function assertBusinessWorkspace(context) {
   const settings = await settingsRepository.readWorkspaceSettings(context.workspace_id);
 
@@ -44,6 +70,32 @@ async function readProject(context, projectId) {
   }
 
   return withWorkspaceAlias(project, context);
+}
+
+async function createProject(context, payload, clientId = "") {
+  const result = await clientsService.createProject(clientId, {
+    ...payload,
+    action: payload?.action || "public_api_project_created",
+  }, context);
+
+  return withWorkspaceAlias(result.project, context);
+}
+
+async function updateProject(context, projectId, payload) {
+  const result = await clientsService.updateProject(projectId, {
+    ...payload,
+    action: payload?.action || "public_api_project_updated",
+  }, context);
+
+  return withWorkspaceAlias(result.project, context);
+}
+
+async function archiveProject(context, projectId) {
+  const result = await clientsService.archiveProject(projectId, {
+    action: "public_api_project_archived",
+  }, context);
+
+  return withWorkspaceAlias(result, context);
 }
 
 function withWorkspaceAlias(record, context) {
@@ -88,8 +140,14 @@ function clampInteger(value, min, max, fallback) {
 }
 
 export const publicApiService = {
+  archiveClient,
+  archiveProject,
+  createClient,
+  createProject,
   listClients,
   listProjects,
   readClient,
   readProject,
+  updateClient,
+  updateProject,
 };

@@ -633,30 +633,30 @@ Out of scope:
 - Do not make API key scopes bypass browser/session module boundaries.
 - Do not expose admin-only internals such as audit logs, permission administration, module enablement, search index repair, raw file storage, scanner/quarantine details, secure-note internals, or notification delivery internals unless a future dedicated version explicitly changes that boundary.
 
-- [ ] Scope registration and source-of-truth repair.
-  - [ ] Add missing module-owned scope declarations where public route coverage is intended.
-  - [ ] Add framework-owned scope declarations for files, search, notifications, Help, and discovery only where public routes are intentionally supported.
-  - [ ] Preserve disabled-module filtering in the API key UI for module-owned scopes.
-  - [ ] Keep internal-only surfaces out of the visible scope catalog.
-- [ ] UI display/update behavior for new scopes.
-  - [ ] Group scopes by owner/module so large catalogs remain readable.
-  - [ ] Show read/write/manage distinctions without implying unavailable public routes.
-  - [ ] Verify Workspace Admin and Super Admin see the same allowed scope catalog where appropriate.
-- [ ] Public API route coverage or explicit route deferrals.
-  - [ ] Add `clients:write` and `projects:write` only with dedicated client/project public write routes.
-  - [ ] Add Files public routes only after target access, file lifecycle, scanner metadata, and download safety are mapped.
-  - [ ] Add Search public routes only with permission-pruned result shaping.
-  - [ ] Add Notes, Lists, Tags, Notifications, and Help public routes only through their owning service contracts.
-  - [ ] Document any first-party module that remains intentionally absent from public API coverage.
-- [ ] Permission regression coverage for API-key-scoped reads and writes.
-  - [ ] API-key reads/writes enforce the same module boundaries as browser/session permissions.
-  - [ ] Disabled optional modules hide new key scopes and block writes.
-  - [ ] Inaccessible records do not leak labels, counts, file metadata, search snippets, note excerpts, list item labels, or tag labels.
-  - [ ] Public API errors keep the versioned envelope and do not expose internal implementation details.
-- [ ] Documentation updates to `docs/public-api.md`.
-  - [ ] Keep the current scope catalog, route coverage, deferred scopes, and internal-only surfaces current with implementation.
-  - [ ] Add examples for each newly exposed route family.
-  - [ ] Update changelog and decisions whenever a scope changes public integration behavior.
+- [x] Scope registration and source-of-truth repair.
+  - [x] Add missing module-owned scope declarations where public route coverage is intended.
+  - [x] Add framework-owned scope declarations for files, search, notifications, Help, and discovery only where public routes are intentionally supported.
+  - [x] Preserve disabled-module filtering in the API key UI for module-owned scopes.
+  - [x] Keep internal-only surfaces out of the visible scope catalog.
+- [x] UI display/update behavior for new scopes.
+  - [x] Group scopes by owner/module so large catalogs remain readable.
+  - [x] Show read/write/manage distinctions without implying unavailable public routes.
+  - [x] Verify Workspace Admin and Super Admin see the same allowed scope catalog where appropriate.
+- [x] Public API route coverage or explicit route deferrals.
+  - [x] Add `clients:write` and `projects:write` only with dedicated client/project public write routes.
+  - [x] Add Files public routes only after target access, file lifecycle, scanner metadata, and download safety are mapped.
+  - [x] Add Search public routes only with permission-pruned result shaping.
+  - [x] Add Notes, Lists, Tags, Notifications, and Help public routes only through their owning service contracts.
+  - [x] Document any first-party module that remains intentionally absent from public API coverage.
+- [x] Permission regression coverage for API-key-scoped reads and writes.
+  - [x] API-key reads/writes enforce the same module boundaries as browser/session permissions.
+  - [x] Disabled optional modules hide new key scopes and block writes.
+  - [x] Inaccessible records do not leak labels, counts, file metadata, search snippets, note excerpts, list item labels, or tag labels.
+  - [x] Public API errors keep the versioned envelope and do not expose internal implementation details.
+- [x] Documentation updates to `docs/public-api.md`.
+  - [x] Keep the current scope catalog, route coverage, deferred scopes, and internal-only surfaces current with implementation.
+  - [x] Add examples for each newly exposed route family.
+  - [x] Update changelog and decisions whenever a scope changes public integration behavior.
 
 ## Version 0.33.5.4 - Files and Time Tracking QoL Updates
 
@@ -675,8 +675,6 @@ Out of scope:
 
 - Also need control for file types
   - This should become a Workspace-wide setting in Settings -> Workspace -> Files (Doesn't exist as of 0.33.5.2.9)
-
-
 
 ### Time Entries
 

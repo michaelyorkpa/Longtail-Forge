@@ -5,7 +5,9 @@ import path from "node:path";
 
 const EXPECTED_VISIBLE_SCOPES = [
   "clients:read",
+  "clients:write",
   "projects:read",
+  "projects:write",
   "tasks:read",
   "tasks:write",
   "time_entries:read",
@@ -13,8 +15,6 @@ const EXPECTED_VISIBLE_SCOPES = [
 ];
 
 const DEFERRED_SCOPE_PREFIXES = [
-  "clients:write",
-  "projects:write",
   "files:",
   "search:",
   "notes:",
@@ -81,16 +81,19 @@ function assertRouteScopesAreDeclared() {
 async function assertDocsCaptureAudit() {
   const roadmap = await fs.readFile(path.join(process.cwd(), "ROADMAP.md"), "utf8");
   const publicApiDocs = await fs.readFile(path.join(process.cwd(), "docs/public-api.md"), "utf8");
+  const apiKeysJs = await fs.readFile(path.join(process.cwd(), "public/js/api-keys.js"), "utf8");
 
   for (const scope of EXPECTED_VISIBLE_SCOPES) {
     assert.match(publicApiDocs, new RegExp(escapeRegExp(scope)));
   }
 
-  for (const deferredScope of ["clients:write", "projects:write", "files:read", "search:read", "notes:read", "lists:read", "tags:read", "notifications:read", "help:read"]) {
+  for (const deferredScope of ["files:read", "search:read", "notes:read", "lists:read", "tags:read", "notifications:read", "help:read"]) {
     assert.match(publicApiDocs, new RegExp(escapeRegExp(deferredScope)));
   }
 
-  assert.match(roadmap, /Version 0\.33\.5\.3\.x - API key scope repair/);
+  assert.match(apiKeysJs, /groupScopesByOwner/);
+  assert.match(apiKeysJs, /moduleScopeLabel/);
+  assert.match(roadmap, /Version 0\.33\.5\.3 - API key scope repair/);
   assert.match(roadmap, /Scope registration and source-of-truth repair/);
   assert.match(roadmap, /Permission regression coverage for API-key-scoped reads and writes/);
 }

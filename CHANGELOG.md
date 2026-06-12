@@ -1,3 +1,13 @@
+## Version 0.33.5.3 - 2026-06-12 14:50 -04:00
+
+- Added Client/Projects public API write scopes `clients:write` and `projects:write` to the module-owned API key scope catalog.
+- Added public client/project write routes for create, update, and archive flows, routed through the same Client/Projects service contracts used by browser workflows.
+- Updated the API Keys UI to group available scopes by owner/module and display read/write access distinctions in each scope label.
+- Updated `docs/public-api.md` with the expanded scope catalog, Client/Projects write route coverage, examples, and the still-deferred framework/module scope families.
+- Added `scripts/public-api-client-project-write-regression.mjs` for scoped public client/project write coverage and updated `scripts/api-key-scope-audit-regression.mjs` for the expanded scope catalog.
+- Fixed Notes browser search results so note records link to `notes.html?note=...`, and expanded the Notes search regression to cover the browser `/api/search` payload target.
+- Bumped the app/package and Client/Projects module versions to `0.33.5.3`.
+
 ## Version 0.33.5.2.9 - 2026-06-12 14:16 -04:00
 
 - Audited the current API key scope catalog and confirmed the visible enabled-module scopes remain `clients:read`, `projects:read`, `tasks:read`, `tasks:write`, `time_entries:read`, and `time_entries:write`.

@@ -388,6 +388,14 @@ function buildResultTarget(result) {
     };
   }
 
+  if (result.module_id === "notes" && result.record_type === "note") {
+    return {
+      url: `notes.html?note=${recordId}`,
+      actionId: "notes.open",
+      params: { noteId: result.record_id },
+    };
+  }
+
   if (result.record_type === HELP_SEARCH_RECORD_TYPE) {
     return {
       url: `help.html?article=${recordId}`,

@@ -89,22 +89,77 @@ async function createApiKey() {
 function renderScopeControls() {
   apiKeyScopes.replaceChildren();
 
-  availableScopes.forEach((scope) => {
-    const label = document.createElement("label");
-    const checkbox = document.createElement("input");
-    const labelText = document.createElement("span");
+  groupScopesByOwner(availableScopes).forEach((group) => {
+    const fieldset = document.createElement("fieldset");
+    const legend = document.createElement("legend");
 
-    label.className = "inline-option";
-    checkbox.type = "checkbox";
-    checkbox.value = scope.id;
-    checkbox.dataset.apiKeyScope = "";
-    labelText.textContent = `${scope.label || scope.id} (${scope.id})`;
-    if (scope.description) {
-      label.title = scope.description;
-    }
-    label.append(checkbox, labelText);
-    apiKeyScopes.appendChild(label);
+    fieldset.className = "settings-fieldset api-scope-group";
+    legend.textContent = group.label;
+    fieldset.appendChild(legend);
+    group.scopes.forEach((scope) => fieldset.appendChild(createScopeOption(scope)));
+    apiKeyScopes.appendChild(fieldset);
   });
+}
+
+function createScopeOption(scope) {
+  const label = document.createElement("label");
+  const checkbox = document.createElement("input");
+  const labelText = document.createElement("span");
+  const accessLabel = scope.access === "write" ? "Write" : "Read";
+
+  label.className = "inline-option";
+  checkbox.type = "checkbox";
+  checkbox.value = scope.id;
+  checkbox.dataset.apiKeyScope = "";
+  labelText.textContent = `${scope.label || scope.id} (${accessLabel}, ${scope.id})`;
+  if (scope.description) {
+    label.title = scope.description;
+  }
+  label.append(checkbox, labelText);
+  return label;
+}
+
+function groupScopesByOwner(scopes) {
+  const groupsById = scopes.reduce((groups, scope) => {
+    const moduleId = scope.moduleId || "framework";
+
+    if (!groups.has(moduleId)) {
+      groups.set(moduleId, {
+        id: moduleId,
+        label: moduleScopeLabel(moduleId),
+        scopes: [],
+      });
+    }
+
+    groups.get(moduleId).scopes.push(scope);
+    return groups;
+  }, new Map());
+
+  return [...groupsById.values()]
+    .map((group) => ({
+      ...group,
+      scopes: group.scopes.sort(compareScopes),
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label));
+}
+
+function compareScopes(left, right) {
+  const accessOrder = { read: 0, write: 1, manage: 2, admin: 3 };
+
+  return (accessOrder[left.access] ?? 10) - (accessOrder[right.access] ?? 10)
+    || String(left.label || left.id).localeCompare(String(right.label || right.id))
+    || String(left.id).localeCompare(String(right.id));
+}
+
+function moduleScopeLabel(moduleId) {
+  return {
+    "client-projects": "Clients and Projects",
+    "time-tracking": "Time Tracking",
+    framework: "Framework",
+  }[moduleId] || moduleId
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function renderApiKeys(apiKeys) {
