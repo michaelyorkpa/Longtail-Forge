@@ -20,37 +20,58 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
     - [ ] Due date & Time (Can be clearable/set to NULL through bulk; Time should be optional/clearable as well)
     - [ ] Tags
 
-- Add/Edit Tasks modal appearance
+- Add/Edit Tasks Modal Appearance Fixes
+
   - Tighten up overall white space between all fields
+
   - Modal internal headings need to be standardized 
     - Checklist is different from Assignees
     - Recurrence is different from reminders
     - Assignees and Checklist are different from Reminders
     - Make all internal headings for sub-boxes match Reminders
+  
+  - Internal boxes need to be standardized
+    - Notifications and task timer are dark and square
+    - Checklist is light and rounded
+    - Assignees 
+
+  - While doing the documentation step for this portion of the tasks, determine if the modal headings and boxes 
+
   - Notifications should be moved to a single bell icon at the top; this isn't important enough to warrant using as much real estate as it does
     - Put the bell right-aligned across from the Add/Edit Task heading
+
+  - Between the title box and the Heading should be a small, full-modal-width chip ribbon
+    - Should contain: Status, Priority, Client, Project, Due Date + time (if applicable) and any additions below as applicable
+
   - Time to completion should only appear when the task is marked complete
-     - Time to completion should be moved into the space between the Add/Edit Task heading and the notification bell
-     - Time to completion can be abbreviated "TTC"
+      - Time to completion should be moved into a chip ribbon below the heading/notification bell
+      - Time to completion can be abbreviated "TTC: "
+      - Chip should, initially, read: "TTC: 4:3:15:30" for days:hours:minutes:seconds
+
   - Maximize the visual efficiency of the two-column layout of the current Add/Edit Task modal
     - Any item that needs more space than the tightened two-column layout can provide can open a pop over that uses the full width of the modal until focus is changed; This piece might need some more brainstorming
     - Title should remain full width across both columns
-    - Column 1 should contain (in order):
-      - Title
-      - Status
-      - Client
-      - Next Action
-      - Due Date
-    - Column 2 should contain (in order):
-      - Parent Task
-      - Priority
-      - Project
-      - Blocked Reason
+    - Collapsible two-column box with "Task Details" as heading 
+      - Box should start off open if this is an "Add Task" modal and collapsed if an "Edit Task" modal
+      - This box should contain:
+        - Parent Task (Across both columns! Currently Missing as of 0.33.5.2.3)
+        - Column 1 should contain (in order):
+          - Status
+          - Client
+          - Due Date
+        - Column 2 should contain (in order):
+          - Priority
+          - Project
+          - Due Time
+    - Below the two column box, in two columns:
       - Resume Note
-      - Due Time
+      - Next Action
     - Move back to single column layout (full modal width minus space for scroll bar) for remaining items
-      - Checklist should be next
-      - Assignees should be next (and collapsible)
+      - Blocked Reason (Full width; Should only appear when Status is "Blocked")
+      - Checklist (Collapsiable, starts open)
+      - Assignees (Collapsiable, starts open)
+      - Recurrence (Collapsiable, starts closed)
+
 
 ## Mobile Tweaks
 

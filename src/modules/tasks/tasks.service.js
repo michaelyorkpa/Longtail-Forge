@@ -1601,10 +1601,13 @@ function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId
   const dueSoonCutoff = addDaysKey(today, 7);
   const statusFilter = normalizedTaskFilter(query.status || query.status_filter || query.filter);
   const quickFilter = normalizedTaskFilter(query.quickFilter || query.quick_filter || query.assigneeFilter || query.assignee_filter);
-  const dueFilter = normalizedTaskFilter(query.due || query.due_filter);
+  const dueFilter = normalizedTaskFilter(query.due || query.due_filter) || quickDueFilter(quickFilter);
   const timerFilter = normalizedTaskFilter(query.timer || query.timer_status);
   const projectId = String(query.projectId || query.project_id || "").trim();
   const clientId = String(query.clientId || query.client_id || "").trim();
+  const assigneeId = String(query.assigneeId || query.assignee_id || "").trim();
+  const hasProjectFilter = hasQueryFilter(query, ["projectId", "project_id"]);
+  const hasClientFilter = hasQueryFilter(query, ["clientId", "client_id"]);
 
   if (!matchesStatusFilter(task, statusFilter)) {
     return false;
@@ -1618,11 +1621,15 @@ function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId
     return false;
   }
 
-  if (projectId && projectId !== "all" && task.project_id !== projectId) {
+  if (hasProjectFilter && projectId !== "all" && (task.project_id || "") !== projectId) {
     return false;
   }
 
-  if (clientId && clientId !== "all" && task.client_id !== clientId) {
+  if (hasClientFilter && clientId !== "all" && (task.client_id || "") !== clientId) {
+    return false;
+  }
+
+  if (assigneeId && !(task.assignee_ids || []).includes(assigneeId)) {
     return false;
   }
 
@@ -1672,7 +1679,15 @@ function matchesQuickFilter(task, filter, currentUserId) {
     return task.status === filter;
   }
 
+  if (["overdue", "today", "week", "next_due"].includes(filter)) {
+    return true;
+  }
+
   return true;
+}
+
+function quickDueFilter(filter) {
+  return ["overdue", "today", "week", "next_due"].includes(filter) ? filter : "";
 }
 
 function matchesDueFilter(task, filter, now, today, dueSoonCutoff) {
@@ -1733,6 +1748,10 @@ function compareCanonicalTasks(left, right, sort) {
     return compareDesc(left.created_at, right.created_at) || compareByStableTitle(left, right);
   }
 
+  if (sort === "created_asc") {
+    return String(left.created_at || "").localeCompare(String(right.created_at || "")) || compareByStableTitle(left, right);
+  }
+
   return compareByDueAt(left, right) || priorityRank(right.priority) - priorityRank(left.priority) || compareByStableTitle(left, right);
 }
 
@@ -1762,6 +1781,10 @@ function normalizedTaskFilter(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+function hasQueryFilter(query, keys) {
+  return keys.some((key) => Object.hasOwn(query || {}, key));
+}
+
 function normalizedTaskSort(value) {
   const sort = String(value || "due_at").trim().toLowerCase();
   const aliases = {
@@ -1774,6 +1797,7 @@ function normalizedTaskSort(value) {
     recently_updated: "updated",
     project_client: "context",
     client_project: "context",
+    oldest: "created_asc",
   };
 
   return aliases[sort] || sort;

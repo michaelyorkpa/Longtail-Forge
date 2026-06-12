@@ -49,6 +49,7 @@ let state = {
   taskTimers: [],
   tagOptions: [],
 };
+let hasLoadedTasks = false;
 
 addTaskButton?.addEventListener("click", () => openTaskDialog());
 quickFilters?.addEventListener("click", handleQuickFilterClick);
@@ -59,9 +60,9 @@ bulkAssigneesControl?.addEventListener("change", updateBulkControls);
 bulkApplyButton?.addEventListener("click", applyBulkAction);
 selectAllInput?.addEventListener("change", toggleVisibleSelection);
 [sortInput, statusFilter, assigneeFilter, clientFilter, projectFilter, tagFilter].forEach((input) => {
-  input?.addEventListener("change", () => {
+  input?.addEventListener("change", async () => {
     saveFilterState();
-    renderTasks();
+    await reloadTaskList();
   });
 });
 
@@ -73,8 +74,11 @@ async function loadTasks() {
   try {
     await window.LongtailForge.workspaceContextReady;
     await window.LongtailForge.timezones?.loadSessionTimezone?.();
-    const result = await api.getJson("/api/tasks", { cache: "no-store" });
     const tagOptions = await loadTagOptions();
+    if (!hasLoadedTasks) {
+      restoreFilterState();
+    }
+    const result = await loadCanonicalTasks();
     const timersResult = await loadTaskTimers();
     const attachmentCounts = await loadAttachmentCounts(result.tasks || []);
     state = {
@@ -86,15 +90,118 @@ async function loadTasks() {
       attachmentCounts,
       tagOptions,
     };
-    restoreFilterState();
     populateFilters();
     configureTaskDialog();
     renderTasks();
     openTaskFromUrl();
+    hasLoadedTasks = true;
     setStatus("");
   } catch (error) {
     setStatus(error.message || "Tasks could not be loaded.", { isError: true });
   }
+}
+
+async function reloadTaskList() {
+  if (!hasLoadedTasks) {
+    return;
+  }
+
+  setStatus("Updating task list...");
+
+  try {
+    const result = await loadCanonicalTasks();
+    const timersResult = await loadTaskTimers();
+    const attachmentCounts = await loadAttachmentCounts(result.tasks || []);
+    state = {
+      ...state,
+      tasks: result.tasks || [],
+      taskTimers: timersResult.timers || [],
+      currentUserId: result.currentUserId || state.currentUserId,
+      options: result.options || state.options,
+      attachmentCounts,
+    };
+    populateFilters();
+    configureTaskDialog();
+    renderTasks();
+    setStatus("");
+  } catch (error) {
+    setStatus(error.message || "Tasks could not be loaded.", { isError: true });
+  }
+}
+
+async function loadCanonicalTasks() {
+  const query = buildTaskQuery();
+  return api.getJson(query ? `/api/tasks?${query}` : "/api/tasks", { cache: "no-store" });
+}
+
+function buildTaskQuery() {
+  const params = new URLSearchParams();
+  const statusValue = statusFilter?.value || "active";
+  const assigneeValue = assigneeFilter?.value || "all";
+  const clientValue = usesClientScope() ? clientFilter?.value || "all" : "all";
+  const projectValue = projectFilter?.value || "all";
+  const tagValue = tagFilter?.value || "all";
+
+  params.set("status", canonicalStatusValue(statusValue));
+  params.set("sort", canonicalSortValue(sortInput?.value || "due_asc"));
+
+  if (state.quickFilter) {
+    const quickFilter = canonicalQuickFilterValue(state.quickFilter);
+    if (quickFilter) {
+      params.set("quick_filter", quickFilter);
+    }
+  }
+
+  if (assigneeValue === "me") {
+    params.set("quick_filter", "assigned_to_me");
+  } else if (assigneeValue === "unassigned") {
+    params.set("quick_filter", "unassigned");
+  } else if (assigneeValue !== "all") {
+    params.set("assignee_id", assigneeValue);
+  }
+
+  if (clientValue !== "all") {
+    params.set("client_id", clientValue);
+  }
+
+  if (projectValue !== "all") {
+    params.set("project_id", projectValue);
+  }
+
+  if (tagValue !== "all") {
+    params.set("tags", tagValue);
+  }
+
+  return params.toString();
+}
+
+function canonicalStatusValue(value) {
+  if (value === "complete" || value === "archived" || value === "all") {
+    return value;
+  }
+
+  return value || "active";
+}
+
+function canonicalQuickFilterValue(value) {
+  return {
+    my: "assigned_to_me",
+    unassigned: "unassigned",
+    complete: "",
+    archived: "",
+  }[value] || value;
+}
+
+function canonicalSortValue(value) {
+  return {
+    due_asc: "due_at",
+    priority_desc: "priority",
+    status_asc: "status",
+    newest: "created",
+    oldest: "created_asc",
+    last_worked: "last_worked",
+    context: "context",
+  }[value] || "due_at";
 }
 
 function populateFilters() {
@@ -170,7 +277,7 @@ function renderBulkAssigneeOptions() {
 }
 
 function renderTasks() {
-  const tasks = sortedTasks(filteredTasks());
+  const tasks = state.tasks;
 
   syncSelectionToTasks(tasks);
   updateQuickFilterState();
@@ -182,7 +289,7 @@ function renderTasks() {
     const cell = document.createElement("td");
 
     cell.colSpan = 7;
-    cell.textContent = "No tasks match the current filters.";
+    cell.textContent = emptyTaskMessage();
     row.appendChild(cell);
     taskList.appendChild(row);
     updateSelectionControls(tasks);
@@ -193,126 +300,36 @@ function renderTasks() {
   updateSelectionControls(tasks);
 }
 
-function filteredTasks() {
-  const statusValue = statusFilter?.value || "active";
-  const assigneeValue = assigneeFilter?.value || "all";
-  const clientValue = usesClientScope() ? clientFilter?.value || "all" : "all";
-  const projectValue = projectFilter?.value || "all";
-  const tagValue = tagFilter?.value || "all";
-
-  return state.tasks.filter((task) => {
-    const activeStatus = task.status !== "complete" && task.status !== "archived";
-    const statusMatch = statusValue === "all" ||
-      (statusValue === "active" ? activeStatus : task.status === statusValue);
-    const assigneeIds = task.assignee_ids || [];
-    const assigneeMatch = assigneeValue === "all" ||
-      (assigneeValue === "me" ? assigneeIds.includes(currentUserId()) : (
-        assigneeValue === "unassigned" ? assigneeIds.length === 0 : assigneeIds.includes(assigneeValue)
-      ));
-    const clientMatch = clientValue === "all" || (task.client_id || "") === clientValue;
-    const projectMatch = projectValue === "all" || (task.project_id || "") === projectValue;
-    const tagMatch = tagValue === "all" ||
-      (tagValue === "__no_effective_tags__" ? (task.tags || []).length === 0 : (task.tags || []).some((tag) => tag.tag_id === tagValue));
-    const quickMatch = matchesQuickFilter(task);
-
-    return statusMatch && assigneeMatch && clientMatch && projectMatch && tagMatch && quickMatch;
-  });
-}
-
-function matchesQuickFilter(task) {
-  const today = todayKey();
-  const weekEnd = addDaysKey(today, 7);
-  const overdue = isTaskOverdue(task);
-
+function emptyTaskMessage() {
   if (state.quickFilter === "my") {
-    return (task.assignee_ids || []).includes(currentUserId()) && isActiveTask(task);
+    return "No tasks are assigned to you for the current filters.";
   }
 
   if (state.quickFilter === "unassigned") {
-    return (task.assignee_ids || []).length === 0 && isActiveTask(task);
+    return "No unassigned tasks match the current filters.";
   }
 
   if (state.quickFilter === "overdue") {
-    return overdue;
+    return "No overdue tasks need recovery right now.";
   }
 
   if (state.quickFilter === "today") {
-    return task.due_date === today && isActiveTask(task) && !overdue;
+    return "No tasks are due today for the current filters.";
   }
 
   if (state.quickFilter === "week") {
-    return Boolean(task.due_date && task.due_date >= today && task.due_date <= weekEnd && isActiveTask(task) && !overdue);
+    return "No tasks are due this week for the current filters.";
   }
 
   if (state.quickFilter === "complete") {
-    return task.status === "complete";
+    return "No completed tasks match the current filters.";
   }
 
   if (state.quickFilter === "archived") {
-    return task.status === "archived";
+    return "No archived tasks match the current filters.";
   }
 
-  return true;
-}
-
-function sortedTasks(tasks) {
-  const projectSortOrder = getActiveProjectSortOrder();
-
-  return [...tasks].sort((firstTask, secondTask) => {
-    if (sortInput?.value === "priority_desc") {
-      return priorityRank(secondTask.priority) - priorityRank(firstTask.priority) ||
-        dueSortValue(firstTask).localeCompare(dueSortValue(secondTask));
-    }
-
-    if (sortInput?.value === "status_asc") {
-      return String(firstTask.status || "").localeCompare(String(secondTask.status || "")) ||
-        dueSortValue(firstTask).localeCompare(dueSortValue(secondTask));
-    }
-
-    if (sortInput?.value === "newest") {
-      return String(secondTask.created_at || "").localeCompare(String(firstTask.created_at || ""));
-    }
-
-    if (sortInput?.value === "oldest") {
-      return String(firstTask.created_at || "").localeCompare(String(secondTask.created_at || ""));
-    }
-
-    if (projectSortOrder.length > 0) {
-      return compareByProjectSortOrder(firstTask, secondTask, projectSortOrder) ||
-        String(secondTask.updated_at || "").localeCompare(String(firstTask.updated_at || ""));
-    }
-
-    return dueSortValue(firstTask).localeCompare(dueSortValue(secondTask)) ||
-      priorityRank(secondTask.priority) - priorityRank(firstTask.priority) ||
-      String(secondTask.updated_at || "").localeCompare(String(firstTask.updated_at || ""));
-  });
-}
-
-function getActiveProjectSortOrder() {
-  if ((sortInput?.value || "due_asc") !== "due_asc" || (projectFilter?.value || "all") === "all") {
-    return [];
-  }
-
-  const project = state.options.projects.find((item) => item.id === projectFilter.value);
-  return normalizeProjectTaskSortOrder(project?.taskDefaults?.sortOrder || []);
-}
-
-function compareByProjectSortOrder(firstTask, secondTask, sortOrder) {
-  return sortOrder.reduce((result, sortItem) => {
-    if (result !== 0) {
-      return result;
-    }
-
-    if (sortItem === "priority") {
-      return priorityRank(secondTask.priority) - priorityRank(firstTask.priority);
-    }
-
-    if (sortItem === "status") {
-      return String(firstTask.status || "").localeCompare(String(secondTask.status || ""));
-    }
-
-    return dueSortValue(firstTask).localeCompare(dueSortValue(secondTask));
-  }, 0);
+  return "No tasks match the current filters.";
 }
 
 function createTaskRow(task) {
@@ -342,7 +359,7 @@ function createTaskRow(task) {
       state.selectedTaskIds.delete(task.task_id);
     }
     updateBulkControls();
-    updateSelectionControls(sortedTasks(filteredTasks()));
+    updateSelectionControls(state.tasks);
   });
   selectCell.appendChild(checkbox);
 
@@ -583,7 +600,7 @@ async function postTaskAction(task, action) {
       upsertTask(result.createdTask);
       setStatus(`Created next recurring task: ${result.createdTask.title}`);
     }
-    renderTasks();
+    await reloadTaskList();
     if (!result.createdTask) {
       setStatus("");
     }
@@ -605,11 +622,11 @@ function openTaskDialog(task = null, options = {}) {
 function configureTaskDialog() {
   window.LongtailForge.tasksDialog?.configure?.({
     currentUserId: currentUserId(),
-    onSaved: (result) => {
+    onSaved: async (result) => {
       if (result.task) {
         upsertTask(result.task);
       }
-      renderTasks();
+      await reloadTaskList();
     },
     onAttachmentsChanged: refreshTaskAttachmentCounts,
     onAttachmentsRefreshed: refreshTaskAttachmentCounts,
@@ -680,7 +697,7 @@ async function applyBulkAction() {
     results.forEach(upsertTask);
     state.selectedTaskIds.clear();
     resetBulkInputs();
-    renderTasks();
+    await reloadTaskList();
     if (errors.length) {
       const firstError = errors[0]?.message ? ` ${errors[0].message}` : "";
       setStatus(`Updated ${results.length} task changes. ${errors.length} changes could not be updated.${firstError}`, {
@@ -756,7 +773,7 @@ function resetBulkInputs() {
 }
 
 function toggleVisibleSelection() {
-  const tasks = sortedTasks(filteredTasks());
+  const tasks = state.tasks;
 
   tasks.forEach((task) => {
     if (selectAllInput.checked) {
@@ -819,7 +836,7 @@ function handleQuickFilterClick(event) {
       : quickFilter;
   applyQuickFilterDefaults();
   saveFilterState();
-  renderTasks();
+  reloadTaskList();
 }
 
 function handleFilterDetailsToggle() {
@@ -828,8 +845,9 @@ function handleFilterDetailsToggle() {
   }
 
   state.quickFilter = "";
+  applyQuickFilterDefaults();
   saveFilterState();
-  renderTasks();
+  reloadTaskList();
 }
 
 function applyQuickFilterDefaults() {
@@ -998,21 +1016,6 @@ function treeIndent(depth) {
   return depth > 0 ? `${"  ".repeat(depth)}- ` : "";
 }
 
-function normalizeProjectTaskSortOrder(value) {
-  const allowed = ["due_date", "priority", "status"];
-  const ordered = (Array.isArray(value) ? value : [])
-    .map((item) => String(item || "").trim())
-    .filter((item) => allowed.includes(item));
-
-  allowed.forEach((item) => {
-    if (!ordered.includes(item)) {
-      ordered.push(item);
-    }
-  });
-
-  return ordered.slice(0, allowed.length);
-}
-
 function option(value, label) {
   return pageController.createOption(value, label);
 }
@@ -1077,46 +1080,6 @@ function formatToken(value) {
     .join(" ");
 }
 
-function dueSortValue(task) {
-  return task.due_date ? `${task.due_date} ${task.due_time || "99:99"}` : "9999-12-31 99:99";
-}
-
-function priorityRank(priority) {
-  return {
-    urgent: 4,
-    high: 3,
-    normal: 2,
-    low: 1,
-  }[priority] || 0;
-}
-
-function isActiveTask(task) {
-  return task.status !== "complete" && task.status !== "archived";
-}
-
-function isTaskOverdue(task) {
-  if (!task.due_date || !isActiveTask(task)) {
-    return false;
-  }
-
-  if (task.due_time && task.due_at_utc) {
-    const dueAt = new Date(task.due_at_utc);
-    return !Number.isNaN(dueAt.getTime()) && dueAt.getTime() < Date.now();
-  }
-
-  return task.due_date < todayKey();
-}
-
-function todayKey() {
-  return window.LongtailForge.timezones?.formatDateInput?.(new Date()) || new Date().toISOString().slice(0, 10);
-}
-
-function addDaysKey(dateKey, days) {
-  const date = new Date(`${dateKey}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
 function currentUserId() {
   return state.currentUserId ||
     window.LongtailForge?.workspaceContext?.userId ||
@@ -1131,7 +1094,7 @@ function setStatus(message, options = {}) {
 window.LongtailForge.pageController.register("tasks", {
   snapshot: () => ({
     taskCount: state.tasks.length,
-    visibleTaskCount: filteredTasks().length,
+    visibleTaskCount: state.tasks.length,
     selectedTaskCount: state.selectedTaskIds.size,
     quickFilter: state.quickFilter,
     sort: sortInput?.value || "due_asc",

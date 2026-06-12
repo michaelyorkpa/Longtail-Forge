@@ -1,3 +1,12 @@
+## Version 0.33.5.2.3 - 2026-06-12 10:48 -04:00
+
+- Updated the protected Tasks list to send canonical query parameters to `/api/tasks` for status, quick/assignee, client, project, tag/No Tags, and sort intent instead of filtering and sorting the canonical result set in browser code.
+- Kept dense task rows, action buttons, bulk actions, attachment counts, and filter-specific empty states intact while refreshing the canonical list after filter changes and task mutations.
+- Added Last Worked and Project / Client sort choices to the Tasks filter controls and mapped existing sort choices to Tasks-owned sort modes.
+- Extended canonical task query support for direct assignee filters, explicit empty client/project scopes, due quick filters, and oldest-created sort.
+- Added `scripts/task-list-canonical-ui-regression.mjs` for the browser/query contract, No Tags intent, quick-filter order, and dense-row regression coverage, and wired it into `npm run check`.
+- Bumped the app/package and Tasks module versions to `0.33.5.2.3`.
+
 ## Version 0.33.5.2.2 - 2026-06-12 10:35 -04:00
 
 - Added a Tasks-owned canonical task query helper with permission-first readable task filtering, optional status/quick/due/timer/project/client/tag filters, deterministic sort modes, and preserved `/api/tasks` list compatibility.

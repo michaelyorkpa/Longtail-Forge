@@ -405,31 +405,31 @@ Out of scope:
 - Do not add new task fields beyond consuming the canonical payload from 0.33.5.2.2.
 - Do not add Workbench-specific ranking.
 
-- [ ] Replace browser-owned task filtering with canonical task query parameters.
-  - [ ] Status filter.
-  - [ ] Client filter for business workspaces.
-  - [ ] Project filter, including workspace-level projects.
-  - [ ] Assignee/quick filter states such as My Tasks, All, Unassigned, and active recovery views.
-  - [ ] Tag and No Tags filter through the Tags contract.
-- [ ] Replace browser-owned multi-mode sorting with canonical sort parameters.
-  - [ ] Due date/time.
-  - [ ] Priority.
-  - [ ] Status.
-  - [ ] Last worked/recently updated.
-  - [ ] Project/client context.
-- [ ] Update task options payload consumption.
-  - [ ] Read visible client/project/user/tag filter options from service-owned options payloads.
-  - [ ] Reuse the canonical Client/Projects option payload from 0.33.5.2.1 for client/project labels and hierarchy.
-  - [ ] Keep inactive/archived choices out of active defaults unless explicitly requested.
-- [ ] Preserve task-list UX behavior.
-  - [ ] Keep the explicit All quick filter in the expected position.
-  - [ ] Keep dense row metadata and action availability intact.
-  - [ ] Keep empty states recovery-oriented and specific to the selected filter.
-- [ ] Add regression coverage.
-  - [ ] Browser sends query/sort intent instead of re-filtering canonical results.
-  - [ ] Task filter options respect permissions and workspace type.
-  - [ ] Mobile/dense task rows still render correctly after payload changes.
-  - [ ] No Tags behavior matches effective-tag semantics.
+- [x] Replace browser-owned task filtering with canonical task query parameters.
+  - [x] Status filter.
+  - [x] Client filter for business workspaces.
+  - [x] Project filter, including workspace-level projects.
+  - [x] Assignee/quick filter states such as My Tasks, All, Unassigned, and active recovery views.
+  - [x] Tag and No Tags filter through the Tags contract.
+- [x] Replace browser-owned multi-mode sorting with canonical sort parameters.
+  - [x] Due date/time.
+  - [x] Priority.
+  - [x] Status.
+  - [x] Last worked/recently updated.
+  - [x] Project/client context.
+- [x] Update task options payload consumption.
+  - [x] Read visible client/project/user/tag filter options from service-owned options payloads.
+  - [x] Reuse the canonical Client/Projects option payload from 0.33.5.2.1 for client/project labels and hierarchy where available; full picker-option migration remains in 0.33.5.2.4.
+  - [x] Keep inactive/archived choices out of active defaults unless explicitly requested.
+- [x] Preserve task-list UX behavior.
+  - [x] Keep the explicit All quick filter in the expected position.
+  - [x] Keep dense row metadata and action availability intact.
+  - [x] Keep empty states recovery-oriented and specific to the selected filter.
+- [x] Add regression coverage.
+  - [x] Browser sends query/sort intent instead of re-filtering canonical results.
+  - [x] Task filter options respect permissions and workspace type.
+  - [x] Mobile/dense task rows still render correctly after payload changes.
+  - [x] No Tags behavior matches effective-tag semantics.
 
 ### Version 0.33.5.2.4 - Task/client/project picker options
 
@@ -1096,14 +1096,15 @@ This release should add backend storage, service contracts, safe update hooks, a
   - [ ] Due this week.
 - [ ] Every candidate should provide a reason string, primary action, safe context label, and source URL.
 
-### Version 0.33.7.4 - Resume State / Where I Left Off
+### Version 0.33.7.4 - Resume State Consumption / Where I Left Off UI
 
-- [ ] Add framework-owned resume state storage.
-- [ ] Track per-user, per-workspace resumable records.
-- [ ] Update resume state from timers, task edits, checklist changes, note edits, list item activity, file attachments, and future ticket updates.
-- [ ] Workbench "Pick up where I left off" should use resume state first, then fall back to recent activity.
-- [ ] Resume hints must be permission-safe and must not expose secure/private content.
-- [ ] Add regressions for permission changes, disabled modules, deleted/archived records, and inaccessible linked context.
+- [ ] Consume the framework-owned resume state service introduced in 0.33.5.9.
+- [ ] Workbench "Pick up where I left off" should use `/api/work-resume` first.
+- [ ] Fall back to recent activity only when no active resume rows exist.
+- [ ] Show one recommended resume candidate first.
+- [ ] Keep secondary candidates available but visually subordinate.
+- [ ] Allow users to dismiss stale resume candidates.
+- [ ] Preserve permission checks, disabled-module behavior, deleted-record handling, and private/secure content boundaries.
 
 ### Version 0.33.7.5 - Guided Workbench UI
 
