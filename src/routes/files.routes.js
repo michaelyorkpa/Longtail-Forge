@@ -11,6 +11,12 @@ filesRoutes.post("/files", asyncRoute(async (request, response) => {
   response.status(201).json(result);
 }));
 
+filesRoutes.post("/files/batch", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request, { maxBytes: MAX_FILE_JSON_BODY_BYTES });
+  const result = await filesService.uploadBatchAndAttach(request.session, payload);
+  response.status(result.failed > 0 ? 207 : 201).json(result);
+}));
+
 filesRoutes.get("/files/attachments", asyncRoute(async (request, response) => {
   const result = await filesService.listAttachments(request.session, request.query);
   response.status(200).json(result);
@@ -52,6 +58,11 @@ filesRoutes.get("/files/:fileId/download", asyncRoute(async (request, response) 
 
 filesRoutes.post("/files/:fileId/delete", asyncRoute(async (request, response) => {
   const result = await filesService.deleteFile(request.session, request.params.fileId);
+  response.status(200).json(result);
+}));
+
+filesRoutes.post("/files/:fileId/restore", asyncRoute(async (request, response) => {
+  const result = await filesService.restoreFile(request.session, request.params.fileId);
   response.status(200).json(result);
 }));
 

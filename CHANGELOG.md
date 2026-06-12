@@ -1,3 +1,11 @@
+## Version 0.33.5.4.1 - 2026-06-12 16:47 -04:00
+
+- Added staged Files deletion: normal delete now marks files deleted, preserves safe attachment/history rows for linked-record context, emits sanitized lifecycle/audit records, and leaves hard purge for a later admin-managed policy.
+- Added Files restore for the soft-delete stage and updated Files attachment reads so target-scoped panels can show deleted files as unavailable history without exposing inaccessible records.
+- Added service-owned batch upload with a shared target/permission precheck, per-file success/failure results, multi-select file inputs, drag-and-drop upload, and quiet partial-failure UI feedback.
+- Updated file lifecycle regression coverage for batch partial success, staged deletion, restored files, and permission-safe deleted attachment history.
+- Recorded the 0.33.5.4 design decisions and bumped the app/package version to `0.33.5.4.1`.
+
 ## Version 0.33.5.3 - 2026-06-12 14:50 -04:00
 
 - Added Client/Projects public API write scopes `clients:write` and `projects:write` to the module-owned API key scope catalog.

@@ -103,10 +103,48 @@ function fileRow(attachment) {
     download.setAttribute("download", "");
     actions.appendChild(download);
   }
+  if (fileId && file.status !== "deleted") {
+    const deleteButton = document.createElement("button");
+
+    deleteButton.type = "button";
+    deleteButton.textContent = "Delete";
+    deleteButton.addEventListener("click", () => deleteFile(fileId));
+    actions.appendChild(deleteButton);
+  }
+  if (fileId && file.status === "deleted") {
+    const restoreButton = document.createElement("button");
+
+    restoreButton.type = "button";
+    restoreButton.textContent = "Restore";
+    restoreButton.addEventListener("click", () => restoreFile(fileId));
+    actions.appendChild(restoreButton);
+  }
 
   cells[5].className = "file-status-cell";
   row.append(cells[0], cells[1], cells[2], cells[3], cells[4], cells[5], cells[6], actions);
   return row;
+}
+
+async function deleteFile(fileId) {
+  setStatus("Deleting file...");
+
+  try {
+    await api.postJson(`/api/files/${encodeURIComponent(fileId)}/delete`, {});
+    await loadFiles();
+  } catch (error) {
+    setStatus(error.message || "File was not deleted.", true);
+  }
+}
+
+async function restoreFile(fileId) {
+  setStatus("Restoring file...");
+
+  try {
+    await api.postJson(`/api/files/${encodeURIComponent(fileId)}/restore`, {});
+    await loadFiles();
+  } catch (error) {
+    setStatus(error.message || "File was not restored.", true);
+  }
 }
 
 function statusLabel(status, scanStatus) {

@@ -12,6 +12,7 @@ const FILE_LIFECYCLE_EVENTS = Object.freeze([
   "file.downloaded",
   "file.reported",
   "file.deleted",
+  "file.restored",
   "file.attachment.created",
   "file.attachment.removed",
 ]);

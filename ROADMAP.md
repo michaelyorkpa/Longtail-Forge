@@ -660,39 +660,37 @@ Out of scope:
 
 ## Version 0.33.5.4 - Files and Time Tracking QoL Updates
 
-### Questions and Design Clarifications
+### Answered Design Decisions
 
-- File deletion lifecycle: should Files support soft delete/restore first, immediate hard delete, or both with separate permissions?
-  - Soft delete/restore, with admins given the ability to hard delete
-- File deletion ownership: can workspace admins delete any workspace file they can access, or only files they own plus explicit admin-level cleanup flows?
-  - Workspace admins can delete any workspace file they can access.
-- File retention: should deleted file rows remain as historical attachment/audit references even after the protected bytes are removed?
-- Multi-file upload conflict handling: if one file fails validation or scanning, should the successful files still attach, with per-file errors shown?
-- File type controls: should the first Workspace -> Files setting be an allow-list, a block-list, or both with a safe default?
-- Storage accounting: should external files count only as metadata/link availability in 0.33.5.4, or should external providers contribute reported byte usage when integrations can supply it?
-- Time entry admin correction scope: should workspace-admin edits be fully equivalent to owner edits inside the workspace, or should sensitive correction fields require an explicit admin correction permission/audit reason?
-- Timer timestamp semantics: when a timer is paused/resumed multiple times, should the finalized entry preserve the first start and final end as facts while duration stores only accumulated active seconds?
+- File deletion lifecycle: use staged deletion. Normal delete is soft delete/restore. Hard delete/purge is a separate admin-level action after a grace period. Default purge policy should allow admins to purge after 7 days and automatic purge after 30 days. Purge removes protected bytes, clears unsafe storage references, preserves audit/history rows, and emits sanitized lifecycle events. Immediate hard delete should not be the normal user flow.
+- File deletion ownership: file owners may delete files they own where they still have access to the attachment target. Workspace admins may delete any workspace file they can access. Workspace admin delete still goes through soft delete first. Hard purge requires explicit admin/manage permission and must be audited.
+- File retention: deleted file rows remain as historical attachment/audit references after protected bytes are purged. Retain minimal metadata needed for history, attachment panels, audit, storage accounting, and lifecycle events. Do not retain protected storage paths, signed URLs, scanner internals, or anything that would allow removed bytes to be recovered. Attachment panels should show a safe unavailable/deleted state rather than breaking linked-record history.
+- Multi-file upload conflict handling: successful files should still attach even if one or more files fail validation/scanning. Return per-file success/failure results and show quiet, recoverable per-file errors in the UI. Do not roll back the entire batch unless the shared target/permission check fails before any file-specific processing begins.
+- File type controls: support both allow-list and block-list internally, but ship with a safe default mode. The default policy should be a broad allow-list of common safe business/document/image types plus a block-list of clearly risky executable/script/archive edge cases. Enforce server-side in the Files service, not only in browser validation. Browser validation can provide early feedback, but the backend is authoritative. Keep advanced MIME/pattern controls admin-only and avoid making first-pass settings too fiddly.
+- Storage accounting: in 0.33.5.4, internal protected-file bytes count against internal storage. External files should be tracked separately as external metadata/link records. If an integration can report bytes, store that as `external_reported_bytes`, but do not mix it into protected internal storage totals. External provider usage should be informational until a future quota policy explicitly decides how external storage affects limits.
+- Time entry admin correction scope: workspace admins should be able to perform normal corrections to workspace time entries, including tags, without Super Admin fallback. Do not make admin edits fully indistinguishable from owner edits. Sensitive correction fields should require admin correction permission and an audit reason when practical. Suggested sensitive fields: user/worker, billable status, billed/invoiced/locked state, rate/client/project changes if those affect reporting or billing. Normal fields like description, tags, task/project correction, and start/end/duration fixes can be allowed to workspace admins, but all admin corrections should be audited.
+- Timer timestamp semantics: finalized entries should preserve first start and final end as factual timestamps. Duration should store accumulated active seconds only. Paused time should not inflate duration. Reporting totals must use stored duration, not end minus start. UI can display "Started at", "Ended at", and "Active duration". This prevents timers from falsifying start/end time while still producing accurate billing/reporting totals.
 
 ### Implementation Sub-Versions
 
 #### Version 0.33.5.4.1 - Files Deletion and Upload QoL
 
-- [ ] Add a Files-owned delete workflow for files and attachments.
-  - [ ] Respect workspace, module, attachable-target, and file permissions before exposing delete actions.
-  - [ ] Decide and document whether deletion is soft delete, hard delete, or staged delete/restore.
-  - [ ] Preserve audit and lifecycle-event metadata without exposing protected storage paths.
-- [ ] Add multiple file upload support.
-  - [ ] Allow users to choose more than one file in Files-owned upload controls.
-  - [ ] Return per-file success and failure results instead of hiding partial upload outcomes.
-  - [ ] Keep scanner, storage, permission, attachment, audit, and lifecycle behavior centralized in Files-owned services.
-- [ ] Add drag-and-drop upload support.
-  - [ ] Support drag-and-drop in the Files module and reusable attachment surfaces where appropriate.
-  - [ ] Keep keyboard/file-picker upload available.
-  - [ ] Show quiet, recoverable validation states for rejected files.
-- [ ] Verification.
-  - [ ] Verify delete permissions for owner, workspace admin, and inaccessible records.
-  - [ ] Verify multi-upload and drag-and-drop partial failures.
-  - [ ] Verify attachment counts and linked-record panels remain permission-safe after deletion.
+- [x] Add a Files-owned delete workflow for files and attachments.
+  - [x] Respect workspace, module, attachable-target, and file permissions before exposing delete actions.
+  - [x] Decide and document whether deletion is soft delete, hard delete, or staged delete/restore.
+  - [x] Preserve audit and lifecycle-event metadata without exposing protected storage paths.
+- [x] Add multiple file upload support.
+  - [x] Allow users to choose more than one file in Files-owned upload controls.
+  - [x] Return per-file success and failure results instead of hiding partial upload outcomes.
+  - [x] Keep scanner, storage, permission, attachment, audit, and lifecycle behavior centralized in Files-owned services.
+- [x] Add drag-and-drop upload support.
+  - [x] Support drag-and-drop in the Files module and reusable attachment surfaces where appropriate.
+  - [x] Keep keyboard/file-picker upload available.
+  - [x] Show quiet, recoverable validation states for rejected files.
+- [x] Verification.
+  - [x] Verify delete permissions for owner, workspace admin, and inaccessible records.
+  - [x] Verify multi-upload and drag-and-drop partial failures.
+  - [x] Verify attachment counts and linked-record panels remain permission-safe after deletion.
 
 #### Version 0.33.5.4.2 - File Storage Accounting Foundation
 

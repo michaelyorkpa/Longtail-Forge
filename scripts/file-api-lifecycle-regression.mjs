@@ -103,12 +103,72 @@ WHERE file_id = ${sqlText(fixtures.fileId)};
     assert.equal(response.status, 400);
   });
 
+  await checkAsync("POST /api/files/batch keeps successful files when one file fails validation", async () => {
+    const response = await api.post("/api/files/batch", {
+      ...uploadPayload(fixtures.batchTaskId),
+      files: [
+        {
+          contentBase64: Buffer.from("batch good file").toString("base64"),
+          displayName: "batch-good.txt",
+          originalFilename: "batch-good.txt",
+        },
+        {
+          contentBase64: Buffer.from("batch bad file").toString("base64"),
+          displayName: "batch-bad.exe",
+          originalFilename: "batch-bad.exe",
+        },
+      ],
+    }, { cookie: fixtures.adminSessionId });
+
+    assert.equal(response.status, 207);
+    assert.equal(response.body.total, 2);
+    assert.equal(response.body.succeeded, 1);
+    assert.equal(response.body.failed, 1);
+    assert.equal(response.body.results[0].ok, true);
+    assert.equal(response.body.results[1].ok, false);
+
+    const list = await api.get(`/api/files/attachments?targetType=task&targetId=${fixtures.batchTaskId}&filename=batch-good`, {
+      cookie: fixtures.adminSessionId,
+    });
+    assert.equal(list.status, 200);
+    assert.equal(list.body.attachments.length, 1);
+    assert.equal(list.body.attachments[0].file.originalFilename, "batch-good.txt");
+  });
+
   await checkAsync("non-upload role cannot upload to an otherwise visible record", async () => {
     const response = await api.post("/api/files", uploadPayload(fixtures.taskId), {
       cookie: fixtures.clientUserSessionId,
     });
 
     assert.equal(response.status, 403);
+  });
+
+  await checkAsync("file owners can soft-delete their own files without deleting someone else's file", async () => {
+    const ownedFileId = await seedFileRow({
+      fileId: randomUUID(),
+      originalFilename: "owner-delete.txt",
+      session: fixtures,
+      targetId: fixtures.ownerDeleteTaskId,
+      uploadedByUserId: fixtures.clientUserId,
+    });
+    const otherFileId = await seedFileRow({
+      fileId: randomUUID(),
+      originalFilename: "not-owner-delete.txt",
+      session: fixtures,
+      targetId: fixtures.ownerDeleteTaskId,
+      uploadedByUserId: fixtures.adminUserId,
+    });
+
+    const ownedDelete = await api.post(`/api/files/${ownedFileId}/delete`, {}, {
+      cookie: fixtures.clientUserSessionId,
+    });
+    assert.equal(ownedDelete.status, 200);
+    assert.equal(ownedDelete.body.file.status, "deleted");
+
+    const otherDelete = await api.post(`/api/files/${otherFileId}/delete`, {}, {
+      cookie: fixtures.clientUserSessionId,
+    });
+    assert.equal(otherDelete.status, 403);
   });
 
   await checkAsync("files cannot be attached across workspace boundaries", async () => {
@@ -178,7 +238,7 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     assert.equal(Number(reports[0].count), 1);
   });
 
-  await checkAsync("file delete soft-deletes metadata and removes active attachments", async () => {
+  await checkAsync("file delete stages metadata while preserving safe attachment history", async () => {
     const upload = await api.post("/api/files", uploadPayload(fixtures.deleteTaskId, {
       originalFilename: "delete-me.txt",
       text: "delete file",
@@ -193,14 +253,32 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     assert.ok(capturedFileEvents.some((event) => event.name === "file.deleted"));
 
     const rows = await querySql(`
-SELECT files.status, file_attachments.removed_at
+SELECT files.status, files.deleted_at, file_attachments.removed_at
 FROM files
 INNER JOIN file_attachments
   ON file_attachments.file_id = files.file_id
 WHERE files.file_id = ${sqlText(upload.body.file.fileId)};
 `);
     assert.equal(rows[0].status, "deleted");
-    assert.ok(rows[0].removed_at);
+    assert.ok(rows[0].deleted_at);
+    assert.equal(rows[0].removed_at, null);
+
+    const history = await api.get(`/api/files/attachments?targetType=task&targetId=${fixtures.deleteTaskId}`, {
+      cookie: fixtures.adminSessionId,
+    });
+    assert.equal(history.status, 200);
+    assert.equal(history.body.attachments.length, 1);
+    assert.equal(history.body.attachments[0].file.status, "deleted");
+
+    const download = await api.get(`/api/files/${upload.body.file.fileId}/download`, { cookie: fixtures.adminSessionId });
+    assert.equal(download.status, 404);
+
+    const restored = await api.post(`/api/files/${upload.body.file.fileId}/restore`, {}, {
+      cookie: fixtures.adminSessionId,
+    });
+    assert.equal(restored.status, 200);
+    assert.equal(restored.body.file.status, "available");
+    assert.ok(capturedFileEvents.some((event) => event.name === "file.restored"));
   });
 
   await assertIntegrity();
@@ -228,6 +306,8 @@ LIMIT 1;
   const workspaceId = admin.active_workspace_id || admin.home_workspace_id;
   const now = new Date().toISOString();
   const taskId = randomUUID();
+  const batchTaskId = randomUUID();
+  const ownerDeleteTaskId = randomUUID();
   const removeTaskId = randomUUID();
   const deleteTaskId = randomUUID();
   const clientUserId = randomUUID();
@@ -251,6 +331,8 @@ INSERT INTO tasks (
 )
 VALUES
   (${sqlText(taskId)}, ${sqlText(workspaceId)}, NULL, NULL, 'File API Task', '', 'open', 'normal', ${sqlText(admin.user_id)}, ${sqlText(admin.user_id)}, ${sqlText(now)}, ${sqlText(now)}),
+  (${sqlText(batchTaskId)}, ${sqlText(workspaceId)}, NULL, NULL, 'File API Batch Task', '', 'open', 'normal', ${sqlText(admin.user_id)}, ${sqlText(admin.user_id)}, ${sqlText(now)}, ${sqlText(now)}),
+  (${sqlText(ownerDeleteTaskId)}, ${sqlText(workspaceId)}, NULL, NULL, 'File API Owner Delete Task', '', 'open', 'normal', ${sqlText(admin.user_id)}, ${sqlText(admin.user_id)}, ${sqlText(now)}, ${sqlText(now)}),
   (${sqlText(removeTaskId)}, ${sqlText(workspaceId)}, NULL, NULL, 'File API Remove Task', '', 'open', 'normal', ${sqlText(admin.user_id)}, ${sqlText(admin.user_id)}, ${sqlText(now)}, ${sqlText(now)}),
   (${sqlText(deleteTaskId)}, ${sqlText(workspaceId)}, NULL, NULL, 'File API Delete Task', '', 'open', 'normal', ${sqlText(admin.user_id)}, ${sqlText(admin.user_id)}, ${sqlText(now)}, ${sqlText(now)});
 
@@ -357,13 +439,110 @@ VALUES (
 
   return {
     adminSessionId: adminSession.sessionId,
+    adminUserId: admin.user_id,
+    batchTaskId,
+    clientUserId,
     clientUserSessionId: clientUserSession.sessionId,
     deleteTaskId,
+    ownerDeleteTaskId,
     otherWorkspaceTaskId,
     removeTaskId,
     taskId,
     workspaceId,
   };
+}
+
+async function seedFileRow(options = {}) {
+  const fileId = options.fileId || randomUUID();
+  const attachmentId = randomUUID();
+  const now = new Date().toISOString();
+  const filename = options.originalFilename || "seeded-owner-file.txt";
+
+  await runSql(`
+INSERT INTO files (
+  file_id,
+  workspace_id,
+  storage_provider,
+  storage_key,
+  original_filename,
+  stored_filename,
+  display_name,
+  extension,
+  mime_type_claimed,
+  mime_type_detected,
+  file_size_bytes,
+  sha256_hash,
+  status,
+  scan_status,
+  quarantine_reason,
+  uploaded_by_user_id,
+  created_at,
+  updated_at,
+  deleted_at,
+  metadata_json
+)
+VALUES (
+  ${sqlText(fileId)},
+  ${sqlText(options.session.workspaceId)},
+  'local',
+  ${sqlText(`test/${fileId}`)},
+  ${sqlText(filename)},
+  ${sqlText(filename)},
+  ${sqlText(filename)},
+  '.txt',
+  'text/plain',
+  'text/plain',
+  12,
+  '',
+  'available',
+  'passed',
+  NULL,
+  ${sqlText(options.uploadedByUserId)},
+  ${sqlText(now)},
+  ${sqlText(now)},
+  NULL,
+  '{}'
+);
+
+INSERT INTO file_attachments (
+  file_attachment_id,
+  workspace_id,
+  file_id,
+  module_id,
+  target_type,
+  target_id,
+  client_id,
+  project_id,
+  visibility,
+  attachment_role,
+  caption,
+  sort_order,
+  attached_by_user_id,
+  created_at,
+  removed_at,
+  metadata_json
+)
+VALUES (
+  ${sqlText(attachmentId)},
+  ${sqlText(options.session.workspaceId)},
+  ${sqlText(fileId)},
+  'tasks',
+  'task',
+  ${sqlText(options.targetId)},
+  NULL,
+  NULL,
+  'private',
+  NULL,
+  NULL,
+  0,
+  ${sqlText(options.uploadedByUserId)},
+  ${sqlText(now)},
+  NULL,
+  '{}'
+);
+`);
+
+  return fileId;
 }
 
 function uploadPayload(taskId, options = {}) {
@@ -391,6 +570,7 @@ function registerFileEventCapture() {
     "file.downloaded",
     "file.reported",
     "file.deleted",
+    "file.restored",
     "file.attachment.created",
     "file.attachment.removed",
   ]) {

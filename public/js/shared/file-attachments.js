@@ -15,6 +15,7 @@
       isLoading: false,
       isUploading: false,
       options: normalizeOptions(options),
+      uploadResults: [],
     };
 
     render(container, state);
@@ -106,11 +107,16 @@
     const label = document.createElement("label");
     const input = document.createElement("input");
     const button = document.createElement("button");
+    const dropZone = document.createElement("div");
 
     form.className = "file-attachment-upload";
     form.hidden = options.canUpload === false;
-    label.textContent = "Choose File";
+    dropZone.className = "file-attachment-dropzone";
+    dropZone.tabIndex = 0;
+    dropZone.textContent = state.isUploading ? "Uploading files..." : "Drop files here";
+    label.textContent = "Choose Files";
     input.type = "file";
+    input.multiple = true;
     input.dataset.fileAttachmentInput = "true";
     input.setAttribute("data-file-attachment-input", "");
     input.accept = acceptedExtensions(options.acceptedCategories).join(",");
@@ -120,13 +126,32 @@
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      if (input.files?.[0]) {
-        await uploadFile(container, state, input.files[0]);
+      if (input.files?.length) {
+        await uploadFiles(container, state, [...input.files]);
+        input.value = "";
+      }
+    });
+    for (const eventName of ["dragenter", "dragover"]) {
+      dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropZone.classList.add("is-drag-over");
+      });
+    }
+    for (const eventName of ["dragleave", "drop"]) {
+      dropZone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        dropZone.classList.remove("is-drag-over");
+      });
+    }
+    dropZone.addEventListener("drop", async (event) => {
+      const files = [...(event.dataTransfer?.files || [])];
+      if (files.length) {
+        await uploadFiles(container, state, files);
       }
     });
 
     label.append(input);
-    form.append(label, button);
+    form.append(dropZone, label, button, uploadResultList(state));
     return form;
   }
 
@@ -162,11 +187,15 @@
     const actions = document.createElement("div");
     const download = document.createElement("a");
     const remove = document.createElement("button");
+    const deleteButton = document.createElement("button");
+    const restore = document.createElement("button");
     const attachmentId = attachment.fileAttachmentId || attachment.file_attachment_id;
     const fileId = attachment.fileId || attachment.file_id;
     const isDownloadable = file.status === "available" && ["not_required", "passed"].includes(file.scanStatus);
+    const isDeleted = file.status === "deleted";
 
     item.className = "file-attachment-item";
+    item.classList.toggle("is-deleted", isDeleted);
     item.dataset.fileAttachmentId = attachmentId;
     summary.className = "file-attachment-summary";
     name.textContent = file.displayName || file.originalFilename || "File";
@@ -186,16 +215,42 @@
 
     remove.type = "button";
     remove.textContent = "Remove";
-    remove.hidden = options.canRemove === false;
+    remove.hidden = options.canRemove === false || isDeleted;
     remove.addEventListener("click", () => removeAttachment(container, state, attachment));
 
+    deleteButton.type = "button";
+    deleteButton.textContent = "Delete File";
+    deleteButton.hidden = options.canRemove === false || isDeleted;
+    deleteButton.addEventListener("click", () => deleteFile(container, state, attachment));
+
+    restore.type = "button";
+    restore.textContent = "Restore";
+    restore.hidden = options.canRemove === false || !isDeleted;
+    restore.addEventListener("click", () => restoreFile(container, state, attachment));
+
     summary.append(name, meta);
-    actions.append(download, remove);
+    actions.append(download, remove, deleteButton, restore);
     item.append(summary, actions);
     return item;
   }
 
-  async function uploadFile(container, state, file) {
+  function uploadResultList(state) {
+    const list = document.createElement("div");
+
+    list.className = "file-attachment-upload-results";
+    state.uploadResults.forEach((result) => {
+      const item = document.createElement("p");
+
+      item.className = result.ok ? "file-attachment-upload-result" : "file-attachment-upload-result is-error";
+      item.textContent = result.ok
+        ? `${result.originalFilename || result.file?.originalFilename || "File"} uploaded.`
+        : `${result.originalFilename || "File"}: ${result.error || "Upload failed."}`;
+      list.append(item);
+    });
+    return list;
+  }
+
+  async function uploadFiles(container, state, files) {
     const { options } = state;
 
     if (!options.targetId || options.canUpload === false) {
@@ -204,15 +259,21 @@
 
     state.isUploading = true;
     state.error = "";
+    state.uploadResults = [];
     render(container, state);
-    emit(container, state, "uploadStarted", { file });
+    emit(container, state, "uploadStarted", { files });
 
     try {
-      const contentBase64 = await readFileBase64(file);
-      const result = await api.postJson("/api/files", {
-        originalFilename: file.name,
-        displayName: file.name,
-        contentBase64,
+      const uploadPayloads = [];
+      for (const file of files) {
+        uploadPayloads.push({
+          contentBase64: await readFileBase64(file),
+          displayName: file.name,
+          originalFilename: file.name,
+        });
+      }
+      const result = await api.postJson("/api/files/batch", {
+        files: uploadPayloads,
         moduleId: options.moduleId,
         targetType: options.targetType,
         targetId: options.targetId,
@@ -221,6 +282,10 @@
         visibility: options.visibility,
       });
 
+      state.uploadResults = result.results || [];
+      if (result.failed > 0) {
+        state.error = `${result.succeeded || 0} uploaded, ${result.failed} failed.`;
+      }
       emit(container, state, "uploadCompleted", result);
       emit(container, state, "attachmentAdded", result);
       await refresh(container, state);
@@ -246,6 +311,40 @@
       await refresh(container, state);
     } catch (error) {
       state.error = error.message || "Attachment was not removed.";
+      render(container, state);
+    }
+  }
+
+  async function deleteFile(container, state, attachment) {
+    const fileId = attachment.fileId || attachment.file_id;
+
+    if (!fileId) {
+      return;
+    }
+
+    try {
+      await api.postJson(`/api/files/${encodeURIComponent(fileId)}/delete`, {});
+      emit(container, state, "fileDeleted", { attachment });
+      await refresh(container, state);
+    } catch (error) {
+      state.error = error.message || "File was not deleted.";
+      render(container, state);
+    }
+  }
+
+  async function restoreFile(container, state, attachment) {
+    const fileId = attachment.fileId || attachment.file_id;
+
+    if (!fileId) {
+      return;
+    }
+
+    try {
+      await api.postJson(`/api/files/${encodeURIComponent(fileId)}/restore`, {});
+      emit(container, state, "fileRestored", { attachment });
+      await refresh(container, state);
+    } catch (error) {
+      state.error = error.message || "File was not restored.";
       render(container, state);
     }
   }

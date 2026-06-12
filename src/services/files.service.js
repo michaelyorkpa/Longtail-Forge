@@ -198,6 +198,66 @@ async function uploadAndAttach(session, payload = {}) {
   }
 }
 
+async function uploadBatchAndAttach(session, payload = {}) {
+  const files = Array.isArray(payload.files) ? payload.files : [];
+
+  if (files.length === 0) {
+    throw new AppError("At least one file is required.", 400);
+  }
+
+  const attachableType = await resolveAttachableType(session.workspace_id, payload.moduleId, payload.targetType);
+  const target = await readAttachableTarget(session.workspace_id, attachableType, payload.targetId);
+  await assertCanUseAttachableTarget(session, attachableType, "upload", target);
+
+  const results = [];
+
+  for (const [index, filePayload] of files.entries()) {
+    const uploadPayload = {
+      ...payload,
+      ...filePayload,
+      attachmentMetadata: {
+        ...(payload.attachmentMetadata || {}),
+        ...(filePayload.attachmentMetadata || {}),
+        batch_index: index,
+      },
+      files: undefined,
+      moduleId: attachableType.moduleId,
+      targetId: target.target_id,
+      targetType: attachableType.targetType,
+    };
+
+    try {
+      const result = await uploadAndAttach(session, uploadPayload);
+      results.push({
+        attachment: result.attachment,
+        file: result.file,
+        index,
+        ok: true,
+        originalFilename: uploadPayload.originalFilename || uploadPayload.filename || "",
+      });
+    } catch (error) {
+      results.push({
+        error: error?.message || "Upload failed.",
+        index,
+        ok: false,
+        originalFilename: uploadPayload.originalFilename || uploadPayload.filename || "",
+        status: error?.status || error?.statusCode || 400,
+      });
+    }
+  }
+
+  const succeeded = results.filter((result) => result.ok).length;
+  const failed = results.length - succeeded;
+
+  return {
+    failed,
+    ok: failed === 0,
+    results,
+    succeeded,
+    total: results.length,
+  };
+}
+
 async function attachExistingFile(session, payload = {}) {
   const file = await readFileRow(session.workspace_id, payload.fileId);
   if (!file || file.status === "deleted") {
@@ -231,17 +291,26 @@ async function listAttachments(session, filters = {}) {
   const listOptions = normalizeAttachmentListOptions(filters);
   await assertTargetScopedAttachmentRead(session, filters);
   const statusFilter = normalizeFileStatusFilter(filters.status || filters.fileStatus || filters.file_status);
+  const targetScopedRead = Boolean(filters.targetId || filters.target_id);
   const conditions = [
     `file_attachments.workspace_id = ${sqlText(session.workspace_id)}`,
     "file_attachments.removed_at IS NULL",
   ];
 
   if (statusFilter === "all" && canManageQuarantine) {
-    conditions.push("files.status <> 'deleted'");
+    conditions.push("files.status IN ('pending', 'available', 'quarantined', 'deleted')");
   } else if (statusFilter === "quarantined" && canManageQuarantine) {
     conditions.push("files.status = 'quarantined'");
   } else if (statusFilter === "pending" && canManageQuarantine) {
     conditions.push("files.status = 'pending'");
+  } else if (statusFilter === "deleted") {
+    conditions.push("files.status = 'deleted'");
+  } else if (statusFilter === "all") {
+    conditions.push("files.status IN ('available', 'deleted')");
+    conditions.push("files.scan_status IN ('not_required', 'passed')");
+  } else if (targetScopedRead && !(filters.status || filters.fileStatus || filters.file_status)) {
+    conditions.push("files.status IN ('available', 'deleted')");
+    conditions.push("files.scan_status IN ('not_required', 'passed')");
   } else {
     conditions.push("files.status = 'available'");
     conditions.push("files.scan_status IN ('not_required', 'passed')");
@@ -474,29 +543,53 @@ async function deleteFile(session, fileId) {
     throw new AppError("File not found.", 404);
   }
 
-  await permissionsService.assertCan(session, "files.delete", {
-    workspace_id: session.workspace_id,
-    operation: "delete",
-  });
+  const attachments = await readActiveAttachmentsForFile(session.workspace_id, file.file_id);
+  await assertCanDeleteFile(session, file, attachments);
 
   const now = new Date().toISOString();
+  const metadata = mergeFileMetadata(file.metadata_json, {
+    deletion: {
+      deleted_at: now,
+      deleted_by_user_id: session.user_id,
+      previous_status: file.status,
+      purge_after_days: 7,
+      automatic_purge_after_days: 30,
+      staged: true,
+    },
+  });
+
   await runSql(`
 UPDATE files
 SET status = 'deleted',
     deleted_at = ${sqlText(now)},
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND file_id = ${sqlText(file.file_id)};
-
-UPDATE file_attachments
-SET removed_at = COALESCE(removed_at, ${sqlText(now)})
+    updated_at = ${sqlText(now)},
+    metadata_json = ${sqlText(JSON.stringify(metadata))}
 WHERE workspace_id = ${sqlText(session.workspace_id)}
   AND file_id = ${sqlText(file.file_id)};
 `);
-  await getFileStorageAdapter(file.storage_provider).delete(file.storage_key);
+
+  for (const attachment of attachments) {
+    await emitFileLifecycleEvent("file.attachment.removed", {
+      session,
+      attachmentId: attachment.file_attachment_id,
+      fileId: attachment.file_id,
+      metadata: { staged_delete: true },
+      moduleId: attachment.module_id,
+      targetId: attachment.target_id,
+      targetType: attachment.target_type,
+      status: "deleted",
+      scanStatus: attachment.scan_status,
+    });
+  }
+
   await emitFileLifecycleEvent("file.deleted", {
     session,
     fileId: file.file_id,
+    metadata: {
+      automatic_purge_after_days: 30,
+      purge_after_days: 7,
+      staged_delete: true,
+    },
     status: "deleted",
     scanStatus: file.scan_status,
   });
@@ -505,6 +598,61 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     changeType: "delete",
     recordId: file.file_id,
     recordLabel: file.display_name,
+    metadata: {
+      automatic_purge_after_days: 30,
+      purge_after_days: 7,
+      staged_delete: true,
+    },
+  });
+
+  return { file: await readFileForAdmin(session, file.file_id) };
+}
+
+async function restoreFile(session, fileId) {
+  const file = await readFileRow(session.workspace_id, fileId);
+
+  if (!file || file.status !== "deleted") {
+    throw new AppError("Deleted file not found.", 404);
+  }
+
+  const attachments = await readActiveAttachmentsForFile(session.workspace_id, file.file_id);
+  await assertCanDeleteFile(session, file, attachments, { operation: "restore" });
+
+  const metadata = parseJsonObject(file.metadata_json);
+  const previousStatus = normalizeRestorableStatus(metadata.deletion?.previous_status, file.scan_status);
+  const now = new Date().toISOString();
+  const nextMetadata = {
+    ...metadata,
+    deletion: {
+      ...(metadata.deletion || {}),
+      restored_at: now,
+      restored_by_user_id: session.user_id,
+    },
+  };
+
+  await runSql(`
+UPDATE files
+SET status = ${sqlText(previousStatus)},
+    deleted_at = NULL,
+    updated_at = ${sqlText(now)},
+    metadata_json = ${sqlText(JSON.stringify(nextMetadata))}
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND file_id = ${sqlText(file.file_id)};
+`);
+
+  await emitFileLifecycleEvent("file.restored", {
+    session,
+    fileId: file.file_id,
+    metadata: { previous_status: file.status },
+    status: previousStatus,
+    scanStatus: file.scan_status,
+  });
+  await recordFileAudit(session, {
+    action: "file.restored",
+    changeType: "update",
+    recordId: file.file_id,
+    recordLabel: file.display_name,
+    metadata: { restored_from_status: file.status },
   });
 
   return { file: await readFileForAdmin(session, file.file_id) };
@@ -1122,6 +1270,43 @@ async function canReadAttachment(session, attachment) {
   return canReadModuleTargetAttachment(session, attachableType, attachment);
 }
 
+async function assertCanDeleteFile(session, file, attachments = [], options = {}) {
+  const operation = options.operation || "delete";
+  const hasDeletePermission = await permissionsService.can(session, "files.delete", {
+    workspace_id: session.workspace_id,
+    operation,
+  });
+  const isOwner = file.uploaded_by_user_id && file.uploaded_by_user_id === session.user_id;
+
+  if (!hasDeletePermission && !isOwner) {
+    throw new AppError("You do not have permission to delete that file.", 403);
+  }
+
+  if (attachments.length === 0) {
+    if (hasDeletePermission) {
+      return;
+    }
+    throw new AppError("You do not have permission to delete that file.", 403);
+  }
+
+  if (hasDeletePermission) {
+    for (const attachment of attachments) {
+      if (await canReadAttachment(session, attachment)) {
+        return;
+      }
+    }
+    throw new AppError("You do not have permission to delete that file.", 403);
+  }
+
+  for (const attachment of attachments) {
+    if (await canReadAttachment(session, attachment)) {
+      return;
+    }
+  }
+
+  throw new AppError("You do not have permission to delete that file.", 403);
+}
+
 async function assertTargetScopedAttachmentRead(session, filters = {}) {
   const moduleId = normalizeOptionalText(filters.moduleId || filters.module_id);
   const targetType = normalizeOptionalText(filters.targetType || filters.target_type);
@@ -1222,7 +1407,8 @@ function attachmentSelectColumns() {
   files.file_size_bytes,
   files.status AS file_status,
   files.scan_status,
-  files.quarantine_reason
+  files.quarantine_reason,
+  files.deleted_at AS file_deleted_at
 `;
 }
 
@@ -1276,6 +1462,8 @@ function shapeAttachment(attachment) {
       originalFilename: attachment.original_filename,
       scanStatus: attachment.scan_status,
       status: attachment.file_status,
+      deletedAt: attachment.file_deleted_at || null,
+      deleted_at: attachment.file_deleted_at || null,
     },
   };
 }
@@ -1310,7 +1498,7 @@ function normalizeVisibility(value, attachableType) {
 function normalizeFileStatusFilter(value) {
   const status = String(value || "available").trim().toLowerCase();
 
-  return ["all", "available", "pending", "quarantined"].includes(status) ? status : "available";
+  return ["all", "available", "deleted", "pending", "quarantined"].includes(status) ? status : "available";
 }
 
 function normalizeAttachmentListOptions(filters = {}) {
@@ -1451,6 +1639,40 @@ function normalizeReportReason(value) {
   return reason;
 }
 
+function parseJsonObject(value) {
+  if (!value) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function mergeFileMetadata(value, patch = {}) {
+  return {
+    ...parseJsonObject(value),
+    ...patch,
+  };
+}
+
+function normalizeRestorableStatus(previousStatus, scanStatus) {
+  if (previousStatus === "quarantined") {
+    return "quarantined";
+  }
+  if (previousStatus === "pending") {
+    return "pending";
+  }
+  if (["not_required", "passed"].includes(scanStatus)) {
+    return "available";
+  }
+
+  return "pending";
+}
+
 async function recordFileAudit(session, event = {}) {
   return auditService.record({
     session,
@@ -1487,5 +1709,7 @@ export const filesService = {
   removeAttachment,
   reportFile,
   resolveAttachableType,
+  restoreFile,
   uploadAndAttach,
+  uploadBatchAndAttach,
 };
