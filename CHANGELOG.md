@@ -1,3 +1,11 @@
+## Version 0.33.5.4.5 - 2026-06-12 18:17 -04:00
+
+- Made active timer finalization server-authoritative for factual timer start/end timestamps and accumulated active duration.
+- Finalized persisted timers now use the timer row's first persisted start, the server finalization time, and accumulated active seconds plus any current running segment instead of browser-supplied timestamp math.
+- Preserved manual time-entry create/edit semantics so direct edits still save explicit start/end/duration values.
+- Added `scripts/timer-timestamp-integrity-regression.mjs` and wired it into `npm run check` to verify paused/resumed timer duration, factual start/end preservation, and reporting totals based on stored duration.
+- Bumped the app/package version to `0.33.5.4.5`.
+
 ## Version 0.33.5.4.4 - 2026-06-12 18:05 -04:00
 
 - Fixed workspace-admin time-entry correction access so admins can edit another user's workspace-scoped entries, including direct time-entry tags, through the Time Tracking service.

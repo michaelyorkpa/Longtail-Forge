@@ -748,18 +748,18 @@ Out of scope:
 
 #### Version 0.33.5.4.5 - Timer Timestamp Integrity and Duration Model
 
-- [ ] Preserve exact timer start/end timestamps when finalizing active timers.
-  - [ ] Start/end timestamps are informational facts.
-  - [ ] Duration is stored separately and should not rewrite the start/end facts.
-  - [ ] Finalized entries should show exactly when the timer was started and ended, plus the total duration the timer was running during that period.
-- [ ] Review timer finalization math.
-  - [ ] Confirm timers are not adjusting start or end time based on total duration.
-  - [ ] Confirm paused/resumed timers store accumulated active duration without falsifying start/end facts.
-  - [ ] Preserve timezone-aware display behavior while keeping stored timestamps consistent with the existing UTC standard.
-- [ ] Verification.
-  - [ ] Verify active, paused, resumed, finalized, and discarded timer flows.
-  - [ ] Verify manual time-entry edits do not inherit timer-only timestamp behavior incorrectly.
-  - [ ] Verify reporting totals still use stored duration rather than recalculating from display timestamps.
+- [x] Preserve exact timer start/end timestamps when finalizing active timers.
+  - [x] Start/end timestamps are informational facts.
+  - [x] Duration is stored separately and should not rewrite the start/end facts.
+  - [x] Finalized entries should show exactly when the timer was started and ended, plus the total duration the timer was running during that period.
+- [x] Review timer finalization math.
+  - [x] Confirm timers are not adjusting start or end time based on total duration.
+  - [x] Confirm paused/resumed timers store accumulated active duration without falsifying start/end facts.
+  - [x] Preserve timezone-aware display behavior while keeping stored timestamps consistent with the existing UTC standard.
+- [x] Verification.
+  - [x] Verify active, paused, resumed, finalized, and discarded timer flows.
+  - [x] Verify manual time-entry edits do not inherit timer-only timestamp behavior incorrectly.
+  - [x] Verify reporting totals still use stored duration rather than recalculating from display timestamps.
 
 #### Version 0.33.5.4.6 - Timer Resume Metadata and Lifecycle Events
 

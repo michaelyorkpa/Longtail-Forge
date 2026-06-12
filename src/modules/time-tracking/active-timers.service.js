@@ -119,16 +119,17 @@ async function finalize(timerSlot, payload, session) {
     session.user_id,
     normalizedTimerSlot,
   );
+  const timerFacts = finalizedTimerFacts(activeTimer, payload);
   const entry = {
     client_id: payload?.client_id ?? activeTimer?.client_id ?? "",
     client_name: payload?.client_name ?? activeTimer?.client_name ?? "",
     project_id: payload?.project_id ?? activeTimer?.project_id ?? "",
     project_name: payload?.project_name ?? activeTimer?.project_name ?? "",
     description: payload?.description ?? activeTimer?.description ?? "",
-    start_time: payload?.start_time,
-    end_time: payload?.end_time,
-    duration_seconds: payload?.duration_seconds,
-    duration_hours: payload?.duration_hours,
+    start_time: timerFacts.startTime,
+    end_time: timerFacts.endTime,
+    duration_seconds: timerFacts.durationSeconds,
+    duration_hours: timerFacts.durationHours,
     billable: payload?.billable ?? activeTimer?.billable ?? "yes",
     invoice_status: payload?.invoice_status || "unbilled",
     tagIds: payload?.tagIds || payload?.tag_ids || [],
@@ -166,22 +167,17 @@ async function finalizeSourced(source, payload, session, entryOverrides = {}) {
     session.user_id,
     sourceLookup,
   );
-  const durationSeconds = Math.max(
-    1,
-    Number.parseInt(payload?.duration_seconds ?? activeTimer?.accumulated_elapsed_seconds, 10) || 0,
-  );
-  const endTime = payload?.end_time || new Date().toISOString();
-  const startTime = payload?.start_time || new Date(new Date(endTime).getTime() - durationSeconds * 1000).toISOString();
+  const timerFacts = finalizedTimerFacts(activeTimer, payload);
   const entry = {
     client_id: payload?.client_id ?? activeTimer?.client_id ?? "",
     client_name: payload?.client_name ?? activeTimer?.client_name ?? "",
     project_id: payload?.project_id ?? activeTimer?.project_id ?? "",
     project_name: payload?.project_name ?? activeTimer?.project_name ?? "",
     description: payload?.description ?? activeTimer?.description ?? "",
-    start_time: startTime,
-    end_time: endTime,
-    duration_seconds: durationSeconds,
-    duration_hours: payload?.duration_hours ?? (durationSeconds / 3600).toFixed(4),
+    start_time: timerFacts.startTime,
+    end_time: timerFacts.endTime,
+    duration_seconds: timerFacts.durationSeconds,
+    duration_hours: timerFacts.durationHours,
     billable: payload?.billable ?? activeTimer?.billable ?? "yes",
     invoice_status: payload?.invoice_status || "unbilled",
     tagIds: payload?.tagIds || payload?.tag_ids || [],
@@ -200,8 +196,54 @@ async function finalizeSourced(source, payload, session, entryOverrides = {}) {
     active_timer_removed: true,
     source_id: normalizedSource.source_id,
     source_type: normalizedSource.source_type,
-    duration_seconds: durationSeconds,
+    duration_seconds: timerFacts.durationSeconds,
   };
+}
+
+function finalizedTimerFacts(activeTimer, payload = {}) {
+  if (!activeTimer) {
+    const durationSeconds = Math.max(1, Number.parseInt(payload?.duration_seconds, 10) || 0);
+    const endTime = normalizeIsoDate(payload?.end_time || new Date().toISOString());
+    const startTime = normalizeIsoDate(payload?.start_time || new Date(new Date(endTime).getTime() - durationSeconds * 1000).toISOString());
+
+    return {
+      durationHours: payload?.duration_hours ?? (durationSeconds / 3600).toFixed(4),
+      durationSeconds,
+      endTime,
+      startTime,
+    };
+  }
+
+  const endTime = normalizeIsoDate(new Date().toISOString());
+  const durationSeconds = Math.max(1, activeTimerElapsedSecondsAt(activeTimer, endTime));
+  const startTime = normalizeIsoDate(
+    activeTimer.created_at ||
+    activeTimer.last_active_start_time ||
+    new Date(new Date(endTime).getTime() - durationSeconds * 1000).toISOString(),
+  );
+
+  return {
+    durationHours: (durationSeconds / 3600).toFixed(4),
+    durationSeconds,
+    endTime,
+    startTime,
+  };
+}
+
+function activeTimerElapsedSecondsAt(activeTimer, endTime) {
+  const accumulatedSeconds = Math.max(0, Number.parseInt(activeTimer?.accumulated_elapsed_seconds, 10) || 0);
+
+  if (activeTimer?.timer_status !== "running" || !activeTimer?.last_active_start_time) {
+    return accumulatedSeconds;
+  }
+
+  const lastActiveStartedAt = new Date(activeTimer.last_active_start_time).getTime();
+  const endedAt = new Date(endTime).getTime();
+  const runningSeconds = Number.isFinite(lastActiveStartedAt) && Number.isFinite(endedAt)
+    ? Math.max(0, Math.floor((endedAt - lastActiveStartedAt) / 1000))
+    : 0;
+
+  return accumulatedSeconds + runningSeconds;
 }
 
 function normalizeTimerPayload(payload, timerSlot, session) {

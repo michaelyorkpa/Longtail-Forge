@@ -767,7 +767,7 @@ async function runTaskMutationTests(api, fixtures) {
     "project user can restart task timer after Workbench pause",
     api.put(`/api/tasks/${encodeURIComponent(timerTask.body.task.task_id)}/timer`, {
       timer_status: "running",
-      accumulated_elapsed_seconds: 12,
+      accumulated_elapsed_seconds: 60,
       last_active_start_time: new Date().toISOString(),
     }, { cookie: fixtures.sessions.projectUser }),
     200,
