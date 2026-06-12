@@ -353,47 +353,47 @@ Out of scope:
 - Do not add AI ranking.
 - Do not make Dashboard or Workbench the canonical owner of task filtering.
 
-- [ ] Add a Tasks-owned canonical query helper for task list/work-item reads.
-  - [ ] Enforce workspace, module, task read permission, private/inaccessible context, and readable client/project boundaries before sorting/shaping.
-  - [ ] Preserve existing Tasks API behavior while adding reusable query options.
-  - [ ] Keep browser-local sorting as a display fallback only until callers are migrated.
-- [ ] Support canonical task filters.
-  - [ ] Assigned to current user.
-  - [ ] Unassigned.
-  - [ ] Due today.
-  - [ ] Next due.
-  - [ ] Due this week.
-  - [ ] Overdue.
-  - [ ] In progress.
-  - [ ] Blocked.
-  - [ ] Has running/paused timer.
-  - [ ] Recently updated/worked.
-  - [ ] Project.
-  - [ ] Client for business workspaces.
-  - [ ] Tags and No Tags through the Tags contract where supported.
-  - [ ] Archived/completed/history filters only when explicitly requested.
-- [ ] Support deterministic task sorts.
-  - [ ] Due date/time.
-  - [ ] Priority.
-  - [ ] Status.
-  - [ ] Last worked.
-  - [ ] Recently updated.
-  - [ ] Project/client context.
-  - [ ] Stable fallback by title or created date so pagination and repeated reads do not drift.
-- [ ] Add normalized task work-item summary payload for Tasks list, Dashboard summaries, Workbench, and future resume-state consumers.
-  - [ ] Include `source_module_id`, `source_type`, `source_id`, `source_label`, and `source_url`.
-  - [ ] Include `title`, `description_excerpt`, `status`, `priority`, `due_date`, `due_time`, and normalized `due_at`.
-  - [ ] Include readable `client_id`, `client_name`, `project_id`, and `project_name`.
-  - [ ] Include `assignee_ids` and `assigned_to_current_user`.
-  - [ ] Include `next_action`, `blocked_reason`, and `resume_note` using the current task field name; do not introduce a separate `handoff_note` storage field.
-  - [ ] Include `checklist_progress`, `timer_status`, `elapsed_seconds`, `last_worked_at`, and `updated_at`.
-  - [ ] Mark completed, archived, deleted, private, or inaccessible tasks as inactive/non-candidates where summary payloads expose resume-safe metadata.
-- [ ] Add regression coverage.
-  - [ ] Permission filtering before task shaping.
-  - [ ] Private/inaccessible task context is not leaked.
-  - [ ] Each filter and sort mode returns deterministic results.
-  - [ ] Work-item summary payload includes current 0.33.5 task context fields.
-  - [ ] Dashboard/Workbench callers can consume the canonical payload without adding their own task-query rules.
+- [x] Add a Tasks-owned canonical query helper for task list/work-item reads.
+  - [x] Enforce workspace, module, task read permission, private/inaccessible context, and readable client/project boundaries before sorting/shaping.
+  - [x] Preserve existing Tasks API behavior while adding reusable query options.
+  - [x] Keep browser-local sorting as a display fallback only until callers are migrated.
+- [x] Support canonical task filters.
+  - [x] Assigned to current user.
+  - [x] Unassigned.
+  - [x] Due today.
+  - [x] Next due.
+  - [x] Due this week.
+  - [x] Overdue.
+  - [x] In progress.
+  - [x] Blocked.
+  - [x] Has running/paused timer.
+  - [x] Recently updated/worked.
+  - [x] Project.
+  - [x] Client for business workspaces.
+  - [x] Tags and No Tags through the Tags contract where supported.
+  - [x] Archived/completed/history filters only when explicitly requested.
+- [x] Support deterministic task sorts.
+  - [x] Due date/time.
+  - [x] Priority.
+  - [x] Status.
+  - [x] Last worked.
+  - [x] Recently updated.
+  - [x] Project/client context.
+  - [x] Stable fallback by title or created date so pagination and repeated reads do not drift.
+- [x] Add normalized task work-item summary payload for Tasks list, Dashboard summaries, Workbench, and future resume-state consumers.
+  - [x] Include `source_module_id`, `source_type`, `source_id`, `source_label`, and `source_url`.
+  - [x] Include `title`, `description_excerpt`, `status`, `priority`, `due_date`, `due_time`, and normalized `due_at`.
+  - [x] Include readable `client_id`, `client_name`, `project_id`, and `project_name`.
+  - [x] Include `assignee_ids` and `assigned_to_current_user`.
+  - [x] Include `next_action`, `blocked_reason`, and `resume_note` using the current task field name; do not introduce a separate `handoff_note` storage field.
+  - [x] Include `checklist_progress`, `timer_status`, `elapsed_seconds`, `last_worked_at`, and `updated_at`.
+  - [x] Mark completed, archived, deleted, private, or inaccessible tasks as inactive/non-candidates where summary payloads expose resume-safe metadata.
+- [x] Add regression coverage.
+  - [x] Permission filtering before task shaping.
+  - [x] Private/inaccessible task context is not leaked.
+  - [x] Each filter and sort mode returns deterministic results.
+  - [x] Work-item summary payload includes current 0.33.5 task context fields.
+  - [x] Dashboard/Workbench callers can consume the canonical payload without adding their own task-query rules.
 
 ### Version 0.33.5.2.3 - Task list filtering/sorting/options
 

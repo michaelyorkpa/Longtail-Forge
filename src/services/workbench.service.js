@@ -1,6 +1,5 @@
 import { modulesService } from "../core/modules/modules.service.js";
 import { activeTimersService } from "../modules/time-tracking/active-timers.service.js";
-import { taskTimersService } from "../modules/tasks/task-timers.service.js";
 import { tasksService } from "../modules/tasks/tasks.service.js";
 
 const TASKS_MODULE_ID = "tasks";
@@ -16,10 +15,9 @@ async function bootstrap(session) {
   const moduleStatusById = moduleContext.moduleStatusById || {};
   const timeTrackingEnabled = moduleStatusById[TIME_TRACKING_MODULE_ID] === "enabled";
   const tasksEnabled = moduleStatusById[TASKS_MODULE_ID] === "enabled";
-  const [timerResult, taskResult, taskTimerResult] = await Promise.all([
+  const [timerResult, taskResult] = await Promise.all([
     activeTimersService.listAll(session),
-    tasksEnabled ? tasksService.list(session) : Promise.resolve(null),
-    tasksEnabled ? taskTimersService.list(session) : Promise.resolve({ timers: [] }),
+    tasksEnabled ? tasksService.listWorkItems(session) : Promise.resolve(null),
   ]);
 
   return {
@@ -34,18 +32,15 @@ async function bootstrap(session) {
       workItemSources,
     },
     timers: (timerResult.timers || []).map((timer) => normalizeTimer(timer, moduleStatusById)),
-    taskItems: taskResult
-      ? (taskResult.tasks || []).map((task) => normalizeTaskItem(task, taskTimerResult.timers || [], session.user_id))
-      : [],
+    taskItems: taskResult?.items || [],
     taskOptions: taskResult?.options || null,
   };
 }
 
 async function listTaskWorkItems(session) {
-  const [moduleContext, taskResult, taskTimerResult] = await Promise.all([
+  const [moduleContext, taskResult] = await Promise.all([
     modulesService.readWorkspaceModuleContext(session.workspace_id),
-    tasksService.list(session),
-    taskTimersService.list(session),
+    tasksService.listWorkItems(session),
   ]);
   const tasksEnabled = moduleContext.moduleStatusById?.[TASKS_MODULE_ID] === "enabled";
 
@@ -53,7 +48,7 @@ async function listTaskWorkItems(session) {
     source_module_id: TASKS_MODULE_ID,
     source_type: "task",
     source_enabled: tasksEnabled,
-    items: (taskResult.tasks || []).map((task) => normalizeTaskItem(task, taskTimerResult.timers || [], session.user_id)),
+    items: taskResult.items || [],
     options: taskResult.options || null,
   };
 }
@@ -92,52 +87,6 @@ function normalizeTimer(timer, moduleStatusById) {
     timer_status: timer.timer_status === "running" ? "running" : "paused",
     created_at: timer.created_at,
     updated_at: timer.updated_at,
-  };
-}
-
-function normalizeTaskItem(task, taskTimers, currentUserId) {
-  const timer = taskTimers.find((item) => item.task_id === task.task_id) || null;
-  const sourceUrl = `tasks.html?task=${encodeURIComponent(task.task_id)}`;
-
-  return {
-    source_module_id: "tasks",
-    source_type: "task",
-    source_id: task.task_id,
-    source_label: task.title,
-    source_url: sourceUrl,
-    source: {
-      module_id: "tasks",
-      type: "task",
-      id: task.task_id,
-      label: task.title,
-      url: sourceUrl,
-      enabled: true,
-    },
-    task_id: task.task_id,
-    title: task.title,
-    description: task.description || "",
-    next_action: task.next_action || "",
-    blocked_reason: task.status === "blocked" ? task.blocked_reason || "" : "",
-    resume_note: task.resume_note || "",
-    checklistProgress: task.checklistProgress || null,
-    relationshipSummary: task.relationshipSummary || null,
-    resumeContext: task.resumeContext || null,
-    client_id: task.client_id || "",
-    client_name: task.client_name || "",
-    project_id: task.project_id || "",
-    project_name: task.project_name || "",
-    status: task.status || "open",
-    priority: task.priority || "normal",
-    due_date: task.due_date || "",
-    due_time: task.due_time || "",
-    last_worked_at: task.last_worked_at || "",
-    completionMetrics: task.completionMetrics || null,
-    assignee_ids: task.assignee_ids || [],
-    assignees: task.assignees || [],
-    assigned_to_current_user: (task.assignee_ids || []).includes(currentUserId),
-    timer_status: timer?.timer_status || "",
-    elapsed_seconds: timer ? Number(timer.accumulated_elapsed_seconds) || 0 : 0,
-    timer,
   };
 }
 

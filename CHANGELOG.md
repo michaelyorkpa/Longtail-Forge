@@ -1,3 +1,11 @@
+## Version 0.33.5.2.2 - 2026-06-12 10:35 -04:00
+
+- Added a Tasks-owned canonical task query helper with permission-first readable task filtering, optional status/quick/due/timer/project/client/tag filters, deterministic sort modes, and preserved `/api/tasks` list compatibility.
+- Added a normalized Tasks-owned work-item summary payload with source metadata, task context fields, due metadata, readable client/project context, assignee state, checklist/relationship summaries, timer state, activity timestamps, and inactive-candidate flags.
+- Updated Workbench task items to consume `tasksService.listWorkItems()` instead of reconstructing task work-item shape in the framework service.
+- Added `scripts/task-canonical-query-regression.mjs` for canonical task filters, sorts, work-item payload shape, permission filtering, and Workbench consumption, and wired it into `npm run check`.
+- Bumped the app/package and Tasks module versions to `0.33.5.2.2`.
+
 ## Version 0.33.5.2.1.1 - 2026-06-12 10:12 -04:00
 
 - Renamed the authenticated app-shell top-level Projects menu to Actions.

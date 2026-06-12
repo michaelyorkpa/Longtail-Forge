@@ -16,32 +16,41 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 ## Task Tweaks
 
 - Projects -> Tasks
-  - Things I'd like to be able to bulk edit (Add and Remove):
+  - Things I'd like to be able to bulk edit (Add and Remove), in addition to what I can already change:
     - [ ] Due date & Time (Can be clearable/set to NULL through bulk; Time should be optional/clearable as well)
     - [ ] Tags
-    - [ ] 
 
-- Add/Edit Tasks modal
-  - Tighten up overall white space
+- Add/Edit Tasks modal appearance
+  - Tighten up overall white space between all fields
+  - Modal internal headings need to be standardized 
+    - Checklist is different from Assignees
+    - Recurrence is different from reminders
+    - Assignees and Checklist are different from Reminders
+    - Make all internal headings for sub-boxes match Reminders
   - Notifications should be moved to a single bell icon at the top; this isn't important enough to warrant using as much real estate as it does
     - Put the bell right-aligned across from the Add/Edit Task heading
   - Time to completion should only appear when the task is marked complete
-     - 
+     - Time to completion should be moved into the space between the Add/Edit Task heading and the notification bell
+     - Time to completion can be abbreviated "TTC"
   - Maximize the visual efficiency of the two-column layout of the current Add/Edit Task modal
     - Any item that needs more space than the tightened two-column layout can provide can open a pop over that uses the full width of the modal until focus is changed; This piece might need some more brainstorming
     - Title should remain full width across both columns
-      - Reduce the whitespace between Title and Heading/Notification Bell
     - Column 1 should contain (in order):
-      - Client
-      - Project
+      - Title
       - Status
-      - Priority
-      - Due Date / Due Time
-        - These two should be compressed into the first column
-    - Column 2 should contain (in order):
+      - Client
       - Next Action
+      - Due Date
+    - Column 2 should contain (in order):
+      - Parent Task
+      - Priority
+      - Project
       - Blocked Reason
       - Resume Note
+      - Due Time
+    - Move back to single column layout (full modal width minus space for scroll bar) for remaining items
+      - Checklist should be next
+      - Assignees should be next (and collapsible)
 
 ## Mobile Tweaks
 

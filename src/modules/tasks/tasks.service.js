@@ -24,6 +24,16 @@ const STATUSES = new Set(["open", "in_progress", "blocked", "complete", "archive
 const PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 
 async function list(session, query = {}) {
+  const { tasks } = await queryTasks(session, query);
+
+  return {
+    tasks,
+    currentUserId: session.user_id,
+    options: await readOptions(session),
+  };
+}
+
+async function queryTasks(session, query = {}) {
   const tasks = await tasksRepository.readAll(session.workspace_id);
   const readableTasks = [];
 
@@ -38,20 +48,25 @@ async function list(session, query = {}) {
     "task",
     await tagsService.filterRecordsByTags(session, "task", readableTasks, query.tagIds || query.tag_ids || query.tags),
   );
+  const tasksWithDetails = await attachReminderDetails(taggedTasks);
+  const timers = await taskTimersService.list(session);
+  const timerByTaskId = new Map((timers.timers || []).map((timer) => [timer.task_id, timer]));
+  const filteredTasks = tasksWithDetails.filter((task) => taskMatchesCanonicalQuery(task, query, session, timerByTaskId));
 
   return {
-    tasks: await attachReminderDetails(taggedTasks),
+    tasks: sortCanonicalTasks(filteredTasks, query),
     currentUserId: session.user_id,
     options: await readOptions(session),
+    timers: timers.timers || [],
   };
 }
 
 async function summary(session) {
-  const { tasks } = await list(session);
+  const { tasks } = await queryTasks(session);
   const now = new Date();
   const today = localDateKey(now, session.timezone);
   const dueSoonCutoff = addDaysKey(today, 7);
-  const activeTasks = tasks.filter((task) => !["complete", "archived"].includes(task.status));
+  const activeTasks = tasks.filter(isActiveTask);
   const assignedToMe = activeTasks.filter((task) => (task.assignee_ids || []).includes(session.user_id));
   const overdue = activeTasks.filter((task) => isTaskOverdue(task, now, today));
   const dueSoon = activeTasks.filter((task) =>
@@ -67,9 +82,28 @@ async function summary(session) {
       completed: tasks.filter((task) => task.status === "complete").length,
       archived: tasks.filter((task) => task.status === "archived").length,
     },
-    overdue: sortTaskSummaryRows(overdue).slice(0, 5).map(taskSummaryRow),
-    dueSoon: sortTaskSummaryRows(dueSoon).slice(0, 5).map(taskSummaryRow),
-    assignedToMe: sortTaskSummaryRows(assignedToMe).slice(0, 5).map(taskSummaryRow),
+    overdue: sortTaskSummaryRows(overdue).slice(0, 5).map((task) => taskSummaryRow(task, session.user_id)),
+    dueSoon: sortTaskSummaryRows(dueSoon).slice(0, 5).map((task) => taskSummaryRow(task, session.user_id)),
+    assignedToMe: sortTaskSummaryRows(assignedToMe).slice(0, 5).map((task) => taskSummaryRow(task, session.user_id)),
+  };
+}
+
+async function listWorkItems(session, query = {}) {
+  const result = await queryTasks(session, {
+    status: "active",
+    sort: "due_at",
+    ...query,
+  });
+  const timerByTaskId = new Map((result.timers || []).map((timer) => [timer.task_id, timer]));
+
+  return {
+    source_module_id: TASKS_MODULE_ID,
+    source_type: "task",
+    items: result.tasks.map((task) => taskWorkItemSummary(task, {
+      currentUserId: session.user_id,
+      timer: timerByTaskId.get(task.task_id),
+    })),
+    options: result.options,
   };
 }
 
@@ -1561,6 +1595,204 @@ function sortTaskSummaryRows(tasks) {
   );
 }
 
+function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId = new Map()) {
+  const now = new Date();
+  const today = localDateKey(now, session.timezone);
+  const dueSoonCutoff = addDaysKey(today, 7);
+  const statusFilter = normalizedTaskFilter(query.status || query.status_filter || query.filter);
+  const quickFilter = normalizedTaskFilter(query.quickFilter || query.quick_filter || query.assigneeFilter || query.assignee_filter);
+  const dueFilter = normalizedTaskFilter(query.due || query.due_filter);
+  const timerFilter = normalizedTaskFilter(query.timer || query.timer_status);
+  const projectId = String(query.projectId || query.project_id || "").trim();
+  const clientId = String(query.clientId || query.client_id || "").trim();
+
+  if (!matchesStatusFilter(task, statusFilter)) {
+    return false;
+  }
+
+  if (!matchesQuickFilter(task, quickFilter, session.user_id)) {
+    return false;
+  }
+
+  if (!matchesDueFilter(task, dueFilter, now, today, dueSoonCutoff)) {
+    return false;
+  }
+
+  if (projectId && projectId !== "all" && task.project_id !== projectId) {
+    return false;
+  }
+
+  if (clientId && clientId !== "all" && task.client_id !== clientId) {
+    return false;
+  }
+
+  if (timerFilter) {
+    const timer = timerByTaskId.get(task.task_id);
+    if (timerFilter === "has_timer" && !timer) {
+      return false;
+    }
+    if (["running", "paused"].includes(timerFilter) && timer?.timer_status !== timerFilter) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+function matchesStatusFilter(task, filter) {
+  if (!filter || filter === "all") {
+    return true;
+  }
+
+  if (filter === "active") {
+    return !["complete", "archived"].includes(task.status);
+  }
+
+  if (filter === "history") {
+    return ["complete", "archived"].includes(task.status);
+  }
+
+  return task.status === filter;
+}
+
+function matchesQuickFilter(task, filter, currentUserId) {
+  if (!filter || filter === "all") {
+    return true;
+  }
+
+  if (["my", "assigned_to_me", "assigned"].includes(filter)) {
+    return (task.assignee_ids || []).includes(currentUserId);
+  }
+
+  if (filter === "unassigned") {
+    return (task.assignee_ids || []).length === 0;
+  }
+
+  if (["in_progress", "blocked"].includes(filter)) {
+    return task.status === filter;
+  }
+
+  return true;
+}
+
+function matchesDueFilter(task, filter, now, today, dueSoonCutoff) {
+  if (!filter || filter === "all") {
+    return true;
+  }
+
+  if (filter === "overdue") {
+    return isActiveTask(task) && isTaskOverdue(task, now, today);
+  }
+
+  if (filter === "today") {
+    return isActiveTask(task) && task.due_date === today && !isTaskOverdue(task, now, today);
+  }
+
+  if (filter === "week") {
+    return isActiveTask(task) && isTaskDueSoon(task, now, today, dueSoonCutoff);
+  }
+
+  if (filter === "next_due") {
+    return isActiveTask(task) && Boolean(task.due_date);
+  }
+
+  return true;
+}
+
+function sortCanonicalTasks(tasks, query = {}) {
+  const sort = normalizedTaskSort(query.sort || query.sort_by || query.order);
+
+  return [...tasks].sort((left, right) => compareCanonicalTasks(left, right, sort));
+}
+
+function compareCanonicalTasks(left, right, sort) {
+  if (sort === "priority") {
+    return priorityRank(right.priority) - priorityRank(left.priority) || compareByDueAt(left, right) || compareByStableTitle(left, right);
+  }
+
+  if (sort === "status") {
+    return statusRank(left.status) - statusRank(right.status) || compareByDueAt(left, right) || compareByStableTitle(left, right);
+  }
+
+  if (sort === "last_worked") {
+    return compareDesc(left.last_worked_at, right.last_worked_at) || compareByDueAt(left, right) || compareByStableTitle(left, right);
+  }
+
+  if (sort === "updated") {
+    return compareDesc(left.updated_at, right.updated_at) || compareByDueAt(left, right) || compareByStableTitle(left, right);
+  }
+
+  if (sort === "context") {
+    return String(left.client_name || "").localeCompare(String(right.client_name || "")) ||
+      String(left.project_name || "").localeCompare(String(right.project_name || "")) ||
+      compareByDueAt(left, right) ||
+      compareByStableTitle(left, right);
+  }
+
+  if (sort === "created") {
+    return compareDesc(left.created_at, right.created_at) || compareByStableTitle(left, right);
+  }
+
+  return compareByDueAt(left, right) || priorityRank(right.priority) - priorityRank(left.priority) || compareByStableTitle(left, right);
+}
+
+function compareByDueAt(left, right) {
+  return String(taskDueSortValue(left)).localeCompare(String(taskDueSortValue(right)));
+}
+
+function compareByStableTitle(left, right) {
+  return String(left.title || "").localeCompare(String(right.title || "")) ||
+    String(left.created_at || "").localeCompare(String(right.created_at || "")) ||
+    String(left.task_id || "").localeCompare(String(right.task_id || ""));
+}
+
+function compareDesc(leftValue, rightValue) {
+  return String(rightValue || "").localeCompare(String(leftValue || ""));
+}
+
+function taskDueSortValue(task) {
+  if (task.due_at_utc) {
+    return task.due_at_utc;
+  }
+
+  return `${task.due_date || "9999-12-31"}T${task.due_time || "23:59"}:00`;
+}
+
+function normalizedTaskFilter(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizedTaskSort(value) {
+  const sort = String(value || "due_at").trim().toLowerCase();
+  const aliases = {
+    due: "due_at",
+    due_date: "due_at",
+    due_time: "due_at",
+    priority_desc: "priority",
+    last_worked_at: "last_worked",
+    recent: "updated",
+    recently_updated: "updated",
+    project_client: "context",
+    client_project: "context",
+  };
+
+  return aliases[sort] || sort;
+}
+
+function statusRank(status) {
+  return {
+    blocked: 1,
+    in_progress: 2,
+    open: 3,
+    complete: 4,
+    archived: 5,
+  }[status] || 99;
+}
+
+function isActiveTask(task) {
+  return !["complete", "archived"].includes(task.status || "");
+}
+
 function isTaskOverdue(task, now, today) {
   if (!task.due_date) {
     return false;
@@ -1582,10 +1814,11 @@ function isTaskDueSoon(task, now, today, dueSoonCutoff) {
   return !isTaskOverdue(task, now, today);
 }
 
-function taskSummaryRow(task) {
+function taskSummaryRow(task, currentUserId = "") {
   return {
     task_id: task.task_id,
     title: task.title,
+    description_excerpt: descriptionExcerpt(task.description),
     next_action: task.next_action || "",
     blocked_reason: task.status === "blocked" ? task.blocked_reason || "" : "",
     resume_note: task.resume_note || "",
@@ -1596,6 +1829,7 @@ function taskSummaryRow(task) {
     due_time: task.due_time,
     due_timezone: task.due_timezone,
     due_at_utc: task.due_at_utc,
+    due_at: task.due_at_utc || task.due_date || "",
     last_worked_at: task.last_worked_at || task.updated_at || task.created_at || "",
     completionMetrics: taskCompletionMetrics(task),
     checklistProgress: task.checklistProgress || emptyChecklistProgress(),
@@ -1605,9 +1839,72 @@ function taskSummaryRow(task) {
     project_id: task.project_id,
     project_name: task.project_name,
     assignee_ids: task.assignee_ids || [],
+    assigned_to_current_user: (task.assignee_ids || []).includes(currentUserId),
     url: taskUrl(task),
     resumeContext: taskResumeContext(task),
   };
+}
+
+function taskWorkItemSummary(task, { currentUserId = "", timer = null } = {}) {
+  const sourceUrl = taskUrl(task);
+  const timerStatus = timer?.timer_status || "";
+  const elapsedSeconds = timer ? Number(timer.accumulated_elapsed_seconds) || 0 : 0;
+  const resumeContext = taskResumeContext(task);
+
+  return {
+    source_module_id: TASKS_MODULE_ID,
+    source_type: "task",
+    source_id: task.task_id,
+    source_label: task.title,
+    source_url: sourceUrl,
+    source: {
+      module_id: TASKS_MODULE_ID,
+      type: "task",
+      id: task.task_id,
+      label: task.title,
+      url: sourceUrl,
+      enabled: true,
+    },
+    task_id: task.task_id,
+    title: task.title,
+    description: task.description || "",
+    description_excerpt: descriptionExcerpt(task.description),
+    status: task.status || "open",
+    priority: task.priority || "normal",
+    due_date: task.due_date || "",
+    due_time: task.due_time || "",
+    due_at: task.due_at_utc || task.due_date || "",
+    due_at_utc: task.due_at_utc || "",
+    client_id: task.client_id || "",
+    client_name: task.client_name || "",
+    project_id: task.project_id || "",
+    project_name: task.project_name || "",
+    assignee_ids: task.assignee_ids || [],
+    assignees: task.assignees || [],
+    assigned_to_current_user: (task.assignee_ids || []).includes(currentUserId),
+    next_action: task.next_action || "",
+    blocked_reason: task.status === "blocked" ? task.blocked_reason || "" : "",
+    resume_note: task.resume_note || "",
+    checklist_progress: task.checklistProgress || emptyChecklistProgress(),
+    checklistProgress: task.checklistProgress || emptyChecklistProgress(),
+    relationship_summary: task.relationshipSummary || emptyRelationshipSummary(),
+    relationshipSummary: task.relationshipSummary || emptyRelationshipSummary(),
+    timer_status: timerStatus,
+    elapsed_seconds: elapsedSeconds,
+    timer,
+    last_worked_at: task.last_worked_at || task.updated_at || task.created_at || "",
+    updated_at: task.updated_at || "",
+    completion_metrics: taskCompletionMetrics(task),
+    completionMetrics: taskCompletionMetrics(task),
+    active_candidate: resumeContext.active_candidate,
+    resume_context: resumeContext,
+    resumeContext,
+  };
+}
+
+function descriptionExcerpt(description, maxLength = 160) {
+  const text = String(description || "").replace(/\s+/g, " ").trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength - 1).trim()}...` : text;
 }
 
 function taskCalendarRow(task) {
@@ -1975,6 +2272,7 @@ export const tasksService = {
   deleteChecklistItem,
   list,
   listChecklistItems,
+  listWorkItems,
   listRelationships,
   read,
   reopen,

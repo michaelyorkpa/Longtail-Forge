@@ -8,8 +8,13 @@ const tasksScript = readText("public/js/tasks.js");
 
 assert.match(
   workbenchService,
+  /tasksService\.listWorkItems\(session\)/,
+  "Workbench should consume Tasks-owned canonical work item payloads.",
+);
+assert.match(
+  workbenchService,
   /taskOptions: taskResult\?\.options \|\| null/,
-  "Workbench bootstrap should expose Tasks module options without Workbench owning task metadata.",
+  "Workbench bootstrap should expose Tasks module options without owning task metadata.",
 );
 assert.match(
   workbenchScript,
