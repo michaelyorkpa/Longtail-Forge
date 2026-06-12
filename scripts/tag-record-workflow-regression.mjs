@@ -29,7 +29,7 @@ assert.match(clientsProjects, /createTagPickerField\("Client Tags", client\.tags
 assert.match(clientsProjects, /createTagPickerField\("Project Tags", project\.tags, "project"\)/, "Project edit workflow must use the shared tag picker field");
 assert.match(clientsProjects, /createTagPickerField\("Project Tags", \[\], "project"\)/, "Project add workflow must use the shared tag picker field");
 assert.match(clientsProjects, /tagIds:\s*newClientTagPicker\?\.readTagIds\?\.\(\) \|\| \[\]/, "Client add workflow must save selected tag IDs");
-assert.match(clientsProjects, /client\.tagIds = tagPicker\?\.readTagIds\?\.?\(\) \|\| \[\]/, "Client edit workflow must save selected tag IDs");
+assert.match(clientsProjects, /if \(tagPicker\) \{[\s\S]*client\.tagIds = tagPicker\.readTagIds\(\);[\s\S]*\} else \{[\s\S]*delete client\.tagIds;[\s\S]*\}/, "Client edit workflow must save selected tag IDs only when the tag picker is present");
 assert.match(clientsProjects, /project\.tagIds = tagPicker\.readTagIds\(\)/, "Project edit workflow must save selected tag IDs");
 assert.match(clientsProjects, /tagIds:\s*tagPicker\.readTagIds\(\)/, "Project add workflow must save selected tag IDs");
 

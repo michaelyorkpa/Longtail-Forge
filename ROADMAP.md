@@ -207,168 +207,389 @@ In Projects -> Tasks, the task list isn't optimized for efficient viewing.
 
 ## Version 0.33.5.2 - Client/Projects Fixes, Listing/View Ownership and Availability Refinement
 
+Shared implementation contract:
+0.33.5.2 moves repeated sorting, filtering, option-building, count, and permission-safe read-model logic into the module that owns the records. Browser code may cache, render, and pass user-selected query parameters, but it should not be the canonical source for which records are visible, how hierarchy is shaped, how picker labels are indented, how "No Tags" is interpreted, or how reusable suggestions are ranked.
+
+- Permission and workspace/module-availability checks must happen before sorting, shaping, counting, or returning labels.
+- Modules should expose stable query helpers and browser/API payloads that other surfaces can reuse.
+- Framework-owned services may coordinate cross-module contracts, but they should not hard-code module-specific record rules.
+- Public API payloads may reuse the same underlying query helpers, but must keep stable external contracts, API-key scopes, pagination, and no browser-only fields.
+- No AI ranking is included in this line. All ordering must be deterministic and explainable.
+- No open implementation questions are expected for this line; each slice below should be implemented by following the owning-module boundary.
+
 ### Version 0.33.5.2.0 - Client/Projects Fixes
 
-- Projects aren't inheriting client billing settings when created in Projects -> Project Settings -> Add Project
+Goal:
+Squash focused Client/Projects regressions before the broader canonical list/view ownership work begins. This pass should repair real user-facing data preservation and inheritance bugs without redesigning Client/Projects list payloads, picker ordering, or public API contracts.
 
-- Saving Client billing settings wipes out client tags
-  - Specific path I took was:
-    - Settings -> Workspace -> Clients -> Add Client button
-      - Added the client and tags
-    - Edited the client to turn off billing and turn on rounding
-    - Saved client
-    - Tags gone
-    - Re-adding tags through Edit Client modal worked
+Out of scope:
+- Do not introduce the canonical client/project list payload contract from 0.33.5.2.1.
+- Do not redesign Client Settings, Project Settings, tag propagation, or billing settings UI beyond what is needed to fix the listed bugs.
+- Do not change tag semantics; tags remain classification metadata and must not drive billing behavior.
+
+#### Project billing inheritance from Project Settings
+
+- [x] Reproduce the Project Settings add-project path:
+  - [x] Open Projects -> Project Settings -> Add Project.
+  - [x] Select a billable business client with configured billing rate, billing period, rounding mode, and rounding increment.
+  - [x] Save a new project without manually overriding billing fields.
+  - [x] Confirm the created project currently fails to inherit expected client billing defaults.
+- [x] Fix project creation from Projects -> Project Settings -> Add Project so client-linked business projects inherit client billing settings when no explicit project override is provided.
+- [x] Preserve existing rules for workspace-level projects and personal/family workspaces:
+  - [x] Workspace-level projects should keep workspace/default project billing behavior.
+  - [x] Personal and family workspace projects remain non-billable by design while preserving rounding behavior where applicable.
+- [x] Ensure inherited billing values are visible after save in Project Settings, project detail reads, and time-entry/timer billing calculations that already consume project billing settings.
+- [x] Add focused regression coverage for project creation through the Project Settings path, including client-linked inheritance and non-client/workspace-level behavior.
+
+#### Client billing saves must preserve tags
+
+- [x] Reproduce the client tag loss path:
+  - [x] Go to Settings -> Workspace -> Clients.
+  - [x] Use Add Client to create a client with one or more direct/manual tags.
+  - [x] Edit the client billing settings, such as turning billing off and enabling rounding.
+  - [x] Save the client.
+  - [x] Confirm the client tags are currently removed after the billing-only save.
+- [x] Fix client billing/settings save behavior so updating billing fields preserves all existing client tag assignments.
+- [x] Preserve both direct/manual and propagated tag assignments when client billing settings are saved.
+- [x] Ensure re-saving client identity/status/contact/billing fields does not treat omitted tag picker payloads as an instruction to clear tags.
+- [x] Keep explicit tag edits through the client edit modal working normally, including adding/removing direct/manual tags through the intended tag picker flow.
+- [x] Add focused regression coverage proving client billing saves preserve tags and explicit client tag edits still update tags correctly.
+
+#### Verification and closeout
+
+- [x] Run focused Client/Projects service/API tests for project billing inheritance and client billing-save tag preservation.
+- [x] Run focused browser/UI regression coverage for Settings -> Workspace -> Clients and Projects -> Project Settings -> Add Project where available. Browser payload behavior is covered by `scripts/check-js.mjs` and the focused service/API regression because no browser automation surface was available in this pass.
+- [x] Run tag permission/assignment regressions if the fix touches shared tag assignment helpers.
+- [x] Run billing-related time-entry or timer regressions if the project inheritance fix changes billing source selection. The fix keeps inherited project billing fields unset and does not change downstream billing source selection logic.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions` if the touched code changes tag reads/writes, project/client visibility, or permission-sensitive payloads.
+- [x] Update `DECISIONS.md` if implementation clarifies a lasting Client/Projects, billing inheritance, or tag-preservation rule.
+- [x] Add the completed bug fixes to the current `CHANGELOG.md` version entry when implemented.
 
 ### Version 0.33.5.2.1 - Canonical client and project list payloads
 
-* [ ] Move client/project list shaping into the `client-projects` module so every UI surface, picker, embedded panel, and public API read uses the same permission-safe query contract instead of reimplementing sort/filter/tree logic in browser code.
+Goal:
+Make `client-projects` the canonical owner for client/project filtering, hierarchy shaping, display-label metadata, and ordering so every UI surface, picker, embedded panel, and public API read can reuse one permission-safe contract.
 
-  * [ ] Own canonical filtering, hierarchy shaping, display-label metadata, and sorting in the client/projects service layer.
-  * [ ] Browser code may cache returned payloads for the current page/dialog, but should not own canonical client/project ordering rules.
-  * [ ] Prefer enhancing the existing `/api/clients`, `/api/projects`, `/api/client-projects`, `/api/v1/clients`, and `/api/v1/projects` contracts instead of adding a separate “sorting” endpoint unless implementation strongly favors a dedicated options route.
-  * [ ] Public API responses should reuse the same underlying query helpers but return a stable external contract with API-key scopes, pagination, and no browser-only fields.
+Out of scope:
+- Do not redesign Projects or Clients page layout in this slice.
+- Do not add unrelated API-key scopes; public API scope cleanup is tracked in 0.33.5.2.9 and later 0.33.5.3.x.
+- Do not move tag semantics into Client/Projects. Tags remain framework classification metadata consumed through the Tags contract.
 
-* [ ] Add canonical client list behavior.
-
-  * [ ] Default filter: `status=Active`.
-  * [ ] Explicit filters: `status=Active|Inactive|All`.
-  * [ ] Supported shapes:
-
-    * [ ] `shape=flat&scope=top_level`: top-level clients only, alphabetical by display name.
-    * [ ] `shape=tree`: top-level clients alphabetical, with child clients nested below each parent alphabetically.
-    * [ ] `shape=flat&include_depth=true`: flattened tree order for selects/dropdowns, including `depth`, `parent_client_id`, and safe display-label metadata.
-  * [ ] Preserve workspace and permission boundaries before sorting/shaping.
-  * [ ] Include stable IDs, parent IDs, status, display name, depth/path metadata where useful, and optional tag metadata where the caller requests it.
-
-* [ ] Add canonical project list behavior.
-
-  * [ ] Default filters:
-
-    * [ ] `status=Active`.
-    * [ ] `client=All`.
-  * [ ] Explicit filters:
-
-    * [ ] `status=Active|Inactive|Completed|All`.
-    * [ ] `client=All|<client_id>|workspace`.
-  * [ ] Supported shapes:
-
-    * [ ] `shape=flat`: alphabetical project list, optionally filtered by client/workspace scope.
-    * [ ] `shape=tree`: parent projects alphabetical, with child projects nested below each parent alphabetically.
-    * [ ] `shape=flat&include_depth=true`: flattened tree order for selects/dropdowns, including `depth`, `parent_project_id`, `client_id`, and safe display-label metadata.
-  * [ ] Project queries must support workspace-level projects in personal/family workspaces and business workspaces where `client_id` is empty.
-  * [ ] Preserve readable-project filtering before sorting/shaping.
-
-* [ ] Add regression coverage.
-
-  * [ ] Active defaults.
-  * [ ] Inactive/all client filters.
-  * [ ] Inactive/completed/all project filters.
-  * [ ] Top-level-only client/project views.
-  * [ ] Nested tree views.
-  * [ ] Flattened picker labels and depth values.
-  * [ ] Permission filtering before shaping.
-  * [ ] Orphan/cycle-safe behavior.
-  * [ ] Public API pagination.
-  * [ ] Workspace-type differences between business, personal, and family workspaces.
-  * [ ] Existing pages stop relying on page-local client/project sorting helpers once canonical payloads are available.
+- [ ] Add module-owned client/project query helpers in `client-projects`.
+  - [ ] Filter by workspace and readable scope before sorting or shaping.
+  - [ ] Return stable IDs, parent IDs, status, display names, depth/path metadata where useful, and optional tag metadata only when requested.
+  - [ ] Keep orphan/cycle-safe behavior deterministic and non-crashing.
+  - [ ] Support business, personal, and family workspace differences without browser-specific branches becoming canonical.
+- [ ] Add canonical client list behavior.
+  - [ ] Default filter: `status=Active`.
+  - [ ] Explicit filters: `status=Active|Inactive|All`.
+  - [ ] `shape=flat&scope=top_level`: top-level clients only, alphabetical by display name.
+  - [ ] `shape=tree`: top-level clients alphabetical, with child clients nested below each parent alphabetically.
+  - [ ] `shape=flat&include_depth=true`: flattened tree order for selects/dropdowns with `depth`, `parent_client_id`, and safe display-label metadata.
+- [ ] Add canonical project list behavior.
+  - [ ] Default filters: `status=Active` and `client=All`.
+  - [ ] Explicit filters: `status=Active|Inactive|Completed|All`.
+  - [ ] Explicit client scopes: `client=All|<client_id>|workspace`.
+  - [ ] `shape=flat`: alphabetical project list, optionally filtered by client/workspace scope.
+  - [ ] `shape=tree`: parent projects alphabetical, with child projects nested below each parent alphabetically.
+  - [ ] `shape=flat&include_depth=true`: flattened tree order for selects/dropdowns with `depth`, `parent_project_id`, `client_id`, and safe display-label metadata.
+  - [ ] Support workspace-level projects in personal/family workspaces and business workspaces where `client_id` is empty.
+- [ ] Enhance existing browser and public API contracts where practical.
+  - [ ] Prefer `/api/clients`, `/api/projects`, `/api/client-projects`, `/api/v1/clients`, and `/api/v1/projects` enhancements over a separate sorting endpoint unless a dedicated options route is clearly simpler.
+  - [ ] Keep public API responses stable, paginated where needed, API-key scoped, and free of browser-only fields.
+  - [ ] Move existing page-local client/project sorting helpers toward rendering-only use once canonical payloads are available.
+- [ ] Add regression coverage.
+  - [ ] Active defaults.
+  - [ ] Inactive/all client filters.
+  - [ ] Inactive/completed/all project filters.
+  - [ ] Top-level-only client/project views.
+  - [ ] Nested tree views.
+  - [ ] Flattened picker labels and depth values.
+  - [ ] Permission filtering before shaping.
+  - [ ] Orphan/cycle-safe behavior.
+  - [ ] Public API pagination.
+  - [ ] Workspace-type differences between business, personal, and family workspaces.
 
 ### Version 0.33.5.2.2 - Canonical Task Query and Work Item Summary Payloads
 
-- [ ] Move task filtering/sorting used by Tasks, Dashboard, and Workbench into the Tasks service layer.
-  - [ ] Supported filters:
-    - [ ] Assigned to current user.
-    - [ ] Due today.
-    - [ ] Next due.
-    - [ ] Due this week.
-    - [ ] Overdue.
-    - [ ] In progress.
-    - [ ] Blocked.
-    - [ ] Has running/paused timer.
-    - [ ] Recently updated/worked.
-    - [ ] Project.
-    - [ ] Client for Business workspaces.
-    - [ ] Tags / no tags where tag contract supports it.
-  - [ ] Supported sorts:
-    - [ ] Due date/time.
-    - [ ] Priority.
-    - [ ] Status.
-    - [ ] Last worked.
-    - [ ] Recently updated.
-    - [ ] Project/client context.
+Goal:
+Move task filtering/sorting used by Tasks, Dashboard, Workbench, and future resume-state producers into Tasks-owned service/query helpers, then expose a normalized task work-item summary payload that other surfaces can consume without reconstructing task context in browser code.
 
-- [ ] Add normalized task work item summary payload.
-  - [ ] This should be usable by Tasks list, Dashboard summaries, Workbench, and future resume state.
-  - [ ] Suggested fields:
-    - [ ] `source_module_id`
-    - [ ] `source_type`
-    - [ ] `source_id`
-    - [ ] `source_label`
-    - [ ] `source_url`
-    - [ ] `title`
-    - [ ] `description_excerpt`
-    - [ ] `client_id`
-    - [ ] `client_name`
-    - [ ] `project_id`
-    - [ ] `project_name`
-    - [ ] `status`
-    - [ ] `priority`
-    - [ ] `due_date`
-    - [ ] `due_time`
-    - [ ] `due_at`
-    - [ ] `assignee_ids`
-    - [ ] `assigned_to_current_user`
-    - [ ] `next_action`
-    - [ ] `blocked_reason`
-    - [ ] `handoff_note`
-    - [ ] `checklist_progress`
-    - [ ] `timer_status`
-    - [ ] `elapsed_seconds`
-    - [ ] `last_worked_at`
-    - [ ] `updated_at`
+Out of scope:
+- Do not add global `work_resume_state` storage, ranking, dismissal, or Workbench feed behavior here.
+- Do not add AI ranking.
+- Do not make Dashboard or Workbench the canonical owner of task filtering.
 
-- [ ] Keep ranking deterministic.
-  - [ ] Do not add AI ranking in this release.
-  - [ ] Do not make browser-local sorting the source of truth for Workbench behavior.
+- [ ] Add a Tasks-owned canonical query helper for task list/work-item reads.
+  - [ ] Enforce workspace, module, task read permission, private/inaccessible context, and readable client/project boundaries before sorting/shaping.
+  - [ ] Preserve existing Tasks API behavior while adding reusable query options.
+  - [ ] Keep browser-local sorting as a display fallback only until callers are migrated.
+- [ ] Support canonical task filters.
+  - [ ] Assigned to current user.
+  - [ ] Unassigned.
+  - [ ] Due today.
+  - [ ] Next due.
+  - [ ] Due this week.
+  - [ ] Overdue.
+  - [ ] In progress.
+  - [ ] Blocked.
+  - [ ] Has running/paused timer.
+  - [ ] Recently updated/worked.
+  - [ ] Project.
+  - [ ] Client for business workspaces.
+  - [ ] Tags and No Tags through the Tags contract where supported.
+  - [ ] Archived/completed/history filters only when explicitly requested.
+- [ ] Support deterministic task sorts.
+  - [ ] Due date/time.
+  - [ ] Priority.
+  - [ ] Status.
+  - [ ] Last worked.
+  - [ ] Recently updated.
+  - [ ] Project/client context.
+  - [ ] Stable fallback by title or created date so pagination and repeated reads do not drift.
+- [ ] Add normalized task work-item summary payload for Tasks list, Dashboard summaries, Workbench, and future resume-state consumers.
+  - [ ] Include `source_module_id`, `source_type`, `source_id`, `source_label`, and `source_url`.
+  - [ ] Include `title`, `description_excerpt`, `status`, `priority`, `due_date`, `due_time`, and normalized `due_at`.
+  - [ ] Include readable `client_id`, `client_name`, `project_id`, and `project_name`.
+  - [ ] Include `assignee_ids` and `assigned_to_current_user`.
+  - [ ] Include `next_action`, `blocked_reason`, and `resume_note` using the current task field name; do not introduce a separate `handoff_note` storage field.
+  - [ ] Include `checklist_progress`, `timer_status`, `elapsed_seconds`, `last_worked_at`, and `updated_at`.
+  - [ ] Mark completed, archived, deleted, private, or inaccessible tasks as inactive/non-candidates where summary payloads expose resume-safe metadata.
+- [ ] Add regression coverage.
+  - [ ] Permission filtering before task shaping.
+  - [ ] Private/inaccessible task context is not leaked.
+  - [ ] Each filter and sort mode returns deterministic results.
+  - [ ] Work-item summary payload includes current 0.33.5 task context fields.
+  - [ ] Dashboard/Workbench callers can consume the canonical payload without adding their own task-query rules.
 
 ### Version 0.33.5.2.3 - Task list filtering/sorting/options
 
-Task list filtering/sorting/options. The tasks service already returns tasks plus options, but the browser still owns status/client/project/tag filtering and multi-mode sorting. That should become a canonical task query contract, especially before tasks become the center of Workbench/Dashboard views.
+Goal:
+Update the protected Projects -> Tasks list to consume the canonical Tasks query/options contract from 0.33.5.2.2 so the browser controls query intent but no longer owns canonical task filtering, option visibility, or multi-mode sorting.
+
+Out of scope:
+- Do not redesign the dense task row layout from 0.33.5.0.6.
+- Do not add new task fields beyond consuming the canonical payload from 0.33.5.2.2.
+- Do not add Workbench-specific ranking.
+
+- [ ] Replace browser-owned task filtering with canonical task query parameters.
+  - [ ] Status filter.
+  - [ ] Client filter for business workspaces.
+  - [ ] Project filter, including workspace-level projects.
+  - [ ] Assignee/quick filter states such as My Tasks, All, Unassigned, and active recovery views.
+  - [ ] Tag and No Tags filter through the Tags contract.
+- [ ] Replace browser-owned multi-mode sorting with canonical sort parameters.
+  - [ ] Due date/time.
+  - [ ] Priority.
+  - [ ] Status.
+  - [ ] Last worked/recently updated.
+  - [ ] Project/client context.
+- [ ] Update task options payload consumption.
+  - [ ] Read visible client/project/user/tag filter options from service-owned options payloads.
+  - [ ] Reuse the canonical Client/Projects option payload from 0.33.5.2.1 for client/project labels and hierarchy.
+  - [ ] Keep inactive/archived choices out of active defaults unless explicitly requested.
+- [ ] Preserve task-list UX behavior.
+  - [ ] Keep the explicit All quick filter in the expected position.
+  - [ ] Keep dense row metadata and action availability intact.
+  - [ ] Keep empty states recovery-oriented and specific to the selected filter.
+- [ ] Add regression coverage.
+  - [ ] Browser sends query/sort intent instead of re-filtering canonical results.
+  - [ ] Task filter options respect permissions and workspace type.
+  - [ ] Mobile/dense task rows still render correctly after payload changes.
+  - [ ] No Tags behavior matches effective-tag semantics.
 
 ### Version 0.33.5.2.4 - Task/client/project picker options
 
-tasksService.readOptions returns visible active clients/projects/users, but the client/project option ordering and indentation still happen in browser code. That should reuse the new client-projects canonical option payload.
+Goal:
+Make task, timer, note-link, list-link, file-attachment, and other record pickers consume module-owned option payloads instead of rebuilding active client/project/user/task option lists in each browser file.
+
+Out of scope:
+- Do not create a framework-owned universal picker database.
+- Do not change tag picker semantics; Tags remains the owner of tag options and No Tags behavior.
+- Do not expose unreadable record labels through convenience option endpoints.
+
+- [ ] Update `tasksService.readOptions` to reuse the canonical Client/Projects option payload from 0.33.5.2.1.
+  - [ ] Preserve active client/project defaults.
+  - [ ] Preserve workspace-level projects.
+  - [ ] Preserve personal/family workspace behavior where clients are unavailable.
+  - [ ] Return depth/label metadata so browser code does not own indentation.
+- [ ] Add or normalize task option payloads where other modules need task pickers.
+  - [ ] Active task options by default.
+  - [ ] Explicit include-completed/include-archived flags where historical linking is allowed.
+  - [ ] Permission filtering before labels are returned.
+  - [ ] Client/project context metadata when readable.
+- [ ] Update browser consumers gradually.
+  - [ ] Task dialogs.
+  - [ ] Time Tracker and Time Entries task selectors.
+  - [ ] Notes linked-record panels.
+  - [ ] Lists linked-record selectors.
+  - [ ] Files attachment target selectors where present.
+- [ ] Add regression coverage.
+  - [ ] Picker labels and indentation come from service payloads.
+  - [ ] Inactive/archived records do not leak into active pickers.
+  - [ ] Permission-filtered records are absent rather than relabeled.
+  - [ ] Workspace type differences are preserved.
 
 ### Version 0.33.5.2.5 - Notes linked-record panels and collection trees
 
-This is already mostly headed the right direction: /api/notes/for-target and /api/notes/collections exist, and the roadmap already says the reusable notes panel should use /api/notes/for-target rather than duplicating lookup logic inside Tasks, Clients, Projects, or Tickets. Keep leaning into that.
+Goal:
+Keep Notes-owned linked-record panels and collection trees canonical inside the Notes module so Tasks, Clients, Projects, Lists, Files, Tickets, and future modules do not duplicate note lookup, collection ordering, or permission checks.
+
+Out of scope:
+- Do not turn Notes into workflow status, task dependencies, or Knowledge Base publication state.
+- Do not let consuming modules query Notes tables directly for panel data.
+- Do not change secure/private note access semantics beyond preserving them in the read model.
+
+- [ ] Harden `/api/notes/for-target` as the canonical linked-note panel read.
+  - [ ] Filter by note access policy before counts, labels, excerpts, or links are returned.
+  - [ ] Support deterministic sort modes such as pinned/recent/updated/title where useful.
+  - [ ] Include safe target metadata and source URLs without leaking inaccessible linked-record labels.
+  - [ ] Return empty states that help users add or recover notes without implying future KB behavior.
+- [ ] Harden `/api/notes/collections` as the canonical collection tree read.
+  - [ ] Preserve bucket-first collection ordering.
+  - [ ] Preserve `All Libraries`, `All collections`, and `Uncategorized` defaults.
+  - [ ] Keep collapsed revision behavior and avoid lone `Original` display regressions.
+  - [ ] Filter secure/private collection content through Notes access policy before counts are shown.
+- [ ] Update reusable Notes panels to consume Notes-owned payloads.
+  - [ ] Tasks note panels.
+  - [ ] Client/project note panels.
+  - [ ] Lists note panels.
+  - [ ] Future ticket panels when Tickets arrive.
+- [ ] Add regression coverage.
+  - [ ] Notes access policy is enforced before linked-note panel shaping.
+  - [ ] Collection tree ordering and defaults remain stable.
+  - [ ] Secure/private notes do not leak through counts, labels, excerpts, or linked panels.
 
 ### Version 0.33.5.2.6 - Files attachment lists/counts
 
-Files attachment lists/counts. There are canonical attachment and count endpoints already, but as Files gets more UI surface area, attachment list sorting/filtering/pagination should stay service-owned instead of each detail page making its own “files attached to this thing” logic.
+Goal:
+Keep attachment list, count, sorting, filtering, and pagination behavior inside the framework-owned Files service while modules own only the business meaning and placement of their file attachments.
+
+Out of scope:
+- Do not add file deletion, multi-upload, drag-and-drop upload, or storage quotas here; those belong to the later Files QoL section.
+- Do not expose protected storage paths, raw scanner details, or unsafe URLs.
+- Do not make individual modules query file tables directly for counts.
+
+- [ ] Formalize canonical attachment list/count reads.
+  - [ ] Target module/type/id reads must re-check target access before returning attachment labels or counts.
+  - [ ] Counts must be permission-safe and must not reveal inaccessible attachments.
+  - [ ] Attachment list sorting should be service-owned, with deterministic defaults such as newest first.
+  - [ ] Pagination/filtering should be accepted at the Files service/API boundary where list sizes can grow.
+- [ ] Update module attachment panels to consume Files-owned payloads.
+  - [ ] Tasks attachments.
+  - [ ] Notes attachments.
+  - [ ] Lists attachments.
+  - [ ] Client/project attachments if present.
+  - [ ] Future Tickets and Knowledge Base attachments.
+- [ ] Preserve file lifecycle boundaries.
+  - [ ] Modules may subscribe to safe file lifecycle events.
+  - [ ] File service remains responsible for storage, access, downloads, scanner results, and shared UI behavior.
+- [ ] Add regression coverage.
+  - [ ] Attachment counts are permission-safe.
+  - [ ] Attachment list pagination/sorting is deterministic.
+  - [ ] Inaccessible target records do not reveal file labels or counts.
+  - [ ] Lifecycle event payloads remain sanitized.
 
 ### Version 0.33.5.2.7 - Lists module index filters/sorts and item suggestions
 
-The Lists roadmap already calls for API-supported filters/sorts and deterministic suggestion ranking. Keep those server/module-owned from day one; do not let the Lists browser UI become the canonical source for list ordering or suggestions.
+Goal:
+Move Lists index filters, sorts, progress summaries, reusable-list views, linked-record context, and item catalog suggestions into Lists-owned service/API behavior so the browser UI renders a canonical list work surface rather than becoming the source of truth.
+
+Out of scope:
+- Do not turn Lists into Notes, Tasks, inventory, purchasing, accounting, vendor management, manufacturing, or ERP.
+- Do not introduce automatic catalog learning unless a later Lists slice explicitly promotes it.
+- Do not make list items independently taggable, assignable, timed, or searchable beyond the existing Lists contract.
+
+- [ ] Add/verify Lists-owned index query behavior.
+  - [ ] Default active list view.
+  - [ ] Status filters for active/completed/finalized/archived/deleted where supported.
+  - [ ] Type filters for shopping/procurement/packing/supplies/parts/checklist/bill of materials.
+  - [ ] Reusable-list filter/view.
+  - [ ] Client/project filters for business workspaces.
+  - [ ] Linked-record filters where the Lists link contract supports them.
+  - [ ] Tag and No Tags filters through the Tags contract.
+- [ ] Add deterministic Lists sort behavior.
+  - [ ] Updated/recent activity.
+  - [ ] Needed-by date.
+  - [ ] Progress/incomplete count where useful.
+  - [ ] Name/type/status fallback ordering.
+  - [ ] Source/reusable context ordering where useful.
+- [ ] Keep item catalog suggestions service-owned.
+  - [ ] Rank by workspace scope, matching project/client/list type context, usage count, last-used recency, and item name.
+  - [ ] Preserve permission checks before suggestion labels or source context are returned.
+  - [ ] Preserve snapshot behavior when catalog suggestions are copied into list items.
+- [ ] Update Lists browser UI to consume canonical query/suggestion payloads.
+  - [ ] Browser sends filter/sort intent.
+  - [ ] Browser does not own reusable-list/source ranking.
+  - [ ] Empty states remain workflow-oriented and recovery-friendly.
+- [ ] Add regression coverage.
+  - [ ] Lists filters and sorts are service/API-owned.
+  - [ ] Catalog suggestion ranking is deterministic.
+  - [ ] Permission filtering happens before list labels, linked context, tags, or suggestions are returned.
 
 ### Version 0.33.5.2.8 - Tags filters and bulk tag assignment
 
-Your 0.33.5.6 note already has the right instinct: “No Tags” and bulk tag assignment should be owned by Tags/framework hooks, not hard-coded per module. That is the same pattern.
+Goal:
+Make tag filter semantics and bulk tag assignment a Tags-owned/framework-hooked contract so modules can opt into taggable records without hard-coding No Tags filters or bulk assignment behavior per module.
+
+Out of scope:
+- Do not add tag scopes.
+- Do not make tags drive permissions, visibility, billing status, workflow status, archive state, or report totals.
+- Do not force every module to expose bulk tag UI in this slice; the contract should allow safe adoption by module.
+
+- [ ] Formalize shared tag filter semantics.
+  - [ ] Simple No Tags means no effective tags.
+  - [ ] Preserve the reserved direct-only sentinel for future advanced UI without exposing broad advanced controls here.
+  - [ ] Tag filters should use the Tags service/effective-tag contract rather than module-local string matching.
+  - [ ] Modules should pass tag filter intent to their owning query helpers.
+- [ ] Add a safe bulk tag assignment contract.
+  - [ ] Bulk assignment operates on direct/manual assignments unless an explicit future workflow says otherwise.
+  - [ ] Propagated and system assignments must be preserved.
+  - [ ] Per-record permission checks happen before mutation.
+  - [ ] Partial success/failure reporting identifies skipped records without leaking inaccessible labels.
+  - [ ] Bulk remove must not delete parent assignments or propagated/system tags.
+- [ ] Wire first consumers where the UI already needs the pattern.
+  - [ ] Tasks filters and bulk tag assignment.
+  - [ ] Clients/Projects filters and bulk tag assignment where appropriate.
+  - [ ] Lists filters and bulk tag assignment where Lists taggable contracts are active.
+  - [ ] Time Entries/Reporting filters continue to use stored/effective tag semantics already defined for finalized entries.
+- [ ] Add regression coverage.
+  - [ ] No Tags filters use effective-tag semantics.
+  - [ ] Bulk tag assignment preserves propagated/system assignments.
+  - [ ] Per-record permissions are enforced before mutation.
+  - [ ] Tags remain classification metadata only.
 
 ### Version 0.33.5.2.9 - API Key cleanup
 
-Verify public API key permissions exist for read/write of all framework and first-party modules. Currently the set is very limited.
+Goal:
+Audit public API key scopes against framework and first-party module capabilities, then document the missing scope work for 0.33.5.3.x without trying to complete the full public API expansion inside 0.33.5.2.
 
-- Audit the API keys available
-  - It doesn't appear that I'm seeing the correct API Keys. I checked both Workspace and Super admin accounts. Here's what shows:
-    - clients:read
-    - projects:read
-    - tasks:read
-    - tasks:write
-    - time_entries:read
-    - time_entries:write
-  - There's nothing for files, search, notes or anything else in there. And there's no write for clients or projects
-  - Place updated ROADMAP to address missing API keys in 0.33.5.3.x
+Out of scope:
+- Do not implement the full missing API-key scope set in this slice unless it remains a tiny documentation correction.
+- Do not expose new public API routes without a dedicated implementation/version slice.
+- Do not bypass module permissions; API keys must map through stable module/framework permission contracts.
+
+- [ ] Audit current API key scopes visible to Workspace Admin and Super Admin users.
+  - [ ] Confirm existing scopes: `clients:read`, `projects:read`, `tasks:read`, `tasks:write`, `time_entries:read`, and `time_entries:write`.
+  - [ ] Confirm missing write scopes for clients/projects if still absent.
+  - [ ] Confirm missing public scopes for files, search, notes, lists, tags, notifications, Help/read-only discovery, and any other active first-party modules.
+  - [ ] Compare UI-visible scopes with seeded/default API-key scope definitions.
+- [ ] Map desired scopes to owning contracts.
+  - [ ] Framework-owned scopes such as files, search, notifications, Help, and settings/discovery.
+  - [ ] Module-owned scopes such as notes, lists, tasks, client-projects, time-tracking, and tags.
+  - [ ] Read/write/admin/manage distinctions where the module permission model supports them.
+  - [ ] Explicitly identify scopes that should remain internal-only for now.
+- [ ] Add a 0.33.5.3.x roadmap plan for API key scope repair.
+  - [ ] Scope registration/source-of-truth update.
+  - [ ] UI display/update behavior for new scopes.
+  - [ ] Public API route coverage or explicit route deferrals.
+  - [ ] Permission regression coverage for API-key-scoped reads/writes.
+  - [ ] Documentation updates to `docs/public-api.md`.
+- [ ] Add audit/regression checklist for the future implementation.
+  - [ ] Workspace Admin and Super Admin see the same allowed scope catalog where appropriate.
+  - [ ] API-key reads/writes enforce the same module boundaries as browser/session permissions.
+  - [ ] Missing modules are either intentionally absent and documented or available through scopes.
 
 ## Version 0.33.5.4 - Files and Time Tracking QoL Updates
 

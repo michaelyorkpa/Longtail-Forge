@@ -1,3 +1,11 @@
+## Version 0.33.5.2.0 - 2026-06-12 08:49 -04:00
+
+- Fixed Projects -> Project Settings -> Add Project so new client-linked projects no longer snapshot the client billing rate as an explicit project override when the user has not entered a project-specific rate.
+- Preserved client billing inheritance for project billing period and rounding by keeping inherited project fields unset on create.
+- Fixed client billing/contact save payloads so omitted tag picker fields do not clear existing client tag assignments.
+- Added `scripts/client-projects-bugfix-regression.mjs` for project billing inheritance and client billing-save tag preservation, and wired it into `npm run check`.
+- Bumped the app/package and Client/Projects module versions to `0.33.5.2.0`.
+
 ## Version 0.33.5.0.7 - 2026-06-12 08:10 -04:00
 
 - Closed out the Tasks QoL line by adding `scripts/task-qol-closeout-regression.mjs` for resume-safe task reads, summaries, Workbench items, search documents, lifecycle event metadata, inactive-task candidacy, and inaccessible-task boundaries.

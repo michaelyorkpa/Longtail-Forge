@@ -1765,7 +1765,7 @@ function createBillingContactEditor(client, options = {}) {
       client.billing_contact[fieldName] = inputs.get(fieldName).value.trim();
     });
 
-    await saveClientRecord(client, {
+    await saveClientRecord(withoutTagPayload(client), {
       action: "client_billing_contact_updated",
       client_id: client.id,
       client_name: client.name,
@@ -1902,7 +1902,7 @@ function createClientBillingSettingsEditor(client, options = {}) {
     client.billing_rounding = billingRoundingEditor.getValue();
     client.taskReminderPolicy = reminderPolicyEditor.getValue();
 
-    await saveClientRecord(client, {
+    await saveClientRecord(withoutTagPayload(client), {
       action: "client_billing_settings_updated",
       client_id: client.id,
       client_name: client.name,
@@ -1936,7 +1936,11 @@ async function saveClientSettings(client, container, options = {}) {
   client.name = nameInput.value.trim();
   client.status = statusSelect?.value || client.status;
   client.parent_client_id = parentClientSelect?.value || "";
-  client.tagIds = tagPicker?.readTagIds?.() || [];
+  if (tagPicker) {
+    client.tagIds = tagPicker.readTagIds();
+  } else {
+    delete client.tagIds;
+  }
 
   if ((oldClient.parent_client_id || "") !== (client.parent_client_id || "")) {
     const confirmed = await window.LongtailForge.modal.confirm({
@@ -2553,7 +2557,8 @@ function createAddProjectForm(client, {
 
   const billingRateInput = document.createElement("input");
   billingRateInput.inputMode = "decimal";
-  billingRateInput.value = getEffectiveClientBillingRate(client);
+  billingRateInput.value = "";
+  billingRateInput.placeholder = getEffectiveClientBillingRate(client) || "";
   billingRateLabel.appendChild(billingRateInput);
 
   const billableLabel = createBillableCheckbox(client.billable);
@@ -2765,10 +2770,9 @@ async function saveClientRecord(client, action, viewState = {}) {
   return persistClientProjectChange(action, viewState, async () => {
     await window.LongtailForge.api.putJson(
       `/api/clients/${encodeURIComponent(client.id)}`,
-      {
-        ...client,
+      withOptionalTagPayload(client, {
         action,
-      },
+      }),
     );
   });
 }
@@ -2781,10 +2785,9 @@ async function createProjectRecord(client, project, action, viewState = {}) {
 
     await window.LongtailForge.api.postJson(
       url,
-      {
-        ...project,
+      withOptionalTagPayload(project, {
         action,
-      },
+      }),
     );
   });
 }
@@ -2793,13 +2796,32 @@ async function saveProjectRecord(project, action, viewState = {}) {
   return persistClientProjectChange(action, viewState, async () => {
     await window.LongtailForge.api.putJson(
       `/api/projects/${encodeURIComponent(project.id)}`,
-      {
-        ...project,
+      withOptionalTagPayload(project, {
         confirm_downstream_update: action.confirm_downstream_update === true,
         action,
-      },
+      }),
     );
   });
+}
+
+function withOptionalTagPayload(record, extraPayload = {}) {
+  const payload = {
+    ...record,
+    ...extraPayload,
+  };
+
+  if (!Object.hasOwn(record || {}, "tagIds")) {
+    delete payload.tagIds;
+  }
+
+  return payload;
+}
+
+function withoutTagPayload(record) {
+  const payload = { ...record };
+  delete payload.tagIds;
+  delete payload.tag_ids;
+  return payload;
 }
 
 async function archiveProjectRecord(project, action, viewState = {}) {
