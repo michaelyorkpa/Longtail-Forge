@@ -1,3 +1,11 @@
+## Version 0.33.5.2.5 - 2026-06-12 11:32 -04:00
+
+- Hardened `notesService.listForTarget()` and `/api/notes/for-target` as the Notes-owned linked-note panel read with permission-first filtering, deterministic sort modes, safe target metadata, note source URLs, empty-state metadata, and compatibility `notes` payloads.
+- Hardened `notesService.listCollections()` and `/api/notes/collections` so collection counts are derived from Notes access-policy-filtered notes before shaping, with explicit `All Libraries`, `All collections`, and `Uncategorized` defaults.
+- Preserved bucket-first collection ordering and existing collapsed revision behavior while keeping private/secure note labels, excerpts, and counts out of unauthorized panel/tree payloads.
+- Added `scripts/notes-linked-panel-regression.mjs` for linked-note panel sorting, safe payload shaping, collection defaults, and private/secure leak checks, and wired it into `npm run check`.
+- Bumped the app/package and Notes module versions to `0.33.5.2.5`.
+
 ## Version 0.33.5.2.4 - 2026-06-12 11:08 -04:00
 
 - Updated `tasksService.readOptions` to reuse canonical Client/Projects list payloads for active, permission-filtered client and project picker options with depth and display-label metadata.

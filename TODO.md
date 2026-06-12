@@ -25,10 +25,14 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - "Save Client" and "Edit Projects" buttons need to be moved to modal footer
 
+- Removing parent tags from child clients by opening the client edit modal, clicking on the tags you want removed, then clicking save client, doesn't actually remove those tags
+  - Example: Appaloosa News, a child of Dr. Jennifer Weeks client should not have the "Mental Health Provider" or "Healthcare Provider" tags, as this is a personal project I manage for Dr. Weeks
+
 ## Task Tweaks
 
 - Projects -> Tasks
   - Things I'd like to be able to bulk edit (Add and Remove), in addition to what I can already change:
+    - If there's a multi-select and the due dates/due times/tags are different before the bulk edit, be sure to warn the user with an in-app warning about 
     - [ ] Due date & Time (Can be clearable/set to NULL through bulk; Time should be optional/clearable as well)
     - [ ] Tags
 

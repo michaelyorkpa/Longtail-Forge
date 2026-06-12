@@ -54,6 +54,7 @@ const NOTE_VISIBILITY_VALUES = new Set(Object.values(NOTE_VISIBILITIES));
 const NOTE_SECURITY_MODE_VALUES = new Set(Object.values(NOTE_SECURITY_MODES));
 const NOTE_PERMISSION_VALUES = Object.values(NOTE_PERMISSIONS);
 const COLLECTION_SOURCE_VALUES = new Set(["manual", "imported"]);
+const LINKED_NOTE_SORT_MODES = new Set(["pinned", "recent", "updated", "title"]);
 const SECURE_NOTE_TITLE_WARNING = "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.";
 const SECURE_STORAGE_FIELDS = Object.freeze([
   "secure_payload",
@@ -292,15 +293,17 @@ async function listCollections(session, query = {}) {
   await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.VIEW);
   const filters = normalizeCollectionListFilters(query);
   const collections = await notesRepository.listCollections(session.workspace_id, filters);
-  const notes = await list(session, {
+  const noteFilters = {
     includeDeleted: false,
     libraryBucket: filters.libraryBucket,
     status: filters.includeArchived ? "" : NOTE_STATUSES.ACTIVE,
-  });
+  };
+  const notes = await notesRepository.list(session.workspace_id, noteFilters);
+  const accessibleNotes = await filterAccessibleNotes(session, notes);
   const accessibleCountByCollectionId = new Map();
   let uncategorizedCount = 0;
 
-  for (const note of notes.notes) {
+  for (const note of accessibleNotes) {
     if (note.note_collection_id) {
       accessibleCountByCollectionId.set(
         note.note_collection_id,
@@ -313,15 +316,18 @@ async function listCollections(session, query = {}) {
   const rolledUpCountByCollectionId = rollupCollectionCounts(collections, accessibleCountByCollectionId);
 
   return {
-    collections: collections.map((collection) => ({
+    collections: sortCollectionsForReadModel(collections).map((collection) => ({
       ...collection,
       accessibleNoteCount: rolledUpCountByCollectionId.get(collection.note_library_collection_id) || 0,
       directAccessibleNoteCount: accessibleCountByCollectionId.get(collection.note_library_collection_id) || 0,
     })),
-    tree: buildCollectionTree(collections, rolledUpCountByCollectionId, accessibleCountByCollectionId),
+    tree: buildCollectionTree(sortCollectionsForReadModel(collections), rolledUpCountByCollectionId, accessibleCountByCollectionId),
+    defaults: collectionReadModelDefaults(filters),
     uncategorized: {
       count: uncategorizedCount,
       libraryBucket: filters.libraryBucket || "",
+      label: "Uncategorized",
+      value: "__uncategorized",
     },
   };
 }
@@ -546,9 +552,21 @@ async function listForTarget(session, query = {}) {
   const target = normalizeTargetFromQuery(query);
   await assertTargetAccess(session, target);
   const notes = await notesRepository.listForTarget(session.workspace_id, target);
+  const filters = normalizeListFilters(query);
+  const panelOptions = normalizeLinkedNotePanelOptions(query);
+  const decorated = await decorateAndFilterNotesByTags(session, await filterAccessibleNotes(session, notes), filters);
+  const sorted = sortLinkedNotePanelNotes(decorated, panelOptions.sort);
+  const shapedNotes = sorted.map((note) => shapeNoteForBrowser(note, { includeBodyHtml: true }));
+  const linkedNotes = sorted.map((note) => shapeLinkedNotePanelItem(note));
 
-  const decorated = await decorateAndFilterNotesByTags(session, await filterAccessibleNotes(session, notes), normalizeListFilters(query));
-  return { notes: decorated.map((note) => shapeNoteForBrowser(note, { includeBodyHtml: true })) };
+  return {
+    target: shapeLinkedNoteTarget(target),
+    sort: panelOptions.sort,
+    count: linkedNotes.length,
+    emptyState: linkedNotes.length > 0 ? null : linkedNotePanelEmptyState(target),
+    notes: shapedNotes,
+    linkedNotes,
+  };
 }
 
 async function listLibrary(session) {
@@ -1069,6 +1087,53 @@ function shapeNoteForBrowser(note = {}, { includeBodyHtml = false } = {}) {
   return shaped;
 }
 
+function shapeLinkedNotePanelItem(note = {}) {
+  const shaped = shapeNoteForBrowser(note, { includeBodyHtml: false });
+  delete shaped.body_markdown;
+  delete shaped.body_plaintext_index;
+  delete shaped.metadata_json;
+
+  return {
+    ...shaped,
+    id: shaped.note_id,
+    label: shaped.title || "Untitled note",
+    excerpt: shaped.security_mode === NOTE_SECURITY_MODES.SECURE ? null : shaped.body_excerpt || "",
+    sourceUrl: noteSourceUrl(shaped.note_id),
+    links: Array.isArray(shaped.links) ? shaped.links.map(shapeSafeNoteLink) : [],
+  };
+}
+
+function shapeSafeNoteLink(link = {}) {
+  return {
+    noteLinkId: link.note_link_id || "",
+    moduleId: link.module_id || "",
+    targetType: link.target_type || "",
+    targetId: link.target_id || "",
+    linkRole: link.link_role || "related",
+    scopeRole: link.scope_role || "related",
+  };
+}
+
+function shapeLinkedNoteTarget(target = {}) {
+  return {
+    moduleId: target.module_id || "",
+    targetType: target.target_type || "",
+    targetId: target.target_id || "",
+    sourceUrl: targetSourceUrl(target),
+  };
+}
+
+function linkedNotePanelEmptyState(target = {}) {
+  return {
+    title: "No linked notes yet.",
+    body: "Add a note when there is context worth preserving for this record.",
+    action: {
+      label: "Add Note",
+      href: `notes.html?targetType=${encodeURIComponent(target.target_type || "")}&targetId=${encodeURIComponent(target.target_id || "")}`,
+    },
+  };
+}
+
 function shapeRevisionForBrowser(revision = {}, { includeBody = true } = {}) {
   const shaped = stripSecureStorageFields(revision);
 
@@ -1412,6 +1477,50 @@ function buildCollectionTree(collections, accessibleCountByCollectionId, directC
   return (byParentId.get("") || []).map(decorate);
 }
 
+function sortCollectionsForReadModel(collections = []) {
+  const bucketOrder = new Map([
+    [NOTE_LIBRARY_BUCKETS.ACTIVE_WORK, 0],
+    [NOTE_LIBRARY_BUCKETS.ONGOING_AREA, 1],
+    [NOTE_LIBRARY_BUCKETS.REFERENCE, 2],
+    [NOTE_LIBRARY_BUCKETS.ARCHIVE, 3],
+  ]);
+
+  return [...collections].sort((left, right) => (
+    (bucketOrder.get(left.library_bucket) ?? 99) - (bucketOrder.get(right.library_bucket) ?? 99) ||
+    String(left.path_cache || left.title || "").localeCompare(String(right.path_cache || right.title || ""), undefined, { sensitivity: "base" }) ||
+    Number(left.sort_order || 0) - Number(right.sort_order || 0) ||
+    String(left.title || "").localeCompare(String(right.title || ""), undefined, { sensitivity: "base" }) ||
+    String(left.note_library_collection_id || "").localeCompare(String(right.note_library_collection_id || ""))
+  ));
+}
+
+function collectionReadModelDefaults(filters = {}) {
+  return {
+    libraries: {
+      all: {
+        label: "All Libraries",
+        value: "all",
+      },
+      buckets: [
+        { label: "Active Work", value: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK },
+        { label: "Ongoing Areas", value: NOTE_LIBRARY_BUCKETS.ONGOING_AREA },
+        { label: "Reference Library", value: NOTE_LIBRARY_BUCKETS.REFERENCE },
+      ],
+    },
+    collections: {
+      all: {
+        label: "All collections",
+        value: "",
+      },
+      uncategorized: {
+        label: "Uncategorized",
+        value: "__uncategorized",
+      },
+    },
+    activeLibraryBucket: filters.libraryBucket || "all",
+  };
+}
+
 function rollupCollectionCounts(collections = [], directCounts = new Map()) {
   const byParentId = groupCollectionsByParent(collections);
   const rolledUpCounts = new Map();
@@ -1466,6 +1575,60 @@ function normalizeCollectionListFilters(query = {}) {
     includeDeleted: query.includeDeleted === "true" || query.include_deleted === "true",
     libraryBucket: normalizeOptionalEnum(query.libraryBucket || query.library_bucket, LIBRARY_BUCKET_VALUES, "Library bucket"),
   };
+}
+
+function normalizeLinkedNotePanelOptions(query = {}) {
+  const sort = normalizeOptionalText(query.sort || query.sortMode || query.sort_mode) || "updated";
+
+  return {
+    sort: LINKED_NOTE_SORT_MODES.has(sort) ? sort : "updated",
+  };
+}
+
+function sortLinkedNotePanelNotes(notes = [], sortMode = "updated") {
+  return [...notes].sort((left, right) => {
+    if (sortMode === "title") {
+      return compareText(left.title, right.title) || compareUpdatedDesc(left, right);
+    }
+
+    if (sortMode === "recent" || sortMode === "updated") {
+      return compareUpdatedDesc(left, right) || compareText(left.title, right.title);
+    }
+
+    if (sortMode === "pinned") {
+      return comparePinnedDesc(left, right) || compareUpdatedDesc(left, right) || compareText(left.title, right.title);
+    }
+
+    return compareUpdatedDesc(left, right) || compareText(left.title, right.title);
+  });
+}
+
+function comparePinnedDesc(left = {}, right = {}) {
+  return Number(Boolean(right.metadata?.pinned || right.metadata?.pinned_at)) -
+    Number(Boolean(left.metadata?.pinned || left.metadata?.pinned_at));
+}
+
+function compareUpdatedDesc(left = {}, right = {}) {
+  return String(right.updated_at || right.created_at || "").localeCompare(String(left.updated_at || left.created_at || ""));
+}
+
+function compareText(left, right) {
+  return String(left || "").localeCompare(String(right || ""), undefined, { sensitivity: "base" });
+}
+
+function noteSourceUrl(noteId) {
+  return `notes.html?note=${encodeURIComponent(noteId || "")}`;
+}
+
+function targetSourceUrl(target = {}) {
+  const targetId = encodeURIComponent(target.target_id || "");
+  return {
+    workspace: "dashboard.html",
+    client: "clients.html",
+    project: "projects.html",
+    task: `tasks.html?task=${targetId}`,
+    user: "settings.html",
+  }[target.target_type] || "";
 }
 
 function normalizeImportCollectionPathParts(payload = {}) {

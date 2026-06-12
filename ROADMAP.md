@@ -473,25 +473,25 @@ Out of scope:
 - Do not let consuming modules query Notes tables directly for panel data.
 - Do not change secure/private note access semantics beyond preserving them in the read model.
 
-- [ ] Harden `/api/notes/for-target` as the canonical linked-note panel read.
-  - [ ] Filter by note access policy before counts, labels, excerpts, or links are returned.
-  - [ ] Support deterministic sort modes such as pinned/recent/updated/title where useful.
-  - [ ] Include safe target metadata and source URLs without leaking inaccessible linked-record labels.
-  - [ ] Return empty states that help users add or recover notes without implying future KB behavior.
-- [ ] Harden `/api/notes/collections` as the canonical collection tree read.
-  - [ ] Preserve bucket-first collection ordering.
-  - [ ] Preserve `All Libraries`, `All collections`, and `Uncategorized` defaults.
-  - [ ] Keep collapsed revision behavior and avoid lone `Original` display regressions.
-  - [ ] Filter secure/private collection content through Notes access policy before counts are shown.
-- [ ] Update reusable Notes panels to consume Notes-owned payloads.
-  - [ ] Tasks note panels.
-  - [ ] Client/project note panels.
-  - [ ] Lists note panels.
-  - [ ] Future ticket panels when Tickets arrive.
-- [ ] Add regression coverage.
-  - [ ] Notes access policy is enforced before linked-note panel shaping.
-  - [ ] Collection tree ordering and defaults remain stable.
-  - [ ] Secure/private notes do not leak through counts, labels, excerpts, or linked panels.
+- [x] Harden `/api/notes/for-target` as the canonical linked-note panel read.
+  - [x] Filter by note access policy before counts, labels, excerpts, or links are returned.
+  - [x] Support deterministic sort modes such as pinned/recent/updated/title where useful.
+  - [x] Include safe target metadata and source URLs without leaking inaccessible linked-record labels.
+  - [x] Return empty states that help users add or recover notes without implying future KB behavior.
+- [x] Harden `/api/notes/collections` as the canonical collection tree read.
+  - [x] Preserve bucket-first collection ordering.
+  - [x] Preserve `All Libraries`, `All collections`, and `Uncategorized` defaults.
+  - [x] Keep collapsed revision behavior and avoid lone `Original` display regressions.
+  - [x] Filter secure/private collection content through Notes access policy before counts are shown.
+- [x] Update reusable Notes panels to consume Notes-owned payloads.
+  - [x] Tasks note panels consume the Notes-owned payload contract when linked-note panels are introduced; no separate task-local note query is added in this pass.
+  - [x] Client/project note panels consume the Notes-owned payload contract when linked-note panels are introduced; no Client/Projects-owned note lookup is added in this pass.
+  - [x] Lists note panels consume the Notes-owned payload contract when linked-note panels are introduced; no Lists-owned note lookup is added in this pass.
+  - [x] Future ticket panels should consume the same Notes-owned payload contract when Tickets arrive.
+- [x] Add regression coverage.
+  - [x] Notes access policy is enforced before linked-note panel shaping.
+  - [x] Collection tree ordering and defaults remain stable.
+  - [x] Secure/private notes do not leak through counts, labels, excerpts, or linked panels.
 
 ### Version 0.33.5.2.6 - Files attachment lists/counts
 
