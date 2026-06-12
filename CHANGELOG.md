@@ -1,3 +1,21 @@
+## Version 0.33.5.2.7 - 2026-06-12 13:47 -04:00
+
+- Added Lists-owned canonical index query behavior for default active working lists, status/type/reusable/client/project/assigned/needed-by/linked-record/tag/No Tags filters, and deterministic sort modes.
+- Updated the Lists browser page to send filter and sort intent to `/api/lists` instead of owning canonical list filtering or reusable/source ranking in page-local code.
+- Preserved permission-first shaping for list labels, linked-record context, tags, progress summaries, and catalog suggestions.
+- Kept item catalog suggestions service-owned with deterministic context/usage/recency/name ranking and snapshot behavior for catalog-backed list items.
+- Added `scripts/lists-query-suggestions-regression.mjs` for Lists query, sorting, suggestion, snapshot, permission, and browser-query coverage, and wired it into `npm run check`.
+- Bumped the app/package and Lists module versions to `0.33.5.2.7`.
+
+## Version 0.33.5.2.6 - 2026-06-12 12:07 -04:00
+
+- Hardened Files-owned attachment list reads so target-scoped requests re-check attachable target access before returning attachment labels, file metadata, counts, or pagination data.
+- Added service-owned attachment pagination and deterministic sort modes while preserving existing `attachments` response compatibility for shared panels and the Files browser page.
+- Hardened attachment counts so inaccessible or missing targets return zero without leaking target or file labels.
+- Preserved sanitized file lifecycle event payloads and kept modules as consumers of Files-owned attachment payloads rather than direct `file_attachments` queries.
+- Added `scripts/files-attachment-readmodel-regression.mjs` for target access, permission-safe counts, pagination/sorting, safe response shape, and lifecycle payload sanitization, and wired it into `npm run check`.
+- Bumped the app/package version to `0.33.5.2.6`.
+
 ## Version 0.33.5.2.5 - 2026-06-12 11:32 -04:00
 
 - Hardened `notesService.listForTarget()` and `/api/notes/for-target` as the Notes-owned linked-note panel read with permission-first filtering, deterministic sort modes, safe target metadata, note source URLs, empty-state metadata, and compatibility `notes` payloads.

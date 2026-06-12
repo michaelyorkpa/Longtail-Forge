@@ -72,8 +72,8 @@ let state = {
 };
 
 createButton?.addEventListener("click", () => openListDialog());
-filtersForm?.addEventListener("change", renderLists);
-sortSelect?.addEventListener("change", renderLists);
+filtersForm?.addEventListener("change", () => refreshLists());
+sortSelect?.addEventListener("change", () => refreshLists());
 listForm?.addEventListener("submit", saveList);
 listDialogClose?.addEventListener("click", closeListDialog);
 listCancelButton?.addEventListener("click", closeListDialog);
@@ -151,7 +151,7 @@ async function loadUsers() {
 }
 
 async function loadLists() {
-  const result = await api.getJson("/api/lists?includeDeleted=true", { cache: "no-store" });
+  const result = await api.getJson(`/api/lists?${buildListQueryParams()}`, { cache: "no-store" });
   const summaries = result.lists || [];
   const details = await Promise.all(summaries.map((list) => loadListDetail(list.list_id || list.id, list)));
   state.lists = details.filter(Boolean);
@@ -166,6 +166,45 @@ async function loadListDetail(listId, fallback = null) {
   } catch {
     return fallback ? normalizeListRecord(fallback, []) : null;
   }
+}
+
+function buildListQueryParams() {
+  const params = new URLSearchParams();
+  const statusValue = statusFilter?.value || "active";
+  const typeValue = typeFilter?.value || "all";
+  const reusableValue = reusableFilter?.value || "no";
+  const archiveValue = archiveFilter?.value || "current";
+  const clientValue = usesBusinessScope() ? clientFilter?.value || "all" : "all";
+  const projectValue = projectFilter?.value || "all";
+  const assigneeValue = assigneeFilter?.value || "all";
+  const neededValue = neededFilter?.value || "";
+  const sortValue = sortSelect?.value || "updated_desc";
+
+  params.set("status", archiveValue === "archived" || archiveValue === "deleted" ? archiveValue : statusValue);
+  params.set("archiveState", archiveValue);
+  params.set("reusable", reusableValue);
+  params.set("sort", sortValue);
+
+  if (typeValue !== "all") {
+    params.set("listType", typeValue);
+  }
+  if (clientValue !== "all") {
+    params.set("clientId", clientValue);
+  }
+  if (projectValue !== "all") {
+    params.set("projectId", projectValue);
+  }
+  if (assigneeValue !== "all") {
+    params.set("assigneeId", assigneeValue);
+  }
+  if (neededValue) {
+    params.set("neededByDate", neededValue);
+  }
+  if (archiveValue === "all" || archiveValue === "deleted" || statusValue === "all") {
+    params.set("includeDeleted", "true");
+  }
+
+  return params;
 }
 
 function populateFilters() {
@@ -188,7 +227,7 @@ function populateFilters() {
 }
 
 function renderLists() {
-  const lists = sortedLists(filteredLists());
+  const lists = state.lists;
 
   countLabel.textContent = `${lists.length} ${lists.length === 1 ? "List" : "Lists"}`;
   listTableBody.replaceChildren();
@@ -208,62 +247,6 @@ function renderLists() {
   } else {
     renderDetail(selectedList());
   }
-}
-
-function filteredLists() {
-  const statusValue = statusFilter?.value || "active";
-  const typeValue = typeFilter?.value || "all";
-  const reusableValue = reusableFilter?.value || "no";
-  const clientValue = usesBusinessScope() ? clientFilter?.value || "all" : "all";
-  const projectValue = projectFilter?.value || "all";
-  const assigneeValue = assigneeFilter?.value || "all";
-  const neededValue = neededFilter?.value || "";
-  const archiveValue = archiveFilter?.value || "current";
-
-  return state.lists.filter((list) => {
-    const statusMatch = statusValue === "all" || list.status === statusValue;
-    const typeMatch = typeValue === "all" || list.list_type === typeValue;
-    const reusableMatch = reusableValue === "all" ||
-      (reusableValue === "yes" ? list.is_reusable === true : list.is_reusable !== true);
-    const clientMatch = clientValue === "all" || (list.client_id || "") === clientValue;
-    const projectMatch = projectValue === "all" || (list.project_id || "") === projectValue;
-    const assigneeMatch = assigneeValue === "all" ||
-      (assigneeValue === "me"
-        ? list.items.some((item) => (item.assigned_user_id || "") === state.currentUserId)
-        : list.items.some((item) => (item.assigned_user_id || "") === assigneeValue));
-    const neededMatch = !neededValue || list.items.some((item) => item.needed_by_date === neededValue);
-    const archiveMatch = archiveValue === "all" ||
-      (archiveValue === "current" ? !["archived", "deleted"].includes(list.status) : list.status === archiveValue);
-
-    return statusMatch && typeMatch && reusableMatch && clientMatch && projectMatch && assigneeMatch && neededMatch && archiveMatch;
-  });
-}
-
-function sortedLists(lists) {
-  const sortValue = sortSelect?.value || "updated_desc";
-  const copy = [...lists];
-
-  copy.sort((left, right) => {
-    if (sortValue === "title_asc") {
-      return compareText(left.title, right.title);
-    }
-    if (sortValue === "type_asc") {
-      return compareText(left.list_type, right.list_type) || compareText(left.title, right.title);
-    }
-    if (sortValue === "status_asc") {
-      return compareText(left.status, right.status) || compareText(left.title, right.title);
-    }
-    if (sortValue === "needed_asc") {
-      return compareText(nextNeededDate(left), nextNeededDate(right)) || compareText(left.title, right.title);
-    }
-    if (sortValue === "finalized_desc") {
-      return compareText(right.finalized_at, left.finalized_at) || compareText(left.title, right.title);
-    }
-
-    return compareText(right.updated_at, left.updated_at) || compareText(left.title, right.title);
-  });
-
-  return copy;
 }
 
 function createListRow(list) {
@@ -932,9 +915,11 @@ async function saveList(event) {
 }
 
 async function refreshLists(selectedId = state.selectedListId) {
+  setStatus("Loading lists...");
   await loadLists();
   state.selectedListId = selectedId || state.selectedListId;
   renderLists();
+  setStatus("");
 }
 
 function populateClientOptions(selectedClientId = "") {
@@ -1020,12 +1005,16 @@ function normalizeListProgress(progress = {}, items = []) {
     .find((item) => !item.checked_at && !item.completed_at);
 
   return {
+    assignedUserIds: progress.assignedUserIds || progress.assigned_user_ids || [],
     checkedItemCount: Number(progress.checkedItemCount ?? progress.checked_item_count ?? checkedCount),
     completedItemCount: Number(progress.completedItemCount ?? progress.completed_item_count ?? completedCount),
     earliestNeededByDate: progress.earliestNeededByDate || progress.earliest_needed_by_date || nextNeededDateFromItems(visible) || null,
+    incompleteItemCount: Number(progress.incompleteItemCount ?? progress.incomplete_item_count ?? visible.filter((item) => !item.checked_at && !item.completed_at).length),
     lastActivityAt: progress.lastActivityAt || progress.last_activity_at || "",
+    neededByDates: progress.neededByDates || progress.needed_by_dates || [],
     nextUncheckedItemLabel: progress.nextUncheckedItemLabel || progress.next_unchecked_item_label || nextUnchecked?.item_name || "",
     totalItemCount: Number(progress.totalItemCount ?? progress.total_item_count ?? visible.length),
+    unassignedItemCount: Number(progress.unassignedItemCount ?? progress.unassigned_item_count ?? visible.filter((item) => !item.assigned_user_id).length),
   };
 }
 
@@ -1495,10 +1484,6 @@ function formatCurrency(value) {
     maximumFractionDigits: 2,
     style: "currency",
   }).format(number);
-}
-
-function compareText(left, right) {
-  return String(left || "").localeCompare(String(right || ""), undefined, { sensitivity: "base" });
 }
 
 function setStatus(message, isError = false) {

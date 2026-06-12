@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.4.8.1. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.5.2.7. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
@@ -68,6 +68,14 @@ Catalog-backed item suggestions live in `list_item_catalog`. Suggestions are exp
 Historical list items snapshot values from catalog suggestions. Later catalog edits update future suggestions and do not rewrite existing list items.
 
 Catalog item create/update history uses the `list_item_catalog` audit record type and `lists.catalog_item.created` / `lists.catalog_item.updated` lifecycle events. Catalog audit/event payloads must stay permission-safe and should not expose raw item URLs or private catalog metadata.
+
+## Index Queries
+
+The Lists service owns index filtering, sorting, progress summaries, linked-record context, reusable-list views, and catalog suggestion ranking. Browser code sends query intent to `/api/lists` and renders the returned canonical payload instead of rebuilding the authoritative list view locally.
+
+The default Lists index is active, non-reusable working lists. Explicit service-owned filters support list status, list type, reusable lists, business client/project context, assigned list items, needed-by dates, linked records, and Tags/No Tags through the framework tag service.
+
+Deterministic sorts are service-owned. Supported ordering includes recent activity, needed-by date, incomplete/progress count, title, type, status, finalized date, and reusable/source context ordering. Permission checks happen before labels, links, tags, source context, progress summaries, or catalog suggestions are returned.
 
 ## Linked Records
 

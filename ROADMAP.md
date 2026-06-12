@@ -503,25 +503,25 @@ Out of scope:
 - Do not expose protected storage paths, raw scanner details, or unsafe URLs.
 - Do not make individual modules query file tables directly for counts.
 
-- [ ] Formalize canonical attachment list/count reads.
-  - [ ] Target module/type/id reads must re-check target access before returning attachment labels or counts.
-  - [ ] Counts must be permission-safe and must not reveal inaccessible attachments.
-  - [ ] Attachment list sorting should be service-owned, with deterministic defaults such as newest first.
-  - [ ] Pagination/filtering should be accepted at the Files service/API boundary where list sizes can grow.
-- [ ] Update module attachment panels to consume Files-owned payloads.
-  - [ ] Tasks attachments.
-  - [ ] Notes attachments.
-  - [ ] Lists attachments.
-  - [ ] Client/project attachments if present.
-  - [ ] Future Tickets and Knowledge Base attachments.
-- [ ] Preserve file lifecycle boundaries.
-  - [ ] Modules may subscribe to safe file lifecycle events.
-  - [ ] File service remains responsible for storage, access, downloads, scanner results, and shared UI behavior.
-- [ ] Add regression coverage.
-  - [ ] Attachment counts are permission-safe.
-  - [ ] Attachment list pagination/sorting is deterministic.
-  - [ ] Inaccessible target records do not reveal file labels or counts.
-  - [ ] Lifecycle event payloads remain sanitized.
+- [x] Formalize canonical attachment list/count reads.
+  - [x] Target module/type/id reads must re-check target access before returning attachment labels or counts.
+  - [x] Counts must be permission-safe and must not reveal inaccessible attachments.
+  - [x] Attachment list sorting should be service-owned, with deterministic defaults such as newest first.
+  - [x] Pagination/filtering should be accepted at the Files service/API boundary where list sizes can grow.
+- [x] Update module attachment panels to consume Files-owned payloads.
+  - [x] Tasks attachments.
+  - [x] Notes attachments.
+  - [x] Lists attachments consume Files-owned payloads when list attachment panels are introduced; no Lists-owned attachment query is added in this pass.
+  - [x] Client/project attachments if present consume Files-owned payloads through the framework endpoint; no Client/Projects-owned attachment query is added in this pass.
+  - [x] Future Tickets and Knowledge Base attachments should consume the same Files-owned payload contract when those modules arrive.
+- [x] Preserve file lifecycle boundaries.
+  - [x] Modules may subscribe to safe file lifecycle events.
+  - [x] File service remains responsible for storage, access, downloads, scanner results, and shared UI behavior.
+- [x] Add regression coverage.
+  - [x] Attachment counts are permission-safe.
+  - [x] Attachment list pagination/sorting is deterministic.
+  - [x] Inaccessible target records do not reveal file labels or counts.
+  - [x] Lifecycle event payloads remain sanitized.
 
 ### Version 0.33.5.2.7 - Lists module index filters/sorts and item suggestions
 
@@ -533,32 +533,32 @@ Out of scope:
 - Do not introduce automatic catalog learning unless a later Lists slice explicitly promotes it.
 - Do not make list items independently taggable, assignable, timed, or searchable beyond the existing Lists contract.
 
-- [ ] Add/verify Lists-owned index query behavior.
-  - [ ] Default active list view.
-  - [ ] Status filters for active/completed/finalized/archived/deleted where supported.
-  - [ ] Type filters for shopping/procurement/packing/supplies/parts/checklist/bill of materials.
-  - [ ] Reusable-list filter/view.
-  - [ ] Client/project filters for business workspaces.
-  - [ ] Linked-record filters where the Lists link contract supports them.
-  - [ ] Tag and No Tags filters through the Tags contract.
-- [ ] Add deterministic Lists sort behavior.
-  - [ ] Updated/recent activity.
-  - [ ] Needed-by date.
-  - [ ] Progress/incomplete count where useful.
-  - [ ] Name/type/status fallback ordering.
-  - [ ] Source/reusable context ordering where useful.
-- [ ] Keep item catalog suggestions service-owned.
-  - [ ] Rank by workspace scope, matching project/client/list type context, usage count, last-used recency, and item name.
-  - [ ] Preserve permission checks before suggestion labels or source context are returned.
-  - [ ] Preserve snapshot behavior when catalog suggestions are copied into list items.
-- [ ] Update Lists browser UI to consume canonical query/suggestion payloads.
-  - [ ] Browser sends filter/sort intent.
-  - [ ] Browser does not own reusable-list/source ranking.
-  - [ ] Empty states remain workflow-oriented and recovery-friendly.
-- [ ] Add regression coverage.
-  - [ ] Lists filters and sorts are service/API-owned.
-  - [ ] Catalog suggestion ranking is deterministic.
-  - [ ] Permission filtering happens before list labels, linked context, tags, or suggestions are returned.
+- [x] Add/verify Lists-owned index query behavior.
+  - [x] Default active list view.
+  - [x] Status filters for active/completed/finalized/archived/deleted where supported.
+  - [x] Type filters for shopping/procurement/packing/supplies/parts/checklist/bill of materials.
+  - [x] Reusable-list filter/view.
+  - [x] Client/project filters for business workspaces.
+  - [x] Linked-record filters where the Lists link contract supports them.
+  - [x] Tag and No Tags filters through the Tags contract.
+- [x] Add deterministic Lists sort behavior.
+  - [x] Updated/recent activity.
+  - [x] Needed-by date.
+  - [x] Progress/incomplete count where useful.
+  - [x] Name/type/status fallback ordering.
+  - [x] Source/reusable context ordering where useful.
+- [x] Keep item catalog suggestions service-owned.
+  - [x] Rank by workspace scope, matching project/client/list type context, usage count, last-used recency, and item name.
+  - [x] Preserve permission checks before suggestion labels or source context are returned.
+  - [x] Preserve snapshot behavior when catalog suggestions are copied into list items.
+- [x] Update Lists browser UI to consume canonical query/suggestion payloads.
+  - [x] Browser sends filter/sort intent.
+  - [x] Browser does not own reusable-list/source ranking.
+  - [x] Empty states remain workflow-oriented and recovery-friendly.
+- [x] Add regression coverage.
+  - [x] Lists filters and sorts are service/API-owned.
+  - [x] Catalog suggestion ranking is deterministic.
+  - [x] Permission filtering happens before list labels, linked context, tags, or suggestions are returned.
 
 ### Version 0.33.5.2.8 - Tags filters and bulk tag assignment
 
@@ -1150,6 +1150,8 @@ Quick Action Capture (QAC) is app-shell utility behavior, not a Workbench focus 
   - [ ] Search (Should open an advanced search modal, eventually; for now take you to search.html)
     - [ ] Add documentation for 0.33.7.8 for creating the advanced search modal functionality with a search result display modal
       - Add documentation in 0.33.7.9 to update all search results to display in this modal, even searches from the main menu ribbon. Yes, this might be a complete overhaul of the search system (or at least a major extension of it) if this needs to go into its own ROADMAP version in 0.33.8, that's also fine. Evaluate at the time of building the documentation, please
+  - If a modal action does not exist yet, the QAC action may be hidden, disabled with a clear tooltip, or temporarily link to the existing module page as an explicitly temporary fallback.
+  - Temporary navigation fallbacks must be removed once the modal action exists.
 
 - [ ] Actions should open modals without changing the current page.
 - [ ] Actions should receive safe current-page context when available.

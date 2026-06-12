@@ -530,7 +530,8 @@ ORDER BY
   list_type_match DESC,
   use_count DESC,
   last_used_at DESC,
-  item_name COLLATE NOCASE ASC
+  item_name COLLATE NOCASE ASC,
+  catalog_item_id ASC
 LIMIT ${sqlInteger(limit)};
 `);
 

@@ -19,6 +19,9 @@ import { NOTE_SECURITY_MODES } from "../modules/notes/library.js";
 
 const DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_ALLOWED_VISIBILITY = new Set(["private", "workspace", "client"]);
+const DEFAULT_ATTACHMENT_LIMIT = 50;
+const MAX_ATTACHMENT_LIMIT = 200;
+const ATTACHMENT_SORT_MODES = new Set(["newest", "oldest", "filename", "size", "status"]);
 const ALLOWED_EXTENSIONS = new Map([
   [".csv", { category: "spreadsheet", mime: "text/csv", risky: false }],
   [".doc", { category: "document", mime: "application/msword", risky: true }],
@@ -225,6 +228,8 @@ async function listAttachments(session, filters = {}) {
     workspace_id: session.workspace_id,
     operation: "read",
   });
+  const listOptions = normalizeAttachmentListOptions(filters);
+  await assertTargetScopedAttachmentRead(session, filters);
   const statusFilter = normalizeFileStatusFilter(filters.status || filters.fileStatus || filters.file_status);
   const conditions = [
     `file_attachments.workspace_id = ${sqlText(session.workspace_id)}`,
@@ -286,7 +291,20 @@ ORDER BY file_attachments.created_at DESC, file_attachments.file_attachment_id;
     }
   }
 
-  return { attachments: visible };
+  const sorted = sortAttachmentsForReadModel(visible, listOptions.sort);
+  const paged = listOptions.paginate ? sorted.slice(listOptions.offset, listOptions.offset + listOptions.limit) : sorted;
+
+  return {
+    attachments: paged,
+    pagination: {
+      hasMore: listOptions.offset + paged.length < sorted.length,
+      limit: listOptions.limit,
+      offset: listOptions.offset,
+      returned: paged.length,
+      total: sorted.length,
+    },
+    sort: listOptions.sort,
+  };
 }
 
 async function countAttachmentsForTargets(session, filters = {}) {
@@ -298,7 +316,10 @@ async function countAttachmentsForTargets(session, filters = {}) {
     return { counts: {} };
   }
 
+  const accessibleTargetIds = await readableAttachmentTargetIds(session, moduleId, targetType, targetIds);
   const result = await listAttachments(session, {
+    allPages: true,
+    limit: MAX_ATTACHMENT_LIMIT,
     moduleId,
     targetType,
     status: "available",
@@ -311,12 +332,20 @@ async function countAttachmentsForTargets(session, filters = {}) {
   });
   result.attachments.forEach((attachment) => {
     const targetId = attachment.targetId || attachment.target_id || "";
-    if (allowedTargetIds.has(targetId)) {
+    if (allowedTargetIds.has(targetId) && accessibleTargetIds.has(targetId)) {
       counts[targetId] = (counts[targetId] || 0) + 1;
     }
   });
 
-  return { counts };
+  return {
+    counts,
+    meta: {
+      moduleId,
+      targetType,
+      checkedTargets: targetIds.length,
+      readableTargets: accessibleTargetIds.size,
+    },
+  };
 }
 
 async function readFileForSession(session, fileId) {
@@ -1093,6 +1122,55 @@ async function canReadAttachment(session, attachment) {
   return canReadModuleTargetAttachment(session, attachableType, attachment);
 }
 
+async function assertTargetScopedAttachmentRead(session, filters = {}) {
+  const moduleId = normalizeOptionalText(filters.moduleId || filters.module_id);
+  const targetType = normalizeOptionalText(filters.targetType || filters.target_type);
+  const targetId = normalizeOptionalText(filters.targetId || filters.target_id);
+
+  if (!targetId) {
+    return;
+  }
+  if (!targetType) {
+    throw new AppError("Target type and target ID are required for target-scoped attachment reads.", 400);
+  }
+
+  const attachableType = await resolveAttachableTypeForTargetRead(session.workspace_id, moduleId, targetType);
+  const target = await readAttachableTarget(session.workspace_id, attachableType, targetId);
+  await assertCanUseAttachableTarget(session, attachableType, "read", target);
+}
+
+async function resolveAttachableTypeForTargetRead(workspaceId, moduleId, targetType) {
+  if (moduleId) {
+    return resolveAttachableType(workspaceId, moduleId, targetType);
+  }
+
+  const matches = (await listActiveAttachableTypes(workspaceId))
+    .filter((candidate) => candidate.targetType === targetType);
+
+  if (matches.length !== 1) {
+    throw new AppError("Module ID is required for that attachment target type.", 400);
+  }
+
+  return matches[0];
+}
+
+async function readableAttachmentTargetIds(session, moduleId, targetType, targetIds = []) {
+  const attachableType = await resolveAttachableType(session.workspace_id, moduleId, targetType);
+  const readable = new Set();
+
+  for (const targetId of targetIds) {
+    try {
+      const target = await readAttachableTarget(session.workspace_id, attachableType, targetId);
+      await assertCanUseAttachableTarget(session, attachableType, "read", target);
+      readable.add(targetId);
+    } catch {
+      // Counts must not reveal missing or inaccessible target records.
+    }
+  }
+
+  return readable;
+}
+
 async function assertModuleTargetAccess(session, attachableType, operation, target = null) {
   if (attachableType.moduleId !== "notes" || attachableType.targetType !== "note") {
     return;
@@ -1233,6 +1311,73 @@ function normalizeFileStatusFilter(value) {
   const status = String(value || "available").trim().toLowerCase();
 
   return ["all", "available", "pending", "quarantined"].includes(status) ? status : "available";
+}
+
+function normalizeAttachmentListOptions(filters = {}) {
+  const paginate = filters.allPages !== true && filters.all_pages !== "true";
+  const limit = clampInteger(filters.limit || filters.pageSize || filters.page_size, DEFAULT_ATTACHMENT_LIMIT, 1, MAX_ATTACHMENT_LIMIT);
+  const offset = clampInteger(filters.offset, 0, 0, Number.MAX_SAFE_INTEGER);
+  const sort = normalizeOptionalText(filters.sort || filters.sortMode || filters.sort_mode) || "newest";
+
+  return {
+    limit,
+    offset,
+    paginate,
+    sort: ATTACHMENT_SORT_MODES.has(sort) ? sort : "newest",
+  };
+}
+
+function sortAttachmentsForReadModel(attachments = [], sortMode = "newest") {
+  return [...attachments].sort((left, right) => {
+    if (sortMode === "oldest") {
+      return compareCreatedAsc(left, right) || compareFilenameAsc(left, right);
+    }
+    if (sortMode === "filename") {
+      return compareFilenameAsc(left, right) || compareCreatedDesc(left, right);
+    }
+    if (sortMode === "size") {
+      return compareFileSizeDesc(left, right) || compareCreatedDesc(left, right);
+    }
+    if (sortMode === "status") {
+      return compareFileStatusAsc(left, right) || compareCreatedDesc(left, right);
+    }
+
+    return compareCreatedDesc(left, right) || compareFilenameAsc(left, right);
+  });
+}
+
+function compareCreatedDesc(left = {}, right = {}) {
+  return String(right.createdAt || right.created_at || "").localeCompare(String(left.createdAt || left.created_at || ""));
+}
+
+function compareCreatedAsc(left = {}, right = {}) {
+  return String(left.createdAt || left.created_at || "").localeCompare(String(right.createdAt || right.created_at || ""));
+}
+
+function compareFilenameAsc(left = {}, right = {}) {
+  return String(left.file?.displayName || left.file?.originalFilename || "").localeCompare(
+    String(right.file?.displayName || right.file?.originalFilename || ""),
+    undefined,
+    { sensitivity: "base" },
+  );
+}
+
+function compareFileSizeDesc(left = {}, right = {}) {
+  return Number(right.file?.fileSizeBytes || 0) - Number(left.file?.fileSizeBytes || 0);
+}
+
+function compareFileStatusAsc(left = {}, right = {}) {
+  return String(left.file?.status || "").localeCompare(String(right.file?.status || ""), undefined, { sensitivity: "base" });
+}
+
+function clampInteger(value, fallback, minimum, maximum) {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isFinite(parsed)) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(parsed, minimum), maximum);
 }
 
 function normalizeTargetIds(value) {

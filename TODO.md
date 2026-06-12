@@ -13,6 +13,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Search Fixes
+
+- Help shows up 4 times in the "Record Type" selector in search.html
+
 ## Tags Fixes
 
 - If I create a new client and add a new tag the tag doesn't show up if I don't refresh/change the page
@@ -171,19 +175,22 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Medium Term
 
+
+
 ## "What are you trying to do right now?"
 
-- Focus modes:
-  - Start my day
-  - Pick up where I left off
-  - Show what's due next
-  - Work this week
-  - Review blocked work
-  - Focus on a project
-  - Focus on a client
-  - Capture something quickly
+- Dashboard opens with all of the overview stuff has the QAC utility rail, and, somewhere, presents the question:
+  "What do you want to do right now?"
+  Which is answered with one of the following work/focus modes in Workbench:
 
-- A simple question to pick a focus workbench
+  - Focus modes:
+    - Start my day
+    - Pick up where I left off
+    - Show what's due next
+    - Work this week
+    - Review blocked work
+    - Focus on a project
+    - Focus on a client
 
 ## Project Updates
 

@@ -31,6 +31,7 @@ import { clientsRepository } from "../client-projects/clients.repo.js";
 import { tasksRepository } from "../tasks/tasks.repo.js";
 import { notesRepository } from "../notes/notes.repo.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
+import { tagsService } from "../../services/tags.service.js";
 
 const LIST_TYPE_SET = new Set(LIST_TYPE_VALUES);
 const LIST_STATUS_SET = new Set(LIST_STATUS_VALUES);
@@ -38,7 +39,8 @@ const PURCHASE_STATUS_SET = new Set(LIST_ITEM_PURCHASE_STATUS_VALUES);
 
 async function list(session, query = {}) {
   await assertListsReadable(session);
-  const lists = await listsRepository.list(session.workspace_id, normalizeListFilters(query));
+  const normalizedQuery = normalizeListQuery(query);
+  const lists = await listsRepository.list(session.workspace_id, normalizedQuery.repositoryFilters);
   const readableLists = [];
 
   for (const listRecord of lists) {
@@ -47,7 +49,18 @@ async function list(session, query = {}) {
     }
   }
 
-  return { lists: readableLists };
+  const taggedLists = await tagsService.decorateRecordsForTarget(
+    session,
+    "list",
+    await tagsService.filterRecordsByTags(session, "list", readableLists, normalizedQuery.tagIds, { idField: "list_id" }),
+    { idField: "list_id" },
+  );
+  const filteredLists = taggedLists.filter((listRecord) => listMatchesCanonicalQuery(listRecord, normalizedQuery, session));
+
+  return {
+    lists: sortCanonicalLists(filteredLists, normalizedQuery),
+    query: normalizedQuery.response,
+  };
 }
 
 async function read(listId, session, options = {}) {
@@ -1017,18 +1030,251 @@ async function nextSortOrder(workspaceId, listId) {
   return items.length === 0 ? 0 : Math.max(...items.map((item) => Number(item.sort_order) || 0)) + 10;
 }
 
-function normalizeListFilters(query = {}) {
+function normalizeListQuery(query = {}) {
+  const status = normalizeListStatusFilter(query.status || query.status_filter);
+  const archiveState = normalizeToken(query.archiveState || query.archive_state || query.archive || query.archivedState || query.archived_state);
+  const effectiveStatus = archiveState === "archived" || archiveState === "deleted"
+    ? archiveState
+    : status;
+  const reusable = normalizeReusableFilter(query.reusable || query.reusableFilter || query.reusable_filter || query.isReusable || query.is_reusable);
+  const listType = normalizeListTypeFilter(query.listType || query.list_type || query.type);
+  const clientId = hasQueryField(query, ["clientId", "client_id", "client"])
+    ? normalizeOptionalText(query.clientId ?? query.client_id ?? query.client)
+    : "all";
+  const projectId = hasQueryField(query, ["projectId", "project_id", "project"])
+    ? normalizeOptionalText(query.projectId ?? query.project_id ?? query.project)
+    : "all";
+  const assigneeId = hasQueryField(query, ["assigneeId", "assignee_id", "assignee"])
+    ? normalizeOptionalText(query.assigneeId ?? query.assignee_id ?? query.assignee)
+    : "all";
+  const neededByDate = normalizeOptionalDate(query.neededByDate || query.needed_by_date || query.needed || "", "Needed by date");
+  const sort = normalizeListSort(query.sort || query.sortBy || query.sort_by);
+  const targetType = normalizeOptionalText(query.targetType || query.target_type || query.linkedTargetType || query.linked_target_type);
+  const targetId = normalizeOptionalText(query.targetId || query.target_id || query.linkedTargetId || query.linked_target_id);
+  const moduleId = normalizeOptionalText(query.moduleId || query.module_id || query.linkedModuleId || query.linked_module_id);
+  const tagIds = query.tagIds || query.tag_ids || query.tags || query.tag || query.tag_id || [];
+  const includeDeleted = effectiveStatus === "deleted" || effectiveStatus === "all" ||
+    archiveState === "all" ||
+    query.includeDeleted === true ||
+    query.include_deleted === "true";
+
   return {
-    clientId: normalizeOptionalText(query.clientId || query.client_id),
-    createdByUserId: normalizeOptionalText(query.createdByUserId || query.created_by_user_id),
-    includeDeleted: query.includeDeleted === true || query.include_deleted === "true",
-    isReusable: query.isReusable === undefined && query.is_reusable === undefined
-      ? undefined
-      : query.isReusable === true || query.is_reusable === true || query.isReusable === "true" || query.is_reusable === "true",
-    listType: normalizeOptionalText(query.listType || query.list_type),
-    projectId: normalizeOptionalText(query.projectId || query.project_id),
-    status: normalizeOptionalText(query.status),
+    archiveState,
+    assigneeId,
+    clientId,
+    listType,
+    neededByDate,
+    projectId,
+    repositoryFilters: {
+      clientId: clientId === "all" ? "" : clientId,
+      createdByUserId: normalizeOptionalText(query.createdByUserId || query.created_by_user_id),
+      includeDeleted,
+      isReusable: reusable === "all" ? undefined : reusable === "yes",
+      listType: listType === "all" ? "" : listType,
+      projectId: projectId === "all" ? "" : projectId,
+      status: effectiveStatus === "all" ? "" : effectiveStatus,
+    },
+    response: {
+      archiveState: archiveState || "current",
+      assigneeId,
+      clientId,
+      listType,
+      neededByDate,
+      reusable,
+      sort,
+      status: effectiveStatus,
+      targetId,
+      targetType,
+    },
+    reusable,
+    sort,
+    status: effectiveStatus,
+    tagIds,
+    targetId,
+    targetType,
+    moduleId,
   };
+}
+
+function normalizeListStatusFilter(value) {
+  const status = normalizeToken(value || LIST_STATUSES.ACTIVE);
+  if (!status || status === "current") {
+    return LIST_STATUSES.ACTIVE;
+  }
+  if (status === "all") {
+    return "all";
+  }
+  if (!LIST_STATUS_SET.has(status)) {
+    throw new AppError(`List status '${status}' is not supported.`, 400);
+  }
+  return status;
+}
+
+function normalizeListTypeFilter(value) {
+  const listType = normalizeToken(value || "all");
+  if (!listType || listType === "all") {
+    return "all";
+  }
+  if (!LIST_TYPE_SET.has(listType)) {
+    throw new AppError(`List type '${listType}' is not supported.`, 400);
+  }
+  return listType;
+}
+
+function normalizeReusableFilter(value) {
+  if (value === true || value === "true" || value === "yes" || value === "reusable") {
+    return "yes";
+  }
+  if (value === false || value === "false" || value === "no" || value === undefined || value === null || value === "") {
+    return "no";
+  }
+  if (value === "all") {
+    return "all";
+  }
+  throw new AppError(`Reusable filter '${value}' is not supported.`, 400);
+}
+
+function normalizeListSort(value) {
+  const sort = normalizeToken(value || "updated_desc");
+  const supportedSorts = new Set([
+    "finalized_desc",
+    "incomplete_desc",
+    "needed_asc",
+    "progress_desc",
+    "source_asc",
+    "status_asc",
+    "title_asc",
+    "type_asc",
+    "updated_desc",
+  ]);
+  if (!supportedSorts.has(sort)) {
+    throw new AppError(`List sort '${sort}' is not supported.`, 400);
+  }
+  return sort;
+}
+
+function normalizeToken(value) {
+  return normalizeOptionalText(value).toLowerCase();
+}
+
+function hasQueryField(query = {}, keys = []) {
+  return keys.some((key) => Object.hasOwn(query, key));
+}
+
+function listMatchesCanonicalQuery(listRecord = {}, query = {}, session = {}) {
+  if (query.archiveState === "current" && ["archived", "deleted"].includes(listRecord.status)) {
+    return false;
+  }
+  if (query.status !== "all" && listRecord.status !== query.status) {
+    return false;
+  }
+  if (query.reusable !== "all" && Boolean(listRecord.is_reusable) !== (query.reusable === "yes")) {
+    return false;
+  }
+  if (query.listType !== "all" && listRecord.list_type !== query.listType) {
+    return false;
+  }
+  if (query.clientId !== "all" && (listRecord.client_id || "") !== query.clientId) {
+    return false;
+  }
+  if (query.projectId !== "all" && (listRecord.project_id || "") !== query.projectId) {
+    return false;
+  }
+  if (query.assigneeId !== "all" && !matchesAssigneeFilter(listRecord, query.assigneeId, session.user_id)) {
+    return false;
+  }
+  if (query.neededByDate && !(listRecord.progress?.neededByDates || []).includes(query.neededByDate)) {
+    return false;
+  }
+  if ((query.targetType || query.targetId || query.moduleId) && !matchesLinkedRecordFilter(listRecord, query)) {
+    return false;
+  }
+  return true;
+}
+
+function matchesAssigneeFilter(listRecord = {}, assigneeId = "all", currentUserId = "") {
+  if (assigneeId === "all") {
+    return true;
+  }
+  const assignedUserIds = new Set(listRecord.progress?.assignedUserIds || []);
+  if (assigneeId === "me") {
+    return currentUserId ? assignedUserIds.has(currentUserId) : false;
+  }
+  if (assigneeId === "") {
+    return (listRecord.progress?.unassignedItemCount || 0) > 0;
+  }
+  return assignedUserIds.has(assigneeId);
+}
+
+function matchesLinkedRecordFilter(listRecord = {}, query = {}) {
+  return (listRecord.links || []).some((link) => {
+    const target = link.target;
+    if (!target) {
+      return false;
+    }
+    if (query.targetType && target.target_type !== query.targetType) {
+      return false;
+    }
+    if (query.targetId && target.target_id !== query.targetId) {
+      return false;
+    }
+    if (query.moduleId && target.module_id !== query.moduleId) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function sortCanonicalLists(lists = [], query = {}) {
+  return [...lists].sort((left, right) => {
+    const fallback = compareText(left.title, right.title) ||
+      compareText(left.list_type, right.list_type) ||
+      compareText(left.status, right.status) ||
+      compareText(left.list_id, right.list_id);
+
+    if (query.sort === "title_asc") {
+      return fallback;
+    }
+    if (query.sort === "type_asc") {
+      return compareText(left.list_type, right.list_type) || fallback;
+    }
+    if (query.sort === "status_asc") {
+      return compareText(left.status, right.status) || fallback;
+    }
+    if (query.sort === "needed_asc") {
+      return compareDateAsc(left.progress?.earliestNeededByDate, right.progress?.earliestNeededByDate) || fallback;
+    }
+    if (query.sort === "finalized_desc") {
+      return compareDateDesc(left.finalized_at, right.finalized_at) || fallback;
+    }
+    if (query.sort === "progress_desc" || query.sort === "incomplete_desc") {
+      return Number(right.progress?.incompleteItemCount || 0) - Number(left.progress?.incompleteItemCount || 0) || fallback;
+    }
+    if (query.sort === "source_asc") {
+      return compareText(sourceSortLabel(left), sourceSortLabel(right)) || fallback;
+    }
+    return compareDateDesc(left.progress?.lastActivityAt || left.updated_at, right.progress?.lastActivityAt || right.updated_at) || fallback;
+  });
+}
+
+function sourceSortLabel(listRecord = {}) {
+  return [
+    listRecord.is_reusable ? "0-reusable" : "1-working",
+    listRecord.sourceContext?.sourceList?.title || listRecord.sourceContext?.duplicatedFrom?.title || "",
+    listRecord.title || "",
+  ].join(" ");
+}
+
+function compareDateAsc(left, right) {
+  return String(left || "9999-12-31T23:59:59.999Z").localeCompare(String(right || "9999-12-31T23:59:59.999Z"));
+}
+
+function compareDateDesc(left, right) {
+  return String(right || "").localeCompare(String(left || ""));
+}
+
+function compareText(left, right) {
+  return String(left || "").localeCompare(String(right || ""), undefined, { sensitivity: "base" });
 }
 
 function normalizeItemOrders(value) {
@@ -1209,6 +1455,7 @@ async function shapeListForBrowser(session, listRecord = {}) {
     id: listRecord.list_id,
     isBillOfMaterials: listRecord.list_type === LIST_TYPES.BILL_OF_MATERIALS,
     isReusable: Boolean(listRecord.is_reusable),
+    links: linkedRecords,
     progress,
     resumeContext: buildListResumeContext(listRecord, progress, linkedRecords),
     sourceContext,
@@ -1240,12 +1487,16 @@ async function readListProgressSummary(session, listRecord = {}) {
   ].filter(Boolean).sort();
 
   return {
+    assignedUserIds: [...new Set(items.map((item) => item.assigned_user_id).filter(Boolean))].sort(),
     checkedItemCount: items.filter((item) => Boolean(item.checked_at)).length,
     completedItemCount: items.filter((item) => Boolean(item.completed_at)).length,
     earliestNeededByDate: neededDates[0] || null,
+    incompleteItemCount: items.filter((item) => !item.checked_at && !item.completed_at).length,
     lastActivityAt: activityCandidates.at(-1) || null,
+    neededByDates: [...new Set(neededDates)],
     nextUncheckedItemLabel: nextUncheckedItem?.item_name || "",
     totalItemCount: items.length,
+    unassignedItemCount: items.filter((item) => !item.assigned_user_id).length,
   };
 }
 
