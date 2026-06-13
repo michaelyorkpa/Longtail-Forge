@@ -98,7 +98,17 @@ async function readNotificationSummary(session) {
   try {
     return await notificationsService.unreadCount(session);
   } catch {
-    return { count: 0, unreadCount: 0 };
+    return {
+      count: 0,
+      unreadCount: 0,
+      totalUnreadCount: 0,
+      lowPriorityUnreadCount: 0,
+      urgentPriorityCount: 0,
+      highPriorityCount: 0,
+      hasUrgentPriority: false,
+      hasHighPriority: false,
+      hasPriorityAlert: false,
+    };
   }
 }
 

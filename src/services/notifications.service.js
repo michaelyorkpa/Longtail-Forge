@@ -97,10 +97,7 @@ async function list(session, query = {}) {
 async function unreadCount(session) {
   await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
 
-  return {
-    count: await notificationsRepository.countUnreadForRecipient(session.workspace_id, session.user_id),
-    unreadCount: await notificationsRepository.countUnreadForRecipient(session.workspace_id, session.user_id),
-  };
+  return notificationsRepository.readBellSummaryForRecipient(session.workspace_id, session.user_id);
 }
 
 async function preferences(session) {
@@ -263,6 +260,13 @@ async function dismiss(notificationId, session) {
   const notification = await notificationsRepository.dismiss(session.workspace_id, session.user_id, notificationId);
 
   return { notification: await decorateForSession(notification, session) };
+}
+
+async function dismissAll(session) {
+  await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
+
+  await notificationsRepository.dismissAll(session.workspace_id, session.user_id);
+  return unreadCount(session);
 }
 
 async function archiveOldNotifications(cutoffIso) {
@@ -935,6 +939,7 @@ export const notificationsService = {
   createFromEvent,
   createMany,
   dismiss,
+  dismissAll,
   followTarget,
   list,
   markAllRead,

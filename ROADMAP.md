@@ -46,20 +46,20 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 #### Version 0.33.5.6.3 - Notification Priority and Bell Dropdown QoL
 
-- [ ] Implement priority behavior in the notification bell.
-  - [ ] "Urgent" priority notifications turn the bell icon red and may trigger an in-app alert modal depending on the clarification above.
-  - [ ] "High" priority notifications turn the bell icon red and are not grouped.
-  - [ ] "Normal" priority notifications are grouped and increment the number on the bell icon.
-  - [ ] "Low" priority notifications are grouped and do not increase the number on the bell icon.
-- [ ] Use icon actions from `notifications.html` in the notification bell dropdown instead of full text buttons where context is clear.
-  - [ ] Add hover titles/tooltips for icon actions.
-  - [ ] Preserve accessible labels for screen readers.
-- [ ] Move "Read all" and "Dismiss all" text actions to the bottom of the notification bell dropdown.
-  - [ ] Match the "View all" font size.
-  - [ ] Keep destructive or bulk actions visually distinct enough to avoid accidental clicks.
-- [ ] Verification.
-  - [ ] Verify bell color, counts, grouping, and dropdown action placement for urgent, high, normal, and low notifications.
-  - [ ] Verify keyboard and hover/title behavior for dropdown icon actions.
+- [x] Implement priority behavior in the notification bell.
+  - [x] "Urgent" priority notifications turn the bell icon red and do not trigger an interruptive in-app alert modal by default.
+  - [x] "High" priority notifications turn the bell icon red and are not grouped.
+  - [x] "Normal" priority notifications are grouped and increment the number on the bell icon.
+  - [x] "Low" priority notifications are grouped and do not increase the number on the bell icon.
+- [x] Use icon actions from `notifications.html` in the notification bell dropdown instead of full text buttons where context is clear.
+  - [x] Add hover titles/tooltips for icon actions.
+  - [x] Preserve accessible labels for screen readers.
+- [x] Move "Read all" and "Dismiss all" text actions to the bottom of the notification bell dropdown.
+  - [x] Match the "View all" font size.
+  - [x] Keep destructive or bulk actions visually distinct enough to avoid accidental clicks.
+- [x] Verification.
+  - [x] Verify bell color, counts, grouping, and dropdown action placement for urgent, high, normal, and low notifications.
+  - [x] Verify keyboard and hover/title behavior for dropdown icon actions.
 
 #### Version 0.33.5.6.4 - All Notifications Page and Preferences QoL
 

@@ -255,6 +255,69 @@ LIMIT 1;
     assert.ok(dismissedList.body.notifications.some((notification) => notification.notification_id === notificationId));
   });
 
+  await notificationsService.create({
+    body: "Low priority notifications remain visible without increasing the bell badge.",
+    event_type: "task.updated",
+    module_id: "tasks",
+    priority: "low",
+    recipient_user_id: fixtures.users.projectUser.userId,
+    record_id: task.body.task.task_id,
+    record_type: "task",
+    title: "Low priority task update",
+    url: `tasks.html?task=${encodeURIComponent(task.body.task.task_id)}`,
+    workspace_id: fixtures.workspaceId,
+  }, {
+    user_id: fixtures.users.workspaceAdmin.userId,
+    workspace_id: fixtures.workspaceId,
+  });
+  const lowPrioritySummary = await api.get("/api/notifications/unread-count", { cookie: fixtures.sessions.projectUser });
+  check("low priority unread notifications do not increase bell badge count", () => {
+    assert.equal(lowPrioritySummary.status, 200, JSON.stringify(lowPrioritySummary.body));
+    assert.equal(lowPrioritySummary.body.unreadCount, 0);
+    assert.equal(lowPrioritySummary.body.totalUnreadCount, 1);
+    assert.equal(lowPrioritySummary.body.lowPriorityUnreadCount, 1);
+  });
+
+  await notificationsService.create({
+    body: "High priority notifications keep the bell in the attention state.",
+    event_type: "task.updated",
+    module_id: "tasks",
+    priority: "high",
+    recipient_user_id: fixtures.users.projectUser.userId,
+    record_id: task.body.task.task_id,
+    record_type: "task",
+    title: "High priority task update",
+    url: `tasks.html?task=${encodeURIComponent(task.body.task.task_id)}`,
+    workspace_id: fixtures.workspaceId,
+  }, {
+    user_id: fixtures.users.workspaceAdmin.userId,
+    workspace_id: fixtures.workspaceId,
+  });
+  const highPrioritySummary = await api.get("/api/notifications/unread-count", { cookie: fixtures.sessions.projectUser });
+  check("high priority notifications increase badge count and alert the bell", () => {
+    assert.equal(highPrioritySummary.status, 200, JSON.stringify(highPrioritySummary.body));
+    assert.equal(highPrioritySummary.body.unreadCount, 1);
+    assert.equal(highPrioritySummary.body.totalUnreadCount, 2);
+    assert.equal(highPrioritySummary.body.hasHighPriority, true);
+    assert.equal(highPrioritySummary.body.hasPriorityAlert, true);
+  });
+
+  const bulkRead = await api.post("/api/notifications/read-all", {}, { cookie: fixtures.sessions.projectUser });
+  check("read all marks active unread notifications read", () => {
+    assert.equal(bulkRead.status, 200, JSON.stringify(bulkRead.body));
+    assert.equal(bulkRead.body.unreadCount, 0);
+    assert.equal(bulkRead.body.totalUnreadCount, 0);
+  });
+
+  const bulkDismiss = await api.post("/api/notifications/dismiss-all", {}, { cookie: fixtures.sessions.projectUser });
+  const activeAfterBulkDismiss = await api.get("/api/notifications?status=active", { cookie: fixtures.sessions.projectUser });
+  check("dismiss all removes active notifications from the bell dropdown source", () => {
+    assert.equal(bulkDismiss.status, 200, JSON.stringify(bulkDismiss.body));
+    assert.equal(activeAfterBulkDismiss.status, 200, JSON.stringify(activeAfterBulkDismiss.body));
+    assert.equal(activeAfterBulkDismiss.body.notifications.length, 0);
+    assert.equal(bulkDismiss.body.hasPriorityAlert, false);
+  });
+
   const hiddenTarget = await notificationsService.create({
     body: "A task target outside this user's project scope.",
     event_type: "task.updated",
@@ -298,6 +361,37 @@ async function runNotificationUiContractTests() {
 
   check("notification dropdown loads active notifications only", () => {
     assert.match(navigation, /\/api\/notifications\?status=active&limit=5/);
+  });
+
+  check("notification dropdown applies bell priority state and groups only normal and low priorities", () => {
+    assert.match(navigation, /notificationBell\.classList\.toggle\("has-priority-alert", hasPriorityAlert\)/);
+    assert.match(navigation, /notificationBell\.dataset\.notificationPriority = priority/);
+    assert.match(navigation, /function sortNotificationPanelItems\(notifications\)/);
+    assert.match(navigation, /\["urgent", 0\]/);
+    assert.match(navigation, /\["high", 1\]/);
+    assert.match(navigation, /createNotificationPanelGroup\(priority, notifications\)/);
+    assert.match(navigation, /data\.notificationPriorityGroup = priority|dataset\.notificationPriorityGroup = priority/);
+    assert.match(css, /\.notification-bell\.has-priority-alert \{/);
+    assert.match(css, /\.notification-panel-group-title \{/);
+  });
+
+  check("notification dropdown uses icon actions with labels and hover titles", () => {
+    assert.match(navigation, /createNotificationPanelActionButton\("Read", "complete"\)/);
+    assert.match(navigation, /createNotificationPanelActionButton\("Dismiss", "close", \{ danger: true \}\)/);
+    assert.match(navigation, /LongtailForge\?\.icons\?\.createIconButton/);
+    assert.match(navigation, /title: label|title: Label/);
+    assert.match(navigation, /setAttribute\("aria-label", label\)/);
+  });
+
+  check("notification dropdown bottom bulk actions call read all and dismiss all endpoints", () => {
+    assert.match(navigation, /dataset\.notificationReadAll = ""/);
+    assert.match(navigation, /dataset\.notificationDismissAll = ""/);
+    assert.match(navigation, /mutateAllNotifications\("read-all"\)/);
+    assert.match(navigation, /mutateAllNotifications\("dismiss-all"\)/);
+    assert.match(navigation, /\/api\/notifications\/\$\{action\}/);
+    assert.match(css, /\.notification-panel-footer \{/);
+    assert.match(css, /\.notification-panel-header a,\s*\.notification-panel-text-action \{\s*font-size: 13px;/);
+    assert.match(css, /\.notification-panel-text-action\.is-danger \{/);
   });
 
   check("notification dropdown dismiss success removes the visible item", () => {

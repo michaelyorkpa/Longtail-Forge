@@ -1,3 +1,11 @@
+## Version 0.33.5.6.3 - 2026-06-12 22:47 -04:00
+
+- Added priority-aware notification bell summaries so Low unread notifications stay out of the badge count while High/Urgent active notifications turn the bell red.
+- Updated the notification bell dropdown to show High/Urgent items ungrouped, group Normal/Low items, and use icon-only Read/Dismiss actions with labels and hover titles.
+- Added bottom-of-dropdown `Read all` and `Dismiss all` text actions plus the `/api/notifications/dismiss-all` contract for active bell notifications.
+- Expanded notification regression coverage for priority counts, bell alert state, grouping, dropdown action placement, read-all, and dismiss-all behavior.
+- Bumped the app/package version to `0.33.5.6.3`.
+
 ## Version 0.33.5.6.2 - 2026-06-12 22:34 -04:00
 
 - Suppressed event-created notifications for the acting user so creators/modifiers do not receive their own normal created/updated notifications.

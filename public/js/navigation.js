@@ -32,6 +32,8 @@ const notificationBell = siteHeader.querySelector("[data-notification-bell]");
 const notificationCount = siteHeader.querySelector("[data-notification-count]");
 const notificationPanel = siteHeader.querySelector("[data-notification-panel]");
 const notificationList = siteHeader.querySelector("[data-notification-list]");
+const notificationReadAll = siteHeader.querySelector("[data-notification-read-all]");
+const notificationDismissAll = siteHeader.querySelector("[data-notification-dismiss-all]");
 const globalSearchShell = siteHeader.querySelector("[data-global-search-shell]");
 const globalSearchToggle = siteHeader.querySelector("[data-global-search-toggle]");
 const globalSearchForm = siteHeader.querySelector("[data-global-search-form]");
@@ -60,6 +62,9 @@ if (notificationBell) {
     }
   });
 }
+
+notificationReadAll?.addEventListener("click", () => mutateAllNotifications("read-all"));
+notificationDismissAll?.addEventListener("click", () => mutateAllNotifications("dismiss-all"));
 
 if (globalSearchToggle) {
   globalSearchToggle.addEventListener("click", () => {
@@ -121,6 +126,9 @@ function buildSiteHeader() {
   const notificationPanelTitle = document.createElement("strong");
   const notificationPageLink = document.createElement("a");
   const notificationItems = document.createElement("div");
+  const notificationPanelFooter = document.createElement("div");
+  const notificationReadAllButton = document.createElement("button");
+  const notificationDismissAllButton = document.createElement("button");
   const toggle = document.createElement("button");
   const links = document.createElement("div");
   const currentPage = getCurrentPage();
@@ -215,7 +223,19 @@ function buildSiteHeader() {
 
   notificationItems.className = "notification-panel-list";
   notificationItems.dataset.notificationList = "";
-  notificationPanelElement.append(notificationPanelHeader, notificationItems);
+
+  notificationPanelFooter.className = "notification-panel-footer";
+  notificationReadAllButton.type = "button";
+  notificationReadAllButton.className = "notification-panel-text-action";
+  notificationReadAllButton.dataset.notificationReadAll = "";
+  notificationReadAllButton.textContent = "Read all";
+  notificationDismissAllButton.type = "button";
+  notificationDismissAllButton.className = "notification-panel-text-action is-danger";
+  notificationDismissAllButton.dataset.notificationDismissAll = "";
+  notificationDismissAllButton.textContent = "Dismiss all";
+  notificationPanelFooter.append(notificationReadAllButton, notificationDismissAllButton);
+
+  notificationPanelElement.append(notificationPanelHeader, notificationItems, notificationPanelFooter);
   notificationWrap.append(notificationButton, notificationPanelElement);
 
   toggle.className = "nav-toggle";
@@ -453,6 +473,8 @@ function createSearchTargetOption(value, label, target = null) {
 
 function applyNotificationSummary(summary = {}) {
   const unreadCount = Number(summary.unreadCount || summary.count || 0);
+  const priority = summary.hasUrgentPriority ? "urgent" : summary.hasHighPriority ? "high" : "";
+  const hasPriorityAlert = summary.hasPriorityAlert === true || Boolean(priority);
 
   if (!notificationCount) {
     return;
@@ -460,6 +482,13 @@ function applyNotificationSummary(summary = {}) {
 
   notificationCount.textContent = unreadCount > 99 ? "99+" : String(unreadCount);
   notificationCount.hidden = unreadCount === 0;
+
+  if (notificationBell) {
+    notificationBell.classList.toggle("has-priority-alert", hasPriorityAlert);
+    notificationBell.dataset.notificationPriority = priority;
+    notificationBell.title = hasPriorityAlert ? "Priority notifications" : "Notifications";
+    notificationBell.setAttribute("aria-label", hasPriorityAlert ? "Priority notifications" : "Notifications");
+  }
 }
 
 async function loadNotificationPanel() {
@@ -478,13 +507,58 @@ async function loadNotificationPanel() {
 
     const body = await response.json();
     const notifications = Array.isArray(body.notifications) ? body.notifications : [];
-    notificationList.replaceChildren(...(notifications.length > 0
-      ? notifications.map(createNotificationPanelItem)
-      : [createNotificationPanelEmpty("No notifications")]));
+    renderNotificationPanel(notifications);
     refreshNotificationCount();
   } catch {
     notificationList.replaceChildren(createNotificationPanelEmpty("Notifications unavailable"));
   }
+}
+
+function renderNotificationPanel(notifications) {
+  const sortedNotifications = sortNotificationPanelItems(notifications);
+  const priorityItems = sortedNotifications
+    .filter((notification) => ["urgent", "high"].includes(notificationPriority(notification)))
+    .map(createNotificationPanelItem);
+  const groupedItems = ["normal", "low"]
+    .map((priority) => createNotificationPanelGroup(priority, sortedNotifications.filter((notification) => notificationPriority(notification) === priority)))
+    .filter(Boolean);
+  const rows = [...priorityItems, ...groupedItems];
+
+  notificationList.replaceChildren(...(rows.length > 0 ? rows : [createNotificationPanelEmpty("No notifications")]));
+}
+
+function sortNotificationPanelItems(notifications) {
+  const priorityOrder = new Map([
+    ["urgent", 0],
+    ["high", 1],
+    ["normal", 2],
+    ["low", 3],
+  ]);
+
+  return [...notifications].sort((left, right) => (
+    (priorityOrder.get(notificationPriority(left)) ?? 2) - (priorityOrder.get(notificationPriority(right)) ?? 2) ||
+    String(right.created_at || "").localeCompare(String(left.created_at || "")) ||
+    String(right.notification_id || "").localeCompare(String(left.notification_id || ""))
+  ));
+}
+
+function createNotificationPanelGroup(priority, notifications) {
+  if (notifications.length === 0) {
+    return null;
+  }
+
+  const group = document.createElement("section");
+  const heading = document.createElement("h3");
+  const list = document.createElement("div");
+
+  group.className = "notification-panel-group";
+  group.dataset.notificationPriorityGroup = priority;
+  heading.className = "notification-panel-group-title";
+  heading.textContent = priority === "low" ? "Low priority" : "Normal";
+  list.className = "notification-panel-group-list";
+  list.append(...notifications.map(createNotificationPanelItem));
+  group.append(heading, list);
+  return group;
 }
 
 function createNotificationPanelItem(notification) {
@@ -493,12 +567,14 @@ function createNotificationPanelItem(notification) {
   const type = document.createElement("span");
   const meta = document.createElement("span");
   const actions = document.createElement("span");
-  const readButton = document.createElement("button");
-  const dismissButton = document.createElement("button");
+  const readButton = createNotificationPanelActionButton("Read", "complete");
+  const dismissButton = createNotificationPanelActionButton("Dismiss", "close", { danger: true });
   const displayTitle = notificationDisplayTitle(notification);
   const contextTitle = notificationContextTitle(notification);
+  const priority = notificationPriority(notification);
 
   item.className = `notification-panel-item is-${notification.status || "unread"}`;
+  item.classList.add(`is-priority-${priority}`);
   item.dataset.notificationPanelItem = notification.notification_id || "";
   title.className = "notification-panel-title";
   title.textContent = displayTitle;
@@ -515,18 +591,42 @@ function createNotificationPanelItem(notification) {
   meta.textContent = notificationMetaParts(notification).join(" - ");
 
   actions.className = "notification-panel-actions";
-  readButton.type = "button";
-  readButton.textContent = "Read";
   readButton.disabled = notification.status !== "unread";
   readButton.addEventListener("click", () => mutateNotification(notification.notification_id, "read", item));
 
-  dismissButton.type = "button";
-  dismissButton.textContent = "Dismiss";
   dismissButton.addEventListener("click", () => mutateNotification(notification.notification_id, "dismiss", item));
   actions.append(readButton, dismissButton);
 
   item.append(title, type, meta, actions);
   return item;
+}
+
+function createNotificationPanelActionButton(label, icon, options = {}) {
+  try {
+    if (window.LongtailForge?.icons?.createIconButton) {
+      return window.LongtailForge.icons.createIconButton({
+        icon,
+        label,
+        title: label,
+        variant: options.danger ? "danger" : "",
+      });
+    }
+  } catch {
+    // Fall back to a plain button so optional icon failures cannot blank the notification dropdown.
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label;
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.classList.toggle("danger-button", options.danger === true);
+  return button;
+}
+
+function notificationPriority(notification) {
+  const priority = String(notification?.priority || "normal").trim().toLowerCase();
+  return ["low", "normal", "high", "urgent"].includes(priority) ? priority : "normal";
 }
 
 function notificationDisplayTitle(notification) {
@@ -581,7 +681,11 @@ async function mutateNotification(notificationId, action, item = null) {
     }
 
     if (action === "dismiss") {
+      const group = item?.closest("[data-notification-priority-group]");
       item?.remove();
+      if (group && group.querySelectorAll("[data-notification-panel-item]").length === 0) {
+        group.remove();
+      }
       if (notificationList && notificationList.querySelectorAll("[data-notification-panel-item]").length === 0) {
         notificationList.replaceChildren(createNotificationPanelEmpty("No notifications"));
       }
@@ -594,6 +698,31 @@ async function mutateNotification(notificationId, action, item = null) {
     setNotificationPanelStatus("Notification action failed.", true);
     await refreshNotificationCount();
   }
+}
+
+async function mutateAllNotifications(action) {
+  setNotificationPanelStatus("");
+  setNotificationPanelBulkDisabled(true);
+
+  try {
+    const response = await fetch(`/api/notifications/${action}`, { method: "POST" });
+    if (!response.ok) {
+      throw new Error("Notification action failed.");
+    }
+
+    await loadNotificationPanel();
+    await refreshNotificationCount();
+  } catch {
+    setNotificationPanelStatus("Notification action failed.", true);
+    await refreshNotificationCount();
+  } finally {
+    setNotificationPanelBulkDisabled(false);
+  }
+}
+
+function setNotificationPanelBulkDisabled(disabled) {
+  notificationReadAll?.toggleAttribute("disabled", disabled);
+  notificationDismissAll?.toggleAttribute("disabled", disabled);
 }
 
 async function refreshNotificationCount() {

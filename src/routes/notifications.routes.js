@@ -57,6 +57,11 @@ notificationsRoutes.post("/notifications/read-all", asyncRoute(async (request, r
   response.status(200).json(result);
 }));
 
+notificationsRoutes.post("/notifications/dismiss-all", asyncRoute(async (request, response) => {
+  const result = await notificationsService.dismissAll(request.session);
+  response.status(200).json(result);
+}));
+
 notificationsRoutes.post("/notifications/:notificationId/dismiss", asyncRoute(async (request, response) => {
   const result = await notificationsService.dismiss(request.params.notificationId, request.session);
   response.status(200).json(result);

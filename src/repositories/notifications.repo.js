@@ -103,6 +103,35 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   return Number(rows[0]?.count || 0);
 }
 
+async function readBellSummaryForRecipient(workspaceId, recipientUserId) {
+  const rows = await querySql(`
+SELECT
+  SUM(CASE WHEN status = 'unread' THEN 1 ELSE 0 END) AS unread_count,
+  SUM(CASE WHEN status = 'unread' AND priority != 'low' THEN 1 ELSE 0 END) AS badge_count,
+  SUM(CASE WHEN status = 'unread' AND priority = 'low' THEN 1 ELSE 0 END) AS low_unread_count,
+  SUM(CASE WHEN status IN ('unread', 'read') AND priority = 'urgent' THEN 1 ELSE 0 END) AS urgent_priority_count,
+  SUM(CASE WHEN status IN ('unread', 'read') AND priority = 'high' THEN 1 ELSE 0 END) AS high_priority_count
+FROM notifications
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND recipient_user_id = ${sqlText(recipientUserId)};
+`);
+  const summary = rows[0] || {};
+  const urgentPriorityCount = Number(summary.urgent_priority_count || 0);
+  const highPriorityCount = Number(summary.high_priority_count || 0);
+
+  return {
+    count: Number(summary.badge_count || 0),
+    unreadCount: Number(summary.badge_count || 0),
+    totalUnreadCount: Number(summary.unread_count || 0),
+    lowPriorityUnreadCount: Number(summary.low_unread_count || 0),
+    urgentPriorityCount,
+    highPriorityCount,
+    hasUrgentPriority: urgentPriorityCount > 0,
+    hasHighPriority: highPriorityCount > 0,
+    hasPriorityAlert: urgentPriorityCount > 0 || highPriorityCount > 0,
+  };
+}
+
 async function readByIdForRecipient(workspaceId, recipientUserId, notificationId) {
   const rows = await querySql(`
 SELECT
@@ -171,6 +200,19 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 
   return readByIdForRecipient(workspaceId, recipientUserId, notificationId);
+}
+
+async function dismissAll(workspaceId, recipientUserId) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE notifications
+SET status = 'dismissed',
+    dismissed_at = COALESCE(dismissed_at, ${sqlText(now)})
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND recipient_user_id = ${sqlText(recipientUserId)}
+  AND status IN ('unread', 'read');
+`);
 }
 
 async function archiveOlderThan(cutoffIso) {
@@ -414,9 +456,11 @@ export const notificationsRepository = {
   countUnreadForRecipient,
   create,
   dismiss,
+  dismissAll,
   listForRecipient,
   markAllRead,
   markRead,
+  readBellSummaryForRecipient,
   readById,
   readByIdForRecipient,
   readUserPreferences,
