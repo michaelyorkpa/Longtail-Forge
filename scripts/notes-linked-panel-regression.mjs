@@ -63,6 +63,11 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.equal(byTitle.target.targetType, "workspace");
   assert.equal(byTitle.target.sourceUrl, "dashboard.html");
   assert.equal(byTitle.sort, "title");
+  assert.equal(byTitle.moduleState.enabled, true);
+  assert.equal(byTitle.actions.canCreate, true);
+  assert.equal(byTitle.actions.canLink, true);
+  assert.equal(byTitle.actions.canUnlink, true);
+  assert.equal(byTitle.actions.readonly, false);
   assert.ok(byTitle.notes.some((note) => note.note_id === alpha.note.note_id), "compatibility notes array should remain present");
   assert.deepEqual(
     byTitle.linkedNotes.slice(0, 2).map((note) => note.label),
@@ -87,6 +92,30 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   });
   assert.equal(empty.count, 0);
   assert.equal(empty.emptyState.title, "No linked notes yet.");
+
+  await runSql(`
+UPDATE workspace_modules
+SET status = 'disabled'
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'notes';
+`);
+  const disabledPanel = await notesService.listForTarget(session, {
+    module_id: "framework",
+    target_type: "workspace",
+    target_id: session.workspace_id,
+  });
+  assert.equal(disabledPanel.count >= 2, true, "disabled Notes should preserve historical linked reads");
+  assert.equal(disabledPanel.moduleState.enabled, false);
+  assert.equal(disabledPanel.actions.canCreate, false);
+  assert.equal(disabledPanel.actions.canLink, false);
+  assert.equal(disabledPanel.actions.canUnlink, false);
+  assert.equal(disabledPanel.actions.readonly, true);
+  await runSql(`
+UPDATE workspace_modules
+SET status = 'enabled'
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'notes';
+`);
 }
 
 async function assertLinkedPanelAccessBeforeShaping(adminSession, limitedSession) {

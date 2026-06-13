@@ -180,7 +180,7 @@ const notesModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.8.2",
+  version: "0.33.5.8.3",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -219,6 +219,14 @@ const notesModule = {
       path: "/js/shared/notes-editor.js",
       type: "script",
       views: ["notes"],
+      requiredPermissions: [NOTE_PERMISSIONS.VIEW],
+    },
+    {
+      id: "notes-linked-panel-helper",
+      moduleId: "notes",
+      path: "/js/shared/notes-linked-panel.js",
+      type: "script",
+      views: ["tasks", "projects", "clients", "lists", "files"],
       requiredPermissions: [NOTE_PERMISSIONS.VIEW],
     },
     {

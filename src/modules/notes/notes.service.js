@@ -561,12 +561,16 @@ async function listForTarget(session, query = {}) {
   const sorted = sortLinkedNotePanelNotes(decorated, panelOptions.sort);
   const shapedNotes = sorted.map((note) => shapeNoteForBrowser(note, { includeBodyHtml: true }));
   const linkedNotes = sorted.map((note) => shapeLinkedNotePanelItem(note));
+  const moduleState = await readNotesModuleState(session);
+  const actions = await linkedNotePanelActions(session, moduleState);
 
   return {
     target: shapeLinkedNoteTarget(target),
     sort: panelOptions.sort,
     count: linkedNotes.length,
     emptyState: linkedNotes.length > 0 ? null : linkedNotePanelEmptyState(target),
+    moduleState,
+    actions,
     notes: shapedNotes,
     linkedNotes,
   };
@@ -1424,6 +1428,27 @@ function shapeLinkedNoteTarget(target = {}) {
     targetType: target.target_type || "",
     targetId: target.target_id || "",
     sourceUrl: targetSourceUrl(target),
+  };
+}
+
+async function linkedNotePanelActions(session, moduleState = {}) {
+  const [canCreate, canManageLinks] = await Promise.all([
+    permissionsService.can(session, NOTE_PERMISSIONS.CREATE, {
+      workspace_id: session.workspace_id,
+      operation: "create",
+    }),
+    permissionsService.can(session, NOTE_PERMISSIONS.MANAGE_LINKS, {
+      workspace_id: session.workspace_id,
+      operation: "manage_links",
+    }),
+  ]);
+  const canWriteNotes = Boolean(moduleState.enabled);
+
+  return {
+    canCreate: canWriteNotes && canCreate,
+    canLink: canWriteNotes && canManageLinks,
+    canUnlink: canWriteNotes && canManageLinks,
+    readonly: !canWriteNotes,
   };
 }
 

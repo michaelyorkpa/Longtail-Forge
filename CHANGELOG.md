@@ -1,3 +1,11 @@
+## Version 0.33.5.8.3 - 2026-06-13 09:14 -04:00
+
+- Added the Notes-owned `LongtailForge.notesLinkedPanel` shared browser helper for linked-note panels in Tasks, Client/Projects, Lists, Files, and future modules.
+- Extended `/api/notes/for-target` with module state and create/link/unlink action hints while preserving Notes service-side permission enforcement.
+- Added linked-note helper support for viewing notes, creating a note for the current target, linking an existing note, unlinking permitted active notes, and rendering visibility/security/status badges.
+- Added Notes page target deep-link handling so helper create actions can open a prefilled note editor for `targetType`/`targetId` URLs.
+- Documented the helper contract, updated roadmap decisions/regressions, and bumped the app/package and Notes module versions to `0.33.5.8.3`.
+
 ## Version 0.33.5.8.2 - 2026-06-13 08:57 -04:00
 
 - Added the Notes-owned linked-record picker route for permission-safe Workspace, Client, Project, Task, and User target search with human labels, safe navigation URLs, and task project/client context hints.

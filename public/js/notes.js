@@ -166,7 +166,7 @@ async function initialize() {
     renderCollections();
     populateCollectionFilter();
     renderNotes();
-    openNoteFromUrl();
+    await openNoteFromUrl();
     setStatus("");
   } catch (error) {
     renderEmptyList(error.message || "Notes could not be loaded.");
@@ -1240,11 +1240,46 @@ function renderEmptyList(message) {
   notesList.replaceChildren(empty);
 }
 
-function openNoteFromUrl() {
-  const noteId = new URLSearchParams(window.location.search).get("note");
+async function openNoteFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const noteId = params.get("note");
   if (noteId) {
-    selectNote(noteId);
+    await selectNote(noteId);
+    return;
   }
+
+  const targetType = params.get("targetType") || params.get("target_type");
+  const targetId = params.get("targetId") || params.get("target_id");
+  if (targetType && targetId) {
+    await openEditorForLinkedTarget({
+      clientId: params.get("clientId") || params.get("client_id") || "",
+      moduleId: params.get("moduleId") || params.get("module_id") || "",
+      projectId: params.get("projectId") || params.get("project_id") || "",
+      targetId,
+      targetType,
+    });
+  }
+}
+
+async function openEditorForLinkedTarget(target) {
+  if (contextTargetTypeInput) {
+    contextTargetTypeInput.value = target.targetType;
+  }
+  if (contextSearchInput) {
+    contextSearchInput.value = target.targetId;
+  }
+  await openEditor();
+  const matchedTarget = state.linkTargets.find((item) => item.targetType === target.targetType && item.targetId === target.targetId) || {
+    clientId: target.clientId,
+    moduleId: target.moduleId,
+    projectId: target.projectId,
+    targetId: target.targetId,
+    targetType: target.targetType,
+  };
+  state.editorSelectedTarget = matchedTarget;
+  applyContextTarget(matchedTarget);
+  renderEditorContextSelection(matchedTarget);
+  updateLibrarySuggestion({ preferredSuggestion: matchedTarget.suggestedLibraryBucket });
 }
 
 function updateUrl(noteId) {

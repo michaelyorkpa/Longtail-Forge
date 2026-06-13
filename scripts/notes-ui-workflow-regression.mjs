@@ -34,11 +34,12 @@ try {
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.5.8.2");
+  assert.equal(notesModule.version, "0.33.5.8.3");
   assert.ok(notesModule.navigation.some((item) => item.href === "notes.html" && item.parent === "projects.html"));
   assert.ok(notesModule.protectedViews.some((view) => view.file === "notes.html" && view.allowDisabledRead === true));
   assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/notes.js"));
   assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/shared/notes-editor.js"));
+  assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/shared/notes-linked-panel.js"));
   assert.ok(notesModule.taggableTypes.some((type) => type.targetType === "note"));
   assert.ok(notesModule.attachableTypes.some((type) => type.targetType === "note"));
 }
@@ -65,7 +66,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=1/);
-  assert.match(html, /css\/longtail-forge\.css\?v=19/);
+  assert.match(html, /css\/longtail-forge\.css\?v=20/);
   assert.match(html, /Note Kind/);
   assert.match(html, /<option value="decision">Decision<\/option>/);
   assert.match(html, /<option value="procedure">Procedure<\/option>/);
@@ -78,7 +79,7 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(noteKindSelect, /<option value="task">Task<\/option>/);
   assert.doesNotMatch(noteKindSelect, /<option value="ticket">Ticket<\/option>/);
   assert.doesNotMatch(noteKindSelect, /<option value="user">User<\/option>/);
-  assert.match(html, /js\/notes\.js\?v=9/);
+  assert.match(html, /js\/notes\.js\?v=10/);
   assert.match(html, /data-note-context-target-type/);
   assert.match(html, /data-note-context-search/);
   assert.match(html, /data-note-context-results/);
@@ -110,10 +111,21 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /fetchLinkTargets/);
   assert.match(notesJs, /api\/notes\/link-targets/);
   assert.match(notesJs, /applyContextTarget/);
+  assert.match(notesJs, /openEditorForLinkedTarget/);
   assert.match(notesJs, /noteHasLink/);
   assert.doesNotMatch(notesJs, /loadLibrary/);
   assert.match(notesJs, /collectionFilterIds/);
   assert.match(notesJs, /Original/);
+
+  const linkedPanelJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8");
+  assert.match(linkedPanelJs, /LongtailForge/);
+  assert.match(linkedPanelJs, /notesLinkedPanel/);
+  assert.match(linkedPanelJs, /mount/);
+  assert.match(linkedPanelJs, /api\/notes\/for-target/);
+  assert.match(linkedPanelJs, /Create Note/);
+  assert.match(linkedPanelJs, /Link Note/);
+  assert.match(linkedPanelJs, /Unlink/);
+  assert.match(linkedPanelJs, /readonly/);
 }
 
 async function assertNavigation(session) {

@@ -64,24 +64,24 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ### Version 0.33.5.8.3 - Notes Linked-Record Helper
 
-- [ ] Add a reusable Notes linked-record panel/helper owned by the Notes module and mounted by other modules where appropriate.
-- [ ] Accept inputs:
-  - [ ] `targetType`
-  - [ ] `targetId`
-  - [ ] `clientId` optional
-  - [ ] `projectId` optional
-  - [ ] `readonly` optional
-- [ ] List notes linked by direct context columns and flexible `note_links` rows.
-- [ ] Support:
-  - [ ] View linked notes.
-  - [ ] Create note for current record.
-  - [ ] Link existing note.
-  - [ ] Unlink note where permitted.
-  - [ ] Show note visibility/security/status badges.
-  - [ ] Hide private, secure, or inaccessible notes without leaking counts or titles.
-- [ ] Use `/api/notes/for-target` or a successor route rather than duplicating note lookup logic inside Tasks, Clients, Projects, Lists, Files, or future Tickets.
-- [ ] Keep archived notes read-only from embedded panels.
-- [ ] Preserve historical reads where allowed when the Notes module is disabled, but block new note/link writes.
+- [x] Add a reusable Notes linked-record panel/helper owned by the Notes module and mounted by other modules where appropriate.
+- [x] Accept inputs:
+  - [x] `targetType`
+  - [x] `targetId`
+  - [x] `clientId` optional
+  - [x] `projectId` optional
+  - [x] `readonly` optional
+- [x] List notes linked by direct context columns and flexible `note_links` rows.
+- [x] Support:
+  - [x] View linked notes.
+  - [x] Create note for current record.
+  - [x] Link existing note.
+  - [x] Unlink note where permitted.
+  - [x] Show note visibility/security/status badges.
+  - [x] Hide private, secure, or inaccessible notes without leaking counts or titles.
+- [x] Use `/api/notes/for-target` or a successor route rather than duplicating note lookup logic inside Tasks, Clients, Projects, Lists, Files, or future Tickets.
+- [x] Keep archived notes read-only from embedded panels.
+- [x] Preserve historical reads where allowed when the Notes module is disabled, but block new note/link writes.
 
 ### Version 0.33.5.8.4 - Task Notes Panel
 
