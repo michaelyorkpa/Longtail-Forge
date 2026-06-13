@@ -74,6 +74,33 @@ try {
     }
   });
 
+  await check("framework article bodies are loaded from Markdown source files", async () => {
+    const articlePaths = new Map([
+      ["framework.help-center", "help/framework/help-center.md"],
+      ["framework.getting-started", "help/framework/getting-started.md"],
+      ["framework.workspaces", "help/framework/workspaces-and-switching.md"],
+      ["framework.users-permissions", "help/framework/users-roles-and-permissions.md"],
+      ["framework.clients-projects", "help/framework/clients-and-projects.md"],
+      ["framework.time-tracking", "help/framework/time-tracking-basics.md"],
+      ["framework.tasks", "help/framework/tasks-basics.md"],
+      ["framework.notifications", "help/framework/notifications.md"],
+      ["framework.tags", "help/framework/tags.md"],
+      ["framework.search", "help/framework/search.md"],
+      ["framework.files-attachments", "help/framework/files-and-attachments.md"],
+      ["framework.settings", "help/framework/settings-and-user-preferences.md"],
+      ["framework.modules", "help/framework/modules-and-optional-features.md"],
+    ]);
+
+    for (const [articleId, sourcePath] of articlePaths.entries()) {
+      const [{ article }, markdown] = await Promise.all([
+        helpService.readArticle(session, articleId),
+        fs.readFile(sourcePath, "utf8"),
+      ]);
+
+      assert.equal(article.body, markdown, `${articleId} body should come from ${sourcePath}`);
+    }
+  });
+
   await check("framework related article links resolve to known framework articles", async () => {
     const help = await helpService.list(session);
     const articleIds = new Set(help.articles.map((article) => article.id));

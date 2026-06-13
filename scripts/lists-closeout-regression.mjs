@@ -40,9 +40,13 @@ try {
 async function assertManifestAndHelp() {
   const listsModule = modulesService.getModule("lists");
   const articleIds = new Set(listsModule.help.articles.map((article) => article.id));
-  const articleText = listsModule.help.articles.map((article) => `${article.title}\n${article.summary}\n${article.body}`).join("\n");
+  const articleBodies = await Promise.all(listsModule.help.articles.map(async (article) => {
+    const body = article.body || await fs.readFile(path.join("help", ...article.contentPath.split("/")), "utf8");
+    return `${article.title}\n${article.summary}\n${body}`;
+  }));
+  const articleText = articleBodies.join("\n");
 
-  assert.equal(listsModule.version, "0.33.5.10.1");
+  assert.equal(listsModule.version, "0.33.5.10.2");
   assert.ok(listsModule.help.sections.some((section) => section.id === "lists.overview"));
   for (const articleId of [
     "lists.basics",
@@ -111,7 +115,7 @@ async function assertDeveloperDocs() {
   const docs = await fs.readFile(path.join(process.cwd(), "docs/lists-module.md"), "utf8");
 
   for (const phrase of [
-    "current Lists implementation as of 0.33.5.10.1",
+    "current Lists implementation as of 0.33.5.10.2",
     "The framework owns module registration",
     "Workspace Labels",
     "Reusable Lists And Catalog Suggestions",

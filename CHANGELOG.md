@@ -1,3 +1,10 @@
+## Version 0.33.5.10.2 - 2026-06-13 13:15 -04:00
+
+- Added framework Help content loading from safe Markdown `contentPath` files under the repo-owned `help/` root before Help API detail shaping and Help search document creation.
+- Removed duplicated inline Help bodies from converted framework and first-party module Help declarations, leaving `contentPath` as the source of truth while preserving inline body fallback support for small/developer declarations.
+- Tightened Help contribution validation for Markdown-only content paths and duplicate content paths, and kept disabled-module Help hidden before module Markdown bodies load.
+- Updated Help regressions to verify Markdown-backed API bodies, source layout, path validation, and existing Help search behavior, then marked the 0.33.5.10.2 roadmap slice complete and bumped the app/package plus touched module versions to `0.33.5.10.2`.
+
 ## Version 0.33.5.10.1 - 2026-06-13 13:06 -04:00
 
 - Added the repo-owned `help/` Markdown source tree with `help/toc.md`, framework article files, and first-party module article files for Time Tracking, Tasks, Notes, and Lists.

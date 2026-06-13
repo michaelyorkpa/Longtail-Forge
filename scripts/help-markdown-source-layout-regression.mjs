@@ -170,16 +170,16 @@ await check("toc default directive and links point to Markdown Help files", asyn
   }
 });
 
-await check("every converted Help article has matching contentPath metadata and Markdown body", async () => {
+await check("every converted Help article has contentPath metadata and a Markdown file", async () => {
   for (const [articleId, descriptor] of Object.entries(HELP_ARTICLE_SOURCES)) {
     const source = await fs.readFile(descriptor.sourceFile, "utf8");
     const articleBlock = findArticleBlock(source, articleId);
-    const body = decodeArticleBody(articleBlock, articleId);
     const contentPath = readContentPath(articleBlock, articleId);
     const markdown = await fs.readFile(path.join("help", ...descriptor.path.split("/")), "utf8");
 
     assert.equal(contentPath, descriptor.path, `${articleId} should point at its Markdown source`);
-    assert.equal(markdown, `${body.trim()}\n`, `${articleId} Markdown should match the current inline body`);
+    assert.doesNotMatch(articleBlock, /\n\s*body:\s*"/, `${articleId} should use Markdown source instead of inline body`);
+    assert.ok(markdown.trim().length >= 60, `${articleId} Markdown should contain article body content`);
   }
 });
 
@@ -195,12 +195,6 @@ function findArticleBlock(source, articleId) {
   const match = source.match(new RegExp(`\\{\\s*id:\\s*"${escapedId}"[\\s\\S]*?\\n\\s*\\},`));
   assert.ok(match, `${articleId} should be declared`);
   return match[0];
-}
-
-function decodeArticleBody(articleBlock, articleId) {
-  const bodyMatch = articleBlock.match(/body:\s*"((?:\\.|[^"\\])*)"/);
-  assert.ok(bodyMatch, `${articleId} should keep its inline body until the loader slice`);
-  return JSON.parse(`"${bodyMatch[1]}"`);
 }
 
 function readContentPath(articleBlock, articleId) {

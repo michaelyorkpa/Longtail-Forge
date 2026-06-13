@@ -80,12 +80,13 @@ check("public-safe file access uses explicit visibility and permissions, not tag
 
 check("Help content includes the 0.32 file closeout article and stays current-state oriented", () => {
   const helpService = read("src/services/help.service.js");
+  const filesHelp = read("help/framework/files-and-attachments.md");
   const helpRegression = read("scripts/help-content-regression.mjs");
 
   assert.ok(helpService.includes("framework.files-attachments"), "framework Help should include Files and Attachments");
-  assert.ok(helpService.includes("Protected internal files are the default."), "Files Help should document protected default");
+  assert.ok(filesHelp.includes("Protected internal files are the default."), "Files Help should document protected default");
   assert.ok(helpRegression.includes("framework.files-attachments"), "Help regression should cover Files article");
-  assert.doesNotMatch(helpService, /future roadmap promises/i, "Help service content should avoid roadmap-style promises");
+  assert.doesNotMatch(filesHelp, /future roadmap promises/i, "Files Help content should avoid roadmap-style promises");
 });
 
 check("module contracts are ready for Notes without new file primitives", () => {

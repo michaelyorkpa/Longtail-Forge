@@ -190,6 +190,35 @@ try {
     assert.ok(errors.some((error) => error.includes("contentPath must be a safe relative path")));
   });
 
+  await check("non-Markdown and duplicate help content paths are rejected", () => {
+    const errors = validateHelpContribution({
+      sections: validHelp.sections,
+      articles: [
+        {
+          ...validHelp.articles[0],
+          body: undefined,
+          contentPath: "modules/developer-example/getting-started.txt",
+        },
+        {
+          ...validHelp.articles[0],
+          id: "developer-example.second",
+          slug: "developer-example-second",
+          title: "Second Help",
+          body: undefined,
+          contentPath: "modules/developer-example/getting-started.txt",
+        },
+      ],
+    }, {
+      ownerType: "module",
+      ownerId: "developer-example",
+      fieldName: "help",
+      errors: [],
+    });
+
+    assert.ok(errors.some((error) => error.includes("contentPath must point to a Markdown file")));
+    assert.ok(errors.some((error) => error.includes("help.articles contentPath 'modules/developer-example/getting-started.txt' is duplicated")));
+  });
+
   await check("registered module help declarations are discoverable", () => {
     const contributions = modulesService.listHelpContributions();
 

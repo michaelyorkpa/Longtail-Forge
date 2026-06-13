@@ -838,6 +838,9 @@ function validateHelpContribution(help, options = {}) {
     }
     if (article.contentPath !== undefined) {
       validateSafeRelativePath(article.contentPath, `${prefix}.contentPath`, errors);
+      if (typeof article.contentPath === "string" && !article.contentPath.toLowerCase().endsWith(".md")) {
+        errors.push(`${prefix}.contentPath must point to a Markdown file.`);
+      }
     }
   });
 
@@ -882,6 +885,11 @@ function validateHelpUniqueness(help, fieldName, errors) {
   assertUniqueHelpValues(
     `${fieldName}.articles slug`,
     articles.map((article) => article.slug),
+    errors,
+  );
+  assertUniqueHelpValues(
+    `${fieldName}.articles contentPath`,
+    articles.map((article) => article.contentPath),
     errors,
   );
 }

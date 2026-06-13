@@ -59,7 +59,7 @@ async function assertNotesManifestContributions() {
   assert.equal(searchableType.indexer, "notes.records");
   assert.equal(searchableType.sourceLabel, "Notes");
   assert.equal(hasSearchIndexer("notes.records"), true);
-  assert.equal(notesModule.version, "0.33.5.10.1");
+  assert.equal(notesModule.version, "0.33.5.10.2");
   assert.ok(notesModule.help.articles.length >= 11, "Notes should contribute current-state Help articles");
   assert.ok(notesModule.notificationEvents.some((event) => event.id === "note.updated"));
 }
@@ -159,7 +159,11 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 
 async function assertNotesHelpContribution() {
   const help = modulesService.getModule("notes").help;
-  const articleText = help.articles.map((article) => `${article.title}\n${article.summary}\n${article.body}`).join("\n");
+  const articleBodies = await Promise.all(help.articles.map(async (article) => {
+    const body = article.body || await fs.readFile(path.join("help", ...article.contentPath.split("/")), "utf8");
+    return `${article.title}\n${article.summary}\n${body}`;
+  }));
+  const articleText = articleBodies.join("\n");
   const articlesById = new Map(help.articles.map((article) => [article.id, article]));
 
   for (const articleId of [

@@ -324,12 +324,12 @@ Use these decisions for 0.33.5.10:
 
 ### Version 0.33.5.10.2 - Help Content Loader and Metadata Contract
 
-- [ ] Add a small framework Help content loader for safe repo-relative Markdown reads.
-- [ ] Preserve existing Help contribution validation for IDs, slugs, ownership, section references, permissions, workspace capabilities, and required modules.
-- [ ] Allow framework and module Help article declarations to point to Markdown content paths instead of inline `body` strings.
-- [ ] Reject unsafe paths, missing files, unsupported extensions, duplicate article paths, and content outside the Help root.
-- [ ] Keep disabled-module Help hidden from active Help discovery.
-- [ ] Keep Help separate from Knowledge Base and avoid adding user-authored Help storage.
+- [x] Add a small framework Help content loader for safe repo-relative Markdown reads.
+- [x] Preserve existing Help contribution validation for IDs, slugs, ownership, section references, permissions, workspace capabilities, and required modules.
+- [x] Allow framework and module Help article declarations to point to Markdown content paths instead of inline `body` strings.
+- [x] Reject unsafe paths, missing files, unsupported extensions, duplicate article paths, and content outside the Help root.
+- [x] Keep disabled-module Help hidden from active Help discovery.
+- [x] Keep Help separate from Knowledge Base and avoid adding user-authored Help storage.
 
 ### Version 0.33.5.10.3 - ToC-Driven Navigation
 
