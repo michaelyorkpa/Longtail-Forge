@@ -40,6 +40,14 @@ const NOTE_TYPES = Object.freeze({
   GENERAL: "general",
   MEETING: "meeting",
   RESEARCH: "research",
+  DECISION: "decision",
+  PROCEDURE: "procedure",
+  REFERENCE: "reference",
+  IDEA: "idea",
+  LOG: "log",
+});
+
+const LEGACY_NOTE_TYPES = Object.freeze({
   CLIENT: "client",
   PROJECT: "project",
   TASK: "task",
@@ -47,19 +55,31 @@ const NOTE_TYPES = Object.freeze({
   USER: "user",
 });
 
+const NOTE_TYPE_LABELS = Object.freeze({
+  [NOTE_TYPES.GENERAL]: "General",
+  [NOTE_TYPES.MEETING]: "Meeting",
+  [NOTE_TYPES.RESEARCH]: "Research",
+  [NOTE_TYPES.DECISION]: "Decision",
+  [NOTE_TYPES.PROCEDURE]: "Procedure",
+  [NOTE_TYPES.REFERENCE]: "Reference",
+  [NOTE_TYPES.IDEA]: "Idea",
+  [NOTE_TYPES.LOG]: "Log",
+  [LEGACY_NOTE_TYPES.CLIENT]: "Legacy client",
+  [LEGACY_NOTE_TYPES.PROJECT]: "Legacy project",
+  [LEGACY_NOTE_TYPES.TASK]: "Legacy task",
+  [LEGACY_NOTE_TYPES.TICKET]: "Legacy ticket",
+  [LEGACY_NOTE_TYPES.USER]: "Legacy user",
+});
+
 function deriveSuggestedLibraryBucket(linkContext = {}) {
   const links = normalizeLinkContext(linkContext);
   const hasTaskOrTicket = links.tasks.length > 0 || links.tickets.length > 0;
-
-  if (links.projects.length === 1 && !hasMultipleClientContexts(links)) {
-    return NOTE_LIBRARY_BUCKETS.ACTIVE_WORK;
-  }
 
   if (hasTaskOrTicket && links.projects.length <= 1 && !hasMultipleClientContexts(links)) {
     return NOTE_LIBRARY_BUCKETS.ACTIVE_WORK;
   }
 
-  if (links.clients.length === 1 && links.projects.length === 0 && !hasTaskOrTicket) {
+  if ((links.clients.length === 1 || links.projects.length === 1 || links.users.length === 1) && !hasTaskOrTicket) {
     return NOTE_LIBRARY_BUCKETS.ONGOING_AREA;
   }
 
@@ -80,6 +100,7 @@ function normalizeLinkContext(linkContext = {}) {
     projects: new Map(),
     tasks: new Set(normalizeIds(linkContext.taskIds || linkContext.task_ids)),
     tickets: new Set(normalizeIds(linkContext.ticketIds || linkContext.ticket_ids)),
+    users: new Set(normalizeIds(linkContext.userIds || linkContext.user_ids || linkContext.linkedUserIds || linkContext.linked_user_ids)),
   };
 
   for (const link of links) {
@@ -99,6 +120,8 @@ function normalizeLinkContext(linkContext = {}) {
       normalized.tasks.add(targetId);
     } else if (targetType === "ticket") {
       normalized.tickets.add(targetId);
+    } else if (targetType === "user") {
+      normalized.users.add(targetId);
     }
   }
 
@@ -111,6 +134,7 @@ function normalizeLinkContext(linkContext = {}) {
     projects: [...normalized.projects].map(([projectId, clientId]) => ({ projectId, clientId })),
     tasks: [...normalized.tasks],
     tickets: [...normalized.tickets],
+    users: [...normalized.users],
   };
 }
 
@@ -147,6 +171,8 @@ export {
   NOTE_LIBRARY_BUCKETS,
   NOTE_SECURITY_MODES,
   NOTE_STATUSES,
+  LEGACY_NOTE_TYPES,
+  NOTE_TYPE_LABELS,
   NOTE_TYPES,
   NOTE_VISIBILITIES,
   deriveSuggestedLibraryBucket,

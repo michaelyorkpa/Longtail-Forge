@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.3.4. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.8.2. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -15,7 +15,7 @@ Important files:
 - `src/modules/notes/notes.service.js`: workflow boundary for CRUD, Library changes, collections, links, revisions, search sync, audit, and events.
 - `src/modules/notes/notes.repo.js`: module-owned SQL for Notes tables only.
 - `src/modules/notes/access-policy.js`: Notes permissions, aggregate visibility rules, lifecycle sanitization, and secure-note access checks.
-- `src/modules/notes/library.js`: stable Library bucket, visibility, status, note type, and security mode constants.
+- `src/modules/notes/library.js`: stable Library bucket, visibility, status, Note Kind, legacy note type, and security mode constants.
 - `src/modules/notes/markdown.js`: Markdown validation, rendering, excerpting, wiki-link extraction, and revision change summaries.
 - `src/modules/notes/secure-crypto.js`: application-managed secure-note encryption helpers.
 - `src/modules/notes/search-indexers.js`: `notes.records` search indexer.
@@ -78,11 +78,21 @@ Primary note storage lives in `notes`:
 
 Normal notes store Markdown in `body_markdown`, a safe excerpt in `body_excerpt`, and plain text for indexing in `body_plaintext_index`. Secure notes store safe placeholders in those fields and keep encrypted body content only in the secure envelope columns.
 
+`note_type` remains the database/API field name for compatibility, but the user-facing label is Note Kind. Current Note Kind values are `general`, `meeting`, `research`, `decision`, `procedure`, `reference`, `idea`, and `log`. Legacy linked-context values `client`, `project`, `task`, `ticket`, and `user` remain valid for existing rows and revisions so older data can be displayed and round-tripped safely, but they are no longer offered as new Note Kind choices.
+
+Note Kind is content-kind metadata only. It must not drive permissions, visibility, Library bucket placement, collection membership, linked-record access, tag assignment, or future Knowledge Base publication. Client/project/task/ticket/user association belongs in direct context columns and `note_links`.
+
 ## Linking Model
 
 Notes can use direct context columns and flexible `note_links` rows. The current supported link targets are workspace, client, project, task, and user; ticket context is reserved until a ticket module exists.
 
 Linked-record access is checked before reads, list inclusion, target lookup, link creation, and link removal. If the session cannot read the linked target, the note is hidden or the target operation is rejected. Links connect a note to context; they do not grant access to the note or to the target.
+
+The browser Notes workspace uses the Notes-owned `/api/notes/link-targets` picker route instead of raw ID entry for linked context. Picker results are permission-shaped by the target owner before labels are returned. Workspace, client, project, task, and user results include safe human labels, source URLs where the app has a record view, and context hints such as `clientId`, `projectId`, and `suggestedLibraryBucket`.
+
+Selecting a task in the picker sets task context and infers project/client context where those readable values are present. Task targets suggest Active Work. Client, project, and user targets suggest Ongoing Areas. Manual Library bucket choices are treated as user intent and are not overwritten by later picker changes.
+
+Note detail reads decorate direct linked context and `note_links` with safe labels and navigation URLs where available. Missing or inaccessible targets return an unavailable state or safe fallback ID display rather than leaking hidden record titles.
 
 ## Markdown And Wiki Links
 

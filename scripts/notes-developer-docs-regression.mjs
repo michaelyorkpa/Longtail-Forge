@@ -47,6 +47,10 @@ for (const phrase of [
   "does not grant access",
   "Knowledge Base content",
   "docs/notes-import-planning.md",
+  "Note Kind",
+  "content-kind metadata only",
+  "legacy linked-context values",
+  "Client/project/task/ticket/user association belongs in direct context columns and `note_links`",
 ]) {
   assert.match(docs, new RegExp(escapeRegExp(phrase), "i"), `${phrase} should be documented`);
 }

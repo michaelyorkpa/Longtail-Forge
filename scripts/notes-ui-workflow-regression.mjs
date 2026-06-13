@@ -34,7 +34,7 @@ try {
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.5.2.5");
+  assert.equal(notesModule.version, "0.33.5.8.2");
   assert.ok(notesModule.navigation.some((item) => item.href === "notes.html" && item.parent === "projects.html"));
   assert.ok(notesModule.protectedViews.some((view) => view.file === "notes.html" && view.allowDisabledRead === true));
   assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/notes.js"));
@@ -65,8 +65,28 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=1/);
-  assert.match(html, /css\/longtail-forge\.css\?v=18/);
-  assert.match(html, /js\/notes\.js\?v=7/);
+  assert.match(html, /css\/longtail-forge\.css\?v=19/);
+  assert.match(html, /Note Kind/);
+  assert.match(html, /<option value="decision">Decision<\/option>/);
+  assert.match(html, /<option value="procedure">Procedure<\/option>/);
+  assert.match(html, /<option value="reference">Reference<\/option>/);
+  assert.match(html, /<option value="idea">Idea<\/option>/);
+  assert.match(html, /<option value="log">Log<\/option>/);
+  const noteKindSelect = html.match(/<select data-note-type>[\s\S]*?<\/select>/)?.[0] || "";
+  assert.doesNotMatch(noteKindSelect, /<option value="client">Client<\/option>/);
+  assert.doesNotMatch(noteKindSelect, /<option value="project">Project<\/option>/);
+  assert.doesNotMatch(noteKindSelect, /<option value="task">Task<\/option>/);
+  assert.doesNotMatch(noteKindSelect, /<option value="ticket">Ticket<\/option>/);
+  assert.doesNotMatch(noteKindSelect, /<option value="user">User<\/option>/);
+  assert.match(html, /js\/notes\.js\?v=9/);
+  assert.match(html, /data-note-context-target-type/);
+  assert.match(html, /data-note-context-search/);
+  assert.match(html, /data-note-context-results/);
+  assert.match(html, /data-note-context-apply/);
+  assert.doesNotMatch(html, /Client ID/);
+  assert.doesNotMatch(html, /Project ID/);
+  assert.doesNotMatch(html, /Task ID/);
+  assert.doesNotMatch(html, /User ID/);
 
   const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
   assert.match(notesJs, /notes-collection-actions-menu/);
@@ -83,6 +103,14 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /notes-revisions-panel/);
   assert.match(notesJs, /notes-detail-actions-menu/);
   assert.match(notesJs, /detailMetaItems/);
+  assert.match(notesJs, /noteKindLabel/);
+  assert.match(notesJs, /resetLegacyNoteKindOptions/);
+  assert.match(notesJs, /Legacy client/);
+  assert.match(notesJs, /data-legacy-note-kind/);
+  assert.match(notesJs, /fetchLinkTargets/);
+  assert.match(notesJs, /api\/notes\/link-targets/);
+  assert.match(notesJs, /applyContextTarget/);
+  assert.match(notesJs, /noteHasLink/);
   assert.doesNotMatch(notesJs, /loadLibrary/);
   assert.match(notesJs, /collectionFilterIds/);
   assert.match(notesJs, /Original/);

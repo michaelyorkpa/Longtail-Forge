@@ -11,6 +11,7 @@ import {
   NOTE_LIBRARY_BUCKETS,
   NOTE_SECURITY_MODES,
   NOTE_STATUSES,
+  LEGACY_NOTE_TYPES,
   NOTE_TYPES,
   NOTE_VISIBILITIES,
   deriveSuggestedLibraryBucket,
@@ -43,10 +44,12 @@ import { permissionsService } from "../../core/permissions.js";
 import { AppError } from "../../core/errors.js";
 import { tagsService } from "../../services/tags.service.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
+import { usersRepository } from "../../repositories/users.repo.js";
+import { workspacesRepository } from "../../repositories/workspaces.repo.js";
 
 const NOTES_MODULE_ID = "notes";
 const LINK_TARGET_TYPES = new Set(["workspace", "client", "project", "task", "user"]);
-const NOTE_TYPE_VALUES = new Set(Object.values(NOTE_TYPES));
+const NOTE_TYPE_VALUES = new Set([...Object.values(NOTE_TYPES), ...Object.values(LEGACY_NOTE_TYPES)]);
 const LIBRARY_BUCKET_VALUES = new Set(Object.values(NOTE_LIBRARY_BUCKETS));
 const LIBRARY_BUCKET_SOURCE_VALUES = new Set(Object.values(NOTE_LIBRARY_BUCKET_SOURCES));
 const NOTE_STATUS_VALUES = new Set(Object.values(NOTE_STATUSES));
@@ -549,7 +552,7 @@ async function removeLink(noteId, noteLinkId, session) {
 }
 
 async function listForTarget(session, query = {}) {
-  const target = normalizeTargetFromQuery(query);
+  const target = normalizeTargetFromQuery(query, session);
   await assertTargetAccess(session, target);
   const notes = await notesRepository.listForTarget(session.workspace_id, target);
   const filters = normalizeListFilters(query);
@@ -566,6 +569,30 @@ async function listForTarget(session, query = {}) {
     emptyState: linkedNotes.length > 0 ? null : linkedNotePanelEmptyState(target),
     notes: shapedNotes,
     linkedNotes,
+  };
+}
+
+async function listLinkTargets(session, query = {}) {
+  await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.VIEW);
+  const targetType = normalizeOptionalText(query.targetType || query.target_type || "all") || "all";
+  const search = normalizeOptionalText(query.q || query.query || query.search).toLowerCase();
+  const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 20, 1), 50);
+  const targetTypes = targetType === "all" ? ["workspace", "client", "project", "task", "user"] : [targetType];
+  const targets = [];
+
+  for (const type of targetTypes) {
+    if (!LINK_TARGET_TYPES.has(type)) {
+      throw new AppError("Unsupported note link target type.", 400);
+    }
+
+    targets.push(...await listTargetsByType(session, type));
+  }
+
+  return {
+    targets: targets
+      .filter((target) => targetMatchesSearch(target, search))
+      .sort((left, right) => left.targetType.localeCompare(right.targetType) || left.label.localeCompare(right.label))
+      .slice(0, limit),
   };
 }
 
@@ -668,7 +695,7 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
     title,
     slug: normalizeOptionalText(payload.slug ?? previousNote?.slug) || slugifyNoteTitle(title),
     ...secureFields,
-    note_type: normalizeEnum(payload.noteType || payload.note_type || previousNote?.note_type || NOTE_TYPES.GENERAL, NOTE_TYPE_VALUES, "Note type"),
+    note_type: normalizeEnum(payload.noteType || payload.note_type || previousNote?.note_type || NOTE_TYPES.GENERAL, NOTE_TYPE_VALUES, "Note Kind"),
     library_bucket: libraryBucket,
     library_bucket_source: normalizeEnum(
       payload.libraryBucket || payload.library_bucket ? NOTE_LIBRARY_BUCKET_SOURCES.MANUAL : previousNote?.library_bucket_source || NOTE_LIBRARY_BUCKET_SOURCES.DERIVED,
@@ -906,6 +933,129 @@ async function canTargetAccess(session, target) {
   return false;
 }
 
+async function listTargetsByType(session, targetType) {
+  if (!(await canReadLinkTargetType(session, targetType))) {
+    return [];
+  }
+
+  if (targetType === "workspace") {
+    const workspace = await workspacesRepository.readById(session.workspace_id);
+    return [shapeLinkTarget({
+      target_type: "workspace",
+      target_id: session.workspace_id,
+      label: workspace?.workspace_name || "Workspace",
+      subtitle: "Workspace",
+      source_url: "dashboard.html",
+    })];
+  }
+
+  if (targetType === "client") {
+    const clients = await permissionsService.filterReadableClients(session, await clientsRepository.readAll(session.workspace_id));
+    return clients.map((client) => shapeLinkTarget({
+      target_type: "client",
+      target_id: client.id,
+      label: client.name || client.id,
+      subtitle: client.status ? `Client - ${client.status}` : "Client",
+      source_url: `clients.html?client=${encodeURIComponent(client.id)}`,
+      client_id: client.id,
+    }));
+  }
+
+  if (targetType === "project") {
+    const projects = await permissionsService.filterReadableProjects(session, await projectsRepository.readAll(session.workspace_id));
+    return projects.map((project) => shapeLinkTarget({
+      target_type: "project",
+      target_id: project.id,
+      label: project.name || project.id,
+      subtitle: [project.client_name, project.status].filter(Boolean).join(" - ") || "Project",
+      source_url: `projects.html?project=${encodeURIComponent(project.id)}`,
+      client_id: project.client_id || "",
+      project_id: project.id,
+    }));
+  }
+
+  if (targetType === "task") {
+    const tasks = await filterReadableTasks(session, await tasksRepository.readAll(session.workspace_id));
+    return tasks.map((task) => shapeLinkTarget({
+      target_type: "task",
+      target_id: task.task_id,
+      label: task.title || task.task_id,
+      subtitle: [task.client_name, task.project_name, task.status].filter(Boolean).join(" - ") || "Task",
+      source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
+      client_id: task.client_id || "",
+      project_id: task.project_id || "",
+      task_id: task.task_id,
+      suggested_library_bucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
+    }));
+  }
+
+  if (targetType === "user") {
+    const users = await filterReadableUsers(session, await usersRepository.readAll(session.workspace_id));
+    return users.map((user) => shapeLinkTarget({
+      target_type: "user",
+      target_id: user.user_id,
+      label: user.displayName || user.username || user.user_id,
+      subtitle: user.username || "User",
+      source_url: "settings.html",
+      user_id: user.user_id,
+      suggested_library_bucket: NOTE_LIBRARY_BUCKETS.ONGOING_AREA,
+    }));
+  }
+
+  return [];
+}
+
+async function canReadLinkTargetType(session, targetType) {
+  const moduleId = {
+    client: "client-projects",
+    project: "client-projects",
+    task: "tasks",
+  }[targetType];
+
+  return moduleId ? modulesService.canWriteModule(session.workspace_id, moduleId) : true;
+}
+
+async function filterReadableTasks(session, tasks = []) {
+  const readable = [];
+
+  for (const task of tasks) {
+    if (await permissionsService.can(session, "tasks.view", {
+      workspace_id: session.workspace_id,
+      client_id: task.client_id,
+      project_id: task.project_id,
+      task_id: task.task_id,
+      operation: "read",
+    })) {
+      readable.push(task);
+    }
+  }
+
+  return readable;
+}
+
+async function filterReadableUsers(session, users = []) {
+  const canManageUsers = await permissionsService.can(session, "users.manage", {
+    workspace_id: session.workspace_id,
+    operation: "read",
+  });
+
+  return users.filter((user) => canManageUsers || user.user_id === session.user_id);
+}
+
+function targetMatchesSearch(target, search) {
+  if (!search) {
+    return true;
+  }
+
+  return [
+    target.label,
+    target.subtitle,
+    target.targetId,
+    target.clientId,
+    target.projectId,
+  ].filter(Boolean).join(" ").toLowerCase().includes(search);
+}
+
 function noteContextTargets(note = {}) {
   return [
     note.client_id ? { module_id: "client-projects", target_type: "client", target_id: note.client_id } : null,
@@ -915,11 +1065,12 @@ function noteContextTargets(note = {}) {
   ].filter(Boolean);
 }
 
-function normalizeTargetFromQuery(query = {}) {
+function normalizeTargetFromQuery(query = {}, session = null) {
   return normalizeTarget({
     module_id: query.moduleId || query.module_id,
     target_type: query.targetType || query.target_type,
     target_id: query.targetId || query.target_id,
+    workspace_id: session?.workspace_id,
   });
 }
 
@@ -956,7 +1107,7 @@ function normalizeTarget(payload = {}) {
   return {
     module_id: moduleId,
     target_type: targetType,
-    target_id: targetType === "workspace" && targetId === "current" ? payload.workspace_id || targetId : targetId,
+    target_id: targetType === "workspace" && targetId === "current" ? payload.workspace_id || payload.workspaceId || targetId : targetId,
   };
 }
 
@@ -1061,12 +1212,14 @@ function revisionMatchesCurrentNote(revision, note) {
 
 async function attachNoteIntegrations(session, note) {
   const [taggedNote] = await tagsService.decorateRecordsWithEffectiveTags(session, "note", [note], { idField: "note_id" });
+  const links = await notesRepository.listLinks(session.workspace_id, note.note_id);
 
   return {
     ...note,
     ...taggedNote,
     body_html: renderNoteBodyHtml(note),
-    links: await notesRepository.listLinks(session.workspace_id, note.note_id),
+    links: await decorateNoteLinks(session, links),
+    linked_context: await readLinkedContextSummary(session, note),
   };
 }
 
@@ -1109,9 +1262,160 @@ function shapeSafeNoteLink(link = {}) {
     moduleId: link.module_id || "",
     targetType: link.target_type || "",
     targetId: link.target_id || "",
+    label: link.label || safeTargetFallbackLabel(link),
+    subtitle: link.subtitle || "",
+    sourceUrl: link.source_url || targetSourceUrl(link),
     linkRole: link.link_role || "related",
     scopeRole: link.scope_role || "related",
   };
+}
+
+async function decorateNoteLinks(session, links = []) {
+  const decorated = [];
+
+  for (const link of links) {
+    decorated.push({
+      ...link,
+      ...await readTargetSummary(session, link),
+    });
+  }
+
+  return decorated;
+}
+
+async function readLinkedContextSummary(session, note = {}) {
+  const contexts = {};
+
+  for (const target of noteContextTargets(note)) {
+    const summary = await readTargetSummary(session, target);
+    contexts[target.target_type] = {
+      ...shapeLinkTarget({
+        ...target,
+        ...summary,
+      }),
+      unavailable: Boolean(summary.unavailable),
+    };
+  }
+
+  return contexts;
+}
+
+async function readTargetSummary(session, target = {}) {
+  const normalizedTarget = normalizeTarget({
+    ...target,
+    target_id: target.target_id || target.targetId,
+    target_type: target.target_type || target.targetType,
+    module_id: target.module_id || target.moduleId,
+  });
+
+  try {
+    if (!(await canTargetAccess(session, normalizedTarget))) {
+      return safeUnavailableTarget();
+    }
+
+    if (normalizedTarget.target_type === "workspace") {
+      const workspace = await workspacesRepository.readById(session.workspace_id);
+      return {
+        label: workspace?.workspace_name || "Workspace",
+        subtitle: "Workspace",
+        source_url: "dashboard.html",
+      };
+    }
+    if (normalizedTarget.target_type === "client") {
+      const client = await clientsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+      return client ? {
+        label: client.name || client.id,
+        subtitle: client.status ? `Client - ${client.status}` : "Client",
+        source_url: `clients.html?client=${encodeURIComponent(client.id)}`,
+        client_id: client.id,
+      } : safeUnavailableTarget();
+    }
+    if (normalizedTarget.target_type === "project") {
+      const project = await projectsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+      return project ? {
+        label: project.name || project.id,
+        subtitle: [project.client_name, project.status].filter(Boolean).join(" - ") || "Project",
+        source_url: `projects.html?project=${encodeURIComponent(project.id)}`,
+        client_id: project.client_id || "",
+        project_id: project.id,
+      } : safeUnavailableTarget();
+    }
+    if (normalizedTarget.target_type === "task") {
+      const task = await tasksRepository.readById(session.workspace_id, normalizedTarget.target_id);
+      return task ? {
+        label: task.title || task.task_id,
+        subtitle: [task.client_name, task.project_name, task.status].filter(Boolean).join(" - ") || "Task",
+        source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
+        client_id: task.client_id || "",
+        project_id: task.project_id || "",
+        task_id: task.task_id,
+      } : safeUnavailableTarget();
+    }
+    if (normalizedTarget.target_type === "user") {
+      const user = await usersRepository.readById(session.workspace_id, normalizedTarget.target_id);
+      return user ? {
+        label: user.display_name || user.username || user.user_id,
+        subtitle: user.username || "User",
+        source_url: "settings.html",
+        user_id: user.user_id,
+      } : safeUnavailableTarget();
+    }
+  } catch {
+    return safeUnavailableTarget();
+  }
+
+  return safeUnavailableTarget();
+}
+
+function shapeLinkTarget(target = {}) {
+  const targetType = target.target_type || target.targetType || "";
+  const targetId = target.target_id || target.targetId || "";
+
+  return {
+    moduleId: target.module_id || target.moduleId || defaultModuleForTargetType(targetType),
+    targetType,
+    targetId,
+    label: target.label || safeTargetFallbackLabel({ target_type: targetType, target_id: targetId }),
+    subtitle: target.subtitle || "",
+    sourceUrl: target.source_url || target.sourceUrl || targetSourceUrl({ target_type: targetType, target_id: targetId }),
+    clientId: target.client_id || target.clientId || "",
+    projectId: target.project_id || target.projectId || "",
+    taskId: target.task_id || target.taskId || "",
+    userId: target.user_id || target.userId || "",
+    suggestedLibraryBucket: target.suggested_library_bucket || target.suggestedLibraryBucket || suggestedLibraryForTargetType(targetType),
+  };
+}
+
+function safeUnavailableTarget() {
+  return {
+    label: "",
+    subtitle: "Unavailable",
+    source_url: "",
+    unavailable: true,
+  };
+}
+
+function safeTargetFallbackLabel(target = {}) {
+  const targetType = target.target_type || target.targetType || "record";
+  const targetId = target.target_id || target.targetId || "";
+
+  return targetId ? `${formatTargetTypeLabel(targetType)} ${targetId}` : formatTargetTypeLabel(targetType);
+}
+
+function formatTargetTypeLabel(targetType = "") {
+  return String(targetType || "Record")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function suggestedLibraryForTargetType(targetType = "") {
+  if (targetType === "task") {
+    return NOTE_LIBRARY_BUCKETS.ACTIVE_WORK;
+  }
+  if (["client", "project", "user"].includes(targetType)) {
+    return NOTE_LIBRARY_BUCKETS.ONGOING_AREA;
+  }
+  return "";
 }
 
 function shapeLinkedNoteTarget(target = {}) {
@@ -1947,6 +2251,7 @@ export const notesService = {
   listByLibraryBucket,
   listCollections,
   listForTarget,
+  listLinkTargets,
   listLibrary,
   listLinks,
   listRevisions,

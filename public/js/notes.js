@@ -5,7 +5,30 @@ const BUCKET_LABELS = {
   ongoing_area: "Ongoing Areas",
   reference: "Reference Library",
 };
+const NOTE_KIND_LABELS = {
+  general: "General",
+  meeting: "Meeting",
+  research: "Research",
+  decision: "Decision",
+  procedure: "Procedure",
+  reference: "Reference",
+  idea: "Idea",
+  log: "Log",
+  client: "Legacy client",
+  project: "Legacy project",
+  task: "Legacy task",
+  ticket: "Legacy ticket",
+  user: "Legacy user",
+};
+const LEGACY_NOTE_KINDS = new Set(["client", "project", "task", "ticket", "user"]);
 const COLLECTION_BUCKET_ORDER = ["active_work", "ongoing_area", "reference"];
+const LINK_TARGET_TYPE_LABELS = {
+  workspace: "Workspace",
+  client: "Client",
+  project: "Project",
+  task: "Task",
+  user: "User",
+};
 
 const statusMessage = document.querySelector("[data-notes-status]");
 const bucketTabs = [...document.querySelectorAll("[data-notes-bucket]")];
@@ -42,6 +65,11 @@ const typeInput = document.querySelector("[data-note-type]");
 const visibilityInput = document.querySelector("[data-note-visibility]");
 const securityInput = document.querySelector("[data-note-security]");
 const secureWarning = document.querySelector("[data-note-secure-warning]");
+const contextTargetTypeInput = document.querySelector("[data-note-context-target-type]");
+const contextSearchInput = document.querySelector("[data-note-context-search]");
+const contextResultsInput = document.querySelector("[data-note-context-results]");
+const contextApplyButton = document.querySelector("[data-note-context-apply]");
+const contextSelectedMessage = document.querySelector("[data-note-context-selected]");
 const clientInput = document.querySelector("[data-note-client-id]");
 const projectInput = document.querySelector("[data-note-project-id]");
 const taskInput = document.querySelector("[data-note-task-id]");
@@ -75,6 +103,10 @@ let state = {
   collectionEditingId: "",
   collections: [],
   editingNoteId: "",
+  editorSelectedTarget: null,
+  libraryManuallyChanged: false,
+  linkTargetSearchTimer: null,
+  linkTargets: [],
   notes: [],
   page: 1,
   selectedNote: null,
@@ -111,12 +143,16 @@ collectionDialogCloseButton?.addEventListener("click", closeCollectionDialog);
 collectionCancelButton?.addEventListener("click", closeCollectionDialog);
 collectionLibraryInput?.addEventListener("change", () => populateCollectionParentOptions());
 libraryInput?.addEventListener("change", () => {
+  state.libraryManuallyChanged = true;
   populateNoteCollectionOptions();
   updateLibrarySuggestion();
 });
 securityInput?.addEventListener("change", updateSecureUiState);
 previewToggle?.addEventListener("click", togglePreview);
 [clientInput, projectInput, taskInput, userInput].forEach((input) => input?.addEventListener("input", updateLibrarySuggestion));
+contextTargetTypeInput?.addEventListener("change", () => loadEditorLinkTargets());
+contextSearchInput?.addEventListener("input", () => queueEditorLinkTargetSearch());
+contextApplyButton?.addEventListener("click", () => applyEditorLinkTarget());
 document.querySelector("[data-note-editor-toolbar]")?.addEventListener("click", handleEditorCommand);
 
 initialize();
@@ -402,7 +438,7 @@ function noteListItem(note) {
   meta.textContent = [
     libraryLabel(note.library_bucket),
     collectionLabel(note.note_collection_id),
-    formatToken(note.note_type),
+    noteKindLabel(note.note_type),
     formatToken(note.status),
   ].filter(Boolean).join(" - ");
   heading.append(title, badges, meta);
@@ -488,11 +524,11 @@ function renderDetail(note) {
   tagsRule.className = "notes-detail-rule";
 
   context.className = "notes-context-list";
-  addContext(context, "Client", note.client_id);
-  addContext(context, "Project", note.project_id);
-  addContext(context, "Task", note.task_id);
+  addLinkedContext(context, "Client", note.linked_context?.client, note.client_id);
+  addLinkedContext(context, "Project", note.linked_context?.project, note.project_id);
+  addLinkedContext(context, "Task", note.linked_context?.task, note.task_id);
   addContext(context, "Ticket", note.ticket_id);
-  addContext(context, "User", note.linked_user_id);
+  addLinkedContext(context, "User", note.linked_context?.user, note.linked_user_id);
   addContext(context, "Created", formatDate(note.created_at));
   addContext(context, "Updated", formatDate(note.updated_at));
   addContext(context, "Owner", note.owner_user_id);
@@ -512,6 +548,8 @@ function renderDetailPrompt(message, options = {}) {
 
 async function openEditor(note = null) {
   state.editingNoteId = note?.note_id || "";
+  state.editorSelectedTarget = null;
+  state.libraryManuallyChanged = false;
   dialogTitle.textContent = note ? "Edit Note" : "Create Note";
   titleInput.value = note?.title || "";
   libraryInput.value = note?.library_bucket || state.activeBucketForCreate || defaultLibraryForCreate();
@@ -520,6 +558,8 @@ async function openEditor(note = null) {
   if (collectionInput.value && ![...collectionInput.options].some((option) => option.value === collectionInput.value)) {
     collectionInput.value = "";
   }
+  resetLegacyNoteKindOptions();
+  ensureNoteKindOption(note?.note_type);
   typeInput.value = note?.note_type || "general";
   visibilityInput.value = note?.visibility || "internal";
   securityInput.value = note?.security_mode || "normal";
@@ -536,6 +576,8 @@ async function openEditor(note = null) {
   formStatus.textContent = "";
   saveButton.disabled = false;
   await mountTagEditor(note);
+  renderEditorContextSelection();
+  await loadEditorLinkTargets();
   updateLibrarySuggestion();
   dialog.showModal();
   titleInput.focus();
@@ -587,6 +629,9 @@ async function saveNote(event) {
     const result = state.editingNoteId
       ? await api.putJson(`/api/notes/${encodeURIComponent(state.editingNoteId)}`, payload)
       : await api.postJson("/api/notes", payload);
+    if (state.editingNoteId && state.editorSelectedTarget && !noteHasLink(result.note, state.editorSelectedTarget)) {
+      await api.postJson(`/api/notes/${encodeURIComponent(result.note.note_id)}/links`, linkPayloadFromTarget(state.editorSelectedTarget));
+    }
 
     await Promise.all([loadCollections(), loadNotes()]);
     closeEditor();
@@ -612,7 +657,168 @@ function readEditorPayload() {
     project_id: normalizeText(projectInput.value) || null,
     task_id: normalizeText(taskInput.value) || null,
     linked_user_id: normalizeText(userInput.value) || null,
+    links: !state.editingNoteId && state.editorSelectedTarget ? [linkPayloadFromTarget(state.editorSelectedTarget)] : [],
   };
+}
+
+function queueEditorLinkTargetSearch() {
+  window.clearTimeout(state.linkTargetSearchTimer);
+  state.linkTargetSearchTimer = window.setTimeout(() => loadEditorLinkTargets(), 180);
+}
+
+async function loadEditorLinkTargets() {
+  if (!contextResultsInput) {
+    return;
+  }
+
+  contextResultsInput.disabled = true;
+  contextResultsInput.replaceChildren(new window.Option("Loading records...", ""));
+
+  try {
+    const targets = await fetchLinkTargets({
+      targetType: contextTargetTypeInput?.value || "workspace",
+      search: contextSearchInput?.value || "",
+      limit: 40,
+    });
+    state.linkTargets = targets;
+    populateLinkTargetSelect(contextResultsInput, targets);
+  } catch {
+    state.linkTargets = [];
+    contextResultsInput.replaceChildren(new window.Option("No records available", ""));
+  } finally {
+    contextResultsInput.disabled = false;
+  }
+}
+
+async function fetchLinkTargets({ targetType = "all", search = "", limit = 20 } = {}) {
+  const params = new URLSearchParams({
+    targetType,
+    limit: String(limit),
+  });
+
+  if (search.trim()) {
+    params.set("q", search.trim());
+  }
+
+  const result = await api.getJson(`/api/notes/link-targets?${params.toString()}`, { cache: "no-store" });
+  return result.targets || [];
+}
+
+function populateLinkTargetSelect(select, targets = []) {
+  const options = targets.map((target) => {
+    const option = new window.Option(linkTargetOptionLabel(target), target.targetId || "");
+    option.dataset.target = JSON.stringify(target);
+    return option;
+  });
+
+  select.replaceChildren(...(options.length > 0 ? options : [new window.Option("No records found", "")]));
+}
+
+function linkTargetOptionLabel(target = {}) {
+  const typeLabel = LINK_TARGET_TYPE_LABELS[target.targetType] || formatToken(target.targetType || "record");
+  const parts = [target.label || target.targetId || "Untitled", target.subtitle].filter(Boolean);
+  return `${typeLabel}: ${parts.join(" - ")}`;
+}
+
+function readSelectedLinkTarget(select) {
+  const option = select?.selectedOptions?.[0];
+
+  if (!option?.dataset?.target) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(option.dataset.target);
+  } catch {
+    return null;
+  }
+}
+
+function applyEditorLinkTarget() {
+  const target = readSelectedLinkTarget(contextResultsInput);
+
+  if (!target?.targetType || !target.targetId) {
+    state.editorSelectedTarget = null;
+    renderEditorContextSelection();
+    return;
+  }
+
+  state.editorSelectedTarget = target;
+  applyContextTarget(target);
+  renderEditorContextSelection(target);
+  updateLibrarySuggestion({ preferredSuggestion: target.suggestedLibraryBucket });
+}
+
+function linkPayloadFromTarget(target = {}) {
+  return {
+    moduleId: target.moduleId,
+    targetType: target.targetType,
+    targetId: target.targetId,
+  };
+}
+
+function noteHasLink(note = {}, target = {}) {
+  return (note.links || []).some((link) => {
+    const targetType = link.targetType || link.target_type;
+    const targetId = link.targetId || link.target_id;
+    return targetType === target.targetType && targetId === target.targetId;
+  });
+}
+
+function applyContextTarget(target = {}) {
+  if (target.targetType === "client") {
+    clientInput.value = target.clientId || target.targetId || "";
+    projectInput.value = "";
+    taskInput.value = "";
+    userInput.value = "";
+  } else if (target.targetType === "project") {
+    clientInput.value = target.clientId || clientInput.value || "";
+    projectInput.value = target.projectId || target.targetId || "";
+    taskInput.value = "";
+    userInput.value = "";
+  } else if (target.targetType === "task") {
+    clientInput.value = target.clientId || clientInput.value || "";
+    projectInput.value = target.projectId || projectInput.value || "";
+    taskInput.value = target.taskId || target.targetId || "";
+    userInput.value = "";
+  } else if (target.targetType === "user") {
+    clientInput.value = "";
+    projectInput.value = "";
+    taskInput.value = "";
+    userInput.value = target.userId || target.targetId || "";
+  } else if (target.targetType === "workspace") {
+    clientInput.value = "";
+    projectInput.value = "";
+    taskInput.value = "";
+    userInput.value = "";
+  }
+}
+
+function renderEditorContextSelection(target = null) {
+  if (!contextSelectedMessage) {
+    return;
+  }
+
+  const linked = [];
+  if (target?.targetType === "workspace") {
+    linked.push(`Workspace: ${target.label || "Workspace"}`);
+  }
+  if (clientInput.value) {
+    linked.push(`Client: ${clientInput.value}`);
+  }
+  if (projectInput.value) {
+    linked.push(`Project: ${projectInput.value}`);
+  }
+  if (taskInput.value) {
+    linked.push(`Task: ${taskInput.value}`);
+  }
+  if (userInput.value) {
+    linked.push(`User: ${userInput.value}`);
+  }
+
+  contextSelectedMessage.textContent = linked.length > 0
+    ? `Linked context: ${linked.join(" / ")}`
+    : "No linked context selected.";
 }
 
 function handleEditorCommand(event) {
@@ -759,8 +965,10 @@ function renderLinksPanel(note) {
   const list = document.createElement("div");
   const form = document.createElement("form");
   const targetType = document.createElement("select");
-  const targetId = document.createElement("input");
+  const targetSearch = document.createElement("input");
+  const targetResults = document.createElement("select");
   const add = document.createElement("button");
+  let searchTimer = null;
 
   section.className = "notes-detail-section";
   section.append(sectionHeading("Linked Records"));
@@ -772,25 +980,51 @@ function renderLinksPanel(note) {
 
   form.className = "notes-link-form";
   form.hidden = note.status === "archived";
-  ["client", "project", "task", "user"].forEach((value) => {
+  ["workspace", "client", "project", "task", "user"].forEach((value) => {
     const option = document.createElement("option");
     option.value = value;
-    option.textContent = formatToken(value);
+    option.textContent = LINK_TARGET_TYPE_LABELS[value] || formatToken(value);
     targetType.append(option);
   });
-  targetId.type = "text";
-  targetId.placeholder = "Record ID";
-  targetId.required = true;
+  targetSearch.type = "search";
+  targetSearch.placeholder = "Search records";
+  targetResults.required = true;
   add.type = "submit";
   add.textContent = "Add Link";
-  form.append(targetType, targetId, add);
+  form.append(targetType, targetSearch, targetResults, add);
+  const loadTargets = async () => {
+    targetResults.disabled = true;
+    targetResults.replaceChildren(new window.Option("Loading records...", ""));
+    try {
+      populateLinkTargetSelect(targetResults, await fetchLinkTargets({
+        targetType: targetType.value,
+        search: targetSearch.value,
+        limit: 40,
+      }));
+    } catch {
+      targetResults.replaceChildren(new window.Option("No records available", ""));
+    } finally {
+      targetResults.disabled = false;
+    }
+  };
+  targetType.addEventListener("change", loadTargets);
+  targetSearch.addEventListener("input", () => {
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(loadTargets, 180);
+  });
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const target = readSelectedLinkTarget(targetResults);
+    if (!target) {
+      return;
+    }
     await addNoteLink(note, {
-      targetType: targetType.value,
-      targetId: targetId.value,
+      targetType: target.targetType,
+      targetId: target.targetId,
+      moduleId: target.moduleId,
     });
   });
+  loadTargets();
 
   section.append(list, form);
   return section;
@@ -799,10 +1033,21 @@ function renderLinksPanel(note) {
 function linkItem(note, link) {
   const item = document.createElement("div");
   const label = document.createElement("span");
+  const sourceUrl = link.sourceUrl || link.source_url || "";
+  const targetType = link.targetType || link.target_type || "";
+  const targetId = link.targetId || link.target_id || "";
+  const title = sourceUrl ? document.createElement("a") : document.createElement("strong");
+  const subtitle = document.createElement("small");
   const remove = document.createElement("button");
 
   item.className = "notes-link-item";
-  label.textContent = `${formatToken(link.target_type)}: ${link.target_id}`;
+  label.className = "notes-link-item-label";
+  title.textContent = link.label || targetId || "Linked record";
+  if (sourceUrl) {
+    title.href = sourceUrl;
+  }
+  subtitle.textContent = link.subtitle || (LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType));
+  label.append(title, subtitle);
   remove.type = "button";
   remove.textContent = "Remove";
   remove.hidden = note.status === "archived";
@@ -817,7 +1062,8 @@ async function addNoteLink(note, payload) {
 }
 
 async function removeNoteLink(note, link) {
-  await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links/${encodeURIComponent(link.note_link_id)}/remove`, {});
+  const noteLinkId = link.noteLinkId || link.note_link_id;
+  await api.postJson(`/api/notes/${encodeURIComponent(note.note_id)}/links/${encodeURIComponent(noteLinkId)}/remove`, {});
   await selectNote(note.note_id);
 }
 
@@ -957,23 +1203,23 @@ async function mutateNote(url) {
   }
 }
 
-function updateLibrarySuggestion() {
-  const suggestion = deriveSuggestedLibraryBucket();
+function updateLibrarySuggestion(options = {}) {
+  const suggestion = options.preferredSuggestion || deriveSuggestedLibraryBucket();
   const current = libraryInput.value;
 
   suggestionMessage.textContent = `Suggested Library: ${libraryLabel(suggestion)}`;
-  if (!state.editingNoteId && current !== suggestion && current === defaultLibraryForCreate()) {
+  if (!state.libraryManuallyChanged && !state.editingNoteId && current !== suggestion && current === defaultLibraryForCreate()) {
     libraryInput.value = suggestion;
     populateNoteCollectionOptions(suggestion);
   }
 }
 
 function deriveSuggestedLibraryBucket() {
-  if (projectInput.value || taskInput.value) {
+  if (taskInput.value) {
     return "active_work";
   }
 
-  if (clientInput.value) {
+  if (clientInput.value || projectInput.value || userInput.value) {
     return "ongoing_area";
   }
 
@@ -1032,6 +1278,30 @@ function bucketTitle() {
     reference: "Reference Library",
     archive: "Archive",
   }[state.activeBucket] || "Notes";
+}
+
+function noteKindLabel(value) {
+  return NOTE_KIND_LABELS[value] || formatToken(value);
+}
+
+function ensureNoteKindOption(value) {
+  const noteKind = normalizeText(value);
+
+  if (!typeInput || !noteKind || !LEGACY_NOTE_KINDS.has(noteKind)) {
+    return;
+  }
+  if ([...typeInput.options].some((option) => option.value === noteKind)) {
+    return;
+  }
+
+  const option = createOption(noteKind, noteKindLabel(noteKind));
+
+  option.dataset.legacyNoteKind = "true";
+  typeInput.append(option);
+}
+
+function resetLegacyNoteKindOptions() {
+  typeInput?.querySelectorAll("[data-legacy-note-kind='true']").forEach((option) => option.remove());
 }
 
 function libraryLabel(value) {
@@ -1279,7 +1549,7 @@ function detailActionsMenu(buttons = []) {
 function detailMetaItems(note = {}) {
   const items = [
     ["Library", libraryLabel(note.library_bucket)],
-    ["Type", formatToken(note.note_type)],
+    ["Note Kind", noteKindLabel(note.note_type)],
     ["Status", formatToken(note.status)],
     ["Visibility", formatToken(note.visibility)],
     ["Security", formatToken(note.security_mode)],
@@ -1310,6 +1580,27 @@ function addContext(list, label, value) {
 
   term.textContent = label;
   description.textContent = value;
+  list.append(term, description);
+}
+
+function addLinkedContext(list, label, target, fallbackValue) {
+  if (!target && !fallbackValue) {
+    return;
+  }
+
+  const term = document.createElement("dt");
+  const description = document.createElement("dd");
+  const value = target?.label || fallbackValue;
+
+  term.textContent = label;
+  if (target?.sourceUrl && !target.unavailable) {
+    const link = document.createElement("a");
+    link.href = target.sourceUrl;
+    link.textContent = value;
+    description.append(link);
+  } else {
+    description.textContent = target?.unavailable ? "Unavailable linked record" : value;
+  }
   list.append(term, description);
 }
 

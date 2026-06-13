@@ -3828,7 +3828,7 @@ dialog .form-actions {
 }
 
 .notes-link-form {
-    grid-template-columns: minmax(120px, 0.35fr) minmax(0, 1fr) auto;
+    grid-template-columns: minmax(120px, 0.35fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
     align-items: end;
 }
 
@@ -3841,6 +3841,35 @@ dialog .form-actions {
     padding: 8px;
     border: 1px solid var(--color-border-subtle);
     border-radius: 6px;
+}
+
+.notes-link-item-label {
+    display: grid;
+    gap: 2px;
+}
+
+.notes-link-item-label small,
+.notes-picker-selection {
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.notes-picker-grid {
+    display: grid;
+    grid-template-columns: minmax(120px, 0.3fr) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+    gap: 12px;
+    align-items: end;
+}
+
+.notes-picker-selection {
+    margin: 0;
+}
+
+@media (max-width: 760px) {
+    .notes-link-form,
+    .notes-picker-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .notes-revision-item {

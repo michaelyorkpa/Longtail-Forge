@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Notes | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=18">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=19">
   </head>
   <body data-page-title="Notes">
     <main class="wide-page notes-page">
@@ -54,17 +54,17 @@
             </select>
           </label>
           <label>
-            Type
+            Note Kind
             <select data-note-filter-type>
-              <option value="all" selected>All types</option>
+              <option value="all" selected>All kinds</option>
               <option value="general">General</option>
               <option value="meeting">Meeting</option>
               <option value="research">Research</option>
-              <option value="client">Client</option>
-              <option value="project">Project</option>
-              <option value="task">Task</option>
-              <option value="ticket">Ticket</option>
-              <option value="user">User</option>
+              <option value="decision">Decision</option>
+              <option value="procedure">Procedure</option>
+              <option value="reference">Reference</option>
+              <option value="idea">Idea</option>
+              <option value="log">Log</option>
             </select>
           </label>
           <label>
@@ -90,7 +90,7 @@
               <option value="created_desc">Created</option>
               <option value="title_asc">Title</option>
               <option value="library_asc">Library</option>
-              <option value="type_asc">Type</option>
+              <option value="type_asc">Note Kind</option>
             </select>
           </label>
         </form>
@@ -170,16 +170,16 @@
             </select>
           </label>
           <label>
-            Type
+            Note Kind
             <select data-note-type>
               <option value="general">General</option>
               <option value="meeting">Meeting</option>
               <option value="research">Research</option>
-              <option value="client">Client</option>
-              <option value="project">Project</option>
-              <option value="task">Task</option>
-              <option value="ticket">Ticket</option>
-              <option value="user">User</option>
+              <option value="decision">Decision</option>
+              <option value="procedure">Procedure</option>
+              <option value="reference">Reference</option>
+              <option value="idea">Idea</option>
+              <option value="log">Log</option>
             </select>
           </label>
           <label>
@@ -205,24 +205,32 @@
 
         <details class="notes-context-panel">
           <summary>Linked Context</summary>
-          <div class="notes-form-grid">
+          <div class="notes-picker-grid">
             <label>
-              Client ID
-              <input type="text" data-note-client-id autocomplete="off">
+              Target
+              <select data-note-context-target-type>
+                <option value="workspace">Workspace</option>
+                <option value="client">Client</option>
+                <option value="project">Project</option>
+                <option value="task">Task</option>
+                <option value="user">User</option>
+              </select>
             </label>
             <label>
-              Project ID
-              <input type="text" data-note-project-id autocomplete="off">
+              Search
+              <input type="search" data-note-context-search autocomplete="off" placeholder="Search linked records">
             </label>
             <label>
-              Task ID
-              <input type="text" data-note-task-id autocomplete="off">
+              Record
+              <select data-note-context-results></select>
             </label>
-            <label>
-              User ID
-              <input type="text" data-note-user-id autocomplete="off">
-            </label>
+            <button type="button" data-note-context-apply>Use Target</button>
           </div>
+          <p class="notes-picker-selection" data-note-context-selected>No linked context selected.</p>
+          <input type="hidden" data-note-client-id>
+          <input type="hidden" data-note-project-id>
+          <input type="hidden" data-note-task-id>
+          <input type="hidden" data-note-user-id>
           <p data-note-library-suggestion></p>
         </details>
 
@@ -299,7 +307,7 @@
     <script src="js/shared/tags.js?v=1"></script>
     <script src="js/shared/file-attachments.js?v=1"></script>
     <script src="js/shared/notes-editor.js?v=1"></script>
-    <script src="js/notes.js?v=7"></script>
+    <script src="js/notes.js?v=9"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

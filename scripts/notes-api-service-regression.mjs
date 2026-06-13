@@ -12,7 +12,10 @@ process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "notes-api-service-secure-note-te
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { tagsService } = await import("../src/services/tags.service.js");
 const { filesService } = await import("../src/services/files.service.js");
-const { NOTE_LIBRARY_BUCKETS, NOTE_SECURITY_MODES, NOTE_STATUSES, NOTE_VISIBILITIES } = await import("../src/modules/notes/library.js");
+const { LEGACY_NOTE_TYPES, NOTE_LIBRARY_BUCKETS, NOTE_SECURITY_MODES, NOTE_STATUSES, NOTE_TYPES, NOTE_VISIBILITIES } = await import("../src/modules/notes/library.js");
+const { clientsRepository } = await import("../src/modules/client-projects/clients.repo.js");
+const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
+const { tasksRepository } = await import("../src/modules/tasks/tasks.repo.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 try {
@@ -22,6 +25,8 @@ try {
   const limitedSession = await createClientUserSession(workspace.workspace_id);
 
   await assertNoteLifecycle(adminSession);
+  await assertNoteKindCleanup(adminSession);
+  await assertLinkedRecordPickerReadModel(adminSession);
   await assertNotesTagAndTargetIntegrations(adminSession);
   await assertNotesFileAttachmentIntegration(adminSession);
   await assertPrivateNotesStayHidden(adminSession, limitedSession);
@@ -32,6 +37,123 @@ try {
 } finally {
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
+}
+
+async function assertLinkedRecordPickerReadModel(session) {
+  const suffix = randomUUID().slice(0, 8);
+  const clientId = `picker-client-${suffix}`;
+  const projectId = `picker-project-${suffix}`;
+  const taskId = `picker-task-${suffix}`;
+
+  await clientsRepository.create(session.workspace_id, {
+    id: clientId,
+    name: "Picker Client",
+    status: "Active",
+    billable: "yes",
+  });
+  await projectsRepository.create(session.workspace_id, clientId, {
+    id: projectId,
+    name: "Picker Project",
+    status: "Active",
+    billable: "yes",
+  });
+  const task = await tasksRepository.create(session.workspace_id, {
+    task_id: taskId,
+    client_id: clientId,
+    project_id: projectId,
+    title: "Picker Task",
+    description: "",
+    next_action: "",
+    blocked_reason: "",
+    resume_note: "",
+    status: "open",
+    priority: "normal",
+    billable: "yes",
+    created_by_user_id: session.user_id,
+    updated_by_user_id: session.user_id,
+  });
+
+  const workspaceTargets = await notesService.listLinkTargets(session, { targetType: "workspace" });
+  assert.ok(workspaceTargets.targets.some((target) => target.targetId === session.workspace_id && target.label), "workspace picker target should expose a human label");
+
+  const taskTargets = await notesService.listLinkTargets(session, { targetType: "task", q: "Picker Task" });
+  const taskTarget = taskTargets.targets.find((target) => target.targetId === task.task_id);
+  assert.equal(taskTarget.label, "Picker Task");
+  assert.equal(taskTarget.clientId, clientId);
+  assert.equal(taskTarget.projectId, projectId);
+  assert.equal(taskTarget.suggestedLibraryBucket, NOTE_LIBRARY_BUCKETS.ACTIVE_WORK);
+
+  await runSql(`
+UPDATE workspace_modules
+SET status = 'disabled'
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tasks';
+`);
+  const disabledTaskTargets = await notesService.listLinkTargets(session, { targetType: "task", q: "Picker Task" });
+  assert.equal(disabledTaskTargets.targets.length, 0, "disabled modules should not contribute picker targets");
+  await runSql(`
+UPDATE workspace_modules
+SET status = 'enabled'
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND module_id = 'tasks';
+`);
+
+  const projectTargets = await notesService.listLinkTargets(session, { targetType: "project", q: "Picker Project" });
+  const projectTarget = projectTargets.targets.find((target) => target.targetId === projectId);
+  assert.equal(projectTarget.label, "Picker Project");
+  assert.equal(projectTarget.suggestedLibraryBucket, NOTE_LIBRARY_BUCKETS.ONGOING_AREA);
+
+  const note = await notesService.create({
+    title: "Picker linked note",
+    body_markdown: "Linked picker body.",
+    links: [{ targetType: "task", targetId: task.task_id }],
+    task_id: task.task_id,
+    project_id: projectId,
+    client_id: clientId,
+  }, session);
+  const read = await notesService.read(note.note.note_id, session);
+
+  assert.equal(read.note.links[0].label, "Picker Task");
+  assert.equal(read.note.links[0].source_url, `tasks.html?task=${encodeURIComponent(task.task_id)}`);
+  assert.equal(read.note.linked_context.task.label, "Picker Task");
+  assert.equal(read.note.linked_context.project.label, "Picker Project");
+  assert.equal(read.note.linked_context.client.label, "Picker Client");
+}
+
+async function assertNoteKindCleanup(session) {
+  for (const noteType of Object.values(NOTE_TYPES)) {
+    const result = await notesService.create({
+      title: `Note Kind ${noteType}`,
+      body_markdown: `${noteType} body.`,
+      note_type: noteType,
+      visibility: NOTE_VISIBILITIES.INTERNAL,
+    }, session);
+
+    assert.equal(result.note.note_type, noteType, `${noteType} should be accepted as a Note Kind`);
+  }
+
+  await assertRejectsWithMessage(
+    () => notesService.create({
+      title: "Invalid Note Kind",
+      body_markdown: "Nope.",
+      note_type: "milestone",
+    }, session),
+    /Note Kind/,
+  );
+
+  const legacy = await notesService.create({
+    title: "Legacy note type",
+    body_markdown: "Legacy value should round-trip.",
+    note_type: LEGACY_NOTE_TYPES.CLIENT,
+    visibility: NOTE_VISIBILITIES.INTERNAL,
+  }, session);
+  const updated = await notesService.update(legacy.note.note_id, {
+    ...legacy.note,
+    title: "Legacy note type preserved",
+    body_markdown: "Updated legacy note body.",
+  }, session);
+
+  assert.equal(updated.note.note_type, LEGACY_NOTE_TYPES.CLIENT, "legacy note_type values should round-trip safely");
 }
 
 async function assertNoteLifecycle(session) {

@@ -1,3 +1,18 @@
+## Version 0.33.5.8.2 - 2026-06-13 08:57 -04:00
+
+- Added the Notes-owned linked-record picker route for permission-safe Workspace, Client, Project, Task, and User target search with human labels, safe navigation URLs, and task project/client context hints.
+- Replaced raw linked-context entry in the Notes editor with a searchable picker, preserved manual Library bucket choices, and created explicit note links for selected targets.
+- Decorated Note detail linked context and linked-record rows with readable labels and safe record navigation while preserving unavailable/fallback behavior for missing or unreadable targets.
+- Updated Notes Library bucket suggestion behavior so task targets suggest Active Work while client, project, and user targets suggest Ongoing Areas.
+- Updated Notes developer documentation, roadmap decisions, UI/service regressions, and bumped the app/package and Notes module versions to `0.33.5.8.2`.
+
+## Version 0.33.5.8.1 - 2026-06-13 08:32 -04:00
+
+- Renamed the user-facing Notes type controls to Note Kind and limited new UI choices to `general`, `meeting`, `research`, `decision`, `procedure`, `reference`, `idea`, and `log`.
+- Kept `note_type` as the compatibility database/API field while widening Notes and note revision constraints so content-kind values and legacy linked-context values can coexist safely.
+- Preserved legacy `client`, `project`, `task`, `ticket`, and `user` note type values for existing rows and revisions without offering them as new Note Kind choices.
+- Updated Notes developer documentation, roadmap decisions, UI/service/schema regressions, and bumped the app/package and Notes module versions to `0.33.5.8.1`.
+
 ## Version 0.33.5.7 - 2026-06-13 07:50 -04:00
 
 - Documentation update 2026-06-13 08:04 -04:00: Cleaned up the upcoming 0.33.5.8 Notes roadmap into planning boundaries and focused implementation slices for Note Kind cleanup, linked-record picker behavior, the reusable linked-note helper, Task dialog integration, resume-context hooks, and closeout regressions.

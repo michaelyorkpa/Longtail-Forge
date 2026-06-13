@@ -39,6 +39,11 @@ notesRoutes.get("/notes/for-target", asyncRoute(async (request, response) => {
   response.status(200).json(result);
 }));
 
+notesRoutes.get("/notes/link-targets", asyncRoute(async (request, response) => {
+  const result = await notesService.listLinkTargets(request.session, request.query);
+  response.status(200).json(result);
+}));
+
 notesRoutes.get("/notes/collections", asyncRoute(async (request, response) => {
   const result = await notesService.listCollections(request.session, request.query);
   response.status(200).json(result);

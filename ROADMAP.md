@@ -2,76 +2,65 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.7 - Regression Cleanup
-
-- [x] Preserve full `npm run check` coverage while reducing wall-clock runtime.
-  - [x] Keep all existing regression scripts in the main release gate unless a future explicit cleanup removes obsolete coverage with replacement evidence.
-  - [x] Add a regression runner that reports per-script timing so slow spots stay visible.
-  - [x] Parallelize only safe buckets first, such as static/source-reading regressions and temp-database regressions with isolated database files.
-  - [x] Keep order-sensitive or live/default-database checks serial until they are proven safe to parallelize.
-  - [x] Keep `npm run check` as the complete release gate; optional quick/tiered commands can come later if needed.
-- [x] Consolidate regression orchestration.
-  - [x] Move the long serial script list out of `package.json` into a maintainable suite definition.
-  - [x] Fail fast on the first failed bucket while still preserving useful timing output for completed checks.
-  - [x] Keep ESLint in the release gate after the regression runner.
-- [x] Verification.
-  - [x] Measure the current runtime before and after the runner change.
-  - [x] Run the full `npm run check` with an extended timeout.
-  - [x] Confirm the full suite still includes every previous regression script.
-
 ## Version 0.33.5.8 - Notes Cleanup
 
 ### Planning Boundaries
 
 - `note_type` should become a content-kind signal, not a linked-record context or permission signal.
-- Keep the database column name `note_type` for compatibility. UI copy should call it "Note Kind" unless a later design pass chooses "Content Type".
-- Use linked context columns and `note_links` for workspace/client/project/task/user/ticket association. Ticket remains reserved until the Tickets module exists.
+- Keep the database column name `note_type` for compatibility. UI copy should call it "Note Kind".
+- Use linked context columns and `note_links` for explicit workspace/client/project/task/user/ticket association. Ticket remains reserved until the Tickets module exists.
 - Preserve legacy `note_type` values in existing rows and render them safely, but stop offering `client`, `project`, `task`, `ticket`, and `user` as new choices. Current saved rows exist, but none use the deprecated linked-context values.
 - Notes owns the linked-record picker and embedded linked-note helper. Tasks, Client/Projects, Lists, Files, and future Tickets should consume Notes-owned helper/routes instead of rebuilding Notes visibility or lookup rules.
 - Linking records should improve context and recovery only. Links must not grant note access, target-record access, Library bucket membership, collection membership, KB publication, tag assignment, or visibility changes by themselves.
 - Notes may provide supporting context to future resume-state surfaces, but framework-owned resume state remains deferred to 0.33.5.9 and Workbench feed behavior remains deferred to 0.33.7.
+- Task-created notes should default Note Kind to `log`.
+- Linking a note to a task should auto-set project/client context where permission-safe.
+- Manual Library bucket choices stay untouched when linked context changes.
+- Task list linked-note counts should appear as clickable metadata badges that open the task detail dialog's Notes panel.
+- Linked-note panels must not hint that inaccessible private/secure notes exist.
+- When Notes is disabled, permitted historical linked notes appear inline read-only while create/link/unlink actions are disabled.
 
 ### Version 0.33.5.8.1 - Note Kind Cleanup
 
-- [ ] Reframe `note_type` as content kind, not linked-record context.
-- [ ] Keep `note_type` as the database/API field name for compatibility.
-- [ ] Change the user-facing label to "Note Kind".
-- [ ] Keep initial content-kind values small:
-  - [ ] `general`
-  - [ ] `meeting`
-  - [ ] `research`
-  - [ ] `decision`
-  - [ ] `procedure`
-  - [ ] `reference`
-  - [ ] `idea`
-  - [ ] `log`
-- [ ] Stop offering `client`, `project`, `task`, `ticket`, and `user` as new Note Kind choices.
-- [ ] Preserve legacy values in existing records and display them safely.
-- [ ] Verify existing seeded/user rows do not use the deprecated linked-context kinds before tightening new-entry options.
-- [ ] Keep linked-record association in context columns and `note_links`, not in `note_type`.
-- [ ] Add regression coverage that `note_type` does not control permissions, visibility, Library bucket, collection membership, or KB publication.
+- [x] Reframe `note_type` as content kind, not linked-record context.
+- [x] Keep `note_type` as the database/API field name for compatibility.
+- [x] Change the user-facing label to "Note Kind".
+- [x] Keep initial content-kind values small:
+  - [x] `general`
+  - [x] `meeting`
+  - [x] `research`
+  - [x] `decision`
+  - [x] `procedure`
+  - [x] `reference`
+  - [x] `idea`
+  - [x] `log`
+- [x] Stop offering `client`, `project`, `task`, `ticket`, and `user` as new Note Kind choices.
+- [x] Preserve legacy values in existing records and display them safely.
+- [x] Verify existing seeded/user rows do not use the deprecated linked-context kinds before tightening new-entry options.
+- [x] Keep linked-record association in context columns and `note_links`, not in `note_type`.
+- [x] Add regression coverage that `note_type` does not control permissions, visibility, Library bucket, collection membership, or KB publication.
 
 ### Version 0.33.5.8.2 - Linked Record Picker
 
-- [ ] Replace raw linked-context ID entry in Notes with a permission-safe record picker.
-  - [ ] Users can search/select supported link targets instead of pasting IDs.
-  - [ ] Supported initial targets are Workspace, Client, Project, Task, and User.
-  - [ ] Ticket remains reserved until the Tickets module exists.
-  - [ ] Picker results respect workspace, module state, target read permissions, and record visibility.
-  - [ ] Picker results show human labels, not only UUIDs.
-  - [ ] Selecting a task may infer project/client context where safe.
-  - [ ] Linking a note to a task suggests the Active Work Library bucket unless the user manually overrides the bucket.
-  - [ ] Linking a note to a client, project, or user suggests Ongoing Areas unless the user manually overrides the bucket.
-  - [ ] Linking behavior does not grant note access or target-record access by itself.
-- [ ] Replace raw linked context values in Note detail with human-readable links.
-  - [ ] Client name instead of client ID.
-  - [ ] Project name instead of project ID.
-  - [ ] Task title instead of task ID.
-  - [ ] User display name/email where allowed.
-  - [ ] Fall back to safe ID display only when the target label cannot be read.
-- [ ] Add linked-record navigation from Note detail.
-  - [ ] Client/project/task/user links open the appropriate record view where available.
-  - [ ] Missing or inaccessible records show a safe unavailable state.
+- [x] Replace raw linked-context ID entry in Notes with a permission-safe record picker.
+  - [x] Users can search/select supported link targets instead of pasting IDs.
+  - [x] Supported initial targets are Workspace, Client, Project, Task, and User.
+  - [x] Ticket remains reserved until the Tickets module exists.
+  - [x] Picker results respect workspace, module state, target read permissions, and record visibility.
+  - [x] Picker results show human labels, not only UUIDs.
+  - [x] Selecting a task may infer project/client context where safe.
+  - [x] Linking a note to a task suggests the Active Work Library bucket unless the user manually overrides the bucket.
+  - [x] Linking a note to a client, project, or user suggests Ongoing Areas unless the user manually overrides the bucket.
+  - [x] Linking behavior does not grant note access or target-record access by itself.
+- [x] Replace raw linked context values in Note detail with human-readable links.
+  - [x] Client name instead of client ID.
+  - [x] Project name instead of project ID.
+  - [x] Task title instead of task ID.
+  - [x] User display name/email where allowed.
+  - [x] Fall back to safe ID display only when the target label cannot be read.
+- [x] Add linked-record navigation from Note detail.
+  - [x] Client/project/task/user links open the appropriate record view where available.
+  - [x] Missing or inaccessible records show a safe unavailable state.
 
 ### Version 0.33.5.8.3 - Notes Linked-Record Helper
 
@@ -107,7 +96,7 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Link to the task through `task_id` and/or `note_links`.
   - [ ] Set `project_id` and `client_id` from the task where available.
   - [ ] Default Library bucket to Active Work.
-  - [ ] Default Note Kind to `log` or `general`, not `task`.
+  - [ ] Default Note Kind to `log`, not `task`.
   - [ ] Default visibility to `internal` unless the user chooses otherwise.
 - [ ] Add linked-note indicators to task list rows/cards after the current task-list UI cleanup.
   - [ ] Show a compact note count where permitted.

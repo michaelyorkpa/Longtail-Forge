@@ -34,7 +34,7 @@ async function assertNotesModuleManifest() {
   const notesModule = modulesService.getModule("notes");
 
   assert.equal(notesModule.id, "notes");
-  assert.equal(notesModule.version, "0.33.5.2.5");
+  assert.equal(notesModule.version, "0.33.5.8.2");
   assert.equal(notesModule.enabledByDefault, true);
   assert.equal(notesModule.canDisable, true);
   assert.equal(notesModule.historicalReadAccess, true);
@@ -59,14 +59,19 @@ async function assertNotesMigrationApplied() {
   const rows = await querySql(`
 SELECT version, module_id, name
 FROM schema_migrations
-WHERE version = '044';
+WHERE version IN ('044', '060')
+ORDER BY version;
 `);
 
-  assert.deepEqual(rows[0], {
+  assert.deepEqual(rows, [{
     version: "044",
     module_id: "notes",
     name: "add_notes_foundation",
-  });
+  }, {
+    version: "060",
+    module_id: "notes",
+    name: "note_kind_content_values",
+  }]);
 }
 
 async function assertNotesSchema() {
@@ -195,6 +200,13 @@ async function assertColumns(tableName, expectedColumns) {
 async function assertNotesConstraints() {
   const workspace = await readWorkspace();
   const now = new Date().toISOString();
+  const notesTable = await querySql("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'notes';");
+  const revisionsTable = await querySql("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'note_revisions';");
+
+  for (const noteKind of ["decision", "procedure", "reference", "idea", "log", "client", "project", "task", "ticket", "user"]) {
+    assert.match(notesTable[0].sql, new RegExp(`'${noteKind}'`), `notes.note_type should allow ${noteKind}`);
+    assert.match(revisionsTable[0].sql, new RegExp(`'${noteKind}'`), `note_revisions.note_type should allow ${noteKind}`);
+  }
 
   await runSql(`
 INSERT INTO notes (
@@ -246,6 +258,75 @@ INSERT INTO note_links (
 );
 `);
 
+  await runSql(`
+INSERT INTO notes (
+  note_id,
+  workspace_id,
+  title,
+  body_markdown,
+  note_type,
+  library_bucket,
+  library_bucket_source,
+  status,
+  visibility,
+  security_mode,
+  created_at,
+  updated_at
+) VALUES (
+  'note-kind-decision',
+  ${sqlText(workspace.workspace_id)},
+  'Decision Note',
+  'Decision body',
+  'decision',
+  'reference',
+  'manual',
+  'active',
+  'internal',
+  'normal',
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+
+INSERT INTO notes (
+  note_id,
+  workspace_id,
+  title,
+  body_markdown,
+  note_type,
+  library_bucket,
+  library_bucket_source,
+  status,
+  visibility,
+  security_mode,
+  created_at,
+  updated_at
+) VALUES (
+  'note-kind-legacy-client',
+  ${sqlText(workspace.workspace_id)},
+  'Legacy Client Note',
+  'Legacy body',
+  'client',
+  'reference',
+  'manual',
+  'active',
+  'internal',
+  'normal',
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+`);
+
+  const noteKindRows = await querySql(`
+SELECT note_id, note_type
+FROM notes
+WHERE note_id IN ('note-kind-decision', 'note-kind-legacy-client')
+ORDER BY note_id;
+`);
+  assert.deepEqual(noteKindRows, [
+    { note_id: "note-kind-decision", note_type: "decision" },
+    { note_id: "note-kind-legacy-client", note_type: "client" },
+  ]);
+
   const noteRows = await querySql("SELECT library_bucket, library_bucket_source, status FROM notes WHERE note_id = 'note-1';");
   assert.deepEqual(noteRows[0], {
     library_bucket: "active_work",
@@ -278,7 +359,7 @@ INSERT INTO notes (
 function assertLibraryDerivation() {
   assert.equal(
     deriveSuggestedLibraryBucket([{ targetType: "project", targetId: "project-1", clientId: "client-1" }]),
-    NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
+    NOTE_LIBRARY_BUCKETS.ONGOING_AREA,
   );
   assert.equal(
     deriveSuggestedLibraryBucket([{ targetType: "client", targetId: "client-1" }]),
