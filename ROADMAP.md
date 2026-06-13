@@ -192,9 +192,9 @@ Use these decisions for 0.33.5.9:
 
 ### Implementation Boundaries
 
-- [ ] Keep resume state framework-owned under a stable service/route boundary.
+- [x] Keep resume state framework-owned under a stable service/route boundary.
 - [ ] Keep producer modules responsible for deciding which record changes are resumable and for shaping safe source payloads.
-- [ ] Keep read-time permission checks authoritative; resume state snapshots are recovery hints, not access grants.
+- [x] Keep read-time permission checks authoritative; resume state snapshots are recovery hints, not access grants.
 - [ ] Keep Dashboard and Workbench UI consumption deferred to 0.33.7, except for API smoke/regression fixtures needed to prove the contract.
 - [ ] Do not add public API routes in this release.
 - [ ] Do not make Tags, Search, Notifications, Files, or Help infer resume behavior from metadata alone.
@@ -235,18 +235,18 @@ Use these decisions for 0.33.5.9:
 
 ### Version 0.33.5.9.2 - Resume State Service and Read Guards
 
-- [ ] Add framework-owned resume state service.
-- [ ] Add service methods:
-  - [ ] `upsertResumeState(session, payload)`
-  - [ ] `dismissResumeState(session, resumeStateId)`
-  - [ ] `listResumeState(session, query)`
-  - [ ] `removeResumeStateForRecord(workspaceId, moduleId, recordType, recordId)`
-- [ ] Validate workspace/user ownership on every write.
-- [ ] Normalize producer payloads so optional text snapshots are length-limited and safe for browser display.
-- [ ] Treat unknown modules, disabled modules, missing records, deleted records, and permission-denied records as hidden from active default results.
-- [ ] Let archived/completed/finalized records appear only in explicit recent/history-style modes, not primary left-off results.
-- [ ] Add a module-owned read-check resolver contract so Tasks, Lists, Notes, Time Tracking, and future modules can verify target visibility without framework table knowledge.
-- [ ] Ensure resume state never grants access to linked client/project/task/note/list/file labels the reader could not otherwise see.
+- [x] Add framework-owned resume state service.
+- [x] Add service methods:
+  - [x] `upsertResumeState(session, payload)`
+  - [x] `dismissResumeState(session, resumeStateId)`
+  - [x] `listResumeState(session, query)`
+  - [x] `removeResumeStateForRecord(workspaceId, moduleId, recordType, recordId)`
+- [x] Validate workspace/user ownership on every write.
+- [x] Normalize producer payloads so optional text snapshots are length-limited and safe for browser display.
+- [x] Treat unknown modules, disabled modules, missing records, deleted records, and permission-denied records as hidden from active default results.
+- [x] Let archived/completed/finalized records appear only in explicit recent/history-style modes, not primary left-off results.
+- [x] Add a module-owned read-check resolver contract so Tasks, Lists, Notes, Time Tracking, and future modules can verify target visibility without framework table knowledge.
+- [x] Ensure resume state never grants access to linked client/project/task/note/list/file labels the reader could not otherwise see.
 
 ### Version 0.33.5.9.3 - Producer Contract and Event Wiring
 

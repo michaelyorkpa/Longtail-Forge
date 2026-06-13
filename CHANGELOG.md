@@ -1,3 +1,10 @@
+## Version 0.33.5.9.2 - 2026-06-13 11:15 -04:00
+
+- Added the framework-owned `workResumeStateService` with upsert, dismiss, list, and source-record cleanup methods for `work_resume_state`.
+- Added the resume-state read resolver registry so modules can verify record visibility before framework resume rows are returned.
+- Added deterministic read guards for current-user workspace writes, safe snapshot truncation, dismissal refresh after newer producer updates, disabled modules, permission-denied rows, and completed/archived/finalized default filtering.
+- Added `work-resume-state-service-regression.mjs` to the regression suite and bumped the app/package version to `0.33.5.9.2`.
+
 ## Version 0.33.5.9.1 - 2026-06-13 10:55 -04:00
 
 - Added framework-owned `work_resume_state` storage for one resumable source record per workspace/user/module/record, with optional client/project context and recovery-safe snapshot fields.

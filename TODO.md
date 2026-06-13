@@ -13,6 +13,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Follow Notifications
+
+- Follow notifications should override creator notification blocking
+
 ## Mobile Tweaks - Fill this section out after the above section standardizes the modal display
 
 - Projects -> Tasks
