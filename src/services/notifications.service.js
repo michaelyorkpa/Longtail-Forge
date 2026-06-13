@@ -103,17 +103,20 @@ async function unreadCount(session) {
 async function preferences(session) {
   await permissionsService.assertCanInAnyScope(session, "notifications.manage_preferences");
 
-  const [userRows, defaultRows, canManageWorkspaceDefaults] = await Promise.all([
+  const [userRows, displayPreferences, defaultRows, canManageWorkspaceDefaults, configurableEvents] = await Promise.all([
     notificationsRepository.readUserPreferences(session.workspace_id, session.user_id),
+    notificationsRepository.readUserDisplayPreferences(session.workspace_id, session.user_id),
     notificationsRepository.readWorkspaceDefaults(session.workspace_id),
     permissionsService.canInAnyScope(session, "notifications.manage_workspace_defaults"),
+    listConfigurableNotificationEvents(session.workspace_id),
   ]);
   const userPreferenceByEvent = new Map(userRows.map((row) => [row.event_type, row]));
   const workspaceDefaultByEvent = new Map(defaultRows.map((row) => [row.event_type, row]));
 
   return {
     canManageWorkspaceDefaults,
-    events: listConfigurableNotificationEvents().map((event) => {
+    groupingPreferences: shapeUserDisplayPreferences(displayPreferences),
+    events: configurableEvents.map((event) => {
       const userPreference = userPreferenceByEvent.get(event.id);
       const workspaceDefault = workspaceDefaultByEvent.get(event.id);
       const workspaceEnabled = workspaceDefault ? Number(workspaceDefault.enabled) === 1 : event.defaultEnabled !== false;
@@ -125,6 +128,7 @@ async function preferences(session) {
         description: event.description,
         defaultEnabled: event.defaultEnabled !== false,
         defaultPriority: event.defaultPriority || "normal",
+        moduleEnabled: event.moduleEnabled !== false,
         userEnabled: userPreference ? Number(userPreference.enabled) === 1 : workspaceEnabled,
         workspaceEnabled,
         workspacePriority: workspaceDefault?.priority || event.defaultPriority || "normal",
@@ -136,15 +140,20 @@ async function preferences(session) {
 async function savePreferences(session, payload = {}) {
   await permissionsService.assertCanInAnyScope(session, "notifications.manage_preferences");
 
-  const allowedEventIds = new Set(listConfigurableNotificationEvents().map((event) => event.id));
+  const allowedEventIds = new Set((await listConfigurableNotificationEvents(session.workspace_id)).map((event) => event.id));
   const preferenceRows = normalizePreferenceList(payload.preferences || payload.events, allowedEventIds);
   const previousRows = await notificationsRepository.readUserPreferences(session.workspace_id, session.user_id);
+  const displayPreferences = normalizeDisplayPreferences(payload.groupingPreferences || payload.displayPreferences);
   await notificationsRepository.saveUserPreferences(session.workspace_id, session.user_id, preferenceRows);
+  if (displayPreferences) {
+    await notificationsRepository.saveUserDisplayPreferences(session.workspace_id, session.user_id, displayPreferences);
+  }
   await auditService.record({
     action: "notification_preferences_updated",
     changeType: "settings_change",
     metadata: {
       eventTypes: preferenceRows.map((preference) => preference.event_type),
+      ...(displayPreferences ? { groupingMode: displayPreferences.grouping_mode } : {}),
     },
     newValue: preferenceRows,
     previousValue: previousRows.map(notificationPreferenceAuditValue),
@@ -159,7 +168,7 @@ async function savePreferences(session, payload = {}) {
 async function saveWorkspaceDefaults(session, payload = {}) {
   await permissionsService.assertCanInAnyScope(session, "notifications.manage_workspace_defaults");
 
-  const allowedEventIds = new Set(listConfigurableNotificationEvents().map((event) => event.id));
+  const allowedEventIds = new Set((await listConfigurableNotificationEvents(session.workspace_id)).map((event) => event.id));
   const defaults = normalizeWorkspaceDefaultList(payload.defaults || payload.events, allowedEventIds);
   const previousRows = await notificationsRepository.readWorkspaceDefaults(session.workspace_id);
   await notificationsRepository.saveWorkspaceDefaults(session.workspace_id, defaults);
@@ -893,10 +902,19 @@ function normalizeChangedFields(value) {
   return new Set(fields.map((field) => String(field || "").trim()).filter(Boolean));
 }
 
-function listConfigurableNotificationEvents() {
-  return modulesService.listNotificationEvents()
-    .filter((event) => modulesService.getModule(event.moduleId))
-    .sort((left, right) => left.moduleId.localeCompare(right.moduleId) || left.label.localeCompare(right.label));
+async function listConfigurableNotificationEvents(workspaceId) {
+  const events = modulesService.listNotificationEvents()
+    .filter((event) => modulesService.getModule(event.moduleId));
+  const eventsWithStatus = await Promise.all(events.map(async (event) => ({
+    ...event,
+    moduleEnabled: event.moduleId ? await modulesService.canWriteModule(workspaceId, event.moduleId) : true,
+  })));
+
+  return eventsWithStatus.sort((left, right) => (
+    Number(left.moduleEnabled === false) - Number(right.moduleEnabled === false) ||
+    left.moduleId.localeCompare(right.moduleId) ||
+    left.label.localeCompare(right.label)
+  ));
 }
 
 function normalizePreferenceList(items, allowedEventIds) {
@@ -916,6 +934,26 @@ function normalizeWorkspaceDefaultList(items, allowedEventIds) {
       priority: normalizePriority(item.priority || item.workspacePriority),
     }))
     .filter((item) => allowedEventIds.has(item.event_type));
+}
+
+function normalizeDisplayPreferences(source = null) {
+  if (!source || typeof source !== "object") {
+    return null;
+  }
+
+  return {
+    grouping_mode: normalizeGroupingMode(source.grouping_mode || source.groupingMode),
+  };
+}
+
+function shapeUserDisplayPreferences(preferences = null) {
+  return {
+    groupingMode: normalizeGroupingMode(preferences?.groupingMode),
+  };
+}
+
+function normalizeGroupingMode(value) {
+  return ["client_project", "notification_type", "record_type"].includes(value) ? value : "client_project";
 }
 
 function notificationPreferenceAuditValue(row) {

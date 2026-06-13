@@ -245,6 +245,18 @@ ORDER BY event_type;
 `);
 }
 
+async function readUserDisplayPreferences(workspaceId, userId) {
+  const rows = await querySql(`
+SELECT workspace_id, user_id, grouping_mode, created_at, updated_at
+FROM notification_user_display_preferences
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND user_id = ${sqlText(userId)}
+LIMIT 1;
+`);
+
+  return rows[0] ? displayPreferenceRowToAppValue(rows[0]) : null;
+}
+
 async function readWorkspaceDefaults(workspaceId) {
   return querySql(`
 SELECT workspace_id, event_type, enabled, priority, created_at, updated_at
@@ -386,6 +398,32 @@ ON CONFLICT(workspace_id, event_type) DO UPDATE SET
   }
 }
 
+async function saveUserDisplayPreferences(workspaceId, userId, preferences) {
+  const now = new Date().toISOString();
+
+  await runSql(`
+INSERT INTO notification_user_display_preferences (
+  workspace_id,
+  user_id,
+  grouping_mode,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(workspaceId)},
+  ${sqlText(userId)},
+  ${sqlText(preferences.grouping_mode || "client_project")},
+  ${sqlText(now)},
+  ${sqlText(now)}
+)
+ON CONFLICT(workspace_id, user_id) DO UPDATE SET
+  grouping_mode = excluded.grouping_mode,
+  updated_at = excluded.updated_at;
+`);
+
+  return readUserDisplayPreferences(workspaceId, userId);
+}
+
 function notificationRowToAppValue(row) {
   return {
     notification_id: row.notification_id,
@@ -405,6 +443,16 @@ function notificationRowToAppValue(row) {
     read_at: row.read_at || "",
     dismissed_at: row.dismissed_at || "",
     metadata: parseMetadata(row.metadata_json),
+  };
+}
+
+function displayPreferenceRowToAppValue(row) {
+  return {
+    workspace_id: row.workspace_id,
+    user_id: row.user_id,
+    groupingMode: row.grouping_mode || "client_project",
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }
 
@@ -463,6 +511,7 @@ export const notificationsRepository = {
   readBellSummaryForRecipient,
   readById,
   readByIdForRecipient,
+  readUserDisplayPreferences,
   readUserPreferences,
   readSubscription,
   readSubscriptionsForTarget,
@@ -470,6 +519,7 @@ export const notificationsRepository = {
   readWorkspaceDefaults,
   removeSubscription,
   saveSubscription,
+  saveUserDisplayPreferences,
   saveUserPreferences,
   saveWorkspaceDefaults,
 };

@@ -14,6 +14,7 @@ const profileAltEmailInput = document.querySelector("[data-profile-alt-email]");
 const profileTimezoneSelect = document.querySelector("[data-profile-timezone]");
 const saveProfileButton = document.querySelector("[data-save-profile]");
 const notificationPreferencesForm = document.querySelector("[data-user-notification-preferences-form]");
+const notificationGroupingPreferences = document.querySelector("[data-user-notification-grouping-preferences]");
 const notificationPreferenceList = document.querySelector("[data-user-notification-preference-list]");
 const saveNotificationPreferencesButton = document.querySelector("[data-save-notification-preferences]");
 const workspaceCreateForm = document.querySelector("[data-workspace-create-form]");
@@ -93,8 +94,14 @@ async function loadNotificationPreferences() {
   }
 
   try {
+    await window.LongtailForge?.workspaceContextReady;
     const body = await window.LongtailForge.notificationPreferences.loadPreferences();
 
+    window.LongtailForge.notificationPreferences.renderGroupingPreferences(
+      notificationGroupingPreferences,
+      body.groupingPreferences,
+      { workspaceType: window.LongtailForge?.workspaceContext?.workspaceType || "business" },
+    );
     window.LongtailForge.notificationPreferences.renderPreferenceGroups(notificationPreferenceList, body.events, {
       canManageWorkspaceDefaults: false,
       emptyText: "No configurable notification types are available.",
@@ -117,8 +124,9 @@ async function saveNotificationPreferences() {
 
   try {
     const preferences = window.LongtailForge.notificationPreferences.readUserPreferencesPayload(notificationPreferenceList);
+    const groupingPreferences = window.LongtailForge.notificationPreferences.readGroupingPreferencesPayload(notificationGroupingPreferences);
 
-    await window.LongtailForge.notificationPreferences.saveUserPreferences(preferences);
+    await window.LongtailForge.notificationPreferences.saveUserPreferences(preferences, groupingPreferences);
     await loadNotificationPreferences();
     flashButtonSavedState(saveNotificationPreferencesButton, "Notification preferences saved.");
   } catch (error) {

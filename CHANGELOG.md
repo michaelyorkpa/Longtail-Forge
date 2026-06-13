@@ -1,3 +1,12 @@
+## Version 0.33.5.6.4 - 2026-06-12 23:09 -04:00
+
+- Added per-user notification display grouping preferences under Settings -> User, backed by `notification_user_display_preferences`.
+- Grouped the All Notifications page by Client / Project, notification type, or record type using permission-shaped notification payloads.
+- Anchored Notification Type and status chips together in full-page notification rows and added hover titles/accessibility labels to fallback Read/Dismiss action buttons.
+- Sorted disabled-module notification preference groups to the bottom through the Notifications service/shared preference view model without hard-coded module IDs.
+- Expanded notification and fresh-database regressions for grouping persistence, disabled-module sorting, chip placement, migration `059`, and display preference storage.
+- Bumped the app/package version to `0.33.5.6.4`.
+
 ## Version 0.33.5.6.3 - 2026-06-12 22:47 -04:00
 
 - Added priority-aware notification bell summaries so Low unread notifications stay out of the badge count while High/Urgent active notifications turn the bell red.

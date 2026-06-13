@@ -63,21 +63,21 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 #### Version 0.33.5.6.4 - All Notifications Page and Preferences QoL
 
-- [ ] Clean up `notifications.html` notification row chips and actions.
-  - [ ] Align the Notification Type chip to the right, immediately left of the Unread/Read/Dismissed chip.
-  - [ ] Fix the floating Notification Type chip placement so it stays anchored beside the status chip.
-  - [ ] Add hover titles/tooltips to Read and Dismiss icon buttons.
-- [ ] Move disabled modules to the bottom of notification preferences automatically.
-  - [ ] Do not hard-code module order in the preferences UI.
-  - [ ] The notification module should provide the preference list view/model used by Settings -> User.
-- [ ] Add user-adjustable notification grouping preferences under Settings -> User.
-  - [ ] Workspace notifications can be grouped by Client for Business workspaces and Project by default.
-  - [ ] Workspace notifications can be grouped by notification type, such as Updated or Created.
-  - [ ] Workspace notifications can be grouped by record type.
-- [ ] Verification.
-  - [ ] Verify notification chip alignment at desktop and mobile widths.
-  - [ ] Verify disabled-module preferences sort to the bottom without hard-coded module IDs.
-  - [ ] Verify grouping preferences persist and affect notification grouping without leaking inaccessible context.
+- [x] Clean up `notifications.html` notification row chips and actions.
+  - [x] Align the Notification Type chip to the right, immediately left of the Unread/Read/Dismissed chip.
+  - [x] Fix the floating Notification Type chip placement so it stays anchored beside the status chip.
+  - [x] Add hover titles/tooltips to Read and Dismiss icon buttons.
+- [x] Move disabled modules to the bottom of notification preferences automatically.
+  - [x] Do not hard-code module order in the preferences UI.
+  - [x] The notification module provides the preference list view/model used by Settings -> User.
+- [x] Add user-adjustable notification grouping preferences under Settings -> User.
+  - [x] Workspace notifications can be grouped by Client for Business workspaces and Project by default.
+  - [x] Workspace notifications can be grouped by notification type, such as Updated or Created.
+  - [x] Workspace notifications can be grouped by record type.
+- [x] Verification.
+  - [x] Verify notification chip alignment at desktop and mobile widths.
+  - [x] Verify disabled-module preferences sort to the bottom without hard-coded module IDs.
+  - [x] Verify grouping preferences persist and affect notification grouping without leaking inaccessible context.
 
 #### Version 0.33.5.6.5 - Tag Refresh and No Tags Filters
 

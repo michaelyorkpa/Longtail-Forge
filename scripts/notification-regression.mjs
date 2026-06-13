@@ -30,7 +30,7 @@ try {
   await runNotificationApiTests(api, fixtures);
   await runNotificationPreferenceTests(api, fixtures);
   await runNotificationEventTests(fixtures);
-  await runDisabledModuleTests(fixtures);
+  await runDisabledModuleTests(api, fixtures);
 
   console.log(`Notification regression passed ${results.length} checks.`);
 } finally {
@@ -443,20 +443,40 @@ async function runNotificationUiContractTests() {
   check("notification update type labels render on full page and dropdown surfaces", () => {
     assert.match(notificationsScript, /typeBadge\.className = "notification-type-badge"/);
     assert.match(notificationsScript, /typeBadge\.textContent = notificationUpdateTypeLabel\(notification\)/);
+    assert.match(notificationsScript, /badges\.className = "notification-row-badges"/);
+    assert.match(notificationsScript, /badges\.append\(typeBadge, badge\)/);
+    assert.match(notificationsScript, /heading\.append\(title, badges\)/);
     assert.match(navigation, /type\.className = "notification-type-badge"/);
     assert.match(navigation, /type\.textContent = notificationUpdateTypeLabel\(notification\)/);
     assert.match(css, /\.notification-type-badge \{/);
+    assert.match(css, /\.notification-row-badges \{/);
   });
 
   check("notification icon helper failures fall back to plain buttons", () => {
     assert.match(notificationsScript, /try \{[\s\S]*LongtailForge\?\.icons\?\.createIconButton/);
     assert.match(notificationsScript, /Fall back to a plain button so optional icon failures cannot blank the notifications list\./);
+    assert.match(notificationsScript, /button\.title = label/);
+    assert.match(notificationsScript, /button\.setAttribute\("aria-label", label\)/);
+  });
+
+  check("notifications page applies user grouping preferences to rendered rows", () => {
+    assert.match(notificationsScript, /groupingPreferences: \{ groupingMode: "client_project" \}/);
+    assert.match(notificationsScript, /state\.groupingPreferences = body\.groupingPreferences/);
+    assert.match(notificationsScript, /groupNotificationsForDisplay\(filteredNotifications\)\.map\(createNotificationGroup\)/);
+    assert.match(notificationsScript, /function notificationGroupKey\(notification, groupingMode\)/);
+    assert.match(notificationsScript, /groupingMode === "notification_type"/);
+    assert.match(notificationsScript, /groupingMode === "record_type"/);
+    assert.match(css, /\.notification-page-group-title \{/);
   });
 
   check("notification preferences render through shared grouped helper", () => {
     assert.match(notificationPreferences, /function renderPreferenceGroups\(container, events, options = \{\}\)/);
+    assert.match(notificationPreferences, /function renderGroupingPreferences\(container, groupingPreferences = \{\}, options = \{\}\)/);
+    assert.match(notificationPreferences, /function readGroupingPreferencesPayload\(container\)/);
     assert.match(notificationPreferences, /function groupEventsByModule\(events\)/);
     assert.match(notificationPreferences, /notification-preference-group/);
+    assert.match(notificationPreferences, /dataset\.notificationPreferenceModuleEnabled = String\(group\.moduleEnabled !== false\)/);
+    assert.match(notificationPreferences, /Number\(left\.moduleEnabled === false\) - Number\(right\.moduleEnabled === false\)/);
     assert.match(notificationPreferences, /notification-preference-matrix/);
     assert.match(notificationPreferences, /My preference/);
     assert.match(notificationPreferences, /Enable\?/);
@@ -468,15 +488,20 @@ async function runNotificationUiContractTests() {
     assert.match(css, /\.notification-preference-matrix \{/);
     assert.match(css, /\.notification-preference-enable-cell,/);
     assert.match(css, /\.notification-preference-priority-cell \{/);
+    assert.match(css, /\.notification-preference-group\[data-notification-preference-module-enabled="false"\] \{/);
   });
 
   check("user settings exposes the same user notification preferences source", () => {
     assert.match(userSettingsPage, /data-user-notification-preferences-form/);
+    assert.match(userSettingsPage, /data-user-notification-grouping-preferences/);
     assert.match(userSettingsPage, /data-user-notification-preference-list/);
     assert.match(userSettingsPage, /js\/shared\/notification-preferences\.js\?v=3/);
     assert.match(userSettingsScript, /notificationPreferences\.loadPreferences/);
+    assert.match(userSettingsScript, /renderGroupingPreferences/);
+    assert.match(userSettingsScript, /readGroupingPreferencesPayload/);
     assert.match(userSettingsScript, /notificationPreferences\.saveUserPreferences/);
     assert.match(userSettingsScript, /includeWorkspaceDefaults: false/);
+    assert.match(css, /\.notification-grouping-preferences \{/);
   });
 
   check("workspace-disabled notification events cannot be enabled in user preference controls", () => {
@@ -506,6 +531,7 @@ async function runNotificationPreferenceTests(api, fixtures) {
     assert.equal(preferences.status, 200, JSON.stringify(preferences.body));
     assert.ok(preferences.body.events.some((event) => event.id === "task.updated"));
     assert.equal(preferences.body.canManageWorkspaceDefaults, false);
+    assert.equal(preferences.body.groupingPreferences.groupingMode, "client_project");
   });
 
   const adminPreferences = await api.get("/api/notifications/preferences", { cookie: fixtures.sessions.workspaceAdmin });
@@ -515,12 +541,20 @@ async function runNotificationPreferenceTests(api, fixtures) {
   });
 
   const muted = await api.put("/api/notifications/preferences", {
+    groupingPreferences: { groupingMode: "notification_type" },
     preferences: [{ id: "task.updated", enabled: false }],
   }, { cookie: fixtures.sessions.projectUser });
   check("user can mute a notification type", () => {
     assert.equal(muted.status, 200, JSON.stringify(muted.body));
     const taskUpdated = muted.body.events.find((event) => event.id === "task.updated");
     assert.equal(taskUpdated.userEnabled, false);
+    assert.equal(muted.body.groupingPreferences.groupingMode, "notification_type");
+  });
+
+  const groupingPersisted = await api.get("/api/notifications/preferences", { cookie: fixtures.sessions.projectUser });
+  check("user notification grouping preference persists independently from delivery toggles", () => {
+    assert.equal(groupingPersisted.status, 200, JSON.stringify(groupingPersisted.body));
+    assert.equal(groupingPersisted.body.groupingPreferences.groupingMode, "notification_type");
   });
 
   const userPreferenceAuditRows = await querySql(`
@@ -826,7 +860,7 @@ WHERE event_type = 'task.assigned';
   });
 }
 
-async function runDisabledModuleTests(fixtures) {
+async function runDisabledModuleTests(api, fixtures) {
   const beforeRows = await querySql(`
 SELECT COUNT(*) AS count
 FROM notifications
@@ -865,6 +899,16 @@ WHERE event_type = 'developer-example.sample';
 
   check("disabled modules do not create new notifications from events", () => {
     assert.equal(Number(afterRows[0].count), Number(beforeRows[0].count));
+  });
+
+  const preferences = await api.get("/api/notifications/preferences", { cookie: fixtures.sessions.projectUser });
+  check("disabled module notification preferences remain visible but sorted as disabled", () => {
+    assert.equal(preferences.status, 200, JSON.stringify(preferences.body));
+    const developerEvent = preferences.body.events.find((event) => event.id === "developer-example.sample");
+    assert.equal(developerEvent.moduleEnabled, false);
+    const disabledIndex = preferences.body.events.findIndex((event) => event.moduleEnabled === false);
+    const enabledAfterDisabled = preferences.body.events.slice(disabledIndex + 1).some((event) => event.moduleEnabled !== false);
+    assert.equal(enabledAfterDisabled, false);
   });
 }
 

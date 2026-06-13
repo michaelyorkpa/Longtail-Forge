@@ -12,6 +12,7 @@ const state = {
   notifications: [],
   page: 0,
   pageSize: 25,
+  groupingPreferences: { groupingMode: "client_project" },
   preferences: [],
 };
 
@@ -74,9 +75,12 @@ async function loadPreferences() {
   try {
     const body = await preferences.loadPreferences();
     state.preferences = body.events;
+    state.groupingPreferences = body.groupingPreferences || { groupingMode: "client_project" };
     renderPreferences(body.canManageWorkspaceDefaults === true);
+    renderNotifications();
   } catch {
     state.preferences = [];
+    state.groupingPreferences = { groupingMode: "client_project" };
     renderPreferences(false);
   }
 }
@@ -106,9 +110,82 @@ function renderNotifications() {
   });
 
   notificationList.replaceChildren(...(filteredNotifications.length > 0
-    ? filteredNotifications.map(createNotificationRow)
+    ? groupNotificationsForDisplay(filteredNotifications).map(createNotificationGroup)
     : [emptyElement("No notifications")]));
   renderPagination(filteredNotifications.length);
+}
+
+function groupNotificationsForDisplay(notifications) {
+  const groupingMode = normalizeGroupingMode(state.groupingPreferences?.groupingMode);
+  const groups = new Map();
+
+  sortNotificationsForDisplay(notifications).forEach((notification) => {
+    const key = notificationGroupKey(notification, groupingMode);
+    const group = groups.get(key.id) || {
+      id: key.id,
+      label: key.label,
+      notifications: [],
+    };
+
+    group.notifications.push(notification);
+    groups.set(key.id, group);
+  });
+
+  return [...groups.values()];
+}
+
+function createNotificationGroup(group) {
+  const section = document.createElement("section");
+  const heading = document.createElement("h2");
+  const list = document.createElement("div");
+
+  section.className = "notification-page-group";
+  section.dataset.notificationPageGroup = group.id;
+  heading.className = "notification-page-group-title";
+  heading.textContent = group.label;
+  list.className = "notification-page-group-list";
+  list.append(...group.notifications.map(createNotificationRow));
+  section.append(heading, list);
+  return section;
+}
+
+function sortNotificationsForDisplay(notifications) {
+  const priorityOrder = new Map([
+    ["urgent", 0],
+    ["high", 1],
+    ["normal", 2],
+    ["low", 3],
+  ]);
+
+  return [...notifications].sort((left, right) => (
+    (priorityOrder.get(notificationPriority(left)) ?? 2) - (priorityOrder.get(notificationPriority(right)) ?? 2) ||
+    String(right.created_at || "").localeCompare(String(left.created_at || "")) ||
+    String(right.notification_id || "").localeCompare(String(left.notification_id || ""))
+  ));
+}
+
+function notificationGroupKey(notification, groupingMode) {
+  if (groupingMode === "notification_type") {
+    const label = notificationUpdateTypeLabel(notification);
+    return {
+      id: `notification_type:${label}`,
+      label,
+    };
+  }
+
+  if (groupingMode === "record_type") {
+    const label = formatRecordType(notification.target?.recordType || notification.record_type || "notification");
+    return {
+      id: `record_type:${label}`,
+      label,
+    };
+  }
+
+  const contextLabel = notificationContextTitle(notification);
+  return {
+    id: `client_project:${contextLabel || "No project context"}`,
+    label: contextLabel || "No project context",
+  };
 }
 
 function renderPagination(rowCount) {
@@ -152,6 +229,7 @@ function createNotificationRow(notification) {
   const row = document.createElement("article");
   const heading = document.createElement("div");
   const title = notification.url ? document.createElement("a") : document.createElement("span");
+  const badges = document.createElement("div");
   const typeBadge = document.createElement("span");
   const badge = document.createElement("span");
   const body = document.createElement("p");
@@ -164,6 +242,7 @@ function createNotificationRow(notification) {
 
   row.className = `notification-row is-${notification.status || "unread"}`;
   heading.className = "notification-row-heading";
+  badges.className = "notification-row-badges";
 
   title.textContent = displayTitle;
   if (contextTitle) {
@@ -177,7 +256,8 @@ function createNotificationRow(notification) {
   typeBadge.textContent = notificationUpdateTypeLabel(notification);
   badge.className = "notification-status-badge";
   badge.textContent = notification.status || "unread";
-  heading.append(title, typeBadge, badge);
+  badges.append(typeBadge, badge);
+  heading.append(title, badges);
 
   body.textContent = notification.body || "";
   meta.className = "notification-meta";
@@ -211,6 +291,8 @@ function createNotificationActionButton(label, icon, options = {}) {
   const button = document.createElement("button");
   button.type = "button";
   button.textContent = label;
+  button.title = label;
+  button.setAttribute("aria-label", label);
   button.classList.toggle("danger-button", options.danger === true);
   return button;
 }
@@ -252,6 +334,23 @@ function notificationMetaParts(notification) {
 
 function notificationUpdateTypeLabel(notification) {
   return notification.updateTypeLabel || notification.displayType || notification.event_type || "Notification";
+}
+
+function notificationPriority(notification) {
+  const priority = String(notification?.priority || "normal").trim().toLowerCase();
+  return ["low", "normal", "high", "urgent"].includes(priority) ? priority : "normal";
+}
+
+function normalizeGroupingMode(value) {
+  return ["client_project", "notification_type", "record_type"].includes(value) ? value : "client_project";
+}
+
+function formatRecordType(recordType) {
+  return String(recordType || "notification")
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ") || "Notification";
 }
 
 function renderPreferences(canManageWorkspaceDefaults) {

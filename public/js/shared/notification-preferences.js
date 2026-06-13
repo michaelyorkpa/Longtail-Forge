@@ -12,14 +12,18 @@
     return {
       canManageWorkspaceDefaults: body?.canManageWorkspaceDefaults === true,
       events: Array.isArray(body?.events) ? body.events : [],
+      groupingPreferences: normalizeGroupingPreferences(body?.groupingPreferences),
     };
   }
 
-  async function saveUserPreferences(preferences) {
+  async function saveUserPreferences(preferences, groupingPreferences = null) {
     const response = await fetch("/api/notifications/preferences", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ preferences }),
+      body: JSON.stringify({
+        preferences,
+        ...(groupingPreferences ? { groupingPreferences } : {}),
+      }),
     });
     const body = await parseJsonResponse(response);
 
@@ -63,6 +67,39 @@
     });
   }
 
+  function renderGroupingPreferences(container, groupingPreferences = {}, options = {}) {
+    if (!container) {
+      return;
+    }
+
+    const fieldset = document.createElement("fieldset");
+    const legend = document.createElement("legend");
+    const selectLabel = document.createElement("label");
+    const select = document.createElement("select");
+    const helper = document.createElement("p");
+    const workspaceType = options.workspaceType || global.LongtailForge?.workspaceContext?.workspaceType || "business";
+
+    fieldset.className = "notification-grouping-preferences";
+    legend.textContent = "Notification grouping";
+    select.dataset.notificationGroupingMode = "";
+    select.setAttribute("aria-label", "Notification grouping");
+    groupingOptions(workspaceType).forEach((option) => select.append(optionElement(option.value, option.label)));
+    select.value = normalizeGroupingPreferences(groupingPreferences).groupingMode;
+    selectLabel.append("Group notifications", select);
+    helper.className = "muted-text";
+    helper.textContent = "Applies to the All Notifications page.";
+    fieldset.append(legend, selectLabel, helper);
+    container.replaceChildren(fieldset);
+  }
+
+  function readGroupingPreferencesPayload(container) {
+    const groupingMode = container?.querySelector("[data-notification-grouping-mode]")?.value || "client_project";
+
+    return {
+      groupingMode: normalizeGroupingMode(groupingMode),
+    };
+  }
+
   function readUserPreferencesPayload(container) {
     return [...(container?.querySelectorAll("[data-notification-event-id]") || [])].map((row) => {
       const input = row.querySelector("[data-preference-user-enabled]");
@@ -95,6 +132,7 @@
 
     section.className = "notification-preference-group";
     section.dataset.notificationPreferenceModule = group.moduleId;
+    section.dataset.notificationPreferenceModuleEnabled = String(group.moduleEnabled !== false);
     heading.textContent = group.label;
     section.appendChild(heading);
     group.events.forEach((event) => {
@@ -245,6 +283,7 @@
         groups.set(event.moduleId, {
           events: [],
           label: formatModuleLabel(event.moduleId),
+          moduleEnabled: event.moduleEnabled !== false,
           moduleId: event.moduleId,
         });
       }
@@ -252,15 +291,46 @@
       groups.get(event.moduleId).events.push(event);
     });
 
-    return [...groups.values()];
+    return [...groups.values()].sort((left, right) => (
+      Number(left.moduleEnabled === false) - Number(right.moduleEnabled === false) ||
+      left.label.localeCompare(right.label)
+    ));
   }
 
   function normalizeEvents(events) {
     return (Array.isArray(events) ? events : []).map((event) => ({
       ...event,
       id: String(event.id || event.event_type || event.eventType || "").trim(),
+      moduleEnabled: event.moduleEnabled !== false,
       moduleId: String(event.moduleId || event.module_id || "framework").trim() || "framework",
     })).filter((event) => event.id);
+  }
+
+  function normalizeGroupingPreferences(groupingPreferences = {}) {
+    return {
+      groupingMode: normalizeGroupingMode(groupingPreferences?.groupingMode || groupingPreferences?.grouping_mode),
+    };
+  }
+
+  function normalizeGroupingMode(value) {
+    return ["client_project", "notification_type", "record_type"].includes(value) ? value : "client_project";
+  }
+
+  function groupingOptions(workspaceType) {
+    return [
+      {
+        value: "client_project",
+        label: workspaceType === "business" ? "Client / Project" : "Project",
+      },
+      {
+        value: "notification_type",
+        label: "Notification type",
+      },
+      {
+        value: "record_type",
+        label: "Record type",
+      },
+    ];
   }
 
   async function parseJsonResponse(response) {
@@ -302,8 +372,10 @@
 
   root.notificationPreferences = {
     loadPreferences,
+    readGroupingPreferencesPayload,
     readUserPreferencesPayload,
     readWorkspaceDefaultsPayload,
+    renderGroupingPreferences,
     renderPreferenceGroups,
     saveUserPreferences,
     saveWorkspaceDefaults,
