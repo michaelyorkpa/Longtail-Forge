@@ -114,11 +114,13 @@ async function assertArchivedTasksAreNotActiveResumeCandidates(session) {
 
 async function assertTaskViewDialogIncludesResumeFields() {
   const tasksView = await fs.readFile(new URL("../views/protected/tasks.html", import.meta.url), "utf8");
+  const taskDialogScript = await fs.readFile(new URL("../public/js/task-dialog.js", import.meta.url), "utf8");
 
   assert.match(tasksView, /data-task-next-action/, "Tasks view dialog must include the next action field");
   assert.match(tasksView, /data-task-blocked-reason/, "Tasks view dialog must include the blocked reason field");
   assert.match(tasksView, /data-task-resume-note/, "Tasks view dialog must include the resume note field");
-  assert.match(tasksView, /data-task-completion-field/, "Tasks view dialog must include the completion duration field");
+  assert.match(tasksView, /data-task-metadata-ribbon/, "Tasks view dialog must include the metadata ribbon");
+  assert.match(taskDialogScript, /label: "TTC"/, "Tasks dialog must keep completed duration visible as a TTC metadata chip");
 }
 
 async function readSeedSession() {

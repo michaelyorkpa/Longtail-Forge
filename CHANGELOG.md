@@ -1,3 +1,10 @@
+## Version 0.33.5.12.3 - 2026-06-13 17:12 -04:00
+
+- Tightened Add/Edit Task modal spacing and added a compact heading row with notification settings behind an accessible bell button.
+- Added a Task metadata ribbon for status, priority, client, project, due date, due time, and completed-task `TTC:` duration chips.
+- Removed the standalone Time to Completion block; completed or archived task duration now appears as `TTC: days:hours:minutes:seconds` in the ribbon only when applicable.
+- Added `task-modal-compact-layout-regression.mjs`, updated Tasks dialog/style cache busting, marked the 0.33.5.12.3 roadmap slice complete, and bumped the app/package plus Tasks module versions to `0.33.5.12.3`.
+
 ## Version 0.33.5.12.2 - 2026-06-13 17:01 -04:00
 
 - Added Projects -> Tasks bulk due date and due time controls, with separate set/clear behavior for each field.

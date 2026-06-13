@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tasks | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=11">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=12">
   </head>
   <body data-page-title="Tasks">
     <main class="wide-page tasks-page">
@@ -157,12 +157,17 @@
 
       <dialog class="task-detail-dialog" data-task-dialog>
         <form method="dialog" class="task-form" data-task-form>
-          <h2 data-task-dialog-title>Task</h2>
+          <div class="task-dialog-heading">
+            <h2 data-task-dialog-title>Task</h2>
+            <button type="button" data-task-notification-toggle hidden aria-expanded="false" aria-controls="task-notification-panel">Notification settings</button>
+          </div>
 
           <label class="task-title-field">
             Title
             <input type="text" data-task-title required>
           </label>
+
+          <div class="task-metadata-ribbon" data-task-metadata-ribbon aria-label="Task summary"></div>
 
           <label>
             Status
@@ -219,11 +224,6 @@
             Resume note
             <textarea rows="3" data-task-resume-note placeholder="Where did you leave off?"></textarea>
           </label>
-
-          <div class="task-completion-field" data-task-completion-field hidden>
-            <span>Time to completion</span>
-            <strong data-task-completion-time></strong>
-          </div>
 
           <fieldset class="task-checklist-field" data-task-checklist-field>
             <legend>Checklist</legend>
@@ -300,7 +300,7 @@
             <div data-task-notes></div>
           </details>
 
-          <fieldset class="task-notification-field" data-task-notification-field hidden>
+          <fieldset class="task-notification-field" id="task-notification-panel" data-task-notification-field hidden>
             <legend>Notifications</legend>
             <p data-task-notification-status>Follow this task to receive update notifications for yourself.</p>
             <button type="button" data-task-notification-follow>Follow Notifications</button>
@@ -363,7 +363,7 @@
     <script src="js/shared/tags.js"></script>
     <script src="js/shared/file-attachments.js"></script>
     <script src="js/shared/notes-linked-panel.js?v=1"></script>
-    <script src="js/task-dialog.js?v=3"></script>
+    <script src="js/task-dialog.js?v=4"></script>
     <script src="js/tasks.js?v=7"></script>
     <script src="js/footer.js"></script>
   </body>

@@ -3207,16 +3207,16 @@ dialog .form-actions {
 .task-form {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-    padding: 24px;
+    gap: 12px;
+    padding: 20px;
 }
 
-.task-form h2,
+.task-dialog-heading,
 .task-title-field,
+.task-metadata-ribbon,
 .task-next-action-field,
 .task-blocked-reason-field,
 .task-resume-note-field,
-.task-completion-field,
 .task-checklist-field,
 .task-assignee-field,
 .task-recurrence-field,
@@ -3228,27 +3228,50 @@ dialog .form-actions {
     grid-column: 1 / -1;
 }
 
-.task-assignee-field select {
-    min-height: 132px;
-}
-
-.task-completion-field {
+.task-dialog-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 12px;
-    border: 1px solid var(--color-border);
-    background: var(--color-page-bg);
+    min-width: 0;
 }
 
-.task-completion-field span {
-    color: var(--color-muted);
+.task-dialog-heading h2 {
+    margin: 0;
+    min-width: 0;
+}
+
+.task-metadata-ribbon {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 30px;
+    align-items: center;
+}
+
+.task-metadata-chip {
+    max-width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-page-bg);
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.task-metadata-chip.is-completion {
+    font-variant-numeric: tabular-nums;
+}
+
+.task-assignee-field select {
+    min-height: 132px;
 }
 
 .task-checklist-field {
     display: grid;
-    gap: 10px;
+    gap: 8px;
     padding: 12px;
     border: 1px solid var(--color-border);
     border-radius: 8px;
@@ -3282,7 +3305,7 @@ dialog .form-actions {
 .task-timer-field,
 .task-reminder-policy-editor {
     display: grid;
-    gap: 12px;
+    gap: 8px;
 }
 
 .task-reminder-field p,

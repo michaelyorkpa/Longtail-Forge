@@ -265,16 +265,16 @@ help/
 
 ### Version 0.33.5.12.3 - Task Modal Compact Layout and Metadata Ribbon
 
-- [ ] Tighten overall white space between fields in the Add/Edit Task modal.
-- [ ] Add a compact, full-modal-width metadata chip ribbon between the task title field and the main modal heading area.
-- [ ] Include Status, Priority, Client, Project, Due Date, Due Time when applicable, and other confirmed summary fields in the chip ribbon.
-- [ ] Move task notifications to a single bell icon aligned to the right across from the Add/Edit Task heading.
-- [ ] Keep notification settings accessible from that bell without consuming the current large block of modal real estate.
-- [ ] Show Time to Completion only when the task is complete.
-- [ ] Move Time to Completion into the chip ribbon or immediately below the heading/notification row.
-- [ ] Abbreviate Time to Completion as `TTC:` and display `days:hours:minutes:seconds`, for example `TTC: 4:3:15:30`.
-- [ ] Preserve accessible labels and keyboard access for chip and icon controls.
-- [ ] Add or update task dialog regressions for modal rendering, completed-only TTC display, notification bell behavior, and responsive layout.
+- [x] Tighten overall white space between fields in the Add/Edit Task modal.
+- [x] Add a compact, full-modal-width metadata chip ribbon between the task title field and the main modal heading area.
+- [x] Include Status, Priority, Client, Project, Due Date, Due Time when applicable, and other confirmed summary fields in the chip ribbon.
+- [x] Move task notifications to a single bell icon aligned to the right across from the Add/Edit Task heading.
+- [x] Keep notification settings accessible from that bell without consuming the current large block of modal real estate.
+- [x] Show Time to Completion only when the task is complete.
+- [x] Move Time to Completion into the chip ribbon or immediately below the heading/notification row.
+- [x] Abbreviate Time to Completion as `TTC:` and display `days:hours:minutes:seconds`, for example `TTC: 4:3:15:30`.
+- [x] Preserve accessible labels and keyboard access for chip and icon controls.
+- [x] Add or update task dialog regressions for modal rendering, completed-only TTC display, notification bell behavior, and responsive layout.
 
 ### Version 0.33.5.12.4 - Task Modal Two-Column Field Reflow
 

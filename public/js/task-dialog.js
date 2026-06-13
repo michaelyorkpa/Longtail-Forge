@@ -115,6 +115,7 @@
     fields.description.value = task?.description || defaults.description || "";
     updateBlockedReasonState();
     writeTaskCompletionFields(isDuplicate ? null : task);
+    writeTaskMetadataRibbon(isDuplicate ? null : task);
     writeChecklistFields(isDuplicate ? null : task);
     selectAssignees(task?.assignee_ids || (task ? [] : [currentUserId()]));
     writeRecurrenceFields(isDuplicate ? null : task?.recurrenceDetails);
@@ -190,10 +191,10 @@
       notificationField: dialog.querySelector("[data-task-notification-field]"),
       notificationFollow: dialog.querySelector("[data-task-notification-follow]"),
       notificationStatus: dialog.querySelector("[data-task-notification-status]"),
+      notificationToggle: dialog.querySelector("[data-task-notification-toggle]"),
       blockedReason: dialog.querySelector("[data-task-blocked-reason]"),
       blockedReasonField: dialog.querySelector("[data-task-blocked-reason-field]"),
-      completionField: dialog.querySelector("[data-task-completion-field]"),
-      completionTime: dialog.querySelector("[data-task-completion-time]"),
+      metadataRibbon: dialog.querySelector("[data-task-metadata-ribbon]"),
       nextAction: dialog.querySelector("[data-task-next-action]"),
       resumeNote: dialog.querySelector("[data-task-resume-note]"),
       timerDisplay: dialog.querySelector("[data-task-timer-display]"),
@@ -229,6 +230,12 @@
     fields.client?.addEventListener("change", () => populateProjectInput(fields.project.value));
     fields.project?.addEventListener("change", applySelectedProjectTaskDefaults);
     fields.status?.addEventListener("change", updateBlockedReasonState);
+    fields.status?.addEventListener("change", writeTaskMetadataRibbon);
+    fields.priority?.addEventListener("change", writeTaskMetadataRibbon);
+    fields.client?.addEventListener("change", writeTaskMetadataRibbon);
+    fields.project?.addEventListener("change", writeTaskMetadataRibbon);
+    fields.dueDate?.addEventListener("change", writeTaskMetadataRibbon);
+    fields.dueTime?.addEventListener("change", writeTaskMetadataRibbon);
     fields.reminderOverride?.addEventListener("change", updateReminderOverrideState);
     fields.recurring?.addEventListener("change", updateRecurrenceState);
     fields.checklistAdd?.addEventListener("click", addChecklistItem);
@@ -241,6 +248,7 @@
     fields.timerPause?.addEventListener("click", () => saveTaskTimer("paused"));
     fields.timerFinalize?.addEventListener("click", finalizeTaskTimer);
     fields.timerReset?.addEventListener("click", resetTaskTimer);
+    fields.notificationToggle?.addEventListener("click", toggleTaskNotificationPanel);
     fields.notificationFollow?.addEventListener("click", toggleTaskNotificationFollow);
     fields.notesContainer?.addEventListener("notes-linked-panel:link", () => context?.onNotesChanged?.());
     fields.notesContainer?.addEventListener("notes-linked-panel:unlink", () => context?.onNotesChanged?.());
@@ -257,6 +265,7 @@
     icons.decorateButton(fields.timerPause, { icon: "pause", label: "Pause task timer", text: "Pause", iconOnly: false });
     icons.decorateButton(fields.timerFinalize, { icon: "save", label: "Save task timer as time", text: "Save Time", iconOnly: false });
     icons.decorateButton(fields.timerReset, { icon: "restore", label: "Reset task timer", text: "Reset", iconOnly: false, variant: "danger" });
+    icons.decorateButton(fields.notificationToggle, { icon: "bell", label: "Notification settings", title: "Notification settings", iconOnly: true });
   }
 
   function populateFormOptions() {
@@ -299,6 +308,7 @@
     if (projects.some((project) => project.id === selectedProjectId)) {
       fields.project.value = selectedProjectId;
     }
+    writeTaskMetadataRibbon();
   }
 
   function applySelectedProjectTaskDefaults() {
@@ -311,6 +321,7 @@
 
     fields.status.value = taskDefaultStatuses().includes(defaults.status) ? defaults.status : "open";
     fields.priority.value = taskDefaultPriorities().includes(defaults.priority) ? defaults.priority : "normal";
+    writeTaskMetadataRibbon();
   }
 
   async function saveTask(event) {
@@ -465,10 +476,16 @@
 
     const taskId = task?.task_id || "";
     fields.notificationField.hidden = !taskId || !namespace.notificationSubscriptions;
+    if (fields.notificationToggle) {
+      fields.notificationToggle.hidden = !taskId || !namespace.notificationSubscriptions;
+      fields.notificationToggle.setAttribute("aria-expanded", "false");
+    }
 
     if (!taskId || !namespace.notificationSubscriptions) {
       return;
     }
+
+    fields.notificationField.hidden = true;
 
     fields.notificationFollow.disabled = true;
     fields.notificationFollow.textContent = "Loading";
@@ -482,6 +499,16 @@
       fields.notificationFollow.textContent = "Follow Notifications";
       fields.notificationFollow.disabled = true;
     }
+  }
+
+  function toggleTaskNotificationPanel() {
+    if (!fields.notificationField || fields.notificationToggle?.hidden) {
+      return;
+    }
+
+    const nextExpanded = fields.notificationField.hidden;
+    fields.notificationField.hidden = !nextExpanded;
+    fields.notificationToggle.setAttribute("aria-expanded", String(nextExpanded));
   }
 
   async function toggleTaskNotificationFollow() {
@@ -1240,22 +1267,69 @@
   }
 
   function writeTaskCompletionFields(task) {
-    if (!fields?.completionField || !fields?.completionTime) {
+    if (!fields?.metadataRibbon) {
       return;
     }
 
     const show = task?.status === "complete" || task?.status === "archived";
-    fields.completionField.hidden = !show;
 
     if (!show) {
-      fields.completionTime.textContent = "";
+      return;
+    }
+  }
+
+  function writeTaskMetadataRibbon(task = currentTask) {
+    if (!fields?.metadataRibbon) {
       return;
     }
 
-    const metrics = task.completionMetrics || {};
-    fields.completionTime.textContent = metrics.duration_label
-      ? metrics.duration_label
-      : "Not completed";
+    const completionSeconds = task?.status === "complete" || task?.status === "archived"
+      ? task?.completionMetrics?.duration_seconds
+      : null;
+    const chips = [
+      { label: "Status", value: selectedText(fields.status) || formatToken(fields.status?.value) },
+      { label: "Priority", value: selectedText(fields.priority) || formatToken(fields.priority?.value) },
+      usesClientScope() ? { label: "Client", value: selectedText(fields.client) || getWorkspaceScopeLabel() } : null,
+      { label: "Project", value: selectedText(fields.project) || "No project" },
+      fields.dueDate?.value ? { label: "Due Date", value: fields.dueDate.value } : null,
+      fields.dueTime?.value ? { label: "Due Time", value: fields.dueTime.value } : null,
+      Number.isFinite(Number(completionSeconds))
+        ? { label: "TTC", value: formatDaysDuration(Number(completionSeconds)), className: "is-completion" }
+        : null,
+    ].filter((chip) => chip && chip.value);
+
+    fields.metadataRibbon.replaceChildren(...chips.map(createMetadataChip));
+  }
+
+  function createMetadataChip(chip) {
+    const node = document.createElement("span");
+    node.className = ["task-metadata-chip", chip.className].filter(Boolean).join(" ");
+    node.tabIndex = 0;
+    node.textContent = `${chip.label}: ${chip.value}`;
+    node.title = `${chip.label}: ${chip.value}`;
+    return node;
+  }
+
+  function selectedText(select) {
+    return select?.selectedOptions?.[0]?.textContent?.trim() || "";
+  }
+
+  function formatToken(value = "") {
+    return String(value || "")
+      .split("_")
+      .filter(Boolean)
+      .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+      .join(" ");
+  }
+
+  function formatDaysDuration(totalSeconds) {
+    const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainder = seconds % 60;
+
+    return `${days}:${hours}:${minutes}:${remainder}`;
   }
 
   function defaultTaskOptions() {
@@ -1273,8 +1347,9 @@
     return `
       <dialog class="task-detail-dialog" data-task-dialog>
         <form method="dialog" class="task-form" data-task-form>
-          <h2 data-task-dialog-title>Task</h2>
+          <div class="task-dialog-heading"><h2 data-task-dialog-title>Task</h2><button type="button" data-task-notification-toggle hidden aria-expanded="false" aria-controls="task-notification-panel">Notification settings</button></div>
           <label class="task-title-field">Title<input type="text" data-task-title required></label>
+          <div class="task-metadata-ribbon" data-task-metadata-ribbon aria-label="Task summary"></div>
           <label>Status<select data-task-form-status><option value="open">Open</option><option value="in_progress">In Progress</option><option value="blocked">Blocked</option><option value="complete">Complete</option><option value="archived">Archived</option></select></label>
           <label>Priority<select data-task-priority><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
           <label data-client-workspace-control>Client<select data-task-client></select></label>
@@ -1284,7 +1359,6 @@
           <label class="task-next-action-field">Next action<input type="text" maxlength="240" data-task-next-action placeholder="Send draft invoice to CTU."></label>
           <label class="task-blocked-reason-field" data-task-blocked-reason-field hidden>Blocked reason<textarea rows="3" data-task-blocked-reason></textarea></label>
           <label class="task-resume-note-field">Resume note<textarea rows="3" data-task-resume-note placeholder="Where did you leave off?"></textarea></label>
-          <div class="task-completion-field" data-task-completion-field hidden><span>Time to completion</span><strong data-task-completion-time></strong></div>
           <fieldset class="task-checklist-field" data-task-checklist-field><legend>Checklist</legend><p data-task-checklist-status>0 / 0 complete</p><div class="task-checklist-add-row"><input type="text" maxlength="240" data-task-checklist-input aria-label="Checklist item" placeholder="Add checklist item"><button type="button" data-task-checklist-add>Add</button></div><div class="task-checklist-list" data-task-checklist-list></div></fieldset>
           <label class="task-assignee-field">Assignees<select multiple data-task-assignees></select></label>
           <details class="task-recurrence-field" data-task-recurrence-panel><summary>Recurrence</summary><div class="task-recurrence-controls"><label class="inline-option"><input type="checkbox" data-task-recurring>Recurring?</label><button type="button" data-task-recurrence-details disabled>Details</button></div><p data-task-recurrence-summary>Not recurring.</p></details>
@@ -1293,7 +1367,7 @@
           <div class="task-tags-field" data-task-tags></div>
           <div class="task-files-field" data-task-files></div>
           <details class="task-notes-field" data-task-notes-panel><summary>Notes</summary><div data-task-notes></div></details>
-          <fieldset class="task-notification-field" data-task-notification-field hidden><legend>Notifications</legend><p data-task-notification-status>Follow this task to receive update notifications for yourself.</p><button type="button" data-task-notification-follow>Follow Notifications</button></fieldset>
+          <fieldset class="task-notification-field" id="task-notification-panel" data-task-notification-field hidden><legend>Notifications</legend><p data-task-notification-status>Follow this task to receive update notifications for yourself.</p><button type="button" data-task-notification-follow>Follow Notifications</button></fieldset>
           <label class="task-description-field">Description<textarea rows="5" data-task-description></textarea></label>
           <div class="form-actions task-modal-actions"><button type="button" data-copy-task-link hidden>Copy Link</button><button type="button" data-cancel-task>Cancel</button><button type="submit" data-save-task>Save Task</button></div>
         </form>
