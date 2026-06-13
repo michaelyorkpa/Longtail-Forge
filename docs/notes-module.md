@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.5.8.3. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.8.4. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -98,9 +98,11 @@ Note detail reads decorate direct linked context and `note_links` with safe labe
 
 Notes owns the reusable browser helper at `public/js/shared/notes-linked-panel.js`. Other modules should mount `LongtailForge.notesLinkedPanel.mount(container, options)` instead of querying Notes tables or rebuilding note visibility rules.
 
-The helper accepts `targetType`, `targetId`, optional `moduleId`, optional `clientId`, optional `projectId`, optional `readonly`, optional `sort`, and display options such as `title` and `saveFirstMessage`. It calls `/api/notes/for-target` for the service-owned read model, then renders linked notes, visibility/security/status badges, safe note URLs, a create link into `notes.html?targetType=...&targetId=...`, a link-existing-note form, and permitted unlink actions.
+The helper accepts `targetType`, `targetId`, optional `moduleId`, optional `clientId`, optional `projectId`, optional `readonly`, optional `sort`, and display options such as `title`, `emptyMessage`, and `saveFirstMessage`. It calls `/api/notes/for-target` for the service-owned read model, then renders linked notes, visibility/security/status badges, safe note URLs, a create link into `notes.html?targetType=...&targetId=...`, a link-existing-note form, and permitted unlink actions.
 
 `/api/notes/for-target` returns `linkedNotes`, compatibility `notes`, the shaped `target`, `moduleState`, and `actions`. Browser helpers must treat `actions.canCreate`, `actions.canLink`, `actions.canUnlink`, and `actions.readonly` as display hints only; the Notes service still enforces permissions on create/link/unlink writes. When Notes is disabled and historical reads are allowed, the helper shows permitted linked notes read-only and hides create/link/unlink controls.
+
+The Tasks module mounts this helper in the Task detail dialog. Task-created note links include task context plus available project/client context, default Note Kind to `log`, suggest the Active Work Library bucket, and keep the normal `internal` visibility default unless the user changes it. Task list note counts also use the Notes-owned target read model so private, secure, disabled, or inaccessible notes do not leak through badge counts.
 
 ## Markdown And Wiki Links
 

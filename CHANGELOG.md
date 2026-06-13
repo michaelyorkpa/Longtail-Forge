@@ -1,3 +1,10 @@
+## Version 0.33.5.8.4 - 2026-06-13 10:01 -04:00
+
+- Added the shared Notes linked-record panel to the Task detail dialog, including the task-specific empty state, save-first state for unsaved tasks, and permitted create/link/unlink actions.
+- Added task-list linked-note count badges that open the Task detail dialog focused on Notes without exposing inaccessible note counts.
+- Updated task-created note defaults to carry task/project/client context, Note Kind `log`, Active Work Library, and the existing internal visibility default through the Notes editor.
+- Documented the Task Notes integration, updated roadmap decisions/regressions, and bumped the app, Notes module, and Tasks module versions to `0.33.5.8.4`.
+
 ## Version 0.33.5.8.3 - 2026-06-13 09:14 -04:00
 
 - Added the Notes-owned `LongtailForge.notesLinkedPanel` shared browser helper for linked-note panels in Tasks, Client/Projects, Lists, Files, and future modules.

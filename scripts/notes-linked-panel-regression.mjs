@@ -14,6 +14,7 @@ const { NOTE_LIBRARY_BUCKETS, NOTE_SECURITY_MODES, NOTE_VISIBILITIES } = await i
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 try {
+  await assertTaskNotesPanelSourceContract();
   await initializeDatabase();
   const workspace = await readWorkspace();
   const adminSession = await readProtectedSession(workspace.workspace_id);
@@ -27,6 +28,33 @@ try {
 } finally {
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
+}
+
+async function assertTaskNotesPanelSourceContract() {
+  const [tasksPage, workbenchPage, taskDialog, tasksScript, notesScript, linkedPanel] = await Promise.all([
+    fs.readFile(path.join(process.cwd(), "views/protected/tasks.html"), "utf8"),
+    fs.readFile(path.join(process.cwd(), "views/protected/workbench.html"), "utf8"),
+    fs.readFile(path.join(process.cwd(), "public/js/task-dialog.js"), "utf8"),
+    fs.readFile(path.join(process.cwd(), "public/js/tasks.js"), "utf8"),
+    fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8"),
+    fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8"),
+  ]);
+
+  assert.match(tasksPage, /data-task-notes-panel/);
+  assert.match(tasksPage, /data-task-notes/);
+  assert.ok(tasksPage.indexOf("js/shared/notes-linked-panel.js") < tasksPage.indexOf("js/task-dialog.js"), "Tasks page should load Notes helper before task dialog.");
+  assert.ok(workbenchPage.indexOf("js/shared/notes-linked-panel.js") < workbenchPage.indexOf("js/task-dialog.js"), "Workbench should load Notes helper before task dialog.");
+  assert.match(taskDialog, /namespace\.notesLinkedPanel\.mount/);
+  assert.match(taskDialog, /Save the task before adding notes\./);
+  assert.match(taskDialog, /No notes linked to this task\./);
+  assert.match(taskDialog, /focusNotes/);
+  assert.match(tasksScript, /loadNoteCounts/);
+  assert.match(tasksScript, /task-note-count/);
+  assert.match(tasksScript, /focusNotes: true/);
+  assert.match(linkedPanel, /noteKind/);
+  assert.match(linkedPanel, /libraryBucket/);
+  assert.match(notesScript, /typeInput\.value = "log"/);
+  assert.match(notesScript, /libraryInput\.value = "active_work"/);
 }
 
 async function assertLinkedPanelReadModel(session) {

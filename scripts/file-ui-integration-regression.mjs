@@ -55,8 +55,16 @@ assert.ok(
   "Task attachment helper must load before task dialog.",
 );
 assert.ok(
+  tasksPage.indexOf("js/shared/notes-linked-panel.js") < tasksPage.indexOf("js/task-dialog.js"),
+  "Task notes helper must load before task dialog.",
+);
+assert.ok(
   workbenchPage.indexOf("js/shared/file-attachments.js") < workbenchPage.indexOf("js/task-dialog.js"),
   "Workbench task dialog host must load task attachment helper before task dialog.",
+);
+assert.ok(
+  workbenchPage.indexOf("js/shared/notes-linked-panel.js") < workbenchPage.indexOf("js/task-dialog.js"),
+  "Workbench task dialog host must load task notes helper before task dialog.",
 );
 assert.ok(taskDialog.includes("namespace.fileAttachments.mount"), "Task dialog should mount shared file helper.");
 assert.ok(taskDialog.includes('moduleId: "tasks"'), "Task dialog should pass manifest module ID.");

@@ -115,7 +115,7 @@
     }
     if (state.notes.length === 0) {
       const empty = state.panel?.emptyState;
-      list.append(emptyState(empty?.body || empty?.title || "No linked notes yet."));
+      list.append(emptyState(state.options.emptyMessage || empty?.body || empty?.title || "No linked notes yet."));
       return list;
     }
 
@@ -322,6 +322,10 @@
     if (options.projectId) {
       params.set("projectId", options.projectId);
     }
+    if (options.targetType === "task") {
+      params.set("noteKind", "log");
+      params.set("libraryBucket", "active_work");
+    }
     return `notes.html?${params.toString()}`;
   }
 
@@ -348,6 +352,7 @@
   function normalizeOptions(options = {}) {
     return {
       clientId: normalizeText(options.clientId || options.client_id),
+      emptyMessage: normalizeText(options.emptyMessage || options.empty_message),
       moduleId: normalizeText(options.moduleId || options.module_id),
       projectId: normalizeText(options.projectId || options.project_id),
       readonly: Boolean(options.readonly),

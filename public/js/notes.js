@@ -1253,7 +1253,9 @@ async function openNoteFromUrl() {
   if (targetType && targetId) {
     await openEditorForLinkedTarget({
       clientId: params.get("clientId") || params.get("client_id") || "",
+      libraryBucket: params.get("libraryBucket") || params.get("library_bucket") || "",
       moduleId: params.get("moduleId") || params.get("module_id") || "",
+      noteKind: params.get("noteKind") || params.get("note_kind") || "",
       projectId: params.get("projectId") || params.get("project_id") || "",
       targetId,
       targetType,
@@ -1278,6 +1280,19 @@ async function openEditorForLinkedTarget(target) {
   };
   state.editorSelectedTarget = matchedTarget;
   applyContextTarget(matchedTarget);
+  if (target.noteKind && typeInput) {
+    ensureNoteKindOption(target.noteKind);
+    typeInput.value = target.noteKind;
+  } else if (target.targetType === "task" && typeInput) {
+    typeInput.value = "log";
+  }
+  if (target.libraryBucket && libraryInput) {
+    libraryInput.value = target.libraryBucket;
+    populateNoteCollectionOptions(target.libraryBucket);
+  } else if (target.targetType === "task" && libraryInput) {
+    libraryInput.value = "active_work";
+    populateNoteCollectionOptions("active_work");
+  }
   renderEditorContextSelection(matchedTarget);
   updateLibrarySuggestion({ preferredSuggestion: matchedTarget.suggestedLibraryBucket });
 }

@@ -85,23 +85,23 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ### Version 0.33.5.8.4 - Task Notes Panel
 
-- [ ] Add a Notes panel to the Task detail dialog.
-  - [ ] Show notes linked to the current task.
-  - [ ] Show a clear empty state: "No notes linked to this task."
-  - [ ] Allow permitted users to create a note from the task.
-  - [ ] Allow permitted users to link an existing note to the task.
-  - [ ] Allow permitted users to unlink a note from the task.
-  - [ ] Do not show the panel for unsaved tasks except for a "Save the task before adding notes" state.
-- [ ] New task-created notes should:
-  - [ ] Link to the task through `task_id` and/or `note_links`.
-  - [ ] Set `project_id` and `client_id` from the task where available.
-  - [ ] Default Library bucket to Active Work.
-  - [ ] Default Note Kind to `log`, not `task`.
-  - [ ] Default visibility to `internal` unless the user chooses otherwise.
-- [ ] Add linked-note indicators to task list rows/cards after the current task-list UI cleanup.
-  - [ ] Show a compact note count where permitted.
-  - [ ] Do not leak inaccessible note counts.
-  - [ ] Clicking the count opens the task detail dialog and focuses the Notes panel.
+- [x] Add a Notes panel to the Task detail dialog.
+  - [x] Show notes linked to the current task.
+  - [x] Show a clear empty state: "No notes linked to this task."
+  - [x] Allow permitted users to create a note from the task.
+  - [x] Allow permitted users to link an existing note to the task.
+  - [x] Allow permitted users to unlink a note from the task.
+  - [x] Do not show the panel for unsaved tasks except for a "Save the task before adding notes" state.
+- [x] New task-created notes should:
+  - [x] Link to the task through `task_id` and/or `note_links`.
+  - [x] Set `project_id` and `client_id` from the task where available.
+  - [x] Default Library bucket to Active Work.
+  - [x] Default Note Kind to `log`, not `task`.
+  - [x] Default visibility to `internal` unless the user chooses otherwise.
+- [x] Add linked-note indicators to task list rows/cards after the current task-list UI cleanup.
+  - [x] Show a compact note count where permitted.
+  - [x] Do not leak inaccessible note counts.
+  - [x] Clicking the count opens the task detail dialog and focuses the Notes panel.
 
 ### Version 0.33.5.8.5 - Notes Resume Context Hooks and Closeout
 

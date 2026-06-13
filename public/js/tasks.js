@@ -50,6 +50,7 @@ let state = {
   quickFilter: "",
   selectedTaskIds: new Set(),
   attachmentCounts: {},
+  noteCounts: {},
   taskTimers: [],
   tagOptions: [],
 };
@@ -86,7 +87,10 @@ async function loadTasks() {
     }
     const result = await loadCanonicalTasks();
     const timersResult = await loadTaskTimers();
-    const attachmentCounts = await loadAttachmentCounts(result.tasks || []);
+    const [attachmentCounts, noteCounts] = await Promise.all([
+      loadAttachmentCounts(result.tasks || []),
+      loadNoteCounts(result.tasks || []),
+    ]);
     state = {
       ...state,
       tasks: result.tasks || [],
@@ -94,6 +98,7 @@ async function loadTasks() {
       currentUserId: result.currentUserId || state.currentUserId,
       options: result.options || state.options,
       attachmentCounts,
+      noteCounts,
       tagOptions,
     };
     populateFilters();
@@ -117,7 +122,10 @@ async function reloadTaskList() {
   try {
     const result = await loadCanonicalTasks();
     const timersResult = await loadTaskTimers();
-    const attachmentCounts = await loadAttachmentCounts(result.tasks || []);
+    const [attachmentCounts, noteCounts] = await Promise.all([
+      loadAttachmentCounts(result.tasks || []),
+      loadNoteCounts(result.tasks || []),
+    ]);
     state = {
       ...state,
       tasks: result.tasks || [],
@@ -125,6 +133,7 @@ async function reloadTaskList() {
       currentUserId: result.currentUserId || state.currentUserId,
       options: result.options || state.options,
       attachmentCounts,
+      noteCounts,
     };
     populateFilters();
     configureTaskDialog();
@@ -414,6 +423,7 @@ function createTaskRow(task) {
   titleWrap.className = "task-title-wrap";
   titleWrap.appendChild(titleButton);
   appendAttachmentCount(titleWrap, task);
+  appendNoteCount(titleWrap, task);
 
   titleBand.className = "task-density-title";
   titleBand.appendChild(titleWrap);
@@ -589,6 +599,28 @@ async function loadAttachmentCounts(tasks) {
   }
 }
 
+async function loadNoteCounts(tasks) {
+  const counts = {};
+
+  await Promise.all(tasks.map(async (task) => {
+    if (!task.task_id) {
+      return;
+    }
+    try {
+      const result = await api.getJson(`/api/notes/for-target?${new URLSearchParams({
+        moduleId: "tasks",
+        targetType: "task",
+        targetId: task.task_id,
+      }).toString()}`, { cache: "no-store" });
+      counts[task.task_id] = Number(result.count) || 0;
+    } catch {
+      counts[task.task_id] = 0;
+    }
+  }));
+
+  return counts;
+}
+
 function appendAttachmentCount(target, task) {
   const count = Number(state.attachmentCounts[task.task_id] || 0);
 
@@ -600,6 +632,23 @@ function appendAttachmentCount(target, task) {
 
   chip.className = "task-attachment-count";
   chip.textContent = `${count} file${count === 1 ? "" : "s"}`;
+  target.appendChild(chip);
+}
+
+function appendNoteCount(target, task) {
+  const count = Number(state.noteCounts[task.task_id] || 0);
+
+  if (count <= 0) {
+    return;
+  }
+
+  const chip = document.createElement("button");
+
+  chip.type = "button";
+  chip.className = "task-note-count";
+  chip.textContent = `${count} note${count === 1 ? "" : "s"}`;
+  chip.title = "Open task notes";
+  chip.addEventListener("click", () => openTaskDialog(task, { focusNotes: true }));
   target.appendChild(chip);
 }
 
@@ -660,7 +709,11 @@ function duplicateTask(task) {
 function openTaskDialog(task = null, options = {}) {
   state.editingTaskId = options.duplicate === true ? "" : task?.task_id || "";
   configureTaskDialog();
-  return window.LongtailForge.tasksDialog.open({ duplicate: options.duplicate === true, task });
+  return window.LongtailForge.tasksDialog.open({
+    duplicate: options.duplicate === true,
+    focusNotes: options.focusNotes === true,
+    task,
+  });
 }
 
 function configureTaskDialog() {
@@ -674,6 +727,7 @@ function configureTaskDialog() {
     },
     onAttachmentsChanged: refreshTaskAttachmentCounts,
     onAttachmentsRefreshed: refreshTaskAttachmentCounts,
+    onNotesChanged: refreshTaskNoteCounts,
     options: state.options,
     setStatus,
     tagOptions: state.tagOptions,
@@ -684,6 +738,11 @@ function configureTaskDialog() {
 
 async function refreshTaskAttachmentCounts() {
   state.attachmentCounts = await loadAttachmentCounts(state.tasks);
+  renderTasks();
+}
+
+async function refreshTaskNoteCounts() {
+  state.noteCounts = await loadNoteCounts(state.tasks);
   renderTasks();
 }
 

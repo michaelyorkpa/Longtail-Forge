@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tasks | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=10">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=11">
   </head>
   <body data-page-title="Tasks">
     <main class="wide-page tasks-page">
@@ -279,6 +279,11 @@
 
           <div class="task-files-field" data-task-files></div>
 
+          <details class="task-notes-field" data-task-notes-panel>
+            <summary>Notes</summary>
+            <div data-task-notes></div>
+          </details>
+
           <fieldset class="task-notification-field" data-task-notification-field hidden>
             <legend>Notifications</legend>
             <p data-task-notification-status>Follow this task to receive update notifications for yourself.</p>
@@ -341,8 +346,9 @@
     <script src="js/shared/timezones.js"></script>
     <script src="js/shared/tags.js"></script>
     <script src="js/shared/file-attachments.js"></script>
-    <script src="js/task-dialog.js?v=2"></script>
-    <script src="js/tasks.js?v=5"></script>
+    <script src="js/shared/notes-linked-panel.js?v=1"></script>
+    <script src="js/task-dialog.js?v=3"></script>
+    <script src="js/tasks.js?v=6"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

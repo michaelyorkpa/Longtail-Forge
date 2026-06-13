@@ -2528,7 +2528,8 @@ button.danger-button {
     color: var(--color-danger);
 }
 
-.task-attachment-count {
+.task-attachment-count,
+.task-note-count {
     display: inline-flex;
     align-items: center;
     min-height: 22px;
@@ -2540,6 +2541,26 @@ button.danger-button {
     font-size: 13px;
     line-height: 1.2;
     white-space: nowrap;
+}
+
+.task-note-count {
+    background: transparent;
+    cursor: pointer;
+}
+
+.task-notes-field {
+    padding: 10px 0;
+    border-top: 1px solid var(--color-border);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.task-notes-field summary {
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.task-notes-field .notes-linked-panel {
+    margin-top: 10px;
 }
 
 .task-scope-cell,

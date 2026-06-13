@@ -34,7 +34,7 @@ try {
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.5.8.3");
+  assert.equal(notesModule.version, "0.33.5.8.4");
   assert.ok(notesModule.navigation.some((item) => item.href === "notes.html" && item.parent === "projects.html"));
   assert.ok(notesModule.protectedViews.some((view) => view.file === "notes.html" && view.allowDisabledRead === true));
   assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/notes.js"));
@@ -66,7 +66,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=1/);
-  assert.match(html, /css\/longtail-forge\.css\?v=20/);
+  assert.match(html, /css\/longtail-forge\.css\?v=21/);
   assert.match(html, /Note Kind/);
   assert.match(html, /<option value="decision">Decision<\/option>/);
   assert.match(html, /<option value="procedure">Procedure<\/option>/);
@@ -79,7 +79,7 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(noteKindSelect, /<option value="task">Task<\/option>/);
   assert.doesNotMatch(noteKindSelect, /<option value="ticket">Ticket<\/option>/);
   assert.doesNotMatch(noteKindSelect, /<option value="user">User<\/option>/);
-  assert.match(html, /js\/notes\.js\?v=10/);
+  assert.match(html, /js\/notes\.js\?v=11/);
   assert.match(html, /data-note-context-target-type/);
   assert.match(html, /data-note-context-search/);
   assert.match(html, /data-note-context-results/);

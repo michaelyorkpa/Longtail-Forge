@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.5.0.7. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.5.8.4. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -19,7 +19,11 @@ The task dialog includes:
 - resume note
 - completion duration for completed or archived records
 - lightweight checklist controls
-- recurrence, reminders, tags, files, notifications, description, and task timer controls
+- recurrence, reminders, tags, files, notes, notifications, description, and task timer controls
+
+The task dialog includes a Notes panel mounted through the Notes-owned linked-record helper. Saved tasks show notes linked through task context or `note_links`, permitted create/link/unlink actions, and the empty state "No notes linked to this task." Unsaved tasks show "Save the task before adding notes." New notes created from a task carry task context, available project/client context, Note Kind `log`, the Active Work Library suggestion, and the normal internal visibility default unless the user changes it.
+
+Task list rows show compact linked-note count badges where the current user may read linked notes. Clicking a note count opens the Task detail dialog focused on the Notes panel. Counts come from the Notes target read model, so inaccessible private, secure, disabled, or otherwise unreadable notes do not leak through task-row metadata.
 
 Tasks do not expose a task delete workflow in the shipped browser or public API surface. Archive and restore are the lifecycle actions for inactive task history.
 
@@ -74,5 +78,6 @@ Core regression coverage for the current Tasks QoL line includes:
 - `scripts/task-list-density-regression.mjs`
 - `scripts/task-qol-closeout-regression.mjs`
 - `scripts/task-timer-status-regression.mjs`
+- `scripts/notes-linked-panel-regression.mjs`
 
-The closeout regression verifies task reads, summaries, Workbench items, search documents, internal event metadata, inactive-task resume candidacy, inaccessible-task boundaries, Help declarations, and this developer handoff.
+The closeout regression verifies task reads, summaries, Workbench items, search documents, internal event metadata, inactive-task resume candidacy, inaccessible-task boundaries, Help declarations, and this developer handoff. The linked-panel regression verifies the Task dialog Notes panel contract, task-created note defaults, and task note-count source wiring.
