@@ -83,7 +83,7 @@ ORDER BY record_id;
   });
 
   await check("Help article pages are searchable separately from other record types", async () => {
-    const response = await api.get("/api/search?text=framework-owned&recordType=help_article");
+    const response = await api.get("/api/search?text=in-app%20product%20manual&recordType=help_article");
 
     assert.equal(response.status, 200);
     assert.deepEqual(response.body.query.recordTypes, ["help_article"]);

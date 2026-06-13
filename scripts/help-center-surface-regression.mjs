@@ -88,7 +88,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     assert.equal(bySlug.article.id, "framework.help-center");
     assert.equal(byId.article.bodyFormat, "markdown");
     assert.equal(byId.article.bodyMarkdown, byId.article.body);
-    assert.match(byId.article.body, /framework-owned surface/);
+    assert.match(byId.article.body, /in-app product manual/);
     assert.equal(byId.article.section.id, "framework.help-center");
     assert.equal(bySlug.article.slug, "help-center");
   });

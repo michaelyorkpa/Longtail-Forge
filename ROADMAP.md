@@ -2,209 +2,17 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.9 - Work Resume State Foundation
-
-Decision:
-Work resume state is framework-owned recovery infrastructure. It records where a user left off across enabled modules without making Dashboard, Workbench, Tasks, Lists, Notes, Files, Time Tracking, or future Tickets own separate resume systems.
-
-This release should add backend storage, service contracts, safe update hooks, a protected browser read API, and regressions only. The user-facing guided Workbench, "Where I left off" cards, focus-mode UI, and ranking polish remain deferred to 0.33.7.
-
-### Questions and Design Clarifications
-
-- [x] Confirm whether resume state rows are created only for the current user who performed the work in 0.33.5.9, with assigned/shared/follower-based resume suggestions deferred until Workbench ranking matures.
-- [x] Confirm whether dismissing a resume candidate hides that row until the producer writes a newer `last_worked_at`/`updated_at`, instead of permanently muting the underlying record.
-- [x] Confirm whether initial ranking should be deterministic and rule-based only: active timers first, blocked/stale work when explicitly requested, then recent updated work by due date, priority, and last-worked time. No AI or opaque scoring in this foundation pass.
-- [x] Confirm whether producer updates should flow through framework event subscriptions where events already exist, with direct service calls allowed only where no safe event exists yet.
-- [x] Confirm whether private Notes are excluded from global resume-state storage entirely in 0.33.5.9, even for the note owner, to keep the first contract conservative.
-- [x] Confirm whether `handoff_note`, `next_action`, and `blocked_reason` snapshots are allowed only when supplied by the source module as already permission-safe fields, not copied from freeform private/secure note body text.
-
-Use these decisions for 0.33.5.9:
-
-1. Resume state rows should be created only for the current user who performed the work in this foundation pass.
-
-   Do not create resume-state rows for assignees, followers, watchers, shared users, client users, or other collaborators yet. Assigned/shared/follower-based resume suggestions should be deferred until Workbench ranking and notification semantics mature in 0.33.7 or later.
-
-   For now, resume state means: “where this user appears to have left off,” not “all work this user might care about.”
-
-2. Dismissing a resume candidate should hide the current row until the source record receives a newer producer update.
-
-   Dismissal should not permanently mute the underlying task/list/note/timer/source record. Treat dismissal as “not this stale suggestion anymore,” not “never show this record again.”
-
-   Implementation guidance:
-   - Store `dismissed_at`.
-   - Default `left_off` results should hide dismissed rows.
-   - A producer update with newer `last_worked_at` and/or `updated_at` should make the row eligible again.
-   - If needed, store a dismissal comparison value such as `dismissed_source_updated_at` or compare against the row’s producer-maintained `last_worked_at`.
-
-3. Initial ranking should be deterministic and rule-based only.
-
-   Do not add AI ranking, opaque scoring, embeddings, inferred intent, or “smart” priority math in 0.33.5.9. The first pass should be debuggable and explainable.
-
-   Use a simple foundation order:
-   - Active timers first.
-   - Blocked/stale work only when explicitly requested by mode/filter.
-   - Then recent updated work, shaped by due date, priority, and last-worked time.
-   - Completed, archived, finalized, deleted, disabled-module, and permission-denied records should not appear in primary left-off results.
-
-   `resume_rank_hint` may exist as a producer hint, but it should not become an opaque global scoring system yet.
-
-4. Producer updates should prefer framework event subscriptions wherever safe events already exist.
-
-   Resume state should listen to existing module lifecycle events when those events already contain permission-safe, recovery-safe context.
-
-   Direct service calls are allowed only where no safe event exists yet. When direct calls are used, leave a clear TODO to replace them with event-based producer wiring once the owning module emits an appropriate event.
-
-   The goal is to avoid each module inventing its own resume subsystem while still allowing this release to ship without waiting on perfect event coverage.
-
-5. Private Notes should be excluded from global resume-state storage entirely in 0.33.5.9.
-
-   Exclude private Notes even for the note owner in this foundation pass. This keeps the first resume contract conservative and avoids turning global recovery infrastructure into a second private-note surface.
-
-   Non-private Active Work notes may participate as safe supporting resume context where permitted. Private Notes should not create global resume rows, title snapshots, body previews, hidden counts, or “something private exists” hints.
-
-6. `handoff_note`, `next_action`, and `blocked_reason` snapshots are allowed only when supplied by the source module as already permission-safe fields.
-
-   Do not mine, summarize, copy, or infer these fields from freeform private note bodies, secure note bodies, encrypted content, note excerpts, rendered HTML, comments, attachments, or other unstructured private/secure text.
-
-   These fields should come from explicit producer-owned fields that are already safe for browser display to the current user. The resume service may truncate and normalize them, but it should not decide that arbitrary note/body content is safe.
-
-### Implementation Boundaries
-
-- [x] Keep resume state framework-owned under a stable service/route boundary.
-- [x] Keep producer modules responsible for deciding which record changes are resumable and for shaping safe source payloads.
-- [x] Keep read-time permission checks authoritative; resume state snapshots are recovery hints, not access grants.
-- [x] Keep Dashboard and Workbench UI consumption deferred to 0.33.7, except for API smoke/regression fixtures needed to prove the contract.
-- [x] Do not add public API routes in this release.
-- [x] Do not make Tags, Search, Notifications, Files, or Help infer resume behavior from metadata alone.
-
-### Version 0.33.5.9.1 - Resume State Storage
-
-- [x] Add framework-owned `work_resume_state` storage.
-- [x] Each row represents one resumable record for one user in one workspace.
-- [x] Add a unique active-row constraint for `workspace_id`, `user_id`, `module_id`, `record_type`, and `record_id` where practical.
-- [x] Add indexes for workspace/user default listing, module/record cleanup, client/project filtering, dismissed filtering, and last-worked sorting.
-- [x] Suggested fields:
-  - [x] `resume_state_id`
-  - [x] `workspace_id`
-  - [x] `user_id`
-  - [x] `module_id`
-  - [x] `record_type`
-  - [x] `record_id`
-  - [x] `client_id` optional
-  - [x] `project_id` optional
-  - [x] `source_url`
-  - [x] `title_snapshot`
-  - [x] `context_label_snapshot`
-  - [x] `last_action_type`
-  - [x] `last_action_label`
-  - [x] `last_worked_at`
-  - [x] `handoff_note`
-  - [x] `next_action`
-  - [x] `blocked_reason`
-  - [x] `status_snapshot`
-  - [x] `priority_snapshot`
-  - [x] `due_at_snapshot`
-  - [x] `resume_rank_hint`
-  - [x] `metadata_json`
-  - [x] `created_at`
-  - [x] `updated_at`
-  - [x] `dismissed_at` optional
-  - [x] `dismissed_source_updated_at` optional
-
-### Version 0.33.5.9.2 - Resume State Service and Read Guards
-
-- [x] Add framework-owned resume state service.
-- [x] Add service methods:
-  - [x] `upsertResumeState(session, payload)`
-  - [x] `dismissResumeState(session, resumeStateId)`
-  - [x] `listResumeState(session, query)`
-  - [x] `removeResumeStateForRecord(workspaceId, moduleId, recordType, recordId)`
-- [x] Validate workspace/user ownership on every write.
-- [x] Normalize producer payloads so optional text snapshots are length-limited and safe for browser display.
-- [x] Treat unknown modules, disabled modules, missing records, deleted records, and permission-denied records as hidden from active default results.
-- [x] Let archived/completed/finalized records appear only in explicit recent/history-style modes, not primary left-off results.
-- [x] Add a module-owned read-check resolver contract so Tasks, Lists, Notes, Time Tracking, and future modules can verify target visibility without framework table knowledge.
-- [x] Ensure resume state never grants access to linked client/project/task/note/list/file labels the reader could not otherwise see.
-
-### Version 0.33.5.9.3 - Producer Contract and Event Wiring
-
-- [x] Add a framework producer helper or contract for safe resume-state payloads.
-- [x] Define allowed source fields, forbidden fields, truncation rules, status normalization, and deletion/removal behavior.
-- [x] Prefer subscribing to existing safe module events for create/update/status/timer/link lifecycle changes.
-- [x] Add direct producer integration only where no safe event exists yet, and leave TODOs to replace it with events when the owning module emits them.
-- [x] Reuse existing event summary/context helpers where they already produce recovery-safe labels.
-- [x] Add defensive no-op behavior when a producer module is disabled, absent, or unable to shape a safe payload.
-
-### Version 0.33.5.9.4 - Initial Resume State Producers
-
-- [x] Tasks should update resume state when:
-  - [x] Task is created or updated by the current user.
-  - [x] Task status changes.
-  - [x] Task timer starts, pauses, finalizes, or is discarded.
-  - [x] Task checklist changes.
-  - [x] Task `next_action`, `blocked_reason`, or `handoff_note` changes.
-- [x] Lists should update resume state when:
-  - [x] List is created or updated.
-  - [x] List item is checked/unchecked/completed/updated/reordered.
-  - [x] List is linked to or unlinked from a task/project/client/note.
-  - [x] List is completed/reopened/finalized/archived/restored/deleted.
-- [x] Notes should update resume state when:
-  - [x] Active Work note is created or edited.
-  - [x] Note is linked to a task/project/list/client.
-  - [x] Note is archived/restored/deleted.
-  - [x] Secure/private notes must not write body/excerpt content into resume state.
-- [x] Time Tracking should update resume state when:
-  - [x] Manual timer starts/pauses/finalizes/discards.
-  - [x] Sourced task timer starts/pauses/finalizes/discards.
-  - [x] Resume state preserves source metadata without making Time Tracking own the source record.
-  - [x] Active timer rows remain Time Tracking-owned; resume state stores only recovery snapshots and source references.
-
-### Version 0.33.5.9.5 - Protected Resume State API
-
-- [x] Add protected browser API route for resume state reads.
-  - [x] Suggested route: `GET /api/work-resume`
-  - [x] Support filters:
-    - [x] `mode=recent`
-    - [x] `mode=left_off`
-    - [x] `mode=active`
-    - [x] `module_id`
-    - [x] `client_id`
-    - [x] `project_id`
-    - [x] `record_type`
-  - [x] Return permission-shaped rows only.
-  - [x] Do not add public API routes in this release.
-- [x] Add protected browser API route to dismiss a resume candidate.
-  - [x] Suggested route: `POST /api/work-resume/:resumeStateId/dismiss`
-- [x] Add browser-safe response fields for future Workbench consumers without building the Workbench UI in this pass.
-- [x] Keep empty states generic so inaccessible private/secure/deleted/disabled records do not leak existence.
-
-### Version 0.33.5.9.6 - Regressions, Docs, and Closeout
-
-- [x] Resume state cannot cross workspace boundaries.
-- [x] Resume state cannot expose records the user can no longer read.
-- [x] Disabled modules hide active resume state safely.
-- [x] Deleted records are removed from active resume results.
-- [x] Completed/archived/finalized records are not ranked as primary active work.
-- [x] Private notes do not leak title/body/counts to unauthorized users.
-- [x] Secure notes never write decrypted body, excerpt, rendered HTML, or encryption metadata into resume state.
-- [x] List access does not grant linked task/note/project/client access through resume state.
-- [x] Task/list/note/timer updates produce deterministic resume state rows.
-- [x] Dismissed resume rows do not appear in default "left off" results.
-- [x] Dismissed rows become eligible again after a newer producer update if that clarification is accepted.
-- [x] Update developer/module docs for the resume-state producer contract and read-check resolver boundary.
-- [x] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive only during the actual implementation/closeout pass.
-
 ## Version 0.33.5.10 - Help Center Re-work
 
 ### Questions and Design Clarifications
 
-- [ ] Confirm the editable Help source root should be `help/` at the repo root, with framework articles under `help/framework/` and first-party module articles under `help/modules/<module-id>/`.
-- [ ] Confirm `help/toc.md` should own the left navigation order, nesting, collapsible groups, and default first article instead of deriving the visible order only from manifest `sortOrder` values.
-- [ ] Confirm whether `toc.md` links should point to article Markdown files directly, for example `- [Getting Started](framework/getting-started.md)`, while headings without links act as collapsible navigation groups.
-- [ ] Confirm the first non-empty line of `help/toc.md` should identify the default opening article by link or article path. If omitted or invalid, Help should fall back to Help Center, then Getting Started, then the first readable article.
-- [ ] Confirm Markdown support should stay intentionally simple in this pass: headings, paragraphs, lists, links, inline code, code fences, emphasis, and tables if the existing Markdown helper can support them safely.
-- [ ] Confirm Help content remains repo-authored product/module documentation only. In-app editing, rich authoring, version history, workspace-authored articles, and publishing workflows remain future Knowledge Base or later Help work.
-- [ ] Confirm Help search should index the Markdown-derived article text and re-index when Help search rebuilds run, without adding live file watching in this pass.
+- [x] Confirm the editable Help source root should be `help/` at the repo root, with framework articles under `help/framework/` and first-party module articles under `help/modules/<module-id>/`.
+- [x] Confirm `help/toc.md` should own the left navigation order, nesting, collapsible groups, and default first article instead of deriving the visible order only from manifest `sortOrder` values.
+- [x] Confirm whether `toc.md` links should point to article Markdown files directly, for example `- [Getting Started](framework/getting-started.md)`, while headings without links act as collapsible navigation groups.
+- [x] Confirm the first non-empty line of `help/toc.md` should identify the default opening article by link or article path. If omitted or invalid, Help should fall back to Help Center, then Getting Started, then the first readable article.
+- [x] Confirm Markdown support should stay intentionally simple in this pass: headings, paragraphs, lists, links, inline code, code fences, emphasis, and tables if the existing Markdown helper can support them safely.
+- [x] Confirm Help content remains repo-authored product/module documentation only. In-app editing, rich authoring, version history, workspace-authored articles, and publishing workflows remain future Knowledge Base or later Help work.
+- [x] Confirm Help search should index the Markdown-derived article text and re-index when Help search rebuilds run, without adding live file watching in this pass.
 
 ### Accepted Planning Constraints
 
@@ -359,13 +167,13 @@ Use these decisions for 0.33.5.10:
 
 ### Version 0.33.5.10.6 - Help Content Pass and Closeout
 
-- [ ] Add or revise Help Center and Getting Started Markdown articles.
-- [ ] Help Center should explain what framework, first-party modules, and third-party modules are.
-- [ ] Getting Started should explain the key Longtail Forge concepts, how they are linked, and what makes the product context-preserving.
-- [ ] Review framework Help articles for current behavior only.
-- [ ] Review Time Tracking, Tasks, Lists, Notes, Files, Tags, Search, Notifications, Settings, and module Help coverage where articles already exist.
-- [ ] Update developer docs for the Markdown Help contribution workflow.
-- [ ] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive only during the actual implementation/closeout pass.
+- [x] Add or revise Help Center and Getting Started Markdown articles.
+- [x] Help Center should explain what framework, first-party modules, and third-party modules are.
+- [x] Getting Started should explain the key Longtail Forge concepts, how they are linked, and what makes the product context-preserving.
+- [x] Review framework Help articles for current behavior only.
+- [x] Review Time Tracking, Tasks, Lists, Notes, Files, Tags, Search, Notifications, Settings, and module Help coverage where articles already exist.
+- [x] Update developer docs for the Markdown Help contribution workflow.
+- [x] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive only during the actual implementation/closeout pass.
 
 ### Potential Help Directory Structure
 
@@ -1780,4 +1588,3 @@ The Creator studio tool can be much richer if it pushes content out to these pla
   - [ ] Launch website
 
 - [ ] Launch Social Media
-

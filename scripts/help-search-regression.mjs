@@ -71,7 +71,7 @@ try {
     assert.ok(rows.every((row) => row.record_type === "help_article"));
     assert.ok(rows.every((row) => row.source === "Help"));
     assert.ok(helpCenterRow, "framework Help Center article should be indexed");
-    assert.match(helpCenterRow.body, /framework-owned surface/);
+    assert.match(helpCenterRow.body, /in-app product manual/);
     assert.match(helpCenterRow.body, new RegExp(escapeRegExp(helpCenterText.slice(0, 80))));
     assert.doesNotMatch(helpCenterRow.body, /^#\s/m);
     assert.doesNotMatch(helpCenterRow.body, /\[[^\]]+]\([^)]+\)/);
@@ -83,7 +83,7 @@ try {
   const api = createApi(baseUrl, session.sessionId);
 
   await check("GET /api/search returns Help articles without raw body text", async () => {
-    const response = await api.get("/api/search?text=framework-owned&recordType=help_article");
+    const response = await api.get("/api/search?text=in-app%20product%20manual&recordType=help_article");
 
     assert.equal(response.status, 200);
     assert.deepEqual(response.body.query.recordTypes, ["help_article"]);

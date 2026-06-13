@@ -192,7 +192,7 @@ async function assertNotesHelpContribution() {
     "file attachments",
     "Collections are classification metadata",
     "Links make a note easier to find",
-    "supporting context for future resume work surfaces",
+    "supporting context for resumable work",
     "Secure note titles are visible",
     "not zero-knowledge",
   ]) {

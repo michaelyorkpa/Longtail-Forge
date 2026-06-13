@@ -1,3 +1,10 @@
+## Version 0.33.5.10.6 - 2026-06-13 14:01 -04:00
+
+- Expanded Help Center and Getting Started Markdown content to explain framework Help, first-party module Help, third-party module ownership, linked work context, and Longtail Forge's context-preserving workflow model.
+- Reviewed existing framework and module Help articles for current-state wording, replacing future-work references in task and note Help with implemented resume-context behavior.
+- Updated developer documentation for the Markdown Help contribution workflow, including `help/` source files, stable `contentPath` values, `help/toc.md`, Markdown rendering, and search rebuild expectations.
+- Added Help content regression coverage for the closeout article themes, marked the 0.33.5.10.6 roadmap slice complete, archived the older completed 0.33.5.9 roadmap section, and bumped the app/package version to `0.33.5.10.6`.
+
 ## Version 0.33.5.10.5 - 2026-06-13 13:51 -04:00
 
 - Updated Help search document creation so indexed Help bodies use Markdown-derived plain text loaded through the Help service instead of raw Markdown markup.

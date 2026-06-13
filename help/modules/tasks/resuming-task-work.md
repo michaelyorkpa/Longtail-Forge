@@ -2,4 +2,4 @@ Tasks are commitments and outcomes. A task can carry a next action, blocked reas
 
 Use Next action for the immediate step, Blocked reason when work cannot continue, and Resume note for where the work paused. Checklists keep lightweight progress inside the task. Parent/child task links can show when incomplete child work is blocking a parent task. Completed and archived tasks remain readable history and are not treated as active resume candidates by default.
 
-Tasks expose this context through task reads, summaries, Workbench task items, search, audit, and internal task event metadata. The global resume-state service, ranking, dismissal, and cross-module resume feed are future framework work; current Tasks behavior supplies safe source context for those consumers without owning the future framework surface.
+Tasks expose this context through task reads, summaries, Workbench task items, search, audit, and internal task event metadata. Resume-state rows use the task's safe context fields and read checks so completed, archived, inaccessible, or hidden task records do not appear as active work to resume.

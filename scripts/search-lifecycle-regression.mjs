@@ -58,7 +58,7 @@ await checkAsync("initial searchable modules populate workspace-scoped index row
   const helpCenterRow = firstRows.find((row) => row.module_id === "framework" && row.record_type === "help_article" && row.record_id === "framework.help-center");
   assert.ok(helpCenterRow, "framework Help Center search row should be indexed");
   assert.equal(helpCenterRow.source, "Help");
-  assert.match(helpCenterRow.body, /framework-owned surface/);
+  assert.match(helpCenterRow.body, /in-app product manual/);
   assert.doesNotMatch(helpCenterRow.body, /^#\s/m);
   for (const expectedType of [
     "client-projects:client",

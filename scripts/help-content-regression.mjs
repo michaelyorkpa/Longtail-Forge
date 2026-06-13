@@ -116,6 +116,21 @@ try {
     }
   });
 
+  await check("closeout Help articles explain module ownership and context-preserving work", async () => {
+    const helpCenter = (await helpService.readArticle(session, "framework.help-center")).article;
+    const gettingStarted = (await helpService.readArticle(session, "framework.getting-started")).article;
+    const modules = (await helpService.readArticle(session, "framework.modules")).article;
+
+    assert.match(helpCenter.body, /Framework articles explain app-wide behavior/);
+    assert.match(helpCenter.body, /First-party module articles explain workflow areas/);
+    assert.match(helpCenter.body, /Third-party modules are external or separately maintained modules/);
+    assert.match(gettingStarted.body, /found, started, paused, and resumed/);
+    assert.match(gettingStarted.body, /The app links clients, projects, tasks, time entries, notes, lists, files, tags, notifications, search, and Help/);
+    assert.match(gettingStarted.body, /Search is the recovery surface/);
+    assert.match(modules.body, /Framework features are shared app services/);
+    assert.match(modules.body, /Third-party modules use the same ownership model/);
+  });
+
   await check("framework Help articles index as Help search rows", async () => {
     const summary = await searchIndexRebuildService.rebuildWorkspace({
       audit: false,
