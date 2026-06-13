@@ -157,12 +157,21 @@ function getFilteredEntries() {
   const selectedUsers = getSelectedUserIds();
   const selectedDateRange = getSelectedDateRange();
   const selectedTagId = filterTagSelect?.value || "";
+  const noTagsValue = noTagsFilterValue();
 
   return timeEntries
     .filter((entry) => matchesStatusFilter(entry))
     .filter((entry) => isEntryInRange(entry, selectedDateRange))
     .filter((entry) => selectedUsers.length === 0 || selectedUsers.includes(entry.userId))
-    .filter((entry) => !selectedTagId || (entry.tags || []).some((tag) => tag.tag_id === selectedTagId))
+    .filter((entry) => {
+      if (!selectedTagId) {
+        return true;
+      }
+      if (selectedTagId === noTagsValue || selectedTagId === "__no_effective_tags__") {
+        return (entry.tags || []).length === 0;
+      }
+      return (entry.tags || []).some((tag) => tag.tag_id === selectedTagId);
+    })
     .filter((entry) => !filterClientSelect.value || matchesClient(entry, getClient(filterClientSelect.value)))
     .filter((entry) => !filterProjectSelect.value || matchesProject(entry, getProject(filterClientSelect.value, filterProjectSelect.value)))
     .sort(compareEntries);
@@ -405,10 +414,29 @@ function populateTagFilter() {
   const previousValue = filterTagSelect.value || "";
   filterTagControl.hidden = timeEntryTagOptions.length === 0;
   filterTagSelect.replaceChildren(
-    createOption("", "All tags"),
+    tagFilterAllOption(),
+    tagFilterNoTagsOption(),
     ...timeEntryTagOptions.map((tag) => createOption(tag.tag_id, tag.name || tag.slug)),
   );
-  filterTagSelect.value = timeEntryTagOptions.some((tag) => tag.tag_id === previousValue) ? previousValue : "";
+  filterTagSelect.value = previousValue === noTagsFilterValue() || previousValue === "__no_effective_tags__" || timeEntryTagOptions.some((tag) => tag.tag_id === previousValue)
+    ? normalizeTagFilterValue(previousValue)
+    : "";
+}
+
+function tagFilterAllOption() {
+  return window.LongtailForge?.tags?.allTagsOption?.() || createOption("", "All tags");
+}
+
+function tagFilterNoTagsOption() {
+  return window.LongtailForge?.tags?.noTagsOption?.() || createOption(noTagsFilterValue(), "No Tags");
+}
+
+function noTagsFilterValue() {
+  return window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
+}
+
+function normalizeTagFilterValue(value) {
+  return value === "__no_effective_tags__" ? noTagsFilterValue() : value;
 }
 
 function getSelectedUserIds() {

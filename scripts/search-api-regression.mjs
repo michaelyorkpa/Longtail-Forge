@@ -93,6 +93,22 @@ try {
     });
   });
 
+  await checkAsync("GET /api/search applies the shared No Tags filter through canonical tag assignments", async () => {
+    const query = [
+      "text=route-contract",
+      "module=tasks",
+      "recordType=task",
+      `clientId=${encodeURIComponent(fixtures.clientId)}`,
+      `projectId=${encodeURIComponent(fixtures.projectId)}`,
+      "tagId=__no_tags__",
+    ].join("&");
+    const response = await api.get(`/api/search?${query}`, { cookie: fixtures.sessionId });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.body.query.tagIds, ["__no_tags__"]);
+    assert.deepEqual(response.body.results.map((result) => result.recordId), ["search-api-task-2"]);
+  });
+
   await checkAsync("GET /api/search returns stable pagination metadata", async () => {
     const firstPage = await api.get("/api/search?text=route-contract&limit=2&page=1", { cookie: fixtures.sessionId });
     const secondPage = await api.get("/api/search?text=route-contract&limit=2&page=2", { cookie: fixtures.sessionId });

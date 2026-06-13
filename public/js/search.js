@@ -174,10 +174,11 @@ async function loadTagOptions() {
   }
 
   tagSelect.replaceChildren(
-    createOption("", "All tags"),
+    tagFilterAllOption(),
+    tagFilterNoTagsOption(),
     ...(Array.isArray(tags) ? tags : []).map((tag) => createOption(tag.tag_id || "", tag.name || tag.slug || "Tag")),
   );
-  tagSelect.value = state.filters.tagId || "";
+  tagSelect.value = tagSelectHasValue(state.filters.tagId) ? state.filters.tagId : "";
 }
 
 async function loadResults() {
@@ -618,6 +619,18 @@ function createOption(value, label) {
   option.value = value;
   option.textContent = label;
   return option;
+}
+
+function tagFilterAllOption() {
+  return window.LongtailForge?.tags?.allTagsOption?.() || createOption("", "All tags");
+}
+
+function tagFilterNoTagsOption() {
+  return window.LongtailForge?.tags?.noTagsOption?.() || createOption("__no_tags__", "No Tags");
+}
+
+function tagSelectHasValue(value) {
+  return [...(tagSelect?.options || [])].some((option) => option.value === value);
 }
 
 function emptyElement(message) {

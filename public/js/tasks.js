@@ -250,11 +250,32 @@ function populateTagFilter() {
 
   tagFilterControl.hidden = tags.length === 0;
   replaceOptions(tagFilter, [
-    option("all", "All tags"),
-    option("__no_effective_tags__", "No tags"),
+    taskTagFilterAllOption(),
+    taskTagFilterNoTagsOption(),
     ...tags.map((tag) => option(tag.tag_id, tag.name || tag.slug)),
   ]);
-  tagFilter.value = previousValue === "__no_effective_tags__" || tags.some((tag) => tag.tag_id === previousValue) ? previousValue : "all";
+  tagFilter.value = previousValue === noTagsFilterValue() || previousValue === "__no_effective_tags__" || tags.some((tag) => tag.tag_id === previousValue) ? normalizeTagFilterValue(previousValue) : "all";
+}
+
+function taskTagFilterAllOption() {
+  return option("all", "All tags");
+}
+
+function taskTagFilterNoTagsOption() {
+  const shared = window.LongtailForge?.tags?.noTagsOption?.();
+  if (shared) {
+    return shared;
+  }
+
+  return option(noTagsFilterValue(), "No Tags");
+}
+
+function noTagsFilterValue() {
+  return window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
+}
+
+function normalizeTagFilterValue(value) {
+  return value === "__no_effective_tags__" ? noTagsFilterValue() : value;
 }
 
 function renderBulkAssigneeOptions() {

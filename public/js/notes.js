@@ -335,11 +335,14 @@ function filteredNotes() {
       .toLowerCase();
     const contextMatch = !contextValue || contextText.includes(contextValue);
     const ownerMatch = !ownerValue || normalizeText(note.owner_user_id).toLowerCase().includes(ownerValue);
-    const tagMatch = !tagValue || (note.tags || []).some((tag) => [
-      tag.name,
-      tag.slug,
-      tag.description,
-    ].filter(Boolean).join(" ").toLowerCase().includes(tagValue));
+    const tagMatch = !tagValue ||
+      (isNoTagsFilterValue(tagValue)
+        ? (note.tags || []).length === 0
+        : (note.tags || []).some((tag) => [
+            tag.name,
+            tag.slug,
+            tag.description,
+          ].filter(Boolean).join(" ").toLowerCase().includes(tagValue)));
     const updatedMatch = !updatedValue || String(note.updated_at || "").slice(0, 10) >= updatedValue;
     const collectionMatch = !collectionValue ||
       (collectionValue === "__uncategorized" ? !note.note_collection_id : collectionIds.has(note.note_collection_id));
@@ -1366,6 +1369,16 @@ function tagChips(tags = []) {
   });
 
   return wrapper;
+}
+
+function isNoTagsFilterValue(value) {
+  const normalized = normalizeText(value).toLowerCase().replace(/\s+/g, "_");
+  return [
+    window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__",
+    "__no_effective_tags__",
+    "no_tags",
+    "none",
+  ].includes(normalized);
 }
 
 function markdownPreviewNodes(markdown) {

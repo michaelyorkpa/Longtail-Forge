@@ -1,3 +1,12 @@
+## Version 0.33.5.6.5 - 2026-06-13 06:42 -04:00
+
+- Added shared tag picker refresh so newly created tags become available to mounted client/project tag pickers without a page reload.
+- Standardized the UI-facing No Tags filter value as `__no_tags__` and added shared All tags / No Tags option helpers.
+- Added No Tags filter options to Search and Time Entries, normalized Tasks and Reporting to the shared helper, and taught Notes text filtering to recognize no-tags intent.
+- Added Search no-tags support as a canonical tag-assignment filter mode instead of treating the sentinel as a real tag ID.
+- Expanded tag, search, and time-entry regressions for picker refresh, shared No Tags options, no-tags search results, and client-side no-tags filtering.
+- Bumped the app/package version to `0.33.5.6.5`.
+
 ## Version 0.33.5.6.4 - 2026-06-12 23:09 -04:00
 
 - Added per-user notification display grouping preferences under Settings -> User, backed by `notification_user_display_preferences`.

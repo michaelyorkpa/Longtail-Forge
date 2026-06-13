@@ -305,13 +305,21 @@ function renderTagFilter() {
   }
 
   reportTagFilterSelect.replaceChildren(
-    createOption("", "All tags"),
-    createOption("__no_effective_tags__", "No tags"),
+    tagFilterAllOption(),
+    tagFilterNoTagsOption(),
   );
   reportTagOptions.forEach((tag) => {
     reportTagFilterSelect.appendChild(createOption(tag.tag_id, tag.name));
   });
   reportTagControl.hidden = reportTagOptions.length === 0;
+}
+
+function tagFilterAllOption() {
+  return window.LongtailForge?.tags?.allTagsOption?.() || createOption("", "All tags");
+}
+
+function tagFilterNoTagsOption() {
+  return window.LongtailForge?.tags?.noTagsOption?.() || createOption(window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__", "No Tags");
 }
 
 function getSelectedProjectIds() {

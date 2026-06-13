@@ -227,6 +227,7 @@ function composePermissionSafeSearchFilters({ session, searchableType, filters =
   if (workspaceId !== session.workspace_id) {
     throw new AppError("Search filters must stay inside the active workspace.", 403);
   }
+  const tagFilters = normalizeSearchTagFilters(filters.tagIds || filters.tag_ids);
 
   return {
     workspaceId,
@@ -241,7 +242,8 @@ function composePermissionSafeSearchFilters({ session, searchableType, filters =
     },
     libraryBucket: normalizeNullableString(filters.libraryBucket || filters.library_bucket),
     noteCollectionId: normalizeNullableString(filters.noteCollectionId || filters.note_collection_id || filters.collectionId || filters.collection_id),
-    exactTagIds: normalizeIdList(filters.tagIds || filters.tag_ids),
+    exactTagIds: tagFilters.tagIds,
+    noTagsMode: tagFilters.noTagsMode,
     recordStatus: normalizeNullableString(filters.recordStatus || filters.record_status || filters.status),
     status: normalizeNullableString(filters.recordStatus || filters.record_status || filters.status),
     visibility: filters.visibility || null,
@@ -269,6 +271,7 @@ async function composePermissionSafeSearchRequest({ session, filters = {} } = {}
   const allowedRecordTypes = new Set(normalizeFilterList(
     filters.recordTypes || filters.record_types || filters.recordType || filters.record_type,
   ));
+  const tagFilters = normalizeSearchTagFilters(filters.tagIds || filters.tag_ids);
   const activeSearchableTypes = await listActiveSearchableTypes(workspaceId);
   const targets = activeSearchableTypes
     .filter((declaration) => allowedModuleIds.size === 0 || allowedModuleIds.has(declaration.moduleId))
@@ -306,7 +309,8 @@ async function composePermissionSafeSearchRequest({ session, filters = {} } = {}
     },
     libraryBucket: normalizeNullableString(filters.libraryBucket || filters.library_bucket),
     noteCollectionId: normalizeNullableString(filters.noteCollectionId || filters.note_collection_id || filters.collectionId || filters.collection_id),
-    exactTagIds: normalizeIdList(filters.tagIds || filters.tag_ids),
+    exactTagIds: tagFilters.tagIds,
+    noTagsMode: tagFilters.noTagsMode,
     recordStatus: normalizeNullableString(filters.recordStatus || filters.record_status || filters.status),
     visibility: normalizeNullableString(filters.visibility),
     source: normalizeNullableString(filters.source),
@@ -658,6 +662,26 @@ function normalizeIdList(value) {
   return value
     .map((item) => String(item || "").trim())
     .filter(Boolean);
+}
+
+function normalizeSearchTagFilters(value) {
+  const filters = normalizeIdList(value);
+  let noTagsMode = "";
+  const tagIds = [];
+
+  filters.forEach((filter) => {
+    const normalized = String(filter || "").trim().toLowerCase();
+    if (["__no_tags__", "__no_effective_tags__", "no_tags", "none"].includes(normalized)) {
+      noTagsMode = "effective";
+      return;
+    }
+    tagIds.push(filter);
+  });
+
+  return {
+    noTagsMode,
+    tagIds: [...new Set(tagIds)],
+  };
 }
 
 function normalizeFilterList(value) {

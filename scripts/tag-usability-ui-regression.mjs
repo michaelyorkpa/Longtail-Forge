@@ -8,6 +8,9 @@ const sharedTags = readText("public/js/shared/tags.js");
 const tagsPage = readText("public/js/tags.js");
 const tasksPage = readText("public/js/tasks.js");
 const reportingPage = readText("public/js/reporting.js");
+const searchPage = readText("public/js/search.js");
+const timeEntriesPage = readText("public/js/time-entries.js");
+const notesPage = readText("public/js/notes.js");
 const css = readText("public/css/longtail-forge.css");
 
 assert.match(repo, /direct_usage_count/, "Tag list query should return direct usage counts");
@@ -31,8 +34,13 @@ assert.match(tagsPage, /direct_usage_count/, "Tags management UI should display 
 assert.match(tagsPage, /propagated_usage_count/, "Tags management UI should display propagated usage counts");
 assert.doesNotMatch(tagsPage, /scope/i, "Tags management UI must not add tag scope controls");
 
-assert.match(tasksPage, /__no_effective_tags__/, "Tasks filter should include No Tags support");
-assert.match(reportingPage, /__no_effective_tags__/, "Reporting filter should include No Tags support");
+assert.match(tasksPage, /taskTagFilterNoTagsOption/, "Tasks filter should include shared No Tags support");
+assert.match(tasksPage, /normalizeTagFilterValue/, "Tasks filter should normalize legacy no-tags values");
+assert.match(reportingPage, /tagFilterNoTagsOption/, "Reporting filter should include shared No Tags support");
+assert.match(searchPage, /tagFilterNoTagsOption/, "Search filter should include shared No Tags support");
+assert.match(timeEntriesPage, /tagFilterNoTagsOption/, "Time Entries filter should include shared No Tags support");
+assert.match(timeEntriesPage, /entry\.tags \|\| \[\]\)\.length === 0/, "Time Entries No Tags filter should match records without effective tags");
+assert.match(notesPage, /isNoTagsFilterValue/, "Notes tag filter should recognize no-tags intent");
 assert.match(css, /\.tag-chip-inherited/, "Inherited tag chips should be styled");
 assert.match(css, /\.tag-picker-suppress/, "Suppression control should be styled");
 

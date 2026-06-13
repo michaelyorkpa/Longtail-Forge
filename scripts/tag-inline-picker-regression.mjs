@@ -18,7 +18,15 @@ assert.match(helper, /if \(options\.allowCreate === false\)[\s\S]*Select an exis
 assert.match(helper, /catch \(error\) \{[\s\S]*setStatus\(status, error\.message \|\| "Unable to create tag\.", true\)/, "inline create permission failures must surface the API error message");
 assert.match(helper, /aria-autocomplete", "list"/, "tag entry must advertise autocomplete behavior");
 assert.match(helper, /aria-live", "polite"/, "inline status must announce create and validation feedback");
-assert.match(helper, /createTag,\s*\n\s*loadTags,\s*\n\s*mountPicker,/, "shared namespace must expose createTag, loadTags, and mountPicker");
+assert.match(helper, /createTag,/, "shared namespace must expose createTag");
+assert.match(helper, /loadTags,/, "shared namespace must expose loadTags");
+assert.match(helper, /mountPicker,/, "shared namespace must expose mountPicker");
+assert.match(helper, /const mountedPickers = new Set\(\)/, "shared tag helper must track mounted pickers for option refresh");
+assert.match(helper, /notifyTagCreated\(tag\)/, "newly created tags must notify mounted pickers");
+assert.match(helper, /refreshTags: async \(\) =>/, "mounted pickers must expose a refresh path");
+assert.match(helper, /state\.allTags = mergeTags\(state\.allTags, await loadTags\(\)\)/, "picker refresh must reload active tag options");
+assert.match(helper, /NO_TAGS_FILTER_VALUE = "__no_tags__"/, "shared tag helper must own the canonical no-tags filter value");
+assert.match(helper, /function noTagsOption\(\)/, "shared tag helper must provide a reusable No Tags option");
 
 assert.match(css, /\.tag-picker-entry/, "inline tag picker entry styles must exist");
 assert.match(css, /\.tag-picker-suggestions/, "inline tag picker suggestions styles must exist");

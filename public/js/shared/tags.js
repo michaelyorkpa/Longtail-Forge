@@ -1,6 +1,8 @@
 (function initSharedTags(global) {
   const namespace = global.LongtailForge = global.LongtailForge || {};
   const DEFAULT_TAG_COLOR = "#64748b";
+  const NO_TAGS_FILTER_VALUE = "__no_tags__";
+  const mountedPickers = new Set();
 
   async function loadTags(options = {}) {
     const params = new URLSearchParams({
@@ -32,7 +34,9 @@
       throw error;
     }
 
-    return body?.tag || null;
+    const tag = body?.tag || null;
+    notifyTagCreated(tag);
+    return tag;
   }
 
   async function suppressPropagatedTag(assignmentId) {
@@ -261,8 +265,23 @@
 
     sync();
 
+    const pickerController = {
+      container,
+      refreshTags: async () => {
+        if (!document.documentElement.contains(container)) {
+          mountedPickers.delete(pickerController);
+          return;
+        }
+
+        state.allTags = mergeTags(state.allTags, await loadTags());
+        sync();
+      },
+    };
+    mountedPickers.add(pickerController);
+
     return {
       readTagIds: () => state.selectedTags.filter(isDirectTag).map((tag) => tag.tag_id).filter(Boolean),
+      refreshTags: pickerController.refreshTags,
       setSelected: (tagIds = []) => {
         const nextIds = new Set(normalizeTagIds(tagIds));
         state.selectedTags = state.allTags.filter((tag) => nextIds.has(tag.tag_id));
@@ -391,6 +410,21 @@
       .filter(Boolean);
   }
 
+  function allTagsOption() {
+    return createFilterOption("", "All tags");
+  }
+
+  function noTagsOption() {
+    return createFilterOption(NO_TAGS_FILTER_VALUE, "No Tags");
+  }
+
+  function createFilterOption(value, label) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    return option;
+  }
+
   function normalizeTagList(tags = []) {
     return (Array.isArray(tags) ? tags : [])
       .map((tag) => ({
@@ -451,6 +485,22 @@
     return [...byId.values()].sort((a, b) => String(a.name || a.slug).localeCompare(String(b.name || b.slug)));
   }
 
+  function notifyTagCreated(tag) {
+    const normalized = normalizeTagList(tag ? [tag] : [])[0];
+    if (!normalized) {
+      return;
+    }
+
+    for (const picker of [...mountedPickers]) {
+      if (!document.documentElement.contains(picker.container)) {
+        mountedPickers.delete(picker);
+        continue;
+      }
+
+      picker.refreshTags();
+    }
+  }
+
   function isDirectTag(tag) {
     return normalizeAssignmentSource(tag?.assignment_source || tag?.origin || tag?.source) === "manual";
   }
@@ -493,9 +543,13 @@
   }
 
   namespace.tags = {
+    NO_TAGS_FILTER_VALUE,
+    allTagsOption,
     createTag,
+    createFilterOption,
     loadTags,
     mountPicker,
+    noTagsOption,
     readTagIds,
     renderTagList,
     suppressPropagatedTag,

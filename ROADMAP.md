@@ -81,15 +81,15 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 #### Version 0.33.5.6.5 - Tag Refresh and No Tags Filters
 
-- [ ] Refresh tag options after creating a new client tag without requiring a page refresh or navigation change.
-  - [ ] Newly created client tags should appear in the relevant tag picker immediately after save.
-  - [ ] Preserve direct/manual and propagated tag semantics.
-- [ ] Add a "No Tags" option anywhere there is a Tag filter.
-  - [ ] Place "No Tags" directly below the "All tags" option.
-  - [ ] Use the existing Tags-owned no-tags filter semantics rather than inventing page-specific filter behavior.
-- [ ] Verification.
-  - [ ] Verify newly created client tags appear immediately in client/project tag controls.
-  - [ ] Verify "No Tags" filters work across current tag-filtered views without changing permission behavior.
+- [x] Refresh tag options after creating a new client tag without requiring a page refresh or navigation change.
+  - [x] Newly created client tags appear in the relevant tag picker immediately after save.
+  - [x] Preserve direct/manual and propagated tag semantics.
+- [x] Add a "No Tags" option anywhere there is a Tag filter.
+  - [x] Place "No Tags" directly below the "All tags" option.
+  - [x] Use the existing Tags-owned no-tags filter semantics rather than inventing page-specific filter behavior.
+- [x] Verification.
+  - [x] Verify newly created client tags appear immediately in client/project tag controls.
+  - [x] Verify "No Tags" filters work across current tag-filtered views without changing permission behavior.
 
 #### Version 0.33.5.6.6 - Bulk Tag Assignment Workflows
 

@@ -606,6 +606,7 @@ function buildSearchWhereClause(request, alias) {
   const exactTagIds = Array.isArray(request?.exactTagIds)
     ? request.exactTagIds.map(normalizeSearchText).filter(Boolean)
     : [];
+  const noTagsMode = normalizeSearchText(request?.noTagsMode);
 
   if (clientId) {
     whereParts.push(`${alias}.client_id = ${sqlText(clientId)}`);
@@ -637,6 +638,15 @@ function buildSearchWhereClause(request, alias) {
       AND tag_filter.target_type = ${alias}.record_type
       AND tag_filter.target_id = ${alias}.record_id
       AND tag_filter.tag_id = ${sqlText(tagId)}
+  )`);
+  }
+  if (noTagsMode === "effective") {
+    whereParts.push(`NOT EXISTS (
+    SELECT 1
+    FROM tag_assignments tag_filter
+    WHERE tag_filter.workspace_id = ${alias}.workspace_id
+      AND tag_filter.target_type = ${alias}.record_type
+      AND tag_filter.target_id = ${alias}.record_id
   )`);
   }
 
