@@ -1,3 +1,10 @@
+## Version 0.33.5.6.2 - 2026-06-12 22:34 -04:00
+
+- Suppressed event-created notifications for the acting user so creators/modifiers do not receive their own normal created/updated notifications.
+- Added safe `changed_context` notification metadata and body snippets for update notifications, including description-added task updates without exposing raw audit/event JSON.
+- Expanded notification regression coverage for actor suppression, preserved non-actor recipients, and human-readable changed-context snippets.
+- Bumped the app/package version to `0.33.5.6.2`.
+
 ## Version 0.33.5.6.1 - 2026-06-12 22:17 -04:00
 
 - Collapsed visible Help search targets so the shell search and Search page record-type filters show one `Help` option instead of one per Help-owning module.

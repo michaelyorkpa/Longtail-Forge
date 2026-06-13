@@ -31,18 +31,18 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 #### Version 0.33.5.6.2 - Notification Actor Suppression and Changed Context
 
-- [ ] Stop notifying users about their own normal record actions.
-  - [ ] Creators of records do not need `{{recordType}} created` notifications for their own action.
-  - [ ] Modifiers of records do not need `{{recordType}} updated` notifications for their own action.
-  - [ ] Preserve notifications for other affected users where the event is still relevant.
-- [ ] Add human-formatted changed context to record update notifications.
-  - [ ] Notifications should display a safe truncated example of the change where useful.
-  - [ ] Cover examples such as description added, task updated, and similar event-derived summaries.
-  - [ ] Avoid raw audit JSON or unsafe internal event payloads in user-facing notification text.
-- [ ] Verification.
-  - [ ] Verify actor suppression for create and update events.
-  - [ ] Verify other recipients still receive relevant notifications.
-  - [ ] Verify changed-context snippets are permission-safe and human-readable.
+- [x] Stop notifying users about their own normal record actions.
+  - [x] Creators of records do not need `{{recordType}} created` notifications for their own action.
+  - [x] Modifiers of records do not need `{{recordType}} updated` notifications for their own action.
+  - [x] Preserve notifications for other affected users where the event is still relevant.
+- [x] Add human-formatted changed context to record update notifications.
+  - [x] Notifications should display a safe truncated example of the change where useful.
+  - [x] Cover examples such as description added, task updated, and similar event-derived summaries.
+  - [x] Avoid raw audit JSON or unsafe internal event payloads in user-facing notification text.
+- [x] Verification.
+  - [x] Verify actor suppression for create and update events.
+  - [x] Verify other recipients still receive relevant notifications.
+  - [x] Verify changed-context snippets are permission-safe and human-readable.
 
 #### Version 0.33.5.6.3 - Notification Priority and Bell Dropdown QoL
 

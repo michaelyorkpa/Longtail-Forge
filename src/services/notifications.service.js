@@ -22,6 +22,21 @@ const TASK_UPDATE_FIELD_LABELS = new Map([
   ["client_id", "Project Updated"],
   ["project_id", "Project Updated"],
 ]);
+const TASK_UPDATE_CONTEXT_LABELS = new Map([
+  ["description", "Description updated"],
+  ["status", "Status updated"],
+  ["priority", "Priority updated"],
+  ["assignee_ids", "Assignment updated"],
+  ["due_date", "Due date updated"],
+  ["due_time", "Due date updated"],
+  ["due_at_utc", "Due date updated"],
+  ["recurrence_template_id", "Recurrence updated"],
+  ["recurrence_instance_date", "Recurrence updated"],
+  ["reminder_override_enabled", "Reminder updated"],
+  ["title", "Title updated"],
+  ["client_id", "Project updated"],
+  ["project_id", "Project updated"],
+]);
 const TASK_UPDATE_FIELD_ORDER = [
   "description",
   "status",
@@ -346,8 +361,11 @@ async function createFromEvent(event, declaration = null) {
   const recipients = await resolveRecipients(event, notificationDeclaration);
   const enabledRecipients = await filterEnabledRecipients(workspaceId, recipients, notificationDeclaration.id);
   const subscribedRecipients = await readSubscribedRecipientIds(event, notificationDeclaration);
-  const finalRecipients = [...new Set([...enabledRecipients, ...subscribedRecipients])];
   const metadata = buildNotificationEventMetadata(event, notificationDeclaration);
+  const finalRecipients = suppressActorRecipients(
+    [...new Set([...enabledRecipients, ...subscribedRecipients])],
+    event,
+  );
 
   const payloads = finalRecipients.map((recipientUserId) => ({
     workspace_id: workspaceId,
@@ -358,7 +376,7 @@ async function createFromEvent(event, declaration = null) {
     record_type: event.record_type || "",
     record_id: event.record_id || "",
     title: template?.title || summary.title,
-    body: template?.body || summary.body,
+    body: notificationBodyWithChangedContext(template?.body || summary.body, metadata),
     url: template?.url || summary.url,
     priority: workspaceDefault.priority || notificationDeclaration.defaultPriority || "normal",
     metadata,
@@ -449,6 +467,16 @@ async function resolveRecipients(event, declaration) {
   }
 
   return [...recipientIds].filter(Boolean);
+}
+
+function suppressActorRecipients(recipientIds, event) {
+  const actorUserId = String(event.actor_user_id || "").trim();
+
+  if (!actorUserId) {
+    return recipientIds;
+  }
+
+  return recipientIds.filter((userId) => String(userId || "").trim() !== actorUserId);
 }
 
 async function normalizeCreatePayload(payload = {}, session = null) {
@@ -657,8 +685,10 @@ function normalizeMetadata(metadata) {
 
 function buildNotificationEventMetadata(event, declaration) {
   const changedFields = readChangedFields(event.previous_value, event.new_value);
+  const changedContext = buildChangedContext(event, changedFields);
   const metadata = {
     ...(event.metadata || {}),
+    ...(changedContext ? { changed_context: changedContext } : {}),
     changed_fields: changedFields,
     emitted_at: event.emitted_at,
     source: event.source || "",
@@ -676,6 +706,97 @@ function buildNotificationEventMetadata(event, declaration) {
     ...metadata,
     update_type_label: updateTypeLabel,
   };
+}
+
+function notificationBodyWithChangedContext(body, metadata = {}) {
+  const normalizedBody = String(body || "").trim();
+  const changedContext = normalizeMetadata(metadata).changed_context || {};
+  const summary = String(changedContext.summary || "").trim();
+
+  if (!summary) {
+    return normalizedBody;
+  }
+
+  if (!normalizedBody) {
+    return summary;
+  }
+
+  return `${normalizedBody} ${summary}`;
+}
+
+function buildChangedContext(event, changedFields) {
+  if (!String(event.name || "").endsWith(".updated") || changedFields.length === 0) {
+    return null;
+  }
+
+  if (event.name === "task.updated") {
+    return buildTaskChangedContext(event, changedFields);
+  }
+
+  const field = changedFields[0] || "";
+  const label = titleizeFieldName(field, "Record updated");
+
+  return {
+    field,
+    label,
+    summary: `${label}.`,
+  };
+}
+
+function buildTaskChangedContext(event, changedFields) {
+  const changedFieldSet = new Set(changedFields);
+  const field = TASK_UPDATE_FIELD_ORDER.find((candidate) => changedFieldSet.has(candidate)) || changedFields[0] || "";
+  const label = taskChangedContextLabel(field, event.previous_value, event.new_value);
+  const value = readableTaskChangedValue(field, event.new_value);
+
+  return {
+    field,
+    label,
+    summary: value ? `${label}: ${value}` : `${label}.`,
+  };
+}
+
+function taskChangedContextLabel(field, previousValue, newValue) {
+  if (field === "description") {
+    return descriptionChangeLabel(previousValue, newValue)
+      .replace("Added", "added")
+      .replace("Removed", "removed")
+      .replace("Updated", "updated");
+  }
+
+  return TASK_UPDATE_CONTEXT_LABELS.get(field) || "Task updated";
+}
+
+function readableTaskChangedValue(field, newValue) {
+  if (["description", "title", "status", "priority", "due_date", "due_time", "due_at_utc"].includes(field)) {
+    return truncateSnippet(newValue?.[field]);
+  }
+
+  return "";
+}
+
+function titleizeFieldName(field, fallback) {
+  const normalized = String(field || "").trim();
+
+  if (!normalized) {
+    return fallback;
+  }
+
+  return `${normalized
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (match) => match.toUpperCase())} updated`;
+}
+
+function truncateSnippet(value, maxLength = 120) {
+  const normalized = String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 1).trimEnd()}...` : normalized;
 }
 
 function notificationUpdateTypeLabel(notification, options = {}) {

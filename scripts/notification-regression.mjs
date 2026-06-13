@@ -623,10 +623,48 @@ WHERE event_type = 'task.assigned';
     assert.equal(Number(afterRows[0].count), Number(beforeRows[0].count) + 1);
   });
 
+  const beforeActorCreateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.created");
+  const beforeOtherCreateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.otherProjectUser.userId, "task.created");
+  await modulesService.emitInternalEvent("task.created", {
+    actorUserId: fixtures.users.workspaceAdmin.userId,
+    metadata: {
+      recipient_user_ids: [
+        fixtures.users.workspaceAdmin.userId,
+        fixtures.users.otherProjectUser.userId,
+      ],
+    },
+    moduleId: "tasks",
+    newValue: {
+      assignee_ids: [fixtures.users.workspaceAdmin.userId],
+      task_id: "actor-create-suppression-task",
+      title: "Actor create suppression task",
+    },
+    recordId: "actor-create-suppression-task",
+    recordType: "task",
+    session: {
+      user_id: fixtures.users.workspaceAdmin.userId,
+      workspace_id: fixtures.workspaceId,
+    },
+    workspaceId: fixtures.workspaceId,
+  });
+  const afterActorCreateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.created");
+  const afterOtherCreateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.otherProjectUser.userId, "task.created");
+  check("task creators do not receive their own created notifications", () => {
+    assert.equal(afterActorCreateRows, beforeActorCreateRows);
+  });
+  check("task create actor suppression preserves other explicit recipients", () => {
+    assert.equal(afterOtherCreateRows, beforeOtherCreateRows + 1);
+  });
+
+  const beforeActorUpdateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.updated");
+  const beforeOtherUpdateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.otherProjectUser.userId, "task.updated");
   await modulesService.emitInternalEvent("task.updated", {
     actorUserId: fixtures.users.workspaceAdmin.userId,
     metadata: {
-      recipient_user_ids: [fixtures.users.workspaceAdmin.userId],
+      recipient_user_ids: [
+        fixtures.users.workspaceAdmin.userId,
+        fixtures.users.otherProjectUser.userId,
+      ],
     },
     moduleId: "tasks",
     newValue: {
@@ -649,17 +687,34 @@ WHERE event_type = 'task.assigned';
     },
     workspaceId: fixtures.workspaceId,
   });
+  const afterActorUpdateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.updated");
+  const afterOtherUpdateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.otherProjectUser.userId, "task.updated");
   const labelList = await notificationsService.list({
-    user_id: fixtures.users.workspaceAdmin.userId,
+    user_id: fixtures.users.otherProjectUser.userId,
     workspace_id: fixtures.workspaceId,
   });
   const descriptionLabelNotification = labelList.notifications.find((notification) => (
     notification.record_id === "description-label-task" && notification.event_type === "task.updated"
   ));
+  check("task modifiers do not receive their own updated notifications", () => {
+    assert.equal(afterActorUpdateRows, beforeActorUpdateRows);
+  });
+  check("task update actor suppression preserves other explicit recipients", () => {
+    assert.equal(afterOtherUpdateRows, beforeOtherUpdateRows + 1);
+  });
   check("task update notifications expose description-specific update labels", () => {
     assert.equal(descriptionLabelNotification.updateTypeLabel, "Description Added");
     assert.equal(descriptionLabelNotification.displayType, "Description Added");
     assert.ok(descriptionLabelNotification.metadata.changed_fields.includes("description"));
+  });
+  check("task update notifications include safe changed context snippets", () => {
+    assert.deepEqual(descriptionLabelNotification.metadata.changed_context, {
+      field: "description",
+      label: "Description added",
+      summary: "Description added: New details",
+    });
+    assert.match(descriptionLabelNotification.body, /Description added: New details/);
+    assert.doesNotMatch(descriptionLabelNotification.body, /\{|\}|previous_value|new_value/);
   });
 
   const unknownLabel = await notificationsService.create({
