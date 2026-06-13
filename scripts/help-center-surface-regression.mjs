@@ -34,7 +34,8 @@ try {
     assert.equal(authenticated.contentType, "text/html; charset=utf-8");
     assert.match(String(authenticated.contents), /data-help-sections/);
     assert.match(String(authenticated.contents), /\/js\/shared\/icons\.js\?v=1/);
-    assert.match(String(authenticated.contents), /\/js\/help\.js\?v=1/);
+    assert.match(String(authenticated.contents), /\/css\/longtail-forge\.css\?v=13/);
+    assert.match(String(authenticated.contents), /\/js\/help\.js\?v=2/);
   });
 
   await check("app shell places Help in Settings between User and Log Out", async () => {
@@ -54,6 +55,12 @@ try {
     assert.ok(result.sections.some((section) => section.id === "framework.help-center"));
     assert.ok(result.articles.some((article) => article.id === "framework.help-center" && article.ownerType === "framework"));
     assert.deepEqual(result.articles.filter((article) => article.moduleId === "developer-example"), []);
+    assert.equal(result.defaultArticleId, "framework.help-center");
+    assert.equal(result.defaultArticleSlug, "help-center");
+    assert.ok(result.navigation.some((item) => item.title === "Longtail Forge"));
+    assert.ok(findNavigationGroup(result.navigation, "Library Buckets"));
+    assert.ok(findNavigationArticle(result.navigation, "framework.help-center"));
+    assert.equal(findNavigationArticle(result.navigation, "developer-example.getting-started"), null);
   });
 
   await check("module help appears after its module is active", async () => {
@@ -68,6 +75,9 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 
     assert.ok(result.sections.some((section) => section.id === "developer-example.overview"));
     assert.ok(result.articles.some((article) => article.id === "developer-example.getting-started"));
+    const fallback = result.navigation.find((item) => item.title === "Other");
+    assert.ok(fallback, "active Help articles missing from toc.md should appear in fallback navigation");
+    assert.ok(findNavigationArticle([fallback], "developer-example.getting-started"));
   });
 
   await check("help article detail loads by id or slug", async () => {
@@ -90,11 +100,16 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     assert.match(view, /data-help-status/);
     assert.match(view, /data-help-sections/);
     assert.match(view, /data-help-article/);
+    assert.match(view, /\/css\/longtail-forge\.css\?v=13/);
     assert.match(view, /\/js\/shared\/icons\.js\?v=1/);
+    assert.match(view, /\/js\/help\.js\?v=2/);
     assert.match(script, /fetch\("\/api\/help"/);
     assert.match(script, /fetch\(`\/api\/help\/articles\/\$\{encodeURIComponent/);
+    assert.match(script, /normalizeNavigation/);
+    assert.match(script, /aria-expanded/);
     assert.doesNotMatch(script, /\/api\/search/);
     assert.match(styles, /\.help-workspace/);
+    assert.match(styles, /\.help-section-toggle/);
     assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.help-workspace/);
     assert.match(navigation, /\{ label: "Help", href: "help\.html" \}/);
     assert.match(app, /app\.use\(requireAuth\)[\s\S]*app\.use\("\/api", helpRoutes\)/);
@@ -111,6 +126,32 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 } finally {
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
+}
+
+function findNavigationArticle(items, articleId) {
+  for (const item of items || []) {
+    if (item.type === "article" && item.id === articleId) {
+      return item;
+    }
+    const child = findNavigationArticle(item.children || [], articleId);
+    if (child) {
+      return child;
+    }
+  }
+  return null;
+}
+
+function findNavigationGroup(items, title) {
+  for (const item of items || []) {
+    if (item.type === "group" && item.title === title) {
+      return item;
+    }
+    const child = findNavigationGroup(item.children || [], title);
+    if (child) {
+      return child;
+    }
+  }
+  return null;
 }
 
 async function readProtectedSession() {

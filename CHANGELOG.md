@@ -1,3 +1,10 @@
+## Version 0.33.5.10.3 - 2026-06-13 13:28 -04:00
+
+- Added ToC-driven Help navigation from `help/toc.md`, including the explicit default article directive, nested collapsible groups, article links, linked-heading article targets, and fallback navigation for visible active articles missing from the ToC.
+- Extended `/api/help` payloads with browser-safe `navigation`, `defaultArticleId`, and `defaultArticleSlug` fields while preserving existing sections/articles payloads.
+- Updated the Help page script and styles to render nested collapsible navigation and select the ToC default article when no URL article is requested.
+- Updated Help surface regressions and docs for ToC navigation, marked the 0.33.5.10.3 roadmap slice complete, and bumped the app/package version to `0.33.5.10.3`.
+
 ## Version 0.33.5.10.2 - 2026-06-13 13:15 -04:00
 
 - Added framework Help content loading from safe Markdown `contentPath` files under the repo-owned `help/` root before Help API detail shaping and Help search document creation.

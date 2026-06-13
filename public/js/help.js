@@ -5,6 +5,9 @@ const articleContainer = document.querySelector("[data-help-article]");
 
 const state = {
   articles: [],
+  defaultArticleId: "",
+  navigation: [],
+  navGroupCounter: 0,
   sections: [],
   selectedArticleId: readSelectedArticleFromUrl(),
 };
@@ -25,6 +28,8 @@ async function initialize() {
 
     state.sections = normalizeSections(body.sections);
     state.articles = normalizeArticles(body.articles);
+    state.navigation = normalizeNavigation(body.navigation);
+    state.defaultArticleId = body.defaultArticleId || body.defaultArticleSlug || "";
     renderSections();
 
     if (state.articles.length === 0) {
@@ -33,11 +38,13 @@ async function initialize() {
       return;
     }
 
-    const selected = findArticle(state.selectedArticleId) || state.articles[0];
+    const selected = findArticle(state.selectedArticleId) || findArticle(state.defaultArticleId) || state.articles[0];
     await selectArticle(selected.id, { replaceUrl: !state.selectedArticleId });
   } catch (error) {
     state.sections = [];
     state.articles = [];
+    state.navigation = [];
+    state.defaultArticleId = "";
     renderSections();
     setStatus(error.message || "Help is unavailable.", true);
     renderArticlePrompt("Help is unavailable.");
@@ -79,36 +86,63 @@ function renderSections() {
     return;
   }
 
-  const sections = sectionsWithArticles();
+  const navigation = state.navigation.length > 0 ? state.navigation : sectionsWithArticles();
 
-  if (sections.length === 0) {
+  if (navigation.length === 0) {
     sectionsContainer.replaceChildren(emptyElement("No help articles are visible."));
     return;
   }
 
-  sectionsContainer.replaceChildren(...sections.map(createSection));
+  state.navGroupCounter = 0;
+  sectionsContainer.replaceChildren(...navigation.map((item) => createNavigationItem(item, 1)));
 }
 
-function createSection(section) {
+function createNavigationItem(item, depth = 1) {
+  if (item.type === "article") {
+    return createArticleLink(item, depth);
+  }
+
   const group = document.createElement("section");
-  const heading = document.createElement("h3");
+  const heading = document.createElement("button");
   const list = document.createElement("div");
+  const title = document.createElement("span");
+  const icon = document.createElement("span");
+  const groupId = `help-nav-group-${state.navGroupCounter += 1}`;
 
   group.className = "help-section-group";
-  heading.textContent = section.title || "Help";
+  group.dataset.helpNavDepth = String(depth);
+  heading.type = "button";
+  heading.className = "help-section-toggle";
+  heading.setAttribute("aria-expanded", "true");
+  heading.setAttribute("aria-controls", groupId);
+  title.textContent = item.title || "Help";
+  icon.className = "help-section-toggle-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "▾";
+  heading.append(icon, title);
+  heading.addEventListener("click", () => {
+    const expanded = heading.getAttribute("aria-expanded") !== "false";
+    heading.setAttribute("aria-expanded", String(!expanded));
+    list.hidden = expanded;
+  });
   list.className = "help-article-list";
-  list.replaceChildren(...section.articles.map(createArticleLink));
+  list.id = groupId;
+  list.replaceChildren(
+    ...(item.id ? [createArticleLink({ ...item, type: "article" }, depth + 1)] : []),
+    ...(item.children || []).map((child) => createNavigationItem(child, depth + 1)),
+  );
   group.append(heading, list);
   return group;
 }
 
-function createArticleLink(article) {
+function createArticleLink(article, depth = 1) {
   const button = document.createElement("button");
   const title = document.createElement("span");
   const meta = document.createElement("span");
 
   button.type = "button";
   button.className = "help-article-link";
+  button.dataset.helpNavDepth = String(depth);
   button.dataset.helpArticleId = article.id;
   button.setAttribute("aria-pressed", String(article.id === state.selectedArticleId));
   button.addEventListener("click", () => selectArticle(article.id));
@@ -166,7 +200,12 @@ function sectionsWithArticles() {
   return [...sectionsById.values(), fallbackSection]
     .filter((section) => section.articles.length > 0)
     .sort((left, right) => Number(left.sortOrder || 0) - Number(right.sortOrder || 0) ||
-      String(left.title || "").localeCompare(String(right.title || "")));
+      String(left.title || "").localeCompare(String(right.title || "")))
+    .map((section) => ({
+      children: section.articles.map((article) => navigationArticle(article)),
+      title: section.title || "Help",
+      type: "group",
+    }));
 }
 
 function updateSelectedArticleLinks() {
@@ -228,6 +267,57 @@ function normalizeArticles(articles = []) {
       left.title.localeCompare(right.title));
 }
 
+function normalizeNavigation(items = []) {
+  return (Array.isArray(items) ? items : [])
+    .map(normalizeNavigationItem)
+    .filter(Boolean);
+}
+
+function normalizeNavigationItem(item) {
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const type = item.type === "article" ? "article" : "group";
+  const children = normalizeNavigation(item.children);
+
+  if (type === "article") {
+    const article = findArticle(item.id || item.slug || "");
+
+    if (!article) {
+      return null;
+    }
+
+    return {
+      ...navigationArticle(article),
+      title: item.title || article.title,
+    };
+  }
+
+  return {
+    id: item.id || "",
+    moduleId: item.moduleId || "",
+    ownerType: item.ownerType || "",
+    slug: item.slug || "",
+    children,
+    sourceLabel: item.sourceLabel || "",
+    title: item.title || "Help",
+    type: "group",
+  };
+}
+
+function navigationArticle(article) {
+  return {
+    id: article.id,
+    moduleId: article.moduleId || "",
+    ownerType: article.ownerType || "module",
+    slug: article.slug || "",
+    sourceLabel: article.sourceLabel || "",
+    title: article.title || "Untitled article",
+    type: "article",
+  };
+}
+
 function articleMetaParts(article) {
   const parts = [];
   const source = article.sourceLabel || sourceLabel(article);
@@ -270,6 +360,7 @@ function emptyElement(message) {
   element.textContent = message;
   return element;
 }
+
 
 function setStatus(message, isError = false) {
   if (!statusMessage) {

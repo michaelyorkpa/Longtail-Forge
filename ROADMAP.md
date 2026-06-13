@@ -333,13 +333,13 @@ Use these decisions for 0.33.5.10:
 
 ### Version 0.33.5.10.3 - ToC-Driven Navigation
 
-- [ ] Parse `help/toc.md` into a browser-safe navigation tree.
-- [ ] Treat headings as collapsible groups that map to Help directory structure.
-- [ ] Support nested headings as nested collapsible groups.
-- [ ] Support linked headings or list items as article targets.
-- [ ] Use the first configured/default article from `toc.md` as the initial Help Center article.
-- [ ] Preserve a fallback section for readable active articles that are valid but missing from `toc.md`.
-- [ ] Update `public/js/help.js` and Help page markup/styles only as much as needed to render nested collapsible navigation cleanly.
+- [x] Parse `help/toc.md` into a browser-safe navigation tree.
+- [x] Treat headings as collapsible groups that map to Help directory structure.
+- [x] Support nested headings as nested collapsible groups.
+- [x] Support linked headings or list items as article targets.
+- [x] Use the first configured/default article from `toc.md` as the initial Help Center article.
+- [x] Preserve a fallback section for readable active articles that are valid but missing from `toc.md`.
+- [x] Update `public/js/help.js` and Help page markup/styles only as much as needed to render nested collapsible navigation cleanly.
 
 ### Version 0.33.5.10.4 - Markdown Rendering and Article API Shape
 

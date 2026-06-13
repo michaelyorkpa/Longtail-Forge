@@ -149,6 +149,8 @@ Help Center is framework-owned product/module documentation. Modules may declare
 
 Each help section needs `id`, `moduleId`, and `title`; optional fields include `description`, `sortOrder`, `audience`, `tags`, `requiredPermissions`, `requiredWorkspaceCapabilities`, `requiredModules`, and terminology. Each article needs `id`, `moduleId`, `title`, summary or description, and either inline `body` or a safe relative Markdown `contentPath`; first-party product Help should use `contentPath` under the repo-owned `help/` tree. Optional article fields include `slug`, `sectionId`, `sortOrder`, `audience`, `tags`, `relatedArticleIds`, `requiredPermissions`, `requiredWorkspaceCapabilities`, `requiredModules`, and terminology. Disabled modules are excluded from active Help discovery, so module-authored help should not be the only place a framework-critical behavior is documented.
 
+The visible Help navigation is authored in `help/toc.md`. Use an explicit `default: relative/article.md` directive for the first article, headings for collapsible groups, and Markdown links to article files for visible article targets. Valid active articles that are not listed in `toc.md` appear in fallback navigation so module Help is still discoverable without leaking disabled-module content.
+
 Keep Help Center content about product/module usage. User-authored operational articles belong to the future Knowledge Base module, not to manifest-declared product help.
 
 ## Sanity Checks

@@ -12,6 +12,7 @@ const HELP_SEARCH_RECORD_TYPE = "help_article";
 const HELP_SEARCH_SOURCE = "Help";
 const FRAMEWORK_HELP_MODULE_ID = "framework";
 const HELP_CONTENT_ROOT = fileURLToPath(new URL("../../help/", import.meta.url));
+const HELP_TOC_PATH = path.join(HELP_CONTENT_ROOT, "toc.md");
 
 const FRAMEWORK_HELP_SECTION = {
   id: "framework.help-center",
@@ -213,10 +214,14 @@ if (frameworkHelpValidation.length > 0) {
 
 async function list(session) {
   const contribution = await listVisibleContributions(session);
+  const navigation = await buildHelpNavigation(contribution);
 
   return {
     sections: contribution.sections.map(sectionPayload),
     articles: contribution.articles.map(articleListPayload),
+    defaultArticleId: navigation.defaultArticle?.id || "",
+    defaultArticleSlug: navigation.defaultArticle?.slug || "",
+    navigation: navigation.items,
   };
 }
 
@@ -382,6 +387,191 @@ async function hydrateHelpContribution(contribution) {
   return {
     ...contribution,
     articles: await Promise.all(contribution.articles.map(hydrateHelpArticle)),
+  };
+}
+
+async function buildHelpNavigation(contribution) {
+  const toc = await readHelpToc();
+  const articlesByPath = new Map();
+  const usedArticleIds = new Set();
+  const items = toc ? parseHelpToc(toc) : [];
+  const filteredItems = filterNavigationItems(items, contribution, articlesByPath, usedArticleIds);
+  const fallbackItems = fallbackNavigationItems(contribution.articles, usedArticleIds);
+  const defaultArticle = resolveDefaultArticle(toc, contribution, articlesByPath, filteredItems, fallbackItems);
+
+  return {
+    defaultArticle,
+    items: fallbackItems.length > 0
+      ? [...filteredItems, fallbackNavigationGroup(fallbackItems)]
+      : filteredItems,
+  };
+}
+
+async function readHelpToc() {
+  try {
+    return await fs.readFile(HELP_TOC_PATH, "utf8");
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      return "";
+    }
+    throw error;
+  }
+}
+
+function parseHelpToc(toc) {
+  const root = { children: [], depth: 0 };
+  const stack = [root];
+
+  for (const rawLine of String(toc || "").split(/\r?\n/)) {
+    const line = rawLine.trim();
+
+    if (!line || /^default\s*:/i.test(line)) {
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,6})\s+(.+)$/);
+    if (heading) {
+      const depth = heading[1].length;
+      const item = tocGroupItem(heading[2].trim(), depth);
+
+      while (stack.length > 1 && stack.at(-1).depth >= depth) {
+        stack.pop();
+      }
+      stack.at(-1).children.push(item);
+      stack.push(item);
+      continue;
+    }
+
+    const link = line.match(/^[-*]\s+\[([^\]]+)]\(([^)]+\.md)\)\s*$/i);
+    if (link) {
+      stack.at(-1).children.push({
+        articlePath: normalizeHelpContentPath(link[2]),
+        children: [],
+        title: link[1].trim(),
+        type: "article",
+      });
+    }
+  }
+
+  return root.children;
+}
+
+function tocGroupItem(text, depth) {
+  const link = text.match(/^\[([^\]]+)]\(([^)]+\.md)\)$/i);
+
+  return {
+    articlePath: link ? normalizeHelpContentPath(link[2]) : "",
+    children: [],
+    depth,
+    title: link ? link[1].trim() : text.replace(/#+$/, "").trim(),
+    type: "group",
+  };
+}
+
+function filterNavigationItems(items, contribution, articlesByPath, usedArticleIds) {
+  const visibleArticlesByPath = new Map();
+
+  for (const article of contribution.articles) {
+    const contentPath = normalizeHelpContentPath(article.contentPath || "");
+
+    if (contentPath) {
+      visibleArticlesByPath.set(contentPath, article);
+      articlesByPath.set(contentPath, article);
+    }
+  }
+
+  return items
+    .map((item) => filterNavigationItem(item, visibleArticlesByPath, usedArticleIds))
+    .filter(Boolean);
+}
+
+function filterNavigationItem(item, visibleArticlesByPath, usedArticleIds) {
+  const article = item.articlePath ? visibleArticlesByPath.get(item.articlePath) : null;
+  const children = (item.children || [])
+    .map((child) => filterNavigationItem(child, visibleArticlesByPath, usedArticleIds))
+    .filter(Boolean);
+
+  if (item.type === "article") {
+    if (!article) {
+      return null;
+    }
+    usedArticleIds.add(article.id);
+    return navigationArticleItem(article, item.title);
+  }
+
+  if (article) {
+    usedArticleIds.add(article.id);
+  }
+
+  if (!article && children.length === 0) {
+    return null;
+  }
+
+  return {
+    ...(article ? articleNavigationFields(article) : {}),
+    children,
+    title: item.title || article?.title || "Help",
+    type: "group",
+  };
+}
+
+function fallbackNavigationItems(articles, usedArticleIds) {
+  return articles
+    .filter((article) => !usedArticleIds.has(article.id))
+    .sort(sortHelpItems)
+    .map((article) => navigationArticleItem(article));
+}
+
+function fallbackNavigationGroup(children) {
+  return {
+    children,
+    title: "Other",
+    type: "group",
+  };
+}
+
+function resolveDefaultArticle(toc, contribution, articlesByPath, navigationItems, fallbackItems) {
+  const defaultPath = String(toc || "").match(/^default:\s*(\S+)\s*$/im)?.[1] || "";
+  const defaultArticle = defaultPath ? articlesByPath.get(normalizeHelpContentPath(defaultPath)) : null;
+
+  return defaultArticle ||
+    contribution.articles.find((article) => article.id === "framework.help-center") ||
+    contribution.articles.find((article) => article.id === "framework.getting-started") ||
+    firstNavigationArticle(navigationItems) ||
+    firstNavigationArticle(fallbackItems) ||
+    contribution.articles[0] ||
+    null;
+}
+
+function firstNavigationArticle(items) {
+  for (const item of items || []) {
+    if (item.type === "article" && item.id) {
+      return item;
+    }
+    const child = firstNavigationArticle(item.children || []);
+    if (child) {
+      return child;
+    }
+  }
+  return null;
+}
+
+function navigationArticleItem(article, title = "") {
+  return {
+    ...articleNavigationFields(article),
+    children: [],
+    title: title || article.title,
+    type: "article",
+  };
+}
+
+function articleNavigationFields(article) {
+  return {
+    id: article.id,
+    moduleId: article.moduleId || "",
+    ownerType: article.ownerType || "module",
+    slug: article.slug || "",
+    sourceLabel: article.sourceLabel || "",
   };
 }
 

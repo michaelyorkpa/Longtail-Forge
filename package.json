@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.5.10.2",
+  "version": "0.33.5.10.3",
   "private": true,
   "type": "module",
   "scripts": {
