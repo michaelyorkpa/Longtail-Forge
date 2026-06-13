@@ -1,3 +1,10 @@
+## Version 0.33.5.10.1 - 2026-06-13 13:06 -04:00
+
+- Added the repo-owned `help/` Markdown source tree with `help/toc.md`, framework article files, and first-party module article files for Time Tracking, Tasks, Notes, and Lists.
+- Added `contentPath` metadata to the existing framework and first-party module Help declarations while retaining inline bodies until the later Help loader slice.
+- Added `help-markdown-source-layout-regression.mjs` and wired it into the regression suite to verify ToC links, Markdown file presence, metadata paths, and body parity.
+- Marked the 0.33.5.10.1 roadmap slice complete, recorded source-layout decisions, and bumped the app/package plus touched module versions to `0.33.5.10.1`.
+
 ## Version 0.33.5.9.6 - 2026-06-13 12:35 -04:00
 
 - Documentation update 2026-06-13 13:05 -04:00: Reworked the upcoming 0.33.5.10 Help Center roadmap into Markdown-backed Help source, ToC navigation, safe loader/rendering, search re-indexing, content review, and closeout slices, with open design questions moved to the top of the version.

@@ -42,7 +42,7 @@ async function assertManifestAndHelp() {
   const articleIds = new Set(listsModule.help.articles.map((article) => article.id));
   const articleText = listsModule.help.articles.map((article) => `${article.title}\n${article.summary}\n${article.body}`).join("\n");
 
-  assert.equal(listsModule.version, "0.33.5.2.7");
+  assert.equal(listsModule.version, "0.33.5.10.1");
   assert.ok(listsModule.help.sections.some((section) => section.id === "lists.overview"));
   for (const articleId of [
     "lists.basics",
@@ -111,7 +111,7 @@ async function assertDeveloperDocs() {
   const docs = await fs.readFile(path.join(process.cwd(), "docs/lists-module.md"), "utf8");
 
   for (const phrase of [
-    "current Lists implementation as of 0.33.5.2.7",
+    "current Lists implementation as of 0.33.5.10.1",
     "The framework owns module registration",
     "Workspace Labels",
     "Reusable Lists And Catalog Suggestions",

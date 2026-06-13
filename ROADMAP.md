@@ -214,15 +214,113 @@ Use these decisions for 0.33.5.9:
 - Search must read the Markdown-backed Help content through the Help service and index the current article text during Help search indexing/rebuilds.
 - Help Center remains current-state product guidance. Roadmap promises stay in `ROADMAP.md`, and workspace-authored knowledge remains reserved for the future Knowledge Base module.
 
+Use these decisions for 0.33.5.10:
+
+1. Confirmed: the editable Help source root should be `help/` at the repo root.
+
+   Use:
+   - `help/framework/` for framework-owned Help articles.
+   - `help/modules/<module-id>/` for first-party module Help articles.
+
+   Keep this content repo-authored and version-controlled. This is product documentation, not workspace data.
+
+2. Confirmed: `help/toc.md` should own the visible left navigation order, nesting, collapsible groups, and default first article.
+
+   Manifest `sortOrder` values should remain useful as metadata/fallback ordering, but the visible Help navigation should come from `help/toc.md` when present and valid.
+
+   This keeps Help authoring predictable and avoids forcing navigation structure to emerge from scattered module manifests.
+
+3. Confirmed: `toc.md` article links should point directly to article Markdown files.
+
+   Example:
+
+   ```md
+   # Longtail Forge
+   - [Help Center](framework/help-center.md)
+   - [Getting Started](framework/getting-started.md)
+
+   # Modules
+   ## Tasks
+   - [Tasks Basics](modules/tasks/tasks-basics.md)
+
+4. Confirmed with clarification: `help/toc.md` should be able to identify the default opening article, but use an explicit first-line directive instead of treating any first non-empty line as the default.
+
+   Preferred format:
+
+   ```md
+   default: framework/help-center.md
+
+   # Longtail Forge
+   - [Help Center](framework/help-center.md)
+   - [Getting Started](framework/getting-started.md)
+   ```
+
+   Also acceptable:
+
+   ```md
+   default: framework/getting-started.md
+   ```
+
+   If the default directive is omitted, invalid, unreadable, disabled by module state, or not visible to the current user, Help should fall back in this order:
+
+   1. Help Center
+   2. Getting Started
+   3. First readable active article from the ToC
+   4. First readable active article from fallback discovery
+
+   Do not let default article selection leak hidden disabled-module or permission-denied articles.
+
+5. Confirmed: Markdown support should stay intentionally simple in this pass.
+
+   Support:
+   - Headings
+   - Paragraphs
+   - Ordered and unordered lists
+   - Links
+   - Inline code
+   - Code fences
+   - Emphasis
+   - Tables only if the existing Markdown helper can render them safely without expanding scope
+
+   Do not add raw HTML support, embedded scripts, iframes, custom components, Mermaid diagrams, wiki-linking, comments, callouts, image upload handling, rich embeds, or a WYSIWYG editor in this pass.
+
+   Render Markdown through a safe allowlist. Article output should remain browser-safe.
+
+6. Confirmed: Help content remains repo-authored product/module documentation only.
+
+   Do not add:
+   - In-app Help editing
+   - Rich authoring
+   - Version history UI
+   - Workspace-authored Help articles
+   - Client-authored Help articles
+   - Approval/publishing workflows
+   - Knowledge Base-style article storage
+
+   Help is the product manual. Knowledge Base is the future workspace/client knowledge system. Keep those boundaries separate.
+
+7. Confirmed: Help search should index Markdown-derived article text.
+
+   Search rebuilds should re-read the current Markdown-backed Help content through the Help service. Do not add live file watching in this pass.
+
+   Keep:
+   - `record_type = help_article`
+   - `source = Help`
+   - Existing framework/module ownership metadata
+   - Existing permission-shaped Help search behavior
+   - Disabled-module hiding/cleanup behavior
+
+   Rebuild-time indexing is enough for 0.33.5.10. Live watching can be reconsidered later if Help authoring becomes more dynamic.
+
 ### Version 0.33.5.10.1 - Help Markdown Source Layout
 
-- [ ] Add a repo-owned `help/` content directory.
-- [ ] Add `help/toc.md` as the editable Help navigation source.
-- [ ] Add `help/framework/` for framework-owned Help articles.
-- [ ] Add `help/modules/<module-id>/` directories for first-party module Help articles.
-- [ ] Convert existing framework Help article bodies from `src/services/help.service.js` into Markdown files.
-- [ ] Convert existing first-party module Help article bodies from module manifest JavaScript into Markdown files.
-- [ ] Keep article IDs, slugs, source labels, ownership metadata, and current Help URLs stable during the conversion.
+- [x] Add a repo-owned `help/` content directory.
+- [x] Add `help/toc.md` as the editable Help navigation source.
+- [x] Add `help/framework/` for framework-owned Help articles.
+- [x] Add `help/modules/<module-id>/` directories for first-party module Help articles.
+- [x] Convert existing framework Help article bodies from `src/services/help.service.js` into Markdown files.
+- [x] Convert existing first-party module Help article bodies from module manifest JavaScript into Markdown files.
+- [x] Keep article IDs, slugs, source labels, ownership metadata, and current Help URLs stable during the conversion.
 
 ### Version 0.33.5.10.2 - Help Content Loader and Metadata Contract
 

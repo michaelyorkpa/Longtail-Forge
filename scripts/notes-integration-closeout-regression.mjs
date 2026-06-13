@@ -39,7 +39,7 @@ try {
 async function assertManifestIntegrationContract() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.5.8.5");
+  assert.equal(notesModule.version, "0.33.5.10.1");
   assert.equal(notesModule.publicApiRoutes.length, 0, "Notes should not expose public/client APIs in this closeout pass");
   assert.ok(notesModule.permissions.some((permission) => permission.id === "notes.view"));
   assert.ok(notesModule.taggableTypes.some((type) => type.targetType === "note" && type.requiredTagPermission === "tags.assign"));
