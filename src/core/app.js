@@ -19,15 +19,18 @@ import { searchIndexRoutes } from "../routes/search-index.routes.js";
 import { searchRoutes } from "../routes/search.routes.js";
 import { settingsRoutes } from "../routes/settings.routes.js";
 import { staticRoutes } from "../routes/static.routes.js";
+import { workResumeRoutes } from "../routes/work-resume.routes.js";
 import { workbenchRoutes } from "../routes/workbench.routes.js";
 import { requireModuleBrowserWritesEnabledForRouter } from "./modules/module-access.js";
 import { modulesService } from "./modules/modules.service.js";
 import { notificationsService } from "../services/notifications.service.js";
 import { searchIndexRebuildService } from "../services/search-index-rebuild.service.js";
+import { registerInitialResumeStateProducerEventHandlers } from "../services/work-resume-state-initial-producers.js";
 
 function createApp() {
   const app = express();
   notificationsService.registerEventHandlers();
+  registerInitialResumeStateProducerEventHandlers();
 
   app.disable("x-powered-by");
   app.use(cookieParser());
@@ -50,6 +53,7 @@ function createApp() {
   app.use("/api", searchIndexRoutes);
   app.use("/api", searchRoutes);
   app.use("/api", settingsRoutes);
+  app.use("/api", workResumeRoutes);
   app.use("/api", workbenchRoutes);
   for (const moduleRoute of modulesService.listModuleRouteEntries("browser")) {
     const moduleDefinition = modulesService.getModule(moduleRoute.moduleId);

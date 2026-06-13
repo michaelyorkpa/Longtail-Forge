@@ -1,3 +1,17 @@
+## Version 0.33.5.9.5 - 2026-06-13 12:24 -04:00
+
+- Added protected browser resume-state routes for `GET /api/work-resume` and `POST /api/work-resume/:resumeStateId/dismiss`.
+- Returned Workbench-ready, browser-safe resume rows with camelCase fields, supported `recent`, `left_off`, and `active` modes plus module/client/project/record filters, and kept empty states generic.
+- Kept resume state out of `/api/v1` public API routes and added `work-resume-state-api-regression.mjs` to verify auth, filtering, active mode, dismissal, and route shape.
+- Bumped the app/package version to `0.33.5.9.5`.
+
+## Version 0.33.5.9.4 - 2026-06-13 11:49 -04:00
+
+- Added initial resume-state producers and module read resolvers for Tasks, Lists, Notes, and Time Tracking.
+- Wired task/list/note/timer lifecycle events into safe framework resume-state writes, including checklist, list item/link, Active Work note, manual timer, and sourced task timer updates.
+- Kept private/secure Notes out of global resume-state storage and removed manual timer resume rows when the active timer is finalized or discarded.
+- Added `work-resume-state-initial-producers-regression.mjs` to the regression suite and bumped the app/package version to `0.33.5.9.4`.
+
 ## Version 0.33.5.9.3 - 2026-06-13 11:35 -04:00
 
 - Added the framework-owned resume-state producer contract for safe event-driven producer registration, payload shaping, metadata scrubbing, and source-record removal actions.

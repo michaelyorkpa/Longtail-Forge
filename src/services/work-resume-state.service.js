@@ -181,7 +181,7 @@ LIMIT ${sqlInteger(normalizedQuery.limit * 3)};
   const results = [];
 
   for (const row of rows) {
-    const guarded = await shapeReadableRow(row, normalizedQuery);
+    const guarded = await shapeReadableRow(row, normalizedQuery, session);
 
     if (guarded) {
       results.push(guarded);
@@ -270,7 +270,7 @@ async function normalizeUpsertPayload(session, payload) {
   };
 }
 
-async function shapeReadableRow(row, query) {
+async function shapeReadableRow(row, query, session) {
   const moduleDefinition = modulesService.getModule(row.module_id);
 
   if (!moduleDefinition) {
@@ -288,13 +288,18 @@ async function shapeReadableRow(row, query) {
     return null;
   }
 
-  const readCheck = await runReadCheck(row);
+  const readCheck = await runReadCheck(row, session);
 
   if (!readCheck.readable) {
     return null;
   }
 
   const lifecycleStatus = normalizeText(readCheck.status || row.status_snapshot, TEXT_LIMITS.status_snapshot);
+
+  if (query.mode === "active" && !isActiveResumeRow(row, lifecycleStatus)) {
+    return null;
+  }
+
   const hiddenFromPrimary = readCheck.deleted === true ||
     PRIMARY_HIDDEN_STATUSES.has(lifecycleStatus) ||
     readCheck.archived === true ||
@@ -332,7 +337,7 @@ async function shapeReadableRow(row, query) {
   };
 }
 
-async function runReadCheck(row) {
+async function runReadCheck(row, session) {
   const resolver = readResumeStateReadResolver(row.module_id, row.record_type);
 
   if (!resolver) {
@@ -344,6 +349,7 @@ async function runReadCheck(row) {
     recordId: row.record_id,
     recordType: row.record_type,
     row,
+    session,
     userId: row.user_id,
     workspaceId: row.workspace_id,
   });
@@ -484,6 +490,14 @@ function isDismissed(row) {
   const dismissedSourceUpdatedAt = row.dismissed_source_updated_at || row.dismissed_at;
 
   return compareIso(sourceUpdatedAt, dismissedSourceUpdatedAt) <= 0;
+}
+
+function isActiveResumeRow(row, lifecycleStatus) {
+  const normalizedStatus = normalizeText(lifecycleStatus || row.status_snapshot, TEXT_LIMITS.status_snapshot);
+  const actionType = normalizeText(row.last_action_type, TEXT_LIMITS.last_action_type);
+
+  return ["active", "running"].includes(normalizedStatus) ||
+    ["timer.started", "timer.running", "timer.resumed"].includes(actionType);
 }
 
 function compareIso(left, right) {

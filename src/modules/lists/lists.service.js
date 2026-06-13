@@ -1711,6 +1711,7 @@ async function emitListEvent(eventName, session, previousValue, newValue, metada
     previousValue: previousValue ? sanitizeListLifecyclePayload({ newValue: previousValue }) : null,
     recordId: newValue?.list_id || previousValue?.list_id || "",
     recordType: "list",
+    session,
     workspaceId: session.workspace_id,
   });
 }
@@ -1732,6 +1733,7 @@ async function emitCatalogEvent(eventName, session, previousValue, newValue) {
     previousValue: previousValue ? sanitizeCatalogForAudit(previousValue) : null,
     recordId: newValue?.catalog_item_id || previousValue?.catalog_item_id || "",
     recordType: "list_item_catalog",
+    session,
     workspaceId: session.workspace_id,
   });
 }
@@ -1757,6 +1759,7 @@ async function emitItemEvent(eventName, session, previousValue, newValue, listRe
     previousValue: previousValue ? sanitizeListLifecyclePayload({ newValue: previousValue }) : null,
     recordId: newValue?.list_item_id || previousValue?.list_item_id || "",
     recordType: "list_item",
+    session,
     workspaceId: session.workspace_id,
   });
 }

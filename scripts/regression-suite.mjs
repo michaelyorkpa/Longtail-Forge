@@ -96,6 +96,8 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/timer-resume-metadata-regression.mjs",
   "scripts/work-resume-state-service-regression.mjs",
   "scripts/work-resume-state-producer-regression.mjs",
+  "scripts/work-resume-state-initial-producers-regression.mjs",
+  "scripts/work-resume-state-api-regression.mjs",
   "scripts/files-time-tracking-qol-closeout-regression.mjs",
   "scripts/task-canonical-query-regression.mjs",
   "scripts/task-options-payload-regression.mjs",

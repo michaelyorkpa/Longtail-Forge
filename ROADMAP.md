@@ -259,46 +259,46 @@ Use these decisions for 0.33.5.9:
 
 ### Version 0.33.5.9.4 - Initial Resume State Producers
 
-- [ ] Tasks should update resume state when:
-  - [ ] Task is created or updated by the current user.
-  - [ ] Task status changes.
-  - [ ] Task timer starts, pauses, finalizes, or is discarded.
-  - [ ] Task checklist changes.
-  - [ ] Task `next_action`, `blocked_reason`, or `handoff_note` changes.
-- [ ] Lists should update resume state when:
-  - [ ] List is created or updated.
-  - [ ] List item is checked/unchecked/completed/updated/reordered.
-  - [ ] List is linked to or unlinked from a task/project/client/note.
-  - [ ] List is completed/reopened/finalized/archived/restored/deleted.
-- [ ] Notes should update resume state when:
-  - [ ] Active Work note is created or edited.
-  - [ ] Note is linked to a task/project/list/client.
-  - [ ] Note is archived/restored/deleted.
-  - [ ] Secure/private notes must not write body/excerpt content into resume state.
-- [ ] Time Tracking should update resume state when:
-  - [ ] Manual timer starts/pauses/finalizes/discards.
-  - [ ] Sourced task timer starts/pauses/finalizes/discards.
-  - [ ] Resume state preserves source metadata without making Time Tracking own the source record.
-  - [ ] Active timer rows remain Time Tracking-owned; resume state stores only recovery snapshots and source references.
+- [x] Tasks should update resume state when:
+  - [x] Task is created or updated by the current user.
+  - [x] Task status changes.
+  - [x] Task timer starts, pauses, finalizes, or is discarded.
+  - [x] Task checklist changes.
+  - [x] Task `next_action`, `blocked_reason`, or `handoff_note` changes.
+- [x] Lists should update resume state when:
+  - [x] List is created or updated.
+  - [x] List item is checked/unchecked/completed/updated/reordered.
+  - [x] List is linked to or unlinked from a task/project/client/note.
+  - [x] List is completed/reopened/finalized/archived/restored/deleted.
+- [x] Notes should update resume state when:
+  - [x] Active Work note is created or edited.
+  - [x] Note is linked to a task/project/list/client.
+  - [x] Note is archived/restored/deleted.
+  - [x] Secure/private notes must not write body/excerpt content into resume state.
+- [x] Time Tracking should update resume state when:
+  - [x] Manual timer starts/pauses/finalizes/discards.
+  - [x] Sourced task timer starts/pauses/finalizes/discards.
+  - [x] Resume state preserves source metadata without making Time Tracking own the source record.
+  - [x] Active timer rows remain Time Tracking-owned; resume state stores only recovery snapshots and source references.
 
 ### Version 0.33.5.9.5 - Protected Resume State API
 
-- [ ] Add protected browser API route for resume state reads.
-  - [ ] Suggested route: `GET /api/work-resume`
-  - [ ] Support filters:
-    - [ ] `mode=recent`
-    - [ ] `mode=left_off`
-    - [ ] `mode=active`
-    - [ ] `module_id`
-    - [ ] `client_id`
-    - [ ] `project_id`
-    - [ ] `record_type`
-  - [ ] Return permission-shaped rows only.
-  - [ ] Do not add public API routes in this release.
-- [ ] Add protected browser API route to dismiss a resume candidate.
-  - [ ] Suggested route: `POST /api/work-resume/:resumeStateId/dismiss`
-- [ ] Add browser-safe response fields for future Workbench consumers without building the Workbench UI in this pass.
-- [ ] Keep empty states generic so inaccessible private/secure/deleted/disabled records do not leak existence.
+- [x] Add protected browser API route for resume state reads.
+  - [x] Suggested route: `GET /api/work-resume`
+  - [x] Support filters:
+    - [x] `mode=recent`
+    - [x] `mode=left_off`
+    - [x] `mode=active`
+    - [x] `module_id`
+    - [x] `client_id`
+    - [x] `project_id`
+    - [x] `record_type`
+  - [x] Return permission-shaped rows only.
+  - [x] Do not add public API routes in this release.
+- [x] Add protected browser API route to dismiss a resume candidate.
+  - [x] Suggested route: `POST /api/work-resume/:resumeStateId/dismiss`
+- [x] Add browser-safe response fields for future Workbench consumers without building the Workbench UI in this pass.
+- [x] Keep empty states generic so inaccessible private/secure/deleted/disabled records do not leak existence.
 
 ### Version 0.33.5.9.6 - Regressions, Docs, and Closeout
 
