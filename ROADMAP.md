@@ -149,77 +149,123 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ## Version 0.33.5.6 - Search, Notification, and Tag QoL Updates
 
-### Search Fixes/Tweaks
+### Open Design / Clarification Questions
 
-- Help is in the record types four times
+- Search record type cleanup: should Help appear as one framework-owned record type everywhere, or should Help keep separate internal content types that are grouped under one visible "Help" filter?
+- Urgent notification alerts: should urgent notifications open an interruptive in-app alert modal by default, or should the modal be a later user/workspace preference after the bell priority behavior ships?
+- Notification priority grouping: should "High" notifications bypass grouping in both the bell dropdown and the All Notifications page, or only in the bell dropdown?
+- Notification grouping preferences: should the first pass support one workspace default plus per-user override, or only a per-user setting under Settings -> User?
+- Bulk tag rollout order: should Time Entries and Tasks both ship in 0.33.5.6, or should Time Entries ship first because the checkbox column and existing time-entry table are the clearest bulk-edit surface?
+- Workbench task tag chips: how many chips should show inline before collapsing into a count, and should propagated/context tags appear there or only direct task tags?
 
-### Notification Fixes/Tweaks
+### Planning Boundaries
 
-- Users who perform the action, don't need notifications of the action happening, e.g.
-  - Creators of records don't need {{recordType}} created notifications
-  - Modifiers of records don't need {{recordType}} updated notifications
+- Keep Notifications as directed attention items, not the source of truth for resume state.
+- Keep activity/resume summaries as recovery context that future Workbench and resume-state surfaces can consume.
+- Keep Audit as the admin/security truth.
+- Keep Tags as framework-level classification metadata. Bulk tag workflows should be Tags-owned and hooked into modules through framework/module contracts, not hard-coded per page.
 
-- [ ] Record update notifications should include the changed context human-formatted from the event
-  - [ ] Notifications should display a truncated example of the change for things like:
-    - Description added
-    - Task updated
-    - etc.
+### Implementation Sub-Versions
 
-- "Urgent" priority notifications should turn the bell icon red and, optionally, show an in-app alert modal
-- "High" priority notifications should turn the bell icon red and not be grouped
-- "Normal" priority should be grouped and increment the number on the bell icon
-- "Low" priority should be grouped and NOT increase the number on the bell icon
+#### Version 0.33.5.6.1 - Search Record Type Cleanup
 
-- [ ] Use icons from notifications.html in the Notifications bell drop-down instead of full text buttons
-  - [ ] Be sure to use hover-over titles on these icons
+- [ ] Fix duplicate Help record types in Search filters and record-type display.
+  - [ ] Ensure Help appears once in user-facing record-type lists.
+  - [ ] Preserve any internal Help content distinctions needed by the Help/Search indexing contracts.
+  - [ ] Verify Search filters, search result labels, and disabled-module behavior do not expose duplicate Help choices.
 
-- [ ] Place "Read all" and "Dismiss all" text at bottom of notification bell drop-down
-  - Font size should match "View all"
+#### Version 0.33.5.6.2 - Notification Actor Suppression and Changed Context
 
-#### All notifications Page
-- [ ] notifications.html: Notification Type chip should be aligned to right, left of "Dismissed"
-- [ ] Read/Dismiss icon buttons do not have hover over titles (required for Accessibility and clarity)
+- [ ] Stop notifying users about their own normal record actions.
+  - [ ] Creators of records do not need `{{recordType}} created` notifications for their own action.
+  - [ ] Modifiers of records do not need `{{recordType}} updated` notifications for their own action.
+  - [ ] Preserve notifications for other affected users where the event is still relevant.
+- [ ] Add human-formatted changed context to record update notifications.
+  - [ ] Notifications should display a safe truncated example of the change where useful.
+  - [ ] Cover examples such as description added, task updated, and similar event-derived summaries.
+  - [ ] Avoid raw audit JSON or unsafe internal event payloads in user-facing notification text.
+- [ ] Verification.
+  - [ ] Verify actor suppression for create and update events.
+  - [ ] Verify other recipients still receive relevant notifications.
+  - [ ] Verify changed-context snippets are permission-safe and human-readable.
 
-- [ ] Disabled modules' preferences should be moved to the bottom of the preferences section automatically; not hard-coded by order
-  - [ ] Listing of preferences should be a view provided by notification module
+#### Version 0.33.5.6.3 - Notification Priority and Bell Dropdown QoL
 
-- [ ] Users should be able to adjust notification grouping (In notification Preferences in Settings -> User)
-  - Workspace notifications cab be grouped by:
-    - [ ] Client (Business Only)/Project (Default)
-    - [ ] Notification type (Updated/Created/etc.)
-    - [ ] Record Type
+- [ ] Implement priority behavior in the notification bell.
+  - [ ] "Urgent" priority notifications turn the bell icon red and may trigger an in-app alert modal depending on the clarification above.
+  - [ ] "High" priority notifications turn the bell icon red and are not grouped.
+  - [ ] "Normal" priority notifications are grouped and increment the number on the bell icon.
+  - [ ] "Low" priority notifications are grouped and do not increase the number on the bell icon.
+- [ ] Use icon actions from `notifications.html` in the notification bell dropdown instead of full text buttons where context is clear.
+  - [ ] Add hover titles/tooltips for icon actions.
+  - [ ] Preserve accessible labels for screen readers.
+- [ ] Move "Read all" and "Dismiss all" text actions to the bottom of the notification bell dropdown.
+  - [ ] Match the "View all" font size.
+  - [ ] Keep destructive or bulk actions visually distinct enough to avoid accidental clicks.
+- [ ] Verification.
+  - [ ] Verify bell color, counts, grouping, and dropdown action placement for urgent, high, normal, and low notifications.
+  - [ ] Verify keyboard and hover/title behavior for dropdown icon actions.
 
-- [ ] Notification type chip is floating weird, it should be anchored just left of the Unread/Read/Dismissed chip
+#### Version 0.33.5.6.4 - All Notifications Page and Preferences QoL
 
-### Tags Fixes/Tweaks
+- [ ] Clean up `notifications.html` notification row chips and actions.
+  - [ ] Align the Notification Type chip to the right, immediately left of the Unread/Read/Dismissed chip.
+  - [ ] Fix the floating Notification Type chip placement so it stays anchored beside the status chip.
+  - [ ] Add hover titles/tooltips to Read and Dismiss icon buttons.
+- [ ] Move disabled modules to the bottom of notification preferences automatically.
+  - [ ] Do not hard-code module order in the preferences UI.
+  - [ ] The notification module should provide the preference list view/model used by Settings -> User.
+- [ ] Add user-adjustable notification grouping preferences under Settings -> User.
+  - [ ] Workspace notifications can be grouped by Client for Business workspaces and Project by default.
+  - [ ] Workspace notifications can be grouped by notification type, such as Updated or Created.
+  - [ ] Workspace notifications can be grouped by record type.
+- [ ] Verification.
+  - [ ] Verify notification chip alignment at desktop and mobile widths.
+  - [ ] Verify disabled-module preferences sort to the bottom without hard-coded module IDs.
+  - [ ] Verify grouping preferences persist and affect notification grouping without leaking inaccessible context.
 
-- If I create a new client and add a new tag the tag doesn't show up if I don't refresh/change the page
+#### Version 0.33.5.6.5 - Tag Refresh and No Tags Filters
 
-- [ ] Anywhere there's a Tag filter, add a "No Tags" option to easily identify items that still need to be tagged
-  - Should be directly below "All tags" option
+- [ ] Refresh tag options after creating a new client tag without requiring a page refresh or navigation change.
+  - [ ] Newly created client tags should appear in the relevant tag picker immediately after save.
+  - [ ] Preserve direct/manual and propagated tag semantics.
+- [ ] Add a "No Tags" option anywhere there is a Tag filter.
+  - [ ] Place "No Tags" directly below the "All tags" option.
+  - [ ] Use the existing Tags-owned no-tags filter semantics rather than inventing page-specific filter behavior.
+- [ ] Verification.
+  - [ ] Verify newly created client tags appear immediately in client/project tag controls.
+  - [ ] Verify "No Tags" filters work across current tag-filtered views without changing permission behavior.
 
-- Tags should be bulk assignable/removable in the following contexts:
-  - Projects -> Time Keeping -> Time Entries
-    - This will require checkboxes in a tight leftmost column for this display to enable bulk editing
-  - Projects -> Tasks
-  - Eventually, Projects -> Notes
-  - Bulk tag application should use the same/similar box to initial entry
-    - This entire thing should be owned within tags and be hooked in via the framework, not hard coded anywhere
+#### Version 0.33.5.6.6 - Bulk Tag Assignment Workflows
 
-- [ ] Add tag chips between task title and task meta data on Workbench; keep it tight
+- [ ] Add Tags-owned bulk assign/remove support for Projects -> Time Keeping -> Time Entries.
+  - [ ] Add checkboxes in a tight leftmost column for the time-entry display.
+  - [ ] Use a compact bulk tag application control similar to the existing tag-entry box.
+  - [ ] Preserve propagated/system tags while applying direct/manual bulk tag changes.
+- [ ] Add Tags-owned bulk assign/remove support for Projects -> Tasks.
+  - [ ] Reuse the same Tags-owned bulk assignment contract where possible.
+  - [ ] Keep task selection, permission checks, and partial errors clear.
+- [ ] Defer Projects -> Notes bulk tag assignment until the Notes cleanup line or a later Tags integration pass unless explicitly pulled forward.
+- [ ] Verification.
+  - [ ] Verify bulk tag add, remove, and partial failure behavior for Time Entries and Tasks.
+  - [ ] Verify inaccessible records are skipped or rejected without leaking labels.
+  - [ ] Verify bulk tagging does not remove propagated/system assignments.
 
-### Resume-Safe Event Summary Cleanup
+#### Version 0.33.5.6.7 - Workbench Tag Chips and Resume-Safe Summary Cleanup
 
+- [ ] Add tight tag chips between task title and task metadata on Workbench.
+  - [ ] Keep the row compact.
+  - [ ] Respect the clarification above for direct versus propagated/context tag display.
+  - [ ] Avoid pushing primary task actions out of reach.
 - [ ] Update event/notification summary helpers so user-facing changed context can be reused by activity feed and future resume state.
-  - [ ] Summaries should be human-readable.
-  - [ ] Summaries should be permission-safe.
-  - [ ] Summaries should avoid raw audit JSON.
-  - [ ] Summaries should include safe record labels, record type, module ID, action type, actor where allowed, and changed field labels where useful.
-
-- [ ] Do not make notifications the source of truth for resume state.
-  - [ ] Notifications are directed attention items.
-  - [ ] Activity/resume summaries are recovery context.
-  - [ ] Audit remains the admin/security truth.
+  - [ ] Summaries are human-readable.
+  - [ ] Summaries are permission-safe.
+  - [ ] Summaries avoid raw audit JSON.
+  - [ ] Summaries include safe record labels, record type, module ID, action type, actor where allowed, and changed field labels where useful.
+- [ ] Verification.
+  - [ ] Verify Workbench task rows remain compact with and without tags.
+  - [ ] Verify summary helpers can serve notifications and future activity/resume surfaces without making Notifications the source of truth.
+  - [ ] Verify audit remains the admin/security truth and is not replaced by notification summaries.
 
 ## Version 0.33.5.8 - Notes Cleanup
 

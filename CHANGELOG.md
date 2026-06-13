@@ -1,5 +1,6 @@
 ## Version 0.33.5.4.7 - 2026-06-12 20:52 -04:00
 
+- Documentation update 2026-06-12 21:20 -04:00: Cleaned up the upcoming 0.33.5.6 Search, Notification, and Tag QoL roadmap into open design questions, planning boundaries, and implementation sub-version slices.
 - Closed the Files and Time Tracking QoL line with current-state Help for staged file deletion, partial-success upload behavior, file settings/storage accounting, admin time-entry corrections, and timer duration semantics.
 - Expanded Time Tracking developer docs for timer timestamp/duration rules, resume-safe timer metadata, admin correction auditing, and file attachment ownership boundaries.
 - Added a 0.33.5.4 file QoL closeout note to the file framework documentation.
