@@ -13,6 +13,11 @@ const sortSelect = document.querySelector("[data-time-entry-sort]");
 const addTimeEntryButton = document.querySelector("[data-add-time-entry]");
 const timeEntryStatus = document.querySelector("[data-time-entry-status]");
 const timeEntryTable = document.querySelector("[data-time-entry-table]");
+const bulkToolbar = document.querySelector("[data-time-entry-bulk-toolbar]");
+const bulkActionSelect = document.querySelector("[data-time-entry-bulk-action]");
+const bulkTagsControl = document.querySelector("[data-time-entry-bulk-tags]");
+const bulkApplyButton = document.querySelector("[data-time-entry-bulk-apply]");
+const selectAllInput = document.querySelector("[data-time-entry-select-all]");
 
 let timeEntryClients = [];
 let timeEntrySettings = {
@@ -21,6 +26,9 @@ let timeEntrySettings = {
 let timeEntries = [];
 let timeEntryUsers = [];
 let timeEntryTagOptions = [];
+let bulkTagPicker = null;
+let bulkTagObserver = null;
+const selectedEntryIds = new Set();
 
 initializeTimeEntries();
 
@@ -40,6 +48,9 @@ filterClientSelect.addEventListener("change", () => {
   renderEntries();
 });
 filterProjectSelect.addEventListener("change", renderEntries);
+bulkActionSelect?.addEventListener("change", updateBulkControls);
+bulkApplyButton?.addEventListener("click", applyBulkTagAction);
+selectAllInput?.addEventListener("change", toggleVisibleSelection);
 
 async function loadTimeEntryData() {
   setTimeEntryStatus("Loading entries...");
@@ -73,6 +84,7 @@ async function loadTimeEntryData() {
     populateFilterProjects();
     populateUserOptions();
     populateTagFilter();
+    await mountBulkTagPicker();
     setDefaultCustomDates();
     updateFilterDateState();
     renderEntries();
@@ -128,11 +140,14 @@ function renderEntries() {
   // The table is rebuilt from state after every filter change or save.
   timeEntryTable.innerHTML = "";
   const entries = getFilteredEntries();
+  syncSelectionToEntries(entries);
+  updateSelectionControls(entries);
+  updateBulkControls();
 
   if (!entries.length) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 6;
+    cell.colSpan = 7;
     cell.textContent = "No entries match these filters.";
     row.appendChild(cell);
     timeEntryTable.appendChild(row);
@@ -142,6 +157,7 @@ function renderEntries() {
   entries.forEach((entry) => {
     const row = document.createElement("tr");
     row.append(
+      createSelectionCell(entry),
       createTableCell(formatDate(entry.endTime)),
       createTableCell(entry.clientName),
       createProjectCell(entry),
@@ -151,6 +167,28 @@ function renderEntries() {
     );
     timeEntryTable.appendChild(row);
   });
+}
+
+function createSelectionCell(entry) {
+  const cell = document.createElement("td");
+  const checkbox = document.createElement("input");
+
+  cell.className = "time-entry-selection-cell";
+  checkbox.type = "checkbox";
+  checkbox.value = entry.entryId;
+  checkbox.checked = selectedEntryIds.has(entry.entryId);
+  checkbox.setAttribute("aria-label", `Select ${entry.projectName || "time entry"} from ${formatDate(entry.endTime)}`);
+  checkbox.addEventListener("change", () => {
+    if (checkbox.checked) {
+      selectedEntryIds.add(entry.entryId);
+    } else {
+      selectedEntryIds.delete(entry.entryId);
+    }
+    updateSelectionControls(getFilteredEntries());
+    updateBulkControls();
+  });
+  cell.appendChild(checkbox);
+  return cell;
 }
 
 function getFilteredEntries() {
@@ -421,6 +459,113 @@ function populateTagFilter() {
   filterTagSelect.value = previousValue === noTagsFilterValue() || previousValue === "__no_effective_tags__" || timeEntryTagOptions.some((tag) => tag.tag_id === previousValue)
     ? normalizeTagFilterValue(previousValue)
     : "";
+}
+
+async function mountBulkTagPicker() {
+  if (!bulkTagsControl || !window.LongtailForge.tags?.mountPicker) {
+    return;
+  }
+
+  bulkTagObserver?.disconnect();
+  bulkTagPicker = await window.LongtailForge.tags.mountPicker(bulkTagsControl, {
+    allowCreate: false,
+    label: "Tags",
+    placeholder: "Find tags",
+    tags: timeEntryTagOptions,
+  });
+  if (window.MutationObserver) {
+    bulkTagObserver = new window.MutationObserver(updateBulkControls);
+    bulkTagObserver.observe(bulkTagsControl, {
+      childList: true,
+      subtree: true,
+    });
+  }
+  updateBulkControls();
+}
+
+async function applyBulkTagAction() {
+  const targetIds = [...selectedEntryIds];
+  const tagIds = bulkTagPicker?.readTagIds?.() || [];
+  const action = bulkActionSelect?.value === "remove" ? "remove" : "add";
+
+  if (targetIds.length === 0 || tagIds.length === 0) {
+    updateBulkControls();
+    return;
+  }
+
+  setTimeEntryStatus("Updating time entry tags...");
+  if (bulkApplyButton) {
+    bulkApplyButton.disabled = true;
+  }
+
+  try {
+    const result = await window.LongtailForge.api.postJson("/api/tags/bulk-assignments", {
+      action,
+      tagIds,
+      targetIds,
+      targetType: "time_entry",
+    });
+    const changedCount = Number(result.changed_count) || 0;
+    const skippedCount = Number(result.skipped_count) || 0;
+    selectedEntryIds.clear();
+    bulkTagPicker?.setSelected?.([]);
+    await loadTimeEntryData();
+    const skippedText = skippedCount > 0 ? ` ${skippedCount} skipped.` : "";
+    setTimeEntryStatus(`Updated tags on ${changedCount} time ${changedCount === 1 ? "entry" : "entries"}.${skippedText}`);
+  } catch (error) {
+    setTimeEntryStatus(error.message || "Time entry tags could not be updated.");
+    console.error(error);
+  } finally {
+    updateBulkControls();
+  }
+}
+
+function toggleVisibleSelection() {
+  const entries = getFilteredEntries();
+  const shouldSelect = selectAllInput?.checked === true;
+
+  entries.forEach((entry) => {
+    if (shouldSelect) {
+      selectedEntryIds.add(entry.entryId);
+    } else {
+      selectedEntryIds.delete(entry.entryId);
+    }
+  });
+  renderEntries();
+}
+
+function syncSelectionToEntries(entries) {
+  const visibleIds = new Set(entries.map((entry) => entry.entryId));
+  [...selectedEntryIds].forEach((entryId) => {
+    if (!visibleIds.has(entryId)) {
+      selectedEntryIds.delete(entryId);
+    }
+  });
+}
+
+function updateSelectionControls(entries = getFilteredEntries()) {
+  if (!selectAllInput) {
+    return;
+  }
+
+  const selectedVisibleCount = entries.filter((entry) => selectedEntryIds.has(entry.entryId)).length;
+  selectAllInput.checked = entries.length > 0 && selectedVisibleCount === entries.length;
+  selectAllInput.indeterminate = selectedVisibleCount > 0 && selectedVisibleCount < entries.length;
+  selectAllInput.disabled = entries.length === 0;
+}
+
+function updateBulkControls() {
+  const selectedCount = selectedEntryIds.size;
+  const tagIds = bulkTagPicker?.readTagIds?.() || [];
+  const hasTags = tagIds.length > 0;
+
+  if (bulkToolbar && selectedCount > 0) {
+    bulkToolbar.open = true;
+  }
+  if (bulkApplyButton) {
+    bulkApplyButton.disabled = selectedCount === 0 || !hasTags;
+    bulkApplyButton.textContent = `Apply to ${selectedCount}`;
+  }
 }
 
 function tagFilterAllOption() {
@@ -695,6 +840,7 @@ window.LongtailForge.pageController.register("time-entries", {
     const checks = [
       { name: "toolbar controls exist", ok: Boolean(addTimeEntryButton && sortSelect) },
       { name: "filter controls exist", ok: Boolean(filterStatusSelect && filterPeriodSelect && filterUsersSelect) },
+      { name: "bulk tag controls exist", ok: Boolean(bulkToolbar && bulkActionSelect && bulkTagsControl && bulkApplyButton && selectAllInput) },
       { name: "entry table exists", ok: Boolean(timeEntryTable) },
       { name: "time entry dialog helper exists", ok: Boolean(window.LongtailForge.timeEntryDialog) },
       { name: "entry data is an array", ok: Array.isArray(timeEntries) },

@@ -93,18 +93,18 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 #### Version 0.33.5.6.6 - Bulk Tag Assignment Workflows
 
-- [ ] Add Tags-owned bulk assign/remove support for Projects -> Time Keeping -> Time Entries.
-  - [ ] Add checkboxes in a tight leftmost column for the time-entry display.
-  - [ ] Use a compact bulk tag application control similar to the existing tag-entry box.
-  - [ ] Preserve propagated/system tags while applying direct/manual bulk tag changes.
-- [ ] Add Tags-owned bulk assign/remove support for Projects -> Tasks.
-  - [ ] Reuse the same Tags-owned bulk assignment contract where possible.
-  - [ ] Keep task selection, permission checks, and partial errors clear.
-- [ ] Defer Projects -> Notes bulk tag assignment until the Notes cleanup line or a later Tags integration pass unless explicitly pulled forward.
-- [ ] Verification.
-  - [ ] Verify bulk tag add, remove, and partial failure behavior for Time Entries and Tasks.
-  - [ ] Verify inaccessible records are skipped or rejected without leaking labels.
-  - [ ] Verify bulk tagging does not remove propagated/system assignments.
+- [x] Add Tags-owned bulk assign/remove support for Projects -> Time Keeping -> Time Entries.
+  - [x] Add checkboxes in a tight leftmost column for the time-entry display.
+  - [x] Use a compact bulk tag application control similar to the existing tag-entry box.
+  - [x] Preserve propagated/system tags while applying direct/manual bulk tag changes.
+- [x] Add Tags-owned bulk assign/remove support for Projects -> Tasks.
+  - [x] Reuse the same Tags-owned bulk assignment contract where possible.
+  - [x] Keep task selection, permission checks, and partial errors clear.
+- [x] Defer Projects -> Notes bulk tag assignment until the Notes cleanup line or a later Tags integration pass unless explicitly pulled forward.
+- [x] Verification.
+  - [x] Verify bulk tag add, remove, and partial failure behavior for Time Entries and Tasks.
+  - [x] Verify inaccessible records are skipped or rejected without leaking labels.
+  - [x] Verify bulk tagging does not remove propagated/system assignments.
 
 #### Version 0.33.5.6.7 - Workbench Tag Chips and Resume-Safe Summary Cleanup
 
@@ -121,6 +121,10 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
   - [ ] Verify Workbench task rows remain compact with and without tags.
   - [ ] Verify summary helpers can serve notifications and future activity/resume surfaces without making Notifications the source of truth.
   - [ ] Verify audit remains the admin/security truth and is not replaced by notification summaries.
+
+## Version 0.33.5.7 - Regression Clean up
+
+- Go through all regressions and the full npm run check to determine where efficiences can be made to reduce run time; it keeps banging into the 2 minute limit.
 
 ## Version 0.33.5.8 - Notes Cleanup
 

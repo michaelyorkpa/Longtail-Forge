@@ -1,3 +1,11 @@
+## Version 0.33.5.6.6 - 2026-06-13 07:09 -04:00
+
+- Added a Time Entries bulk tag toolbar with a tight leftmost checkbox column, select-all support, and compact add/remove controls powered by the shared tag picker.
+- Wired Time Entries bulk tag updates through the Tags-owned `/api/tags/bulk-assignments` endpoint using `targetType: "time_entry"`.
+- Verified Tasks bulk tag actions continue to reuse `tagsService.bulkAssign` through the existing mixed bulk task route.
+- Expanded bulk tag and Time Entries regressions for add/remove behavior, partial failures without label leaks, preserved propagated/system assignments, and UI wiring.
+- Recorded the 0.33.5.6.6 bulk workflow decisions and bumped the app/package version to `0.33.5.6.6`.
+
 ## Version 0.33.5.6.5 - 2026-06-13 06:42 -04:00
 
 - Added shared tag picker refresh so newly created tags become available to mounted client/project tag pickers without a page reload.

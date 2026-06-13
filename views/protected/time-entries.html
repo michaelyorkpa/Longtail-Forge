@@ -87,10 +87,30 @@
 
       <p data-time-entry-status role="status" aria-live="polite"></p>
 
+      <details class="time-entry-bulk-toolbar" data-time-entry-bulk-toolbar>
+        <summary>Bulk Tags</summary>
+        <div class="time-entry-bulk-grid">
+          <label>
+            Action
+            <select data-time-entry-bulk-action>
+              <option value="add" selected>Add tags</option>
+              <option value="remove">Remove tags</option>
+            </select>
+          </label>
+
+          <div class="time-entry-bulk-tags" data-time-entry-bulk-tags></div>
+
+          <button type="button" data-time-entry-bulk-apply disabled>Apply to 0</button>
+        </div>
+      </details>
+
       <div class="report-table-wrap">
         <table class="report-table">
           <thead>
             <tr>
+              <th scope="col" class="time-entry-selection-cell">
+                <input type="checkbox" data-time-entry-select-all aria-label="Select all visible time entries">
+              </th>
               <th scope="col">Date</th>
               <th scope="col">Client</th>
               <th scope="col">Project</th>

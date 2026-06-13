@@ -41,6 +41,11 @@ check("unified page exposes toolbar, filters, sort, and list actions", () => {
   assert.match(timeEntriesView, /data-time-entry-filter-users/);
   assert.match(timeEntriesView, /data-time-entry-filter-tag/);
   assert.match(timeEntriesView, /data-time-entry-sort/);
+  assert.match(timeEntriesView, /data-time-entry-select-all/);
+  assert.match(timeEntriesView, /data-time-entry-bulk-toolbar/);
+  assert.match(timeEntriesView, /data-time-entry-bulk-action/);
+  assert.match(timeEntriesView, /data-time-entry-bulk-tags/);
+  assert.match(timeEntriesView, /data-time-entry-bulk-apply/);
   assert.match(timeEntriesView, /data-time-entry-table/);
 });
 
@@ -64,6 +69,23 @@ check("filter and sort behavior stays client-side on the unified list", () => {
   assert.match(timeEntriesScript, /project_asc/);
 });
 
+check("bulk tag workflow uses the Tags-owned assignment endpoint", () => {
+  assert.match(timeEntriesScript, /selectedEntryIds/);
+  assert.match(timeEntriesScript, /function createSelectionCell/);
+  assert.match(timeEntriesScript, /function applyBulkTagAction/);
+  assert.match(timeEntriesScript, /api\.postJson\("\/api\/tags\/bulk-assignments"/);
+  assert.match(timeEntriesScript, /targetType: "time_entry"/);
+  assert.match(timeEntriesScript, /bulkTagPicker\?\.readTagIds/);
+  assert.match(timeEntriesScript, /bulkTagPicker\?\.setSelected/);
+});
+
+check("bulk tag layout keeps the selection column compact", () => {
+  assert.match(stylesheet, /\.time-entry-bulk-toolbar\s*\{/);
+  assert.match(stylesheet, /\.time-entry-bulk-grid\s*\{/);
+  assert.match(stylesheet, /\.time-entries-page \.report-table \.time-entry-selection-cell\s*\{[^}]*width: 36px/s);
+  assert.match(stylesheet, /\.time-entries-page \.report-table th:nth-child\(2\)/);
+});
+
 check("dialog helper preserves tag and billable payload ownership", () => {
   assert.match(timeEntryDialogScript, /billable: fields\.billable\.value/);
   assert.match(timeEntryDialogScript, /tagIds: tagPicker\?\.readTagIds\?\.\(\) \|\| \[\]/);
@@ -84,6 +106,7 @@ check("unified page registers a Time Entries smoke controller", () => {
   assert.match(timeEntriesScript, /pageController\.register\("time-entries"/);
   assert.match(timeEntriesScript, /pageId: "time-entries"/);
   assert.match(timeEntriesScript, /toolbar controls exist/);
+  assert.match(timeEntriesScript, /bulk tag controls exist/);
 });
 
 check("Time Tracker exposes a top heading shortcut to Time Entries", () => {

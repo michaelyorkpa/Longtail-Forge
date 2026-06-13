@@ -1912,6 +1912,32 @@ button.danger-button {
     min-height: 112px;
 }
 
+.time-entry-bulk-toolbar {
+    margin-bottom: 16px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface-alt);
+}
+
+.time-entry-bulk-toolbar summary {
+    color: var(--color-text);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.time-entry-bulk-grid {
+    display: grid;
+    grid-template-columns: minmax(130px, 0.5fr) minmax(260px, 1fr) auto;
+    gap: 12px;
+    align-items: end;
+    padding-top: 12px;
+}
+
+.time-entry-bulk-grid .tag-picker {
+    margin: 0;
+}
+
 .entry-edit-form {
     margin-top: 24px;
     padding-top: 20px;
@@ -2153,6 +2179,29 @@ button.danger-button {
 .report-table thead th {
     color: var(--color-text-secondary);
     font-size: 13px;
+}
+
+.time-entries-page .report-table .time-entry-selection-cell {
+    width: 36px;
+    min-width: 36px;
+    padding-left: 8px;
+    padding-right: 4px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.time-entries-page .report-table .time-entry-selection-cell input {
+    margin: 0;
+}
+
+.time-entries-page .report-table th:nth-child(2),
+.time-entries-page .report-table td:nth-child(2),
+.time-entries-page .report-table th:nth-child(3),
+.time-entries-page .report-table td:nth-child(3),
+.time-entries-page .report-table th:nth-child(4),
+.time-entries-page .report-table td:nth-child(4) {
+    text-align: left;
+    white-space: normal;
 }
 
 .report-table tfoot th,
@@ -5069,6 +5118,7 @@ button:disabled {
     .task-page-toolbar,
     .task-filter-grid,
     .task-bulk-grid,
+    .time-entry-bulk-grid,
     .lists-form-grid,
     .lists-item-form,
     .workbench-manual-timer-form,

@@ -9,6 +9,8 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-tag-bulk
 process.env.SUPER_ADMIN_PASSWORD = "Tag-Bulk-Test-123!";
 
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
+const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
+const { timeEntriesService } = await import("../src/modules/time-tracking/time-entries.service.js");
 const { tagsService } = await import("../src/services/tags.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
@@ -19,6 +21,7 @@ try {
 
   await assertTagFilterSemantics(session, fixtures);
   await assertBulkAssignmentContract(session, fixtures);
+  await assertTimeEntriesBulkConsumer(session, fixtures);
   await assertTasksBulkConsumer(session, fixtures);
   await assertBrowserWiring();
   await assertIntegrity();
@@ -34,9 +37,14 @@ async function seedFixtures(session) {
   const replacementTag = (await tagsService.create(session, { name: "Bulk Replacement" })).tag;
   const propagatedTag = (await tagsService.create(session, { name: "Bulk Propagated" })).tag;
   const systemTag = (await tagsService.create(session, { name: "Bulk System" })).tag;
+  const client = (await clientsService.createClient({ name: "Bulk Tag Client" }, session)).client;
+  const project = (await clientsService.createProject(client.id, { name: "Bulk Tag Project" }, session)).project;
   const taskA = (await tasksService.create({ title: "Bulk Tag Task A" }, session)).task;
   const taskB = (await tasksService.create({ title: "Bulk Tag Task B" }, session)).task;
   const taskC = (await tasksService.create({ title: "Bulk Tag Task C" }, session)).task;
+  const timeEntryA = (await timeEntriesService.create(timeEntryPayload(project.id, "Bulk Tag Entry A"), session)).entry;
+  const timeEntryB = (await timeEntriesService.create(timeEntryPayload(project.id, "Bulk Tag Entry B"), session)).entry;
+  const timeEntryC = (await timeEntriesService.create(timeEntryPayload(project.id, "Bulk Tag Entry C"), session)).entry;
 
   await tagsService.addPropagatedAssignment(session, {
     propagationRuleId: "tag-bulk-regression",
@@ -45,6 +53,14 @@ async function seedFixtures(session) {
     tagId: propagatedTag.tag_id,
     targetId: taskA.task_id,
     targetType: "task",
+  });
+  await tagsService.addPropagatedAssignment(session, {
+    propagationRuleId: "tag-bulk-regression",
+    sourceTargetId: "source-record",
+    sourceTargetType: "project",
+    tagId: propagatedTag.tag_id,
+    targetId: timeEntryA.entry_id,
+    targetType: "time_entry",
   });
   await runSql(`
 INSERT INTO tag_assignments (
@@ -68,15 +84,52 @@ VALUES (
   ${sqlText(new Date().toISOString())}
 );
 `);
+  await runSql(`
+INSERT INTO tag_assignments (
+  tag_assignment_id,
+  workspace_id,
+  tag_id,
+  target_type,
+  target_id,
+  source,
+  created_by_user_id,
+  created_at
+)
+VALUES (
+  ${sqlText(randomUUID())},
+  ${sqlText(session.workspace_id)},
+  ${sqlText(systemTag.tag_id)},
+  'time_entry',
+  ${sqlText(timeEntryA.entry_id)},
+  'system',
+  ${sqlText(session.user_id)},
+  ${sqlText(new Date().toISOString())}
+);
+`);
 
   return {
     directTag,
+    project,
     propagatedTag,
     replacementTag,
     systemTag,
     taskA,
     taskB,
     taskC,
+    timeEntryA,
+    timeEntryB,
+    timeEntryC,
+  };
+}
+
+function timeEntryPayload(projectId, description) {
+  return {
+    description,
+    duration_hours: "1.0000",
+    duration_seconds: 3600,
+    end_time: "2026-06-12T14:00:00.000Z",
+    project_id: projectId,
+    start_time: "2026-06-12T13:00:00.000Z",
   };
 }
 
@@ -179,9 +232,53 @@ async function assertTasksBulkConsumer(session, fixtures) {
   assert.ok(result.tasks[0].tags.some((tag) => tag.tag_id === fixtures.directTag.tag_id));
 }
 
+async function assertTimeEntriesBulkConsumer(session, fixtures) {
+  const added = await tagsService.bulkAssign(session, {
+    action: "add",
+    tagIds: [fixtures.directTag.tag_id],
+    targetIds: [fixtures.timeEntryA.entry_id, fixtures.timeEntryB.entry_id],
+    targetType: "time_entry",
+  });
+  assert.equal(added.changed_count, 2);
+  assert.equal(added.skipped_count, 0);
+
+  const removed = await tagsService.bulkAssign(session, {
+    action: "remove",
+    tagIds: [fixtures.directTag.tag_id, fixtures.propagatedTag.tag_id, fixtures.systemTag.tag_id],
+    targetIds: [fixtures.timeEntryA.entry_id],
+    targetType: "time_entry",
+  });
+  assert.equal(removed.changed_count, 1);
+  const afterRemove = await tagsService.listAssignments(session, {
+    targetId: fixtures.timeEntryA.entry_id,
+    targetType: "time_entry",
+  });
+  assert.deepEqual(afterRemove.directTags, []);
+  assert.ok(afterRemove.propagatedTags.some((tag) => tag.tag_id === fixtures.propagatedTag.tag_id));
+  assert.ok(afterRemove.effectiveTags.some((tag) => tag.tag_id === fixtures.systemTag.tag_id));
+
+  const noRoleSession = {
+    ...session,
+    user_id: "tag-bulk-no-role-user",
+    username: "tag-bulk-no-role-user@example.test",
+  };
+  const partial = await tagsService.bulkAssign(noRoleSession, {
+    action: "add",
+    tagIds: [fixtures.directTag.tag_id],
+    targetIds: [fixtures.timeEntryC.entry_id],
+    targetType: "time_entry",
+  });
+  assert.equal(partial.changed_count, 0);
+  assert.equal(partial.skipped_count, 1);
+  assert.equal(partial.errors[0].target_id, fixtures.timeEntryC.entry_id);
+  assert.equal(JSON.stringify(partial.errors).includes("Bulk Tag Entry C"), false);
+}
+
 async function assertBrowserWiring() {
   const tasksHtml = await fs.readFile(path.join(process.cwd(), "views/protected/tasks.html"), "utf8");
   const tasksJs = await fs.readFile(path.join(process.cwd(), "public/js/tasks.js"), "utf8");
+  const timeEntriesHtml = await fs.readFile(path.join(process.cwd(), "views/protected/time-entries.html"), "utf8");
+  const timeEntriesJs = await fs.readFile(path.join(process.cwd(), "public/js/time-entries.js"), "utf8");
 
   assert.match(tasksHtml, /data-task-bulk-tag-action/);
   assert.match(tasksHtml, /data-task-bulk-tags/);
@@ -190,6 +287,13 @@ async function assertBrowserWiring() {
   assert.match(tasksHtml, /value="tag_replace"/);
   assert.match(tasksJs, /bulkTagActionInput/);
   assert.match(tasksJs, /selectedBulkTagIds/);
+  assert.match(timeEntriesHtml, /data-time-entry-select-all/);
+  assert.match(timeEntriesHtml, /data-time-entry-bulk-action/);
+  assert.match(timeEntriesHtml, /data-time-entry-bulk-tags/);
+  assert.match(timeEntriesJs, /\/api\/tags\/bulk-assignments/);
+  assert.match(timeEntriesJs, /targetType: "time_entry"/);
+  assert.match(timeEntriesJs, /bulkTagPicker\?\.readTagIds/);
+  assert.match(timeEntriesJs, /selectedEntryIds/);
 }
 
 async function readSession() {
