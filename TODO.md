@@ -16,6 +16,14 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 ## Follow Notifications
 
 - Follow notifications should override creator notification blocking
+- Reminder notifications should not be suppressed
+
+## Help Center Tweak
+
+- TOC articles aren't properly nested in the navigation pane
+  - They don't collapse
+  - All top level headings except "Longtail Forge" should start collapsed
+- Articles break the box boundaries
 
 ## Mobile Tweaks - Fill this section out after the above section standardizes the modal display
 

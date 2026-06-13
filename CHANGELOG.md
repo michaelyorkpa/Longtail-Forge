@@ -1,3 +1,10 @@
+## Version 0.33.5.12.1 - 2026-06-13 16:46 -04:00
+
+- Moved Client detail modal `Save Client` and `Edit Projects` actions into the real modal footer beside `Close`.
+- Preserved Client edit modal save behavior by passing the active client editor root to the footer-hosted save action.
+- Added focused static regression coverage for the client modal footer action placement and shared client/projects script cache keys.
+- Marked the narrowed 0.33.5.12.1 roadmap slice complete and bumped the app/package and Client/Projects module versions to `0.33.5.12.1`.
+
 ## Version 0.33.5.10.6 - 2026-06-13 14:01 -04:00
 
 - Documentation update 2026-06-13 15:31 -04:00: Reworked the upcoming 0.33.5.12 UI cleanup roadmap into open design questions, planning constraints, focused client/task/modal/style-standardization slices, and closeout verification boundaries.

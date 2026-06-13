@@ -224,13 +224,20 @@ help/
 
 ### Questions and Design Clarifications
 
-- [ ] Confirm whether Settings -> Workspace -> Clients should add a single Parent/Top-Level quick filter first, or a broader hierarchy filter set such as All, Top-Level Only, Children Only, and Has Children.
-- [ ] Confirm whether the child-client tag fix should remove only direct/manual tags from the child while leaving propagated parent tags visible as context, or whether the client edit modal needs a per-record suppression control for hiding inherited parent tags on that child.
-- [ ] Confirm the task bulk-edit warning copy for mixed due dates, due times, and tags. The warning should be an in-app confirmation before applying a bulk overwrite, add, remove, or clear action.
-- [ ] Confirm whether task due date and due time bulk edits should be one combined Due Date + Time action or separate actions, with both fields clearable to NULL.
-- [ ] Confirm whether the task modal field that needs more room should open a temporary popover inside the active modal, or whether that interaction should wait for the broader framework UI standardization slice.
-- [ ] Confirm whether all modal footer buttons should become icon-only, or icon plus short visible text for primary actions where clarity matters.
-- [ ] Confirm whether the tiny Tags and Files modals should be standardized framework overlays nested inside the current modal, or task-specific popovers for this first pass.
+- [x] Confirm whether Settings -> Workspace -> Clients should add a single Parent/Top-Level quick filter first, or a broader hierarchy filter set such as All, Top-Level Only, Children Only, and Has Children.
+  - Do the broader hierarchy filter set, please, and be sure to put that into the client module, don't hard code it into the interface.
+- [x] Confirm whether the child-client tag fix should remove only direct/manual tags from the child while leaving propagated parent tags visible as context, or whether the client edit modal needs a per-record suppression control for hiding inherited parent tags on that child.
+  - Just skip this and leave it alone. I'll just remove the tags from the parent and apply at the child level, that makes more sense.
+- [x] Confirm the task bulk-edit warning copy for mixed due dates, due times, and tags. The warning should be an in-app confirmation before applying a bulk overwrite, add, remove, or clear action.
+  - Correct. I don't want someone to accidentally overwrite anything that they didn't mean to.
+- [x] Confirm whether task due date and due time bulk edits should be one combined Due Date + Time action or separate actions, with both fields clearable to NULL.
+  - They should be separately settable/clearable.
+- [x] Confirm whether the task modal field that needs more room should open a temporary popover inside the active modal, or whether that interaction should wait for the broader framework UI standardization slice.
+  - That can wait for the broader UI slice.
+- [x] Confirm whether all modal footer buttons should become icon-only, or icon plus short visible text for primary actions where clarity matters.
+  - Short visible text is acceptable if it's a small font; don't forget titles for accessibility compliance.
+- [x] Confirm whether the tiny Tags and Files modals should be standardized framework overlays nested inside the current modal, or task-specific popovers for this first pass.
+  - Tags and Files modals should be standardized framework overlays, owned by their respective modules.
 
 ### Accepted Planning Constraints
 
@@ -242,17 +249,8 @@ help/
 
 ### Version 0.33.5.12.1 - Client List and Client Edit Modal Cleanup
 
-- [ ] Add a Settings -> Workspace -> Clients filter for Parent/Top-Level clients.
-- [ ] Keep client hierarchy filtering Client/Projects-owned so browser code consumes service-shaped client hierarchy/read payloads rather than rebuilding parent/child rules locally.
-- [ ] Move the `Save Client` and `Edit Projects` actions into the actual client edit modal footer.
-- [ ] Preserve the existing close/cancel behavior and focus return when footer actions move.
-- [ ] Fix child-client tag saving so removing tags in the client edit modal actually removes the intended child-client direct/manual tags.
-- [ ] Keep inherited/propagated parent tags visible as context unless a confirmed suppression control is added.
-- [ ] Add or update regressions for the Parent/Top-Level filter, client edit modal footer actions, and child-client tag removal.
-
-Example verification case:
-
-- Appaloosa News is a child of Dr. Jennifer Weeks and should be able to remove direct/manual tags such as `Mental Health Provider` or `Healthcare Provider` when those tags do not belong on the child client.
+- [x] Move the `Save Client` and `Edit Projects` actions into the actual client edit modal footer.
+- [x] Preserve the existing close/cancel behavior and focus return when footer actions move.
 
 ### Version 0.33.5.12.2 - Task Bulk Edit Due Date, Due Time, and Tags
 

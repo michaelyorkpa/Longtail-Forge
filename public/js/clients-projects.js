@@ -716,15 +716,17 @@ function openClientDetailDialog(client, options = {}) {
     createClientNameEditor(client, { showSaveButton: false }),
     createBillingContactEditor(client, { showSaveButton: false }),
     createClientBillingSettingsEditor(client, { showSaveButton: false }),
-    createClientPageActions(client, {
-      hostContext: options.hostContext,
-      onSaved: () => {
-        completed = true;
-        dialog.close("complete");
-      },
-    }),
   );
   closeActions.className = "form-actions detail-modal-actions";
+  createClientPageActions(client, {
+    actionTarget: closeActions,
+    hostContext: options.hostContext,
+    saveRoot: editor,
+    onSaved: () => {
+      completed = true;
+      dialog.close("complete");
+    },
+  });
   closeButton.type = "button";
   closeButton.textContent = "Close";
   closeButton.addEventListener("click", () => {
@@ -1658,6 +1660,7 @@ function populateParentClientSelect(select, excludedClientId = "") {
 
 function createClientPageActions(client, options = {}) {
   const wrapper = document.createElement("div");
+  const actionTarget = options.actionTarget || wrapper;
   wrapper.className = "form-actions client-page-actions";
 
   const saveButton = document.createElement("button");
@@ -1665,7 +1668,7 @@ function createClientPageActions(client, options = {}) {
   saveButton.textContent = "Save Client";
   saveButton.dataset.saveClientSettingsButton = client.id;
   saveButton.addEventListener("click", async () => {
-    const saved = await saveClientSettings(client, wrapper.closest(".client-editor"), {
+    const saved = await saveClientSettings(client, options.saveRoot || wrapper.closest(".client-editor"), {
       action: "client_settings_updated",
       openBillingClientId: client.id,
       openClientBillingSettingsId: client.id,
@@ -1684,7 +1687,7 @@ function createClientPageActions(client, options = {}) {
     window.location.href = `projects.html?client=${encodeURIComponent(client.id)}`;
   });
 
-  wrapper.append(saveButton, editProjectsButton);
+  actionTarget.append(saveButton, editProjectsButton);
   return wrapper;
 }
 

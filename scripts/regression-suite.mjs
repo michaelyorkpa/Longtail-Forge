@@ -20,6 +20,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/task-list-density-regression.mjs",
   "scripts/task-list-canonical-ui-regression.mjs",
   "scripts/client-picker-hierarchy-regression.mjs",
+  "scripts/client-modal-footer-actions-regression.mjs",
   "scripts/time-entries-screen-regression.mjs",
   "scripts/workbench-task-ordering-regression.mjs",
   "scripts/module-actions-regression.mjs",
