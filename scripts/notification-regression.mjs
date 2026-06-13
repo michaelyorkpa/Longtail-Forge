@@ -838,7 +838,9 @@ WHERE event_type = 'task.assigned';
   check("task update notifications include safe changed context snippets", () => {
     assert.deepEqual(descriptionLabelNotification.metadata.changed_context, {
       field: "description",
+      fields: ["description"],
       label: "Description added",
+      labels: ["Description added"],
       summary: "Description added: New details",
     });
     assert.match(descriptionLabelNotification.body, /Description added: New details/);

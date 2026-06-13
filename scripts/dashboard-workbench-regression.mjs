@@ -9,6 +9,7 @@ const files = {
   manifestContract: readText("src/core/modules/manifest-contract.js"),
   reporting: readText("public/js/reporting.js"),
   reportingService: readText("src/services/reporting.service.js"),
+  tasksService: readText("src/modules/tasks/tasks.service.js"),
   workbench: readText("public/js/workbench.js"),
   workbenchView: readText("views/protected/workbench.html"),
   workbenchService: readText("src/services/workbench.service.js"),
@@ -150,10 +151,55 @@ assert.match(
   /moduleActions\.open\("tasks\.edit"/,
   "Workbench Open Task must dispatch the Tasks edit modal action",
 );
+assert.match(
+  files.workbench,
+  /function appendTaskTagChips/,
+  "Workbench must render compact task tag chips from the task work item payload",
+);
+assert.match(
+  files.workbench,
+  /directTags[\s\S]*direct_tags/,
+  "Workbench task tag chips must consume direct/manual tags rather than effective propagated tags",
+);
+assert.match(
+  files.workbench,
+  /directTags\.slice\(0, 2\)/,
+  "Workbench task tag chips must show at most two direct tags inline",
+);
+assert.match(
+  files.workbench,
+  /overflow\.textContent = `\+\$\{hiddenCount\}`/,
+  "Workbench task tag chips must collapse extra direct tags into a count",
+);
+assert.match(
+  files.workbench,
+  /titleBlock\.append\(title\)[\s\S]*appendTaskTagChips\(titleBlock, task\)[\s\S]*header\.append\(titleBlock, meta\)/,
+  "Workbench task tag chips must sit between the title and metadata badges",
+);
+assert.match(
+  files.workbenchService,
+  /tasksService\.listWorkItems/,
+  "Workbench task items must come from the Tasks-owned work item contract",
+);
+assert.match(
+  files.tasksService,
+  /direct_tags: safeTaskTags\(task\.directTags\)/,
+  "Tasks work item summaries must expose direct/manual task tags for Workbench",
+);
+assert.match(
+  files.tasksService,
+  /propagated_tag_count:/,
+  "Tasks work item summaries may expose propagated tag counts without inline propagated tag labels",
+);
 assert.doesNotMatch(
   files.workbench,
   /tasks\.html\?task=/,
   "Workbench Open Task must not redirect to the Tasks page edit URL",
+);
+assert.match(
+  files.workbench,
+  /workbench-task-tag-list/,
+  "Workbench task chip markup must have compact styling hooks",
 );
 assert.match(
   files.reporting,

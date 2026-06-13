@@ -1,4 +1,9 @@
-import { summarizeNotificationEvent } from "../core/events/event-summaries.js";
+import {
+  buildEventChangedContext,
+  readChangedFields,
+  summarizeNotificationEvent,
+  taskUpdatedLabel,
+} from "../core/events/event-summaries.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { notificationsRepository } from "../repositories/notifications.repo.js";
 import { usersRepository } from "../repositories/users.repo.js";
@@ -7,51 +12,6 @@ import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 
 const FRAMEWORK_NOTIFICATION_MODULE_ID = "framework";
-const TASK_UPDATE_FIELD_LABELS = new Map([
-  ["description", "Description Updated"],
-  ["status", "Status Updated"],
-  ["priority", "Priority Updated"],
-  ["assignee_ids", "Assignment Updated"],
-  ["due_date", "Due Date Updated"],
-  ["due_time", "Due Date Updated"],
-  ["due_at_utc", "Due Date Updated"],
-  ["recurrence_template_id", "Recurrence Updated"],
-  ["recurrence_instance_date", "Recurrence Updated"],
-  ["reminder_override_enabled", "Reminder Updated"],
-  ["title", "Title Updated"],
-  ["client_id", "Project Updated"],
-  ["project_id", "Project Updated"],
-]);
-const TASK_UPDATE_CONTEXT_LABELS = new Map([
-  ["description", "Description updated"],
-  ["status", "Status updated"],
-  ["priority", "Priority updated"],
-  ["assignee_ids", "Assignment updated"],
-  ["due_date", "Due date updated"],
-  ["due_time", "Due date updated"],
-  ["due_at_utc", "Due date updated"],
-  ["recurrence_template_id", "Recurrence updated"],
-  ["recurrence_instance_date", "Recurrence updated"],
-  ["reminder_override_enabled", "Reminder updated"],
-  ["title", "Title updated"],
-  ["client_id", "Project updated"],
-  ["project_id", "Project updated"],
-]);
-const TASK_UPDATE_FIELD_ORDER = [
-  "description",
-  "status",
-  "priority",
-  "assignee_ids",
-  "due_date",
-  "due_time",
-  "due_at_utc",
-  "recurrence_template_id",
-  "recurrence_instance_date",
-  "reminder_override_enabled",
-  "title",
-  "project_id",
-  "client_id",
-];
 let notificationEventUnsubscribers = [];
 let notificationEventHandlersRegistered = false;
 
@@ -698,7 +658,7 @@ function normalizeMetadata(metadata) {
 
 function buildNotificationEventMetadata(event, declaration) {
   const changedFields = readChangedFields(event.previous_value, event.new_value);
-  const changedContext = buildChangedContext(event, changedFields);
+  const changedContext = buildEventChangedContext(event, changedFields);
   const metadata = {
     ...(event.metadata || {}),
     ...(changedContext ? { changed_context: changedContext } : {}),
@@ -737,81 +697,6 @@ function notificationBodyWithChangedContext(body, metadata = {}) {
   return `${normalizedBody} ${summary}`;
 }
 
-function buildChangedContext(event, changedFields) {
-  if (!String(event.name || "").endsWith(".updated") || changedFields.length === 0) {
-    return null;
-  }
-
-  if (event.name === "task.updated") {
-    return buildTaskChangedContext(event, changedFields);
-  }
-
-  const field = changedFields[0] || "";
-  const label = titleizeFieldName(field, "Record updated");
-
-  return {
-    field,
-    label,
-    summary: `${label}.`,
-  };
-}
-
-function buildTaskChangedContext(event, changedFields) {
-  const changedFieldSet = new Set(changedFields);
-  const field = TASK_UPDATE_FIELD_ORDER.find((candidate) => changedFieldSet.has(candidate)) || changedFields[0] || "";
-  const label = taskChangedContextLabel(field, event.previous_value, event.new_value);
-  const value = readableTaskChangedValue(field, event.new_value);
-
-  return {
-    field,
-    label,
-    summary: value ? `${label}: ${value}` : `${label}.`,
-  };
-}
-
-function taskChangedContextLabel(field, previousValue, newValue) {
-  if (field === "description") {
-    return descriptionChangeLabel(previousValue, newValue)
-      .replace("Added", "added")
-      .replace("Removed", "removed")
-      .replace("Updated", "updated");
-  }
-
-  return TASK_UPDATE_CONTEXT_LABELS.get(field) || "Task updated";
-}
-
-function readableTaskChangedValue(field, newValue) {
-  if (["description", "title", "status", "priority", "due_date", "due_time", "due_at_utc"].includes(field)) {
-    return truncateSnippet(newValue?.[field]);
-  }
-
-  return "";
-}
-
-function titleizeFieldName(field, fallback) {
-  const normalized = String(field || "").trim();
-
-  if (!normalized) {
-    return fallback;
-  }
-
-  return `${normalized
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (match) => match.toUpperCase())} updated`;
-}
-
-function truncateSnippet(value, maxLength = 120) {
-  const normalized = String(value ?? "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (!normalized) {
-    return "";
-  }
-
-  return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 1).trimEnd()}...` : normalized;
-}
-
 function notificationUpdateTypeLabel(notification, options = {}) {
   const eventType = notification.event_type || notification.eventType || "";
   const metadata = normalizeMetadata(notification.metadata || notification.metadata_json);
@@ -825,41 +710,6 @@ function notificationUpdateTypeLabel(notification, options = {}) {
   }
 
   return eventDeclarationLabel(notification) || fallbackEventLabel(eventType);
-}
-
-function taskUpdatedLabel(metadata, options = {}) {
-  if (metadata.transition === "reopened") {
-    return "Task Reopened";
-  }
-
-  const changedFields = normalizeChangedFields(metadata.changed_fields || metadata.changedFields);
-
-  if (changedFields.has("description")) {
-    return descriptionChangeLabel(options.previousValue, options.newValue);
-  }
-
-  for (const field of TASK_UPDATE_FIELD_ORDER) {
-    if (changedFields.has(field)) {
-      return TASK_UPDATE_FIELD_LABELS.get(field) || "Task Updated";
-    }
-  }
-
-  return "Task Updated";
-}
-
-function descriptionChangeLabel(previousValue, newValue) {
-  const previousDescription = String(previousValue?.description || "").trim();
-  const nextDescription = String(newValue?.description || "").trim();
-
-  if (!previousDescription && nextDescription) {
-    return "Description Added";
-  }
-
-  if (previousDescription && !nextDescription) {
-    return "Description Removed";
-  }
-
-  return "Description Updated";
 }
 
 function eventDeclarationLabel(notification) {
@@ -878,28 +728,6 @@ function fallbackEventLabel(eventType) {
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).replaceAll("_", " "))
     .join(" ") || "Notification";
-}
-
-function readChangedFields(previousValue, newValue) {
-  return TASK_UPDATE_FIELD_ORDER.filter((field) => !sameNotificationFieldValue(previousValue?.[field], newValue?.[field]));
-}
-
-function sameNotificationFieldValue(left, right) {
-  return JSON.stringify(normalizeNotificationFieldValue(left)) === JSON.stringify(normalizeNotificationFieldValue(right));
-}
-
-function normalizeNotificationFieldValue(value) {
-  if (Array.isArray(value)) {
-    return value.map((item) => String(item || "").trim()).filter(Boolean).sort();
-  }
-
-  return value ?? "";
-}
-
-function normalizeChangedFields(value) {
-  const fields = Array.isArray(value) ? value : [];
-
-  return new Set(fields.map((field) => String(field || "").trim()).filter(Boolean));
 }
 
 async function listConfigurableNotificationEvents(workspaceId) {

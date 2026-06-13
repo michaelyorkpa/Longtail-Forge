@@ -108,19 +108,19 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 #### Version 0.33.5.6.7 - Workbench Tag Chips and Resume-Safe Summary Cleanup
 
-- [ ] Add tight tag chips between task title and task metadata on Workbench.
-  - [ ] Keep the row compact.
-  - [ ] Respect the clarification above for direct versus propagated/context tag display.
-  - [ ] Avoid pushing primary task actions out of reach.
-- [ ] Update event/notification summary helpers so user-facing changed context can be reused by activity feed and future resume state.
-  - [ ] Summaries are human-readable.
-  - [ ] Summaries are permission-safe.
-  - [ ] Summaries avoid raw audit JSON.
-  - [ ] Summaries include safe record labels, record type, module ID, action type, actor where allowed, and changed field labels where useful.
-- [ ] Verification.
-  - [ ] Verify Workbench task rows remain compact with and without tags.
-  - [ ] Verify summary helpers can serve notifications and future activity/resume surfaces without making Notifications the source of truth.
-  - [ ] Verify audit remains the admin/security truth and is not replaced by notification summaries.
+- [x] Add tight tag chips between task title and task metadata on Workbench.
+  - [x] Keep the row compact.
+  - [x] Respect the clarification above for direct versus propagated/context tag display.
+  - [x] Avoid pushing primary task actions out of reach.
+- [x] Update event/notification summary helpers so user-facing changed context can be reused by activity feed and future resume state.
+  - [x] Summaries are human-readable.
+  - [x] Summaries are permission-safe.
+  - [x] Summaries avoid raw audit JSON.
+  - [x] Summaries include safe record labels, record type, module ID, action type, actor where allowed, and changed field labels where useful.
+- [x] Verification.
+  - [x] Verify Workbench task rows remain compact with and without tags.
+  - [x] Verify summary helpers can serve notifications and future activity/resume surfaces without making Notifications the source of truth.
+  - [x] Verify audit remains the admin/security truth and is not replaced by notification summaries.
 
 ## Version 0.33.5.7 - Regression Clean up
 
@@ -497,6 +497,34 @@ This release should add backend storage, service contracts, safe update hooks, a
       - Recurrence (Collapsible, starts closed)
       - Reminders (Collapsible, starts closed)
     - Tags and "Task Files" should be moved to buttons in the footer (icon described buttons)
+
+## Perrsonal / Family Workspace issues
+
+- There should be no API access for clients in Personal or Family Workspaces
+  - I see both read and write Public API access for clients in a Personal workspace right now (0.33.5.4.1)
+
+- There are still no notes or lists public API key options listed.
+
+- Files listings in a Family workspace still surfaces Client as an attachment point
+
+- Files listings in a family workspace show UUIDs, not the human readable names
+
+- Client is showing up as a choice in the Create Lists dialog
+  - The only option is workspace, but it shouldn't be there at all and should just automatically set to Client
+  - No projects show up in the project selector
+    - I believe this issue is related to clients showing up
+    - I think the projects display is linked to clients and client isn't properly setting the workspace projects as the filter
+
+## Lists
+
+- The UI is a mess.
+  - On a laptop screen (1366 wide) Duplicate, edit, complete, finalize, etc. buttons go way out of bounds
+  - Next, Source, Costs boxes do not respect dark mode, they have light colored backgrounds
+  - Items entry goes way off the screen as well
+  - List selector box needs to be moved above the list view and directly below fliters
+  - List selector box needs to be collapsible
+    - Should start off open
+    - Once a list is selected, the box should collapse
 
 ## Version 0.33.6 - Reports Module
 

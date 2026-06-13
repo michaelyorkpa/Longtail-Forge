@@ -2010,6 +2010,10 @@ function taskWorkItemSummary(task, { currentUserId = "", timer = null } = {}) {
     assignee_ids: task.assignee_ids || [],
     assignees: task.assignees || [],
     assigned_to_current_user: (task.assignee_ids || []).includes(currentUserId),
+    direct_tags: safeTaskTags(task.directTags),
+    directTags: safeTaskTags(task.directTags),
+    propagated_tag_count: Array.isArray(task.propagatedTags) ? task.propagatedTags.length : 0,
+    propagatedTagCount: Array.isArray(task.propagatedTags) ? task.propagatedTags.length : 0,
     next_action: task.next_action || "",
     blocked_reason: task.status === "blocked" ? task.blocked_reason || "" : "",
     resume_note: task.resume_note || "",
@@ -2028,6 +2032,17 @@ function taskWorkItemSummary(task, { currentUserId = "", timer = null } = {}) {
     resume_context: resumeContext,
     resumeContext,
   };
+}
+
+function safeTaskTags(tags = []) {
+  return (Array.isArray(tags) ? tags : [])
+    .map((tag) => ({
+      color: tag.color || "",
+      name: tag.name || tag.slug || "",
+      slug: tag.slug || "",
+      tag_id: tag.tag_id || "",
+    }))
+    .filter((tag) => tag.tag_id && tag.name);
 }
 
 function descriptionExcerpt(description, maxLength = 160) {

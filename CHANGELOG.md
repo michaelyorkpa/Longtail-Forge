@@ -1,3 +1,11 @@
+## Version 0.33.5.6.7 - 2026-06-13 07:26 -04:00
+
+- Added compact direct/manual task tag chips to Workbench task rows, positioned between the task title and metadata badges with a two-chip inline limit plus `+N` overflow.
+- Extended Tasks work-item summaries with safe direct tag data for Workbench while keeping propagated/system tag labels out of inline chips.
+- Moved reusable changed-context summary building into `src/core/events/event-summaries.js` so Notifications, future activity feeds, and future resume surfaces can share permission-safe summaries without depending on Notifications as the source of truth.
+- Expanded Workbench, audit extensibility, and notification regressions for compact tag chip placement, direct-tag semantics, reusable changed context, and raw audit JSON avoidance.
+- Recorded the 0.33.5.6.7 decisions and bumped the app/package version to `0.33.5.6.7`.
+
 ## Version 0.33.5.6.6 - 2026-06-13 07:09 -04:00
 
 - Added a Time Entries bulk tag toolbar with a tight leftmost checkbox column, select-all support, and compact add/remove controls powered by the shared tag picker.

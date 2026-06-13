@@ -218,6 +218,7 @@ function updateModuleLinks() {
 function createTaskItem(task) {
   const item = document.createElement("article");
   const header = document.createElement("div");
+  const titleBlock = document.createElement("div");
   const title = document.createElement("h3");
   const meta = document.createElement("div");
   const detail = document.createElement("p");
@@ -227,6 +228,7 @@ function createTaskItem(task) {
 
   item.className = "workbench-task-item";
   header.className = "workbench-task-header";
+  titleBlock.className = "workbench-task-title-block";
   meta.className = "workbench-card-meta";
   actions.className = "workbench-actions";
   title.textContent = task.title;
@@ -237,7 +239,9 @@ function createTaskItem(task) {
   if (timer) {
     meta.append(badge(running ? "Timer running" : "Timer paused", running ? "running" : "paused"));
   }
-  header.append(title, meta);
+  titleBlock.append(title);
+  appendTaskTagChips(titleBlock, task);
+  header.append(titleBlock, meta);
   detail.textContent = taskDetailText(task);
 
   const startButton = actionButton(running ? "Running" : "Start Timer", () => startTaskTimer(task));
@@ -254,6 +258,41 @@ function createTaskItem(task) {
   actions.append(startButton, pauseButton, saveButton, completeButton, openButton);
   item.append(header, detail, actions);
   return item;
+}
+
+function appendTaskTagChips(container, task) {
+  const directTags = Array.isArray(task.directTags)
+    ? task.directTags
+    : Array.isArray(task.direct_tags) ? task.direct_tags : [];
+  const visibleTags = directTags.slice(0, 2);
+  const hiddenCount = Math.max(0, directTags.length - visibleTags.length);
+
+  if (visibleTags.length === 0 && hiddenCount === 0) {
+    return;
+  }
+
+  const list = document.createElement("div");
+  list.className = "workbench-task-tag-list";
+
+  visibleTags.forEach((tag) => {
+    const chip = document.createElement("span");
+    chip.className = "tag-chip workbench-task-tag-chip";
+    chip.textContent = tag.name || tag.slug || "Tag";
+    if (tag.color) {
+      chip.style.setProperty("--tag-color", tag.color);
+    }
+    list.appendChild(chip);
+  });
+
+  if (hiddenCount > 0) {
+    const overflow = document.createElement("span");
+    overflow.className = "tag-chip workbench-task-tag-chip workbench-task-tag-overflow";
+    overflow.textContent = `+${hiddenCount}`;
+    overflow.title = `${hiddenCount} more direct ${hiddenCount === 1 ? "tag" : "tags"}`;
+    list.appendChild(overflow);
+  }
+
+  container.appendChild(list);
 }
 
 async function startManualTimer(event) {
