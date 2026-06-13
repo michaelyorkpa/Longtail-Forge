@@ -129,12 +129,32 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 Decision:
 Work resume state is framework-owned recovery infrastructure. It records where a user left off across enabled modules without making Dashboard, Workbench, Tasks, Lists, Notes, Files, Time Tracking, or future Tickets own separate resume systems.
 
-This release should add backend storage, service contracts, safe update hooks, and regressions only. The user-facing guided Workbench remains deferred to 0.33.7.
+This release should add backend storage, service contracts, safe update hooks, a protected browser read API, and regressions only. The user-facing guided Workbench, "Where I left off" cards, focus-mode UI, and ranking polish remain deferred to 0.33.7.
 
-### Resume State Storage
+### Questions and Design Clarifications
+
+- [ ] Confirm whether resume state rows are created only for the current user who performed the work in 0.33.5.9, with assigned/shared/follower-based resume suggestions deferred until Workbench ranking matures.
+- [ ] Confirm whether dismissing a resume candidate hides that row until the producer writes a newer `last_worked_at`/`updated_at`, instead of permanently muting the underlying record.
+- [ ] Confirm whether initial ranking should be deterministic and rule-based only: active timers first, blocked/stale work when explicitly requested, then recent updated work by due date, priority, and last-worked time. No AI or opaque scoring in this foundation pass.
+- [ ] Confirm whether producer updates should flow through framework event subscriptions where events already exist, with direct service calls allowed only where no safe event exists yet.
+- [ ] Confirm whether private Notes are excluded from global resume-state storage entirely in 0.33.5.9, even for the note owner, to keep the first contract conservative.
+- [ ] Confirm whether `handoff_note`, `next_action`, and `blocked_reason` snapshots are allowed only when supplied by the source module as already permission-safe fields, not copied from freeform private/secure note body text.
+
+### Implementation Boundaries
+
+- [ ] Keep resume state framework-owned under a stable service/route boundary.
+- [ ] Keep producer modules responsible for deciding which record changes are resumable and for shaping safe source payloads.
+- [ ] Keep read-time permission checks authoritative; resume state snapshots are recovery hints, not access grants.
+- [ ] Keep Dashboard and Workbench UI consumption deferred to 0.33.7, except for API smoke/regression fixtures needed to prove the contract.
+- [ ] Do not add public API routes in this release.
+- [ ] Do not make Tags, Search, Notifications, Files, or Help infer resume behavior from metadata alone.
+
+### Version 0.33.5.9.1 - Resume State Storage
 
 - [ ] Add framework-owned `work_resume_state` storage.
 - [ ] Each row represents one resumable record for one user in one workspace.
+- [ ] Add a unique active-row constraint for `workspace_id`, `user_id`, `module_id`, `record_type`, and `record_id` where practical.
+- [ ] Add indexes for workspace/user default listing, module/record cleanup, client/project filtering, dismissed filtering, and last-worked sorting.
 - [ ] Suggested fields:
   - [ ] `resume_state_id`
   - [ ] `workspace_id`
@@ -162,7 +182,7 @@ This release should add backend storage, service contracts, safe update hooks, a
   - [ ] `updated_at`
   - [ ] `dismissed_at` optional
 
-### Resume State Service
+### Version 0.33.5.9.2 - Resume State Service and Read Guards
 
 - [ ] Add framework-owned resume state service.
 - [ ] Add service methods:
@@ -170,13 +190,23 @@ This release should add backend storage, service contracts, safe update hooks, a
   - [ ] `dismissResumeState(session, resumeStateId)`
   - [ ] `listResumeState(session, query)`
   - [ ] `removeResumeStateForRecord(workspaceId, moduleId, recordType, recordId)`
-- [ ] Resume state writes must validate workspace/user ownership.
-- [ ] Resume state reads must re-check record/module permissions where possible.
-- [ ] Disabled modules should hide active resume candidates unless historical read access explicitly allows safe read-only context.
-- [ ] Deleted records should not appear as active resume candidates.
-- [ ] Archived/completed records should appear only in historical/recent contexts, not primary next-action contexts.
+- [ ] Validate workspace/user ownership on every write.
+- [ ] Normalize producer payloads so optional text snapshots are length-limited and safe for browser display.
+- [ ] Treat unknown modules, disabled modules, missing records, deleted records, and permission-denied records as hidden from active default results.
+- [ ] Let archived/completed/finalized records appear only in explicit recent/history-style modes, not primary left-off results.
+- [ ] Add a module-owned read-check resolver contract so Tasks, Lists, Notes, Time Tracking, and future modules can verify target visibility without framework table knowledge.
+- [ ] Ensure resume state never grants access to linked client/project/task/note/list/file labels the reader could not otherwise see.
 
-### Initial Resume State Producers
+### Version 0.33.5.9.3 - Producer Contract and Event Wiring
+
+- [ ] Add a framework producer helper or contract for safe resume-state payloads.
+- [ ] Define allowed source fields, forbidden fields, truncation rules, status normalization, and deletion/removal behavior.
+- [ ] Prefer subscribing to existing safe module events for create/update/status/timer/link lifecycle changes.
+- [ ] Add direct producer integration only where no safe event exists yet, and leave TODOs to replace it with events when the owning module emits them.
+- [ ] Reuse existing event summary/context helpers where they already produce recovery-safe labels.
+- [ ] Add defensive no-op behavior when a producer module is disabled, absent, or unable to shape a safe payload.
+
+### Version 0.33.5.9.4 - Initial Resume State Producers
 
 - [ ] Tasks should update resume state when:
   - [ ] Task is created or updated by the current user.
@@ -184,25 +214,23 @@ This release should add backend storage, service contracts, safe update hooks, a
   - [ ] Task timer starts, pauses, finalizes, or is discarded.
   - [ ] Task checklist changes.
   - [ ] Task `next_action`, `blocked_reason`, or `handoff_note` changes.
-
 - [ ] Lists should update resume state when:
   - [ ] List is created or updated.
   - [ ] List item is checked/unchecked/completed/updated/reordered.
   - [ ] List is linked to or unlinked from a task/project/client/note.
   - [ ] List is completed/reopened/finalized/archived/restored/deleted.
-
 - [ ] Notes should update resume state when:
   - [ ] Active Work note is created or edited.
   - [ ] Note is linked to a task/project/list/client.
   - [ ] Note is archived/restored/deleted.
   - [ ] Secure/private notes must not write body/excerpt content into resume state.
-
 - [ ] Time Tracking should update resume state when:
   - [ ] Manual timer starts/pauses/finalizes/discards.
   - [ ] Sourced task timer starts/pauses/finalizes/discards.
-  - [ ] Resume state should preserve source metadata without making Time Tracking own the source record.
+  - [ ] Resume state preserves source metadata without making Time Tracking own the source record.
+  - [ ] Active timer rows remain Time Tracking-owned; resume state stores only recovery snapshots and source references.
 
-### Resume State API
+### Version 0.33.5.9.5 - Protected Resume State API
 
 - [ ] Add protected browser API route for resume state reads.
   - [ ] Suggested route: `GET /api/work-resume`
@@ -214,23 +242,28 @@ This release should add backend storage, service contracts, safe update hooks, a
     - [ ] `client_id`
     - [ ] `project_id`
     - [ ] `record_type`
+  - [ ] Return permission-shaped rows only.
   - [ ] Do not add public API routes in this release.
-
 - [ ] Add protected browser API route to dismiss a resume candidate.
   - [ ] Suggested route: `POST /api/work-resume/:resumeStateId/dismiss`
+- [ ] Add browser-safe response fields for future Workbench consumers without building the Workbench UI in this pass.
+- [ ] Keep empty states generic so inaccessible private/secure/deleted/disabled records do not leak existence.
 
-### Regressions
+### Version 0.33.5.9.6 - Regressions, Docs, and Closeout
 
 - [ ] Resume state cannot cross workspace boundaries.
 - [ ] Resume state cannot expose records the user can no longer read.
 - [ ] Disabled modules hide active resume state safely.
 - [ ] Deleted records are removed from active resume results.
-- [ ] Completed/archived records are not ranked as primary active work.
+- [ ] Completed/archived/finalized records are not ranked as primary active work.
 - [ ] Private notes do not leak title/body/counts to unauthorized users.
 - [ ] Secure notes never write decrypted body, excerpt, rendered HTML, or encryption metadata into resume state.
 - [ ] List access does not grant linked task/note/project/client access through resume state.
 - [ ] Task/list/note/timer updates produce deterministic resume state rows.
 - [ ] Dismissed resume rows do not appear in default "left off" results.
+- [ ] Dismissed rows become eligible again after a newer producer update if that clarification is accepted.
+- [ ] Update developer/module docs for the resume-state producer contract and read-check resolver boundary.
+- [ ] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive only during the actual implementation/closeout pass.
 
 ## Version 0.33.5.10 - Help Center Re-work
 
