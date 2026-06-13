@@ -1,3 +1,10 @@
+## Version 0.33.5.9.3 - 2026-06-13 11:35 -04:00
+
+- Added the framework-owned resume-state producer contract for safe event-driven producer registration, payload shaping, metadata scrubbing, and source-record removal actions.
+- Reused shared activity event summaries for fallback action labels, URLs, and changed-context metadata while keeping producer modules responsible for explicit recovery fields.
+- Added defensive no-op behavior for missing sessions, disabled/absent modules, failed payload builders, and unsafe producer metadata.
+- Added `work-resume-state-producer-regression.mjs` to the regression suite and bumped the app/package version to `0.33.5.9.3`.
+
 ## Version 0.33.5.9.2 - 2026-06-13 11:15 -04:00
 
 - Added the framework-owned `workResumeStateService` with upsert, dismiss, list, and source-record cleanup methods for `work_resume_state`.

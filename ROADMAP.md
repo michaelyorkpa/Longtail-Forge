@@ -193,7 +193,7 @@ Use these decisions for 0.33.5.9:
 ### Implementation Boundaries
 
 - [x] Keep resume state framework-owned under a stable service/route boundary.
-- [ ] Keep producer modules responsible for deciding which record changes are resumable and for shaping safe source payloads.
+- [x] Keep producer modules responsible for deciding which record changes are resumable and for shaping safe source payloads.
 - [x] Keep read-time permission checks authoritative; resume state snapshots are recovery hints, not access grants.
 - [ ] Keep Dashboard and Workbench UI consumption deferred to 0.33.7, except for API smoke/regression fixtures needed to prove the contract.
 - [ ] Do not add public API routes in this release.
@@ -250,12 +250,12 @@ Use these decisions for 0.33.5.9:
 
 ### Version 0.33.5.9.3 - Producer Contract and Event Wiring
 
-- [ ] Add a framework producer helper or contract for safe resume-state payloads.
-- [ ] Define allowed source fields, forbidden fields, truncation rules, status normalization, and deletion/removal behavior.
-- [ ] Prefer subscribing to existing safe module events for create/update/status/timer/link lifecycle changes.
-- [ ] Add direct producer integration only where no safe event exists yet, and leave TODOs to replace it with events when the owning module emits them.
-- [ ] Reuse existing event summary/context helpers where they already produce recovery-safe labels.
-- [ ] Add defensive no-op behavior when a producer module is disabled, absent, or unable to shape a safe payload.
+- [x] Add a framework producer helper or contract for safe resume-state payloads.
+- [x] Define allowed source fields, forbidden fields, truncation rules, status normalization, and deletion/removal behavior.
+- [x] Prefer subscribing to existing safe module events for create/update/status/timer/link lifecycle changes.
+- [x] Add direct producer integration only where no safe event exists yet, and leave TODOs to replace it with events when the owning module emits them.
+- [x] Reuse existing event summary/context helpers where they already produce recovery-safe labels.
+- [x] Add defensive no-op behavior when a producer module is disabled, absent, or unable to shape a safe payload.
 
 ### Version 0.33.5.9.4 - Initial Resume State Producers
 
