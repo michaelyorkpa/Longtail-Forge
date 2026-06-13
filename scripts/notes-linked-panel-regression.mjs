@@ -11,6 +11,8 @@ process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "notes-linked-panel-secure-note-t
 
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { NOTE_LIBRARY_BUCKETS, NOTE_SECURITY_MODES, NOTE_VISIBILITIES } = await import("../src/modules/notes/library.js");
+const { clientsRepository } = await import("../src/modules/client-projects/clients.repo.js");
+const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 try {
@@ -23,6 +25,7 @@ try {
   await assertLinkedPanelReadModel(adminSession);
   await assertLinkedPanelAccessBeforeShaping(adminSession, limitedSession);
   await assertCollectionDefaultsAndCounts(adminSession, limitedSession);
+  await assertResumeContextHook(adminSession);
 
   console.log("Notes linked panel regression passed.");
 } finally {
@@ -216,6 +219,73 @@ async function assertCollectionDefaultsAndCounts(adminSession, limitedSession) {
   assert.equal(JSON.stringify(tree).includes(visible.note.title), false, "collection trees should expose counts, not note labels");
 }
 
+async function assertResumeContextHook(adminSession) {
+  const project = await createProjectFixture(adminSession.workspace_id);
+  const linkedActive = await notesService.create({
+    title: "Linked active resume note",
+    body_markdown: "Resume-safe active body.",
+    library_bucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
+    project_id: project.id,
+  }, adminSession);
+  const recentActive = await notesService.create({
+    title: "Recently edited active note",
+    body_markdown: "Recently edited body.",
+    library_bucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
+  }, adminSession);
+  const reference = await notesService.create({
+    title: "Reference resume exclusion",
+    body_markdown: "Reference body.",
+    library_bucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
+  }, adminSession);
+  const privateNote = await notesService.create({
+    title: "Private resume exclusion",
+    body_markdown: "Private resume body.",
+    library_bucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
+    visibility: NOTE_VISIBILITIES.PRIVATE,
+  }, adminSession);
+  const secureNote = await notesService.create({
+    title: "Secure resume exclusion",
+    body_markdown: "Secure resume body.",
+    library_bucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
+    security_mode: NOTE_SECURITY_MODES.SECURE,
+  }, adminSession);
+
+  await runSql(`
+UPDATE notes
+SET updated_at = '2026-02-01T10:00:00.000Z'
+WHERE workspace_id = ${sqlText(adminSession.workspace_id)}
+  AND note_id = ${sqlText(linkedActive.note.note_id)};
+
+UPDATE notes
+SET updated_at = '2026-02-02T10:00:00.000Z'
+WHERE workspace_id = ${sqlText(adminSession.workspace_id)}
+  AND note_id = ${sqlText(recentActive.note.note_id)};
+`);
+
+  const resume = await notesService.listResumeContext(adminSession, { limit: 10 });
+  const serialized = JSON.stringify(resume);
+  const linkedCandidate = resume.candidates.find((candidate) => candidate.recordId === linkedActive.note.note_id);
+  const recentCandidate = resume.candidates.find((candidate) => candidate.recordId === recentActive.note.note_id);
+
+  assert.equal(resume.moduleId, "notes");
+  assert.equal(resume.deferredFramework.resumeStateStorage, "0.33.5.9");
+  assert.equal(resume.deferredFramework.workbenchFeed, "0.33.7");
+  assert.ok(linkedCandidate, "Active Work notes linked to project context should be resume supporting context candidates");
+  assert.ok(recentCandidate, "Recently edited Active Work notes should be pickup candidates");
+  assert.equal(linkedCandidate.supportingContext, true);
+  assert.equal(linkedCandidate.eligibleForPickup, true);
+  assert.equal(linkedCandidate.linkedContext.projectId, project.id);
+  assert.ok(linkedCandidate.linkedTargetTypes.includes("project"));
+  assert.equal(linkedCandidate.sourceUrl, `notes.html?note=${encodeURIComponent(linkedActive.note.note_id)}`);
+  assert.ok(Array.isArray(linkedCandidate.badges));
+  assert.equal(resume.candidates.some((candidate) => candidate.recordId === reference.note.note_id), false);
+  assert.equal(resume.candidates.some((candidate) => candidate.recordId === privateNote.note.note_id), false);
+  assert.equal(resume.candidates.some((candidate) => candidate.recordId === secureNote.note.note_id), false);
+  assert.equal(serialized.includes("Private resume body"), false);
+  assert.equal(serialized.includes("Secure resume body"), false);
+  assert.equal(serialized.includes("body_markdown"), false);
+}
+
 async function readWorkspace() {
   const rows = await querySql(`
 SELECT workspace_id
@@ -226,6 +296,27 @@ LIMIT 1;
 
   assert.ok(rows[0]?.workspace_id, "workspace should exist");
   return rows[0];
+}
+
+async function createProjectFixture(workspaceId) {
+  const suffix = randomUUID().slice(0, 8);
+  const clientId = `resume-client-${suffix}`;
+  const projectId = `resume-project-${suffix}`;
+
+  await clientsRepository.create(workspaceId, {
+    id: clientId,
+    name: "Resume Context Client",
+    status: "Active",
+    billable: "yes",
+  });
+  await projectsRepository.create(workspaceId, clientId, {
+    id: projectId,
+    name: "Resume Context Project",
+    status: "Active",
+    billable: "yes",
+  });
+
+  return { id: projectId, clientId };
 }
 
 async function readProtectedSession(workspaceId) {

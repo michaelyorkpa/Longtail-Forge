@@ -576,6 +576,33 @@ async function listForTarget(session, query = {}) {
   };
 }
 
+async function listResumeContext(session, query = {}) {
+  const options = normalizeResumeContextOptions(query);
+  const notes = await notesRepository.list(session.workspace_id, {
+    libraryBucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
+    status: NOTE_STATUSES.ACTIVE,
+  });
+  const accessible = await filterAccessibleNotes(session, notes);
+  const candidates = accessible
+    .filter((note) => isResumeContextEligibleNote(note))
+    .sort(compareNotesByUpdatedAt)
+    .slice(0, options.limit)
+    .map((note) => shapeResumeContextNote(note));
+
+  return {
+    moduleId: NOTES_MODULE_ID,
+    source: "notes",
+    deferredFramework: {
+      resumeStateStorage: "0.33.5.9",
+      workbenchFeed: "0.33.7",
+      ranking: "0.33.5.9",
+      dismissal: "0.33.5.9",
+    },
+    count: candidates.length,
+    candidates,
+  };
+}
+
 async function listLinkTargets(session, query = {}) {
   await permissionsService.assertCanInAnyScope(session, NOTE_PERMISSIONS.VIEW);
   const targetType = normalizeOptionalText(query.targetType || query.target_type || "all") || "all";
@@ -1260,6 +1287,49 @@ function shapeLinkedNotePanelItem(note = {}) {
   };
 }
 
+function shapeResumeContextNote(note = {}) {
+  const shaped = shapeNoteForBrowser(note, { includeBodyHtml: false });
+  const links = Array.isArray(shaped.links) ? shaped.links.map(shapeSafeNoteLink) : [];
+  const linkedContext = {
+    clientId: shaped.client_id || "",
+    projectId: shaped.project_id || "",
+    taskId: shaped.task_id || "",
+    ticketId: shaped.ticket_id || "",
+    linkedUserId: shaped.linked_user_id || "",
+    links,
+  };
+  const linkedTargetTypes = new Set([
+    shaped.task_id ? "task" : "",
+    shaped.project_id ? "project" : "",
+    shaped.client_id ? "client" : "",
+    shaped.ticket_id ? "ticket" : "",
+    shaped.linked_user_id ? "user" : "",
+    ...links.map((link) => link.targetType),
+  ].filter(Boolean));
+
+  return {
+    moduleId: NOTES_MODULE_ID,
+    recordType: "note",
+    recordId: shaped.note_id,
+    title: shaped.title || "Untitled note",
+    sourceUrl: noteSourceUrl(shaped.note_id),
+    sourceLabel: "Notes",
+    libraryBucket: shaped.library_bucket,
+    noteKind: shaped.note_type,
+    status: shaped.status,
+    visibility: shaped.visibility,
+    securityMode: shaped.security_mode,
+    updatedAt: shaped.updated_at || "",
+    lastWorkedAt: shaped.updated_at || shaped.created_at || "",
+    excerpt: shaped.body_excerpt || "",
+    supportingContext: linkedTargetTypes.size > 0,
+    eligibleForPickup: true,
+    linkedTargetTypes: [...linkedTargetTypes].sort(),
+    linkedContext,
+    badges: [shaped.status, shaped.visibility, shaped.security_mode].filter(Boolean),
+  };
+}
+
 function shapeSafeNoteLink(link = {}) {
   return {
     noteLinkId: link.note_link_id || "",
@@ -1542,6 +1612,26 @@ function normalizeListFilters(query = {}) {
     tagIds: normalizeIdList(query.tagIds || query.tag_ids || query.tagId || query.tag_id),
     tagMatch: normalizeOptionalText(query.tagMatch || query.tag_match) === "all" ? "all" : "any",
   };
+}
+
+function normalizeResumeContextOptions(query = {}) {
+  return {
+    limit: Math.min(Math.max(Number.parseInt(query.limit, 10) || 20, 1), 50),
+  };
+}
+
+function isResumeContextEligibleNote(note = {}) {
+  return note.library_bucket === NOTE_LIBRARY_BUCKETS.ACTIVE_WORK &&
+    note.status === NOTE_STATUSES.ACTIVE &&
+    note.visibility !== NOTE_VISIBILITIES.PRIVATE &&
+    note.security_mode !== NOTE_SECURITY_MODES.SECURE &&
+    !note.deleted_at;
+}
+
+function compareNotesByUpdatedAt(left = {}, right = {}) {
+  const rightTime = Date.parse(right.updated_at || right.created_at || "") || 0;
+  const leftTime = Date.parse(left.updated_at || left.created_at || "") || 0;
+  return rightTime - leftTime || String(left.title || "").localeCompare(String(right.title || ""));
 }
 
 function normalizeIdList(value) {
@@ -2279,6 +2369,7 @@ export const notesService = {
   listLinkTargets,
   listLibrary,
   listLinks,
+  listResumeContext,
   listRevisions,
   moveCollection,
   read,

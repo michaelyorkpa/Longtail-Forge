@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.5.8.4. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.8.5. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -103,6 +103,14 @@ The helper accepts `targetType`, `targetId`, optional `moduleId`, optional `clie
 `/api/notes/for-target` returns `linkedNotes`, compatibility `notes`, the shaped `target`, `moduleState`, and `actions`. Browser helpers must treat `actions.canCreate`, `actions.canLink`, `actions.canUnlink`, and `actions.readonly` as display hints only; the Notes service still enforces permissions on create/link/unlink writes. When Notes is disabled and historical reads are allowed, the helper shows permitted linked notes read-only and hides create/link/unlink controls.
 
 The Tasks module mounts this helper in the Task detail dialog. Task-created note links include task context plus available project/client context, default Note Kind to `log`, suggest the Active Work Library bucket, and keep the normal `internal` visibility default unless the user changes it. Task list note counts also use the Notes-owned target read model so private, secure, disabled, or inaccessible notes do not leak through badge counts.
+
+## Resume Context Hooks
+
+Notes exposes a producer-owned `notesService.listResumeContext(session, options)` read model for future resume-state consumers. It returns permission-shaped Active Work note candidates with safe title, note kind, Library bucket, status, visibility/security badges, linked context IDs, safe note links, source URL, and last-updated timestamps.
+
+Recently edited Active Work notes may be eligible for future "Pick up where I left off" experiences, and Active Work notes linked to current work can appear as supporting context. Reference Library, Ongoing Areas, archived, deleted, private, and secure notes are excluded from this resume-context candidate payload. Secure/private note bodies, excerpts, hidden counts, and titles from notes the user cannot read must not appear in future Workbench or resume-context consumers.
+
+Global resume-state storage, ranking, dismissal, Workbench feed behavior, and framework-owned resume APIs remain deferred to the framework resume-state roadmap line. Notes only provides safe source context; it does not own the global resume framework.
 
 ## Markdown And Wiki Links
 

@@ -1,3 +1,9 @@
+## Version 0.33.5.8.5 - 2026-06-13 10:22 -04:00
+
+- Added a Notes-owned `listResumeContext()` service hook for safe Active Work resume-context candidates without adding framework resume storage or Workbench feed behavior.
+- Kept private, secure, archived, deleted, Reference Library, and Ongoing Areas notes out of the resume-context candidate payload while preserving safe linked-context metadata for eligible Active Work notes.
+- Updated Notes Help/developer docs, roadmap decisions, closeout regressions, and bumped the app/package and Notes module versions to `0.33.5.8.5`.
+
 ## Version 0.33.5.8.4 - 2026-06-13 10:01 -04:00
 
 - Added the shared Notes linked-record panel to the Task detail dialog, including the task-specific empty state, save-first state for unsaved tasks, and permitted create/link/unlink actions.

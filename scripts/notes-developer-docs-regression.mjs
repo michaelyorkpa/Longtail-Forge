@@ -16,6 +16,7 @@ for (const heading of [
   "## Visibility And Permissions",
   "## Note Data Model",
   "## Linking Model",
+  "## Resume Context Hooks",
   "## Markdown And Wiki Links",
   "## Revisions And Changelog",
   "## Secure Notes",
@@ -51,6 +52,8 @@ for (const phrase of [
   "content-kind metadata only",
   "legacy linked-context values",
   "Client/project/task/ticket/user association belongs in direct context columns and `note_links`",
+  "notesService.listResumeContext",
+  "Global resume-state storage, ranking, dismissal, Workbench feed behavior",
 ]) {
   assert.match(docs, new RegExp(escapeRegExp(phrase), "i"), `${phrase} should be documented`);
 }

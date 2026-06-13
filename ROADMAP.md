@@ -105,24 +105,24 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ### Version 0.33.5.8.5 - Notes Resume Context Hooks and Closeout
 
-- [ ] Notes should provide supporting context for future resume state.
-  - [ ] Active Work notes linked to tasks/projects/lists may appear as supporting context.
-  - [ ] Recently edited Active Work notes may be eligible for "Pick up where I left off."
-  - [ ] Normal notes should not become primary next-action candidates unless explicitly marked as Active Work or linked to active work.
-  - [ ] Secure/private notes must not expose body previews, excerpts, or hidden counts in Workbench/resume contexts.
-  - [ ] Linked-note panels should provide safe note count, title, status, visibility/security badges, and source URL where permitted.
-- [ ] Keep global resume-state storage, ranking, dismissal, Workbench feed behavior, and framework-owned resume APIs deferred to the 0.33.5.9/0.33.7 roadmap line.
-- [ ] Update current-state Notes developer docs and Help after the shipped behavior exists.
-- [ ] Verification:
-  - [ ] Notes target picker only returns records the user can read.
-  - [ ] Task-linked notes appear in the task Notes panel when linked through `task_id`.
-  - [ ] Task-linked notes appear in the task Notes panel when linked through `note_links`.
-  - [ ] Creating a note from a task sets task/project/client context safely.
-  - [ ] Private notes do not appear to unauthorized users in linked-note panels.
-  - [ ] Secure note bodies and previews do not appear in linked-note panels.
-  - [ ] Linked-note counts do not leak inaccessible notes.
-  - [ ] Archived notes are read-only from embedded panels.
-  - [ ] Disabled Notes module blocks new note/link writes but preserves historical reads where allowed.
+- [x] Notes should provide supporting context for future resume state.
+  - [x] Active Work notes linked to tasks/projects/lists may appear as supporting context.
+  - [x] Recently edited Active Work notes may be eligible for "Pick up where I left off."
+  - [x] Normal notes should not become primary next-action candidates unless explicitly marked as Active Work or linked to active work.
+  - [x] Secure/private notes must not expose body previews, excerpts, or hidden counts in Workbench/resume contexts.
+  - [x] Linked-note panels should provide safe note count, title, status, visibility/security badges, and source URL where permitted.
+- [x] Keep global resume-state storage, ranking, dismissal, Workbench feed behavior, and framework-owned resume APIs deferred to the 0.33.5.9/0.33.7 roadmap line.
+- [x] Update current-state Notes developer docs and Help after the shipped behavior exists.
+- [x] Verification:
+  - [x] Notes target picker only returns records the user can read.
+  - [x] Task-linked notes appear in the task Notes panel when linked through `task_id`.
+  - [x] Task-linked notes appear in the task Notes panel when linked through `note_links`.
+  - [x] Creating a note from a task sets task/project/client context safely.
+  - [x] Private notes do not appear to unauthorized users in linked-note panels.
+  - [x] Secure note bodies and previews do not appear in linked-note panels.
+  - [x] Linked-note counts do not leak inaccessible notes.
+  - [x] Archived notes are read-only from embedded panels.
+  - [x] Disabled Notes module blocks new note/link writes but preserves historical reads where allowed.
 
 ## Version 0.33.5.9 - Work Resume State Foundation
 
