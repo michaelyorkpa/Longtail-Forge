@@ -21,130 +21,119 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ## Version 0.33.5.8 - Notes Cleanup
 
-### Notes Type Cleanup
+### Planning Boundaries
+
+- `note_type` should become a content-kind signal, not a linked-record context or permission signal.
+- Keep the database column name `note_type` for compatibility. UI copy should call it "Note Kind" unless a later design pass chooses "Content Type".
+- Use linked context columns and `note_links` for workspace/client/project/task/user/ticket association. Ticket remains reserved until the Tickets module exists.
+- Preserve legacy `note_type` values in existing rows and render them safely, but stop offering `client`, `project`, `task`, `ticket`, and `user` as new choices. Current saved rows exist, but none use the deprecated linked-context values.
+- Notes owns the linked-record picker and embedded linked-note helper. Tasks, Client/Projects, Lists, Files, and future Tickets should consume Notes-owned helper/routes instead of rebuilding Notes visibility or lookup rules.
+- Linking records should improve context and recovery only. Links must not grant note access, target-record access, Library bucket membership, collection membership, KB publication, tag assignment, or visibility changes by themselves.
+- Notes may provide supporting context to future resume-state surfaces, but framework-owned resume state remains deferred to 0.33.5.9 and Workbench feed behavior remains deferred to 0.33.7.
+
+### Version 0.33.5.8.1 - Note Kind Cleanup
 
 - [ ] Reframe `note_type` as content kind, not linked-record context.
-- [ ] Keep the database column name `note_type` for compatibility.
-- [ ] Change the user-facing label to "Note Kind" or "Content Type".
+- [ ] Keep `note_type` as the database/API field name for compatibility.
+- [ ] Change the user-facing label to "Note Kind".
 - [ ] Keep initial content-kind values small:
-  - `general`
-  - `meeting`
-  - `research`
-  - `decision`
-  - `procedure`
-  - `reference`
-  - `idea`
-  - `log`
-- [ ] Stop offering `client`, `project`, `task`, `ticket`, and `user` as new note type choices.
+  - [ ] `general`
+  - [ ] `meeting`
+  - [ ] `research`
+  - [ ] `decision`
+  - [ ] `procedure`
+  - [ ] `reference`
+  - [ ] `idea`
+  - [ ] `log`
+- [ ] Stop offering `client`, `project`, `task`, `ticket`, and `user` as new Note Kind choices.
 - [ ] Preserve legacy values in existing records and display them safely.
-- [ ] There are some existing rows, but none use the deprecated type
-- [ ] Use linked context and `note_links` for client/project/task/user/ticket association.
+- [ ] Verify existing seeded/user rows do not use the deprecated linked-context kinds before tightening new-entry options.
+- [ ] Keep linked-record association in context columns and `note_links`, not in `note_type`.
 - [ ] Add regression coverage that `note_type` does not control permissions, visibility, Library bucket, collection membership, or KB publication.
 
-### Notes Linked Record Usability
+### Version 0.33.5.8.2 - Linked Record Picker
 
-* [ ] Replace raw linked-context ID entry in Notes with a permission-safe record picker.
+- [ ] Replace raw linked-context ID entry in Notes with a permission-safe record picker.
+  - [ ] Users can search/select supported link targets instead of pasting IDs.
+  - [ ] Supported initial targets are Workspace, Client, Project, Task, and User.
+  - [ ] Ticket remains reserved until the Tickets module exists.
+  - [ ] Picker results respect workspace, module state, target read permissions, and record visibility.
+  - [ ] Picker results show human labels, not only UUIDs.
+  - [ ] Selecting a task may infer project/client context where safe.
+  - [ ] Linking a note to a task suggests the Active Work Library bucket unless the user manually overrides the bucket.
+  - [ ] Linking a note to a client, project, or user suggests Ongoing Areas unless the user manually overrides the bucket.
+  - [ ] Linking behavior does not grant note access or target-record access by itself.
+- [ ] Replace raw linked context values in Note detail with human-readable links.
+  - [ ] Client name instead of client ID.
+  - [ ] Project name instead of project ID.
+  - [ ] Task title instead of task ID.
+  - [ ] User display name/email where allowed.
+  - [ ] Fall back to safe ID display only when the target label cannot be read.
+- [ ] Add linked-record navigation from Note detail.
+  - [ ] Client/project/task/user links open the appropriate record view where available.
+  - [ ] Missing or inaccessible records show a safe unavailable state.
 
-  * [ ] Users should be able to search/select supported link targets instead of pasting IDs.
-  * [ ] Supported initial targets:
+### Version 0.33.5.8.3 - Notes Linked-Record Helper
 
-    * [ ] Workspace
-    * [ ] Client
-    * [ ] Project
-    * [ ] Task
-    * [ ] User
-  * [ ] Ticket should remain reserved until the Tickets module exists.
-  * [ ] Picker results must respect workspace, module state, target read permissions, and record visibility.
-  * [ ] Picker results should show human labels, not only UUIDs.
-  * [ ] Selecting a task should optionally infer project/client context where safe.
-  * [ ] Linking a note to a task should suggest the Active Work Library bucket.
-  * [ ] Linking a note to a client/project/user should suggest Ongoing Areas unless the user manually overrides the Library bucket.
-  * [ ] Linking behavior must not grant note access or target-record access by itself.
+- [ ] Add a reusable Notes linked-record panel/helper owned by the Notes module and mounted by other modules where appropriate.
+- [ ] Accept inputs:
+  - [ ] `targetType`
+  - [ ] `targetId`
+  - [ ] `clientId` optional
+  - [ ] `projectId` optional
+  - [ ] `readonly` optional
+- [ ] List notes linked by direct context columns and flexible `note_links` rows.
+- [ ] Support:
+  - [ ] View linked notes.
+  - [ ] Create note for current record.
+  - [ ] Link existing note.
+  - [ ] Unlink note where permitted.
+  - [ ] Show note visibility/security/status badges.
+  - [ ] Hide private, secure, or inaccessible notes without leaking counts or titles.
+- [ ] Use `/api/notes/for-target` or a successor route rather than duplicating note lookup logic inside Tasks, Clients, Projects, Lists, Files, or future Tickets.
+- [ ] Keep archived notes read-only from embedded panels.
+- [ ] Preserve historical reads where allowed when the Notes module is disabled, but block new note/link writes.
 
-* [ ] Add a reusable Notes linked-record panel/helper.
+### Version 0.33.5.8.4 - Task Notes Panel
 
-  * [ ] This should be owned by the Notes module and mounted by other modules where appropriate.
-  * [ ] Inputs:
+- [ ] Add a Notes panel to the Task detail dialog.
+  - [ ] Show notes linked to the current task.
+  - [ ] Show a clear empty state: "No notes linked to this task."
+  - [ ] Allow permitted users to create a note from the task.
+  - [ ] Allow permitted users to link an existing note to the task.
+  - [ ] Allow permitted users to unlink a note from the task.
+  - [ ] Do not show the panel for unsaved tasks except for a "Save the task before adding notes" state.
+- [ ] New task-created notes should:
+  - [ ] Link to the task through `task_id` and/or `note_links`.
+  - [ ] Set `project_id` and `client_id` from the task where available.
+  - [ ] Default Library bucket to Active Work.
+  - [ ] Default Note Kind to `log` or `general`, not `task`.
+  - [ ] Default visibility to `internal` unless the user chooses otherwise.
+- [ ] Add linked-note indicators to task list rows/cards after the current task-list UI cleanup.
+  - [ ] Show a compact note count where permitted.
+  - [ ] Do not leak inaccessible note counts.
+  - [ ] Clicking the count opens the task detail dialog and focuses the Notes panel.
 
-    * [ ] `targetType`
-    * [ ] `targetId`
-    * [ ] `clientId` optional
-    * [ ] `projectId` optional
-    * [ ] `readonly` optional
-  * [ ] The helper should list notes linked by direct context columns and flexible `note_links` rows.
-  * [ ] The helper should support:
+### Version 0.33.5.8.5 - Notes Resume Context Hooks and Closeout
 
-    * [ ] View linked notes.
-    * [ ] Create note for current record.
-    * [ ] Link existing note.
-    * [ ] Unlink note where permitted.
-    * [ ] Show note visibility/security/status badges.
-    * [ ] Hide private/secure/inaccessible notes without leaking counts or titles.
-  * [ ] The helper should use `/api/notes/for-target` or a successor route rather than duplicating note lookup logic inside Tasks, Clients, Projects, or future Tickets.
-
-### Task Notes Integration
-
-* [ ] Add a Notes panel to the Task detail dialog.
-
-  * [ ] Show notes linked to the current task.
-  * [ ] Show a clear empty state: “No notes linked to this task.”
-  * [ ] Allow permitted users to create a note from the task.
-  * [ ] New task-created notes should:
-
-    * [ ] Set `task_id`.
-    * [ ] Set `project_id` and `client_id` from the task where available.
-    * [ ] Default Library bucket to Active Work.
-    * [ ] New task-created notes should:
-      * [ ] Link to the task through `task_id` and/or `note_links`.
-      * [ ] Set `project_id` and `client_id` from the task where available.
-      * [ ] Default Library bucket to Active Work.
-      * [ ] Default Note Kind / Content Type to `log` or `general`, not `task`.
-      * [ ] Default visibility to `internal` unless the user chooses otherwise.
-  * [ ] Allow permitted users to link an existing note to the task.
-  * [ ] Allow permitted users to unlink a note from the task.
-  * [ ] Do not show the panel for unsaved tasks except for a “Save the task before adding notes” state.
-
-* [ ] Add linked-note indicators to task list rows/cards after the current task-list UI cleanup.
-
-  * [ ] Show a compact note count where permitted.
-  * [ ] Do not leak inaccessible note counts.
-  * [ ] Clicking the count should open the task detail dialog and focus the Notes panel.
-
-### Notes Display Improvements
-
-* [ ] Replace raw linked context values in Note detail with human-readable links.
-
-  * [ ] Client name instead of client ID.
-  * [ ] Project name instead of project ID.
-  * [ ] Task title instead of task ID.
-  * [ ] User display name/email where allowed.
-  * [ ] Fall back to safe ID display only when the target label cannot be read.
-
-* [ ] Add linked-record navigation from Note detail.
-
-  * [ ] Client/project/task/user links should open the appropriate record view where available.
-  * [ ] Missing or inaccessible records should show a safe unavailable state.
-
-### Notes Resume Context
-
-- [ ] Notes should provide supporting context for resume state.
+- [ ] Notes should provide supporting context for future resume state.
   - [ ] Active Work notes linked to tasks/projects/lists may appear as supporting context.
   - [ ] Recently edited Active Work notes may be eligible for "Pick up where I left off."
   - [ ] Normal notes should not become primary next-action candidates unless explicitly marked as Active Work or linked to active work.
   - [ ] Secure/private notes must not expose body previews, excerpts, or hidden counts in Workbench/resume contexts.
   - [ ] Linked-note panels should provide safe note count, title, status, visibility/security badges, and source URL where permitted.
-
-### Regressions
-
-* [ ] Notes target picker only returns records the user can read.
-* [ ] Task-linked notes appear in the task Notes panel when linked through `task_id`.
-* [ ] Task-linked notes appear in the task Notes panel when linked through `note_links`.
-* [ ] Creating a note from a task sets task/project/client context safely.
-* [ ] Private notes do not appear to unauthorized users in linked-note panels.
-* [ ] Secure note bodies and previews do not appear in linked-note panels.
-* [ ] Linked-note counts do not leak inaccessible notes.
-* [ ] Archived notes are read-only from embedded panels.
-* [ ] Disabled Notes module blocks new note/link writes but preserves historical reads where allowed.
+- [ ] Keep global resume-state storage, ranking, dismissal, Workbench feed behavior, and framework-owned resume APIs deferred to the 0.33.5.9/0.33.7 roadmap line.
+- [ ] Update current-state Notes developer docs and Help after the shipped behavior exists.
+- [ ] Verification:
+  - [ ] Notes target picker only returns records the user can read.
+  - [ ] Task-linked notes appear in the task Notes panel when linked through `task_id`.
+  - [ ] Task-linked notes appear in the task Notes panel when linked through `note_links`.
+  - [ ] Creating a note from a task sets task/project/client context safely.
+  - [ ] Private notes do not appear to unauthorized users in linked-note panels.
+  - [ ] Secure note bodies and previews do not appear in linked-note panels.
+  - [ ] Linked-note counts do not leak inaccessible notes.
+  - [ ] Archived notes are read-only from embedded panels.
+  - [ ] Disabled Notes module blocks new note/link writes but preserves historical reads where allowed.
 
 ## Version 0.33.5.9 - Work Resume State Foundation
 

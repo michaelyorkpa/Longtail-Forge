@@ -88,6 +88,14 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Medium Term
 
+## Diagnostics and Support
+
+- Settings -> Help -> Report a Bug
+  - Need to create a diagnostics script
+    - Create a list of environment details
+    - Include relevant log files
+  - Should also have a "Support" option for paid private hosting
+
 ## "What are you trying to do right now?"
 
 - Dashboard opens with all of the overview stuff has the QAC utility rail, and, somewhere, presents the question:

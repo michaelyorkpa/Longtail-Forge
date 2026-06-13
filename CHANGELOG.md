@@ -1,5 +1,6 @@
 ## Version 0.33.5.7 - 2026-06-13 07:50 -04:00
 
+- Documentation update 2026-06-13 08:04 -04:00: Cleaned up the upcoming 0.33.5.8 Notes roadmap into planning boundaries and focused implementation slices for Note Kind cleanup, linked-record picker behavior, the reusable linked-note helper, Task dialog integration, resume-context hooks, and closeout regressions.
 - Replaced the long serial `npm run check` regression chain with `scripts/run-regressions.mjs`, backed by the auditable suite list in `scripts/regression-suite.mjs`.
 - Preserved full coverage across all 90 existing regression scripts while running static/source checks and isolated temp-database checks in bounded parallel buckets.
 - Kept default-database search regressions and file-storage regressions serial for this first cleanup pass until those side effects are proven safe to parallelize.
