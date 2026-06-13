@@ -23,7 +23,10 @@ try {
   assert.ok(Array.isArray(shell.searchTargets), "app shell bootstrap should return searchTargets");
   assert.ok(shell.searchTargets.some((target) => target.moduleId === "tasks" && target.recordType === "task"));
   assert.ok(shell.searchTargets.some((target) => target.moduleId === "client-projects" && target.recordType === "client"));
-  assert.ok(shell.searchTargets.every((target) => target.id === `${target.moduleId}:${target.recordType}`));
+  assert.ok(shell.searchTargets.every((target) => (
+    target.id === `${target.moduleId}:${target.recordType}` ||
+    target.id === `source:${target.sourceLabel}:${target.recordType}`
+  )));
 
   assert.match(navigation, /dataset\.globalSearchForm/);
   assert.match(navigation, /dataset\.globalSearchShell/);
@@ -38,6 +41,7 @@ try {
   assert.match(navigation, /navLinks\.replaceChildren\([\s\S]*globalSearchShell[\s\S]*items\.map[\s\S]*notificationBell\?\.parentElement/);
   assert.match(navigation, /params\.set\("text",\s*text\)/);
   assert.match(navigation, /params\.set\("module",\s*selectedOption\.dataset\.moduleId\)/);
+  assert.match(navigation, /params\.set\("source",\s*selectedOption\.dataset\.sourceLabel\)/);
   assert.match(navigation, /params\.set\("recordType",\s*selectedOption\.dataset\.recordType\)/);
   assert.match(navigation, /window\.location\.href = query \? `search\.html\?\$\{query\}` : "search\.html"/);
   assert.doesNotMatch(readFunctionBody(navigation, "submitGlobalSearch"), /fetch\("/);

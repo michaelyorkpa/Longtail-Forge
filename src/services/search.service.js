@@ -13,7 +13,7 @@ import { registerFrameworkHelpSearchIndexers } from "../core/help/search-indexer
 import { helpService } from "./help.service.js";
 import { AppError } from "../utils/app-error.js";
 
-const SEARCH_SERVICE_VERSION = "0.32.9.3";
+const SEARCH_SERVICE_VERSION = "0.33.5.6.1";
 
 registerFrameworkHelpSearchIndexers();
 

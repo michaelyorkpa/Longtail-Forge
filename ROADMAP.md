@@ -2,161 +2,16 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.4 - Files and Time Tracking QoL Updates
+## Version 0.33.5.6 - Search, Notification, and Tag QoL Updates
 
 ### Answered Design Decisions
 
-- File deletion lifecycle: use staged deletion. Normal delete is soft delete/restore. Hard delete/purge is a separate admin-level action after a grace period. Default purge policy should allow admins to purge after 7 days and automatic purge after 30 days. Purge removes protected bytes, clears unsafe storage references, preserves audit/history rows, and emits sanitized lifecycle events. Immediate hard delete should not be the normal user flow.
-- File deletion ownership: file owners may delete files they own where they still have access to the attachment target. Workspace admins may delete any workspace file they can access. Workspace admin delete still goes through soft delete first. Hard purge requires explicit admin/manage permission and must be audited.
-- File retention: deleted file rows remain as historical attachment/audit references after protected bytes are purged. Retain minimal metadata needed for history, attachment panels, audit, storage accounting, and lifecycle events. Do not retain protected storage paths, signed URLs, scanner internals, or anything that would allow removed bytes to be recovered. Attachment panels should show a safe unavailable/deleted state rather than breaking linked-record history.
-- Multi-file upload conflict handling: successful files should still attach even if one or more files fail validation/scanning. Return per-file success/failure results and show quiet, recoverable per-file errors in the UI. Do not roll back the entire batch unless the shared target/permission check fails before any file-specific processing begins.
-- File type controls: support both allow-list and block-list internally, but ship with a safe default mode. The default policy should be a broad allow-list of common safe business/document/image types plus a block-list of clearly risky executable/script/archive edge cases. Enforce server-side in the Files service, not only in browser validation. Browser validation can provide early feedback, but the backend is authoritative. Keep advanced MIME/pattern controls admin-only and avoid making first-pass settings too fiddly.
-- Storage accounting: in 0.33.5.4, internal protected-file bytes count against internal storage. External files should be tracked separately as external metadata/link records. If an integration can report bytes, store that as `external_reported_bytes`, but do not mix it into protected internal storage totals. External provider usage should be informational until a future quota policy explicitly decides how external storage affects limits.
-- Time entry admin correction scope: workspace admins should be able to perform normal corrections to workspace time entries, including tags, without Super Admin fallback. Do not make admin edits fully indistinguishable from owner edits. Sensitive correction fields should require admin correction permission and an audit reason when practical. Suggested sensitive fields: user/worker, billable status, billed/invoiced/locked state, rate/client/project changes if those affect reporting or billing. Normal fields like description, tags, task/project correction, and start/end/duration fixes can be allowed to workspace admins, but all admin corrections should be audited.
-- Timer timestamp semantics: finalized entries should preserve first start and final end as factual timestamps. Duration should store accumulated active seconds only. Paused time should not inflate duration. Reporting totals must use stored duration, not end minus start. UI can display "Started at", "Ended at", and "Active duration". This prevents timers from falsifying start/end time while still producing accurate billing/reporting totals.
-
-### Implementation Sub-Versions
-
-#### Version 0.33.5.4.1 - Files Deletion and Upload QoL
-
-- [x] Add a Files-owned delete workflow for files and attachments.
-  - [x] Respect workspace, module, attachable-target, and file permissions before exposing delete actions.
-  - [x] Decide and document whether deletion is soft delete, hard delete, or staged delete/restore.
-  - [x] Preserve audit and lifecycle-event metadata without exposing protected storage paths.
-- [x] Add multiple file upload support.
-  - [x] Allow users to choose more than one file in Files-owned upload controls.
-  - [x] Return per-file success and failure results instead of hiding partial upload outcomes.
-  - [x] Keep scanner, storage, permission, attachment, audit, and lifecycle behavior centralized in Files-owned services.
-- [x] Add drag-and-drop upload support.
-  - [x] Support drag-and-drop in the Files module and reusable attachment surfaces where appropriate.
-  - [x] Keep keyboard/file-picker upload available.
-  - [x] Show quiet, recoverable validation states for rejected files.
-- [x] Verification.
-  - [x] Verify delete permissions for owner, workspace admin, and inaccessible records.
-  - [x] Verify multi-upload and drag-and-drop partial failures.
-  - [x] Verify attachment counts and linked-record panels remain permission-safe after deletion.
-
-#### Version 0.33.5.4.2 - File Storage Accounting Foundation
-
-- [x] Introduce workspace/user file storage accounting for future limits.
-  - [x] Track internal protected-file storage by workspace and uploader/user.
-  - [x] Keep accounting separate from visibility permissions; storage totals must not leak inaccessible file labels or paths.
-  - [x] Update accounting when files are uploaded, deleted, or restored, with a refresh contract future replace/purge flows can call.
-- [x] Add external file storage and availability accounting fields/contracts.
-  - [x] Track external storage separately from internal protected-file bytes.
-  - [x] Preserve provider/source availability status for future integrations.
-  - [x] Do not require any external file-sharing integration in this slice.
-- [x] Keep storage limits enforcement deferred unless explicitly enabled by later settings.
-  - [x] Provide service-level read models future Settings, admin reports, and notifications can consume.
-  - [x] Avoid blocking uploads by quota until the workspace limit policy exists.
-- [x] Verification.
-  - [x] Verify internal storage totals update after upload/delete lifecycle actions.
-  - [x] Verify external accounting can exist without an integration provider.
-  - [x] Verify inaccessible file metadata does not leak through storage summaries.
-
-#### Version 0.33.5.4.3 - Workspace Files Settings and File Type Controls
-
-- [x] Add Settings -> Workspace -> Files.
-  - [x] Create the workspace-level Files settings surface if it does not already exist.
-  - [x] Keep settings framework-owned where they are storage/security policy and Files-owned where they are file workflow behavior.
-  - [x] Show current workspace file policy without requiring users to inspect environment/config files.
-- [x] Add workspace-wide file type controls.
-  - [x] Support configured file type allow/block behavior based on the clarification decision above.
-  - [x] Enforce file type policy in Files-owned upload services, not only in browser validation.
-  - [x] Return clear per-file rejection reasons for multi-upload and drag-and-drop flows.
-- [x] Prepare storage-limit controls without enforcing unfinished quota policy.
-  - [x] Display available storage accounting read models from 0.33.5.4.2.
-  - [x] Reserve fields for future per-user/workspace limits where the policy is not implemented yet.
-- [x] Verification.
-  - [x] Verify workspace admins can view and update Files settings.
-  - [x] Verify file type policy blocks disallowed uploads across Files module and attachment surfaces.
-  - [x] Verify disabled/inaccessible settings do not expose protected file metadata.
-
-#### Version 0.33.5.4.4 - Time Entry Workspace Admin Editing
-
-- [x] Fix workspace-admin edit access for time entries within the workspace.
-  - [x] Workspace admins must be able to edit workspace-scoped time entries according to the app's workspace administration model.
-  - [x] Include tag edits on time entries; admins should not need Super Admin access for normal workspace corrections.
-  - [x] Reproduce and cover the reported entry `81c61ec4-ebe4-45c2-a35d-b03e88b45bb9` if it still exists in local/dev data.
-- [x] Keep time-entry permission boundaries module-owned.
-  - [x] Do not bypass Time Tracking service permissions from browser code.
-  - [x] Ensure cross-workspace entries remain inaccessible.
-  - [x] Preserve audit/search/tag lifecycle behavior for admin corrections.
-- [x] Improve blocked/error feedback where the modal can hide the underlying page error.
-  - [x] Surface permission and save errors inside the active dialog or form.
-  - [x] Keep error text useful without exposing internal permission implementation details.
-- [x] Verification.
-  - [x] Verify owner, workspace admin, non-admin member, and Super Admin edit behavior.
-  - [x] Verify admin tag edits preserve manual/propagated tag semantics.
-  - [x] Verify reporting and time-entry lists reflect admin corrections.
-
-#### Version 0.33.5.4.5 - Timer Timestamp Integrity and Duration Model
-
-- [x] Preserve exact timer start/end timestamps when finalizing active timers.
-  - [x] Start/end timestamps are informational facts.
-  - [x] Duration is stored separately and should not rewrite the start/end facts.
-  - [x] Finalized entries should show exactly when the timer was started and ended, plus the total duration the timer was running during that period.
-- [x] Review timer finalization math.
-  - [x] Confirm timers are not adjusting start or end time based on total duration.
-  - [x] Confirm paused/resumed timers store accumulated active duration without falsifying start/end facts.
-  - [x] Preserve timezone-aware display behavior while keeping stored timestamps consistent with the existing UTC standard.
-- [x] Verification.
-  - [x] Verify active, paused, resumed, finalized, and discarded timer flows.
-  - [x] Verify manual time-entry edits do not inherit timer-only timestamp behavior incorrectly.
-  - [x] Verify reporting totals still use stored duration rather than recalculating from display timestamps.
-
-#### Version 0.33.5.4.6 - Timer Resume Metadata and Lifecycle Events
-
-- [x] Ensure active/paused timer payloads expose resume-safe source metadata.
-  - [x] Source module ID.
-  - [x] Source type.
-  - [x] Source record ID.
-  - [x] Source label.
-  - [x] Source URL.
-  - [x] Client/project context.
-  - [x] Timer status.
-  - [x] Last active start time.
-  - [x] Accumulated elapsed seconds.
-- [x] Emit or preserve safe timer lifecycle metadata for future resume state.
-  - [x] Timer started.
-  - [x] Timer paused.
-  - [x] Timer finalized.
-  - [x] Timer discarded.
-  - [x] Do not expose inaccessible source-record details.
-- [x] Keep resume metadata producer-only in this slice.
-  - [x] Do not build the Workbench resume feed here.
-  - [x] Do not create framework-owned resume-state storage beyond safe event/payload metadata needed by 0.33.5.9.
-  - [x] Document the payload contract for future Dashboard, Workbench, Search, Notifications, and reporting consumers.
-- [x] Verification.
-  - [x] Verify active/paused timer API payloads include safe source context.
-  - [x] Verify lifecycle events exclude inaccessible source labels and unsafe internal details.
-  - [x] Verify timer metadata works for task-linked, project-linked, and unlinked timers where those flows exist.
-
-#### Version 0.33.5.4.7 - Files and Time Tracking QoL Closeout
-
-- [x] Run permissions, module-contract, and regression checks for all 0.33.5.4 slices.
-  - [x] Files delete/upload/settings behavior is permission-safe.
-  - [x] Storage accounting does not leak inaccessible records.
-  - [x] Workspace-admin time entry edits work without Super Admin fallback.
-  - [x] Timer timestamps, duration, resume metadata, and lifecycle events remain consistent.
-- [x] Update user-facing Help/docs for current behavior only.
-  - [x] Document file deletion/upload/settings behavior that actually shipped.
-  - [x] Document time-entry admin correction behavior.
-  - [x] Document timer start/end/duration semantics without promising future Workbench resume UI.
-- [x] Update release bookkeeping.
-  - [x] Update `CHANGELOG.md`, `DECISIONS.md`, package metadata, and app-info version when the implementation slices ship.
-  - [x] Move completed roadmap content to `ROADMAP-ARCHIVE.md` according to the existing release process.
-
-## Version 0.33.5.6 - Search, Notification, and Tag QoL Updates
-
-### Open Design / Clarification Questions
-
-- Search record type cleanup: should Help appear as one framework-owned record type everywhere, or should Help keep separate internal content types that are grouped under one visible "Help" filter?
-- Urgent notification alerts: should urgent notifications open an interruptive in-app alert modal by default, or should the modal be a later user/workspace preference after the bell priority behavior ships?
-- Notification priority grouping: should "High" notifications bypass grouping in both the bell dropdown and the All Notifications page, or only in the bell dropdown?
-- Notification grouping preferences: should the first pass support one workspace default plus per-user override, or only a per-user setting under Settings -> User?
-- Bulk tag rollout order: should Time Entries and Tasks both ship in 0.33.5.6, or should Time Entries ship first because the checkbox column and existing time-entry table are the clearest bulk-edit surface?
-- Workbench task tag chips: how many chips should show inline before collapsing into a count, and should propagated/context tags appear there or only direct task tags?
+- Search record type cleanup: Help should appear as one visible framework-owned `Help` record type everywhere. Internal Help content types may still exist as hidden metadata, but Search filters and result labels should only show one `Help` option.
+- Urgent notification alerts: urgent notifications should not open interruptive in-app alert modals by default in 0.33.5.6. Ship bell priority behavior first, then add modal alerts later as a user/workspace preference.
+- Notification priority grouping: High notifications should bypass grouping in the bell dropdown only. On the All Notifications page, grouping preferences should still apply, with High/Urgent items sorted above normal/low items within their group.
+- Notification grouping preferences: the first pass should support per-user grouping preferences only under Settings -> User. Workspace defaults plus per-user overrides should be deferred.
+- Bulk tag rollout order: Time Entries should ship first because the table and checkbox selection pattern are the clearest bulk-edit surface. Build the Tags-owned bulk assignment/removal contract so Tasks can reuse it next.
+- Workbench task tag chips: show up to 2 direct/manual task tags inline, then collapse additional tags into `+N`. Propagated/context tags should not appear inline by default; they can appear in a tooltip, expanded row, or task detail view later.
 
 ### Planning Boundaries
 
@@ -169,10 +24,10 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 #### Version 0.33.5.6.1 - Search Record Type Cleanup
 
-- [ ] Fix duplicate Help record types in Search filters and record-type display.
-  - [ ] Ensure Help appears once in user-facing record-type lists.
-  - [ ] Preserve any internal Help content distinctions needed by the Help/Search indexing contracts.
-  - [ ] Verify Search filters, search result labels, and disabled-module behavior do not expose duplicate Help choices.
+- [x] Fix duplicate Help record types in Search filters and record-type display.
+  - [x] Ensure Help appears once in user-facing record-type lists.
+  - [x] Preserve any internal Help content distinctions needed by the Help/Search indexing contracts.
+  - [x] Verify Search filters, search result labels, and disabled-module behavior do not expose duplicate Help choices.
 
 #### Version 0.33.5.6.2 - Notification Actor Suppression and Changed Context
 
@@ -1898,3 +1753,4 @@ The Creator studio tool can be much richer if it pushes content out to these pla
   - [ ] Launch website
 
 - [ ] Launch Social Media
+

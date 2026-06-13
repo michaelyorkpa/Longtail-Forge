@@ -28,7 +28,7 @@ try {
   const session = await readProtectedSession();
   await enableDeveloperExample(session.workspace_id);
 
-  await check("active search targets include Help for framework and active module articles", async () => {
+  await check("active search targets keep Help owner metadata but expose one visible Help target", async () => {
     const activeTypes = await searchService.listActiveSearchableTypes(session.workspace_id);
     const helpTypes = activeTypes.filter((type) => type.recordType === "help_article");
 
@@ -37,10 +37,20 @@ try {
     assert.ok(helpTypes.every((type) => type.sourceLabel === "Help"));
 
     const shell = await appShellService.bootstrap(session);
-    assert.ok(shell.searchTargets.some((target) => (
+    const visibleHelpTargets = shell.searchTargets.filter((target) => (
       target.sourceLabel === "Help" &&
       target.recordType === "help_article"
-    )));
+    ));
+
+    assert.equal(visibleHelpTargets.length, 1);
+    assert.deepEqual(visibleHelpTargets[0], {
+      aggregate: true,
+      id: "source:Help:help_article",
+      label: "Help",
+      moduleId: "",
+      recordType: "help_article",
+      sourceLabel: "Help",
+    });
   });
 
   await check("search rebuild indexes framework and active module Help articles", async () => {
@@ -125,6 +135,7 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 
     assert.match(script, /appendParam\(params, "source", state\.filters\.source\)/);
     assert.match(script, /target\.sourceLabel === source/);
+    assert.match(script, /`\$\{result\.sourceLabel \|\| result\.source \|\| result\.moduleId\}:\$\{result\.recordType\}`/);
     assert.doesNotMatch(script, /state\.filters\.module/);
   });
 

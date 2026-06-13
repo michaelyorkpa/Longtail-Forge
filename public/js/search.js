@@ -306,7 +306,7 @@ function groupResults(results) {
   const groups = new Map();
 
   for (const result of results) {
-    const key = `${result.moduleId}:${result.recordType}`;
+    const key = `${result.sourceLabel || result.source || result.moduleId}:${result.recordType}`;
     const group = groups.get(key) || {
       label: result.sourceLabel || result.source || result.recordType || result.moduleId || "Results",
       results: [],
@@ -563,7 +563,7 @@ function normalizeSearchTargets(targets = []) {
       sourceLabel: target.sourceLabel || target.label || target.moduleId || "",
     }))
     .filter((target) => {
-      if (!target.moduleId || !target.recordType || seen.has(target.id)) {
+      if ((!target.moduleId && !target.sourceLabel) || !target.recordType || seen.has(target.id)) {
         return false;
       }
       seen.add(target.id);

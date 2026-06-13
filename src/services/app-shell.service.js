@@ -59,13 +59,39 @@ async function bootstrap(session) {
 async function readSearchTargets(session) {
   const searchableTypes = await searchService.listActiveSearchableTypes(session.workspace_id);
 
-  return searchableTypes.map((type) => ({
-    id: `${type.moduleId}:${type.recordType}`,
-    moduleId: type.moduleId,
-    recordType: type.recordType,
-    label: type.label || type.sourceLabel || type.recordType,
-    sourceLabel: type.sourceLabel || type.label || type.moduleId,
-  }));
+  return visibleSearchTargets(searchableTypes);
+}
+
+function visibleSearchTargets(searchableTypes = []) {
+  const visibleTargets = new Map();
+
+  for (const type of searchableTypes) {
+    const sourceLabel = type.sourceLabel || type.label || type.moduleId;
+    const label = type.label || sourceLabel || type.recordType;
+    const visibleKey = `${sourceLabel}:${type.recordType}`;
+    const existing = visibleTargets.get(visibleKey);
+
+    if (existing) {
+      visibleTargets.set(visibleKey, {
+        ...existing,
+        aggregate: true,
+        id: `source:${sourceLabel}:${type.recordType}`,
+        moduleId: "",
+      });
+      continue;
+    }
+
+    visibleTargets.set(visibleKey, {
+      aggregate: false,
+      id: `${type.moduleId}:${type.recordType}`,
+      moduleId: type.moduleId,
+      recordType: type.recordType,
+      label,
+      sourceLabel,
+    });
+  }
+
+  return [...visibleTargets.values()];
 }
 
 async function readNotificationSummary(session) {

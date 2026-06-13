@@ -1,3 +1,10 @@
+## Version 0.33.5.6.1 - 2026-06-12 22:17 -04:00
+
+- Collapsed visible Help search targets so the shell search and Search page record-type filters show one `Help` option instead of one per Help-owning module.
+- Preserved internal Help article owner/module metadata for indexing, disabled-module cleanup, permission checks, and Help result routing.
+- Grouped Help search results by visible source label and record type so framework and module Help results display under one Help group.
+- Recorded the 0.33.5.6 design answers, archived the completed 0.33.5.4 roadmap section, and bumped the app/package version to `0.33.5.6.1`.
+
 ## Version 0.33.5.4.7 - 2026-06-12 20:52 -04:00
 
 - Documentation update 2026-06-12 21:20 -04:00: Cleaned up the upcoming 0.33.5.6 Search, Notification, and Tag QoL roadmap into open design questions, planning boundaries, and implementation sub-version slices.

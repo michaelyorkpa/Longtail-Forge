@@ -374,6 +374,9 @@ function submitGlobalSearch(event) {
   if (selectedOption?.dataset.moduleId && selectedOption?.dataset.recordType) {
     params.set("module", selectedOption.dataset.moduleId);
     params.set("recordType", selectedOption.dataset.recordType);
+  } else if (selectedOption?.dataset.sourceLabel && selectedOption?.dataset.recordType) {
+    params.set("source", selectedOption.dataset.sourceLabel);
+    params.set("recordType", selectedOption.dataset.recordType);
   }
 
   const query = params.toString();
@@ -415,8 +418,9 @@ function normalizeSearchTargets(targets = []) {
       label: String(target.label || target.sourceLabel || target.recordType || "").trim(),
       moduleId: String(target.moduleId || "").trim(),
       recordType: String(target.recordType || "").trim(),
+      sourceLabel: String(target.sourceLabel || "").trim(),
     }))
-    .filter((target) => target.moduleId && target.recordType && target.label)
+    .filter((target) => (target.moduleId || target.sourceLabel) && target.recordType && target.label)
     .filter((target) => {
       if (seen.has(target.id)) {
         return false;
@@ -435,7 +439,12 @@ function createSearchTargetOption(value, label, target = null) {
   option.textContent = label;
 
   if (target) {
-    option.dataset.moduleId = target.moduleId;
+    if (target.moduleId) {
+      option.dataset.moduleId = target.moduleId;
+    }
+    if (target.sourceLabel) {
+      option.dataset.sourceLabel = target.sourceLabel;
+    }
     option.dataset.recordType = target.recordType;
   }
 

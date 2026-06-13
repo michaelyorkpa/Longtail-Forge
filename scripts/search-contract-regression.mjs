@@ -47,7 +47,7 @@ check("search capabilities expose framework-owned adapter-backed boundary", () =
   const capabilities = searchService.getCapabilities();
 
   assert.equal(capabilities.owner, "framework");
-  assert.equal(capabilities.serviceVersion, "0.32.9.3");
+  assert.equal(capabilities.serviceVersion, "0.33.5.6.1");
   assert.equal(capabilities.workspaceAware, true);
   assert.equal(capabilities.moduleAware, true);
   assert.equal(capabilities.permissionAware, true);
@@ -385,7 +385,7 @@ await checkAsync("runtime capabilities report SQLite FTS5 support or indexed LIK
 
   const capabilities = await searchService.getRuntimeCapabilities({ refresh: true });
 
-  assert.equal(capabilities.serviceVersion, "0.32.9.3");
+  assert.equal(capabilities.serviceVersion, "0.33.5.6.1");
   assert.equal(capabilities.backend.adapterId, "sqlite");
   assert.equal(capabilities.backend.engine, "sqlite");
   assert.equal(typeof capabilities.backend.fts5Supported, "boolean");
