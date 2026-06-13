@@ -33,7 +33,7 @@ ORDER BY version;
     return /^\d+$/.test(migration.version) && Number.isInteger(version) && version <= 31;
   });
 
-  assert.equal(migrations.length, 30, "fresh database should record the baseline plus current future migrations");
+  assert.equal(migrations.length, 31, "fresh database should record the baseline plus current future migrations");
   assert.deepEqual(migrations[0], {
     version: "0.31.22",
     module_id: "core",
@@ -184,6 +184,11 @@ ORDER BY version;
     module_id: "notes",
     name: "note_kind_content_values",
   });
+  assert.deepEqual(migrations[30], {
+    version: "061",
+    module_id: "core",
+    name: "add_work_resume_state",
+  });
   assert.deepEqual(historicalRows, [], "fresh database should not record old incremental migrations");
 }
 
@@ -246,6 +251,7 @@ ORDER BY name;
     "user_workspace_creation_permissions",
     "user_workspaces",
     "users",
+    "work_resume_state",
     "workspace_modules",
     "workspace_settings",
     "workspaces",
@@ -384,6 +390,13 @@ WHERE type = 'index'
     'idx_tasks_workspace_resume_context',
     'idx_time_entries_workspace_task',
     'idx_user_workspaces_workspace_status',
+    'idx_work_resume_state_dismissed',
+    'idx_work_resume_state_last_worked',
+    'idx_work_resume_state_record_cleanup',
+    'idx_work_resume_state_workspace_client',
+    'idx_work_resume_state_workspace_module',
+    'idx_work_resume_state_workspace_project',
+    'idx_work_resume_state_workspace_user_default',
     'idx_workspace_modules_workspace_status'
   )
 ORDER BY name;
@@ -514,6 +527,13 @@ ORDER BY name;
     "idx_tasks_workspace_resume_context",
     "idx_time_entries_workspace_task",
     "idx_user_workspaces_workspace_status",
+    "idx_work_resume_state_dismissed",
+    "idx_work_resume_state_last_worked",
+    "idx_work_resume_state_record_cleanup",
+    "idx_work_resume_state_workspace_client",
+    "idx_work_resume_state_workspace_module",
+    "idx_work_resume_state_workspace_project",
+    "idx_work_resume_state_workspace_user_default",
     "idx_workspace_modules_workspace_status",
   ]);
 }

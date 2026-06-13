@@ -1,3 +1,9 @@
+## Version 0.33.5.9.1 - 2026-06-13 10:55 -04:00
+
+- Added framework-owned `work_resume_state` storage for one resumable source record per workspace/user/module/record, with optional client/project context and recovery-safe snapshot fields.
+- Added uniqueness and lookup indexes for default user listing, source-record cleanup, module/record filters, client/project filters, dismissal filtering, and last-worked sorting.
+- Recorded resume-state storage decisions, marked the 0.33.5.9.1 roadmap slice complete, and bumped the app/package version to `0.33.5.9.1`.
+
 ## Version 0.33.5.8.5 - 2026-06-13 10:22 -04:00
 
 - Added a Notes-owned `listResumeContext()` service hook for safe Active Work resume-context candidates without adding framework resume storage or Workbench feed behavior.

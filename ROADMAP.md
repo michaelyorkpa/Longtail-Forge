@@ -133,12 +133,62 @@ This release should add backend storage, service contracts, safe update hooks, a
 
 ### Questions and Design Clarifications
 
-- [ ] Confirm whether resume state rows are created only for the current user who performed the work in 0.33.5.9, with assigned/shared/follower-based resume suggestions deferred until Workbench ranking matures.
-- [ ] Confirm whether dismissing a resume candidate hides that row until the producer writes a newer `last_worked_at`/`updated_at`, instead of permanently muting the underlying record.
-- [ ] Confirm whether initial ranking should be deterministic and rule-based only: active timers first, blocked/stale work when explicitly requested, then recent updated work by due date, priority, and last-worked time. No AI or opaque scoring in this foundation pass.
-- [ ] Confirm whether producer updates should flow through framework event subscriptions where events already exist, with direct service calls allowed only where no safe event exists yet.
-- [ ] Confirm whether private Notes are excluded from global resume-state storage entirely in 0.33.5.9, even for the note owner, to keep the first contract conservative.
-- [ ] Confirm whether `handoff_note`, `next_action`, and `blocked_reason` snapshots are allowed only when supplied by the source module as already permission-safe fields, not copied from freeform private/secure note body text.
+- [x] Confirm whether resume state rows are created only for the current user who performed the work in 0.33.5.9, with assigned/shared/follower-based resume suggestions deferred until Workbench ranking matures.
+- [x] Confirm whether dismissing a resume candidate hides that row until the producer writes a newer `last_worked_at`/`updated_at`, instead of permanently muting the underlying record.
+- [x] Confirm whether initial ranking should be deterministic and rule-based only: active timers first, blocked/stale work when explicitly requested, then recent updated work by due date, priority, and last-worked time. No AI or opaque scoring in this foundation pass.
+- [x] Confirm whether producer updates should flow through framework event subscriptions where events already exist, with direct service calls allowed only where no safe event exists yet.
+- [x] Confirm whether private Notes are excluded from global resume-state storage entirely in 0.33.5.9, even for the note owner, to keep the first contract conservative.
+- [x] Confirm whether `handoff_note`, `next_action`, and `blocked_reason` snapshots are allowed only when supplied by the source module as already permission-safe fields, not copied from freeform private/secure note body text.
+
+Use these decisions for 0.33.5.9:
+
+1. Resume state rows should be created only for the current user who performed the work in this foundation pass.
+
+   Do not create resume-state rows for assignees, followers, watchers, shared users, client users, or other collaborators yet. Assigned/shared/follower-based resume suggestions should be deferred until Workbench ranking and notification semantics mature in 0.33.7 or later.
+
+   For now, resume state means: “where this user appears to have left off,” not “all work this user might care about.”
+
+2. Dismissing a resume candidate should hide the current row until the source record receives a newer producer update.
+
+   Dismissal should not permanently mute the underlying task/list/note/timer/source record. Treat dismissal as “not this stale suggestion anymore,” not “never show this record again.”
+
+   Implementation guidance:
+   - Store `dismissed_at`.
+   - Default `left_off` results should hide dismissed rows.
+   - A producer update with newer `last_worked_at` and/or `updated_at` should make the row eligible again.
+   - If needed, store a dismissal comparison value such as `dismissed_source_updated_at` or compare against the row’s producer-maintained `last_worked_at`.
+
+3. Initial ranking should be deterministic and rule-based only.
+
+   Do not add AI ranking, opaque scoring, embeddings, inferred intent, or “smart” priority math in 0.33.5.9. The first pass should be debuggable and explainable.
+
+   Use a simple foundation order:
+   - Active timers first.
+   - Blocked/stale work only when explicitly requested by mode/filter.
+   - Then recent updated work, shaped by due date, priority, and last-worked time.
+   - Completed, archived, finalized, deleted, disabled-module, and permission-denied records should not appear in primary left-off results.
+
+   `resume_rank_hint` may exist as a producer hint, but it should not become an opaque global scoring system yet.
+
+4. Producer updates should prefer framework event subscriptions wherever safe events already exist.
+
+   Resume state should listen to existing module lifecycle events when those events already contain permission-safe, recovery-safe context.
+
+   Direct service calls are allowed only where no safe event exists yet. When direct calls are used, leave a clear TODO to replace them with event-based producer wiring once the owning module emits an appropriate event.
+
+   The goal is to avoid each module inventing its own resume subsystem while still allowing this release to ship without waiting on perfect event coverage.
+
+5. Private Notes should be excluded from global resume-state storage entirely in 0.33.5.9.
+
+   Exclude private Notes even for the note owner in this foundation pass. This keeps the first resume contract conservative and avoids turning global recovery infrastructure into a second private-note surface.
+
+   Non-private Active Work notes may participate as safe supporting resume context where permitted. Private Notes should not create global resume rows, title snapshots, body previews, hidden counts, or “something private exists” hints.
+
+6. `handoff_note`, `next_action`, and `blocked_reason` snapshots are allowed only when supplied by the source module as already permission-safe fields.
+
+   Do not mine, summarize, copy, or infer these fields from freeform private note bodies, secure note bodies, encrypted content, note excerpts, rendered HTML, comments, attachments, or other unstructured private/secure text.
+
+   These fields should come from explicit producer-owned fields that are already safe for browser display to the current user. The resume service may truncate and normalize them, but it should not decide that arbitrary note/body content is safe.
 
 ### Implementation Boundaries
 
@@ -151,36 +201,37 @@ This release should add backend storage, service contracts, safe update hooks, a
 
 ### Version 0.33.5.9.1 - Resume State Storage
 
-- [ ] Add framework-owned `work_resume_state` storage.
-- [ ] Each row represents one resumable record for one user in one workspace.
-- [ ] Add a unique active-row constraint for `workspace_id`, `user_id`, `module_id`, `record_type`, and `record_id` where practical.
-- [ ] Add indexes for workspace/user default listing, module/record cleanup, client/project filtering, dismissed filtering, and last-worked sorting.
-- [ ] Suggested fields:
-  - [ ] `resume_state_id`
-  - [ ] `workspace_id`
-  - [ ] `user_id`
-  - [ ] `module_id`
-  - [ ] `record_type`
-  - [ ] `record_id`
-  - [ ] `client_id` optional
-  - [ ] `project_id` optional
-  - [ ] `source_url`
-  - [ ] `title_snapshot`
-  - [ ] `context_label_snapshot`
-  - [ ] `last_action_type`
-  - [ ] `last_action_label`
-  - [ ] `last_worked_at`
-  - [ ] `handoff_note`
-  - [ ] `next_action`
-  - [ ] `blocked_reason`
-  - [ ] `status_snapshot`
-  - [ ] `priority_snapshot`
-  - [ ] `due_at_snapshot`
-  - [ ] `resume_rank_hint`
-  - [ ] `metadata_json`
-  - [ ] `created_at`
-  - [ ] `updated_at`
-  - [ ] `dismissed_at` optional
+- [x] Add framework-owned `work_resume_state` storage.
+- [x] Each row represents one resumable record for one user in one workspace.
+- [x] Add a unique active-row constraint for `workspace_id`, `user_id`, `module_id`, `record_type`, and `record_id` where practical.
+- [x] Add indexes for workspace/user default listing, module/record cleanup, client/project filtering, dismissed filtering, and last-worked sorting.
+- [x] Suggested fields:
+  - [x] `resume_state_id`
+  - [x] `workspace_id`
+  - [x] `user_id`
+  - [x] `module_id`
+  - [x] `record_type`
+  - [x] `record_id`
+  - [x] `client_id` optional
+  - [x] `project_id` optional
+  - [x] `source_url`
+  - [x] `title_snapshot`
+  - [x] `context_label_snapshot`
+  - [x] `last_action_type`
+  - [x] `last_action_label`
+  - [x] `last_worked_at`
+  - [x] `handoff_note`
+  - [x] `next_action`
+  - [x] `blocked_reason`
+  - [x] `status_snapshot`
+  - [x] `priority_snapshot`
+  - [x] `due_at_snapshot`
+  - [x] `resume_rank_hint`
+  - [x] `metadata_json`
+  - [x] `created_at`
+  - [x] `updated_at`
+  - [x] `dismissed_at` optional
+  - [x] `dismissed_source_updated_at` optional
 
 ### Version 0.33.5.9.2 - Resume State Service and Read Guards
 
