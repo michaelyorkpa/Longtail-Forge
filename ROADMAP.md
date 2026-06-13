@@ -254,14 +254,14 @@ help/
 
 ### Version 0.33.5.12.2 - Task Bulk Edit Due Date, Due Time, and Tags
 
-- [ ] Extend Projects -> Tasks bulk edit to support due date and due time changes.
-- [ ] Allow bulk due date to be set or cleared to NULL.
-- [ ] Allow bulk due time to be optional and clearable to NULL.
-- [ ] Extend bulk edit to support tag add and tag remove actions.
-- [ ] Reuse the Tags-owned assignment/removal contract so direct/manual tag changes preserve propagated and system tag assignments.
-- [ ] Show an in-app warning when selected tasks have mixed due dates, due times, or tags before applying a bulk overwrite, add, remove, or clear action.
-- [ ] Keep partial failure behavior explicit by task so inaccessible or invalid targets do not silently fail.
-- [ ] Add or update task bulk-edit regressions for mixed-value warnings, NULL due date/time saves, tag add/remove behavior, and permission-shaped partial failures.
+- [x] Extend Projects -> Tasks bulk edit to support due date and due time changes.
+- [x] Allow bulk due date to be set or cleared to NULL.
+- [x] Allow bulk due time to be optional and clearable to NULL.
+- [x] Extend bulk edit to support tag add and tag remove actions.
+- [x] Reuse the Tags-owned assignment/removal contract so direct/manual tag changes preserve propagated and system tag assignments.
+- [x] Show an in-app warning when selected tasks have mixed due dates, due times, or tags before applying a bulk overwrite, add, remove, or clear action.
+- [x] Keep partial failure behavior explicit by task so inaccessible or invalid targets do not silently fail.
+- [x] Add or update task bulk-edit regressions for mixed-value warnings, NULL due date/time saves, tag add/remove behavior, and permission-shaped partial failures.
 
 ### Version 0.33.5.12.3 - Task Modal Compact Layout and Metadata Ribbon
 

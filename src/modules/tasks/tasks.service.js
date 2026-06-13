@@ -978,6 +978,20 @@ async function applyBulkAction(taskId, action, payload, session) {
     return update(taskId, { priority: payload.priority }, session);
   }
 
+  if (action === "due_date") {
+    const dueDate = normalizeDueDate(payload.due_date || payload.dueDate);
+    return update(taskId, {
+      due_date: dueDate,
+      due_time: dueDate ? previousTask.due_time : "",
+    }, session);
+  }
+
+  if (action === "due_time") {
+    return update(taskId, {
+      due_time: normalizeDueTime(payload.due_time || payload.dueTime),
+    }, session);
+  }
+
   if (action === "assignee_replace") {
     return update(taskId, {
       assignee_ids: normalizeAssigneeIds(payload.assignee_ids || payload.assigneeIds || []),

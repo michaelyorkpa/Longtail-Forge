@@ -104,6 +104,22 @@
               <option value="urgent">Urgent</option>
             </select>
           </label>
+          <label data-task-bulk-due-date-control>
+            Due Date
+            <input type="date" data-task-bulk-due-date>
+            <span class="checkbox-line">
+              <input type="checkbox" data-task-bulk-clear-due-date>
+              Clear due date
+            </span>
+          </label>
+          <label data-task-bulk-due-time-control>
+            Due Time
+            <input type="time" data-task-bulk-due-time>
+            <span class="checkbox-line">
+              <input type="checkbox" data-task-bulk-clear-due-time>
+              Clear due time
+            </span>
+          </label>
           <label data-task-bulk-assignee-control>
             Assignees
             <div class="task-bulk-assignee-list" data-task-bulk-assignees></div>
@@ -348,7 +364,7 @@
     <script src="js/shared/file-attachments.js"></script>
     <script src="js/shared/notes-linked-panel.js?v=1"></script>
     <script src="js/task-dialog.js?v=3"></script>
-    <script src="js/tasks.js?v=6"></script>
+    <script src="js/tasks.js?v=7"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

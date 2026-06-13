@@ -1,3 +1,11 @@
+## Version 0.33.5.12.2 - 2026-06-13 17:01 -04:00
+
+- Added Projects -> Tasks bulk due date and due time controls, with separate set/clear behavior for each field.
+- Added backend bulk task actions for due date and due time, including per-task partial errors when a due time is applied to a task without a due date.
+- Preserved Tasks bulk tag add/remove/replace behavior through the Tags-owned bulk assignment contract, keeping propagated and system tags intact.
+- Added mixed-value in-app confirmation warnings before applying bulk due date, due time, or tag changes to selected tasks with differing current values.
+- Added `task-bulk-due-tags-regression.mjs`, updated Tasks browser cache busting, marked the 0.33.5.12.2 roadmap slice complete, and bumped the app/package plus Tasks module versions to `0.33.5.12.2`.
+
 ## Version 0.33.5.12.1 - 2026-06-13 16:46 -04:00
 
 - Moved Client detail modal `Save Client` and `Edit Projects` actions into the real modal footer beside `Close`.

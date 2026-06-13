@@ -21,6 +21,12 @@ const bulkStatusControl = document.querySelector("[data-task-bulk-status-control
 const bulkStatusInput = document.querySelector("[data-task-bulk-status]");
 const bulkPriorityControl = document.querySelector("[data-task-bulk-priority-control]");
 const bulkPriorityInput = document.querySelector("[data-task-bulk-priority]");
+const bulkDueDateControl = document.querySelector("[data-task-bulk-due-date-control]");
+const bulkDueDateInput = document.querySelector("[data-task-bulk-due-date]");
+const bulkClearDueDateInput = document.querySelector("[data-task-bulk-clear-due-date]");
+const bulkDueTimeControl = document.querySelector("[data-task-bulk-due-time-control]");
+const bulkDueTimeInput = document.querySelector("[data-task-bulk-due-time]");
+const bulkClearDueTimeInput = document.querySelector("[data-task-bulk-clear-due-time]");
 const bulkAssigneeControl = document.querySelector("[data-task-bulk-assignee-control]");
 const bulkAssigneesControl = document.querySelector("[data-task-bulk-assignees]");
 const bulkTagActionControl = document.querySelector("[data-task-bulk-tag-action-control]");
@@ -61,6 +67,10 @@ quickFilters?.addEventListener("click", handleQuickFilterClick);
 filterDetails?.addEventListener("toggle", handleFilterDetailsToggle);
 bulkStatusInput?.addEventListener("change", updateBulkControls);
 bulkPriorityInput?.addEventListener("change", updateBulkControls);
+bulkDueDateInput?.addEventListener("change", updateBulkControls);
+bulkClearDueDateInput?.addEventListener("change", updateBulkControls);
+bulkDueTimeInput?.addEventListener("change", updateBulkControls);
+bulkClearDueTimeInput?.addEventListener("change", updateBulkControls);
 bulkAssigneesControl?.addEventListener("change", updateBulkControls);
 bulkTagActionInput?.addEventListener("change", updateBulkControls);
 bulkTagsInput?.addEventListener("change", updateBulkControls);
@@ -785,6 +795,10 @@ async function applyBulkAction() {
     return;
   }
 
+  if (!await confirmMixedBulkActions(actions, taskIds)) {
+    return;
+  }
+
   setStatus("Updating selected tasks...");
 
   try {
@@ -820,7 +834,10 @@ function updateBulkControls() {
 
   bulkStatusControl?.removeAttribute("hidden");
   bulkPriorityControl?.removeAttribute("hidden");
+  bulkDueDateControl?.removeAttribute("hidden");
+  bulkDueTimeControl?.removeAttribute("hidden");
   bulkAssigneeControl?.removeAttribute("hidden");
+  syncBulkDueControlStates();
   if ((state.tagOptions || []).length > 0) {
     bulkTagActionControl?.removeAttribute("hidden");
     bulkTagsControl?.removeAttribute("hidden");
@@ -844,6 +861,10 @@ function selectedBulkActions(taskIds) {
   const actions = [];
   const status = bulkStatusInput?.value || "";
   const priority = bulkPriorityInput?.value || "";
+  const dueDate = bulkDueDateInput?.value || "";
+  const shouldClearDueDate = Boolean(bulkClearDueDateInput?.checked);
+  const dueTime = bulkDueTimeInput?.value || "";
+  const shouldClearDueTime = Boolean(bulkClearDueTimeInput?.checked);
   const assigneeIds = selectedBulkAssigneeIds();
   const tagAction = bulkTagActionInput?.value || "";
   const tagIds = selectedBulkTagIds();
@@ -856,6 +877,14 @@ function selectedBulkActions(taskIds) {
     actions.push({ action: "priority", task_ids: taskIds, priority });
   }
 
+  if (shouldClearDueDate || dueDate) {
+    actions.push({ action: "due_date", task_ids: taskIds, due_date: shouldClearDueDate ? "" : dueDate });
+  }
+
+  if (!shouldClearDueDate && (shouldClearDueTime || dueTime)) {
+    actions.push({ action: "due_time", task_ids: taskIds, due_time: shouldClearDueTime ? "" : dueTime });
+  }
+
   if (assigneeIds.length > 0) {
     actions.push({ action: "assignee_replace", task_ids: taskIds, assignee_ids: assigneeIds });
   }
@@ -865,6 +894,73 @@ function selectedBulkActions(taskIds) {
   }
 
   return actions;
+}
+
+async function confirmMixedBulkActions(actions, taskIds) {
+  const warnings = mixedBulkActionWarnings(actions, taskIds);
+
+  if (warnings.length === 0) {
+    return true;
+  }
+
+  if (!modal?.confirm) {
+    return window.confirm(`${warnings.join(" ")} Apply these bulk changes?`);
+  }
+
+  return modal.confirm({
+    title: "Apply bulk task changes?",
+    message: `${warnings.join(" ")} Apply these bulk changes to ${taskIds.length} selected task${taskIds.length === 1 ? "" : "s"}?`,
+    confirmLabel: "Apply Changes",
+    cancelLabel: "Review First",
+  });
+}
+
+function mixedBulkActionWarnings(actions, taskIds) {
+  const selectedTasks = state.tasks.filter((task) => taskIds.includes(task.task_id));
+  const warnings = [];
+
+  if (actions.some((action) => action.action === "due_date") && hasMixedValues(selectedTasks, "due_date")) {
+    warnings.push("Selected tasks currently have different due dates.");
+  }
+
+  if (actions.some((action) => action.action === "due_time") && hasMixedValues(selectedTasks, "due_time")) {
+    warnings.push("Selected tasks currently have different due times.");
+  }
+
+  if (actions.some((action) => ["tag_add", "tag_remove", "tag_replace"].includes(action.action)) && hasMixedTagValues(selectedTasks)) {
+    warnings.push("Selected tasks currently have different tags.");
+  }
+
+  return warnings;
+}
+
+function hasMixedValues(tasks, fieldName) {
+  return new Set(tasks.map((task) => task[fieldName] || "")).size > 1;
+}
+
+function hasMixedTagValues(tasks) {
+  const values = tasks.map((task) =>
+    (task.tags || [])
+      .map((tag) => tag.tag_id)
+      .filter(Boolean)
+      .sort()
+      .join("|")
+  );
+  return new Set(values).size > 1;
+}
+
+function syncBulkDueControlStates() {
+  if (bulkDueDateInput && bulkClearDueDateInput) {
+    bulkDueDateInput.disabled = bulkClearDueDateInput.checked;
+  }
+
+  if (bulkDueTimeInput && bulkClearDueTimeInput) {
+    bulkDueTimeInput.disabled = bulkClearDueTimeInput.checked || Boolean(bulkClearDueDateInput?.checked);
+  }
+
+  if (bulkClearDueTimeInput) {
+    bulkClearDueTimeInput.disabled = Boolean(bulkClearDueDateInput?.checked);
+  }
 }
 
 function selectedBulkAssigneeIds() {
@@ -886,6 +982,18 @@ function resetBulkInputs() {
   if (bulkPriorityInput) {
     bulkPriorityInput.value = "";
   }
+  if (bulkDueDateInput) {
+    bulkDueDateInput.value = "";
+  }
+  if (bulkClearDueDateInput) {
+    bulkClearDueDateInput.checked = false;
+  }
+  if (bulkDueTimeInput) {
+    bulkDueTimeInput.value = "";
+  }
+  if (bulkClearDueTimeInput) {
+    bulkClearDueTimeInput.checked = false;
+  }
   bulkAssigneesControl?.querySelectorAll("input[type='checkbox']").forEach((input) => {
     input.checked = false;
   });
@@ -897,6 +1005,7 @@ function resetBulkInputs() {
       entry.selected = false;
     });
   }
+  syncBulkDueControlStates();
 }
 
 function toggleVisibleSelection() {
