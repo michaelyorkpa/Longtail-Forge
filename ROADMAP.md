@@ -343,11 +343,11 @@ Use these decisions for 0.33.5.10:
 
 ### Version 0.33.5.10.4 - Markdown Rendering and Article API Shape
 
-- [ ] Render Markdown-backed article bodies safely in the Help Center.
-- [ ] Keep article detail payloads browser-safe and permission-shaped.
-- [ ] Preserve source metadata so framework, first-party module, and future third-party module articles are visibly distinct where useful.
-- [ ] Keep the current `help.html?article=<slug-or-id>` routing behavior.
-- [ ] Add or update Help regressions for default article selection, nested ToC rendering, disabled-module hiding, and article route stability.
+- [x] Render Markdown-backed article bodies safely in the Help Center.
+- [x] Keep article detail payloads browser-safe and permission-shaped.
+- [x] Preserve source metadata so framework, first-party module, and future third-party module articles are visibly distinct where useful.
+- [x] Keep the current `help.html?article=<slug-or-id>` routing behavior.
+- [x] Add or update Help regressions for default article selection, nested ToC rendering, disabled-module hiding, and article route stability.
 
 ### Version 0.33.5.10.5 - Help Search Re-indexing
 

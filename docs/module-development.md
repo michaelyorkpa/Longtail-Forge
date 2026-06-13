@@ -151,6 +151,8 @@ Each help section needs `id`, `moduleId`, and `title`; optional fields include `
 
 The visible Help navigation is authored in `help/toc.md`. Use an explicit `default: relative/article.md` directive for the first article, headings for collapsible groups, and Markdown links to article files for visible article targets. Valid active articles that are not listed in `toc.md` appear in fallback navigation so module Help is still discoverable without leaking disabled-module content.
 
+The Help Center renders a small safe Markdown subset from article detail payloads: headings, paragraphs, ordered and unordered lists, links, inline code, code fences, emphasis, and simple tables. Article details keep the compatibility `body` field and also return `bodyFormat: "markdown"` plus `bodyMarkdown` so callers do not have to infer the content format.
+
 Keep Help Center content about product/module usage. User-authored operational articles belong to the future Knowledge Base module, not to manifest-declared product help.
 
 ## Sanity Checks

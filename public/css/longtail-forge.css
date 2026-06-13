@@ -1217,8 +1217,60 @@ a.search-result-title:hover {
     margin: 0;
 }
 
-.help-article-body p {
+.help-article-body h2,
+.help-article-body h3,
+.help-article-body h4,
+.help-article-body h5,
+.help-article-body h6 {
+    margin: 10px 0 0;
+}
+
+.help-article-body p,
+.help-article-body li {
     line-height: 1.6;
+}
+
+.help-article-body ul,
+.help-article-body ol {
+    margin: 0;
+    padding-left: 22px;
+}
+
+.help-article-body pre {
+    overflow-x: auto;
+    margin: 0;
+    padding: 12px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    background: var(--color-background);
+}
+
+.help-article-body code {
+    padding: 2px 4px;
+    border-radius: 4px;
+    background: var(--color-background);
+}
+
+.help-article-body pre code {
+    padding: 0;
+    background: transparent;
+}
+
+.help-article-body table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.help-article-body th,
+.help-article-body td {
+    padding: 8px;
+    border: 1px solid var(--color-border-subtle);
+    text-align: left;
+    vertical-align: top;
+}
+
+.help-article-body th {
+    background: var(--color-background);
 }
 
 .segmented-control {

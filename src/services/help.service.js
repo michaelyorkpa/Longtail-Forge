@@ -727,6 +727,8 @@ function articleDetailPayload(article, section) {
   return {
     ...articleListPayload(article),
     body: article.body || "",
+    bodyFormat: "markdown",
+    bodyMarkdown: article.body || "",
     section: section ? sectionPayload(section) : null,
   };
 }

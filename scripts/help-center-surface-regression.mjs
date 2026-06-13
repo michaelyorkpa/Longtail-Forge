@@ -34,8 +34,8 @@ try {
     assert.equal(authenticated.contentType, "text/html; charset=utf-8");
     assert.match(String(authenticated.contents), /data-help-sections/);
     assert.match(String(authenticated.contents), /\/js\/shared\/icons\.js\?v=1/);
-    assert.match(String(authenticated.contents), /\/css\/longtail-forge\.css\?v=13/);
-    assert.match(String(authenticated.contents), /\/js\/help\.js\?v=2/);
+    assert.match(String(authenticated.contents), /\/css\/longtail-forge\.css\?v=14/);
+    assert.match(String(authenticated.contents), /\/js\/help\.js\?v=3/);
   });
 
   await check("app shell places Help in Settings between User and Log Out", async () => {
@@ -86,8 +86,11 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 
     assert.equal(byId.article.id, "framework.help-center");
     assert.equal(bySlug.article.id, "framework.help-center");
+    assert.equal(byId.article.bodyFormat, "markdown");
+    assert.equal(byId.article.bodyMarkdown, byId.article.body);
     assert.match(byId.article.body, /framework-owned surface/);
     assert.equal(byId.article.section.id, "framework.help-center");
+    assert.equal(bySlug.article.slug, "help-center");
   });
 
   await check("help page script and styles expose expected UI hooks", async () => {
@@ -100,16 +103,22 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     assert.match(view, /data-help-status/);
     assert.match(view, /data-help-sections/);
     assert.match(view, /data-help-article/);
-    assert.match(view, /\/css\/longtail-forge\.css\?v=13/);
+    assert.match(view, /\/css\/longtail-forge\.css\?v=14/);
     assert.match(view, /\/js\/shared\/icons\.js\?v=1/);
-    assert.match(view, /\/js\/help\.js\?v=2/);
+    assert.match(view, /\/js\/help\.js\?v=3/);
     assert.match(script, /fetch\("\/api\/help"/);
     assert.match(script, /fetch\(`\/api\/help\/articles\/\$\{encodeURIComponent/);
     assert.match(script, /normalizeNavigation/);
     assert.match(script, /aria-expanded/);
+    assert.match(script, /renderMarkdownNodes/);
+    assert.match(script, /inlineMarkdownNodes/);
+    assert.match(script, /safeHelpHref/);
+    assert.doesNotMatch(script, /\.innerHTML\s*=/);
     assert.doesNotMatch(script, /\/api\/search/);
     assert.match(styles, /\.help-workspace/);
     assert.match(styles, /\.help-section-toggle/);
+    assert.match(styles, /\.help-article-body pre/);
+    assert.match(styles, /\.help-article-body table/);
     assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.help-workspace/);
     assert.match(navigation, /\{ label: "Help", href: "help\.html" \}/);
     assert.match(app, /app\.use\(requireAuth\)[\s\S]*app\.use\("\/api", helpRoutes\)/);

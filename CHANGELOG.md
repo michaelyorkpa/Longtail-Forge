@@ -1,3 +1,10 @@
+## Version 0.33.5.10.4 - 2026-06-13 13:37 -04:00
+
+- Added safe Help Center Markdown rendering for Markdown-backed article bodies, including headings, paragraphs, ordered and unordered lists, links, inline code, code fences, emphasis, and simple tables.
+- Extended Help article detail payloads with explicit `bodyFormat = markdown` and `bodyMarkdown` fields while preserving the existing `body` payload and source metadata.
+- Updated Help page styles and asset versions for rendered Markdown article content.
+- Expanded Help regressions for Markdown rendering hooks, default/nested ToC behavior, disabled-module hiding, article route stability, and article API shape, then marked the 0.33.5.10.4 roadmap slice complete and bumped the app/package version to `0.33.5.10.4`.
+
 ## Version 0.33.5.10.3 - 2026-06-13 13:28 -04:00
 
 - Added ToC-driven Help navigation from `help/toc.md`, including the explicit default article directive, nested collapsible groups, article links, linked-heading article targets, and fallback navigation for visible active articles missing from the ToC.
