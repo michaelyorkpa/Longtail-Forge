@@ -2,128 +2,6 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.8 - Notes Cleanup
-
-### Planning Boundaries
-
-- `note_type` should become a content-kind signal, not a linked-record context or permission signal.
-- Keep the database column name `note_type` for compatibility. UI copy should call it "Note Kind".
-- Use linked context columns and `note_links` for explicit workspace/client/project/task/user/ticket association. Ticket remains reserved until the Tickets module exists.
-- Preserve legacy `note_type` values in existing rows and render them safely, but stop offering `client`, `project`, `task`, `ticket`, and `user` as new choices. Current saved rows exist, but none use the deprecated linked-context values.
-- Notes owns the linked-record picker and embedded linked-note helper. Tasks, Client/Projects, Lists, Files, and future Tickets should consume Notes-owned helper/routes instead of rebuilding Notes visibility or lookup rules.
-- Linking records should improve context and recovery only. Links must not grant note access, target-record access, Library bucket membership, collection membership, KB publication, tag assignment, or visibility changes by themselves.
-- Notes may provide supporting context to future resume-state surfaces, but framework-owned resume state remains deferred to 0.33.5.9 and Workbench feed behavior remains deferred to 0.33.7.
-- Task-created notes should default Note Kind to `log`.
-- Linking a note to a task should auto-set project/client context where permission-safe.
-- Manual Library bucket choices stay untouched when linked context changes.
-- Task list linked-note counts should appear as clickable metadata badges that open the task detail dialog's Notes panel.
-- Linked-note panels must not hint that inaccessible private/secure notes exist.
-- When Notes is disabled, permitted historical linked notes appear inline read-only while create/link/unlink actions are disabled.
-
-### Version 0.33.5.8.1 - Note Kind Cleanup
-
-- [x] Reframe `note_type` as content kind, not linked-record context.
-- [x] Keep `note_type` as the database/API field name for compatibility.
-- [x] Change the user-facing label to "Note Kind".
-- [x] Keep initial content-kind values small:
-  - [x] `general`
-  - [x] `meeting`
-  - [x] `research`
-  - [x] `decision`
-  - [x] `procedure`
-  - [x] `reference`
-  - [x] `idea`
-  - [x] `log`
-- [x] Stop offering `client`, `project`, `task`, `ticket`, and `user` as new Note Kind choices.
-- [x] Preserve legacy values in existing records and display them safely.
-- [x] Verify existing seeded/user rows do not use the deprecated linked-context kinds before tightening new-entry options.
-- [x] Keep linked-record association in context columns and `note_links`, not in `note_type`.
-- [x] Add regression coverage that `note_type` does not control permissions, visibility, Library bucket, collection membership, or KB publication.
-
-### Version 0.33.5.8.2 - Linked Record Picker
-
-- [x] Replace raw linked-context ID entry in Notes with a permission-safe record picker.
-  - [x] Users can search/select supported link targets instead of pasting IDs.
-  - [x] Supported initial targets are Workspace, Client, Project, Task, and User.
-  - [x] Ticket remains reserved until the Tickets module exists.
-  - [x] Picker results respect workspace, module state, target read permissions, and record visibility.
-  - [x] Picker results show human labels, not only UUIDs.
-  - [x] Selecting a task may infer project/client context where safe.
-  - [x] Linking a note to a task suggests the Active Work Library bucket unless the user manually overrides the bucket.
-  - [x] Linking a note to a client, project, or user suggests Ongoing Areas unless the user manually overrides the bucket.
-  - [x] Linking behavior does not grant note access or target-record access by itself.
-- [x] Replace raw linked context values in Note detail with human-readable links.
-  - [x] Client name instead of client ID.
-  - [x] Project name instead of project ID.
-  - [x] Task title instead of task ID.
-  - [x] User display name/email where allowed.
-  - [x] Fall back to safe ID display only when the target label cannot be read.
-- [x] Add linked-record navigation from Note detail.
-  - [x] Client/project/task/user links open the appropriate record view where available.
-  - [x] Missing or inaccessible records show a safe unavailable state.
-
-### Version 0.33.5.8.3 - Notes Linked-Record Helper
-
-- [x] Add a reusable Notes linked-record panel/helper owned by the Notes module and mounted by other modules where appropriate.
-- [x] Accept inputs:
-  - [x] `targetType`
-  - [x] `targetId`
-  - [x] `clientId` optional
-  - [x] `projectId` optional
-  - [x] `readonly` optional
-- [x] List notes linked by direct context columns and flexible `note_links` rows.
-- [x] Support:
-  - [x] View linked notes.
-  - [x] Create note for current record.
-  - [x] Link existing note.
-  - [x] Unlink note where permitted.
-  - [x] Show note visibility/security/status badges.
-  - [x] Hide private, secure, or inaccessible notes without leaking counts or titles.
-- [x] Use `/api/notes/for-target` or a successor route rather than duplicating note lookup logic inside Tasks, Clients, Projects, Lists, Files, or future Tickets.
-- [x] Keep archived notes read-only from embedded panels.
-- [x] Preserve historical reads where allowed when the Notes module is disabled, but block new note/link writes.
-
-### Version 0.33.5.8.4 - Task Notes Panel
-
-- [x] Add a Notes panel to the Task detail dialog.
-  - [x] Show notes linked to the current task.
-  - [x] Show a clear empty state: "No notes linked to this task."
-  - [x] Allow permitted users to create a note from the task.
-  - [x] Allow permitted users to link an existing note to the task.
-  - [x] Allow permitted users to unlink a note from the task.
-  - [x] Do not show the panel for unsaved tasks except for a "Save the task before adding notes" state.
-- [x] New task-created notes should:
-  - [x] Link to the task through `task_id` and/or `note_links`.
-  - [x] Set `project_id` and `client_id` from the task where available.
-  - [x] Default Library bucket to Active Work.
-  - [x] Default Note Kind to `log`, not `task`.
-  - [x] Default visibility to `internal` unless the user chooses otherwise.
-- [x] Add linked-note indicators to task list rows/cards after the current task-list UI cleanup.
-  - [x] Show a compact note count where permitted.
-  - [x] Do not leak inaccessible note counts.
-  - [x] Clicking the count opens the task detail dialog and focuses the Notes panel.
-
-### Version 0.33.5.8.5 - Notes Resume Context Hooks and Closeout
-
-- [x] Notes should provide supporting context for future resume state.
-  - [x] Active Work notes linked to tasks/projects/lists may appear as supporting context.
-  - [x] Recently edited Active Work notes may be eligible for "Pick up where I left off."
-  - [x] Normal notes should not become primary next-action candidates unless explicitly marked as Active Work or linked to active work.
-  - [x] Secure/private notes must not expose body previews, excerpts, or hidden counts in Workbench/resume contexts.
-  - [x] Linked-note panels should provide safe note count, title, status, visibility/security badges, and source URL where permitted.
-- [x] Keep global resume-state storage, ranking, dismissal, Workbench feed behavior, and framework-owned resume APIs deferred to the 0.33.5.9/0.33.7 roadmap line.
-- [x] Update current-state Notes developer docs and Help after the shipped behavior exists.
-- [x] Verification:
-  - [x] Notes target picker only returns records the user can read.
-  - [x] Task-linked notes appear in the task Notes panel when linked through `task_id`.
-  - [x] Task-linked notes appear in the task Notes panel when linked through `note_links`.
-  - [x] Creating a note from a task sets task/project/client context safely.
-  - [x] Private notes do not appear to unauthorized users in linked-note panels.
-  - [x] Secure note bodies and previews do not appear in linked-note panels.
-  - [x] Linked-note counts do not leak inaccessible notes.
-  - [x] Archived notes are read-only from embedded panels.
-  - [x] Disabled Notes module blocks new note/link writes but preserves historical reads where allowed.
-
 ## Version 0.33.5.9 - Work Resume State Foundation
 
 Decision:
@@ -195,9 +73,9 @@ Use these decisions for 0.33.5.9:
 - [x] Keep resume state framework-owned under a stable service/route boundary.
 - [x] Keep producer modules responsible for deciding which record changes are resumable and for shaping safe source payloads.
 - [x] Keep read-time permission checks authoritative; resume state snapshots are recovery hints, not access grants.
-- [ ] Keep Dashboard and Workbench UI consumption deferred to 0.33.7, except for API smoke/regression fixtures needed to prove the contract.
-- [ ] Do not add public API routes in this release.
-- [ ] Do not make Tags, Search, Notifications, Files, or Help infer resume behavior from metadata alone.
+- [x] Keep Dashboard and Workbench UI consumption deferred to 0.33.7, except for API smoke/regression fixtures needed to prove the contract.
+- [x] Do not add public API routes in this release.
+- [x] Do not make Tags, Search, Notifications, Files, or Help infer resume behavior from metadata alone.
 
 ### Version 0.33.5.9.1 - Resume State Storage
 
@@ -302,75 +180,139 @@ Use these decisions for 0.33.5.9:
 
 ### Version 0.33.5.9.6 - Regressions, Docs, and Closeout
 
-- [ ] Resume state cannot cross workspace boundaries.
-- [ ] Resume state cannot expose records the user can no longer read.
-- [ ] Disabled modules hide active resume state safely.
-- [ ] Deleted records are removed from active resume results.
-- [ ] Completed/archived/finalized records are not ranked as primary active work.
-- [ ] Private notes do not leak title/body/counts to unauthorized users.
-- [ ] Secure notes never write decrypted body, excerpt, rendered HTML, or encryption metadata into resume state.
-- [ ] List access does not grant linked task/note/project/client access through resume state.
-- [ ] Task/list/note/timer updates produce deterministic resume state rows.
-- [ ] Dismissed resume rows do not appear in default "left off" results.
-- [ ] Dismissed rows become eligible again after a newer producer update if that clarification is accepted.
-- [ ] Update developer/module docs for the resume-state producer contract and read-check resolver boundary.
-- [ ] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive only during the actual implementation/closeout pass.
+- [x] Resume state cannot cross workspace boundaries.
+- [x] Resume state cannot expose records the user can no longer read.
+- [x] Disabled modules hide active resume state safely.
+- [x] Deleted records are removed from active resume results.
+- [x] Completed/archived/finalized records are not ranked as primary active work.
+- [x] Private notes do not leak title/body/counts to unauthorized users.
+- [x] Secure notes never write decrypted body, excerpt, rendered HTML, or encryption metadata into resume state.
+- [x] List access does not grant linked task/note/project/client access through resume state.
+- [x] Task/list/note/timer updates produce deterministic resume state rows.
+- [x] Dismissed resume rows do not appear in default "left off" results.
+- [x] Dismissed rows become eligible again after a newer producer update if that clarification is accepted.
+- [x] Update developer/module docs for the resume-state producer contract and read-check resolver boundary.
+- [x] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive only during the actual implementation/closeout pass.
 
 ## Version 0.33.5.10 - Help Center Re-work
 
-- Need a way to edit and expand the help center records easily
-  - Place a help directory wherever makes sense
-    - Within the help directory, create directories for each first-party module
-  - Take the .js that contains the help "files" and convert each help "file" to .md and place them in the appropriate spot within the help directory structure
-  - In top level help/ add toc.md to build the Table of Contents on the left
-    - Special processing for the toc.md:
-      - The first line in the file will be the first help center page that opens (Either "Help Center or Getting Started")
-      - All headings should be collapsible 
-      - All headings represent a directory within the help/ structure
-        - Headings should have a link behind them that allows you specify the directory name
-      - Headings can be nested
-      - Nested headings can also be collapsed
+### Questions and Design Clarifications
 
-- Update Help Center framework module to dynamically load the toc.md and help files
+- [ ] Confirm the editable Help source root should be `help/` at the repo root, with framework articles under `help/framework/` and first-party module articles under `help/modules/<module-id>/`.
+- [ ] Confirm `help/toc.md` should own the left navigation order, nesting, collapsible groups, and default first article instead of deriving the visible order only from manifest `sortOrder` values.
+- [ ] Confirm whether `toc.md` links should point to article Markdown files directly, for example `- [Getting Started](framework/getting-started.md)`, while headings without links act as collapsible navigation groups.
+- [ ] Confirm the first non-empty line of `help/toc.md` should identify the default opening article by link or article path. If omitted or invalid, Help should fall back to Help Center, then Getting Started, then the first readable article.
+- [ ] Confirm Markdown support should stay intentionally simple in this pass: headings, paragraphs, lists, links, inline code, code fences, emphasis, and tables if the existing Markdown helper can support them safely.
+- [ ] Confirm Help content remains repo-authored product/module documentation only. In-app editing, rich authoring, version history, workspace-authored articles, and publishing workflows remain future Knowledge Base or later Help work.
+- [ ] Confirm Help search should index the Markdown-derived article text and re-index when Help search rebuilds run, without adding live file watching in this pass.
+
+### Accepted Planning Constraints
+
+- Make Help Center content easy to edit by moving article bodies out of JavaScript and into Markdown files.
+- Keep the backend change small and framework-owned: the Help service should read Markdown files, preserve the existing protected `/api/help` routes, and preserve the current manifest contribution boundary where practical.
+- Keep framework, first-party module, and future third-party module ownership clear. Modules may still declare Help metadata, but article body content should be file-backed.
+- Search must read the Markdown-backed Help content through the Help service and index the current article text during Help search indexing/rebuilds.
+- Help Center remains current-state product guidance. Roadmap promises stay in `ROADMAP.md`, and workspace-authored knowledge remains reserved for the future Knowledge Base module.
+
+### Version 0.33.5.10.1 - Help Markdown Source Layout
+
+- [ ] Add a repo-owned `help/` content directory.
+- [ ] Add `help/toc.md` as the editable Help navigation source.
+- [ ] Add `help/framework/` for framework-owned Help articles.
+- [ ] Add `help/modules/<module-id>/` directories for first-party module Help articles.
+- [ ] Convert existing framework Help article bodies from `src/services/help.service.js` into Markdown files.
+- [ ] Convert existing first-party module Help article bodies from module manifest JavaScript into Markdown files.
+- [ ] Keep article IDs, slugs, source labels, ownership metadata, and current Help URLs stable during the conversion.
+
+### Version 0.33.5.10.2 - Help Content Loader and Metadata Contract
+
+- [ ] Add a small framework Help content loader for safe repo-relative Markdown reads.
+- [ ] Preserve existing Help contribution validation for IDs, slugs, ownership, section references, permissions, workspace capabilities, and required modules.
+- [ ] Allow framework and module Help article declarations to point to Markdown content paths instead of inline `body` strings.
+- [ ] Reject unsafe paths, missing files, unsupported extensions, duplicate article paths, and content outside the Help root.
+- [ ] Keep disabled-module Help hidden from active Help discovery.
+- [ ] Keep Help separate from Knowledge Base and avoid adding user-authored Help storage.
+
+### Version 0.33.5.10.3 - ToC-Driven Navigation
+
+- [ ] Parse `help/toc.md` into a browser-safe navigation tree.
+- [ ] Treat headings as collapsible groups that map to Help directory structure.
+- [ ] Support nested headings as nested collapsible groups.
+- [ ] Support linked headings or list items as article targets.
+- [ ] Use the first configured/default article from `toc.md` as the initial Help Center article.
+- [ ] Preserve a fallback section for readable active articles that are valid but missing from `toc.md`.
+- [ ] Update `public/js/help.js` and Help page markup/styles only as much as needed to render nested collapsible navigation cleanly.
+
+### Version 0.33.5.10.4 - Markdown Rendering and Article API Shape
+
+- [ ] Render Markdown-backed article bodies safely in the Help Center.
+- [ ] Keep article detail payloads browser-safe and permission-shaped.
+- [ ] Preserve source metadata so framework, first-party module, and future third-party module articles are visibly distinct where useful.
+- [ ] Keep the current `help.html?article=<slug-or-id>` routing behavior.
+- [ ] Add or update Help regressions for default article selection, nested ToC rendering, disabled-module hiding, and article route stability.
+
+### Version 0.33.5.10.5 - Help Search Re-indexing
+
+- [ ] Update Help search indexing so indexed Help documents use Markdown-derived article text.
+- [ ] Ensure Help search rebuilds re-read Markdown files instead of stale inline JavaScript bodies.
+- [ ] Keep `record_type = help_article`, `source = Help`, and framework/module ownership metadata stable.
+- [ ] Preserve disabled-module cleanup and permission-safe Help result shaping.
+- [ ] Update search rebuild/lifecycle regressions for Markdown-backed Help article counts and content.
+
+### Version 0.33.5.10.6 - Help Content Pass and Closeout
+
+- [ ] Add or revise Help Center and Getting Started Markdown articles.
+- [ ] Help Center should explain what framework, first-party modules, and third-party modules are.
+- [ ] Getting Started should explain the key Longtail Forge concepts, how they are linked, and what makes the product context-preserving.
+- [ ] Review framework Help articles for current behavior only.
+- [ ] Review Time Tracking, Tasks, Lists, Notes, Files, Tags, Search, Notifications, Settings, and module Help coverage where articles already exist.
+- [ ] Update developer docs for the Markdown Help contribution workflow.
+- [ ] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive only during the actual implementation/closeout pass.
 
 ### Potential Help Directory Structure
 
-- Table of Contents (ToC) sections should be collapsible
-  - Help Center
-  - Getting Started
-  - Framework (Collapsible)
-    - Worspaces and Workspace Switching
-    - Users, Roles and Permissions
-    - Clients and Projects
-    - Notifications
-    - Search
-    - Tags
-    - Files
-    - Settings and User Preferences
-    - Modules and Optional Features
-  - Time Tracking (Module, Collapsible)
-    - Time Tracking Basics
-    - Time Entries Editing
-    - Manual Time Entries
-  - Tasks (Module, Collapsible)
-    - Tasks Basics
-    - Task Recurrence
-  - Notes (Module, Collapsible)
-    - Using Notes
-    - Notes Library
-      - Active Work
-      - Ongoing Area
-      - Reference Library
-      - Archive
-    - Notes Collections
-    - Markdown
-    - Note Linking
-    - Note Revisions
-    - Secure Notes
-    - Notes, Files, and Search
-
-- Help Center (doc) should explain what framework, first-party, and third-party modules are
-- Getting Started should explain the key concepts within LTF, how they're inter-linked, and what makes it all unique
+```text
+help/
+  toc.md
+  framework/
+    help-center.md
+    getting-started.md
+    workspaces-and-switching.md
+    users-roles-and-permissions.md
+    clients-and-projects.md
+    notifications.md
+    search.md
+    tags.md
+    files-and-attachments.md
+    settings-and-user-preferences.md
+    modules-and-optional-features.md
+  modules/
+    time-tracking/
+      time-tracking-basics.md
+      time-entries-editing.md
+      manual-time-entries.md
+    tasks/
+      tasks-basics.md
+      task-recurrence.md
+      resume-context.md
+    notes/
+      using-notes.md
+      notes-library.md
+      active-work.md
+      ongoing-area.md
+      reference-library.md
+      archive.md
+      notes-collections.md
+      markdown.md
+      note-linking.md
+      note-revisions.md
+      secure-notes.md
+      notes-files-and-search.md
+    lists/
+      using-lists.md
+      items-and-statuses.md
+      reusable-workflows.md
+```
 
 ## Version 0.33.5.12 - UI Clean up Pass
 

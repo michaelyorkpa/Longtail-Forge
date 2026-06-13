@@ -1,3 +1,10 @@
+## Version 0.33.5.9.6 - 2026-06-13 12:35 -04:00
+
+- Documentation update 2026-06-13 13:05 -04:00: Reworked the upcoming 0.33.5.10 Help Center roadmap into Markdown-backed Help source, ToC navigation, safe loader/rendering, search re-indexing, content review, and closeout slices, with open design questions moved to the top of the version.
+- Added `work-resume-state-closeout-regression.mjs` for the resume-state workspace, permission, lifecycle, private/secure note, linked-list metadata, producer determinism, and dismissal-refresh boundaries.
+- Updated developer/module documentation for the framework-owned resume-state service, producer contract, and module read-resolver responsibilities.
+- Marked the 0.33.5.9 roadmap boundaries and closeout checklist complete, recorded closeout decisions, archived the prior completed roadmap section, and bumped the app/package version to `0.33.5.9.6`.
+
 ## Version 0.33.5.9.5 - 2026-06-13 12:24 -04:00
 
 - Added protected browser resume-state routes for `GET /api/work-resume` and `POST /api/work-resume/:resumeStateId/dismiss`.

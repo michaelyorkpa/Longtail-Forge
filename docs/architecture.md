@@ -128,6 +128,8 @@ Some first-party modules may feel essential, but they should still follow the mo
 
 As of the 0.32.13 closeout, file storage, attachment metadata, download routing, scan/quarantine state, abuse reports, attachment counts, the reusable browser attachment helper, and the simple Files browse page are framework-owned. Modules declare attachable target types and choose record-screen placement, labels, and callbacks; they should not duplicate file storage, security checks, or attachment query logic.
 
+As of the 0.33.5.9 closeout, work resume state is also framework-owned. Modules may contribute safe producer events and read resolvers, but the global `work_resume_state` table, protected `/api/work-resume` browser route, dismissal semantics, and future Workbench feed consumption belong to the framework. Resume rows are current-user recovery hints, not access grants, notifications, tags, search documents, or module-owned workflow state.
+
 ---
 
 ## Tasks and Time Tracking
@@ -159,9 +161,9 @@ Tasks should not be hard-coded into the framework as a required feature.
 
 A workspace should eventually be able to use Longtail Forge for notes, support tickets, client records, time tracking, or knowledge base work even if tasks are disabled.
 
-Current Tasks behavior includes human-written next actions, blocked reasons, resume notes, task-owned `last_worked_at`, completion duration metadata, lightweight checklist progress, parent/child blocking relationships, recurrence frequencies for Daily/Weekdays/Weekends/Weekly/Monthly work, and task timer source routes. Those fields are exposed through task reads, summaries, Workbench task items, search documents, audit metadata, and internal task event metadata as resume-safe source context.
+Current Tasks behavior includes human-written next actions, blocked reasons, resume notes, task-owned `last_worked_at`, completion duration metadata, lightweight checklist progress, parent/child blocking relationships, recurrence frequencies for Daily/Weekdays/Weekends/Weekly/Monthly work, and task timer source routes. Those fields are exposed through task reads, summaries, Workbench task items, search documents, audit metadata, internal task event metadata, and the framework resume-state producer as resume-safe source context.
 
-The global resume-state service, ranking model, dismissal state, API, and cross-module Workbench feed remain framework-owned future work. Tasks supplies source context and hooks for those consumers without owning the global resume-state framework.
+The global resume-state storage, protected browser API, dismissal state, producer contract, and read-guard boundary are framework-owned. Tasks supplies source context and hooks for those consumers without owning the global resume-state framework or future Workbench feed UI.
 
 ### Time Tracking
 

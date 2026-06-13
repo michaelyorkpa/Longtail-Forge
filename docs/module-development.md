@@ -48,6 +48,20 @@ Manual timers use `source_type: "manual"` and the shared active timer routes. Ta
 
 Finalized sourced timers should create normal time entries with any source-specific metadata the Time Entries module already understands, such as `task_id` for task timers. If a source module is disabled, existing active timers should remain visible in a recovery state so time is not stranded.
 
+## Resume State
+
+Use resume state when a module has work the current user may need to pick back up later. The framework owns `work_resume_state`, `/api/work-resume`, dismissal, read filtering, and future Workbench consumption. Modules own only the decision that a lifecycle event is resumable and the safe snapshot fields for their source records.
+
+To participate:
+
+1. Emit safe internal lifecycle events from the module service after successful writes.
+2. Register a resume-state producer in service code with `registerResumeStateProducer()`.
+3. Shape explicit recovery fields in the producer payload, such as title, source URL, status, priority, due date, next action, handoff note, blocked reason, and safe metadata.
+4. Register a read resolver with `registerResumeStateReadResolver()` so the framework can re-check source visibility before returning a row.
+5. Add regressions for workspace scope, disabled modules, permission-denied reads, deleted/completed/archived/finalized filtering, dismissal refresh, and unsafe metadata exclusion.
+
+Do not copy freeform bodies, comments, rendered HTML, secure/encrypted fields, attachment internals, protected storage paths, scanner details, private-note hints, or inaccessible linked-record labels into resume state. Private and secure Notes are excluded from global resume-state rows in the current foundation. Time Tracking should update sourced task timer resume state on the source task record; manual active timers remain Time Tracking-owned.
+
 ## Views And Assets
 
 Register authenticated module pages through `protectedViews`. Protected module pages are served only when a registered descriptor matches the requested path.
