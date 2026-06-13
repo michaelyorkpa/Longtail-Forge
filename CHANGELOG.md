@@ -1,5 +1,6 @@
 ## Version 0.33.5.10.6 - 2026-06-13 14:01 -04:00
 
+- Documentation update 2026-06-13 15:31 -04:00: Reworked the upcoming 0.33.5.12 UI cleanup roadmap into open design questions, planning constraints, focused client/task/modal/style-standardization slices, and closeout verification boundaries.
 - Expanded Help Center and Getting Started Markdown content to explain framework Help, first-party module Help, third-party module ownership, linked work context, and Longtail Forge's context-preserving workflow model.
 - Reviewed existing framework and module Help articles for current-state wording, replacing future-work references in task and note Help with implemented resume-context behavior.
 - Updated developer documentation for the Markdown Help contribution workflow, including `help/` source files, stable `contentPath` values, `help/toc.md`, Markdown rendering, and search rebuild expectations.

@@ -222,84 +222,100 @@ help/
 
 ## Version 0.33.5.12 - UI Clean up Pass
 
-### Settings -> Workspace -> Clients
+### Questions and Design Clarifications
 
-- [ ] Need a filter for Parent/Top-Level clients
+- [ ] Confirm whether Settings -> Workspace -> Clients should add a single Parent/Top-Level quick filter first, or a broader hierarchy filter set such as All, Top-Level Only, Children Only, and Has Children.
+- [ ] Confirm whether the child-client tag fix should remove only direct/manual tags from the child while leaving propagated parent tags visible as context, or whether the client edit modal needs a per-record suppression control for hiding inherited parent tags on that child.
+- [ ] Confirm the task bulk-edit warning copy for mixed due dates, due times, and tags. The warning should be an in-app confirmation before applying a bulk overwrite, add, remove, or clear action.
+- [ ] Confirm whether task due date and due time bulk edits should be one combined Due Date + Time action or separate actions, with both fields clearable to NULL.
+- [ ] Confirm whether the task modal field that needs more room should open a temporary popover inside the active modal, or whether that interaction should wait for the broader framework UI standardization slice.
+- [ ] Confirm whether all modal footer buttons should become icon-only, or icon plus short visible text for primary actions where clarity matters.
+- [ ] Confirm whether the tiny Tags and Files modals should be standardized framework overlays nested inside the current modal, or task-specific popovers for this first pass.
 
-#### Clients Edit Modal
+### Accepted Planning Constraints
 
-- "Save Client" and "Edit Projects" buttons need to be moved to modal footer
+- Keep 0.33.5.12 focused on UI cleanup and behavior repair, not a broad module redesign.
+- Preserve module ownership. Client hierarchy, client tag save behavior, and client/project filtering stay Client/Projects-owned; task bulk editing and task dialog layout stay Tasks-owned; shared modal and surface style rules belong to the framework.
+- Prefer compact, context-preserving modal changes that keep the user inside the current workflow.
+- Warning states should be in-app, recoverable, and specific about what will change.
+- Tags remain classification metadata. UI cleanup must not turn tags into permissions, status, billing logic, or visibility rules.
 
-- Removing parent tags from child clients by opening the client edit modal, clicking on the tags you want removed, then clicking save client, doesn't actually remove those tags
-  - Example: Appaloosa News, a child of Dr. Jennifer Weeks client should not have the "Mental Health Provider" or "Healthcare Provider" tags, as this is a personal project I manage for Dr. Weeks
+### Version 0.33.5.12.1 - Client List and Client Edit Modal Cleanup
 
-## Task Tweaks / Potential UI/Modal Overhaul
+- [ ] Add a Settings -> Workspace -> Clients filter for Parent/Top-Level clients.
+- [ ] Keep client hierarchy filtering Client/Projects-owned so browser code consumes service-shaped client hierarchy/read payloads rather than rebuilding parent/child rules locally.
+- [ ] Move the `Save Client` and `Edit Projects` actions into the actual client edit modal footer.
+- [ ] Preserve the existing close/cancel behavior and focus return when footer actions move.
+- [ ] Fix child-client tag saving so removing tags in the client edit modal actually removes the intended child-client direct/manual tags.
+- [ ] Keep inherited/propagated parent tags visible as context unless a confirmed suppression control is added.
+- [ ] Add or update regressions for the Parent/Top-Level filter, client edit modal footer actions, and child-client tag removal.
 
-- Projects -> Tasks
-  - Things I'd like to be able to bulk edit (Add and Remove), in addition to what I can already change:
-    - If there's a multi-select and the due dates/due times/tags are different before the bulk edit, be sure to warn the user with an in-app warning about 
-    - [ ] Due date & Time (Can be clearable/set to NULL through bulk; Time should be optional/clearable as well)
-    - [ ] Tags
+Example verification case:
 
-- Add/Edit Tasks Modal Appearance Fixes
+- Appaloosa News is a child of Dr. Jennifer Weeks and should be able to remove direct/manual tags such as `Mental Health Provider` or `Healthcare Provider` when those tags do not belong on the child client.
 
-  - While doing the documentation step for this portion of the tasks modals, create an appropriate ROADMAP entry to standardize the headings, boxes, and other visual styles across the entire framework for main screens, modals, drawers, slideouts, etc.
-    - Convert all footer buttons to icons on all modals
-      - Save/Close/Cancel/etc.
-    - Taggable work items should have a Tags button to open a tiny tag modal centered in the current modal
-    - Work items with file attachment abilities should have a Files button to open a tiny files modal centered in the current modal
+### Version 0.33.5.12.2 - Task Bulk Edit Due Date, Due Time, and Tags
 
-  - Tighten up overall white space between all fields
+- [ ] Extend Projects -> Tasks bulk edit to support due date and due time changes.
+- [ ] Allow bulk due date to be set or cleared to NULL.
+- [ ] Allow bulk due time to be optional and clearable to NULL.
+- [ ] Extend bulk edit to support tag add and tag remove actions.
+- [ ] Reuse the Tags-owned assignment/removal contract so direct/manual tag changes preserve propagated and system tag assignments.
+- [ ] Show an in-app warning when selected tasks have mixed due dates, due times, or tags before applying a bulk overwrite, add, remove, or clear action.
+- [ ] Keep partial failure behavior explicit by task so inaccessible or invalid targets do not silently fail.
+- [ ] Add or update task bulk-edit regressions for mixed-value warnings, NULL due date/time saves, tag add/remove behavior, and permission-shaped partial failures.
 
-  - Modal internal headings need to be standardized 
-    - Checklist is different from Assignees
-    - Recurrence is different from reminders
-    - Assignees and Checklist are different from Reminders
-    - Make all internal headings for sub-boxes match Reminders
-  
-  - Internal boxes need to be standardized
-    - Notifications and task timer are dark and square
-    - Checklist is light and rounded
-  
-  - Horizontal Rules around Reminders
-    - Horizontal rules should only be at the top of the option that's being toggled.
+### Version 0.33.5.12.3 - Task Modal Compact Layout and Metadata Ribbon
 
-  - Notifications should be moved to a single bell icon at the top; this isn't important enough to warrant using as much real estate as it does
-    - Put the bell right-aligned across from the Add/Edit Task heading
+- [ ] Tighten overall white space between fields in the Add/Edit Task modal.
+- [ ] Add a compact, full-modal-width metadata chip ribbon between the task title field and the main modal heading area.
+- [ ] Include Status, Priority, Client, Project, Due Date, Due Time when applicable, and other confirmed summary fields in the chip ribbon.
+- [ ] Move task notifications to a single bell icon aligned to the right across from the Add/Edit Task heading.
+- [ ] Keep notification settings accessible from that bell without consuming the current large block of modal real estate.
+- [ ] Show Time to Completion only when the task is complete.
+- [ ] Move Time to Completion into the chip ribbon or immediately below the heading/notification row.
+- [ ] Abbreviate Time to Completion as `TTC:` and display `days:hours:minutes:seconds`, for example `TTC: 4:3:15:30`.
+- [ ] Preserve accessible labels and keyboard access for chip and icon controls.
+- [ ] Add or update task dialog regressions for modal rendering, completed-only TTC display, notification bell behavior, and responsive layout.
 
-  - Between the title box and the Heading should be a small, full-modal-width chip ribbon
-    - Should contain: Status, Priority, Client, Project, Due Date + time (if applicable) and any additions below as applicable
+### Version 0.33.5.12.4 - Task Modal Two-Column Field Reflow
 
-  - Time to completion should only appear when the task is marked complete
-      - Time to completion should be moved into a chip ribbon below the heading/notification bell
-      - Time to completion can be abbreviated "TTC: "
-      - Chip should, initially, read: "TTC: 4:3:15:30" for days:hours:minutes:seconds
+- [ ] Maximize the visual efficiency of the current two-column Add/Edit Task modal layout.
+- [ ] Keep Title full width across both columns.
+- [ ] Add a collapsible two-column `Task Details` box.
+- [ ] Start `Task Details` open for Add Task and collapsed for Edit Task.
+- [ ] Include Parent Task across both columns inside `Task Details`.
+- [ ] Put Status, Client, and Due Date in column 1, in that order.
+- [ ] Put Priority, Project, and Due Time in column 2, in that order.
+- [ ] Put Resume Note and Next Action below the two-column box in two columns.
+- [ ] Move back to a single-column, full-modal-width layout for the remaining sections.
+- [ ] Show Blocked Reason full width only when Status is `Blocked`.
+- [ ] Keep Checklist collapsible and open by default.
+- [ ] Keep Assignees collapsible and open by default.
+- [ ] Keep Recurrence collapsible and closed by default.
+- [ ] Keep Reminders collapsible and closed by default.
+- [ ] Move Tags and Task Files to footer buttons with recognizable icons and clear labels/tooltips.
+- [ ] Defer any full-width temporary popover behavior for cramped fields until confirmed in the design questions.
 
-  - Maximize the visual efficiency of the two-column layout of the current Add/Edit Task modal
-    - Any item that needs more space than the tightened two-column layout can provide can open a pop over that uses the full width of the modal until focus is changed; This piece might need some more brainstorming
-    - Title should remain full width across both columns
-    - Collapsible two-column box with "Task Details" as heading 
-      - Box should start off open if this is an "Add Task" modal and collapsed if an "Edit Task" modal
-      - This box should contain:
-        - Parent Task (Across both columns! Currently Missing as of 0.33.5.2.3)
-        - Column 1 should contain (in order):
-          - Status
-          - Client
-          - Due Date
-        - Column 2 should contain (in order):
-          - Priority
-          - Project
-          - Due Time
-    - Below the two column box, in two columns:
-      - Resume Note
-      - Next Action
-    - Move back to single column layout (full modal width minus space for scroll bar) for remaining items
-      - Blocked Reason (Full width; Should only appear when Status is "Blocked")
-      - Checklist (Collapsible, starts open)
-      - Assignees (Collapsible, starts open)
-      - Recurrence (Collapsible, starts closed)
-      - Reminders (Collapsible, starts closed)
-    - Tags and "Task Files" should be moved to buttons in the footer (icon described buttons)
+### Version 0.33.5.12.5 - Framework Surface and Modal Style Standardization Plan
+
+- [ ] Create the framework-wide UI standardization plan for main screens, modals, drawers, slideouts, internal boxes, headings, dividers, and action footers.
+- [ ] Standardize modal internal headings so Checklist, Assignees, Recurrence, and Reminders use the same visual language.
+- [ ] Standardize internal box surfaces so Notifications, task timer, Checklist, Assignees, Recurrence, and Reminders use framework theme tokens rather than one-off dark, square, light, or rounded treatments.
+- [ ] Standardize horizontal divider rules so dividers appear only at the top of the option being toggled.
+- [ ] Decide the shared footer action pattern for Save, Close, Cancel, and related modal actions.
+- [ ] Define the shared pattern for taggable work items to open a small Tags overlay from a footer/action button.
+- [ ] Define the shared pattern for file-attachable work items to open a small Files overlay from a footer/action button.
+- [ ] Keep this as a standardization plan unless the implementation slice explicitly includes code changes.
+
+### Version 0.33.5.12.6 - UI Cleanup Closeout
+
+- [ ] Update Help and developer docs only where user-facing modal or bulk-edit behavior changed.
+- [ ] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive during the actual implementation/closeout pass.
+- [ ] Run focused client/project and task regressions.
+- [ ] Run `npm run check`.
+- [ ] Run `npm run test:permissions`.
+- [ ] Verify `/api/app-info` reports the expected version after implementation.
 
 ## Perrsonal / Family Workspace issues
 
