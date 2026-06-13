@@ -2,129 +2,22 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.6 - Search, Notification, and Tag QoL Updates
+## Version 0.33.5.7 - Regression Cleanup
 
-### Answered Design Decisions
-
-- Search record type cleanup: Help should appear as one visible framework-owned `Help` record type everywhere. Internal Help content types may still exist as hidden metadata, but Search filters and result labels should only show one `Help` option.
-- Urgent notification alerts: urgent notifications should not open interruptive in-app alert modals by default in 0.33.5.6. Ship bell priority behavior first, then add modal alerts later as a user/workspace preference.
-- Notification priority grouping: High notifications should bypass grouping in the bell dropdown only. On the All Notifications page, grouping preferences should still apply, with High/Urgent items sorted above normal/low items within their group.
-- Notification grouping preferences: the first pass should support per-user grouping preferences only under Settings -> User. Workspace defaults plus per-user overrides should be deferred.
-- Bulk tag rollout order: Time Entries should ship first because the table and checkbox selection pattern are the clearest bulk-edit surface. Build the Tags-owned bulk assignment/removal contract so Tasks can reuse it next.
-- Workbench task tag chips: show up to 2 direct/manual task tags inline, then collapse additional tags into `+N`. Propagated/context tags should not appear inline by default; they can appear in a tooltip, expanded row, or task detail view later.
-
-### Planning Boundaries
-
-- Keep Notifications as directed attention items, not the source of truth for resume state.
-- Keep activity/resume summaries as recovery context that future Workbench and resume-state surfaces can consume.
-- Keep Audit as the admin/security truth.
-- Keep Tags as framework-level classification metadata. Bulk tag workflows should be Tags-owned and hooked into modules through framework/module contracts, not hard-coded per page.
-
-### Implementation Sub-Versions
-
-#### Version 0.33.5.6.1 - Search Record Type Cleanup
-
-- [x] Fix duplicate Help record types in Search filters and record-type display.
-  - [x] Ensure Help appears once in user-facing record-type lists.
-  - [x] Preserve any internal Help content distinctions needed by the Help/Search indexing contracts.
-  - [x] Verify Search filters, search result labels, and disabled-module behavior do not expose duplicate Help choices.
-
-#### Version 0.33.5.6.2 - Notification Actor Suppression and Changed Context
-
-- [x] Stop notifying users about their own normal record actions.
-  - [x] Creators of records do not need `{{recordType}} created` notifications for their own action.
-  - [x] Modifiers of records do not need `{{recordType}} updated` notifications for their own action.
-  - [x] Preserve notifications for other affected users where the event is still relevant.
-- [x] Add human-formatted changed context to record update notifications.
-  - [x] Notifications should display a safe truncated example of the change where useful.
-  - [x] Cover examples such as description added, task updated, and similar event-derived summaries.
-  - [x] Avoid raw audit JSON or unsafe internal event payloads in user-facing notification text.
+- [x] Preserve full `npm run check` coverage while reducing wall-clock runtime.
+  - [x] Keep all existing regression scripts in the main release gate unless a future explicit cleanup removes obsolete coverage with replacement evidence.
+  - [x] Add a regression runner that reports per-script timing so slow spots stay visible.
+  - [x] Parallelize only safe buckets first, such as static/source-reading regressions and temp-database regressions with isolated database files.
+  - [x] Keep order-sensitive or live/default-database checks serial until they are proven safe to parallelize.
+  - [x] Keep `npm run check` as the complete release gate; optional quick/tiered commands can come later if needed.
+- [x] Consolidate regression orchestration.
+  - [x] Move the long serial script list out of `package.json` into a maintainable suite definition.
+  - [x] Fail fast on the first failed bucket while still preserving useful timing output for completed checks.
+  - [x] Keep ESLint in the release gate after the regression runner.
 - [x] Verification.
-  - [x] Verify actor suppression for create and update events.
-  - [x] Verify other recipients still receive relevant notifications.
-  - [x] Verify changed-context snippets are permission-safe and human-readable.
-
-#### Version 0.33.5.6.3 - Notification Priority and Bell Dropdown QoL
-
-- [x] Implement priority behavior in the notification bell.
-  - [x] "Urgent" priority notifications turn the bell icon red and do not trigger an interruptive in-app alert modal by default.
-  - [x] "High" priority notifications turn the bell icon red and are not grouped.
-  - [x] "Normal" priority notifications are grouped and increment the number on the bell icon.
-  - [x] "Low" priority notifications are grouped and do not increase the number on the bell icon.
-- [x] Use icon actions from `notifications.html` in the notification bell dropdown instead of full text buttons where context is clear.
-  - [x] Add hover titles/tooltips for icon actions.
-  - [x] Preserve accessible labels for screen readers.
-- [x] Move "Read all" and "Dismiss all" text actions to the bottom of the notification bell dropdown.
-  - [x] Match the "View all" font size.
-  - [x] Keep destructive or bulk actions visually distinct enough to avoid accidental clicks.
-- [x] Verification.
-  - [x] Verify bell color, counts, grouping, and dropdown action placement for urgent, high, normal, and low notifications.
-  - [x] Verify keyboard and hover/title behavior for dropdown icon actions.
-
-#### Version 0.33.5.6.4 - All Notifications Page and Preferences QoL
-
-- [x] Clean up `notifications.html` notification row chips and actions.
-  - [x] Align the Notification Type chip to the right, immediately left of the Unread/Read/Dismissed chip.
-  - [x] Fix the floating Notification Type chip placement so it stays anchored beside the status chip.
-  - [x] Add hover titles/tooltips to Read and Dismiss icon buttons.
-- [x] Move disabled modules to the bottom of notification preferences automatically.
-  - [x] Do not hard-code module order in the preferences UI.
-  - [x] The notification module provides the preference list view/model used by Settings -> User.
-- [x] Add user-adjustable notification grouping preferences under Settings -> User.
-  - [x] Workspace notifications can be grouped by Client for Business workspaces and Project by default.
-  - [x] Workspace notifications can be grouped by notification type, such as Updated or Created.
-  - [x] Workspace notifications can be grouped by record type.
-- [x] Verification.
-  - [x] Verify notification chip alignment at desktop and mobile widths.
-  - [x] Verify disabled-module preferences sort to the bottom without hard-coded module IDs.
-  - [x] Verify grouping preferences persist and affect notification grouping without leaking inaccessible context.
-
-#### Version 0.33.5.6.5 - Tag Refresh and No Tags Filters
-
-- [x] Refresh tag options after creating a new client tag without requiring a page refresh or navigation change.
-  - [x] Newly created client tags appear in the relevant tag picker immediately after save.
-  - [x] Preserve direct/manual and propagated tag semantics.
-- [x] Add a "No Tags" option anywhere there is a Tag filter.
-  - [x] Place "No Tags" directly below the "All tags" option.
-  - [x] Use the existing Tags-owned no-tags filter semantics rather than inventing page-specific filter behavior.
-- [x] Verification.
-  - [x] Verify newly created client tags appear immediately in client/project tag controls.
-  - [x] Verify "No Tags" filters work across current tag-filtered views without changing permission behavior.
-
-#### Version 0.33.5.6.6 - Bulk Tag Assignment Workflows
-
-- [x] Add Tags-owned bulk assign/remove support for Projects -> Time Keeping -> Time Entries.
-  - [x] Add checkboxes in a tight leftmost column for the time-entry display.
-  - [x] Use a compact bulk tag application control similar to the existing tag-entry box.
-  - [x] Preserve propagated/system tags while applying direct/manual bulk tag changes.
-- [x] Add Tags-owned bulk assign/remove support for Projects -> Tasks.
-  - [x] Reuse the same Tags-owned bulk assignment contract where possible.
-  - [x] Keep task selection, permission checks, and partial errors clear.
-- [x] Defer Projects -> Notes bulk tag assignment until the Notes cleanup line or a later Tags integration pass unless explicitly pulled forward.
-- [x] Verification.
-  - [x] Verify bulk tag add, remove, and partial failure behavior for Time Entries and Tasks.
-  - [x] Verify inaccessible records are skipped or rejected without leaking labels.
-  - [x] Verify bulk tagging does not remove propagated/system assignments.
-
-#### Version 0.33.5.6.7 - Workbench Tag Chips and Resume-Safe Summary Cleanup
-
-- [x] Add tight tag chips between task title and task metadata on Workbench.
-  - [x] Keep the row compact.
-  - [x] Respect the clarification above for direct versus propagated/context tag display.
-  - [x] Avoid pushing primary task actions out of reach.
-- [x] Update event/notification summary helpers so user-facing changed context can be reused by activity feed and future resume state.
-  - [x] Summaries are human-readable.
-  - [x] Summaries are permission-safe.
-  - [x] Summaries avoid raw audit JSON.
-  - [x] Summaries include safe record labels, record type, module ID, action type, actor where allowed, and changed field labels where useful.
-- [x] Verification.
-  - [x] Verify Workbench task rows remain compact with and without tags.
-  - [x] Verify summary helpers can serve notifications and future activity/resume surfaces without making Notifications the source of truth.
-  - [x] Verify audit remains the admin/security truth and is not replaced by notification summaries.
-
-## Version 0.33.5.7 - Regression Clean up
-
-- Go through all regressions and the full npm run check to determine where efficiences can be made to reduce run time; it keeps banging into the 2 minute limit.
+  - [x] Measure the current runtime before and after the runner change.
+  - [x] Run the full `npm run check` with an extended timeout.
+  - [x] Confirm the full suite still includes every previous regression script.
 
 ## Version 0.33.5.8 - Notes Cleanup
 

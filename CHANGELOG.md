@@ -1,3 +1,12 @@
+## Version 0.33.5.7 - 2026-06-13 07:50 -04:00
+
+- Replaced the long serial `npm run check` regression chain with `scripts/run-regressions.mjs`, backed by the auditable suite list in `scripts/regression-suite.mjs`.
+- Preserved full coverage across all 90 existing regression scripts while running static/source checks and isolated temp-database checks in bounded parallel buckets.
+- Kept default-database search regressions and file-storage regressions serial for this first cleanup pass until those side effects are proven safe to parallelize.
+- Added per-script timing output plus a slowest-script summary so future regressions can be tuned from current evidence instead of guesswork.
+- Updated the Search results page regression to assert membership in the regression suite definition rather than the old inline `package.json` command chain.
+- Reduced the Node regression runner smoke from roughly 209 seconds serial to about 85 seconds before ESLint, then bumped the app/package version to `0.33.5.7`.
+
 ## Version 0.33.5.6.7 - 2026-06-13 07:26 -04:00
 
 - Added compact direct/manual task tag chips to Workbench task rows, positioned between the task title and metadata badges with a two-chip inline limit plus `+N` overflow.

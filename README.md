@@ -111,6 +111,8 @@ Run the main verification check before syncing changes:
 npm run check
 ```
 
+The main check runs the full regression suite through a timed runner before ESLint. It preserves release-gate coverage while parallelizing only safe regression buckets.
+
 Run the permission regression suite when permissions, workspace lifecycle, task access, reporting access, or module access rules change:
 
 ```sh
