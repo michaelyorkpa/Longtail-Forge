@@ -1,3 +1,19 @@
+## Version 0.33.5.4.7 - 2026-06-12 20:52 -04:00
+
+- Closed the Files and Time Tracking QoL line with current-state Help for staged file deletion, partial-success upload behavior, file settings/storage accounting, admin time-entry corrections, and timer duration semantics.
+- Expanded Time Tracking developer docs for timer timestamp/duration rules, resume-safe timer metadata, admin correction auditing, and file attachment ownership boundaries.
+- Added a 0.33.5.4 file QoL closeout note to the file framework documentation.
+- Added `scripts/files-time-tracking-qol-closeout-regression.mjs` and wired it into `npm run check`.
+- Bumped the app/package version to `0.33.5.4.7`.
+
+## Version 0.33.5.4.6 - 2026-06-12 18:32 -04:00
+
+- Added resume-safe timer context to active and paused timer payloads, including source module/type/id, safe source label and URL, client/project context, status, last active start, and accumulated elapsed seconds.
+- Added Time Tracking lifecycle event declarations and emissions for timer started, paused, finalized, and discarded states.
+- Sanitized lifecycle event metadata so inaccessible linked source labels/URLs and raw source metadata internals are not exposed.
+- Added `scripts/timer-resume-metadata-regression.mjs` and wired it into `npm run check` for manual, task-linked, and permission-hidden source timer coverage.
+- Bumped the app/package version to `0.33.5.4.6`.
+
 ## Version 0.33.5.4.5 - 2026-06-12 18:17 -04:00
 
 - Made active timer finalization server-authoritative for factual timer start/end timestamps and accumulated active duration.

@@ -289,6 +289,47 @@ const timeTrackingModule = {
       sourceLabel: "Time Entry",
     },
   ],
+  help: {
+    sections: [
+      {
+        id: "time-tracking.help",
+        moduleId: "time-tracking",
+        title: "Time Tracking",
+        description: "Current Time Tracking behavior for timers, saved entries, corrections, reporting duration, and files.",
+        sortOrder: 35,
+        audience: "all",
+        tags: ["time-tracking", "timers", "time-entries"],
+      },
+    ],
+    articles: [
+      {
+        id: "time-tracking.timers",
+        slug: "time-tracking-timers",
+        moduleId: "time-tracking",
+        sectionId: "time-tracking.help",
+        title: "Timers and Saved Duration",
+        summary: "Understand active timers, paused time, and saved duration totals.",
+        body: "Manual timers and sourced timers such as task timers share the same active timer storage. A timer can be running or paused, and starting or resuming one timer pauses other running timers for the same user and workspace.\n\nWhen a timer is saved as a time entry, the entry preserves the first timer start and final save time as factual timestamps. Duration is stored from accumulated active seconds only, so paused time is visible in the start/end span but does not inflate saved duration, billing, or reporting totals.\n\nActive and paused timer payloads include safe source context for recovery: source module, source type, source ID, safe source label and URL, client/project context, status, last active start time, and accumulated elapsed seconds. Linked source labels and URLs are hidden when the timer owner cannot read the linked record.",
+        sortOrder: 10,
+        audience: "all",
+        tags: ["time-tracking", "timers", "duration"],
+        relatedArticleIds: ["framework.time-tracking", "tasks.resume-context"],
+      },
+      {
+        id: "time-tracking.entries-corrections",
+        slug: "time-tracking-entries-corrections",
+        moduleId: "time-tracking",
+        sectionId: "time-tracking.help",
+        title: "Time Entries and Corrections",
+        summary: "Review saved entries and understand workspace-admin correction behavior.",
+        body: "Saved time entries keep description, project context, billable state, duration, timestamps, tags, files, and optional task context. Manual time-entry edits remain explicit user edits: the form saves the entered start, end, and duration values.\n\nWorkspace administrators with time-entry edit access can correct workspace entries in their permitted scope, including normal fields and direct time-entry tags. The correction still checks the existing entry scope and any changed project or client destination scope before saving.\n\nAdmin corrections preserve the original entry owner and are audited with correction metadata. Owner changes are not part of the normal correction flow.",
+        sortOrder: 20,
+        audience: "all",
+        tags: ["time-tracking", "time-entries", "corrections"],
+        relatedArticleIds: ["framework.users-permissions", "framework.files-attachments"],
+      },
+    ],
+  },
   workspaceCapabilityRequirements: ["time_tracking", "time_tracking_optional"],
   settings: [
     {
@@ -315,6 +356,34 @@ const timeTrackingModule = {
     },
   ],
   eventTypes: [
+    {
+      event: "timer.started",
+      moduleId: "time-tracking",
+      label: "Timer Started",
+      description: "Emitted when an active work timer starts or resumes.",
+      recordType: "active_work_timer",
+    },
+    {
+      event: "timer.paused",
+      moduleId: "time-tracking",
+      label: "Timer Paused",
+      description: "Emitted when an active work timer is paused.",
+      recordType: "active_work_timer",
+    },
+    {
+      event: "timer.finalized",
+      moduleId: "time-tracking",
+      label: "Timer Finalized",
+      description: "Emitted when an active work timer is saved as a time entry.",
+      recordType: "active_work_timer",
+    },
+    {
+      event: "timer.discarded",
+      moduleId: "time-tracking",
+      label: "Timer Discarded",
+      description: "Emitted when an active work timer is removed without saving time.",
+      recordType: "active_work_timer",
+    },
     {
       event: "timer.still_running",
       moduleId: "time-tracking",

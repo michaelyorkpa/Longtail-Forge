@@ -36,9 +36,9 @@ async function createFixtures(session) {
   const project = (await clientsService.createProject(client.id, { name: "Canonical Query Project" }, session)).project;
   const tag = await tagsService.create(session, { name: "Canonical Query" });
   const now = new Date();
-  const yesterday = dateKey(addDays(now, -1));
-  const today = dateKey(now);
-  const nextWeek = dateKey(addDays(now, 5));
+  const yesterday = dateKey(addDays(now, -1), session.timezone);
+  const today = dateKey(now, session.timezone);
+  const nextWeek = dateKey(addDays(now, 5), session.timezone);
 
   const overdue = (await tasksService.create({
     title: "Canonical overdue task",
@@ -254,6 +254,13 @@ function addDays(date, days) {
   return nextDate;
 }
 
-function dateKey(date) {
-  return date.toISOString().slice(0, 10);
+function dateKey(date, timezone = "America/New_York") {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone || "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(date).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }

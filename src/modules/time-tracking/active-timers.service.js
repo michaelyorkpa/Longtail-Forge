@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { activeTimersRepository } from "./active-timers.repo.js";
 import { timeEntriesService } from "./time-entries.service.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
+import { modulesService } from "../../core/modules/modules.service.js";
 import { AppError } from "../../core/errors.js";
 import { permissionsService } from "../../core/permissions.js";
 import { resolveProjectRecordScope } from "../../core/record-scope.js";
@@ -10,14 +11,16 @@ import { normalizeUtcIso } from "../../utils/timezones.js";
 const MODULE_ID = "time-tracking";
 
 async function list(session) {
+  const timers = await activeTimersRepository.readAll(session.workspace_id, session.user_id);
   return {
-    timers: await activeTimersRepository.readAll(session.workspace_id, session.user_id),
+    timers: await shapeTimerPayloads(session, timers),
   };
 }
 
 async function listAll(session) {
+  const timers = await activeTimersRepository.readAllWorkTimers(session.workspace_id, session.user_id);
   return {
-    timers: await activeTimersRepository.readAllWorkTimers(session.workspace_id, session.user_id),
+    timers: await shapeTimerPayloads(session, timers),
   };
 }
 
@@ -34,8 +37,12 @@ async function save(timerSlot, payload, session) {
 
   await assertCanUseProjectTimer(session, timer, "save");
 
+  const savedTimer = await activeTimersRepository.upsert(timer);
+  const shapedTimer = await shapeTimerPayload(session, savedTimer);
+  await emitTimerLifecycleEvent(timerStatusForEvent(shapedTimer), session, shapedTimer);
+
   return {
-    timer: await activeTimersRepository.upsert(timer),
+    timer: shapedTimer,
   };
 }
 
@@ -52,8 +59,12 @@ async function saveSourced(source, payload, session) {
     sourceMetadata: payload?.sourceMetadata || payload?.source_metadata || {},
   };
 
+  const savedTimer = await activeTimersRepository.upsert(timer);
+  const shapedTimer = await shapeTimerPayload(session, savedTimer);
+  await emitTimerLifecycleEvent(timerStatusForEvent(shapedTimer), session, shapedTimer);
+
   return {
-    timer: await activeTimersRepository.upsert(timer),
+    timer: shapedTimer,
   };
 }
 
@@ -61,9 +72,15 @@ async function remove(timerSlot, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedTimerSlot = normalizeTimerSlot(timerSlot);
 
+  const existingTimer = await activeTimersRepository.readBySlot(session.workspace_id, session.user_id, normalizedTimerSlot);
+  const shapedTimer = existingTimer ? await shapeTimerPayload(session, existingTimer) : null;
+
   await activeTimersRepository.remove(session.workspace_id, session.user_id, normalizedTimerSlot);
+  if (shapedTimer) {
+    await emitTimerLifecycleEvent("timer.discarded", session, shapedTimer);
+  }
   const timers = await activeTimersRepository.compactManualTimerSlots(session.workspace_id, session.user_id);
-  return { timer_slot: normalizedTimerSlot, removed: true, timers };
+  return { timer_slot: normalizedTimerSlot, removed: true, timers: await shapeTimerPayloads(session, timers) };
 }
 
 async function updateStatus(timerSlot, payload, session) {
@@ -82,15 +99,19 @@ async function updateStatus(timerSlot, payload, session) {
     Number.parseInt(payload?.accumulated_elapsed_seconds ?? existingTimer.accumulated_elapsed_seconds, 10) || 0,
   );
 
-  return {
-    timer: await activeTimersRepository.upsert({
+  const savedTimer = await activeTimersRepository.upsert({
       ...existingTimer,
       accumulated_elapsed_seconds: accumulatedElapsedSeconds,
       last_active_start_time: timerStatus === "running"
         ? normalizeIsoDate(payload?.last_active_start_time || new Date().toISOString())
         : null,
       timer_status: timerStatus,
-    }),
+    });
+  const shapedTimer = await shapeTimerPayload(session, savedTimer);
+  await emitTimerLifecycleEvent(timerStatusForEvent(shapedTimer), session, shapedTimer);
+
+  return {
+    timer: shapedTimer,
   };
 }
 
@@ -98,11 +119,21 @@ async function removeSourced(source, session) {
   await assertModuleWriteEnabled(session, MODULE_ID);
   const normalizedSource = normalizeSource(source);
 
+  const existingTimer = await activeTimersRepository.readBySource(session.workspace_id, session.user_id, {
+    sourceModuleId: normalizedSource.source_module_id,
+    sourceType: normalizedSource.source_type,
+    sourceId: normalizedSource.source_id,
+  });
+  const shapedTimer = existingTimer ? await shapeTimerPayload(session, existingTimer) : null;
+
   await activeTimersRepository.removeBySource(session.workspace_id, session.user_id, {
     sourceModuleId: normalizedSource.source_module_id,
     sourceType: normalizedSource.source_type,
     sourceId: normalizedSource.source_id,
   });
+  if (shapedTimer) {
+    await emitTimerLifecycleEvent("timer.discarded", session, shapedTimer);
+  }
 
   return {
     source_id: normalizedSource.source_id,
@@ -143,14 +174,21 @@ async function finalize(timerSlot, payload, session) {
   }
 
   const result = await timeEntriesService.create(entry, session);
+  const shapedTimer = activeTimer ? await shapeTimerPayload(session, activeTimer) : null;
   await activeTimersRepository.remove(session.workspace_id, session.user_id, normalizedTimerSlot);
   const timers = await activeTimersRepository.compactManualTimerSlots(session.workspace_id, session.user_id);
+  if (shapedTimer) {
+    await emitTimerLifecycleEvent("timer.finalized", session, shapedTimer, {
+      duration_seconds: timerFacts.durationSeconds,
+      time_entry_id: result.entry_id,
+    });
+  }
 
   return {
     ...result,
     active_timer_removed: true,
     timer_slot: normalizedTimerSlot,
-    timers,
+    timers: await shapeTimerPayloads(session, timers),
   };
 }
 
@@ -189,7 +227,14 @@ async function finalizeSourced(source, payload, session, entryOverrides = {}) {
   }
 
   const result = await timeEntriesService.create(entry, session);
+  const shapedTimer = activeTimer ? await shapeTimerPayload(session, activeTimer) : null;
   await activeTimersRepository.removeBySource(session.workspace_id, session.user_id, sourceLookup);
+  if (shapedTimer) {
+    await emitTimerLifecycleEvent("timer.finalized", session, shapedTimer, {
+      duration_seconds: timerFacts.durationSeconds,
+      time_entry_id: result.entry_id,
+    });
+  }
 
   return {
     ...result,
@@ -198,6 +243,115 @@ async function finalizeSourced(source, payload, session, entryOverrides = {}) {
     source_type: normalizedSource.source_type,
     duration_seconds: timerFacts.durationSeconds,
   };
+}
+
+async function shapeTimerPayloads(session, timers = []) {
+  const shaped = [];
+
+  for (const timer of timers) {
+    shaped.push(await shapeTimerPayload(session, timer));
+  }
+
+  return shaped;
+}
+
+async function shapeTimerPayload(session, timer) {
+  const sourceReadable = await canReadTimerSource(session, timer);
+  const safeSourceLabel = sourceReadable ? stringOrEmpty(timer.source_label || timer.description) : "";
+  const safeSourceUrl = sourceReadable ? safeUrl(timer.source_url) : "";
+  const sourceModuleId = stringOrEmpty(timer.source_module_id);
+  const sourceType = stringOrEmpty(timer.source_type || "manual");
+  const sourceId = stringOrEmpty(timer.source_id);
+  const resumeContext = {
+    accumulatedElapsedSeconds: Number(timer.accumulated_elapsed_seconds) || 0,
+    clientId: stringOrEmpty(timer.client_id),
+    clientName: stringOrEmpty(timer.client_name),
+    lastActiveStartTime: timer.last_active_start_time || null,
+    projectId: stringOrEmpty(timer.project_id),
+    projectName: stringOrEmpty(timer.project_name),
+    sourceId,
+    sourceLabel: safeSourceLabel,
+    sourceModuleId,
+    sourceType,
+    sourceUrl: safeSourceUrl,
+    timerStatus: timer.timer_status === "running" ? "running" : "paused",
+  };
+
+  return {
+    ...timer,
+    source_label: safeSourceLabel,
+    source_url: safeSourceUrl,
+    resumeContext,
+    resume_context: resumeContext,
+  };
+}
+
+async function canReadTimerSource(session, timer) {
+  if (!timer?.source_module_id || timer.source_type === "manual") {
+    return true;
+  }
+
+  if (!(await modulesService.canReadModule(session.workspace_id, timer.source_module_id))) {
+    return false;
+  }
+
+  if (timer.source_module_id === "tasks" && timer.source_type === "task") {
+    return permissionsService.can(session, "tasks.view", {
+      workspace_id: session.workspace_id,
+      client_id: timer.client_id || "",
+      project_id: timer.project_id || "",
+      operation: "read",
+    });
+  }
+
+  return false;
+}
+
+function timerStatusForEvent(timer) {
+  return timer?.timer_status === "running" ? "timer.started" : "timer.paused";
+}
+
+async function emitTimerLifecycleEvent(eventName, session, timer, extraMetadata = {}) {
+  const payload = safeTimerLifecyclePayload(timer, extraMetadata);
+
+  return modulesService.emitInternalEvent(eventName, {
+    metadata: payload,
+    moduleId: MODULE_ID,
+    newValue: payload,
+    recordId: timer.active_timer_id,
+    recordType: "active_work_timer",
+    session,
+    source: timer.source_type || "manual",
+    workspaceId: session.workspace_id,
+  });
+}
+
+function safeTimerLifecyclePayload(timer, extraMetadata = {}) {
+  return {
+    accumulated_elapsed_seconds: Number(timer.accumulated_elapsed_seconds) || 0,
+    active_timer_id: timer.active_timer_id,
+    client_id: timer.client_id || "",
+    last_active_start_time: timer.last_active_start_time || null,
+    project_id: timer.project_id || "",
+    source_id: timer.source_id || "",
+    source_label: timer.source_label || "",
+    source_module_id: timer.source_module_id || "",
+    source_type: timer.source_type || "manual",
+    source_url: timer.source_url || "",
+    timer_slot: timer.timer_slot,
+    timer_status: timer.timer_status,
+    ...extraMetadata,
+  };
+}
+
+function safeUrl(value) {
+  const url = stringOrEmpty(value);
+
+  if (!url || /^(?:https?:|javascript:|data:)/i.test(url)) {
+    return "";
+  }
+
+  return url;
 }
 
 function finalizedTimerFacts(activeTimer, payload = {}) {

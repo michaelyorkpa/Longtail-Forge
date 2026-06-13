@@ -9,7 +9,7 @@ let checks = 0;
 const workspaceId = "search-rebuild-workspace";
 const now = "2026-06-08T16:00:00.000Z";
 const frameworkHelpArticleCount = 13;
-const moduleHelpArticleCount = 1;
+const moduleHelpArticleCount = 3;
 const expectedWorkspaceIndexRows = frameworkHelpArticleCount + moduleHelpArticleCount + 4;
 
 await seedWorkspace();
@@ -39,7 +39,11 @@ await checkAsync("workspace rebuild indexes initial module records without dupli
   );
   assert.equal(
     rows.filter((row) => row.module_id === "tasks" && row.record_type === "help_article").length,
-    moduleHelpArticleCount,
+    1,
+  );
+  assert.equal(
+    rows.filter((row) => row.module_id === "time-tracking" && row.record_type === "help_article").length,
+    2,
   );
   for (const expectedType of [
     "client-projects:client",
@@ -99,7 +103,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   assert.equal(result.dryRun, true);
   assert.equal(result.counts.indexed, 0);
   assert.equal(result.counts.removed, 0);
-  assert.equal(result.counts.skipped, 4);
+  assert.equal(result.counts.skipped, 8);
   assert.deepEqual(staleRows, [{ record_id: "stale-time-entry-1" }]);
 });
 

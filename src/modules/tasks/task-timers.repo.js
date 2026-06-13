@@ -31,6 +31,21 @@ function sourceForTask(taskId) {
 }
 
 function timerToTaskTimer(timer) {
+  const resumeContext = {
+    accumulatedElapsedSeconds: Number(timer.accumulated_elapsed_seconds) || 0,
+    clientId: timer.client_id || "",
+    clientName: timer.client_name || "",
+    lastActiveStartTime: timer.last_active_start_time || null,
+    projectId: timer.project_id || "",
+    projectName: timer.project_name || "",
+    sourceId: timer.source_id || "",
+    sourceLabel: timer.source_label || timer.description || "",
+    sourceModuleId: timer.source_module_id || "tasks",
+    sourceType: timer.source_type || "task",
+    sourceUrl: timer.source_url || "",
+    timerStatus: timer.timer_status === "running" ? "running" : "paused",
+  };
+
   return {
     active_task_timer_id: timer.active_timer_id,
     active_timer_id: timer.active_timer_id,
@@ -53,6 +68,8 @@ function timerToTaskTimer(timer) {
     source_url: timer.source_url || "",
     source_metadata_json: timer.source_metadata_json || "{}",
     sourceMetadata: timer.sourceMetadata || {},
+    resumeContext,
+    resume_context: resumeContext,
     created_at: timer.created_at,
     updated_at: timer.updated_at,
   };
