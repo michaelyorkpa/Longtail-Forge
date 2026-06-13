@@ -62,12 +62,19 @@ try {
     assert.equal(summary.counts.failed, 0);
 
     const rows = await readHelpIndexRows(session.workspace_id);
+    const helpCenterRow = rows.find((row) => row.module_id === "framework" && row.record_id === "framework.help-center");
+    const helpCenterMarkdown = await fs.readFile(new URL("../help/framework/help-center.md", import.meta.url), "utf8");
+    const helpCenterText = extractPlainTextFromMarkdown(helpCenterMarkdown);
 
     assert.ok(rows.some((row) => row.module_id === "framework" && row.record_id === "framework.help-center"));
     assert.ok(rows.some((row) => row.module_id === "developer-example" && row.record_id === "developer-example.getting-started"));
     assert.ok(rows.every((row) => row.record_type === "help_article"));
     assert.ok(rows.every((row) => row.source === "Help"));
-    assert.ok(rows.some((row) => /framework-owned surface/.test(row.body)));
+    assert.ok(helpCenterRow, "framework Help Center article should be indexed");
+    assert.match(helpCenterRow.body, /framework-owned surface/);
+    assert.match(helpCenterRow.body, new RegExp(escapeRegExp(helpCenterText.slice(0, 80))));
+    assert.doesNotMatch(helpCenterRow.body, /^#\s/m);
+    assert.doesNotMatch(helpCenterRow.body, /\[[^\]]+]\([^)]+\)/);
     assert.ok(rows.every((row) => !/Knowledge Base/i.test(`${row.title} ${row.summary} ${row.body}`)));
   });
 
@@ -254,4 +261,25 @@ function closeServer(server) {
       resolve();
     });
   });
+}
+
+function extractPlainTextFromMarkdown(markdown = "") {
+  return String(markdown || "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/```[\s\S]*?```/g, (match) => match.replace(/^```[^\n]*\n?|\n?```$/g, " "))
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/!\[([^\]]*)]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/gm, " ")
+    .replace(/[|*_~#]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function escapeRegExp(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

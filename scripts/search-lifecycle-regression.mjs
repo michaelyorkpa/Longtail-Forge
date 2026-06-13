@@ -55,6 +55,11 @@ await checkAsync("initial searchable modules populate workspace-scoped index row
     firstRows.filter((row) => row.module_id === "time-tracking" && row.record_type === "help_article").length,
     2,
   );
+  const helpCenterRow = firstRows.find((row) => row.module_id === "framework" && row.record_type === "help_article" && row.record_id === "framework.help-center");
+  assert.ok(helpCenterRow, "framework Help Center search row should be indexed");
+  assert.equal(helpCenterRow.source, "Help");
+  assert.match(helpCenterRow.body, /framework-owned surface/);
+  assert.doesNotMatch(helpCenterRow.body, /^#\s/m);
   for (const expectedType of [
     "client-projects:client",
     "client-projects:project",
@@ -186,7 +191,7 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 
 async function readWorkspaceSearchRows(workspaceId) {
   return querySql(`
-SELECT module_id, record_type, record_id
+SELECT module_id, record_type, record_id, body, source
 FROM search_index
 WHERE workspace_id = ${sqlText(workspaceId)}
 ORDER BY module_id, record_type, record_id;

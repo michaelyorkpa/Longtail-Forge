@@ -351,11 +351,11 @@ Use these decisions for 0.33.5.10:
 
 ### Version 0.33.5.10.5 - Help Search Re-indexing
 
-- [ ] Update Help search indexing so indexed Help documents use Markdown-derived article text.
-- [ ] Ensure Help search rebuilds re-read Markdown files instead of stale inline JavaScript bodies.
-- [ ] Keep `record_type = help_article`, `source = Help`, and framework/module ownership metadata stable.
-- [ ] Preserve disabled-module cleanup and permission-safe Help result shaping.
-- [ ] Update search rebuild/lifecycle regressions for Markdown-backed Help article counts and content.
+- [x] Update Help search indexing so indexed Help documents use Markdown-derived article text.
+- [x] Ensure Help search rebuilds re-read Markdown files instead of stale inline JavaScript bodies.
+- [x] Keep `record_type = help_article`, `source = Help`, and framework/module ownership metadata stable.
+- [x] Preserve disabled-module cleanup and permission-safe Help result shaping.
+- [x] Update search rebuild/lifecycle regressions for Markdown-backed Help article counts and content.
 
 ### Version 0.33.5.10.6 - Help Content Pass and Closeout
 

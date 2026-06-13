@@ -1,3 +1,10 @@
+## Version 0.33.5.10.5 - 2026-06-13 13:51 -04:00
+
+- Updated Help search document creation so indexed Help bodies use Markdown-derived plain text loaded through the Help service instead of raw Markdown markup.
+- Preserved Help search metadata for `record_type = help_article`, `source = Help`, framework/module ownership, summaries, tags, disabled-module cleanup, and permission-shaped browser results.
+- Expanded Help search, search rebuild, and search lifecycle regressions for Markdown-backed Help article content and counts.
+- Marked the 0.33.5.10.5 roadmap slice complete and bumped the app/package version to `0.33.5.10.5`.
+
 ## Version 0.33.5.10.4 - 2026-06-13 13:37 -04:00
 
 - Added safe Help Center Markdown rendering for Markdown-backed article bodies, including headings, paragraphs, ordered and unordered lists, links, inline code, code fences, emphasis, and simple tables.

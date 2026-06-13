@@ -355,8 +355,9 @@ function articleSearchDocument(workspaceId, article, section) {
   const sectionTitle = section?.title || "";
   const ownerLabel = article.sourceLabel || (moduleId === FRAMEWORK_HELP_MODULE_ID ? "Framework" : moduleId);
   const tags = normalizeTags(article.tags);
+  const articleText = extractPlainTextFromHelpMarkdown(article.body || "");
   const body = [
-    article.body,
+    articleText,
     article.summary || article.description,
     sectionTitle,
     ownerLabel,
@@ -379,6 +380,23 @@ function articleSearchDocument(workspaceId, article, section) {
     record_created_at: "",
     record_updated_at: "",
   };
+}
+
+function extractPlainTextFromHelpMarkdown(markdown = "") {
+  return String(markdown || "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/```[\s\S]*?```/g, (match) => match.replace(/^```[^\n]*\n?|\n?```$/g, " "))
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/!\[([^\]]*)]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+    .replace(/^\s*>\s?/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/gm, " ")
+    .replace(/[|*_~#]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 async function hydrateHelpContribution(contribution) {
