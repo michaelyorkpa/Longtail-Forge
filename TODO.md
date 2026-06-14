@@ -23,6 +23,10 @@ This section is to define a series of human testing goals for different sections
 
 ### Next Action/Resume Work
 
+## Notes Fix
+
+- Notes don't inherit client/project tags properly
+
 ## Tags and Files Modals
 
 - Go back and make tags and files buttons work on tasks

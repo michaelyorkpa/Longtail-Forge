@@ -1,3 +1,10 @@
+## Version 0.33.5.13.4 - 2026-06-14 11:48 -04:00
+
+- Added the shared `LongtailForge.overlayHost` browser helper for module-owned picker overlays with anchored desktop placement, mobile bottom-sheet behavior, Escape/click-away closing, focus trapping, focus return, trigger ARIA state, and one-open-overlay-per-host behavior.
+- Converted the Tasks modal Tags and Files footer panels to register with the shared overlay host while preserving the existing Tags picker and Files attachment helper mounts.
+- Added `overlay-host-contract-regression.mjs`, wired it into the regression suite, updated cache-key/version assertions, and bumped package/app plus Tasks module metadata to `0.33.5.13.4`.
+- Updated `docs/ui-surface-contract.md`, `docs/ui-layout-guide.md`, `DECISIONS.md`, and the roadmap for the completed 0.33.5.13.4 slice.
+
 ## Version 0.33.5.13.3 - 2026-06-14 11:39 -04:00
 
 - Added the shared modal footer/action contract for utility, secondary, primary, and destructive action roles with grouped footer layout and adaptive label guidance.

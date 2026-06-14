@@ -82,8 +82,8 @@ for (const expectedCall of [
   assert.match(taskDialogScript, expectedCall, "dense task footer icon-only controls should keep labels and titles");
 }
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=18/, "Tasks view must load the footer-contract stylesheet cache key");
-assert.match(tasksView, /js\/task-dialog\.js\?v=9/, "Tasks view must load the footer-contract task-dialog cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=19/, "Tasks view must load the footer-contract stylesheet cache key");
+assert.match(tasksView, /js\/task-dialog\.js\?v=10/, "Tasks view must load the footer-contract task-dialog cache key");
 
 console.log("Modal footer contract regression passed.");
 

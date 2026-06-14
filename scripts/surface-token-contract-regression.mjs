@@ -36,6 +36,8 @@ const declaredTokens = new Set([...styles.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((
 const usedTokens = new Set([...styles.matchAll(/var\((--[a-z0-9-]+)/g)].map((match) => match[1]));
 const runtimeTokens = new Set([
   "--collection-depth",
+  "--overlay-anchor-left",
+  "--overlay-anchor-top",
   "--report-project-depth",
   "--tag-color",
   "--timer-count",
@@ -80,7 +82,7 @@ for (const className of [
   assert.match(tasksView, new RegExp(`class="${escapeRegExp(className)}"`), `Tasks modal converted area should include ${className}`);
 }
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=18/, "Tasks view must load the surface-token stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=19/, "Tasks view must load the surface-token stylesheet cache key");
 
 console.log("Surface token contract regression passed.");
 

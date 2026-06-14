@@ -23,10 +23,11 @@ Longtail Forge UI should stay quiet, scannable, and operational. Pages should fa
 - Put save, cancel, copy/share, tags, files, and notification actions in the modal heading or footer where the current workflow expects them. Preserve accessible labels and titles on icon-only controls.
 - Use adaptive visible text in modal footers: dense task-style footers may keep recognizable icon-only controls, while wider, destructive, unusual, or ambiguous actions should show icon plus short visible text where space allows.
 - Keep module-owned pickers module-owned. For example, Tasks may open Tags and Files from footer controls, but Tags and Files keep their assignment and attachment contracts.
+- Use the shared overlay host for small module-owned picker panels opened from modal footer or row actions; the overlay host owns placement, close behavior, focus handling, Escape, click-away, responsive sizing, and one-open-overlay behavior.
 - Do not create a second notification settings block inside a modal when the heading bell already owns follow/unfollow behavior.
 - Use the 0.33.5.13 shared surface vocabulary in `docs/ui-surface-contract.md` for new or converted framework-owned modal groups, modal section headings/bodies/help text/validation, overlay panels, drawers, slideouts, dividers, chips, and disabled/focus states.
 - Use top-only dividers on the section or option being toggled instead of adding mixed internal divider rules inside each module.
-- Treat the later 0.33.5.13 framework overlay slices as the place to replace temporary task-specific footer panel behavior with a shared overlay host.
+- Treat later 0.33.5.13 adoption slices as the place to broaden the shared overlay host beyond the first Tasks Tags/Files proof target.
 
 ## Module Settings
 

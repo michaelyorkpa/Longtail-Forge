@@ -11,8 +11,8 @@ assert.match(tasksView, /data-task-notification-toggle hidden aria-pressed="fals
 assert.doesNotMatch(tasksView, /task-notification-popover|data-task-notification-field|<legend>Notifications<\/legend>/, "Task notification settings should not appear as a popover or separate in-body box");
 assert.match(tasksView, /class="task-metadata-ribbon[^"]*" data-task-metadata-ribbon aria-label="Task summary"/, "Task modal should expose a metadata ribbon after the title field");
 assert.doesNotMatch(tasksView, /data-task-completion-field/, "Task modal should not keep a separate Time to Completion block");
-assert.match(tasksView, /<script src="js\/task-dialog\.js\?v=9"><\/script>/, "Task dialog cache bust should advance");
-assert.match(tasksView, /<link rel="stylesheet" href="css\/longtail-forge\.css\?v=18">/, "Shared stylesheet cache bust should advance");
+assert.match(tasksView, /<script src="js\/task-dialog\.js\?v=10"><\/script>/, "Task dialog cache bust should advance");
+assert.match(tasksView, /<link rel="stylesheet" href="css\/longtail-forge\.css\?v=19">/, "Shared stylesheet cache bust should advance");
 
 assert.match(taskDialogScript, /notificationToggle: dialog\.querySelector\("\[data-task-notification-toggle\]"\)/, "Task dialog should bind the notification bell toggle");
 assert.match(taskDialogScript, /toggleTaskNotificationFollow/, "Task dialog should follow or unfollow from the bell");
@@ -26,12 +26,12 @@ assert.match(taskDialogScript, /node\.tabIndex = 0/, "Metadata chips should be k
 assert.match(taskDialogScript, /taskDialogMarkup\(\)/, "Fallback task dialog markup should remain present");
 assert.match(taskDialogScript, /data-task-metadata-ribbon/, "Fallback task dialog markup should include the metadata ribbon");
 
-assert.match(stylesheet, /\.task-form \{\s*display: grid;[\s\S]*gap: 12px;/, "Task modal spacing should be tightened");
+assert.match(stylesheet, /\.task-form \{[\s\S]*position: relative;[\s\S]*display: grid;[\s\S]*gap: 12px;/, "Task modal spacing should be tightened");
 assert.match(stylesheet, /\.task-dialog-heading \{[\s\S]*justify-content: space-between;/, "Task modal heading should align the bell to the right");
 assert.match(stylesheet, /\.task-metadata-ribbon \{[\s\S]*flex-wrap: wrap;/, "Task metadata ribbon should wrap safely");
 assert.match(stylesheet, /\.task-metadata-chip \{[\s\S]*overflow-wrap: anywhere;/, "Task metadata chips should avoid text overflow");
 
-assert.match(tasksModule, /version: "0\.33\.5\.13\.3"/, "Tasks module version should match the current modal release");
+assert.match(tasksModule, /version: "0\.33\.5\.13\.4"/, "Tasks module version should match the current modal release");
 
 console.log("Task modal compact layout regression passed.");
 

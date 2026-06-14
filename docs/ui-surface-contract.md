@@ -1,6 +1,6 @@
 # UI Surface Contract
 
-This document captures the 0.33.5.13.3 framework surface inventory, token contract, modal section contract, and modal footer/action contract. It is a current implementation guide, not a promise that every listed surface has already been converted.
+This document captures the 0.33.5.13.4 framework surface inventory, token contract, modal section contract, modal footer/action contract, and overlay host contract. It is a current implementation guide, not a promise that every listed surface has already been converted.
 
 ## Surface Inventory
 
@@ -37,7 +37,9 @@ The existing aliases `--color-background`, `--color-page`, and `--color-surface-
 - `.surface-modal-section-body`: shared body wrapper for grouped modal section controls.
 - `.surface-modal-section-help`: shared low-emphasis helper/status text inside modal sections.
 - `.surface-modal-section-validation`: shared inline validation text inside modal sections.
+- `.surface-overlay-host`: positioning and lifecycle host for one active overlay at a time.
 - `.surface-overlay-panel`: temporary popover, bottom sheet, or picker host surface.
+- `.surface-overlay-panel--bottom-sheet`: mobile full-width bottom-sheet presentation for overlay panels.
 - `.surface-drawer` and `.surface-slideout`: future contextual side surfaces.
 - `.surface-divider-top`: divider placed at the top of a section or option being toggled.
 - `.surface-chip`: compact metadata or state chip.
@@ -54,8 +56,12 @@ The existing aliases `--color-background`, `--color-page`, and `--color-surface-
 
 Dense task-style modal footers may keep recognizable utility and commit controls icon-only when the button has a clear accessible label, hover title, native button type, and regression coverage. Wider or less dense modal footers should prefer icon plus short visible text for primary, destructive, unusual, and ambiguous actions. Utility actions such as Tags, Files, Copy Link, and Follow/Unfollow can remain icon-only when the icon is recognizable and the accessible name is clear.
 
+## Overlay Host
+
+Use `LongtailForge.overlayHost.create({ host })` for small module-owned panels opened from modal footer or row actions. The framework host owns placement, close behavior, focus handling, Escape, click-away, responsive sizing, mobile bottom-sheet presentation, trigger `aria-expanded`, panel dialog semantics, and ensuring only one overlay is open per host. Modules own the panel body, picker/upload content, save payloads, validation, permissions, and record meaning.
+
 ## Ownership Boundary
 
 The framework owns the tokens, shared class names, focus visibility, overlay host behavior, drawer/slideout shell behavior, responsive placement, and generic footer/action alignment. Modules own form fields, record-specific content, picker/upload bodies, save payloads, validation, permissions, and business meaning.
 
-The first concrete converted area is the Tasks modal surface shell: task modal groups use `.surface-modal-group`, modal section headings use `.surface-modal-section-heading`, grouped controls use `.surface-modal-section-body`, helper/status text uses `.surface-modal-section-help`, footer picker hosts use `.surface-overlay-panel`, top-only divider intent is marked with `.surface-divider-top`, and footer actions use `.surface-modal-footer` with utility and commit groups. The later 0.33.5.13 slices will standardize overlay host behavior and broader module adoption.
+The first concrete converted area is the Tasks modal surface shell: task modal groups use `.surface-modal-group`, modal section headings use `.surface-modal-section-heading`, grouped controls use `.surface-modal-section-body`, helper/status text uses `.surface-modal-section-help`, footer picker hosts use `.surface-overlay-panel`, top-only divider intent is marked with `.surface-divider-top`, footer actions use `.surface-modal-footer` with utility and commit groups, and Tags/Files footer panels register with the shared overlay host. Later 0.33.5.13 slices will broaden module adoption.

@@ -71,11 +71,11 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ### Version 0.33.5.13.4 - Framework Overlay Pattern for Tags and Files
 
-- [ ] Create a shared overlay host for small module-owned pickers opened from modal footer or row action buttons.
-- [ ] Keep Tags and Files picker content owned by their framework services/modules; the overlay only owns placement, closing, focus trap, escape key, click-away, responsive sizing, and title/action framing.
-- [ ] Support anchored desktop overlays and the confirmed mobile behavior from the design questions.
-- [ ] Ensure only one footer overlay is open at a time inside the active modal.
-- [ ] Add regressions that prove task Tags and Files footer actions open the shared overlay and still use the existing Tags/Files contracts.
+- [x] Create a shared overlay host for small module-owned pickers opened from modal footer or row action buttons.
+- [x] Keep Tags and Files picker content owned by their framework services/modules; the overlay only owns placement, closing, focus trap, escape key, click-away, responsive sizing, and title/action framing.
+- [x] Support anchored desktop overlays and the confirmed mobile behavior from the design questions.
+- [x] Ensure only one footer overlay is open at a time inside the active modal.
+- [x] Add regressions that prove task Tags and Files footer actions open the shared overlay and still use the existing Tags/Files contracts.
 
 ### Version 0.33.5.13.5 - Drawers, Slideouts, and Main-Screen Internal Surfaces
 

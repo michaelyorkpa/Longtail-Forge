@@ -7,6 +7,7 @@
   let context = null;
   let fileAttachmentsController = null;
   let notesPanelController = null;
+  let taskOverlayHost = null;
   let tagPicker = null;
   let recurrenceDraft = defaultRecurrenceDraft();
   let taskTimers = [];
@@ -140,6 +141,7 @@
     fields.titleInput.focus();
     return new Promise((resolve) => {
       dialog.addEventListener("close", () => {
+        taskOverlayHost?.closeAll?.();
         clearTaskTimerInterval();
         fileAttachmentsController?.destroy?.();
         fileAttachmentsController = null;
@@ -224,6 +226,7 @@
       interval: recurrenceDialog.querySelector("[data-task-recurrence-interval]"),
     };
     decorateTaskDialogControls();
+    configureTaskOverlayHost();
 
     if (form.dataset.taskDialogBound === "true") {
       return;
@@ -287,6 +290,32 @@
     icons.decorateButton(fields.copyLink, { icon: "copy", label: "Copy task link", text: "", title: "Copy task link", iconOnly: true });
     icons.decorateButton(fields.cancel, { icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true });
     icons.decorateButton(fields.save, { icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true });
+  }
+
+  function configureTaskOverlayHost() {
+    if (!namespace.overlayHost?.create || !form) {
+      return;
+    }
+
+    taskOverlayHost = namespace.overlayHost.create({ host: form });
+
+    if (fields.tagPanel && fields.tagToggle) {
+      taskOverlayHost.register({
+        name: "tags",
+        panel: fields.tagPanel,
+        title: "Task tags",
+        trigger: fields.tagToggle,
+      });
+    }
+
+    if (fields.filePanel && fields.fileToggle) {
+      taskOverlayHost.register({
+        name: "files",
+        panel: fields.filePanel,
+        title: "Task files",
+        trigger: fields.fileToggle,
+      });
+    }
   }
 
   function populateFormOptions() {
@@ -615,8 +644,32 @@
   }
 
   function toggleTaskFooterPanel(panelName) {
+    if (taskOverlayHost) {
+      taskOverlayHost.toggle(panelName);
+      return;
+    }
+
+    toggleTaskFooterPanelFallback(panelName);
+  }
+
+  function hideTaskFooterPanels() {
+    taskOverlayHost?.closeAll?.();
+
+    if (fields.tagPanel) {
+      fields.tagPanel.hidden = true;
+      fields.tagToggle?.setAttribute("aria-expanded", "false");
+    }
+    if (fields.filePanel) {
+      fields.filePanel.hidden = true;
+      fields.fileToggle?.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  function toggleTaskFooterPanelFallback(panelName) {
     const nextPanel = panelName === "files" ? fields.filePanel : fields.tagPanel;
+    const nextToggle = panelName === "files" ? fields.fileToggle : fields.tagToggle;
     const otherPanel = panelName === "files" ? fields.tagPanel : fields.filePanel;
+    const otherToggle = panelName === "files" ? fields.tagToggle : fields.fileToggle;
 
     if (!nextPanel) {
       return;
@@ -625,17 +678,10 @@
     const shouldOpen = nextPanel.hidden;
     if (otherPanel) {
       otherPanel.hidden = true;
+      otherToggle?.setAttribute("aria-expanded", "false");
     }
     nextPanel.hidden = !shouldOpen;
-  }
-
-  function hideTaskFooterPanels() {
-    if (fields.tagPanel) {
-      fields.tagPanel.hidden = true;
-    }
-    if (fields.filePanel) {
-      fields.filePanel.hidden = true;
-    }
+    nextToggle?.setAttribute("aria-expanded", String(shouldOpen));
   }
 
   async function toggleTaskNotificationFollow() {

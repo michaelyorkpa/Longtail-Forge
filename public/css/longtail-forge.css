@@ -140,6 +140,37 @@ summary.surface-modal-section-heading {
     box-shadow: var(--shadow-card);
 }
 
+.surface-overlay-host {
+    position: relative;
+}
+
+.surface-overlay-panel[data-overlay-panel] {
+    position: absolute;
+    top: var(--overlay-anchor-top, auto);
+    left: var(--overlay-anchor-left, 0);
+    z-index: 30;
+    width: min(420px, calc(100% - 24px));
+    min-width: min(280px, calc(100% - 24px));
+    max-height: min(58vh, 520px);
+    overflow: auto;
+    padding: 12px;
+}
+
+.surface-overlay-panel--bottom-sheet[data-overlay-panel] {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 60;
+    width: 100%;
+    min-width: 0;
+    max-height: min(76vh, 620px);
+    overflow: auto;
+    border-right: 0;
+    border-bottom: 0;
+    border-left: 0;
+    border-radius: var(--surface-radius-md) var(--surface-radius-md) 0 0;
+    box-shadow: var(--shadow-modal);
+}
+
 .surface-drawer,
 .surface-slideout {
     background: var(--color-surface-raised);
@@ -3372,6 +3403,7 @@ dialog .form-actions {
 }
 
 .task-form {
+    position: relative;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
