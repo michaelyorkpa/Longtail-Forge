@@ -164,6 +164,54 @@ summary.surface-modal-section-heading {
     align-items: center;
 }
 
+.surface-modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--color-border);
+}
+
+.surface-modal-footer-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.surface-modal-footer-utilities {
+    justify-content: flex-start;
+    margin-right: auto;
+}
+
+.surface-modal-footer-commit {
+    justify-content: flex-end;
+    margin-left: auto;
+}
+
+.surface-modal-footer-action[data-surface-action-role="primary"] {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    font-weight: 700;
+}
+
+.surface-modal-footer-action[data-surface-action-role="destructive"] {
+    border-color: var(--color-danger-border);
+    color: var(--color-danger);
+}
+
+.surface-modal-footer-action[data-surface-action-role="secondary"],
+.surface-modal-footer-action[data-surface-action-role="utility"] {
+    color: var(--color-text-secondary);
+}
+
+.surface-modal-footer--dense .surface-modal-footer-action {
+    min-width: 44px;
+}
+
 .surface-disabled {
     opacity: 0.62;
 }
@@ -5240,6 +5288,14 @@ dialog[data-role-permissions-dialog] {
 .form-actions {
     display: flex;
     justify-content: flex-end;
+    gap: 8px;
+}
+
+.form-actions.surface-modal-footer {
+    justify-content: space-between;
+}
+
+.form-actions.surface-modal-footer .surface-modal-footer-group {
     gap: 8px;
 }
 

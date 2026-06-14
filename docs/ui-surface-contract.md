@@ -1,6 +1,6 @@
 # UI Surface Contract
 
-This document captures the 0.33.5.13.2 framework surface inventory, token contract, and modal section contract. It is a current implementation guide, not a promise that every listed surface has already been converted.
+This document captures the 0.33.5.13.3 framework surface inventory, token contract, modal section contract, and modal footer/action contract. It is a current implementation guide, not a promise that every listed surface has already been converted.
 
 ## Surface Inventory
 
@@ -42,11 +42,20 @@ The existing aliases `--color-background`, `--color-page`, and `--color-surface-
 - `.surface-divider-top`: divider placed at the top of a section or option being toggled.
 - `.surface-chip`: compact metadata or state chip.
 - `.surface-chip-row`: wrapping row for compact metadata chips.
+- `.surface-modal-footer`: shared modal footer shell.
+- `.surface-modal-footer-group`: grouped footer actions.
+- `.surface-modal-footer-utilities`: utility footer action group for compact helpers such as Tags, Files, Copy Link, and Follow/Unfollow.
+- `.surface-modal-footer-commit`: commit footer action group for secondary, primary, destructive, and unusual record actions.
+- `.surface-modal-footer-action`: footer action control with a `data-surface-action-role` of `primary`, `secondary`, `destructive`, or `utility`.
 - `.surface-disabled`: disabled surface state.
 - `.surface-focus-ring`: opt-in focus ring for custom focusable containers.
+
+## Adaptive Footer Labels
+
+Dense task-style modal footers may keep recognizable utility and commit controls icon-only when the button has a clear accessible label, hover title, native button type, and regression coverage. Wider or less dense modal footers should prefer icon plus short visible text for primary, destructive, unusual, and ambiguous actions. Utility actions such as Tags, Files, Copy Link, and Follow/Unfollow can remain icon-only when the icon is recognizable and the accessible name is clear.
 
 ## Ownership Boundary
 
 The framework owns the tokens, shared class names, focus visibility, overlay host behavior, drawer/slideout shell behavior, responsive placement, and generic footer/action alignment. Modules own form fields, record-specific content, picker/upload bodies, save payloads, validation, permissions, and business meaning.
 
-The first concrete converted area is the Tasks modal surface shell: task modal groups use `.surface-modal-group`, modal section headings use `.surface-modal-section-heading`, grouped controls use `.surface-modal-section-body`, helper/status text uses `.surface-modal-section-help`, footer picker hosts use `.surface-overlay-panel`, and top-only divider intent is marked with `.surface-divider-top`. The later 0.33.5.13 slices will standardize footer action layout, overlay host behavior, and broader module adoption.
+The first concrete converted area is the Tasks modal surface shell: task modal groups use `.surface-modal-group`, modal section headings use `.surface-modal-section-heading`, grouped controls use `.surface-modal-section-body`, helper/status text uses `.surface-modal-section-help`, footer picker hosts use `.surface-overlay-panel`, top-only divider intent is marked with `.surface-divider-top`, and footer actions use `.surface-modal-footer` with utility and commit groups. The later 0.33.5.13 slices will standardize overlay host behavior and broader module adoption.

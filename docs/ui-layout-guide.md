@@ -21,6 +21,7 @@ Longtail Forge UI should stay quiet, scannable, and operational. Pages should fa
 
 - Keep compact workflow modals scannable: title and summary context near the top, related fields grouped together, and low-frequency details collapsed when they are empty.
 - Put save, cancel, copy/share, tags, files, and notification actions in the modal heading or footer where the current workflow expects them. Preserve accessible labels and titles on icon-only controls.
+- Use adaptive visible text in modal footers: dense task-style footers may keep recognizable icon-only controls, while wider, destructive, unusual, or ambiguous actions should show icon plus short visible text where space allows.
 - Keep module-owned pickers module-owned. For example, Tasks may open Tags and Files from footer controls, but Tags and Files keep their assignment and attachment contracts.
 - Do not create a second notification settings block inside a modal when the heading bell already owns follow/unfollow behavior.
 - Use the 0.33.5.13 shared surface vocabulary in `docs/ui-surface-contract.md` for new or converted framework-owned modal groups, modal section headings/bodies/help text/validation, overlay panels, drawers, slideouts, dividers, chips, and disabled/focus states.

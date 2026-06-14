@@ -63,11 +63,11 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ### Version 0.33.5.13.3 - Modal Footer and Action Control Contract
 
-- [ ] Define shared footer layout for primary, secondary, destructive, copy/share, tags, files, and notification actions.
-- [ ] Standardize Save, Close, Cancel, Delete/Archive, Copy Link, Tags, Files, and notification button placement across modals.
-- [ ] Define when footer actions should be icon-only, icon-plus-text, disabled, hidden, or moved into an overflow menu.
-- [ ] Preserve existing save/cancel/close semantics, dirty-state prompts, and focus return behavior while moving actions into shared footer structure.
-- [ ] Add UI contract regressions for accessible labels, titles, button type, and footer action ordering.
+- [x] Define shared footer layout for primary, secondary, destructive, copy/share, tags, files, and notification actions.
+- [x] Standardize Save, Close, Cancel, Delete/Archive, Copy Link, Tags, Files, and notification button placement across modals.
+- [x] Define when footer actions should be icon-only, icon-plus-text, disabled, hidden, or moved into an overflow menu.
+- [x] Preserve existing save/cancel/close semantics, dirty-state prompts, and focus return behavior while moving actions into shared footer structure.
+- [x] Add UI contract regressions for accessible labels, titles, button type, and footer action ordering.
 
 ### Version 0.33.5.13.4 - Framework Overlay Pattern for Tags and Files
 

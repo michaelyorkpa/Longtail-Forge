@@ -1,3 +1,10 @@
+## Version 0.33.5.13.3 - 2026-06-14 11:39 -04:00
+
+- Added the shared modal footer/action contract for utility, secondary, primary, and destructive action roles with grouped footer layout and adaptive label guidance.
+- Converted the Tasks modal and recurrence dialog footers to the shared footer shell in both the protected view and task-dialog fallback markup while preserving dense icon-only task controls, button types, labels, titles, and save/cancel semantics.
+- Added `modal-footer-contract-regression.mjs`, wired it into the regression suite, updated cache-key/version assertions, and bumped package/app plus Tasks module metadata to `0.33.5.13.3`.
+- Updated `docs/ui-surface-contract.md`, `docs/ui-layout-guide.md`, `DECISIONS.md`, and the roadmap for the completed 0.33.5.13.3 slice.
+
 ## Version 0.33.5.13.2 - 2026-06-14 11:31 -04:00
 
 - Added the shared modal section contract for internal headings, section bodies, help/status text, inline validation text, chip rows, and top-only divider placement.

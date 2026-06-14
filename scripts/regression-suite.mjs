@@ -18,6 +18,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/ui-contract-regression.mjs",
   "scripts/surface-token-contract-regression.mjs",
   "scripts/modal-section-contract-regression.mjs",
+  "scripts/modal-footer-contract-regression.mjs",
   "scripts/dashboard-workbench-regression.mjs",
   "scripts/task-list-density-regression.mjs",
   "scripts/task-list-canonical-ui-regression.mjs",

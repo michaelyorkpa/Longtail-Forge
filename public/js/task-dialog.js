@@ -1507,7 +1507,7 @@
           <section class="task-footer-panel task-files-field surface-overlay-panel" data-task-files-panel hidden><div data-task-files></div></section>
           <details class="task-notes-field surface-modal-group surface-divider-top" data-task-notes-panel><summary class="surface-modal-section-heading">Notes</summary><div class="surface-modal-section-body" data-task-notes></div></details>
           <label class="task-description-field">Description<textarea rows="5" data-task-description></textarea></label>
-          <div class="form-actions task-modal-actions"><button type="button" data-task-tags-toggle title="Task tags">Tags</button><button type="button" data-task-files-toggle title="Task files">Files</button><button type="button" data-copy-task-link hidden>Copy Link</button><button type="button" data-cancel-task>Cancel</button><button type="submit" data-save-task>Save Task</button></div>
+          <div class="form-actions task-modal-actions surface-modal-footer surface-modal-footer--dense" data-modal-footer><div class="surface-modal-footer-group surface-modal-footer-utilities" data-modal-footer-group="utility"><button class="surface-modal-footer-action" type="button" data-surface-action="tags" data-surface-action-role="utility" data-task-tags-toggle title="Task tags">Tags</button><button class="surface-modal-footer-action" type="button" data-surface-action="files" data-surface-action-role="utility" data-task-files-toggle title="Task files">Files</button><button class="surface-modal-footer-action" type="button" data-surface-action="copy-link" data-surface-action-role="utility" data-copy-task-link hidden>Copy Link</button></div><div class="surface-modal-footer-group surface-modal-footer-commit" data-modal-footer-group="commit"><button class="surface-modal-footer-action" type="button" data-surface-action="cancel" data-surface-action-role="secondary" data-cancel-task>Cancel</button><button class="surface-modal-footer-action" type="submit" data-surface-action="save" data-surface-action-role="primary" data-save-task>Save Task</button></div></div>
         </form>
       </dialog>
       <dialog class="task-recurrence-dialog" data-task-recurrence-dialog>
@@ -1516,7 +1516,7 @@
           <label>Frequency<select data-task-recurrence-frequency><option value="DAILY">Daily</option><option value="WEEKDAYS">Weekdays</option><option value="WEEKENDS">Weekends</option><option value="WEEKLY" selected>Weekly</option><option value="MONTHLY">Monthly</option></select></label>
           <label>Every<input type="number" min="1" step="1" value="1" data-task-recurrence-interval></label>
           <label>End Date<input type="date" data-task-recurrence-end-date></label>
-          <div class="form-actions task-modal-actions"><button type="button" data-task-recurrence-cancel>Cancel</button><button type="submit">Save Recurrence</button></div>
+          <div class="form-actions task-modal-actions surface-modal-footer" data-modal-footer><div class="surface-modal-footer-group surface-modal-footer-commit" data-modal-footer-group="commit"><button class="surface-modal-footer-action" type="button" data-surface-action="cancel" data-surface-action-role="secondary" data-task-recurrence-cancel>Cancel</button><button class="surface-modal-footer-action" type="submit" data-surface-action="save" data-surface-action-role="primary">Save Recurrence</button></div></div>
         </form>
       </dialog>
     `;
