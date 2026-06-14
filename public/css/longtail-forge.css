@@ -3214,15 +3214,15 @@ dialog .form-actions {
 .task-dialog-heading,
 .task-title-field,
 .task-metadata-ribbon,
-.task-next-action-field,
 .task-blocked-reason-field,
-.task-resume-note-field,
+.task-details-field,
 .task-checklist-field,
 .task-assignee-field,
 .task-recurrence-field,
 .task-timer-field,
-.task-notification-field,
 .task-reminder-field,
+.task-footer-panel,
+.task-notes-field,
 .task-description-field,
 .task-modal-actions {
     grid-column: 1 / -1;
@@ -3239,6 +3239,17 @@ dialog .form-actions {
 .task-dialog-heading h2 {
     margin: 0;
     min-width: 0;
+}
+
+.task-dialog-heading [data-task-notification-toggle].is-following {
+    border-color: var(--color-danger-border);
+    color: var(--color-danger);
+}
+
+.task-dialog-heading [data-task-notification-toggle].is-following:hover:not(:disabled),
+.task-dialog-heading [data-task-notification-toggle].is-following:focus-visible {
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
 }
 
 .task-metadata-ribbon {
@@ -3269,12 +3280,41 @@ dialog .form-actions {
     min-height: 132px;
 }
 
-.task-checklist-field {
+.task-resume-note-field textarea,
+.task-next-action-field textarea {
+    min-height: 54px;
+}
+
+.task-blocked-reason-field textarea {
+    min-height: 40px;
+}
+
+.task-details-field,
+.task-checklist-field,
+.task-assignee-field {
     display: grid;
     gap: 8px;
     padding: 12px;
     border: 1px solid var(--color-border);
     border-radius: 8px;
+}
+
+.task-details-field summary,
+.task-checklist-field summary,
+.task-assignee-field summary {
+    font-weight: 700;
+    color: var(--color-text-secondary);
+}
+
+.task-details-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.task-parent-field {
+    grid-column: 1 / -1;
 }
 
 .task-checklist-field p {
@@ -3301,16 +3341,21 @@ dialog .form-actions {
 
 .task-reminder-field,
 .task-recurrence-field,
-.task-notification-field,
 .task-timer-field,
+.task-assignee-field,
+.task-footer-panel,
 .task-reminder-policy-editor {
     display: grid;
     gap: 8px;
 }
 
+.task-footer-panel {
+    padding: 4px 0;
+    background: transparent;
+}
+
 .task-reminder-field p,
 .task-recurrence-field p,
-.task-notification-field p,
 .task-timer-field p {
     margin: 0;
     color: var(--color-muted);

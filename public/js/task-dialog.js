@@ -13,6 +13,7 @@
   let taskTimerIntervalId = null;
   let currentTask = null;
   let currentTaskId = "";
+  let currentParentTaskId = "";
   let dialog = null;
   let recurrenceDialog = null;
   let form = null;
@@ -67,7 +68,7 @@
     await namespace.timezones?.loadSessionTimezone?.();
     const [taskResult, tasksResult, timersResult, tagOptions] = await Promise.all([
       taskId ? api.getJson(`/api/tasks/${encodeURIComponent(taskId)}`, { cache: "no-store" }) : Promise.resolve(null),
-      taskId ? Promise.resolve(null) : api.getJson("/api/tasks", { cache: "no-store" }),
+      api.getJson("/api/tasks", { cache: "no-store" }),
       loadTaskTimers(),
       loadTagOptions(),
     ]);
@@ -82,16 +83,17 @@
       tagOptions,
       task,
       taskTimers: timersResult.timers || [],
-      tasks: task ? [task] : source.tasks || [],
+      tasks: tasksResult?.tasks || (task ? [task] : source.tasks || []),
     };
   }
 
-  function open({ task = null, duplicate = false, defaults = {}, focusNotes = false, hostContext = null } = {}) {
+  async function open({ task = null, duplicate = false, defaults = {}, focusNotes = false, hostContext = null } = {}) {
     ensureDialog();
     const isDuplicate = duplicate === true;
 
     currentTask = isDuplicate ? null : task;
     currentTaskId = isDuplicate ? "" : task?.task_id || "";
+    currentParentTaskId = "";
     context = {
       ...context,
       hostContext: hostContext || context?.hostContext || null,
@@ -113,7 +115,10 @@
     fields.blockedReason.value = task?.blocked_reason || defaults.blockedReason || defaults.blocked_reason || "";
     fields.resumeNote.value = task?.resume_note || defaults.resumeNote || defaults.resume_note || "";
     fields.description.value = task?.description || defaults.description || "";
+    fields.taskDetailsPanel.open = !task || isDuplicate;
+    hideTaskFooterPanels();
     updateBlockedReasonState();
+    await writeParentTaskFields(isDuplicate ? null : task);
     writeTaskCompletionFields(isDuplicate ? null : task);
     writeTaskMetadataRibbon(isDuplicate ? null : task);
     writeChecklistFields(isDuplicate ? null : task);
@@ -173,10 +178,13 @@
       dueTime: dialog.querySelector("[data-task-due-time]"),
       effectiveReminders: dialog.querySelector("[data-task-effective-reminders]"),
       fileContainer: dialog.querySelector("[data-task-files]"),
+      filePanel: dialog.querySelector("[data-task-files-panel]"),
+      fileToggle: dialog.querySelector("[data-task-files-toggle]"),
       notesContainer: dialog.querySelector("[data-task-notes]"),
       notesPanel: dialog.querySelector("[data-task-notes-panel]"),
       priority: dialog.querySelector("[data-task-priority]"),
       project: dialog.querySelector("[data-task-project]"),
+      parentTask: dialog.querySelector("[data-task-parent-task]"),
       recurrenceDetails: dialog.querySelector("[data-task-recurrence-details]"),
       recurrenceSummary: dialog.querySelector("[data-task-recurrence-summary]"),
       recurring: dialog.querySelector("[data-task-recurring]"),
@@ -188,15 +196,16 @@
       reminderOverrideFields: dialog.querySelector("[data-task-reminder-override-fields]"),
       status: dialog.querySelector("[data-task-form-status]"),
       tagContainer: dialog.querySelector("[data-task-tags]"),
-      notificationField: dialog.querySelector("[data-task-notification-field]"),
-      notificationFollow: dialog.querySelector("[data-task-notification-follow]"),
-      notificationStatus: dialog.querySelector("[data-task-notification-status]"),
+      tagPanel: dialog.querySelector("[data-task-tags-panel]"),
+      tagToggle: dialog.querySelector("[data-task-tags-toggle]"),
+      taskDetailsPanel: dialog.querySelector("[data-task-details-panel]"),
       notificationToggle: dialog.querySelector("[data-task-notification-toggle]"),
       blockedReason: dialog.querySelector("[data-task-blocked-reason]"),
       blockedReasonField: dialog.querySelector("[data-task-blocked-reason-field]"),
       metadataRibbon: dialog.querySelector("[data-task-metadata-ribbon]"),
       nextAction: dialog.querySelector("[data-task-next-action]"),
       resumeNote: dialog.querySelector("[data-task-resume-note]"),
+      save: dialog.querySelector("[data-save-task]"),
       timerDisplay: dialog.querySelector("[data-task-timer-display]"),
       timerField: dialog.querySelector("[data-task-timer-field]"),
       timerFinalize: dialog.querySelector("[data-task-timer-finalize]"),
@@ -227,8 +236,14 @@
       dialog.close("cancel");
     });
     fields.copyLink?.addEventListener("click", copyCurrentTaskLink);
-    fields.client?.addEventListener("change", () => populateProjectInput(fields.project.value));
-    fields.project?.addEventListener("change", applySelectedProjectTaskDefaults);
+    fields.client?.addEventListener("change", () => {
+      populateProjectInput(fields.project.value);
+      refreshParentTaskOptions();
+    });
+    fields.project?.addEventListener("change", () => {
+      applySelectedProjectTaskDefaults();
+      refreshParentTaskOptions();
+    });
     fields.status?.addEventListener("change", updateBlockedReasonState);
     fields.status?.addEventListener("change", writeTaskMetadataRibbon);
     fields.priority?.addEventListener("change", writeTaskMetadataRibbon);
@@ -248,8 +263,9 @@
     fields.timerPause?.addEventListener("click", () => saveTaskTimer("paused"));
     fields.timerFinalize?.addEventListener("click", finalizeTaskTimer);
     fields.timerReset?.addEventListener("click", resetTaskTimer);
-    fields.notificationToggle?.addEventListener("click", toggleTaskNotificationPanel);
-    fields.notificationFollow?.addEventListener("click", toggleTaskNotificationFollow);
+    fields.tagToggle?.addEventListener("click", () => toggleTaskFooterPanel("tags"));
+    fields.fileToggle?.addEventListener("click", () => toggleTaskFooterPanel("files"));
+    fields.notificationToggle?.addEventListener("click", toggleTaskNotificationFollow);
     fields.notesContainer?.addEventListener("notes-linked-panel:link", () => context?.onNotesChanged?.());
     fields.notesContainer?.addEventListener("notes-linked-panel:unlink", () => context?.onNotesChanged?.());
   }
@@ -265,7 +281,12 @@
     icons.decorateButton(fields.timerPause, { icon: "pause", label: "Pause task timer", text: "Pause", iconOnly: false });
     icons.decorateButton(fields.timerFinalize, { icon: "save", label: "Save task timer as time", text: "Save Time", iconOnly: false });
     icons.decorateButton(fields.timerReset, { icon: "restore", label: "Reset task timer", text: "Reset", iconOnly: false, variant: "danger" });
-    icons.decorateButton(fields.notificationToggle, { icon: "bell", label: "Notification settings", title: "Notification settings", iconOnly: true });
+    icons.decorateButton(fields.notificationToggle, { icon: "bell", label: "Follow task notifications", text: "", title: "Follow task notifications", iconOnly: true });
+    icons.decorateButton(fields.tagToggle, { icon: "tag", label: "Task tags", text: "", title: "Task tags", iconOnly: true });
+    icons.decorateButton(fields.fileToggle, { icon: "file", label: "Task files", text: "", title: "Task files", iconOnly: true });
+    icons.decorateButton(fields.copyLink, { icon: "copy", label: "Copy task link", text: "", title: "Copy task link", iconOnly: true });
+    icons.decorateButton(fields.cancel, { icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true });
+    icons.decorateButton(fields.save, { icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true });
   }
 
   function populateFormOptions() {
@@ -346,6 +367,7 @@
       const result = wasEditing
         ? await api.putJson(`/api/tasks/${encodeURIComponent(currentTaskId)}`, payload)
         : await api.postJson("/api/tasks", payload);
+      await syncParentTaskRelationship(result.task?.task_id || "");
       currentTask = result.task;
       currentTaskId = result.task?.task_id || "";
       if (typeof context?.onSaved === "function") {
@@ -361,6 +383,82 @@
     } catch (error) {
       setStatus(error.message || "Task was not saved.", { isError: true });
     }
+  }
+
+  async function writeParentTaskFields(task) {
+    if (!fields.parentTask) {
+      return;
+    }
+
+    currentParentTaskId = task?.task_id ? await readCurrentParentTaskId(task.task_id) : "";
+    replaceOptions(fields.parentTask, [
+      option("", "No parent task"),
+      ...parentTaskOptions(task?.task_id || "").map((candidate) => option(candidate.task_id, candidate.title)),
+    ]);
+    fields.parentTask.value = [...fields.parentTask.options].some((item) => item.value === currentParentTaskId)
+      ? currentParentTaskId
+      : "";
+  }
+
+  function refreshParentTaskOptions() {
+    if (!fields.parentTask) {
+      return;
+    }
+
+    const previousValue = fields.parentTask.value;
+    replaceOptions(fields.parentTask, [
+      option("", "No parent task"),
+      ...parentTaskOptions(currentTaskId).map((candidate) => option(candidate.task_id, candidate.title)),
+    ]);
+    fields.parentTask.value = [...fields.parentTask.options].some((item) => item.value === previousValue)
+      ? previousValue
+      : "";
+  }
+
+  async function readCurrentParentTaskId(taskId) {
+    try {
+      const result = await api.getJson(`/api/tasks/${encodeURIComponent(taskId)}/relationships`, { cache: "no-store" });
+      const parent = (result.relationships || []).find((relationship) => relationship.direction === "parent");
+      return parent?.parent_task_id || parent?.related_task?.task_id || "";
+    } catch {
+      return "";
+    }
+  }
+
+  function parentTaskOptions(taskId) {
+    const selectedClientId = fields.client?.value === "all" ? "" : fields.client?.value || "";
+    const selectedProjectId = fields.project?.value || "";
+
+    return (context?.tasks || [])
+      .filter((task) => task?.task_id && task.task_id !== taskId)
+      .filter((task) => !selectedClientId || !task.client_id || task.client_id === selectedClientId)
+      .filter((task) => !selectedProjectId || !task.project_id || task.project_id === selectedProjectId)
+      .sort((left, right) => String(left.title || "").localeCompare(String(right.title || "")));
+  }
+
+  async function syncParentTaskRelationship(taskId) {
+    if (!taskId || !fields.parentTask) {
+      return;
+    }
+
+    const nextParentTaskId = fields.parentTask.value || "";
+
+    if (nextParentTaskId === currentParentTaskId) {
+      return;
+    }
+
+    if (currentParentTaskId) {
+      await api.deleteJson(`/api/tasks/${encodeURIComponent(currentParentTaskId)}/children/${encodeURIComponent(taskId)}`);
+    }
+
+    if (nextParentTaskId) {
+      await api.postJson(`/api/tasks/${encodeURIComponent(nextParentTaskId)}/children`, {
+        child_task_id: taskId,
+        is_blocking: false,
+      });
+    }
+
+    currentParentTaskId = nextParentTaskId;
   }
 
   function readTaskFormPayload() {
@@ -391,9 +489,18 @@
       if (fields.tagContainer) {
         fields.tagContainer.hidden = true;
       }
+      if (fields.tagToggle) {
+        fields.tagToggle.hidden = true;
+      }
+      if (fields.tagPanel) {
+        fields.tagPanel.hidden = true;
+      }
       return;
     }
 
+    if (fields.tagToggle) {
+      fields.tagToggle.hidden = false;
+    }
     fields.tagContainer.hidden = false;
     tagPicker = await namespace.tags.mountPicker(fields.tagContainer, {
       tags: context.tagOptions || [],
@@ -407,15 +514,24 @@
 
     if (!fields.fileContainer || !namespace.fileAttachments?.mount) {
       fields.fileContainer?.replaceChildren();
+      if (fields.fileToggle) {
+        fields.fileToggle.hidden = true;
+      }
+      if (fields.filePanel) {
+        fields.filePanel.hidden = true;
+      }
       return;
     }
 
+    if (fields.fileToggle) {
+      fields.fileToggle.hidden = false;
+    }
     fileAttachmentsController = namespace.fileAttachments.mount(fields.fileContainer, {
       acceptedCategories: ["document", "image", "pdf", "text", "other"],
       canRemove: Boolean(task?.task_id),
       canUpload: Boolean(task?.task_id),
       clientId: task?.client_id || fields.client?.value || "",
-      emptyMessage: "No notes linked to this task.",
+      emptyMessage: "No files attached to this task.",
       moduleId: "tasks",
       projectId: task?.project_id || fields.project?.value || "",
       saveFirstMessage: "Save the task before adding files.",
@@ -470,55 +586,68 @@
   }
 
   async function writeTaskNotificationFollowFields(task) {
-    if (!fields.notificationField || !fields.notificationFollow || !fields.notificationStatus) {
+    if (!fields.notificationToggle) {
       return;
     }
 
     const taskId = task?.task_id || "";
-    fields.notificationField.hidden = !taskId || !namespace.notificationSubscriptions;
-    if (fields.notificationToggle) {
-      fields.notificationToggle.hidden = !taskId || !namespace.notificationSubscriptions;
-      fields.notificationToggle.setAttribute("aria-expanded", "false");
-    }
+    const canToggleNotifications = Boolean(taskId && namespace.notificationSubscriptions);
+    writeNotificationFollowState(false);
+    fields.notificationToggle.hidden = !canToggleNotifications;
+    fields.notificationToggle.disabled = !canToggleNotifications;
 
-    if (!taskId || !namespace.notificationSubscriptions) {
+    if (!canToggleNotifications) {
       return;
     }
 
-    fields.notificationField.hidden = true;
-
-    fields.notificationFollow.disabled = true;
-    fields.notificationFollow.textContent = "Loading";
-    fields.notificationStatus.textContent = "Checking notification follow state...";
+    fields.notificationToggle.disabled = true;
+    fields.notificationToggle.title = "Checking notification follow state";
+    fields.notificationToggle.setAttribute("aria-label", "Checking notification follow state");
 
     try {
       const result = await namespace.notificationSubscriptions.readStatus(namespace.notificationSubscriptions.taskTarget(taskId));
       writeNotificationFollowState(result.isFollowing === true);
     } catch {
-      fields.notificationStatus.textContent = "Notification follow state unavailable.";
-      fields.notificationFollow.textContent = "Follow Notifications";
-      fields.notificationFollow.disabled = true;
+      fields.notificationToggle.disabled = true;
+      fields.notificationToggle.title = "Notification follow state unavailable";
+      fields.notificationToggle.setAttribute("aria-label", "Notification follow state unavailable");
     }
   }
 
-  function toggleTaskNotificationPanel() {
-    if (!fields.notificationField || fields.notificationToggle?.hidden) {
+  function toggleTaskFooterPanel(panelName) {
+    const nextPanel = panelName === "files" ? fields.filePanel : fields.tagPanel;
+    const otherPanel = panelName === "files" ? fields.tagPanel : fields.filePanel;
+
+    if (!nextPanel) {
       return;
     }
 
-    const nextExpanded = fields.notificationField.hidden;
-    fields.notificationField.hidden = !nextExpanded;
-    fields.notificationToggle.setAttribute("aria-expanded", String(nextExpanded));
+    const shouldOpen = nextPanel.hidden;
+    if (otherPanel) {
+      otherPanel.hidden = true;
+    }
+    nextPanel.hidden = !shouldOpen;
+  }
+
+  function hideTaskFooterPanels() {
+    if (fields.tagPanel) {
+      fields.tagPanel.hidden = true;
+    }
+    if (fields.filePanel) {
+      fields.filePanel.hidden = true;
+    }
   }
 
   async function toggleTaskNotificationFollow() {
-    if (!currentTaskId || !namespace.notificationSubscriptions) {
+    if (!currentTaskId || !namespace.notificationSubscriptions || !fields.notificationToggle) {
       return;
     }
 
-    const isFollowing = fields.notificationFollow?.dataset.isFollowing === "true";
-    fields.notificationFollow.disabled = true;
-    fields.notificationStatus.textContent = isFollowing ? "Unfollowing task..." : "Following task...";
+    const isFollowing = fields.notificationToggle.dataset.isFollowing === "true";
+    fields.notificationToggle.disabled = true;
+    fields.notificationToggle.title = isFollowing ? "Unfollowing task notifications" : "Following task notifications";
+    fields.notificationToggle.setAttribute("aria-label", isFollowing ? "Unfollowing task notifications" : "Following task notifications");
+    setStatus(isFollowing ? "Unfollowing task notifications..." : "Following task notifications...");
 
     try {
       const target = namespace.notificationSubscriptions.taskTarget(currentTaskId);
@@ -529,18 +658,23 @@
       writeNotificationFollowState(result.isFollowing === true);
       setStatus(result.isFollowing ? "Task notifications followed." : "Task notifications unfollowed.");
     } catch (error) {
-      fields.notificationStatus.textContent = error.message || "Notification follow change failed.";
-      fields.notificationFollow.disabled = false;
+      writeNotificationFollowState(isFollowing);
+      setStatus(error.message || "Notification follow change failed.", { isError: true });
     }
   }
 
   function writeNotificationFollowState(isFollowing) {
-    fields.notificationFollow.dataset.isFollowing = String(isFollowing);
-    fields.notificationFollow.textContent = isFollowing ? "Unfollow Notifications" : "Follow Notifications";
-    fields.notificationFollow.disabled = false;
-    fields.notificationStatus.textContent = isFollowing
-      ? "You are following this task and will receive update notifications."
-      : "Follow this task to receive update notifications for yourself.";
+    if (!fields.notificationToggle) {
+      return;
+    }
+
+    const label = isFollowing ? "Unfollow task notifications" : "Follow task notifications";
+    fields.notificationToggle.dataset.isFollowing = String(isFollowing);
+    fields.notificationToggle.classList.toggle("is-following", isFollowing);
+    fields.notificationToggle.disabled = false;
+    fields.notificationToggle.title = label;
+    fields.notificationToggle.setAttribute("aria-label", label);
+    fields.notificationToggle.setAttribute("aria-pressed", String(isFollowing));
   }
 
   async function loadTagOptions() {
@@ -923,6 +1057,9 @@
     [...fields.assignees.options].forEach((item) => {
       item.selected = selectedIds.has(item.value);
     });
+    if (fields.assignees.closest("details")) {
+      fields.assignees.closest("details").open = selectedIds.size > 0;
+    }
   }
 
   function openRecurrenceDialog() {
@@ -1205,6 +1342,7 @@
       ? formatChecklistProgress(progress)
       : "Save the task before adding checklist items.";
     fields.checklistList.replaceChildren(...items.map((item, index) => checklistItemRow(item, index, items.length)));
+    fields.checklistField.open = items.length > 0;
   }
 
   function checklistItemRow(item, index, totalItems) {
@@ -1266,12 +1404,12 @@
     };
   }
 
-  function writeTaskCompletionFields(task) {
+  function writeTaskCompletionFields() {
     if (!fields?.metadataRibbon) {
       return;
     }
 
-    const show = task?.status === "complete" || task?.status === "archived";
+    const show = hasCompletedTaskMetrics(currentTask);
 
     if (!show) {
       return;
@@ -1283,7 +1421,7 @@
       return;
     }
 
-    const completionSeconds = task?.status === "complete" || task?.status === "archived"
+    const completionSeconds = hasCompletedTaskMetrics(task)
       ? task?.completionMetrics?.duration_seconds
       : null;
     const chips = [
@@ -1293,7 +1431,7 @@
       { label: "Project", value: selectedText(fields.project) || "No project" },
       fields.dueDate?.value ? { label: "Due Date", value: fields.dueDate.value } : null,
       fields.dueTime?.value ? { label: "Due Time", value: fields.dueTime.value } : null,
-      Number.isFinite(Number(completionSeconds))
+      completionSeconds !== null && completionSeconds !== undefined && Number.isFinite(Number(completionSeconds))
         ? { label: "TTC", value: formatDaysDuration(Number(completionSeconds)), className: "is-completion" }
         : null,
     ].filter((chip) => chip && chip.value);
@@ -1312,6 +1450,12 @@
 
   function selectedText(select) {
     return select?.selectedOptions?.[0]?.textContent?.trim() || "";
+  }
+
+  function hasCompletedTaskMetrics(task) {
+    return fields.status?.value === "complete" &&
+      task?.status === "complete" &&
+      Boolean(task?.completed_at || task?.completionMetrics?.completed_at);
   }
 
   function formatToken(value = "") {
@@ -1347,29 +1491,23 @@
     return `
       <dialog class="task-detail-dialog" data-task-dialog>
         <form method="dialog" class="task-form" data-task-form>
-          <div class="task-dialog-heading"><h2 data-task-dialog-title>Task</h2><button type="button" data-task-notification-toggle hidden aria-expanded="false" aria-controls="task-notification-panel">Notification settings</button></div>
+          <div class="task-dialog-heading"><h2 data-task-dialog-title>Task</h2><button type="button" data-task-notification-toggle hidden aria-pressed="false">Follow task notifications</button></div>
           <label class="task-title-field">Title<input type="text" data-task-title required></label>
           <div class="task-metadata-ribbon" data-task-metadata-ribbon aria-label="Task summary"></div>
-          <label>Status<select data-task-form-status><option value="open">Open</option><option value="in_progress">In Progress</option><option value="blocked">Blocked</option><option value="complete">Complete</option><option value="archived">Archived</option></select></label>
-          <label>Priority<select data-task-priority><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label>
-          <label data-client-workspace-control>Client<select data-task-client></select></label>
-          <label>Project<select data-task-project></select></label>
-          <label>Due Date<input type="date" data-task-due-date></label>
-          <label>Due Time<input type="time" data-task-due-time></label>
-          <label class="task-next-action-field">Next action<input type="text" maxlength="240" data-task-next-action placeholder="Send draft invoice to CTU."></label>
-          <label class="task-blocked-reason-field" data-task-blocked-reason-field hidden>Blocked reason<textarea rows="3" data-task-blocked-reason></textarea></label>
-          <label class="task-resume-note-field">Resume note<textarea rows="3" data-task-resume-note placeholder="Where did you leave off?"></textarea></label>
-          <fieldset class="task-checklist-field" data-task-checklist-field><legend>Checklist</legend><p data-task-checklist-status>0 / 0 complete</p><div class="task-checklist-add-row"><input type="text" maxlength="240" data-task-checklist-input aria-label="Checklist item" placeholder="Add checklist item"><button type="button" data-task-checklist-add>Add</button></div><div class="task-checklist-list" data-task-checklist-list></div></fieldset>
-          <label class="task-assignee-field">Assignees<select multiple data-task-assignees></select></label>
+          <details class="task-details-field" data-task-details-panel open><summary>Task Details</summary><div class="task-details-grid"><label class="task-parent-field">Parent Task<select data-task-parent-task></select></label><label>Status<select data-task-form-status><option value="open">Open</option><option value="in_progress">In Progress</option><option value="blocked">Blocked</option><option value="complete">Complete</option><option value="archived">Archived</option></select></label><label>Priority<select data-task-priority><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label data-client-workspace-control>Client<select data-task-client></select></label><label>Project<select data-task-project></select></label><label>Due Date<input type="date" data-task-due-date></label><label>Due Time<input type="time" data-task-due-time></label></div></details>
+          <label class="task-resume-note-field">Resume note<textarea rows="2" data-task-resume-note placeholder="Where did you leave off?"></textarea></label>
+          <label class="task-next-action-field">Next action<textarea rows="2" maxlength="240" data-task-next-action placeholder="What's the next thing?"></textarea></label>
+          <label class="task-blocked-reason-field" data-task-blocked-reason-field hidden>Blocked reason<textarea rows="1" data-task-blocked-reason></textarea></label>
+          <details class="task-checklist-field" data-task-checklist-field><summary>Checklist</summary><p data-task-checklist-status>0 / 0 complete</p><div class="task-checklist-add-row"><input type="text" maxlength="240" data-task-checklist-input aria-label="Checklist item" placeholder="Add checklist item"><button type="button" data-task-checklist-add>Add</button></div><div class="task-checklist-list" data-task-checklist-list></div></details>
+          <details class="task-assignee-field" data-task-assignee-panel><summary>Assignees</summary><select multiple data-task-assignees aria-label="Assignees"></select></details>
           <details class="task-recurrence-field" data-task-recurrence-panel><summary>Recurrence</summary><div class="task-recurrence-controls"><label class="inline-option"><input type="checkbox" data-task-recurring>Recurring?</label><button type="button" data-task-recurrence-details disabled>Details</button></div><p data-task-recurrence-summary>Not recurring.</p></details>
           <fieldset class="task-timer-field" data-task-timer-field hidden><legend>Task Timer</legend><p data-task-timer-status>No active timer.</p><div class="task-timer-controls"><strong data-task-timer-display>00:00:00</strong><button type="button" data-task-timer-start>Start</button><button type="button" data-task-timer-pause disabled>Pause</button><button type="button" data-task-timer-finalize disabled>Save Time</button><button type="button" data-task-timer-reset disabled>Reset</button></div></fieldset>
           <details class="task-reminder-field" data-task-reminder-details><summary>Reminders</summary><p data-task-effective-reminders></p><label class="inline-option"><input type="checkbox" data-task-reminder-override>Override reminder defaults</label><div class="reminder-offset-grid" data-task-reminder-override-fields hidden><label>Timed Reminder 1 (hours before)<input type="number" min="1" step="1" data-task-reminder-date-time-hours-1></label><label>Timed Reminder 2 (hours before)<input type="number" min="1" step="1" data-task-reminder-date-time-hours-2></label><label>Date-Only Reminder 1 (days before)<input type="number" min="1" step="1" data-task-reminder-date-only-days-1></label><label>Date-Only Reminder 2 (days before)<input type="number" min="1" step="1" data-task-reminder-date-only-days-2></label></div></details>
-          <div class="task-tags-field" data-task-tags></div>
-          <div class="task-files-field" data-task-files></div>
+          <section class="task-footer-panel task-tags-field" data-task-tags-panel hidden><div data-task-tags></div></section>
+          <section class="task-footer-panel task-files-field" data-task-files-panel hidden><div data-task-files></div></section>
           <details class="task-notes-field" data-task-notes-panel><summary>Notes</summary><div data-task-notes></div></details>
-          <fieldset class="task-notification-field" id="task-notification-panel" data-task-notification-field hidden><legend>Notifications</legend><p data-task-notification-status>Follow this task to receive update notifications for yourself.</p><button type="button" data-task-notification-follow>Follow Notifications</button></fieldset>
           <label class="task-description-field">Description<textarea rows="5" data-task-description></textarea></label>
-          <div class="form-actions task-modal-actions"><button type="button" data-copy-task-link hidden>Copy Link</button><button type="button" data-cancel-task>Cancel</button><button type="submit" data-save-task>Save Task</button></div>
+          <div class="form-actions task-modal-actions"><button type="button" data-task-tags-toggle title="Task tags">Tags</button><button type="button" data-task-files-toggle title="Task files">Files</button><button type="button" data-copy-task-link hidden>Copy Link</button><button type="button" data-cancel-task>Cancel</button><button type="submit" data-save-task>Save Task</button></div>
         </form>
       </dialog>
       <dialog class="task-recurrence-dialog" data-task-recurrence-dialog>

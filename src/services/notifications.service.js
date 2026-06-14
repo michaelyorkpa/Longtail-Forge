@@ -335,10 +335,10 @@ async function createFromEvent(event, declaration = null) {
   const enabledRecipients = await filterEnabledRecipients(workspaceId, recipients, notificationDeclaration.id);
   const subscribedRecipients = await readSubscribedRecipientIds(event, notificationDeclaration);
   const metadata = buildNotificationEventMetadata(event, notificationDeclaration);
-  const finalRecipients = suppressActorRecipients(
-    [...new Set([...enabledRecipients, ...subscribedRecipients])],
-    event,
-  );
+  const defaultRecipients = shouldPreserveActorRecipient(event, notificationDeclaration)
+    ? enabledRecipients
+    : suppressActorRecipients(enabledRecipients, event);
+  const finalRecipients = [...new Set([...defaultRecipients, ...subscribedRecipients])];
 
   const payloads = finalRecipients.map((recipientUserId) => ({
     workspace_id: workspaceId,
@@ -450,6 +450,36 @@ function suppressActorRecipients(recipientIds, event) {
   }
 
   return recipientIds.filter((userId) => String(userId || "").trim() !== actorUserId);
+}
+
+function shouldPreserveActorRecipient(event, declaration) {
+  const eventType = declaration?.id || event.name || "";
+  const actorUserId = String(event.actor_user_id || "").trim();
+
+  if (!actorUserId || !["task.due_soon", "task.overdue"].includes(eventType)) {
+    return false;
+  }
+
+  return readAssigneeIds(event).includes(actorUserId) && taskEventHasDueContext(event);
+}
+
+function taskEventHasDueContext(event) {
+  return hasTaskDueContext(event.new_value) ||
+    hasTaskDueContext(event.previous_value) ||
+    hasTaskDueContext(event.metadata);
+}
+
+function hasTaskDueContext(source = {}) {
+  return Boolean(
+    source?.due_date ||
+    source?.dueDate ||
+    source?.due_time ||
+    source?.dueTime ||
+    source?.due_at_utc ||
+    source?.dueAtUtc ||
+    source?.due_kind ||
+    source?.dueKind,
+  );
 }
 
 async function normalizeCreatePayload(payload = {}, session = null) {

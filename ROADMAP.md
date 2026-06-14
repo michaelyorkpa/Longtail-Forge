@@ -278,33 +278,48 @@ help/
 
 ### Version 0.33.5.12.4 - Task Modal Two-Column Field Reflow
 
-- [ ] Maximize the visual efficiency of the current two-column Add/Edit Task modal layout.
-- [ ] Keep Title full width across both columns.
-- [ ] Add a collapsible two-column `Task Details` box.
-- [ ] Start `Task Details` open for Add Task and collapsed for Edit Task.
-- [ ] Include Parent Task across both columns inside `Task Details`.
-- [ ] Put Status, Client, and Due Date in column 1, in that order.
-- [ ] Put Priority, Project, and Due Time in column 2, in that order.
-- [ ] Put Resume Note and Next Action below the two-column box in two columns.
-- [ ] Move back to a single-column, full-modal-width layout for the remaining sections.
-- [ ] Show Blocked Reason full width only when Status is `Blocked`.
-- [ ] Keep Checklist collapsible and open by default.
-- [ ] Keep Assignees collapsible and open by default.
-- [ ] Keep Recurrence collapsible and closed by default.
-- [ ] Keep Reminders collapsible and closed by default.
-- [ ] Move Tags and Task Files to footer buttons with recognizable icons and clear labels/tooltips.
-- [ ] Defer any full-width temporary popover behavior for cramped fields until confirmed in the design questions.
+- [x] Maximize the visual efficiency of the current two-column Add/Edit Task modal layout.
+- [x] Keep Title full width across both columns.
+- [x] Add a collapsible two-column `Task Details` box.
+- [x] Start `Task Details` open for Add Task and collapsed for Edit Task.
+- [x] Include Parent Task across both columns inside `Task Details`.
+- [x] Put Status, Client, and Due Date in column 1, in that order.
+- [x] Put Priority, Project, and Due Time in column 2, in that order.
+- [x] Put Resume Note and Next Action below the two-column box in two columns.
+- [x] Move back to a single-column, full-modal-width layout for the remaining sections.
+- [x] Show Blocked Reason full width only when Status is `Blocked`.
+- [x] Keep Checklist collapsible and open by default.
+- [x] Keep Assignees collapsible and open by default.
+- [x] Keep Recurrence collapsible and closed by default.
+- [x] Keep Reminders collapsible and closed by default.
+- [x] Move Tags and Task Files to footer buttons with recognizable icons and clear labels/tooltips.
+- [x] Defer any full-width temporary popover behavior for cramped fields until confirmed in the design questions.
+
+### Version 0.33.5.12.4.1 - Tight Follow Up
+
+- [x] "Notifications Settings" needs to just be the bell. It shows words.
+- [x] TTC Chip should only appear once task is marked completed.
+- [x] Make Next Action and Resume Note Textareas the same height; 2 lines
+- [x] Make blocked reason textarea 1 line tall
+- [x] The following fields should start collapsed:
+  - [x] Checklist, unless there's checklist items
+  - [x] Assignees
+- [x] Task Tags and Task Files don't need boxes in the Add/Edit modal because there's now separate buttons in the footer
+- [x] Get rid of the words in the tags and files buttons. Icons only.
+- [x] Replace the "Copy Link", "Cancel", and "Save Task" buttons with an icon
+- [x] Tags button in footer does nothing. File button in footer does nothing.
 
 ### Version 0.33.5.12.5 - Framework Surface and Modal Style Standardization Plan
 
 - [ ] Create the framework-wide UI standardization plan for main screens, modals, drawers, slideouts, internal boxes, headings, dividers, and action footers.
-- [ ] Standardize modal internal headings so Checklist, Assignees, Recurrence, and Reminders use the same visual language.
-- [ ] Standardize internal box surfaces so Notifications, task timer, Checklist, Assignees, Recurrence, and Reminders use framework theme tokens rather than one-off dark, square, light, or rounded treatments.
-- [ ] Standardize horizontal divider rules so dividers appear only at the top of the option being toggled.
-- [ ] Decide the shared footer action pattern for Save, Close, Cancel, and related modal actions.
-- [ ] Define the shared pattern for taggable work items to open a small Tags overlay from a footer/action button.
-- [ ] Define the shared pattern for file-attachable work items to open a small Files overlay from a footer/action button.
-- [ ] Keep this as a standardization plan unless the implementation slice explicitly includes code changes.
+  - [ ] Build this as 0.33.5.13.x
+  - [ ] Standardize modal internal headings so task Checklist, Assignees, Recurrence, and Reminders use the same visual language.
+  - [ ] Standardize internal box surfaces so Notifications, task timer, Checklist, Assignees, Recurrence, and Reminders use framework theme tokens rather than one-off dark, square, light, or rounded treatments.
+  - [ ] Standardize horizontal divider rules so dividers appear only at the top of the option being toggled.
+  - [ ] Decide the shared footer action pattern for Save, Close, Cancel, and related modal actions.
+  - [ ] Define the shared pattern for taggable work items to open a small Tags overlay from a footer/action button.
+  - [ ] Define the shared pattern for file-attachable work items to open a small Files overlay from a footer/action button.
+  - [ ] Keep this as a standardization plan unless the implementation slice explicitly includes code changes.
 
 ### Version 0.33.5.12.6 - UI Cleanup Closeout
 
@@ -315,7 +330,7 @@ help/
 - [ ] Run `npm run test:permissions`.
 - [ ] Verify `/api/app-info` reports the expected version after implementation.
 
-## Perrsonal / Family Workspace issues
+## Personal / Family Workspace issues
 
 - There should be no API access for clients in Personal or Family Workspaces
   - I see both read and write Public API access for clients in a Personal workspace right now (0.33.5.4.1)

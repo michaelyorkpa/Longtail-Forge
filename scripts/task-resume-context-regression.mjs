@@ -30,12 +30,12 @@ try {
 async function assertTaskContextFieldsSurviveCreateUpdateRead(session) {
   const created = (await tasksService.create({
     title: "Prepare CTU invoice",
-    next_action: "Send draft invoice to CTU.",
+    next_action: "What's the next thing?",
     blocked_reason: "Waiting on CTU to confirm PO number.",
     resume_note: "Invoice draft is otherwise ready.",
   }, session)).task;
 
-  assert.equal(created.next_action, "Send draft invoice to CTU.");
+  assert.equal(created.next_action, "What's the next thing?");
   assert.equal(created.blocked_reason, "Waiting on CTU to confirm PO number.");
   assert.equal(created.resume_note, "Invoice draft is otherwise ready.");
   assert.equal(created.resumeContext.active_candidate, true);
@@ -47,7 +47,7 @@ async function assertTaskContextFieldsSurviveCreateUpdateRead(session) {
     handoff_note: "Follow up with Alex, then send the draft.",
   }, session)).task;
 
-  assert.equal(updated.next_action, "Send draft invoice to CTU.", "partial update should preserve next action");
+  assert.equal(updated.next_action, "What's the next thing?", "partial update should preserve next action");
   assert.equal(updated.blocked_reason, "CTU still needs to confirm PO number.");
   assert.equal(updated.resume_note, "Follow up with Alex, then send the draft.");
   assert.equal(updated.resumeContext.blocked_reason, "CTU still needs to confirm PO number.");

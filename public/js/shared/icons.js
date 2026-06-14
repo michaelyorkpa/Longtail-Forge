@@ -36,6 +36,10 @@
       { type: "path", attrs: { d: "M14 11v6" } },
       { type: "path", attrs: { d: "M11 14h6" } },
     ]),
+    file: Object.freeze([
+      { type: "path", attrs: { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" } },
+      { type: "path", attrs: { d: "M14 2v6h6" } },
+    ]),
     more: Object.freeze([
       { type: "circle", attrs: { cx: "12", cy: "12", r: "1" } },
       { type: "circle", attrs: { cx: "19", cy: "12", r: "1" } },
@@ -62,6 +66,10 @@
       { type: "path", attrs: { d: "M7 3v4a1 1 0 0 0 1 1h7" } },
     ]),
     start: Object.freeze([{ type: "polygon", attrs: { points: "6 3 20 12 6 21 6 3" } }]),
+    tag: Object.freeze([
+      { type: "path", attrs: { d: "M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z" } },
+      { type: "circle", attrs: { cx: "7.5", cy: "7.5", r: "1.5" } },
+    ]),
     up: Object.freeze([{ type: "path", attrs: { d: "m18 15-6-6-6 6" } }]),
   });
 

@@ -9,7 +9,7 @@ const packageJson = readText("package.json");
 const protectedViews = readdirSync(new URL("../views/protected/", import.meta.url))
   .filter((fileName) => fileName.endsWith(".html"));
 
-const requiredIcons = ["add", "edit", "archive", "restore", "delete", "start", "pause", "save", "close", "copy", "refresh", "more", "complete", "duplicate", "up", "down"];
+const requiredIcons = ["add", "edit", "archive", "restore", "delete", "start", "pause", "save", "close", "copy", "refresh", "more", "complete", "duplicate", "up", "down", "tag", "file"];
 
 requiredIcons.forEach((iconName) => {
   assert.match(iconHelper, new RegExp(`${iconName}:\\s*Object\\.freeze`), `shared icon helper must register the ${iconName} icon`);
@@ -40,7 +40,7 @@ assert.doesNotMatch(packageJson, /lucide/i, "shared icon foundation must not add
 
 protectedViews.forEach((viewName) => {
   const view = readText(`views/protected/${viewName}`);
-  assert.match(view, /js\/shared\/icons\.js\?v=1/, `${viewName} must load the shared icon helper`);
+  assert.match(view, /js\/shared\/icons\.js\?v=\d+/, `${viewName} must load the shared icon helper`);
 });
 
 console.log("Shared icons regression passed.");

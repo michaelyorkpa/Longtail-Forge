@@ -49,7 +49,8 @@ async function assertTaskNotesPanelSourceContract() {
   assert.ok(workbenchPage.indexOf("js/shared/notes-linked-panel.js") < workbenchPage.indexOf("js/task-dialog.js"), "Workbench should load Notes helper before task dialog.");
   assert.match(taskDialog, /namespace\.notesLinkedPanel\.mount/);
   assert.match(taskDialog, /Save the task before adding notes\./);
-  assert.match(taskDialog, /No notes linked to this task\./);
+  assert.match(taskDialog, /title: "Task Notes"/);
+  assert.match(taskDialog, /No files attached to this task\./);
   assert.match(taskDialog, /focusNotes/);
   assert.match(tasksScript, /loadNoteCounts/);
   assert.match(tasksScript, /task-note-count/);

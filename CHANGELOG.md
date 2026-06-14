@@ -1,3 +1,21 @@
+## Version 0.33.5.12.4.1 - 2026-06-13 17:53 -04:00
+
+- Converted task modal notification, tags, files, copy link, cancel, and save controls to icon-only buttons with accessible labels and tooltips.
+- Moved task notification following onto the Add/Edit Task heading bell itself, removed the notification popover, and made followed-task bells render red.
+- Limited the `TTC:` metadata chip to saved completed tasks with persisted completion metadata, so selecting `Complete` before saving no longer shows the chip.
+- Made Resume Note and Next Action matching compact two-line textareas, and reduced Blocked Reason to a compact one-line textarea.
+- Changed Checklist and Assignees to start collapsed unless they already contain checklist items or selected assignees.
+- Removed extra boxed headings from the task modal Tags and Files panels, repaired their footer toggle behavior, added `task-modal-followup-regression.mjs`, updated cache busts, and bumped the app/package plus Tasks module versions to `0.33.5.12.4.1`.
+- Narrowed creator notification suppression so followed task notifications still reach the actor, and due reminder notifications still reach creator-assignees on tasks with due dates/times.
+
+## Version 0.33.5.12.4 - 2026-06-13 17:27 -04:00
+
+- Reflowed the Add/Edit Task modal into a collapsible two-column `Task Details` group with Parent Task, Status, Priority, Client, Project, Due Date, and Due Time.
+- Added save-time Parent Task relationship syncing through the existing Tasks parent/child relationship API.
+- Moved Resume Note and Next Action into the two-column context row below `Task Details`, while keeping Blocked Reason full-width and status-gated.
+- Converted Checklist and Assignees into open-by-default collapsible sections and kept Recurrence/Reminders collapsed by default.
+- Moved Tags and Task Files into footer icon-plus-text buttons that open task-owned footer panels, added shared tag/file icons, added `task-modal-reflow-regression.mjs`, updated cache busts, and bumped app/package plus Tasks module versions to `0.33.5.12.4`.
+
 ## Version 0.33.5.12.3 - 2026-06-13 17:12 -04:00
 
 - Tightened Add/Edit Task modal spacing and added a compact heading row with notification settings behind an accessible bell button.

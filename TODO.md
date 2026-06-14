@@ -13,6 +13,31 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Testing Goals
+
+### Permissions
+
+### Notifications
+
+### Next Action/Resume Work
+
+## Tags and Files Modals
+
+- Go back and make tags and files buttons work on tasks
+  - Get rid of the tags and files sections of the tasks modal
+
+## Knowledge Base Make Good Smart
+
+- Use context of current Workbench focus to display knowledge base article suggestions
+  - Context includes:
+    - Client (Business only)
+    - Project
+    - Tags
+    - Keywords pulled from titles/descriptions/note bodies
+  - Should be similar to context around displaying notes within workspace
+  - Maybe just displays headings/titles?
+
+
 ## Follow Notifications
 
 - Follow notifications should override creator notification blocking

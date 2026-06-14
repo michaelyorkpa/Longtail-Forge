@@ -513,8 +513,11 @@ async function runNotificationUiContractTests() {
     assert.match(notificationSubscriptions, /root\.notificationSubscriptions/);
     assert.match(notificationSubscriptions, /\/api\/notifications\/subscriptions/);
     assert.match(tasksPage, /js\/shared\/notification-subscriptions\.js/);
-    assert.match(tasksPage, /data-task-notification-follow/);
+    assert.match(tasksPage, /data-task-notification-toggle hidden aria-pressed="false"/);
+    assert.doesNotMatch(tasksPage, /data-task-notification-follow|task-notification-popover/);
     assert.match(taskDialog, /toggleTaskNotificationFollow/);
+    assert.match(taskDialog, /notificationSubscriptions\.follow\(target\)/);
+    assert.match(taskDialog, /notificationSubscriptions\.unfollow\(target\)/);
     assert.match(tasksScript, /followTaskNotifications/);
   });
 
@@ -668,6 +671,47 @@ LIMIT 1;
   const afterUnfollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
   check("unfollow removes the per-target override without changing broader muted preference", () => {
     assert.equal(afterUnfollowedRows, beforeUnfollowedRows);
+  });
+
+  const actorFollowedTask = await api.post("/api/tasks", {
+    assignee_ids: [fixtures.users.workspaceAdmin.userId],
+    project_id: fixtures.project.id,
+    title: "Actor followed notification task",
+  }, { cookie: fixtures.sessions.workspaceAdmin });
+  check("actor followed notification task can be created", () => {
+    assert.equal(actorFollowedTask.status, 201, JSON.stringify(actorFollowedTask.body));
+  });
+
+  const actorFollowedTarget = await api.post("/api/notifications/subscriptions", {
+    moduleId: "tasks",
+    targetId: actorFollowedTask.body.task.task_id,
+    targetType: "task",
+  }, { cookie: fixtures.sessions.workspaceAdmin });
+  check("task creator can follow their own accessible task", () => {
+    assert.equal(actorFollowedTarget.status, 200, JSON.stringify(actorFollowedTarget.body));
+    assert.equal(actorFollowedTarget.body.isFollowing, true);
+  });
+
+  const beforeActorFollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.updated");
+  await modulesService.emitInternalEvent("task.updated", {
+    actorUserId: fixtures.users.workspaceAdmin.userId,
+    moduleId: "tasks",
+    newValue: {
+      assignee_ids: [fixtures.users.workspaceAdmin.userId],
+      task_id: actorFollowedTask.body.task.task_id,
+      title: actorFollowedTask.body.task.title,
+    },
+    recordId: actorFollowedTask.body.task.task_id,
+    recordType: "task",
+    session: {
+      user_id: fixtures.users.workspaceAdmin.userId,
+      workspace_id: fixtures.workspaceId,
+    },
+    workspaceId: fixtures.workspaceId,
+  });
+  const afterActorFollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.updated");
+  check("followed task notification is not suppressed for the actor", () => {
+    assert.equal(afterActorFollowedRows, beforeActorFollowedRows + 1);
   });
 
   const defaults = await api.put("/api/notifications/workspace-defaults", {
@@ -845,6 +889,35 @@ WHERE event_type = 'task.assigned';
     });
     assert.match(descriptionLabelNotification.body, /Description added: New details/);
     assert.doesNotMatch(descriptionLabelNotification.body, /\{|\}|previous_value|new_value/);
+  });
+
+  const beforeActorReminderRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.due_soon");
+  await modulesService.emitInternalEvent("task.due_soon", {
+    actorUserId: fixtures.users.workspaceAdmin.userId,
+    metadata: {
+      due_at_utc: "2030-01-15T18:00:00.000Z",
+      source: "task_reminder",
+    },
+    moduleId: "tasks",
+    newValue: {
+      assignee_ids: [fixtures.users.workspaceAdmin.userId],
+      due_at_utc: "2030-01-15T18:00:00.000Z",
+      due_date: "2030-01-15",
+      due_time: "13:00",
+      task_id: "actor-reminder-task",
+      title: "Actor reminder task",
+    },
+    recordId: "actor-reminder-task",
+    recordType: "task",
+    session: {
+      user_id: fixtures.users.workspaceAdmin.userId,
+      workspace_id: fixtures.workspaceId,
+    },
+    workspaceId: fixtures.workspaceId,
+  });
+  const afterActorReminderRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.due_soon");
+  check("task due reminders are not suppressed for actor assignees", () => {
+    assert.equal(afterActorReminderRows, beforeActorReminderRows + 1);
   });
 
   const unknownLabel = await notificationsService.create({
