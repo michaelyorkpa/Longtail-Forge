@@ -1,3 +1,10 @@
+## Version 0.33.5.13.2 - 2026-06-14 11:31 -04:00
+
+- Added the shared modal section contract for internal headings, section bodies, help/status text, inline validation text, chip rows, and top-only divider placement.
+- Converted the Tasks modal's Task Details, Checklist, Assignees, Recurrence, Task Timer, Reminders, and Notes sections to the shared section classes in both the protected view and task-dialog fallback markup.
+- Added `modal-section-contract-regression.mjs`, updated the existing task modal regressions for the new cache keys/version, and bumped package/app plus Tasks module metadata to `0.33.5.13.2`.
+- Updated `docs/ui-surface-contract.md`, `docs/ui-layout-guide.md`, `DECISIONS.md`, and the roadmap for the completed 0.33.5.13.2 slice.
+
 ## Version 0.33.5.13.1 - 2026-06-14 11:20 -04:00
 
 - Added the framework UI surface inventory and token contract in `docs/ui-surface-contract.md`, documenting page, modal, drawer, slideout, overlay, chip, divider, focus, disabled-state, and compatibility-alias meanings.

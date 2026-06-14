@@ -55,11 +55,11 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ### Version 0.33.5.13.2 - Modal Sections, Internal Headings, and Divider Rules
 
-- [ ] Create the shared modal section pattern for titled groups, collapsible groups, compact metadata ribbons, help text, and inline validation.
-- [ ] Standardize internal modal headings so Checklist, Assignees, Recurrence, Reminders, Notifications, timers, and future module panels use the same visual language.
-- [ ] Standardize divider placement so a divider appears only at the top of the option or section being toggled.
-- [ ] Preserve keyboard access, focus visibility, and screen-reader labels for section toggles and icon-only controls.
-- [ ] Convert the Tasks modal internal groups only after the shared pattern exists.
+- [x] Create the shared modal section pattern for titled groups, collapsible groups, compact metadata ribbons, help text, and inline validation.
+- [x] Standardize internal modal headings so Checklist, Assignees, Recurrence, Reminders, Notifications, timers, and future module panels use the same visual language.
+- [x] Standardize divider placement so a divider appears only at the top of the option or section being toggled.
+- [x] Preserve keyboard access, focus visibility, and screen-reader labels for section toggles and icon-only controls.
+- [x] Convert the Tasks modal internal groups only after the shared pattern exists.
 
 ### Version 0.33.5.13.3 - Modal Footer and Action Control Contract
 

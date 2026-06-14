@@ -98,6 +98,43 @@ body {
     background: var(--color-surface-raised);
 }
 
+.surface-modal-section-heading {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.35;
+}
+
+summary.surface-modal-section-heading {
+    cursor: pointer;
+}
+
+.surface-modal-section-heading:focus-visible {
+    outline: 0;
+    box-shadow: var(--surface-focus-ring);
+}
+
+.surface-modal-section-body {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+}
+
+.surface-modal-section-help {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.surface-modal-section-validation {
+    margin: 0;
+    color: var(--color-danger);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
 .surface-overlay-panel {
     background: var(--color-surface-overlay);
     box-shadow: var(--shadow-card);
@@ -120,6 +157,13 @@ body {
     color: var(--color-text-secondary);
 }
 
+.surface-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
 .surface-disabled {
     opacity: 0.62;
 }
@@ -129,7 +173,8 @@ body {
 .surface-overlay-panel:focus-visible,
 .surface-drawer:focus-visible,
 .surface-slideout:focus-visible,
-.surface-chip:focus-visible {
+.surface-chip:focus-visible,
+.surface-chip-row:focus-visible {
     outline: 0;
     box-shadow: var(--surface-focus-ring);
 }
@@ -3327,11 +3372,7 @@ dialog .form-actions {
 }
 
 .task-metadata-ribbon {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
     min-height: 30px;
-    align-items: center;
 }
 
 .task-metadata-chip {
@@ -3365,19 +3406,19 @@ dialog .form-actions {
 
 .task-details-field,
 .task-checklist-field,
-.task-assignee-field {
+.task-assignee-field,
+.task-recurrence-field,
+.task-timer-field,
+.task-reminder-field,
+.task-notes-field {
     display: grid;
-    gap: 8px;
+    gap: 10px;
     padding: 12px;
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
 }
 
 .task-details-field summary,
-.task-checklist-field summary,
-.task-assignee-field summary {
-    font-weight: 700;
-    color: var(--color-text-secondary);
+.task-checklist-field summary {
+    list-style-position: outside;
 }
 
 .task-details-grid {
@@ -3393,7 +3434,6 @@ dialog .form-actions {
 
 .task-checklist-field p {
     margin: 0;
-    color: var(--color-muted);
 }
 
 .task-checklist-add-row,
@@ -3420,7 +3460,7 @@ dialog .form-actions {
 .task-footer-panel,
 .task-reminder-policy-editor {
     display: grid;
-    gap: 8px;
+    gap: 10px;
 }
 
 .task-footer-panel {
@@ -3432,7 +3472,6 @@ dialog .form-actions {
 .task-recurrence-field p,
 .task-timer-field p {
     margin: 0;
-    color: var(--color-muted);
 }
 
 .task-recurrence-controls {

@@ -1,6 +1,6 @@
 # UI Surface Contract
 
-This document captures the 0.33.5.13.1 framework surface inventory and token contract. It is a current implementation guide, not a promise that every listed surface has already been converted.
+This document captures the 0.33.5.13.2 framework surface inventory, token contract, and modal section contract. It is a current implementation guide, not a promise that every listed surface has already been converted.
 
 ## Surface Inventory
 
@@ -33,10 +33,15 @@ The existing aliases `--color-background`, `--color-page`, and `--color-surface-
 - `.surface-page`: page background alignment.
 - `.surface-card`: repeated item or genuinely framed tool surface.
 - `.surface-modal-group`: modal internal group surface for titled or collapsible sections.
+- `.surface-modal-section-heading`: shared internal heading style for modal `summary` and `legend` headings.
+- `.surface-modal-section-body`: shared body wrapper for grouped modal section controls.
+- `.surface-modal-section-help`: shared low-emphasis helper/status text inside modal sections.
+- `.surface-modal-section-validation`: shared inline validation text inside modal sections.
 - `.surface-overlay-panel`: temporary popover, bottom sheet, or picker host surface.
 - `.surface-drawer` and `.surface-slideout`: future contextual side surfaces.
 - `.surface-divider-top`: divider placed at the top of a section or option being toggled.
 - `.surface-chip`: compact metadata or state chip.
+- `.surface-chip-row`: wrapping row for compact metadata chips.
 - `.surface-disabled`: disabled surface state.
 - `.surface-focus-ring`: opt-in focus ring for custom focusable containers.
 
@@ -44,4 +49,4 @@ The existing aliases `--color-background`, `--color-page`, and `--color-surface-
 
 The framework owns the tokens, shared class names, focus visibility, overlay host behavior, drawer/slideout shell behavior, responsive placement, and generic footer/action alignment. Modules own form fields, record-specific content, picker/upload bodies, save payloads, validation, permissions, and business meaning.
 
-The first concrete converted area is the Tasks modal surface shell: task modal groups use `.surface-modal-group`, footer picker hosts use `.surface-overlay-panel`, and top-only divider intent is marked with `.surface-divider-top`. The later 0.33.5.13 slices will standardize headings, footer action layout, overlay host behavior, and broader module adoption.
+The first concrete converted area is the Tasks modal surface shell: task modal groups use `.surface-modal-group`, modal section headings use `.surface-modal-section-heading`, grouped controls use `.surface-modal-section-body`, helper/status text uses `.surface-modal-section-help`, footer picker hosts use `.surface-overlay-panel`, and top-only divider intent is marked with `.surface-divider-top`. The later 0.33.5.13 slices will standardize footer action layout, overlay host behavior, and broader module adoption.

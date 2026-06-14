@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tasks | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=16">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=17">
   </head>
   <body data-page-title="Tasks">
     <main class="wide-page tasks-page">
@@ -170,8 +170,8 @@
           <div class="task-metadata-ribbon surface-chip-row" data-task-metadata-ribbon aria-label="Task summary"></div>
 
           <details class="task-details-field surface-modal-group" data-task-details-panel open>
-            <summary>Task Details</summary>
-            <div class="task-details-grid">
+            <summary class="surface-modal-section-heading">Task Details</summary>
+            <div class="task-details-grid surface-modal-section-body">
               <label class="task-parent-field">
                 Parent Task
                 <select data-task-parent-task></select>
@@ -236,9 +236,9 @@
           </label>
 
           <details class="task-checklist-field surface-modal-group" data-task-checklist-field>
-            <summary>Checklist</summary>
-            <p data-task-checklist-status>0 / 0 complete</p>
-            <div class="task-checklist-add-row">
+            <summary class="surface-modal-section-heading">Checklist</summary>
+            <p class="surface-modal-section-help" data-task-checklist-status>0 / 0 complete</p>
+            <div class="task-checklist-add-row surface-modal-section-body">
               <input type="text" maxlength="240" data-task-checklist-input aria-label="Checklist item" placeholder="Add checklist item">
               <button type="button" data-task-checklist-add>Add</button>
             </div>
@@ -246,26 +246,28 @@
           </details>
 
           <details class="task-assignee-field surface-modal-group" data-task-assignee-panel>
-            <summary>Assignees</summary>
-            <select multiple data-task-assignees aria-label="Assignees"></select>
+            <summary class="surface-modal-section-heading">Assignees</summary>
+            <div class="surface-modal-section-body">
+              <select multiple data-task-assignees aria-label="Assignees"></select>
+            </div>
           </details>
 
           <details class="task-recurrence-field surface-modal-group surface-divider-top" data-task-recurrence-panel>
-            <summary>Recurrence</summary>
-            <div class="task-recurrence-controls">
+            <summary class="surface-modal-section-heading">Recurrence</summary>
+            <div class="task-recurrence-controls surface-modal-section-body">
               <label class="inline-option">
                 <input type="checkbox" data-task-recurring>
                 Recurring?
               </label>
               <button type="button" data-task-recurrence-details disabled>Details</button>
             </div>
-            <p data-task-recurrence-summary>Not recurring.</p>
+            <p class="surface-modal-section-help" data-task-recurrence-summary>Not recurring.</p>
           </details>
 
           <fieldset class="task-timer-field surface-modal-group" data-task-timer-field hidden>
-            <legend>Task Timer</legend>
-            <p data-task-timer-status>No active timer.</p>
-            <div class="task-timer-controls">
+            <legend class="surface-modal-section-heading">Task Timer</legend>
+            <p class="surface-modal-section-help" data-task-timer-status>No active timer.</p>
+            <div class="task-timer-controls surface-modal-section-body">
               <strong data-task-timer-display>00:00:00</strong>
               <button type="button" data-task-timer-start>Start</button>
               <button type="button" data-task-timer-pause disabled>Pause</button>
@@ -275,13 +277,13 @@
           </fieldset>
 
           <details class="task-reminder-field surface-modal-group surface-divider-top" data-task-reminder-details>
-            <summary>Reminders</summary>
-            <p data-task-effective-reminders></p>
+            <summary class="surface-modal-section-heading">Reminders</summary>
+            <p class="surface-modal-section-help" data-task-effective-reminders></p>
             <label class="inline-option">
               <input type="checkbox" data-task-reminder-override>
               Override reminder defaults
             </label>
-            <div class="reminder-offset-grid" data-task-reminder-override-fields hidden>
+            <div class="reminder-offset-grid surface-modal-section-body" data-task-reminder-override-fields hidden>
               <label>
                 Timed Reminder 1 (hours before)
                 <input type="number" min="1" step="1" data-task-reminder-date-time-hours-1>
@@ -310,8 +312,8 @@
           </section>
 
           <details class="task-notes-field surface-modal-group surface-divider-top" data-task-notes-panel>
-            <summary>Notes</summary>
-            <div data-task-notes></div>
+            <summary class="surface-modal-section-heading">Notes</summary>
+            <div class="surface-modal-section-body" data-task-notes></div>
           </details>
 
           <label class="task-description-field">
@@ -373,7 +375,7 @@
     <script src="js/shared/tags.js"></script>
     <script src="js/shared/file-attachments.js"></script>
     <script src="js/shared/notes-linked-panel.js?v=1"></script>
-    <script src="js/task-dialog.js?v=7"></script>
+    <script src="js/task-dialog.js?v=8"></script>
     <script src="js/tasks.js?v=7"></script>
     <script src="js/footer.js"></script>
   </body>

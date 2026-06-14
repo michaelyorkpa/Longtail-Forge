@@ -80,7 +80,7 @@ for (const className of [
   assert.match(tasksView, new RegExp(`class="${escapeRegExp(className)}"`), `Tasks modal converted area should include ${className}`);
 }
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=16/, "Tasks view must load the surface-token stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=17/, "Tasks view must load the surface-token stylesheet cache key");
 
 console.log("Surface token contract regression passed.");
 
