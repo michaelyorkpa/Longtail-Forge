@@ -1,3 +1,10 @@
+## Version 0.33.5.13.1 - 2026-06-14 11:20 -04:00
+
+- Added the framework UI surface inventory and token contract in `docs/ui-surface-contract.md`, documenting page, modal, drawer, slideout, overlay, chip, divider, focus, disabled-state, and compatibility-alias meanings.
+- Added shared surface tokens and classes to `public/css/longtail-forge.css`, marked the Tasks modal's first converted groups/footer picker hosts with the shared surface vocabulary, and bumped the Tasks stylesheet cache key.
+- Added `surface-token-contract-regression.mjs` to the regression suite so converted areas keep documented surface classes and the stylesheet no longer references undefined surface tokens.
+- Updated UI/Tasks docs, decisions, package metadata, and Tasks module metadata to `0.33.5.13.1`, marked the roadmap slice complete, and archived the completed 0.33.5.12 roadmap section.
+
 ## Version 0.33.5.12.6 - 2026-06-14 10:32 -04:00
 
 - Closed out the 0.33.5.12 UI cleanup line with current-state Help updates for task bulk edits, the compact task dialog, task follow bell behavior, client hierarchy filtering, and client edit modal footer actions.

@@ -2,9 +2,14 @@
     color-scheme: light;
     --color-page-bg: #f5f7fb;
     --color-surface: #ffffff;
+    --color-surface-raised: #ffffff;
+    --color-surface-muted: #f8fafd;
+    --color-surface-inset: #eef3fa;
+    --color-surface-overlay: #ffffff;
     --color-text: #172033;
     --color-text-secondary: #39465f;
     --color-muted: #516078;
+    --color-text-muted: var(--color-muted);
     --color-border: #d8deea;
     --color-border-subtle: #e6ebf3;
     --color-border-strong: #9aa7bd;
@@ -20,6 +25,12 @@
     --shadow-modal: 0 24px 70px rgba(23, 32, 51, 0.24);
     --shadow-control: 0 1px 3px rgba(23, 32, 51, 0.18);
     --color-overlay: rgba(23, 32, 51, 0.45);
+    --surface-radius-sm: 6px;
+    --surface-radius-md: 8px;
+    --surface-focus-ring: 0 0 0 3px rgba(47, 111, 221, 0.24);
+    --color-background: var(--color-surface);
+    --color-page: var(--color-page-bg);
+    --color-surface-alt: var(--color-surface-muted);
     --page-standard-width: 1120px;
     --page-form-width: 920px;
 }
@@ -28,9 +39,14 @@ html[data-theme="dark"] {
     color-scheme: dark;
     --color-page-bg: #000000;
     --color-surface: #2b2b2b;
+    --color-surface-raised: #333333;
+    --color-surface-muted: #1d1d1d;
+    --color-surface-inset: #151515;
+    --color-surface-overlay: #2b2b2b;
     --color-text: #dfdfdf;
     --color-text-secondary: #cfcfcf;
     --color-muted: #ae9f87;
+    --color-text-muted: var(--color-muted);
     --color-border: #a2a2a2;
     --color-border-subtle: #19140c;
     --color-border-strong: #655842;
@@ -46,6 +62,10 @@ html[data-theme="dark"] {
     --shadow-modal: 0 24px 70px rgba(0, 0, 0, 0.65);
     --shadow-control: 0 1px 3px rgba(0, 0, 0, 0.45);
     --color-overlay: rgba(0, 0, 0, 0.68);
+    --surface-focus-ring: 0 0 0 3px rgba(162, 162, 162, 0.32);
+    --color-background: var(--color-surface);
+    --color-page: var(--color-page-bg);
+    --color-surface-alt: var(--color-surface-muted);
 }
 
 /* Base page shell */
@@ -58,6 +78,60 @@ body {
     color: var(--color-text);
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
         sans-serif;
+}
+
+.surface-page {
+    background: var(--color-page-bg);
+}
+
+.surface-card,
+.surface-modal-group,
+.surface-overlay-panel,
+.surface-drawer,
+.surface-slideout {
+    border: 1px solid var(--color-border);
+    border-radius: var(--surface-radius-md);
+    background: var(--color-surface);
+}
+
+.surface-modal-group {
+    background: var(--color-surface-raised);
+}
+
+.surface-overlay-panel {
+    background: var(--color-surface-overlay);
+    box-shadow: var(--shadow-card);
+}
+
+.surface-drawer,
+.surface-slideout {
+    background: var(--color-surface-raised);
+    box-shadow: var(--shadow-modal);
+}
+
+.surface-divider-top {
+    border-top: 1px solid var(--color-border);
+}
+
+.surface-chip {
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface-muted);
+    color: var(--color-text-secondary);
+}
+
+.surface-disabled {
+    opacity: 0.62;
+}
+
+.surface-focus-ring:focus-visible,
+.surface-modal-group:focus-visible,
+.surface-overlay-panel:focus-visible,
+.surface-drawer:focus-visible,
+.surface-slideout:focus-visible,
+.surface-chip:focus-visible {
+    outline: 0;
+    box-shadow: var(--surface-focus-ring);
 }
 
 .site-header {

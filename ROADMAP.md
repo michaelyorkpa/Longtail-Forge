@@ -2,123 +2,35 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.12 - UI Clean up Pass
-
-### Questions and Design Clarifications
-
-- [x] Confirm whether Settings -> Workspace -> Clients should add a single Parent/Top-Level quick filter first, or a broader hierarchy filter set such as All, Top-Level Only, Children Only, and Has Children.
-  - Do the broader hierarchy filter set, please, and be sure to put that into the client module, don't hard code it into the interface.
-- [x] Confirm whether the child-client tag fix should remove only direct/manual tags from the child while leaving propagated parent tags visible as context, or whether the client edit modal needs a per-record suppression control for hiding inherited parent tags on that child.
-  - Just skip this and leave it alone. I'll just remove the tags from the parent and apply at the child level, that makes more sense.
-- [x] Confirm the task bulk-edit warning copy for mixed due dates, due times, and tags. The warning should be an in-app confirmation before applying a bulk overwrite, add, remove, or clear action.
-  - Correct. I don't want someone to accidentally overwrite anything that they didn't mean to.
-- [x] Confirm whether task due date and due time bulk edits should be one combined Due Date + Time action or separate actions, with both fields clearable to NULL.
-  - They should be separately settable/clearable.
-- [x] Confirm whether the task modal field that needs more room should open a temporary popover inside the active modal, or whether that interaction should wait for the broader framework UI standardization slice.
-  - That can wait for the broader UI slice.
-- [x] Confirm whether all modal footer buttons should become icon-only, or icon plus short visible text for primary actions where clarity matters.
-  - Short visible text is acceptable if it's a small font; don't forget titles for accessibility compliance.
-- [x] Confirm whether the tiny Tags and Files modals should be standardized framework overlays nested inside the current modal, or task-specific popovers for this first pass.
-  - Tags and Files modals should be standardized framework overlays, owned by their respective modules.
-
-### Accepted Planning Constraints
-
-- Keep 0.33.5.12 focused on UI cleanup and behavior repair, not a broad module redesign.
-- Preserve module ownership. Client hierarchy, client tag save behavior, and client/project filtering stay Client/Projects-owned; task bulk editing and task dialog layout stay Tasks-owned; shared modal and surface style rules belong to the framework.
-- Prefer compact, context-preserving modal changes that keep the user inside the current workflow.
-- Warning states should be in-app, recoverable, and specific about what will change.
-- Tags remain classification metadata. UI cleanup must not turn tags into permissions, status, billing logic, or visibility rules.
-
-### Version 0.33.5.12.1 - Client List and Client Edit Modal Cleanup
-
-- [x] Move the `Save Client` and `Edit Projects` actions into the actual client edit modal footer.
-- [x] Preserve the existing close/cancel behavior and focus return when footer actions move.
-
-### Version 0.33.5.12.2 - Task Bulk Edit Due Date, Due Time, and Tags
-
-- [x] Extend Projects -> Tasks bulk edit to support due date and due time changes.
-- [x] Allow bulk due date to be set or cleared to NULL.
-- [x] Allow bulk due time to be optional and clearable to NULL.
-- [x] Extend bulk edit to support tag add and tag remove actions.
-- [x] Reuse the Tags-owned assignment/removal contract so direct/manual tag changes preserve propagated and system tag assignments.
-- [x] Show an in-app warning when selected tasks have mixed due dates, due times, or tags before applying a bulk overwrite, add, remove, or clear action.
-- [x] Keep partial failure behavior explicit by task so inaccessible or invalid targets do not silently fail.
-- [x] Add or update task bulk-edit regressions for mixed-value warnings, NULL due date/time saves, tag add/remove behavior, and permission-shaped partial failures.
-
-### Version 0.33.5.12.3 - Task Modal Compact Layout and Metadata Ribbon
-
-- [x] Tighten overall white space between fields in the Add/Edit Task modal.
-- [x] Add a compact, full-modal-width metadata chip ribbon between the task title field and the main modal heading area.
-- [x] Include Status, Priority, Client, Project, Due Date, Due Time when applicable, and other confirmed summary fields in the chip ribbon.
-- [x] Move task notifications to a single bell icon aligned to the right across from the Add/Edit Task heading.
-- [x] Keep notification settings accessible from that bell without consuming the current large block of modal real estate.
-- [x] Show Time to Completion only when the task is complete.
-- [x] Move Time to Completion into the chip ribbon or immediately below the heading/notification row.
-- [x] Abbreviate Time to Completion as `TTC:` and display `days:hours:minutes:seconds`, for example `TTC: 4:3:15:30`.
-- [x] Preserve accessible labels and keyboard access for chip and icon controls.
-- [x] Add or update task dialog regressions for modal rendering, completed-only TTC display, notification bell behavior, and responsive layout.
-
-### Version 0.33.5.12.4 - Task Modal Two-Column Field Reflow
-
-- [x] Maximize the visual efficiency of the current two-column Add/Edit Task modal layout.
-- [x] Keep Title full width across both columns.
-- [x] Add a collapsible two-column `Task Details` box.
-- [x] Start `Task Details` open for Add Task and collapsed for Edit Task.
-- [x] Include Parent Task across both columns inside `Task Details`.
-- [x] Put Status, Client, and Due Date in column 1, in that order.
-- [x] Put Priority, Project, and Due Time in column 2, in that order.
-- [x] Put Resume Note and Next Action below the two-column box in two columns.
-- [x] Move back to a single-column, full-modal-width layout for the remaining sections.
-- [x] Show Blocked Reason full width only when Status is `Blocked`.
-- [x] Keep Checklist collapsible and open by default.
-- [x] Keep Assignees collapsible and open by default.
-- [x] Keep Recurrence collapsible and closed by default.
-- [x] Keep Reminders collapsible and closed by default.
-- [x] Move Tags and Task Files to footer buttons with recognizable icons and clear labels/tooltips.
-- [x] Defer any full-width temporary popover behavior for cramped fields until confirmed in the design questions.
-
-### Version 0.33.5.12.4.1 - Tight Follow Up
-
-- [x] "Notifications Settings" needs to just be the bell. It shows words.
-- [x] TTC Chip should only appear once task is marked completed.
-- [x] Make Next Action and Resume Note Textareas the same height; 2 lines
-- [x] Make blocked reason textarea 1 line tall
-- [x] The following fields should start collapsed:
-  - [x] Checklist, unless there's checklist items
-  - [x] Assignees
-- [x] Task Tags and Task Files don't need boxes in the Add/Edit modal because there's now separate buttons in the footer
-- [x] Get rid of the words in the tags and files buttons. Icons only.
-- [x] Replace the "Copy Link", "Cancel", and "Save Task" buttons with an icon
-- [x] Tags button in footer does nothing. File button in footer does nothing.
-
-### Version 0.33.5.12.5 - Framework Surface and Modal Style Standardization Plan
-
-- [x] Create the framework-wide UI standardization plan for main screens, modals, drawers, slideouts, internal boxes, headings, dividers, and action footers.
-  - [x] Build this as 0.33.5.13.x.
-  - [x] Standardize modal internal headings so task Checklist, Assignees, Recurrence, and Reminders use the same visual language.
-  - [x] Standardize internal box surfaces so Notifications, task timer, Checklist, Assignees, Recurrence, and Reminders use framework theme tokens rather than one-off dark, square, light, or rounded treatments.
-  - [x] Standardize horizontal divider rules so dividers appear only at the top of the option being toggled.
-  - [x] Decide the shared footer action pattern for Save, Close, Cancel, and related modal actions.
-  - [x] Define the shared pattern for taggable work items to open a small Tags overlay from a footer/action button.
-  - [x] Define the shared pattern for file-attachable work items to open a small Files overlay from a footer/action button.
-  - [x] Keep this as a standardization plan unless the implementation slice explicitly includes code changes.
-
-### Version 0.33.5.12.6 - UI Cleanup Closeout
-
-- [x] Update Help and developer docs only where user-facing modal or bulk-edit behavior changed.
-- [x] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive during the actual implementation/closeout pass.
-- [x] Run focused client/project and task regressions.
-- [x] Run `npm run check`.
-- [x] Run `npm run test:permissions`.
-- [x] Verify `/api/app-info` reports the expected version after implementation.
-
 ## Version 0.33.5.13 - Framework Surface and Modal Style Standardization
 
 ### Questions and Design Clarifications
 
-- [ ] Confirm whether shared modal primary actions should remain icon-only everywhere after standardization, or whether destructive/commit actions should show short visible text on wider layouts while staying icon-only in dense task-style modals.
-- [ ] Confirm whether mobile Tags and Files overlays should become full-width bottom sheets or remain contained overlays inside the active modal.
-- [ ] Confirm first adoption order after the Tasks cleanup surface: Notifications, Time Tracking, Clients/Projects, Lists, and Notes are the likely first candidates.
+- [x] Confirm whether shared modal primary actions should remain icon-only everywhere after standardization, or whether destructive/commit actions should show short visible text on wider layouts while staying icon-only in dense task-style modals.
+  - Use adaptive action labels.
+  - Dense task-style modal footers may stay icon-only when the icon is recognizable and the button has a clear accessible label, title, and regression coverage.
+  - On wider layouts, commit/destructive/unusual actions should show icon + short visible text where space allows.
+  - Examples: Save, Create, Finalize, Delete, Archive, Reset, Remove, and similar actions should generally have visible text outside of dense contexts.
+  - Utility actions such as Tags, Files, Copy Link, Follow/Unfollow, and similar compact workflow helpers can remain icon-only when the accessible name/title is clear.
+  - On narrow/mobile layouts, icon-only is acceptable for space-constrained footers, but destructive actions should either keep visible text, move into an overflow action with text, or use a confirmation dialog with explicit copy.
+
+- [x] Confirm whether mobile Tags and Files overlays should become full-width bottom sheets or remain contained overlays inside the active modal.
+  - Use anchored overlays/popovers on desktop and full-width bottom sheets on mobile.
+  - The bottom sheet should still be framework-owned overlay behavior, not navigation to another page.
+  - Keep the user inside the current workflow and return focus to the triggering button when the sheet closes.
+  - The overlay host owns placement, closing, focus trap, escape/click-away behavior, responsive sizing, title/action framing, and ensuring only one footer overlay is open at a time.
+  - Tags and Files still own their picker/upload/assignment content and save contracts.
+
+- [x] Confirm first adoption order after the Tasks cleanup surface: Notifications, Time Tracking, Clients/Projects, Lists, and Notes are the likely first candidates.
+  - Confirm the candidates, but use this order:
+    1. Tasks modal groups and task footer overlays as the proof target.
+    2. Notifications panels/boxes.
+    3. Time Tracking and task timer surfaces.
+    4. Lists.
+    5. Clients/Projects.
+    6. Notes.
+  - Move Lists ahead of Clients/Projects because the next UI cleanup section already identifies Lists as having urgent responsive, overflow, and dark-mode surface problems.
+  - Keep each adoption slice focused on shared surface structure, responsive behavior, accessibility, and styling only unless a specific workflow bug is included.
 
 ### Accepted Planning Constraints
 
@@ -132,11 +44,14 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ### Version 0.33.5.13.1 - Surface Inventory and Framework Token Contract
 
-- [ ] Inventory current main screens, modals, drawers, slideouts, internal boxes, footer bars, and overlay-like panels.
-- [ ] Identify one-off surface colors, border radii, shadows, dark panels, light panels, dividers, and footer action treatments.
-- [ ] Define the shared surface token set for page surfaces, modal bodies, modal internal groups, overlay panels, drawers, chips, dividers, focus rings, and disabled states.
-- [ ] Define shared class names or component helpers for framework-owned surfaces without requiring modules to hard-code each other's UI details.
-- [ ] Add static regression coverage that guards against reintroducing one-off modal surface classes in the first converted areas.
+- [x] Inventory current main screens, modals, drawers, slideouts, internal boxes, footer bars, and overlay-like panels.
+- [x] Identify one-off surface colors, border radii, shadows, dark panels, light panels, dividers, and footer action treatments.
+- [x] Define the shared surface token set for page surfaces, modal bodies, modal internal groups, overlay panels, drawers, chips, dividers, focus rings, and disabled states.
+- [x] Define shared class names or component helpers for framework-owned surfaces without requiring modules to hard-code each other's UI details.
+- [x] Add static regression coverage that guards against reintroducing one-off modal surface classes in the first converted areas.
+- [x] During the token inventory, reconcile existing surface token drift and either define, replace, or retire aliases such as `--color-background`, `--color-page`, and `--color-surface-alt`.
+- [x] Do not introduce new surface tokens until existing page/surface/background/card/modal/overlay meanings are named clearly.
+- [x] Add a small static regression that catches undefined or deprecated surface tokens in converted areas.
 
 ### Version 0.33.5.13.2 - Modal Sections, Internal Headings, and Divider Rules
 
@@ -226,21 +141,112 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 - There are still no notes or lists public API key options listed.
 
-## Version 0.33.6 - Reports Module
+## Version 0.33.6 - Reporting Framework and Time Report Contribution
 
-- Create a Reports module
-  - I believe, currently, reporting is hard coded. This needs to be fixed and aligned with the current product models and philosophies.
-  - For starters, only time tracking and billing needs to be dealt with within reporting, additional reporting is scheduled for later in the ROADMAP
+Decision:
 
-### Guidance for details in Reporting Module
+Reporting is framework-owned report infrastructure, not a normal disable-able first-party workflow module. The framework owns the Reporting page, report catalog, contribution filtering, report execution dispatch, shared filter host, loading/error/empty states, and future saved/export/export scheduling behavior. Individual modules own the actual report definitions, report runners, data queries, domain calculations, result shapes, and record-level permission checks.
 
-- Reporting -> Time Reports
-  - Hide Start Date and End Date until billing period is set to Custom
-    - Alternately, update Start Date and End Date based on Billing Period Selection (currently always shows current billing period)
+The first 0.33.6 report should remain intentionally small: Time Tracking contributes one Project Time & Billing report. Do not build a custom report builder, report designer, analytics dashboard, or saved report system in this pass.
 
-- For proper calculation in time/billable reports, each sub project must sum all time entries and apply rounding rules (if enabled)
-  - Parent projects should then sum their direct time entries, round as appropriate, and add that to the sum of all sub project time entries
-  - This will produce a sub-client total which can then be added to parent client totals in the same fashion
+### Version 0.33.6.1 - Reporting Contribution Contract
+
+- [ ] Rename this roadmap section from "Reports Module" to "Reporting Framework and Time Report Contribution."
+- [ ] Keep `reporting.html` framework-owned.
+- [ ] Do not create a normal `src/modules/reporting` workflow module unless it is only a non-disableable framework package; prefer framework-owned services/routes instead.
+- [ ] Expand the existing module manifest `reporting` field into a validated report contribution contract.
+- [ ] Report contribution fields should include:
+  - [ ] `id`
+  - [ ] `label`
+  - [ ] `description`
+  - [ ] `category`
+  - [ ] `renderer`
+  - [ ] `runner`
+  - [ ] `requiredPermissions`
+  - [ ] `requiredWorkspaceCapabilities`
+  - [ ] `requiresEnabledModules`
+  - [ ] `sortOrder`
+  - [ ] supported filter metadata, such as billing period, custom date range, scope, project, tag, and descendants.
+- [ ] Add `modulesService.listReportingReports(workspaceId, session)` using the same enabled-module, permission, workspace-capability, and required-module filtering pattern used by other module contributions.
+- [ ] Update `docs/module-contract.md` with the finalized reporting contribution shape.
+
+### Version 0.33.6.2 - Reporting Framework Routes and Runner Dispatch
+
+- [ ] Add framework-owned report catalog route:
+  - [ ] `GET /api/reporting/catalog`
+- [ ] Add framework-owned report execution route:
+  - [ ] `GET /api/reporting/reports/:moduleId/:reportId/run`
+  - [ ] or a stable equivalent using a report key.
+- [ ] Add a server-side report runner registry keyed by stable runner IDs.
+- [ ] Do not place executable functions directly in module manifests.
+- [ ] The framework Reporting service should validate report availability, permissions, enabled modules, workspace capability requirements, and basic filter shape before dispatching.
+- [ ] The module-owned runner should remain responsible for domain-specific data access, calculations, and record-level permission safety.
+
+### Version 0.33.6.3 - Time Tracking Project Time & Billing Report
+
+- [ ] Move Project Time & Billing report logic out of the framework Reporting service and into Time Tracking-owned report/service code.
+- [ ] Time Tracking should contribute the initial report:
+  - [ ] ID: `project-time-billing`
+  - [ ] Label: `Project Time & Billing`
+  - [ ] Runner: `time-tracking.project-time-billing`
+  - [ ] Renderer: `time-project-billing-table`
+- [ ] Preserve existing useful filters:
+  - [ ] Current billing period
+  - [ ] Last billing period
+  - [ ] Custom date range
+  - [ ] Reporting scope
+  - [ ] Projects
+  - [ ] Tags
+  - [ ] Include descendants
+- [ ] Hide Start Date and End Date unless Billing Period is set to Custom.
+- [ ] Keep Time Tracking responsible for time entry aggregation.
+- [ ] Keep Client/Projects responsible for client/project hierarchy and billing metadata.
+- [ ] Keep framework Reporting responsible only for report hosting and dispatch.
+
+### Version 0.33.6.4 - Correct Project and Client Rollup Billing Math
+
+- [ ] Fix descendant rollup calculation so each project/subproject computes its own direct time first.
+- [ ] Apply that project's effective billing rate, billing period, and rounding rules to that project's direct time.
+- [ ] Parent project totals should equal:
+  - [ ] Parent direct rounded total
+  - [ ] plus child project rounded totals
+  - [ ] plus deeper descendant rounded totals
+- [ ] Do not round all descendant time together at the parent level.
+- [ ] Do not apply the parent billing rate to child project time when the child has its own effective rate.
+- [ ] Client totals should aggregate project totals using the same already-rounded project/subproject totals.
+- [ ] Parent clients should add direct client project totals plus child-client totals without losing child billing rules.
+
+### Version 0.33.6.5 - Reporting Page Host MVP
+
+- [ ] Keep one `reporting.html` framework page.
+- [ ] Convert the current hard-coded Time Report UI into a report host that loads available report definitions from the catalog.
+- [ ] The first renderer may remain specific to Project Time & Billing.
+- [ ] Keep the page simple:
+  - [ ] Report selector or default first available report
+  - [ ] Filter area
+  - [ ] Status/error/empty state
+  - [ ] Results area
+- [ ] Do not build saved reports, exports, scheduled reports, charts, or report sharing in this version unless needed for regression coverage.
+
+### Version 0.33.6.6 - Permissions, Navigation, and Closeout
+
+- [ ] Decide whether `reporting.view` should become a framework-owned permission instead of being contributed by Time Tracking.
+- [ ] Keep report-specific visibility dependent on both `reporting.view` and the owning module's required permissions.
+- [ ] Ensure disabled modules do not contribute active reports.
+- [ ] Ensure reports from historically readable disabled modules are only available if explicitly allowed by the contribution and module policy.
+- [ ] Keep Reporting navigation framework-owned, with child report entries contributed by modules.
+- [ ] Add regression coverage for:
+  - [ ] Report catalog filters disabled modules.
+  - [ ] Report catalog filters missing permissions.
+  - [ ] Time Tracking report appears when Time Tracking is enabled and permissions allow it.
+  - [ ] Time Tracking report disappears or is blocked when Time Tracking is disabled.
+  - [ ] Custom date fields are hidden unless Custom is selected.
+  - [ ] Project/subproject/client rollups apply rounding at the correct level.
+- [ ] Update Help, `docs/module-contract.md`, `CHANGELOG.md`, package metadata, and roadmap archive.
+- [ ] Run focused reporting regressions.
+- [ ] Run `npm run check`.
+- [ ] Run `npm run test:permissions`.
+- [ ] Verify `/api/app-info` reports the expected version after implementation.
 
 ## Version 0.33.7 - Dashboard and Workbench Formalization as Project hub and work center
 

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Tasks | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=15">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=16">
   </head>
   <body data-page-title="Tasks">
     <main class="wide-page tasks-page">
@@ -155,7 +155,7 @@
         </table>
       </div>
 
-      <dialog class="task-detail-dialog" data-task-dialog>
+      <dialog class="task-detail-dialog surface-modal" data-task-dialog>
         <form method="dialog" class="task-form" data-task-form>
           <div class="task-dialog-heading">
             <h2 data-task-dialog-title>Task</h2>
@@ -167,9 +167,9 @@
             <input type="text" data-task-title required>
           </label>
 
-          <div class="task-metadata-ribbon" data-task-metadata-ribbon aria-label="Task summary"></div>
+          <div class="task-metadata-ribbon surface-chip-row" data-task-metadata-ribbon aria-label="Task summary"></div>
 
-          <details class="task-details-field" data-task-details-panel open>
+          <details class="task-details-field surface-modal-group" data-task-details-panel open>
             <summary>Task Details</summary>
             <div class="task-details-grid">
               <label class="task-parent-field">
@@ -235,7 +235,7 @@
             <textarea rows="1" data-task-blocked-reason></textarea>
           </label>
 
-          <details class="task-checklist-field" data-task-checklist-field>
+          <details class="task-checklist-field surface-modal-group" data-task-checklist-field>
             <summary>Checklist</summary>
             <p data-task-checklist-status>0 / 0 complete</p>
             <div class="task-checklist-add-row">
@@ -245,12 +245,12 @@
             <div class="task-checklist-list" data-task-checklist-list></div>
           </details>
 
-          <details class="task-assignee-field" data-task-assignee-panel>
+          <details class="task-assignee-field surface-modal-group" data-task-assignee-panel>
             <summary>Assignees</summary>
             <select multiple data-task-assignees aria-label="Assignees"></select>
           </details>
 
-          <details class="task-recurrence-field" data-task-recurrence-panel>
+          <details class="task-recurrence-field surface-modal-group surface-divider-top" data-task-recurrence-panel>
             <summary>Recurrence</summary>
             <div class="task-recurrence-controls">
               <label class="inline-option">
@@ -262,7 +262,7 @@
             <p data-task-recurrence-summary>Not recurring.</p>
           </details>
 
-          <fieldset class="task-timer-field" data-task-timer-field hidden>
+          <fieldset class="task-timer-field surface-modal-group" data-task-timer-field hidden>
             <legend>Task Timer</legend>
             <p data-task-timer-status>No active timer.</p>
             <div class="task-timer-controls">
@@ -274,7 +274,7 @@
             </div>
           </fieldset>
 
-          <details class="task-reminder-field" data-task-reminder-details>
+          <details class="task-reminder-field surface-modal-group surface-divider-top" data-task-reminder-details>
             <summary>Reminders</summary>
             <p data-task-effective-reminders></p>
             <label class="inline-option">
@@ -301,15 +301,15 @@
             </div>
           </details>
 
-          <section class="task-footer-panel task-tags-field" data-task-tags-panel hidden>
+          <section class="task-footer-panel task-tags-field surface-overlay-panel" data-task-tags-panel hidden>
             <div data-task-tags></div>
           </section>
 
-          <section class="task-footer-panel task-files-field" data-task-files-panel hidden>
+          <section class="task-footer-panel task-files-field surface-overlay-panel" data-task-files-panel hidden>
             <div data-task-files></div>
           </section>
 
-          <details class="task-notes-field" data-task-notes-panel>
+          <details class="task-notes-field surface-modal-group surface-divider-top" data-task-notes-panel>
             <summary>Notes</summary>
             <div data-task-notes></div>
           </details>

@@ -33,8 +33,8 @@ assert.match(taskDialogScript, /nextPanel\.hidden = !shouldOpen/, "Footer panel 
 assert.match(tasksView, /data-task-resume-note placeholder="Where did you leave off\?"><\/textarea>/, "Resume Note should remain a textarea");
 assert.match(tasksView, /<textarea rows="2" maxlength="240" data-task-next-action/, "Next Action should be a two-line textarea");
 assert.match(tasksView, /<textarea rows="1" data-task-blocked-reason><\/textarea>/, "Blocked Reason should be one line tall");
-assert.match(tasksView, /<details class="task-checklist-field" data-task-checklist-field>/, "Checklist should not start open in static markup");
-assert.match(tasksView, /<details class="task-assignee-field" data-task-assignee-panel>/, "Assignees should not start open in static markup");
+assert.match(tasksView, /<details class="task-checklist-field[^"]*" data-task-checklist-field>/, "Checklist should not start open in static markup");
+assert.match(tasksView, /<details class="task-assignee-field[^"]*" data-task-assignee-panel>/, "Assignees should not start open in static markup");
 assert.doesNotMatch(tasksView, /<h3>Task Tags<\/h3>|<h3>Task Files<\/h3>/, "Tags and Files footer panels should not add boxed headings in the modal");
 
 assert.match(stylesheet, /\.task-resume-note-field textarea,[\s\S]*\.task-next-action-field textarea \{[\s\S]*min-height: 54px;/, "Resume Note and Next Action should share a compact two-line height");
@@ -42,7 +42,7 @@ assert.match(stylesheet, /\.task-blocked-reason-field textarea \{[\s\S]*min-heig
 assert.match(stylesheet, /\.task-footer-panel \{[\s\S]*background: transparent;/, "Tags and Files panels should not look like boxed modal sections");
 assert.match(stylesheet, /\[data-task-notification-toggle\]\.is-following \{[\s\S]*color: var\(--color-danger\);/, "Followed task notification bell should be red");
 
-assert.match(tasksModule, /version: "0\.33\.5\.12\.6"/, "Tasks module version should match the modal follow-up release");
+assert.match(tasksModule, /version: "0\.33\.5\.13\.1"/, "Tasks module version should match the modal follow-up release");
 
 console.log("Task modal follow-up regression passed.");
 
