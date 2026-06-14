@@ -479,6 +479,9 @@ summary.surface-modal-section-heading {
     display: grid;
     gap: 6px;
     padding: 10px;
+}
+
+.notification-panel-item {
     border: 1px solid var(--color-border-subtle);
     border-radius: 8px;
     background: var(--color-surface);
@@ -1031,12 +1034,8 @@ h1 {
 }
 
 .notification-grouping-preferences {
-    display: grid;
     gap: 10px;
     margin: 0 0 14px;
-    padding: 14px;
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
 }
 
 .notification-grouping-preferences legend {
@@ -1054,13 +1053,9 @@ h1 {
 }
 
 .notification-preference-row {
-    display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
     margin: 0;
-    padding: 14px;
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
 }
 
 .notification-preference-row legend {

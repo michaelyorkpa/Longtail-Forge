@@ -27,6 +27,8 @@ Longtail Forge UI should stay quiet, scannable, and operational. Pages should fa
 - Do not create a second notification settings block inside a modal when the heading bell already owns follow/unfollow behavior.
 - Use the 0.33.5.13 shared surface vocabulary in `docs/ui-surface-contract.md` for new or converted framework-owned main-screen panels, modal groups, modal section headings/bodies/help text/validation, overlay panels, drawers, slideouts, dividers, chips, dense action clusters, and disabled/focus states.
 - Use `.surface-main-panel` for filters, bulk toolbars, settings groups, notification/timer panels, and contextual main-screen work surfaces.
+- In converted Notifications surfaces, use `.surface-main-panel` for list/preference boxes, `.surface-card` for full page notification rows, and `.surface-dense-actions` for row-local notification actions.
+- In converted task timer surfaces, keep visible timer action text and use shared surfaces for the timer group, timer chip, and compact action placement.
 - Use `.surface-drawer` for narrow side panels and `.surface-slideout` for wider contextual detail views; both become full-screen overlays on narrow screens.
 - Use `.surface-dense-actions` for row/table/list action clusters. Do not reuse modal footer classes for record-local actions.
 - Use top-only dividers on the section or option being toggled instead of adding mixed internal divider rules inside each module.

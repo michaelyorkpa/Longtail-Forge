@@ -1,6 +1,6 @@
 # UI Surface Contract
 
-This document captures the 0.33.5.13.5 framework surface inventory, token contract, modal section contract, modal footer/action contract, overlay host contract, drawer/slideout shell contract, and main-screen internal surface contract. It is a current implementation guide, not a promise that every listed surface has already been converted.
+This document captures the 0.33.5.13.6 framework surface inventory, token contract, modal section contract, modal footer/action contract, overlay host contract, drawer/slideout shell contract, main-screen internal surface contract, and first adoption pass. It is a current implementation guide, not a promise that every listed surface has already been converted.
 
 ## Surface Inventory
 
@@ -75,6 +75,8 @@ On narrow screens, drawers and slideouts become full-screen overlays instead of 
 
 Use `.surface-main-panel` for main-screen internal boxes such as filters, bulk toolbars, settings groups, notification panels, task timer/recovery panels, list detail panels, and contextual work surfaces. Use `.surface-main-panel--sticky` only when the panel persists near the top of the work surface while the user scrolls. The Tasks filter toolbar and bulk toolbar are the first proof target for this shell; later adoption slices can broaden it to Notifications, Time Tracking, Lists, Clients/Projects, and Notes.
 
+Notifications boxes and task timer surfaces are the first adoption-pass targets after the Tasks modal shell proof. The Notifications list workspace, preferences workspace, grouping preferences, preference groups, and preference rows use `.surface-main-panel`; full page notification rows use `.surface-card`; notification row actions and task timer controls use `.surface-dense-actions`; the task timer display uses `.surface-chip`.
+
 ## Dense Table and List Actions
 
 Use `.surface-dense-actions` for compact row, table, and list action clusters. Dense actions belong near the record or row they affect and stay separate from `.surface-modal-footer`, which is reserved for modal-level commit, secondary, utility, and destructive actions. Dense action clusters should prefer icon buttons with accessible labels and titles when space is tight, wrapping on narrow screens instead of forcing horizontal overflow.
@@ -83,4 +85,4 @@ Use `.surface-dense-actions` for compact row, table, and list action clusters. D
 
 The framework owns the tokens, shared class names, focus visibility, overlay host behavior, drawer/slideout shell behavior, responsive placement, and generic footer/action alignment. Modules own form fields, record-specific content, picker/upload bodies, save payloads, validation, permissions, and business meaning.
 
-The first concrete converted area is the Tasks modal surface shell: task modal groups use `.surface-modal-group`, modal section headings use `.surface-modal-section-heading`, grouped controls use `.surface-modal-section-body`, helper/status text uses `.surface-modal-section-help`, footer picker hosts use `.surface-overlay-panel`, top-only divider intent is marked with `.surface-divider-top`, footer actions use `.surface-modal-footer` with utility and commit groups, and Tags/Files footer panels register with the shared overlay host. The first main-screen proof target is the Tasks filter toolbar and bulk toolbar using `.surface-main-panel`. Later 0.33.5.13 slices will broaden module adoption.
+The first concrete converted area is the Tasks modal surface shell: task modal groups use `.surface-modal-group`, modal section headings use `.surface-modal-section-heading`, grouped controls use `.surface-modal-section-body`, helper/status text uses `.surface-modal-section-help`, footer picker hosts use `.surface-overlay-panel`, top-only divider intent is marked with `.surface-divider-top`, footer actions use `.surface-modal-footer` with utility and commit groups, and Tags/Files footer panels register with the shared overlay host. The first main-screen proof target is the Tasks filter toolbar and bulk toolbar using `.surface-main-panel`. The first adoption pass extends the shared classes to Notifications boxes and task timer surfaces without changing module behavior. Later 0.33.5.13 slices will broaden module adoption.

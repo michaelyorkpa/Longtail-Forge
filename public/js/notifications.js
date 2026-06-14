@@ -240,7 +240,7 @@ function createNotificationRow(notification) {
   const displayTitle = notificationDisplayTitle(notification);
   const contextTitle = notificationContextTitle(notification);
 
-  row.className = `notification-row is-${notification.status || "unread"}`;
+  row.className = `notification-row surface-card is-${notification.status || "unread"}`;
   heading.className = "notification-row-heading";
   badges.className = "notification-row-badges";
 
@@ -263,7 +263,7 @@ function createNotificationRow(notification) {
   meta.className = "notification-meta";
   meta.textContent = notificationMetaParts(notification).join(" - ");
 
-  actions.className = "notification-row-actions";
+  actions.className = "notification-row-actions surface-dense-actions";
   readButton.disabled = notification.status !== "unread";
   readButton.addEventListener("click", () => mutateNotification(notification.notification_id, "read"));
   dismissButton.disabled = notification.status === "dismissed";

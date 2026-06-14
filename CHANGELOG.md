@@ -1,3 +1,10 @@
+## Version 0.33.5.13.6 - 2026-06-14 12:13 -04:00
+
+- Converted the first adoption-pass surfaces to shared surface classes: Notifications list/preferences boxes, generated notification rows/actions, notification preference groups/rows, and task timer controls/display.
+- Kept the adoption pass behavior-preserving: notification grouping/preferences, task timer mutations, Tags/Files overlays, and permission behavior remain owned by their existing modules/helpers.
+- Added `surface-adoption-pass-regression.mjs`, wired it into the regression suite, updated cache-key/version assertions, and bumped package/app plus Tasks module metadata to `0.33.5.13.6`.
+- Updated `docs/ui-surface-contract.md`, `docs/ui-layout-guide.md`, `DECISIONS.md`, and the roadmap for the completed 0.33.5.13.6 slice.
+
 ## Version 0.33.5.13.5 - 2026-06-14 12:03 -04:00
 
 - Added shared drawer, slideout, main-screen panel, sticky panel, and dense row/list action surface classes to `longtail-forge.css`, including narrow-screen full-screen drawer/slideout behavior.

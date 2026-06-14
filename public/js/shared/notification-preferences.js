@@ -79,7 +79,7 @@
     const helper = document.createElement("p");
     const workspaceType = options.workspaceType || global.LongtailForge?.workspaceContext?.workspaceType || "business";
 
-    fieldset.className = "notification-grouping-preferences";
+    fieldset.className = "notification-grouping-preferences surface-main-panel";
     legend.textContent = "Notification grouping";
     select.dataset.notificationGroupingMode = "";
     select.setAttribute("aria-label", "Notification grouping");
@@ -130,7 +130,7 @@
     const section = document.createElement("section");
     const heading = document.createElement(options.headingLevel || "h3");
 
-    section.className = "notification-preference-group";
+    section.className = "notification-preference-group surface-main-panel";
     section.dataset.notificationPreferenceModule = group.moduleId;
     section.dataset.notificationPreferenceModuleEnabled = String(group.moduleEnabled !== false);
     heading.textContent = group.label;
@@ -147,7 +147,7 @@
     const description = document.createElement("p");
     const workspaceDefaultDisabled = preference.workspaceEnabled === false;
 
-    row.className = "notification-preference-row";
+    row.className = "notification-preference-row surface-main-panel";
     row.dataset.notificationEventId = preference.id;
 
     legend.textContent = preference.label || preference.id;

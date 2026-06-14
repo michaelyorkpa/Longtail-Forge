@@ -31,7 +31,7 @@ assert.match(uiGuide, /overlay host owns placement, close behavior, focus handli
 
 assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1/, "Tasks view should load the shared overlay host before task-dialog");
 assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=10/, "Tasks view should load overlay host before task dialog code");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=20/, "Tasks view should load the overlay-host stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=21/, "Tasks view should load the overlay-host stylesheet cache key");
 assert.match(tasksView, /<section class="task-footer-panel task-tags-field surface-overlay-panel" data-task-tags-panel hidden>[\s\S]*<div data-task-tags><\/div>/, "Tasks tags panel should keep module-owned tag picker mount");
 assert.match(tasksView, /<section class="task-footer-panel task-files-field surface-overlay-panel" data-task-files-panel hidden>[\s\S]*<div data-task-files><\/div>/, "Tasks files panel should keep module-owned file attachment mount");
 

@@ -144,7 +144,7 @@ async function runNotificationApiTests(api, fixtures) {
     assert.match(String(page.body), /data-notification-filter="dismissed"/);
     assert.match(String(page.body), /data-notification-script-fallback/);
     assert.match(String(page.body), /data-notification-preference-script-fallback/);
-    assert.match(String(page.body), /\/js\/notifications\.js\?v=6/);
+    assert.match(String(page.body), /\/js\/notifications\.js\?v=7/);
     assert.doesNotMatch(String(page.body), /src="js\/notifications\.js/);
     assert.match(String(page.body), /notificationsPageReady/);
   });
@@ -406,8 +406,8 @@ async function runNotificationUiContractTests() {
 
   check("notifications page defaults to the active filter", () => {
     assert.match(notificationsPage, /data-notification-filter="active" aria-pressed="true">Active/);
-    assert.match(notificationsPage, /\/js\/notifications\.js\?v=6/);
-    assert.match(notificationsPage, /\/js\/shared\/notification-preferences\.js\?v=3/);
+    assert.match(notificationsPage, /\/js\/notifications\.js\?v=7/);
+    assert.match(notificationsPage, /\/js\/shared\/notification-preferences\.js\?v=4/);
     assert.match(notificationsScript, /filter: "active"/);
     assert.match(notificationsScript, /params\.set\("status", state\.filter\)/);
   });
@@ -495,7 +495,7 @@ async function runNotificationUiContractTests() {
     assert.match(userSettingsPage, /data-user-notification-preferences-form/);
     assert.match(userSettingsPage, /data-user-notification-grouping-preferences/);
     assert.match(userSettingsPage, /data-user-notification-preference-list/);
-    assert.match(userSettingsPage, /js\/shared\/notification-preferences\.js\?v=3/);
+    assert.match(userSettingsPage, /js\/shared\/notification-preferences\.js\?v=4/);
     assert.match(userSettingsScript, /notificationPreferences\.loadPreferences/);
     assert.match(userSettingsScript, /renderGroupingPreferences/);
     assert.match(userSettingsScript, /readGroupingPreferencesPayload/);

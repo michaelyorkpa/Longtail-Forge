@@ -87,11 +87,11 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ### Version 0.33.5.13.6 - First Adoption Pass
 
-- [ ] Convert the highest-value existing surfaces to the new shared patterns, starting with Tasks modal groups, task footer overlays, Notifications boxes, and task timer surfaces unless the design questions change the order.
-- [ ] Keep each module conversion scoped to UI structure and styling unless a workflow bug is explicitly included.
-- [ ] Preserve current task, tag, file, notification, timer, and permission behavior during surface conversion.
-- [ ] Add or update focused regressions for each converted surface.
-- [ ] Avoid broad visual rewrites of unrelated modules until the shared patterns prove stable.
+- [x] Convert the highest-value existing surfaces to the new shared patterns, starting with Tasks modal groups, task footer overlays, Notifications boxes, and task timer surfaces unless the design questions change the order.
+- [x] Keep each module conversion scoped to UI structure and styling unless a workflow bug is explicitly included.
+- [x] Preserve current task, tag, file, notification, timer, and permission behavior during surface conversion.
+- [x] Add or update focused regressions for each converted surface.
+- [x] Avoid broad visual rewrites of unrelated modules until the shared patterns prove stable.
 
 ### Version 0.33.5.13.7 - Surface Standardization Closeout
 
