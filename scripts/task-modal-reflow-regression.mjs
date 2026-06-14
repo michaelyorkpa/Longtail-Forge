@@ -39,7 +39,7 @@ assert.match(stylesheet, /\.task-footer-panel \{[\s\S]*grid-column: 1 \/ -1;/, "
 
 assert.match(iconsScript, /tag: Object\.freeze/, "Shared icons should include a tag icon");
 assert.match(iconsScript, /file: Object\.freeze/, "Shared icons should include a file icon");
-assert.match(tasksModule, /version: "0\.33\.5\.12\.4\.1"/, "Tasks module version should match the modal reflow release");
+assert.match(tasksModule, /version: "0\.33\.5\.12\.6"/, "Tasks module version should match the modal reflow release");
 
 console.log("Task modal reflow regression passed.");
 

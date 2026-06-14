@@ -2,224 +2,6 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.10 - Help Center Re-work
-
-### Questions and Design Clarifications
-
-- [x] Confirm the editable Help source root should be `help/` at the repo root, with framework articles under `help/framework/` and first-party module articles under `help/modules/<module-id>/`.
-- [x] Confirm `help/toc.md` should own the left navigation order, nesting, collapsible groups, and default first article instead of deriving the visible order only from manifest `sortOrder` values.
-- [x] Confirm whether `toc.md` links should point to article Markdown files directly, for example `- [Getting Started](framework/getting-started.md)`, while headings without links act as collapsible navigation groups.
-- [x] Confirm the first non-empty line of `help/toc.md` should identify the default opening article by link or article path. If omitted or invalid, Help should fall back to Help Center, then Getting Started, then the first readable article.
-- [x] Confirm Markdown support should stay intentionally simple in this pass: headings, paragraphs, lists, links, inline code, code fences, emphasis, and tables if the existing Markdown helper can support them safely.
-- [x] Confirm Help content remains repo-authored product/module documentation only. In-app editing, rich authoring, version history, workspace-authored articles, and publishing workflows remain future Knowledge Base or later Help work.
-- [x] Confirm Help search should index the Markdown-derived article text and re-index when Help search rebuilds run, without adding live file watching in this pass.
-
-### Accepted Planning Constraints
-
-- Make Help Center content easy to edit by moving article bodies out of JavaScript and into Markdown files.
-- Keep the backend change small and framework-owned: the Help service should read Markdown files, preserve the existing protected `/api/help` routes, and preserve the current manifest contribution boundary where practical.
-- Keep framework, first-party module, and future third-party module ownership clear. Modules may still declare Help metadata, but article body content should be file-backed.
-- Search must read the Markdown-backed Help content through the Help service and index the current article text during Help search indexing/rebuilds.
-- Help Center remains current-state product guidance. Roadmap promises stay in `ROADMAP.md`, and workspace-authored knowledge remains reserved for the future Knowledge Base module.
-
-Use these decisions for 0.33.5.10:
-
-1. Confirmed: the editable Help source root should be `help/` at the repo root.
-
-   Use:
-   - `help/framework/` for framework-owned Help articles.
-   - `help/modules/<module-id>/` for first-party module Help articles.
-
-   Keep this content repo-authored and version-controlled. This is product documentation, not workspace data.
-
-2. Confirmed: `help/toc.md` should own the visible left navigation order, nesting, collapsible groups, and default first article.
-
-   Manifest `sortOrder` values should remain useful as metadata/fallback ordering, but the visible Help navigation should come from `help/toc.md` when present and valid.
-
-   This keeps Help authoring predictable and avoids forcing navigation structure to emerge from scattered module manifests.
-
-3. Confirmed: `toc.md` article links should point directly to article Markdown files.
-
-   Example:
-
-   ```md
-   # Longtail Forge
-   - [Help Center](framework/help-center.md)
-   - [Getting Started](framework/getting-started.md)
-
-   # Modules
-   ## Tasks
-   - [Tasks Basics](modules/tasks/tasks-basics.md)
-
-4. Confirmed with clarification: `help/toc.md` should be able to identify the default opening article, but use an explicit first-line directive instead of treating any first non-empty line as the default.
-
-   Preferred format:
-
-   ```md
-   default: framework/help-center.md
-
-   # Longtail Forge
-   - [Help Center](framework/help-center.md)
-   - [Getting Started](framework/getting-started.md)
-   ```
-
-   Also acceptable:
-
-   ```md
-   default: framework/getting-started.md
-   ```
-
-   If the default directive is omitted, invalid, unreadable, disabled by module state, or not visible to the current user, Help should fall back in this order:
-
-   1. Help Center
-   2. Getting Started
-   3. First readable active article from the ToC
-   4. First readable active article from fallback discovery
-
-   Do not let default article selection leak hidden disabled-module or permission-denied articles.
-
-5. Confirmed: Markdown support should stay intentionally simple in this pass.
-
-   Support:
-   - Headings
-   - Paragraphs
-   - Ordered and unordered lists
-   - Links
-   - Inline code
-   - Code fences
-   - Emphasis
-   - Tables only if the existing Markdown helper can render them safely without expanding scope
-
-   Do not add raw HTML support, embedded scripts, iframes, custom components, Mermaid diagrams, wiki-linking, comments, callouts, image upload handling, rich embeds, or a WYSIWYG editor in this pass.
-
-   Render Markdown through a safe allowlist. Article output should remain browser-safe.
-
-6. Confirmed: Help content remains repo-authored product/module documentation only.
-
-   Do not add:
-   - In-app Help editing
-   - Rich authoring
-   - Version history UI
-   - Workspace-authored Help articles
-   - Client-authored Help articles
-   - Approval/publishing workflows
-   - Knowledge Base-style article storage
-
-   Help is the product manual. Knowledge Base is the future workspace/client knowledge system. Keep those boundaries separate.
-
-7. Confirmed: Help search should index Markdown-derived article text.
-
-   Search rebuilds should re-read the current Markdown-backed Help content through the Help service. Do not add live file watching in this pass.
-
-   Keep:
-   - `record_type = help_article`
-   - `source = Help`
-   - Existing framework/module ownership metadata
-   - Existing permission-shaped Help search behavior
-   - Disabled-module hiding/cleanup behavior
-
-   Rebuild-time indexing is enough for 0.33.5.10. Live watching can be reconsidered later if Help authoring becomes more dynamic.
-
-### Version 0.33.5.10.1 - Help Markdown Source Layout
-
-- [x] Add a repo-owned `help/` content directory.
-- [x] Add `help/toc.md` as the editable Help navigation source.
-- [x] Add `help/framework/` for framework-owned Help articles.
-- [x] Add `help/modules/<module-id>/` directories for first-party module Help articles.
-- [x] Convert existing framework Help article bodies from `src/services/help.service.js` into Markdown files.
-- [x] Convert existing first-party module Help article bodies from module manifest JavaScript into Markdown files.
-- [x] Keep article IDs, slugs, source labels, ownership metadata, and current Help URLs stable during the conversion.
-
-### Version 0.33.5.10.2 - Help Content Loader and Metadata Contract
-
-- [x] Add a small framework Help content loader for safe repo-relative Markdown reads.
-- [x] Preserve existing Help contribution validation for IDs, slugs, ownership, section references, permissions, workspace capabilities, and required modules.
-- [x] Allow framework and module Help article declarations to point to Markdown content paths instead of inline `body` strings.
-- [x] Reject unsafe paths, missing files, unsupported extensions, duplicate article paths, and content outside the Help root.
-- [x] Keep disabled-module Help hidden from active Help discovery.
-- [x] Keep Help separate from Knowledge Base and avoid adding user-authored Help storage.
-
-### Version 0.33.5.10.3 - ToC-Driven Navigation
-
-- [x] Parse `help/toc.md` into a browser-safe navigation tree.
-- [x] Treat headings as collapsible groups that map to Help directory structure.
-- [x] Support nested headings as nested collapsible groups.
-- [x] Support linked headings or list items as article targets.
-- [x] Use the first configured/default article from `toc.md` as the initial Help Center article.
-- [x] Preserve a fallback section for readable active articles that are valid but missing from `toc.md`.
-- [x] Update `public/js/help.js` and Help page markup/styles only as much as needed to render nested collapsible navigation cleanly.
-
-### Version 0.33.5.10.4 - Markdown Rendering and Article API Shape
-
-- [x] Render Markdown-backed article bodies safely in the Help Center.
-- [x] Keep article detail payloads browser-safe and permission-shaped.
-- [x] Preserve source metadata so framework, first-party module, and future third-party module articles are visibly distinct where useful.
-- [x] Keep the current `help.html?article=<slug-or-id>` routing behavior.
-- [x] Add or update Help regressions for default article selection, nested ToC rendering, disabled-module hiding, and article route stability.
-
-### Version 0.33.5.10.5 - Help Search Re-indexing
-
-- [x] Update Help search indexing so indexed Help documents use Markdown-derived article text.
-- [x] Ensure Help search rebuilds re-read Markdown files instead of stale inline JavaScript bodies.
-- [x] Keep `record_type = help_article`, `source = Help`, and framework/module ownership metadata stable.
-- [x] Preserve disabled-module cleanup and permission-safe Help result shaping.
-- [x] Update search rebuild/lifecycle regressions for Markdown-backed Help article counts and content.
-
-### Version 0.33.5.10.6 - Help Content Pass and Closeout
-
-- [x] Add or revise Help Center and Getting Started Markdown articles.
-- [x] Help Center should explain what framework, first-party modules, and third-party modules are.
-- [x] Getting Started should explain the key Longtail Forge concepts, how they are linked, and what makes the product context-preserving.
-- [x] Review framework Help articles for current behavior only.
-- [x] Review Time Tracking, Tasks, Lists, Notes, Files, Tags, Search, Notifications, Settings, and module Help coverage where articles already exist.
-- [x] Update developer docs for the Markdown Help contribution workflow.
-- [x] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive only during the actual implementation/closeout pass.
-
-### Potential Help Directory Structure
-
-```text
-help/
-  toc.md
-  framework/
-    help-center.md
-    getting-started.md
-    workspaces-and-switching.md
-    users-roles-and-permissions.md
-    clients-and-projects.md
-    notifications.md
-    search.md
-    tags.md
-    files-and-attachments.md
-    settings-and-user-preferences.md
-    modules-and-optional-features.md
-  modules/
-    time-tracking/
-      time-tracking-basics.md
-      time-entries-editing.md
-      manual-time-entries.md
-    tasks/
-      tasks-basics.md
-      task-recurrence.md
-      resume-context.md
-    notes/
-      using-notes.md
-      notes-library.md
-      active-work.md
-      ongoing-area.md
-      reference-library.md
-      archive.md
-      notes-collections.md
-      markdown.md
-      note-linking.md
-      note-revisions.md
-      secure-notes.md
-      notes-files-and-search.md
-    lists/
-      using-lists.md
-      items-and-statuses.md
-      reusable-workflows.md
-```
-
 ## Version 0.33.5.12 - UI Clean up Pass
 
 ### Questions and Design Clarifications
@@ -311,31 +93,113 @@ help/
 
 ### Version 0.33.5.12.5 - Framework Surface and Modal Style Standardization Plan
 
-- [ ] Create the framework-wide UI standardization plan for main screens, modals, drawers, slideouts, internal boxes, headings, dividers, and action footers.
-  - [ ] Build this as 0.33.5.13.x
-  - [ ] Standardize modal internal headings so task Checklist, Assignees, Recurrence, and Reminders use the same visual language.
-  - [ ] Standardize internal box surfaces so Notifications, task timer, Checklist, Assignees, Recurrence, and Reminders use framework theme tokens rather than one-off dark, square, light, or rounded treatments.
-  - [ ] Standardize horizontal divider rules so dividers appear only at the top of the option being toggled.
-  - [ ] Decide the shared footer action pattern for Save, Close, Cancel, and related modal actions.
-  - [ ] Define the shared pattern for taggable work items to open a small Tags overlay from a footer/action button.
-  - [ ] Define the shared pattern for file-attachable work items to open a small Files overlay from a footer/action button.
-  - [ ] Keep this as a standardization plan unless the implementation slice explicitly includes code changes.
+- [x] Create the framework-wide UI standardization plan for main screens, modals, drawers, slideouts, internal boxes, headings, dividers, and action footers.
+  - [x] Build this as 0.33.5.13.x.
+  - [x] Standardize modal internal headings so task Checklist, Assignees, Recurrence, and Reminders use the same visual language.
+  - [x] Standardize internal box surfaces so Notifications, task timer, Checklist, Assignees, Recurrence, and Reminders use framework theme tokens rather than one-off dark, square, light, or rounded treatments.
+  - [x] Standardize horizontal divider rules so dividers appear only at the top of the option being toggled.
+  - [x] Decide the shared footer action pattern for Save, Close, Cancel, and related modal actions.
+  - [x] Define the shared pattern for taggable work items to open a small Tags overlay from a footer/action button.
+  - [x] Define the shared pattern for file-attachable work items to open a small Files overlay from a footer/action button.
+  - [x] Keep this as a standardization plan unless the implementation slice explicitly includes code changes.
 
 ### Version 0.33.5.12.6 - UI Cleanup Closeout
 
-- [ ] Update Help and developer docs only where user-facing modal or bulk-edit behavior changed.
-- [ ] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive during the actual implementation/closeout pass.
-- [ ] Run focused client/project and task regressions.
+- [x] Update Help and developer docs only where user-facing modal or bulk-edit behavior changed.
+- [x] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive during the actual implementation/closeout pass.
+- [x] Run focused client/project and task regressions.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Verify `/api/app-info` reports the expected version after implementation.
+
+## Version 0.33.5.13 - Framework Surface and Modal Style Standardization
+
+### Questions and Design Clarifications
+
+- [ ] Confirm whether shared modal primary actions should remain icon-only everywhere after standardization, or whether destructive/commit actions should show short visible text on wider layouts while staying icon-only in dense task-style modals.
+- [ ] Confirm whether mobile Tags and Files overlays should become full-width bottom sheets or remain contained overlays inside the active modal.
+- [ ] Confirm first adoption order after the Tasks cleanup surface: Notifications, Time Tracking, Clients/Projects, Lists, and Notes are the likely first candidates.
+
+### Accepted Planning Constraints
+
+- Build this as 0.33.5.13.x implementation slices. 0.33.5.12.5 only creates the plan.
+- Framework owns shared surface tokens, modal structure, footer/action alignment, overlay host behavior, focus handling, escape/click-away behavior, and responsive rules.
+- Modules own their form fields, picker content, save payloads, validation, permission checks, and business meaning.
+- Shared patterns must keep users inside the active workflow. Do not send users to another page just to edit tags, attach files, or adjust a related modal detail.
+- Shared surfaces should use existing theme tokens where possible before adding new tokens.
+- Do not nest cards inside cards. Use cards only for repeated items, modals, and genuinely framed tools; page sections should be full-width bands or unframed layouts with constrained inner content.
+- Compact work surfaces should favor recognizable icons with accessible labels and titles, while preserving text where the action is destructive, unusual, or likely to be ambiguous.
+
+### Version 0.33.5.13.1 - Surface Inventory and Framework Token Contract
+
+- [ ] Inventory current main screens, modals, drawers, slideouts, internal boxes, footer bars, and overlay-like panels.
+- [ ] Identify one-off surface colors, border radii, shadows, dark panels, light panels, dividers, and footer action treatments.
+- [ ] Define the shared surface token set for page surfaces, modal bodies, modal internal groups, overlay panels, drawers, chips, dividers, focus rings, and disabled states.
+- [ ] Define shared class names or component helpers for framework-owned surfaces without requiring modules to hard-code each other's UI details.
+- [ ] Add static regression coverage that guards against reintroducing one-off modal surface classes in the first converted areas.
+
+### Version 0.33.5.13.2 - Modal Sections, Internal Headings, and Divider Rules
+
+- [ ] Create the shared modal section pattern for titled groups, collapsible groups, compact metadata ribbons, help text, and inline validation.
+- [ ] Standardize internal modal headings so Checklist, Assignees, Recurrence, Reminders, Notifications, timers, and future module panels use the same visual language.
+- [ ] Standardize divider placement so a divider appears only at the top of the option or section being toggled.
+- [ ] Preserve keyboard access, focus visibility, and screen-reader labels for section toggles and icon-only controls.
+- [ ] Convert the Tasks modal internal groups only after the shared pattern exists.
+
+### Version 0.33.5.13.3 - Modal Footer and Action Control Contract
+
+- [ ] Define shared footer layout for primary, secondary, destructive, copy/share, tags, files, and notification actions.
+- [ ] Standardize Save, Close, Cancel, Delete/Archive, Copy Link, Tags, Files, and notification button placement across modals.
+- [ ] Define when footer actions should be icon-only, icon-plus-text, disabled, hidden, or moved into an overflow menu.
+- [ ] Preserve existing save/cancel/close semantics, dirty-state prompts, and focus return behavior while moving actions into shared footer structure.
+- [ ] Add UI contract regressions for accessible labels, titles, button type, and footer action ordering.
+
+### Version 0.33.5.13.4 - Framework Overlay Pattern for Tags and Files
+
+- [ ] Create a shared overlay host for small module-owned pickers opened from modal footer or row action buttons.
+- [ ] Keep Tags and Files picker content owned by their framework services/modules; the overlay only owns placement, closing, focus trap, escape key, click-away, responsive sizing, and title/action framing.
+- [ ] Support anchored desktop overlays and the confirmed mobile behavior from the design questions.
+- [ ] Ensure only one footer overlay is open at a time inside the active modal.
+- [ ] Add regressions that prove task Tags and Files footer actions open the shared overlay and still use the existing Tags/Files contracts.
+
+### Version 0.33.5.13.5 - Drawers, Slideouts, and Main-Screen Internal Surfaces
+
+- [ ] Define the shared drawer and slideout shell for future side panels, quick editors, and contextual detail views.
+- [ ] Standardize main-screen internal boxes so Notifications, task timers, task recovery panels, list detail panels, and settings groups use the same surface rules.
+- [ ] Define dense table/list action placement separately from modal footer actions.
+- [ ] Confirm responsive behavior for drawers and slideouts, including when they become full-screen overlays.
+- [ ] Add a small implementation target that proves the shell without converting every module at once.
+
+### Version 0.33.5.13.6 - First Adoption Pass
+
+- [ ] Convert the highest-value existing surfaces to the new shared patterns, starting with Tasks modal groups, task footer overlays, Notifications boxes, and task timer surfaces unless the design questions change the order.
+- [ ] Keep each module conversion scoped to UI structure and styling unless a workflow bug is explicitly included.
+- [ ] Preserve current task, tag, file, notification, timer, and permission behavior during surface conversion.
+- [ ] Add or update focused regressions for each converted surface.
+- [ ] Avoid broad visual rewrites of unrelated modules until the shared patterns prove stable.
+
+### Version 0.33.5.13.7 - Surface Standardization Closeout
+
+- [ ] Update Help and developer docs where shared modal, overlay, footer, drawer, or surface behavior changed.
+- [ ] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive during the implementation closeout.
+- [ ] Run focused converted-surface regressions.
 - [ ] Run `npm run check`.
 - [ ] Run `npm run test:permissions`.
 - [ ] Verify `/api/app-info` reports the expected version after implementation.
 
-## Personal / Family Workspace issues
+## 0.33.5.14 - Further UI Clean up
+
+### Help Center Tweaks
+
+- TOC articles aren't properly nested in the navigation pane
+  - They don't collapse
+  - All top level headings except "Longtail Forge" should start collapsed
+- Articles break the box boundaries
+
+### Personal / Family Workspace issues
 
 - There should be no API access for clients in Personal or Family Workspaces
   - I see both read and write Public API access for clients in a Personal workspace right now (0.33.5.4.1)
-
-- There are still no notes or lists public API key options listed.
 
 - Files listings in a Family workspace still surfaces Client as an attachment point
 
@@ -347,16 +211,20 @@ help/
     - I believe this issue is related to clients showing up
     - I think the projects display is linked to clients and client isn't properly setting the workspace projects as the filter
 
-## Lists
+### Lists
 
 - The UI is a mess.
-  - On a laptop screen (1366 wide) Duplicate, edit, complete, finalize, etc. buttons go way out of bounds
+  - On a laptop screen (1366 wide) Duplicate, edit, complete, finalize, etc. buttons on Actions -> Procurement Lists go way out of bounds
   - Next, Source, Costs boxes do not respect dark mode, they have light colored backgrounds
   - Items entry goes way off the screen as well
   - List selector box needs to be moved above the list view and directly below fliters
   - List selector box needs to be collapsible
     - Should start off open
     - Once a list is selected, the box should collapse
+
+### Other
+
+- There are still no notes or lists public API key options listed.
 
 ## Version 0.33.6 - Reports Module
 

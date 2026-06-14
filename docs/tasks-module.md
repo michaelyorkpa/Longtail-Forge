@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.5.10.2. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.5.12.6. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -8,18 +8,22 @@ Tasks stay integrated through framework contracts for permissions, app shell nav
 
 ## Current Workflow Surface
 
-The protected Tasks page is `tasks.html` under the Projects menu. It supports scoped task creation, editing, duplicate, complete, reopen, archive, restore, bulk status/priority/assignee updates, tag filtering, notification following, recurrence settings, reminders, files, and task timers when Time Tracking is enabled.
+The protected Tasks page is `tasks.html` under the Projects menu. It supports scoped task creation, editing, duplicate, complete, reopen, archive, restore, bulk status/priority/assignee/due date/due time/tag updates, tag filtering, notification following, recurrence settings, reminders, files, and task timers when Time Tracking is enabled.
+
+Bulk task updates keep due date and due time as separate actions. Due dates can be set or cleared; clearing due date clears due time. Due time can be set or cleared only when the task has a due date, with per-task partial errors for invalid or inaccessible targets. Bulk tag add/remove/replace behavior goes through the Tags-owned bulk assignment contract so direct/manual tag changes preserve propagated and system tag assignments. The browser shows an in-app confirmation before mixed due date, due time, or tag values are overwritten, added, removed, or cleared.
 
 The task dialog includes:
 
-- title, status, priority, client/project context, due date, and due time
-- assignees
-- next action
-- blocked reason
-- resume note
-- completion duration for completed or archived records
+- title and a compact metadata ribbon for status, priority, client/project context, due date, due time, and saved completion duration
+- a collapsible Task Details group with parent task, status, priority, client/project context, due date, and due time
+- assignees, collapsed unless selected assignees already exist
+- next action and resume note as paired compact textareas
+- blocked reason as a compact one-line textarea shown only while blocked
+- a `TTC:` completion duration chip only for saved completed tasks with persisted completion metadata
 - lightweight checklist controls
 - recurrence, reminders, tags, files, notes, notifications, description, and task timer controls
+
+Task modal notification following is owned by the heading bell. The dialog does not render a separate in-body Notifications fieldset or popover; clicking the heading bell follows or unfollows the saved task, and a red bell means the current user follows that task. The modal footer uses icon-only controls with accessible labels and titles for tags, files, copy link, cancel, and save. Tags and Files open their existing module-owned pickers in task-owned footer panels until the shared framework overlay standardization pass replaces that temporary placement.
 
 The task dialog includes a Notes panel mounted through the Notes-owned linked-record helper. Saved tasks show notes linked through task context or `note_links`, permitted create/link/unlink actions, and the empty state "No notes linked to this task." Unsaved tasks show "Save the task before adding notes." New notes created from a task carry task context, available project/client context, Note Kind `log`, the Active Work Library suggestion, and the normal internal visibility default unless the user changes it.
 
@@ -77,7 +81,11 @@ Core regression coverage for the current Tasks QoL line includes:
 - `scripts/task-relationships-regression.mjs`
 - `scripts/task-list-density-regression.mjs`
 - `scripts/task-qol-closeout-regression.mjs`
+- `scripts/task-bulk-due-tags-regression.mjs`
+- `scripts/task-modal-compact-layout-regression.mjs`
+- `scripts/task-modal-reflow-regression.mjs`
+- `scripts/task-modal-followup-regression.mjs`
 - `scripts/task-timer-status-regression.mjs`
 - `scripts/notes-linked-panel-regression.mjs`
 
-The closeout regression verifies task reads, summaries, Workbench items, search documents, internal event metadata, inactive-task resume candidacy, inaccessible-task boundaries, Help declarations, and this developer handoff. The linked-panel regression verifies the Task dialog Notes panel contract, task-created note defaults, and task note-count source wiring.
+The closeout regression verifies task reads, summaries, Workbench items, search documents, internal event metadata, inactive-task resume candidacy, inaccessible-task boundaries, Help declarations, module version bookkeeping, and this developer handoff. The modal regressions verify the compact task dialog, metadata ribbon, saved-only `TTC:` chip, heading notification bell, footer actions, footer tag/file panels, and collapsed section defaults. The linked-panel regression verifies the Task dialog Notes panel contract, task-created note defaults, and task note-count source wiring.

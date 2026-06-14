@@ -31,7 +31,7 @@ assert.match(stylesheet, /\.task-dialog-heading \{[\s\S]*justify-content: space-
 assert.match(stylesheet, /\.task-metadata-ribbon \{[\s\S]*flex-wrap: wrap;/, "Task metadata ribbon should wrap safely");
 assert.match(stylesheet, /\.task-metadata-chip \{[\s\S]*overflow-wrap: anywhere;/, "Task metadata chips should avoid text overflow");
 
-assert.match(tasksModule, /version: "0\.33\.5\.12\.4\.1"/, "Tasks module version should match the current modal release");
+assert.match(tasksModule, /version: "0\.33\.5\.12\.6"/, "Tasks module version should match the current modal release");
 
 console.log("Task modal compact layout regression passed.");
 

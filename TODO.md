@@ -15,6 +15,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Testing Goals
 
+This section is to define a series of human testing goals for different sections of the app.
+
 ### Permissions
 
 ### Notifications
@@ -37,18 +39,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
   - Should be similar to context around displaying notes within workspace
   - Maybe just displays headings/titles?
 
-
 ## Follow Notifications
 
 - Follow notifications should override creator notification blocking
 - Reminder notifications should not be suppressed
-
-## Help Center Tweak
-
-- TOC articles aren't properly nested in the navigation pane
-  - They don't collapse
-  - All top level headings except "Longtail Forge" should start collapsed
-- Articles break the box boundaries
 
 ## Mobile Tweaks - Fill this section out after the above section standardizes the modal display
 

@@ -1,3 +1,15 @@
+## Version 0.33.5.12.6 - 2026-06-14 10:32 -04:00
+
+- Closed out the 0.33.5.12 UI cleanup line with current-state Help updates for task bulk edits, the compact task dialog, task follow bell behavior, client hierarchy filtering, and client edit modal footer actions.
+- Updated `docs/tasks-module.md` and `docs/ui-layout-guide.md` for the shipped task modal/bulk-edit surface, current modal footer conventions, and temporary task-owned Tags/Files footer panels pending the 0.33.5.13 framework overlay work.
+- Bumped package metadata and the Tasks module version to `0.33.5.12.6`, updated the Tasks closeout regression version/docs checks, marked the roadmap closeout complete, and archived the older completed 0.33.5.10 roadmap section.
+
+## Version 0.33.5.12.5 - 2026-06-14 10:25 -04:00
+
+- Completed the framework surface and modal style standardization planning pass without code changes.
+- Added the future 0.33.5.13.x roadmap plan for shared surface tokens, modal section headings, footer actions, Tags/Files overlays, drawers/slideouts, first adoption, and closeout.
+- Recorded framework/module UI ownership decisions in `DECISIONS.md`; package/app metadata remains at `0.33.5.12.4.1` because this slice is documentation/planning only.
+
 ## Version 0.33.5.12.4.1 - 2026-06-13 17:53 -04:00
 
 - Converted task modal notification, tags, files, copy link, cancel, and save controls to icon-only buttons with accessible labels and tooltips.

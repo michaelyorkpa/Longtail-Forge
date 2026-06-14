@@ -17,6 +17,14 @@ Longtail Forge UI should stay quiet, scannable, and operational. Pages should fa
 - Disabled required controls should remain visible and clearly locked.
 - Labels should describe the setting itself, not implementation details.
 
+## Current Modal Conventions
+
+- Keep compact workflow modals scannable: title and summary context near the top, related fields grouped together, and low-frequency details collapsed when they are empty.
+- Put save, cancel, copy/share, tags, files, and notification actions in the modal heading or footer where the current workflow expects them. Preserve accessible labels and titles on icon-only controls.
+- Keep module-owned pickers module-owned. For example, Tasks may open Tags and Files from footer controls, but Tags and Files keep their assignment and attachment contracts.
+- Do not create a second notification settings block inside a modal when the heading bell already owns follow/unfollow behavior.
+- Treat the 0.33.5.13 framework surface standardization roadmap as the place to replace temporary task-specific footer panels with a shared overlay host.
+
 ## Module Settings
 
 Module status controls come from module manifests. A setting with `moduleStatus: true` controls the corresponding `workspace_modules` row through the backend registry service.
