@@ -79,11 +79,11 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ### Version 0.33.5.13.5 - Drawers, Slideouts, and Main-Screen Internal Surfaces
 
-- [ ] Define the shared drawer and slideout shell for future side panels, quick editors, and contextual detail views.
-- [ ] Standardize main-screen internal boxes so Notifications, task timers, task recovery panels, list detail panels, and settings groups use the same surface rules.
-- [ ] Define dense table/list action placement separately from modal footer actions.
-- [ ] Confirm responsive behavior for drawers and slideouts, including when they become full-screen overlays.
-- [ ] Add a small implementation target that proves the shell without converting every module at once.
+- [x] Define the shared drawer and slideout shell for future side panels, quick editors, and contextual detail views.
+- [x] Standardize main-screen internal boxes so Notifications, task timers, task recovery panels, list detail panels, and settings groups use the same surface rules.
+- [x] Define dense table/list action placement separately from modal footer actions.
+- [x] Confirm responsive behavior for drawers and slideouts, including when they become full-screen overlays.
+- [x] Add a small implementation target that proves the shell without converting every module at once.
 
 ### Version 0.33.5.13.6 - First Adoption Pass
 

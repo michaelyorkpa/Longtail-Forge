@@ -1,3 +1,10 @@
+## Version 0.33.5.13.5 - 2026-06-14 12:03 -04:00
+
+- Added shared drawer, slideout, main-screen panel, sticky panel, and dense row/list action surface classes to `longtail-forge.css`, including narrow-screen full-screen drawer/slideout behavior.
+- Converted the Tasks filter toolbar and bulk toolbar to the shared `.surface-main-panel` proof target without changing task workflow behavior.
+- Added `drawer-main-surface-contract-regression.mjs`, wired it into the regression suite, updated cache-key/version assertions, and bumped package/app plus Tasks module metadata to `0.33.5.13.5`.
+- Updated `docs/ui-surface-contract.md`, `docs/ui-layout-guide.md`, `DECISIONS.md`, and the roadmap for the completed 0.33.5.13.5 slice.
+
 ## Version 0.33.5.13.4 - 2026-06-14 11:48 -04:00
 
 - Added the shared `LongtailForge.overlayHost` browser helper for module-owned picker overlays with anchored desktop placement, mobile bottom-sheet behavior, Escape/click-away closing, focus trapping, focus return, trigger ARIA state, and one-open-overlay-per-host behavior.

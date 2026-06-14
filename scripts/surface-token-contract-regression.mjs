@@ -48,7 +48,7 @@ assert.deepEqual(undefinedTokens.sort(), [], `stylesheet must not reference unde
 
 assert.match(
   styles,
-  /\.surface-modal-group,\s*\.surface-overlay-panel,\s*\.surface-drawer,\s*\.surface-slideout\s*\{[\s\S]*border:\s*1px solid var\(--color-border\)/,
+  /\.surface-card,\s*\.surface-main-panel,\s*\.surface-modal-group,\s*\.surface-overlay-panel,\s*\.surface-drawer,\s*\.surface-slideout\s*\{[\s\S]*border:\s*1px solid var\(--color-border\)/,
   "shared surface classes must use the framework border token",
 );
 assert.match(
@@ -82,7 +82,7 @@ for (const className of [
   assert.match(tasksView, new RegExp(`class="${escapeRegExp(className)}"`), `Tasks modal converted area should include ${className}`);
 }
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=19/, "Tasks view must load the surface-token stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=20/, "Tasks view must load the surface-token stylesheet cache key");
 
 console.log("Surface token contract regression passed.");
 

@@ -25,7 +25,7 @@ This section is to define a series of human testing goals for different sections
 
 ## Notes Fix
 
-- Notes don't inherit client/project tags properly
+- Notes don't appear to inherit client/project tags properly
 
 ## Tags and Files Modals
 

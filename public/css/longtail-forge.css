@@ -85,6 +85,7 @@ body {
 }
 
 .surface-card,
+.surface-main-panel,
 .surface-modal-group,
 .surface-overlay-panel,
 .surface-drawer,
@@ -96,6 +97,17 @@ body {
 
 .surface-modal-group {
     background: var(--color-surface-raised);
+}
+
+.surface-main-panel {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+    background: var(--color-surface);
+}
+
+.surface-main-panel--sticky {
+    box-shadow: var(--shadow-control);
 }
 
 .surface-modal-section-heading {
@@ -173,8 +185,53 @@ summary.surface-modal-section-heading {
 
 .surface-drawer,
 .surface-slideout {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 12px;
+    width: min(420px, 92vw);
+    max-height: 100%;
+    padding: 16px;
+    overflow: auto;
     background: var(--color-surface-raised);
     box-shadow: var(--shadow-modal);
+}
+
+.surface-slideout {
+    width: min(560px, 94vw);
+}
+
+.surface-drawer-header,
+.surface-slideout-header,
+.surface-drawer-footer,
+.surface-slideout-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+}
+
+.surface-drawer-body,
+.surface-slideout-body {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    overflow: auto;
+}
+
+.surface-dense-actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+}
+
+.surface-dense-actions .icon-button {
+    flex: 0 0 auto;
 }
 
 .surface-divider-top {
@@ -248,6 +305,7 @@ summary.surface-modal-section-heading {
 }
 
 .surface-focus-ring:focus-visible,
+.surface-main-panel:focus-visible,
 .surface-modal-group:focus-visible,
 .surface-overlay-panel:focus-visible,
 .surface-drawer:focus-visible,
@@ -2591,11 +2649,7 @@ button.danger-button {
 }
 
 .task-sticky-controls {
-    padding: 12px;
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    background: var(--color-surface);
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    box-shadow: var(--shadow-control);
 }
 
 .task-quick-filters {
@@ -2617,10 +2671,6 @@ button.danger-button {
 
 .task-bulk-toolbar {
     margin-bottom: 16px;
-    padding: 12px;
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    background: var(--color-surface);
 }
 
 .task-filter-details,
@@ -5590,6 +5640,22 @@ button:disabled {
 
     .notification-shell {
         justify-self: start;
+    }
+
+    .surface-drawer,
+    .surface-slideout {
+        position: fixed;
+        inset: 0;
+        z-index: 70;
+        width: 100%;
+        max-width: none;
+        max-height: none;
+        border: 0;
+        border-radius: 0;
+    }
+
+    .surface-dense-actions {
+        flex-wrap: wrap;
     }
 
     .nav-toggle {

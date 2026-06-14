@@ -17,7 +17,7 @@ assert.match(tasksView, /<details class="task-recurrence-field[^"]*" data-task-r
 assert.match(tasksView, /<details class="task-reminder-field[^"]*" data-task-reminder-details>/, "Reminders should remain collapsed by default");
 assert.match(tasksView, /data-task-tags-toggle[\s\S]*data-task-files-toggle[\s\S]*data-copy-task-link/, "Tags and Files should move to footer actions before utility/save controls");
 assert.match(tasksView, /data-task-tags-panel hidden[\s\S]*data-task-files-panel hidden/, "Tags and Files pickers should mount in hidden footer panels");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=19/, "Task reflow should cache-bust shared CSS");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=20/, "Task reflow should cache-bust shared CSS");
 assert.match(tasksView, /js\/shared\/icons\.js\?v=3/, "Task reflow should cache-bust shared icons");
 assert.match(tasksView, /js\/task-dialog\.js\?v=10/, "Task reflow should cache-bust Task dialog JS");
 
@@ -39,7 +39,7 @@ assert.match(stylesheet, /\.task-footer-panel \{[\s\S]*grid-column: 1 \/ -1;/, "
 
 assert.match(iconsScript, /tag: Object\.freeze/, "Shared icons should include a tag icon");
 assert.match(iconsScript, /file: Object\.freeze/, "Shared icons should include a file icon");
-assert.match(tasksModule, /version: "0\.33\.5\.13\.4"/, "Tasks module version should match the modal reflow release");
+assert.match(tasksModule, /version: "0\.33\.5\.13\.5"/, "Tasks module version should match the modal reflow release");
 
 console.log("Task modal reflow regression passed.");
 
