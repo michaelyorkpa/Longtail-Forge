@@ -76,6 +76,12 @@ Use `LongtailForge.overlayHost.create({ host })` for small module-owned panels o
 
 Use `.surface-main-panel` for main-screen filters, bulk toolbars, settings groups, notification/timer panels, and contextual work panels. Use `.surface-dense-actions` for row-local action clusters instead of reusing modal footer classes. Drawer and slideout shells are available for future side panels and become full-screen overlays on narrow screens.
 
+## View-Building Helpers
+
+Use `docs/view-building-contract.md` before adopting or extending `LongtailForge.view`. The view-building helper layer is for common DOM anatomy: page headers, status messages, empty states, filter panels, collapsible selector/index panels, split list/detail workspaces, data tables with overflow wrappers, detail headers, metadata/badge rows, action strips, summary panels, modal shells/forms/footers, field grids, and inline item/action rows.
+
+Keep helper usage boring and behavior-preserving. Helpers may create accessible DOM nodes, apply framework surface classes, wire button types and labels, and return elements for module callbacks. Modules still own data loading, state, validation, API calls, save payloads, route permissions, labels, and record-specific workflow behavior. Do not move module storage rules, permission rules, or save semantics into `LongtailForge.view`.
+
 ## Shared Icon And Action Controls
 
 Use `window.LongtailForge.icons` for common action icons and compact action buttons. The shared helper is framework-owned, uses a local Lucide-derived inline SVG subset, and renders by stable semantic names such as `add`, `edit`, `archive`, `restore`, `delete`, `start`, `pause`, `save`, `close`, `copy`, `refresh`, and `more`.

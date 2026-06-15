@@ -1,3 +1,9 @@
+## Version 0.33.5.15.1 - 2026-06-15 03:19 -04:00
+
+- Added `docs/view-building-contract.md` with the first view-builder inventory, `LongtailForge.view` namespace decision, framework/module ownership boundary, and the initial primitive set for page headers, status/empty states, filters, split list/detail layouts, tables, detail/action areas, summary panels, modals, field grids, and inline action rows.
+- Updated module developer documentation to point future conversions at the view-building contract while preserving module ownership of data loading, validation, API calls, save payloads, permissions, labels, and workflow behavior.
+- Added `view-builder-contract-regression.mjs`, wired it into the regression suite, marked the 0.33.5.15.1 roadmap checklist complete, recorded the decisions, and bumped package/app metadata to `0.33.5.15.1`.
+
 ## Version 0.33.5.14.5 - 2026-06-15 03:09 -04:00
 
 - Closed the 0.33.5.14 UI stabilization line after the Help, workspace-scope, Lists responsive/dark-mode, Notes tag inheritance, and Notes/Lists public API scope visibility slices.

@@ -172,28 +172,28 @@ Modules still own business meaning: data loading, save payloads, validation rule
 
 ### Version 0.33.5.15.1 - View-Building Inventory and Boundary Contract
 
-- [ ] Inventory hard-coded view construction in current protected views and module browser scripts.
-- [ ] Identify repeated patterns across Lists, Clients/Projects, Tasks, Notes, Files, Help, Workbench, Dashboard, and future Reporting.
-- [ ] Define the first framework-owned view primitives:
-  - [ ] Page header
-  - [ ] Status message
-  - [ ] Empty state
-  - [ ] Filter panel
-  - [ ] Collapsible selector/index panel
-  - [ ] Split list/detail workspace
-  - [ ] Data table with overflow wrapper
-  - [ ] Detail header
-  - [ ] Detail metadata/badge row
-  - [ ] Detail action strip
-  - [ ] Summary/info panel
-  - [ ] Modal shell
-  - [ ] Modal form
-  - [ ] Modal footer/action groups
-  - [ ] Field grid
-  - [ ] Inline item/action row
-- [ ] Document what the framework owns versus what modules own.
-- [ ] Do not change module APIs, database schema, permissions, or business workflows in this slice.
-- [ ] Add developer documentation explaining how modules adopt framework view primitives.
+- [x] Inventory hard-coded view construction in current protected views and module browser scripts.
+- [x] Identify repeated patterns across Lists, Clients/Projects, Tasks, Notes, Files, Help, Workbench, Dashboard, and future Reporting.
+- [x] Define the first framework-owned view primitives:
+  - [x] Page header
+  - [x] Status message
+  - [x] Empty state
+  - [x] Filter panel
+  - [x] Collapsible selector/index panel
+  - [x] Split list/detail workspace
+  - [x] Data table with overflow wrapper
+  - [x] Detail header
+  - [x] Detail metadata/badge row
+  - [x] Detail action strip
+  - [x] Summary/info panel
+  - [x] Modal shell
+  - [x] Modal form
+  - [x] Modal footer/action groups
+  - [x] Field grid
+  - [x] Inline item/action row
+- [x] Document what the framework owns versus what modules own.
+- [x] Do not change module APIs, database schema, permissions, or business workflows in this slice.
+- [x] Add developer documentation explaining how modules adopt framework view primitives.
 
 ### Version 0.33.5.15.2 - Shared Browser View Builder Helpers
 
