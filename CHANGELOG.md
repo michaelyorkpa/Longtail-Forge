@@ -1,3 +1,9 @@
+## Version 0.33.5.14.5 - 2026-06-15 03:09 -04:00
+
+- Closed the 0.33.5.14 UI stabilization line after the Help, workspace-scope, Lists responsive/dark-mode, Notes tag inheritance, and Notes/Lists public API scope visibility slices.
+- Bumped package/app metadata to `0.33.5.14.5`, marked the closeout checklist complete, and recorded the closeout/archive decision in `DECISIONS.md`.
+- Verified the release with `npm run check`, `npm run test:permissions`, and `/api/app-info` returning `0.33.5.14.5`.
+
 ## Version 0.33.5.14.4 - 2026-06-15 02:54 -04:00
 
 - Added Notes client/project tag propagation so notes linked through direct context or linked-record rows inherit the expected client/project tags without changing note permissions, visibility, Library placement, workflow status, or billing behavior.

@@ -107,12 +107,12 @@ Keep this release focused on visible breakages, responsive layout failures, dark
 
 ### Version 0.33.5.14.5 - Closeout
 
-- [ ] Update CHANGELOG.md.
-- [ ] Update ROADMAP.md completion checkboxes.
-- [ ] Update package metadata to the implemented version.
-- [ ] Run `npm run check`.
-- [ ] Run `npm run test:permissions`.
-- [ ] Verify `/api/app-info` reports the expected version.
+- [x] Update CHANGELOG.md.
+- [x] Update ROADMAP.md completion checkboxes.
+- [x] Update package metadata to the implemented version.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Verify `/api/app-info` reports the expected version.
 
 ## Version 0.33.5.15 - Framework View Builder Contract and Lists Pilot
 
