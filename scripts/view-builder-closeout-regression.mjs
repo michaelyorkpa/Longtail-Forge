@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.16.10";
+const appVersion = "0.33.5.16.12";
 const roadmap = readText("ROADMAP.md");
 const archive = readText("ROADMAP-ARCHIVE.md");
+const roadmapHistory = `${roadmap}\n${archive}`;
 const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
@@ -30,12 +31,13 @@ for (const item of [
   "Run `npm run test:permissions`.",
   "Verify `/api/app-info` reports the expected version.",
 ]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
+  assert.match(roadmapHistory, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
 }
 
 assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.14 - /m, "Completed 0.33.5.14 should be archived out of the live roadmap");
-assert.match(roadmap, /^## Version 0\.33\.5\.15 - Framework View Builder Contract and Lists Pilot/m, "The live roadmap should keep 0.33.5.15 as the latest completed section");
+assert.doesNotMatch(roadmap, /^## Version 0\.33\.5\.15 - Framework View Builder Contract and Lists Pilot/m, "Completed 0.33.5.15 should be archived out of the live roadmap after 0.33.5.16 closes");
 assert.match(archive, /^## Version 0\.33\.5\.14 - UI Stabilization and Workspace Scope Corrections/m, "The roadmap archive should contain 0.33.5.14");
+assert.match(archive, /^## Version 0\.33\.5\.15 - Framework View Builder Contract and Lists Pilot/m, "The roadmap archive should contain 0.33.5.15");
 
 assert.match(viewContract, /As of 0\.33\.5\.15\.6/, "View-building contract should report the closeout version");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.15\.6/, "View-building contract should include closeout notes");

@@ -92,6 +92,7 @@ const VIEW_DETAIL_FIELDS = new Set([
   "metadataRow",
   "actionStrip",
   "summaryPanels",
+  "linkedRecords",
   "itemForm",
   "itemRows",
   "emptyState",
@@ -118,6 +119,18 @@ const VIEW_FIELD_FIELDS = new Set([
 ]);
 const VIEW_ITEM_ROWS_FIELDS = new Set(["itemsField", "columns", "actions", "emptyState"]);
 const VIEW_ITEM_ROW_COLUMN_FIELDS = new Set(["id", "field", "label", "labelKey", "type", "formatter"]);
+const VIEW_LINKED_RECORDS_FIELDS = new Set([
+  "title",
+  "label",
+  "recordsField",
+  "targetTypeField",
+  "targetLabelField",
+  "targetUrlField",
+  "targetIdField",
+  "emptyState",
+  "fields",
+  "actions",
+]);
 const VIEW_DATA_SOURCE_FIELDS = new Set(["route", "method", "fieldBindings"]);
 const VIEW_ACTION_FIELDS = new Set([
   "id",
@@ -473,8 +486,10 @@ function listViewSurfaceActions(surface, prefix) {
   }
   collectActionArray(surface?.actions, `${prefix}.actions`, actions);
   collectActionArray(surface?.table?.rowActions, `${prefix}.table.rowActions`, actions);
+  collectActionArray(surface?.detail?.actionStrip?.actions, `${prefix}.detail.actionStrip.actions`, actions);
   collectActionArray(surface?.detail?.itemForm?.actions, `${prefix}.detail.itemForm.actions`, actions);
   collectActionArray(surface?.detail?.itemRows?.actions, `${prefix}.detail.itemRows.actions`, actions);
+  collectActionArray(surface?.detail?.linkedRecords?.actions, `${prefix}.detail.linkedRecords.actions`, actions);
   for (const [modalIndex, modal] of (Array.isArray(surface?.modals) ? surface.modals : []).entries()) {
     collectActionArray(modal?.footerActions, `${prefix}.modals[${modalIndex}].footerActions`, actions);
     collectActionArray(modal?.actions, `${prefix}.modals[${modalIndex}].actions`, actions);
@@ -613,6 +628,8 @@ function validateDetailDescriptor(detail, prefix, errors) {
   for (const fieldName of ["header", "badgeRow", "metadataRow", "actionStrip", "emptyState"]) {
     optionalPlainObject(detail, fieldName, errors, { prefix });
   }
+  validateActionsDescriptor(detail.actionStrip?.actions, `${prefix}.actionStrip.actions`, errors);
+  validateLinkedRecordsDescriptor(detail.linkedRecords, `${prefix}.linkedRecords`, errors);
   validateItemFormDescriptor(detail.itemForm, `${prefix}.itemForm`, errors);
   validateItemRowsDescriptor(detail.itemRows, `${prefix}.itemRows`, errors);
   optionalArrayOfObjects(detail.summaryPanels, `${prefix}.summaryPanels`, errors, (panel, panelIndex) => {
@@ -620,6 +637,36 @@ function validateDetailDescriptor(detail, prefix, errors) {
     validateKnownObjectFields(panel, VIEW_LABEL_FIELDS, panelPrefix, errors);
     validateLabelDescriptor(panel, panelPrefix, errors);
   });
+}
+
+function validateLinkedRecordsDescriptor(linkedRecords, prefix, errors) {
+  if (linkedRecords === undefined) {
+    return;
+  }
+  if (!isPlainObject(linkedRecords)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+  validateKnownObjectFields(linkedRecords, VIEW_LINKED_RECORDS_FIELDS, prefix, errors);
+  validateLabelDescriptor(linkedRecords, prefix, errors);
+  optionalString(linkedRecords, "recordsField", errors, { prefix });
+  optionalString(linkedRecords, "targetTypeField", errors, { prefix });
+  optionalString(linkedRecords, "targetLabelField", errors, { prefix });
+  optionalString(linkedRecords, "targetUrlField", errors, { prefix });
+  optionalString(linkedRecords, "targetIdField", errors, { prefix });
+  optionalPlainObject(linkedRecords, "emptyState", errors, { prefix });
+  optionalArrayOfObjects(linkedRecords.fields, `${prefix}.fields`, errors, (field, fieldIndex) => {
+    const fieldPrefix = `${prefix}.fields[${fieldIndex}]`;
+    validateKnownObjectFields(field, VIEW_FIELD_FIELDS, fieldPrefix, errors);
+    requireString(field, "field", errors, { prefix: fieldPrefix });
+    requireString(field, "type", errors, { prefix: fieldPrefix });
+    validateLabelDescriptor(field, fieldPrefix, errors);
+    optionalBoolean(field, "required", errors, { prefix: fieldPrefix });
+    optionalArray(field, "options", errors);
+    optionalString(field, "optionsSource", errors, { prefix: fieldPrefix });
+    optionalString(field, "behavior", errors, { prefix: fieldPrefix });
+  });
+  validateActionsDescriptor(linkedRecords.actions, `${prefix}.actions`, errors);
 }
 
 function validateItemFormDescriptor(itemForm, prefix, errors) {

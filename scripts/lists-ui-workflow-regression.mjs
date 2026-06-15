@@ -33,7 +33,7 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
-  assert.equal(listsModule.version, "0.33.5.16.10");
+  assert.equal(listsModule.version, "0.33.5.16.12");
   assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
   assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
@@ -62,12 +62,10 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /buildListsViewShell/);
   assert.match(listsJs, /view\.renderSurface\(renderDescriptor, host\)/);
   assert.match(listsJs, /listsViewSurfaceDescriptor/);
-  assert.match(listsJs, /createPageHeader/);
-  assert.match(listsJs, /createFilterPanel/);
-  assert.match(listsJs, /createCollapsibleIndexPanel/);
-  assert.match(listsJs, /createSplitListDetail/);
-  assert.match(listsJs, /createDataTable/);
-  assert.match(listsJs, /createModalForm/);
+  assert.match(listsJs, /decorateListsDeclarativeSurface/);
+  assert.match(listsJs, /registerListsViewBehaviors/);
+  assert.match(listsJs, /renderDescriptorDataTable/);
+  assert.match(listsJs, /renderDescriptorModalForm/);
   assert.match(listsJs, /dataset\.listsTitle/);
   assert.match(listsJs, /dataset\.listCreate/);
   assert.match(listsJs, /"listFilterStatus"/);
@@ -134,6 +132,8 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /applySuggestionSelection/);
   assert.match(listsJs, /Save as reusable item/);
   assert.match(listsJs, /createLinkedRecordsPanel/);
+  assert.match(listsJs, /listsLinkedRecordsSurfaceDescriptor/);
+  assert.match(listsJs, /renderDescriptorLinkedRecordsPanel/);
   assert.match(listsJs, /linkTargetTypeOptions/);
   assert.match(listsJs, /syncLinkPickerMode/);
   assert.match(listsJs, /populateTaskLinkPicker/);

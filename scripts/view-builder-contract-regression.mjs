@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const roadmap = readText("ROADMAP.md");
+const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
@@ -11,9 +11,9 @@ const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.16.10", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.16.10", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.16.10", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.16.12", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.16.12", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.16.12", "package-lock package entry should report the current app version");
 
 for (const item of [
   "Inventory hard-coded view construction in current protected views and module browser scripts.",

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const version = "0.33.5.15.6";
-const appVersion = "0.33.5.16.10";
-const roadmap = readText("ROADMAP.md");
+const appVersion = "0.33.5.16.12";
+const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
@@ -11,6 +11,7 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const helper = readText("public/js/shared/view-builder.js");
+const renderer = readText("public/js/shared/view-renderer.js");
 const css = readText("public/css/longtail-forge.css");
 const listsHtml = readText("views/protected/lists.html");
 const listsJs = readText("public/js/lists.js");
@@ -64,6 +65,18 @@ for (const helperName of [
   "createDetailActionStrip",
   "createInlineActionRow",
   "createModalForm",
+]) {
+  assert.match(renderer, new RegExp(`view\\.${helperName}`), `Declarative renderer should use LongtailForge.view.${helperName}`);
+  assert.doesNotMatch(listsJs, new RegExp(`view\\.${helperName}`), `Converted Lists should not call LongtailForge.view.${helperName} directly after descriptor migration`);
+}
+
+for (const helperName of [
+  "renderDescriptorActionStrip",
+  "renderDescriptorDataTable",
+  "renderDescriptorFieldGrid",
+  "renderDescriptorInlineActions",
+  "renderDescriptorLinkedRecordsPanel",
+  "renderDescriptorModalForm",
 ]) {
   assert.match(listsJs, new RegExp(`view\\.${helperName}`), `Converted Lists should use LongtailForge.view.${helperName}`);
 }

@@ -1,156 +1,6 @@
-﻿# Longtail Forge Roadmap
+# Longtail Forge Roadmap
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
-
-## Version 0.33.5.15 - Framework View Builder Contract and Lists Pilot
-
-### Design and Clarification Questions
-
-- [x] Confirm whether the first view builder should be a small DOM-helper library only, without state management, virtual DOM behavior, component lifecycle, or a new frontend framework.
-  - Confirmed.
-  - The first view builder should be a small, boring DOM-helper library.
-  - Do not add state management.
-  - Do not add virtual DOM behavior.
-  - Do not add component lifecycle semantics.
-  - Do not add a frontend framework.
-  - Helpers should create safe, accessible DOM structures and apply framework-owned surface classes.
-  - Modules remain responsible for data loading, state decisions, validation, API calls, and business workflow behavior.
-
-- [x] Confirm the framework namespace and naming preference: `window.LongtailForge.view`, `window.LongtailForge.viewBuilder`, or another existing shared namespace.
-  - Use `window.LongtailForge.view` as the public namespace.
-  - The file can be named `public/js/shared/view-builder.js`, but the browser API should be short and stable: `LongtailForge.view`.
-  - Avoid exposing both `view` and `viewBuilder` unless a temporary compatibility alias becomes necessary.
-  - Keep helper names direct, for example `LongtailForge.view.createDataTable(...)` and `LongtailForge.view.createModal(...)`.
-
-- [x] Confirm whether `0.33.5.15.3` should convert only the Lists protected workspace, leaving Lists modals/dialogs for later unless they are required by the page conversion.
-  - Confirmed.
-  - `0.33.5.15.3` should focus on the Lists protected workspace: filters, selector/index, list/detail layout, detail header, action strip, summary panels, item entry, item rows, and tables.
-  - Leave full Lists modal/dialog refactoring for a later slice unless the page conversion requires touching a dialog.
-  - If the Create/Edit List dialog must move because `lists.html` becomes a minimal host page, convert only the minimum needed shell/form/footer behavior and do not broaden the slice into a full Lists modal redesign.
-  - Preserve all Lists routes, save payloads, permissions, and workflows.
-
-- [x] Confirm whether the Client/Project modal adoption in `0.33.5.15.4` should cover both the combined Clients/Projects page and any shared dialogs opened from other protected surfaces.
-  - Yes.
-  - Convert the shared Add/Edit Client and Add/Edit Project dialog helpers at their source so the improvement applies wherever those dialogs are opened.
-  - This should cover the combined Clients/Projects page and shared dialogs opened from other protected surfaces.
-  - Do not convert unrelated inline tables, bulk controls, or full Clients/Projects page layout in this slice unless they directly block the modal conversion.
-  - Personal and Family workspaces must not gain access to Business-only client dialogs through shared dialog entry points.
-
-- [x] Confirm whether converted surfaces should keep legacy CSS classes as compatibility aliases during the pilot, or remove one-off classes immediately once framework helpers own the structure.
-  - Keep legacy CSS classes as compatibility aliases during the pilot.
-  - Converted surfaces should use the new framework helper structure and framework surface classes as the primary source of layout behavior.
-  - Existing one-off classes may remain temporarily as aliases to avoid breaking tests or unrelated styling.
-  - Do not add new one-off classes for framework-owned anatomy.
-  - Mark legacy classes as deprecated in comments or docs where practical.
-  - Remove deprecated compatibility classes in a later cleanup pass after the pilot proves stable.
-
-- [x] Confirm whether view-builder guardrails should fail on all protected views or only on explicitly converted surfaces until the pilot proves stable.
-  - Guardrails should fail only on explicitly converted surfaces during the pilot.
-  - Add inventory/reporting coverage for all protected views, but do not make the entire app fail immediately.
-  - Converted surfaces should have strict checks.
-  - Non-converted surfaces may produce warnings, inventory output, or TODO findings.
-  - This avoids turning the Lists pilot into a repo-wide UI migration.
-  - Once Lists and the first modal conversions are stable, expand the fail-on-violation guardrails one module/surface group at a time.
-
-Decision:
-
-The framework should own shared view-building primitives for common app surfaces. Modules should not hand-build common page, table, form, dialog, action strip, empty state, status message, filter panel, or split list/detail structures when a framework primitive exists.
-
-Modules still own business meaning: data loading, save payloads, validation rules, permissions, record labels, module-specific fields, and workflow behavior. The framework owns layout anatomy, surface classes, responsive behavior, dark-mode-safe tokens, accessibility defaults, and common action placement.
-
-### Version 0.33.5.15.1 - View-Building Inventory and Boundary Contract
-
-- [x] Inventory hard-coded view construction in current protected views and module browser scripts.
-- [x] Identify repeated patterns across Lists, Clients/Projects, Tasks, Notes, Files, Help, Workbench, Dashboard, and future Reporting.
-- [x] Define the first framework-owned view primitives:
-  - [x] Page header
-  - [x] Status message
-  - [x] Empty state
-  - [x] Filter panel
-  - [x] Collapsible selector/index panel
-  - [x] Split list/detail workspace
-  - [x] Data table with overflow wrapper
-  - [x] Detail header
-  - [x] Detail metadata/badge row
-  - [x] Detail action strip
-  - [x] Summary/info panel
-  - [x] Modal shell
-  - [x] Modal form
-  - [x] Modal footer/action groups
-  - [x] Field grid
-  - [x] Inline item/action row
-- [x] Document what the framework owns versus what modules own.
-- [x] Do not change module APIs, database schema, permissions, or business workflows in this slice.
-- [x] Add developer documentation explaining how modules adopt framework view primitives.
-
-### Version 0.33.5.15.2 - Shared Browser View Builder Helpers
-
-- [x] Add a shared browser helper, for example `public/js/shared/view-builder.js`.
-- [x] Expose helpers through `window.LongtailForge.view` or an equivalent framework namespace.
-- [x] Helpers must use existing surface tokens and classes from 0.33.5.13.
-- [x] Helpers must create accessible DOM by default:
-  - [x] Safe text assignment instead of HTML injection.
-  - [x] Proper button types.
-  - [x] Optional accessible labels and titles.
-  - [x] Focus-visible-safe controls.
-  - [x] Empty/status regions with appropriate roles where needed.
-- [x] Add helpers for:
-  - [x] `createPageHeader`
-  - [x] `createStatusMessage`
-  - [x] `createFilterPanel`
-  - [x] `createCollapsibleIndexPanel`
-  - [x] `createSplitListDetail`
-  - [x] `createDataTable`
-  - [x] `createDetailActionStrip`
-  - [x] `createInfoPanel`
-  - [x] `createModal`
-  - [x] `createModalForm`
-  - [x] `createFieldGrid`
-  - [x] `createActionButton`
-- [x] Keep the helper layer small and boring. This is not a full frontend framework.
-
-### Version 0.33.5.15.3 - Lists Framework View Builder Pilot
-
-- [x] Convert `views/protected/lists.html` into a minimal framework host page.
-- [x] Move Lists page structure into shared framework primitives instead of hard-coded static page sections.
-- [x] Convert Lists filters to the framework filter panel helper.
-- [x] Convert the list selector/index to the framework collapsible index panel helper.
-- [x] Convert the selected list detail area to framework detail header, badge row, metadata row, action strip, summary panels, and table helpers.
-- [x] Convert the item entry form to framework field grid/form helpers.
-- [x] Convert list item rows/actions to overflow-safe framework row/action helpers.
-- [x] Preserve all current Lists API routes, save payloads, permissions, and workflow behavior.
-- [x] Preserve Business workspace client/project behavior.
-- [x] Preserve Personal/Family workspace behavior from 0.33.5.14.
-- [x] Add regressions proving Lists no longer relies on one-off static layout classes for framework-owned structures.
-
-### Version 0.33.5.15.4 - Client/Project Modal Adoption
-
-- [x] Convert Add/Edit Client dialogs to the shared modal/form/footer helpers.
-- [x] Convert Add/Edit Project dialogs to the shared modal/form/footer helpers.
-- [x] Keep Clients/Projects responsible for field meaning, validation, save payloads, and permission checks.
-- [x] Keep framework responsible for modal shell, footer placement, responsive behavior, focus return, and action ordering.
-- [x] Ensure Personal and Family workspaces cannot open Business-only client dialogs.
-- [x] Add regressions preventing converted dialogs from using one-off modal footer structures.
-
-### Version 0.33.5.15.5 - Static Guardrails for Converted Surfaces
-
-- [x] Add focused static checks for converted modules.
-- [x] Converted modules should not call `document.createElement("dialog")` directly.
-- [x] Converted modules should not create new one-off modal footer/action classes when a framework helper exists.
-- [x] Converted modules should not introduce hard-coded light backgrounds outside theme tokens.
-- [x] Converted modules should not create non-wrapping action rows for dense/detail surfaces.
-- [x] Converted modules should keep business logic in module files and shared layout logic in framework helpers.
-
-### Version 0.33.5.15.6 - Documentation and Closeout
-
-- [x] Update `docs/module-contract.md` with the framework view-building boundary.
-- [x] Update Help/developer docs for module view adoption.
-- [x] Update DECISIONS.md with the framework-owned view builder decision.
-- [x] Update CHANGELOG.md.
-- [x] Update package metadata.
-- [x] Run `npm run check`.
-- [x] Run `npm run test:permissions`.
-- [x] Verify `/api/app-info` reports the expected version.
 
 ## Version 0.33.5.16 - Declarative Framework View Contract and Manifest View Descriptors
 
@@ -380,32 +230,32 @@ into the descriptor contract. The fix belongs in the framework primitives, not i
 
 ### Version 0.33.5.16.11 - Lists Workflow Actions, Linked Records, and Layout Cleanup
 
-- [ ] Express Lists-specific workflow actions as declarative route actions or registered behaviors:
+- [x] Express Lists-specific workflow actions as declarative route actions or registered behaviors:
       Duplicate, Edit, Complete, Finalize, Reopen, Archive, Delete, Restore, and reusable-list handling.
-- [ ] Move linked-record picker placement and linked-record rows into descriptor/renderer-supported
+- [x] Move linked-record picker placement and linked-record rows into descriptor/renderer-supported
       anatomy while keeping linked-record permission checks and service logic in Lists files.
-- [ ] Preserve Business client/project behavior and Personal/Family workspace scope behavior.
-- [ ] Reduce `public/js/lists.js` to data bindings and behavior handlers with no hand-built
+- [x] Preserve Business client/project behavior and Personal/Family workspace scope behavior.
+- [x] Reduce `public/js/lists.js` to data bindings and behavior handlers with no hand-built
       framework-owned anatomy.
-- [ ] Add regressions proving the Lists surface no longer creates page header, table, dialog,
+- [x] Add regressions proving the Lists surface no longer creates page header, table, dialog,
       action strip, filter panel, or split-layout anatomy by hand.
 
 ### Version 0.33.5.16.12 - Declarative Guardrails, Documentation, and Closeout
 
-- [ ] Add static checks that run only against surfaces marked declarative.
-- [ ] A declarative module must not call `document.createElement` for framework-owned anatomy
+- [x] Add static checks that run only against surfaces marked declarative.
+- [x] A declarative module must not call `document.createElement` for framework-owned anatomy
       (page header, table, dialog, action strip, filter panel, split layout).
-- [ ] A declarative module must not ship a non-minimal protected HTML view for a declarative surface.
-- [ ] A declarative module must not introduce one-off layout/footer classes when a descriptor
+- [x] A declarative module must not ship a non-minimal protected HTML view for a declarative surface.
+- [x] A declarative module must not introduce one-off layout/footer classes when a descriptor
       field or framework class exists.
-- [ ] Inventory and report all protected views, but enforce strictly only on converted surfaces.
-- [ ] Add a developer guide for authoring a declarative view surface (descriptor + data + behaviors).
-- [ ] Update DECISIONS.md with the framework-owned declarative view decision.
-- [ ] Update CHANGELOG.md.
-- [ ] Update package metadata to the implemented version.
-- [ ] Run `npm run check`.
-- [ ] Run `npm run test:permissions`.
-- [ ] Verify `/api/app-info` reports the expected version.
+- [x] Inventory and report all protected views, but enforce strictly only on converted surfaces.
+- [x] Add a developer guide for authoring a declarative view surface (descriptor + data + behaviors).
+- [x] Update DECISIONS.md with the framework-owned declarative view decision.
+- [x] Update CHANGELOG.md.
+- [x] Update package metadata to the implemented version.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Verify `/api/app-info` reports the expected version.
 
 ## Version 0.33.5.17 - CommonMark Markdown Platform Renderer
 
@@ -737,7 +587,7 @@ The first 0.33.6 report should remain intentionally small: Time Tracking contrib
 
 - [ ] Add question-led Workbench entry:
   - [ ] "Pick up where I left off"
-  - [ ] "Start with whatâ€™s due"
+  - [ ] "Start with what’s due"
   - [ ] "Work this week"
   - [ ] "Review blocked work"
   - [ ] "Focus on a project"
@@ -750,10 +600,10 @@ The first 0.33.6 report should remain intentionally small: Time Tracking contrib
 
 Decision:
 
-Quick Action Capture (QAC) is app-shell utility behavior, not a Workbench focus mode. It should provide low-distraction access to common capture and recovery tools without navigating away from the userâ€™s current work surface. QAC should keep the user on the existing screen and simply open modals (where available). The basic concept is to: 
+Quick Action Capture (QAC) is app-shell utility behavior, not a Workbench focus mode. It should provide low-distraction access to common capture and recovery tools without navigating away from the user’s current work surface. QAC should keep the user on the existing screen and simply open modals (where available). The basic concept is to:
 
-- Reduce the likelihood of focus/workflow being interrupted 
-- Keep productivity focused 
+- Reduce the likelihood of focus/workflow being interrupted
+- Keep productivity focused
 - Allow easy idea/concept/thought expungement without derailing the entire work train
 
 - [ ] Add a compact right-side Utility Rail on protected app pages.
@@ -886,7 +736,7 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
 * [ ] Add KB article chrome/window-dressing generation.
 
   * [ ] Generate safe table of contents.
-  * [ ] Generate â€œWhat links here.â€
+  * [ ] Generate “What links here.”
   * [ ] Generate related articles from article links, source notes, shared tags, shared collections, and wiki-style links.
   * [ ] Show source-note linkage only to users who can access the source note.
   * [ ] Show source update/review status only to internal users with review/history permission.
@@ -1568,67 +1418,67 @@ Super Admins should have a backup/restore function on the dashboard that dumps t
   - [ ] Client/project-linked content respects existing permissions.
   - [ ] External clients may be allowed to review/comment only if explicitly enabled.
 
-- [ ] Treat Creator Studio as an optional first-party module. 
-  - [ ] The module should ship with Longtail Forge but be disabled by default for workspaces that do not need it. 
-  - [ ] It should follow the same module manifest, permissions, navigation, search, tags, notification, file, task, notes, and calendar contracts as every other first-party module. 
-  - [ ] Do not build it as a separate third-party plugin project yet. 
-  - [ ] Use it as a real-world test case for whether Longtail Forge modules can compose shared framework services cleanly. 
+- [ ] Treat Creator Studio as an optional first-party module.
+  - [ ] The module should ship with Longtail Forge but be disabled by default for workspaces that do not need it.
+  - [ ] It should follow the same module manifest, permissions, navigation, search, tags, notification, file, task, notes, and calendar contracts as every other first-party module.
+  - [ ] Do not build it as a separate third-party plugin project yet.
+  - [ ] Use it as a real-world test case for whether Longtail Forge modules can compose shared framework services cleanly.
 
-- [ ] Reuse existing first-party modules where appropriate. 
-  - [ ] Content ideas may start as Creator Studio records but should be linkable to notes and lists. 
-  - [ ] Content drafts may hook into Notes when Notes exists. 
-  - [ ] Campaigns/series should likely be Creator Studio-owned hierarchical records. 
-  - [ ] Assets/media should use the framework file service. 
-  - [ ] Repurposing work should be able to create/link Tasks. 
-  - [ ] Publishing dates should hook into Calendar when Calendar exists. 
-  - [ ] Tags and Search should apply to Creator Studio records. 
-  - [ ] Notifications should support assignments, due dates, review requests, and scheduled publish reminders later. 
+- [ ] Reuse existing first-party modules where appropriate.
+  - [ ] Content ideas may start as Creator Studio records but should be linkable to notes and lists.
+  - [ ] Content drafts may hook into Notes when Notes exists.
+  - [ ] Campaigns/series should likely be Creator Studio-owned hierarchical records.
+  - [ ] Assets/media should use the framework file service.
+  - [ ] Repurposing work should be able to create/link Tasks.
+  - [ ] Publishing dates should hook into Calendar when Calendar exists.
+  - [ ] Tags and Search should apply to Creator Studio records.
+  - [ ] Notifications should support assignments, due dates, review requests, and scheduled publish reminders later.
 
-- [ ] Add Creator Studio workbench. 
-  - [ ] Add a dedicated Creator Studio workbench page. 
-  - [ ] Workbench should be accessible from a picker similar to workspace/module selection. 
-  - [ ] It should support a focused content-production workflow without cluttering the basic workbench. 
-  - [ ] It should optionally filter by client/project/brand/channel/campaign. 
-  - [ ] It should be disabled cleanly when the Creator Studio module is disabled. 
+- [ ] Add Creator Studio workbench.
+  - [ ] Add a dedicated Creator Studio workbench page.
+  - [ ] Workbench should be accessible from a picker similar to workspace/module selection.
+  - [ ] It should support a focused content-production workflow without cluttering the basic workbench.
+  - [ ] It should optionally filter by client/project/brand/channel/campaign.
+  - [ ] It should be disabled cleanly when the Creator Studio module is disabled.
 
-- [ ] Define workbench areas as a framework concept. 
-  - [ ] Basic workbench for general first-party modules such as timers, tasks, notes, and lists. 
-  - [ ] Focused workbench for one client/project at a time. 
-  - [ ] Creator Studio workbench for content planning, drafting, assets, campaigns, repurposing, and editorial calendar work. 
+- [ ] Define workbench areas as a framework concept.
+  - [ ] Basic workbench for general first-party modules such as timers, tasks, notes, and lists.
+  - [ ] Focused workbench for one client/project at a time.
+  - [ ] Creator Studio workbench for content planning, drafting, assets, campaigns, repurposing, and editorial calendar work.
   - [ ] Future modules may declare their own workbench areas through the module manifest.
 
-## Version 0.39.9 - User Documentation and 0.3x Stabilization Checkpoint 
+## Version 0.39.9 - User Documentation and 0.3x Stabilization Checkpoint
 
-- [ ] Create user-facing documentation for the completed 0.3x feature set. 
-  - [ ] Getting started. 
-  - [ ] Workspace types and workspace switching. 
-  - [ ] Users, roles, and permissions. 
-  - [ ] Clients and projects. 
-  - [ ] Time tracking. 
-  - [ ] Tasks. 
-  - [ ] Notifications. 
-  - [ ] Tags. 
-  - [ ] Search. 
-  - [ ] Files/attachments if completed in 0.32.x. 
-  - [ ] Support tickets if completed in 0.33.x. 
-  - [ ] Notes and knowledge base foundations if completed in 0.34.x. 
-  - [ ] Calendar basics if completed in 0.35.x. 
-  - [ ] Shopping/procurement lists if completed in 0.39.x. 
-  - [ ] Creator/content studio if completed in 0.39.x. 
-- [ ] Create admin-facing documentation for workspace/module setup. 
-  - [ ] Module enable/disable behavior. 
-  - [ ] Workspace-type label differences. 
-  - [ ] Permission expectations. 
-  - [ ] Safe file upload/download behavior. 
-- [ ] Create developer-facing notes for first-party module contracts. 
-  - [ ] Module manifest fields. 
-  - [ ] Navigation registration. 
-  - [ ] Permission declarations. 
-  - [ ] Notification declarations. 
-  - [ ] Taggable/searchable declarations. 
-  - [ ] File attachable declarations. 
-  - [ ] Workbench card/area declarations. 
-- [ ] Update `docs/architecture.md` to reflect the completed 0.3x architecture. 
+- [ ] Create user-facing documentation for the completed 0.3x feature set.
+  - [ ] Getting started.
+  - [ ] Workspace types and workspace switching.
+  - [ ] Users, roles, and permissions.
+  - [ ] Clients and projects.
+  - [ ] Time tracking.
+  - [ ] Tasks.
+  - [ ] Notifications.
+  - [ ] Tags.
+  - [ ] Search.
+  - [ ] Files/attachments if completed in 0.32.x.
+  - [ ] Support tickets if completed in 0.33.x.
+  - [ ] Notes and knowledge base foundations if completed in 0.34.x.
+  - [ ] Calendar basics if completed in 0.35.x.
+  - [ ] Shopping/procurement lists if completed in 0.39.x.
+  - [ ] Creator/content studio if completed in 0.39.x.
+- [ ] Create admin-facing documentation for workspace/module setup.
+  - [ ] Module enable/disable behavior.
+  - [ ] Workspace-type label differences.
+  - [ ] Permission expectations.
+  - [ ] Safe file upload/download behavior.
+- [ ] Create developer-facing notes for first-party module contracts.
+  - [ ] Module manifest fields.
+  - [ ] Navigation registration.
+  - [ ] Permission declarations.
+  - [ ] Notification declarations.
+  - [ ] Taggable/searchable declarations.
+  - [ ] File attachable declarations.
+  - [ ] Workbench card/area declarations.
+- [ ] Update `docs/architecture.md` to reflect the completed 0.3x architecture.
 - [ ] Verify `ROADMAP.md`, `TODO.md`, `DECISIONS.md`, `CHANGELOG.md`, and package versions are consistent.
 
 - [ ] Wipe existing DB migrations and create a new DB baseline
@@ -1841,7 +1691,7 @@ Is it possible to get notifications from any of these sources?
 - [ ] DigitalOcean Spaces
 - [ ] AWS
 - [ ] Microsoft Azure
-- [ ] Microsoft OneDrive 
+- [ ] Microsoft OneDrive
 - [ ] Google Drive
 - [ ] DropBox
 - [ ] Microsoft SharePoint

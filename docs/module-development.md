@@ -86,6 +86,8 @@ Before converting a module view, identify which pieces are framework-owned anato
 
 Do not call `document.createElement("dialog")` directly in converted surfaces when `createModal` or `createModalForm` fits. Do not overwrite helper-built modal footer/action classes with one-off class strings, and do not add hard-coded light backgrounds or non-wrapping action rows to converted helper-owned structures. If a surface still needs custom behavior, leave that surface explicitly unconverted until a later roadmap slice can name and test the custom boundary.
 
+For manifest-driven protected views, read `docs/declarative-view-surfaces.md` before adding or tightening a `viewSurfaces` descriptor. Declarative surfaces move framework-owned anatomy into manifest data and renderer helpers, while module adapters keep behavior handlers, validation, payload construction, permissions, and workflow calls. Strict declarative guardrails currently enforce the converted Lists workspace and inventory the remaining protected views as reported-only until a later slice explicitly converts them.
+
 ## Shared Icon And Action Controls
 
 Use `window.LongtailForge.icons` for common action icons and compact action buttons. The shared helper is framework-owned, uses a local Lucide-derived inline SVG subset, and renders by stable semantic names such as `add`, `edit`, `archive`, `restore`, `delete`, `start`, `pause`, `save`, `close`, `copy`, `refresh`, and `more`.

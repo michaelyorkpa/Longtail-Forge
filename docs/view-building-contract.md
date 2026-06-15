@@ -142,8 +142,16 @@ Lists now provides the first live read-only proof surface through a `viewSurface
 
 This slice keeps the existing Lists module workflow as the source of truth for filtered list reads, detail hydration, URL selection, mutating actions, item entry, item rows, modal save behavior, linked-record management, permissions, and Business/Personal/Family scope behavior. The renderer gained select-field support and generic `data-view-input` hooks so existing module-owned binding code can attach to descriptor-created controls without hand-building framework anatomy.
 
-## Implementation Notes For 0.33.5.16.10
+## Implementation Notes For 0.33.5.16.11
 
-Lists now declares item entry fields, advanced item fields, item table columns, item row action placement, and the create/edit list modal shell in the `lists.workspace` descriptor. The browser module consumes those descriptor blocks to bind existing Lists save, catalog-suggestion, reorder, check/uncheck, complete, delete, and modal workflows.
+Lists now declares item entry fields, advanced item fields, item table columns, item row action placement, list-level workflow actions, linked-record picker/row placement, and the create/edit list modal shell in the `lists.workspace` descriptor. The browser module consumes those descriptor blocks to bind existing Lists save, catalog-suggestion, reorder, check/uncheck, complete, delete, link, remove-link, duplicate, finalize, archive, restore, reusable-list, and modal workflows.
 
-Descriptor field metadata may include basic browser attributes plus `placement` and `behavior` hints. The hints describe where module-owned bindings attach; they do not move Lists validation, payload construction, permissions, catalog lookup, or service behavior into the framework. Linked-record placement and list-level workflow actions remain deferred to the next explicit Lists conversion slice.
+Descriptor field metadata may include basic browser attributes plus `placement` and `behavior` hints. The hints describe where module-owned bindings attach; they do not move Lists validation, payload construction, permissions, catalog lookup, linked-record permission checks, or service behavior into the framework.
+
+## Implementation Notes For 0.33.5.16.12
+
+The declarative closeout adds strict static guardrails for surfaces that have fully adopted descriptor rendering. In this slice, strict enforcement applies to `lists.workspace` only: the protected HTML must remain a minimal host, and `public/js/lists.js` must not directly build framework-owned page header, filter panel, split layout, table, dialog, action strip, field-grid, or inline-action anatomy.
+
+The guardrail also inventories every protected view and reports whether it has a descriptor surface. Tags and Developer Example remain descriptor fixtures and app-shell delivery proofs, not strict-converted UI surfaces. New strict surfaces should be added deliberately after a roadmap slice converts their protected HTML, descriptor, data bindings, and behavior adapter.
+
+Developer authoring guidance for descriptor + data + behavior boundaries now lives in `docs/declarative-view-surfaces.md`.

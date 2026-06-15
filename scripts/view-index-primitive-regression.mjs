@@ -11,9 +11,9 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.16.10", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.16.10", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.16.10", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.16.12", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.16.12", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.16.12", "package-lock package entry should report the current app version");
 
 // Framework primitive structure and accessibility.
 const context = createBrowserContext();

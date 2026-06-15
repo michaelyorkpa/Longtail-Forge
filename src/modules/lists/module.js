@@ -185,7 +185,7 @@ const listsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.16.10",
+  version: "0.33.5.16.12",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -358,6 +358,21 @@ const listsModule = {
           title: "Selected list",
           description: "Choose a list to inspect.",
         },
+        actionStrip: {
+          label: "List actions",
+          actions: [
+            { id: "duplicate-list", label: "Duplicate", role: "secondary", behavior: "lists.workflow.duplicate", requiredPermissions: [LIST_PERMISSIONS.DUPLICATE] },
+            { id: "edit-list", label: "Edit", role: "secondary", behavior: "lists.workflow.edit", requiredPermissions: [LIST_PERMISSIONS.UPDATE] },
+            { id: "complete-list", label: "Complete", role: "secondary", behavior: "lists.workflow.complete", requiredPermissions: [LIST_PERMISSIONS.COMPLETE] },
+            { id: "finalize-list", label: "Finalize", role: "secondary", behavior: "lists.workflow.finalize", requiredPermissions: [LIST_PERMISSIONS.FINALIZE] },
+            { id: "reopen-list", label: "Reopen", role: "secondary", behavior: "lists.workflow.reopen", requiredPermissions: [LIST_PERMISSIONS.UPDATE] },
+            { id: "mark-reusable-list", label: "Mark Reusable", role: "secondary", behavior: "lists.workflow.mark-reusable", requiredPermissions: [LIST_PERMISSIONS.MANAGE_REUSABLE] },
+            { id: "unmark-reusable-list", label: "Unmark Reusable", role: "secondary", behavior: "lists.workflow.unmark-reusable", requiredPermissions: [LIST_PERMISSIONS.MANAGE_REUSABLE] },
+            { id: "archive-list", label: "Archive", role: "secondary", behavior: "lists.workflow.archive", requiredPermissions: [LIST_PERMISSIONS.ARCHIVE] },
+            { id: "delete-list", label: "Delete", role: "destructive", behavior: "lists.workflow.delete", requiredPermissions: [LIST_PERMISSIONS.DELETE] },
+            { id: "restore-list", label: "Restore", role: "secondary", behavior: "lists.workflow.restore", requiredPermissions: [LIST_PERMISSIONS.RESTORE] },
+          ],
+        },
         summaryPanels: [
           {
             title: "Next",
@@ -376,6 +391,27 @@ const listsModule = {
             description: "Task, note, project, and client links.",
           },
         ],
+        linkedRecords: {
+          title: "Linked Records",
+          recordsField: "links",
+          targetTypeField: "target_type",
+          targetLabelField: "target.label",
+          targetUrlField: "target.url",
+          targetIdField: "list_link_id",
+          emptyState: {
+            message: "No linked records yet.",
+          },
+          fields: [
+            { field: "target_type", type: "select", label: "Type", default: "task", options: [["task", "Task"], ["note", "Note"], ["project", "Project"], ["client", "Client"]] },
+            { field: "task_search", type: "search", label: "Search tasks", placeholder: "Search tasks", autocomplete: "off", behavior: "lists.link.task-search" },
+            { field: "task_picker", type: "select", label: "Task", optionsSource: "taskLinkTargets", behavior: "lists.link.task-picker" },
+            { field: "target_id", type: "text", label: "Record ID", required: true, placeholder: "Paste record ID", behavior: "lists.link.raw-record-id" },
+          ],
+          actions: [
+            { id: "add-link", label: "Add Link", role: "primary", behavior: "lists.link.add", requiredPermissions: [LIST_PERMISSIONS.MANAGE_LINKS] },
+            { id: "remove-link", label: "Remove", role: "destructive", behavior: "lists.link.remove", requiredPermissions: [LIST_PERMISSIONS.MANAGE_LINKS] },
+          ],
+        },
         emptyState: {
           title: "Select a list",
           message: "Select a list to review its context.",

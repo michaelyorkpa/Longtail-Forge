@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 const helper = readText("public/js/shared/view-builder.js");
 const css = readText("public/css/longtail-forge.css");
-const roadmap = readText("ROADMAP.md");
+const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
@@ -12,9 +12,9 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.16.10", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.16.10", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.16.10", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.16.12", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.16.12", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.16.12", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(helper, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view builder must not inject HTML strings");
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view builder must not own data loading or browser storage");

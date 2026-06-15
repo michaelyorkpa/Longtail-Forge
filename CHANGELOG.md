@@ -1,3 +1,15 @@
+## Version 0.33.5.16.12 - 2026-06-15 14:32 -04:00
+
+- Added strict declarative view guardrails for converted descriptor-rendered surfaces, currently enforcing `lists.workspace` while inventorying the remaining protected views as reported-only.
+- Added `docs/declarative-view-surfaces.md` with the descriptor + data + behavior authoring contract, minimal-host rules, strict guardrail expectations, and protected-view inventory.
+- Updated module/view/surface docs, decisions, roadmap status, regression wiring, package/app metadata, and archived the completed 0.33.5.15 roadmap section to close out the 0.33.5.16 declarative view descriptor line at `0.33.5.16.12`.
+
+## Version 0.33.5.16.11 - 2026-06-15 14:15 -04:00
+
+- Declared Lists workflow actions and linked-record picker/row placement in the `lists.workspace` descriptor, including behavior IDs for duplicate/edit/complete/finalize/reopen/reusable/archive/delete/restore and add/remove link workflows.
+- Added descriptor-backed renderer wrappers for action strips, data tables, field grids, modal forms, inline action rows, and linked-record panels, then updated `public/js/lists.js` to consume those wrappers instead of directly building framework-owned page/table/dialog/action anatomy.
+- Preserved Lists-owned filtered reads, detail hydration, Business client/project behavior, Personal/Family scope behavior, item/link payloads, task-link picker binding, permission checks, and service workflows while updating docs/decisions/roadmap, adding `lists-workflow-linked-layout-regression.mjs`, and bumping package/app metadata to `0.33.5.16.11`.
+
 ## Version 0.33.5.16.10 - 2026-06-15 14:12 -04:00
 
 - Declared Lists item entry fields, advanced item fields, item table columns, item row action placement, and the create/edit list modal shell in the `lists.workspace` descriptor.

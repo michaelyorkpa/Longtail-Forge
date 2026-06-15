@@ -46,7 +46,7 @@ async function assertManifestAndHelp() {
   }));
   const articleText = articleBodies.join("\n");
 
-  assert.equal(listsModule.version, "0.33.5.16.10");
+  assert.equal(listsModule.version, "0.33.5.16.12");
   assert.ok(listsModule.help.sections.some((section) => section.id === "lists.overview"));
   for (const articleId of [
     "lists.basics",
@@ -115,7 +115,7 @@ async function assertDeveloperDocs() {
   const docs = await fs.readFile(path.join(process.cwd(), "docs/lists-module.md"), "utf8");
 
   for (const phrase of [
-    "current Lists implementation as of 0.33.5.16.10",
+    "current Lists implementation as of 0.33.5.16.12",
     "The framework owns module registration",
     "Workspace Labels",
     "Reusable Lists And Catalog Suggestions",

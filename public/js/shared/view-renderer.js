@@ -367,6 +367,97 @@
     });
   }
 
+  function renderDescriptorActionStrip(actions = [], options = {}) {
+    const view = requireViewPrimitives();
+    return view.createDetailActionStrip({
+      ariaLabel: options.ariaLabel || "Actions",
+      className: options.className,
+      actions,
+    });
+  }
+
+  function renderDescriptorInlineActions(actions = [], options = {}) {
+    const view = requireViewPrimitives();
+    return view.createInlineActionRow({
+      ariaLabel: options.ariaLabel || "Actions",
+      className: options.className,
+      actions,
+    });
+  }
+
+  function renderDescriptorDataTable(tableDescriptor = {}, options = {}) {
+    const view = requireViewPrimitives();
+    return view.createDataTable({
+      caption: options.caption || tableDescriptor.title || "",
+      className: options.className,
+      tableClassName: options.tableClassName,
+      columns: (tableDescriptor.columns || options.columns || []).map((column) => ({
+        key: column.field || column.id || column.key,
+        label: column.label || column.field || column.id || column.key || "",
+        align: column.align,
+        header: column.header,
+      })),
+      rows: options.rows || [],
+      emptyMessage: options.emptyMessage || tableDescriptor.emptyState?.message || tableDescriptor.emptyState?.description || "No records found.",
+    });
+  }
+
+  function renderDescriptorFieldGrid(fieldDescriptor = {}, options = {}) {
+    const view = requireViewPrimitives();
+    return view.createFieldGrid({
+      surface: options.surface,
+      className: options.className,
+      fields: options.fields || (fieldDescriptor.fields || []).map((field) => renderFieldShell(field, view, options.fieldOptions || {})),
+    });
+  }
+
+  function renderDescriptorModalForm(modal = {}, options = {}) {
+    const view = requireViewPrimitives();
+    return view.createModalForm({
+      title: options.title || modal.title || modal.label || "Modal",
+      className: options.className,
+      formClassName: options.formClassName,
+      fields: options.fields || (modal.fields || []).map((field) => renderFieldShell(field, view)),
+      actions: options.actions || [...(modal.footerActions || []), ...(modal.actions || [])].map((action) => normalizeAction(action)),
+    });
+  }
+
+  function renderDescriptorLinkedRecordsPanel(linkedRecords = {}, options = {}) {
+    const view = requireViewPrimitives();
+    const section = view.createInfoPanel({
+      title: options.title || linkedRecords.title || linkedRecords.label || "Linked Records",
+      className: options.className,
+      ariaLabel: options.ariaLabel || linkedRecords.ariaLabel || "Linked records",
+    });
+    const records = view.createElement("div", {
+      className: options.recordsClassName || "view-linked-record-list",
+    });
+    const recordNodes = Array.isArray(options.recordNodes) ? options.recordNodes : [];
+    if (recordNodes.length > 0) {
+      records.replaceChildren(...recordNodes);
+    } else {
+      records.appendChild(view.createElement("p", {
+        className: options.emptyClassName || "view-linked-record-empty",
+        text: linkedRecords.emptyState?.message || linkedRecords.emptyState?.description || "No linked records yet.",
+      }));
+    }
+
+    section.dataset.viewLinkedRecordsPanel = "";
+    section.appendChild(records);
+
+    if (options.formFields || options.formActions) {
+      const form = view.createElement("form", {
+        className: options.formClassName || ["view-linked-record-form", "view-field-grid", "surface-modal-section-body"],
+        dataset: options.formDataset,
+        hidden: options.locked || options.hidden,
+      });
+      form.append(...(options.formFields || []), ...(options.formActions || []));
+      section.appendChild(form);
+    }
+
+    return section;
+  }
+
   function renderFieldShell(field, view, options = {}) {
     const controlId = field.field || field.id || "";
     const label = view.createElement("label", {
@@ -711,6 +802,7 @@
       "createFilterPanel",
       "createIndexList",
       "createInfoPanel",
+      "createInlineActionRow",
       "createModalForm",
       "createPageHeader",
       "createSplitListDetail",
@@ -733,6 +825,12 @@
   root.view = Object.freeze({
     ...(root.view || {}),
     registerBehavior,
+    renderDescriptorActionStrip,
+    renderDescriptorDataTable,
+    renderDescriptorFieldGrid,
+    renderDescriptorInlineActions,
+    renderDescriptorLinkedRecordsPanel,
+    renderDescriptorModalForm,
     renderSurface,
   });
   global.LongtailForge = root;

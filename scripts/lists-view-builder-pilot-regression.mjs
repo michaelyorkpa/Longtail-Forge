@@ -4,7 +4,8 @@ import { readFileSync } from "node:fs";
 const html = readText("views/protected/lists.html");
 const listsJs = readText("public/js/lists.js");
 const css = readText("public/css/longtail-forge.css");
-const roadmap = readText("ROADMAP.md");
+const renderer = readText("public/js/shared/view-renderer.js");
+const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
@@ -12,9 +13,9 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.16.10", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.16.10", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.16.10", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.16.12", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.16.12", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.16.12", "package-lock package entry should report the current app version");
 
 assert.match(html, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists protected view should be a minimal host");
 assert.match(html, /js\/shared\/view-builder\.js\?v=2/, "Lists protected view should load the framework view builder");
@@ -36,10 +37,21 @@ for (const helper of [
   "createFieldGrid",
   "createInlineActionRow",
   "createModalForm",
-  "createActionButton",
   "createEmptyState",
 ]) {
-  assert.match(listsJs, new RegExp(`view\\.${helper}`), `Lists pilot should consume LongtailForge.view.${helper}`);
+  assert.match(renderer, new RegExp(`view\\.${helper}`), `Declarative renderer should consume LongtailForge.view.${helper}`);
+}
+assert.match(listsJs, /view\.createActionButton/, "Lists behavior adapter should still use LongtailForge.view.createActionButton for module-specific controls");
+
+for (const helper of [
+  "renderDescriptorActionStrip",
+  "renderDescriptorDataTable",
+  "renderDescriptorFieldGrid",
+  "renderDescriptorInlineActions",
+  "renderDescriptorLinkedRecordsPanel",
+  "renderDescriptorModalForm",
+]) {
+  assert.match(listsJs, new RegExp(`view\\.${helper}`), `Lists declarative adapter should consume LongtailForge.view.${helper}`);
 }
 
 for (const hook of [

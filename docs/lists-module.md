@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.5.16.10. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.5.16.12. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
@@ -112,6 +112,7 @@ Lists declares these framework integration points in `module.js`:
 
 - `permissions`, `requiredPermissions`, `defaultRolePermissions`, and `resourceDefinitions`.
 - `browserApiRoutes`, `protectedViews`, `browserAssets`, navigation, and a module-status setting.
+- `viewSurfaces[0]` with the `lists.workspace` descriptor for the protected workspace shell, filters, selector, detail action strip, item form, item rows, linked-record picker/rows, and create/edit modal anatomy.
 - `auditRecordTypes`, `eventTypes`, and lifecycle event declarations.
 - `taggableTypes` for list tags through the framework tag service.
 - `searchableTypes` using the `lists.records` indexer.
@@ -120,6 +121,8 @@ Lists declares these framework integration points in `module.js`:
 - `help.sections` and `help.articles` for current-state product Help.
 
 Lists declares read-only public API routes for list summaries and list detail reads. Lists write routes, item mutations, reusable-list operations, catalog management, finalization, timer sources, dashboard cards, workbench cards, and notification events are not public API surfaces in the current release.
+
+The Lists descriptor defines framework-owned placement and action metadata. `public/js/lists.js` still owns filtered reads, canonical detail hydration, Business client/project controls, Personal/Family scope behavior, item/link payloads, validation, task-picker binding, and the API calls behind workflow behaviors.
 
 ## Search, Tags, And Files
 

@@ -11,9 +11,9 @@ const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.16.10", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.16.10", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.16.10", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.16.12", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.16.12", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.16.12", "package-lock package entry should report the current app version");
 
 assert.match(renderer, /api\.getJson\(descriptor\.dataSource\.route, \{ cache: "no-store" \}\)/, "Renderer should fetch dataSource routes through shared api-client");
 assert.doesNotMatch(renderer, /\bfetch\(/, "Renderer should not bypass shared api-client with direct fetch");
