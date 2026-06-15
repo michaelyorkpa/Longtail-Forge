@@ -1,3 +1,10 @@
+## Version 0.33.5.17.5 - 2026-06-15 16:29 -04:00
+
+- Moved Notes draft preview rendering to a protected server-side preview route that uses the same Notes Markdown adapter as saved note rendering, including nested lists, task lists, tables, wiki links, and unsafe Markdown rejection.
+- Updated the Notes browser preview to request server-rendered HTML, avoid stale preview response overwrites, and removed the old ad-hoc heading/paragraph-only preview builder.
+- Expanded the shared Notes textarea helper with scoped Enter list continuation and empty-marker cleanup while preserving Tab and Shift+Tab line indentation behavior.
+- Added Notes preview/editor regression coverage, refreshed Notes asset cache keys, marked the 0.33.5.17.5 roadmap checklist complete, recorded the decision, and bumped package/app metadata to `0.33.5.17.5`.
+
 ## Version 0.33.5.17.4 - 2026-06-15 16:10 -04:00
 
 - Migrated Help article rendered HTML and search/plain-text extraction to the shared framework Markdown service while preserving Markdown source payloads, content-path discovery, active module scoping, article metadata, ToC navigation, current-state Help wording, protected routes, and permissions.

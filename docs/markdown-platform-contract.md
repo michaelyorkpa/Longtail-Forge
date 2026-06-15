@@ -9,7 +9,7 @@ Longtail Forge will adopt `markdown-it` as the platform Markdown parser.
 Selection rationale:
 
 - It supports CommonMark mode and is configurable enough to keep Longtail Forge on a small approved syntax set.
-- It can run on the server and in browser preview paths if a later slice chooses shared client-side preview code.
+- It can run on the server for saved rendering and protected browser preview routes without requiring a separate client-side Markdown parser.
 - Raw HTML is disabled by default and must remain disabled for Notes, Help-authored Markdown, future Knowledge Base Markdown, and other user-authored Markdown unless a later security-reviewed allowlist changes that policy.
 - It is MIT licensed and maintained as an established JavaScript Markdown parser.
 
@@ -102,6 +102,6 @@ The first migration targets are the current hand-rolled Markdown paths:
 
 - `src/modules/notes/markdown.js`: migrated in 0.33.5.17.3 to use the shared framework service for rendering, excerpts, normalization, and plain-text extraction while keeping Notes-specific safety checks and wiki-link behavior.
 - `src/services/help.service.js`: migrated in 0.33.5.17.4 to use the shared framework service for rendered Help article HTML and search/plain-text extraction while preserving Help-owned discovery, scoping, article metadata, routes, and navigation.
-- `public/js/shared/notes-editor.js`: browser authoring helpers and preview parity once preview rendering is implemented.
+- `public/js/shared/notes-editor.js` and `public/js/notes.js`: migrated in 0.33.5.17.5 so textarea authoring helpers stay browser-owned while draft preview rendering calls the protected Notes preview route backed by the same Notes Markdown adapter as saved rendering.
 
-0.33.5.17.1 defines the contract only. 0.33.5.17.2 adds the dependency and service in `src/core/markdown/markdown.service.js`. 0.33.5.17.3 migrates Notes server-side rendering and text extraction without changing saved Markdown. 0.33.5.17.4 migrates Help rendered article HTML and Help search text extraction without changing Markdown source files. Later slices should migrate browser preview behavior without changing saved Markdown.
+0.33.5.17.1 defines the contract only. 0.33.5.17.2 adds the dependency and service in `src/core/markdown/markdown.service.js`. 0.33.5.17.3 migrates Notes server-side rendering and text extraction without changing saved Markdown. 0.33.5.17.4 migrates Help rendered article HTML and Help search text extraction without changing Markdown source files. 0.33.5.17.5 migrates Notes browser preview to server-rendered draft HTML and adds scoped Markdown textarea authoring helpers without changing saved Markdown.

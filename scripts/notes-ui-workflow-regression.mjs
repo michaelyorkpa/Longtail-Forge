@@ -65,7 +65,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/icons\.js\?v=1/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
-  assert.match(html, /js\/shared\/notes-editor\.js\?v=2/);
+  assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
   assert.match(html, /css\/longtail-forge\.css\?v=21/);
   assert.match(html, /Note Kind/);
   assert.match(html, /<option value="decision">Decision<\/option>/);
@@ -79,7 +79,7 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(noteKindSelect, /<option value="task">Task<\/option>/);
   assert.doesNotMatch(noteKindSelect, /<option value="ticket">Ticket<\/option>/);
   assert.doesNotMatch(noteKindSelect, /<option value="user">User<\/option>/);
-  assert.match(html, /js\/notes\.js\?v=12/);
+  assert.match(html, /js\/notes\.js\?v=13/);
   assert.match(html, /data-note-context-target-type/);
   assert.match(html, /data-note-context-search/);
   assert.match(html, /data-note-context-results/);

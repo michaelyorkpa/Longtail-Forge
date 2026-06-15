@@ -110,6 +110,7 @@ let state = {
   linkTargets: [],
   notes: [],
   page: 1,
+  previewRequestId: 0,
   selectedNote: null,
   selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
   tagPicker: null,
@@ -151,6 +152,7 @@ libraryInput?.addEventListener("change", () => {
 });
 securityInput?.addEventListener("change", updateSecureUiState);
 previewToggle?.addEventListener("click", togglePreview);
+bodyInput?.addEventListener("input", () => renderPreview());
 [clientInput, projectInput, taskInput, userInput].forEach((input) => input?.addEventListener("input", updateLibrarySuggestion));
 contextTargetTypeInput?.addEventListener("change", () => loadEditorLinkTargets());
 contextSearchInput?.addEventListener("input", () => queueEditorLinkTargetSearch());
@@ -857,7 +859,7 @@ function handleEditorCommand(event) {
   }
 
   editor?.applyCommand(command);
-  renderPreview();
+  void renderPreview();
 }
 
 function togglePreview() {
@@ -865,16 +867,35 @@ function togglePreview() {
   previewToggle.setAttribute("aria-pressed", String(!pressed));
   preview.hidden = pressed;
   if (!pressed) {
-    renderPreview();
+    void renderPreview();
   }
 }
 
-function renderPreview() {
+async function renderPreview() {
   if (preview.hidden) {
     return;
   }
 
-  preview.replaceChildren(...markdownPreviewNodes(editor?.getValue() || bodyInput.value));
+  const markdown = editor?.getValue() || bodyInput.value;
+  const requestId = state.previewRequestId + 1;
+  state.previewRequestId = requestId;
+  preview.textContent = "Loading preview...";
+
+  try {
+    const result = await api.postJson("/api/notes/preview", { body_markdown: markdown });
+    if (requestId !== state.previewRequestId) {
+      return;
+    }
+    preview.innerHTML = result.bodyHtml || "";
+    if (!preview.textContent.trim()) {
+      preview.replaceChildren(emptyPreviewNode());
+    }
+  } catch (error) {
+    if (requestId !== state.previewRequestId) {
+      return;
+    }
+    preview.textContent = safeNoteErrorMessage(error, "Preview could not be rendered.");
+  }
 }
 
 async function archiveNote(note) {
@@ -1749,19 +1770,10 @@ function isNoTagsFilterValue(value) {
   ].includes(normalized);
 }
 
-function markdownPreviewNodes(markdown) {
-  const text = String(markdown || "").trim();
-  if (!text) {
-    const empty = document.createElement("p");
-    empty.textContent = "No preview.";
-    return [empty];
-  }
-
-  return text.split(/\n{2,}/).map((paragraph) => {
-    const element = document.createElement(paragraph.startsWith("# ") ? "h3" : "p");
-    element.textContent = paragraph.replace(/^#+\s*/, "");
-    return element;
-  });
+function emptyPreviewNode() {
+  const empty = document.createElement("p");
+  empty.textContent = "No preview.";
+  return empty;
 }
 
 function formatDate(value) {

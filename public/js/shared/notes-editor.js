@@ -45,15 +45,22 @@
   }
 
   function handleKeydown(event, textarea) {
-    if (!textarea || event.key !== "Tab") {
+    if (!textarea) {
       return;
     }
 
-    event.preventDefault();
-    if (event.shiftKey) {
-      outdentSelection(textarea);
-    } else {
-      indentSelection(textarea);
+    if (event.key === "Tab") {
+      event.preventDefault();
+      if (event.shiftKey) {
+        outdentSelection(textarea);
+      } else {
+        indentSelection(textarea);
+      }
+      return;
+    }
+
+    if (event.key === "Enter" && continueListMarker(textarea)) {
+      event.preventDefault();
     }
   }
 
@@ -106,6 +113,74 @@
     emitInput(textarea);
   }
 
+  function continueListMarker(textarea) {
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || start;
+
+    if (start !== end) {
+      return false;
+    }
+
+    const value = String(textarea.value || "");
+    const lineStart = value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
+    const lineEnd = value.indexOf("\n", start);
+    const currentLineEnd = lineEnd === -1 ? value.length : lineEnd;
+    const beforeCursor = value.slice(lineStart, start);
+    const afterCursor = value.slice(start, currentLineEnd);
+    const marker = parseListMarker(beforeCursor);
+
+    if (!marker || afterCursor.trim()) {
+      return false;
+    }
+
+    if (!marker.content.trim()) {
+      textarea.value = `${value.slice(0, lineStart)}${value.slice(start)}`;
+      textarea.selectionStart = lineStart;
+      textarea.selectionEnd = lineStart;
+      emitInput(textarea);
+      return true;
+    }
+
+    const nextMarker = `${marker.indent}${marker.next}`;
+    const insertion = `\n${nextMarker}`;
+    textarea.value = `${value.slice(0, start)}${insertion}${value.slice(start)}`;
+    textarea.selectionStart = start + insertion.length;
+    textarea.selectionEnd = textarea.selectionStart;
+    emitInput(textarea);
+    return true;
+  }
+
+  function parseListMarker(linePrefix) {
+    const taskMatch = linePrefix.match(/^(\s*)([-+*])\s+\[[ xX]\]\s+(.*)$/);
+    if (taskMatch) {
+      return {
+        content: taskMatch[3],
+        indent: taskMatch[1],
+        next: `${taskMatch[2]} [ ] `,
+      };
+    }
+
+    const unorderedMatch = linePrefix.match(/^(\s*)([-+*])\s+(.*)$/);
+    if (unorderedMatch) {
+      return {
+        content: unorderedMatch[3],
+        indent: unorderedMatch[1],
+        next: `${unorderedMatch[2]} `,
+      };
+    }
+
+    const orderedMatch = linePrefix.match(/^(\s*)(\d+)([.)])\s+(.*)$/);
+    if (orderedMatch) {
+      return {
+        content: orderedMatch[4],
+        indent: orderedMatch[1],
+        next: `${Number.parseInt(orderedMatch[2], 10) + 1}${orderedMatch[3]} `,
+      };
+    }
+
+    return null;
+  }
+
   function selectedLineRange(value, start, end) {
     const adjustedEnd = end > start && value[end - 1] === "\n" ? end - 1 : end;
     const rangeStart = value.lastIndexOf("\n", Math.max(0, start - 1)) + 1;
@@ -149,6 +224,7 @@
         element.value = normalizeMarkdown(value);
       },
       applyCommand: (commandName) => applyCommand(element, commandName),
+      continueList: () => continueListMarker(element),
       indent: () => indentSelection(element),
       outdent: () => outdentSelection(element),
       commands: Object.keys(COMMANDS),
@@ -158,6 +234,7 @@
   namespace.notesEditor = {
     applyCommand,
     commands: COMMANDS,
+    continueListMarker,
     createPlainTextarea,
     handleKeydown,
     normalizeMarkdown,

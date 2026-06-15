@@ -104,6 +104,25 @@ async function read(noteId, session) {
   return { note: shapeNoteForBrowser(await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note)), { includeBodyHtml: true }) };
 }
 
+async function previewMarkdown(payload = {}, session) {
+  await assertNotesWriteEnabled(session);
+  const canPreview = await permissionsService.canInAnyScope(session, NOTE_PERMISSIONS.CREATE) ||
+    await permissionsService.canInAnyScope(session, NOTE_PERMISSIONS.UPDATE);
+
+  if (!canPreview) {
+    throw new AppError("You do not have permission to preview note Markdown.", 403);
+  }
+
+  const bodyMarkdown = assertSafeMarkdown(payload?.body_markdown ?? payload?.bodyMarkdown ?? "");
+
+  return {
+    bodyFormat: "markdown",
+    bodyMarkdown,
+    bodyHtml: renderMarkdownToSafeHtml(bodyMarkdown),
+    bodyHtmlFormat: "html",
+  };
+}
+
 async function create(payload, session) {
   await assertNotesWriteEnabled(session);
   const normalized = await normalizeNotePayload(payload, session);
@@ -2411,6 +2430,7 @@ export const notesService = {
   listResumeContext,
   listRevisions,
   moveCollection,
+  previewMarkdown,
   read,
   readForAttachmentAccess,
   readRevision,

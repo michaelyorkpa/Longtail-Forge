@@ -123,6 +123,8 @@ async function assertEditorBoundary() {
     "wikiLink",
     "keydown",
     "Tab",
+    "Enter",
+    "continueListMarker",
     "shiftKey",
     "indent",
     "outdent",

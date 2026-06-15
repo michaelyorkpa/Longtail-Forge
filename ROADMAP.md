@@ -112,17 +112,17 @@ source fields, visibility rules, linking semantics, revision history, and workfl
 
 ### Version 0.33.5.17.5 - Browser Preview and Editor Consistency
 
-- [ ] Make the Notes live preview use the same approved Markdown contract as saved rendering.
-- [ ] Ensure browser preview sanitization cannot diverge from the server-rendered saved note output.
-- [ ] Add textarea authoring support for Markdown indentation:
-  - [ ] Tab indents the current line or selected lines inside the editor.
-  - [ ] Shift+Tab outdents the current line or selected lines.
-  - [ ] Enter continues list markers where predictable and stops cleanly on an empty marker.
-  - [ ] Keyboard behavior remains scoped to the active Markdown editor and does not break normal page
+- [x] Make the Notes live preview use the same approved Markdown contract as saved rendering.
+- [x] Ensure browser preview sanitization cannot diverge from the server-rendered saved note output.
+- [x] Add textarea authoring support for Markdown indentation:
+  - [x] Tab indents the current line or selected lines inside the editor.
+  - [x] Shift+Tab outdents the current line or selected lines.
+  - [x] Enter continues list markers where predictable and stops cleanly on an empty marker.
+  - [x] Keyboard behavior remains scoped to the active Markdown editor and does not break normal page
         focus movement elsewhere.
-- [ ] Keep the editor as a Markdown textarea with preview. Do not introduce WYSIWYG editing in this
+- [x] Keep the editor as a Markdown textarea with preview. Do not introduce WYSIWYG editing in this
       version.
-- [ ] Add browser/static regressions for editor indentation behavior, preview parity, asset loading,
+- [x] Add browser/static regressions for editor indentation behavior, preview parity, asset loading,
       and cache-key updates.
 
 ### Version 0.33.5.17.6 - Documentation and Closeout

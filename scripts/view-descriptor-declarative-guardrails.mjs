@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
 
-const appVersion = "0.33.5.17.4";
+const appVersion = "0.33.5.17.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
