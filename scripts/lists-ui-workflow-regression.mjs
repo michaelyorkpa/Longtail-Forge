@@ -33,7 +33,7 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
-  assert.equal(listsModule.version, "0.33.5.15.3");
+  assert.equal(listsModule.version, "0.33.5.16.9");
   assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
   assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
@@ -55,10 +55,13 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/icons\.js\?v=1/);
   assert.match(html, /js\/shared\/client-project-options\.js\?v=1/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=2/);
+  assert.match(html, /js\/shared\/view-renderer\.js\?v=1/);
   assert.match(html, /js\/lists\.js\?v=5/);
   assert.match(html, /css\/longtail-forge\.css\?v=21/);
 
   assert.match(listsJs, /buildListsViewShell/);
+  assert.match(listsJs, /view\.renderSurface\(renderDescriptor, host\)/);
+  assert.match(listsJs, /listsViewSurfaceDescriptor/);
   assert.match(listsJs, /createPageHeader/);
   assert.match(listsJs, /createFilterPanel/);
   assert.match(listsJs, /createCollapsibleIndexPanel/);

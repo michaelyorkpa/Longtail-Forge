@@ -86,7 +86,9 @@ let state = {
 
 const constrainedListsLayout = window.matchMedia("(max-width: 1366px)");
 
-createButton?.addEventListener("click", () => openListDialog());
+if (!createButton?.dataset.surfaceAction) {
+  createButton?.addEventListener("click", () => openListDialog());
+}
 filtersForm?.addEventListener("change", () => refreshLists());
 sortSelect?.addEventListener("change", () => refreshLists());
 listForm?.addEventListener("submit", saveList);
@@ -107,6 +109,21 @@ function buildListsViewShell() {
   }
   if (!view) {
     throw new Error("Lists requires LongtailForge.view to build the protected workspace.");
+  }
+  if (typeof view.registerBehavior === "function") {
+    view.registerBehavior("lists.create", () => openListDialog());
+  }
+
+  const descriptor = listsViewSurfaceDescriptor();
+  if (descriptor && typeof view.renderSurface === "function") {
+    const renderDescriptor = {
+      ...descriptor,
+      dataSource: null,
+    };
+    const surface = view.renderSurface(renderDescriptor, host);
+    decorateListsDeclarativeSurface(surface);
+    document.body.appendChild(createListDialogShell());
+    return;
   }
 
   const createAction = view.createActionButton({
@@ -138,6 +155,157 @@ function buildListsViewShell() {
 
   host.replaceChildren(header, status, filterPanel, workspace);
   document.body.appendChild(createListDialogShell());
+}
+
+function listsViewSurfaceDescriptor() {
+  const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
+  return surfaces.find((surface) => surface.id === "lists.workspace" && surface.moduleId === "lists") || fallbackListsViewSurfaceDescriptor();
+}
+
+function fallbackListsViewSurfaceDescriptor() {
+  return {
+    id: "lists.workspace",
+    moduleId: "lists",
+    viewId: "lists",
+    layout: "split-list-detail",
+    pageHeader: {
+      title: "Lists",
+      primaryAction: {
+        id: "create-list",
+        label: "Create List",
+        role: "primary",
+        behavior: "lists.create",
+      },
+    },
+    filters: [
+      descriptorSelect("status", "Status", [["active", "Active", true], ["completed", "Completed"], ["finalized", "Finalized"], ["archived", "Archived"], ["deleted", "Deleted"], ["all", "All visible"]]),
+      descriptorSelect("listType", "Type", [["all", "All types", true], ...Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label])]),
+      descriptorSelect("reusable", "Reusable", [["no", "Normal lists", true], ["yes", "Reusable only"], ["all", "All"]]),
+      descriptorSelect("clientId", "Client", [["all", "All clients", true]]),
+      descriptorSelect("projectId", "Project", [["all", "All projects", true]]),
+      descriptorSelect("assigneeId", "Assigned", [["all", "All assignees", true]]),
+      { id: "needed-filter", field: "neededByDate", type: "date", label: "Needed By" },
+      descriptorSelect("archiveState", "Archived State", [["current", "Current", true], ["archived", "Archived"], ["deleted", "Deleted"], ["all", "All states"]]),
+      descriptorSelect("sort", "Sort", [["updated_desc", "Updated", true], ["title_asc", "Title"], ["type_asc", "Type"], ["status_asc", "Status"], ["needed_asc", "Needed Date"], ["finalized_desc", "Finalized Date"]]),
+    ],
+    indexPanel: {
+      title: "Lists",
+      emptyState: {
+        message: "No lists match the current filters.",
+      },
+    },
+    detail: {
+      header: {
+        title: "Selected list",
+        description: "Choose a list to inspect.",
+      },
+      summaryPanels: [
+        { title: "Next", description: "List progress and next action context." },
+        { title: "Source", description: "Template and working-copy context." },
+        { title: "Costs", description: "Estimated and actual item costs." },
+        { title: "Linked Records", description: "Task, note, project, and client links." },
+      ],
+      emptyState: {
+        message: "Select a list to review its context.",
+      },
+    },
+    dataSource: {
+      route: "/api/lists",
+      method: "GET",
+      fieldBindings: {
+        id: "list_id",
+        title: "title",
+      },
+    },
+  };
+}
+
+function descriptorSelect(field, label, options) {
+  return {
+    id: `${field}-filter`,
+    field,
+    type: "select",
+    label,
+    options,
+  };
+}
+
+function decorateListsDeclarativeSurface(surface) {
+  const pageHeading = surface.querySelector(".view-page-title");
+  if (pageHeading) {
+    pageHeading.dataset.listsTitle = "";
+  }
+
+  const createAction = surface.querySelector('[data-surface-action="lists.create"], [data-surface-action="create-list"]');
+  if (createAction) {
+    createAction.dataset.listCreate = "";
+  }
+
+  const header = surface.querySelector(".view-page-header");
+  header?.classList.add("lists-page-header");
+  const status = view.createStatusMessage({ className: "lists-status-message" });
+  status.dataset.listsStatus = "";
+  header?.after(status);
+
+  const filterPanel = surface.querySelector(".view-filter-panel");
+  filterPanel?.classList.add("lists-filters-panel");
+  if (filterPanel) {
+    filterPanel.dataset.listsFiltersPanel = "";
+  }
+  const filterForm = surface.querySelector("[data-view-filter-form]");
+  filterForm?.classList.add("lists-filters");
+  if (filterForm) {
+    filterForm.dataset.listsFilters = "";
+  }
+
+  decorateFilterControl(surface, "status", "listFilterStatus");
+  decorateFilterControl(surface, "listType", "listFilterType");
+  decorateFilterControl(surface, "reusable", "listFilterReusable");
+  decorateFilterControl(surface, "clientId", "listFilterClient", "listBusinessControl");
+  decorateFilterControl(surface, "projectId", "listFilterProject", "listContextControl");
+  decorateFilterControl(surface, "assigneeId", "listFilterAssignee");
+  decorateFilterControl(surface, "neededByDate", "listFilterNeeded");
+  decorateFilterControl(surface, "archiveState", "listFilterArchive");
+  decorateFilterControl(surface, "sort", "listSort");
+
+  const workspace = surface.querySelector(".view-split-list-detail");
+  workspace?.classList.add("lists-workspace");
+
+  const indexPanel = surface.querySelector(".view-collapsible-index");
+  indexPanel?.classList.add("lists-index-panel");
+  if (indexPanel) {
+    indexPanel.dataset.listsIndexPanel = "";
+  }
+  const count = view.createElement("span", { text: "Lists" });
+  count.dataset.listsCount = "";
+  indexPanel?.querySelector("summary")?.replaceChildren(count);
+  const indexBody = indexPanel?.querySelector(".view-collapsible-index-body");
+  const mount = view.createElement("div", { className: "lists-index-content" });
+  mount.dataset.listsIndexContent = "";
+  mount.dataset.listsList = "";
+  indexBody?.replaceChildren(mount);
+
+  const detail = surface.querySelector(".view-split-list-detail-main");
+  detail?.classList.add("lists-detail-panel");
+  if (detail) {
+    detail.dataset.listDetail = "";
+  }
+  detail?.replaceChildren(view.createEmptyState({
+    message: "Select a list.",
+    className: "lists-empty-state",
+    headingLevel: 2,
+  }));
+}
+
+function decorateFilterControl(surface, fieldName, datasetName, wrapperDatasetName = "") {
+  const wrapper = surface.querySelector(`[data-view-field="${fieldName}"]`);
+  const control = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
+  if (control) {
+    control.dataset[datasetName] = "";
+  }
+  if (wrapperDatasetName && wrapper) {
+    wrapper.dataset[wrapperDatasetName] = "";
+  }
 }
 
 function createListsFilterPanel() {

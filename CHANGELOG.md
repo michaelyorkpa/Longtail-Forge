@@ -1,3 +1,9 @@
+## Version 0.33.5.16.9 - 2026-06-15 13:37 -04:00
+
+- Added the Lists `lists.workspace` `viewSurfaces` descriptor for the protected workspace read shell, including filters, selector/index, split layout, and read-only detail summary intent.
+- Loaded the declarative view renderer on `lists.html` and switched Lists shell creation to `LongtailForge.view.renderSurface()` while preserving existing Lists filtered reads, detail hydration, mutating actions, item entry, item rows, create/edit modal, linked-record management, routes, payloads, permissions, and workspace scope behavior.
+- Added renderer support for descriptor select controls and stable `data-view-input` hooks, plus `lists-declarative-readonly-surface-regression.mjs`, suite wiring, documentation/decision updates, and package/app metadata bump to `0.33.5.16.9`.
+
 ## Version 0.33.5.16.8 - 2026-06-15 13:02 -04:00
 
 - Added declarative view action support with `LongtailForge.view.registerBehavior(id, handler)`, route-action execution through the shared API client, confirm handling, optional browser-visible permission metadata checks, and recoverable action errors.

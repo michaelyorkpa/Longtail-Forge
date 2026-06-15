@@ -355,16 +355,16 @@ into the descriptor contract. The fix belongs in the framework primitives, not i
 
 ### Version 0.33.5.16.9 - Lists Declarative Read-Only Surface Proof
 
-- [ ] Convert the Lists protected workspace read path to a `viewSurfaces` descriptor on the Lists
+- [x] Convert the Lists protected workspace read path to a `viewSurfaces` descriptor on the Lists
       module manifest.
-- [ ] Reduce `views/protected/lists.html` to a minimal framework host element the renderer fills.
-- [ ] Move Lists filters, collapsible selector/index, split list/detail, table, detail header,
+- [x] Reduce `views/protected/lists.html` to a minimal framework host element the renderer fills.
+- [x] Move Lists filters, collapsible selector/index, split list/detail, table, detail header,
       badge/metadata rows, and read-only summary panels into the descriptor.
-- [ ] Preserve all Lists routes, response payloads, permissions, Business client/project behavior,
+- [x] Preserve all Lists routes, response payloads, permissions, Business client/project behavior,
       and Personal/Family workspace scope behavior from 0.33.5.14.
-- [ ] Keep mutating Lists actions, item entry, item rows, modals, and linked-record management on
+- [x] Keep mutating Lists actions, item entry, item rows, modals, and linked-record management on
       the existing imperative path until later slices.
-- [ ] Add regressions proving the read-only Lists surface renders from the descriptor.
+- [x] Add regressions proving the read-only Lists surface renders from the descriptor.
 
 ### Version 0.33.5.16.10 - Lists Items, Modals, and Field Behaviors
 

@@ -156,10 +156,20 @@
       return null;
     }
 
-    return view.createFilterPanel({
+    const panel = view.createFilterPanel({
       title: "Filters",
       fields: filters.map((filter) => renderFieldShell(filter, view, { disabled: true })),
     });
+    const fieldGrid = panel.querySelector(".view-filter-panel-fields");
+    const form = view.createElement("form", {
+      className: fieldGrid?.className || "view-filter-panel-fields",
+      attrs: {
+        "data-view-filter-form": "",
+      },
+    });
+    form.append(...filters.map((filter) => renderFieldShell(filter, view)));
+    replaceNode(fieldGrid, form);
+    return panel;
   }
 
   function renderDataStatus(state, view) {
@@ -358,26 +368,92 @@
   }
 
   function renderFieldShell(field, view, options = {}) {
+    const controlId = field.field || field.id || "";
     const label = view.createElement("label", {
       className: "view-renderer-field",
       attrs: {
-        "data-view-field": field.field || field.id || "",
+        "data-view-field": controlId,
       },
     });
     label.appendChild(view.createElement("span", {
       className: "view-renderer-field-label",
-      text: field.label || field.field || field.id || "Field",
+      text: field.label || controlId || "Field",
     }));
-    label.appendChild(view.createElement(field.type === "textarea" ? "textarea" : "input", {
+    label.appendChild(createFieldControl(field, view, {
+      ...options,
+      controlId,
+    }));
+    return label;
+  }
+
+  function createFieldControl(field, view, options = {}) {
+    if (field.type === "select") {
+      const select = view.createElement("select", {
+        attrs: {
+          name: options.controlId,
+          disabled: options.disabled,
+          required: field.required,
+          "data-view-input": options.controlId,
+        },
+      });
+      for (const option of normalizeSelectOptions(field.options)) {
+        const optionElement = view.createElement("option", {
+          text: option.label,
+          attrs: {
+            value: option.value,
+            selected: option.selected,
+          },
+        });
+        select.appendChild(optionElement);
+      }
+      if (options.value !== undefined && options.value !== null) {
+        select.value = String(options.value);
+      } else if (field.default !== undefined && field.default !== null) {
+        select.value = String(field.default);
+      }
+      return select;
+    }
+
+    return view.createElement(field.type === "textarea" ? "textarea" : "input", {
       attrs: {
+        name: options.controlId,
         type: inputTypeFor(field.type),
         disabled: options.disabled,
         required: field.required,
         value: options.value ?? field.default,
         placeholder: field.placeholder,
+        "data-view-input": options.controlId,
       },
-    }));
-    return label;
+    });
+  }
+
+  function normalizeSelectOptions(options = []) {
+    if (!Array.isArray(options)) {
+      return [];
+    }
+
+    return options.map((option) => {
+      if (Array.isArray(option)) {
+        return {
+          value: option[0] ?? "",
+          label: option[1] ?? option[0] ?? "",
+          selected: Boolean(option[2]),
+        };
+      }
+      if (option && typeof option === "object") {
+        const value = option.value ?? option.id ?? "";
+        return {
+          value,
+          label: option.label ?? option.text ?? value,
+          selected: Boolean(option.selected || option.default),
+        };
+      }
+      return {
+        value: option ?? "",
+        label: option ?? "",
+        selected: false,
+      };
+    });
   }
 
   async function loadBoundRecords(descriptor) {
@@ -601,6 +677,15 @@
     while (host.firstChild) {
       host.removeChild(host.firstChild);
     }
+  }
+
+  function replaceNode(existingNode, replacementNode) {
+    const parent = existingNode?.parentNode;
+    if (!parent) {
+      return;
+    }
+    parent.removeChild(existingNode);
+    parent.appendChild(replacementNode);
   }
 
   function requireViewPrimitives() {

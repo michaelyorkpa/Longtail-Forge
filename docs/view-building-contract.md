@@ -135,3 +135,9 @@ The framework `.view-split-list-detail` primitive now owns split column sizing a
 The descriptor renderer now supports declarative actions. Modules register behavior handlers with `LongtailForge.view.registerBehavior(id, handler)`, and descriptor `behavior` actions call those handlers with safe context: `{ action, record, workspaceContext, refresh, openModal, api }`. The framework owns discovery, dispatch, status/error display, and descriptor modal shell opening; modules own the handler body, validation, save payloads, and workflow meaning.
 
 Route actions use descriptor `route`, `method`, `confirm`, role metadata, and optional browser-visible `requiredPermissions` metadata before calling the shared browser API client. API routes remain the authoritative permission boundary. Missing behavior handlers, denied action metadata, and route failures render recoverable framework status messages without breaking the rest of the surface. Lists workflow actions remain on the existing imperative Lists code until a later explicit conversion slice.
+
+## Implementation Notes For 0.33.5.16.9
+
+Lists now provides the first live read-only proof surface through a `viewSurfaces` descriptor named `lists.workspace`. The Lists protected page remains a minimal host, loads `view-renderer.js`, and asks `LongtailForge.view.renderSurface()` to create the read shell for the page header, filters, selector/index, split workspace, and descriptor summary-panel intent.
+
+This slice keeps the existing Lists module workflow as the source of truth for filtered list reads, detail hydration, URL selection, mutating actions, item entry, item rows, modal save behavior, linked-record management, permissions, and Business/Personal/Family scope behavior. The renderer gained select-field support and generic `data-view-input` hooks so existing module-owned binding code can attach to descriptor-created controls without hand-building framework anatomy.

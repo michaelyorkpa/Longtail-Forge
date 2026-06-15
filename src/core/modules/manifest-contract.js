@@ -588,9 +588,14 @@ function validateDetailDescriptor(detail, prefix, errors) {
     return;
   }
   validateKnownObjectFields(detail, VIEW_DETAIL_FIELDS, prefix, errors);
-  for (const fieldName of ["header", "badgeRow", "metadataRow", "actionStrip", "summaryPanels", "itemForm", "itemRows", "emptyState"]) {
+  for (const fieldName of ["header", "badgeRow", "metadataRow", "actionStrip", "itemForm", "itemRows", "emptyState"]) {
     optionalPlainObject(detail, fieldName, errors, { prefix });
   }
+  optionalArrayOfObjects(detail.summaryPanels, `${prefix}.summaryPanels`, errors, (panel, panelIndex) => {
+    const panelPrefix = `${prefix}.summaryPanels[${panelIndex}]`;
+    validateKnownObjectFields(panel, VIEW_LABEL_FIELDS, panelPrefix, errors);
+    validateLabelDescriptor(panel, panelPrefix, errors);
+  });
 }
 
 function validateModalsDescriptor(modals, prefix, errors) {
