@@ -18,6 +18,10 @@ archive/
 # Ignore the logo concepts image file
 images/logo-concepts.png
 
+# Ignore the .vscode directory which may contain user-specific settings
+.vscode/
+
+# Ignore environment variable files and database files
 .env
 *.db
 *.db-wal
@@ -26,6 +30,7 @@ images/logo-concepts.png
 *.sqlite-wal
 *.sqlite-shm
 
+# Ignore documentation files that are not meant to be shared
 AGENTS.md
 DECISIONS.md
 CODEREVIEW.md

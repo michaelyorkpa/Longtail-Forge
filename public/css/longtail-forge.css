@@ -1357,6 +1357,7 @@ a.search-result-title:hover {
 .help-article-shell {
     display: grid;
     gap: 14px;
+    min-width: 0;
 }
 
 .help-navigation {
@@ -1379,6 +1380,11 @@ a.search-result-title:hover {
 .help-article-body {
     display: grid;
     gap: 10px;
+    min-width: 0;
+}
+
+.help-article-list[hidden] {
+    display: none;
 }
 
 .help-section-toggle {
@@ -1411,6 +1417,7 @@ a.search-result-title:hover {
     display: grid;
     gap: 4px;
     width: 100%;
+    min-width: 0;
     min-height: 44px;
     padding: 10px;
     border: 1px solid var(--color-border-subtle);
@@ -1457,7 +1464,10 @@ a.search-result-title:hover {
 }
 
 .help-article-shell {
+    max-width: 100%;
+    min-width: 0;
     min-height: 280px;
+    overflow: hidden;
     padding: 16px;
     border: 1px solid var(--color-border);
     border-radius: 8px;
@@ -1467,6 +1477,7 @@ a.search-result-title:hover {
 .help-article-header {
     display: grid;
     gap: 6px;
+    min-width: 0;
 }
 
 .help-article-meta,
@@ -1481,11 +1492,13 @@ a.search-result-title:hover {
 .help-article-body h5,
 .help-article-body h6 {
     margin: 10px 0 0;
+    overflow-wrap: anywhere;
 }
 
 .help-article-body p,
 .help-article-body li {
     line-height: 1.6;
+    overflow-wrap: anywhere;
 }
 
 .help-article-body ul,
@@ -1495,6 +1508,7 @@ a.search-result-title:hover {
 }
 
 .help-article-body pre {
+    max-width: 100%;
     overflow-x: auto;
     margin: 0;
     padding: 12px;
@@ -1507,6 +1521,7 @@ a.search-result-title:hover {
     padding: 2px 4px;
     border-radius: 4px;
     background: var(--color-background);
+    overflow-wrap: anywhere;
 }
 
 .help-article-body pre code {
@@ -1515,7 +1530,10 @@ a.search-result-title:hover {
 }
 
 .help-article-body table {
+    display: block;
     width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
     border-collapse: collapse;
 }
 

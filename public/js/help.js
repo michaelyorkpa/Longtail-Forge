@@ -113,7 +113,6 @@ function createNavigationItem(item, depth = 1) {
   group.dataset.helpNavDepth = String(depth);
   heading.type = "button";
   heading.className = "help-section-toggle";
-  heading.setAttribute("aria-expanded", "true");
   heading.setAttribute("aria-controls", groupId);
   title.textContent = item.title || "Help";
   icon.className = "help-section-toggle-icon";
@@ -131,6 +130,9 @@ function createNavigationItem(item, depth = 1) {
     ...(item.id ? [createArticleLink({ ...item, type: "article" }, depth + 1)] : []),
     ...(item.children || []).map((child) => createNavigationItem(child, depth + 1)),
   );
+  const expanded = shouldStartGroupExpanded(item, depth);
+  heading.setAttribute("aria-expanded", String(expanded));
+  list.hidden = !expanded;
   group.append(heading, list);
   return group;
 }
@@ -212,6 +214,34 @@ function updateSelectedArticleLinks() {
   document.querySelectorAll("[data-help-article-id]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.helpArticleId === state.selectedArticleId));
   });
+}
+
+function shouldStartGroupExpanded(item, depth) {
+  if (navigationItemContainsArticle(item, state.selectedArticleId)) {
+    return true;
+  }
+
+  if (depth !== 1) {
+    return true;
+  }
+
+  return normalizeNavigationTitle(item.title) === "longtail forge";
+}
+
+function navigationItemContainsArticle(item, articleId) {
+  if (!articleId || !item) {
+    return false;
+  }
+
+  if (item.id === articleId || item.slug === articleId) {
+    return true;
+  }
+
+  return (item.children || []).some((child) => navigationItemContainsArticle(child, articleId));
+}
+
+function normalizeNavigationTitle(title) {
+  return String(title || "").trim().toLowerCase();
 }
 
 function updateUrl(article) {

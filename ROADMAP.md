@@ -1,108 +1,10 @@
-# Longtail Forge Roadmap
+﻿# Longtail Forge Roadmap
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.13 - Framework Surface and Modal Style Standardization
+## Version 0.33.5.14 - UI Stabilization and Workspace Scope Corrections
 
-### Questions and Design Clarifications
-
-- [x] Confirm whether shared modal primary actions should remain icon-only everywhere after standardization, or whether destructive/commit actions should show short visible text on wider layouts while staying icon-only in dense task-style modals.
-  - Use adaptive action labels.
-  - Dense task-style modal footers may stay icon-only when the icon is recognizable and the button has a clear accessible label, title, and regression coverage.
-  - On wider layouts, commit/destructive/unusual actions should show icon + short visible text where space allows.
-  - Examples: Save, Create, Finalize, Delete, Archive, Reset, Remove, and similar actions should generally have visible text outside of dense contexts.
-  - Utility actions such as Tags, Files, Copy Link, Follow/Unfollow, and similar compact workflow helpers can remain icon-only when the accessible name/title is clear.
-  - On narrow/mobile layouts, icon-only is acceptable for space-constrained footers, but destructive actions should either keep visible text, move into an overflow action with text, or use a confirmation dialog with explicit copy.
-
-- [x] Confirm whether mobile Tags and Files overlays should become full-width bottom sheets or remain contained overlays inside the active modal.
-  - Use anchored overlays/popovers on desktop and full-width bottom sheets on mobile.
-  - The bottom sheet should still be framework-owned overlay behavior, not navigation to another page.
-  - Keep the user inside the current workflow and return focus to the triggering button when the sheet closes.
-  - The overlay host owns placement, closing, focus trap, escape/click-away behavior, responsive sizing, title/action framing, and ensuring only one footer overlay is open at a time.
-  - Tags and Files still own their picker/upload/assignment content and save contracts.
-
-- [x] Confirm first adoption order after the Tasks cleanup surface: Notifications, Time Tracking, Clients/Projects, Lists, and Notes are the likely first candidates.
-  - Confirm the candidates, but use this order:
-    1. Tasks modal groups and task footer overlays as the proof target.
-    2. Notifications panels/boxes.
-    3. Time Tracking and task timer surfaces.
-    4. Lists.
-    5. Clients/Projects.
-    6. Notes.
-  - Move Lists ahead of Clients/Projects because the next UI cleanup section already identifies Lists as having urgent responsive, overflow, and dark-mode surface problems.
-  - Keep each adoption slice focused on shared surface structure, responsive behavior, accessibility, and styling only unless a specific workflow bug is included.
-
-### Accepted Planning Constraints
-
-- Build this as 0.33.5.13.x implementation slices. 0.33.5.12.5 only creates the plan.
-- Framework owns shared surface tokens, modal structure, footer/action alignment, overlay host behavior, focus handling, escape/click-away behavior, and responsive rules.
-- Modules own their form fields, picker content, save payloads, validation, permission checks, and business meaning.
-- Shared patterns must keep users inside the active workflow. Do not send users to another page just to edit tags, attach files, or adjust a related modal detail.
-- Shared surfaces should use existing theme tokens where possible before adding new tokens.
-- Do not nest cards inside cards. Use cards only for repeated items, modals, and genuinely framed tools; page sections should be full-width bands or unframed layouts with constrained inner content.
-- Compact work surfaces should favor recognizable icons with accessible labels and titles, while preserving text where the action is destructive, unusual, or likely to be ambiguous.
-
-### Version 0.33.5.13.1 - Surface Inventory and Framework Token Contract
-
-- [x] Inventory current main screens, modals, drawers, slideouts, internal boxes, footer bars, and overlay-like panels.
-- [x] Identify one-off surface colors, border radii, shadows, dark panels, light panels, dividers, and footer action treatments.
-- [x] Define the shared surface token set for page surfaces, modal bodies, modal internal groups, overlay panels, drawers, chips, dividers, focus rings, and disabled states.
-- [x] Define shared class names or component helpers for framework-owned surfaces without requiring modules to hard-code each other's UI details.
-- [x] Add static regression coverage that guards against reintroducing one-off modal surface classes in the first converted areas.
-- [x] During the token inventory, reconcile existing surface token drift and either define, replace, or retire aliases such as `--color-background`, `--color-page`, and `--color-surface-alt`.
-- [x] Do not introduce new surface tokens until existing page/surface/background/card/modal/overlay meanings are named clearly.
-- [x] Add a small static regression that catches undefined or deprecated surface tokens in converted areas.
-
-### Version 0.33.5.13.2 - Modal Sections, Internal Headings, and Divider Rules
-
-- [x] Create the shared modal section pattern for titled groups, collapsible groups, compact metadata ribbons, help text, and inline validation.
-- [x] Standardize internal modal headings so Checklist, Assignees, Recurrence, Reminders, Notifications, timers, and future module panels use the same visual language.
-- [x] Standardize divider placement so a divider appears only at the top of the option or section being toggled.
-- [x] Preserve keyboard access, focus visibility, and screen-reader labels for section toggles and icon-only controls.
-- [x] Convert the Tasks modal internal groups only after the shared pattern exists.
-
-### Version 0.33.5.13.3 - Modal Footer and Action Control Contract
-
-- [x] Define shared footer layout for primary, secondary, destructive, copy/share, tags, files, and notification actions.
-- [x] Standardize Save, Close, Cancel, Delete/Archive, Copy Link, Tags, Files, and notification button placement across modals.
-- [x] Define when footer actions should be icon-only, icon-plus-text, disabled, hidden, or moved into an overflow menu.
-- [x] Preserve existing save/cancel/close semantics, dirty-state prompts, and focus return behavior while moving actions into shared footer structure.
-- [x] Add UI contract regressions for accessible labels, titles, button type, and footer action ordering.
-
-### Version 0.33.5.13.4 - Framework Overlay Pattern for Tags and Files
-
-- [x] Create a shared overlay host for small module-owned pickers opened from modal footer or row action buttons.
-- [x] Keep Tags and Files picker content owned by their framework services/modules; the overlay only owns placement, closing, focus trap, escape key, click-away, responsive sizing, and title/action framing.
-- [x] Support anchored desktop overlays and the confirmed mobile behavior from the design questions.
-- [x] Ensure only one footer overlay is open at a time inside the active modal.
-- [x] Add regressions that prove task Tags and Files footer actions open the shared overlay and still use the existing Tags/Files contracts.
-
-### Version 0.33.5.13.5 - Drawers, Slideouts, and Main-Screen Internal Surfaces
-
-- [x] Define the shared drawer and slideout shell for future side panels, quick editors, and contextual detail views.
-- [x] Standardize main-screen internal boxes so Notifications, task timers, task recovery panels, list detail panels, and settings groups use the same surface rules.
-- [x] Define dense table/list action placement separately from modal footer actions.
-- [x] Confirm responsive behavior for drawers and slideouts, including when they become full-screen overlays.
-- [x] Add a small implementation target that proves the shell without converting every module at once.
-
-### Version 0.33.5.13.6 - First Adoption Pass
-
-- [x] Convert the highest-value existing surfaces to the new shared patterns, starting with Tasks modal groups, task footer overlays, Notifications boxes, and task timer surfaces unless the design questions change the order.
-- [x] Keep each module conversion scoped to UI structure and styling unless a workflow bug is explicitly included.
-- [x] Preserve current task, tag, file, notification, timer, and permission behavior during surface conversion.
-- [x] Add or update focused regressions for each converted surface.
-- [x] Avoid broad visual rewrites of unrelated modules until the shared patterns prove stable.
-
-### Version 0.33.5.13.7 - Surface Standardization Closeout
-
-- [x] Update Help and developer docs where shared modal, overlay, footer, drawer, or surface behavior changed.
-- [x] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive during the implementation closeout.
-- [x] Run focused converted-surface regressions.
-- [x] Run `npm run check`.
-- [x] Run `npm run test:permissions`.
-- [x] Verify `/api/app-info` reports the expected version after implementation.
-
-#### 0.33.5.14 - UI Stabilization and Workspace Scope Corrections
+### Design and Clarification Questions
 
 - [x] Confirm whether Personal and Family List creation should hide the scope/client selector entirely and silently use workspace scope, including the historical note that the dialog currently shows only a workspace option.
   - Confirmed.
@@ -160,12 +62,12 @@ Keep this release focused on visible breakages, responsive layout failures, dark
 
 ### Version 0.33.5.14.1 - Help Center Navigation and Article Boundary Fixes
 
-- [ ] Fix Help Center TOC nesting so article links display under the correct parent headings.
-- [ ] Make TOC groups collapsible.
-- [ ] All top-level groups except "Longtail Forge" should start collapsed.
-- [ ] Preserve the existing default article behavior.
-- [ ] Fix article content overflow so headings, paragraphs, tables, code blocks, links, and long strings do not break out of the article container.
-- [ ] Add focused regression coverage for nested TOC rendering, collapsed default state, and article boundary behavior.
+- [x] Fix Help Center TOC nesting so article links display under the correct parent headings.
+- [x] Make TOC groups collapsible.
+- [x] All top-level groups except "Longtail Forge" should start collapsed.
+- [x] Preserve the existing default article behavior.
+- [x] Fix article content overflow so headings, paragraphs, tables, code blocks, links, and long strings do not break out of the article container.
+- [x] Add focused regression coverage for nested TOC rendering, collapsed default state, and article boundary behavior.
 
 ### Version 0.33.5.14.2 - Personal and Family Workspace Scope Corrections
 
@@ -212,7 +114,9 @@ Keep this release focused on visible breakages, responsive layout failures, dark
 - [ ] Run `npm run test:permissions`.
 - [ ] Verify `/api/app-info` reports the expected version.
 
-#### 0.33.5.15 - Framework View Builder Contract and Lists Pilot
+## Version 0.33.5.15 - Framework View Builder Contract and Lists Pilot
+
+### Design and Clarification Questions
 
 - [x] Confirm whether the first view builder should be a small DOM-helper library only, without state management, virtual DOM behavior, component lifecycle, or a new frontend framework.
   - Confirmed.
@@ -531,7 +435,7 @@ The first 0.33.6 report should remain intentionally small: Time Tracking contrib
 
 - [ ] Add question-led Workbench entry:
   - [ ] "Pick up where I left off"
-  - [ ] "Start with what’s due"
+  - [ ] "Start with whatâ€™s due"
   - [ ] "Work this week"
   - [ ] "Review blocked work"
   - [ ] "Focus on a project"
@@ -544,7 +448,7 @@ The first 0.33.6 report should remain intentionally small: Time Tracking contrib
 
 Decision:
 
-Quick Action Capture (QAC) is app-shell utility behavior, not a Workbench focus mode. It should provide low-distraction access to common capture and recovery tools without navigating away from the user’s current work surface. QAC should keep the user on the existing screen and simply open modals (where available). The basic concept is to: 
+Quick Action Capture (QAC) is app-shell utility behavior, not a Workbench focus mode. It should provide low-distraction access to common capture and recovery tools without navigating away from the userâ€™s current work surface. QAC should keep the user on the existing screen and simply open modals (where available). The basic concept is to: 
 
 - Reduce the likelihood of focus/workflow being interrupted 
 - Keep productivity focused 
@@ -680,7 +584,7 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
 * [ ] Add KB article chrome/window-dressing generation.
 
   * [ ] Generate safe table of contents.
-  * [ ] Generate “What links here.”
+  * [ ] Generate â€œWhat links here.â€
   * [ ] Generate related articles from article links, source notes, shared tags, shared collections, and wiki-style links.
   * [ ] Show source-note linkage only to users who can access the source note.
   * [ ] Show source update/review status only to internal users with review/history permission.

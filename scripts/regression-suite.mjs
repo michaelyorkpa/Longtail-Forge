@@ -65,6 +65,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/help-contract-regression.mjs",
   "scripts/help-markdown-source-layout-regression.mjs",
   "scripts/help-center-surface-regression.mjs",
+  "scripts/help-navigation-boundary-regression.mjs",
   "scripts/help-search-regression.mjs",
   "scripts/help-content-regression.mjs",
   "scripts/help-workflow-regression.mjs",

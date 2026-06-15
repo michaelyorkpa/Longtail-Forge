@@ -1,3 +1,11 @@
+## Version 0.33.5.14.1 - 2026-06-15 00:30 -04:00
+
+- Fixed Help Center navigation so the service-shaped ToC tree keeps article links under the correct parent headings while the browser starts top-level groups collapsed except `Longtail Forge`.
+- Preserved default Help article selection and expanded URL-selected article ancestors so active articles remain reachable from the navigation.
+- Tightened Help article containment so headings, paragraphs, lists, inline code, code blocks, links, tables, and long strings wrap or scroll inside the article shell instead of breaking the layout.
+- Added `help-navigation-boundary-regression.mjs`, wired it into the regression suite, refreshed Help asset cache keys, and bumped package/app metadata to `0.33.5.14.1`.
+- Updated `DECISIONS.md`, marked the 0.33.5.14.1 roadmap slice complete, and archived the completed 0.33.5.13 roadmap section.
+
 ## Version 0.33.5.13.7 - 2026-06-14 12:43 -04:00
 
 - Documentation update 2026-06-15 00:13 -04:00: Reworked the upcoming 0.33.5.14 and 0.33.5.15 UI roadmap sections with `Design and Clarification Questions`, incorporated the 0.33.5.14 historical issue record into the release checklist, and removed the separate historical record block.

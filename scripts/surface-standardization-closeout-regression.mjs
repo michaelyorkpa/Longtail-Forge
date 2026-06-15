@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const packageJson = JSON.parse(readText("package.json"));
-const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
+const roadmapArchive = readText("ROADMAP-ARCHIVE.md");
 const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const architecture = readText("docs/architecture.md");
@@ -15,10 +14,10 @@ const tasksDocs = readText("docs/tasks-module.md");
 const tasksHelp = readText("help/framework/tasks-basics.md");
 const tasksModule = readText("src/modules/tasks/module.js");
 
-assert.equal(packageJson.version, "0.33.5.13.7", "package metadata should report the surface closeout version");
-assert.equal(packageLock.version, "0.33.5.13.7", "package lock root version should report the surface closeout version");
-assert.equal(packageLock.packages[""].version, "0.33.5.13.7", "package lock package version should report the surface closeout version");
 assert.match(tasksModule, /version: "0\.33\.5\.13\.7"/, "Tasks module metadata should report the surface closeout version");
+
+assert.doesNotMatch(roadmap, /## Version 0\.33\.5\.13 - Framework Surface and Modal Style Standardization/, "Completed surface roadmap should be archived after the next version starts");
+assert.match(roadmapArchive, /## Version 0\.33\.5\.13 - Framework Surface and Modal Style Standardization/, "Archived roadmap should retain the surface standardization section");
 
 for (const item of [
   "Update Help and developer docs where shared modal, overlay, footer, drawer, or surface behavior changed.",
@@ -28,10 +27,9 @@ for (const item of [
   "Run `npm run test:permissions`.",
   "Verify `/api/app-info` reports the expected version after implementation.",
 ]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap closeout item should be checked: ${item}`);
+  assert.match(roadmapArchive, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Archived roadmap closeout item should be checked: ${item}`);
 }
 
-assert.match(decisions, /Last updated for 0\.33\.5\.13\.7 Surface Standardization Closeout\./, "Decisions header should point to the closeout version");
 assert.match(decisions, /## Version 0\.33\.5\.13\.7/, "Decisions should include the closeout version");
 assert.match(decisions, /No roadmap archive move is needed/, "Decisions should document archive handling for this closeout");
 assert.match(changelog, /## Version 0\.33\.5\.13\.7 - /, "Changelog should include the closeout version");
