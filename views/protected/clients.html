@@ -28,30 +28,6 @@
       <p data-client-project-status role="status" aria-live="polite"></p>
       <section class="client-list" data-client-list aria-label="Clients"></section>
 
-      <dialog data-client-modal>
-        <form method="dialog" data-client-form>
-          <h2>Add Client</h2>
-
-          <label>
-            Client Name
-            <input type="text" data-new-client-name required>
-          </label>
-
-          <label>
-            Parent Client
-            <select data-new-parent-client>
-              <option value="">No parent client</option>
-            </select>
-          </label>
-
-          <div data-new-client-tags></div>
-
-          <div class="form-actions">
-            <button type="button" data-cancel-client>Cancel</button>
-            <button type="submit">Save</button>
-          </div>
-        </form>
-      </dialog>
     </main>
 
     <script src="js/navigation.js"></script>
@@ -61,7 +37,8 @@
     <script src="js/shared/module-actions.js?v=1"></script>
     <script src="js/shared/icons.js?v=1"></script>
     <script src="js/shared/tags.js"></script>
-    <script src="js/clients-projects.js?v=10"></script>
+    <script src="js/shared/view-builder.js?v=2"></script>
+    <script src="js/clients-projects.js?v=11"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

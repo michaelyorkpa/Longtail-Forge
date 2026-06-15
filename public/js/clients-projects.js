@@ -1,4 +1,8 @@
 // Clients & Projects is the main editor for client, project, and billing metadata.
+const view = window.LongtailForge?.view;
+
+buildClientProjectDialogShells();
+
 const clientList = document.querySelector("[data-client-list]");
 const addClientButton = document.querySelector("[data-add-client]");
 const addProjectTopButton = document.querySelector("[data-add-project-top]");
@@ -66,6 +70,109 @@ let openedAddProjectFromQuery = false;
 let openedProjectDetailFromQuery = false;
 let tagOptions = [];
 let newClientTagPicker = { readTagIds: () => [] };
+
+function buildClientProjectDialogShells() {
+  if (document.querySelector("[data-client-modal]")) {
+    return;
+  }
+  if (document.body.dataset.clientProjectPage !== "clients") {
+    return;
+  }
+
+  const main = document.querySelector("main");
+  if (!main) {
+    return;
+  }
+
+  main.appendChild(createAddClientPageDialogShell());
+}
+
+function requireView() {
+  if (!view) {
+    throw new Error("Client/Project dialogs require LongtailForge.view.");
+  }
+  return view;
+}
+
+function createModalAction(label, options = {}) {
+  const button = requireView().createActionButton({
+    label,
+    type: options.type || "button",
+    role: options.role || "",
+  });
+  button.classList.add("surface-modal-footer-action");
+  return button;
+}
+
+function createModalCommitGroup(children = [], className = "") {
+  return requireView().createElement("div", {
+    className: ["surface-modal-footer-group", "surface-modal-footer-commit", className],
+    attrs: { "data-modal-footer-group": "commit" },
+    children,
+  });
+}
+
+function decorateModalFooterButtons(container) {
+  container.querySelectorAll("button").forEach((button) => {
+    button.classList.add("surface-modal-footer-action");
+    if (button.dataset.surfaceActionRole) {
+      return;
+    }
+
+    const label = button.textContent.trim().toLowerCase();
+    if (label.startsWith("save") || label.startsWith("add")) {
+      button.dataset.surfaceActionRole = "primary";
+    } else if (label.startsWith("archive") || label.startsWith("delete")) {
+      button.dataset.surfaceActionRole = "destructive";
+    } else {
+      button.dataset.surfaceActionRole = "secondary";
+    }
+  });
+}
+
+function showDialog(dialog, focusTarget = null) {
+  document.body.appendChild(dialog);
+
+  if (typeof dialog.showModal === "function") {
+    dialog.showModal();
+  } else {
+    dialog.setAttribute("open", "");
+  }
+
+  focusTarget?.focus?.();
+}
+
+function createAddClientPageDialogShell() {
+  const modalView = requireView();
+  const nameLabel = modalView.createElement("label", { text: "Client Name" });
+  const nameInput = modalView.createElement("input", {
+    attrs: { required: true, type: "text" },
+  });
+  const parentLabel = modalView.createElement("label", { text: "Parent Client" });
+  const parentSelect = modalView.createElement("select");
+  const tagContainer = modalView.createElement("div");
+  const cancelButton = createModalAction("Cancel", { role: "secondary" });
+  const saveButton = createModalAction("Save", { role: "primary", type: "submit" });
+
+  nameInput.dataset.newClientName = "";
+  parentSelect.dataset.newParentClient = "";
+  parentSelect.appendChild(createOption("", "No parent client"));
+  tagContainer.dataset.newClientTags = "";
+  cancelButton.dataset.cancelClient = "";
+  nameLabel.appendChild(nameInput);
+  parentLabel.appendChild(parentSelect);
+
+  const dialog = modalView.createModalForm({
+    title: "Add Client",
+    className: "client-detail-dialog",
+    formClassName: "entry-form client-modal-form",
+    fields: [nameLabel, parentLabel, tagContainer],
+    actions: [cancelButton, saveButton],
+  });
+  dialog.dataset.clientModal = "";
+  dialog.viewParts.form.dataset.clientForm = "";
+  return dialog;
+}
 
 if (clientList && statusMessage) {
   loadPageData();
@@ -459,9 +566,8 @@ function updateProjectTableBulkState() {
 }
 
 function openProjectDetailDialog(client, project, options = {}) {
-  const dialog = document.createElement("dialog");
-  const closeActions = document.createElement("div");
-  const closeButton = document.createElement("button");
+  const closeActions = createModalCommitGroup([], "detail-modal-actions");
+  const closeButton = createModalAction("Close", { role: "secondary" });
   let completed = false;
   const projectEditor = createProjectEditor(client, project, {
     actionTarget: closeActions,
@@ -471,19 +577,20 @@ function openProjectDetailDialog(client, project, options = {}) {
       dialog.close("complete");
     },
   });
+  decorateModalFooterButtons(closeActions);
+  const dialog = requireView().createModal({
+    title: `Edit Project: ${project.name}`,
+    className: "project-form-dialog detail-edit-dialog",
+    body: [projectEditor],
+    footer: [closeActions],
+  });
 
-  dialog.className = "project-form-dialog detail-edit-dialog";
   projectEditor.open = true;
-  closeActions.className = "form-actions detail-modal-actions";
-  closeButton.type = "button";
-  closeButton.textContent = "Close";
   closeButton.addEventListener("click", () => {
     options.hostContext?.cancel?.({ actionId: "projects.edit", recordId: project.id });
     dialog.close("cancel");
   });
   closeActions.appendChild(closeButton);
-  dialog.append(projectEditor, closeActions);
-  document.body.appendChild(dialog);
   dialog.addEventListener("close", () => {
     if (!completed && dialog.returnValue !== "cancel") {
       options.hostContext?.cancel?.({ actionId: "projects.edit", recordId: project.id });
@@ -491,11 +598,7 @@ function openProjectDetailDialog(client, project, options = {}) {
     dialog.remove();
   }, { once: true });
 
-  if (typeof dialog.showModal === "function") {
-    dialog.showModal();
-  } else {
-    dialog.setAttribute("open", "");
-  }
+  showDialog(dialog);
 
   return new Promise((resolve) => {
     dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
@@ -699,15 +802,13 @@ function updateClientTableBulkState() {
 }
 
 function openClientDetailDialog(client, options = {}) {
-  const dialog = document.createElement("dialog");
   const details = document.createElement("details");
   const summary = document.createElement("summary");
   const editor = document.createElement("div");
-  const closeActions = document.createElement("div");
-  const closeButton = document.createElement("button");
+  const closeActions = createModalCommitGroup([], "detail-modal-actions");
+  const closeButton = createModalAction("Close", { role: "secondary" });
   let completed = false;
 
-  dialog.className = "client-detail-dialog detail-edit-dialog";
   details.className = "client-item";
   details.open = true;
   summary.textContent = client.name;
@@ -727,16 +828,20 @@ function openClientDetailDialog(client, options = {}) {
       dialog.close("complete");
     },
   });
-  closeButton.type = "button";
-  closeButton.textContent = "Close";
+  decorateModalFooterButtons(closeActions);
+  const dialog = requireView().createModal({
+    title: `Edit Client: ${client.name}`,
+    className: "client-detail-dialog detail-edit-dialog",
+    body: [details],
+    footer: [closeActions],
+  });
+
   closeButton.addEventListener("click", () => {
     options.hostContext?.cancel?.({ actionId: "clients.edit", recordId: client.id });
     dialog.close("cancel");
   });
   closeActions.appendChild(closeButton);
   details.append(summary, editor);
-  dialog.append(details, closeActions);
-  document.body.appendChild(dialog);
   dialog.addEventListener("close", () => {
     if (!completed && dialog.returnValue !== "cancel") {
       options.hostContext?.cancel?.({ actionId: "clients.edit", recordId: client.id });
@@ -744,11 +849,7 @@ function openClientDetailDialog(client, options = {}) {
     dialog.remove();
   }, { once: true });
 
-  if (typeof dialog.showModal === "function") {
-    dialog.showModal();
-  } else {
-    dialog.setAttribute("open", "");
-  }
+  showDialog(dialog);
 
   return new Promise((resolve) => {
     dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
@@ -803,35 +904,33 @@ async function applyBulkClientUpdate({ selectedClientIds, status, billable }) {
 }
 
 function openAddProjectDialog(client, options = {}) {
-  const dialog = document.createElement("dialog");
+  const formId = `add-project-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const form = createAddProjectForm(client, {
     hostContext: options.hostContext,
     onSaved: () => dialog.close("complete"),
     parentProjectId: options.parentProjectId || "",
     showClientAssignment: true,
   });
-  const heading = document.createElement("h2");
-  const closeButton = document.createElement("button");
-  const actions = document.createElement("div");
+  const closeButton = createModalAction("Cancel", { role: "secondary" });
+  const submitButton = form.querySelector("[data-add-project-button]") || createAddProjectSubmitButton(client.id);
+  submitButton.remove();
+  submitButton.setAttribute("form", formId);
+  submitButton.classList.add("surface-modal-footer-action");
+  submitButton.dataset.surfaceActionRole = "primary";
+  const actions = createModalCommitGroup([submitButton, closeButton], "project-modal-actions");
+  const dialog = requireView().createModal({
+    title: "Add Project",
+    className: "project-form-dialog",
+    body: [form],
+    footer: [actions],
+  });
 
-  dialog.className = "project-form-dialog";
+  form.id = form.id || formId;
   form.classList.add("project-modal-form");
-  heading.textContent = "Add Project";
-  closeButton.type = "button";
-  closeButton.textContent = "Cancel";
-  actions.className = "form-actions";
-  actions.classList.add("project-modal-actions");
   closeButton.addEventListener("click", () => {
     options.hostContext?.cancel?.({ actionId: "projects.add" });
     dialog.close("cancel");
   });
-  const submitButton = form.querySelector("[data-add-project-button]") || createAddProjectSubmitButton(client.id);
-  submitButton.remove();
-  actions.append(submitButton, closeButton);
-  form.prepend(heading);
-  form.appendChild(actions);
-  dialog.appendChild(form);
-  document.body.appendChild(dialog);
   dialog.addEventListener("close", () => {
     if (dialog.returnValue !== "complete" && dialog.returnValue !== "cancel") {
       options.hostContext?.cancel?.({ actionId: "projects.add" });
@@ -839,11 +938,7 @@ function openAddProjectDialog(client, options = {}) {
     dialog.remove();
   }, { once: true });
 
-  if (typeof dialog.showModal === "function") {
-    dialog.showModal();
-  } else {
-    dialog.setAttribute("open", "");
-  }
+  showDialog(dialog, form.querySelector("input, select, textarea, button"));
 
   return new Promise((resolve) => {
     dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });
@@ -874,27 +969,19 @@ function openAddClientModal() {
 }
 
 function openAddClientDialog({ defaultParentClientId = "", hostContext = null } = {}) {
-  const dialog = document.createElement("dialog");
-  const form = document.createElement("form");
-  const heading = document.createElement("h2");
-  const nameLabel = document.createElement("label");
-  const nameInput = document.createElement("input");
-  const parentLabel = document.createElement("label");
-  const parentSelect = document.createElement("select");
-  const tagContainer = document.createElement("div");
-  const actions = document.createElement("div");
-  const cancelButton = document.createElement("button");
-  const saveButton = document.createElement("button");
+  const modalView = requireView();
+  const nameLabel = modalView.createElement("label", { text: "Client Name" });
+  const nameInput = modalView.createElement("input", {
+    attrs: { required: true, type: "text" },
+  });
+  const parentLabel = modalView.createElement("label", { text: "Parent Client" });
+  const parentSelect = modalView.createElement("select");
+  const tagContainer = modalView.createElement("div");
+  const cancelButton = createModalAction("Cancel", { role: "secondary" });
+  const saveButton = createModalAction("Save", { role: "primary", type: "submit" });
   let tagPicker = { readTagIds: () => [] };
 
-  dialog.className = "client-detail-dialog";
-  form.className = "entry-form client-modal-form";
-  heading.textContent = "Add Client";
-  nameLabel.textContent = "Client Name";
-  nameInput.type = "text";
-  nameInput.required = true;
   nameLabel.appendChild(nameInput);
-  parentLabel.textContent = "Parent Client";
   populateParentClientSelect(parentSelect);
   parentSelect.value = [...parentSelect.options].some((option) => option.value === defaultParentClientId)
     ? defaultParentClientId
@@ -903,22 +990,22 @@ function openAddClientDialog({ defaultParentClientId = "", hostContext = null } 
   const mountedPicker = mountTagPicker(tagContainer, [], "Client Tags");
   if (mountedPicker) {
     mountedPicker.then((picker) => {
-      tagPicker = picker || tagPicker;
+    tagPicker = picker || tagPicker;
     });
   }
-  actions.className = "form-actions";
-  cancelButton.type = "button";
-  cancelButton.textContent = "Cancel";
-  saveButton.type = "submit";
-  saveButton.textContent = "Save";
+  const dialog = modalView.createModalForm({
+    title: "Add Client",
+    className: "client-detail-dialog",
+    formClassName: "entry-form client-modal-form",
+    fields: [nameLabel, parentLabel, tagContainer],
+    actions: [cancelButton, saveButton],
+  });
+  const form = dialog.viewParts.form;
+
   cancelButton.addEventListener("click", () => {
     hostContext?.cancel?.({ actionId: "clients.add" });
     dialog.close("cancel");
   });
-  actions.append(cancelButton, saveButton);
-  form.append(heading, nameLabel, parentLabel, tagContainer, actions);
-  dialog.appendChild(form);
-  document.body.appendChild(dialog);
   dialog.addEventListener("close", () => {
     if (dialog.returnValue !== "complete" && dialog.returnValue !== "cancel") {
       hostContext?.cancel?.({ actionId: "clients.add" });
@@ -963,12 +1050,7 @@ function openAddClientDialog({ defaultParentClientId = "", hostContext = null } 
     }
   });
 
-  if (typeof dialog.showModal === "function") {
-    dialog.showModal();
-  } else {
-    dialog.setAttribute("open", "");
-  }
-  nameInput.focus();
+  showDialog(dialog, nameInput);
 
   return new Promise((resolve) => {
     dialog.addEventListener("close", () => resolve(dialog.returnValue || "closed"), { once: true });

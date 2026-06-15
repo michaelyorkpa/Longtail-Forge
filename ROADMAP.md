@@ -237,12 +237,12 @@ Modules still own business meaning: data loading, save payloads, validation rule
 
 ### Version 0.33.5.15.4 - Client/Project Modal Adoption
 
-- [ ] Convert Add/Edit Client dialogs to the shared modal/form/footer helpers.
-- [ ] Convert Add/Edit Project dialogs to the shared modal/form/footer helpers.
-- [ ] Keep Clients/Projects responsible for field meaning, validation, save payloads, and permission checks.
-- [ ] Keep framework responsible for modal shell, footer placement, responsive behavior, focus return, and action ordering.
-- [ ] Ensure Personal and Family workspaces cannot open Business-only client dialogs.
-- [ ] Add regressions preventing converted dialogs from using one-off modal footer structures.
+- [x] Convert Add/Edit Client dialogs to the shared modal/form/footer helpers.
+- [x] Convert Add/Edit Project dialogs to the shared modal/form/footer helpers.
+- [x] Keep Clients/Projects responsible for field meaning, validation, save payloads, and permission checks.
+- [x] Keep framework responsible for modal shell, footer placement, responsive behavior, focus return, and action ordering.
+- [x] Ensure Personal and Family workspaces cannot open Business-only client dialogs.
+- [x] Add regressions preventing converted dialogs from using one-off modal footer structures.
 
 ### Version 0.33.5.15.5 - Static Guardrails for Converted Surfaces
 

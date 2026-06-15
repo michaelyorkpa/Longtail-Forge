@@ -12,9 +12,9 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.15.3", "package.json should report the Lists view-builder pilot version");
-assert.equal(packageLock.version, "0.33.5.15.3", "package-lock root should report the Lists view-builder pilot version");
-assert.equal(packageLock.packages[""].version, "0.33.5.15.3", "package-lock package entry should report the Lists view-builder pilot version");
+assert.equal(packageJson.version, "0.33.5.15.4", "package.json should report the current view-builder line version");
+assert.equal(packageLock.version, "0.33.5.15.4", "package-lock root should report the current view-builder line version");
+assert.equal(packageLock.packages[""].version, "0.33.5.15.4", "package-lock package entry should report the current view-builder line version");
 
 assert.match(html, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists protected view should be a minimal host");
 assert.match(html, /js\/shared\/view-builder\.js\?v=2/, "Lists protected view should load the framework view builder");
@@ -98,7 +98,7 @@ for (const item of [
   assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
 }
 
-assert.match(viewContract, /As of 0\.33\.5\.15\.3/, "View-building contract should document the Lists pilot");
+assert.match(viewContract, /As of 0\.33\.5\.15\.4/, "View-building contract should document the current view-builder line");
 assert.match(viewContract, /Lists protected workspace now uses `LongtailForge\.view`/, "View-building contract should describe the converted Lists workspace");
 assert.match(decisions, /## Version 0\.33\.5\.15\.3/, "Decisions should include the Lists pilot version");
 assert.match(changelog, /## Version 0\.33\.5\.15\.3 - /, "Changelog should include the Lists pilot version");

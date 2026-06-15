@@ -1,3 +1,9 @@
+## Version 0.33.5.15.4 - 2026-06-15 09:01 -04:00
+
+- Converted shared Client/Projects Add/Edit Client and Add/Edit Project dialog shells to `LongtailForge.view` modal/form/footer helpers while leaving field behavior, validation, billing/tag/hierarchy logic, save payloads, and permissions in `public/js/clients-projects.js`.
+- Removed the static Add Client dialog from `clients.html`, added the view-builder helper to Clients, Projects, and Workbench before `clients-projects.js`, and cache-busted `clients-projects.js` to `v=11`.
+- Updated the Client/Projects modal regression to guard the converted dialog sources and bumped package/app plus Client/Projects module metadata to `0.33.5.15.4`.
+
 ## Version 0.33.5.15.3 - 2026-06-15 08:13 -04:00
 
 - Converted the protected Lists page into a minimal host that loads `LongtailForge.view`, with `public/js/lists.js` building the page header, status, filters, collapsible index, split list/detail workspace, detail header/actions, summary panels, item form grid, item tables/actions, empty states, and the minimal list dialog shell through shared helpers.
