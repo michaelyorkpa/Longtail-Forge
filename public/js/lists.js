@@ -208,7 +208,10 @@ function fallbackListsViewSurfaceDescriptor() {
       emptyState: {
         message: "Select a list to review its context.",
       },
+      itemForm: listsItemFormDescriptor(),
+      itemRows: listsItemRowsDescriptor(),
     },
+    modals: [listsModalDescriptor()],
     dataSource: {
       route: "/api/lists",
       method: "GET",
@@ -217,6 +220,74 @@ function fallbackListsViewSurfaceDescriptor() {
         title: "title",
       },
     },
+  };
+}
+
+function listsItemFormDescriptor() {
+  return {
+    title: "Items",
+    fields: [
+      { field: "item_name", type: "text", label: "Item", required: true, autocomplete: "off", behavior: "lists.catalog-suggestions" },
+      { field: "catalog_item_id", type: "hidden", label: "Catalog Item" },
+      { field: "quantity", type: "number", label: "Qty", default: "1", min: "0", step: "0.01" },
+      { field: "unit", type: "text", label: "Unit" },
+      { field: "needed_by_date", type: "date", label: "Needed" },
+      { field: "assigned_user_id", type: "select", label: "Assigned", optionsSource: "users" },
+      { field: "purchase_status", type: "select", label: "Status", options: Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => [value, label]) },
+      { field: "vendor_name", type: "text", label: "Vendor or Store", placement: "advanced" },
+      { field: "url", type: "url", label: "URL", placement: "advanced" },
+      { field: "estimated_cost", type: "number", label: "Estimated Cost", min: "0", step: "0.01", placement: "advanced" },
+      { field: "actual_cost", type: "number", label: "Actual Cost", min: "0", step: "0.01", placement: "advanced" },
+      { field: "tracking_id", type: "text", label: "Tracking ID", placement: "advanced" },
+      { field: "notes", type: "textarea", label: "Notes", rows: "2", placement: "advanced" },
+      { field: "save_to_catalog", type: "checkbox", label: "Save as reusable item", default: "true" },
+    ],
+    actions: [
+      { id: "save-item", label: "Add Item", role: "primary", behavior: "lists.item.save" },
+    ],
+  };
+}
+
+function listsItemRowsDescriptor() {
+  return {
+    itemsField: "items",
+    columns: [
+      { id: "done", label: "Done", type: "checkbox" },
+      { id: "item", field: "item_name", label: "Item" },
+      { id: "quantity", field: "quantity", label: "Qty" },
+      { id: "needed", field: "needed_by_date", label: "Needed" },
+      { id: "status", field: "purchase_status", label: "Status" },
+      { id: "assigned", field: "assigned_user_id", label: "Assigned" },
+      { id: "actions", label: "Actions", type: "actions" },
+    ],
+    actions: [
+      { id: "edit-item", label: "Edit", role: "secondary", behavior: "lists.item.edit" },
+      { id: "complete-item", label: "Done", role: "secondary", behavior: "lists.item.complete" },
+      { id: "move-item-up", label: "Up", role: "utility", behavior: "lists.item.move-up" },
+      { id: "move-item-down", label: "Down", role: "utility", behavior: "lists.item.move-down" },
+      { id: "delete-item", label: "Delete", role: "destructive", behavior: "lists.item.delete" },
+    ],
+    emptyState: {
+      message: "No items yet.",
+    },
+  };
+}
+
+function listsModalDescriptor() {
+  return {
+    id: "list-editor",
+    title: "List",
+    fields: [
+      { field: "title", type: "text", label: "Title", required: true },
+      { field: "list_type", type: "select", label: "Type", options: Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label]) },
+      { field: "client_id", type: "select", label: "Client", optionsSource: "clients" },
+      { field: "project_id", type: "select", label: "Project", optionsSource: "projects" },
+      { field: "description", type: "textarea", label: "Description", rows: "4" },
+    ],
+    footerActions: [
+      { id: "cancel-list", label: "Cancel", role: "secondary", behavior: "lists.modal.cancel" },
+      { id: "save-list", label: "Save List", role: "primary", behavior: "lists.modal.save" },
+    ],
   };
 }
 
@@ -397,26 +468,29 @@ function createListsDetailHost() {
 }
 
 function createListDialogShell() {
-  const title = inputControl("Title", "text", "listTitle", { required: true });
-  const type = selectControl("Type", "listType", Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label]));
-  const client = selectControl("Client", "listClient", [], { listBusinessControl: "" });
-  const project = selectControl("Project", "listProject", [], { listContextControl: "" });
+  const modal = listsEditorModalDescriptor();
+  const title = listModalField("title", "listTitle", { required: true });
+  const type = listModalField("list_type", "listType");
+  const client = listModalField("client_id", "listClient", {}, { listBusinessControl: "" }, []);
+  const project = listModalField("project_id", "listProject", {}, { listContextControl: "" }, []);
   const contextFields = view.createFieldGrid({
     surface: false,
     className: "lists-form-grid",
     fields: [type, client, project],
   });
-  const description = textareaControl("Description", "listDescription", { rows: "4" });
+  const description = listModalField("description", "listDescription");
   const formStatus = view.createStatusMessage({ className: "lists-form-status" });
   formStatus.dataset.listFormStatus = "";
 
-  const cancel = view.createActionButton({ label: "Cancel", role: "secondary" });
+  const cancelAction = modal.footerActions?.find((action) => action.id === "cancel-list") || {};
+  const saveAction = modal.footerActions?.find((action) => action.id === "save-list") || {};
+  const cancel = view.createActionButton({ label: cancelAction.label || "Cancel", role: cancelAction.role || "secondary" });
   cancel.dataset.listCancel = "";
-  const save = view.createActionButton({ label: "Save List", type: "submit", role: "primary" });
+  const save = view.createActionButton({ label: saveAction.label || "Save List", type: "submit", role: saveAction.role || "primary" });
   save.dataset.listSave = "";
 
   const dialog = view.createModalForm({
-    title: "List",
+    title: modal.title || "List",
     className: "lists-dialog",
     formClassName: "lists-form",
     fields: [title, contextFields, description, formStatus],
@@ -434,6 +508,35 @@ function createListDialogShell() {
   });
   dialog.viewParts.form.insertBefore(heading, dialog.viewParts.body);
   return dialog;
+}
+
+function listsEditorModalDescriptor() {
+  return listsViewSurfaceDescriptor().modals?.find((modal) => modal.id === "list-editor") || listsModalDescriptor();
+}
+
+function listModalField(fieldName, dataName, attrs = {}, wrapperDataset = {}, optionEntries = null) {
+  const field = listsEditorModalDescriptor().fields?.find((entry) => entry.field === fieldName) || {};
+  if (field.type === "textarea") {
+    return textareaControl(field.label || fieldName, dataName, {
+      rows: field.rows,
+      ...attrs,
+    }, wrapperDataset);
+  }
+  if (field.type === "select") {
+    return selectControl(
+      field.label || fieldName,
+      dataName,
+      optionEntries || optionsFromDescriptor(field),
+      wrapperDataset,
+    );
+  }
+  return inputControl(field.label || fieldName, field.type || "text", dataName, {
+    required: field.required,
+    min: field.min,
+    step: field.step,
+    autocomplete: field.autocomplete,
+    ...attrs,
+  }, wrapperDataset);
 }
 
 function inputControl(labelText, type, dataName, attributes = {}, wrapperDataset = {}) {
@@ -777,38 +880,29 @@ function detailActionButtons(list, locked) {
 }
 
 function createItemForm(list, locked) {
+  const descriptor = listsItemFormSurfaceDescriptor();
   const section = view.createElement("section", { className: "lists-item-entry" });
-  const title = view.createElement("h3", { text: "Items" });
+  const title = view.createElement("h3", { text: descriptor.title || descriptor.label || "Items" });
   const form = view.createElement("form", { className: ["lists-item-form", "view-field-grid", "surface-modal-section-body"] });
-  const name = createItemNameField(list);
-  const catalogItemId = view.createElement("input");
-  const quantity = inputField("Qty", "number", "quantity", { min: "0", step: "0.01", value: "1" });
-  const unit = inputField("Unit", "text", "unit");
-  const needed = inputField("Needed", "date", "needed_by_date");
-  const assigned = selectField("Assigned", "assigned_user_id", [
-    option("", "Unassigned"),
-    ...state.users.map((user) => option(user.user_id, displayUser(user))),
-  ]);
-  const purchase = selectField("Status", "purchase_status", Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => option(value, label)));
+  const name = createItemFieldFromDescriptor(itemFormField("item_name"), list);
+  const catalogItemId = createItemFieldFromDescriptor(itemFormField("catalog_item_id"), list);
+  const quantity = createItemFieldFromDescriptor(itemFormField("quantity"), list);
+  const unit = createItemFieldFromDescriptor(itemFormField("unit"), list);
+  const needed = createItemFieldFromDescriptor(itemFormField("needed_by_date"), list);
+  const assigned = createItemFieldFromDescriptor(itemFormField("assigned_user_id"), list);
+  const purchase = createItemFieldFromDescriptor(itemFormField("purchase_status"), list);
   const advanced = view.createElement("details", { className: "lists-item-advanced" });
   const advancedSummary = view.createElement("summary", { text: "Details" });
   const advancedFields = view.createFieldGrid({ surface: false, className: "lists-item-advanced-fields" });
-  const saveToCatalog = checkboxField("Save as reusable item", "save_to_catalog", "true");
-  const submit = view.createActionButton({ label: "Add Item", type: "submit", role: "primary" });
+  const saveToCatalog = createItemFieldFromDescriptor(itemFormField("save_to_catalog"), list);
+  const submitAction = descriptor.actions?.[0] || {};
+  const submit = view.createActionButton({ label: submitAction.label || "Add Item", type: "submit", role: submitAction.role || "primary" });
 
-  catalogItemId.type = "hidden";
-  catalogItemId.name = "catalog_item_id";
-  catalogItemId.dataset.listCatalogItemId = "";
   form.dataset.listItemForm = "";
   form.dataset.listId = list.list_id;
-  advancedFields.append(
-    inputField("Vendor or Store", "text", "vendor_name"),
-    inputField("URL", "url", "url"),
-    inputField("Estimated Cost", "number", "estimated_cost", { min: "0", step: "0.01" }),
-    inputField("Actual Cost", "number", "actual_cost", { min: "0", step: "0.01" }),
-    inputField("Tracking ID", "text", "tracking_id"),
-    textareaField("Notes", "notes", { rows: "2" }),
-  );
+  advancedFields.append(...descriptor.fields
+    .filter((field) => field.placement === "advanced")
+    .map((field) => createItemFieldFromDescriptor(field, list)));
   advanced.append(advancedSummary, advancedFields);
   submit.disabled = locked;
   form.append(name, catalogItemId, quantity, unit, needed, assigned, purchase, advanced, saveToCatalog, submit);
@@ -825,7 +919,59 @@ function createItemForm(list, locked) {
   return section;
 }
 
-function createItemNameField(list) {
+function listsItemFormSurfaceDescriptor() {
+  return listsViewSurfaceDescriptor().detail?.itemForm || listsItemFormDescriptor();
+}
+
+function itemFormField(fieldName) {
+  return listsItemFormSurfaceDescriptor().fields?.find((field) => field.field === fieldName) || { field: fieldName, type: "text", label: fieldName };
+}
+
+function createItemFieldFromDescriptor(field, list) {
+  if (field.field === "item_name") {
+    return createItemNameField(list, field);
+  }
+  if (field.field === "catalog_item_id") {
+    const input = view.createElement("input");
+    input.type = "hidden";
+    input.name = field.field;
+    input.dataset.listCatalogItemId = "";
+    return input;
+  }
+  if (field.field === "assigned_user_id") {
+    return selectField(field.label || "Assigned", field.field, [
+      option("", "Unassigned"),
+      ...state.users.map((user) => option(user.user_id, displayUser(user))),
+    ]);
+  }
+  if (field.type === "select") {
+    return selectField(field.label || field.field, field.field, optionsFromDescriptor(field).map(([value, label]) => option(value, label)));
+  }
+  if (field.type === "textarea") {
+    return textareaField(field.label || field.field, field.field, { rows: field.rows });
+  }
+  if (field.type === "checkbox") {
+    return checkboxField(field.label || field.field, field.field, field.default || "true");
+  }
+  return inputField(field.label || field.field, field.type || "text", field.field, {
+    autocomplete: field.autocomplete,
+    min: field.min,
+    required: field.required,
+    step: field.step,
+    value: field.default,
+  });
+}
+
+function optionsFromDescriptor(field = {}) {
+  return (field.options || []).map((entry) => {
+    if (Array.isArray(entry)) {
+      return entry;
+    }
+    return [entry.value ?? entry.id ?? "", entry.label ?? entry.text ?? entry.value ?? ""];
+  });
+}
+
+function createItemNameField(list, field = {}) {
   const label = document.createElement("label");
   const input = document.createElement("input");
   const dataList = document.createElement("datalist");
@@ -839,7 +985,7 @@ function createItemNameField(list) {
   input.dataset.listItemName = "";
   dataList.id = listId;
   dataList.dataset.listItemSuggestions = "";
-  label.append("Item", input, dataList);
+  label.append(field.label || "Item", input, dataList);
   input.addEventListener("input", () => applySuggestionSelection(input.form, list, input.value));
   return label;
 }
@@ -858,10 +1004,11 @@ function checkboxField(labelText, name, value) {
 
 function createItemsTable(list, locked) {
   const items = visibleItems(list);
+  const descriptor = listsItemRowsSurfaceDescriptor();
   const table = view.createDataTable({
-    columns: ["Done", "Item", "Qty", "Needed", "Status", "Assigned", "Actions"],
+    columns: descriptor.columns?.map((column) => column.label || column.id) || ["Done", "Item", "Qty", "Needed", "Status", "Assigned", "Actions"],
     rows: [],
-    emptyMessage: "No items yet.",
+    emptyMessage: descriptor.emptyState?.message || "No items yet.",
     className: "lists-items-table-wrap",
     tableClassName: "list-table lists-items-table",
   });
@@ -872,6 +1019,10 @@ function createItemsTable(list, locked) {
   }
 
   return table;
+}
+
+function listsItemRowsSurfaceDescriptor() {
+  return listsViewSurfaceDescriptor().detail?.itemRows || listsItemRowsDescriptor();
 }
 
 function createLinkedRecordsPanel(list, locked) {
@@ -1049,16 +1200,20 @@ function createItemRow(list, item, index, total, locked) {
   actionsCell.appendChild(view.createInlineActionRow({
     className: "lists-item-actions",
     ariaLabel: `${item.item_name || "Item"} actions`,
-    actions: [
-      actionButton("Edit", "edit-item", list.list_id, "", { itemId: item.list_item_id, disabled: locked }),
-      actionButton("Done", "complete-item", list.list_id, "", { itemId: item.list_item_id, disabled: locked || Boolean(item.completed_at) }),
-      actionButton("Up", "move-item-up", list.list_id, "", { itemId: item.list_item_id, disabled: locked || index === 0 }),
-      actionButton("Down", "move-item-down", list.list_id, "", { itemId: item.list_item_id, disabled: locked || index >= total - 1 }),
-      actionButton("Delete", "delete-item", list.list_id, "secondary", { itemId: item.list_item_id, disabled: locked }),
-    ],
+    actions: listsItemRowsSurfaceDescriptor().actions.map((action) => itemRowActionButton(action, list, item, index, total, locked)),
   }));
   row.append(doneCell, itemCell, qtyCell, neededCell, statusCell, assignedCell, actionsCell);
   return row;
+}
+
+function itemRowActionButton(action, list, item, index, total, locked) {
+  const disabledByPosition = (action.id === "move-item-up" && index === 0) ||
+    (action.id === "move-item-down" && index >= total - 1) ||
+    (action.id === "complete-item" && Boolean(item.completed_at));
+  return actionButton(action.label || action.id, action.id, list.list_id, action.role === "destructive" ? "secondary" : "", {
+    itemId: item.list_item_id,
+    disabled: locked || disabledByPosition,
+  });
 }
 
 async function handleDetailClick(event) {

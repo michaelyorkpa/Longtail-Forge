@@ -11,6 +11,24 @@ import { LIST_MODULE_ID } from "./storage-contract.js";
 
 registerListsSearchIndexers();
 
+const LIST_TYPE_LABELS = {
+  bill_of_materials: "Bill of Materials",
+  checklist: "Checklist",
+  packing: "Packing",
+  parts: "Parts",
+  procurement: "Procurement",
+  shopping: "Shopping",
+  supplies: "Supplies",
+};
+const PURCHASE_STATUS_LABELS = {
+  cancelled: "Cancelled",
+  needed: "Needed",
+  not_needed: "Not Needed",
+  ordered: "Ordered",
+  planned: "Planned",
+  received: "Received",
+};
+
 const LIST_PERMISSION_DEFINITIONS = [
   {
     id: LIST_PERMISSIONS.VIEW,
@@ -167,7 +185,7 @@ const listsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.16.9",
+  version: "0.33.5.16.10",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -362,7 +380,68 @@ const listsModule = {
           title: "Select a list",
           message: "Select a list to review its context.",
         },
+        itemForm: {
+          title: "Items",
+          fields: [
+            { field: "item_name", type: "text", label: "Item", required: true, autocomplete: "off", behavior: "lists.catalog-suggestions" },
+            { field: "catalog_item_id", type: "hidden", label: "Catalog Item" },
+            { field: "quantity", type: "number", label: "Qty", default: "1", min: "0", step: "0.01" },
+            { field: "unit", type: "text", label: "Unit" },
+            { field: "needed_by_date", type: "date", label: "Needed" },
+            { field: "assigned_user_id", type: "select", label: "Assigned", optionsSource: "users" },
+            { field: "purchase_status", type: "select", label: "Status", options: Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => [value, label]) },
+            { field: "vendor_name", type: "text", label: "Vendor or Store", placement: "advanced" },
+            { field: "url", type: "url", label: "URL", placement: "advanced" },
+            { field: "estimated_cost", type: "number", label: "Estimated Cost", min: "0", step: "0.01", placement: "advanced" },
+            { field: "actual_cost", type: "number", label: "Actual Cost", min: "0", step: "0.01", placement: "advanced" },
+            { field: "tracking_id", type: "text", label: "Tracking ID", placement: "advanced" },
+            { field: "notes", type: "textarea", label: "Notes", rows: "2", placement: "advanced" },
+            { field: "save_to_catalog", type: "checkbox", label: "Save as reusable item", default: "true" },
+          ],
+          actions: [
+            { id: "save-item", label: "Add Item", role: "primary", behavior: "lists.item.save", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
+          ],
+        },
+        itemRows: {
+          itemsField: "items",
+          columns: [
+            { id: "done", label: "Done", type: "checkbox" },
+            { id: "item", field: "item_name", label: "Item" },
+            { id: "quantity", field: "quantity", label: "Qty" },
+            { id: "needed", field: "needed_by_date", label: "Needed" },
+            { id: "status", field: "purchase_status", label: "Status" },
+            { id: "assigned", field: "assigned_user_id", label: "Assigned" },
+            { id: "actions", label: "Actions", type: "actions" },
+          ],
+          actions: [
+            { id: "edit-item", label: "Edit", role: "secondary", behavior: "lists.item.edit", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
+            { id: "complete-item", label: "Done", role: "secondary", behavior: "lists.item.complete", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
+            { id: "move-item-up", label: "Up", role: "utility", behavior: "lists.item.move-up", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
+            { id: "move-item-down", label: "Down", role: "utility", behavior: "lists.item.move-down", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
+            { id: "delete-item", label: "Delete", role: "destructive", behavior: "lists.item.delete", requiredPermissions: [LIST_PERMISSIONS.MANAGE_ITEMS] },
+          ],
+          emptyState: {
+            message: "No items yet.",
+          },
+        },
       },
+      modals: [
+        {
+          id: "list-editor",
+          title: "List",
+          fields: [
+            { field: "title", type: "text", label: "Title", required: true },
+            { field: "list_type", type: "select", label: "Type", options: Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label]) },
+            { field: "client_id", type: "select", label: "Client", optionsSource: "clients" },
+            { field: "project_id", type: "select", label: "Project", optionsSource: "projects" },
+            { field: "description", type: "textarea", label: "Description", rows: "4" },
+          ],
+          footerActions: [
+            { id: "cancel-list", label: "Cancel", role: "secondary", behavior: "lists.modal.cancel" },
+            { id: "save-list", label: "Save List", role: "primary", behavior: "lists.modal.save", requiredPermissions: [LIST_PERMISSIONS.CREATE, LIST_PERMISSIONS.UPDATE] },
+          ],
+        },
+      ],
       dataSource: {
         route: "/api/lists",
         method: "GET",

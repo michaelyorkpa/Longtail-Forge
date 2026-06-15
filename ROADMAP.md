@@ -368,15 +368,15 @@ into the descriptor contract. The fix belongs in the framework primitives, not i
 
 ### Version 0.33.5.16.10 - Lists Items, Modals, and Field Behaviors
 
-- [ ] Move Lists item entry, item rows, item tables, and item action placement into the descriptor
+- [x] Move Lists item entry, item rows, item tables, and item action placement into the descriptor
       or renderer-supported item-row primitives.
-- [ ] Convert Lists create/edit modal shells to descriptor-declared modal/form/footer anatomy.
-- [ ] Keep Lists responsible for item field meaning, catalog suggestions, validation, save payloads,
+- [x] Convert Lists create/edit modal shells to descriptor-declared modal/form/footer anatomy.
+- [x] Keep Lists responsible for item field meaning, catalog suggestions, validation, save payloads,
       permissions, and service behavior.
-- [ ] Reduce `public/js/lists.js` item and modal code to data bindings plus registered behaviors
+- [x] Reduce `public/js/lists.js` item and modal code to data bindings plus registered behaviors
       where custom logic is still required.
-- [ ] Preserve all item create, edit, reorder, check, uncheck, complete, and delete workflows.
-- [ ] Add regressions for descriptor-rendered item entry, item rows, and Lists modal shells.
+- [x] Preserve all item create, edit, reorder, check, uncheck, complete, and delete workflows.
+- [x] Add regressions for descriptor-rendered item entry, item rows, and Lists modal shells.
 
 ### Version 0.33.5.16.11 - Lists Workflow Actions, Linked Records, and Layout Cleanup
 

@@ -414,17 +414,27 @@
       return select;
     }
 
-    return view.createElement(field.type === "textarea" ? "textarea" : "input", {
+    const control = view.createElement(field.type === "textarea" ? "textarea" : "input", {
       attrs: {
         name: options.controlId,
         type: inputTypeFor(field.type),
         disabled: options.disabled,
+        hidden: field.hidden,
+        min: field.min,
+        step: field.step,
+        rows: field.rows,
+        autocomplete: field.autocomplete,
         required: field.required,
         value: options.value ?? field.default,
         placeholder: field.placeholder,
         "data-view-input": options.controlId,
       },
     });
+    if (field.type === "checkbox") {
+      control.value = field.default ?? "true";
+      control.checked = Boolean(options.value ?? field.checked);
+    }
+    return control;
   }
 
   function normalizeSelectOptions(options = []) {

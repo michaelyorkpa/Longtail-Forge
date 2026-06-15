@@ -97,7 +97,27 @@ const VIEW_DETAIL_FIELDS = new Set([
   "emptyState",
 ]);
 const VIEW_MODAL_FIELDS = new Set(["id", "label", "labelKey", "title", "titleKey", "fields", "footerActions", "actions"]);
-const VIEW_FIELD_FIELDS = new Set(["id", "field", "type", "label", "labelKey", "required", "options", "optionsSource", "default"]);
+const VIEW_FIELD_FIELDS = new Set([
+  "id",
+  "field",
+  "type",
+  "label",
+  "labelKey",
+  "required",
+  "options",
+  "optionsSource",
+  "default",
+  "placeholder",
+  "min",
+  "step",
+  "rows",
+  "autocomplete",
+  "placement",
+  "behavior",
+  "hidden",
+]);
+const VIEW_ITEM_ROWS_FIELDS = new Set(["itemsField", "columns", "actions", "emptyState"]);
+const VIEW_ITEM_ROW_COLUMN_FIELDS = new Set(["id", "field", "label", "labelKey", "type", "formatter"]);
 const VIEW_DATA_SOURCE_FIELDS = new Set(["route", "method", "fieldBindings"]);
 const VIEW_ACTION_FIELDS = new Set([
   "id",
@@ -453,6 +473,8 @@ function listViewSurfaceActions(surface, prefix) {
   }
   collectActionArray(surface?.actions, `${prefix}.actions`, actions);
   collectActionArray(surface?.table?.rowActions, `${prefix}.table.rowActions`, actions);
+  collectActionArray(surface?.detail?.itemForm?.actions, `${prefix}.detail.itemForm.actions`, actions);
+  collectActionArray(surface?.detail?.itemRows?.actions, `${prefix}.detail.itemRows.actions`, actions);
   for (const [modalIndex, modal] of (Array.isArray(surface?.modals) ? surface.modals : []).entries()) {
     collectActionArray(modal?.footerActions, `${prefix}.modals[${modalIndex}].footerActions`, actions);
     collectActionArray(modal?.actions, `${prefix}.modals[${modalIndex}].actions`, actions);
@@ -588,14 +610,65 @@ function validateDetailDescriptor(detail, prefix, errors) {
     return;
   }
   validateKnownObjectFields(detail, VIEW_DETAIL_FIELDS, prefix, errors);
-  for (const fieldName of ["header", "badgeRow", "metadataRow", "actionStrip", "itemForm", "itemRows", "emptyState"]) {
+  for (const fieldName of ["header", "badgeRow", "metadataRow", "actionStrip", "emptyState"]) {
     optionalPlainObject(detail, fieldName, errors, { prefix });
   }
+  validateItemFormDescriptor(detail.itemForm, `${prefix}.itemForm`, errors);
+  validateItemRowsDescriptor(detail.itemRows, `${prefix}.itemRows`, errors);
   optionalArrayOfObjects(detail.summaryPanels, `${prefix}.summaryPanels`, errors, (panel, panelIndex) => {
     const panelPrefix = `${prefix}.summaryPanels[${panelIndex}]`;
     validateKnownObjectFields(panel, VIEW_LABEL_FIELDS, panelPrefix, errors);
     validateLabelDescriptor(panel, panelPrefix, errors);
   });
+}
+
+function validateItemFormDescriptor(itemForm, prefix, errors) {
+  if (itemForm === undefined) {
+    return;
+  }
+  if (!isPlainObject(itemForm)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+  validateKnownObjectFields(itemForm, new Set(["title", "label", "fields", "actions", "emptyState"]), prefix, errors);
+  validateLabelDescriptor(itemForm, prefix, errors);
+  optionalArrayOfObjects(itemForm.fields, `${prefix}.fields`, errors, (field, fieldIndex) => {
+    const fieldPrefix = `${prefix}.fields[${fieldIndex}]`;
+    validateKnownObjectFields(field, VIEW_FIELD_FIELDS, fieldPrefix, errors);
+    requireString(field, "field", errors, { prefix: fieldPrefix });
+    requireString(field, "type", errors, { prefix: fieldPrefix });
+    validateLabelDescriptor(field, fieldPrefix, errors);
+    optionalBoolean(field, "required", errors, { prefix: fieldPrefix });
+    optionalBoolean(field, "hidden", errors, { prefix: fieldPrefix });
+    optionalArray(field, "options", errors);
+    optionalString(field, "optionsSource", errors, { prefix: fieldPrefix });
+    optionalString(field, "placement", errors, { prefix: fieldPrefix });
+    optionalString(field, "behavior", errors, { prefix: fieldPrefix });
+  });
+  validateActionsDescriptor(itemForm.actions, `${prefix}.actions`, errors);
+}
+
+function validateItemRowsDescriptor(itemRows, prefix, errors) {
+  if (itemRows === undefined) {
+    return;
+  }
+  if (!isPlainObject(itemRows)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+  validateKnownObjectFields(itemRows, VIEW_ITEM_ROWS_FIELDS, prefix, errors);
+  optionalString(itemRows, "itemsField", errors, { prefix });
+  optionalArrayOfObjects(itemRows.columns, `${prefix}.columns`, errors, (column, columnIndex) => {
+    const columnPrefix = `${prefix}.columns[${columnIndex}]`;
+    validateKnownObjectFields(column, VIEW_ITEM_ROW_COLUMN_FIELDS, columnPrefix, errors);
+    requireString(column, "id", errors, { prefix: columnPrefix });
+    validateLabelDescriptor(column, columnPrefix, errors);
+    optionalString(column, "field", errors, { prefix: columnPrefix });
+    optionalString(column, "type", errors, { prefix: columnPrefix });
+    optionalString(column, "formatter", errors, { prefix: columnPrefix });
+  });
+  validateActionsDescriptor(itemRows.actions, `${prefix}.actions`, errors);
+  optionalPlainObject(itemRows, "emptyState", errors, { prefix });
 }
 
 function validateModalsDescriptor(modals, prefix, errors) {

@@ -1,3 +1,9 @@
+## Version 0.33.5.16.10 - 2026-06-15 14:12 -04:00
+
+- Declared Lists item entry fields, advanced item fields, item table columns, item row action placement, and the create/edit list modal shell in the `lists.workspace` descriptor.
+- Updated Lists browser code to bind item forms, item row action placement, and modal fields from descriptor blocks while preserving catalog suggestions, validation, payload construction, permissions, and existing item/list API workflows.
+- Expanded descriptor validation for item forms, item rows, and field metadata, added `lists-items-modals-descriptor-regression.mjs`, wired it into the suite, updated docs/decisions/roadmap, and bumped package/app metadata to `0.33.5.16.10`.
+
 ## Version 0.33.5.16.9 - 2026-06-15 13:37 -04:00
 
 - Added the Lists `lists.workspace` `viewSurfaces` descriptor for the protected workspace read shell, including filters, selector/index, split layout, and read-only detail summary intent.

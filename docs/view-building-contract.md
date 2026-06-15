@@ -141,3 +141,9 @@ Route actions use descriptor `route`, `method`, `confirm`, role metadata, and op
 Lists now provides the first live read-only proof surface through a `viewSurfaces` descriptor named `lists.workspace`. The Lists protected page remains a minimal host, loads `view-renderer.js`, and asks `LongtailForge.view.renderSurface()` to create the read shell for the page header, filters, selector/index, split workspace, and descriptor summary-panel intent.
 
 This slice keeps the existing Lists module workflow as the source of truth for filtered list reads, detail hydration, URL selection, mutating actions, item entry, item rows, modal save behavior, linked-record management, permissions, and Business/Personal/Family scope behavior. The renderer gained select-field support and generic `data-view-input` hooks so existing module-owned binding code can attach to descriptor-created controls without hand-building framework anatomy.
+
+## Implementation Notes For 0.33.5.16.10
+
+Lists now declares item entry fields, advanced item fields, item table columns, item row action placement, and the create/edit list modal shell in the `lists.workspace` descriptor. The browser module consumes those descriptor blocks to bind existing Lists save, catalog-suggestion, reorder, check/uncheck, complete, delete, and modal workflows.
+
+Descriptor field metadata may include basic browser attributes plus `placement` and `behavior` hints. The hints describe where module-owned bindings attach; they do not move Lists validation, payload construction, permissions, catalog lookup, or service behavior into the framework. Linked-record placement and list-level workflow actions remain deferred to the next explicit Lists conversion slice.

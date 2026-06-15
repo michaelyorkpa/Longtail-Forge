@@ -38,6 +38,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/view-index-primitive-regression.mjs",
   "scripts/view-renderer-actions-regression.mjs",
   "scripts/lists-declarative-readonly-surface-regression.mjs",
+  "scripts/lists-items-modals-descriptor-regression.mjs",
   "scripts/dashboard-workbench-regression.mjs",
   "scripts/task-list-density-regression.mjs",
   "scripts/task-list-canonical-ui-regression.mjs",
