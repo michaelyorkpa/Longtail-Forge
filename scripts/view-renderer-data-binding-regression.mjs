@@ -4,16 +4,16 @@ import { readFileSync } from "node:fs";
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
-const roadmap = readText("ROADMAP.md");
+const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.16.12", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.16.12", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.16.12", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.17.1", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.17.1", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.17.1", "package-lock package entry should report the current app version");
 
 assert.match(renderer, /api\.getJson\(descriptor\.dataSource\.route, \{ cache: "no-store" \}\)/, "Renderer should fetch dataSource routes through shared api-client");
 assert.doesNotMatch(renderer, /\bfetch\(/, "Renderer should not bypass shared api-client with direct fetch");

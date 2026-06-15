@@ -5,16 +5,16 @@ const html = readText("views/protected/lists.html");
 const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
 const renderer = readText("public/js/shared/view-renderer.js");
-const roadmap = readText("ROADMAP.md");
+const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.16.12", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.16.12", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.16.12", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.17.1", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.17.1", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.17.1", "package-lock package entry should report the current app version");
 
 assert.match(html, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists protected view should remain a minimal host");
 assert.match(html, /js\/shared\/view-builder\.js\?v=2[\s\S]*js\/shared\/view-renderer\.js\?v=1[\s\S]*js\/lists\.js\?v=5/, "Lists should load the renderer between the view builder and module script");

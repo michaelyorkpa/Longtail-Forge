@@ -6,14 +6,14 @@ const helper = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const listsJs = readText("public/js/lists.js");
 const css = readText("public/css/longtail-forge.css");
-const roadmap = readText("ROADMAP.md");
+const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.16.12", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.16.12", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.16.12", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.17.1", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.17.1", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.17.1", "package-lock package entry should report the current app version");
 
 // Framework primitive structure and accessibility.
 const context = createBrowserContext();

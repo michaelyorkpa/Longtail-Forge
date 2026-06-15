@@ -1,261 +1,6 @@
-# Longtail Forge Roadmap
+﻿# Longtail Forge Roadmap
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
-
-## Version 0.33.5.16 - Declarative Framework View Contract and Manifest View Descriptors
-
-This version builds directly on the 0.33.5.15 Framework View Builder helper library. 0.33.5.15
-gives the framework imperative DOM primitives (`window.LongtailForge.view`) that modules call by
-hand. 0.33.5.16 inverts ownership: modules stop calling view primitives imperatively and instead
-**declare a view descriptor** (data) in their manifest, and the framework renders the entire
-surface from that descriptor using the 0.33.5.15 helpers as its internal engine. The goal is to
-make framework-owned views the same kind of manifest-driven contribution that navigation,
-dashboard panels, workbench cards, settings, and help already are, so future modules contribute
-data and cannot hand-build divergent or breaking interfaces.
-
-### Design and Clarification Questions
-
-- [x] Confirm the relationship to the 0.33.5.15 helper library: should the declarative contract
-  replace the imperative helpers, or layer on top of them?
-  - Layer on top. Phased hybrid.
-  - Ship and prove the 0.33.5.15 imperative helpers first.
-  - The declarative renderer consumes the same `window.LongtailForge.view` primitives internally.
-  - Modules adopt the helper library first, then graduate surfaces to descriptors.
-  - Do not delete the imperative helpers; they remain the supported escape hatch for genuinely
-    custom surfaces that no descriptor can express yet.
-
-- [x] Confirm whether view descriptors should live in the module manifest, validated at startup
-  like other contributions, or in a separate per-view config file.
-  - Put descriptors in the module manifest as a new `viewSurfaces` field.
-  - Validate them at startup in `src/core/modules/manifest-contract.js` with the same fail-fast
-    rules used for navigation, dashboard, settings, and help.
-  - Reject unknown descriptor keys, missing required fields, duplicate surface IDs, and
-    references to permissions, modules, or data sources that do not exist.
-  - Reuse the existing per-workspace `terminology` resolution for all descriptor labels rather
-    than hard-coded strings.
-
-- [x] Confirm that modules contribute data and behavior, not DOM, under the declarative contract.
-  - Modules contribute: the descriptor (layout anatomy as data), a normalized data endpoint, a
-    declared field-binding map, and named behavior handlers for actions that are not plain routes.
-  - The framework owns: page shell, header, filters, table, split list/detail, detail header,
-    badge/metadata rows, action strips, summary panels, empty/loading/error states, modal shell,
-    form layout, footer/action placement, responsive behavior, dark-mode tokens, and a11y defaults.
-  - Modules must not create framework-owned anatomy by hand once a surface is declarative.
-
-- [x] Confirm how custom, module-specific interactions survive a declarative renderer.
-  - Provide a small behavior registry: `LongtailForge.view.registerBehavior(id, handler)`.
-  - Descriptors reference behaviors by `id`; the framework wires the control and invokes the
-    registered handler with a safe context (record, workspace, refresh, openModal).
-  - Business logic stays in module browser files; only layout moves to the framework.
-  - If a surface needs something the descriptor cannot express, the module keeps using the
-    0.33.5.15 imperative helpers for that surface only, not the whole page.
-
-- [x] Confirm enforcement scope so this does not become a repo-wide migration.
-  - Guardrails fail only on surfaces explicitly marked as declarative.
-  - Inventory/report all protected views, but only converted surfaces are strictly enforced.
-  - Expand fail-on-violation enforcement one module/surface group at a time after Lists proves out.
-
-Decision:
-
-The framework should own view construction as a first-class manifest-driven contribution, the
-same way it already owns navigation, dashboards, settings, and help. Modules declare a
-`viewSurfaces` descriptor describing the anatomy of a surface as data, expose a normalized data
-endpoint with a declared field-binding map, and register named behavior handlers for non-trivial
-actions. The framework reads the descriptor and renders the entire surface using the 0.33.5.15
-view helpers as its internal engine, applying shared surface tokens, responsive behavior,
-dark-mode safety, accessibility defaults, and consistent action placement.
-
-This is a phased hybrid: 0.33.5.15 helpers ship first and remain the supported escape hatch;
-0.33.5.16 layers the declarative contract on top and converts Lists as the proof. Modules keep
-all business meaning - data loading, validation, save payloads, permissions, record labels, and
-workflow behavior. Modules give up only hand-built layout. No state management, virtual DOM,
-component lifecycle, or new frontend framework is introduced.
-
-### Version 0.33.5.16.1 - View Descriptor Manifest Field and Base Schema
-
-- [x] Add a `viewSurfaces` field to the manifest contract in `src/core/modules/manifest-contract.js`.
-- [x] Define the first descriptor object shape without rendering it yet:
-  - [x] `id`, `moduleId`, `viewId` (binds to an existing `protectedViews` entry).
-  - [x] `layout`: `single-column`, `split-list-detail`, or `table-page`.
-  - [x] `pageHeader`: title/terminology key, description, primary action.
-  - [x] `filters`: declared filter controls (field, type, options source, default).
-  - [x] `indexPanel`: collapsible selector/index config for split layouts.
-  - [x] `table`: `columns` (label/terminology key, field binding, formatter, width hint),
-        `rowActions`, `emptyState`, overflow wrapper on by default.
-  - [x] `detail`: header, badge row, metadata row, action strip, summary panels, item form,
-        item rows.
-  - [x] `modals`: shell + field grid + footer action groups for create/edit surfaces.
-  - [x] `dataSource`: route + a `fieldBindings` map from response fields to descriptor fields.
-  - [x] `actions`: declarative `{ id, label, role, route, method, confirm, requiredPermissions }`
-        or a `behavior` id for custom handlers.
-- [x] Reject unknown descriptor keys and missing required fields at startup.
-- [x] Do not change database schema, module APIs, browser rendering, or business workflows in this slice.
-- [x] Add focused manifest-contract regressions for accepted and rejected descriptor shapes.
-
-### Version 0.33.5.16.2 - View Descriptor Reference Validation
-
-- [x] Validate descriptor references at startup with fail-fast rules.
-- [x] Reject duplicate surface IDs across all loaded modules.
-- [x] Reject `moduleId` values that do not match the declaring module or a known module.
-- [x] Reject `viewId` values that do not bind to an existing `protectedViews` entry.
-- [x] Reject `requiredPermissions` that do not exist in core permissions or loaded module permissions.
-- [x] Reject action roles outside the allowed set used by framework view/action helpers.
-- [x] Validate route/action/data-source shape without adding new routes or changing existing API payloads.
-- [x] Keep enforcement limited to descriptor validity; do not render descriptors yet.
-
-### Version 0.33.5.16.3 - View Descriptor Terminology and Authoring Contract
-
-- [x] Resolve descriptor labels through the existing per-workspace `terminology` system
-      (`src/core/modules/terminology.js`) so Business vs Personal/Family wording stays correct.
-- [x] Define how descriptors express literal labels versus terminology keys.
-- [x] Add schema documentation to `docs/module-contract.md`.
-- [x] Add the framework-owns-vs-module-owns descriptor boundary to `docs/ui-surface-contract.md`.
-- [x] Document that modules contribute descriptors, data endpoints, field bindings, and named behavior
-      handlers, while the framework owns common layout anatomy and accessibility defaults.
-- [x] Do not add the browser renderer in this slice.
-
-### Version 0.33.5.16.4 - Framework View Renderer Shell
-
-- [x] Add a renderer, for example `public/js/shared/view-renderer.js`, exposed as
-      `window.LongtailForge.view.renderSurface(descriptor, host)`.
-- [x] The renderer must use only the 0.33.5.15 `LongtailForge.view` primitives as its DOM engine.
-- [x] Support the initial layout shells:
-  - [x] `single-column`.
-  - [x] `split-list-detail`.
-  - [x] `table-page`.
-- [x] Render static descriptor anatomy for page headers, filter panels, selector/index shells,
-      split workspaces, table shells, detail shells, action strips, info panels, modal shells,
-      field grids, and empty/status placeholders.
-- [x] Keep this pass descriptor-in/static-rendering only: no app-shell delivery, no data fetching,
-      no behavior registry, and no Lists conversion yet.
-- [x] Keep the engine boring: no client state store, no virtual DOM, no component lifecycle.
-
-### Version 0.33.5.16.5 - App-Shell Descriptor Delivery
-
-- [x] Deliver validated descriptors to the browser through the existing app-shell bootstrap channel
-      (`public/js/navigation.js` `loadAppShellBootstrap()` / `window.LongtailForge.workspaceContext`).
-- [x] Use the same path that already ships module and navigation data; do not add a new transport.
-- [x] Include only descriptors for enabled, visible, permission-allowed protected views.
-- [x] Ensure disabled modules and hidden/unavailable protected views do not leak declarative surfaces
-      through bootstrap payloads.
-- [x] Add browser/bootstrap regressions proving descriptors arrive for allowed surfaces and are absent
-      for unavailable surfaces.
-
-### Version 0.33.5.16.6 - Renderer Data Binding and Default States
-
-- [x] Implement the data-binding contract in the renderer.
-- [x] Fetch `dataSource` routes through `shared/api-client.js`.
-- [x] Map response records through the descriptor `fieldBindings` before rendering rows, fields,
-      detail headers, badges, metadata, summary panels, and item collections.
-- [x] Render framework-owned loading, empty, and error states for every data source by default.
-- [x] Provide a descriptor-driven refresh path that re-fetches data without requiring modules to
-      rebuild framework-owned layout by hand.
-- [x] Do not convert Lists in this slice; use small test descriptors or fixtures for renderer coverage.
-
-### Version 0.33.5.16.7 - Selectable Index Primitive and Split-Layout Correction
-
-This slice was inserted after 0.33.5.16.6 to correct a framework view defect found while reviewing
-the live Lists pilot: the split-layout selector/index is rendered as a wide multi-column data table
-crammed into the narrow index track, so cells wrap one word per line and the panel grows a horizontal
-scrollbar, while the split workspace fails to fill available width and leaves a large empty area beside
-the detail pane. This must land before the Lists declarative read-only proof (0.33.5.16.9) so the
-renderer is born rendering a correct selector instead of reproducing the broken table-as-index shape
-into the descriptor contract. The fix belongs in the framework primitives, not in one-off Lists CSS.
-
-- [x] Add a framework selectable index-list primitive to `public/js/shared/view-builder.js`
-      (for example `createIndexList`) for split-layout selectors:
-  - [x] Single-column, vertically stacked, selectable rows that do not horizontally overflow.
-  - [x] Primary label line, optional status/metadata chip row, and optional secondary meta line.
-  - [x] Keyboard-selectable and accessible by default with a clear selected/active state.
-  - [x] Safe text assignment and module-owned select callbacks; the primitive owns no app state.
-- [x] Correct `.view-split-list-detail` layout in `public/css/longtail-forge.css` so the framework
-      split owns column sizing and responsive collapse, and remove the legacy one-off `.lists-workspace`
-      grid that overrides it. The remaining space beside the detail pane is the app-standard `.wide-page`
-      width cap (`--page-standard-width`) shared by every page, not a Lists defect, so global page width
-      is intentionally left unchanged.
-- [x] Correct `.view-data-table` / `.view-table-wrap` so genuinely wide tables degrade to horizontal
-      scroll without mid-word/one-word-per-line wrapping, and so data tables are not used as
-      narrow-track selectors.
-- [x] Update the descriptor renderer's `indexPanel`/selector rendering to use the selectable index-list
-      primitive rather than a data table, keeping the renderer on the 0.33.5.15 primitives as its engine.
-- [x] Update the live imperative Lists workspace (`createListsIndexPanel` in `public/js/lists.js`) to use
-      the new primitive instead of `createDataTable(["List","Status","Type","Needed","Items"])`, moving
-      Status/Type/Needed/Items into compact chips/secondary text and keeping the full breakdown in the
-      detail pane.
-- [x] Keep the correction in framework primitives; do not add one-off Lists layout/table classes for
-      framework-owned anatomy (consistent with the 0.33.5.15.5 guardrails).
-- [x] Preserve all Lists selection behavior, routes, save payloads, permissions, Business client/project
-      behavior, and Personal/Family workspace scope behavior.
-- [x] Add regressions for the selectable index primitive structure/accessibility, split-layout width,
-      data-table overflow degradation, and proof that the Lists index no longer renders a multi-column
-      table in the selector track.
-
-### Version 0.33.5.16.8 - Declarative Actions and Behavior Registry
-
-- [x] Implement the behavior registry: `LongtailForge.view.registerBehavior(id, handler)`.
-- [x] Wire declarative `route` actions automatically using descriptor `route`, `method`, `confirm`,
-      `requiredPermissions`, and action role metadata.
-- [x] Wire `behavior` actions by invoking the registered handler with a safe context:
-      `{ record, workspaceContext, refresh, openModal, api }`.
-- [x] Add a framework-owned `openModal` path for descriptor-declared create/edit modal shells while
-      keeping modules responsible for field meaning, validation, and save payloads.
-- [x] Ensure missing behavior handlers fail visibly and recoverably without breaking the rest of the
-      rendered surface.
-- [x] Do not migrate Lists workflow actions in this slice.
-
-### Version 0.33.5.16.9 - Lists Declarative Read-Only Surface Proof
-
-- [x] Convert the Lists protected workspace read path to a `viewSurfaces` descriptor on the Lists
-      module manifest.
-- [x] Reduce `views/protected/lists.html` to a minimal framework host element the renderer fills.
-- [x] Move Lists filters, collapsible selector/index, split list/detail, table, detail header,
-      badge/metadata rows, and read-only summary panels into the descriptor.
-- [x] Preserve all Lists routes, response payloads, permissions, Business client/project behavior,
-      and Personal/Family workspace scope behavior from 0.33.5.14.
-- [x] Keep mutating Lists actions, item entry, item rows, modals, and linked-record management on
-      the existing imperative path until later slices.
-- [x] Add regressions proving the read-only Lists surface renders from the descriptor.
-
-### Version 0.33.5.16.10 - Lists Items, Modals, and Field Behaviors
-
-- [x] Move Lists item entry, item rows, item tables, and item action placement into the descriptor
-      or renderer-supported item-row primitives.
-- [x] Convert Lists create/edit modal shells to descriptor-declared modal/form/footer anatomy.
-- [x] Keep Lists responsible for item field meaning, catalog suggestions, validation, save payloads,
-      permissions, and service behavior.
-- [x] Reduce `public/js/lists.js` item and modal code to data bindings plus registered behaviors
-      where custom logic is still required.
-- [x] Preserve all item create, edit, reorder, check, uncheck, complete, and delete workflows.
-- [x] Add regressions for descriptor-rendered item entry, item rows, and Lists modal shells.
-
-### Version 0.33.5.16.11 - Lists Workflow Actions, Linked Records, and Layout Cleanup
-
-- [x] Express Lists-specific workflow actions as declarative route actions or registered behaviors:
-      Duplicate, Edit, Complete, Finalize, Reopen, Archive, Delete, Restore, and reusable-list handling.
-- [x] Move linked-record picker placement and linked-record rows into descriptor/renderer-supported
-      anatomy while keeping linked-record permission checks and service logic in Lists files.
-- [x] Preserve Business client/project behavior and Personal/Family workspace scope behavior.
-- [x] Reduce `public/js/lists.js` to data bindings and behavior handlers with no hand-built
-      framework-owned anatomy.
-- [x] Add regressions proving the Lists surface no longer creates page header, table, dialog,
-      action strip, filter panel, or split-layout anatomy by hand.
-
-### Version 0.33.5.16.12 - Declarative Guardrails, Documentation, and Closeout
-
-- [x] Add static checks that run only against surfaces marked declarative.
-- [x] A declarative module must not call `document.createElement` for framework-owned anatomy
-      (page header, table, dialog, action strip, filter panel, split layout).
-- [x] A declarative module must not ship a non-minimal protected HTML view for a declarative surface.
-- [x] A declarative module must not introduce one-off layout/footer classes when a descriptor
-      field or framework class exists.
-- [x] Inventory and report all protected views, but enforce strictly only on converted surfaces.
-- [x] Add a developer guide for authoring a declarative view surface (descriptor + data + behaviors).
-- [x] Update DECISIONS.md with the framework-owned declarative view decision.
-- [x] Update CHANGELOG.md.
-- [x] Update package metadata to the implemented version.
-- [x] Run `npm run check`.
-- [x] Run `npm run test:permissions`.
-- [x] Verify `/api/app-info` reports the expected version.
 
 ## Version 0.33.5.17 - CommonMark Markdown Platform Renderer
 
@@ -267,64 +12,52 @@ surfaces share the same safe parser, sanitizer, plain-text extraction, and regre
 
 ### Design and Clarification Questions
 
-- [ ] Confirm whether the platform should adopt strict CommonMark only, or CommonMark plus a small
+- [x] Confirm whether the platform should adopt strict CommonMark only, or CommonMark plus a small
       approved extension set for current Longtail Forge needs.
   - Recommendation: CommonMark core plus explicitly allowed table and task-list support, because
     Help and future Knowledge Base content are likely to need tables, and task/checklist-style
     content already exists in the product model.
   - Do not enable broad extension bundles by default.
 
-- [ ] Confirm whether raw HTML in user-authored Markdown should remain disabled or sanitized out.
+- [x] Confirm whether raw HTML in user-authored Markdown should remain disabled or sanitized out.
   - Recommendation: disable raw HTML for Notes, Help-authored Markdown, and future KB article
     Markdown unless a later version introduces a narrow allowlist with explicit security review.
 
-- [ ] Confirm whether saved Markdown should remain unchanged and only renderer/search/preview output
-      should change.
+- [x] Confirm whether saved Markdown should remain unchanged and only renderer/search/preview output should change.
   - Recommendation: preserve stored Markdown exactly. Do not rewrite existing note bodies, Help
     content, revisions, or future KB sources during this upgrade.
 
-- [ ] Confirm whether browser previews should call a server-render endpoint or use the same renderer
-      library in the browser bundle.
+- [x] Confirm whether browser previews should call a server-render endpoint or use the same renderer library in the browser bundle.
   - Recommendation: choose the least duplicative path after dependency review. Preview output must
     match saved rendering for supported syntax and must not bypass sanitization.
 
-- [ ] Confirm whether Markdown editor keyboard behavior belongs in this version.
-  - Recommendation: include only practical editor parity for Markdown authoring, such as Tab/Shift+Tab
-    indentation in the Notes textarea and list-continuation helpers. Do not turn this into a WYSIWYG
-    editor or a full authoring rewrite.
+- [x] Confirm whether Markdown editor keyboard behavior belongs in this version.
+  - Recommendation: include only practical editor parity for Markdown authoring, such as Tab/Shift+Tab indentation in the Notes textarea and list-continuation helpers. Do not turn this into a WYSIWYG editor or a full authoring rewrite.
 
 Decision:
 
 Markdown parsing and rendering should become a framework-owned content service. Modules may own
-source fields, visibility rules, linking semantics, revision history, and workflow meaning, but they
-should not each invent their own Markdown parser, unsafe HTML policy, plain-text extraction, search
-text conversion, or preview behavior. CommonMark compatibility is the baseline contract; any
-extensions must be explicitly named, tested, and documented.
+source fields, visibility rules, linking semantics, revision history, and workflow meaning, but they should not each invent their own Markdown parser, unsafe HTML policy, plain-text extraction, search text conversion, or preview behavior. CommonMark compatibility is the baseline contract; any extensions must be explicitly named, tested, and documented.
 
 ### Version 0.33.5.17.1 - Parser Selection and Markdown Contract
 
-- [ ] Review current Markdown rendering paths in Notes, Help, search indexing, browser preview, and
-      any static content helpers.
-- [ ] Select a CommonMark-compatible parser package after dependency, maintenance, license, and
+- [x] Review current Markdown rendering paths in Notes, Help, search indexing, browser preview, and any static content helpers.
+- [x] Select a CommonMark-compatible parser package after dependency, maintenance, license, and
       security review.
-- [ ] Define the approved syntax set:
-  - [ ] CommonMark paragraphs, headings, emphasis, strong text, links, images where allowed,
-        blockquotes, code spans, fenced code blocks, ordered lists, unordered lists, and nested lists.
-  - [ ] Explicitly approved extensions, if confirmed, such as tables and task lists.
-  - [ ] Explicitly disallowed behavior, especially raw HTML and unsafe links.
-- [ ] Define the framework-owned Markdown APIs:
-  - [ ] Render Markdown to safe HTML.
-  - [ ] Convert Markdown to plain text for search, excerpts, and previews.
-  - [ ] Validate or normalize safe links without changing saved source text.
-  - [ ] Expose deterministic fixture-based rendering expectations.
-- [ ] Define module-owned responsibilities:
-  - [ ] Notes owns note body storage, revisions, library/collection visibility, wiki-style links,
-        linked context, and note-specific permissions.
-  - [ ] Help owns content discovery, module scoping, and article metadata.
-  - [ ] Future Knowledge Base owns publication status, review workflow, source snapshots, and
-        article visibility.
-- [ ] Do not change database schema, saved Markdown, note visibility, Help article routing, or module
-      permissions in this slice.
+- [x] Define the approved syntax set:
+  - [x] CommonMark paragraphs, headings, emphasis, strong text, links, images where allowed, blockquotes, code spans, fenced code blocks, ordered lists, unordered lists, and nested lists.
+  - [x] Explicitly approved extensions, if confirmed, such as tables and task lists.
+  - [x] Explicitly disallowed behavior, especially raw HTML and unsafe links.
+- [x] Define the framework-owned Markdown APIs:
+  - [x] Render Markdown to safe HTML.
+  - [x] Convert Markdown to plain text for search, excerpts, and previews.
+  - [x] Validate or normalize safe links without changing saved source text.
+  - [x] Expose deterministic fixture-based rendering expectations.
+- [x] Define module-owned responsibilities:
+  - [x] Notes owns note body storage, revisions, library/collection visibility, wiki-style links, linked context, and note-specific permissions.
+  - [x] Help owns content discovery, module scoping, and article metadata.
+  - [x] Future Knowledge Base owns publication status, review workflow, source snapshots, and article visibility.
+- [x] Do not change database schema, saved Markdown, note visibility, Help article routing, or module permissions in this slice.
 
 ### Version 0.33.5.17.2 - Shared Server-Side Markdown Renderer
 

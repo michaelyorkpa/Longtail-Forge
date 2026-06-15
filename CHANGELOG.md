@@ -1,3 +1,8 @@
+## Version 0.33.5.17.1 - 2026-06-15 14:54 -04:00
+
+- Selected `markdown-it` for the upcoming framework-owned Markdown renderer and documented the CommonMark-plus-tables/task-lists syntax contract, unsafe input policy, framework APIs, module ownership boundaries, and current Notes/Help/browser replacement targets.
+- Added `markdown-platform-contract-regression.mjs`, wired it into the regression suite, marked the 0.33.5.17.1 roadmap checklist complete, recorded the decision, and bumped package/app metadata to `0.33.5.17.1`.
+
 ## Version 0.33.5.16.12 - 2026-06-15 14:32 -04:00
 
 - Added strict declarative view guardrails for converted descriptor-rendered surfaces, currently enforcing `lists.workspace` while inventorying the remaining protected views as reported-only.
