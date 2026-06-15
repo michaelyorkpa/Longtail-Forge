@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.5.10.2. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.5.14.2. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
@@ -29,7 +29,7 @@ Workspace-facing labels adapt by workspace type:
 - Personal and family workspaces show Shopping Lists.
 - Framework and module contracts still use the stable `lists` ID.
 
-Business workspaces can associate a list with a client and project. Selecting a project derives the client from the project. Personal and family workspaces reject client/project list context.
+Business workspaces can associate a list with a client and project. Selecting a project derives the client from the project. Personal and family workspaces hide client controls, keep lists workspace scoped, and allow workspace projects as optional list context.
 
 ## Core Records
 

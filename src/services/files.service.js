@@ -392,7 +392,7 @@ ORDER BY file_attachments.created_at DESC, file_attachments.file_attachment_id;
 
   for (const row of rows) {
     if (await canReadAttachment(session, row)) {
-      visible.push(shapeAttachment(row));
+      visible.push(await shapeAttachmentForRead(session, row));
     }
   }
 
@@ -1777,6 +1777,78 @@ function shapeAttachment(attachment) {
       deletedAt: attachment.file_deleted_at || null,
       deleted_at: attachment.file_deleted_at || null,
     },
+  };
+}
+
+async function shapeAttachmentForRead(session, attachment) {
+  const shaped = shapeAttachment(attachment);
+  const [target, contextLabels] = await Promise.all([
+    readAttachmentTargetLabel(session.workspace_id, attachment),
+    readAttachmentContextLabels(session.workspace_id, attachment),
+  ]);
+
+  return {
+    ...shaped,
+    target: target
+      ? {
+          id: shaped.targetId,
+          label: target.label,
+          type: shaped.targetType,
+        }
+      : null,
+    targetLabel: target?.label || "",
+    target_label: target?.label || "",
+    clientLabel: contextLabels.clientLabel,
+    client_label: contextLabels.clientLabel,
+    projectLabel: contextLabels.projectLabel,
+    project_label: contextLabels.projectLabel,
+  };
+}
+
+async function readAttachmentTargetLabel(workspaceId, attachment) {
+  try {
+    const attachableType = await resolveAttachableType(
+      workspaceId,
+      attachment.module_id,
+      attachment.target_type,
+    );
+    const target = await readAttachableTarget(workspaceId, attachableType, attachment.target_id);
+
+    return {
+      label: target.target_label || "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function readAttachmentContextLabels(workspaceId, attachment) {
+  const clientId = attachment.client_id || "";
+  const projectId = attachment.project_id || "";
+  const [clientRows, projectRows] = await Promise.all([
+    clientId
+      ? querySql(`
+SELECT name
+FROM clients
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND id = ${sqlText(clientId)}
+LIMIT 1;
+`)
+      : Promise.resolve([]),
+    projectId
+      ? querySql(`
+SELECT name
+FROM projects
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND id = ${sqlText(projectId)}
+LIMIT 1;
+`)
+      : Promise.resolve([]),
+  ]);
+
+  return {
+    clientLabel: clientRows[0]?.name || "",
+    projectLabel: projectRows[0]?.name || "",
   };
 }
 

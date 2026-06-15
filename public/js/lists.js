@@ -124,13 +124,11 @@ function applyWorkspaceContext() {
 
 async function loadOptions() {
   const [clientProjects, users] = await Promise.all([
-    usesBusinessScope() ? loadClientProjects() : Promise.resolve({ clients: [] }),
+    loadClientProjects(),
     loadUsers(),
   ]);
 
-  state.clients = usesBusinessScope()
-    ? window.LongtailForge.clientProjectOptions.normalizeClients(clientProjects)
-    : [];
+  state.clients = window.LongtailForge.clientProjectOptions.normalizeClients(clientProjects);
   state.users = users.users || [];
 }
 
@@ -968,7 +966,7 @@ function setContextControlsVisible(visible) {
 }
 
 function shouldShowContextControls(listType = defaultListType()) {
-  return usesBusinessScope() || ["procurement", "parts", "supplies", "bill_of_materials"].includes(listType);
+  return !usesBusinessScope() || ["procurement", "parts", "supplies", "bill_of_materials"].includes(listType);
 }
 
 function normalizeListRecord(list = {}, items = [], links = []) {

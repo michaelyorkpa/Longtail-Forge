@@ -79,11 +79,15 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(noteKindSelect, /<option value="task">Task<\/option>/);
   assert.doesNotMatch(noteKindSelect, /<option value="ticket">Ticket<\/option>/);
   assert.doesNotMatch(noteKindSelect, /<option value="user">User<\/option>/);
-  assert.match(html, /js\/notes\.js\?v=11/);
+  assert.match(html, /js\/notes\.js\?v=12/);
   assert.match(html, /data-note-context-target-type/);
   assert.match(html, /data-note-context-search/);
   assert.match(html, /data-note-context-results/);
   assert.match(html, /data-note-context-apply/);
+  const linkedContextTargetSelect = html.match(/<select data-note-context-target-type>[\s\S]*?<\/select>/)?.[0] || "";
+  assert.match(linkedContextTargetSelect, /<option value="workspace">Workspace<\/option>/);
+  assert.doesNotMatch(linkedContextTargetSelect, /<option value="client">Client<\/option>/);
+  assert.match(linkedContextTargetSelect, /<option value="project">Project<\/option>/);
   assert.doesNotMatch(html, /Client ID/);
   assert.doesNotMatch(html, /Project ID/);
   assert.doesNotMatch(html, /Task ID/);
@@ -110,6 +114,10 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /data-legacy-note-kind/);
   assert.match(notesJs, /fetchLinkTargets/);
   assert.match(notesJs, /api\/notes\/link-targets/);
+  assert.match(notesJs, /LINK_TARGET_TYPE_ORDER = \["workspace", "client", "project", "task", "user"\]/);
+  assert.match(notesJs, /availableLinkTargetTypes\(\)/);
+  assert.match(notesJs, /targetType !== "client" \|\| usesBusinessScope\(\)/);
+  assert.match(notesJs, /populateLinkTargetTypeSelect\(contextTargetTypeInput\)/);
   assert.match(notesJs, /applyContextTarget/);
   assert.match(notesJs, /openEditorForLinkedTarget/);
   assert.match(notesJs, /noteHasLink/);

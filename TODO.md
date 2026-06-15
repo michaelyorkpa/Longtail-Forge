@@ -13,6 +13,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Misc
+
+- I think I lost client change requests from the repo docs, somewhere. This needs to be added back into the project management tools section.
+
 ## Testing Goals
 
 This section is to define a series of human testing goals for different sections of the app.
@@ -750,6 +754,41 @@ This version should introduce TypeScript as a framework contract-checking tool w
 - Add framework-owned HTTP route contract and adapter boundary so Longtail Forge routes are not permanently coupled to Express. Keep Express as the first adapter; preserve the option to add a Fastify adapter later.
 
 # Long Term
+
+## Automation Engine Module
+
+- Should be able to create rules for automations across the entire framework, first-party modules, and third-party plugins
+- Framework, modules, and plugins should expose: 
+  - Triggers
+  - Actions
+  - Metadata (for decisions)
+
+### Conceptual Flow
+
+Automation Engine should be a visual/simple way of creating rules and autoamtions within the LTF framework and all modules and plugins.
+
+In the most basic terms, a rule should perform this: 
+  - If {{trigger}} == true then perform {{action}}
+
+### Examples of Triggers
+
+- Note created in Project
+- Sub-task created
+
+### Examples of Actions
+
+- 
+
+## Home Assistant Tickets/Requests Integration
+
+- Once Home Assistant integration has begun, create a plugin that:
+  - Identifies when a device goes down
+    - Length of time device is down
+      - Length of time should be configurable by user in plugin settings
+    - Opens a ticket/request for repair
+      - Marks ticket as automated
+      - Marks it as Home Assistant
+      - Identifies the device
 
 ## Figure out "Family calendar" or "Family chore" or "Digital kanban board" configuration
 

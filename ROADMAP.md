@@ -71,13 +71,13 @@ Keep this release focused on visible breakages, responsive layout failures, dark
 
 ### Version 0.33.5.14.2 - Personal and Family Workspace Scope Corrections
 
-- [ ] Ensure Client/Public API access does not appear in Personal or Family workspaces.
-- [ ] Ensure Files does not surface Client as an attachment point in Personal or Family workspaces.
-- [ ] Ensure Files displays human-readable names instead of UUIDs for Family workspace attachment context.
-- [ ] Ensure Create List does not show Client controls in Personal or Family workspaces.
-- [ ] In Personal and Family workspaces, Lists should automatically use workspace scope where a Business workspace would use client scope.
-- [ ] Ensure project selectors in Lists use workspace projects in Personal and Family workspaces instead of depending on client filtering.
-- [ ] Add regressions proving Business workspace client controls still work, while Personal/Family client controls are hidden or unavailable.
+- [x] Ensure Client/Public API access does not appear in Personal or Family workspaces.
+- [x] Ensure Files does not surface Client as an attachment point in Personal or Family workspaces.
+- [x] Ensure Files displays human-readable names instead of UUIDs for Family workspace attachment context.
+- [x] Ensure Create List does not show Client controls in Personal or Family workspaces.
+- [x] In Personal and Family workspaces, Lists should automatically use workspace scope where a Business workspace would use client scope.
+- [x] Ensure project selectors in Lists use workspace projects in Personal and Family workspaces instead of depending on client filtering.
+- [x] Add regressions proving Business workspace client controls still work, while Personal/Family client controls are hidden or unavailable.
 
 ### Version 0.33.5.14.3 - Lists Emergency Responsive and Dark Mode Pass
 

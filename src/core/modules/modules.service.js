@@ -150,9 +150,12 @@ async function listActiveAttachableTypes(workspaceId) {
   }
 
   const enabledModuleIds = new Set(await readEnabledModuleIds(workspaceId));
+  const workspaceCapabilities = await readWorkspaceCapabilities(workspaceId);
+  const workspaceType = workspaceCapabilities.workspaceType || "business";
 
   return listAttachableTypes()
-    .filter((type) => requiredModulesEnabled(type, enabledModuleIds));
+    .filter((type) => requiredModulesEnabled(type, enabledModuleIds))
+    .filter((type) => contributionSupportsWorkspaceType(type, workspaceType));
 }
 
 function listHelpSections() {
@@ -426,6 +429,7 @@ async function listAvailableApiScopes(workspaceId) {
 
   return listModuleApiScopeEntries()
     .filter((scope) => enabledModuleIdSet.has(scope.moduleId))
+    .filter((scope) => apiScopeSupportsWorkspaceType(scope, workspaceType))
     .map((scope) => {
       const resolvedScope = resolveContributionTerminology(scope, workspaceType, "apiScopes");
 
@@ -438,6 +442,18 @@ async function listAvailableApiScopes(workspaceId) {
         access: scope.access,
       };
     });
+}
+
+function apiScopeSupportsWorkspaceType(scope, workspaceType) {
+  return contributionSupportsWorkspaceType(scope, workspaceType);
+}
+
+function contributionSupportsWorkspaceType(contribution, workspaceType) {
+  if (Array.isArray(contribution.workspaceTypes) && contribution.workspaceTypes.length > 0) {
+    return contribution.workspaceTypes.includes(workspaceType);
+  }
+
+  return true;
 }
 
 async function readEnabledModuleIds(workspaceId) {

@@ -80,6 +80,8 @@ assert.ok(tasksScript.includes("task-attachment-count"), "Task rows should rende
 
 assert.ok(filesPage.includes("data-file-filters"), "Files page should expose filter form.");
 assert.ok(filesPage.includes("js/shared/modal.js"), "Files page should load the shared modal helper for in-app warnings.");
+assert.ok(filesPage.includes("data-file-business-control"), "Files page should mark business-only client controls.");
+assert.ok(filesPage.includes("js/files.js?v=1"), "Files page should cache-bust the protected Files script.");
 ["data-file-filter-module", "data-file-filter-target-type", "data-file-filter-target-id", "data-file-filter-client", "data-file-filter-project", "data-file-filter-filename", "data-file-filter-status"].forEach((selector) => {
   assert.ok(filesPage.includes(selector), `Files page should expose ${selector}.`);
 });
@@ -90,6 +92,10 @@ assert.ok(filesScript.includes("clientId"), "Files surface should filter by clie
 assert.ok(filesScript.includes("projectId"), "Files surface should filter by project.");
 assert.ok(filesScript.includes("filename"), "Files surface should filter by filename.");
 assert.ok(filesScript.includes("status"), "Files surface should filter by status.");
+assert.ok(filesScript.includes("targetLabel"), "Files surface should render human-readable target labels.");
+assert.ok(filesScript.includes("clientLabel"), "Files surface should render human-readable client labels.");
+assert.ok(filesScript.includes("projectLabel"), "Files surface should render human-readable project labels.");
+assert.ok(filesScript.includes("usesBusinessScope() ? clientFilter?.value : \"\""), "Files surface should not send client filters outside Business workspaces.");
 assert.ok(filesScript.includes('title: "Delete file?"'), "Files surface should warn before deleting files.");
 assert.ok(helper.includes('title: "Delete file?"'), "Attachment helper should warn before deleting files.");
 assert.ok(staticService.includes('"files.html"'), "Files page should be a framework protected view.");

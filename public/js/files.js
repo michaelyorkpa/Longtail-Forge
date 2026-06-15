@@ -9,13 +9,22 @@ const statusFilter = document.querySelector("[data-file-filter-status]");
 const fileStatus = document.querySelector("[data-file-status]");
 const fileList = document.querySelector("[data-file-list]");
 const api = window.LongtailForge.api;
+const state = {
+  workspaceType: "business",
+};
 
 filterForm?.addEventListener("submit", (event) => {
   event.preventDefault();
   loadFiles();
 });
 
-loadFiles();
+initialize();
+
+async function initialize() {
+  await window.LongtailForge.workspaceContextReady;
+  applyWorkspaceContext();
+  await loadFiles();
+}
 
 async function loadFiles() {
   setStatus("Loading files...");
@@ -42,7 +51,7 @@ function readFilters() {
     moduleId: moduleFilter?.value,
     targetType: targetTypeFilter?.value,
     targetId: targetIdFilter?.value,
-    clientId: clientFilter?.value,
+    clientId: usesBusinessScope() ? clientFilter?.value : "",
     projectId: projectFilter?.value,
     filename: filenameFilter?.value,
     status: statusFilter?.value || "available",
@@ -64,7 +73,7 @@ function renderFiles(attachments) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
 
-    cell.colSpan = 8;
+    cell.colSpan = usesBusinessScope() ? 8 : 7;
     cell.textContent = "No files match the current filters.";
     row.appendChild(cell);
     fileList.appendChild(row);
@@ -77,12 +86,17 @@ function renderFiles(attachments) {
 function fileRow(attachment) {
   const row = document.createElement("tr");
   const file = attachment.file || {};
+  const targetLabel = attachment.targetLabel || attachment.target_label || attachment.target?.label || "";
+  const targetId = attachment.targetId || attachment.target_id || "";
+  const targetType = attachment.targetType || attachment.target_type || "";
+  const clientLabel = attachment.clientLabel || attachment.client_label || "";
+  const projectLabel = attachment.projectLabel || attachment.project_label || "";
   const cells = [
     file.displayName || file.originalFilename || "File",
     attachment.moduleId || attachment.module_id || "",
-    `${attachment.targetType || attachment.target_type || ""}: ${attachment.targetId || attachment.target_id || ""}`,
-    attachment.clientId || attachment.client_id || "",
-    attachment.projectId || attachment.project_id || "",
+    targetLabel ? `${formatToken(targetType)}: ${targetLabel}` : `${targetType}: ${targetId}`,
+    clientLabel || attachment.clientId || attachment.client_id || "",
+    projectLabel || attachment.projectId || attachment.project_id || "",
     statusLabel(file.status, file.scanStatus),
     formatDate(attachment.createdAt || attachment.created_at),
   ].map((value) => {
@@ -121,8 +135,24 @@ function fileRow(attachment) {
   }
 
   cells[5].className = "file-status-cell";
-  row.append(cells[0], cells[1], cells[2], cells[3], cells[4], cells[5], cells[6], actions);
+  if (usesBusinessScope()) {
+    row.append(cells[0], cells[1], cells[2], cells[3], cells[4], cells[5], cells[6], actions);
+  } else {
+    row.append(cells[0], cells[1], cells[2], cells[4], cells[5], cells[6], actions);
+  }
   return row;
+}
+
+function applyWorkspaceContext() {
+  const context = window.LongtailForge?.workspaceContext || {};
+  state.workspaceType = context.workspaceType || "business";
+  document.querySelectorAll("[data-file-business-control]").forEach((element) => {
+    element.hidden = !usesBusinessScope();
+  });
+}
+
+function usesBusinessScope() {
+  return state.workspaceType === "business";
 }
 
 async function deleteFile(fileId, file = {}) {

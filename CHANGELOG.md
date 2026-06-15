@@ -1,3 +1,13 @@
+## Version 0.33.5.14.2 - 2026-06-15 00:49 -04:00
+
+- Hid Business-only `clients:*` public API key scopes outside Business workspaces while preserving truthful project scopes for workspace projects.
+- Made Client file attachment targets Business-only and added human-readable target/client/project labels to the Files attachment browse read model.
+- Fixed the Notes linked-record picker so Client is removed from the visible Target dropdown and Client targets are not returned in Personal or Family workspaces, including direct `targetType=client` lookup requests.
+- Updated the regression runner so shared database buckets run separately while isolated database regressions still run concurrently with per-bucket and per-script reporting.
+- Updated the protected Files page to hide Client filters/columns outside Business workspaces and render friendly target/project context instead of raw IDs where labels are available.
+- Fixed Lists browser options so Personal and Family workspaces load workspace projects, hide Client controls, submit workspace-scoped list payloads, and keep the Project selector available for workspace-project context.
+- Added `personal-family-workspace-scope-regression.mjs`, wired it into the regression suite, cache-busted Files/Lists assets, bumped package/app metadata plus Client/Projects and Lists module metadata to `0.33.5.14.2`, and marked the roadmap slice complete.
+
 ## Version 0.33.5.14.1 - 2026-06-15 00:30 -04:00
 
 - Fixed Help Center navigation so the service-shaped ToC tree keeps article links under the correct parent headings while the browser starts top-level groups collapsed except `Longtail Forge`.

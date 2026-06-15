@@ -467,6 +467,7 @@ function validateApiScopes(apiScopes, moduleId, errors) {
     requireString(item, "label", errors, { prefix: `apiScopes[${index}]` });
     requireString(item, "description", errors, { prefix: `apiScopes[${index}]` });
     optionalString(item, "access", errors, { prefix: `apiScopes[${index}]` });
+    optionalStringArray(item, "workspaceTypes", errors, { prefix: `apiScopes[${index}]` });
     validateTerminology(item.terminology, `apiScopes[${index}].terminology`, errors);
   });
 }
@@ -725,6 +726,7 @@ function validateAttachableTypes(attachableTypes, moduleId, errors) {
     optionalNumber(item, "maxFilesPerRecord", errors, { prefix });
     optionalNumber(item, "maxFileSizeBytes", errors, { prefix });
     optionalStringArray(item, "requiredModules", errors, { prefix });
+    optionalStringArray(item, "workspaceTypes", errors, { prefix });
     validateTerminology(item.terminology, `${prefix}.terminology`, errors);
 
     for (const category of item.allowedFileCategories || []) {

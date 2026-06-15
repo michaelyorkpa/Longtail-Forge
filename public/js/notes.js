@@ -29,6 +29,7 @@ const LINK_TARGET_TYPE_LABELS = {
   task: "Task",
   user: "User",
 };
+const LINK_TARGET_TYPE_ORDER = ["workspace", "client", "project", "task", "user"];
 
 const statusMessage = document.querySelector("[data-notes-status]");
 const bucketTabs = [...document.querySelectorAll("[data-notes-bucket]")];
@@ -112,6 +113,7 @@ let state = {
   selectedNote: null,
   selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
   tagPicker: null,
+  workspaceType: "business",
 };
 
 createButton?.addEventListener("click", () => openEditor());
@@ -162,6 +164,7 @@ async function initialize() {
 
   try {
     await window.LongtailForge.workspaceContextReady;
+    applyWorkspaceContext();
     await Promise.all([loadTags(), loadCollections(), loadNotes()]);
     renderCollections();
     populateCollectionFilter();
@@ -172,6 +175,12 @@ async function initialize() {
     renderEmptyList(error.message || "Notes could not be loaded.");
     setStatus(error.message || "Notes could not be loaded.", true);
   }
+}
+
+function applyWorkspaceContext() {
+  const context = window.LongtailForge?.workspaceContext || {};
+  state.workspaceType = context.workspaceType || "business";
+  populateLinkTargetTypeSelect(contextTargetTypeInput);
 }
 
 async function loadNotes() {
@@ -714,6 +723,25 @@ function populateLinkTargetSelect(select, targets = []) {
   select.replaceChildren(...(options.length > 0 ? options : [new window.Option("No records found", "")]));
 }
 
+function populateLinkTargetTypeSelect(select) {
+  if (!select) {
+    return;
+  }
+
+  const selectedValue = availableLinkTargetTypes().includes(select.value) ? select.value : "workspace";
+  select.replaceChildren(...availableLinkTargetTypes().map((targetType) => {
+    const option = document.createElement("option");
+    option.value = targetType;
+    option.textContent = LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType);
+    return option;
+  }));
+  select.value = selectedValue;
+}
+
+function availableLinkTargetTypes() {
+  return LINK_TARGET_TYPE_ORDER.filter((targetType) => targetType !== "client" || usesBusinessScope());
+}
+
 function linkTargetOptionLabel(target = {}) {
   const typeLabel = LINK_TARGET_TYPE_LABELS[target.targetType] || formatToken(target.targetType || "record");
   const parts = [target.label || target.targetId || "Untitled", target.subtitle].filter(Boolean);
@@ -980,12 +1008,7 @@ function renderLinksPanel(note) {
 
   form.className = "notes-link-form";
   form.hidden = note.status === "archived";
-  ["workspace", "client", "project", "task", "user"].forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = LINK_TARGET_TYPE_LABELS[value] || formatToken(value);
-    targetType.append(option);
-  });
+  populateLinkTargetTypeSelect(targetType);
   targetSearch.type = "search";
   targetSearch.placeholder = "Search records";
   targetResults.required = true;
@@ -1618,6 +1641,10 @@ function detailMetaItems(note = {}) {
     }
     return nodes;
   });
+}
+
+function usesBusinessScope() {
+  return state.workspaceType === "business";
 }
 
 function addContext(list, label, value) {

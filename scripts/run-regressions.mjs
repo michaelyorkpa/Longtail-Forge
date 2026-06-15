@@ -2,11 +2,15 @@ import { spawn } from "node:child_process";
 import { performance } from "node:perf_hooks";
 import { REGRESSION_BUCKETS, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
 
-const DEFAULT_PARALLELISM = 4;
-const envParallelism = Number.parseInt(process.env.LTF_REGRESSION_PARALLELISM || "", 10);
-const isolatedParallelism = Number.isInteger(envParallelism) && envParallelism > 0
-  ? envParallelism
-  : DEFAULT_PARALLELISM;
+const ISOLATED_BUCKET_NAME = "isolated database regressions";
+const DEFAULT_ISOLATED_PARALLELISM = 4;
+const envIsolatedParallelism = Number.parseInt(
+  process.env.LTF_ISOLATED_REGRESSION_PARALLELISM || process.env.LTF_REGRESSION_PARALLELISM || "",
+  10,
+);
+const isolatedParallelism = Number.isInteger(envIsolatedParallelism) && envIsolatedParallelism > 0
+  ? envIsolatedParallelism
+  : DEFAULT_ISOLATED_PARALLELISM;
 
 const totalStart = performance.now();
 const completedResults = [];
@@ -16,23 +20,16 @@ try {
 
   console.log(`Running ${REGRESSION_SCRIPTS.length} regression scripts.`);
 
-  const staticBucket = REGRESSION_BUCKETS.find((bucket) => bucket.name === "static/source regressions");
-  const remainingBuckets = REGRESSION_BUCKETS.filter((bucket) => bucket !== staticBucket);
-
-  if (staticBucket) {
-    completedResults.push(...await runBucket(staticBucket));
-  }
-
-  const settledResults = await Promise.allSettled(remainingBuckets.map((bucket) => runBucket(bucket)));
   const failedBuckets = [];
 
-  for (const settledResult of settledResults) {
-    if (settledResult.status === "fulfilled") {
-      completedResults.push(...settledResult.value);
-    } else {
-      const failureResults = settledResult.reason?.results || [];
+  for (const bucket of REGRESSION_BUCKETS) {
+    try {
+      completedResults.push(...await runBucket(bucket));
+    } catch (error) {
+      const failureResults = error?.results || [];
       completedResults.push(...failureResults);
-      failedBuckets.push(settledResult.reason?.message || settledResult.reason);
+      failedBuckets.push(error?.message || error);
+      break;
     }
   }
 
@@ -48,17 +45,19 @@ try {
 }
 
 async function runBucket(bucket) {
-  const concurrency = bucket.name === "isolated database regressions"
+  const concurrency = bucket.name === ISOLATED_BUCKET_NAME
     ? isolatedParallelism
     : bucket.concurrency;
   const effectiveConcurrency = bucket.mode === "serial" ? 1 : Math.max(1, concurrency || 1);
 
   console.log(`\n[${bucket.name}] ${bucket.scripts.length} script(s), concurrency ${effectiveConcurrency}`);
   const results = await runLimited(bucket.scripts, effectiveConcurrency);
-  const failed = results.find((result) => result.exitCode !== 0);
+  printBucketSummary(bucket.name, results);
 
-  if (failed) {
-    const failure = new Error(`${bucket.name} failed at ${failed.script}`);
+  const failures = results.filter((result) => result.exitCode !== 0);
+
+  if (failures.length > 0) {
+    const failure = new Error(`${bucket.name} failed at ${failures.map((result) => result.script).join(", ")}`);
     failure.results = results;
     throw failure;
   }
@@ -173,6 +172,19 @@ function printSummary(results) {
   for (const result of slowest) {
     console.log(`- ${formatSeconds(result.seconds).padStart(7)} ${result.script}`);
   }
+}
+
+function printBucketSummary(bucketName, results) {
+  if (results.length === 0) {
+    return;
+  }
+
+  const failed = results.filter((result) => result.exitCode !== 0).length;
+  const totalSeconds = results.reduce((sum, result) => sum + result.seconds, 0);
+  const wallSeconds = Math.max(...results.map((result) => result.seconds));
+  const status = failed > 0 ? `${failed} failed` : "passed";
+
+  console.log(`[${bucketName}] ${status}; ${results.length} completed; ${formatSeconds(totalSeconds)} script time; ${formatSeconds(wallSeconds)} longest script.`);
 }
 
 function formatSeconds(seconds) {

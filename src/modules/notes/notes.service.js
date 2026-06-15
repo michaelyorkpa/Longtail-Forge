@@ -46,6 +46,7 @@ import { tagsService } from "../../services/tags.service.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 import { usersRepository } from "../../repositories/users.repo.js";
 import { workspacesRepository } from "../../repositories/workspaces.repo.js";
+import { normalizeWorkspaceType } from "../../utils/workspaces.js";
 
 const NOTES_MODULE_ID = "notes";
 const LINK_TARGET_TYPES = new Set(["workspace", "client", "project", "task", "user"]);
@@ -923,6 +924,10 @@ async function canTargetAccess(session, target) {
   }
 
   if (normalizedTarget.target_type === "client") {
+    if (!(await workspaceSupportsClientTargets(session))) {
+      return false;
+    }
+
     const client = await clientsRepository.readById(session.workspace_id, normalizedTarget.target_id);
     return Boolean(client) && permissionsService.can(session, "clients.manage", {
       workspace_id: session.workspace_id,
@@ -981,6 +986,10 @@ async function listTargetsByType(session, targetType) {
   }
 
   if (targetType === "client") {
+    if (!(await workspaceSupportsClientTargets(session))) {
+      return [];
+    }
+
     const clients = await permissionsService.filterReadableClients(session, await clientsRepository.readAll(session.workspace_id));
     return clients.map((client) => shapeLinkTarget({
       target_type: "client",
@@ -1034,6 +1043,11 @@ async function listTargetsByType(session, targetType) {
   }
 
   return [];
+}
+
+async function workspaceSupportsClientTargets(session) {
+  const workspace = await workspacesRepository.readById(session.workspace_id);
+  return normalizeWorkspaceType(workspace?.workspace_type) === "business";
 }
 
 async function canReadLinkTargetType(session, targetType) {

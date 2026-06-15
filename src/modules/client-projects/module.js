@@ -29,7 +29,7 @@ const clientProjectsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.12.1",
+  version: "0.33.5.14.2",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: true,
@@ -215,6 +215,7 @@ const clientProjectsModule = {
       allowedVisibilityValues: ["private", "workspace", "client"],
       lifecycleEvents: ["file.attachment.created", "file.attachment.removed"],
       requiredModules: ["client-projects"],
+      workspaceTypes: ["business"],
     },
     {
       targetType: "project",
@@ -326,6 +327,7 @@ const clientProjectsModule = {
       label: "Read Clients",
       description: "Read client records through the public API.",
       access: "read",
+      workspaceTypes: ["business"],
     },
     {
       id: "clients:write",
@@ -333,6 +335,7 @@ const clientProjectsModule = {
       label: "Write Clients",
       description: "Create, update, and archive client records through the public API.",
       access: "write",
+      workspaceTypes: ["business"],
     },
     {
       id: "projects:read",
