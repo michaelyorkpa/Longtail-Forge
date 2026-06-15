@@ -160,7 +160,7 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /collapseIndexAfterSelection/);
   assert.match(listsJs, /indexPanel\.open = false/);
 
-  assert.match(styles, /\.lists-workspace/);
+  assert.match(styles, /\.view-split-list-detail/);
   assert.match(styles, /\.lists-index-panel summary/);
   assert.match(styles, /\.lists-state-summary/);
   assert.match(styles, /\.lists-next-action/);
@@ -179,13 +179,12 @@ async function assertProtectedView(session) {
   assert.match(styles, /\.lists-item-form/);
   assert.match(styles, /\.lists-item-actions button/);
   assert.match(styles, /\.lists-status-badge\.is-active/);
-  assert.match(styles, /@media \(max-width: 1366px\)[\s\S]*\.lists-workspace[\s\S]*grid-template-columns: 1fr/);
+  assert.match(styles, /@media[^{]*\{\s*\.view-split-list-detail\s*\{[\s\S]*grid-template-columns: 1fr/);
   assert.match(styles, /@media \(max-width: 1366px\)[\s\S]*\.lists-detail-actions[\s\S]*flex-wrap: wrap/);
   assert.match(styles, /@media \(max-width: 1366px\)[\s\S]*\.lists-link-form[\s\S]*repeat\(auto-fit, minmax\(180px, 1fr\)\)/);
   assert.match(styles, /\.lists-next-action[\s\S]*background: var\(--color-surface-muted\)/);
   assert.match(styles, /\.lists-source-context,[\s\S]*\.lists-cost-summary[\s\S]*background: var\(--color-surface-muted\)/);
   assert.doesNotMatch(listsStyles, /#eff6ff|#f0fdfa|#fff7ed|#bfdbfe|#99f6e4|#fed7aa/);
-  assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.lists-workspace/);
 }
 
 async function assertNavigation(session) {

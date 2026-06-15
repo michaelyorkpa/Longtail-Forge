@@ -302,20 +302,58 @@ component lifecycle, or new frontend framework is introduced.
       rebuild framework-owned layout by hand.
 - [x] Do not convert Lists in this slice; use small test descriptors or fixtures for renderer coverage.
 
-### Version 0.33.5.16.7 - Declarative Actions and Behavior Registry
+### Version 0.33.5.16.7 - Selectable Index Primitive and Split-Layout Correction
 
-- [ ] Implement the behavior registry: `LongtailForge.view.registerBehavior(id, handler)`.
-- [ ] Wire declarative `route` actions automatically using descriptor `route`, `method`, `confirm`,
+This slice was inserted after 0.33.5.16.6 to correct a framework view defect found while reviewing
+the live Lists pilot: the split-layout selector/index is rendered as a wide multi-column data table
+crammed into the narrow index track, so cells wrap one word per line and the panel grows a horizontal
+scrollbar, while the split workspace fails to fill available width and leaves a large empty area beside
+the detail pane. This must land before the Lists declarative read-only proof (0.33.5.16.9) so the
+renderer is born rendering a correct selector instead of reproducing the broken table-as-index shape
+into the descriptor contract. The fix belongs in the framework primitives, not in one-off Lists CSS.
+
+- [x] Add a framework selectable index-list primitive to `public/js/shared/view-builder.js`
+      (for example `createIndexList`) for split-layout selectors:
+  - [x] Single-column, vertically stacked, selectable rows that do not horizontally overflow.
+  - [x] Primary label line, optional status/metadata chip row, and optional secondary meta line.
+  - [x] Keyboard-selectable and accessible by default with a clear selected/active state.
+  - [x] Safe text assignment and module-owned select callbacks; the primitive owns no app state.
+- [x] Correct `.view-split-list-detail` layout in `public/css/longtail-forge.css` so the framework
+      split owns column sizing and responsive collapse, and remove the legacy one-off `.lists-workspace`
+      grid that overrides it. The remaining space beside the detail pane is the app-standard `.wide-page`
+      width cap (`--page-standard-width`) shared by every page, not a Lists defect, so global page width
+      is intentionally left unchanged.
+- [x] Correct `.view-data-table` / `.view-table-wrap` so genuinely wide tables degrade to horizontal
+      scroll without mid-word/one-word-per-line wrapping, and so data tables are not used as
+      narrow-track selectors.
+- [x] Update the descriptor renderer's `indexPanel`/selector rendering to use the selectable index-list
+      primitive rather than a data table, keeping the renderer on the 0.33.5.15 primitives as its engine.
+- [x] Update the live imperative Lists workspace (`createListsIndexPanel` in `public/js/lists.js`) to use
+      the new primitive instead of `createDataTable(["List","Status","Type","Needed","Items"])`, moving
+      Status/Type/Needed/Items into compact chips/secondary text and keeping the full breakdown in the
+      detail pane.
+- [x] Keep the correction in framework primitives; do not add one-off Lists layout/table classes for
+      framework-owned anatomy (consistent with the 0.33.5.15.5 guardrails).
+- [x] Preserve all Lists selection behavior, routes, save payloads, permissions, Business client/project
+      behavior, and Personal/Family workspace scope behavior.
+- [x] Add regressions for the selectable index primitive structure/accessibility, split-layout width,
+      data-table overflow degradation, and proof that the Lists index no longer renders a multi-column
+      table in the selector track.
+
+### Version 0.33.5.16.8 - Declarative Actions and Behavior Registry
+
+- [x] Implement the behavior registry: `LongtailForge.view.registerBehavior(id, handler)`.
+- [x] Wire declarative `route` actions automatically using descriptor `route`, `method`, `confirm`,
       `requiredPermissions`, and action role metadata.
-- [ ] Wire `behavior` actions by invoking the registered handler with a safe context:
+- [x] Wire `behavior` actions by invoking the registered handler with a safe context:
       `{ record, workspaceContext, refresh, openModal, api }`.
-- [ ] Add a framework-owned `openModal` path for descriptor-declared create/edit modal shells while
+- [x] Add a framework-owned `openModal` path for descriptor-declared create/edit modal shells while
       keeping modules responsible for field meaning, validation, and save payloads.
-- [ ] Ensure missing behavior handlers fail visibly and recoverably without breaking the rest of the
+- [x] Ensure missing behavior handlers fail visibly and recoverably without breaking the rest of the
       rendered surface.
-- [ ] Do not migrate Lists workflow actions in this slice.
+- [x] Do not migrate Lists workflow actions in this slice.
 
-### Version 0.33.5.16.8 - Lists Declarative Read-Only Surface Proof
+### Version 0.33.5.16.9 - Lists Declarative Read-Only Surface Proof
 
 - [ ] Convert the Lists protected workspace read path to a `viewSurfaces` descriptor on the Lists
       module manifest.
@@ -328,7 +366,7 @@ component lifecycle, or new frontend framework is introduced.
       the existing imperative path until later slices.
 - [ ] Add regressions proving the read-only Lists surface renders from the descriptor.
 
-### Version 0.33.5.16.9 - Lists Items, Modals, and Field Behaviors
+### Version 0.33.5.16.10 - Lists Items, Modals, and Field Behaviors
 
 - [ ] Move Lists item entry, item rows, item tables, and item action placement into the descriptor
       or renderer-supported item-row primitives.
@@ -340,7 +378,7 @@ component lifecycle, or new frontend framework is introduced.
 - [ ] Preserve all item create, edit, reorder, check, uncheck, complete, and delete workflows.
 - [ ] Add regressions for descriptor-rendered item entry, item rows, and Lists modal shells.
 
-### Version 0.33.5.16.10 - Lists Workflow Actions, Linked Records, and Layout Cleanup
+### Version 0.33.5.16.11 - Lists Workflow Actions, Linked Records, and Layout Cleanup
 
 - [ ] Express Lists-specific workflow actions as declarative route actions or registered behaviors:
       Duplicate, Edit, Complete, Finalize, Reopen, Archive, Delete, Restore, and reusable-list handling.
@@ -352,7 +390,7 @@ component lifecycle, or new frontend framework is introduced.
 - [ ] Add regressions proving the Lists surface no longer creates page header, table, dialog,
       action strip, filter panel, or split-layout anatomy by hand.
 
-### Version 0.33.5.16.11 - Declarative Guardrails, Documentation, and Closeout
+### Version 0.33.5.16.12 - Declarative Guardrails, Documentation, and Closeout
 
 - [ ] Add static checks that run only against surfaces marked declarative.
 - [ ] A declarative module must not call `document.createElement` for framework-owned anatomy

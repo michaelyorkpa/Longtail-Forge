@@ -123,3 +123,15 @@ Descriptor delivery stays permission-safe. The backend only includes descriptors
 The descriptor renderer now owns the first data-binding pass. When a descriptor includes `dataSource.route`, `LongtailForge.view.renderSurface(descriptor, host)` renders a loading state, fetches the route through `LongtailForge.api.getJson`, maps response records through `dataSource.fieldBindings`, and redraws framework-owned table, detail, index, summary, field, and item-collection anatomy from the mapped descriptor fields.
 
 Rendered data-bound surfaces expose `surface.refresh()`, which re-fetches the descriptor data source and redraws the same framework-owned containers without requiring modules to rebuild the layout by hand. Loading, empty, and error states are framework-owned defaults. This slice still does not register declarative behaviors, wire action routes, interpret save payloads, or convert Lists.
+
+## Implementation Notes For 0.33.5.16.7
+
+This slice corrects a framework view defect surfaced by the live Lists pilot: a split-layout selector/index was built as a multi-column `createDataTable` crammed into the narrow index track, so cells wrapped one word per line. `LongtailForge.view` now exposes `createIndexList`, a single-column, keyboard-selectable selector primitive with a primary label, optional chip row, optional secondary meta lines, and a selected/`aria-current` state. Split-layout selectors should use this primitive; data tables are reserved for tabular detail content.
+
+The framework `.view-split-list-detail` primitive now owns split column sizing and responsive collapse and fills the available content width. The legacy one-off `.lists-workspace` grid that overrode it was removed so the framework is the single owner of the split layout, and `public/js/lists.js` renders its selector through `createIndexList`. The descriptor renderer also builds `indexPanel` selectors through the same primitive, so the declarative path inherits the corrected selector. The remaining space beside the detail pane is the app-standard `.wide-page` width cap shared by every page, not a Lists defect, and is intentionally unchanged.
+
+## Implementation Notes For 0.33.5.16.8
+
+The descriptor renderer now supports declarative actions. Modules register behavior handlers with `LongtailForge.view.registerBehavior(id, handler)`, and descriptor `behavior` actions call those handlers with safe context: `{ action, record, workspaceContext, refresh, openModal, api }`. The framework owns discovery, dispatch, status/error display, and descriptor modal shell opening; modules own the handler body, validation, save payloads, and workflow meaning.
+
+Route actions use descriptor `route`, `method`, `confirm`, role metadata, and optional browser-visible `requiredPermissions` metadata before calling the shared browser API client. API routes remain the authoritative permission boundary. Missing behavior handlers, denied action metadata, and route failures render recoverable framework status messages without breaking the rest of the surface. Lists workflow actions remain on the existing imperative Lists code until a later explicit conversion slice.

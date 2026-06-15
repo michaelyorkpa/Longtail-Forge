@@ -400,11 +400,86 @@ summary.surface-modal-section-heading {
     grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.65fr);
     gap: 16px;
     min-width: 0;
+    width: 100%;
+    align-items: start;
 }
 
 .view-split-list-detail-index,
 .view-split-list-detail-main {
     min-width: 0;
+}
+
+@media (max-width: 1024px) {
+    .view-split-list-detail {
+        grid-template-columns: 1fr;
+    }
+}
+
+.view-index-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    min-width: 0;
+}
+
+.view-index-list-item {
+    min-width: 0;
+}
+
+.view-index-list-button {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--surface-radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    min-width: 0;
+}
+
+.view-index-list-button:hover {
+    background: var(--color-hover);
+}
+
+.view-index-list-button.is-selected {
+    border-color: var(--color-accent);
+    background: var(--color-surface-muted);
+}
+
+.view-index-list-button:focus-visible {
+    outline: var(--surface-focus-ring);
+    outline-offset: 2px;
+}
+
+.view-index-list-label {
+    font-weight: 700;
+    color: var(--color-accent);
+    overflow-wrap: anywhere;
+}
+
+.view-index-list-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.view-index-list-meta {
+    color: var(--color-muted);
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+}
+
+.view-index-list-empty {
+    color: var(--color-muted);
+    padding: 8px 0;
 }
 
 .view-table-wrap {
@@ -424,6 +499,7 @@ summary.surface-modal-section-heading {
     border-bottom: 1px solid var(--color-border);
     text-align: left;
     vertical-align: top;
+    overflow-wrap: anywhere;
 }
 
 .view-data-table [data-align="right"] {
@@ -4735,12 +4811,7 @@ dialog .form-actions {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.lists-workspace {
-    display: grid;
-    grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.2fr);
-    gap: 16px;
-    align-items: start;
-}
+/* List/detail split sizing is owned by the framework `.view-split-list-detail` primitive. */
 
 .lists-list-toolbar,
 .lists-detail-header,
@@ -5086,10 +5157,6 @@ dialog .form-actions {
 }
 
 @media (max-width: 1366px) {
-    .lists-workspace {
-        grid-template-columns: 1fr;
-    }
-
     .lists-index-panel,
     .lists-detail-panel {
         width: 100%;
@@ -5876,8 +5943,7 @@ button:disabled {
 
 @media (max-width: 700px) {
     /* Collapse the shared nav and single-column the dense editor/report layouts on phones. */
-    .notes-workspace,
-    .lists-workspace {
+    .notes-workspace {
         grid-template-columns: 1fr;
     }
 

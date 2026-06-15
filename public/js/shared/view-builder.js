@@ -224,6 +224,58 @@
     return details;
   }
 
+  function createIndexList(options = {}) {
+    const list = createElement("ul", {
+      className: ["view-index-list", options.className],
+      attrs: {
+        role: "list",
+        ...(options.ariaLabel ? { "aria-label": options.ariaLabel } : {}),
+      },
+    });
+
+    const items = Array.isArray(options.items) ? options.items : [];
+    items.forEach((item) => list.appendChild(createIndexListItem(item)));
+    return list;
+  }
+
+  function createIndexListItem(item = {}) {
+    const listItem = createElement("li", { className: "view-index-list-item" });
+    const selected = Boolean(item.selected);
+    const button = createElement("button", {
+      className: ["view-index-list-button", selected ? "is-selected" : ""],
+      attrs: {
+        type: "button",
+        "aria-current": selected ? "true" : false,
+      },
+      dataset: item.id !== undefined && item.id !== null ? { viewIndexId: String(item.id) } : {},
+    });
+
+    button.appendChild(createElement("span", {
+      className: "view-index-list-label",
+      text: requiredText(item.label, "Index list items require a label."),
+    }));
+
+    const chips = (Array.isArray(item.chips) ? item.chips : [item.chips]).filter((chip) => chip !== null && chip !== undefined && chip !== false && chip !== "");
+    if (chips.length) {
+      button.appendChild(createElement("span", {
+        className: ["view-index-list-chips", "surface-chip-row"],
+        children: chips.map((chip) => (isNode(chip) ? chip : createElement("span", { className: "surface-chip", text: String(chip) }))),
+      }));
+    }
+
+    const metaLines = (Array.isArray(item.meta) ? item.meta : [item.meta]).filter((line) => line !== null && line !== undefined && line !== false && line !== "");
+    metaLines.forEach((line) => {
+      button.appendChild(isNode(line) ? line : createElement("span", { className: "view-index-list-meta", text: String(line) }));
+    });
+
+    if (typeof item.onSelect === "function") {
+      button.addEventListener("click", item.onSelect);
+    }
+
+    listItem.appendChild(button);
+    return listItem;
+  }
+
   function createSplitListDetail(options = {}) {
     const rootElement = createElement("div", {
       className: ["view-split-list-detail", options.className],
@@ -603,6 +655,7 @@
     createEmptyState,
     createFieldGrid,
     createFilterPanel,
+    createIndexList,
     createInfoPanel,
     createInlineActionRow,
     createModal,

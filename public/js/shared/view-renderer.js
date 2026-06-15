@@ -1,5 +1,18 @@
 (function attachViewRenderer(global) {
   const root = global.LongtailForge || {};
+  const behaviors = new Map();
+
+  function registerBehavior(id, handler) {
+    const behaviorId = String(id || "").trim();
+    if (!behaviorId) {
+      throw new Error("View behaviors require an id.");
+    }
+    if (typeof handler !== "function") {
+      throw new Error("View behaviors require a handler function.");
+    }
+    behaviors.set(behaviorId, handler);
+    return () => behaviors.delete(behaviorId);
+  }
 
   function renderSurface(descriptor = {}, host) {
     const view = requireViewPrimitives();
@@ -11,10 +24,12 @@
 
     const state = {
       descriptor,
+      actionError: null,
       error: null,
       loading: Boolean(descriptor.dataSource?.route),
       records: [],
       selectedRecord: null,
+      surface: null,
       view,
     };
     let inFlightRefresh = null;
@@ -25,6 +40,7 @@
         "data-view-layout": descriptor.layout || "single-column",
       },
     });
+    state.surface = surface;
 
     const body = view.createElement("div", { className: "view-renderer-body" });
     const refresh = async () => {
@@ -37,6 +53,7 @@
 
       inFlightRefresh = (async () => {
         state.loading = true;
+        state.actionError = null;
         state.error = null;
         renderInto(body, renderLayout(descriptor, view, state));
         try {
@@ -68,6 +85,11 @@
       enumerable: false,
       value: refresh,
     });
+    Object.defineProperty(surface, "openModal", {
+      configurable: true,
+      enumerable: false,
+      value: (modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
+    });
     Object.defineProperty(surface, "viewState", {
       configurable: true,
       enumerable: false,
@@ -91,8 +113,8 @@
 
   function renderLayout(descriptor, view, state) {
     const children = [
-      renderPageHeader(descriptor.pageHeader, view),
-      renderActions(descriptor.actions, view, "Surface actions"),
+      renderPageHeader(descriptor.pageHeader, view, state),
+      renderActions(descriptor.actions, view, "Surface actions", state),
       renderFilters(descriptor.filters, view),
       renderDataStatus(state, view),
     ].filter(Boolean);
@@ -117,7 +139,7 @@
     return children.filter(Boolean);
   }
 
-  function renderPageHeader(pageHeader, view) {
+  function renderPageHeader(pageHeader, view, state) {
     if (!pageHeader) {
       return null;
     }
@@ -125,7 +147,7 @@
     return view.createPageHeader({
       title: pageHeader.title || pageHeader.label || "Untitled view",
       subtitle: pageHeader.description,
-      actions: pageHeader.primaryAction ? [normalizeAction(pageHeader.primaryAction)] : [],
+      actions: pageHeader.primaryAction ? [normalizeAction(pageHeader.primaryAction, state)] : [],
     });
   }
 
@@ -155,6 +177,13 @@
       });
     }
 
+    if (state.actionError) {
+      return view.createStatusMessage({
+        message: state.actionError.message || "Action could not be completed.",
+        tone: "danger",
+      });
+    }
+
     return null;
   }
 
@@ -166,34 +195,34 @@
 
     return view.createCollapsibleIndexPanel({
       title: indexPanel.title || indexPanel.label || "Index",
-      body: records.length > 0 ? records.map((record) => renderIndexItem(indexPanel, record, view)) : [
-        renderPlaceholder(
-          indexPanel.emptyState?.title || "No records",
-          indexPanel.emptyState,
-          view,
-        ),
-      ],
+      body: records.length > 0
+        ? [view.createIndexList({
+          ariaLabel: indexPanel.title || indexPanel.label || "Index",
+          items: records.map((record) => buildIndexItem(indexPanel, record)),
+        })]
+        : [
+          renderPlaceholder(
+            indexPanel.emptyState?.title || "No records",
+            indexPanel.emptyState,
+            view,
+          ),
+        ],
       open: indexPanel.open,
     });
   }
 
-  function renderIndexItem(indexPanel, record, view) {
+  function buildIndexItem(indexPanel, record) {
     const title = readDescriptorValue(record, indexPanel.itemTitleField, record.title || record.label || record.id || "Record");
     const subtitle = readDescriptorValue(record, indexPanel.itemSubtitleField, "");
     const meta = (indexPanel.itemMetaFields || [])
       .map((field) => readDescriptorValue(record, field, ""))
-      .filter(Boolean)
-      .join(" - ");
+      .filter(Boolean);
 
-    return view.createElement("article", {
-      className: "view-renderer-index-item surface-card",
-      attrs: { "data-view-record-id": record.id || "" },
-      children: [
-        view.createElement("strong", { text: title }),
-        subtitle ? view.createElement("p", { text: subtitle }) : null,
-        meta ? view.createElement("small", { text: meta }) : null,
-      ],
-    });
+    return {
+      id: record.id || "",
+      label: title,
+      meta: [subtitle, ...meta].filter(Boolean),
+    };
   }
 
   function renderTableShell(table, view, state) {
@@ -222,7 +251,7 @@
 
     const children = [
       renderDetailHeader(detail.header, view, state.selectedRecord),
-      renderActions(detail.actionStrip?.actions, view, detail.actionStrip?.label || "Detail actions"),
+      renderActions(detail.actionStrip?.actions, view, detail.actionStrip?.label || "Detail actions", state),
       renderSummaryPanels(detail.summaryPanels, view, state.selectedRecord),
       renderFieldGridShell(detail.itemForm, view, state.selectedRecord),
       renderItemCollection(detail.itemRows, view, state.selectedRecord) ||
@@ -313,18 +342,18 @@
     return modals.map((modal) => view.createModalForm({
       title: modal.title || modal.label || "Modal",
       fields: (modal.fields || []).map((field) => renderFieldShell(field, view)),
-      actions: [...(modal.footerActions || []), ...(modal.actions || [])].map(normalizeAction),
+      actions: [...(modal.footerActions || []), ...(modal.actions || [])].map((action) => normalizeAction(action)),
     }));
   }
 
-  function renderActions(actions, view, ariaLabel) {
+  function renderActions(actions, view, ariaLabel, state = null) {
     if (!Array.isArray(actions) || actions.length === 0) {
       return null;
     }
 
     return view.createDetailActionStrip({
       ariaLabel,
-      actions: actions.map(normalizeAction),
+      actions: actions.map((action) => normalizeAction(action, state)),
     });
   }
 
@@ -424,13 +453,141 @@
     });
   }
 
-  function normalizeAction(action = {}) {
+  function normalizeAction(action = {}, state = null) {
     return {
       label: action.label || action.id || "Action",
       role: action.role,
       action: action.behavior || action.id,
-      disabled: true,
+      disabled: !state,
+      onClick: state ? () => runDescriptorAction(action, state) : undefined,
     };
+  }
+
+  async function runDescriptorAction(action = {}, state) {
+    try {
+      state.actionError = null;
+      if (action.confirm && !(await confirmDescriptorAction(action))) {
+        return;
+      }
+      assertActionPermissions(action);
+
+      if (action.route) {
+        await runRouteAction(action, state);
+        await state.surface.refresh();
+        return;
+      }
+
+      if (action.behavior) {
+        await runBehaviorAction(action, state);
+        return;
+      }
+
+      if (action.modalId || action.modal) {
+        openDescriptorModal(state, action.modalId || action.modal, state.selectedRecord);
+        return;
+      }
+    } catch (error) {
+      state.actionError = error;
+      rerenderState(state);
+    }
+  }
+
+  async function confirmDescriptorAction(action) {
+    const message = typeof action.confirm === "string"
+      ? action.confirm
+      : `Continue with ${action.label || action.id || "this action"}?`;
+    if (root.modal?.confirm) {
+      return root.modal.confirm({ title: action.label || "Confirm action", message });
+    }
+    if (typeof global.confirm === "function") {
+      return global.confirm(message);
+    }
+    return true;
+  }
+
+  async function runRouteAction(action, state) {
+    const api = requireApiClient();
+    const method = String(action.method || "POST").toUpperCase();
+
+    if (method === "GET") {
+      await api.getJson(action.route, { cache: "no-store" });
+    } else if (method === "POST") {
+      await api.postJson(action.route, action.payload || {});
+    } else if (method === "PUT") {
+      await api.putJson(action.route, action.payload || {});
+    } else if (method === "PATCH") {
+      if (typeof api.patchJson !== "function") {
+        throw new Error("PATCH route actions require LongtailForge.api.patchJson.");
+      }
+      await api.patchJson(action.route, action.payload || {});
+    } else if (method === "DELETE") {
+      await api.deleteJson(action.route);
+    } else {
+      throw new Error(`Unsupported action method: ${method}`);
+    }
+
+    state.actionError = null;
+  }
+
+  function assertActionPermissions(action) {
+    const requiredPermissions = action.requiredPermissions || [];
+    const grantedPermissions = root.workspaceContext?.permissionIds || root.workspaceContext?.permissions;
+    if (!Array.isArray(requiredPermissions) || requiredPermissions.length === 0 || !Array.isArray(grantedPermissions)) {
+      return;
+    }
+
+    const granted = new Set(grantedPermissions);
+    const missing = requiredPermissions.filter((permissionId) => !granted.has(permissionId));
+    if (missing.length > 0) {
+      throw new Error("You do not have permission to run this action.");
+    }
+  }
+
+  async function runBehaviorAction(action, state) {
+    const handler = behaviors.get(action.behavior);
+    if (!handler) {
+      throw new Error(`Missing view behavior handler: ${action.behavior}`);
+    }
+
+    await handler({
+      action,
+      api: requireApiClient(),
+      openModal: (modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
+      record: state.selectedRecord,
+      refresh: state.surface.refresh,
+      workspaceContext: root.workspaceContext || {},
+    });
+    state.actionError = null;
+    rerenderState(state);
+  }
+
+  function openDescriptorModal(state, modalId, record = null) {
+    const modal = (state.descriptor.modals || []).find((candidate) => candidate.id === modalId);
+    if (!modal) {
+      throw new Error(`Descriptor modal not found: ${modalId}`);
+    }
+
+    const dialog = state.view.createModalForm({
+      title: modal.title || modal.label || "Modal",
+      fields: (modal.fields || []).map((field) => renderFieldShell(field, state.view, {
+        value: readDescriptorValue(record, field.field, field.default || ""),
+      })),
+      actions: [...(modal.footerActions || []), ...(modal.actions || [])].map((action) => normalizeAction(action, state)),
+    });
+    const parent = global.document?.body || state.surface;
+    parent.appendChild(dialog);
+    if (typeof dialog.showModal === "function") {
+      dialog.showModal();
+    }
+    return dialog;
+  }
+
+  function rerenderState(state) {
+    const body = state.surface?.querySelector?.(".view-renderer-body") || state.surface?.firstChild;
+    if (!body) {
+      return;
+    }
+    renderInto(body, renderLayout(state.descriptor, state.view, state));
   }
 
   function inputTypeFor(type) {
@@ -457,6 +614,7 @@
       "createEmptyState",
       "createFieldGrid",
       "createFilterPanel",
+      "createIndexList",
       "createInfoPanel",
       "createModalForm",
       "createPageHeader",
@@ -479,6 +637,7 @@
 
   root.view = Object.freeze({
     ...(root.view || {}),
+    registerBehavior,
     renderSurface,
   });
   global.LongtailForge = root;

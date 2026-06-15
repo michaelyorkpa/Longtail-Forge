@@ -57,7 +57,7 @@ const archiveFilter = document.querySelector("[data-list-filter-archive]");
 const sortSelect = document.querySelector("[data-list-sort]");
 const indexPanel = document.querySelector("[data-lists-index-panel]");
 const countLabel = document.querySelector("[data-lists-count]");
-const listTableBody = document.querySelector("[data-lists-list]");
+const listMount = document.querySelector("[data-lists-list]");
 const detailPanel = document.querySelector("[data-list-detail]");
 const listDialog = document.querySelector("[data-list-dialog]");
 const listForm = document.querySelector("[data-list-form]");
@@ -195,22 +195,16 @@ function createListsFilterPanel() {
 }
 
 function createListsIndexPanel() {
-  const table = view.createDataTable({
-    columns: ["List", "Status", "Type", "Needed", "Items"],
-    rows: [],
-    emptyMessage: "Loading lists...",
-    className: "lists-index-content",
-    tableClassName: "list-table lists-table",
-  });
-  table.dataset.listsIndexContent = "";
-  table.querySelector("tbody").dataset.listsList = "";
+  const mount = view.createElement("div", { className: "lists-index-content" });
+  mount.dataset.listsIndexContent = "";
+  mount.dataset.listsList = "";
 
   const panel = view.createCollapsibleIndexPanel({
     title: "Lists",
     open: true,
     ariaLabel: "List index",
     className: "lists-index-panel",
-    children: [table],
+    children: [mount],
   });
   panel.dataset.listsIndexPanel = "";
 
@@ -458,7 +452,6 @@ function renderLists() {
   const lists = state.lists;
 
   countLabel.textContent = `${lists.length} ${lists.length === 1 ? "List" : "Lists"}`;
-  listTableBody.replaceChildren();
 
   if (lists.length === 0) {
     renderListPlaceholder(emptyListMessage());
@@ -468,7 +461,10 @@ function renderLists() {
     return;
   }
 
-  lists.forEach((list) => listTableBody.appendChild(createListRow(list)));
+  listMount.replaceChildren(view.createIndexList({
+    ariaLabel: "List index",
+    items: lists.map(listIndexItem),
+  }));
 
   if (!selectedList() || !lists.some((list) => list.list_id === state.selectedListId)) {
     selectList(lists[0].list_id, { updateUrl: false });
@@ -477,53 +473,39 @@ function renderLists() {
   }
 }
 
-function createListRow(list) {
-  const row = document.createElement("tr");
-  const titleCell = document.createElement("td");
-  const titleButton = document.createElement("button");
-  const badges = document.createElement("span");
-  const meta = document.createElement("span");
-  const description = document.createElement("span");
-  const linked = document.createElement("span");
-  const timeline = document.createElement("span");
-  const costs = document.createElement("span");
-  const summary = document.createElement("span");
-  const statusCell = document.createElement("td");
-  const typeCell = document.createElement("td");
-  const neededCell = document.createElement("td");
-  const itemsCell = document.createElement("td");
+function listIndexItem(list) {
+  const typeLabel = LIST_TYPE_LABELS[list.list_type] || list.list_type || "";
+  const needed = nextNeededDate(list);
+  const chips = [
+    statusBadge(list.status),
+    typeLabel,
+    needed ? `Needed ${needed}` : "",
+    itemSummary(list),
+    ...listBadges(list),
+  ];
+  const stateSummary = view.createElement("span", {
+    className: ["view-index-list-meta", "lists-state-summary"],
+    text: compactStateSummary(list),
+  });
+  stateSummary.dataset.listStateSummary = "";
 
-  row.dataset.listId = list.list_id;
-  row.className = list.list_id === state.selectedListId ? "is-selected" : "";
-  titleButton.type = "button";
-  titleButton.className = "lists-row-title";
-  titleButton.textContent = list.title || "Untitled list";
-  titleButton.addEventListener("click", () => selectList(list.list_id));
-  badges.className = "lists-badges";
-  badges.append(...listBadges(list));
-  meta.className = "lists-row-meta";
-  meta.textContent = listContextLabel(list);
-  description.className = "lists-row-meta";
-  description.textContent = listDescriptionExcerpt(list);
-  description.hidden = !description.textContent;
-  linked.className = "lists-row-meta";
-  linked.textContent = linkedRecordSummary(list);
-  linked.hidden = !linked.textContent;
-  timeline.className = "lists-row-meta";
-  timeline.textContent = listTimelineSummary(list);
-  costs.className = "lists-row-meta";
-  costs.textContent = listCostSummary(list);
-  costs.hidden = !costs.textContent;
-  summary.className = "lists-state-summary";
-  summary.dataset.listStateSummary = "";
-  summary.textContent = compactStateSummary(list);
-  titleCell.append(titleButton, badges, meta, description, linked, timeline, costs, summary);
-  statusCell.appendChild(statusBadge(list.status));
-  typeCell.textContent = LIST_TYPE_LABELS[list.list_type] || list.list_type || "";
-  neededCell.textContent = nextNeededDate(list) || "-";
-  itemsCell.textContent = itemSummary(list);
-  row.append(titleCell, statusCell, typeCell, neededCell, itemsCell);
-  return row;
+  const meta = [
+    listContextLabel(list),
+    listDescriptionExcerpt(list),
+    linkedRecordSummary(list),
+    listTimelineSummary(list),
+    listCostSummary(list),
+    stateSummary,
+  ];
+
+  return {
+    id: list.list_id,
+    label: list.title || "Untitled list",
+    selected: list.list_id === state.selectedListId,
+    onSelect: () => selectList(list.list_id),
+    chips,
+    meta,
+  };
 }
 
 function selectList(listId, options = {}) {
@@ -539,8 +521,14 @@ function selectList(listId, options = {}) {
   }
   renderDetail(selectedList());
   collapseIndexAfterSelection();
-  listTableBody.querySelectorAll("tr").forEach((row) => {
-    row.classList.toggle("is-selected", row.dataset.listId === state.selectedListId);
+  listMount.querySelectorAll(".view-index-list-button").forEach((button) => {
+    const selected = button.dataset.viewIndexId === state.selectedListId;
+    button.classList.toggle("is-selected", selected);
+    if (selected) {
+      button.setAttribute("aria-current", "true");
+    } else {
+      button.removeAttribute("aria-current");
+    }
   });
 }
 
@@ -1313,12 +1301,12 @@ function normalizeListProgress(progress = {}, items = []) {
 }
 
 function renderListPlaceholder(message) {
-  const row = document.createElement("tr");
-  const cell = document.createElement("td");
-  cell.colSpan = 5;
-  cell.textContent = message;
-  row.appendChild(cell);
-  listTableBody.replaceChildren(row);
+  const placeholder = view.createElement("p", {
+    className: "view-index-list-empty",
+    text: message,
+    attrs: { role: "status", "aria-live": "polite" },
+  });
+  listMount.replaceChildren(placeholder);
 }
 
 function emptyListMessage() {

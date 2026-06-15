@@ -1,3 +1,16 @@
+## Version 0.33.5.16.8 - 2026-06-15 13:02 -04:00
+
+- Added declarative view action support with `LongtailForge.view.registerBehavior(id, handler)`, route-action execution through the shared API client, confirm handling, optional browser-visible permission metadata checks, and recoverable action errors.
+- Added framework-owned descriptor modal opening through action context `openModal` while keeping modules responsible for field meaning, validation, save payloads, and workflows.
+- Added `view-renderer-actions-regression.mjs`, wired it into the regression suite, updated roadmap/decisions metadata, and bumped package/app metadata to `0.33.5.16.8`.
+
+## Version 0.33.5.16.7 - 2026-06-15 12:51 -04:00
+
+- Added a framework `LongtailForge.view.createIndexList` primitive for split-layout selectors: single-column, keyboard-selectable rows with a primary label, optional status/metadata chip row, optional secondary meta lines, selected/`aria-current` state, safe text, and module-owned select callbacks.
+- Corrected the Lists pilot index that was rendered as a cramped multi-column data table in the narrow selector track: Lists now renders its selector through `createIndexList`, moving Status/Type/Needed/Items into chips and the remaining context into meta lines while preserving selection, routes, payloads, permissions, and workspace scope.
+- Made the framework `.view-split-list-detail` own column sizing and responsive collapse (and fill available width), removed the legacy one-off `.lists-workspace` grid that overrode it, and hardened `.view-data-table` cell wrapping. The descriptor renderer now builds `indexPanel` selectors through the shared primitive so the declarative path inherits the corrected selector.
+- Added `view-index-primitive-regression.mjs`, wired it into the regression suite, updated the affected Lists workflow regression to the framework split contract, recorded the decision, and bumped package/app metadata to `0.33.5.16.7`.
+
 ## Version 0.33.5.16.6 - 2026-06-15 12:07 -04:00
 
 - Added renderer data binding for declarative `viewSurfaces`, including shared API-client data-source loading, field-binding projection, and default loading, empty, and error states.

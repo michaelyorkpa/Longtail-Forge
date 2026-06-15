@@ -51,6 +51,7 @@
     getJson: (url, options = {}) => requestJson(url, { ...options, method: "GET" }),
     postJson: (url, body, options = {}) => requestJson(url, { ...options, method: "POST", body }),
     putJson: (url, body, options = {}) => requestJson(url, { ...options, method: "PUT", body }),
+    patchJson: (url, body, options = {}) => requestJson(url, { ...options, method: "PATCH", body }),
     deleteJson: (url, options = {}) => requestJson(url, { ...options, method: "DELETE" }),
   };
   window.LongtailForge = namespace;
