@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.5.14.2. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.5.14.3. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
@@ -86,6 +86,8 @@ Link creation, removal, and reads check both list access and linked-target acces
 Readable linked targets return permission-safe summaries with type, ID, label, module ID, source URL, and role. Inaccessible linked targets can remain present as unavailable placeholders without exposing labels or URLs.
 
 Linked tasks provide execution context without turning list items into task records. Linked notes provide reference context without making notes checklist storage.
+
+The protected Lists workspace uses a picker-based task link flow for task targets. It loads readable active task labels from the Tasks API, writes the selected task ID into the Lists-owned link payload, and keeps raw record ID entry only for non-task target types.
 
 ## Resume-Safe Context
 

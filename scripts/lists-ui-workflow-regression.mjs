@@ -33,7 +33,7 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
-  assert.equal(listsModule.version, "0.33.5.14.2");
+  assert.equal(listsModule.version, "0.33.5.14.3");
   assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
   assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
@@ -44,6 +44,7 @@ async function assertProtectedView(session) {
   const html = result.contents.toString("utf8");
   const listsJs = await fs.readFile(path.join(process.cwd(), "public/js/lists.js"), "utf8");
   const styles = await fs.readFile(path.join(process.cwd(), "public/css/longtail-forge.css"), "utf8");
+  const listsStyles = styles.slice(styles.indexOf(".lists-filters-panel"), styles.indexOf(".client-item"));
 
   assert.equal(result.statusCode, 200);
   assert.match(html, /data-lists-title/);
@@ -60,14 +61,19 @@ async function assertProtectedView(session) {
   assert.match(html, /data-list-context-control/);
   assert.match(html, /js\/shared\/icons\.js\?v=1/);
   assert.match(html, /js\/shared\/client-project-options\.js\?v=1/);
-  assert.match(html, /js\/lists\.js\?v=3/);
-  assert.match(html, /css\/longtail-forge\.css\?v=20/);
+  assert.match(html, /data-lists-index-panel/);
+  assert.match(html, /data-lists-index-content/);
+  assert.match(html, /<details class="lists-index-panel" data-lists-index-panel aria-label="List index" open>/);
+  assert.match(html, /js\/lists\.js\?v=4/);
+  assert.match(html, /css\/longtail-forge\.css\?v=21/);
 
   assert.match(listsJs, /\/api\/lists\?\$\{buildListQueryParams\(\)\}/);
   assert.match(listsJs, /params\.set\("status"/);
   assert.match(listsJs, /params\.set\("sort"/);
   assert.match(listsJs, /\/api\/client-projects/);
   assert.match(listsJs, /\/api\/users/);
+  assert.match(listsJs, /loadTaskLinkTargets/);
+  assert.match(listsJs, /\/api\/tasks\?status=active&sort=updated_desc/);
   assert.match(listsJs, /complete-list/);
   assert.match(listsJs, /finalize-list/);
   assert.match(listsJs, /duplicate-list/);
@@ -114,7 +120,16 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /applySuggestionSelection/);
   assert.match(listsJs, /Save as reusable item/);
   assert.match(listsJs, /createLinkedRecordsPanel/);
+  assert.match(listsJs, /linkTargetTypeOptions/);
+  assert.match(listsJs, /syncLinkPickerMode/);
+  assert.match(listsJs, /populateTaskLinkPicker/);
+  assert.match(listsJs, /taskLinkOptionLabel/);
+  assert.match(listsJs, /TASK_STATUS_LABELS/);
   assert.match(listsJs, /data-list-link-form/);
+  assert.match(listsJs, /listTaskPickerControl/);
+  assert.match(listsJs, /listRawLinkControl/);
+  assert.match(listsJs, /listTaskPicker/);
+  assert.match(listsJs, /Select a task to link/);
   assert.match(listsJs, /\/api\/lists\/\$\{encodeURIComponent\(listId\)\}\/links/);
   assert.match(listsJs, /remove-link/);
   assert.match(listsJs, /Linked Records/);
@@ -130,8 +145,12 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /actual_cost/);
   assert.match(listsJs, /tracking_id/);
   assert.match(listsJs, /formatCurrency/);
+  assert.match(listsJs, /constrainedListsLayout/);
+  assert.match(listsJs, /collapseIndexAfterSelection/);
+  assert.match(listsJs, /indexPanel\.open = false/);
 
   assert.match(styles, /\.lists-workspace/);
+  assert.match(styles, /\.lists-index-panel summary/);
   assert.match(styles, /\.lists-state-summary/);
   assert.match(styles, /\.lists-next-action/);
   assert.match(styles, /\.lists-next-action-facts/);
@@ -147,7 +166,14 @@ async function assertProtectedView(session) {
   assert.match(styles, /\.lists-badge\.is-bom/);
   assert.match(styles, /\.lists-badge\.is-duplicated/);
   assert.match(styles, /\.lists-item-form/);
+  assert.match(styles, /\.lists-item-actions button/);
   assert.match(styles, /\.lists-status-badge\.is-active/);
+  assert.match(styles, /@media \(max-width: 1366px\)[\s\S]*\.lists-workspace[\s\S]*grid-template-columns: 1fr/);
+  assert.match(styles, /@media \(max-width: 1366px\)[\s\S]*\.lists-detail-actions[\s\S]*flex-wrap: wrap/);
+  assert.match(styles, /@media \(max-width: 1366px\)[\s\S]*\.lists-link-form[\s\S]*repeat\(auto-fit, minmax\(180px, 1fr\)\)/);
+  assert.match(styles, /\.lists-next-action[\s\S]*background: var\(--color-surface-muted\)/);
+  assert.match(styles, /\.lists-source-context,[\s\S]*\.lists-cost-summary[\s\S]*background: var\(--color-surface-muted\)/);
+  assert.doesNotMatch(listsStyles, /#eff6ff|#f0fdfa|#fff7ed|#bfdbfe|#99f6e4|#fed7aa/);
   assert.match(styles, /@media \(max-width: 700px\)[\s\S]*\.lists-workspace/);
 }
 

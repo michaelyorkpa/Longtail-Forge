@@ -1,3 +1,11 @@
+## Version 0.33.5.14.3 - 2026-06-15 02:22 -04:00
+
+- Fixed the Lists workspace constrained layout so the selector/index moves below filters at 1366px and narrower, starts open, and collapses after a selected list renders.
+- Made Lists detail actions, item entry fields, item row actions, and linked-record controls wrap inside their panels instead of forcing horizontal page overflow.
+- Retokened Lists Next, Source, Cost, badge, and status summary surfaces so they respect dark mode and shared surface colors.
+- Replaced normal linked task UUID entry with a task picker backed by readable active task results while keeping raw record ID entry available for non-task link targets.
+- Added focused Lists UI regression coverage for the collapsible index, responsive action wrapping, dark-token usage, task picker behavior, refreshed cache keys, and bumped package/app plus Lists module metadata to `0.33.5.14.3`.
+
 ## Version 0.33.5.14.2 - 2026-06-15 00:49 -04:00
 
 - Hid Business-only `clients:*` public API key scopes outside Business workspaces while preserving truthful project scopes for workspace projects.

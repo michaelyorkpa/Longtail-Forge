@@ -24,6 +24,13 @@ const PURCHASE_STATUS_LABELS = {
   planned: "Planned",
   received: "Received",
 };
+const TASK_STATUS_LABELS = {
+  archived: "Archived",
+  blocked: "Blocked",
+  complete: "Complete",
+  in_progress: "In Progress",
+  open: "Open",
+};
 const LIST_LINK_TYPE_LABELS = {
   client: "Client",
   note: "Note",
@@ -44,6 +51,7 @@ const assigneeFilter = document.querySelector("[data-list-filter-assignee]");
 const neededFilter = document.querySelector("[data-list-filter-needed]");
 const archiveFilter = document.querySelector("[data-list-filter-archive]");
 const sortSelect = document.querySelector("[data-list-sort]");
+const indexPanel = document.querySelector("[data-lists-index-panel]");
 const countLabel = document.querySelector("[data-lists-count]");
 const listTableBody = document.querySelector("[data-lists-list]");
 const detailPanel = document.querySelector("[data-list-detail]");
@@ -67,9 +75,12 @@ let state = {
   itemSuggestions: new Map(),
   lists: [],
   selectedListId: new URLSearchParams(window.location.search).get("list") || "",
+  taskLinkTargets: [],
   users: [],
   workspaceType: "business",
 };
+
+const constrainedListsLayout = window.matchMedia("(max-width: 1366px)");
 
 createButton?.addEventListener("click", () => openListDialog());
 filtersForm?.addEventListener("change", () => refreshLists());
@@ -123,12 +134,14 @@ function applyWorkspaceContext() {
 }
 
 async function loadOptions() {
-  const [clientProjects, users] = await Promise.all([
+  const [clientProjects, users, taskLinkTargets] = await Promise.all([
     loadClientProjects(),
     loadUsers(),
+    loadTaskLinkTargets(),
   ]);
 
   state.clients = window.LongtailForge.clientProjectOptions.normalizeClients(clientProjects);
+  state.taskLinkTargets = taskLinkTargets;
   state.users = users.users || [];
 }
 
@@ -145,6 +158,15 @@ async function loadUsers() {
     return await api.getJson("/api/users", { cache: "no-store" });
   } catch {
     return { users: [] };
+  }
+}
+
+async function loadTaskLinkTargets() {
+  try {
+    const result = await api.getJson("/api/tasks?status=active&sort=updated_desc", { cache: "no-store" });
+    return result.tasks || [];
+  } catch {
+    return [];
   }
 }
 
@@ -308,9 +330,16 @@ function selectList(listId, options = {}) {
     window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
   }
   renderDetail(selectedList());
+  collapseIndexAfterSelection();
   listTableBody.querySelectorAll("tr").forEach((row) => {
     row.classList.toggle("is-selected", row.dataset.listId === state.selectedListId);
   });
+}
+
+function collapseIndexAfterSelection() {
+  if (indexPanel && constrainedListsLayout.matches && state.selectedListId) {
+    indexPanel.open = false;
+  }
 }
 
 function openListFromUrl() {
@@ -513,13 +542,14 @@ function createLinkedRecordsPanel(list, locked) {
   const title = document.createElement("h3");
   const records = document.createElement("div");
   const form = document.createElement("form");
-  const targetType = selectField("Type", "target_type", [
-    option("task", "Task"),
-    option("note", "Note"),
-    option("project", "Project"),
-    option("client", "Client"),
-  ]);
-  const targetId = inputField("Record ID", "text", "target_id", { required: true });
+  const targetType = selectField("Type", "target_type", linkTargetTypeOptions());
+  const taskSearch = inputField("Search tasks", "search", "task_search", { autocomplete: "off", placeholder: "Search tasks" });
+  const taskPicker = selectField("Task", "task_picker", []);
+  const targetId = inputField("Record ID", "text", "target_id", { required: true, placeholder: "Paste record ID" });
+  const targetTypeSelect = targetType.querySelector("select");
+  const taskSearchInput = taskSearch.querySelector("input");
+  const taskPickerSelect = taskPicker.querySelector("select");
+  const targetIdInput = targetId.querySelector("input");
   const submit = document.createElement("button");
 
   section.className = "lists-links-panel";
@@ -538,11 +568,94 @@ function createLinkedRecordsPanel(list, locked) {
   form.dataset.listLinkForm = "";
   form.dataset.listId = list.list_id;
   form.hidden = locked;
+  taskSearch.dataset.listTaskPickerControl = "";
+  taskPicker.dataset.listTaskPickerControl = "";
+  targetId.dataset.listRawLinkControl = "";
+  taskPickerSelect.dataset.listTaskPicker = "";
   submit.type = "submit";
   submit.textContent = "Add Link";
-  form.append(targetType, targetId, submit);
+  taskSearchInput.addEventListener("input", () => populateTaskLinkPicker(taskPickerSelect, taskSearchInput.value));
+  taskPickerSelect.addEventListener("change", () => {
+    targetIdInput.value = taskPickerSelect.value;
+  });
+  targetTypeSelect.addEventListener("change", () => {
+    targetIdInput.value = "";
+    syncLinkPickerMode(form);
+  });
+  form.append(targetType, taskSearch, taskPicker, targetId, submit);
+  populateTaskLinkPicker(taskPickerSelect);
+  syncLinkPickerMode(form);
   section.append(title, records, form);
   return section;
+}
+
+function linkTargetTypeOptions() {
+  return [
+    option("task", "Task"),
+    option("note", "Note"),
+    option("project", "Project"),
+    ...(usesBusinessScope() ? [option("client", "Client")] : []),
+  ];
+}
+
+function syncLinkPickerMode(form) {
+  const targetType = form.elements.target_type?.value || "task";
+  const taskControls = form.querySelectorAll("[data-list-task-picker-control]");
+  const rawControl = form.querySelector("[data-list-raw-link-control]");
+  const targetIdInput = form.elements.target_id;
+  const taskPicker = form.elements.task_picker;
+  const usesTaskPicker = targetType === "task";
+
+  taskControls.forEach((control) => {
+    control.hidden = !usesTaskPicker;
+  });
+  if (rawControl) {
+    rawControl.hidden = usesTaskPicker;
+  }
+  if (targetIdInput) {
+    targetIdInput.required = !usesTaskPicker;
+    targetIdInput.value = usesTaskPicker ? taskPicker?.value || "" : targetIdInput.value;
+  }
+}
+
+function populateTaskLinkPicker(select, search = "") {
+  if (!select) {
+    return;
+  }
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const tasks = state.taskLinkTargets
+    .filter((task) => taskMatchesLinkSearch(task, normalizedSearch))
+    .slice(0, 40);
+
+  replaceOptions(select, [
+    option("", tasks.length > 0 ? "Select a task" : "No matching tasks"),
+    ...tasks.map((task) => option(task.task_id, taskLinkOptionLabel(task))),
+  ]);
+  if (select.form?.elements.target_type?.value === "task" && select.form.elements.target_id) {
+    select.form.elements.target_id.value = select.value;
+  }
+}
+
+function taskMatchesLinkSearch(task, search) {
+  if (!search) {
+    return true;
+  }
+
+  return [
+    task.title,
+    task.client_name,
+    task.project_name,
+    task.status,
+    task.priority,
+    task.due_date,
+  ].some((value) => String(value || "").toLowerCase().includes(search));
+}
+
+function taskLinkOptionLabel(task = {}) {
+  const context = [task.client_name, task.project_name].filter(Boolean).join(" / ");
+  const meta = [context, TASK_STATUS_LABELS[task.status] || task.status, task.due_date ? `due ${task.due_date}` : ""].filter(Boolean).join(" - ");
+  return `${task.title || "Untitled task"}${meta ? ` (${meta})` : ""}`;
 }
 
 function createLinkItem(list, link, locked) {
@@ -717,6 +830,10 @@ async function handleDetailSubmit(event) {
     const form = event.target;
     const listId = form.dataset.listId;
     const payload = Object.fromEntries(new FormData(form).entries());
+    if (payload.target_type === "task" && !payload.target_id) {
+      setStatus("Select a task to link.", true);
+      return;
+    }
 
     try {
       setStatus("Adding link...");

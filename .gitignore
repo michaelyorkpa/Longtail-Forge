@@ -18,8 +18,9 @@ archive/
 # Ignore the logo concepts image file
 images/logo-concepts.png
 
-# Ignore the .vscode directory which may contain user-specific settings
+# Ignore the .vscode and .claude directories which may contain user-specific settings
 .vscode/
+.claude/
 
 # Ignore environment variable files and database files
 .env
@@ -35,3 +36,4 @@ AGENTS.md
 DECISIONS.md
 CODEREVIEW.md
 ROADMAP-ARCHIVE.md
+ui-upgrade.md

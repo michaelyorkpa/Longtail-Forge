@@ -4543,19 +4543,30 @@ dialog .form-actions {
 .lists-filters-panel,
 .lists-index-panel,
 .lists-detail-panel {
+    min-width: 0;
     padding: 16px;
     border: 1px solid var(--color-border);
     border-radius: 8px;
     background: var(--color-surface);
 }
 
-.lists-filters-panel summary {
+.lists-filters-panel summary,
+.lists-index-panel summary {
     cursor: pointer;
     font-weight: 700;
 }
 
-.lists-filters-panel[open] summary {
+.lists-filters-panel[open] summary,
+.lists-index-panel[open] summary {
     margin-bottom: 12px;
+}
+
+.lists-index-panel summary {
+    color: var(--color-text-secondary);
+}
+
+.lists-index-content {
+    min-width: 0;
 }
 
 .lists-filters,
@@ -4596,7 +4607,19 @@ dialog .form-actions {
     justify-content: space-between;
 }
 
+.lists-detail-header {
+    align-items: flex-start;
+}
+
 .lists-detail-heading {
+    flex: 1 1 260px;
+    min-width: 0;
+}
+
+.lists-detail-actions {
+    flex: 1 1 260px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     min-width: 0;
 }
 
@@ -4656,21 +4679,21 @@ dialog .form-actions {
 }
 
 .lists-badge.is-reusable {
-    border-color: #facc15;
-    background: #fef9c3;
-    color: #854d0e;
+    border-color: var(--color-border-strong);
+    background: var(--color-surface-muted);
+    color: var(--color-text-secondary);
 }
 
 .lists-badge.is-bom {
-    border-color: #a5b4fc;
-    background: #eef2ff;
-    color: #3730a3;
+    border-color: var(--color-accent);
+    background: var(--color-surface-muted);
+    color: var(--color-accent);
 }
 
 .lists-badge.is-duplicated {
-    border-color: #99f6e4;
-    background: #f0fdfa;
-    color: #115e59;
+    border-color: var(--color-success);
+    background: var(--color-success-bg);
+    color: var(--color-success-text);
 }
 
 .lists-table tr.is-selected td {
@@ -4692,29 +4715,29 @@ dialog .form-actions {
 }
 
 .lists-status-badge.is-active {
-    border-color: #86efac;
-    background: #ecfdf5;
-    color: #166534;
+    border-color: var(--color-success);
+    background: var(--color-success-bg);
+    color: var(--color-success-text);
 }
 
 .lists-status-badge.is-completed {
-    border-color: #93c5fd;
-    background: #eff6ff;
-    color: #1d4ed8;
+    border-color: var(--color-accent);
+    background: var(--color-surface-muted);
+    color: var(--color-accent);
 }
 
 .lists-status-badge.is-finalized {
-    border-color: #cbd5e1;
-    background: #f8fafc;
-    color: #334155;
+    border-color: var(--color-border-strong);
+    background: var(--color-surface-muted);
+    color: var(--color-text-secondary);
 }
 
 .lists-status-badge.is-archived,
 .lists-status-badge.is-deleted,
 .lists-readonly-badge {
-    border-color: #fecaca;
-    background: #fef2f2;
-    color: #991b1b;
+    border-color: var(--color-danger-border);
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
 }
 
 .lists-next-action {
@@ -4722,10 +4745,10 @@ dialog .form-actions {
     gap: 8px;
     margin: 14px 0;
     padding: 12px;
-    border: 1px solid #bfdbfe;
+    border: 1px solid var(--color-border);
     border-radius: 8px;
-    background: #eff6ff;
-    color: #1e3a8a;
+    background: var(--color-surface-muted);
+    color: var(--color-text);
 }
 
 .lists-next-action strong {
@@ -4745,10 +4768,10 @@ dialog .form-actions {
     align-items: center;
     min-height: 22px;
     padding: 2px 8px;
-    border: 1px solid #bfdbfe;
+    border: 1px solid var(--color-border);
     border-radius: 999px;
-    background: #ffffff;
-    color: #1e40af;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
     font-size: 0.78rem;
     font-weight: 700;
 }
@@ -4759,16 +4782,16 @@ dialog .form-actions {
     gap: 6px;
     margin: 0 0 14px;
     padding: 10px 12px;
-    border: 1px solid #99f6e4;
+    border: 1px solid var(--color-border);
     border-radius: 8px;
-    background: #f0fdfa;
-    color: #115e59;
+    background: var(--color-surface-muted);
+    color: var(--color-text);
 }
 
 .lists-cost-summary {
-    border-color: #fed7aa;
-    background: #fff7ed;
-    color: #9a3412;
+    border-color: var(--color-border);
+    background: var(--color-surface-muted);
+    color: var(--color-text);
 }
 
 .lists-source-context strong,
@@ -4816,7 +4839,7 @@ dialog .form-actions {
 
 .lists-link-form {
     display: grid;
-    grid-template-columns: minmax(120px, 0.5fr) minmax(180px, 1fr) auto;
+    grid-template-columns: minmax(120px, 0.5fr) minmax(180px, 1fr) minmax(220px, 1fr) minmax(180px, 1fr) auto;
     gap: 10px;
     align-items: end;
 }
@@ -4893,12 +4916,13 @@ dialog .form-actions {
 }
 
 .lists-item-actions {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
 }
 
 .lists-item-actions button {
-    min-width: 58px;
+    min-width: 52px;
     padding-inline: 8px;
+    white-space: normal;
 }
 
 .lists-dialog {
@@ -4908,6 +4932,67 @@ dialog .form-actions {
 .lists-form {
     display: grid;
     gap: 14px;
+}
+
+@media (max-width: 1366px) {
+    .lists-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .lists-index-panel,
+    .lists-detail-panel {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    .lists-detail-header {
+        display: grid;
+        grid-template-columns: 1fr;
+        align-items: start;
+    }
+
+    .lists-detail-actions {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .lists-detail-actions button,
+    .lists-link-item button,
+    .lists-item-actions button {
+        flex: 1 1 92px;
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    .lists-item-form {
+        grid-template-columns: repeat(auto-fit, minmax(136px, 1fr));
+    }
+
+    .lists-item-form label:first-child {
+        grid-column: span 2;
+    }
+
+    .lists-link-form {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .lists-link-form button,
+    .lists-item-form > button {
+        justify-self: stretch;
+    }
+
+    .lists-source-context,
+    .lists-cost-summary,
+    .lists-next-action {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .lists-items-table {
+        min-width: 680px;
+    }
 }
 
 .client-item {
@@ -5770,6 +5855,7 @@ button:disabled {
 
     .lists-item-advanced[open],
     .lists-item-advanced-fields,
+    .lists-item-form label:first-child,
     .lists-item-advanced-fields label:last-child {
         grid-column: auto;
     }

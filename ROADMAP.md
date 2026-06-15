@@ -81,20 +81,20 @@ Keep this release focused on visible breakages, responsive layout failures, dark
 
 ### Version 0.33.5.14.3 - Lists Emergency Responsive and Dark Mode Pass
 
-- [ ] Fix Actions -> Procurement/Shopping Lists overflow at 1366px wide screens.
-- [ ] Convert the list detail action area to a wrapping or overflow-safe action strip.
-- [ ] Ensure Duplicate, Edit, Complete, Finalize, Reopen, Archive, Delete, Restore, and reusable-list actions cannot overflow the detail panel.
-- [ ] Fix item entry layout so fields do not run off-screen.
-- [ ] Ensure item action buttons wrap, collapse, or use compact controls on constrained screens.
-- [ ] Fix Next, Source, Cost, and related summary panels so they use existing surface tokens and respect dark mode.
-- [ ] Move the list selector/index above the selected list detail and directly below filters on constrained screens.
-- [ ] Ensure the list selector/index matches the filter width on constrained screens.
-- [ ] Make the list selector/index collapsible.
-- [ ] The list selector/index should start open.
-- [ ] Once a list is selected, the selector/index should collapse on constrained screens.
-- [ ] Ensure the selected list detail can use the full available content width once the selector/index collapses on constrained screens.
-- [ ] Replace linked task UUID entry with a picker-based workflow consistent with the existing Notes linked-record picker pattern or the confirmed shared picker direction.
-- [ ] Add focused static or DOM regressions for overflow-safe Lists actions and dark-mode token usage.
+- [x] Fix Actions -> Procurement/Shopping Lists overflow at 1366px wide screens.
+- [x] Convert the list detail action area to a wrapping or overflow-safe action strip.
+- [x] Ensure Duplicate, Edit, Complete, Finalize, Reopen, Archive, Delete, Restore, and reusable-list actions cannot overflow the detail panel.
+- [x] Fix item entry layout so fields do not run off-screen.
+- [x] Ensure item action buttons wrap, collapse, or use compact controls on constrained screens.
+- [x] Fix Next, Source, Cost, and related summary panels so they use existing surface tokens and respect dark mode.
+- [x] Move the list selector/index above the selected list detail and directly below filters on constrained screens.
+- [x] Ensure the list selector/index matches the filter width on constrained screens.
+- [x] Make the list selector/index collapsible.
+- [x] The list selector/index should start open.
+- [x] Once a list is selected, the selector/index should collapse on constrained screens.
+- [x] Ensure the selected list detail can use the full available content width once the selector/index collapses on constrained screens.
+- [x] Replace linked task UUID entry with a picker-based workflow consistent with the existing Notes linked-record picker pattern or the confirmed shared picker direction.
+- [x] Add focused static or DOM regressions for overflow-safe Lists actions and dark-mode token usage.
 
 ### Version 0.33.5.14.4 - Notes Tag Inheritance and API Key Scope Visibility Corrections
 
