@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const version = "0.33.5.15.6";
-const appVersion = "0.33.5.16.1";
+const appVersion = "0.33.5.16.2";
 const roadmap = readText("ROADMAP.md");
 const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");

@@ -110,6 +110,7 @@ const VIEW_ACTION_FIELDS = new Set([
   "requiredPermissions",
   "behavior",
 ]);
+const VIEW_ACTION_ROLES = new Set(["primary", "secondary", "destructive", "utility"]);
 const CORE_PERMISSION_IDS = new Set([
   "files.view",
   "files.upload",
@@ -230,6 +231,8 @@ function validateModuleManifests(moduleDefinitions) {
   const allAttachableTypes = new Set();
   const allPermissionIds = new Set(CORE_PERMISSION_IDS);
   const allResolverIds = new Set(listTagPropagationResolverIds());
+  const allProtectedViewKeys = new Set();
+  const allViewSurfaceIds = new Set();
 
   for (const moduleDefinition of moduleDefinitions) {
     if (moduleDefinition?.id) {
@@ -238,6 +241,19 @@ function validateModuleManifests(moduleDefinitions) {
       }
       seenIds.add(moduleDefinition.id);
       allModuleIds.add(moduleDefinition.id);
+    }
+    for (const protectedView of moduleDefinition?.protectedViews || []) {
+      if (moduleDefinition?.id && protectedView?.id) {
+        allProtectedViewKeys.add(`${moduleDefinition.id}:${protectedView.id}`);
+      }
+    }
+    for (const viewSurface of moduleDefinition?.viewSurfaces || []) {
+      if (viewSurface?.id) {
+        if (allViewSurfaceIds.has(viewSurface.id)) {
+          errors.push(`${moduleDefinition.id}: viewSurfaces id '${viewSurface.id}' is duplicated.`);
+        }
+        allViewSurfaceIds.add(viewSurface.id);
+      }
     }
     for (const taggableType of moduleDefinition?.taggableTypes || []) {
       if (taggableType?.targetType) {
@@ -273,6 +289,11 @@ function validateModuleManifests(moduleDefinitions) {
     errors.push(...validateAttachableTypeReferences(moduleDefinition, {
       allModuleIds,
       allPermissionIds,
+    }));
+    errors.push(...validateViewSurfaceReferences(moduleDefinition, {
+      allModuleIds,
+      allPermissionIds,
+      allProtectedViewKeys,
     }));
   }
 
@@ -397,6 +418,97 @@ function validateViewSurfaces(viewSurfaces, errors) {
     validateModalsDescriptor(surface.modals, `${prefix}.modals`, errors);
     validateActionsDescriptor(surface.actions, `${prefix}.actions`, errors);
   });
+}
+
+function validateViewSurfaceReferences(moduleDefinition, context) {
+  const errors = [];
+  const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
+  const descriptors = Array.isArray(moduleDefinition?.viewSurfaces) ? moduleDefinition.viewSurfaces : [];
+
+  descriptors.forEach((surface, index) => {
+    const prefix = `viewSurfaces[${index}]`;
+    const surfaceModuleId = surface?.moduleId || moduleDefinition?.id;
+
+    if (surface?.moduleId && !context.allModuleIds.has(surface.moduleId)) {
+      errors.push(`${moduleLabel}: ${prefix}.moduleId references unknown module '${surface.moduleId}'.`);
+    }
+    if (surfaceModuleId && surface?.viewId && !context.allProtectedViewKeys.has(`${surfaceModuleId}:${surface.viewId}`)) {
+      errors.push(`${moduleLabel}: ${prefix}.viewId references unknown protected view '${surfaceModuleId}:${surface.viewId}'.`);
+    }
+    validateViewRouteReference(surface?.dataSource?.route, `${prefix}.dataSource.route`, moduleLabel, errors);
+    validateViewMethodReference(surface?.dataSource?.method, `${prefix}.dataSource.method`, moduleLabel, errors);
+
+    for (const { action, prefix: actionPrefix } of listViewSurfaceActions(surface, prefix)) {
+      validateViewActionReference(action, actionPrefix, moduleLabel, context, errors);
+    }
+  });
+
+  return errors;
+}
+
+function listViewSurfaceActions(surface, prefix) {
+  const actions = [];
+  if (surface?.pageHeader?.primaryAction) {
+    actions.push({ action: surface.pageHeader.primaryAction, prefix: `${prefix}.pageHeader.primaryAction` });
+  }
+  collectActionArray(surface?.actions, `${prefix}.actions`, actions);
+  collectActionArray(surface?.table?.rowActions, `${prefix}.table.rowActions`, actions);
+  for (const [modalIndex, modal] of (Array.isArray(surface?.modals) ? surface.modals : []).entries()) {
+    collectActionArray(modal?.footerActions, `${prefix}.modals[${modalIndex}].footerActions`, actions);
+    collectActionArray(modal?.actions, `${prefix}.modals[${modalIndex}].actions`, actions);
+  }
+  return actions;
+}
+
+function collectActionArray(actionArray, prefix, actions) {
+  if (!Array.isArray(actionArray)) {
+    return;
+  }
+  actionArray.forEach((action, index) => {
+    actions.push({ action, prefix: `${prefix}[${index}]` });
+  });
+}
+
+function validateViewActionReference(action, prefix, moduleLabel, context, errors) {
+  if (!isPlainObject(action)) {
+    return;
+  }
+  if (action.role && !VIEW_ACTION_ROLES.has(action.role)) {
+    errors.push(`${moduleLabel}: ${prefix}.role must be primary, secondary, destructive, or utility.`);
+  }
+  validateViewRouteReference(action.route, `${prefix}.route`, moduleLabel, errors);
+  validateViewMethodReference(action.method, `${prefix}.method`, moduleLabel, errors);
+  for (const permissionId of action.requiredPermissions || []) {
+    if (!context.allPermissionIds.has(permissionId)) {
+      errors.push(`${moduleLabel}: ${prefix}.requiredPermissions references unknown permission '${permissionId}'.`);
+    }
+  }
+}
+
+function validateViewRouteReference(route, prefix, moduleLabel, errors) {
+  if (route === undefined) {
+    return;
+  }
+  if (typeof route !== "string" || route.trim() === "") {
+    return;
+  }
+  const routeErrors = [];
+  validateRelativeUrl(route, prefix, routeErrors);
+  if (!route.startsWith("/")) {
+    routeErrors.push(`${prefix} must be a local route path.`);
+  }
+  for (const error of routeErrors) {
+    errors.push(`${moduleLabel}: ${error}`);
+  }
+}
+
+function validateViewMethodReference(method, prefix, moduleLabel, errors) {
+  if (method === undefined) {
+    return;
+  }
+  if (typeof method === "string" && !HTTP_METHODS.has(method)) {
+    errors.push(`${moduleLabel}: ${prefix} must be a supported HTTP method.`);
+  }
 }
 
 function validatePageHeaderDescriptor(pageHeader, prefix, errors) {

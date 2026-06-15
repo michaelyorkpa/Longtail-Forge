@@ -244,14 +244,14 @@ component lifecycle, or new frontend framework is introduced.
 
 ### Version 0.33.5.16.2 - View Descriptor Reference Validation
 
-- [ ] Validate descriptor references at startup with fail-fast rules.
-- [ ] Reject duplicate surface IDs across all loaded modules.
-- [ ] Reject `moduleId` values that do not match the declaring module or a known module.
-- [ ] Reject `viewId` values that do not bind to an existing `protectedViews` entry.
-- [ ] Reject `requiredPermissions` that do not exist in core permissions or loaded module permissions.
-- [ ] Reject action roles outside the allowed set used by framework view/action helpers.
-- [ ] Validate route/action/data-source shape without adding new routes or changing existing API payloads.
-- [ ] Keep enforcement limited to descriptor validity; do not render descriptors yet.
+- [x] Validate descriptor references at startup with fail-fast rules.
+- [x] Reject duplicate surface IDs across all loaded modules.
+- [x] Reject `moduleId` values that do not match the declaring module or a known module.
+- [x] Reject `viewId` values that do not bind to an existing `protectedViews` entry.
+- [x] Reject `requiredPermissions` that do not exist in core permissions or loaded module permissions.
+- [x] Reject action roles outside the allowed set used by framework view/action helpers.
+- [x] Validate route/action/data-source shape without adding new routes or changing existing API payloads.
+- [x] Keep enforcement limited to descriptor validity; do not render descriptors yet.
 
 ### Version 0.33.5.16.3 - View Descriptor Terminology and Authoring Contract
 

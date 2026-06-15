@@ -1,3 +1,9 @@
+## Version 0.33.5.16.2 - 2026-06-15 10:48 -04:00
+
+- Added second-pass `viewSurfaces` reference validation for duplicate surface IDs, known module/view bindings, known action permissions, supported action roles, local route paths, and supported HTTP methods.
+- Added `view-descriptor-reference-regression.mjs` and wired it into the regression suite to guard descriptor reference failures before renderer work starts.
+- Marked the 0.33.5.16.2 roadmap checklist complete, recorded the reference-validation decision, and bumped package/app metadata to `0.33.5.16.2`.
+
 ## Version 0.33.5.16.1 - 2026-06-15 10:30 -04:00
 
 - Added `viewSurfaces` to the module manifest contract as the first declarative framework view descriptor field.
