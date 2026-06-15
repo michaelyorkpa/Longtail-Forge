@@ -1,3 +1,9 @@
+## Version 0.33.5.16.3 - 2026-06-15 11:03 -04:00
+
+- Added `viewSurfaces` terminology resolution through the existing workspace terminology system, including literal `label`/`title`/`description` fallbacks and `labelKey`/`titleKey`/`descriptionKey` lookups.
+- Documented the declarative descriptor schema and framework/module ownership boundary in `docs/module-contract.md` and `docs/ui-surface-contract.md` without adding browser rendering or app-shell delivery.
+- Added `view-descriptor-terminology-regression.mjs`, wired it into the regression suite, marked the 0.33.5.16.3 roadmap checklist complete, recorded the decision, and bumped package/app metadata to `0.33.5.16.3`.
+
 ## Version 0.33.5.16.2 - 2026-06-15 10:48 -04:00
 
 - Added second-pass `viewSurfaces` reference validation for duplicate surface IDs, known module/view bindings, known action permissions, supported action roles, local route paths, and supported HTTP methods.

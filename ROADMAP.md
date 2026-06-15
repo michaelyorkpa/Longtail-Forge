@@ -255,14 +255,14 @@ component lifecycle, or new frontend framework is introduced.
 
 ### Version 0.33.5.16.3 - View Descriptor Terminology and Authoring Contract
 
-- [ ] Resolve descriptor labels through the existing per-workspace `terminology` system
+- [x] Resolve descriptor labels through the existing per-workspace `terminology` system
       (`src/core/modules/terminology.js`) so Business vs Personal/Family wording stays correct.
-- [ ] Define how descriptors express literal labels versus terminology keys.
-- [ ] Add schema documentation to `docs/module-contract.md`.
-- [ ] Add the framework-owns-vs-module-owns descriptor boundary to `docs/ui-surface-contract.md`.
-- [ ] Document that modules contribute descriptors, data endpoints, field bindings, and named behavior
+- [x] Define how descriptors express literal labels versus terminology keys.
+- [x] Add schema documentation to `docs/module-contract.md`.
+- [x] Add the framework-owns-vs-module-owns descriptor boundary to `docs/ui-surface-contract.md`.
+- [x] Document that modules contribute descriptors, data endpoints, field bindings, and named behavior
       handlers, while the framework owns common layout anatomy and accessibility defaults.
-- [ ] Do not add the browser renderer in this slice.
+- [x] Do not add the browser renderer in this slice.
 
 ### Version 0.33.5.16.4 - Framework View Renderer Shell
 

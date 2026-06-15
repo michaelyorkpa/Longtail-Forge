@@ -3,6 +3,9 @@ const TERM_FIELD_ALIASES = {
   createButton: "createButtonLabel",
   emptyState: "emptyStateLabel",
 };
+const TERM_FIELD_REVERSE_ALIASES = Object.fromEntries(
+  Object.entries(TERM_FIELD_ALIASES).map(([sourceField, targetField]) => [targetField, sourceField]),
+);
 
 function resolveWorkspaceTerminology(terminology = {}, workspaceType = "default") {
   const normalizedWorkspaceType = normalizeWorkspaceType(workspaceType);
@@ -42,6 +45,7 @@ function resolveModuleDefinitionTerminology(moduleDefinition, workspaceType) {
     notificationTemplates: resolveTerminologyList(moduleDefinition.notificationTemplates, workspaceType),
     searchableTypes: resolveTerminologyList(moduleDefinition.searchableTypes, workspaceType),
     taggableTypes: resolveTerminologyList(moduleDefinition.taggableTypes, workspaceType),
+    viewSurfaces: resolveViewSurfaceTerminologyList(moduleDefinition.viewSurfaces, terms),
     terminology: moduleDefinition.terminology,
   };
 }
@@ -76,6 +80,44 @@ function resolveEventSummaries(eventSummaries = [], workspaceType) {
   });
 }
 
+function resolveViewSurfaceTerminologyList(viewSurfaces = [], terms = {}) {
+  return (viewSurfaces || []).map((surface) => resolveDescriptorTerminology(surface, terms));
+}
+
+function resolveDescriptorTerminology(value, terms = {}) {
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveDescriptorTerminology(item, terms));
+  }
+
+  if (!isPlainObject(value)) {
+    return value;
+  }
+
+  const resolved = {};
+  for (const [fieldName, fieldValue] of Object.entries(value)) {
+    resolved[fieldName] = resolveDescriptorTerminology(fieldValue, terms);
+  }
+
+  applyDescriptorTerm(resolved, "label", "labelKey", terms);
+  applyDescriptorTerm(resolved, "title", "titleKey", terms);
+  applyDescriptorTerm(resolved, "description", "descriptionKey", terms);
+
+  return resolved;
+}
+
+function applyDescriptorTerm(object, valueField, keyField, terms) {
+  const termKey = object[keyField];
+  if (typeof termKey !== "string") {
+    return;
+  }
+
+  const aliasKey = TERM_FIELD_REVERSE_ALIASES[termKey];
+  const resolvedTerm = terms[termKey] || terms[aliasKey];
+  if (resolvedTerm) {
+    object[valueField] = resolvedTerm;
+  }
+}
+
 function applyTerminology(item = {}, terms = {}, options = {}) {
   const resolved = { ...item };
   const label = options.navigation
@@ -102,6 +144,10 @@ function applyTerminology(item = {}, terms = {}, options = {}) {
   return resolved;
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype;
+}
+
 function normalizeWorkspaceType(workspaceType) {
   const normalized = String(workspaceType || "").trim().toLowerCase();
   return WORKSPACE_TERMINOLOGY_KEYS.includes(normalized)
@@ -112,6 +158,7 @@ function normalizeWorkspaceType(workspaceType) {
 export {
   WORKSPACE_TERMINOLOGY_KEYS,
   resolveContributionTerminology,
+  resolveDescriptorTerminology,
   resolveModuleDefinitionTerminology,
   resolveWorkspaceTerminology,
 };
