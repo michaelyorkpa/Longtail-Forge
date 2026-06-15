@@ -1,3 +1,9 @@
+## Version 0.33.5.16.6 - 2026-06-15 12:07 -04:00
+
+- Added renderer data binding for declarative `viewSurfaces`, including shared API-client data-source loading, field-binding projection, and default loading, empty, and error states.
+- Added `surface.refresh()` for descriptor-driven re-fetch and redraw without module-owned layout rebuilding.
+- Added `view-renderer-data-binding-regression.mjs`, wired it into the regression suite, updated renderer/docs/roadmap/decisions, and bumped package/app metadata to `0.33.5.16.6`.
+
 ## Version 0.33.5.16.5 - 2026-06-15 11:54 -04:00
 
 - Delivered active declarative `viewSurfaces` through the existing app-shell bootstrap payload and stored them on `LongtailForge.workspaceContext.viewSurfaces`.

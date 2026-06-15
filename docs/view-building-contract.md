@@ -117,3 +117,9 @@ The renderer supports the initial `single-column`, `split-list-detail`, and `tab
 Validated active descriptors now reach the browser through the existing app-shell bootstrap payload at `/api/app-shell/bootstrap`. `public/js/navigation.js` copies `viewSurfaces` into `LongtailForge.workspaceContext.viewSurfaces` alongside the existing module, navigation, permission, and search context.
 
 Descriptor delivery stays permission-safe. The backend only includes descriptors whose owning module is enabled, whose bound protected view is available for the workspace, and whose protected-view permissions are allowed for the current session. Disabled modules and unavailable or unauthorized protected views do not leak descriptors through bootstrap. This slice still does not fetch descriptor data, bind live rows, register behaviors, or convert Lists.
+
+## Implementation Notes For 0.33.5.16.6
+
+The descriptor renderer now owns the first data-binding pass. When a descriptor includes `dataSource.route`, `LongtailForge.view.renderSurface(descriptor, host)` renders a loading state, fetches the route through `LongtailForge.api.getJson`, maps response records through `dataSource.fieldBindings`, and redraws framework-owned table, detail, index, summary, field, and item-collection anatomy from the mapped descriptor fields.
+
+Rendered data-bound surfaces expose `surface.refresh()`, which re-fetches the descriptor data source and redraws the same framework-owned containers without requiring modules to rebuild the layout by hand. Loading, empty, and error states are framework-owned defaults. This slice still does not register declarative behaviors, wire action routes, interpret save payloads, or convert Lists.

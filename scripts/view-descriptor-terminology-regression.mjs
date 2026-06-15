@@ -111,7 +111,7 @@ assert.equal(unknownWorkspace.viewSurfaces[0].pageHeader.title, "Lists", "Unknow
 assert.match(moduleContract, /`viewSurfaces` is the declarative manifest field for framework-rendered protected views/, "Module contract should document the declarative descriptor field");
 assert.match(moduleContract, /`labelKey`, `titleKey`, and `descriptionKey` reference the resolved module terminology/, "Module contract should document descriptor terminology keys");
 assert.match(moduleContract, /If a key resolves, it replaces the matching literal field for display; if a key is missing, the literal field remains/, "Module contract should document literal fallback behavior");
-assert.match(moduleContract, /Data fetching, behavior registration, and Lists conversion remain scheduled for later 0\.33\.5\.16 slices/, "Module contract should keep live behavior out of the terminology slice");
+assert.match(moduleContract, /Behavior registration and Lists conversion remain scheduled for later 0\.33\.5\.16 slices/, "Module contract should keep behavior registry and Lists conversion out of the terminology slice");
 assert.match(surfaceContract, /Declarative `viewSurfaces` descriptors are the manifest form of the same ownership boundary/, "Surface contract should document declarative descriptor ownership");
 assert.match(surfaceContract, /Terminology changes display text only; surface IDs, module IDs, view IDs, routes, permission IDs, data bindings, behavior IDs, and workflow rules remain stable/, "Surface contract should keep terminology display-only");
 

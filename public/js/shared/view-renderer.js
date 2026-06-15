@@ -9,6 +9,15 @@
 
     clearHost(host);
 
+    const state = {
+      descriptor,
+      error: null,
+      loading: Boolean(descriptor.dataSource?.route),
+      records: [],
+      selectedRecord: null,
+      view,
+    };
+    let inFlightRefresh = null;
     const surface = view.createElement("section", {
       className: ["view-renderer-surface", `view-renderer-layout-${descriptor.layout || "single-column"}`],
       attrs: {
@@ -17,35 +26,91 @@
       },
     });
 
-    for (const child of renderLayout(descriptor, view)) {
-      surface.appendChild(child);
+    const body = view.createElement("div", { className: "view-renderer-body" });
+    const refresh = async () => {
+      if (!descriptor.dataSource?.route) {
+        return state.records;
+      }
+      if (inFlightRefresh) {
+        return inFlightRefresh;
+      }
+
+      inFlightRefresh = (async () => {
+        state.loading = true;
+        state.error = null;
+        renderInto(body, renderLayout(descriptor, view, state));
+        try {
+          state.records = await loadBoundRecords(descriptor);
+          state.selectedRecord = state.records[0] || null;
+        } catch (error) {
+          state.records = [];
+          state.selectedRecord = null;
+          state.error = error;
+        } finally {
+          state.loading = false;
+          renderInto(body, renderLayout(descriptor, view, state));
+          inFlightRefresh = null;
+        }
+
+        return state.records;
+      })();
+
+      return inFlightRefresh;
+    };
+
+    for (const child of renderLayout(descriptor, view, state)) {
+      body.appendChild(child);
     }
 
+    surface.appendChild(body);
+    Object.defineProperty(surface, "refresh", {
+      configurable: true,
+      enumerable: false,
+      value: refresh,
+    });
+    Object.defineProperty(surface, "viewState", {
+      configurable: true,
+      enumerable: false,
+      value: state,
+    });
+
     host.appendChild(surface);
+    if (descriptor.dataSource?.route) {
+      refresh();
+    }
+
     return surface;
   }
 
-  function renderLayout(descriptor, view) {
+  function renderInto(parent, children) {
+    clearHost(parent);
+    for (const child of children) {
+      parent.appendChild(child);
+    }
+  }
+
+  function renderLayout(descriptor, view, state) {
     const children = [
       renderPageHeader(descriptor.pageHeader, view),
       renderActions(descriptor.actions, view, "Surface actions"),
       renderFilters(descriptor.filters, view),
+      renderDataStatus(state, view),
     ].filter(Boolean);
 
     if (descriptor.layout === "split-list-detail") {
       children.push(view.createSplitListDetail({
         listLabel: descriptor.indexPanel?.title || descriptor.indexPanel?.label || "Index",
         detailLabel: descriptor.detail?.header?.title || "Detail",
-        list: [renderIndexPanel(descriptor.indexPanel, view) || renderPlaceholder("Index", descriptor.indexPanel?.emptyState, view)],
-        detail: renderDetailShell(descriptor.detail, view),
+        list: [renderIndexPanel(descriptor.indexPanel, view, state) || renderPlaceholder("Index", descriptor.indexPanel?.emptyState, view)],
+        detail: renderDetailShell(descriptor.detail, view, state),
       }));
     } else if (descriptor.layout === "table-page") {
-      children.push(renderTableShell(descriptor.table, view));
-      children.push(...renderDetailShell(descriptor.detail, view));
+      children.push(renderTableShell(descriptor.table, view, state));
+      children.push(...renderDetailShell(descriptor.detail, view, state));
     } else {
-      children.push(renderIndexPanel(descriptor.indexPanel, view));
-      children.push(renderTableShell(descriptor.table, view));
-      children.push(...renderDetailShell(descriptor.detail, view));
+      children.push(renderIndexPanel(descriptor.indexPanel, view, state));
+      children.push(renderTableShell(descriptor.table, view, state));
+      children.push(...renderDetailShell(descriptor.detail, view, state));
     }
 
     children.push(...renderModalShells(descriptor.modals, view));
@@ -75,14 +140,33 @@
     });
   }
 
-  function renderIndexPanel(indexPanel, view) {
+  function renderDataStatus(state, view) {
+    if (state.loading) {
+      return view.createStatusMessage({
+        message: "Loading records...",
+        tone: "info",
+      });
+    }
+
+    if (state.error) {
+      return view.createStatusMessage({
+        message: state.error.message || "Records could not be loaded.",
+        tone: "danger",
+      });
+    }
+
+    return null;
+  }
+
+  function renderIndexPanel(indexPanel, view, state) {
     if (!indexPanel) {
       return null;
     }
+    const records = state.records || [];
 
     return view.createCollapsibleIndexPanel({
       title: indexPanel.title || indexPanel.label || "Index",
-      body: [
+      body: records.length > 0 ? records.map((record) => renderIndexItem(indexPanel, record, view)) : [
         renderPlaceholder(
           indexPanel.emptyState?.title || "No records",
           indexPanel.emptyState,
@@ -93,7 +177,26 @@
     });
   }
 
-  function renderTableShell(table, view) {
+  function renderIndexItem(indexPanel, record, view) {
+    const title = readDescriptorValue(record, indexPanel.itemTitleField, record.title || record.label || record.id || "Record");
+    const subtitle = readDescriptorValue(record, indexPanel.itemSubtitleField, "");
+    const meta = (indexPanel.itemMetaFields || [])
+      .map((field) => readDescriptorValue(record, field, ""))
+      .filter(Boolean)
+      .join(" - ");
+
+    return view.createElement("article", {
+      className: "view-renderer-index-item surface-card",
+      attrs: { "data-view-record-id": record.id || "" },
+      children: [
+        view.createElement("strong", { text: title }),
+        subtitle ? view.createElement("p", { text: subtitle }) : null,
+        meta ? view.createElement("small", { text: meta }) : null,
+      ],
+    });
+  }
+
+  function renderTableShell(table, view, state) {
     if (!table) {
       return null;
     }
@@ -107,58 +210,98 @@
         align: column.align,
         header: column.header,
       })),
-      rows: [],
+      rows: state.records || [],
       emptyMessage: emptyState.message || emptyState.description || emptyState.title || "No records found.",
     });
   }
 
-  function renderDetailShell(detail, view) {
+  function renderDetailShell(detail, view, state) {
     if (!detail) {
       return [];
     }
 
     const children = [
-      renderDetailHeader(detail.header, view),
+      renderDetailHeader(detail.header, view, state.selectedRecord),
       renderActions(detail.actionStrip?.actions, view, detail.actionStrip?.label || "Detail actions"),
-      renderSummaryPanels(detail.summaryPanels, view),
-      renderFieldGridShell(detail.itemForm, view),
-      renderPlaceholder("Items", detail.itemRows?.emptyState || detail.emptyState, view),
+      renderSummaryPanels(detail.summaryPanels, view, state.selectedRecord),
+      renderFieldGridShell(detail.itemForm, view, state.selectedRecord),
+      renderItemCollection(detail.itemRows, view, state.selectedRecord) ||
+        (!state.selectedRecord ? renderPlaceholder("Items", detail.itemRows?.emptyState || detail.emptyState, view) : null),
     ];
 
     return children.flat().filter(Boolean);
   }
 
-  function renderDetailHeader(header, view) {
+  function renderDetailHeader(header, view, record) {
     if (!header) {
       return null;
     }
 
+    const badges = Array.isArray(header.badges)
+      ? header.badges.map((badge) => view.createElement("span", {
+        className: "surface-chip",
+        text: readDescriptorValue(record, badge.field, badge.label || badge.value || ""),
+      }))
+      : [];
+
     return view.createDetailHeader({
-      title: header.title || header.label || "Detail",
-      meta: header.description || header.subtitle,
+      title: readDescriptorValue(record, header.titleField, header.title || header.label || "Detail"),
+      meta: readDescriptorValue(record, header.metaField || header.subtitleField, header.description || header.subtitle),
+      badges,
     });
   }
 
-  function renderSummaryPanels(summaryPanels, view) {
+  function renderSummaryPanels(summaryPanels, view, record) {
     if (!Array.isArray(summaryPanels)) {
       return [];
     }
 
     return summaryPanels.map((panel) => view.createInfoPanel({
       title: panel.title || panel.label,
-      message: panel.description,
-      items: panel.items || [],
+      message: readDescriptorValue(record, panel.messageField, panel.description),
+      items: (panel.items || []).map((item) => ({
+        label: item.label || item.field || "",
+        value: readDescriptorValue(record, item.field, item.value || ""),
+      })),
     }));
   }
 
-  function renderFieldGridShell(itemForm, view) {
+  function renderFieldGridShell(itemForm, view, record) {
     const fields = Array.isArray(itemForm?.fields) ? itemForm.fields : [];
     if (!fields.length) {
       return null;
     }
 
     return view.createFieldGrid({
-      fields: fields.map((field) => renderFieldShell(field, view, { disabled: true })),
+      fields: fields.map((field) => renderFieldShell(field, view, {
+        disabled: true,
+        value: readDescriptorValue(record, field.field, field.default || ""),
+      })),
+    });
+  }
+
+  function renderItemCollection(itemRows, view, record) {
+    const items = Array.isArray(readDescriptorValue(record, itemRows?.itemsField || "items", []))
+      ? readDescriptorValue(record, itemRows?.itemsField || "items", [])
+      : [];
+
+    if (!itemRows || items.length === 0) {
+      return null;
+    }
+
+    return view.createElement("div", {
+      className: "view-renderer-item-collection",
+      children: items.map((item) => view.createElement("article", {
+        className: "view-renderer-item-row surface-card",
+        children: [
+          view.createElement("strong", {
+            text: readDescriptorValue(item, itemRows.itemTitleField || "title", item.title || item.label || "Item"),
+          }),
+          view.createElement("p", {
+            text: readDescriptorValue(item, itemRows.itemSubtitleField || "description", item.description || ""),
+          }),
+        ],
+      })),
     });
   }
 
@@ -201,11 +344,77 @@
         type: inputTypeFor(field.type),
         disabled: options.disabled,
         required: field.required,
-        value: field.default,
+        value: options.value ?? field.default,
         placeholder: field.placeholder,
       },
     }));
     return label;
+  }
+
+  async function loadBoundRecords(descriptor) {
+    const api = requireApiClient();
+    const body = await api.getJson(descriptor.dataSource.route, { cache: "no-store" });
+    return extractRecords(body).map((record) => bindRecord(record, descriptor.dataSource.fieldBindings || {}));
+  }
+
+  function extractRecords(body) {
+    if (Array.isArray(body)) {
+      return body;
+    }
+
+    for (const key of ["records", "items", "data", "results", "rows", "tags", "lists", "tasks"]) {
+      if (Array.isArray(body?.[key])) {
+        return body[key];
+      }
+    }
+
+    if (body && typeof body === "object") {
+      const firstArray = Object.values(body).find((value) => Array.isArray(value));
+      if (Array.isArray(firstArray)) {
+        return firstArray;
+      }
+      return [body];
+    }
+
+    return [];
+  }
+
+  function bindRecord(record, fieldBindings) {
+    const bound = { _source: record };
+
+    for (const [fieldName, sourcePath] of Object.entries(fieldBindings)) {
+      bound[fieldName] = readPath(record, sourcePath);
+    }
+
+    for (const [fieldName, value] of Object.entries(record || {})) {
+      if (bound[fieldName] === undefined) {
+        bound[fieldName] = value;
+      }
+    }
+
+    return bound;
+  }
+
+  function readDescriptorValue(record, fieldName, fallback = "") {
+    if (!fieldName) {
+      return fallback;
+    }
+
+    const value = readPath(record, fieldName);
+    return value === undefined || value === null ? fallback : value;
+  }
+
+  function readPath(source, path) {
+    if (!path || !source || typeof source !== "object") {
+      return undefined;
+    }
+
+    return String(path).split(".").reduce((value, key) => {
+      if (value === undefined || value === null) {
+        return undefined;
+      }
+      return value[key];
+    }, source);
   }
 
   function renderPlaceholder(title, emptyState, view) {
@@ -258,6 +467,14 @@
       }
     }
     return view;
+  }
+
+  function requireApiClient() {
+    const api = root.api || {};
+    if (typeof api.getJson !== "function") {
+      throw new Error("View surface data binding requires LongtailForge.api.getJson.");
+    }
+    return api;
   }
 
   root.view = Object.freeze({

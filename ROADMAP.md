@@ -293,14 +293,14 @@ component lifecycle, or new frontend framework is introduced.
 
 ### Version 0.33.5.16.6 - Renderer Data Binding and Default States
 
-- [ ] Implement the data-binding contract in the renderer.
-- [ ] Fetch `dataSource` routes through `shared/api-client.js`.
-- [ ] Map response records through the descriptor `fieldBindings` before rendering rows, fields,
+- [x] Implement the data-binding contract in the renderer.
+- [x] Fetch `dataSource` routes through `shared/api-client.js`.
+- [x] Map response records through the descriptor `fieldBindings` before rendering rows, fields,
       detail headers, badges, metadata, summary panels, and item collections.
-- [ ] Render framework-owned loading, empty, and error states for every data source by default.
-- [ ] Provide a descriptor-driven refresh path that re-fetches data without requiring modules to
+- [x] Render framework-owned loading, empty, and error states for every data source by default.
+- [x] Provide a descriptor-driven refresh path that re-fetches data without requiring modules to
       rebuild framework-owned layout by hand.
-- [ ] Do not convert Lists in this slice; use small test descriptors or fixtures for renderer coverage.
+- [x] Do not convert Lists in this slice; use small test descriptors or fixtures for renderer coverage.
 
 ### Version 0.33.5.16.7 - Declarative Actions and Behavior Registry
 
