@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const version = "0.33.5.15.6";
+const appVersion = "0.33.5.16.1";
 const roadmap = readText("ROADMAP.md");
 const archive = readText("ROADMAP-ARCHIVE.md");
 const decisions = readText("DECISIONS.md");
@@ -16,9 +16,9 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, version, "package.json should report the view-builder closeout version");
-assert.equal(packageLock.version, version, "package-lock root should report the view-builder closeout version");
-assert.equal(packageLock.packages[""].version, version, "package-lock package entry should report the view-builder closeout version");
+assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
+assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 for (const item of [
   "Update `docs/module-contract.md` with the framework view-building boundary.",

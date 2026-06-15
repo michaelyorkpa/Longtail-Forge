@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const version = "0.33.5.15.6";
+const appVersion = "0.33.5.16.1";
 const roadmap = readText("ROADMAP.md");
 const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
@@ -18,9 +19,9 @@ const clientsHtml = readText("views/protected/clients.html");
 const projectsHtml = readText("views/protected/projects.html");
 const workbenchHtml = readText("views/protected/workbench.html");
 
-assert.equal(packageJson.version, version, "package.json should report the converted-surface guardrail version");
-assert.equal(packageLock.version, version, "package-lock root should report the converted-surface guardrail version");
-assert.equal(packageLock.packages[""].version, version, "package-lock package entry should report the converted-surface guardrail version");
+assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
+assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 for (const item of [
   "Add focused static checks for converted modules.",

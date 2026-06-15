@@ -19,6 +19,7 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "browserAssetsDir",
   "protectedViews",
   "publicViews",
+  "viewSurfaces",
   "browserAssets",
   "navigation",
   "dashboard",
@@ -64,6 +65,51 @@ const SETTING_FIELD_TYPES = new Set(["boolean", "text", "number", "select", "mul
 const NOTIFICATION_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 const NOTIFICATION_RECIPIENT_MODES = new Set(["actor", "assignees", "workspace_admins", "explicit_users"]);
 const TERMINOLOGY_WORKSPACE_TYPES = new Set(["default", "business", "personal", "family"]);
+const VIEW_SURFACE_LAYOUTS = new Set(["single-column", "split-list-detail", "table-page"]);
+const VIEW_SURFACE_FIELDS = new Set([
+  "id",
+  "moduleId",
+  "viewId",
+  "layout",
+  "pageHeader",
+  "filters",
+  "indexPanel",
+  "table",
+  "detail",
+  "modals",
+  "dataSource",
+  "actions",
+]);
+const VIEW_LABEL_FIELDS = new Set(["label", "labelKey", "title", "titleKey", "description", "descriptionKey"]);
+const VIEW_PAGE_HEADER_FIELDS = new Set([...VIEW_LABEL_FIELDS, "primaryAction"]);
+const VIEW_FILTER_FIELDS = new Set(["id", "field", "type", "label", "labelKey", "options", "optionsSource", "default"]);
+const VIEW_INDEX_PANEL_FIELDS = new Set([...VIEW_LABEL_FIELDS, "items", "itemTitleField", "itemSubtitleField", "itemMetaFields", "emptyState"]);
+const VIEW_TABLE_FIELDS = new Set(["columns", "rowActions", "emptyState", "overflow"]);
+const VIEW_TABLE_COLUMN_FIELDS = new Set(["id", "field", "label", "labelKey", "formatter", "width", "widthHint", "align"]);
+const VIEW_DETAIL_FIELDS = new Set([
+  "header",
+  "badgeRow",
+  "metadataRow",
+  "actionStrip",
+  "summaryPanels",
+  "itemForm",
+  "itemRows",
+  "emptyState",
+]);
+const VIEW_MODAL_FIELDS = new Set(["id", "label", "labelKey", "title", "titleKey", "fields", "footerActions", "actions"]);
+const VIEW_FIELD_FIELDS = new Set(["id", "field", "type", "label", "labelKey", "required", "options", "optionsSource", "default"]);
+const VIEW_DATA_SOURCE_FIELDS = new Set(["route", "method", "fieldBindings"]);
+const VIEW_ACTION_FIELDS = new Set([
+  "id",
+  "label",
+  "labelKey",
+  "role",
+  "route",
+  "method",
+  "confirm",
+  "requiredPermissions",
+  "behavior",
+]);
 const CORE_PERMISSION_IDS = new Set([
   "files.view",
   "files.upload",
@@ -136,6 +182,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateNavigation(moduleDefinition.navigation, errors);
   validateViews(moduleDefinition.protectedViews, moduleDefinition.id, "protectedViews", errors);
   validateViews(moduleDefinition.publicViews, moduleDefinition.id, "publicViews", errors);
+  validateViewSurfaces(moduleDefinition.viewSurfaces, errors);
   validateBrowserAssets(moduleDefinition.browserAssets, moduleDefinition.id, errors);
   validateDashboard(moduleDefinition.dashboard, errors);
   validateWorkbench(moduleDefinition.workbench, errors);
@@ -327,6 +374,185 @@ function validateViews(views, moduleId, fieldName, errors) {
     optionalStringArray(item, "requiredWorkspaceCapabilities", errors, { prefix: `${fieldName}[${index}]` });
     optionalBoolean(item, "allowDisabledRead", errors, { prefix: `${fieldName}[${index}]` });
   });
+}
+
+function validateViewSurfaces(viewSurfaces, errors) {
+  optionalArrayOfObjects(viewSurfaces, "viewSurfaces", errors, (surface, index) => {
+    const prefix = `viewSurfaces[${index}]`;
+
+    validateKnownObjectFields(surface, VIEW_SURFACE_FIELDS, prefix, errors);
+    requireString(surface, "id", errors, { prefix });
+    requireString(surface, "moduleId", errors, { prefix });
+    requireString(surface, "viewId", errors, { prefix });
+    requireString(surface, "layout", errors, { prefix });
+    if (typeof surface.layout === "string" && !VIEW_SURFACE_LAYOUTS.has(surface.layout)) {
+      errors.push(`${prefix}.layout must be single-column, split-list-detail, or table-page.`);
+    }
+    validateDataSourceDescriptor(surface.dataSource, `${prefix}.dataSource`, errors, { required: true });
+    validatePageHeaderDescriptor(surface.pageHeader, `${prefix}.pageHeader`, errors);
+    validateFiltersDescriptor(surface.filters, `${prefix}.filters`, errors);
+    validateIndexPanelDescriptor(surface.indexPanel, `${prefix}.indexPanel`, errors);
+    validateTableDescriptor(surface.table, `${prefix}.table`, errors);
+    validateDetailDescriptor(surface.detail, `${prefix}.detail`, errors);
+    validateModalsDescriptor(surface.modals, `${prefix}.modals`, errors);
+    validateActionsDescriptor(surface.actions, `${prefix}.actions`, errors);
+  });
+}
+
+function validatePageHeaderDescriptor(pageHeader, prefix, errors) {
+  if (pageHeader === undefined) {
+    return;
+  }
+  if (!isPlainObject(pageHeader)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+  validateKnownObjectFields(pageHeader, VIEW_PAGE_HEADER_FIELDS, prefix, errors);
+  validateLabelDescriptor(pageHeader, prefix, errors);
+  if (pageHeader.primaryAction !== undefined) {
+    validateActionDescriptor(pageHeader.primaryAction, `${prefix}.primaryAction`, errors);
+  }
+}
+
+function validateFiltersDescriptor(filters, prefix, errors) {
+  optionalArrayOfObjects(filters, prefix, errors, (filter, index) => {
+    const filterPrefix = `${prefix}[${index}]`;
+    validateKnownObjectFields(filter, VIEW_FILTER_FIELDS, filterPrefix, errors);
+    requireString(filter, "field", errors, { prefix: filterPrefix });
+    requireString(filter, "type", errors, { prefix: filterPrefix });
+    validateLabelDescriptor(filter, filterPrefix, errors);
+    optionalArray(filter, "options", errors);
+    optionalString(filter, "optionsSource", errors, { prefix: filterPrefix });
+  });
+}
+
+function validateIndexPanelDescriptor(indexPanel, prefix, errors) {
+  if (indexPanel === undefined) {
+    return;
+  }
+  if (!isPlainObject(indexPanel)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+  validateKnownObjectFields(indexPanel, VIEW_INDEX_PANEL_FIELDS, prefix, errors);
+  validateLabelDescriptor(indexPanel, prefix, errors);
+  optionalString(indexPanel, "items", errors, { prefix });
+  optionalString(indexPanel, "itemTitleField", errors, { prefix });
+  optionalString(indexPanel, "itemSubtitleField", errors, { prefix });
+  optionalStringArray(indexPanel, "itemMetaFields", errors, { prefix });
+  optionalPlainObject(indexPanel, "emptyState", errors, { prefix });
+}
+
+function validateTableDescriptor(table, prefix, errors) {
+  if (table === undefined) {
+    return;
+  }
+  if (!isPlainObject(table)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+  validateKnownObjectFields(table, VIEW_TABLE_FIELDS, prefix, errors);
+  optionalArrayOfObjects(table.columns, `${prefix}.columns`, errors, (column, index) => {
+    const columnPrefix = `${prefix}.columns[${index}]`;
+    validateKnownObjectFields(column, VIEW_TABLE_COLUMN_FIELDS, columnPrefix, errors);
+    requireString(column, "field", errors, { prefix: columnPrefix });
+    validateLabelDescriptor(column, columnPrefix, errors);
+    optionalString(column, "formatter", errors, { prefix: columnPrefix });
+    optionalString(column, "width", errors, { prefix: columnPrefix });
+    optionalString(column, "widthHint", errors, { prefix: columnPrefix });
+    optionalString(column, "align", errors, { prefix: columnPrefix });
+  });
+  validateActionsDescriptor(table.rowActions, `${prefix}.rowActions`, errors);
+  optionalPlainObject(table, "emptyState", errors, { prefix });
+  optionalBoolean(table, "overflow", errors, { prefix });
+}
+
+function validateDetailDescriptor(detail, prefix, errors) {
+  if (detail === undefined) {
+    return;
+  }
+  if (!isPlainObject(detail)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+  validateKnownObjectFields(detail, VIEW_DETAIL_FIELDS, prefix, errors);
+  for (const fieldName of ["header", "badgeRow", "metadataRow", "actionStrip", "summaryPanels", "itemForm", "itemRows", "emptyState"]) {
+    optionalPlainObject(detail, fieldName, errors, { prefix });
+  }
+}
+
+function validateModalsDescriptor(modals, prefix, errors) {
+  optionalArrayOfObjects(modals, prefix, errors, (modal, index) => {
+    const modalPrefix = `${prefix}[${index}]`;
+    validateKnownObjectFields(modal, VIEW_MODAL_FIELDS, modalPrefix, errors);
+    requireString(modal, "id", errors, { prefix: modalPrefix });
+    validateLabelDescriptor(modal, modalPrefix, errors);
+    optionalArrayOfObjects(modal.fields, `${modalPrefix}.fields`, errors, (field, fieldIndex) => {
+      const fieldPrefix = `${modalPrefix}.fields[${fieldIndex}]`;
+      validateKnownObjectFields(field, VIEW_FIELD_FIELDS, fieldPrefix, errors);
+      requireString(field, "field", errors, { prefix: fieldPrefix });
+      requireString(field, "type", errors, { prefix: fieldPrefix });
+      validateLabelDescriptor(field, fieldPrefix, errors);
+      optionalBoolean(field, "required", errors, { prefix: fieldPrefix });
+      optionalArray(field, "options", errors);
+      optionalString(field, "optionsSource", errors, { prefix: fieldPrefix });
+    });
+    validateActionsDescriptor(modal.footerActions, `${modalPrefix}.footerActions`, errors);
+    validateActionsDescriptor(modal.actions, `${modalPrefix}.actions`, errors);
+  });
+}
+
+function validateDataSourceDescriptor(dataSource, prefix, errors, options = {}) {
+  if (dataSource === undefined) {
+    if (options.required) {
+      errors.push(`${prefix} is required and must be an object.`);
+    }
+    return;
+  }
+  if (!isPlainObject(dataSource)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+  validateKnownObjectFields(dataSource, VIEW_DATA_SOURCE_FIELDS, prefix, errors);
+  requireString(dataSource, "route", errors, { prefix });
+  optionalString(dataSource, "method", errors, { prefix });
+  if (!isPlainObject(dataSource.fieldBindings)) {
+    errors.push(`${prefix}.fieldBindings is required and must be an object.`);
+    return;
+  }
+  for (const [fieldName, value] of Object.entries(dataSource.fieldBindings)) {
+    if (typeof value !== "string" || value.trim() === "") {
+      errors.push(`${prefix}.fieldBindings.${fieldName} must be a non-empty string.`);
+    }
+  }
+}
+
+function validateActionsDescriptor(actions, prefix, errors) {
+  optionalArrayOfObjects(actions, prefix, errors, (action, index) => {
+    validateActionDescriptor(action, `${prefix}[${index}]`, errors);
+  });
+}
+
+function validateActionDescriptor(action, prefix, errors) {
+  if (!isPlainObject(action)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+  validateKnownObjectFields(action, VIEW_ACTION_FIELDS, prefix, errors);
+  requireString(action, "id", errors, { prefix });
+  validateLabelDescriptor(action, prefix, errors);
+  optionalString(action, "role", errors, { prefix });
+  optionalString(action, "route", errors, { prefix });
+  optionalString(action, "method", errors, { prefix });
+  optionalString(action, "behavior", errors, { prefix });
+  optionalStringArray(action, "requiredPermissions", errors, { prefix });
+  optionalPlainObject(action, "confirm", errors, { prefix });
+}
+
+function validateLabelDescriptor(object, prefix, errors) {
+  for (const fieldName of VIEW_LABEL_FIELDS) {
+    optionalString(object, fieldName, errors, { prefix });
+  }
 }
 
 function validateBrowserAssets(browserAssets, moduleId, errors) {
@@ -946,6 +1172,14 @@ function validateTerminology(terminology, prefix, errors) {
       } else if (typeof value !== "string") {
         errors.push(`${prefix}.${workspaceType}.${fieldName} must be a string.`);
       }
+    }
+  }
+}
+
+function validateKnownObjectFields(object, allowedFields, prefix, errors) {
+  for (const fieldName of Object.keys(object)) {
+    if (!allowedFields.has(fieldName)) {
+      errors.push(`${prefix}.${fieldName} is not a supported field.`);
     }
   }
 }

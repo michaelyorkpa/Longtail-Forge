@@ -1,3 +1,9 @@
+## Version 0.33.5.16.1 - 2026-06-15 10:30 -04:00
+
+- Added `viewSurfaces` to the module manifest contract as the first declarative framework view descriptor field.
+- Added base descriptor-shape validation for required IDs/layout/data-source field bindings plus page header, filters, index panel, table, detail, modal, and action anatomy, while leaving reference validation and rendering for later 0.33.5.16 slices.
+- Added `view-descriptor-manifest-regression.mjs`, wired it into the regression suite, marked the 0.33.5.16.1 roadmap checklist complete, recorded the decision, and bumped package/app metadata to `0.33.5.16.1`.
+
 ## Version 0.33.5.15.6 - 2026-06-15 09:31 -04:00
 
 - Closed the 0.33.5.15 framework view-builder line with current-state module contract, developer guide, UI layout, architecture, Help, decision, and view-building contract updates.

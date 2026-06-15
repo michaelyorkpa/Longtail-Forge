@@ -29,6 +29,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/lists-view-builder-pilot-regression.mjs",
   "scripts/view-builder-converted-surface-guardrails.mjs",
   "scripts/view-builder-closeout-regression.mjs",
+  "scripts/view-descriptor-manifest-regression.mjs",
   "scripts/dashboard-workbench-regression.mjs",
   "scripts/task-list-density-regression.mjs",
   "scripts/task-list-canonical-ui-regression.mjs",

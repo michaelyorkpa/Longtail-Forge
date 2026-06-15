@@ -223,24 +223,24 @@ component lifecycle, or new frontend framework is introduced.
 
 ### Version 0.33.5.16.1 - View Descriptor Manifest Field and Base Schema
 
-- [ ] Add a `viewSurfaces` field to the manifest contract in `src/core/modules/manifest-contract.js`.
-- [ ] Define the first descriptor object shape without rendering it yet:
-  - [ ] `id`, `moduleId`, `viewId` (binds to an existing `protectedViews` entry).
-  - [ ] `layout`: `single-column`, `split-list-detail`, or `table-page`.
-  - [ ] `pageHeader`: title/terminology key, description, primary action.
-  - [ ] `filters`: declared filter controls (field, type, options source, default).
-  - [ ] `indexPanel`: collapsible selector/index config for split layouts.
-  - [ ] `table`: `columns` (label/terminology key, field binding, formatter, width hint),
+- [x] Add a `viewSurfaces` field to the manifest contract in `src/core/modules/manifest-contract.js`.
+- [x] Define the first descriptor object shape without rendering it yet:
+  - [x] `id`, `moduleId`, `viewId` (binds to an existing `protectedViews` entry).
+  - [x] `layout`: `single-column`, `split-list-detail`, or `table-page`.
+  - [x] `pageHeader`: title/terminology key, description, primary action.
+  - [x] `filters`: declared filter controls (field, type, options source, default).
+  - [x] `indexPanel`: collapsible selector/index config for split layouts.
+  - [x] `table`: `columns` (label/terminology key, field binding, formatter, width hint),
         `rowActions`, `emptyState`, overflow wrapper on by default.
-  - [ ] `detail`: header, badge row, metadata row, action strip, summary panels, item form,
+  - [x] `detail`: header, badge row, metadata row, action strip, summary panels, item form,
         item rows.
-  - [ ] `modals`: shell + field grid + footer action groups for create/edit surfaces.
-  - [ ] `dataSource`: route + a `fieldBindings` map from response fields to descriptor fields.
-  - [ ] `actions`: declarative `{ id, label, role, route, method, confirm, requiredPermissions }`
+  - [x] `modals`: shell + field grid + footer action groups for create/edit surfaces.
+  - [x] `dataSource`: route + a `fieldBindings` map from response fields to descriptor fields.
+  - [x] `actions`: declarative `{ id, label, role, route, method, confirm, requiredPermissions }`
         or a `behavior` id for custom handlers.
-- [ ] Reject unknown descriptor keys and missing required fields at startup.
-- [ ] Do not change database schema, module APIs, browser rendering, or business workflows in this slice.
-- [ ] Add focused manifest-contract regressions for accepted and rejected descriptor shapes.
+- [x] Reject unknown descriptor keys and missing required fields at startup.
+- [x] Do not change database schema, module APIs, browser rendering, or business workflows in this slice.
+- [x] Add focused manifest-contract regressions for accepted and rejected descriptor shapes.
 
 ### Version 0.33.5.16.2 - View Descriptor Reference Validation
 
@@ -519,6 +519,14 @@ extensions must be explicitly named, tested, and documented.
 - [ ] Keep 0.33.5.17 closeout focused on Markdown rendering and editor parity; defer WYSIWYG editing,
       collaborative editing, content templates, and Knowledge Base publication behavior to later
       roadmap versions.
+
+## Version 0.33.5.18 - View Conversion Backlog
+
+- Tasks
+- Notes
+- Files
+- Clients/Projects pages
+- Admin/Settings
 
 ## Version 0.33.6 - Reporting Framework and Time Report Contribution
 
