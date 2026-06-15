@@ -1,3 +1,16 @@
+## Version 0.33.5.15.3 - 2026-06-15 08:13 -04:00
+
+- Converted the protected Lists page into a minimal host that loads `LongtailForge.view`, with `public/js/lists.js` building the page header, status, filters, collapsible index, split list/detail workspace, detail header/actions, summary panels, item form grid, item tables/actions, empty states, and the minimal list dialog shell through shared helpers.
+- Preserved Lists-owned API routes, save payloads, task-link picker behavior, workspace-type rules, Business client/project controls, and Personal/Family workspace-scope behavior while bumping the Lists module version to `0.33.5.15.3`.
+- Added `lists-view-builder-pilot-regression.mjs`, updated Lists workflow coverage for the helper-built host, refreshed view-builder docs/decisions, and bumped package/app metadata to `0.33.5.15.3`.
+- Fixed the Lists pilot blank-screen regression by making `LongtailForge.view` split whitespace-separated compatibility class strings before calling `classList.add`, and cache-busted the protected Lists view-builder asset.
+
+## Version 0.33.5.15.2 - 2026-06-15 07:56 -04:00
+
+- Added `public/js/shared/view-builder.js` and exposed `LongtailForge.view` with safe DOM helpers for page headers, status messages, empty states, filters, collapsible indexes, split list/detail layouts, tables, detail headers/actions, info panels, modals, field grids, inline action rows, and action buttons.
+- Added shared view-helper CSS using existing surface tokens/classes, updated the view-building contract and decisions, and marked the 0.33.5.15.2 roadmap checklist complete.
+- Added `view-builder-helper-regression.mjs`, wired it into the regression suite, and bumped package/app metadata to `0.33.5.15.2`.
+
 ## Version 0.33.5.15.1 - 2026-06-15 03:19 -04:00
 
 - Added `docs/view-building-contract.md` with the first view-builder inventory, `LongtailForge.view` namespace decision, framework/module ownership boundary, and the initial primitive set for page headers, status/empty states, filters, split list/detail layouts, tables, detail/action areas, summary panels, modals, field grids, and inline action rows.

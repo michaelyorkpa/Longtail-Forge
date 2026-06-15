@@ -38,6 +38,10 @@ const LIST_LINK_TYPE_LABELS = {
   task: "Task",
 };
 
+const view = window.LongtailForge?.view;
+
+buildListsViewShell();
+
 const pageTitle = document.querySelector("[data-lists-title]");
 const createButton = document.querySelector("[data-list-create]");
 const statusMessage = document.querySelector("[data-lists-status]");
@@ -95,6 +99,210 @@ detailPanel?.addEventListener("click", handleDetailClick);
 detailPanel?.addEventListener("submit", handleDetailSubmit);
 
 initialize();
+
+function buildListsViewShell() {
+  const host = document.querySelector("[data-lists-host]");
+  if (!host || host.querySelector("[data-lists-title]")) {
+    return;
+  }
+  if (!view) {
+    throw new Error("Lists requires LongtailForge.view to build the protected workspace.");
+  }
+
+  const createAction = view.createActionButton({
+    label: "Create List",
+    action: "create-list",
+    role: "primary",
+  });
+  createAction.dataset.listCreate = "";
+  const header = view.createPageHeader({
+    title: "Lists",
+    actions: [createAction],
+    className: "lists-page-header",
+  });
+  header.querySelector(".view-page-title").dataset.listsTitle = "";
+
+  const status = view.createStatusMessage({ className: "lists-status-message" });
+  status.dataset.listsStatus = "";
+
+  const filterPanel = createListsFilterPanel();
+  const detail = createListsDetailHost();
+  const index = createListsIndexPanel();
+  const workspace = view.createSplitListDetail({
+    className: "lists-workspace",
+    listLabel: "List index",
+    detailLabel: "Selected list",
+    list: [index],
+    detail: [detail],
+  });
+
+  host.replaceChildren(header, status, filterPanel, workspace);
+  document.body.appendChild(createListDialogShell());
+}
+
+function createListsFilterPanel() {
+  const panel = view.createFilterPanel({
+    title: "Filters",
+    className: "lists-filters-panel",
+    ariaLabel: "List filters",
+  });
+  panel.dataset.listsFiltersPanel = "";
+
+  const form = view.createFieldGrid({
+    surface: false,
+    className: "lists-filters",
+    fields: [
+      selectControl("Status", "listFilterStatus", [
+        ["active", "Active", true],
+        ["completed", "Completed"],
+        ["finalized", "Finalized"],
+        ["archived", "Archived"],
+        ["deleted", "Deleted"],
+        ["all", "All visible"],
+      ]),
+      selectControl("Type", "listFilterType", [
+        ["all", "All types", true],
+        ...Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label]),
+      ]),
+      selectControl("Reusable", "listFilterReusable", [
+        ["no", "Normal lists", true],
+        ["yes", "Reusable only"],
+        ["all", "All"],
+      ]),
+      selectControl("Client", "listFilterClient", [["all", "All clients", true]], { listBusinessControl: "" }),
+      selectControl("Project", "listFilterProject", [["all", "All projects", true]], { listContextControl: "" }),
+      selectControl("Assigned", "listFilterAssignee", [["all", "All assignees", true]]),
+      inputControl("Needed By", "date", "listFilterNeeded"),
+      selectControl("Archived State", "listFilterArchive", [
+        ["current", "Current", true],
+        ["archived", "Archived"],
+        ["deleted", "Deleted"],
+        ["all", "All states"],
+      ]),
+      selectControl("Sort", "listSort", [
+        ["updated_desc", "Updated", true],
+        ["title_asc", "Title"],
+        ["type_asc", "Type"],
+        ["status_asc", "Status"],
+        ["needed_asc", "Needed Date"],
+        ["finalized_desc", "Finalized Date"],
+      ]),
+    ],
+  });
+  form.dataset.listsFilters = "";
+  panel.querySelector(".view-filter-panel-fields")?.replaceWith(form);
+  return panel;
+}
+
+function createListsIndexPanel() {
+  const table = view.createDataTable({
+    columns: ["List", "Status", "Type", "Needed", "Items"],
+    rows: [],
+    emptyMessage: "Loading lists...",
+    className: "lists-index-content",
+    tableClassName: "list-table lists-table",
+  });
+  table.dataset.listsIndexContent = "";
+  table.querySelector("tbody").dataset.listsList = "";
+
+  const panel = view.createCollapsibleIndexPanel({
+    title: "Lists",
+    open: true,
+    ariaLabel: "List index",
+    className: "lists-index-panel",
+    children: [table],
+  });
+  panel.dataset.listsIndexPanel = "";
+
+  const count = view.createElement("span", { text: "Lists" });
+  count.dataset.listsCount = "";
+  panel.querySelector("summary")?.replaceChildren(count);
+  return panel;
+}
+
+function createListsDetailHost() {
+  const detail = view.createElement("article", {
+    className: "lists-detail-panel",
+    attrs: { "aria-label": "Selected list" },
+  });
+  detail.dataset.listDetail = "";
+  detail.appendChild(view.createEmptyState({
+    message: "Select a list.",
+    className: "lists-empty-state",
+    headingLevel: 2,
+  }));
+  return detail;
+}
+
+function createListDialogShell() {
+  const title = inputControl("Title", "text", "listTitle", { required: true });
+  const type = selectControl("Type", "listType", Object.entries(LIST_TYPE_LABELS).map(([value, label]) => [value, label]));
+  const client = selectControl("Client", "listClient", [], { listBusinessControl: "" });
+  const project = selectControl("Project", "listProject", [], { listContextControl: "" });
+  const contextFields = view.createFieldGrid({
+    surface: false,
+    className: "lists-form-grid",
+    fields: [type, client, project],
+  });
+  const description = textareaControl("Description", "listDescription", { rows: "4" });
+  const formStatus = view.createStatusMessage({ className: "lists-form-status" });
+  formStatus.dataset.listFormStatus = "";
+
+  const cancel = view.createActionButton({ label: "Cancel", role: "secondary" });
+  cancel.dataset.listCancel = "";
+  const save = view.createActionButton({ label: "Save List", type: "submit", role: "primary" });
+  save.dataset.listSave = "";
+
+  const dialog = view.createModalForm({
+    title: "List",
+    className: "lists-dialog",
+    formClassName: "lists-form",
+    fields: [title, contextFields, description, formStatus],
+    actions: [cancel, save],
+  });
+  dialog.dataset.listDialog = "";
+  dialog.viewParts.form.dataset.listForm = "";
+  dialog.viewParts.title.dataset.listDialogTitle = "";
+
+  const close = view.createActionButton({ label: "Close", className: "lists-dialog-close" });
+  close.dataset.listDialogClose = "";
+  const heading = view.createElement("div", {
+    className: "lists-dialog-heading",
+    children: [dialog.viewParts.title, close],
+  });
+  dialog.viewParts.form.insertBefore(heading, dialog.viewParts.body);
+  return dialog;
+}
+
+function inputControl(labelText, type, dataName, attributes = {}, wrapperDataset = {}) {
+  const label = view.createElement("label", { dataset: wrapperDataset });
+  const input = view.createElement("input", { attrs: attributes });
+  input.type = type;
+  input.dataset[dataName] = "";
+  label.append(labelText, input);
+  return label;
+}
+
+function textareaControl(labelText, dataName, attributes = {}, wrapperDataset = {}) {
+  const label = view.createElement("label", { dataset: wrapperDataset });
+  const textarea = view.createElement("textarea", { attrs: attributes });
+  textarea.dataset[dataName] = "";
+  label.append(labelText, textarea);
+  return label;
+}
+
+function selectControl(labelText, dataName, entries = [], wrapperDataset = {}) {
+  const label = view.createElement("label", { dataset: wrapperDataset });
+  const select = document.createElement("select");
+  select.dataset[dataName] = "";
+  select.append(...entries.map(([value, text, selected]) => {
+    const entry = option(value, text);
+    entry.selected = Boolean(selected);
+    return entry;
+  }));
+  label.append(labelText, select);
+  return label;
+}
 
 async function initialize() {
   setStatus("Loading lists...");
@@ -355,35 +563,28 @@ function renderDetail(list) {
   }
 
   const locked = list.status === "archived" || list.status === "deleted" || list.status === "finalized";
-  const article = document.createElement("section");
-  const header = document.createElement("div");
-  const heading = document.createElement("div");
-  const title = document.createElement("h2");
-  const badges = document.createElement("span");
-  const meta = document.createElement("p");
-  const actions = document.createElement("div");
+  const article = view.createElement("section", { className: "lists-detail-content" });
+  const header = view.createDetailHeader({
+    title: list.title || "Untitled list",
+    meta: detailMeta(list),
+    badges: listBadges(list),
+    className: "lists-detail-header",
+  });
+  const actions = view.createDetailActionStrip({
+    actions: detailActionButtons(list, locked),
+    className: "lists-detail-actions",
+    ariaLabel: "List actions",
+  });
   const nextAction = createNextActionStrip(list);
   const sourceContext = createSourceContextPanel(list);
   const linkedRecords = createLinkedRecordsPanel(list, locked);
   const costSummary = createCostSummaryPanel(list);
-  const description = document.createElement("p");
+  const description = view.createElement("p", { className: "lists-description" });
   const itemForm = createItemForm(list, locked);
-  const items = document.createElement("div");
+  const items = view.createElement("div", { className: "lists-items" });
 
-  header.className = "lists-detail-header";
-  heading.className = "lists-detail-heading";
-  title.textContent = list.title || "Untitled list";
-  badges.className = "lists-badges";
-  badges.append(...listBadges(list));
-  meta.textContent = detailMeta(list);
-  heading.append(title, badges, meta);
-  actions.className = "lists-detail-actions";
-  actions.append(...detailActionButtons(list, locked));
-  header.append(heading, actions);
-
-  description.className = "lists-description";
+  header.appendChild(actions);
   description.textContent = list.description || "No description.";
-  items.className = "lists-items";
   items.appendChild(createItemsTable(list, locked));
 
   article.append(header, nextAction, sourceContext, costSummary, linkedRecords, description, itemForm, items);
@@ -420,11 +621,11 @@ function detailActionButtons(list, locked) {
 }
 
 function createItemForm(list, locked) {
-  const section = document.createElement("section");
-  const title = document.createElement("h3");
-  const form = document.createElement("form");
+  const section = view.createElement("section", { className: "lists-item-entry" });
+  const title = view.createElement("h3", { text: "Items" });
+  const form = view.createElement("form", { className: ["lists-item-form", "view-field-grid", "surface-modal-section-body"] });
   const name = createItemNameField(list);
-  const catalogItemId = document.createElement("input");
+  const catalogItemId = view.createElement("input");
   const quantity = inputField("Qty", "number", "quantity", { min: "0", step: "0.01", value: "1" });
   const unit = inputField("Unit", "text", "unit");
   const needed = inputField("Needed", "date", "needed_by_date");
@@ -433,23 +634,17 @@ function createItemForm(list, locked) {
     ...state.users.map((user) => option(user.user_id, displayUser(user))),
   ]);
   const purchase = selectField("Status", "purchase_status", Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => option(value, label)));
-  const advanced = document.createElement("details");
-  const advancedSummary = document.createElement("summary");
-  const advancedFields = document.createElement("div");
+  const advanced = view.createElement("details", { className: "lists-item-advanced" });
+  const advancedSummary = view.createElement("summary", { text: "Details" });
+  const advancedFields = view.createFieldGrid({ surface: false, className: "lists-item-advanced-fields" });
   const saveToCatalog = checkboxField("Save as reusable item", "save_to_catalog", "true");
-  const submit = document.createElement("button");
+  const submit = view.createActionButton({ label: "Add Item", type: "submit", role: "primary" });
 
   catalogItemId.type = "hidden";
   catalogItemId.name = "catalog_item_id";
   catalogItemId.dataset.listCatalogItemId = "";
-  section.className = "lists-item-entry";
-  title.textContent = "Items";
   form.dataset.listItemForm = "";
   form.dataset.listId = list.list_id;
-  form.className = "lists-item-form";
-  advanced.className = "lists-item-advanced";
-  advancedSummary.textContent = "Details";
-  advancedFields.className = "lists-item-advanced-fields";
   advancedFields.append(
     inputField("Vendor or Store", "text", "vendor_name"),
     inputField("URL", "url", "url"),
@@ -459,14 +654,13 @@ function createItemForm(list, locked) {
     textareaField("Notes", "notes", { rows: "2" }),
   );
   advanced.append(advancedSummary, advancedFields);
-  submit.type = "submit";
-  submit.textContent = "Add Item";
   submit.disabled = locked;
   form.append(name, catalogItemId, quantity, unit, needed, assigned, purchase, advanced, saveToCatalog, submit);
   if (locked) {
-    const notice = document.createElement("p");
-    notice.className = "lists-locked-note";
-    notice.textContent = readOnlyStateMessage(list);
+    const notice = view.createElement("p", {
+      className: "lists-locked-note",
+      text: readOnlyStateMessage(list),
+    });
     section.append(title, notice);
   } else {
     section.append(title);
@@ -507,41 +701,31 @@ function checkboxField(labelText, name, value) {
 }
 
 function createItemsTable(list, locked) {
-  const table = document.createElement("table");
-  const thead = document.createElement("thead");
-  const tbody = document.createElement("tbody");
-  const headerRow = document.createElement("tr");
-
-  table.className = "list-table lists-items-table";
-  ["Done", "Item", "Qty", "Needed", "Status", "Assigned", "Actions"].forEach((label) => {
-    const th = document.createElement("th");
-    th.textContent = label;
-    headerRow.appendChild(th);
+  const items = visibleItems(list);
+  const table = view.createDataTable({
+    columns: ["Done", "Item", "Qty", "Needed", "Status", "Assigned", "Actions"],
+    rows: [],
+    emptyMessage: "No items yet.",
+    className: "lists-items-table-wrap",
+    tableClassName: "list-table lists-items-table",
   });
-  thead.appendChild(headerRow);
+  const tbody = table.querySelector("tbody");
 
-  if (visibleItems(list).length === 0) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-    cell.colSpan = 7;
-    cell.textContent = "No items yet.";
-    row.appendChild(cell);
-    tbody.appendChild(row);
-  } else {
-    visibleItems(list).forEach((item, index, items) => {
-      tbody.appendChild(createItemRow(list, item, index, items.length, locked));
-    });
+  if (items.length > 0) {
+    tbody.replaceChildren(...items.map((item, index) => createItemRow(list, item, index, items.length, locked)));
   }
 
-  table.append(thead, tbody);
   return table;
 }
 
 function createLinkedRecordsPanel(list, locked) {
-  const section = document.createElement("section");
-  const title = document.createElement("h3");
-  const records = document.createElement("div");
-  const form = document.createElement("form");
+  const section = view.createInfoPanel({
+    title: "Linked Records",
+    className: "lists-links-panel",
+    ariaLabel: "Linked records",
+  });
+  const records = view.createElement("div", { className: "lists-link-list" });
+  const form = view.createElement("form", { className: ["lists-link-form", "view-field-grid", "surface-modal-section-body"] });
   const targetType = selectField("Type", "target_type", linkTargetTypeOptions());
   const taskSearch = inputField("Search tasks", "search", "task_search", { autocomplete: "off", placeholder: "Search tasks" });
   const taskPicker = selectField("Task", "task_picker", []);
@@ -550,21 +734,18 @@ function createLinkedRecordsPanel(list, locked) {
   const taskSearchInput = taskSearch.querySelector("input");
   const taskPickerSelect = taskPicker.querySelector("select");
   const targetIdInput = targetId.querySelector("input");
-  const submit = document.createElement("button");
+  const submit = view.createActionButton({ label: "Add Link", type: "submit", role: "primary" });
 
-  section.className = "lists-links-panel";
   section.dataset.listLinksPanel = "";
-  title.textContent = "Linked Records";
-  records.className = "lists-link-list";
   records.replaceChildren(...(list.links || []).map((link) => createLinkItem(list, link, locked)));
   if ((list.links || []).length === 0) {
-    const empty = document.createElement("p");
-    empty.className = "lists-empty-state";
-    empty.textContent = "No linked records yet.";
+    const empty = view.createElement("p", {
+      className: "lists-empty-state",
+      text: "No linked records yet.",
+    });
     records.appendChild(empty);
   }
 
-  form.className = "lists-link-form";
   form.dataset.listLinkForm = "";
   form.dataset.listId = list.list_id;
   form.hidden = locked;
@@ -572,8 +753,6 @@ function createLinkedRecordsPanel(list, locked) {
   taskPicker.dataset.listTaskPickerControl = "";
   targetId.dataset.listRawLinkControl = "";
   taskPickerSelect.dataset.listTaskPicker = "";
-  submit.type = "submit";
-  submit.textContent = "Add Link";
   taskSearchInput.addEventListener("input", () => populateTaskLinkPicker(taskPickerSelect, taskSearchInput.value));
   taskPickerSelect.addEventListener("change", () => {
     targetIdInput.value = taskPickerSelect.value;
@@ -585,7 +764,7 @@ function createLinkedRecordsPanel(list, locked) {
   form.append(targetType, taskSearch, taskPicker, targetId, submit);
   populateTaskLinkPicker(taskPickerSelect);
   syncLinkPickerMode(form);
-  section.append(title, records, form);
+  section.append(records, form);
   return section;
 }
 
@@ -659,15 +838,16 @@ function taskLinkOptionLabel(task = {}) {
 }
 
 function createLinkItem(list, link, locked) {
-  const item = document.createElement("div");
-  const label = document.createElement("span");
-  const anchor = document.createElement("a");
-  const remove = document.createElement("button");
+  const item = view.createElement("div", { className: "lists-link-item" });
+  const label = view.createElement("span");
+  const anchor = view.createElement("a");
+  const remove = actionButton("Remove", "remove-link", list.list_id, "", {
+    disabled: locked,
+  });
   const target = link.target || {};
   const typeLabel = LIST_LINK_TYPE_LABELS[link.target_type] || formatToken(link.target_type);
   const unavailable = !target.label;
 
-  item.className = "lists-link-item";
   item.dataset.linkAccess = unavailable ? "unavailable" : "available";
   anchor.href = target.url || "#";
   anchor.textContent = target.label || "Unavailable linked record";
@@ -675,10 +855,6 @@ function createLinkItem(list, link, locked) {
     anchor.removeAttribute("href");
   }
   label.append(`${typeLabel}: `, anchor);
-  remove.type = "button";
-  remove.textContent = "Remove";
-  remove.dataset.listAction = "remove-link";
-  remove.dataset.listId = list.list_id;
   remove.dataset.linkId = link.list_link_id;
   remove.hidden = locked;
   item.append(label, remove);
@@ -714,14 +890,17 @@ function createItemRow(list, item, index, total, locked) {
   neededCell.textContent = item.needed_by_date || "-";
   statusCell.textContent = PURCHASE_STATUS_LABELS[item.purchase_status] || item.purchase_status || "-";
   assignedCell.textContent = displayUser(findUser(item.assigned_user_id)) || "Unassigned";
-  actionsCell.className = "lists-item-actions";
-  actionsCell.append(
-    actionButton("Edit", "edit-item", list.list_id, "", { itemId: item.list_item_id, disabled: locked }),
-    actionButton("Done", "complete-item", list.list_id, "", { itemId: item.list_item_id, disabled: locked || Boolean(item.completed_at) }),
-    actionButton("Up", "move-item-up", list.list_id, "", { itemId: item.list_item_id, disabled: locked || index === 0 }),
-    actionButton("Down", "move-item-down", list.list_id, "", { itemId: item.list_item_id, disabled: locked || index >= total - 1 }),
-    actionButton("Delete", "delete-item", list.list_id, "secondary", { itemId: item.list_item_id, disabled: locked }),
-  );
+  actionsCell.appendChild(view.createInlineActionRow({
+    className: "lists-item-actions",
+    ariaLabel: `${item.item_name || "Item"} actions`,
+    actions: [
+      actionButton("Edit", "edit-item", list.list_id, "", { itemId: item.list_item_id, disabled: locked }),
+      actionButton("Done", "complete-item", list.list_id, "", { itemId: item.list_item_id, disabled: locked || Boolean(item.completed_at) }),
+      actionButton("Up", "move-item-up", list.list_id, "", { itemId: item.list_item_id, disabled: locked || index === 0 }),
+      actionButton("Down", "move-item-down", list.list_id, "", { itemId: item.list_item_id, disabled: locked || index >= total - 1 }),
+      actionButton("Delete", "delete-item", list.list_id, "secondary", { itemId: item.list_item_id, disabled: locked }),
+    ],
+  }));
   row.append(doneCell, itemCell, qtyCell, neededCell, statusCell, assignedCell, actionsCell);
   return row;
 }
@@ -1156,17 +1335,21 @@ function emptyListMessage() {
 }
 
 function renderDetailPrompt(message) {
-  const prompt = document.createElement("p");
-  prompt.className = "lists-empty-state";
+  const prompt = view.createEmptyState({
+    message,
+    className: "lists-empty-state",
+    headingLevel: 2,
+  });
   prompt.dataset.listNextAction = "";
-  prompt.textContent = message;
   detailPanel.replaceChildren(prompt);
 }
 
 function actionButton(label, action, listId, variant = "", options = {}) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.textContent = label;
+  const button = view.createActionButton({
+    label,
+    role: variant === "secondary" ? "secondary" : "",
+    disabled: Boolean(options.disabled),
+  });
   if (options.itemId) {
     button.dataset.itemAction = action;
     button.dataset.itemId = options.itemId;
@@ -1174,7 +1357,6 @@ function actionButton(label, action, listId, variant = "", options = {}) {
     button.dataset.listAction = action;
   }
   button.dataset.listId = listId;
-  button.disabled = Boolean(options.disabled);
   if (variant) {
     button.classList.add(variant);
   }
@@ -1196,36 +1378,32 @@ function statusBadge(status) {
 }
 
 function createNextActionStrip(list) {
-  const section = document.createElement("section");
-  const heading = document.createElement("strong");
-  const message = document.createElement("span");
-  const facts = document.createElement("div");
+  const section = view.createInfoPanel({
+    title: "Next",
+    message: nextActionText(list),
+    className: "lists-next-action",
+    ariaLabel: "Next list action",
+  });
+  const facts = view.createElement("div", { className: "lists-next-action-facts" });
 
-  section.className = "lists-next-action";
   section.dataset.listNextAction = "";
-  heading.textContent = "Next";
-  message.textContent = nextActionText(list);
-  facts.className = "lists-next-action-facts";
   facts.append(...stateFacts(list).map((fact) => {
-    const chip = document.createElement("span");
-    chip.textContent = fact;
-    return chip;
+    return view.createElement("span", { text: fact });
   }));
-  section.append(heading, message, facts);
+  section.appendChild(facts);
   return section;
 }
 
 function createCostSummaryPanel(list) {
-  const section = document.createElement("section");
-  const title = document.createElement("strong");
-  const summary = document.createElement("span");
   const costText = listCostSummary(list);
+  const section = view.createInfoPanel({
+    title: "Costs",
+    message: costText || "No item costs recorded.",
+    className: "lists-cost-summary",
+    ariaLabel: "List cost summary",
+  });
 
-  section.className = "lists-cost-summary";
   section.dataset.listCostSummary = "";
-  title.textContent = "Costs";
-  summary.textContent = costText || "No item costs recorded.";
-  section.append(title, summary);
   return section;
 }
 
@@ -1256,15 +1434,14 @@ function nextActionText(list) {
 
 function createSourceContextPanel(list) {
   const sourceContext = sourceContextLabel(list);
-  const section = document.createElement("section");
-  const title = document.createElement("strong");
-  const message = document.createElement("span");
+  const section = view.createInfoPanel({
+    title: list.is_reusable ? "Reusable workflow" : "Source",
+    message: sourceContext || defaultSourceContextText(list),
+    className: "lists-source-context",
+    ariaLabel: "List source context",
+  });
 
-  section.className = "lists-source-context";
   section.dataset.listSourceContext = "";
-  title.textContent = list.is_reusable ? "Reusable workflow" : "Source";
-  message.textContent = sourceContext || defaultSourceContextText(list);
-  section.append(title, message);
   return section;
 }
 

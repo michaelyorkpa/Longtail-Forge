@@ -1,6 +1,6 @@
 # View-Building Contract
 
-As of 0.33.5.15.1, this document defines the first framework-owned view-building boundary and records the inventory that the 0.33.5.15 helper work should address. It is a contract and inventory slice only: it does not add `LongtailForge.view`, change module APIs, change database schema, change permissions, or alter business workflows.
+As of 0.33.5.15.3, this document defines the first framework-owned view-building boundary, records the inventory that the 0.33.5.15 helper work should address, documents the initial helper implementation, and records the first Lists protected-workspace pilot conversion. The helper does not change module APIs, database schema, permissions, or business workflows.
 
 The earlier surface contract in `docs/ui-surface-contract.md` defines shared tokens, CSS classes, modal/footer/overlay shells, drawer/slideout shells, dense actions, chips, and focus behavior. This document defines the next layer above that: the common DOM structures the framework should help modules build.
 
@@ -9,6 +9,8 @@ The earlier surface contract in `docs/ui-surface-contract.md` defines shared tok
 The browser helper namespace for the implementation slice is `window.LongtailForge.view`.
 
 The helper file may be `public/js/shared/view-builder.js`, but the browser API should stay short and stable as `LongtailForge.view`. Do not expose a second `viewBuilder` namespace unless a later compatibility decision requires it.
+
+`LongtailForge.view` is implemented in `public/js/shared/view-builder.js` as a small DOM factory. It is intentionally framework-owned layout code rather than a component system.
 
 ## First Primitives
 
@@ -47,7 +49,7 @@ The current protected UI still mixes static HTML shells with browser-script DOM 
 
 | Surface | Current Construction | Repeated Patterns | Pilot Direction |
 | --- | --- | --- | --- |
-| Lists | `views/protected/lists.html` plus `public/js/lists.js` hand-build list rows, detail sections, item forms, linked records, summary panels, badges, and actions. `lists.js` has about 90 `createElement` calls. | Filters, collapsible selector/index, split list/detail workspace, detail header, metadata/badges, action strip, summary panels, item entry fields, item rows, linked-record rows, tables. | First conversion target in 0.33.5.15.3 after helpers exist. Preserve all Lists routes, save payloads, permissions, Business context, and Personal/Family context. |
+| Lists | `views/protected/lists.html` is now a minimal host and `public/js/lists.js` builds the protected workspace with `LongtailForge.view` helpers while keeping module-owned data loading, labels, validation, and save behavior. | Filters, collapsible selector/index, split list/detail workspace, detail header, metadata/badges, action strip, summary panels, item entry fields, item rows, linked-record rows, tables. | Converted in 0.33.5.15.3 as the first pilot. Preserve all Lists routes, save payloads, permissions, Business context, and Personal/Family context. |
 | Clients/Projects | `public/js/clients-projects.js` is the largest current hand-built surface, with about 191 `createElement` calls and several direct `dialog` builders. | Add/Edit Client dialog, Add/Edit Project dialog, related-project/client tables, shared modal footer/action placement, filter controls. | Modal helper adoption in 0.33.5.15.4 at the shared dialog source. Do not broaden into full page conversion in that slice. |
 | Tasks | `views/protected/tasks.html`, `public/js/tasks.js`, and `public/js/task-dialog.js` mix static task form markup with script-rendered rows, chips, actions, checklist rows, and dialog fallback markup. | Page header/status, filter panels, data table rows, dense row actions, modal shell/form/footer, field grids, chips. | Keep as already partially converted to surface classes. Later view-helper adoption should be explicit and behavior-preserving. |
 | Notes | `views/protected/notes.html` and `public/js/notes.js` build the library filters, note list/detail surfaces, editor state, linked context, revisions, and preview flows. | Filter panel, list/detail workspace, detail header, action strip, modal form, field grid, status/empty states. | Defer conversion until after Lists and Client/Project modal pilot proves the helper shape. Preserve secure-note and Library behavior. |
@@ -70,6 +72,14 @@ The current protected UI still mixes static HTML shells with browser-script DOM 
 
 ## Implementation Notes For 0.33.5.15.2
 
-The first helper implementation should expose direct functions such as `createPageHeader`, `createStatusMessage`, `createFilterPanel`, `createCollapsibleIndexPanel`, `createSplitListDetail`, `createDataTable`, `createDetailActionStrip`, `createInfoPanel`, `createModal`, `createModalForm`, `createFieldGrid`, and `createActionButton`.
+The first helper implementation exposes direct functions such as `createPageHeader`, `createStatusMessage`, `createFilterPanel`, `createCollapsibleIndexPanel`, `createSplitListDetail`, `createDataTable`, `createDetailActionStrip`, `createInfoPanel`, `createModal`, `createModalForm`, `createFieldGrid`, and `createActionButton`.
+
+It also exposes `createEmptyState`, `createDetailHeader`, `createInlineActionRow`, and `createElement` because those primitives are part of the documented inventory and keep consuming modules from recreating the same safe DOM boilerplate.
 
 Helpers should prefer safe text assignment, native button types, accessible labels/titles, optional ARIA labels where structure needs them, and stable dimensions or wrappers for fixed-format UI such as tables, toolbars, panels, and row actions. They should return DOM nodes and allow module-owned callbacks without owning app state.
+
+## Implementation Notes For 0.33.5.15.3
+
+The Lists protected workspace now uses `LongtailForge.view` to construct the page header, status message, filter panel, collapsible selector/index, split list/detail workspace, data tables, detail header, detail action strip, summary/info panels, item-entry field grid, inline item action rows, empty states, and the minimal Create/Edit List modal form shell.
+
+The Lists module still owns API routes, save payloads, permission-shaped data loading, workspace-type decisions, client/project visibility, task-link picker behavior, list-item workflows, and all record labels. Legacy Lists classes remain as compatibility aliases during the pilot, but the static protected HTML no longer owns the converted workspace anatomy.

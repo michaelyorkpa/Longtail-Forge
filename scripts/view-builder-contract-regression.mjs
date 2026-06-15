@@ -11,9 +11,9 @@ const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.15.1", "package.json should report the view-building contract version");
-assert.equal(packageLock.version, "0.33.5.15.1", "package-lock root should report the view-building contract version");
-assert.equal(packageLock.packages[""].version, "0.33.5.15.1", "package-lock package entry should report the view-building contract version");
+assert.equal(packageJson.version, "0.33.5.15.3", "package.json should report the current view-building version");
+assert.equal(packageLock.version, "0.33.5.15.3", "package-lock root should report the current view-building version");
+assert.equal(packageLock.packages[""].version, "0.33.5.15.3", "package-lock package entry should report the current view-building version");
 
 for (const item of [
   "Inventory hard-coded view construction in current protected views and module browser scripts.",
@@ -62,10 +62,10 @@ for (const surface of [
   assert.match(viewContract, new RegExp(`\\| ${escapeRegExp(surface)} \\|`), `Inventory should include ${surface}`);
 }
 
-assert.match(viewContract, /As of 0\.33\.5\.15\.1/, "View contract should report the contract version");
+assert.match(viewContract, /As of 0\.33\.5\.15\.3/, "View contract should report the current helper version");
 assert.match(viewContract, /window\.LongtailForge\.view/, "View contract should define the framework namespace");
 assert.match(viewContract, /no virtual DOM, state manager, component lifecycle, router, build step, or frontend framework/i, "View contract should keep the helper small");
-assert.match(viewContract, /does not add `LongtailForge\.view`, change module APIs, change database schema, change permissions, or alter business workflows/i, "View contract should preserve the planning boundary");
+assert.match(viewContract, /does not change module APIs, database schema, permissions, or business workflows/i, "View contract should preserve the implementation boundary");
 assert.match(viewContract, /Modules own data loading, state decisions, validation, API calls, save payloads, route permissions, record labels, module-specific fields, and workflow behavior/, "View contract should keep module behavior ownership explicit");
 
 assert.match(moduleContract, /Framework-owned view-building primitives live in `docs\/view-building-contract\.md`/, "Module contract should link the view-building contract");

@@ -197,43 +197,43 @@ Modules still own business meaning: data loading, save payloads, validation rule
 
 ### Version 0.33.5.15.2 - Shared Browser View Builder Helpers
 
-- [ ] Add a shared browser helper, for example `public/js/shared/view-builder.js`.
-- [ ] Expose helpers through `window.LongtailForge.view` or an equivalent framework namespace.
-- [ ] Helpers must use existing surface tokens and classes from 0.33.5.13.
-- [ ] Helpers must create accessible DOM by default:
-  - [ ] Safe text assignment instead of HTML injection.
-  - [ ] Proper button types.
-  - [ ] Optional accessible labels and titles.
-  - [ ] Focus-visible-safe controls.
-  - [ ] Empty/status regions with appropriate roles where needed.
-- [ ] Add helpers for:
-  - [ ] `createPageHeader`
-  - [ ] `createStatusMessage`
-  - [ ] `createFilterPanel`
-  - [ ] `createCollapsibleIndexPanel`
-  - [ ] `createSplitListDetail`
-  - [ ] `createDataTable`
-  - [ ] `createDetailActionStrip`
-  - [ ] `createInfoPanel`
-  - [ ] `createModal`
-  - [ ] `createModalForm`
-  - [ ] `createFieldGrid`
-  - [ ] `createActionButton`
-- [ ] Keep the helper layer small and boring. This is not a full frontend framework.
+- [x] Add a shared browser helper, for example `public/js/shared/view-builder.js`.
+- [x] Expose helpers through `window.LongtailForge.view` or an equivalent framework namespace.
+- [x] Helpers must use existing surface tokens and classes from 0.33.5.13.
+- [x] Helpers must create accessible DOM by default:
+  - [x] Safe text assignment instead of HTML injection.
+  - [x] Proper button types.
+  - [x] Optional accessible labels and titles.
+  - [x] Focus-visible-safe controls.
+  - [x] Empty/status regions with appropriate roles where needed.
+- [x] Add helpers for:
+  - [x] `createPageHeader`
+  - [x] `createStatusMessage`
+  - [x] `createFilterPanel`
+  - [x] `createCollapsibleIndexPanel`
+  - [x] `createSplitListDetail`
+  - [x] `createDataTable`
+  - [x] `createDetailActionStrip`
+  - [x] `createInfoPanel`
+  - [x] `createModal`
+  - [x] `createModalForm`
+  - [x] `createFieldGrid`
+  - [x] `createActionButton`
+- [x] Keep the helper layer small and boring. This is not a full frontend framework.
 
 ### Version 0.33.5.15.3 - Lists Framework View Builder Pilot
 
-- [ ] Convert `views/protected/lists.html` into a minimal framework host page.
-- [ ] Move Lists page structure into shared framework primitives instead of hard-coded static page sections.
-- [ ] Convert Lists filters to the framework filter panel helper.
-- [ ] Convert the list selector/index to the framework collapsible index panel helper.
-- [ ] Convert the selected list detail area to framework detail header, badge row, metadata row, action strip, summary panels, and table helpers.
-- [ ] Convert the item entry form to framework field grid/form helpers.
-- [ ] Convert list item rows/actions to overflow-safe framework row/action helpers.
-- [ ] Preserve all current Lists API routes, save payloads, permissions, and workflow behavior.
-- [ ] Preserve Business workspace client/project behavior.
-- [ ] Preserve Personal/Family workspace behavior from 0.33.5.14.
-- [ ] Add regressions proving Lists no longer relies on one-off static layout classes for framework-owned structures.
+- [x] Convert `views/protected/lists.html` into a minimal framework host page.
+- [x] Move Lists page structure into shared framework primitives instead of hard-coded static page sections.
+- [x] Convert Lists filters to the framework filter panel helper.
+- [x] Convert the list selector/index to the framework collapsible index panel helper.
+- [x] Convert the selected list detail area to framework detail header, badge row, metadata row, action strip, summary panels, and table helpers.
+- [x] Convert the item entry form to framework field grid/form helpers.
+- [x] Convert list item rows/actions to overflow-safe framework row/action helpers.
+- [x] Preserve all current Lists API routes, save payloads, permissions, and workflow behavior.
+- [x] Preserve Business workspace client/project behavior.
+- [x] Preserve Personal/Family workspace behavior from 0.33.5.14.
+- [x] Add regressions proving Lists no longer relies on one-off static layout classes for framework-owned structures.
 
 ### Version 0.33.5.15.4 - Client/Project Modal Adoption
 
@@ -260,6 +260,162 @@ Modules still own business meaning: data loading, save payloads, validation rule
 - [ ] Update DECISIONS.md with the framework-owned view builder decision.
 - [ ] Update CHANGELOG.md.
 - [ ] Update package metadata.
+- [ ] Run `npm run check`.
+- [ ] Run `npm run test:permissions`.
+- [ ] Verify `/api/app-info` reports the expected version.
+
+## Version 0.33.5.16 - Declarative Framework View Contract and Manifest View Descriptors
+
+This version builds directly on the 0.33.5.15 Framework View Builder helper library. 0.33.5.15
+gives the framework imperative DOM primitives (`window.LongtailForge.view`) that modules call by
+hand. 0.33.5.16 inverts ownership: modules stop calling view primitives imperatively and instead
+**declare a view descriptor** (data) in their manifest, and the framework renders the entire
+surface from that descriptor using the 0.33.5.15 helpers as its internal engine. The goal is to
+make framework-owned views the same kind of manifest-driven contribution that navigation,
+dashboard panels, workbench cards, settings, and help already are, so future modules contribute
+data and cannot hand-build divergent or breaking interfaces.
+
+### Design and Clarification Questions
+
+- [x] Confirm the relationship to the 0.33.5.15 helper library: should the declarative contract
+  replace the imperative helpers, or layer on top of them?
+  - Layer on top. Phased hybrid.
+  - Ship and prove the 0.33.5.15 imperative helpers first.
+  - The declarative renderer consumes the same `window.LongtailForge.view` primitives internally.
+  - Modules adopt the helper library first, then graduate surfaces to descriptors.
+  - Do not delete the imperative helpers; they remain the supported escape hatch for genuinely
+    custom surfaces that no descriptor can express yet.
+
+- [x] Confirm whether view descriptors should live in the module manifest, validated at startup
+  like other contributions, or in a separate per-view config file.
+  - Put descriptors in the module manifest as a new `viewSurfaces` field.
+  - Validate them at startup in `src/core/modules/manifest-contract.js` with the same fail-fast
+    rules used for navigation, dashboard, settings, and help.
+  - Reject unknown descriptor keys, missing required fields, duplicate surface IDs, and
+    references to permissions, modules, or data sources that do not exist.
+  - Reuse the existing per-workspace `terminology` resolution for all descriptor labels rather
+    than hard-coded strings.
+
+- [x] Confirm that modules contribute data and behavior, not DOM, under the declarative contract.
+  - Modules contribute: the descriptor (layout anatomy as data), a normalized data endpoint, a
+    declared field-binding map, and named behavior handlers for actions that are not plain routes.
+  - The framework owns: page shell, header, filters, table, split list/detail, detail header,
+    badge/metadata rows, action strips, summary panels, empty/loading/error states, modal shell,
+    form layout, footer/action placement, responsive behavior, dark-mode tokens, and a11y defaults.
+  - Modules must not create framework-owned anatomy by hand once a surface is declarative.
+
+- [x] Confirm how custom, module-specific interactions survive a declarative renderer.
+  - Provide a small behavior registry: `LongtailForge.view.registerBehavior(id, handler)`.
+  - Descriptors reference behaviors by `id`; the framework wires the control and invokes the
+    registered handler with a safe context (record, workspace, refresh, openModal).
+  - Business logic stays in module browser files; only layout moves to the framework.
+  - If a surface needs something the descriptor cannot express, the module keeps using the
+    0.33.5.15 imperative helpers for that surface only, not the whole page.
+
+- [x] Confirm enforcement scope so this does not become a repo-wide migration.
+  - Guardrails fail only on surfaces explicitly marked as declarative.
+  - Inventory/report all protected views, but only converted surfaces are strictly enforced.
+  - Expand fail-on-violation enforcement one module/surface group at a time after Lists proves out.
+
+Decision:
+
+The framework should own view construction as a first-class manifest-driven contribution, the
+same way it already owns navigation, dashboards, settings, and help. Modules declare a
+`viewSurfaces` descriptor describing the anatomy of a surface as data, expose a normalized data
+endpoint with a declared field-binding map, and register named behavior handlers for non-trivial
+actions. The framework reads the descriptor and renders the entire surface using the 0.33.5.15
+view helpers as its internal engine, applying shared surface tokens, responsive behavior,
+dark-mode safety, accessibility defaults, and consistent action placement.
+
+This is a phased hybrid: 0.33.5.15 helpers ship first and remain the supported escape hatch;
+0.33.5.16 layers the declarative contract on top and converts Lists as the proof. Modules keep
+all business meaning - data loading, validation, save payloads, permissions, record labels, and
+workflow behavior. Modules give up only hand-built layout. No state management, virtual DOM,
+component lifecycle, or new frontend framework is introduced.
+
+### Version 0.33.5.16.1 - View Descriptor Schema and Manifest Validation
+
+- [ ] Add a `viewSurfaces` field to the manifest contract in `src/core/modules/manifest-contract.js`.
+- [ ] Each descriptor declares surface anatomy as data, reusing 0.33.5.15 primitive names:
+  - [ ] `id`, `moduleId`, `viewId` (binds to an existing `protectedViews` entry).
+  - [ ] `layout`: `single-column`, `split-list-detail`, or `table-page`.
+  - [ ] `pageHeader`: title/terminology key, description, primary action.
+  - [ ] `filters`: declared filter controls (field, type, options source, default).
+  - [ ] `indexPanel`: collapsible selector/index config for split layouts.
+  - [ ] `table`: `columns` (label/terminology key, field binding, formatter, width hint),
+        `rowActions`, `emptyState`, overflow wrapper on by default.
+  - [ ] `detail`: header, badge row, metadata row, action strip, summary panels, item form,
+        item rows.
+  - [ ] `modals`: shell + field grid + footer action groups for create/edit surfaces.
+  - [ ] `dataSource`: route + a `fieldBindings` map from response fields to descriptor fields.
+  - [ ] `actions`: declarative `{ id, label, role, route, method, confirm, requiredPermissions }`
+        or a `behavior` id for custom handlers.
+- [ ] Resolve all descriptor labels through the existing per-workspace `terminology` system
+      (`src/core/modules/terminology.js`) so Business vs Personal/Family wording stays correct.
+- [ ] Validate descriptors at startup with fail-fast rules: unknown keys, missing required fields,
+      duplicate surface IDs, references to undefined permissions/modules/views/data sources, and
+      action roles outside the allowed set.
+- [ ] Do not change database schema, module APIs, or business workflows in this slice.
+- [ ] Document the descriptor schema and the framework-owns-vs-module-owns boundary in
+      `docs/module-contract.md` and `docs/ui-surface-contract.md`.
+
+### Version 0.33.5.16.2 - Framework View Renderer Engine
+
+- [ ] Add a renderer, for example `public/js/shared/view-renderer.js`, exposed as
+      `window.LongtailForge.view.renderSurface(descriptor, host)`.
+- [ ] The renderer builds the full surface using only the 0.33.5.15 `LongtailForge.view`
+      primitives (`createPageHeader`, `createFilterPanel`, `createCollapsibleIndexPanel`,
+      `createSplitListDetail`, `createDataTable`, `createDetailActionStrip`, `createInfoPanel`,
+      `createModal`, `createModalForm`, `createFieldGrid`, `createActionButton`).
+- [ ] Deliver descriptors to the browser through the existing app-shell bootstrap channel
+      (`public/js/navigation.js` `loadAppShellBootstrap()` / `window.LongtailForge.workspaceContext`),
+      the same path that already ships module and navigation data - no new transport.
+- [ ] Implement the data-binding contract: fetch `dataSource` via `shared/api-client.js`, map
+      response records through the descriptor `fieldBindings`, and render rows/fields/detail. This
+      replaces ad-hoc per-module normalization such as `normalizeListRecord` in `public/js/lists.js`.
+- [ ] Implement the behavior registry: `LongtailForge.view.registerBehavior(id, handler)`.
+      Declarative `route` actions are wired automatically; `behavior` actions invoke the registered
+      handler with a safe context `{ record, workspaceContext, refresh, openModal, api }`.
+- [ ] Render framework-owned loading, empty, and error states for every data source by default.
+- [ ] Keep the engine boring: no client state store, no virtual DOM, no component lifecycle.
+
+### Version 0.33.5.16.3 - Lists Declarative Conversion Proof
+
+- [ ] Convert the Lists workspace declared in 0.33.5.15 from imperative helper calls to a
+      `viewSurfaces` descriptor on the Lists module manifest.
+- [ ] Reduce `views/protected/lists.html` to a minimal framework host element the renderer fills.
+- [ ] Move Lists filters, collapsible selector/index, split list/detail, table, detail header,
+      badge/metadata rows, action strip, summary panels, item entry form, and item rows into the
+      descriptor.
+- [ ] Express Lists-specific actions (Duplicate, Edit, Complete, Finalize, Reopen, Archive,
+      Delete, Restore, reusable-list handling, linked-record picker) as declarative route actions
+      or registered behaviors; keep Lists service logic in Lists files.
+- [ ] Preserve all Lists routes, save payloads, permissions, and workflows.
+- [ ] Preserve Business client/project behavior and Personal/Family workspace scope behavior from
+      0.33.5.14.
+- [ ] Reduce `public/js/lists.js` to data bindings + behavior handlers (no hand-built layout).
+- [ ] Add regressions proving the Lists surface renders from the descriptor and no longer builds
+      framework-owned anatomy by hand.
+
+### Version 0.33.5.16.4 - Guardrails for Declarative Surfaces
+
+- [ ] Add static checks that run only against surfaces marked declarative.
+- [ ] A declarative module must not call `document.createElement` for framework-owned anatomy
+      (page header, table, dialog, action strip, filter panel, split layout).
+- [ ] A declarative module must not ship a non-minimal protected HTML view for a declarative surface.
+- [ ] A declarative module must not introduce one-off layout/footer classes when a descriptor
+      field or framework class exists.
+- [ ] Inventory and report all protected views, but enforce strictly only on converted surfaces.
+- [ ] Provide a clear migration note so the next module group can opt in one surface at a time.
+
+### Version 0.33.5.16.5 - Documentation and Closeout
+
+- [ ] Update `docs/module-contract.md` with the `viewSurfaces` descriptor and rendering boundary.
+- [ ] Update `docs/ui-surface-contract.md` to link surface tokens/classes to descriptor anatomy.
+- [ ] Add a developer guide for authoring a declarative view surface (descriptor + data + behaviors).
+- [ ] Update DECISIONS.md with the framework-owned declarative view decision.
+- [ ] Update CHANGELOG.md.
+- [ ] Update package metadata to the implemented version.
 - [ ] Run `npm run check`.
 - [ ] Run `npm run test:permissions`.
 - [ ] Verify `/api/app-info` reports the expected version.

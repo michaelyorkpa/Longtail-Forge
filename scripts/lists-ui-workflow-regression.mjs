@@ -33,7 +33,7 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
-  assert.equal(listsModule.version, "0.33.5.14.4");
+  assert.equal(listsModule.version, "0.33.5.15.3");
   assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
   assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));
@@ -47,26 +47,37 @@ async function assertProtectedView(session) {
   const listsStyles = styles.slice(styles.indexOf(".lists-filters-panel"), styles.indexOf(".client-item"));
 
   assert.equal(result.statusCode, 200);
-  assert.match(html, /data-lists-title/);
-  assert.match(html, /data-list-create/);
-  assert.match(html, /data-list-filter-status/);
-  assert.match(html, /data-list-filter-reusable/);
-  assert.match(html, /<option value="no" selected>Normal lists<\/option>/);
-  assert.match(html, /data-list-filter-assignee/);
-  assert.match(html, /data-list-filter-needed/);
-  assert.match(html, /data-list-filter-archive/);
-  assert.match(html, /data-list-detail/);
-  assert.match(html, /data-list-dialog/);
-  assert.match(html, /data-list-business-control/);
-  assert.match(html, /data-list-context-control/);
+  assert.match(html, /data-lists-host/);
+  assert.doesNotMatch(html, /data-list-filter-status/);
+  assert.doesNotMatch(html, /data-list-detail/);
+  assert.doesNotMatch(html, /data-list-dialog/);
+  assert.doesNotMatch(html, /<details class="lists-index-panel"/);
   assert.match(html, /js\/shared\/icons\.js\?v=1/);
   assert.match(html, /js\/shared\/client-project-options\.js\?v=1/);
-  assert.match(html, /data-lists-index-panel/);
-  assert.match(html, /data-lists-index-content/);
-  assert.match(html, /<details class="lists-index-panel" data-lists-index-panel aria-label="List index" open>/);
-  assert.match(html, /js\/lists\.js\?v=4/);
+  assert.match(html, /js\/shared\/view-builder\.js\?v=2/);
+  assert.match(html, /js\/lists\.js\?v=5/);
   assert.match(html, /css\/longtail-forge\.css\?v=21/);
 
+  assert.match(listsJs, /buildListsViewShell/);
+  assert.match(listsJs, /createPageHeader/);
+  assert.match(listsJs, /createFilterPanel/);
+  assert.match(listsJs, /createCollapsibleIndexPanel/);
+  assert.match(listsJs, /createSplitListDetail/);
+  assert.match(listsJs, /createDataTable/);
+  assert.match(listsJs, /createModalForm/);
+  assert.match(listsJs, /dataset\.listsTitle/);
+  assert.match(listsJs, /dataset\.listCreate/);
+  assert.match(listsJs, /"listFilterStatus"/);
+  assert.match(listsJs, /Normal lists/);
+  assert.match(listsJs, /"listFilterAssignee"/);
+  assert.match(listsJs, /"listFilterNeeded"/);
+  assert.match(listsJs, /"listFilterArchive"/);
+  assert.match(listsJs, /dataset\.listDetail/);
+  assert.match(listsJs, /dataset\.listDialog/);
+  assert.match(listsJs, /listBusinessControl/);
+  assert.match(listsJs, /listContextControl/);
+  assert.match(listsJs, /dataset\.listsIndexPanel/);
+  assert.match(listsJs, /dataset\.listsIndexContent/);
   assert.match(listsJs, /\/api\/lists\?\$\{buildListQueryParams\(\)\}/);
   assert.match(listsJs, /params\.set\("status"/);
   assert.match(listsJs, /params\.set\("sort"/);
