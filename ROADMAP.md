@@ -266,19 +266,19 @@ component lifecycle, or new frontend framework is introduced.
 
 ### Version 0.33.5.16.4 - Framework View Renderer Shell
 
-- [ ] Add a renderer, for example `public/js/shared/view-renderer.js`, exposed as
+- [x] Add a renderer, for example `public/js/shared/view-renderer.js`, exposed as
       `window.LongtailForge.view.renderSurface(descriptor, host)`.
-- [ ] The renderer must use only the 0.33.5.15 `LongtailForge.view` primitives as its DOM engine.
-- [ ] Support the initial layout shells:
-  - [ ] `single-column`.
-  - [ ] `split-list-detail`.
-  - [ ] `table-page`.
-- [ ] Render static descriptor anatomy for page headers, filter panels, selector/index shells,
+- [x] The renderer must use only the 0.33.5.15 `LongtailForge.view` primitives as its DOM engine.
+- [x] Support the initial layout shells:
+  - [x] `single-column`.
+  - [x] `split-list-detail`.
+  - [x] `table-page`.
+- [x] Render static descriptor anatomy for page headers, filter panels, selector/index shells,
       split workspaces, table shells, detail shells, action strips, info panels, modal shells,
       field grids, and empty/status placeholders.
-- [ ] Keep this pass descriptor-in/static-rendering only: no app-shell delivery, no data fetching,
+- [x] Keep this pass descriptor-in/static-rendering only: no app-shell delivery, no data fetching,
       no behavior registry, and no Lists conversion yet.
-- [ ] Keep the engine boring: no client state store, no virtual DOM, no component lifecycle.
+- [x] Keep the engine boring: no client state store, no virtual DOM, no component lifecycle.
 
 ### Version 0.33.5.16.5 - App-Shell Descriptor Delivery
 

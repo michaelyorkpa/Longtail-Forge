@@ -105,3 +105,9 @@ The 0.33.5.15 closeout keeps the imperative helper layer as the supported curren
 Developer documentation now treats framework view building as a boundary layered on top of the shared surface contract: the framework owns common anatomy, theme-safe wrappers, overflow behavior, modal/footer placement, and accessible defaults; modules own records, API calls, validation, save payloads, permission checks, labels, and workflow decisions.
 
 The next 0.33.5.16 descriptor work should layer on top of these helpers rather than replacing them. Imperative helpers remain the escape hatch for module surfaces that are not ready for declarative descriptors.
+
+## Implementation Notes For 0.33.5.16.4
+
+The first declarative renderer shell lives in `public/js/shared/view-renderer.js` and extends the browser namespace as `LongtailForge.view.renderSurface(descriptor, host)`. It takes a validated view descriptor and a host element, clears the host, and renders static framework anatomy by composing the existing `LongtailForge.view` primitives.
+
+The renderer supports the initial `single-column`, `split-list-detail`, and `table-page` layout shells. It can render page headers, filter panels, selector/index shells, split workspaces, table shells, detail headers, action strips, info panels, modal form shells, field grids, and empty/status placeholders. This shell is descriptor-in/static-DOM-out only: it does not fetch data, receive app-shell descriptors, register behavior handlers, own a client state store, implement a virtual DOM, or convert Lists.

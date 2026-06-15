@@ -1,3 +1,9 @@
+## Version 0.33.5.16.4 - 2026-06-15 11:31 -04:00
+
+- Added the static browser view renderer shell at `public/js/shared/view-renderer.js`, exposed as `LongtailForge.view.renderSurface(descriptor, host)`.
+- Supported descriptor-only rendering for `single-column`, `split-list-detail`, and `table-page` layout shells using the existing `LongtailForge.view` primitives, without app-shell delivery, data fetching, behavior registration, state storage, virtual DOM, lifecycle logic, or Lists conversion.
+- Added `view-renderer-shell-regression.mjs`, wired it into the regression suite, documented the renderer boundary, marked the 0.33.5.16.4 roadmap checklist complete, recorded the decision, and bumped package/app metadata to `0.33.5.16.4`.
+
 ## Version 0.33.5.16.3 - 2026-06-15 11:03 -04:00
 
 - Added `viewSurfaces` terminology resolution through the existing workspace terminology system, including literal `label`/`title`/`description` fallbacks and `labelKey`/`titleKey`/`descriptionKey` lookups.
