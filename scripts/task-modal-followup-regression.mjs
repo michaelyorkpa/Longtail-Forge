@@ -42,7 +42,7 @@ assert.match(stylesheet, /\.task-blocked-reason-field textarea \{[\s\S]*min-heig
 assert.match(stylesheet, /\.task-footer-panel \{[\s\S]*background: transparent;/, "Tags and Files panels should not look like boxed modal sections");
 assert.match(stylesheet, /\[data-task-notification-toggle\]\.is-following \{[\s\S]*color: var\(--color-danger\);/, "Followed task notification bell should be red");
 
-assert.match(tasksModule, /version: "0\.33\.5\.13\.6"/, "Tasks module version should match the modal follow-up release");
+assert.match(tasksModule, /version: "0\.33\.5\.13\.7"/, "Tasks module version should match the modal follow-up release");
 
 console.log("Task modal follow-up regression passed.");
 

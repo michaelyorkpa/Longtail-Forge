@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.5.13.6. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.5.13.7. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -23,7 +23,7 @@ The task dialog includes:
 - lightweight checklist controls
 - recurrence, reminders, tags, files, notes, notifications, description, and task timer controls
 
-Task modal notification following is owned by the heading bell. The dialog does not render a separate in-body Notifications fieldset or popover; clicking the heading bell follows or unfollows the saved task, and a red bell means the current user follows that task. The modal footer uses icon-only controls with accessible labels and titles for tags, files, copy link, cancel, and save. Tags and Files open their existing module-owned pickers in task-owned footer panels until the shared framework overlay standardization pass replaces that temporary placement.
+Task modal notification following is owned by the heading bell. The dialog does not render a separate in-body Notifications fieldset or popover; clicking the heading bell follows or unfollows the saved task, and a red bell means the current user follows that task. The modal footer uses icon-only controls with accessible labels and titles for tags, files, copy link, cancel, and save. Tags and Files register with the shared framework overlay host while keeping the existing Tags picker and Files attachment helper as the content owners.
 
 The task dialog includes a Notes panel mounted through the Notes-owned linked-record helper. Saved tasks show notes linked through task context or `note_links`, permitted create/link/unlink actions, and the empty state "No notes linked to this task." Unsaved tasks show "Save the task before adding notes." New notes created from a task carry task context, available project/client context, Note Kind `log`, the Active Work Library suggestion, and the normal internal visibility default unless the user changes it.
 

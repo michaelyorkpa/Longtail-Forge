@@ -1,6 +1,6 @@
 # UI Surface Contract
 
-This document captures the 0.33.5.13.6 framework surface inventory, token contract, modal section contract, modal footer/action contract, overlay host contract, drawer/slideout shell contract, main-screen internal surface contract, and first adoption pass. It is a current implementation guide, not a promise that every listed surface has already been converted.
+This document captures the 0.33.5.13.7 framework surface inventory, token contract, modal section contract, modal footer/action contract, overlay host contract, drawer/slideout shell contract, main-screen internal surface contract, and first adoption pass. It is the closeout reference for shipped shared surface behavior, not a promise that every listed surface has already been converted.
 
 ## Surface Inventory
 

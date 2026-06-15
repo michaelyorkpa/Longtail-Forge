@@ -4,7 +4,7 @@ The Tasks page supports single-task editing and selected-task bulk changes. Bulk
 
 The Add/Edit Task dialog keeps the title and a compact metadata ribbon near the top. Task Details holds parent task, status, priority, client, project, due date, and due time. Next Action and Resume Note sit together so the next step and handoff context are easy to compare. Blocked Reason appears only while the task is blocked. Checklist and Assignees start collapsed unless they already contain checklist items or selected assignees.
 
-The task heading bell follows or unfollows notifications for the task; a red bell means notifications are enabled for that task. Footer icons open task tags and files, copy the task link, cancel, and save. Those icon buttons keep accessible labels and hover titles even when the visible button text is hidden.
+The task heading bell follows or unfollows notifications for the task; a red bell means notifications are enabled for that task. Footer icons open task tags and files inside the task workflow, copy the task link, cancel, and save. Those icon buttons keep accessible labels and hover titles even when the visible button text is hidden.
 
 Task permissions control who can view, create, edit, assign, complete, archive, restore, or attach files to tasks. Users may see only the tasks allowed by their role scope.
 

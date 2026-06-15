@@ -22,7 +22,8 @@ assert.match(overlayHost, /closeActive\(state\);[\s\S]*state\.active = overlay/,
 assert.match(overlayHost, /overlay\.previousFocus\.focus\(\)/, "overlay host should return focus to the triggering control when closing directly");
 
 assert.match(styles, /\.surface-overlay-host\s*\{[\s\S]*position:\s*relative/, "overlay hosts should provide a positioning context");
-assert.match(styles, /\.surface-overlay-panel\[data-overlay-panel\]\s*\{[\s\S]*position:\s*absolute[\s\S]*max-height:\s*min\(58vh,\s*520px\)/, "desktop overlay panels should be anchored and constrained");
+assert.match(styles, /\.surface-overlay-panel\[hidden\],\s*\.task-footer-panel\[hidden\]\s*\{[\s\S]*display:\s*none !important/, "hidden overlay panels should stay closed when module layout classes set display");
+assert.match(styles, /\.surface-overlay-panel\[data-overlay-panel\]\s*\{[\s\S]*box-sizing:\s*border-box[\s\S]*position:\s*absolute[\s\S]*max-height:\s*min\(58vh,\s*520px\)[\s\S]*background:\s*var\(--color-surface-overlay\)/, "desktop overlay panels should be anchored, constrained, and opaque");
 assert.match(styles, /\.surface-overlay-panel--bottom-sheet\[data-overlay-panel\]\s*\{[\s\S]*position:\s*fixed[\s\S]*inset:\s*auto 0 0 0/, "mobile overlays should become bottom sheets");
 assert.match(surfaceContract, /overlay host behavior/, "surface contract should keep overlay host behavior framework-owned");
 assert.match(surfaceContract, /\.surface-overlay-host/, "surface contract should document the overlay host class");
@@ -31,7 +32,7 @@ assert.match(uiGuide, /overlay host owns placement, close behavior, focus handli
 
 assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1/, "Tasks view should load the shared overlay host before task-dialog");
 assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=10/, "Tasks view should load overlay host before task dialog code");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=21/, "Tasks view should load the overlay-host stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=23/, "Tasks view should load the overlay-host stylesheet cache key");
 assert.match(tasksView, /<section class="task-footer-panel task-tags-field surface-overlay-panel" data-task-tags-panel hidden>[\s\S]*<div data-task-tags><\/div>/, "Tasks tags panel should keep module-owned tag picker mount");
 assert.match(tasksView, /<section class="task-footer-panel task-files-field surface-overlay-panel" data-task-files-panel hidden>[\s\S]*<div data-task-files><\/div>/, "Tasks files panel should keep module-owned file attachment mount");
 

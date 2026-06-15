@@ -68,6 +68,14 @@ Register authenticated module pages through `protectedViews`. Protected module p
 
 Declare module-specific browser scripts or styles in `browserAssets`. Shared app-shell assets remain framework-owned.
 
+## Shared UI Surfaces
+
+Use `docs/ui-surface-contract.md` and `docs/ui-layout-guide.md` before adding or converting module UI. Framework-owned surface classes cover modal groups, modal section headings and bodies, modal footers, overlay hosts, drawers, slideouts, main-screen internal panels, chips, dividers, focus states, and dense row/list action clusters. Modules should use those shared classes for shell structure and theme behavior while keeping record fields, picker bodies, validation, save payloads, permissions, and business meaning module-owned.
+
+Use `LongtailForge.overlayHost.create({ host })` for small module-owned panels opened from modal footer or row actions, such as task Tags and Files. The overlay host owns placement, Escape/click-away handling, focus handling, responsive bottom-sheet behavior, and one-open-overlay state; the module or framework service still owns picker/upload content and persistence.
+
+Use `.surface-main-panel` for main-screen filters, bulk toolbars, settings groups, notification/timer panels, and contextual work panels. Use `.surface-dense-actions` for row-local action clusters instead of reusing modal footer classes. Drawer and slideout shells are available for future side panels and become full-screen overlays on narrow screens.
+
 ## Shared Icon And Action Controls
 
 Use `window.LongtailForge.icons` for common action icons and compact action buttons. The shared helper is framework-owned, uses a local Lucide-derived inline SVG subset, and renders by stable semantic names such as `add`, `edit`, `archive`, `restore`, `delete`, `start`, `pause`, `save`, `close`, `copy`, `refresh`, and `more`.

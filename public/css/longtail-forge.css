@@ -152,11 +152,17 @@ summary.surface-modal-section-heading {
     box-shadow: var(--shadow-card);
 }
 
+.surface-overlay-panel[hidden],
+.task-footer-panel[hidden] {
+    display: none !important;
+}
+
 .surface-overlay-host {
     position: relative;
 }
 
 .surface-overlay-panel[data-overlay-panel] {
+    box-sizing: border-box;
     position: absolute;
     top: var(--overlay-anchor-top, auto);
     left: var(--overlay-anchor-left, 0);
@@ -166,6 +172,7 @@ summary.surface-modal-section-heading {
     max-height: min(58vh, 520px);
     overflow: auto;
     padding: 12px;
+    background: var(--color-surface-overlay);
 }
 
 .surface-overlay-panel--bottom-sheet[data-overlay-panel] {
@@ -3541,6 +3548,11 @@ dialog .form-actions {
     padding: 12px;
 }
 
+.task-details-field {
+    box-sizing: border-box;
+    min-width: 0;
+}
+
 .task-details-field summary,
 .task-checklist-field summary {
     list-style-position: outside;
@@ -3551,6 +3563,10 @@ dialog .form-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
     margin-top: 10px;
+}
+
+.task-details-grid > label {
+    min-width: 0;
 }
 
 .task-parent-field {

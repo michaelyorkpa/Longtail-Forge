@@ -57,7 +57,7 @@ assert.match(
   /class="task-bulk-toolbar surface-main-panel"/,
   "Tasks bulk toolbar should prove the shared main-panel shell",
 );
-assert.match(tasksView, /css\/longtail-forge\.css\?v=21/, "Tasks view must load the drawer/main-surface stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=23/, "Tasks view must load the drawer/main-surface stylesheet cache key");
 
 for (const expected of [
   ".surface-main-panel",

@@ -95,12 +95,12 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ### Version 0.33.5.13.7 - Surface Standardization Closeout
 
-- [ ] Update Help and developer docs where shared modal, overlay, footer, drawer, or surface behavior changed.
-- [ ] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive during the implementation closeout.
-- [ ] Run focused converted-surface regressions.
-- [ ] Run `npm run check`.
-- [ ] Run `npm run test:permissions`.
-- [ ] Verify `/api/app-info` reports the expected version after implementation.
+- [x] Update Help and developer docs where shared modal, overlay, footer, drawer, or surface behavior changed.
+- [x] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive during the implementation closeout.
+- [x] Run focused converted-surface regressions.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Verify `/api/app-info` reports the expected version after implementation.
 
 ## 0.33.5.14 - Further UI Clean up
 

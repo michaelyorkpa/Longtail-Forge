@@ -1,3 +1,12 @@
+## Version 0.33.5.13.7 - 2026-06-14 12:43 -04:00
+
+- Closed the 0.33.5.13 framework surface and modal style standardization line with current-state Help/developer documentation updates for shared modal, overlay, footer, drawer/slideout, main-panel, dense-action, and task Tags/Files behavior.
+- Updated `docs/tasks-module.md`, `docs/module-development.md`, `docs/module-contract.md`, `docs/architecture.md`, `docs/ui-surface-contract.md`, `docs/ui-layout-guide.md`, and `help/framework/tasks-basics.md` to describe shipped surface behavior and ownership boundaries.
+- Added `surface-standardization-closeout-regression.mjs`, wired it into the regression suite, and bumped package/app plus Tasks module metadata to `0.33.5.13.7`.
+- Updated `DECISIONS.md`, the roadmap closeout checklist, and kept `0.33.5.13` in the live roadmap as the most recently completed section.
+- Fixed the task Tags/Files footer overlays so hidden panels stay closed when the task dialog first opens, even though task footer panels also carry grid layout classes.
+- Tightened task modal surface CSS so Task Details stays inside its modal group and registered Tags/Files popovers render with an opaque overlay background.
+
 ## Version 0.33.5.13.6 - 2026-06-14 12:13 -04:00
 
 - Converted the first adoption-pass surfaces to shared surface classes: Notifications list/preferences boxes, generated notification rows/actions, notification preference groups/rows, and task timer controls/display.

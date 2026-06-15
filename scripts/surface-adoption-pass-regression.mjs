@@ -80,7 +80,7 @@ assert.match(
   /<strong class="surface-chip" data-task-timer-display>00:00:00<\/strong>/,
   "Fallback task dialog timer display should use the shared chip surface",
 );
-assert.match(tasksView, /css\/longtail-forge\.css\?v=21/, "Tasks view should load the adoption-pass stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=23/, "Tasks view should load the adoption-pass stylesheet cache key");
 
 assert.match(
   styles,
