@@ -39,8 +39,13 @@ try {
 async function assertManifestIntegrationContract() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.5.10.2");
-  assert.equal(notesModule.publicApiRoutes.length, 0, "Notes should not expose public/client APIs in this closeout pass");
+  assert.equal(notesModule.version, "0.33.5.14.4");
+  assert.equal(notesModule.publicApiRoutes.length, 1, "Notes should expose only the read-only public API router");
+  assert.deepEqual(notesModule.apiScopes.map((scope) => scope.id), ["notes:read"]);
+  assert.deepEqual(
+    notesModule.publicApiEndpoints.map((endpoint) => `${endpoint.method} ${endpoint.path} ${endpoint.scope}`),
+    ["GET /api/v1/notes notes:read", "GET /api/v1/notes/:noteId notes:read"],
+  );
   assert.ok(notesModule.permissions.some((permission) => permission.id === "notes.view"));
   assert.ok(notesModule.taggableTypes.some((type) => type.targetType === "note" && type.requiredTagPermission === "tags.assign"));
   assert.ok(notesModule.searchableTypes.some((type) => type.recordType === "note" && type.indexer === "notes.records"));

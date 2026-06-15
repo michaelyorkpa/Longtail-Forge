@@ -5,6 +5,7 @@ import {
   LIST_RESOURCE_DEFINITION,
 } from "./access-policy.js";
 import { listsRoutes } from "./lists.routes.js";
+import { listsPublicApiRoutes } from "./public-api.routes.js";
 import { registerListsSearchIndexers } from "./search-indexers.js";
 import { LIST_MODULE_ID } from "./storage-contract.js";
 
@@ -166,12 +167,12 @@ const listsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.14.3",
+  version: "0.33.5.14.4",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
   browserApiRoutes: [listsRoutes],
-  publicApiRoutes: [],
+  publicApiRoutes: [listsPublicApiRoutes],
   migrationsDir: new URL("./migrations/", import.meta.url),
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
@@ -248,8 +249,19 @@ const listsModule = {
   ],
   resourceDefinitions: [LIST_RESOURCE_DEFINITION],
   auditRecordTypes: LIST_AUDIT_RECORD_TYPES,
-  publicApiEndpoints: [],
-  apiScopes: [],
+  publicApiEndpoints: [
+    { method: "GET", path: "/api/v1/lists", scope: "lists:read" },
+    { method: "GET", path: "/api/v1/lists/:listId", scope: "lists:read" },
+  ],
+  apiScopes: [
+    {
+      id: "lists:read",
+      moduleId: LIST_MODULE_ID,
+      label: "Read Lists",
+      description: "Read lists through the public API.",
+      access: "read",
+    },
+  ],
   eventTypes: LIST_EVENT_TYPES,
   eventSummaries: [],
   hooks: { events: [] },

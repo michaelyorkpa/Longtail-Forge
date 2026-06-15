@@ -98,12 +98,12 @@ Keep this release focused on visible breakages, responsive layout failures, dark
 
 ### Version 0.33.5.14.4 - Notes Tag Inheritance and API Key Scope Visibility Corrections
 
-- [ ] Ensure Notes inherit client/project tags consistently when linked to client/project context.
-- [ ] Add focused service/API/UI regressions proving Notes tag inheritance works without turning tags into workflow status, visibility, permissions, or billing behavior.
-- [ ] Ensure Notes API scopes appear in API key settings when the Notes module is enabled and the workspace type supports API keys.
-- [ ] Ensure Lists API scopes appear in API key settings when the Lists module is enabled and the workspace type supports API keys.
-- [ ] Ensure Personal and Family workspaces still do not show Business-only API key controls.
-- [ ] Add permission/API scope regressions for Notes and Lists scope visibility.
+- [x] Ensure Notes inherit client/project tags consistently when linked to client/project context.
+- [x] Add focused service/API/UI regressions proving Notes tag inheritance works without turning tags into workflow status, visibility, permissions, or billing behavior.
+- [x] Ensure Notes API scopes appear in API key settings when the Notes module is enabled and the workspace type supports API keys.
+- [x] Ensure Lists API scopes appear in API key settings when the Lists module is enabled and the workspace type supports API keys.
+- [x] Ensure Personal and Family workspaces still do not show Business-only API key controls.
+- [x] Add permission/API scope regressions for Notes and Lists scope visibility.
 
 ### Version 0.33.5.14.5 - Closeout
 

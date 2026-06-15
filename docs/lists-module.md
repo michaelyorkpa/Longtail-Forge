@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.5.14.3. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.5.14.4. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
@@ -116,9 +116,10 @@ Lists declares these framework integration points in `module.js`:
 - `taggableTypes` for list tags through the framework tag service.
 - `searchableTypes` using the `lists.records` indexer.
 - `attachableTypes` using the framework file service.
+- `publicApiRoutes`, `publicApiEndpoints`, and the `lists:read` scope for read-only public Lists access.
 - `help.sections` and `help.articles` for current-state product Help.
 
-Lists does not declare public API routes, public API scopes, timer sources, dashboard cards, workbench cards, or notification events in the current release.
+Lists declares read-only public API routes for list summaries and list detail reads. Lists write routes, item mutations, reusable-list operations, catalog management, finalization, timer sources, dashboard cards, workbench cards, and notification events are not public API surfaces in the current release.
 
 ## Search, Tags, And Files
 

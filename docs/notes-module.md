@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.5.10.2. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.14.4. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -154,15 +154,17 @@ Notes declares these framework integration points in `module.js`:
 - `browserApiRoutes`, `protectedViews`, `browserAssets`, navigation, and a module-status setting.
 - `auditRecordTypes`, `eventTypes`, `eventSummaries`, and `notificationEvents`.
 - `taggableTypes` for note tags through the framework tag service.
+- `tagPropagation` rules for client/project tags inherited into linked notes through framework propagated-tag assignments.
 - `searchableTypes` using the `notes.records` indexer.
 - `attachableTypes` using the framework file service and shared browser attachment helper.
+- `publicApiRoutes`, `publicApiEndpoints`, and the `notes:read` scope for read-only public Notes access.
 - `help.sections` and `help.articles` for current-state product Help.
 
-Notes does not declare public API routes or public API scopes in the current release.
+Notes declares read-only public API routes for non-secure notes. Notes write routes, secure-note public access, revision routes, collection management, and linked-record mutations remain internal/browser workflows.
 
 ## Search, Tags, And Files
 
-Tags are framework-owned. Notes saves direct/manual note tags through `tagsService.replaceAssignments()` and decorates reads/lists through the tag service. Tags do not drive permissions, visibility, Library buckets, collection membership, billing, or workflow status.
+Tags are framework-owned. Notes saves direct/manual note tags through `tagsService.replaceAssignments()` and decorates reads/lists through the tag service. Notes linked to client or project context receive propagated client/project tags through framework tag-propagation rules. Tags do not drive permissions, visibility, Library buckets, collection membership, billing, or workflow status.
 
 Search is framework-owned. Notes registers `notes.records`, returns normalized search documents, and requests persistence through `searchIndexSyncService`. Notes must not write directly to `search_index` or SQLite FTS tables. Normal search indexes non-secure, non-private notes by title, safe body text, Library bucket, status, safe linked context, collection metadata, and tags.
 

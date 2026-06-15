@@ -42,6 +42,8 @@ function registerBuiltInResolvers() {
   registerTagPropagationResolver("client-projects.client-projects", resolveClientProjects);
   registerTagPropagationResolver("client-projects.project-children", resolveProjectChildren);
   registerTagPropagationResolver("tasks.project-tasks", resolveProjectTasks);
+  registerTagPropagationResolver("notes.client-notes", resolveClientNotes);
+  registerTagPropagationResolver("notes.project-notes", resolveProjectNotes);
 }
 
 async function resolveClientChildren(context = {}) {
@@ -162,6 +164,77 @@ WHERE workspace_id = ${sqlText(context.workspaceId)}
   AND project_id IS NOT NULL
   AND project_id != '';
 `), "project", "task");
+}
+
+async function resolveClientNotes(context = {}) {
+  return resolveNoteContext(context, "client", "client_id");
+}
+
+async function resolveProjectNotes(context = {}) {
+  return resolveNoteContext(context, "project", "project_id");
+}
+
+async function resolveNoteContext(context = {}, sourceTargetType, noteColumn) {
+  const targetTypeSql = sqlText(sourceTargetType);
+  const moduleIdSql = sqlText("client-projects");
+
+  if (context.sourceTargetId) {
+    return mapRows(await querySql(`
+SELECT ${noteColumn} AS source_target_id, note_id AS target_id
+FROM notes
+WHERE workspace_id = ${sqlText(context.workspaceId)}
+  AND ${noteColumn} = ${sqlText(context.sourceTargetId)}
+  AND status != 'deleted'
+UNION
+SELECT target_id AS source_target_id, note_id AS target_id
+FROM note_links
+WHERE workspace_id = ${sqlText(context.workspaceId)}
+  AND module_id = ${moduleIdSql}
+  AND target_type = ${targetTypeSql}
+  AND target_id = ${sqlText(context.sourceTargetId)}
+  AND removed_at IS NULL;
+`), sourceTargetType, "note");
+  }
+
+  if (context.targetId) {
+    return mapRows(await querySql(`
+SELECT ${noteColumn} AS source_target_id, note_id AS target_id
+FROM notes
+WHERE workspace_id = ${sqlText(context.workspaceId)}
+  AND note_id = ${sqlText(context.targetId)}
+  AND ${noteColumn} IS NOT NULL
+  AND ${noteColumn} != ''
+  AND status != 'deleted'
+UNION
+SELECT target_id AS source_target_id, note_id AS target_id
+FROM note_links
+WHERE workspace_id = ${sqlText(context.workspaceId)}
+  AND note_id = ${sqlText(context.targetId)}
+  AND module_id = ${moduleIdSql}
+  AND target_type = ${targetTypeSql}
+  AND target_id IS NOT NULL
+  AND target_id != ''
+  AND removed_at IS NULL;
+`), sourceTargetType, "note");
+  }
+
+  return mapRows(await querySql(`
+SELECT ${noteColumn} AS source_target_id, note_id AS target_id
+FROM notes
+WHERE workspace_id = ${sqlText(context.workspaceId)}
+  AND ${noteColumn} IS NOT NULL
+  AND ${noteColumn} != ''
+  AND status != 'deleted'
+UNION
+SELECT target_id AS source_target_id, note_id AS target_id
+FROM note_links
+WHERE workspace_id = ${sqlText(context.workspaceId)}
+  AND module_id = ${moduleIdSql}
+  AND target_type = ${targetTypeSql}
+  AND target_id IS NOT NULL
+  AND target_id != ''
+  AND removed_at IS NULL;
+`), sourceTargetType, "note");
 }
 
 function mapRows(rows, sourceTargetType, targetType) {

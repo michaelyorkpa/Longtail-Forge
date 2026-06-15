@@ -499,7 +499,7 @@ async function refreshPropagatedAssignmentsForTarget(session, payload = {}) {
   const target = await readTargetForSession(session, payload.targetType || payload.target_type, payload.targetId || payload.target_id, "read");
   const rules = await modulesService.listActiveTagPropagationRules(session.workspace_id);
   const relatedPairs = await readRelatedPropagationPairs(session, target, rules);
-  let repairedRecords = 0;
+  let repairedRecords = await removeStalePropagatedAssignmentsForTarget(session, target, rules, relatedPairs);
   let skippedRecords = 0;
   let failedRecords = 0;
 
@@ -1368,6 +1368,46 @@ async function emitTagAssignmentEvent(session, eventName, target, tag, metadata 
     target_type: target.targetType,
   });
   return eventResult;
+}
+
+async function removeStalePropagatedAssignmentsForTarget(session, target, rules, relatedPairs) {
+  const inboundRuleIds = new Set(rules
+    .filter((rule) => rule.targetType === target.targetType)
+    .map((rule) => rule.id));
+
+  if (inboundRuleIds.size === 0) {
+    return 0;
+  }
+
+  const validContexts = new Set(relatedPairs
+    .filter(({ rule, pair }) => rule.targetType === target.targetType && pair.targetId === target.targetId)
+    .map(({ rule, pair }) => propagationContextKey(rule.id, pair.sourceTargetType || rule.sourceTargetType, pair.sourceTargetId)));
+  const propagatedAssignments = await tagsRepository.listAssignmentsForTarget(session.workspace_id, target.targetType, target.targetId, { source: "propagated" });
+  let removedCount = 0;
+
+  for (const assignment of propagatedAssignments) {
+    if (!inboundRuleIds.has(assignment.propagation_rule_id)) {
+      continue;
+    }
+
+    const contextKey = propagationContextKey(assignment.propagation_rule_id, assignment.source_target_type, assignment.source_target_id);
+    if (validContexts.has(contextKey)) {
+      continue;
+    }
+
+    await tagsRepository.removeAssignmentById(session.workspace_id, assignment.tag_assignment_id);
+    removedCount += 1;
+  }
+
+  return removedCount;
+}
+
+function propagationContextKey(ruleId, sourceTargetType, sourceTargetId) {
+  return [
+    String(ruleId || ""),
+    String(sourceTargetType || ""),
+    String(sourceTargetId || ""),
+  ].join(":");
 }
 
 function recordFailedTagEventHooks(eventResult, context = {}) {

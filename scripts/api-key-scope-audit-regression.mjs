@@ -6,6 +6,8 @@ import path from "node:path";
 const EXPECTED_VISIBLE_SCOPES = [
   "clients:read",
   "clients:write",
+  "lists:read",
+  "notes:read",
   "projects:read",
   "projects:write",
   "tasks:read",
@@ -17,8 +19,6 @@ const EXPECTED_VISIBLE_SCOPES = [
 const DEFERRED_SCOPE_PREFIXES = [
   "files:",
   "search:",
-  "notes:",
-  "lists:",
   "tags:",
   "notifications:",
   "help:",
@@ -89,7 +89,7 @@ async function assertDocsCaptureAudit() {
     assert.match(publicApiDocs, new RegExp(escapeRegExp(scope)));
   }
 
-  for (const deferredScope of ["files:read", "search:read", "notes:read", "lists:read", "tags:read", "notifications:read", "help:read"]) {
+  for (const deferredScope of ["files:read", "search:read", "notes:write", "notes:manage", "lists:write", "lists:manage", "tags:read", "notifications:read", "help:read"]) {
     assert.match(publicApiDocs, new RegExp(escapeRegExp(deferredScope)));
   }
 

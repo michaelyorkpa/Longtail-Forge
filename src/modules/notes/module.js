@@ -4,6 +4,7 @@ import {
   NOTE_PERMISSIONS,
   NOTE_RESOURCE_DEFINITION,
 } from "./access-policy.js";
+import { notesPublicApiRoutes } from "./public-api.routes.js";
 import { notesRoutes } from "./notes.routes.js";
 import { registerNotesSearchIndexers } from "./search-indexers.js";
 
@@ -180,12 +181,12 @@ const notesModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.10.2",
+  version: "0.33.5.14.4",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
   browserApiRoutes: [notesRoutes],
-  publicApiRoutes: [],
+  publicApiRoutes: [notesPublicApiRoutes],
   migrationsDir: new URL("./migrations/", import.meta.url),
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
@@ -262,8 +263,19 @@ const notesModule = {
   ],
   resourceDefinitions: [NOTE_RESOURCE_DEFINITION],
   auditRecordTypes: NOTE_AUDIT_RECORD_TYPES,
-  publicApiEndpoints: [],
-  apiScopes: [],
+  publicApiEndpoints: [
+    { method: "GET", path: "/api/v1/notes", scope: "notes:read" },
+    { method: "GET", path: "/api/v1/notes/:noteId", scope: "notes:read" },
+  ],
+  apiScopes: [
+    {
+      id: "notes:read",
+      moduleId: "notes",
+      label: "Read Notes",
+      description: "Read non-secure notes through the public API.",
+      access: "read",
+    },
+  ],
   eventTypes: NOTE_EVENT_TYPES,
   eventSummaries: [
     {
@@ -302,7 +314,38 @@ const notesModule = {
       requiredModules: ["notes"],
     },
   ],
-  tagPropagation: [],
+  tagPropagation: [
+    {
+      id: "notes.client-to-note",
+      sourceModuleId: "client-projects",
+      sourceTargetType: "client",
+      targetModuleId: "notes",
+      targetType: "note",
+      relationshipResolver: "notes.client-notes",
+      workspaceField: "workspace_id",
+      sourceReadPermission: "clients.manage",
+      targetReadPermission: NOTE_PERMISSIONS.VIEW,
+      targetTagPermission: "tags.assign",
+      requiredModules: ["client-projects", "notes", "tags"],
+      propagateOnParentChange: true,
+      propagateOnRelationshipChange: true,
+    },
+    {
+      id: "notes.project-to-note",
+      sourceModuleId: "client-projects",
+      sourceTargetType: "project",
+      targetModuleId: "notes",
+      targetType: "note",
+      relationshipResolver: "notes.project-notes",
+      workspaceField: "workspace_id",
+      sourceReadPermission: "projects.manage",
+      targetReadPermission: NOTE_PERMISSIONS.VIEW,
+      targetTagPermission: "tags.assign",
+      requiredModules: ["client-projects", "notes", "tags"],
+      propagateOnParentChange: true,
+      propagateOnRelationshipChange: true,
+    },
+  ],
   searchableTypes: [
     {
       recordType: "note",

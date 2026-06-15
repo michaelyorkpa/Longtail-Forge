@@ -115,6 +115,7 @@ async function create(payload, session) {
   const note = await notesRepository.create(session.workspace_id, normalized);
   await createLinksFromPayload(session, note.note_id, payload);
   await saveTargetTags(session, note.note_id, payload);
+  await requestTagPropagationRefresh(session, "note", note.note_id, "note.created_with_context");
   const noteWithLinks = await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note));
   await recordNoteAudit(session, "note_created", "create", null, noteWithLinks);
   await emitNoteEvent("note.created", session, null, noteWithLinks);
@@ -139,6 +140,9 @@ async function update(noteId, payload, session) {
   const note = await notesRepository.update(session.workspace_id, nextNote);
   await maybeCreateRevision(session, previousNote, note, "Note updated.");
   await saveTargetTags(session, note.note_id, payload);
+  if (noteContextChanged(previousNote, note)) {
+    await requestTagPropagationRefresh(session, "note", note.note_id, "note.context_changed");
+  }
   const noteWithLinks = await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note));
   await recordNoteAudit(session, "note_updated", "update", previousNote, noteWithLinks);
   await emitNoteEvent("note.updated", session, previousNote, noteWithLinks);
@@ -527,6 +531,7 @@ async function createLink(noteId, payload, session) {
   const link = normalizeLinkPayload(payload, noteId, session);
   await assertTargetAccess(session, link);
   const createdLink = await notesRepository.createLink(session.workspace_id, link);
+  await requestTagPropagationRefresh(session, "note", note.note_id, "note.link_created");
   await recordNoteAudit(session, "note_link_created", "create", null, createdLink, "note_link");
   await emitNoteEvent("note.linked", session, null, note, { link: createdLink });
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.linked");
@@ -545,6 +550,7 @@ async function removeLink(noteId, noteLinkId, session) {
   }
 
   const link = await notesRepository.removeLink(session.workspace_id, noteId, noteLinkId);
+  await requestTagPropagationRefresh(session, "note", note.note_id, "note.link_removed");
   await recordNoteAudit(session, "note_link_removed", "delete", previousLink, link, "note_link");
   await emitNoteEvent("note.unlinked", session, note, note, { link });
   await syncNoteSearchIndex(session.workspace_id, note.note_id, "note.unlinked");
@@ -773,6 +779,25 @@ async function saveTargetTags(session, noteId, payload = {}) {
     targetType: "note",
     tagIds: payload.tagIds || payload.tag_ids || [],
   });
+}
+
+async function requestTagPropagationRefresh(session, targetType, targetId, reason) {
+  try {
+    await tagsService.refreshPropagatedAssignmentsForTarget(session, {
+      reason,
+      targetId,
+      targetType,
+    });
+  } catch (error) {
+    console.error(`[notes] Tag propagation refresh failed for ${targetType}:${targetId}:`, error);
+  }
+}
+
+function noteContextChanged(previousNote = {}, nextNote = {}) {
+  return [
+    "client_id",
+    "project_id",
+  ].some((fieldName) => String(previousNote[fieldName] || "") !== String(nextNote[fieldName] || ""));
 }
 
 async function decorateAndFilterNotesByTags(session, notes, filters = {}) {

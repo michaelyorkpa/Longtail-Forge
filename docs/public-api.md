@@ -74,6 +74,8 @@ Current visible scopes:
 | `clients:write` | Client/Projects | Write | `POST /api/v1/clients`, `PUT /api/v1/clients/:clientId`, `DELETE /api/v1/clients/:clientId` |
 | `projects:read` | Client/Projects | Read | `GET /api/v1/projects`, `GET /api/v1/projects/:projectId` |
 | `projects:write` | Client/Projects | Write | `POST /api/v1/projects`, `POST /api/v1/clients/:clientId/projects`, `PUT /api/v1/projects/:projectId`, `DELETE /api/v1/projects/:projectId` |
+| `notes:read` | Notes | Read | `GET /api/v1/notes`, `GET /api/v1/notes/:noteId` |
+| `lists:read` | Lists | Read | `GET /api/v1/lists`, `GET /api/v1/lists/:listId` |
 | `tasks:read` | Tasks | Read | `GET /api/v1/tasks`, `GET /api/v1/tasks/:taskId` |
 | `tasks:write` | Tasks | Write | Task create, update, complete, reopen, archive, and restore routes |
 | `time_entries:read` | Time Tracking | Read | `GET /api/v1/time-entries` |
@@ -85,8 +87,8 @@ Deferred scope gaps for the 0.33.5.3.x repair line:
 | --- | --- | --- |
 | `files:read`, `files:write`, `files:download`, `files:delete`, `files:manage` | Framework Files service | Defer until public file route shape, storage safety, scanner metadata, and target access rules are explicit. |
 | `search:read` | Framework Search service | Defer until public search result shaping and permission pruning are specified. |
-| `notes:read`, `notes:write`, `notes:manage` | Notes | Defer until note access policy, secure note handling, revisions, collections, and linked-record behavior are mapped to public routes. |
-| `lists:read`, `lists:write`, `lists:manage` | Lists | Defer until list, item, reusable-list, catalog, and finalization operations have stable public contracts. |
+| `notes:write`, `notes:manage` | Notes | Defer until note write behavior, secure note writes, revisions, collections, and linked-record mutations are mapped to public routes. |
+| `lists:write`, `lists:manage` | Lists | Defer until list, item, reusable-list, catalog, and finalization operations have stable public write contracts. |
 | `tags:read`, `tags:write`, `tags:assign`, `tags:manage` | Tags | Defer until tag assignment semantics, propagated/system preservation, and target permission checks are mapped to public routes. |
 | `notifications:read`, `notifications:write`, `notifications:manage` | Framework Notifications service | Defer until notification preference/default/event surfaces are intentionally public. |
 | `help:read` | Framework Help Center | Defer until Help discovery routes are intentionally public and documented. |
@@ -144,6 +146,20 @@ Archive a project:
 DELETE /api/v1/projects/project-id
 Authorization: Bearer ltf_live_...
 ```
+
+### Notes
+
+- `GET /api/v1/notes` requires `notes:read`
+- `GET /api/v1/notes/:noteId` requires `notes:read`
+
+The Notes public API is read-only in this release. It returns permission-shaped non-secure notes using the API key creator's workspace context. Secure notes are not exposed through the public API, and note writes, revisions, collection management, and linked-record mutations remain browser/internal workflows.
+
+### Lists
+
+- `GET /api/v1/lists` requires `lists:read`
+- `GET /api/v1/lists/:listId` requires `lists:read`
+
+The Lists public API is read-only in this release. It returns permission-shaped list summaries and list detail payloads, including readable items and permission-safe linked-record summaries. List writes, item mutations, reusable-list operations, catalog management, and finalization workflows remain browser/internal workflows.
 
 ### Time Tracking
 

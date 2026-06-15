@@ -1,3 +1,11 @@
+## Version 0.33.5.14.4 - 2026-06-15 02:54 -04:00
+
+- Added Notes client/project tag propagation so notes linked through direct context or linked-record rows inherit the expected client/project tags without changing note permissions, visibility, Library placement, workflow status, or billing behavior.
+- Tightened propagated-tag refresh so stale propagated assignments are removed when a target relationship no longer resolves, including removed note project/client links.
+- Added read-only public API routes and truthful API key scopes for Notes and Lists: `GET /api/v1/notes`, `GET /api/v1/notes/:noteId`, `GET /api/v1/lists`, and `GET /api/v1/lists/:listId`.
+- Kept Notes/Lists public write and manage scopes hidden, excluded secure notes from the public Notes API, and preserved Personal/Family hiding of Business-only `clients:*` scopes.
+- Added `notes-lists-tags-api-scope-regression.mjs`, updated the API-scope audit, refreshed public API/module docs, and bumped package/app plus Notes and Lists module metadata to `0.33.5.14.4`.
+
 ## Version 0.33.5.14.3 - 2026-06-15 02:22 -04:00
 
 - Fixed the Lists workspace constrained layout so the selector/index moves below filters at 1366px and narrower, starts open, and collapses after a selected list renders.
