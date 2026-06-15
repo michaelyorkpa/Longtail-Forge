@@ -282,13 +282,13 @@ component lifecycle, or new frontend framework is introduced.
 
 ### Version 0.33.5.16.5 - App-Shell Descriptor Delivery
 
-- [ ] Deliver validated descriptors to the browser through the existing app-shell bootstrap channel
+- [x] Deliver validated descriptors to the browser through the existing app-shell bootstrap channel
       (`public/js/navigation.js` `loadAppShellBootstrap()` / `window.LongtailForge.workspaceContext`).
-- [ ] Use the same path that already ships module and navigation data; do not add a new transport.
-- [ ] Include only descriptors for enabled, visible, permission-allowed protected views.
-- [ ] Ensure disabled modules and hidden/unavailable protected views do not leak declarative surfaces
+- [x] Use the same path that already ships module and navigation data; do not add a new transport.
+- [x] Include only descriptors for enabled, visible, permission-allowed protected views.
+- [x] Ensure disabled modules and hidden/unavailable protected views do not leak declarative surfaces
       through bootstrap payloads.
-- [ ] Add browser/bootstrap regressions proving descriptors arrive for allowed surfaces and are absent
+- [x] Add browser/bootstrap regressions proving descriptors arrive for allowed surfaces and are absent
       for unavailable surfaces.
 
 ### Version 0.33.5.16.6 - Renderer Data Binding and Default States

@@ -1,3 +1,9 @@
+## Version 0.33.5.16.5 - 2026-06-15 11:54 -04:00
+
+- Delivered active declarative `viewSurfaces` through the existing app-shell bootstrap payload and stored them on `LongtailForge.workspaceContext.viewSurfaces`.
+- Added permission-safe descriptor filtering so disabled modules, unavailable protected views, and permission-denied protected views do not leak descriptors to the browser.
+- Added a focused app-shell descriptor delivery regression, small descriptor fixtures for Tags and the disabled Developer Example module, documentation updates, roadmap closeout, the decision entry, and package/app metadata bump to `0.33.5.16.5`.
+
 ## Version 0.33.5.16.4 - 2026-06-15 11:31 -04:00
 
 - Added the static browser view renderer shell at `public/js/shared/view-renderer.js`, exposed as `LongtailForge.view.renderSurface(descriptor, host)`.

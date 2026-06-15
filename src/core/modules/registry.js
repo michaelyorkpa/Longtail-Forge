@@ -33,6 +33,7 @@ function cloneModuleDefinition(definition) {
     publicApiRoutes: [...(definition.publicApiRoutes || [])],
     navigation: [...(definition.navigation || [])],
     protectedViews: [...(definition.protectedViews || [])],
+    viewSurfaces: [...(definition.viewSurfaces || [])],
     publicViews: [...(definition.publicViews || [])],
     browserAssets: [...(definition.browserAssets || [])],
     dashboard: [...(definition.dashboard || [])],
@@ -128,6 +129,10 @@ function listModuleMigrationSources() {
 
 function listModuleProtectedViews() {
   return listContribution("protectedViews");
+}
+
+function listModuleViewSurfaces() {
+  return listContribution("viewSurfaces");
 }
 
 function listModulePublicViews() {
@@ -331,6 +336,7 @@ export {
   listModulePermissions,
   listModulePermissionEntries,
   listModuleProtectedViews,
+  listModuleViewSurfaces,
   listModulePublicViews,
   listModuleResourceDefinitions,
   listModuleRolePermissionDefaults,

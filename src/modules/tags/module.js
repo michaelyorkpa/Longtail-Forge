@@ -45,6 +45,36 @@ const tagsModule = {
       allowDisabledRead: false,
     },
   ],
+  viewSurfaces: [
+    {
+      id: "tags.management",
+      moduleId: "tags",
+      viewId: "tags",
+      layout: "table-page",
+      pageHeader: {
+        title: "Tags",
+        description: "Manage workspace tag definitions.",
+      },
+      table: {
+        columns: [
+          { field: "label", label: "Tag" },
+          { field: "status", label: "Status" },
+        ],
+        emptyState: {
+          title: "No tags",
+        },
+      },
+      dataSource: {
+        route: "/api/tags",
+        method: "GET",
+        fieldBindings: {
+          id: "tag_id",
+          label: "label",
+          status: "status",
+        },
+      },
+    },
+  ],
   publicViews: [],
   browserAssets: [
     {

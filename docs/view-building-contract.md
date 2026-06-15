@@ -111,3 +111,9 @@ The next 0.33.5.16 descriptor work should layer on top of these helpers rather t
 The first declarative renderer shell lives in `public/js/shared/view-renderer.js` and extends the browser namespace as `LongtailForge.view.renderSurface(descriptor, host)`. It takes a validated view descriptor and a host element, clears the host, and renders static framework anatomy by composing the existing `LongtailForge.view` primitives.
 
 The renderer supports the initial `single-column`, `split-list-detail`, and `table-page` layout shells. It can render page headers, filter panels, selector/index shells, split workspaces, table shells, detail headers, action strips, info panels, modal form shells, field grids, and empty/status placeholders. This shell is descriptor-in/static-DOM-out only: it does not fetch data, receive app-shell descriptors, register behavior handlers, own a client state store, implement a virtual DOM, or convert Lists.
+
+## Implementation Notes For 0.33.5.16.5
+
+Validated active descriptors now reach the browser through the existing app-shell bootstrap payload at `/api/app-shell/bootstrap`. `public/js/navigation.js` copies `viewSurfaces` into `LongtailForge.workspaceContext.viewSurfaces` alongside the existing module, navigation, permission, and search context.
+
+Descriptor delivery stays permission-safe. The backend only includes descriptors whose owning module is enabled, whose bound protected view is available for the workspace, and whose protected-view permissions are allowed for the current session. Disabled modules and unavailable or unauthorized protected views do not leak descriptors through bootstrap. This slice still does not fetch descriptor data, bind live rows, register behaviors, or convert Lists.

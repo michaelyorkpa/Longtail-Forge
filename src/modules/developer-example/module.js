@@ -46,6 +46,34 @@ const developerExampleModule = {
       allowDisabledRead: false,
     },
   ],
+  viewSurfaces: [
+    {
+      id: "developer-example.surface",
+      moduleId: "developer-example",
+      viewId: "developer-example",
+      layout: "single-column",
+      pageHeader: {
+        title: "Developer Example",
+        description: "Disabled module descriptor used to verify app-shell filtering.",
+      },
+      table: {
+        columns: [
+          { field: "title", label: "Title" },
+        ],
+        emptyState: {
+          title: "No developer examples",
+        },
+      },
+      dataSource: {
+        route: "/api/developer-example",
+        method: "GET",
+        fieldBindings: {
+          id: "id",
+          title: "title",
+        },
+      },
+    },
+  ],
   publicViews: [],
   browserAssets: [
     {

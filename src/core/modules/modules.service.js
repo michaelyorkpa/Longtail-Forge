@@ -14,6 +14,7 @@ import {
   listModulePermissionEntries as listRegisteredModulePermissionEntries,
   listModulePermissions as listRegisteredModulePermissions,
   listModuleProtectedViews as listRegisteredModuleProtectedViews,
+  listModuleViewSurfaces as listRegisteredModuleViewSurfaces,
   listModulePublicViews as listRegisteredModulePublicViews,
   listModuleResourceDefinitions as listRegisteredModuleResourceDefinitions,
   listModuleRolePermissionDefaults as listRegisteredModuleRolePermissionDefaults,
@@ -382,6 +383,7 @@ ORDER BY module_id;
       canDisable: moduleDefinition.canDisable !== false,
       historicalReadAccess: moduleDefinition.historicalReadAccess !== false,
       navigation: moduleDefinition.navigation || [],
+      viewSurfaces: moduleDefinition.viewSurfaces || [],
       dashboard: moduleDefinition.dashboard || [],
       reporting: moduleDefinition.reporting || [],
       publicApiEndpoints: moduleDefinition.publicApiEndpoints || [],
@@ -828,6 +830,62 @@ async function listModuleSettingsNavigation(workspaceId, session = null) {
   return items.sort((left, right) => left.label.localeCompare(right.label) || left.id.localeCompare(right.id));
 }
 
+async function listActiveViewSurfaces(workspaceId, session = null) {
+  if (!workspaceId) {
+    return [];
+  }
+
+  const [moduleContext, workspaceCapabilities] = await Promise.all([
+    readWorkspaceModuleContext(workspaceId),
+    readWorkspaceCapabilities(workspaceId),
+  ]);
+  const enabledModuleIds = new Set(moduleContext.enabledModules);
+  const availableTools = new Set(workspaceCapabilities.availableTools || []);
+  const workspaceType = workspaceCapabilities.workspaceType || "business";
+  const modulesById = new Map(listModules().map((moduleDefinition) => [moduleDefinition.id, moduleDefinition]));
+  const protectedViewsByKey = new Map(listRegisteredModuleProtectedViews()
+    .map(normalizeViewContribution)
+    .map((view) => [`${view.moduleId}:${view.id}`, view]));
+  const surfaces = [];
+
+  for (const surface of listRegisteredModuleViewSurfaces()) {
+    const moduleDefinition = modulesById.get(surface.moduleId);
+    const protectedView = protectedViewsByKey.get(`${surface.moduleId}:${surface.viewId}`);
+
+    if (!moduleDefinition || !protectedView || !enabledModuleIds.has(surface.moduleId)) {
+      continue;
+    }
+
+    if (!requiredModulesEnabled(surface, enabledModuleIds)) {
+      continue;
+    }
+
+    if (!requiredCapabilitiesAvailable(protectedView, moduleDefinition, availableTools)) {
+      continue;
+    }
+
+    if (!requiredCapabilitiesAvailable(surface, moduleDefinition, availableTools)) {
+      continue;
+    }
+
+    if (!(await requiredPermissionsAllowed(protectedView, session))) {
+      continue;
+    }
+
+    if (!(await requiredPermissionsAllowed(surface, session))) {
+      continue;
+    }
+
+    surfaces.push(normalizeViewSurfaceContribution(
+      moduleDefinition,
+      resolveContributionTerminology(surface, workspaceType, "viewSurfaces"),
+      protectedView,
+    ));
+  }
+
+  return surfaces.sort((left, right) => left.moduleId.localeCompare(right.moduleId) || left.id.localeCompare(right.id));
+}
+
 async function resolveProtectedModuleView(workspaceId, session, requestPath) {
   const pathName = normalizeViewPath(requestPath);
 
@@ -1027,6 +1085,15 @@ function normalizeContribution(moduleDefinition, contribution) {
   return {
     ...contribution,
     moduleId: contribution.moduleId || moduleDefinition.id,
+  };
+}
+
+function normalizeViewSurfaceContribution(moduleDefinition, surface, protectedView) {
+  return {
+    ...surface,
+    moduleId: surface.moduleId || moduleDefinition.id,
+    viewId: surface.viewId,
+    viewPath: protectedView.path.replace(/^\//, ""),
   };
 }
 
@@ -1230,6 +1297,7 @@ export const modulesService = {
   getTimerSource,
   getWorkItemSource,
   listEnabledModules,
+  listActiveViewSurfaces,
   listDashboardPanels,
   listAvailableApiScopes,
   listActiveHelpArticles,

@@ -15,6 +15,7 @@ async function bootstrap(session) {
     user,
     moduleNavigation,
     moduleSettingsNavigation,
+    viewSurfaces,
     permissionHints,
     notificationSummary,
     searchTargets,
@@ -24,6 +25,7 @@ async function bootstrap(session) {
     usersRepository.readById(session.home_workspace_id || session.workspace_id, session.user_id),
     modulesService.listModuleNavigation(session.workspace_id, session),
     modulesService.listModuleSettingsNavigation(session.workspace_id, session),
+    modulesService.listActiveViewSurfaces(session.workspace_id, session),
     readPermissionHints(session),
     readNotificationSummary(session),
     readSearchTargets(session),
@@ -43,6 +45,7 @@ async function bootstrap(session) {
     notificationSummary,
     permissionHints,
     searchTargets,
+    viewSurfaces,
     themeMode: normalizeThemeMode(user?.theme_mode),
     timezone: session.timezone || user?.timezone || "",
     user: {
@@ -51,7 +54,10 @@ async function bootstrap(session) {
       themeMode: normalizeThemeMode(user?.theme_mode),
       timezone: session.timezone || user?.timezone || "",
     },
-    workspaceContext,
+    workspaceContext: {
+      ...workspaceContext,
+      viewSurfaces,
+    },
     workspaces: normalizeWorkspaceMemberships(workspaces),
   };
 }

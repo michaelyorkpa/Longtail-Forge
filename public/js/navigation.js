@@ -360,6 +360,7 @@ async function loadAppShellBootstrap() {
       navigation: shell.navigation || [],
       permissionHints: shell.permissionHints || {},
       searchTargets: shell.searchTargets || [],
+      viewSurfaces: shell.viewSurfaces || shell.workspaceContext?.viewSurfaces || [],
       userId: shell.user?.user_id || "",
       username: shell.user?.username || "",
     };
@@ -971,6 +972,7 @@ function storeWorkspaceContext(settings) {
     navigation: Array.isArray(settings.navigation) ? settings.navigation : previousContext.navigation || [],
     permissionHints: settings.permissionHints || previousContext.permissionHints || {},
     searchTargets: Array.isArray(settings.searchTargets) ? settings.searchTargets : previousContext.searchTargets || [],
+    viewSurfaces: Array.isArray(settings.viewSurfaces) ? settings.viewSurfaces : previousContext.viewSurfaces || [],
     tasksEnabled: settings.tasksEnabled === false ? false : true,
     timeTrackingEnabled: settings.timeTrackingEnabled !== false,
     userId: settings.userId || settings.user_id || previousContext.userId || "",
