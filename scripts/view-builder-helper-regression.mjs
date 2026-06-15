@@ -12,9 +12,9 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.17.1", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.17.1", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.1", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.17.2", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.17.2", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.17.2", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(helper, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view builder must not inject HTML strings");
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view builder must not own data loading or browser storage");

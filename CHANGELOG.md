@@ -1,3 +1,8 @@
+## Version 0.33.5.17.2 - 2026-06-15 15:28 -04:00
+
+- Added the selected `markdown-it` dependency and introduced the framework-owned server-side Markdown service in `src/core/markdown/markdown.service.js` for safe HTML rendering, parser-backed plain text, excerpts, source normalization, and safe URL validation.
+- Added deterministic Markdown renderer fixtures covering nested/mixed lists, task lists, tables, code, blockquotes, links, image policy, raw HTML, unsafe links, and unsafe images, wired the regression into the suite, marked the 0.33.5.17.2 roadmap checklist complete, recorded the decision, and bumped package/app metadata to `0.33.5.17.2`.
+
 ## Version 0.33.5.17.1 - 2026-06-15 14:54 -04:00
 
 - Selected `markdown-it` for the upcoming framework-owned Markdown renderer and documented the CommonMark-plus-tables/task-lists syntax contract, unsafe input policy, framework APIs, module ownership boundaries, and current Notes/Help/browser replacement targets.

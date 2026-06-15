@@ -61,24 +61,24 @@ source fields, visibility rules, linking semantics, revision history, and workfl
 
 ### Version 0.33.5.17.2 - Shared Server-Side Markdown Renderer
 
-- [ ] Add the selected Markdown dependency and wire it through a framework-owned service, for example
+- [x] Add the selected Markdown dependency and wire it through a framework-owned service, for example
       `src/core/markdown` or `src/services/markdown.service.js`.
-- [ ] Render Markdown to sanitized HTML using the approved syntax contract.
-- [ ] Strip or neutralize unsafe input:
-  - [ ] Raw HTML.
-  - [ ] Script/event attributes.
-  - [ ] `javascript:` and other unsafe URLs.
-  - [ ] Unsafe image sources if images are allowed.
-- [ ] Add a plain-text/excerpt conversion path that uses the same parser contract instead of
+- [x] Render Markdown to sanitized HTML using the approved syntax contract.
+- [x] Strip or neutralize unsafe input:
+  - [x] Raw HTML.
+  - [x] Script/event attributes.
+  - [x] `javascript:` and other unsafe URLs.
+  - [x] Unsafe image sources if images are allowed.
+- [x] Add a plain-text/excerpt conversion path that uses the same parser contract instead of
       ad-hoc regular expressions.
-- [ ] Add fixture coverage for:
-  - [ ] Nested ordered and unordered lists.
-  - [ ] Mixed ordered/unordered list nesting.
-  - [ ] Two-space and four-space indentation behavior.
-  - [ ] Task lists if approved.
-  - [ ] Tables if approved.
-  - [ ] Code fences, inline code, blockquotes, links, and unsafe input.
-- [ ] Keep the service independent of Notes, Help, and future Knowledge Base business rules.
+- [x] Add fixture coverage for:
+  - [x] Nested ordered and unordered lists.
+  - [x] Mixed ordered/unordered list nesting.
+  - [x] Two-space and four-space indentation behavior.
+  - [x] Task lists if approved.
+  - [x] Tables if approved.
+  - [x] Code fences, inline code, blockquotes, links, and unsafe input.
+- [x] Keep the service independent of Notes, Help, and future Knowledge Base business rules.
 
 ### Version 0.33.5.17.3 - Notes Renderer Migration
 
@@ -141,13 +141,385 @@ source fields, visibility rules, linking semantics, revision history, and workfl
       collaborative editing, content templates, and Knowledge Base publication behavior to later
       roadmap versions.
 
-## Version 0.33.5.18 - View Conversion Backlog
+# Version 0.33.5.18 - View Conversion Backlog (Framework-Owned Views, Module-Owned Data)
 
-- Tasks
-- Notes
-- Files
-- Clients/Projects pages
-- Admin/Settings
+This version extends the proven declarative `viewSurfaces` contract from 0.33.5.16 (built and proven
+on Lists) to the remaining first-party workflow surfaces so that modules contribute **data,
+descriptors, and named behaviors** instead of hand-built DOM. The framework owns layout anatomy,
+surface classes, responsive behavior, dark-mode tokens, accessibility defaults, and common action
+placement; modules own data loading, normalized read endpoints, field bindings, validation, save
+payloads, permissions, record labels, and workflow behavior.
+
+Scope for 0.33.5.18 is the four remaining workflow surfaces, converted in this order:
+
+1. Notes
+2. Tasks
+3. Files
+4. Clients/Projects pages
+
+Out of scope for this version (tracked elsewhere so the same surface is never converted twice):
+
+- Admin/Settings surfaces (API Keys, Audit Log, Notifications, User Admin, User Settings, Workspace
+  Settings, Files Settings, module settings) are deferred to their own later line. Several are
+  framework-owned rather than module-owned data and deserve a dedicated design pass.
+- Reporting page conversion is owned by 0.33.6 (the Reporting host is born framework-owned there).
+- Dashboard and Workbench conversion is owned by 0.33.7 (contribution contracts + surface conversion).
+
+## Dependencies and Framework Baseline
+
+This version builds directly on completed work and must not reintroduce framework gaps:
+
+- 0.33.5.16 declarative contract is complete: `viewSurfaces` manifest field validated in
+  `src/core/modules/manifest-contract.js`; renderer `public/js/shared/view-renderer.js`
+  (`LongtailForge.view.renderSurface(descriptor, host)`) with layouts `single-column`,
+  `split-list-detail`, `table-page`; data binding via `dataSource.route` + `fieldBindings` through
+  `shared/api-client.js`; framework-owned loading/empty/error states; `surface.refresh()`; the
+  behavior registry `LongtailForge.view.registerBehavior(id, handler)`; declarative route actions;
+  framework `openModal`; and descriptor delivery through the app-shell bootstrap
+  (`LongtailForge.workspaceContext.viewSurfaces`).
+- 0.33.5.16.7 added the selectable index primitive `LongtailForge.view.createIndexList` and made the
+  framework `.view-split-list-detail` own split sizing and responsive collapse. Split-layout
+  selectors use `createIndexList`, never a multi-column data table.
+- 0.33.5.17 CommonMark Markdown platform renderer is complete. The Notes conversion in this version
+  consumes that shared Markdown service for rendered bodies, previews, and plain-text extraction; it
+  must not reintroduce ad-hoc Markdown rendering.
+
+Notes is converted first specifically because 0.33.5.17 touches Notes immediately before this version,
+so the module stays "warm" and the view rewrite can wire directly into the freshly landed Markdown
+service rather than around soon-to-be-replaced rendering code.
+
+## Design and Clarification Questions
+
+- [x] Confirm the conversion cadence per surface now that both imperative `LongtailForge.view`
+      helpers and the proven declarative `viewSurfaces` contract exist.
+  - Declarative directly. Each surface goes straight to descriptors (read path, then sub-records /
+    modals / fields, then workflow actions / cleanup).
+  - The imperative `LongtailForge.view` helpers remain the supported escape hatch for surface parts a
+    descriptor cannot yet express; they are not the primary path and must not be used to hand-build
+    framework-owned anatomy that a descriptor field or shared capability already covers.
+  - Do not run a separate imperative-only adoption phase per surface.
+
+- [x] Confirm whether Admin/Settings surfaces belong in 0.33.5.18.
+  - No. Scope 0.33.5.18 to Notes, Tasks, Files, and Clients/Projects pages.
+  - Admin/Settings conversion is deferred to its own later line because the bucket is broad and
+    several surfaces are framework-owned, not module-owned data.
+
+- [x] Confirm the conversion order.
+  - Notes, then Tasks, then Files, then Clients/Projects pages.
+
+- [x] Confirm behavior parity expectations.
+  - Conversions are behavior-preserving. No UX redesigns, route changes, payload changes, permission
+    changes, schema changes, or workflow changes in this version.
+  - Incidentally fixing a defect that is identical to one already corrected at the framework layer
+    (for example, a selector rendered as a multi-column table) is allowed because the fix lives in the
+    framework primitive, not in module code.
+
+- [x] Confirm legacy CSS handling during conversion.
+  - Keep legacy module CSS classes as compatibility aliases during conversion to avoid unrelated
+    style or test breakage. Do not add new one-off classes for framework-owned anatomy. Retiring
+    deprecated aliases is a later cleanup pass, not part of 0.33.5.18.
+
+- [x] Confirm guardrail enforcement scope.
+  - Expand fail-on-violation declarative guardrails one surface at a time as each surface is marked
+    declarative, mirroring the 0.33.5.16 approach. Inventory and report all protected views, but
+    enforce strictly only on converted surfaces.
+
+- [x] Confirm the data-provision model.
+  - Each converted surface exposes a normalized read endpoint and a declared `fieldBindings` map.
+    Reuse existing routes and response shapes where they already serve the surface; only add
+    additive normalized read endpoints when an existing payload cannot be bound directly. Do not
+    change existing API payloads relied on by other callers.
+
+Decision:
+
+Framework-owned view construction becomes the standard for the remaining workflow surfaces. Each of
+Notes, Tasks, Files, and Clients/Projects pages declares a `viewSurfaces` descriptor, exposes a
+normalized data endpoint with a field-binding map, and registers named behaviors for interactions the
+descriptor cannot express. The framework renders the surface from the descriptor using the existing
+view primitives and renderer; modules keep all business meaning. Imperative helpers remain the escape
+hatch for genuinely custom fragments only. No new frontend framework, client state store, virtual DOM,
+or component lifecycle is introduced.
+
+---
+
+## Version 0.33.5.18.1 - Descriptor Capability Gaps and Shared Renderer/Primitive Extensions
+
+Before converting any surface, inventory what the current descriptor/renderer cannot yet express
+across the four target surfaces and add only the capabilities needed by two or more of them, so
+individual surface conversions do not each reinvent shared anatomy. Surface-unique needs stay as
+documented escape-hatch behaviors rather than new descriptor fields.
+
+- [ ] Inventory descriptor/renderer gaps against Notes, Tasks, Files, and Clients/Projects pages,
+      classifying each as either a shared descriptor capability or a per-surface escape-hatch pattern:
+  - [ ] Inline/editable item rows (Tasks checklists, Lists-style item entry parity).
+  - [ ] Multi-select plus a bulk-action toolbar (Tasks, Files).
+  - [ ] Reorder/drag affordance for ordered collections.
+  - [ ] Sectioned or tabbed detail panels (Tasks detail, Notes linked context).
+  - [ ] Hierarchy/tree index rendering (Clients/Projects parent/child).
+  - [ ] File upload control with progress and the framework file routes (Files, attachment panels).
+  - [ ] Tag picker behavior hook (Notes, Tasks, Files, Clients/Projects).
+  - [ ] Live Markdown preview region bound to the 0.33.5.17 service (Notes).
+  - [ ] Revision/history list panel (Notes; reusable later).
+  - [ ] "Load more"/pagination affordance for large collections.
+  - [ ] Per-row dense action overflow on narrow widths.
+  - [ ] Filter controls that drive a normalized read endpoint without per-module DOM.
+- [ ] For each shared gap, extend the descriptor schema and renderer minimally, keeping the renderer
+      on the existing `LongtailForge.view` primitives as its engine.
+- [ ] Add manifest-contract validation in `src/core/modules/manifest-contract.js` for any new
+      descriptor fields (reject unknown keys, missing required fields, bad references).
+- [ ] Document each per-surface escape-hatch pattern as a registered behavior contract rather than a
+      descriptor field, so module-specific interactions stay in module browser files.
+- [ ] Add renderer/primitive regressions with small fixtures for every new shared capability. Do not
+      convert any real surface in this slice.
+- [ ] Update the developer guide and `docs/view-building-contract.md` with the new shared capabilities
+      and the escape-hatch boundary.
+
+---
+
+## Notes (0.33.5.18.2 - 0.33.5.18.4)
+
+Framework owns: page shell, library filter panel, collection selector/index, split list/detail,
+note detail header/metadata/badges, action strips, summary/linked-context panels, modal shell/form,
+field grid, empty/loading/error states, rendered Markdown container styling.
+
+Notes owns: note body storage and revisions; `All Libraries`, `All collections`, `Uncategorized`, and
+manual Library bucket semantics; private/secure/internal/workspace/client-visible visibility rules;
+wiki-style link detection and note relationships; linked context for workspace/project/task/user and
+Business-only client targets; tags; save payloads; permissions. Markdown rendering, preview, and
+plain-text extraction come from the 0.33.5.17 shared service.
+
+### Version 0.33.5.18.2 - Notes Declarative Read-Only Surface Proof
+
+- [ ] Add a `viewSurfaces` descriptor for the Notes protected workspace read path on the Notes manifest.
+- [ ] Reduce `views/protected/notes.html` to a minimal framework host element the renderer fills.
+- [ ] Move library filters, the collection selector/index, the split list/detail workspace, the note
+      detail header, metadata/badge rows, and the read-only rendered note body into the descriptor.
+- [ ] Render the note body through the 0.33.5.17 Markdown service; do not reintroduce ad-hoc rendering.
+- [ ] Define the normalized Notes read endpoint and `fieldBindings`; reuse existing routes/payloads
+      where possible and only add additive normalized reads if needed.
+- [ ] Preserve all Notes routes, response payloads, permissions, visibility rules, library/collection
+      bucket semantics, wiki-link display, and workspace scope behavior.
+- [ ] Keep note creation/editing, modals, revisions, and linked-record management on the existing
+      imperative path until later slices.
+- [ ] Add regressions proving the read-only Notes surface renders from the descriptor with correct
+      visibility filtering and Markdown rendering.
+
+### Version 0.33.5.18.3 - Notes Editor, Modals, Field Behaviors, and Live Preview
+
+- [ ] Convert the note create/edit modal shell to descriptor-declared modal/form/footer anatomy.
+- [ ] Bind the live Markdown preview to the same 0.33.5.17 contract as saved rendering so preview and
+      saved output cannot diverge and sanitization is not bypassed.
+- [ ] Express editor field behaviors (visibility selector, library/collection assignment, tags,
+      linked-record targets) as descriptor fields plus registered behaviors.
+- [ ] Keep Notes responsible for body storage, revision creation, validation, save payloads,
+      secure/private rules, and permissions.
+- [ ] Reduce `public/js/notes.js` editor/modal code to data bindings plus registered behaviors.
+- [ ] Add regressions for descriptor-rendered note editor, live preview parity, revisions, and
+      secure-note handling.
+
+### Version 0.33.5.18.4 - Notes Workflow Actions, Linked Context, and Layout Cleanup
+
+- [ ] Express Notes workflow actions (create, edit, archive, delete, restore, follow/unfollow, copy
+      link, linked-record add/remove) as declarative route actions or registered behaviors.
+- [ ] Move linked-context panel placement and linked-record rows into descriptor/renderer-supported
+      anatomy while keeping linkage permission checks and service logic in Notes files.
+- [ ] Reduce `public/js/notes.js` to data bindings and behavior handlers with no hand-built
+      framework-owned anatomy (page header, filter panel, index, split layout, table, detail header,
+      action strip, dialog).
+- [ ] Expand fail-on-violation declarative guardrails to the Notes surface.
+- [ ] Add regressions proving Notes no longer creates framework-owned anatomy by hand.
+
+---
+
+## Tasks (0.33.5.18.5 - 0.33.5.18.8)
+
+Tasks is the most complex surface (filters, list/board, detail, checklists, relationships, recurrence,
+bulk actions, timer controls, resume context/next action). Expect the heaviest use of registered
+behaviors as the escape hatch; keep business logic in `public/js/tasks.js` and
+`public/js/task-dialog.js`.
+
+Framework owns: page shell, filters, task table/list, detail shell, badge/metadata rows, action
+strips, summary panels, modal shell/form/footer, field grid, bulk-action toolbar, empty/loading/error
+states. Tasks owns: canonical task query, statuses, recurrence rules, relationships, checklist items,
+timer logic, resume/next-action data, validation, save payloads, permissions, workspace scope.
+
+### Version 0.33.5.18.5 - Tasks Declarative Read-Only Surface Proof
+
+- [ ] Add a `viewSurfaces` descriptor for the Tasks protected workspace read path.
+- [ ] Reduce `views/protected/tasks.html` to a minimal framework host element.
+- [ ] Move task filters, the task table/list, detail header, badge/metadata rows, and read-only
+      summary panels into the descriptor.
+- [ ] Define the normalized Tasks read endpoint and `fieldBindings`, preserving the canonical task
+      query, status set, recurrence/relationship display, resume context, and workspace scope.
+- [ ] Preserve all Tasks routes, response payloads, permissions, and scope behavior.
+- [ ] Keep task creation/editing, checklists, bulk actions, timers, and modals on the existing
+      imperative path until later slices.
+- [ ] Add regressions proving the read-only Tasks surface renders from the descriptor.
+
+### Version 0.33.5.18.6 - Task Detail, Checklists, Relationships, and Field Behaviors
+
+- [ ] Move task detail anatomy (header, metadata, badges, summary panels, resume/next-action strip)
+      into the descriptor.
+- [ ] Render checklist rows through the editable item-row capability from 0.33.5.18.1, keeping
+      checklist add/edit/check/reorder/delete logic in Tasks files via registered behaviors.
+- [ ] Render relationships and linked context through descriptor/renderer-supported anatomy while
+      keeping relationship rules in Tasks files.
+- [ ] Keep Tasks responsible for field meaning, validation, save payloads, and permissions.
+- [ ] Add regressions for descriptor-rendered task detail, checklist rows, and relationships.
+
+### Version 0.33.5.18.7 - Task Create/Edit Modal, Bulk Actions, Recurrence, and Timer Controls
+
+- [ ] Convert the task create/edit dialog (`public/js/task-dialog.js`) to descriptor-declared
+      modal/form/footer anatomy with registered behaviors for custom field logic.
+- [ ] Render the multi-select bulk-action toolbar through the 0.33.5.18.1 capability; keep bulk
+      due/tag/status logic in Tasks files.
+- [ ] Express the recurrence dialog through the descriptor modal contract plus a registered behavior
+      for recurrence rule editing.
+- [ ] Wire timer start/pause/resume controls as registered behaviors; the framework owns placement and
+      the timer chip surface, Tasks owns timer state and routes.
+- [ ] Preserve every task create, edit, bulk-edit, recurrence, relationship, checklist, and timer
+      workflow.
+- [ ] Add regressions for the descriptor task modal, bulk toolbar, recurrence behavior, and timer
+      controls.
+
+### Version 0.33.5.18.8 - Tasks Workflow Actions and Layout Cleanup
+
+- [ ] Express remaining Tasks workflow actions (complete, reopen, block/unblock, archive, delete,
+      restore, assign, recurrence apply, and related actions) as declarative route actions or
+      registered behaviors.
+- [ ] Reduce `public/js/tasks.js` and `public/js/task-dialog.js` to data bindings and behavior
+      handlers with no hand-built framework-owned anatomy.
+- [ ] Expand fail-on-violation declarative guardrails to the Tasks surface.
+- [ ] Add regressions proving Tasks no longer creates framework-owned anatomy by hand.
+
+---
+
+## Files (0.33.5.18.9 - 0.33.5.18.10)
+
+The framework already owns the file service (storage, scanning, lifecycle, downloads). This conversion
+is strictly the browse/attachment UI and must never bypass file permission, scan, storage, or download
+routes.
+
+Framework owns: page shell, filters, file table/cards, detail/preview shell, attachment panel shells,
+upload control shell, row action placement, empty/loading/error states. Files owns: file metadata,
+placement meaning, permission checks, scan/storage/download routes, and attachment business rules.
+
+### Version 0.33.5.18.9 - Files Declarative Browse Surface Proof
+
+- [ ] Add a `viewSurfaces` descriptor for the Files browse read path.
+- [ ] Reduce `views/protected/files.html` to a minimal framework host element.
+- [ ] Move file filters, the browse table/cards, file detail/preview read anatomy, and summary/status
+      panels into the descriptor.
+- [ ] Define the normalized Files read endpoint and `fieldBindings`, reusing existing file list routes.
+- [ ] Preserve framework file service ownership: read paths must continue to flow through existing
+      permission-checked file routes.
+- [ ] Keep upload, attachment management, and row mutations on the existing imperative path until the
+      next slice.
+- [ ] Add regressions proving the read-only Files browse surface renders from the descriptor without
+      bypassing file routes.
+
+### Version 0.33.5.18.10 - File Upload, Attachment Panels, Row Actions, and Cleanup
+
+- [ ] Render the upload control with progress through the 0.33.5.18.1 capability, wired to the existing
+      upload route via a registered behavior.
+- [ ] Convert the shared attachment panel (`public/js/shared/file-attachments.js`) view anatomy to
+      descriptor/renderer-supported panels and overlay host usage, keeping upload/scan/download logic
+      in Files files.
+- [ ] Express row actions (download, rename, move, delete, restore) as declarative route actions or
+      registered behaviors honoring the existing file routes and permissions.
+- [ ] Reduce `public/js/files.js` and the view portions of `public/js/shared/file-attachments.js` to
+      data bindings and behavior handlers with no hand-built framework-owned anatomy.
+- [ ] Expand fail-on-violation declarative guardrails to the Files surface.
+- [ ] Add regressions proving Files no longer creates framework-owned anatomy by hand and never
+      bypasses file routes.
+
+---
+
+## Clients/Projects Pages (0.33.5.18.11 - 0.33.5.18.12)
+
+The Add/Edit Client and Add/Edit Project dialogs were already converted to shared modal/form/footer
+helpers in 0.33.5.15.4. This cluster converts the remaining combined Clients/Projects page anatomy:
+filters, the client/project hierarchy index, related tables, page-level actions, and hierarchy
+interactions. Keep the already-converted dialogs working unchanged.
+
+Framework owns: page shell, filters, hierarchy index/tree, split or table layout, detail shell, related
+tables, action placement, empty/loading/error states. Clients/Projects owns: client/project hierarchy,
+billing metadata, Business-only gating, Personal/Family scope, validation, save payloads, permissions.
+
+### Version 0.33.5.18.11 - Clients/Projects Declarative Page Surface Proof
+
+- [ ] Add a `viewSurfaces` descriptor for the combined Clients/Projects page read path.
+- [ ] Reduce the Clients/Projects page HTML to a minimal framework host element.
+- [ ] Move filters, the client/project hierarchy index (using hierarchy/tree index rendering from
+      0.33.5.18.1), the split/table layout, and detail read anatomy into the descriptor.
+- [ ] Define the normalized read endpoint and `fieldBindings`, preserving hierarchy, billing metadata
+      display, Business-only gating, and Personal/Family scope behavior.
+- [ ] Keep the already-converted Add/Edit Client and Add/Edit Project dialogs working; do not regress
+      them.
+- [ ] Preserve all Clients/Projects routes, payloads, permissions, and scope behavior.
+- [ ] Add regressions proving the read-only Clients/Projects page renders from the descriptor with
+      correct hierarchy and Business-only gating.
+
+### Version 0.33.5.18.12 - Clients/Projects Hierarchy Interactions, Related Tables, Actions, and Cleanup
+
+- [ ] Express hierarchy interactions (move/reparent), related-project and related-client tables, bulk
+      controls, and page-level actions as declarative route actions or registered behaviors.
+- [ ] Keep client/project hierarchy rules, billing defaults, Business-only gating, and scope checks in
+      `public/js/clients-projects.js`.
+- [ ] Reduce the page portions of `public/js/clients-projects.js` to data bindings and behavior
+      handlers with no hand-built framework-owned anatomy (the dialogs remain as converted in
+      0.33.5.15.4).
+- [ ] Ensure Personal and Family workspaces still cannot reach Business-only client surfaces through
+      the converted page.
+- [ ] Expand fail-on-violation declarative guardrails to the Clients/Projects page surface.
+- [ ] Add regressions proving the Clients/Projects page no longer creates framework-owned anatomy by
+      hand and preserves workspace gating.
+
+---
+
+## Version 0.33.5.18.13 - Cross-Surface Guardrails, Inventory, Documentation, and Closeout
+
+- [ ] Confirm fail-on-violation declarative guardrails are enforced on all four converted surfaces
+      (Notes, Tasks, Files, Clients/Projects pages).
+- [ ] A declarative surface must not call `document.createElement` for framework-owned anatomy (page
+      header, table, dialog, action strip, filter panel, split layout, index list).
+- [ ] A declarative surface must not ship a non-minimal protected HTML view.
+- [ ] A declarative surface must not introduce one-off layout/footer classes when a descriptor field
+      or framework class exists.
+- [ ] Update the `docs/view-building-contract.md` inventory snapshot to mark Notes, Tasks, Files, and
+      Clients/Projects pages as converted, and to note Admin/Settings (deferred), Reporting (0.33.6),
+      and Dashboard/Workbench (0.33.7) as remaining or owned elsewhere.
+- [ ] Update `docs/module-contract.md` and `docs/ui-surface-contract.md` with the shared capabilities
+      added in 0.33.5.18.1 and the escape-hatch boundary.
+- [ ] Update the developer guide for authoring a declarative surface with the new capabilities.
+- [ ] Confirm no database schema, module API payload, permission, or workflow changes were introduced
+      by the conversions.
+- [ ] Update DECISIONS.md with the view-conversion-backlog decisions and the converted-surface list.
+- [ ] Update CHANGELOG.md.
+- [ ] Update package metadata to the implemented version.
+- [ ] Run `npm run check`.
+- [ ] Run `npm run test:permissions`.
+- [ ] Verify `/api/app-info` reports the expected version.
+- [ ] Defer Admin/Settings view conversion and any non-view concerns to their own later roadmap lines.
+
+---
+
+## Per-Slice Standing Constraints
+
+These apply to every conversion slice above and should be treated as acceptance criteria:
+
+- Behavior-preserving: no route, payload, permission, schema, or workflow changes.
+- Modules own data loading, normalized read endpoints, `fieldBindings`, validation, save payloads,
+  permissions, record labels, and workflow behavior; the framework owns layout anatomy.
+- Use descriptors first; use imperative `LongtailForge.view` helpers only as the documented escape
+  hatch for fragments a descriptor cannot express, never to hand-build covered anatomy.
+- Reuse the per-workspace terminology system for all descriptor labels rather than hard-coded strings.
+- Keep legacy module CSS classes as compatibility aliases during conversion; do not add new one-off
+  classes for framework-owned anatomy; defer alias removal to a later cleanup pass.
+- Preserve Business client/project behavior and Personal/Family workspace scope on every surface.
+- Each surface's final cleanup slice must leave its browser file as data bindings plus behaviors with
+  no hand-built framework-owned anatomy, and must expand strict guardrails to that surface.
+- Add regressions per slice; wire each new regression into `scripts/regression-suite.mjs`.
 
 ## Version 0.33.6 - Reporting Framework and Time Report Contribution
 

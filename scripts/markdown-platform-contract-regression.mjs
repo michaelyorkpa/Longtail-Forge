@@ -10,9 +10,9 @@ const notesMarkdown = await readText("src/modules/notes/markdown.js");
 const helpService = await readText("src/services/help.service.js");
 const notesEditor = await readText("public/js/shared/notes-editor.js");
 
-assert.equal(packageJson.version, "0.33.5.17.1", "package.json should carry the Markdown contract slice version");
-assert.equal(packageLock.version, "0.33.5.17.1", "package-lock root version should carry the Markdown contract slice version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.1", "package-lock package metadata should carry the Markdown contract slice version");
+assert.equal(packageJson.version, "0.33.5.17.2", "package.json should carry the Markdown contract slice version");
+assert.equal(packageLock.version, "0.33.5.17.2", "package-lock root version should carry the Markdown contract slice version");
+assert.equal(packageLock.packages[""].version, "0.33.5.17.2", "package-lock package metadata should carry the Markdown contract slice version");
 
 assert.match(contract, /Longtail Forge will adopt `markdown-it`/, "contract should record the selected parser");
 assert.match(contract, /CommonMark mode/, "contract should require CommonMark-compatible parsing");
@@ -27,7 +27,7 @@ assert.match(contract, /deterministic fixture-based expectations/, "contract sho
 assert.match(contract, /Notes owns:[\s\S]*Note body storage[\s\S]*Wiki-style links[\s\S]*Note-specific permissions/, "contract should preserve Notes-owned responsibilities");
 assert.match(contract, /Help owns:[\s\S]*Content discovery[\s\S]*Article metadata/, "contract should preserve Help-owned responsibilities");
 assert.match(contract, /Future Knowledge Base owns:[\s\S]*Publication status[\s\S]*Article visibility/, "contract should preserve future KB responsibilities");
-assert.match(contract, /0\.33\.5\.17\.2 should add the dependency and service/, "contract should leave dependency installation for the next slice");
+assert.match(contract, /0\.33\.5\.17\.2 adds the dependency and service/, "contract should record the renderer service implementation");
 
 assert.match(notesMarkdown, /function renderMarkdownToSafeHtml/, "Notes currently has a hand-rolled render path to migrate later");
 assert.match(notesMarkdown, /function extractPlainTextFromMarkdown/, "Notes currently has a hand-rolled plain-text path to migrate later");
@@ -37,7 +37,7 @@ assert.match(notesEditor, /namespace\.notesEditor/, "browser editor helpers shou
 
 assert.match(decisions, /## Version 0\.33\.5\.17\.1/, "decisions should include the parser-selection slice");
 assert.match(decisions, /`markdown-it` is the selected parser/, "decisions should record the parser choice");
-assert.match(roadmap, /### Version 0\.33\.5\.17\.1 - Parser Selection and Markdown Contract[\s\S]*- \[x\] Review current Markdown rendering paths/, "roadmap should mark 0.33.5.17.1 complete");
+assert.match(roadmap, /### Version 0\.33\.5\.17\.1 - Parser Selection and Markdown Contract[\s\S]*- \[x\] Review current Markdown rendering paths/, "roadmap should mark 0.33.5.17.2 complete");
 
 console.log("Markdown platform contract regression passed.");
 

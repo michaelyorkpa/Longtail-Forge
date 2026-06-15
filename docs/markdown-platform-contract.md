@@ -104,4 +104,4 @@ The first migration targets are the current hand-rolled Markdown paths:
 - `src/services/help.service.js`: Help article Markdown plain-text extraction for search.
 - `public/js/shared/notes-editor.js`: browser authoring helpers and preview parity once preview rendering is implemented.
 
-0.33.5.17.1 defines the contract only. 0.33.5.17.2 should add the dependency and service. Later slices should migrate Notes, Help, search, and browser preview behavior without changing saved Markdown.
+0.33.5.17.1 defines the contract only. 0.33.5.17.2 adds the dependency and service in `src/core/markdown/markdown.service.js`. Later slices should migrate Notes, Help, search, and browser preview behavior without changing saved Markdown.

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.17.1";
+const appVersion = "0.33.5.17.2";
 const roadmap = readText("ROADMAP.md");
 const archive = readText("ROADMAP-ARCHIVE.md");
 const roadmapHistory = `${roadmap}\n${archive}`;

@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.5.17.1",
+  "version": "0.33.5.17.2",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "cookie-parser": "^1.4.7",
-    "express": "^4.19.2"
+    "express": "^4.19.2",
+    "markdown-it": "^14.2.0"
   },
   "devDependencies": {
     "eslint": "^9.27.0"
