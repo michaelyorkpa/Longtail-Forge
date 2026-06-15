@@ -1,3 +1,9 @@
+## Version 0.33.5.17.6 - 2026-06-15 16:43 -04:00
+
+- Closed the 0.33.5.17 CommonMark Markdown platform renderer branch with framework/module contract documentation for the shared Markdown service, approved syntax set, Notes adapter responsibilities, Help rendering/search behavior, and future Knowledge Base boundaries.
+- Updated Notes developer and user-facing Help documentation for nested list indentation, Enter list continuation, task lists, tables, draft preview parity, and the Markdown textarea boundary.
+- Added Markdown closeout regression coverage, marked the 0.33.5.17.6 roadmap checklist complete, recorded the final branch decision, and bumped package/app metadata to `0.33.5.17.6`.
+
 ## Version 0.33.5.17.5 - 2026-06-15 16:29 -04:00
 
 - Moved Notes draft preview rendering to a protected server-side preview route that uses the same Notes Markdown adapter as saved note rendering, including nested lists, task lists, tables, wiki links, and unsafe Markdown rejection.

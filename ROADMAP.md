@@ -127,17 +127,17 @@ source fields, visibility rules, linking semantics, revision history, and workfl
 
 ### Version 0.33.5.17.6 - Documentation and Closeout
 
-- [ ] Update `docs/module-contract.md` with the framework-owned Markdown rendering boundary.
-- [ ] Update Help/developer documentation for the approved Markdown syntax set.
-- [ ] Update Notes user-facing Help for list indentation, nested lists, preview behavior, and any
+- [x] Update `docs/module-contract.md` with the framework-owned Markdown rendering boundary.
+- [x] Update Help/developer documentation for the approved Markdown syntax set.
+- [x] Update Notes user-facing Help for list indentation, nested lists, preview behavior, and any
       approved extensions.
-- [ ] Update DECISIONS.md with the CommonMark platform renderer decision.
-- [ ] Update CHANGELOG.md.
-- [ ] Update package metadata to the implemented version.
-- [ ] Run `npm run check`.
-- [ ] Run `npm run test:permissions` if permissions, visibility, or Help access behavior changed.
-- [ ] Verify `/api/app-info` reports the expected version.
-- [ ] Keep 0.33.5.17 closeout focused on Markdown rendering and editor parity; defer WYSIWYG editing,
+- [x] Update DECISIONS.md with the CommonMark platform renderer decision.
+- [x] Update CHANGELOG.md.
+- [x] Update package metadata to the implemented version.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions` if permissions, visibility, or Help access behavior changed.
+- [x] Verify `/api/app-info` reports the expected version.
+- [x] Keep 0.33.5.17 closeout focused on Markdown rendering and editor parity; defer WYSIWYG editing,
       collaborative editing, content templates, and Knowledge Base publication behavior to later
       roadmap versions.
 

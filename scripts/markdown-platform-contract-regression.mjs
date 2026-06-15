@@ -12,9 +12,9 @@ const notesEditor = await readText("public/js/shared/notes-editor.js");
 const notesRoutes = await readText("src/modules/notes/notes.routes.js");
 const notesJs = await readText("public/js/notes.js");
 
-assert.equal(packageJson.version, "0.33.5.17.5", "package.json should carry the Markdown contract slice version");
-assert.equal(packageLock.version, "0.33.5.17.5", "package-lock root version should carry the Markdown contract slice version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.5", "package-lock package metadata should carry the Markdown contract slice version");
+assert.equal(packageJson.version, "0.33.5.17.6", "package.json should carry the Markdown contract slice version");
+assert.equal(packageLock.version, "0.33.5.17.6", "package-lock root version should carry the Markdown contract slice version");
+assert.equal(packageLock.packages[""].version, "0.33.5.17.6", "package-lock package metadata should carry the Markdown contract slice version");
 
 assert.match(contract, /Longtail Forge will adopt `markdown-it`/, "contract should record the selected parser");
 assert.match(contract, /CommonMark mode/, "contract should require CommonMark-compatible parsing");
@@ -34,17 +34,17 @@ assert.match(contract, /0\.33\.5\.17\.2 adds the dependency and service/, "contr
 assert.match(notesMarkdown, /function renderMarkdownToSafeHtml/, "Notes should keep its adapter entry point for safe rendered Markdown");
 assert.match(notesMarkdown, /function extractPlainTextFromMarkdown/, "Notes should keep its adapter entry point for Markdown plain text");
 assert.match(notesMarkdown, /WIKI_LINK_PATTERN/, "Notes wiki links should remain module-owned");
-assert.match(helpService, /markdownToPlainText/, "Help should use the shared Markdown plain-text path after 0.33.5.17.5");
-assert.match(helpService, /renderMarkdownToHtml/, "Help should use the shared Markdown renderer after 0.33.5.17.5");
+assert.match(helpService, /markdownToPlainText/, "Help should use the shared Markdown plain-text path after 0.33.5.17.6");
+assert.match(helpService, /renderMarkdownToHtml/, "Help should use the shared Markdown renderer after 0.33.5.17.6");
 assert.doesNotMatch(helpService, /function extractPlainTextFromHelpMarkdown/, "Help should not keep the old hand-rolled plain-text path");
 assert.match(notesEditor, /namespace\.notesEditor/, "browser editor helpers should remain Notes-owned");
 assert.match(notesEditor, /continueListMarker/, "Notes editor should include scoped list-continuation helpers");
-assert.match(notesRoutes, /notesRoutes\.post\("\/notes\/preview"/, "Notes should expose a protected preview route after 0.33.5.17.5");
+assert.match(notesRoutes, /notesRoutes\.post\("\/notes\/preview"/, "Notes should expose a protected preview route after 0.33.5.17.6");
 assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/, "Notes live preview should use the server preview route");
 
 assert.match(decisions, /## Version 0\.33\.5\.17\.1/, "decisions should include the parser-selection slice");
 assert.match(decisions, /`markdown-it` is the selected parser/, "decisions should record the parser choice");
-assert.match(roadmap, /### Version 0\.33\.5\.17\.1 - Parser Selection and Markdown Contract[\s\S]*- \[x\] Review current Markdown rendering paths/, "roadmap should mark 0.33.5.17.5 complete");
+assert.match(roadmap, /### Version 0\.33\.5\.17\.1 - Parser Selection and Markdown Contract[\s\S]*- \[x\] Review current Markdown rendering paths/, "roadmap should mark 0.33.5.17.6 complete");
 
 console.log("Markdown platform contract regression passed.");
 

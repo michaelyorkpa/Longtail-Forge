@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.5.14.4. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.17.6. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -114,7 +114,11 @@ Global resume-state storage, ranking, dismissal, Workbench feed behavior, and fr
 
 ## Markdown And Wiki Links
 
-Markdown is the canonical editable body format. `markdown.js` validates unsafe input, renders safe HTML, extracts plain text, creates excerpts, detects wiki-style links, and summarizes revision changes.
+Markdown is the canonical editable body format. `markdown.js` validates unsafe input, renders safe HTML, extracts plain text, creates excerpts, detects wiki-style links, and summarizes revision changes. It is a Notes-owned adapter over the framework Markdown service, so Notes keeps wiki-link and secure-note behavior while sharing the platform renderer, plain-text extraction, excerpts, source normalization, and safe URL rules.
+
+The supported syntax follows the framework Markdown contract: CommonMark paragraphs, headings, emphasis, strong text, links, blockquotes, inline code, fenced code blocks, ordered lists, unordered lists, nested lists, plus approved tables and task lists. Raw HTML, scriptable links, unsafe image sources, broad Markdown extension bundles, and saved-source rewrites remain out of scope.
+
+Saved note reads include `body_html` rendered through the Notes adapter. Draft preview uses the protected `POST /api/notes/preview` route, which validates the draft body and returns safe rendered HTML without persisting the note. The browser editor remains a Markdown textarea with preview; `public/js/shared/notes-editor.js` owns scoped authoring helpers for Tab indentation, Shift+Tab outdent, predictable Enter list continuation, and empty-marker cleanup.
 
 Wiki-style links are stored in `note_wiki_links` as detected metadata. Broken or unresolved wiki links are allowed. Detection must not auto-create notes and must not expose private or secure notes to unauthorized users.
 
