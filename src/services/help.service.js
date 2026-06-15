@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { modulesService } from "../core/modules/modules.service.js";
+import { markdownToPlainText, renderMarkdownToHtml } from "../core/markdown/markdown.service.js";
 import { querySql, sqlText } from "../db/index.js";
 import { validateHelpContribution } from "../core/modules/manifest-contract.js";
 import { AppError } from "../utils/app-error.js";
@@ -355,7 +356,7 @@ function articleSearchDocument(workspaceId, article, section) {
   const sectionTitle = section?.title || "";
   const ownerLabel = article.sourceLabel || (moduleId === FRAMEWORK_HELP_MODULE_ID ? "Framework" : moduleId);
   const tags = normalizeTags(article.tags);
-  const articleText = extractPlainTextFromHelpMarkdown(article.body || "");
+  const articleText = markdownToPlainText(article.body || "");
   const body = [
     articleText,
     article.summary || article.description,
@@ -380,23 +381,6 @@ function articleSearchDocument(workspaceId, article, section) {
     record_created_at: "",
     record_updated_at: "",
   };
-}
-
-function extractPlainTextFromHelpMarkdown(markdown = "") {
-  return String(markdown || "")
-    .replace(/\r\n?/g, "\n")
-    .replace(/```[\s\S]*?```/g, (match) => match.replace(/^```[^\n]*\n?|\n?```$/g, " "))
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/!\[([^\]]*)]\([^)]+\)/g, "$1")
-    .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
-    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
-    .replace(/^\s*>\s?/gm, "")
-    .replace(/^\s*[-*+]\s+/gm, "")
-    .replace(/^\s*\d+\.\s+/gm, "")
-    .replace(/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/gm, " ")
-    .replace(/[|*_~#]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 async function hydrateHelpContribution(contribution) {
@@ -742,11 +726,15 @@ function articleListPayload(article) {
 }
 
 function articleDetailPayload(article, section) {
+  const bodyMarkdown = article.body || "";
+
   return {
     ...articleListPayload(article),
-    body: article.body || "",
+    body: bodyMarkdown,
     bodyFormat: "markdown",
-    bodyMarkdown: article.body || "",
+    bodyMarkdown,
+    bodyHtml: renderMarkdownToHtml(bodyMarkdown),
+    bodyHtmlFormat: "html",
     section: section ? sectionPayload(section) : null,
   };
 }

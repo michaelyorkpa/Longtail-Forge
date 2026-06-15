@@ -1,3 +1,13 @@
+## Version 0.33.5.17.4 - 2026-06-15 16:10 -04:00
+
+- Migrated Help article rendered HTML and search/plain-text extraction to the shared framework Markdown service while preserving Markdown source payloads, content-path discovery, active module scoping, article metadata, ToC navigation, current-state Help wording, protected routes, and permissions.
+- Added safe `bodyHtml`/`bodyHtmlFormat` article detail fields, updated the Help browser to render server-provided HTML through an allowlisted importer with Markdown fallback, expanded Help content/search/surface regressions, refreshed the Help asset cache key, marked the 0.33.5.17.4 roadmap checklist complete, recorded the decision, and bumped package/app metadata to `0.33.5.17.4`.
+
+## Version 0.33.5.17.3 - 2026-06-15 15:44 -04:00
+
+- Migrated Notes Markdown rendering, excerpts, plain-text extraction, and source normalization onto the shared framework Markdown service while preserving Notes-owned save-time safety checks, wiki-link spans/detection, note storage, revisions, collections, visibility rules, linked context, and permissions.
+- Expanded Notes Markdown regression coverage for shared renderer usage, nested/mixed lists, task lists, excerpts, search fallback text, revisions, and unsafe Markdown, marked the 0.33.5.17.3 roadmap checklist complete, recorded the decision, and bumped package/app metadata to `0.33.5.17.3`.
+
 ## Version 0.33.5.17.2 - 2026-06-15 15:28 -04:00
 
 - Added the selected `markdown-it` dependency and introduced the framework-owned server-side Markdown service in `src/core/markdown/markdown.service.js` for safe HTML rendering, parser-backed plain text, excerpts, source normalization, and safe URL validation.

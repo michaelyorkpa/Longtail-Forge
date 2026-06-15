@@ -24,6 +24,7 @@ const {
   slugifyNoteTitle,
   validateMarkdownSafety,
 } = await import("../src/modules/notes/markdown.js");
+const { noteToSearchDocument } = await import("../src/modules/notes/search-indexers.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 try {
@@ -33,6 +34,7 @@ try {
   await assertRevisionMigrationApplied();
   await assertRevisionSchema();
   await assertRevisionStorage();
+  await assertSearchTextUsesSharedMarkdown();
   await assertIntegrity();
 
   console.log("Notes Markdown and revision regression passed.");
@@ -73,11 +75,11 @@ const x = 1;
   assert.ok(html.includes("<h1>Heading</h1>"));
   assert.ok(html.includes("<strong>Bold</strong>"));
   assert.ok(html.includes("<em>italic</em>"));
-  assert.ok(html.includes("<blockquote>Quote</blockquote>"));
+  assert.match(html, /<blockquote>\s*<p>Quote<\/p>\s*<\/blockquote>/, "Notes should render blockquotes through the shared CommonMark renderer");
   assert.ok(html.includes("type=\"checkbox\" disabled"));
-  assert.match(html, /<li>Item\s*<ul>\s*<li>Nested item\s*<ul>\s*<li>Deep nested item\s*<\/li>\s*<\/ul>/, "Indented unordered list items should render as nested lists");
+  assert.match(html, /<li>Item\s*<ul>\s*<li>Nested item\s*<ul>\s*<li>Deep nested item<\/li>\s*<\/ul>/, "Indented unordered list items should render as nested lists");
   assert.match(html, /<ol>\s*<li>Deep ordered item\s*<\/li>\s*<\/ol>/, "Indented ordered list items should render as nested ordered lists");
-  assert.ok(html.includes("<pre><code>const x = 1;</code></pre>"));
+  assert.ok(html.includes("<pre><code>const x = 1;\n</code></pre>"));
   assert.ok(html.includes("note-wiki-link"));
   assert.equal(html.includes("<script>"), false);
 
@@ -100,6 +102,9 @@ const x = 1;
 
 async function assertEditorBoundary() {
   const source = await fs.readFile(path.join(root, "public/js/shared/notes-editor.js"), "utf8");
+  const notesMarkdownSource = await fs.readFile(path.join(root, "src/modules/notes/markdown.js"), "utf8");
+
+  assert.match(notesMarkdownSource, /\.\.\/\.\.\/core\/markdown\/markdown\.service\.js/, "Notes Markdown adapter should use the shared framework Markdown service");
 
   [
     "LongtailForge",
@@ -125,6 +130,41 @@ async function assertEditorBoundary() {
     assert.ok(source.includes(needle), `notes editor helper should include ${needle}`);
   });
   assert.equal(/editorState|proprietary/i.test(source), false, "editor helper should not introduce proprietary storage state");
+}
+
+async function assertSearchTextUsesSharedMarkdown() {
+  const workspace = await readWorkspace();
+  const document = await noteToSearchDocument({
+    note_id: "note-search-markdown-1",
+    workspace_id: workspace.workspace_id,
+    title: "Search Markdown",
+    body_markdown: normalizeMarkdown(`
+# Search Heading
+
+- Parent
+  - Child
+- [x] Search task
+
+| Name | Status |
+| --- | --- |
+| Alpha | Ready |
+`),
+    body_excerpt: "",
+    body_plaintext_index: "",
+    library_bucket: "reference",
+    status: "active",
+    visibility: "internal",
+    security_mode: "normal",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  });
+
+  assert.ok(document, "searchable note should produce a search document");
+  assert.match(document.body, /Search Heading/, "Notes search text should include headings from shared Markdown plain text");
+  assert.match(document.body, /Child/, "Notes search text should include nested list text");
+  assert.match(document.body, /Search task/, "Notes search text should include task-list labels without checkbox syntax");
+  assert.match(document.body, /Alpha Ready/, "Notes search text should include table text");
+  assert.doesNotMatch(document.body, /[#|]|\[x\]/, "Notes search text should not expose Markdown control syntax");
 }
 
 async function assertRevisionMigrationApplied() {

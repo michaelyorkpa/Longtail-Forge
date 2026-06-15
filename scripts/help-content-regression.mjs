@@ -68,6 +68,9 @@ try {
       assert.equal(article.sourceLabel, "Framework", `${articleId} should expose framework source label`);
       assert.equal(article.bodyFormat, "markdown", `${articleId} should declare Markdown body format`);
       assert.equal(article.bodyMarkdown, article.body, `${articleId} should preserve Markdown body payload`);
+      assert.equal(article.bodyHtmlFormat, "html", `${articleId} should declare rendered HTML body format`);
+      assert.match(article.bodyHtml, /<(?:h1|h2|p|ul|ol|table|blockquote|pre)\b/, `${articleId} should expose safe rendered HTML`);
+      assert.doesNotMatch(article.bodyHtml, /<script|href="javascript:|src="data:/i, `${articleId} should not expose unsafe rendered HTML`);
       assert.ok(article.summary.length >= 20, `${articleId} should have a useful summary`);
       assert.ok(article.body.length >= 120, `${articleId} should have a basic body`);
       assert.ok(article.body.split(/\n{2,}/).length >= 2, `${articleId} should render at least two paragraphs`);

@@ -17,6 +17,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - I think I lost client change requests from the repo docs, somewhere. This needs to be added back into the project management tools section.
 
+- Adding a task using the {{workspaceName}} in the add tasks modal doesn't narrow the list of projects down to only the Workspace Projects (ones that have no clients)
+
 ## Testing Goals
 
 This section is to define a series of human testing goals for different sections of the app.

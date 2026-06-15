@@ -1,3 +1,10 @@
+import {
+  createMarkdownExcerpt as createFrameworkMarkdownExcerpt,
+  markdownToPlainText,
+  normalizeMarkdownSource,
+  renderMarkdownToHtml,
+} from "../../core/markdown/markdown.service.js";
+
 const UNSAFE_MARKDOWN_PATTERNS = [
   /<\s*\/?\s*(script|iframe|object|embed|style|link|meta|form|input|button|textarea|select|option|svg|math)\b/i,
   /\son[a-z]+\s*=/i,
@@ -16,10 +23,7 @@ const REVISION_FIELDS = [
 ];
 
 function normalizeMarkdown(markdown = "") {
-  return String(markdown || "")
-    .replace(/\r\n?/g, "\n")
-    .replace(/[ \t]+$/gm, "")
-    .trim();
+  return normalizeMarkdownSource(markdown);
 }
 
 function validateMarkdownSafety(markdown = "") {
@@ -51,187 +55,31 @@ function assertSafeMarkdown(markdown = "") {
 }
 
 function extractPlainTextFromMarkdown(markdown = "") {
-  return normalizeMarkdown(markdown)
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(WIKI_LINK_PATTERN, (_match, target, label) => label || target)
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/^>\s?/gm, "")
-    .replace(/^\s*[-*+]\s+\[[ xX]\]\s+/gm, "")
-    .replace(/^\s*[-*+]\s+/gm, "")
-    .replace(/^\s*\d+\.\s+/gm, "")
-    .replace(/[*_~>#]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  return markdownToPlainText(replaceWikiLinksWithText(markdown));
 }
 
 function createMarkdownExcerpt(markdown = "", maxLength = 220) {
-  const text = extractPlainTextFromMarkdown(markdown);
-
-  if (text.length <= maxLength) {
-    return text;
-  }
-
-  return `${text.slice(0, Math.max(0, maxLength - 1)).trimEnd()}...`;
+  return createFrameworkMarkdownExcerpt(replaceWikiLinksWithText(markdown), maxLength);
 }
 
 function renderMarkdownToSafeHtml(markdown = "") {
   const safeMarkdown = assertSafeMarkdown(markdown);
-  const lines = safeMarkdown.split("\n");
-  const html = [];
-  const listStack = [];
-  let inCodeBlock = false;
-  let codeLines = [];
-
-  function closeListsToDepth(depth = 0) {
-    while (listStack.length > depth) {
-      closeList();
-    }
-  }
-
-  function closeList() {
-    const current = listStack.pop();
-    if (!current) {
-      return;
-    }
-
-    closeCurrentListItem(current);
-    html.push(`</${current.type}>`);
-  }
-
-  function closeCurrentListItem(current = listStack.at(-1)) {
-    if (current?.liOpen) {
-      html.push("</li>");
-      current.liOpen = false;
-    }
-  }
-
-  function appendListItem(type, indent, content) {
-    let current = listStack.at(-1);
-
-    if (!current || indent > current.indent) {
-      html.push(`<${type}>`);
-      listStack.push({ type, indent, liOpen: false });
-      current = listStack.at(-1);
-    } else {
-      while (listStack.length && indent < listStack.at(-1).indent) {
-        closeList();
-      }
-
-      current = listStack.at(-1);
-      if (!current || current.indent !== indent || current.type !== type) {
-        if (current && current.indent === indent && current.type !== type) {
-          closeList();
-        }
-        html.push(`<${type}>`);
-        listStack.push({ type, indent, liOpen: false });
-        current = listStack.at(-1);
-      } else {
-        closeCurrentListItem(current);
-      }
-    }
-
-    html.push(`<li>${content}`);
-    current.liOpen = true;
-  }
-
-  function flushCode() {
-    html.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
-    codeLines = [];
-  }
-
-  for (const line of lines) {
-    if (line.trim().startsWith("```")) {
-      closeListsToDepth();
-      if (inCodeBlock) {
-        flushCode();
-        inCodeBlock = false;
-      } else {
-        inCodeBlock = true;
-      }
-      continue;
-    }
-
-    if (inCodeBlock) {
-      codeLines.push(line);
-      continue;
-    }
-
-    if (!line.trim()) {
-      closeListsToDepth();
-      continue;
-    }
-
-    const heading = line.match(/^(#{1,6})\s+(.+)$/);
-    if (heading) {
-      closeListsToDepth();
-      const level = heading[1].length;
-      html.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
-      continue;
-    }
-
-    const blockquote = line.match(/^>\s?(.*)$/);
-    if (blockquote) {
-      closeListsToDepth();
-      html.push(`<blockquote>${renderInlineMarkdown(blockquote[1])}</blockquote>`);
-      continue;
-    }
-
-    const checklist = line.match(/^(\s*)[-*+]\s+\[([ xX])\]\s+(.+)$/);
-    if (checklist) {
-      const checked = checklist[2].trim() ? " checked" : "";
-      appendListItem(
-        "ul",
-        indentationWidth(checklist[1]),
-        `<input type="checkbox" disabled${checked}> ${renderInlineMarkdown(checklist[3])}`,
-      );
-      continue;
-    }
-
-    const unordered = line.match(/^(\s*)[-*+]\s+(.+)$/);
-    if (unordered) {
-      appendListItem("ul", indentationWidth(unordered[1]), renderInlineMarkdown(unordered[2]));
-      continue;
-    }
-
-    const ordered = line.match(/^(\s*)\d+\.\s+(.+)$/);
-    if (ordered) {
-      appendListItem("ol", indentationWidth(ordered[1]), renderInlineMarkdown(ordered[2]));
-      continue;
-    }
-
-    closeListsToDepth();
-    html.push(`<p>${renderInlineMarkdown(line)}</p>`);
-  }
-
-  closeListsToDepth();
-  if (inCodeBlock) {
-    flushCode();
-  }
-
-  return html.join("\n");
-}
-
-function indentationWidth(value = "") {
-  return String(value || "").replace(/\t/g, "    ").length;
-}
-
-function renderInlineMarkdown(value = "") {
-  let output = escapeHtml(value);
-
-  output = output.replace(/`([^`]+)`/g, (_match, code) => `<code>${code}</code>`);
-  output = output.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  output = output.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-  output = output.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_match, label, url) =>
-    `<a href="${escapeAttribute(url)}" rel="noopener noreferrer">${label}</a>`);
-  output = output.replace(WIKI_LINK_PATTERN, (_match, target, label) => {
-    const display = escapeHtml(label || target);
-    return `<span class="note-wiki-link" data-note-title="${escapeAttribute(target)}">${display}</span>`;
+  const wikiLinks = [];
+  const placeholderMarkdown = safeMarkdown.replace(WIKI_LINK_PATTERN, (_match, target, label) => {
+    const placeholder = `LTFWIKILINK${wikiLinks.length}TOKEN`;
+    wikiLinks.push({ placeholder, target, label });
+    return placeholder;
   });
+  let html = renderMarkdownToHtml(placeholderMarkdown);
 
-  return output;
+  for (const wikiLink of wikiLinks) {
+    html = html.replaceAll(
+      wikiLink.placeholder,
+      `<span class="note-wiki-link" data-note-title="${escapeAttribute(wikiLink.target)}">${escapeHtml(wikiLink.label || wikiLink.target)}</span>`,
+    );
+  }
+
+  return html;
 }
 
 function extractWikiLinks(markdown = "") {
@@ -320,6 +168,10 @@ function normalizeComparable(value) {
 
 function normalizeWikiTarget(value = "") {
   return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function replaceWikiLinksWithText(markdown = "") {
+  return normalizeMarkdown(markdown).replace(WIKI_LINK_PATTERN, (_match, target, label) => label || target);
 }
 
 function slugifyNoteTitle(value = "") {

@@ -63,7 +63,7 @@ try {
     assert.match(script, /list\.hidden = !expanded/);
     assert.match(script, /heading\.setAttribute\("aria-expanded", String\(expanded\)\)/);
     assert.match(view, /\/css\/longtail-forge\.css\?v=15/);
-    assert.match(view, /\/js\/help\.js\?v=4/);
+    assert.match(view, /\/js\/help\.js\?v=5/);
   });
 
   await check("Help article surfaces contain long Markdown content", async () => {

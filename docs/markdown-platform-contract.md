@@ -100,8 +100,8 @@ Modules may request rendered HTML or plain text from the framework service, but 
 
 The first migration targets are the current hand-rolled Markdown paths:
 
-- `src/modules/notes/markdown.js`: Notes-specific Markdown rendering, safety checks, excerpts, and plain-text extraction.
-- `src/services/help.service.js`: Help article Markdown plain-text extraction for search.
+- `src/modules/notes/markdown.js`: migrated in 0.33.5.17.3 to use the shared framework service for rendering, excerpts, normalization, and plain-text extraction while keeping Notes-specific safety checks and wiki-link behavior.
+- `src/services/help.service.js`: migrated in 0.33.5.17.4 to use the shared framework service for rendered Help article HTML and search/plain-text extraction while preserving Help-owned discovery, scoping, article metadata, routes, and navigation.
 - `public/js/shared/notes-editor.js`: browser authoring helpers and preview parity once preview rendering is implemented.
 
-0.33.5.17.1 defines the contract only. 0.33.5.17.2 adds the dependency and service in `src/core/markdown/markdown.service.js`. Later slices should migrate Notes, Help, search, and browser preview behavior without changing saved Markdown.
+0.33.5.17.1 defines the contract only. 0.33.5.17.2 adds the dependency and service in `src/core/markdown/markdown.service.js`. 0.33.5.17.3 migrates Notes server-side rendering and text extraction without changing saved Markdown. 0.33.5.17.4 migrates Help rendered article HTML and Help search text extraction without changing Markdown source files. Later slices should migrate browser preview behavior without changing saved Markdown.

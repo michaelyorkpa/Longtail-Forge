@@ -35,7 +35,7 @@ try {
     assert.match(String(authenticated.contents), /data-help-sections/);
     assert.match(String(authenticated.contents), /\/js\/shared\/icons\.js\?v=1/);
     assert.match(String(authenticated.contents), /\/css\/longtail-forge\.css\?v=15/);
-    assert.match(String(authenticated.contents), /\/js\/help\.js\?v=4/);
+    assert.match(String(authenticated.contents), /\/js\/help\.js\?v=5/);
   });
 
   await check("app shell places Help in Settings between User and Log Out", async () => {
@@ -88,6 +88,9 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     assert.equal(bySlug.article.id, "framework.help-center");
     assert.equal(byId.article.bodyFormat, "markdown");
     assert.equal(byId.article.bodyMarkdown, byId.article.body);
+    assert.equal(byId.article.bodyHtmlFormat, "html");
+    assert.match(byId.article.bodyHtml, /<p>The Help Center is the in-app product manual/);
+    assert.doesNotMatch(byId.article.bodyHtml, /<script|href="javascript:/i);
     assert.match(byId.article.body, /in-app product manual/);
     assert.equal(byId.article.section.id, "framework.help-center");
     assert.equal(bySlug.article.slug, "help-center");
@@ -105,12 +108,15 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     assert.match(view, /data-help-article/);
     assert.match(view, /\/css\/longtail-forge\.css\?v=15/);
     assert.match(view, /\/js\/shared\/icons\.js\?v=1/);
-    assert.match(view, /\/js\/help\.js\?v=4/);
+    assert.match(view, /\/js\/help\.js\?v=5/);
     assert.match(script, /fetch\("\/api\/help"/);
     assert.match(script, /fetch\(`\/api\/help\/articles\/\$\{encodeURIComponent/);
     assert.match(script, /normalizeNavigation/);
     assert.match(script, /aria-expanded/);
+    assert.match(script, /articleBodyNodes/);
+    assert.match(script, /renderSafeHtmlNodes/);
     assert.match(script, /renderMarkdownNodes/);
+    assert.match(script, /DOMParser/);
     assert.match(script, /inlineMarkdownNodes/);
     assert.match(script, /safeHelpHref/);
     assert.doesNotMatch(script, /\.innerHTML\s*=/);

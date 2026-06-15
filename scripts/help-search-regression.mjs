@@ -11,6 +11,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-help-sea
 process.env.SUPER_ADMIN_PASSWORD = "Help-Search-Test-Password-123!";
 
 const { createApp } = await import("../src/core/app.js");
+const { markdownToPlainText } = await import("../src/core/markdown/markdown.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
 const { registerSearchIndexer } = await import("../src/core/search/indexer-registry.js");
@@ -64,7 +65,7 @@ try {
     const rows = await readHelpIndexRows(session.workspace_id);
     const helpCenterRow = rows.find((row) => row.module_id === "framework" && row.record_id === "framework.help-center");
     const helpCenterMarkdown = await fs.readFile(new URL("../help/framework/help-center.md", import.meta.url), "utf8");
-    const helpCenterText = extractPlainTextFromMarkdown(helpCenterMarkdown);
+    const helpCenterText = markdownToPlainText(helpCenterMarkdown);
 
     assert.ok(rows.some((row) => row.module_id === "framework" && row.record_id === "framework.help-center"));
     assert.ok(rows.some((row) => row.module_id === "developer-example" && row.record_id === "developer-example.getting-started"));
@@ -75,6 +76,7 @@ try {
     assert.match(helpCenterRow.body, new RegExp(escapeRegExp(helpCenterText.slice(0, 80))));
     assert.doesNotMatch(helpCenterRow.body, /^#\s/m);
     assert.doesNotMatch(helpCenterRow.body, /\[[^\]]+]\([^)]+\)/);
+    assert.doesNotMatch(helpCenterRow.body, /\|?\s*:?-{3,}:?\s*\|/, "Help search text should not expose table separator Markdown");
     assert.ok(rows.every((row) => !/Knowledge Base/i.test(`${row.title} ${row.summary} ${row.body}`)));
   });
 
@@ -261,23 +263,6 @@ function closeServer(server) {
       resolve();
     });
   });
-}
-
-function extractPlainTextFromMarkdown(markdown = "") {
-  return String(markdown || "")
-    .replace(/\r\n?/g, "\n")
-    .replace(/```[\s\S]*?```/g, (match) => match.replace(/^```[^\n]*\n?|\n?```$/g, " "))
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/!\[([^\]]*)]\([^)]+\)/g, "$1")
-    .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
-    .replace(/^\s{0,3}#{1,6}\s+/gm, "")
-    .replace(/^\s*>\s?/gm, "")
-    .replace(/^\s*[-*+]\s+/gm, "")
-    .replace(/^\s*\d+\.\s+/gm, "")
-    .replace(/^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/gm, " ")
-    .replace(/[|*_~#]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
 }
 
 function escapeRegExp(value = "") {

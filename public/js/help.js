@@ -1,3 +1,5 @@
+/* global DOMParser, Node */
+
 (function initializeHelpPage() {
 const statusMessage = document.querySelector("[data-help-status]");
 const sectionsContainer = document.querySelector("[data-help-sections]");
@@ -176,9 +178,17 @@ function renderArticle(article) {
   summary.textContent = article.summary || article.description || "";
 
   body.className = "help-article-body";
-  body.replaceChildren(...renderMarkdownNodes(article.bodyMarkdown || article.body || ""));
+  body.replaceChildren(...articleBodyNodes(article));
 
   articleContainer.replaceChildren(header, summary, body);
+}
+
+function articleBodyNodes(article) {
+  if (article.bodyHtml) {
+    return renderSafeHtmlNodes(article.bodyHtml);
+  }
+
+  return renderMarkdownNodes(article.bodyMarkdown || article.body || "");
 }
 
 function renderArticlePrompt(message) {
@@ -457,6 +467,88 @@ function renderMarkdownNodes(markdown) {
   }
 
   return nodes.length > 0 ? nodes : [emptyElement("This article is empty.")];
+}
+
+function renderSafeHtmlNodes(html) {
+  const parser = new DOMParser();
+  const documentNode = parser.parseFromString(String(html || ""), "text/html");
+  const nodes = Array.from(documentNode.body.childNodes)
+    .map((node) => importSafeHelpNode(node))
+    .filter(Boolean);
+
+  return nodes.length > 0 ? nodes : [emptyElement("This article is empty.")];
+}
+
+function importSafeHelpNode(node) {
+  if (node.nodeType === Node.TEXT_NODE) {
+    return document.createTextNode(node.textContent || "");
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) {
+    return null;
+  }
+
+  const tagName = node.tagName.toLowerCase();
+  const allowedTags = new Set([
+    "a",
+    "blockquote",
+    "br",
+    "code",
+    "em",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "input",
+    "li",
+    "ol",
+    "p",
+    "pre",
+    "strong",
+    "table",
+    "tbody",
+    "td",
+    "th",
+    "thead",
+    "tr",
+    "ul",
+  ]);
+
+  if (!allowedTags.has(tagName)) {
+    return document.createTextNode(node.textContent || "");
+  }
+
+  const element = document.createElement(tagName);
+
+  if (tagName === "a") {
+    const safeHref = safeHelpHref(node.getAttribute("href") || "");
+    if (safeHref) {
+      element.href = safeHref;
+      if (/^https?:\/\//i.test(safeHref)) {
+        element.rel = "noopener noreferrer";
+      }
+    }
+  }
+
+  if (tagName === "code") {
+    const className = node.getAttribute("class") || "";
+    if (/^language-[a-z0-9_-]+$/i.test(className)) {
+      element.className = className;
+    }
+  }
+
+  if (tagName === "input" && node.getAttribute("type") === "checkbox") {
+    element.type = "checkbox";
+    element.disabled = true;
+    element.checked = node.hasAttribute("checked");
+  }
+
+  element.replaceChildren(...Array.from(node.childNodes)
+    .map((child) => importSafeHelpNode(child))
+    .filter(Boolean));
+  return element;
 }
 
 function normalizeMarkdown(markdown) {

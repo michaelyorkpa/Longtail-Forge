@@ -82,32 +82,32 @@ source fields, visibility rules, linking semantics, revision history, and workfl
 
 ### Version 0.33.5.17.3 - Notes Renderer Migration
 
-- [ ] Replace Notes-specific Markdown rendering and plain-text extraction with the shared framework
+- [x] Replace Notes-specific Markdown rendering and plain-text extraction with the shared framework
       Markdown service where appropriate.
-- [ ] Preserve Notes-specific behavior:
-  - [ ] Existing note body storage and revisions.
-  - [ ] `All Libraries`, `All collections`, `Uncategorized`, and manual Library bucket semantics.
-  - [ ] Private/secure/internal/workspace/client-visible visibility rules.
-  - [ ] Wiki-style link detection and note relationship handling.
-  - [ ] Linked context behavior for workspace, project, task, user, and Business-only client targets.
-- [ ] Fix nested Markdown list rendering so indented child list items remain nested in rendered Notes.
-- [ ] Add Notes regressions for nested lists, mixed lists, checklists if approved, revisions, excerpts,
+- [x] Preserve Notes-specific behavior:
+  - [x] Existing note body storage and revisions.
+  - [x] `All Libraries`, `All collections`, `Uncategorized`, and manual Library bucket semantics.
+  - [x] Private/secure/internal/workspace/client-visible visibility rules.
+  - [x] Wiki-style link detection and note relationship handling.
+  - [x] Linked context behavior for workspace, project, task, user, and Business-only client targets.
+- [x] Fix nested Markdown list rendering so indented child list items remain nested in rendered Notes.
+- [x] Add Notes regressions for nested lists, mixed lists, checklists if approved, revisions, excerpts,
       search text, and unsafe Markdown.
-- [ ] Do not migrate stored note bodies or alter existing revision history.
+- [x] Do not migrate stored note bodies or alter existing revision history.
 
 ### Version 0.33.5.17.4 - Help Renderer and Search Migration
 
-- [ ] Move Help Markdown rendering to the shared framework Markdown service.
-- [ ] Preserve Help-owned behavior:
-  - [ ] Content path discovery.
-  - [ ] Module/content scoping.
-  - [ ] Article metadata.
-  - [ ] Navigation and table-of-contents behavior.
-  - [ ] Current-state Help wording rather than future roadmap promises.
-- [ ] Update Help search/plain-text indexing to use the shared Markdown-to-text path.
-- [ ] Validate current Help content fixtures against the shared renderer, especially headings, lists,
+- [x] Move Help Markdown rendering to the shared framework Markdown service.
+- [x] Preserve Help-owned behavior:
+  - [x] Content path discovery.
+  - [x] Module/content scoping.
+  - [x] Article metadata.
+  - [x] Navigation and table-of-contents behavior.
+  - [x] Current-state Help wording rather than future roadmap promises.
+- [x] Update Help search/plain-text indexing to use the shared Markdown-to-text path.
+- [x] Validate current Help content fixtures against the shared renderer, especially headings, lists,
       links, tables if approved, and code fences.
-- [ ] Add regressions proving Help articles render safely and search indexing does not expose raw
+- [x] Add regressions proving Help articles render safely and search indexing does not expose raw
       Markdown syntax or unsafe HTML.
 
 ### Version 0.33.5.17.5 - Browser Preview and Editor Consistency
