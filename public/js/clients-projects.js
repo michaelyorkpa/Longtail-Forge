@@ -818,7 +818,7 @@ function openClientDetailDialog(client, options = {}) {
     createBillingContactEditor(client, { showSaveButton: false }),
     createClientBillingSettingsEditor(client, { showSaveButton: false }),
   );
-  closeActions.className = "form-actions detail-modal-actions";
+  closeActions.classList.add("form-actions");
   createClientPageActions(client, {
     actionTarget: closeActions,
     hostContext: options.hostContext,

@@ -1,6 +1,6 @@
 # View-Building Contract
 
-As of 0.33.5.15.4, this document defines the first framework-owned view-building boundary, records the inventory that the 0.33.5.15 helper work should address, documents the initial helper implementation, and records the first Lists protected-workspace pilot plus Client/Project modal adoption. The helper does not change module APIs, database schema, permissions, or business workflows.
+As of 0.33.5.15.6, this document defines the first framework-owned view-building boundary, records the inventory that the 0.33.5.15 helper work should address, documents the initial helper implementation, records the first Lists protected-workspace pilot plus Client/Project modal adoption, documents the static guardrails for those converted surfaces, and closes the helper line with current-state module adoption guidance. The helper does not change module APIs, database schema, permissions, or business workflows.
 
 The earlier surface contract in `docs/ui-surface-contract.md` defines shared tokens, CSS classes, modal/footer/overlay shells, drawer/slideout shells, dense actions, chips, and focus behavior. This document defines the next layer above that: the common DOM structures the framework should help modules build.
 
@@ -89,3 +89,19 @@ The Lists module still owns API routes, save payloads, permission-shaped data lo
 The shared Client/Projects browser source now uses `LongtailForge.view` for Add Client, Edit Client, Add Project, and Edit Project modal shells and footer placement. The Clients page no longer carries a static Add Client dialog; the browser builds that shell through `createModalForm` before binding existing page handlers.
 
 Client/Projects keeps ownership of editor bodies, client/project hierarchy rules, billing defaults, tag pickers, save payloads, API calls, permission checks, workspace-type gates, and module-action host callbacks. The Workbench, Clients, and Projects protected pages load the shared view-builder helper before `clients-projects.js` so shared module actions use the same modal helpers.
+
+## Implementation Notes For 0.33.5.15.5
+
+The converted-surface guardrails are intentionally focused on surfaces already adopted in the 0.33.5.15 line: the Lists protected workspace and the shared Client/Project Add/Edit dialog functions. They do not fail on non-converted page tables, bulk editors, or other protected views that remain inventory-only until a later explicit conversion slice.
+
+Converted surfaces should not directly create dialog elements when the shared modal helper fits, should preserve helper-built modal/footer/action classes, should avoid new hard-coded light backgrounds, and should keep dense/detail action rows wrapping through shared view CSS. Legacy compatibility aliases may remain during the pilot, but they should not replace the framework-owned surface classes supplied by `LongtailForge.view`.
+
+The guardrails also keep the helper boundary boring: `public/js/shared/view-builder.js` remains layout-only and must not take ownership of API calls, browser storage, save payloads, permission decisions, or module-specific business rules.
+
+## Implementation Notes For 0.33.5.15.6
+
+The 0.33.5.15 closeout keeps the imperative helper layer as the supported current contract for converted module views. Modules may adopt `LongtailForge.view` where a slice explicitly converts a surface, and they may keep unconverted page areas hand-built until a later roadmap item names that conversion.
+
+Developer documentation now treats framework view building as a boundary layered on top of the shared surface contract: the framework owns common anatomy, theme-safe wrappers, overflow behavior, modal/footer placement, and accessible defaults; modules own records, API calls, validation, save payloads, permission checks, labels, and workflow decisions.
+
+The next 0.33.5.16 descriptor work should layer on top of these helpers rather than replacing them. Imperative helpers remain the escape hatch for module surfaces that are not ready for declarative descriptors.

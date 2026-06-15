@@ -81,17 +81,60 @@ function renderMarkdownToSafeHtml(markdown = "") {
   const safeMarkdown = assertSafeMarkdown(markdown);
   const lines = safeMarkdown.split("\n");
   const html = [];
-  let list = null;
+  const listStack = [];
   let inCodeBlock = false;
   let codeLines = [];
 
+  function closeListsToDepth(depth = 0) {
+    while (listStack.length > depth) {
+      closeList();
+    }
+  }
+
   function closeList() {
-    if (!list) {
+    const current = listStack.pop();
+    if (!current) {
       return;
     }
 
-    html.push(`</${list}>`);
-    list = null;
+    closeCurrentListItem(current);
+    html.push(`</${current.type}>`);
+  }
+
+  function closeCurrentListItem(current = listStack.at(-1)) {
+    if (current?.liOpen) {
+      html.push("</li>");
+      current.liOpen = false;
+    }
+  }
+
+  function appendListItem(type, indent, content) {
+    let current = listStack.at(-1);
+
+    if (!current || indent > current.indent) {
+      html.push(`<${type}>`);
+      listStack.push({ type, indent, liOpen: false });
+      current = listStack.at(-1);
+    } else {
+      while (listStack.length && indent < listStack.at(-1).indent) {
+        closeList();
+      }
+
+      current = listStack.at(-1);
+      if (!current || current.indent !== indent || current.type !== type) {
+        if (current && current.indent === indent && current.type !== type) {
+          closeList();
+        }
+        html.push(`<${type}>`);
+        listStack.push({ type, indent, liOpen: false });
+        current = listStack.at(-1);
+      } else {
+        closeCurrentListItem(current);
+      }
+    }
+
+    html.push(`<li>${content}`);
+    current.liOpen = true;
   }
 
   function flushCode() {
@@ -101,7 +144,7 @@ function renderMarkdownToSafeHtml(markdown = "") {
 
   for (const line of lines) {
     if (line.trim().startsWith("```")) {
-      closeList();
+      closeListsToDepth();
       if (inCodeBlock) {
         flushCode();
         inCodeBlock = false;
@@ -117,13 +160,13 @@ function renderMarkdownToSafeHtml(markdown = "") {
     }
 
     if (!line.trim()) {
-      closeList();
+      closeListsToDepth();
       continue;
     }
 
     const heading = line.match(/^(#{1,6})\s+(.+)$/);
     if (heading) {
-      closeList();
+      closeListsToDepth();
       const level = heading[1].length;
       html.push(`<h${level}>${renderInlineMarkdown(heading[2])}</h${level}>`);
       continue;
@@ -131,55 +174,48 @@ function renderMarkdownToSafeHtml(markdown = "") {
 
     const blockquote = line.match(/^>\s?(.*)$/);
     if (blockquote) {
-      closeList();
+      closeListsToDepth();
       html.push(`<blockquote>${renderInlineMarkdown(blockquote[1])}</blockquote>`);
       continue;
     }
 
-    const checklist = line.match(/^\s*[-*+]\s+\[([ xX])\]\s+(.+)$/);
+    const checklist = line.match(/^(\s*)[-*+]\s+\[([ xX])\]\s+(.+)$/);
     if (checklist) {
-      if (list !== "ul") {
-        closeList();
-        html.push("<ul>");
-        list = "ul";
-      }
-      const checked = checklist[1].trim() ? " checked" : "";
-      html.push(`<li><input type="checkbox" disabled${checked}> ${renderInlineMarkdown(checklist[2])}</li>`);
+      const checked = checklist[2].trim() ? " checked" : "";
+      appendListItem(
+        "ul",
+        indentationWidth(checklist[1]),
+        `<input type="checkbox" disabled${checked}> ${renderInlineMarkdown(checklist[3])}`,
+      );
       continue;
     }
 
-    const unordered = line.match(/^\s*[-*+]\s+(.+)$/);
+    const unordered = line.match(/^(\s*)[-*+]\s+(.+)$/);
     if (unordered) {
-      if (list !== "ul") {
-        closeList();
-        html.push("<ul>");
-        list = "ul";
-      }
-      html.push(`<li>${renderInlineMarkdown(unordered[1])}</li>`);
+      appendListItem("ul", indentationWidth(unordered[1]), renderInlineMarkdown(unordered[2]));
       continue;
     }
 
-    const ordered = line.match(/^\s*\d+\.\s+(.+)$/);
+    const ordered = line.match(/^(\s*)\d+\.\s+(.+)$/);
     if (ordered) {
-      if (list !== "ol") {
-        closeList();
-        html.push("<ol>");
-        list = "ol";
-      }
-      html.push(`<li>${renderInlineMarkdown(ordered[1])}</li>`);
+      appendListItem("ol", indentationWidth(ordered[1]), renderInlineMarkdown(ordered[2]));
       continue;
     }
 
-    closeList();
+    closeListsToDepth();
     html.push(`<p>${renderInlineMarkdown(line)}</p>`);
   }
 
-  closeList();
+  closeListsToDepth();
   if (inCodeBlock) {
     flushCode();
   }
 
   return html.join("\n");
+}
+
+function indentationWidth(value = "") {
+  return String(value || "").replace(/\t/g, "    ").length;
 }
 
 function renderInlineMarkdown(value = "") {

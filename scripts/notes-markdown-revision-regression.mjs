@@ -51,6 +51,9 @@ async function assertMarkdownHelpers() {
 
 - [ ] Task
 - Item
+  - Nested item
+    - Deep nested item
+    1. Deep ordered item
 1. Ordered
 
 \`\`\`
@@ -72,6 +75,8 @@ const x = 1;
   assert.ok(html.includes("<em>italic</em>"));
   assert.ok(html.includes("<blockquote>Quote</blockquote>"));
   assert.ok(html.includes("type=\"checkbox\" disabled"));
+  assert.match(html, /<li>Item\s*<ul>\s*<li>Nested item\s*<ul>\s*<li>Deep nested item\s*<\/li>\s*<\/ul>/, "Indented unordered list items should render as nested lists");
+  assert.match(html, /<ol>\s*<li>Deep ordered item\s*<\/li>\s*<\/ol>/, "Indented ordered list items should render as nested ordered lists");
   assert.ok(html.includes("<pre><code>const x = 1;</code></pre>"));
   assert.ok(html.includes("note-wiki-link"));
   assert.equal(html.includes("<script>"), false);
@@ -111,6 +116,11 @@ async function assertEditorBoundary() {
     "codeBlock",
     "blockquote",
     "wikiLink",
+    "keydown",
+    "Tab",
+    "shiftKey",
+    "indent",
+    "outdent",
   ].forEach((needle) => {
     assert.ok(source.includes(needle), `notes editor helper should include ${needle}`);
   });
@@ -365,7 +375,7 @@ INSERT INTO note_revisions (
   ${sqlText(now)}
 );
 `),
-    /CHECK constraint failed|NOT NULL constraint failed/,
+    /CHECK(?: constraint failed)?|NOT NULL constraint failed/,
   );
 }
 

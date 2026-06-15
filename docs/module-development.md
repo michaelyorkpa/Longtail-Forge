@@ -82,6 +82,10 @@ Use `docs/view-building-contract.md` before adopting or extending `LongtailForge
 
 Keep helper usage boring and behavior-preserving. Helpers may create accessible DOM nodes, apply framework surface classes, wire button types and labels, and return elements for module callbacks. Modules still own data loading, state, validation, API calls, save payloads, route permissions, labels, and record-specific workflow behavior. Do not move module storage rules, permission rules, or save semantics into `LongtailForge.view`.
 
+Before converting a module view, identify which pieces are framework-owned anatomy and which pieces are module-owned behavior. Convert the shell, filters, tables, detail headers, field grids, modal shells, modal footers, and action rows through helpers where they fit, then keep existing module services, routes, payload readers, permission checks, and workflow labels in the module file.
+
+Do not call `document.createElement("dialog")` directly in converted surfaces when `createModal` or `createModalForm` fits. Do not overwrite helper-built modal footer/action classes with one-off class strings, and do not add hard-coded light backgrounds or non-wrapping action rows to converted helper-owned structures. If a surface still needs custom behavior, leave that surface explicitly unconverted until a later roadmap slice can name and test the custom boundary.
+
 ## Shared Icon And Action Controls
 
 Use `window.LongtailForge.icons` for common action icons and compact action buttons. The shared helper is framework-owned, uses a local Lucide-derived inline SVG subset, and renders by stable semantic names such as `add`, `edit`, `archive`, `restore`, `delete`, `start`, `pause`, `save`, `close`, `copy`, `refresh`, and `more`.

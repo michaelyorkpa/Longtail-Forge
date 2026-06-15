@@ -2,118 +2,6 @@
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.14 - UI Stabilization and Workspace Scope Corrections
-
-### Design and Clarification Questions
-
-- [x] Confirm whether Personal and Family List creation should hide the scope/client selector entirely and silently use workspace scope, including the historical note that the dialog currently shows only a workspace option.
-  - Confirmed.
-  - In Personal and Family workspaces, hide the Client/scope selector entirely.
-  - Do not show a disabled or single-option "Workspace" client selector.
-  - The UI should not use the word "Client" in Personal/Family list creation.
-  - Silently create the list at workspace scope.
-  - Use empty/null `client_id` for workspace-scoped lists unless the existing service contract requires a specific workspace-scope sentinel.
-  - Business workspaces should keep normal client/project controls.
-  - Personal/Family project selectors should use workspace projects directly and should not depend on client filtering.
-
-- [x] Confirm whether the Lists linked-task control should reuse the existing Notes-style linked-record picker pattern, a Tasks-specific picker, or a shared framework picker if one already exists by implementation time.
-  - Use a picker-based workflow; do not keep raw UUID entry as the normal user path.
-  - For 0.33.5.14, reuse the existing Notes-style linked-record picker pattern because it already represents the right product behavior: permission-shaped results, human labels, safe URLs, and context hints.
-  - If a shared framework picker already exists by implementation time, use that instead.
-  - Do not build a large new picker framework inside 0.33.5.14.
-  - If Tasks does not already expose a safe picker/search endpoint suitable for Lists, add the smallest Tasks-owned lookup route needed to return readable task labels, IDs, URLs, and project/client context.
-  - Lists should consume the picker result and save the link through Lists-owned link routes; Tasks should remain responsible for task visibility and task labels.
-
-- [x] Confirm the responsive breakpoint for the Lists constrained layout: should the emergency layout trigger at 1366px laptop width and below, or only below a narrower tablet/mobile breakpoint?
-  - Trigger the emergency constrained layout at 1366px wide and below.
-  - The bug is visible on 1366px laptop screens, so waiting until tablet/mobile widths is too late.
-  - Prefer container-query behavior if practical, but a viewport media query at `max-width: 1366px` is acceptable for this stabilization pass.
-  - Additional narrower mobile refinements are fine, but the main list/detail/index overflow fix must apply at 1366px and below.
-
-- [x] Confirm whether "Lists should be full-screen width once selected" means the selected list detail should use the full content width on constrained screens after the selector collapses, or also on desktop.
-  - This applies to constrained screens only.
-  - On desktop/wide layouts, keep the split list/detail workspace if it fits cleanly.
-  - At 1366px and below, move the list selector/index above the detail panel.
-  - Once a list is selected and the selector/index collapses, the selected list detail should use the full available content width.
-  - "Full-screen width" means full available app content width, not a modal takeover and not browser viewport takeover.
-
-- [x] Confirm whether Notes client/project tag inheritance belongs in this stabilization release as a visible correctness bug, or should be split into a Notes-owned follow-up after the UI scope fixes.
-  - Keep it in 0.33.5.14, but keep it narrow.
-  - Treat this as a visible correctness bug: notes linked to client/project context should receive the expected inherited client/project tags consistently.
-  - Do not turn this into a broader tagging redesign.
-  - Do not make inherited tags drive workflow status, billing, visibility, permissions, Library bucket placement, or Knowledge Base behavior.
-  - Use the existing framework tag/inheritance/propagation path where possible.
-  - Add focused service/API/UI regressions proving client/project-linked Notes inherit expected tags without changing access rules.
-  - If implementation reveals that this requires a larger tag architecture change, stop at a failing/skip-documented regression and split the broader fix into a Notes/tagging follow-up.
-
-- [x] Confirm whether Notes and Lists public API key options should appear only when matching public API routes and permissions are already implemented, or whether this release should also add any missing public API scope plumbing needed to make those options truthful.
-  - API key options must be truthful.
-  - Do not show placeholder Notes or Lists API scopes unless matching public API routes, scope declarations, permissions, and tests exist.
-  - For this release, add the missing public API scope plumbing needed to make the visible options truthful.
-  - Start with the smallest useful public API surface.
-  - Read scopes may ship before write scopes if write routes are not ready.
-  - Only show `notes:*` or `lists:*` scopes that are actually backed by implemented public API routes.
-  - If a route/scope cannot be implemented safely in 0.33.5.14, leave that option hidden and add an explicit follow-up item rather than exposing a nonfunctional API key option.
-  - Personal and Family workspaces should still hide Business-only API key controls.
-
-Decision:
-
-Keep this release focused on visible breakages, responsive layout failures, dark-mode violations, and workspace-scope correctness. Do not attempt the full framework-owned view builder conversion in this version. 0.33.5.14 should stabilize the current surfaces so the app is usable before the larger framework view-building pass begins.
-
-### Version 0.33.5.14.1 - Help Center Navigation and Article Boundary Fixes
-
-- [x] Fix Help Center TOC nesting so article links display under the correct parent headings.
-- [x] Make TOC groups collapsible.
-- [x] All top-level groups except "Longtail Forge" should start collapsed.
-- [x] Preserve the existing default article behavior.
-- [x] Fix article content overflow so headings, paragraphs, tables, code blocks, links, and long strings do not break out of the article container.
-- [x] Add focused regression coverage for nested TOC rendering, collapsed default state, and article boundary behavior.
-
-### Version 0.33.5.14.2 - Personal and Family Workspace Scope Corrections
-
-- [x] Ensure Client/Public API access does not appear in Personal or Family workspaces.
-- [x] Ensure Files does not surface Client as an attachment point in Personal or Family workspaces.
-- [x] Ensure Files displays human-readable names instead of UUIDs for Family workspace attachment context.
-- [x] Ensure Create List does not show Client controls in Personal or Family workspaces.
-- [x] In Personal and Family workspaces, Lists should automatically use workspace scope where a Business workspace would use client scope.
-- [x] Ensure project selectors in Lists use workspace projects in Personal and Family workspaces instead of depending on client filtering.
-- [x] Add regressions proving Business workspace client controls still work, while Personal/Family client controls are hidden or unavailable.
-
-### Version 0.33.5.14.3 - Lists Emergency Responsive and Dark Mode Pass
-
-- [x] Fix Actions -> Procurement/Shopping Lists overflow at 1366px wide screens.
-- [x] Convert the list detail action area to a wrapping or overflow-safe action strip.
-- [x] Ensure Duplicate, Edit, Complete, Finalize, Reopen, Archive, Delete, Restore, and reusable-list actions cannot overflow the detail panel.
-- [x] Fix item entry layout so fields do not run off-screen.
-- [x] Ensure item action buttons wrap, collapse, or use compact controls on constrained screens.
-- [x] Fix Next, Source, Cost, and related summary panels so they use existing surface tokens and respect dark mode.
-- [x] Move the list selector/index above the selected list detail and directly below filters on constrained screens.
-- [x] Ensure the list selector/index matches the filter width on constrained screens.
-- [x] Make the list selector/index collapsible.
-- [x] The list selector/index should start open.
-- [x] Once a list is selected, the selector/index should collapse on constrained screens.
-- [x] Ensure the selected list detail can use the full available content width once the selector/index collapses on constrained screens.
-- [x] Replace linked task UUID entry with a picker-based workflow consistent with the existing Notes linked-record picker pattern or the confirmed shared picker direction.
-- [x] Add focused static or DOM regressions for overflow-safe Lists actions and dark-mode token usage.
-
-### Version 0.33.5.14.4 - Notes Tag Inheritance and API Key Scope Visibility Corrections
-
-- [x] Ensure Notes inherit client/project tags consistently when linked to client/project context.
-- [x] Add focused service/API/UI regressions proving Notes tag inheritance works without turning tags into workflow status, visibility, permissions, or billing behavior.
-- [x] Ensure Notes API scopes appear in API key settings when the Notes module is enabled and the workspace type supports API keys.
-- [x] Ensure Lists API scopes appear in API key settings when the Lists module is enabled and the workspace type supports API keys.
-- [x] Ensure Personal and Family workspaces still do not show Business-only API key controls.
-- [x] Add permission/API scope regressions for Notes and Lists scope visibility.
-
-### Version 0.33.5.14.5 - Closeout
-
-- [x] Update CHANGELOG.md.
-- [x] Update ROADMAP.md completion checkboxes.
-- [x] Update package metadata to the implemented version.
-- [x] Run `npm run check`.
-- [x] Run `npm run test:permissions`.
-- [x] Verify `/api/app-info` reports the expected version.
-
 ## Version 0.33.5.15 - Framework View Builder Contract and Lists Pilot
 
 ### Design and Clarification Questions
@@ -246,23 +134,23 @@ Modules still own business meaning: data loading, save payloads, validation rule
 
 ### Version 0.33.5.15.5 - Static Guardrails for Converted Surfaces
 
-- [ ] Add focused static checks for converted modules.
-- [ ] Converted modules should not call `document.createElement("dialog")` directly.
-- [ ] Converted modules should not create new one-off modal footer/action classes when a framework helper exists.
-- [ ] Converted modules should not introduce hard-coded light backgrounds outside theme tokens.
-- [ ] Converted modules should not create non-wrapping action rows for dense/detail surfaces.
-- [ ] Converted modules should keep business logic in module files and shared layout logic in framework helpers.
+- [x] Add focused static checks for converted modules.
+- [x] Converted modules should not call `document.createElement("dialog")` directly.
+- [x] Converted modules should not create new one-off modal footer/action classes when a framework helper exists.
+- [x] Converted modules should not introduce hard-coded light backgrounds outside theme tokens.
+- [x] Converted modules should not create non-wrapping action rows for dense/detail surfaces.
+- [x] Converted modules should keep business logic in module files and shared layout logic in framework helpers.
 
 ### Version 0.33.5.15.6 - Documentation and Closeout
 
-- [ ] Update `docs/module-contract.md` with the framework view-building boundary.
-- [ ] Update Help/developer docs for module view adoption.
-- [ ] Update DECISIONS.md with the framework-owned view builder decision.
-- [ ] Update CHANGELOG.md.
-- [ ] Update package metadata.
-- [ ] Run `npm run check`.
-- [ ] Run `npm run test:permissions`.
-- [ ] Verify `/api/app-info` reports the expected version.
+- [x] Update `docs/module-contract.md` with the framework view-building boundary.
+- [x] Update Help/developer docs for module view adoption.
+- [x] Update DECISIONS.md with the framework-owned view builder decision.
+- [x] Update CHANGELOG.md.
+- [x] Update package metadata.
+- [x] Run `npm run check`.
+- [x] Run `npm run test:permissions`.
+- [x] Verify `/api/app-info` reports the expected version.
 
 ## Version 0.33.5.16 - Declarative Framework View Contract and Manifest View Descriptors
 
@@ -419,6 +307,157 @@ component lifecycle, or new frontend framework is introduced.
 - [ ] Run `npm run check`.
 - [ ] Run `npm run test:permissions`.
 - [ ] Verify `/api/app-info` reports the expected version.
+
+## Version 0.33.5.17 - CommonMark Markdown Platform Renderer
+
+This version adds a framework-owned Markdown rendering contract before Reporting, Knowledge Base,
+Tickets, Creator Studio, and other content-heavy surfaces build on inconsistent Markdown behavior.
+The immediate user-facing driver is Notes list indentation, nested list rendering, and preview parity,
+but the implementation should be platform-level so Notes, Help, Knowledge Base, and future content
+surfaces share the same safe parser, sanitizer, plain-text extraction, and regression fixture corpus.
+
+### Design and Clarification Questions
+
+- [ ] Confirm whether the platform should adopt strict CommonMark only, or CommonMark plus a small
+      approved extension set for current Longtail Forge needs.
+  - Recommendation: CommonMark core plus explicitly allowed table and task-list support, because
+    Help and future Knowledge Base content are likely to need tables, and task/checklist-style
+    content already exists in the product model.
+  - Do not enable broad extension bundles by default.
+
+- [ ] Confirm whether raw HTML in user-authored Markdown should remain disabled or sanitized out.
+  - Recommendation: disable raw HTML for Notes, Help-authored Markdown, and future KB article
+    Markdown unless a later version introduces a narrow allowlist with explicit security review.
+
+- [ ] Confirm whether saved Markdown should remain unchanged and only renderer/search/preview output
+      should change.
+  - Recommendation: preserve stored Markdown exactly. Do not rewrite existing note bodies, Help
+    content, revisions, or future KB sources during this upgrade.
+
+- [ ] Confirm whether browser previews should call a server-render endpoint or use the same renderer
+      library in the browser bundle.
+  - Recommendation: choose the least duplicative path after dependency review. Preview output must
+    match saved rendering for supported syntax and must not bypass sanitization.
+
+- [ ] Confirm whether Markdown editor keyboard behavior belongs in this version.
+  - Recommendation: include only practical editor parity for Markdown authoring, such as Tab/Shift+Tab
+    indentation in the Notes textarea and list-continuation helpers. Do not turn this into a WYSIWYG
+    editor or a full authoring rewrite.
+
+Decision:
+
+Markdown parsing and rendering should become a framework-owned content service. Modules may own
+source fields, visibility rules, linking semantics, revision history, and workflow meaning, but they
+should not each invent their own Markdown parser, unsafe HTML policy, plain-text extraction, search
+text conversion, or preview behavior. CommonMark compatibility is the baseline contract; any
+extensions must be explicitly named, tested, and documented.
+
+### Version 0.33.5.17.1 - Parser Selection and Markdown Contract
+
+- [ ] Review current Markdown rendering paths in Notes, Help, search indexing, browser preview, and
+      any static content helpers.
+- [ ] Select a CommonMark-compatible parser package after dependency, maintenance, license, and
+      security review.
+- [ ] Define the approved syntax set:
+  - [ ] CommonMark paragraphs, headings, emphasis, strong text, links, images where allowed,
+        blockquotes, code spans, fenced code blocks, ordered lists, unordered lists, and nested lists.
+  - [ ] Explicitly approved extensions, if confirmed, such as tables and task lists.
+  - [ ] Explicitly disallowed behavior, especially raw HTML and unsafe links.
+- [ ] Define the framework-owned Markdown APIs:
+  - [ ] Render Markdown to safe HTML.
+  - [ ] Convert Markdown to plain text for search, excerpts, and previews.
+  - [ ] Validate or normalize safe links without changing saved source text.
+  - [ ] Expose deterministic fixture-based rendering expectations.
+- [ ] Define module-owned responsibilities:
+  - [ ] Notes owns note body storage, revisions, library/collection visibility, wiki-style links,
+        linked context, and note-specific permissions.
+  - [ ] Help owns content discovery, module scoping, and article metadata.
+  - [ ] Future Knowledge Base owns publication status, review workflow, source snapshots, and
+        article visibility.
+- [ ] Do not change database schema, saved Markdown, note visibility, Help article routing, or module
+      permissions in this slice.
+
+### Version 0.33.5.17.2 - Shared Server-Side Markdown Renderer
+
+- [ ] Add the selected Markdown dependency and wire it through a framework-owned service, for example
+      `src/core/markdown` or `src/services/markdown.service.js`.
+- [ ] Render Markdown to sanitized HTML using the approved syntax contract.
+- [ ] Strip or neutralize unsafe input:
+  - [ ] Raw HTML.
+  - [ ] Script/event attributes.
+  - [ ] `javascript:` and other unsafe URLs.
+  - [ ] Unsafe image sources if images are allowed.
+- [ ] Add a plain-text/excerpt conversion path that uses the same parser contract instead of
+      ad-hoc regular expressions.
+- [ ] Add fixture coverage for:
+  - [ ] Nested ordered and unordered lists.
+  - [ ] Mixed ordered/unordered list nesting.
+  - [ ] Two-space and four-space indentation behavior.
+  - [ ] Task lists if approved.
+  - [ ] Tables if approved.
+  - [ ] Code fences, inline code, blockquotes, links, and unsafe input.
+- [ ] Keep the service independent of Notes, Help, and future Knowledge Base business rules.
+
+### Version 0.33.5.17.3 - Notes Renderer Migration
+
+- [ ] Replace Notes-specific Markdown rendering and plain-text extraction with the shared framework
+      Markdown service where appropriate.
+- [ ] Preserve Notes-specific behavior:
+  - [ ] Existing note body storage and revisions.
+  - [ ] `All Libraries`, `All collections`, `Uncategorized`, and manual Library bucket semantics.
+  - [ ] Private/secure/internal/workspace/client-visible visibility rules.
+  - [ ] Wiki-style link detection and note relationship handling.
+  - [ ] Linked context behavior for workspace, project, task, user, and Business-only client targets.
+- [ ] Fix nested Markdown list rendering so indented child list items remain nested in rendered Notes.
+- [ ] Add Notes regressions for nested lists, mixed lists, checklists if approved, revisions, excerpts,
+      search text, and unsafe Markdown.
+- [ ] Do not migrate stored note bodies or alter existing revision history.
+
+### Version 0.33.5.17.4 - Help Renderer and Search Migration
+
+- [ ] Move Help Markdown rendering to the shared framework Markdown service.
+- [ ] Preserve Help-owned behavior:
+  - [ ] Content path discovery.
+  - [ ] Module/content scoping.
+  - [ ] Article metadata.
+  - [ ] Navigation and table-of-contents behavior.
+  - [ ] Current-state Help wording rather than future roadmap promises.
+- [ ] Update Help search/plain-text indexing to use the shared Markdown-to-text path.
+- [ ] Validate current Help content fixtures against the shared renderer, especially headings, lists,
+      links, tables if approved, and code fences.
+- [ ] Add regressions proving Help articles render safely and search indexing does not expose raw
+      Markdown syntax or unsafe HTML.
+
+### Version 0.33.5.17.5 - Browser Preview and Editor Consistency
+
+- [ ] Make the Notes live preview use the same approved Markdown contract as saved rendering.
+- [ ] Ensure browser preview sanitization cannot diverge from the server-rendered saved note output.
+- [ ] Add textarea authoring support for Markdown indentation:
+  - [ ] Tab indents the current line or selected lines inside the editor.
+  - [ ] Shift+Tab outdents the current line or selected lines.
+  - [ ] Enter continues list markers where predictable and stops cleanly on an empty marker.
+  - [ ] Keyboard behavior remains scoped to the active Markdown editor and does not break normal page
+        focus movement elsewhere.
+- [ ] Keep the editor as a Markdown textarea with preview. Do not introduce WYSIWYG editing in this
+      version.
+- [ ] Add browser/static regressions for editor indentation behavior, preview parity, asset loading,
+      and cache-key updates.
+
+### Version 0.33.5.17.6 - Documentation and Closeout
+
+- [ ] Update `docs/module-contract.md` with the framework-owned Markdown rendering boundary.
+- [ ] Update Help/developer documentation for the approved Markdown syntax set.
+- [ ] Update Notes user-facing Help for list indentation, nested lists, preview behavior, and any
+      approved extensions.
+- [ ] Update DECISIONS.md with the CommonMark platform renderer decision.
+- [ ] Update CHANGELOG.md.
+- [ ] Update package metadata to the implemented version.
+- [ ] Run `npm run check`.
+- [ ] Run `npm run test:permissions` if permissions, visibility, or Help access behavior changed.
+- [ ] Verify `/api/app-info` reports the expected version.
+- [ ] Keep 0.33.5.17 closeout focused on Markdown rendering and editor parity; defer WYSIWYG editing,
+      collaborative editing, content templates, and Knowledge Base publication behavior to later
+      roadmap versions.
 
 ## Version 0.33.6 - Reporting Framework and Time Report Contribution
 
@@ -1772,3 +1811,4 @@ The Creator studio tool can be much richer if it pushes content out to these pla
   - [ ] Launch website
 
 - [ ] Launch Social Media
+

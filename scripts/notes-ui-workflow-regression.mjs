@@ -65,7 +65,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/icons\.js\?v=1/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
-  assert.match(html, /js\/shared\/notes-editor\.js\?v=1/);
+  assert.match(html, /js\/shared\/notes-editor\.js\?v=2/);
   assert.match(html, /css\/longtail-forge\.css\?v=21/);
   assert.match(html, /Note Kind/);
   assert.match(html, /<option value="decision">Decision<\/option>/);

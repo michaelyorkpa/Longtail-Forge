@@ -41,7 +41,7 @@ assert.match(uiLayoutGuide, /docs\/ui-surface-contract\.md/, "UI layout guide sh
 assert.match(moduleDevelopment, /## Shared UI Surfaces/, "Module development guide should document shared UI surfaces");
 assert.match(moduleDevelopment, /LongtailForge\.overlayHost\.create\(\{ host \}\)/, "Module development guide should document the overlay host helper");
 assert.match(moduleContract, /Framework-owned UI surface contracts live in `docs\/ui-surface-contract\.md`/, "Module contract should point to the surface contract");
-assert.match(architecture, /As of version 0\.33\.5\.13\.7/, "Architecture should report the closeout version");
+assert.match(architecture, /As of version 0\.33\.5\.15\.6/, "Architecture should report the current architecture version");
 assert.match(architecture, /framework-owned UI surface contract/, "Architecture should include the surface contract in current state");
 
 assert.match(tasksDocs, /0\.33\.5\.13\.7/, "Tasks developer docs should report the closeout version");

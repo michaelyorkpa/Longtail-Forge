@@ -12,9 +12,9 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.15.4", "package.json should report the current helper line version");
-assert.equal(packageLock.version, "0.33.5.15.4", "package-lock root should report the current helper line version");
-assert.equal(packageLock.packages[""].version, "0.33.5.15.4", "package-lock package entry should report the current helper line version");
+assert.equal(packageJson.version, "0.33.5.15.6", "package.json should report the current helper line version");
+assert.equal(packageLock.version, "0.33.5.15.6", "package-lock root should report the current helper line version");
+assert.equal(packageLock.packages[""].version, "0.33.5.15.6", "package-lock package entry should report the current helper line version");
 
 assert.doesNotMatch(helper, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view builder must not inject HTML strings");
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view builder must not own data loading or browser storage");
@@ -158,7 +158,7 @@ for (const item of [
 assert.match(css, /\.view-page-header,[\s\S]*\.view-detail-header\s*\{[\s\S]*display:\s*flex/, "CSS should define page header layout");
 assert.match(css, /\.view-table-wrap\s*\{[\s\S]*overflow-x:\s*auto/, "CSS should define table overflow wrapper");
 assert.match(css, /\.view-filter-panel-fields,[\s\S]*\.view-field-grid\s*\{[\s\S]*grid-template-columns/, "CSS should define responsive field grid layout");
-assert.match(viewContract, /As of 0\.33\.5\.15\.4/, "view contract should report helper implementation version");
+assert.match(viewContract, /As of 0\.33\.5\.15\.6/, "view contract should report helper implementation version");
 assert.match(viewContract, /`LongtailForge\.view` is implemented in `public\/js\/shared\/view-builder\.js`/, "view contract should document implemented helper location");
 assert.match(decisions, /## Version 0\.33\.5\.15\.2/, "Decisions should include helper implementation version");
 assert.match(changelog, /## Version 0\.33\.5\.15\.2 - /, "Changelog should include helper implementation version");

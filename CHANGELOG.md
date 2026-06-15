@@ -1,3 +1,16 @@
+## Version 0.33.5.15.6 - 2026-06-15 09:31 -04:00
+
+- Closed the 0.33.5.15 framework view-builder line with current-state module contract, developer guide, UI layout, architecture, Help, decision, and view-building contract updates.
+- Added `view-builder-closeout-regression.mjs` to guard the closeout documentation, package metadata, roadmap checklist, and roadmap archive placement.
+- Bumped package/app metadata to `0.33.5.15.6` and archived the completed 0.33.5.14 roadmap section so 0.33.5.15 remains the most recently completed live roadmap section.
+- Fixed the Notes Markdown editor so Tab/Shift+Tab indent and outdent in the body field, and indented unordered, ordered, and checklist items render as nested lists instead of flattening.
+
+## Version 0.33.5.15.5 - 2026-06-15 09:14 -04:00
+
+- Added `view-builder-converted-surface-guardrails.mjs` and wired it into the regression suite to protect converted Lists and Client/Project dialog surfaces from direct dialog creation, one-off modal footer/action structures, hard-coded light backgrounds, and non-wrapping dense action rows.
+- Preserved framework-owned footer classes in the converted Edit Client dialog by keeping the compatibility `form-actions` class as an alias instead of overwriting the helper-built modal footer group classes.
+- Updated the view-building contract, decisions, roadmap checklist, and package/app metadata for `0.33.5.15.5`.
+
 ## Version 0.33.5.15.4 - 2026-06-15 09:01 -04:00
 
 - Converted shared Client/Projects Add/Edit Client and Add/Edit Project dialog shells to `LongtailForge.view` modal/form/footer helpers while leaving field behavior, validation, billing/tag/hierarchy logic, save payloads, and permissions in `public/js/clients-projects.js`.
