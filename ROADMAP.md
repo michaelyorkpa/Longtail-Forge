@@ -102,16 +102,57 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 - [x] Run `npm run test:permissions`.
 - [x] Verify `/api/app-info` reports the expected version after implementation.
 
-## Version 0.33.5.14 - UI Stabilization and Workspace Scope Corrections
+#### 0.33.5.14 - UI Stabilization and Workspace Scope Corrections
 
-### Design and Clarification Questions
+- [x] Confirm whether Personal and Family List creation should hide the scope/client selector entirely and silently use workspace scope, including the historical note that the dialog currently shows only a workspace option.
+  - Confirmed.
+  - In Personal and Family workspaces, hide the Client/scope selector entirely.
+  - Do not show a disabled or single-option "Workspace" client selector.
+  - The UI should not use the word "Client" in Personal/Family list creation.
+  - Silently create the list at workspace scope.
+  - Use empty/null `client_id` for workspace-scoped lists unless the existing service contract requires a specific workspace-scope sentinel.
+  - Business workspaces should keep normal client/project controls.
+  - Personal/Family project selectors should use workspace projects directly and should not depend on client filtering.
 
-- [ ] Confirm whether Personal and Family List creation should hide the scope/client selector entirely and silently use workspace scope, including the historical note that the dialog currently shows only a workspace option.
-- [ ] Confirm whether the Lists linked-task control should reuse the existing Notes-style linked-record picker pattern, a Tasks-specific picker, or a shared framework picker if one already exists by implementation time.
-- [ ] Confirm the responsive breakpoint for the Lists constrained layout: should the emergency layout trigger at 1366px laptop width and below, or only below a narrower tablet/mobile breakpoint?
-- [ ] Confirm whether "Lists should be full-screen width once selected" means the selected list detail should use the full content width on constrained screens after the selector collapses, or also on desktop.
-- [ ] Confirm whether Notes client/project tag inheritance belongs in this stabilization release as a visible correctness bug, or should be split into a Notes-owned follow-up after the UI scope fixes.
-- [ ] Confirm whether Notes and Lists public API key options should appear only when matching public API routes and permissions are already implemented, or whether this release should also add any missing public API scope plumbing needed to make those options truthful.
+- [x] Confirm whether the Lists linked-task control should reuse the existing Notes-style linked-record picker pattern, a Tasks-specific picker, or a shared framework picker if one already exists by implementation time.
+  - Use a picker-based workflow; do not keep raw UUID entry as the normal user path.
+  - For 0.33.5.14, reuse the existing Notes-style linked-record picker pattern because it already represents the right product behavior: permission-shaped results, human labels, safe URLs, and context hints.
+  - If a shared framework picker already exists by implementation time, use that instead.
+  - Do not build a large new picker framework inside 0.33.5.14.
+  - If Tasks does not already expose a safe picker/search endpoint suitable for Lists, add the smallest Tasks-owned lookup route needed to return readable task labels, IDs, URLs, and project/client context.
+  - Lists should consume the picker result and save the link through Lists-owned link routes; Tasks should remain responsible for task visibility and task labels.
+
+- [x] Confirm the responsive breakpoint for the Lists constrained layout: should the emergency layout trigger at 1366px laptop width and below, or only below a narrower tablet/mobile breakpoint?
+  - Trigger the emergency constrained layout at 1366px wide and below.
+  - The bug is visible on 1366px laptop screens, so waiting until tablet/mobile widths is too late.
+  - Prefer container-query behavior if practical, but a viewport media query at `max-width: 1366px` is acceptable for this stabilization pass.
+  - Additional narrower mobile refinements are fine, but the main list/detail/index overflow fix must apply at 1366px and below.
+
+- [x] Confirm whether "Lists should be full-screen width once selected" means the selected list detail should use the full content width on constrained screens after the selector collapses, or also on desktop.
+  - This applies to constrained screens only.
+  - On desktop/wide layouts, keep the split list/detail workspace if it fits cleanly.
+  - At 1366px and below, move the list selector/index above the detail panel.
+  - Once a list is selected and the selector/index collapses, the selected list detail should use the full available content width.
+  - "Full-screen width" means full available app content width, not a modal takeover and not browser viewport takeover.
+
+- [x] Confirm whether Notes client/project tag inheritance belongs in this stabilization release as a visible correctness bug, or should be split into a Notes-owned follow-up after the UI scope fixes.
+  - Keep it in 0.33.5.14, but keep it narrow.
+  - Treat this as a visible correctness bug: notes linked to client/project context should receive the expected inherited client/project tags consistently.
+  - Do not turn this into a broader tagging redesign.
+  - Do not make inherited tags drive workflow status, billing, visibility, permissions, Library bucket placement, or Knowledge Base behavior.
+  - Use the existing framework tag/inheritance/propagation path where possible.
+  - Add focused service/API/UI regressions proving client/project-linked Notes inherit expected tags without changing access rules.
+  - If implementation reveals that this requires a larger tag architecture change, stop at a failing/skip-documented regression and split the broader fix into a Notes/tagging follow-up.
+
+- [x] Confirm whether Notes and Lists public API key options should appear only when matching public API routes and permissions are already implemented, or whether this release should also add any missing public API scope plumbing needed to make those options truthful.
+  - API key options must be truthful.
+  - Do not show placeholder Notes or Lists API scopes unless matching public API routes, scope declarations, permissions, and tests exist.
+  - For this release, add the missing public API scope plumbing needed to make the visible options truthful.
+  - Start with the smallest useful public API surface.
+  - Read scopes may ship before write scopes if write routes are not ready.
+  - Only show `notes:*` or `lists:*` scopes that are actually backed by implemented public API routes.
+  - If a route/scope cannot be implemented safely in 0.33.5.14, leave that option hidden and add an explicit follow-up item rather than exposing a nonfunctional API key option.
+  - Personal and Family workspaces should still hide Business-only API key controls.
 
 Decision:
 
@@ -171,16 +212,53 @@ Keep this release focused on visible breakages, responsive layout failures, dark
 - [ ] Run `npm run test:permissions`.
 - [ ] Verify `/api/app-info` reports the expected version.
 
-## Version 0.33.5.15 - Framework View Builder Contract and Lists Pilot
+#### 0.33.5.15 - Framework View Builder Contract and Lists Pilot
 
-### Design and Clarification Questions
+- [x] Confirm whether the first view builder should be a small DOM-helper library only, without state management, virtual DOM behavior, component lifecycle, or a new frontend framework.
+  - Confirmed.
+  - The first view builder should be a small, boring DOM-helper library.
+  - Do not add state management.
+  - Do not add virtual DOM behavior.
+  - Do not add component lifecycle semantics.
+  - Do not add a frontend framework.
+  - Helpers should create safe, accessible DOM structures and apply framework-owned surface classes.
+  - Modules remain responsible for data loading, state decisions, validation, API calls, and business workflow behavior.
 
-- [ ] Confirm whether the first view builder should be a small DOM-helper library only, without state management, virtual DOM behavior, component lifecycle, or a new frontend framework.
-- [ ] Confirm the framework namespace and naming preference: `window.LongtailForge.view`, `window.LongtailForge.viewBuilder`, or another existing shared namespace.
-- [ ] Confirm whether `0.33.5.15.3` should convert only the Lists protected workspace, leaving Lists modals/dialogs for later unless they are required by the page conversion.
-- [ ] Confirm whether the Client/Project modal adoption in `0.33.5.15.4` should cover both the combined Clients/Projects page and any shared dialogs opened from other protected surfaces.
-- [ ] Confirm whether converted surfaces should keep legacy CSS classes as compatibility aliases during the pilot, or remove one-off classes immediately once framework helpers own the structure.
-- [ ] Confirm whether view-builder guardrails should fail on all protected views or only on explicitly converted surfaces until the pilot proves stable.
+- [x] Confirm the framework namespace and naming preference: `window.LongtailForge.view`, `window.LongtailForge.viewBuilder`, or another existing shared namespace.
+  - Use `window.LongtailForge.view` as the public namespace.
+  - The file can be named `public/js/shared/view-builder.js`, but the browser API should be short and stable: `LongtailForge.view`.
+  - Avoid exposing both `view` and `viewBuilder` unless a temporary compatibility alias becomes necessary.
+  - Keep helper names direct, for example `LongtailForge.view.createDataTable(...)` and `LongtailForge.view.createModal(...)`.
+
+- [x] Confirm whether `0.33.5.15.3` should convert only the Lists protected workspace, leaving Lists modals/dialogs for later unless they are required by the page conversion.
+  - Confirmed.
+  - `0.33.5.15.3` should focus on the Lists protected workspace: filters, selector/index, list/detail layout, detail header, action strip, summary panels, item entry, item rows, and tables.
+  - Leave full Lists modal/dialog refactoring for a later slice unless the page conversion requires touching a dialog.
+  - If the Create/Edit List dialog must move because `lists.html` becomes a minimal host page, convert only the minimum needed shell/form/footer behavior and do not broaden the slice into a full Lists modal redesign.
+  - Preserve all Lists routes, save payloads, permissions, and workflows.
+
+- [x] Confirm whether the Client/Project modal adoption in `0.33.5.15.4` should cover both the combined Clients/Projects page and any shared dialogs opened from other protected surfaces.
+  - Yes.
+  - Convert the shared Add/Edit Client and Add/Edit Project dialog helpers at their source so the improvement applies wherever those dialogs are opened.
+  - This should cover the combined Clients/Projects page and shared dialogs opened from other protected surfaces.
+  - Do not convert unrelated inline tables, bulk controls, or full Clients/Projects page layout in this slice unless they directly block the modal conversion.
+  - Personal and Family workspaces must not gain access to Business-only client dialogs through shared dialog entry points.
+
+- [x] Confirm whether converted surfaces should keep legacy CSS classes as compatibility aliases during the pilot, or remove one-off classes immediately once framework helpers own the structure.
+  - Keep legacy CSS classes as compatibility aliases during the pilot.
+  - Converted surfaces should use the new framework helper structure and framework surface classes as the primary source of layout behavior.
+  - Existing one-off classes may remain temporarily as aliases to avoid breaking tests or unrelated styling.
+  - Do not add new one-off classes for framework-owned anatomy.
+  - Mark legacy classes as deprecated in comments or docs where practical.
+  - Remove deprecated compatibility classes in a later cleanup pass after the pilot proves stable.
+
+- [x] Confirm whether view-builder guardrails should fail on all protected views or only on explicitly converted surfaces until the pilot proves stable.
+  - Guardrails should fail only on explicitly converted surfaces during the pilot.
+  - Add inventory/reporting coverage for all protected views, but do not make the entire app fail immediately.
+  - Converted surfaces should have strict checks.
+  - Non-converted surfaces may produce warnings, inventory output, or TODO findings.
+  - This avoids turning the Lists pilot into a repo-wide UI migration.
+  - Once Lists and the first modal conversions are stable, expand the fail-on-violation guardrails one module/surface group at a time.
 
 Decision:
 
