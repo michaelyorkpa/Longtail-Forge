@@ -102,44 +102,185 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 - [x] Run `npm run test:permissions`.
 - [x] Verify `/api/app-info` reports the expected version after implementation.
 
-## 0.33.5.14 - Further UI Clean up
+## Version 0.33.5.14 - UI Stabilization and Workspace Scope Corrections
 
-### Help Center Tweaks
+### Design and Clarification Questions
 
-- TOC articles aren't properly nested in the navigation pane
-  - They don't collapse
-  - All top level headings except "Longtail Forge" should start collapsed
-- Articles break the box boundaries
+- [ ] Confirm whether Personal and Family List creation should hide the scope/client selector entirely and silently use workspace scope, including the historical note that the dialog currently shows only a workspace option.
+- [ ] Confirm whether the Lists linked-task control should reuse the existing Notes-style linked-record picker pattern, a Tasks-specific picker, or a shared framework picker if one already exists by implementation time.
+- [ ] Confirm the responsive breakpoint for the Lists constrained layout: should the emergency layout trigger at 1366px laptop width and below, or only below a narrower tablet/mobile breakpoint?
+- [ ] Confirm whether "Lists should be full-screen width once selected" means the selected list detail should use the full content width on constrained screens after the selector collapses, or also on desktop.
+- [ ] Confirm whether Notes client/project tag inheritance belongs in this stabilization release as a visible correctness bug, or should be split into a Notes-owned follow-up after the UI scope fixes.
+- [ ] Confirm whether Notes and Lists public API key options should appear only when matching public API routes and permissions are already implemented, or whether this release should also add any missing public API scope plumbing needed to make those options truthful.
 
-### Personal / Family Workspace issues
+Decision:
 
-- There should be no API access for clients in Personal or Family Workspaces
-  - I see both read and write Public API access for clients in a Personal workspace right now (0.33.5.4.1)
+Keep this release focused on visible breakages, responsive layout failures, dark-mode violations, and workspace-scope correctness. Do not attempt the full framework-owned view builder conversion in this version. 0.33.5.14 should stabilize the current surfaces so the app is usable before the larger framework view-building pass begins.
 
-- Files listings in a Family workspace still surfaces Client as an attachment point
+### Version 0.33.5.14.1 - Help Center Navigation and Article Boundary Fixes
 
-- Files listings in a family workspace show UUIDs, not the human readable names
+- [ ] Fix Help Center TOC nesting so article links display under the correct parent headings.
+- [ ] Make TOC groups collapsible.
+- [ ] All top-level groups except "Longtail Forge" should start collapsed.
+- [ ] Preserve the existing default article behavior.
+- [ ] Fix article content overflow so headings, paragraphs, tables, code blocks, links, and long strings do not break out of the article container.
+- [ ] Add focused regression coverage for nested TOC rendering, collapsed default state, and article boundary behavior.
 
-- Client is showing up as a choice in the Create Lists dialog
-  - The only option is workspace, but it shouldn't be there at all and should just automatically set to Client
-  - No projects show up in the project selector
-    - I believe this issue is related to clients showing up
-    - I think the projects display is linked to clients and client isn't properly setting the workspace projects as the filter
+### Version 0.33.5.14.2 - Personal and Family Workspace Scope Corrections
 
-### Lists
+- [ ] Ensure Client/Public API access does not appear in Personal or Family workspaces.
+- [ ] Ensure Files does not surface Client as an attachment point in Personal or Family workspaces.
+- [ ] Ensure Files displays human-readable names instead of UUIDs for Family workspace attachment context.
+- [ ] Ensure Create List does not show Client controls in Personal or Family workspaces.
+- [ ] In Personal and Family workspaces, Lists should automatically use workspace scope where a Business workspace would use client scope.
+- [ ] Ensure project selectors in Lists use workspace projects in Personal and Family workspaces instead of depending on client filtering.
+- [ ] Add regressions proving Business workspace client controls still work, while Personal/Family client controls are hidden or unavailable.
 
-- The UI is a mess.
-  - On a laptop screen (1366 wide) Duplicate, edit, complete, finalize, etc. buttons on Actions -> Procurement Lists go way out of bounds
-  - Next, Source, Costs boxes do not respect dark mode, they have light colored backgrounds
-  - Items entry goes way off the screen as well
-  - List selector box needs to be moved above the list view and directly below fliters
-  - List selector box needs to be collapsible
-    - Should start off open
-    - Once a list is selected, the box should collapse
+### Version 0.33.5.14.3 - Lists Emergency Responsive and Dark Mode Pass
 
-### Other
+- [ ] Fix Actions -> Procurement/Shopping Lists overflow at 1366px wide screens.
+- [ ] Convert the list detail action area to a wrapping or overflow-safe action strip.
+- [ ] Ensure Duplicate, Edit, Complete, Finalize, Reopen, Archive, Delete, Restore, and reusable-list actions cannot overflow the detail panel.
+- [ ] Fix item entry layout so fields do not run off-screen.
+- [ ] Ensure item action buttons wrap, collapse, or use compact controls on constrained screens.
+- [ ] Fix Next, Source, Cost, and related summary panels so they use existing surface tokens and respect dark mode.
+- [ ] Move the list selector/index above the selected list detail and directly below filters on constrained screens.
+- [ ] Ensure the list selector/index matches the filter width on constrained screens.
+- [ ] Make the list selector/index collapsible.
+- [ ] The list selector/index should start open.
+- [ ] Once a list is selected, the selector/index should collapse on constrained screens.
+- [ ] Ensure the selected list detail can use the full available content width once the selector/index collapses on constrained screens.
+- [ ] Replace linked task UUID entry with a picker-based workflow consistent with the existing Notes linked-record picker pattern or the confirmed shared picker direction.
+- [ ] Add focused static or DOM regressions for overflow-safe Lists actions and dark-mode token usage.
 
-- There are still no notes or lists public API key options listed.
+### Version 0.33.5.14.4 - Notes Tag Inheritance and API Key Scope Visibility Corrections
+
+- [ ] Ensure Notes inherit client/project tags consistently when linked to client/project context.
+- [ ] Add focused service/API/UI regressions proving Notes tag inheritance works without turning tags into workflow status, visibility, permissions, or billing behavior.
+- [ ] Ensure Notes API scopes appear in API key settings when the Notes module is enabled and the workspace type supports API keys.
+- [ ] Ensure Lists API scopes appear in API key settings when the Lists module is enabled and the workspace type supports API keys.
+- [ ] Ensure Personal and Family workspaces still do not show Business-only API key controls.
+- [ ] Add permission/API scope regressions for Notes and Lists scope visibility.
+
+### Version 0.33.5.14.5 - Closeout
+
+- [ ] Update CHANGELOG.md.
+- [ ] Update ROADMAP.md completion checkboxes.
+- [ ] Update package metadata to the implemented version.
+- [ ] Run `npm run check`.
+- [ ] Run `npm run test:permissions`.
+- [ ] Verify `/api/app-info` reports the expected version.
+
+## Version 0.33.5.15 - Framework View Builder Contract and Lists Pilot
+
+### Design and Clarification Questions
+
+- [ ] Confirm whether the first view builder should be a small DOM-helper library only, without state management, virtual DOM behavior, component lifecycle, or a new frontend framework.
+- [ ] Confirm the framework namespace and naming preference: `window.LongtailForge.view`, `window.LongtailForge.viewBuilder`, or another existing shared namespace.
+- [ ] Confirm whether `0.33.5.15.3` should convert only the Lists protected workspace, leaving Lists modals/dialogs for later unless they are required by the page conversion.
+- [ ] Confirm whether the Client/Project modal adoption in `0.33.5.15.4` should cover both the combined Clients/Projects page and any shared dialogs opened from other protected surfaces.
+- [ ] Confirm whether converted surfaces should keep legacy CSS classes as compatibility aliases during the pilot, or remove one-off classes immediately once framework helpers own the structure.
+- [ ] Confirm whether view-builder guardrails should fail on all protected views or only on explicitly converted surfaces until the pilot proves stable.
+
+Decision:
+
+The framework should own shared view-building primitives for common app surfaces. Modules should not hand-build common page, table, form, dialog, action strip, empty state, status message, filter panel, or split list/detail structures when a framework primitive exists.
+
+Modules still own business meaning: data loading, save payloads, validation rules, permissions, record labels, module-specific fields, and workflow behavior. The framework owns layout anatomy, surface classes, responsive behavior, dark-mode-safe tokens, accessibility defaults, and common action placement.
+
+### Version 0.33.5.15.1 - View-Building Inventory and Boundary Contract
+
+- [ ] Inventory hard-coded view construction in current protected views and module browser scripts.
+- [ ] Identify repeated patterns across Lists, Clients/Projects, Tasks, Notes, Files, Help, Workbench, Dashboard, and future Reporting.
+- [ ] Define the first framework-owned view primitives:
+  - [ ] Page header
+  - [ ] Status message
+  - [ ] Empty state
+  - [ ] Filter panel
+  - [ ] Collapsible selector/index panel
+  - [ ] Split list/detail workspace
+  - [ ] Data table with overflow wrapper
+  - [ ] Detail header
+  - [ ] Detail metadata/badge row
+  - [ ] Detail action strip
+  - [ ] Summary/info panel
+  - [ ] Modal shell
+  - [ ] Modal form
+  - [ ] Modal footer/action groups
+  - [ ] Field grid
+  - [ ] Inline item/action row
+- [ ] Document what the framework owns versus what modules own.
+- [ ] Do not change module APIs, database schema, permissions, or business workflows in this slice.
+- [ ] Add developer documentation explaining how modules adopt framework view primitives.
+
+### Version 0.33.5.15.2 - Shared Browser View Builder Helpers
+
+- [ ] Add a shared browser helper, for example `public/js/shared/view-builder.js`.
+- [ ] Expose helpers through `window.LongtailForge.view` or an equivalent framework namespace.
+- [ ] Helpers must use existing surface tokens and classes from 0.33.5.13.
+- [ ] Helpers must create accessible DOM by default:
+  - [ ] Safe text assignment instead of HTML injection.
+  - [ ] Proper button types.
+  - [ ] Optional accessible labels and titles.
+  - [ ] Focus-visible-safe controls.
+  - [ ] Empty/status regions with appropriate roles where needed.
+- [ ] Add helpers for:
+  - [ ] `createPageHeader`
+  - [ ] `createStatusMessage`
+  - [ ] `createFilterPanel`
+  - [ ] `createCollapsibleIndexPanel`
+  - [ ] `createSplitListDetail`
+  - [ ] `createDataTable`
+  - [ ] `createDetailActionStrip`
+  - [ ] `createInfoPanel`
+  - [ ] `createModal`
+  - [ ] `createModalForm`
+  - [ ] `createFieldGrid`
+  - [ ] `createActionButton`
+- [ ] Keep the helper layer small and boring. This is not a full frontend framework.
+
+### Version 0.33.5.15.3 - Lists Framework View Builder Pilot
+
+- [ ] Convert `views/protected/lists.html` into a minimal framework host page.
+- [ ] Move Lists page structure into shared framework primitives instead of hard-coded static page sections.
+- [ ] Convert Lists filters to the framework filter panel helper.
+- [ ] Convert the list selector/index to the framework collapsible index panel helper.
+- [ ] Convert the selected list detail area to framework detail header, badge row, metadata row, action strip, summary panels, and table helpers.
+- [ ] Convert the item entry form to framework field grid/form helpers.
+- [ ] Convert list item rows/actions to overflow-safe framework row/action helpers.
+- [ ] Preserve all current Lists API routes, save payloads, permissions, and workflow behavior.
+- [ ] Preserve Business workspace client/project behavior.
+- [ ] Preserve Personal/Family workspace behavior from 0.33.5.14.
+- [ ] Add regressions proving Lists no longer relies on one-off static layout classes for framework-owned structures.
+
+### Version 0.33.5.15.4 - Client/Project Modal Adoption
+
+- [ ] Convert Add/Edit Client dialogs to the shared modal/form/footer helpers.
+- [ ] Convert Add/Edit Project dialogs to the shared modal/form/footer helpers.
+- [ ] Keep Clients/Projects responsible for field meaning, validation, save payloads, and permission checks.
+- [ ] Keep framework responsible for modal shell, footer placement, responsive behavior, focus return, and action ordering.
+- [ ] Ensure Personal and Family workspaces cannot open Business-only client dialogs.
+- [ ] Add regressions preventing converted dialogs from using one-off modal footer structures.
+
+### Version 0.33.5.15.5 - Static Guardrails for Converted Surfaces
+
+- [ ] Add focused static checks for converted modules.
+- [ ] Converted modules should not call `document.createElement("dialog")` directly.
+- [ ] Converted modules should not create new one-off modal footer/action classes when a framework helper exists.
+- [ ] Converted modules should not introduce hard-coded light backgrounds outside theme tokens.
+- [ ] Converted modules should not create non-wrapping action rows for dense/detail surfaces.
+- [ ] Converted modules should keep business logic in module files and shared layout logic in framework helpers.
+
+### Version 0.33.5.15.6 - Documentation and Closeout
+
+- [ ] Update `docs/module-contract.md` with the framework view-building boundary.
+- [ ] Update Help/developer docs for module view adoption.
+- [ ] Update DECISIONS.md with the framework-owned view builder decision.
+- [ ] Update CHANGELOG.md.
+- [ ] Update package metadata.
+- [ ] Run `npm run check`.
+- [ ] Run `npm run test:permissions`.
+- [ ] Verify `/api/app-info` reports the expected version.
 
 ## Version 0.33.6 - Reporting Framework and Time Report Contribution
 
@@ -1329,6 +1470,12 @@ Below is a rough road map for all of the 0.40 branch, this is not finalized yet
 - [ ] Define archival period
 - [ ] Define lifecycle of tasks, notes, tickets, etc.
 
+## Version 0.43.0
+
+- [ ] Email delivery
+- [ ] Invite links
+- [ ] Single Sign-On (SSO)
+
 ## Version 0.45.0 - Phone/Tablet/TV app prep
 
 - Prepare APIs for Phone/Tablet/TV apps
@@ -1363,13 +1510,9 @@ Below is a rough road map for all of the 0.40 branch, this is not finalized yet
 - Add backup/restore path validation that prevents writing outside approved runtime directories.
 - Consider an install health-check endpoint or CLI command that reports filesystem lockdown status without exposing sensitive paths to normal users.
 
-## Version 0.55.0
-
-- [ ] Email delivery
-- [ ] Invite links
-- [ ] Single Sign-On (SSO)
-
 ## Version 0.60.0 - SaaS Wrapper
+
+This will be a private plugin, only available to me.
 
 - [ ] SaaS wrapper
 - [ ] Hosted PostgreSQL
@@ -1390,24 +1533,24 @@ Below is a rough road map for all of the 0.40 branch, this is not finalized yet
 
 ### Potential Integrations List
 
-### Support tickets
+#### Support tickets
 
 - [ ] ZenDesk
 - [ ] FreshDesk
 - [ ] GitHub Issues
 
-### Calendars
+#### Calendars
 
 - [ ] Google Calendar
 - [ ] Outlook Calendar
 
-### Task/To Do App Integrations
+#### Task/To Do App Integrations
 
 - [ ] Microsoft To Do
 - [ ] Google Tasks
 - [ ] Identify others in the marketplace
 
-### File Sharing and Storage
+#### File Sharing and Storage
 
 Is it possible to get notifications from any of these sources?
 
@@ -1423,14 +1566,14 @@ Is it possible to get notifications from any of these sources?
   - Input for tickets/notes/tasks/etc.
 - [ ] GitHub (Repository Linking)
 
-### Email integrations
+#### Email integrations
 
 Auto-routing communications/messaging
 
 - [ ] Google Workspace email
 - [ ] Outlook
 
-### eCommerce Plugins
+#### eCommerce Plugins
 
 - [ ] Knowledge Base plugin
 - [ ] Support ticket plugin
@@ -1444,7 +1587,7 @@ Auto-routing communications/messaging
 - [ ] Magento
 - [ ] BigCommerce
 
-### Personal/Family Workspace Integrations
+#### Personal/Family Workspace Integrations
 
 - [ ] Create grocery/shopping list items from Home Assistant (voice commands inputs)
 - [ ] Update/create project tasks from Home Assistant (voice commands inputs)
@@ -1453,7 +1596,7 @@ Auto-routing communications/messaging
 - [ ] Apple Home
 - [ ] Google Assistant (Google Home?)
 
-### Analytics (Creator Studio)
+#### Analytics (Creator Studio)
 
 - [ ] WordPress
 - [ ] YouTube
@@ -1467,7 +1610,7 @@ Auto-routing communications/messaging
 - [ ] Mastodon
 - [ ] Buffer
 
-### Publishing (Creator Studio)
+#### Publishing (Creator Studio)
 
 The Creator studio tool can be much richer if it pushes content out to these platforms, or stores them there until ready for publishing.
 

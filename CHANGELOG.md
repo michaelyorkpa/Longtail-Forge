@@ -1,5 +1,6 @@
 ## Version 0.33.5.13.7 - 2026-06-14 12:43 -04:00
 
+- Documentation update 2026-06-15 00:13 -04:00: Reworked the upcoming 0.33.5.14 and 0.33.5.15 UI roadmap sections with `Design and Clarification Questions`, incorporated the 0.33.5.14 historical issue record into the release checklist, and removed the separate historical record block.
 - Closed the 0.33.5.13 framework surface and modal style standardization line with current-state Help/developer documentation updates for shared modal, overlay, footer, drawer/slideout, main-panel, dense-action, and task Tags/Files behavior.
 - Updated `docs/tasks-module.md`, `docs/module-development.md`, `docs/module-contract.md`, `docs/architecture.md`, `docs/ui-surface-contract.md`, `docs/ui-layout-guide.md`, and `help/framework/tasks-basics.md` to describe shipped surface behavior and ownership boundaries.
 - Added `surface-standardization-closeout-regression.mjs`, wired it into the regression suite, and bumped package/app plus Tasks module metadata to `0.33.5.13.7`.

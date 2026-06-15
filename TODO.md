@@ -19,18 +19,22 @@ This section is to define a series of human testing goals for different sections
 
 ### Permissions
 
+- Create various users and test their functionality
+  - Client admin
+  - Project admin
+  - Client user
+  - Project user
+  - External Client user
+
 ### Notifications
+
+- Make sure follow notifications work for all users (the creator, and other users)
+- Make sure reminders are actually going into notifications
+
 
 ### Next Action/Resume Work
 
-## Notes Fix
-
-- Notes don't appear to inherit client/project tags properly
-
-## Tags and Files Modals
-
-- Go back and make tags and files buttons work on tasks
-  - Get rid of the tags and files sections of the tasks modal
+- Test the Resume/Next Action algorithm
 
 ## Knowledge Base Make Good Smart
 
@@ -42,11 +46,6 @@ This section is to define a series of human testing goals for different sections
     - Keywords pulled from titles/descriptions/note bodies
   - Should be similar to context around displaying notes within workspace
   - Maybe just displays headings/titles?
-
-## Follow Notifications
-
-- Follow notifications should override creator notification blocking
-- Reminder notifications should not be suppressed
 
 ## Mobile Tweaks - Fill this section out after the above section standardizes the modal display
 
