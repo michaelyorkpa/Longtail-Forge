@@ -141,7 +141,7 @@ try {
     assert.match(filesScript, /projectLabel/);
 
     assert.match(listsPage, /js\/shared\/view-builder\.js\?v=3/);
-    assert.match(listsPage, /js\/lists\.js\?v=6/);
+    assert.match(listsPage, /js\/lists\.js\?v=7/);
     assert.doesNotMatch(listsScript, /usesBusinessScope\(\) \? loadClientProjects\(\) : Promise\.resolve/);
     assert.match(listsScript, /state\.clients = window\.LongtailForge\.clientProjectOptions\.normalizeClients\(clientProjects\)/);
     assert.match(listsScript, /return !usesBusinessScope\(\) \|\| \["procurement", "parts", "supplies", "bill_of_materials"]/);

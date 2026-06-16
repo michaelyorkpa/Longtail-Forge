@@ -112,9 +112,12 @@ function buildListsViewShell() {
   registerListsViewBehaviors();
 
   activeListsViewDescriptor = listsViewSurfaceDescriptor();
+  // The renderer auto-renders descriptor.modals into the surface; Lists builds and owns its own
+  // dialog (createListDialogShell), so suppress the framework duplicate modal shells.
   const renderDescriptor = {
     ...activeListsViewDescriptor,
     dataSource: null,
+    modals: [],
   };
   const surface = view.renderSurface(renderDescriptor, host);
   decorateListsDeclarativeSurface(surface, renderDescriptor);

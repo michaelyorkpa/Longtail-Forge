@@ -17,8 +17,8 @@ assert.equal(packageLock.packages[""].version, "0.33.5.18.4", "package-lock pack
 
 assert.match(html, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists protected view should be a minimal host");
 assert.match(html, /js\/shared\/view-builder\.js\?v=3/, "Lists protected view should load the framework view builder");
-assert.match(html, /js\/shared\/view-renderer\.js\?v=2/, "Lists protected view should load the framework view renderer");
-assert.match(html, /js\/lists\.js\?v=6/, "Lists protected view should cache-bust the converted Lists script");
+assert.match(html, /js\/shared\/view-renderer\.js\?v=3/, "Lists protected view should load the framework view renderer");
+assert.match(html, /js\/lists\.js\?v=7/, "Lists protected view should cache-bust the converted Lists script");
 assert.doesNotMatch(html, /data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog/, "Lists static HTML should not own converted workspace anatomy");
 assert.doesNotMatch(html, /lists-filters-panel|lists-index-panel|lists-detail-panel|list-table-wrap/, "Lists static HTML should not rely on one-off layout classes for converted structures");
 

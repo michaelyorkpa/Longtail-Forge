@@ -177,7 +177,9 @@ function buildNotesViewShell() {
   }
   registerNotesViewBehaviors();
   const descriptor = notesViewSurfaceDescriptor();
-  const surface = view.renderSurface({ ...descriptor, dataSource: null }, host);
+  // The renderer auto-renders descriptor.modals into the surface; Notes builds and owns its own
+  // dialogs (createNoteDialogShell/createCollectionDialogShell), so suppress the framework duplicates.
+  const surface = view.renderSurface({ ...descriptor, dataSource: null, modals: [] }, host);
   decorateNotesDeclarativeSurface(surface);
   document.body.append(createNoteDialogShell(), createCollectionDialogShell());
 }
@@ -542,6 +544,7 @@ function createNoteDialogShell() {
     title: modal.title || "Note",
     className: "notes-editor-dialog",
     formClassName: "notes-editor-form",
+    size: "wide",
     fields: [],
     actions: [cancel, save],
   });

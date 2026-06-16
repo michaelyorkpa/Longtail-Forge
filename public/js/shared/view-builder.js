@@ -458,9 +458,13 @@
     return panel;
   }
 
+  function modalSizeClass(size) {
+    return size === "wide" ? "view-modal--wide" : "";
+  }
+
   function createModal(options = {}) {
     const dialog = createElement("dialog", {
-      className: ["view-modal", "surface-modal", options.className],
+      className: ["view-modal", "surface-modal", modalSizeClass(options.size), options.className],
       attrs: {
         role: "dialog",
         "aria-modal": "true",
@@ -492,7 +496,7 @@
 
   function createModalForm(options = {}) {
     const dialog = createElement("dialog", {
-      className: ["view-modal", "surface-modal", options.className],
+      className: ["view-modal", "surface-modal", modalSizeClass(options.size), options.className],
       attrs: {
         role: "dialog",
         "aria-modal": "true",

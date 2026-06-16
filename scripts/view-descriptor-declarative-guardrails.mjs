@@ -72,7 +72,7 @@ assert.ok(inventory.some((entry) => entry.moduleId === "developer-example" && en
 assert.ok(inventory.some((entry) => entry.moduleId === "tasks" && entry.surfaceIds.length === 0 && !entry.strict), "Non-declarative protected views should remain reported-only");
 
 assert.match(listsHtml, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Strict declarative Lists HTML should stay a minimal host");
-assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=3[\s\S]*js\/shared\/view-renderer\.js\?v=2[\s\S]*js\/lists\.js\?v=6/, "Strict declarative Lists HTML should load the renderer before the module adapter");
+assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=3[\s\S]*js\/shared\/view-renderer\.js\?v=3[\s\S]*js\/lists\.js\?v=7/, "Strict declarative Lists HTML should load the renderer before the module adapter");
 assertNoProtectedAnatomy(listsHtml, "views/protected/lists.html");
 
 for (const forbidden of [

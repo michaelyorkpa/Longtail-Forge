@@ -268,8 +268,23 @@ summary.surface-modal-section-heading {
     align-items: center;
     justify-content: space-between;
     gap: 10px 12px;
-    padding-top: 12px;
+    padding: 12px 20px 20px;
     border-top: 1px solid var(--color-border);
+    background: var(--color-surface-raised);
+}
+
+/* Footer stays pinned to the bottom of the scrolling modal and is always visible. In the form
+   variant it sticks within the scrolling form (negative margins bleed it to the padded edges);
+   in the body variant it is a non-growing flex child of the modal column. */
+.view-modal-form > .surface-modal-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin: 12px -20px -20px;
+}
+
+.view-modal > .surface-modal-footer {
+    flex: 0 0 auto;
 }
 
 .surface-modal-footer-group {
@@ -617,9 +632,31 @@ summary.surface-modal-section-heading {
 }
 
 .view-modal {
+    width: min(720px, calc(100vw - 32px));
     max-width: min(720px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    padding: 0;
+    overflow: hidden;
     color: var(--color-text);
     background: var(--color-surface-raised);
+}
+
+/* Only style the open dialog as a flex column. A closed <dialog> must keep the user-agent
+   display:none — setting display unconditionally would force every modal visible on load. */
+.view-modal[open] {
+    display: flex;
+    flex-direction: column;
+}
+
+.view-modal--wide {
+    width: min(960px, calc(100vw - 32px));
+    max-width: min(960px, calc(100vw - 32px));
+}
+
+/* In the body variant the title sits directly in the modal (outside the padded body); inset it so
+   it lines up with the body content. In the form variant the title is inside the padded form. */
+.view-modal > .view-modal-title {
+    padding: 20px 20px 0;
 }
 
 .view-modal-body,
@@ -627,6 +664,13 @@ summary.surface-modal-section-heading {
     display: grid;
     gap: 12px;
     min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
+    align-content: start;
+    padding: 20px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    box-sizing: border-box;
 }
 
 .view-action-button {
@@ -4706,42 +4750,13 @@ li.markdown-task-list-item > ol {
     overflow-wrap: anywhere;
 }
 
-.notes-editor-dialog {
-    width: min(1040px, calc(100vw - 32px));
-    max-height: calc(100vh - 32px);
-    padding: 0;
-    overflow: hidden;
-}
-
-.notes-collection-dialog {
-    width: min(760px, calc(100vw - 32px));
-    max-height: calc(100vh - 32px);
-    padding: 0;
-    overflow: hidden;
-}
-
-.notes-editor-form,
-.notes-collection-form,
+/* Modal width, padding, scrolling, and the pinned footer are framework-owned (.view-modal,
+   .view-modal-form, .surface-modal-footer). The editor opts into the framework "wide" size via
+   view.createModalForm({ size: "wide" }); the module only styles its own content below. */
 .notes-dialog-heading,
 .notes-form-grid {
     display: grid;
     gap: 12px;
-}
-
-.notes-editor-form {
-    max-height: calc(100vh - 32px);
-    padding: 18px;
-    overflow-x: hidden;
-    overflow-y: auto;
-    box-sizing: border-box;
-}
-
-.notes-collection-form {
-    max-height: calc(100vh - 32px);
-    padding: 18px;
-    overflow-x: hidden;
-    overflow-y: auto;
-    box-sizing: border-box;
 }
 
 .notes-dialog-heading {

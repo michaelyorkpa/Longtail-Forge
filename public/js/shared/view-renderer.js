@@ -904,7 +904,9 @@
       }
     } catch (error) {
       state.actionError = error;
-      rerenderState(state);
+      if (surfaceOwnsRenderedData(state)) {
+        rerenderState(state);
+      }
     }
   }
 
@@ -985,7 +987,11 @@
       workspaceContext: root.workspaceContext || {},
     });
     state.actionError = null;
-    rerenderState(state);
+    // Only the framework re-renders surfaces whose data it owns. When dataSource is null the module
+    // owns the surface body (mounted chrome + loaded data), so a framework rerender would wipe it.
+    if (surfaceOwnsRenderedData(state)) {
+      rerenderState(state);
+    }
   }
 
   function openDescriptorModal(state, modalId, record = null) {
@@ -1007,6 +1013,10 @@
       dialog.showModal();
     }
     return dialog;
+  }
+
+  function surfaceOwnsRenderedData(state) {
+    return Boolean(state?.descriptor?.dataSource?.route);
   }
 
   function rerenderState(state) {
