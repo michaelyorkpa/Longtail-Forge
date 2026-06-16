@@ -11,17 +11,19 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.18.3", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.3", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.3", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.4", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.4", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.4", "package-lock package entry should report the current app version");
 
-// Protected view is now a minimal framework host; the two dialogs remain static (deferred to .18.4).
+// Protected view is now a minimal framework host; as of .18.4 the dialogs are framework-built too.
 assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Notes view should be a minimal framework host");
 assert.match(html, /css\/longtail-forge\.css\?v=26/, "Notes host should load the refreshed stylesheet");
-assert.match(html, /js\/shared\/icons\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=4[\s\S]*js\/shared\/view-renderer\.js\?v=2[\s\S]*js\/notes\.js\?v=17/, "Notes host should load the icon helper, view builder, and renderer before the module adapter");
+assert.match(html, /js\/shared\/icons\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=4[\s\S]*js\/shared\/view-renderer\.js\?v=2[\s\S]*js\/notes\.js\?v=18/, "Notes host should load the icon helper, view builder, and renderer before the module adapter");
 assert.doesNotMatch(html, /data-notes-list|data-notes-collections-panel|data-note-filter-status|class="notes-filters-panel"/, "Notes static HTML should not own the converted read workspace anatomy");
-assert.match(html, /data-note-dialog/, "Editor dialog stays static for the read-only proof");
-assert.match(html, /data-note-collection-dialog/, "Collection dialog stays static for the read-only proof");
+assert.doesNotMatch(html, /data-note-dialog/, "Editor dialog is framework-built as of .18.4, not static HTML");
+assert.doesNotMatch(html, /data-note-collection-dialog/, "Collection dialog is framework-built as of .18.4, not static HTML");
+assert.match(notesJs, /createNoteDialogShell/, "notes.js should build the editor dialog shell from the descriptor modal");
+assert.match(notesJs, /createCollectionDialogShell/, "notes.js should build the collection dialog shell from the descriptor modal");
 
 // Manifest descriptor for the Notes read surface.
 assert.match(notesModule, /viewSurfaces:\s*\[/, "Notes manifest should declare a viewSurfaces descriptor");

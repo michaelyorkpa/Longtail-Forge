@@ -1,3 +1,10 @@
+## Version 0.33.5.18.4 - 2026-06-16 15:10 -04:00
+
+- Converted the Notes editor and collection modals to framework-rendered shells (0.33.5.18.4): the `notes.workspace` descriptor now declares a `modals` block (`note-editor`, `note-collection`) carrying each modal's fields and footer actions, and `notes.js` builds both dialogs through the framework `view.createModalForm` primitive (`createNoteDialogShell`/`createCollectionDialogShell`) instead of static HTML.
+- Removed the two static `<dialog>` elements from `views/protected/notes.html`; the page is now a truly minimal `data-notes-host` shell. The framework owns the dialog/form/title/footer anatomy; Notes still builds its module-specific body (library/collection/kind/visibility/security selects, secure-title warning, linked-context picker, tag editor mount, Markdown toolbar, body textarea, and live preview) and keeps all save/validation/secure-note/revision behavior.
+- Select options for the modals are now sourced from the descriptor (`modalFieldOptions`), keeping Note Kind module-owned and free of the linked-target kinds; the live preview continues to POST to `/api/notes/preview` (the 0.33.5.17 Markdown service) so preview and saved rendering cannot diverge.
+- Updated `notes-ui-workflow`, `notes-declarative-readonly-surface`, and `notes-preview-editor` regressions to assert the framework-built dialog shells and that no static dialog markup remains in the host page; bumped `notes.js` cache-bust to `?v=18`; recorded the decision; and bumped package/app metadata to `0.33.5.18.4`.
+
 ## Version 0.33.5.18.3 - 2026-06-16 08:13 -04:00
 
 - Converted the Notes protected workspace read path to a framework-rendered surface (0.33.5.18.3): `views/protected/notes.html` is now a minimal `data-notes-host`, and the framework renders the page header, Create action, filters panel, stacked layout, collapsible index, and detail container from the `notes.workspace` descriptor.

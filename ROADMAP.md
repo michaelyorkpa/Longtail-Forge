@@ -328,16 +328,29 @@ plain-text extraction come from the 0.33.5.17 shared service.
 
 ### Version 0.33.5.18.4 - Notes Editor, Modals, Field Behaviors, and Live Preview
 
-- [ ] Convert the note create/edit modal shell to descriptor-declared modal/form/footer anatomy.
-- [ ] Bind the live Markdown preview to the same 0.33.5.17 contract as saved rendering so preview and
-      saved output cannot diverge and sanitization is not bypassed.
-- [ ] Express editor field behaviors (visibility selector, library/collection assignment, tags,
-      linked-record targets) as descriptor fields plus registered behaviors.
-- [ ] Keep Notes responsible for body storage, revision creation, validation, save payloads,
-      secure/private rules, and permissions.
-- [ ] Reduce `public/js/notes.js` editor/modal code to data bindings plus registered behaviors.
-- [ ] Add regressions for descriptor-rendered note editor, live preview parity, revisions, and
-      secure-note handling.
+- [x] Convert the note create/edit modal shell to descriptor-declared modal/form/footer anatomy. — The
+      Notes manifest descriptor now declares a `modals` block (`note-editor`, `note-collection`) with
+      fields and `footerActions`; `createNoteDialogShell`/`createCollectionDialogShell` build both
+      dialogs through the framework `view.createModalForm` primitive (dialog/form/title/footer), and
+      the two static `<dialog>` elements were removed from `views/protected/notes.html`.
+- [x] Bind the live Markdown preview to the same 0.33.5.17 contract as saved rendering so preview and
+      saved output cannot diverge and sanitization is not bypassed. — Preview keeps POSTing to
+      `/api/notes/preview` (the 0.33.5.17 Markdown service); no ad-hoc client rendering reintroduced.
+- [x] Express editor field behaviors (visibility selector, library/collection assignment, tags,
+      linked-record targets) as descriptor fields plus registered behaviors. — Field set and select
+      options are sourced from the descriptor `modals` block (`modalFieldOptions`); footer actions
+      declare their behavior ids. Save/validation/secure-rule wiring stays module-owned in `notes.js`.
+- [x] Keep Notes responsible for body storage, revision creation, validation, save payloads,
+      secure/private rules, and permissions. — Unchanged; all storage/save/secure logic remains in
+      `notes.js`/`notes.service.js`.
+- [x] Reduce `public/js/notes.js` editor/modal code to data bindings plus registered behaviors. — The
+      modal anatomy (dialog/form/title/footer) is now framework-built; `notes.js` builds only the
+      module-specific body sections (selects, secure warning, linked-context picker, toolbar, preview)
+      and retains the imperative bindings.
+- [x] Add regressions for descriptor-rendered note editor, live preview parity, revisions, and
+      secure-note handling. — `notes-ui-workflow`, `notes-declarative-readonly-surface`, and
+      `notes-preview-editor` regressions now assert the framework-built dialog shells and that no
+      static dialog markup remains.
 
 ### Version 0.33.5.18.5 - Notes Workflow Actions, Linked Context, and Layout Cleanup
 

@@ -305,6 +305,37 @@ const notesModule = {
           message: "Select a note to read its details.",
         },
       },
+      modals: [
+        {
+          id: "note-editor",
+          title: "Note",
+          fields: [
+            { id: "note-title", field: "title", type: "text", label: "Title", required: true },
+            { id: "note-library", field: "library", type: "select", label: "Library", options: [["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
+            { id: "note-collection", field: "collection", type: "select", label: "Collection", options: [["", "Uncategorized"]] },
+            { id: "note-kind", field: "noteType", type: "select", label: "Note Kind", options: [["general", "General"], ["meeting", "Meeting"], ["research", "Research"], ["decision", "Decision"], ["procedure", "Procedure"], ["reference", "Reference"], ["idea", "Idea"], ["log", "Log"]] },
+            { id: "note-visibility", field: "visibility", type: "select", label: "Visibility", options: [["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"]] },
+            { id: "note-security", field: "security", type: "select", label: "Security", options: [["normal", "Normal"], ["secure", "Secure"]] },
+          ],
+          footerActions: [
+            { id: "cancel-note", label: "Cancel", role: "secondary", behavior: "notes.editor.cancel" },
+            { id: "save-note", label: "Save Note", role: "primary", behavior: "notes.editor.save" },
+          ],
+        },
+        {
+          id: "note-collection",
+          title: "Collection",
+          fields: [
+            { id: "collection-name", field: "title", type: "text", label: "Name", required: true },
+            { id: "collection-library", field: "library", type: "select", label: "Library", options: [["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
+            { id: "collection-parent", field: "parent", type: "select", label: "Parent", options: [["", "Root collection"]] },
+          ],
+          footerActions: [
+            { id: "cancel-collection", label: "Cancel", role: "secondary", behavior: "notes.collection.cancel" },
+            { id: "save-collection", label: "Save Collection", role: "primary", behavior: "notes.collection.save" },
+          ],
+        },
+      ],
       dataSource: {
         route: "/api/notes",
         method: "GET",

@@ -49,50 +49,23 @@ async function assertProtectedView(session) {
   const html = result.contents.toString("utf8");
 
   assert.equal(result.statusCode, 200);
-  // 0.33.5.18.3: the Notes workspace is now a minimal framework host; the read shell (page header,
-  // filters, index, detail) is framework-rendered and the notes-specific chrome (bucket tabs,
-  // collections panel, list, pagination) is mounted by notes.js. The two dialogs stay static (deferred to .18.4).
+  // 0.33.5.18.4: the Notes workspace is a minimal framework host. The read shell (page header,
+  // filters, index, detail) AND the editor + collection modals are framework-rendered; notes.js
+  // mounts the notes-specific chrome and builds the dialog shells from the descriptor modals block.
   assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/);
   assert.match(html, /js\/shared\/view-renderer\.js\?v=2/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=4/);
-  assert.match(html, /js\/notes\.js\?v=17/);
-  assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
-  // Editor + collection dialogs remain static (deferred to 0.33.5.18.4 Notes modals slice).
-  assert.match(html, /data-note-dialog/);
-  assert.match(html, /data-note-collection-dialog/);
-  assert.match(html, /data-note-body/);
-  assert.match(html, /data-note-tags-editor/);
-  assert.match(html, /data-note-collection/);
-  assert.match(html, /Note Kind/);
-  assert.match(html, /<option value="decision">Decision<\/option>/);
-  assert.match(html, /<option value="procedure">Procedure<\/option>/);
-  assert.match(html, /<option value="reference">Reference<\/option>/);
-  assert.match(html, /<option value="idea">Idea<\/option>/);
-  assert.match(html, /<option value="log">Log<\/option>/);
-  const noteKindSelect = html.match(/<select data-note-type>[\s\S]*?<\/select>/)?.[0] || "";
-  assert.doesNotMatch(noteKindSelect, /<option value="client">Client<\/option>/);
-  assert.doesNotMatch(noteKindSelect, /<option value="project">Project<\/option>/);
-  assert.doesNotMatch(noteKindSelect, /<option value="task">Task<\/option>/);
-  assert.doesNotMatch(noteKindSelect, /<option value="ticket">Ticket<\/option>/);
-  assert.doesNotMatch(noteKindSelect, /<option value="user">User<\/option>/);
-  assert.match(html, /js\/shared\/icons\.js\?v=2/);
+  assert.match(html, /js\/notes\.js\?v=18/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
   assert.match(html, /css\/longtail-forge\.css\?v=26/);
-  assert.match(html, /data-note-context-target-type/);
-  assert.match(html, /data-note-context-search/);
-  assert.match(html, /data-note-context-results/);
-  assert.match(html, /data-note-context-apply/);
-  const linkedContextTargetSelect = html.match(/<select data-note-context-target-type>[\s\S]*?<\/select>/)?.[0] || "";
-  assert.match(linkedContextTargetSelect, /<option value="workspace">Workspace<\/option>/);
-  assert.doesNotMatch(linkedContextTargetSelect, /<option value="client">Client<\/option>/);
-  assert.match(linkedContextTargetSelect, /<option value="project">Project<\/option>/);
-  assert.doesNotMatch(html, /Client ID/);
-  assert.doesNotMatch(html, /Project ID/);
-  assert.doesNotMatch(html, /Task ID/);
-  assert.doesNotMatch(html, /User ID/);
+  // No static read chrome or dialog markup remains in the host page.
+  assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
+  assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);
+  assert.doesNotMatch(html, /data-note-context-target-type|data-note-tags-editor|data-note-editor-toolbar/);
+  assert.doesNotMatch(html, /Client ID|Project ID|Task ID|User ID/);
 
   const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
   assert.match(notesJs, /notes-collection-actions-menu/);
@@ -147,6 +120,25 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(notesJs, /data-notes-list-title|notes-list-excerpt/);
   assert.doesNotMatch(notesJs, /text:\s*"Collections"/);
   assert.match(notesJs, /notesCollectionsPanel/);
+  // 0.33.5.18.4 declarative editor + collection modal conversion markers.
+  assert.match(notesJs, /createNoteDialogShell/);
+  assert.match(notesJs, /createCollectionDialogShell/);
+  assert.match(notesJs, /document\.body\.append\(createNoteDialogShell\(\), createCollectionDialogShell\(\)\)/);
+  assert.match(notesJs, /view\.createModalForm/);
+  assert.match(notesJs, /notesEditorModalDescriptor/);
+  assert.match(notesJs, /notesCollectionModalDescriptor/);
+  assert.match(notesJs, /dialog\.dataset\.noteDialog = ""/);
+  assert.match(notesJs, /dialog\.dataset\.noteCollectionDialog = ""/);
+  assert.match(notesJs, /createNoteContextPanel/);
+  assert.match(notesJs, /createNoteEditorToolbar/);
+  // Note Kind options stay module-owned and exclude the linked-target kinds.
+  const noteKindOptions = notesJs.match(/field: "noteType",[^\n]*?options: (\[\[.*?\]\]) \}/)?.[1] || "";
+  assert.match(noteKindOptions, /\["decision", "Decision"\]/);
+  assert.match(noteKindOptions, /\["procedure", "Procedure"\]/);
+  assert.match(noteKindOptions, /\["log", "Log"\]/);
+  assert.doesNotMatch(noteKindOptions, /"client"|"ticket"|"user"/);
+  // Linked-context target picker stays module-owned (workspace/project/task/user, no client kind).
+  assert.match(notesJs, /\["workspace", "Workspace"\], \["project", "Project"\], \["task", "Task"\], \["user", "User"\]/);
 
   const linkedPanelJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8");
   assert.match(linkedPanelJs, /LongtailForge/);

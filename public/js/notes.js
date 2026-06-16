@@ -179,6 +179,7 @@ function buildNotesViewShell() {
   const descriptor = notesViewSurfaceDescriptor();
   const surface = view.renderSurface({ ...descriptor, dataSource: null }, host);
   decorateNotesDeclarativeSurface(surface);
+  document.body.append(createNoteDialogShell(), createCollectionDialogShell());
 }
 
 function registerNotesViewBehaviors() {
@@ -228,6 +229,37 @@ function fallbackNotesViewSurfaceDescriptor() {
       header: { titleField: "title", metaField: "library" },
       emptyState: { message: "Select a note to read its details." },
     },
+    modals: [
+      {
+        id: "note-editor",
+        title: "Note",
+        fields: [
+          { id: "note-title", field: "title", type: "text", label: "Title", required: true },
+          { id: "note-library", field: "library", type: "select", label: "Library", options: [["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
+          { id: "note-collection", field: "collection", type: "select", label: "Collection", options: [["", "Uncategorized"]] },
+          { id: "note-kind", field: "noteType", type: "select", label: "Note Kind", options: [["general", "General"], ["meeting", "Meeting"], ["research", "Research"], ["decision", "Decision"], ["procedure", "Procedure"], ["reference", "Reference"], ["idea", "Idea"], ["log", "Log"]] },
+          { id: "note-visibility", field: "visibility", type: "select", label: "Visibility", options: [["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"]] },
+          { id: "note-security", field: "security", type: "select", label: "Security", options: [["normal", "Normal"], ["secure", "Secure"]] },
+        ],
+        footerActions: [
+          { id: "cancel-note", label: "Cancel", role: "secondary", behavior: "notes.editor.cancel" },
+          { id: "save-note", label: "Save Note", role: "primary", behavior: "notes.editor.save" },
+        ],
+      },
+      {
+        id: "note-collection",
+        title: "Collection",
+        fields: [
+          { id: "collection-name", field: "title", type: "text", label: "Name", required: true },
+          { id: "collection-library", field: "library", type: "select", label: "Library", options: [["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]] },
+          { id: "collection-parent", field: "parent", type: "select", label: "Parent", options: [["", "Root collection"]] },
+        ],
+        footerActions: [
+          { id: "cancel-collection", label: "Cancel", role: "secondary", behavior: "notes.collection.cancel" },
+          { id: "save-collection", label: "Save Collection", role: "primary", behavior: "notes.collection.save" },
+        ],
+      },
+    ],
     dataSource: {
       route: "/api/notes",
       method: "GET",
@@ -414,6 +446,187 @@ function notesIconButton(options) {
 
 function notesOptionElement(value, label) {
   return view.createElement("option", { text: label, attrs: { value } });
+}
+
+function notesEditorModalDescriptor() {
+  return notesViewSurfaceDescriptor().modals?.find((modal) => modal.id === "note-editor") || {};
+}
+
+function notesCollectionModalDescriptor() {
+  return notesViewSurfaceDescriptor().modals?.find((modal) => modal.id === "note-collection") || {};
+}
+
+function modalFieldOptions(modal, fieldName) {
+  const field = (modal.fields || []).find((entry) => entry.field === fieldName);
+  return (field?.options || []).map((entry) => (Array.isArray(entry) ? entry : [entry.value ?? "", entry.label ?? entry.value ?? ""]));
+}
+
+function noteFieldLabel(labelText, control) {
+  return view.createElement("label", { children: [labelText, control] });
+}
+
+function noteInput(dataName, attrs = {}) {
+  const input = view.createElement("input", { attrs: { type: attrs.type || "text", required: Boolean(attrs.required) } });
+  input.dataset[dataName] = "";
+  return input;
+}
+
+function noteTextarea(dataName, attrs = {}) {
+  const textarea = view.createElement("textarea", { attrs: { rows: attrs.rows || 10 } });
+  textarea.dataset[dataName] = "";
+  return textarea;
+}
+
+function noteSelect(dataName, options) {
+  const select = view.createElement("select");
+  select.dataset[dataName] = "";
+  options.forEach(([value, label]) => select.appendChild(notesOptionElement(value, label)));
+  return select;
+}
+
+function createNoteContextPanel() {
+  const panel = view.createElement("details", { className: "notes-context-panel" });
+  panel.appendChild(view.createElement("summary", { text: "Linked Context" }));
+
+  const search = view.createElement("input", { attrs: { type: "search", autocomplete: "off", placeholder: "Search linked records" } });
+  search.dataset.noteContextSearch = "";
+  const apply = view.createActionButton({ label: "Use Target" });
+  apply.dataset.noteContextApply = "";
+  const grid = view.createElement("div", {
+    className: "notes-picker-grid",
+    children: [
+      noteFieldLabel("Target", noteSelect("noteContextTargetType", [["workspace", "Workspace"], ["project", "Project"], ["task", "Task"], ["user", "User"]])),
+      noteFieldLabel("Search", search),
+      noteFieldLabel("Record", noteSelect("noteContextResults", [])),
+      apply,
+    ],
+  });
+  panel.appendChild(grid);
+
+  const selection = view.createElement("p", { className: "notes-picker-selection", text: "No linked context selected." });
+  selection.dataset.noteContextSelected = "";
+  panel.appendChild(selection);
+  ["noteClientId", "noteProjectId", "noteTaskId", "noteUserId"].forEach((name) => {
+    const hidden = view.createElement("input", { attrs: { type: "hidden" } });
+    hidden.dataset[name] = "";
+    panel.appendChild(hidden);
+  });
+  const suggestion = view.createElement("p");
+  suggestion.dataset.noteLibrarySuggestion = "";
+  panel.appendChild(suggestion);
+  return panel;
+}
+
+function createNoteEditorToolbar() {
+  const toolbar = view.createElement("div", { className: "notes-editor-toolbar" });
+  toolbar.dataset.noteEditorToolbar = "";
+  [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["heading", "H", "Heading"], ["unorderedList", "List", "List"], ["checklist", "Check", "Checklist"], ["link", "Link", "Link"], ["wikiLink", "Wiki", "Wiki link"]].forEach(([command, text, title]) => {
+    const button = view.createElement("button", { text, attrs: { type: "button", title } });
+    button.dataset.noteCommand = command;
+    toolbar.appendChild(button);
+  });
+  const previewToggle = view.createElement("button", { text: "Preview", attrs: { type: "button", "aria-pressed": "false" } });
+  previewToggle.dataset.notePreviewToggle = "";
+  toolbar.appendChild(previewToggle);
+  return toolbar;
+}
+
+function createNoteDialogShell() {
+  const modal = notesEditorModalDescriptor();
+  const cancel = view.createActionButton({ label: "Cancel", role: "secondary" });
+  cancel.dataset.noteCancel = "";
+  const save = view.createActionButton({ label: modal.footerActions?.find((action) => action.id === "save-note")?.label || "Save Note", type: "submit", role: "primary" });
+  save.dataset.noteSave = "";
+
+  const dialog = view.createModalForm({
+    title: modal.title || "Note",
+    className: "notes-editor-dialog",
+    formClassName: "notes-editor-form",
+    fields: [],
+    actions: [cancel, save],
+  });
+  dialog.dataset.noteDialog = "";
+  const form = dialog.viewParts.form;
+  form.dataset.noteForm = "";
+  dialog.viewParts.title.dataset.noteDialogTitle = "";
+  dialog.viewParts.body.remove();
+
+  const close = view.createActionButton({ label: "Close", className: "notes-dialog-close" });
+  close.dataset.noteDialogClose = "";
+  const heading = view.createElement("div", { className: "notes-dialog-heading", children: [dialog.viewParts.title, close] });
+
+  const titleField = noteFieldLabel("Title", noteInput("noteTitle", { type: "text", required: true }));
+  const selectGrid = view.createElement("div", {
+    className: "notes-form-grid",
+    children: [
+      noteFieldLabel("Library", noteSelect("noteLibrary", modalFieldOptions(modal, "library"))),
+      noteFieldLabel("Collection", noteSelect("noteCollection", modalFieldOptions(modal, "collection"))),
+      noteFieldLabel("Note Kind", noteSelect("noteType", modalFieldOptions(modal, "noteType"))),
+      noteFieldLabel("Visibility", noteSelect("noteVisibility", modalFieldOptions(modal, "visibility"))),
+      noteFieldLabel("Security", noteSelect("noteSecurity", modalFieldOptions(modal, "security"))),
+    ],
+  });
+  const secureWarning = view.createElement("p", {
+    className: "notes-secure-warning",
+    text: "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.",
+    attrs: { hidden: true },
+  });
+  secureWarning.dataset.noteSecureWarning = "";
+  const contextPanel = createNoteContextPanel();
+  const tagsMount = view.createElement("div");
+  tagsMount.dataset.noteTagsEditor = "";
+  const toolbar = createNoteEditorToolbar();
+  const bodyField = noteFieldLabel("Body", noteTextarea("noteBody", { rows: 14 }));
+  const preview = view.createElement("div", { className: "notes-preview", attrs: { hidden: true } });
+  preview.dataset.notePreview = "";
+  const formStatus = view.createElement("p", { attrs: { role: "status", "aria-live": "polite" } });
+  formStatus.dataset.noteFormStatus = "";
+
+  const footer = dialog.viewParts.footer;
+  [heading, titleField, selectGrid, secureWarning, contextPanel, tagsMount, toolbar, bodyField, preview, formStatus].forEach((node) => {
+    form.insertBefore(node, footer);
+  });
+  return dialog;
+}
+
+function createCollectionDialogShell() {
+  const modal = notesCollectionModalDescriptor();
+  const cancel = view.createActionButton({ label: "Cancel", role: "secondary" });
+  cancel.dataset.noteCollectionCancel = "";
+  const save = view.createActionButton({ label: modal.footerActions?.find((action) => action.id === "save-collection")?.label || "Save Collection", type: "submit", role: "primary" });
+  save.dataset.noteCollectionSave = "";
+
+  const dialog = view.createModalForm({
+    title: modal.title || "Collection",
+    className: "notes-collection-dialog",
+    formClassName: "notes-collection-form",
+    fields: [],
+    actions: [cancel, save],
+  });
+  dialog.dataset.noteCollectionDialog = "";
+  const form = dialog.viewParts.form;
+  form.dataset.noteCollectionForm = "";
+  dialog.viewParts.title.dataset.noteCollectionDialogTitle = "";
+  dialog.viewParts.body.remove();
+
+  const close = view.createActionButton({ label: "Close", className: "notes-dialog-close" });
+  close.dataset.noteCollectionDialogClose = "";
+  const heading = view.createElement("div", { className: "notes-dialog-heading", children: [dialog.viewParts.title, close] });
+
+  const nameField = noteFieldLabel("Name", noteInput("noteCollectionTitle", { type: "text", required: true }));
+  const grid = view.createElement("div", {
+    className: "notes-form-grid",
+    children: [
+      noteFieldLabel("Library", noteSelect("noteCollectionLibrary", modalFieldOptions(modal, "library"))),
+      noteFieldLabel("Parent", noteSelect("noteCollectionParent", modalFieldOptions(modal, "parent"))),
+    ],
+  });
+  const formStatus = view.createElement("p", { attrs: { role: "status", "aria-live": "polite" } });
+  formStatus.dataset.noteCollectionFormStatus = "";
+
+  const footer = dialog.viewParts.footer;
+  [heading, nameField, grid, formStatus].forEach((node) => form.insertBefore(node, footer));
+  return dialog;
 }
 
 async function initialize() {

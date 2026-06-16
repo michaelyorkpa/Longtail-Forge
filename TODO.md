@@ -20,6 +20,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 ## Misc
 
+- Have Claude clean up the regression suite to reduce runtime and eliminate unnecessary checks
+
 - I think I lost client change requests from the repo docs, somewhere. This needs to be added back into the project management tools section.
 
 - Adding a task using the {{workspaceName}} in the add tasks modal doesn't narrow the list of projects down to only the Workspace Projects (ones that have no clients)
@@ -44,7 +46,6 @@ This section is to define a series of human testing goals for different sections
 - Make sure follow notifications work for all users (the creator, and other users)
 - Make sure reminders are actually going into notifications
 
-
 ### Next Action/Resume Work
 
 - Test the Resume/Next Action algorithm
@@ -59,6 +60,27 @@ This section is to define a series of human testing goals for different sections
     - Keywords pulled from titles/descriptions/note bodies
   - Should be similar to context around displaying notes within workspace
   - Maybe just displays headings/titles?
+
+## Notes Add/Edit modal tweaks
+
+- Group "Note Details" and make collapsible
+  - Note details incldues:
+    - Library
+    - Collection
+    - Note Kind
+    - Visibility
+    - Security
+  - Should default open in Add modal
+  - Should default closed in Edit modal
+
+- Tags should be moved to button in footer, like tasks
+
+- As of 0.33.18.3 there's no file button/box in the Edit note modal
+  - Need to add file button in footer for attaching files
+
+## Notes Page/Notes Display
+
+- Eventually, I'd like to be able to check off items on notes checklists from the display pages (might be very complicated.)
 
 ## Mobile Tweaks - Fill this section out after the above section standardizes the modal display
 
@@ -763,6 +785,14 @@ This version should introduce TypeScript as a framework contract-checking tool w
 - Add framework-owned HTTP route contract and adapter boundary so Longtail Forge routes are not permanently coupled to Express. Keep Express as the first adapter; preserve the option to add a Fastify adapter later.
 
 # Long Term
+
+## SaaS File Storage
+
+- File storage on disk should be kept to an absolute minimum
+- Users should be able to add their own storage integrations for files
+- Users should have option to purchase file storage from LTF using DigitalOcean Spaces
+  - This should be an automated process to spin up/spin down a storage space for them
+    - Evaluate whether a volume should be attached to the server for them or if it makes more sense for each person to have their own "spaces" or if I should offer it in 250GB blocks to spread out Spaces usage
 
 ## Automation Engine Module
 
