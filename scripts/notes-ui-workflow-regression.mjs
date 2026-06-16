@@ -53,14 +53,14 @@ async function assertProtectedView(session) {
   // filters, index, detail) AND the editor + collection modals are framework-rendered; notes.js
   // mounts the notes-specific chrome and builds the dialog shells from the descriptor modals block.
   assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/);
-  assert.match(html, /js\/shared\/view-renderer\.js\?v=3/);
+  assert.match(html, /js\/shared\/view-renderer\.js\?v=4/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
-  assert.match(html, /js\/shared\/view-builder\.js\?v=5/);
-  assert.match(html, /js\/notes\.js\?v=19/);
+  assert.match(html, /js\/shared\/view-builder\.js\?v=6/);
+  assert.match(html, /js\/notes\.js\?v=22/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
-  assert.match(html, /css\/longtail-forge\.css\?v=27/);
+  assert.match(html, /css\/longtail-forge\.css\?v=29/);
   // No static read chrome or dialog markup remains in the host page.
   assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
   assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);
@@ -80,7 +80,7 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /hierarchicalCollectionOptions/);
   assert.match(notesJs, /notes-detail-rule/);
   assert.match(notesJs, /notes-revisions-panel/);
-  assert.match(notesJs, /notes-detail-actions-menu/);
+  assert.match(notesJs, /createNoteActionStrip/);
   assert.match(notesJs, /detailMetaItems/);
   assert.match(notesJs, /noteKindLabel/);
   assert.match(notesJs, /resetLegacyNoteKindOptions/);
@@ -139,6 +139,18 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(noteKindOptions, /"client"|"ticket"|"user"/);
   // Linked-context target picker stays module-owned (workspace/project/task/user, no client kind).
   assert.match(notesJs, /\["workspace", "Workspace"\], \["project", "Project"\], \["task", "Task"\], \["user", "User"\]/);
+
+  // 0.33.5.18.5.1 declarative workflow action strip.
+  const notesModuleSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/module.js"), "utf8");
+  assert.match(notesModuleSource, /actionStrip:\s*\{[\s\S]*?behavior:\s*"notes\.workflow\.edit"[\s\S]*?behavior:\s*"notes\.workflow\.archive"[\s\S]*?behavior:\s*"notes\.workflow\.restore"/, "Notes descriptor should declare the workflow action strip behaviors");
+  assert.match(notesModuleSource, /actionStrip:\s*\{[\s\S]*?requiredPermissions:\s*\[NOTE_PERMISSIONS\.UPDATE\]/, "Edit action should require the note update permission");
+  assert.match(notesJs, /NOTE_WORKFLOW_HANDLERS/, "Notes should dispatch workflow actions through a registered behavior map");
+  assert.match(notesJs, /"notes\.workflow\.edit": \(note\) => openEditor\(note\)/, "Edit workflow should map to the editor");
+  assert.match(notesJs, /"notes\.workflow\.archive": \(note\) => archiveNote\(note\)/, "Archive workflow should map to the archive handler");
+  assert.match(notesJs, /"notes\.workflow\.restore": \(note\) => restoreNote\(note\)/, "Restore workflow should map to the restore handler");
+  assert.match(notesJs, /view\.renderDescriptorActionMenu\(detailActionButtons\(note\)/, "Notes detail should render the workflow actions through the framework overflow-menu helper");
+  assert.match(notesJs, /button\.dataset\.noteAction = action\.id/, "Action menu buttons should carry their declarative action id");
+  assert.doesNotMatch(notesJs, /function detailActionsMenu/, "The hand-built <details> actions menu should be replaced by the framework action menu");
 
   const linkedPanelJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8");
   assert.match(linkedPanelJs, /LongtailForge/);

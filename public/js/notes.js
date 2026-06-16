@@ -31,6 +31,11 @@ const LINK_TARGET_TYPE_LABELS = {
   user: "User",
 };
 const LINK_TARGET_TYPE_ORDER = ["workspace", "client", "project", "task", "user"];
+const NOTE_WORKFLOW_HANDLERS = {
+  "notes.workflow.edit": (note) => openEditor(note),
+  "notes.workflow.archive": (note) => archiveNote(note),
+  "notes.workflow.restore": (note) => restoreNote(note),
+};
 
 buildNotesViewShell();
 
@@ -189,6 +194,73 @@ function registerNotesViewBehaviors() {
     return;
   }
   view.registerBehavior("notes.create", () => openEditor());
+  Object.keys(NOTE_WORKFLOW_HANDLERS).forEach((behaviorId) => {
+    view.registerBehavior(behaviorId, ({ record }) => runNoteWorkflow(behaviorId, record || state.selectedNote));
+  });
+}
+
+function runNoteWorkflow(behaviorId, note) {
+  const handler = NOTE_WORKFLOW_HANDLERS[behaviorId];
+  if (!handler || !note) {
+    return undefined;
+  }
+  return handler(note);
+}
+
+function notesActionStripDescriptor() {
+  return notesViewSurfaceDescriptor().detail?.actionStrip || notesWorkflowActionStripDescriptor();
+}
+
+function notesWorkflowActionStripDescriptor() {
+  return {
+    label: "Note actions",
+    actions: [
+      { id: "edit-note", label: "Edit", role: "secondary", behavior: "notes.workflow.edit" },
+      { id: "archive-note", label: "Archive", role: "secondary", behavior: "notes.workflow.archive" },
+      { id: "restore-note", label: "Restore", role: "secondary", behavior: "notes.workflow.restore" },
+    ],
+  };
+}
+
+function createNoteActionStrip(note) {
+  const label = notesActionStripDescriptor().label || "Note actions";
+  return view.renderDescriptorActionMenu(detailActionButtons(note), {
+    summaryLabel: "...",
+    ariaLabel: label,
+    title: label,
+  });
+}
+
+function detailActionButtons(note) {
+  const actions = notesActionStripDescriptor().actions || [];
+  const actionById = new Map(actions.map((action) => [action.id, action]));
+  const buttons = [];
+  const archived = note.status === "archived";
+
+  const editAction = actionById.get("edit-note");
+  if (editAction) {
+    const edit = noteWorkflowActionButton(editAction, note);
+    if (archived) {
+      edit.disabled = true;
+      edit.title = "Restore archived notes before editing.";
+    }
+    buttons.push(edit);
+  }
+  const toggleAction = archived ? actionById.get("restore-note") : actionById.get("archive-note");
+  if (toggleAction) {
+    buttons.push(noteWorkflowActionButton(toggleAction, note));
+  }
+  return buttons;
+}
+
+function noteWorkflowActionButton(action, note) {
+  const button = view.createActionButton({
+    label: action.label || action.id,
+    role: action.role,
+    onClick: () => runNoteWorkflow(action.behavior, note),
+  });
+  button.dataset.noteAction = action.id;
+  return button;
 }
 
 function notesViewSurfaceDescriptor() {
@@ -229,6 +301,7 @@ function fallbackNotesViewSurfaceDescriptor() {
     },
     detail: {
       header: { titleField: "title", metaField: "library" },
+      actionStrip: notesWorkflowActionStripDescriptor(),
       emptyState: { message: "Select a note to read its details." },
     },
     modals: [
@@ -963,10 +1036,6 @@ function renderDetail(note) {
   const title = document.createElement("h2");
   const titleRule = document.createElement("hr");
   const meta = document.createElement("p");
-  const edit = actionButton("Edit", () => openEditor(note));
-  const archiveOrRestore = note.status === "archived"
-    ? actionButton("Restore", () => restoreNote(note))
-    : actionButton("Archive", () => archiveNote(note));
   const body = document.createElement("div");
   const tags = document.createElement("div");
   const tagsRule = document.createElement("hr");
@@ -982,11 +1051,7 @@ function renderDetail(note) {
   titleRule.className = "notes-detail-rule";
   meta.className = "notes-detail-meta";
   meta.append(...detailMetaItems(note));
-  if (note.status === "archived") {
-    edit.disabled = true;
-    edit.title = "Restore archived notes before editing.";
-  }
-  titleRow.append(title, detailActionsMenu([edit, archiveOrRestore]));
+  titleRow.append(title, createNoteActionStrip(note));
   header.append(titleRow, titleRule, meta);
   if (isSecureNote(note)) {
     const warning = document.createElement("p");
@@ -2087,20 +2152,6 @@ function actionButton(label, handler) {
   button.textContent = label;
   button.addEventListener("click", handler);
   return button;
-}
-
-function detailActionsMenu(buttons = []) {
-  const actions = document.createElement("details");
-  const summary = document.createElement("summary");
-  const menu = document.createElement("span");
-
-  actions.className = "notes-detail-actions";
-  summary.textContent = "...";
-  summary.title = "Note actions";
-  menu.className = "notes-detail-actions-menu";
-  menu.append(...buttons);
-  actions.append(summary, menu);
-  return actions;
 }
 
 function detailMetaItems(note = {}) {

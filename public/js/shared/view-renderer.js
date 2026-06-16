@@ -587,6 +587,17 @@
     });
   }
 
+  function renderDescriptorActionMenu(actions = [], options = {}) {
+    const view = requireViewPrimitives();
+    return view.createDetailActionMenu({
+      ariaLabel: options.ariaLabel || "Actions",
+      summaryLabel: options.summaryLabel,
+      title: options.title,
+      className: options.className,
+      actions,
+    });
+  }
+
   function renderDescriptorInlineActions(actions = [], options = {}) {
     const view = requireViewPrimitives();
     return view.createInlineActionRow({
@@ -1086,6 +1097,7 @@
   root.view = Object.freeze({
     ...(root.view || {}),
     registerBehavior,
+    renderDescriptorActionMenu,
     renderDescriptorActionStrip,
     renderDescriptorDataTable,
     renderDescriptorFieldGrid,

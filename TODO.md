@@ -80,7 +80,43 @@ This section is to define a series of human testing goals for different sections
 
 ## Notes Page/Notes Display
 
+- "Library" and "Notes List" headings don't match the "Filters" heading
+  - This should be standardized across all action pages
+
+- Pagination can be moved to the bottom right of the Notes List box 
+  - Pagination needs to be hidden when "Notes List" is collapsed
+
+- Metadata box at top of note (below title) should contain ALL metadata
+  - Information Created, Updated, and Owner should be sized down and placed in the same format as the Library, Note Kind, Status, Visibility, and Security fields
+  - Linked record information is already available in the Linked records pane, so there's no need to duplicate it
+  - Owner shows up as the UUID, not the display name (username) format it should be
+
+- Linked records needs to be collapsible and start collapsed
+  - "Remove" and "Add Link" buttons should be icons
+
+- Files needs to be collapsible and start off collapsed
+
 - Eventually, I'd like to be able to check off items on notes checklists from the display pages (might be very complicated.)
+
+## Lists Main Page
+
+- This screen is very long and not very well organized
+
+- Metadata like "active - procurement" etc. needs to be smaller
+
+- Buttons need to be put behind a 3 dot menu
+
+- Next needs to be half the width and not display so many chips, or stack them, or something
+
+- What does Source display?
+
+- Costs needs to be below the items
+
+- Lists Linked records needs to follow the Notes model for Linked records
+
+### Items inset
+
+- This box is a little un-tidy. 
 
 ## Mobile Tweaks - Fill this section out after the above section standardizes the modal display
 

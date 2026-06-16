@@ -354,13 +354,29 @@ plain-text extraction come from the 0.33.5.17 shared service.
 
 ### Version 0.33.5.18.5 - Notes Workflow Actions, Linked Context, and Layout Cleanup
 
-- [ ] Express Notes workflow actions (create, edit, archive, delete, restore, follow/unfollow, copy
-      link, linked-record add/remove) as declarative route actions or registered behaviors.
+Split into three focused sub-slices so each ships green and reviewable.
+
+#### Version 0.33.5.18.5.1 - Notes Workflow Actions + Declarative Action Strip
+
+- [x] Express the Notes detail workflow actions (edit, archive, restore) as a declarative
+      `detail.actionStrip` in the `notes.workspace` descriptor with `behavior` ids
+      (`notes.workflow.edit/archive/restore`) and `requiredPermissions`. — Added `detail.actionStrip`
+      to the manifest descriptor and the `notes.js` fallback, and registered the workflow behaviors.
+- [x] Render the detail action strip via `view.renderDescriptorActionStrip` (replacing the hand-built
+      `<details>` actions menu) and dispatch clicks through the registered behaviors, applying
+      edit/archive/restore visibility by note status. Keep archive/restore service logic in Notes.
+
+#### Version 0.33.5.18.5.2 - Notes Linked Context and Linked Records
+
 - [ ] Move linked-context panel placement and linked-record rows into descriptor/renderer-supported
-      anatomy while keeping linkage permission checks and service logic in Notes files.
+      anatomy (`detail.linkedRecords` + `view.renderDescriptorLinkedRecordsPanel`) while keeping
+      linkage permission checks and service logic in Notes files.
+
+#### Version 0.33.5.18.5.3 - Notes Anatomy Cleanup and Strict Guardrails
+
 - [ ] Reduce `public/js/notes.js` to data bindings and behavior handlers with no hand-built
-      framework-owned anatomy (page header, filter panel, index, split layout, table, detail header,
-      action strip, dialog).
+      framework-owned anatomy (swap `createModalForm` → `renderDescriptorModalForm`, remove raw
+      `document.createElement` of structural tags, etc.).
 - [ ] Expand fail-on-violation declarative guardrails to the Notes surface.
 - [ ] Add regressions proving Notes no longer creates framework-owned anatomy by hand.
 

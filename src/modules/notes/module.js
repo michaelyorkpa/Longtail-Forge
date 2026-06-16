@@ -294,6 +294,14 @@ const notesModule = {
           metaField: "library",
           badges: [{ field: "status" }, { field: "visibility" }, { field: "security" }],
         },
+        actionStrip: {
+          label: "Note actions",
+          actions: [
+            { id: "edit-note", label: "Edit", role: "secondary", behavior: "notes.workflow.edit", requiredPermissions: [NOTE_PERMISSIONS.UPDATE] },
+            { id: "archive-note", label: "Archive", role: "secondary", behavior: "notes.workflow.archive", requiredPermissions: [NOTE_PERMISSIONS.ARCHIVE] },
+            { id: "restore-note", label: "Restore", role: "secondary", behavior: "notes.workflow.restore", requiredPermissions: [NOTE_PERMISSIONS.RESTORE] },
+          ],
+        },
         summaryPanels: [
           {
             title: "Context",

@@ -614,6 +614,54 @@ summary.surface-modal-section-heading {
     flex-wrap: wrap;
 }
 
+/* Compact overflow menu for detail actions: a framework-owned "..." disclosure that reveals the
+   descriptor-driven action buttons. Used where an inline strip would crowd the title row. */
+.view-detail-action-menu {
+    position: relative;
+    justify-self: end;
+}
+
+.view-detail-action-menu-summary {
+    display: grid;
+    min-width: 32px;
+    min-height: 32px;
+    place-items: center;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    cursor: pointer;
+    list-style: none;
+}
+
+.view-detail-action-menu-summary::-webkit-details-marker {
+    display: none;
+}
+
+.view-detail-action-menu-list {
+    position: absolute;
+    z-index: 10;
+    top: calc(100% + 4px);
+    right: 0;
+    display: grid;
+    min-width: 140px;
+    gap: 4px;
+    padding: 6px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 6px;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-card);
+}
+
+.view-detail-action-menu:not([open]) .view-detail-action-menu-list {
+    display: none;
+}
+
+.view-detail-action-menu-list button {
+    width: 100%;
+    text-align: left;
+}
+
 .view-info-list {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
@@ -4177,7 +4225,6 @@ dialog .form-actions {
 
 .notes-library-toolbar,
 .notes-library-tabs,
-.notes-detail-actions,
 .notes-pagination,
 .notes-editor-toolbar {
     display: flex;
@@ -4460,53 +4507,6 @@ dialog .form-actions {
     margin: 0;
     border: 0;
     border-top: 1px solid var(--color-border-subtle);
-}
-
-.notes-detail-actions {
-    display: block;
-    position: relative;
-    justify-self: end;
-}
-
-.notes-detail-actions summary {
-    display: grid;
-    min-width: 32px;
-    min-height: 32px;
-    place-items: center;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    background: var(--color-surface);
-    color: var(--color-text);
-    cursor: pointer;
-    list-style: none;
-}
-
-.notes-detail-actions summary::-webkit-details-marker {
-    display: none;
-}
-
-.notes-detail-actions-menu {
-    position: absolute;
-    z-index: 10;
-    top: calc(100% + 4px);
-    right: 0;
-    display: grid;
-    min-width: 140px;
-    gap: 4px;
-    padding: 6px;
-    border: 1px solid var(--color-border-subtle);
-    border-radius: 6px;
-    background: var(--color-surface);
-    box-shadow: var(--shadow-card);
-}
-
-.notes-detail-actions:not([open]) .notes-detail-actions-menu {
-    display: none;
-}
-
-.notes-detail-actions-menu button {
-    width: 100%;
-    text-align: left;
 }
 
 .notes-collection-breadcrumb {

@@ -422,6 +422,24 @@
     });
   }
 
+  function createDetailActionMenu(options = {}) {
+    const menu = createElement("details", {
+      className: ["view-detail-action-menu", "surface-dense-actions", options.className],
+      attrs: options.ariaLabel ? { "aria-label": options.ariaLabel } : {},
+    });
+    const summary = createElement("summary", {
+      className: "view-detail-action-menu-summary",
+      text: options.summaryLabel || "...",
+      attrs: { title: options.title || options.ariaLabel || "Actions" },
+    });
+    const list = createElement("div", {
+      className: "view-detail-action-menu-list",
+      children: normalizeActions(options.actions),
+    });
+    menu.append(summary, list);
+    return menu;
+  }
+
   function createInfoPanel(options = {}) {
     const panel = createElement("section", {
       className: ["view-info-panel", "surface-main-panel", options.className],
@@ -668,6 +686,7 @@
     createActionButton,
     createCollapsibleIndexPanel,
     createDataTable,
+    createDetailActionMenu,
     createDetailActionStrip,
     createDetailHeader,
     createElement,
