@@ -58,8 +58,8 @@ assert.match(html, /<em>emphasis<\/em>/, "emphasis should render");
 assert.match(html, /<a href="https:\/\/example\.com\/path">safe link<\/a>/, "safe links should render");
 assert.match(html, /<blockquote>\s*<p>Quote<\/p>\s*<\/blockquote>/, "blockquotes should render");
 assert.match(html, /<ul>\s*<li>Parent\s*<ul>\s*<li>Child\s*<ol>\s*<li>Ordered child<\/li>/, "nested mixed lists should render");
-assert.match(html, /<li><input type="checkbox" disabled> Open task<\/li>/, "open task-list items should render disabled checkboxes");
-assert.match(html, /<li><input type="checkbox" disabled checked> Done task<\/li>/, "checked task-list items should render disabled checked checkboxes");
+assert.match(html, /<li class="markdown-task-list-item"><input class="markdown-task-list-checkbox" type="checkbox" disabled> Open task<\/li>/, "open task-list items should render disabled checkboxes without the regular list marker");
+assert.match(html, /<li class="markdown-task-list-item"><input class="markdown-task-list-checkbox" type="checkbox" disabled checked> Done task<\/li>/, "checked task-list items should render disabled checked checkboxes without the regular list marker");
 assert.match(html, /<table>[\s\S]*<th>Name<\/th>[\s\S]*<td>Alpha<\/td>[\s\S]*<\/table>/, "tables should render");
 assert.match(html, /<pre><code class="language-js">const value = 1;\n<\/code><\/pre>/, "fenced code blocks should render");
 

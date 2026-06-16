@@ -50,8 +50,9 @@ async function assertServerPreview(session) {
   assert.match(preview.bodyHtml, /<span class="note-wiki-link"/);
 
   const taskPreview = await notesService.previewMarkdown({ body_markdown: "- [x] Completed\n- [ ] Open" }, session);
-  assert.match(taskPreview.bodyHtml, /<input[^>]+type="checkbox"[^>]+disabled[^>]+checked/);
-  assert.match(taskPreview.bodyHtml, /<input[^>]+type="checkbox"[^>]+disabled(?![^>]+checked)/);
+  assert.match(taskPreview.bodyHtml, /<li class="markdown-task-list-item"><input class="markdown-task-list-checkbox" type="checkbox" disabled checked> Completed<\/li>/);
+  assert.match(taskPreview.bodyHtml, /<li class="markdown-task-list-item"><input class="markdown-task-list-checkbox" type="checkbox" disabled> Open<\/li>/);
+  assert.doesNotMatch(taskPreview.bodyHtml, /<li>\s*<input[^>]+type="checkbox"/, "task-list items should not keep the default list item marker");
 
   await assert.rejects(
     () => notesService.previewMarkdown({ body_markdown: "[bad](javascript:alert(1))" }, session),
@@ -63,9 +64,11 @@ async function assertStaticBrowserContract() {
   const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
   const notesEditorJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-editor.js"), "utf8");
   const notesHtml = await fs.readFile(path.join(process.cwd(), "views/protected/notes.html"), "utf8");
+  const css = await fs.readFile(path.join(process.cwd(), "public/css/longtail-forge.css"), "utf8");
   const routesSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.routes.js"), "utf8");
 
   assert.match(notesHtml, /js\/shared\/notes-editor\.js\?v=3/);
+  assert.match(notesHtml, /css\/longtail-forge\.css\?v=26/);
   assert.match(notesHtml, /js\/notes\.js\?v=17/);
   assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/);
   assert.match(notesJs, /previewRequestId/);
@@ -74,6 +77,8 @@ async function assertStaticBrowserContract() {
   assert.doesNotMatch(notesJs, /paragraph\.startsWith\("# "\)/);
   assert.match(notesEditorJs, /continueListMarker/);
   assert.match(notesEditorJs, /event\.key === "Enter"/);
+  assert.match(css, /li\.markdown-task-list-item\s*\{[\s\S]*list-style:\s*none;/, "task-list CSS should suppress the normal list marker");
+  assert.match(css, /\.markdown-task-list-checkbox/, "task-list CSS should align rendered checkboxes");
   assert.ok(
     routesSource.indexOf('notesRoutes.post("/notes/preview"') < routesSource.indexOf('notesRoutes.get("/notes/:noteId"'),
     "preview route should be declared before dynamic note routes",

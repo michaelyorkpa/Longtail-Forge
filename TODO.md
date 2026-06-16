@@ -24,6 +24,8 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - Adding a task using the {{workspaceName}} in the add tasks modal doesn't narrow the list of projects down to only the Workspace Projects (ones that have no clients)
 
+- In the tag picker, I'd like to be able to start typing a tag and then press the down arrow to select it from the drop down (currently, I have to click and that takes more time)
+
 ## Testing Goals
 
 This section is to define a series of human testing goals for different sections of the app.

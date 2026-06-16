@@ -4120,50 +4120,19 @@ dialog .form-actions {
     gap: 10px;
 }
 
-.notes-page .page-heading {
-    margin-bottom: 0;
-}
-
 .notes-page [data-notes-status]:empty {
     display: none;
 }
 
-.notes-library,
-.notes-list-panel,
-.notes-detail-panel,
-.notes-filters-panel {
+.notes-detail-panel {
     border: 1px solid var(--color-border);
     border-radius: 8px;
     background: var(--color-surface);
-}
-
-.notes-library,
-.notes-list-panel,
-.notes-detail-panel,
-.notes-filters-panel {
     padding: 16px;
 }
 
-.notes-library summary,
-.notes-filters-panel summary {
-    cursor: pointer;
-    font-weight: 700;
-}
-
-.notes-library[open] summary,
-.notes-filters-panel[open] summary {
-    margin-bottom: 12px;
-}
-
-.notes-filters-panel .notes-library-tabs {
-    margin-bottom: 12px;
-}
-
-.notes-library-summary,
 .notes-library-toolbar,
 .notes-library-tabs,
-.notes-collections-heading,
-.notes-list-toolbar,
 .notes-detail-actions,
 .notes-pagination,
 .notes-editor-toolbar {
@@ -4173,11 +4142,9 @@ dialog .form-actions {
     gap: 8px;
 }
 
-.notes-library-summary {
-    margin-bottom: 12px;
-}
-
-.view-stacked .notes-library-panel .view-collapsible-index-body {
+/* Framework opt-out modifier: a collapsible index panel that is a static nav/filter panel
+   (not a scrolling list) does not inherit the stacked-layout scroll cap. */
+.view-stacked .view-collapsible-index--unscrolled .view-collapsible-index-body {
     max-height: none;
     overflow: visible;
     padding-right: 0;
@@ -4196,15 +4163,6 @@ dialog .form-actions {
     min-width: 40px;
 }
 
-.notes-library-card {
-    min-width: 160px;
-    display: grid;
-    gap: 4px;
-    justify-items: start;
-    text-align: left;
-}
-
-.notes-library-card span,
 .notes-list-meta,
 .notes-list-footer,
 .notes-detail-header p,
@@ -4249,17 +4207,6 @@ dialog .form-actions {
     gap: 12px;
 }
 
-.notes-workspace {
-    display: grid;
-    grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.3fr);
-    gap: 16px;
-    align-items: start;
-}
-
-.notes-list-toolbar {
-    justify-content: space-between;
-    margin-bottom: 12px;
-}
 
 .notes-collections-panel {
     display: grid;
@@ -4269,15 +4216,6 @@ dialog .form-actions {
     border-bottom: 1px solid var(--color-border-subtle);
 }
 
-.notes-collections-heading {
-    justify-content: space-between;
-}
-
-.notes-collections-heading h2,
-.notes-collection-group h3 {
-    margin: 0;
-    font-size: 15px;
-}
 
 .notes-collection-controls {
     display: grid;
@@ -4307,58 +4245,6 @@ dialog .form-actions {
     width: 100%;
 }
 
-.notes-collection-tree,
-.notes-collection-group,
-.notes-collection-node {
-    display: grid;
-    gap: 6px;
-}
-
-.notes-collection-group {
-    padding-top: 4px;
-}
-
-.notes-collection-row {
-    display: grid;
-    grid-template-columns: 28px minmax(0, 1fr) auto auto;
-    gap: 6px;
-    align-items: center;
-    padding-left: calc(var(--collection-depth, 0) * 14px);
-}
-
-.notes-collection-toggle {
-    min-width: 28px;
-    width: 28px;
-    min-height: 28px;
-    padding: 0;
-}
-
-.notes-collection-toggle[hidden] {
-    display: block;
-    visibility: hidden;
-}
-
-.notes-collection-select {
-    min-width: 0;
-    justify-self: stretch;
-    overflow: hidden;
-    text-align: left;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.notes-collection-select[aria-pressed="true"] {
-    border-color: var(--color-accent);
-    background: var(--color-accent);
-    color: #ffffff;
-}
-
-.notes-collection-count {
-    min-width: 2ch;
-    color: var(--color-muted);
-    font-size: 13px;
-    text-align: right;
-}
 
 .notes-collection-actions {
     position: relative;
@@ -4591,6 +4477,23 @@ dialog .form-actions {
 
 .notes-rendered-body {
     line-height: 1.55;
+}
+
+li.markdown-task-list-item {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 8px;
+    align-items: start;
+    list-style: none;
+}
+
+li.markdown-task-list-item > ul,
+li.markdown-task-list-item > ol {
+    grid-column: 2;
+}
+
+.markdown-task-list-checkbox {
+    margin: 0.35em 0 0;
 }
 
 .notes-detail-section {
@@ -4885,10 +4788,6 @@ dialog .form-actions {
     gap: 12px;
 }
 
-.lists-page .page-heading {
-    margin-bottom: 0;
-}
-
 .lists-page [data-lists-status]:empty,
 .lists-page [data-list-form-status]:empty {
     display: none;
@@ -4952,7 +4851,6 @@ dialog .form-actions {
 
 /* List/detail split sizing is owned by the framework `.view-split-list-detail` primitive. */
 
-.lists-list-toolbar,
 .lists-detail-header,
 .lists-detail-actions,
 .lists-dialog-heading,
@@ -4980,7 +4878,6 @@ dialog .form-actions {
     flex: 0 0 auto;
 }
 
-.lists-list-toolbar,
 .lists-detail-header,
 .lists-dialog-heading {
     justify-content: space-between;
@@ -4988,11 +4885,6 @@ dialog .form-actions {
 
 .lists-detail-header {
     align-items: flex-start;
-}
-
-.lists-detail-heading {
-    flex: 1 1 260px;
-    min-width: 0;
 }
 
 .lists-detail-actions {
@@ -5003,27 +4895,11 @@ dialog .form-actions {
     max-width: 100%;
 }
 
-.lists-detail-heading h2,
-.lists-list-toolbar h2 {
-    margin: 0;
-}
-
-.lists-detail-heading p,
 .lists-row-meta,
 .lists-description,
 .lists-empty-state,
 .lists-locked-note {
     color: var(--color-muted);
-}
-
-.lists-row-title {
-    padding: 0;
-    border: 0;
-    background: transparent;
-    color: var(--color-accent);
-    font: inherit;
-    font-weight: 700;
-    text-align: left;
 }
 
 .lists-row-meta {
@@ -5037,13 +4913,6 @@ dialog .form-actions {
     margin-top: 4px;
     color: var(--color-text);
     font-size: 0.84rem;
-}
-
-.lists-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 6px;
 }
 
 .lists-badge {
@@ -5074,10 +4943,6 @@ dialog .form-actions {
     border-color: var(--color-success);
     background: var(--color-success-bg);
     color: var(--color-success-text);
-}
-
-.lists-table tr.is-selected td {
-    background: var(--color-hover);
 }
 
 .lists-status-badge,
@@ -6111,10 +5976,6 @@ button:disabled {
 
 @media (max-width: 700px) {
     /* Collapse the shared nav and single-column the dense editor/report layouts on phones. */
-    .notes-workspace {
-        grid-template-columns: 1fr;
-    }
-
     .site-nav {
         min-height: auto;
         padding: 12px 0;

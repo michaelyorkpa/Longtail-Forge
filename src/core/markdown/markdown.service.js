@@ -101,7 +101,7 @@ function isSafeMarkdownUrl(url = "") {
 function applyTaskListMarkup(html = "") {
   return String(html || "").replace(TASK_LIST_ITEM_PATTERN, (_match, state) => {
     const checked = state.trim() ? " checked" : "";
-    return `<li><input type="checkbox" disabled${checked}> `;
+    return `<li class="markdown-task-list-item"><input class="markdown-task-list-checkbox" type="checkbox" disabled${checked}> `;
   });
 }
 

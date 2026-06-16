@@ -17,7 +17,7 @@ assert.equal(packageLock.packages[""].version, "0.33.5.18.3", "package-lock pack
 
 // Protected view is now a minimal framework host; the two dialogs remain static (deferred to .18.4).
 assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Notes view should be a minimal framework host");
-assert.match(html, /css\/longtail-forge\.css\?v=25/, "Notes host should load the refreshed stylesheet");
+assert.match(html, /css\/longtail-forge\.css\?v=26/, "Notes host should load the refreshed stylesheet");
 assert.match(html, /js\/shared\/icons\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=4[\s\S]*js\/shared\/view-renderer\.js\?v=2[\s\S]*js\/notes\.js\?v=17/, "Notes host should load the icon helper, view builder, and renderer before the module adapter");
 assert.doesNotMatch(html, /data-notes-list|data-notes-collections-panel|data-note-filter-status|class="notes-filters-panel"/, "Notes static HTML should not own the converted read workspace anatomy");
 assert.match(html, /data-note-dialog/, "Editor dialog stays static for the read-only proof");
@@ -56,7 +56,9 @@ assert.match(stylesheet, /\.view-page-header\s*\{[\s\S]*margin-bottom:\s*8px;/, 
 assert.match(stylesheet, /\.view-collapsible-index-summary\s*\{[\s\S]*position:\s*relative;[\s\S]*color:\s*var\(--color-text\);[\s\S]*font-weight:\s*700;/, "Library and Notes List summaries should match the Filters heading style");
 assert.doesNotMatch(stylesheet, /\.view-collapsible-index-summary\s*\{[^}]*display:\s*flex;/, "Collapsible summaries should keep native disclosure markers instead of flexing away the caret");
 assert.match(stylesheet, /\.view-collapsible-index-summary\.has-summary-actions\s*\{[\s\S]*padding-right:\s*150px;/, "Only summaries with right-side controls should reserve action space");
-assert.match(stylesheet, /\.view-stacked \.notes-library-panel \.view-collapsible-index-body\s*\{[\s\S]*max-height:\s*none;[\s\S]*overflow:\s*visible;/, "Library panel should not inherit the notes-list scroll cap");
+assert.match(stylesheet, /\.view-stacked \.view-collapsible-index--unscrolled \.view-collapsible-index-body\s*\{[\s\S]*max-height:\s*none;[\s\S]*overflow:\s*visible;/, "A framework modifier (not a module class) should opt a static index panel out of the notes-list scroll cap");
+assert.match(notesJs, /view-collapsible-index--unscrolled/, "Notes Library panel should opt out of the scroll cap via the framework modifier class");
+assert.doesNotMatch(stylesheet, /\.view-stacked[^,{]*\.notes-/, "Framework stacked rules should not reference Notes module classes");
 assert.match(stylesheet, /\.view-stacked\s*\{[\s\S]*gap:\s*0;/, "Framework stacked panels should not leave white space between navigation and detail panels");
 assert.match(stylesheet, /\.notes-library-toolbar\s*\{[\s\S]*justify-content:\s*space-between;/, "Library toolbar should align bucket buttons and New Collection on one row");
 assert.match(stylesheet, /\.notes-library-toolbar \[data-note-collection-create\]\s*\{[\s\S]*flex:\s*0 0 auto;/, "New Collection should stay with the Library toolbar actions");

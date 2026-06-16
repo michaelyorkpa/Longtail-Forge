@@ -298,7 +298,7 @@ function decorateNotesFilter(surface, fieldName, datasetName) {
 function createNotesLibraryPanel() {
   const panel = view.createCollapsibleIndexPanel({
     title: "Library",
-    className: "notes-library-panel",
+    className: "notes-library-panel view-collapsible-index--unscrolled",
     children: [createNotesLibraryChrome()],
   });
   panel.open = true;
