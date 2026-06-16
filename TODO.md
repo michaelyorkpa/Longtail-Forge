@@ -13,11 +13,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
-## Slide Outs
+## Dashboard/Workbench
 
-### Right Side
-
-
+- Need to further flesh out the "Inspector" concept
+- Need to solidify the QAC Slide out concept
 
 ## Misc
 
