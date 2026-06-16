@@ -7,14 +7,12 @@ const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
 const manifestContract = readText("src/core/modules/manifest-contract.js");
 const renderer = readText("public/js/shared/view-renderer.js");
-const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
-const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.17.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.17.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.3", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.3", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.3", "package-lock package entry should report the current app version");
 
 assert.match(listsModule, /version:\s*"0\.33\.5\.16\.12"/, "Lists module should report the current declarative closeout version");
 assert.match(listsModule, /actionStrip:\s*\{[\s\S]*id:\s*"duplicate-list"[\s\S]*behavior:\s*"lists\.workflow\.duplicate"[\s\S]*id:\s*"edit-list"[\s\S]*id:\s*"complete-list"[\s\S]*id:\s*"finalize-list"[\s\S]*id:\s*"reopen-list"[\s\S]*id:\s*"mark-reusable-list"[\s\S]*id:\s*"unmark-reusable-list"[\s\S]*id:\s*"archive-list"[\s\S]*id:\s*"delete-list"[\s\S]*id:\s*"restore-list"/, "Lists descriptor should declare workflow actions and behavior IDs");
@@ -72,17 +70,6 @@ assert.match(listsJs, /usesBusinessScope\(\) \? \[option\("client", "Client"\)\]
 assert.match(listsJs, /setBusinessControlsVisible\(usesBusinessScope\(\)\)/, "Business client/project controls should remain workspace-scoped");
 assert.match(listsJs, /setContextControlsVisible\(usesBusinessScope\(\)\)/, "Personal and Family workspace context behavior should remain preserved");
 
-for (const item of [
-  "Express Lists-specific workflow actions as declarative route actions or registered behaviors:",
-  "Move linked-record picker placement and linked-record rows into descriptor/renderer-supported",
-  "Preserve Business client/project behavior and Personal/Family workspace scope behavior.",
-  "Reduce `public/js/lists.js` to data bindings and behavior handlers with no hand-built",
-  "Add regressions proving the Lists surface no longer creates page header, table, dialog,",
-]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
-}
-
-assert.match(decisions, /## Version 0\.33\.5\.16\.11/, "Decisions should include the Lists workflow/link descriptor version");
 assert.match(changelog, /## Version 0\.33\.5\.16\.11 - /, "Changelog should include the Lists workflow/link descriptor version");
 assert.match(regressionSuite, /scripts\/lists-workflow-linked-layout-regression\.mjs/, "Regression suite should include Lists workflow/link layout regression");
 

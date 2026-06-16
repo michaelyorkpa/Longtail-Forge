@@ -1,3 +1,39 @@
+## Version 0.33.5.18.3 - 2026-06-16 08:13 -04:00
+
+- Converted the Notes protected workspace read path to a framework-rendered surface (0.33.5.18.3): `views/protected/notes.html` is now a minimal `data-notes-host`, and the framework renders the page header, Create action, filters panel, stacked layout, collapsible index, and detail container from the `notes.workspace` descriptor.
+- The notes-specific chrome mounts into separate framework-style Library and Notes panels via `createNotesLibraryPanel`/`createNotesLibraryChrome`/`createNotesListChrome`/`decorateNotesDeclarativeSurface`; the detail still renders the server's Markdown `body_html`, and all read/filter/detail logic, secure-note rules, routes, and workspace scope stay in `notes.js`.
+- Added `context`/`owner` filters to the Notes descriptor; registered the `notes.create` behavior; kept the editor and collection dialogs static/imperative (deferred to 0.33.5.18.4).
+- Added `notes-declarative-readonly-surface-regression.mjs`, updated `notes-ui-workflow-regression` for the converted host, refreshed the developer-guide inventory, recorded the decision, and bumped package/app metadata to `0.33.5.18.3`.
+- Follow-up: split the Notes module-mounted chrome into separate framework-style collapsible Library and Notes panels, kept Library bucket/collection behavior module-owned, and moved `New Collection` into the Library toolbar with the bucket buttons.
+- Follow-up: tightened the Notes stacked layout by removing panel gaps, making Library/Collection controls side-by-side, moving Notes pagination into the collapsible Notes summary with icon controls, using an icon-only New Collection action, starting detail blank, collapsing Library/Notes after note selection, and compacting list stubs by removing body excerpts and top-right aligning chips.
+- Follow-up: restored native open/closed carets and Filters-matched heading styling for Library and Notes List, renamed the list heading to `Notes List`, removed the redundant Collections heading, capped list-stub tags at two plus an ellipsis chip, and added breathing room below the Create Note header action.
+- Follow-up: removed regression-suite dependencies on gitignored local bookkeeping files (`DECISIONS.md`, `ROADMAP-ARCHIVE.md`, and similar local docs) and added a clean-clone guard regression so `npm run check` stays runnable from tracked files.
+- Follow-up: moved the shared spacing and selector-focus behavior into framework view surfaces: page headers now create their own separation, stacked panels no longer add gaps between selector and detail, data-bound descriptors can start without selecting the first record, and descriptor index panels can collapse after selection. Lists now feeds `List Selector`, blank initial selection, and collapse-on-select through its descriptor instead of hard-coding a counted heading.
+
+## Version 0.33.5.18.2 - 2026-06-16 00:24 -04:00
+
+- Added a framework `stacked` view layout (collapsible filters on top, a height-capped scrollable index panel, then a full-width detail panel) and retired `split-list-detail` as a selectable layout. Lists and the Notes descriptor now use `stacked`; the side-by-side split layout is gone.
+- Made the framework filter panel collapsible (rendered as a `<details>`), collapsed by default on rendered surfaces, so filters no longer dominate the work surface.
+- Capped the stacked index to an inset scroll region (~5 rows) and made the detail full-width below it, which also resolves the detail action-strip overflow seen in the split layout's narrow detail track.
+- Kept the `createSplitListDetail` primitive and `.view-split-list-detail` CSS as deprecated/unused (documented) so historical contracts and regressions stay intact; the renderer no longer wires them.
+- Updated the Lists adapter decoration to the stacked DOM (`.view-stacked` / `.view-stacked-detail`), switched the manifest layout enum to `single-column | stacked | table-page`, refreshed affected regressions with new stacked/collapsible-filter/scroll coverage, bumped asset cache-busts, updated docs, recorded the decision, and bumped package/app metadata to `0.33.5.18.2`.
+- Bugfix: the Lists item-entry Unit field rendered the literal string `undefined` (and defaultless fields could be spuriously marked required) because `inputField` set every attribute including undefined/false values; it now skips null/undefined/false attributes.
+- Bugfix: the Lists items-table row actions were cramped into a wrapped grid by the legacy 116px last-column cap. The five row actions (Edit, Done, Up, Down, Delete) are now compact icon buttons with accessible labels/tooltips, and the actions column sizes to fit them in a single row.
+- Bugfix (framework): the Lists item-entry form overflowed its surface (pushing the Save/Add controls out of bounds) because the module's fixed-column `.lists-item-form` grid overrode the framework field grid. The framework `.view-field-grid` is now a wrapping flex layout that honors per-field `width` hints (`narrow`/`wide`) from the descriptor, so Qty/Unit stay compact while the form wraps and stays contained; the module grid no longer governs layout. Added `width` to the field descriptor schema and applied it in the renderer and the Lists field builder.
+- Bugfix (framework): the stacked layout's detail panel could grow wider than the rendered surface (the detail box overflowed `.view-renderer-surface` on the right) because `.view-stacked` used an implicit `auto` grid column that sized to max-content. Added `grid-template-columns: minmax(0, 1fr)` so the column fills but cannot exceed the container, keeping the detail panel inside the surface.
+- Bugfix: Task recurrence templates no longer copy the current task instance's transient status when saving all-future edits; future generated instances are created as `open`, and existing recurrence templates are repaired to `open` without changing real task-instance status history.
+- Bugfix: contained Lists detail subpanels, action strips, item-entry forms, and item tables inside the stacked detail panel so inner boxes no longer force the outer panel wider than its parent.
+
+## Version 0.33.5.18.1 - 2026-06-15 17:17 -04:00
+
+- Began the 0.33.5.18 View Conversion Backlog with the shared descriptor capabilities required by two or more upcoming surfaces, built framework-only with fixtures and no surface conversion.
+- Added descriptor filter-to-refetch binding so `filters` drive `dataSource` query parameters (with `queryKey` mapping and defaults) and trigger `surface.refresh()`.
+- Added descriptor mount regions: the framework places a titled region and a registered behavior fills it with a safe context (`container`, `record`, `api`, `refresh`, `openModal`, `workspaceContext`); missing mount behaviors fail visibly without breaking the surface.
+- Added rich item rows with chips, meta lines, and state-gated row actions (`visibleWhen` predicates plus `{token}` route interpolation against the row record).
+- Extended `manifest-contract` validation for `regions`, filter `queryKey`, rich `itemRows` (`itemTitleField`/`itemSubtitleField`/`chips`/`metaFields`/`rowActions`), and action `visibleWhen`.
+- Deferred tree index, multi-select bulk toolbar, pagination, and general field `visibleWhen` to the first surface that needs them, keeping the descriptor small.
+- Added `view-shared-capabilities-regression.mjs`, wired it into the regression suite, updated affected renderer regressions, refreshed the view-building contract and developer guide, recorded the decision, and bumped package/app metadata to `0.33.5.18.1`.
+
 ## Version 0.33.5.17.6 - 2026-06-15 16:43 -04:00
 
 - Closed the 0.33.5.17 CommonMark Markdown platform renderer branch with framework/module contract documentation for the shared Markdown service, approved syntax set, Notes adapter responsibilities, Help rendering/search behavior, and future Knowledge Base boundaries.

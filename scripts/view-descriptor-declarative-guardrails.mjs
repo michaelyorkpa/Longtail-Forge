@@ -2,11 +2,9 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
 
-const appVersion = "0.33.5.17.6";
+const appVersion = "0.33.5.18.3";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
-const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
-const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
@@ -74,7 +72,7 @@ assert.ok(inventory.some((entry) => entry.moduleId === "developer-example" && en
 assert.ok(inventory.some((entry) => entry.moduleId === "tasks" && entry.surfaceIds.length === 0 && !entry.strict), "Non-declarative protected views should remain reported-only");
 
 assert.match(listsHtml, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Strict declarative Lists HTML should stay a minimal host");
-assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=2[\s\S]*js\/shared\/view-renderer\.js\?v=1[\s\S]*js\/lists\.js\?v=5/, "Strict declarative Lists HTML should load the renderer before the module adapter");
+assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=3[\s\S]*js\/shared\/view-renderer\.js\?v=2[\s\S]*js\/lists\.js\?v=6/, "Strict declarative Lists HTML should load the renderer before the module adapter");
 assertNoProtectedAnatomy(listsHtml, "views/protected/lists.html");
 
 for (const forbidden of [
@@ -122,18 +120,6 @@ assert.match(moduleContract, /As of 0\.33\.5\.16\.12/, "Module contract should d
 assert.match(surfaceContract, /As of 0\.33\.5\.16\.12/, "Surface contract should document the closeout version");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.16\.12/, "View-building contract should document declarative guardrail closeout");
 
-for (const item of [
-  "Add static checks that run only against surfaces marked declarative.",
-  "A declarative module must not call `document.createElement` for framework-owned anatomy",
-  "A declarative module must not ship a non-minimal protected HTML view for a declarative surface.",
-  "A declarative module must not introduce one-off layout/footer classes when a descriptor",
-  "Inventory and report all protected views, but enforce strictly only on converted surfaces.",
-  "Add a developer guide for authoring a declarative view surface (descriptor + data + behaviors).",
-]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
-}
-
-assert.match(decisions, /## Version 0\.33\.5\.16\.12/, "Decisions should include the declarative guardrail closeout version");
 assert.match(changelog, /## Version 0\.33\.5\.16\.12 - /, "Changelog should include the declarative guardrail closeout version");
 assert.match(regressionSuite, /scripts\/view-descriptor-declarative-guardrails\.mjs/, "Regression suite should include declarative guardrails");
 

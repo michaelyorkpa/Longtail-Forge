@@ -39,6 +39,7 @@ const LIST_LINK_TYPE_LABELS = {
 };
 
 const view = window.LongtailForge?.view;
+let activeListsViewDescriptor = null;
 
 buildListsViewShell();
 
@@ -84,8 +85,6 @@ let state = {
   workspaceType: "business",
 };
 
-const constrainedListsLayout = window.matchMedia("(max-width: 1366px)");
-
 if (!createButton?.dataset.surfaceAction) {
   createButton?.addEventListener("click", () => openListDialog());
 }
@@ -112,13 +111,13 @@ function buildListsViewShell() {
   }
   registerListsViewBehaviors();
 
-  const descriptor = listsViewSurfaceDescriptor();
+  activeListsViewDescriptor = listsViewSurfaceDescriptor();
   const renderDescriptor = {
-    ...descriptor,
+    ...activeListsViewDescriptor,
     dataSource: null,
   };
   const surface = view.renderSurface(renderDescriptor, host);
-  decorateListsDeclarativeSurface(surface);
+  decorateListsDeclarativeSurface(surface, renderDescriptor);
   document.body.appendChild(createListDialogShell());
 }
 
@@ -185,7 +184,7 @@ function fallbackListsViewSurfaceDescriptor() {
     id: "lists.workspace",
     moduleId: "lists",
     viewId: "lists",
-    layout: "split-list-detail",
+    layout: "stacked",
     pageHeader: {
       title: "Lists",
       primaryAction: {
@@ -207,7 +206,9 @@ function fallbackListsViewSurfaceDescriptor() {
       descriptorSelect("sort", "Sort", [["updated_desc", "Updated", true], ["title_asc", "Title"], ["type_asc", "Type"], ["status_asc", "Status"], ["needed_asc", "Needed Date"], ["finalized_desc", "Finalized Date"]]),
     ],
     indexPanel: {
-      title: "Lists",
+      title: "List Selector",
+      initialSelection: "none",
+      collapseOnSelect: true,
       emptyState: {
         message: "No lists match the current filters.",
       },
@@ -291,8 +292,8 @@ function listsItemFormDescriptor() {
     fields: [
       { field: "item_name", type: "text", label: "Item", required: true, autocomplete: "off", behavior: "lists.catalog-suggestions" },
       { field: "catalog_item_id", type: "hidden", label: "Catalog Item" },
-      { field: "quantity", type: "number", label: "Qty", default: "1", min: "0", step: "0.01" },
-      { field: "unit", type: "text", label: "Unit" },
+      { field: "quantity", type: "number", label: "Qty", default: "1", min: "0", step: "0.01", width: "narrow" },
+      { field: "unit", type: "text", label: "Unit", width: "narrow" },
       { field: "needed_by_date", type: "date", label: "Needed" },
       { field: "assigned_user_id", type: "select", label: "Assigned", optionsSource: "users" },
       { field: "purchase_status", type: "select", label: "Status", options: Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => [value, label]) },
@@ -363,7 +364,7 @@ function descriptorSelect(field, label, options) {
   };
 }
 
-function decorateListsDeclarativeSurface(surface) {
+function decorateListsDeclarativeSurface(surface, descriptor = activeListsViewDescriptor) {
   const pageHeading = surface.querySelector(".view-page-title");
   if (pageHeading) {
     pageHeading.dataset.listsTitle = "";
@@ -401,7 +402,7 @@ function decorateListsDeclarativeSurface(surface) {
   decorateFilterControl(surface, "archiveState", "listFilterArchive");
   decorateFilterControl(surface, "sort", "listSort");
 
-  const workspace = surface.querySelector(".view-split-list-detail");
+  const workspace = surface.querySelector(".view-stacked");
   workspace?.classList.add("lists-workspace");
 
   const indexPanel = surface.querySelector(".view-collapsible-index");
@@ -409,16 +410,18 @@ function decorateListsDeclarativeSurface(surface) {
   if (indexPanel) {
     indexPanel.dataset.listsIndexPanel = "";
   }
-  const count = view.createElement("span", { text: "Lists" });
-  count.dataset.listsCount = "";
-  indexPanel?.querySelector("summary")?.replaceChildren(count);
+  const summaryTitle = indexPanel?.querySelector(".view-collapsible-index-title");
+  if (summaryTitle) {
+    summaryTitle.dataset.listsCount = "";
+    summaryTitle.textContent = listSelectorTitle(descriptor);
+  }
   const indexBody = indexPanel?.querySelector(".view-collapsible-index-body");
   const mount = view.createElement("div", { className: "lists-index-content" });
   mount.dataset.listsIndexContent = "";
   mount.dataset.listsList = "";
   indexBody?.replaceChildren(mount);
 
-  const detail = surface.querySelector(".view-split-list-detail-main");
+  const detail = surface.querySelector(".view-stacked-detail");
   detail?.classList.add("lists-detail-panel");
   if (detail) {
     detail.dataset.listDetail = "";
@@ -694,10 +697,12 @@ function populateFilters() {
 
 function renderLists() {
   const lists = state.lists;
-
-  countLabel.textContent = `${lists.length} ${lists.length === 1 ? "List" : "Lists"}`;
+  if (countLabel) {
+    countLabel.textContent = listSelectorTitle();
+  }
 
   if (lists.length === 0) {
+    state.selectedListId = "";
     renderListPlaceholder(emptyListMessage());
     if (!selectedList()) {
       renderDetailPrompt("Create a list or adjust filters to resume one.");
@@ -710,10 +715,13 @@ function renderLists() {
     items: lists.map(listIndexItem),
   }));
 
-  if (!selectedList() || !lists.some((list) => list.list_id === state.selectedListId)) {
-    selectList(lists[0].list_id, { updateUrl: false });
-  } else {
+  if (state.selectedListId && lists.some((list) => list.list_id === state.selectedListId)) {
     renderDetail(selectedList());
+    updateListSelectionState();
+  } else {
+    state.selectedListId = "";
+    renderDetailPrompt("Select a list.");
+    updateListSelectionState();
   }
 }
 
@@ -765,6 +773,10 @@ function selectList(listId, options = {}) {
   }
   renderDetail(selectedList());
   collapseIndexAfterSelection();
+  updateListSelectionState();
+}
+
+function updateListSelectionState() {
   listMount.querySelectorAll(".view-index-list-button").forEach((button) => {
     const selected = button.dataset.viewIndexId === state.selectedListId;
     button.classList.toggle("is-selected", selected);
@@ -777,7 +789,7 @@ function selectList(listId, options = {}) {
 }
 
 function collapseIndexAfterSelection() {
-  if (indexPanel && constrainedListsLayout.matches && state.selectedListId) {
+  if (indexPanel && activeListsViewDescriptor?.indexPanel?.collapseOnSelect && state.selectedListId) {
     indexPanel.open = false;
   }
 }
@@ -923,6 +935,14 @@ function itemFormField(fieldName) {
 }
 
 function createItemFieldFromDescriptor(field, list) {
+  const node = buildItemFieldNode(field, list);
+  if (field.width && node && node.dataset) {
+    node.dataset.viewFieldWidth = field.width;
+  }
+  return node;
+}
+
+function buildItemFieldNode(field, list) {
   if (field.field === "item_name") {
     return createItemNameField(list, field);
   }
@@ -1236,6 +1256,14 @@ function createItemRow(list, item, index, total, locked) {
   return row;
 }
 
+const ITEM_ROW_ACTION_ICONS = {
+  "edit-item": "edit",
+  "complete-item": "complete",
+  "move-item-up": "up",
+  "move-item-down": "down",
+  "delete-item": "delete",
+};
+
 function itemRowActionButton(action, list, item, index, total, locked) {
   const disabledByPosition = (action.id === "move-item-up" && index === 0) ||
     (action.id === "move-item-down" && index >= total - 1) ||
@@ -1244,6 +1272,7 @@ function itemRowActionButton(action, list, item, index, total, locked) {
     itemId: item.list_item_id,
     disabled: locked || disabledByPosition,
     behavior: action.behavior,
+    icon: ITEM_ROW_ACTION_ICONS[action.id],
   });
 }
 
@@ -1689,8 +1718,12 @@ function renderDetailPrompt(message) {
 function actionButton(label, action, listId, variant = "", options = {}) {
   const button = view.createActionButton({
     label,
+    text: options.icon ? "" : undefined,
     role: variant === "secondary" ? "secondary" : "",
     disabled: Boolean(options.disabled),
+    icon: options.icon,
+    iconOnly: Boolean(options.icon),
+    title: options.icon ? label : undefined,
   });
   if (options.itemId) {
     button.dataset.itemAction = action;
@@ -1975,6 +2008,9 @@ function inputField(labelText, type, name, attributes = {}) {
   input.type = type;
   input.name = name;
   Object.entries(attributes).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === false) {
+      return;
+    }
     input.setAttribute(key, value);
   });
   label.append(labelText, input);
@@ -2032,6 +2068,10 @@ function option(value, label) {
 
 function selectedList() {
   return state.lists.find((list) => list.list_id === state.selectedListId) || null;
+}
+
+function listSelectorTitle(descriptor = activeListsViewDescriptor) {
+  return descriptor?.indexPanel?.title || descriptor?.indexPanel?.label || "List Selector";
 }
 
 function visibleItems(list) {

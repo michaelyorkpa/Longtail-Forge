@@ -5,142 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Notes | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=21">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=25">
   </head>
   <body data-page-title="Notes">
-    <main class="wide-page notes-page">
-      <div class="page-heading">
-        <h1>Notes</h1>
-        <button type="button" data-note-create>Create Note</button>
-      </div>
-
-      <p data-notes-status role="status" aria-live="polite"></p>
-
-      <details class="notes-filters-panel">
-        <summary>Filters</summary>
-        <div class="notes-library-tabs" role="tablist" aria-label="Library buckets">
-          <button type="button" data-notes-bucket="all" aria-pressed="true">All</button>
-          <button type="button" data-notes-bucket="active_work">Active Work</button>
-          <button type="button" data-notes-bucket="ongoing_area">Ongoing Areas</button>
-          <button type="button" data-notes-bucket="reference">Reference Library</button>
-          <button type="button" data-notes-bucket="archive">Archive</button>
-        </div>
-        <form class="notes-filters" data-notes-filters>
-          <label>
-            Status
-            <select data-note-filter-status>
-              <option value="active" selected>Active</option>
-              <option value="pinned">Pinned</option>
-              <option value="archived">Archived</option>
-              <option value="all">All visible</option>
-            </select>
-          </label>
-          <label>
-            Visibility
-            <select data-note-filter-visibility>
-              <option value="all" selected>All visible</option>
-              <option value="internal">Internal</option>
-              <option value="private">Private</option>
-              <option value="workspace">Workspace</option>
-              <option value="client_visible">Client Visible</option>
-            </select>
-          </label>
-          <label>
-            Security
-            <select data-note-filter-security>
-              <option value="all" selected>All</option>
-              <option value="normal">Normal</option>
-              <option value="secure">Secure</option>
-            </select>
-          </label>
-          <label>
-            Note Kind
-            <select data-note-filter-type>
-              <option value="all" selected>All kinds</option>
-              <option value="general">General</option>
-              <option value="meeting">Meeting</option>
-              <option value="research">Research</option>
-              <option value="decision">Decision</option>
-              <option value="procedure">Procedure</option>
-              <option value="reference">Reference</option>
-              <option value="idea">Idea</option>
-              <option value="log">Log</option>
-            </select>
-          </label>
-          <label>
-            Context ID
-            <input type="search" data-note-filter-context autocomplete="off">
-          </label>
-          <label>
-            Owner ID
-            <input type="search" data-note-filter-owner autocomplete="off">
-          </label>
-          <label>
-            Tags
-            <input type="search" data-note-filter-tags autocomplete="off">
-          </label>
-          <label>
-            Updated Since
-            <input type="date" data-note-filter-updated>
-          </label>
-          <label>
-            Sort
-            <select data-note-sort>
-              <option value="updated_desc" selected>Updated</option>
-              <option value="created_desc">Created</option>
-              <option value="title_asc">Title</option>
-              <option value="library_asc">Library</option>
-              <option value="type_asc">Note Kind</option>
-            </select>
-          </label>
-        </form>
-      </details>
-
-      <section class="notes-workspace" aria-label="Notes workspace">
-        <div class="notes-list-panel">
-          <section class="notes-collections-panel" data-notes-collections-panel aria-label="Notes Collections">
-            <div class="notes-collections-heading">
-              <h2>Collections</h2>
-              <button type="button" data-note-collection-create>New Collection</button>
-            </div>
-            <div class="notes-collection-controls">
-              <label>
-                Library
-                <select data-note-collection-library-filter>
-                  <option value="all">All Libraries</option>
-                  <option value="active_work">Active Work</option>
-                  <option value="ongoing_area">Ongoing Areas</option>
-                  <option value="reference">Reference Library</option>
-                </select>
-              </label>
-              <div class="notes-collection-picker-row">
-                <label>
-                  Collection
-                  <select data-note-filter-collection>
-                    <option value="">All collections</option>
-                  </select>
-                </label>
-                <span data-note-collection-actions></span>
-              </div>
-            </div>
-          </section>
-
-          <div class="notes-list-toolbar">
-            <h2 data-notes-list-title>All Notes</h2>
-            <div class="notes-pagination">
-              <button type="button" data-notes-prev disabled>Previous</button>
-              <span data-notes-page>Page 1</span>
-              <button type="button" data-notes-next disabled>Next</button>
-            </div>
-          </div>
-          <div class="notes-list" data-notes-list></div>
-        </div>
-
-        <article class="notes-detail-panel" data-note-detail>
-          <p class="notes-empty-state">Select a note.</p>
-        </article>
-      </section>
-    </main>
+    <main class="wide-page notes-page" data-notes-host></main>
 
     <dialog class="notes-editor-dialog" data-note-dialog>
       <form method="dialog" class="notes-editor-form" data-note-form>
@@ -302,11 +170,13 @@
     <script src="js/navigation.js"></script>
     <script src="js/shared/api-client.js"></script>
     <script src="js/shared/modal.js"></script>
-    <script src="js/shared/icons.js?v=1"></script>
+    <script src="js/shared/icons.js?v=2"></script>
     <script src="js/shared/tags.js?v=1"></script>
     <script src="js/shared/file-attachments.js?v=1"></script>
     <script src="js/shared/notes-editor.js?v=3"></script>
-    <script src="js/notes.js?v=13"></script>
+    <script src="js/shared/view-builder.js?v=4"></script>
+    <script src="js/shared/view-renderer.js?v=2"></script>
+    <script src="js/notes.js?v=17"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

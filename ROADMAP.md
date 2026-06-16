@@ -249,34 +249,56 @@ across the four target surfaces and add only the capabilities needed by two or m
 individual surface conversions do not each reinvent shared anatomy. Surface-unique needs stay as
 documented escape-hatch behaviors rather than new descriptor fields.
 
-- [ ] Inventory descriptor/renderer gaps against Notes, Tasks, Files, and Clients/Projects pages,
+- [x] Inventory descriptor/renderer gaps against Notes, Tasks, Files, and Clients/Projects pages,
       classifying each as either a shared descriptor capability or a per-surface escape-hatch pattern:
-  - [ ] Inline/editable item rows (Tasks checklists, Lists-style item entry parity).
-  - [ ] Multi-select plus a bulk-action toolbar (Tasks, Files).
-  - [ ] Reorder/drag affordance for ordered collections.
-  - [ ] Sectioned or tabbed detail panels (Tasks detail, Notes linked context).
-  - [ ] Hierarchy/tree index rendering (Clients/Projects parent/child).
-  - [ ] File upload control with progress and the framework file routes (Files, attachment panels).
-  - [ ] Tag picker behavior hook (Notes, Tasks, Files, Clients/Projects).
-  - [ ] Live Markdown preview region bound to the 0.33.5.17 service (Notes).
-  - [ ] Revision/history list panel (Notes; reusable later).
-  - [ ] "Load more"/pagination affordance for large collections.
-  - [ ] Per-row dense action overflow on narrow widths.
-  - [ ] Filter controls that drive a normalized read endpoint without per-module DOM.
-- [ ] For each shared gap, extend the descriptor schema and renderer minimally, keeping the renderer
-      on the existing `LongtailForge.view` primitives as its engine.
-- [ ] Add manifest-contract validation in `src/core/modules/manifest-contract.js` for any new
+  - [x] Inline/editable item rows (Tasks checklists, Lists-style item entry parity). — Shared: built as rich `itemRows` (chips/meta/row actions).
+  - [x] Multi-select plus a bulk-action toolbar (Tasks, Files). — Deferred to the first surface that needs it (Tasks).
+  - [x] Reorder/drag affordance for ordered collections. — Per-surface escape-hatch behavior.
+  - [x] Sectioned or tabbed detail panels (Tasks detail, Notes linked context). — Covered by mount regions.
+  - [x] Hierarchy/tree index rendering (Clients/Projects parent/child). — Deferred to the first surface that needs it.
+  - [x] File upload control with progress and the framework file routes (Files, attachment panels). — Escape-hatch behavior mounted in a region.
+  - [x] Tag picker behavior hook (Notes, Tasks, Files, Clients/Projects). — Escape-hatch behavior mounted in a region.
+  - [x] Live Markdown preview region bound to the 0.33.5.17 service (Notes). — Escape-hatch behavior mounted in a region.
+  - [x] Revision/history list panel (Notes; reusable later). — Escape-hatch behavior mounted in a region.
+  - [x] "Load more"/pagination affordance for large collections. — Deferred to the first surface that needs it.
+  - [x] Per-row dense action overflow on narrow widths. — Owned by existing `surface-dense-actions` wrapping.
+  - [x] Filter controls that drive a normalized read endpoint without per-module DOM. — Shared: built as filter→refetch query binding.
+- [x] For each shared gap, extend the descriptor schema and renderer minimally, keeping the renderer
+      on the existing `LongtailForge.view` primitives as its engine. — Built the three minimal enablers (filter→refetch, mount regions, rich item rows); other capabilities deferred or routed through the escape hatch per the decision in DECISIONS.md.
+- [x] Add manifest-contract validation in `src/core/modules/manifest-contract.js` for any new
       descriptor fields (reject unknown keys, missing required fields, bad references).
-- [ ] Document each per-surface escape-hatch pattern as a registered behavior contract rather than a
+- [x] Document each per-surface escape-hatch pattern as a registered behavior contract rather than a
       descriptor field, so module-specific interactions stay in module browser files.
-- [ ] Add renderer/primitive regressions with small fixtures for every new shared capability. Do not
+- [x] Add renderer/primitive regressions with small fixtures for every new shared capability. Do not
       convert any real surface in this slice.
-- [ ] Update the developer guide and `docs/view-building-contract.md` with the new shared capabilities
+- [x] Update the developer guide and `docs/view-building-contract.md` with the new shared capabilities
       and the escape-hatch boundary.
 
 ---
 
-## Notes (0.33.5.18.2 - 0.33.5.18.4)
+## Version 0.33.5.18.2 - Stacked List/Detail Layout, Collapsible Filters, Scrollable Index
+
+This framework layout slice was inserted before resuming the surface conversions so Notes and every
+later surface adopt the corrected layout rather than building on the retired split-list-detail view.
+It also resolves the detail action-strip overflow seen in the split layout's narrow detail track.
+Narrative: 0.33.5.18.1 framework capabilities, 0.33.5.18.2 framework layout, 0.33.5.18.3+ surfaces.
+
+- [x] Add a framework `stacked` view layout: collapsible filters on top, a height-capped scrollable
+      index panel (~5 rows, inset scroll region), then a full-width detail panel below.
+- [x] Make the framework filter panel collapsible (`createFilterPanel` renders a `<details>`),
+      collapsed by default on rendered surfaces.
+- [x] Retire `split-list-detail` as a selectable layout (manifest enum, renderer branch, descriptors);
+      keep the `createSplitListDetail` primitive and `.view-split-list-detail` CSS as deprecated
+      compatibility shims annotated `@deprecated`.
+- [x] Switch the Lists and Notes descriptors (and the Lists fallback) to `layout: "stacked"`, and
+      point the Lists adapter decoration at the stacked DOM (`.view-stacked` / `.view-stacked-detail`).
+- [x] Add regression coverage for the stacked layout, collapsible filter panel, and scrollable index;
+      update affected layout assertions; bump asset cache-busts and version/app metadata.
+- [x] Run `npm run check` and `npm run test:permissions`.
+
+---
+
+## Notes (0.33.5.18.3 - 0.33.5.18.5)
 
 Framework owns: page shell, library filter panel, collection selector/index, split list/detail,
 note detail header/metadata/badges, action strips, summary/linked-context panels, modal shell/form,
@@ -288,23 +310,23 @@ wiki-style link detection and note relationships; linked context for workspace/p
 Business-only client targets; tags; save payloads; permissions. Markdown rendering, preview, and
 plain-text extraction come from the 0.33.5.17 shared service.
 
-### Version 0.33.5.18.2 - Notes Declarative Read-Only Surface Proof
+### Version 0.33.5.18.3 - Notes Declarative Read-Only Surface Proof
 
-- [ ] Add a `viewSurfaces` descriptor for the Notes protected workspace read path on the Notes manifest.
-- [ ] Reduce `views/protected/notes.html` to a minimal framework host element the renderer fills.
-- [ ] Move library filters, the collection selector/index, the split list/detail workspace, the note
-      detail header, metadata/badge rows, and the read-only rendered note body into the descriptor.
-- [ ] Render the note body through the 0.33.5.17 Markdown service; do not reintroduce ad-hoc rendering.
-- [ ] Define the normalized Notes read endpoint and `fieldBindings`; reuse existing routes/payloads
-      where possible and only add additive normalized reads if needed.
-- [ ] Preserve all Notes routes, response payloads, permissions, visibility rules, library/collection
-      bucket semantics, wiki-link display, and workspace scope behavior.
-- [ ] Keep note creation/editing, modals, revisions, and linked-record management on the existing
-      imperative path until later slices.
-- [ ] Add regressions proving the read-only Notes surface renders from the descriptor with correct
+- [x] Add a `viewSurfaces` descriptor for the Notes protected workspace read path on the Notes manifest.
+- [x] Reduce `views/protected/notes.html` to a minimal framework host element the renderer fills. — `notes.html` is now `<main data-notes-host>` plus the two static dialogs (deferred to 0.33.5.18.4).
+- [x] Move library filters, the collection selector/index, the split list/detail workspace, the note
+      detail header, metadata/badge rows, and the read-only rendered note body into the descriptor. — Per the chosen "framework shell + module-mounted chrome" approach: the framework descriptor owns the page header, filters panel, stacked layout, collapsible panels, and detail container; Notes-specific chrome mounts as a separate Library panel (`createNotesLibraryPanel`/`createNotesLibraryChrome`) and Notes list panel (`createNotesListChrome`) through `decorateNotesDeclarativeSurface`. Follow-up layout polish keeps Filters collapsed, Library and Notes List open with native disclosure markers, blank detail on first load, summary-line pagination through the framework collapsible-index action slot, compact no-excerpt list stubs with two visible tags plus ellipsis overflow, and Library/Notes auto-collapse after note selection.
+- [x] Render the note body through the 0.33.5.17 Markdown service; do not reintroduce ad-hoc rendering. — Detail body continues to render the server's `body_html` (produced by the 0.33.5.17 Markdown service); no ad-hoc rendering added.
+- [x] Define the normalized Notes read endpoint and `fieldBindings`; reuse existing routes/payloads
+      where possible and only add additive normalized reads if needed. — Reuses `/api/notes` with `note_id`/`title` bindings; no new routes.
+- [x] Preserve all Notes routes, response payloads, permissions, visibility rules, library/collection
+      bucket semantics, wiki-link display, and workspace scope behavior. — Read/filter/detail logic and secure-note rules remain in `notes.js`.
+- [x] Keep note creation/editing, modals, revisions, and linked-record management on the existing
+      imperative path until later slices. — The editor and collection dialogs stay static/imperative (0.33.5.18.4).
+- [x] Add regressions proving the read-only Notes surface renders from the descriptor with correct
       visibility filtering and Markdown rendering.
 
-### Version 0.33.5.18.3 - Notes Editor, Modals, Field Behaviors, and Live Preview
+### Version 0.33.5.18.4 - Notes Editor, Modals, Field Behaviors, and Live Preview
 
 - [ ] Convert the note create/edit modal shell to descriptor-declared modal/form/footer anatomy.
 - [ ] Bind the live Markdown preview to the same 0.33.5.17 contract as saved rendering so preview and
@@ -317,7 +339,7 @@ plain-text extraction come from the 0.33.5.17 shared service.
 - [ ] Add regressions for descriptor-rendered note editor, live preview parity, revisions, and
       secure-note handling.
 
-### Version 0.33.5.18.4 - Notes Workflow Actions, Linked Context, and Layout Cleanup
+### Version 0.33.5.18.5 - Notes Workflow Actions, Linked Context, and Layout Cleanup
 
 - [ ] Express Notes workflow actions (create, edit, archive, delete, restore, follow/unfollow, copy
       link, linked-record add/remove) as declarative route actions or registered behaviors.
@@ -331,7 +353,7 @@ plain-text extraction come from the 0.33.5.17 shared service.
 
 ---
 
-## Tasks (0.33.5.18.5 - 0.33.5.18.8)
+## Tasks (0.33.5.18.6 - 0.33.5.18.9)
 
 Tasks is the most complex surface (filters, list/board, detail, checklists, relationships, recurrence,
 bulk actions, timer controls, resume context/next action). Expect the heaviest use of registered
@@ -343,7 +365,7 @@ strips, summary panels, modal shell/form/footer, field grid, bulk-action toolbar
 states. Tasks owns: canonical task query, statuses, recurrence rules, relationships, checklist items,
 timer logic, resume/next-action data, validation, save payloads, permissions, workspace scope.
 
-### Version 0.33.5.18.5 - Tasks Declarative Read-Only Surface Proof
+### Version 0.33.5.18.6 - Tasks Declarative Read-Only Surface Proof
 
 - [ ] Add a `viewSurfaces` descriptor for the Tasks protected workspace read path.
 - [ ] Reduce `views/protected/tasks.html` to a minimal framework host element.
@@ -356,7 +378,7 @@ timer logic, resume/next-action data, validation, save payloads, permissions, wo
       imperative path until later slices.
 - [ ] Add regressions proving the read-only Tasks surface renders from the descriptor.
 
-### Version 0.33.5.18.6 - Task Detail, Checklists, Relationships, and Field Behaviors
+### Version 0.33.5.18.7 - Task Detail, Checklists, Relationships, and Field Behaviors
 
 - [ ] Move task detail anatomy (header, metadata, badges, summary panels, resume/next-action strip)
       into the descriptor.
@@ -367,7 +389,7 @@ timer logic, resume/next-action data, validation, save payloads, permissions, wo
 - [ ] Keep Tasks responsible for field meaning, validation, save payloads, and permissions.
 - [ ] Add regressions for descriptor-rendered task detail, checklist rows, and relationships.
 
-### Version 0.33.5.18.7 - Task Create/Edit Modal, Bulk Actions, Recurrence, and Timer Controls
+### Version 0.33.5.18.8 - Task Create/Edit Modal, Bulk Actions, Recurrence, and Timer Controls
 
 - [ ] Convert the task create/edit dialog (`public/js/task-dialog.js`) to descriptor-declared
       modal/form/footer anatomy with registered behaviors for custom field logic.
@@ -382,7 +404,7 @@ timer logic, resume/next-action data, validation, save payloads, permissions, wo
 - [ ] Add regressions for the descriptor task modal, bulk toolbar, recurrence behavior, and timer
       controls.
 
-### Version 0.33.5.18.8 - Tasks Workflow Actions and Layout Cleanup
+### Version 0.33.5.18.9 - Tasks Workflow Actions and Layout Cleanup
 
 - [ ] Express remaining Tasks workflow actions (complete, reopen, block/unblock, archive, delete,
       restore, assign, recurrence apply, and related actions) as declarative route actions or
@@ -394,7 +416,7 @@ timer logic, resume/next-action data, validation, save payloads, permissions, wo
 
 ---
 
-## Files (0.33.5.18.9 - 0.33.5.18.10)
+## Files (0.33.5.18.10 - 0.33.5.18.11)
 
 The framework already owns the file service (storage, scanning, lifecycle, downloads). This conversion
 is strictly the browse/attachment UI and must never bypass file permission, scan, storage, or download
@@ -404,7 +426,7 @@ Framework owns: page shell, filters, file table/cards, detail/preview shell, att
 upload control shell, row action placement, empty/loading/error states. Files owns: file metadata,
 placement meaning, permission checks, scan/storage/download routes, and attachment business rules.
 
-### Version 0.33.5.18.9 - Files Declarative Browse Surface Proof
+### Version 0.33.5.18.10 - Files Declarative Browse Surface Proof
 
 - [ ] Add a `viewSurfaces` descriptor for the Files browse read path.
 - [ ] Reduce `views/protected/files.html` to a minimal framework host element.
@@ -418,7 +440,7 @@ placement meaning, permission checks, scan/storage/download routes, and attachme
 - [ ] Add regressions proving the read-only Files browse surface renders from the descriptor without
       bypassing file routes.
 
-### Version 0.33.5.18.10 - File Upload, Attachment Panels, Row Actions, and Cleanup
+### Version 0.33.5.18.11 - File Upload, Attachment Panels, Row Actions, and Cleanup
 
 - [ ] Render the upload control with progress through the 0.33.5.18.1 capability, wired to the existing
       upload route via a registered behavior.
@@ -435,7 +457,7 @@ placement meaning, permission checks, scan/storage/download routes, and attachme
 
 ---
 
-## Clients/Projects Pages (0.33.5.18.11 - 0.33.5.18.12)
+## Clients/Projects Pages (0.33.5.18.12 - 0.33.5.18.13)
 
 The Add/Edit Client and Add/Edit Project dialogs were already converted to shared modal/form/footer
 helpers in 0.33.5.15.4. This cluster converts the remaining combined Clients/Projects page anatomy:
@@ -446,7 +468,7 @@ Framework owns: page shell, filters, hierarchy index/tree, split or table layout
 tables, action placement, empty/loading/error states. Clients/Projects owns: client/project hierarchy,
 billing metadata, Business-only gating, Personal/Family scope, validation, save payloads, permissions.
 
-### Version 0.33.5.18.11 - Clients/Projects Declarative Page Surface Proof
+### Version 0.33.5.18.12 - Clients/Projects Declarative Page Surface Proof
 
 - [ ] Add a `viewSurfaces` descriptor for the combined Clients/Projects page read path.
 - [ ] Reduce the Clients/Projects page HTML to a minimal framework host element.
@@ -460,7 +482,7 @@ billing metadata, Business-only gating, Personal/Family scope, validation, save 
 - [ ] Add regressions proving the read-only Clients/Projects page renders from the descriptor with
       correct hierarchy and Business-only gating.
 
-### Version 0.33.5.18.12 - Clients/Projects Hierarchy Interactions, Related Tables, Actions, and Cleanup
+### Version 0.33.5.18.13 - Clients/Projects Hierarchy Interactions, Related Tables, Actions, and Cleanup
 
 - [ ] Express hierarchy interactions (move/reparent), related-project and related-client tables, bulk
       controls, and page-level actions as declarative route actions or registered behaviors.
@@ -477,7 +499,7 @@ billing metadata, Business-only gating, Personal/Family scope, validation, save 
 
 ---
 
-## Version 0.33.5.18.13 - Cross-Surface Guardrails, Inventory, Documentation, and Closeout
+## Version 0.33.5.18.14 - Cross-Surface Guardrails, Inventory, Documentation, and Closeout
 
 - [ ] Confirm fail-on-violation declarative guardrails are enforced on all four converted surfaces
       (Notes, Tasks, Files, Clients/Projects pages).
@@ -529,11 +551,55 @@ Reporting is framework-owned report infrastructure, not a normal disable-able fi
 
 The first 0.33.6 report should remain intentionally small: Time Tracking contributes one Project Time & Billing report. Do not build a custom report builder, report designer, analytics dashboard, or saved report system in this pass.
 
-### Version 0.33.6.1 - Reporting Contribution Contract
+### Dependencies and Framework Baseline
 
-- [ ] Rename this roadmap section from "Reports Module" to "Reporting Framework and Time Report Contribution."
+This version builds on the framework surface work completed immediately before it and must not
+reintroduce a hard-coded Reporting page:
+
+- 0.33.5.13 defines shared surface/modal/overlay tokens and common page anatomy expectations.
+- 0.33.5.15 exposes the framework-owned `LongtailForge.view` primitives for page headers,
+  filters, status/empty/error states, tables, action strips, field grids, and modal shells.
+- 0.33.5.16 introduces validated `viewSurfaces`, `LongtailForge.view.renderSurface(...)`,
+  descriptor data binding, `surface.refresh()`, route actions, behavior handlers, minimal protected
+  hosts, and strict guardrails for converted declarative surfaces.
+- 0.33.5.18 extends the descriptor/renderer capability set while converting Notes, Tasks, Files,
+  and Clients/Projects pages. Reporting should consume the finalized 0.33.5.18 view baseline
+  instead of creating Reporting-only anatomy for filters, tables, status messages, or host layout.
+
+Reporting is a framework-owned surface, so it should not create a fake disable-able
+`src/modules/reporting` workflow module just to fit module-owned `viewSurfaces`. 0.33.6 must decide
+and document the framework-owned equivalent: either a framework-owned descriptor/config source that
+the same renderer can consume, or a narrow framework host adapter built directly on
+`LongtailForge.view` primitives where the descriptor contract cannot yet model report execution.
+
+### Version 0.33.6.1 - Reporting Architecture and Framework View Baseline
+
+- [ ] Review the completed 0.33.5.18 renderer/primitive capabilities before implementing Reporting.
+- [ ] Decide whether the Reporting host should use:
+  - [ ] A framework-owned descriptor/config source consumed by `LongtailForge.view.renderSurface(...)`.
+  - [ ] A narrow framework Reporting host adapter built on `LongtailForge.view` primitives.
+- [ ] Do not create a normal disable-able `src/modules/reporting` workflow module only to satisfy
+      module-owned `viewSurfaces` shape.
+- [ ] Define which Reporting host anatomy is framework-owned:
+  - [ ] Page shell and header.
+  - [ ] Report selector.
+  - [ ] Shared filter host.
+  - [ ] Loading, error, empty, and status states.
+  - [ ] Results host and overflow behavior.
+  - [ ] Report action placement for future export/saved-report actions.
+- [ ] Define module-owned report responsibilities:
+  - [ ] Report definitions.
+  - [ ] Runner IDs.
+  - [ ] Data queries and aggregation.
+  - [ ] Domain calculations.
+  - [ ] Result shape.
+  - [ ] Record-level permission checks.
+- [ ] Update the implementation plan only; do not change runtime behavior in this slice.
+
+### Version 0.33.6.2 - Reporting Contribution Contract
+
+- [ ] Keep this roadmap section named "Reporting Framework and Time Report Contribution."
 - [ ] Keep `reporting.html` framework-owned.
-- [ ] Do not create a normal `src/modules/reporting` workflow module unless it is only a non-disableable framework package; prefer framework-owned services/routes instead.
 - [ ] Expand the existing module manifest `reporting` field into a validated report contribution contract.
 - [ ] Report contribution fields should include:
   - [ ] `id`
@@ -548,21 +614,32 @@ The first 0.33.6 report should remain intentionally small: Time Tracking contrib
   - [ ] `sortOrder`
   - [ ] supported filter metadata, such as billing period, custom date range, scope, project, tag, and descendants.
 - [ ] Add `modulesService.listReportingReports(workspaceId, session)` using the same enabled-module, permission, workspace-capability, and required-module filtering pattern used by other module contributions.
+- [ ] Keep contribution validation data-only. Do not place executable functions directly in module manifests.
+- [ ] Keep report contribution filtering separate from report execution so the catalog can be permission-safe without running report code.
 - [ ] Update `docs/module-contract.md` with the finalized reporting contribution shape.
 
-### Version 0.33.6.2 - Reporting Framework Routes and Runner Dispatch
+### Version 0.33.6.3 - Reporting Framework Catalog Route
 
 - [ ] Add framework-owned report catalog route:
   - [ ] `GET /api/reporting/catalog`
+- [ ] Return only reports allowed by enabled modules, workspace capabilities, required modules, and user permissions.
+- [ ] Include report metadata, supported filters, renderer ID, default filter values, and report-specific permission requirements.
+- [ ] Ensure disabled modules do not contribute active catalog reports.
+- [ ] Ensure reports from historically readable disabled modules are only visible when explicitly allowed by contribution and module policy.
+- [ ] Add focused catalog regressions for disabled modules, missing permissions, workspace capability filtering, and required-module filtering.
+
+### Version 0.33.6.4 - Reporting Runner Registry and Execution Route
+
 - [ ] Add framework-owned report execution route:
   - [ ] `GET /api/reporting/reports/:moduleId/:reportId/run`
   - [ ] or a stable equivalent using a report key.
 - [ ] Add a server-side report runner registry keyed by stable runner IDs.
-- [ ] Do not place executable functions directly in module manifests.
 - [ ] The framework Reporting service should validate report availability, permissions, enabled modules, workspace capability requirements, and basic filter shape before dispatching.
 - [ ] The module-owned runner should remain responsible for domain-specific data access, calculations, and record-level permission safety.
+- [ ] Normalize execution errors into framework-owned report status/error payloads without exposing implementation details.
+- [ ] Add focused execution regressions for unknown report IDs, missing runners, denied permissions, disabled modules, and invalid filter shape.
 
-### Version 0.33.6.3 - Time Tracking Project Time & Billing Report
+### Version 0.33.6.5 - Time Tracking Project Time & Billing Contribution
 
 - [ ] Move Project Time & Billing report logic out of the framework Reporting service and into Time Tracking-owned report/service code.
 - [ ] Time Tracking should contribute the initial report:
@@ -582,8 +659,11 @@ The first 0.33.6 report should remain intentionally small: Time Tracking contrib
 - [ ] Keep Time Tracking responsible for time entry aggregation.
 - [ ] Keep Client/Projects responsible for client/project hierarchy and billing metadata.
 - [ ] Keep framework Reporting responsible only for report hosting and dispatch.
+- [ ] Preserve existing `tagIds` filtering behavior through the Time Tracking-owned runner.
+- [ ] Preserve existing task-linked time entry reporting behavior where already supported.
+- [ ] Add focused Time Tracking report runner regressions before the page-host rewrite depends on it.
 
-### Version 0.33.6.4 - Correct Project and Client Rollup Billing Math
+### Version 0.33.6.6 - Correct Project and Client Rollup Billing Math
 
 - [ ] Fix descendant rollup calculation so each project/subproject computes its own direct time first.
 - [ ] Apply that project's effective billing rate, billing period, and rounding rules to that project's direct time.
@@ -595,26 +675,60 @@ The first 0.33.6 report should remain intentionally small: Time Tracking contrib
 - [ ] Do not apply the parent billing rate to child project time when the child has its own effective rate.
 - [ ] Client totals should aggregate project totals using the same already-rounded project/subproject totals.
 - [ ] Parent clients should add direct client project totals plus child-client totals without losing child billing rules.
+- [ ] Preserve display-only expandable child project rows without double-counting totals.
+- [ ] Add fixture coverage for parent projects, child projects, deeper descendants, parent clients, child clients, mixed rates, and mixed billing periods.
 
-### Version 0.33.6.5 - Reporting Page Host MVP
+### Version 0.33.6.7 - Framework Reporting Host Shell
 
-- [ ] Keep one `reporting.html` framework page.
-- [ ] Convert the current hard-coded Time Report UI into a report host that loads available report definitions from the catalog.
-- [ ] The first renderer may remain specific to Project Time & Billing.
-- [ ] Keep the page simple:
-  - [ ] Report selector or default first available report
-  - [ ] Filter area
-  - [ ] Status/error/empty state
-  - [ ] Results area
-- [ ] Do not build saved reports, exports, scheduled reports, charts, or report sharing in this version unless needed for regression coverage.
+- [ ] Keep one framework-owned `reporting.html` page.
+- [ ] Reduce `views/protected/reporting.html` to a minimal framework host that loads shared view assets,
+      the chosen Reporting host renderer/adapter, and the Reporting browser behavior file.
+- [ ] Convert the hard-coded Time Report UI into a framework Reporting host that loads available report definitions from the catalog.
+- [ ] Render the page shell, header, report selector, status/error/empty states, filter host, and results host through the chosen framework view path.
+- [ ] Do not hand-build framework-owned Reporting anatomy in static HTML or ad-hoc browser DOM when a descriptor field or `LongtailForge.view` primitive exists.
+- [ ] Keep the first host simple: one selected report, one filter area, one status area, and one results area.
+- [ ] Add a focused static regression proving the Reporting page is a minimal framework host.
 
-### Version 0.33.6.6 - Permissions, Navigation, and Closeout
+### Version 0.33.6.8 - Reporting Filter Host and Report Selection
+
+- [ ] Load report definitions from `GET /api/reporting/catalog`.
+- [ ] Select the first available report by default when no valid report is requested.
+- [ ] Render report filters from contribution metadata through the shared filter host:
+  - [ ] Billing period.
+  - [ ] Custom date range.
+  - [ ] Reporting scope.
+  - [ ] Projects.
+  - [ ] Tags.
+  - [ ] Include descendants.
+- [ ] Hide Start Date and End Date unless Billing Period is set to Custom.
+- [ ] Preserve query-parameter deep links where already useful, including selected scope/report where practical.
+- [ ] Ensure filter changes call the framework execution route and refresh the current result without rebuilding the host layout by hand.
+- [ ] Add focused browser/static regressions for report selection, custom date visibility, empty catalog state, and filter refresh behavior.
+
+### Version 0.33.6.9 - Project Time & Billing Result Renderer
+
+- [ ] Add a registered report result renderer for `time-project-billing-table`.
+- [ ] The first renderer may remain specific to Project Time & Billing, but it should use framework table/action primitives where they fit.
+- [ ] Preserve hierarchical project display:
+  - [ ] Parent rows can expand/collapse child rows.
+  - [ ] Child rows are display-only rows under their parent.
+  - [ ] Footer totals come from the runner result and are not recomputed from expanded display rows.
+- [ ] Keep Time Tracking responsible for the result shape and billing semantics.
+- [ ] Keep the framework responsible for result-host placement, overflow wrappers, loading/error/empty states, and renderer dispatch.
+- [ ] Add focused regressions for expandable child rows, totals, no-results state, and renderer-not-found recovery.
+
+### Version 0.33.6.10 - Permissions, Navigation, Guardrails, and Closeout
 
 - [ ] Decide whether `reporting.view` should become a framework-owned permission instead of being contributed by Time Tracking.
 - [ ] Keep report-specific visibility dependent on both `reporting.view` and the owning module's required permissions.
-- [ ] Ensure disabled modules do not contribute active reports.
-- [ ] Ensure reports from historically readable disabled modules are only available if explicitly allowed by the contribution and module policy.
 - [ ] Keep Reporting navigation framework-owned, with child report entries contributed by modules.
+- [ ] Add strict guardrails for the converted Reporting host:
+  - [ ] Reporting must not ship a non-minimal protected HTML view.
+  - [ ] Reporting must not call `document.createElement` for framework-owned page header, filter host, status, table shell, or action anatomy when the chosen framework view path covers it.
+  - [ ] Reporting must not introduce new one-off layout/footer classes for framework-owned anatomy.
+- [ ] Update `docs/declarative-view-surfaces.md` inventory to move Reporting out of "reported" and into the chosen framework-owned Reporting host status.
+- [ ] Update `docs/view-building-contract.md` and `docs/module-contract.md` with the Reporting host/contribution boundary.
+- [ ] Update Help, `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive.
 - [ ] Add regression coverage for:
   - [ ] Report catalog filters disabled modules.
   - [ ] Report catalog filters missing permissions.
@@ -622,7 +736,7 @@ The first 0.33.6 report should remain intentionally small: Time Tracking contrib
   - [ ] Time Tracking report disappears or is blocked when Time Tracking is disabled.
   - [ ] Custom date fields are hidden unless Custom is selected.
   - [ ] Project/subproject/client rollups apply rounding at the correct level.
-- [ ] Update Help, `docs/module-contract.md`, `CHANGELOG.md`, package metadata, and roadmap archive.
+  - [ ] Reporting no longer uses hard-coded framework-owned page anatomy.
 - [ ] Run focused reporting regressions.
 - [ ] Run `npm run check`.
 - [ ] Run `npm run test:permissions`.

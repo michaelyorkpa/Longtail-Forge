@@ -17,6 +17,22 @@ Modules still own business behavior. A module descriptor may name fields, routes
 7. Keep module-specific field binding, task pickers, catalog suggestions, payload construction, and permission-shaped workflow calls in the module adapter.
 8. Add a focused regression before enabling strict guardrails for the surface.
 
+## Layouts (0.33.5.18.2)
+
+Supported `layout` values: `single-column`, `stacked`, `table-page`. The `split-list-detail` layout is **retired** (the `createSplitListDetail` primitive and `.view-split-list-detail` CSS remain only as deprecated compatibility shims).
+
+- `stacked` is the standard list/detail layout: a collapsible filters panel, a height-capped scrollable index panel on top, then a full-width detail panel below. Filters render collapsed by default.
+
+## Shared Capabilities (0.33.5.18.1)
+
+The 0.33.5.18 conversions use three shared capabilities added in 0.33.5.18.1:
+
+- Filter-to-refetch: add `filters[]` with a `queryKey` (defaults to `field`). The framework appends non-empty filter values to the `dataSource` route, seeds the first load from `default`, and refetches when a filter changes. Authors do not write fetch or query-string code.
+- Mount regions: add `regions[]` (or `detail.regions[]`) entries shaped `{ id, behavior, title }`. The framework renders the region container and calls the registered behavior with `{ container, record, api, refresh, openModal, workspaceContext }`. Use this to host module-owned widgets (tag pickers, file panels, Markdown preview, timers, checklists) instead of hand-building them in the page. A missing behavior renders a recoverable error.
+- Rich item rows: `detail.itemRows` supports `itemTitleField`, `itemSubtitleField`, `chips`, `metaFields`, and `rowActions`. Gate row actions with `visibleWhen` (`equals` / `in` / `truthy` / `falsy`) against the row record; route actions interpolate `{token}` placeholders from that record.
+
+Capabilities intentionally NOT yet in the descriptor (use an escape-hatch behavior, or wait for the surface that introduces them): hierarchical/tree index, multi-select bulk toolbar, pagination/load-more, and general form-field `visibleWhen`. The imperative `LongtailForge.view` helpers and `renderDescriptor*` functions remain the escape hatch for genuinely custom fragments; do not use them to rebuild anatomy a descriptor already covers.
+
 ## Guardrails
 
 Strict guardrails currently enforce `lists.workspace`. Tags and Developer Example descriptors are inventoried and delivered through the descriptor pipeline, but their protected views are not strict-converted surfaces in this closeout.
@@ -59,7 +75,7 @@ The inventory below is current for 0.33.5.16.12. `strict` means the static guard
 | Files Settings | files-settings | files-settings.html | - | reported |
 | Help | help | help.html | - | reported |
 | Lists | lists | lists.html | lists.workspace | strict |
-| Notes | notes | notes.html | - | reported |
+| Notes | notes | notes.html | notes.workspace | reported |
 | Notifications | notifications | notifications.html | - | reported |
 | Reporting | reporting | reporting.html | - | reported |
 | Search | search | search.html | - | reported |

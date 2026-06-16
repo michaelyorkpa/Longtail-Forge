@@ -155,3 +155,22 @@ The declarative closeout adds strict static guardrails for surfaces that have fu
 The guardrail also inventories every protected view and reports whether it has a descriptor surface. Tags and Developer Example remain descriptor fixtures and app-shell delivery proofs, not strict-converted UI surfaces. New strict surfaces should be added deliberately after a roadmap slice converts their protected HTML, descriptor, data bindings, and behavior adapter.
 
 Developer authoring guidance for descriptor + data + behavior boundaries now lives in `docs/declarative-view-surfaces.md`.
+
+## Implementation Notes For 0.33.5.18.1
+
+The 0.33.5.18 View Conversion Backlog extends the declarative contract to the remaining workflow surfaces (Notes, Tasks, Files, Clients/Projects pages). 0.33.5.18.1 is framework-only and adds just the shared capabilities needed by two or more of those surfaces, keeping the descriptor small:
+
+- Filter-to-refetch binding: descriptor `filters` now drive `dataSource` query parameters. Each filter contributes `queryKey` (defaulting to its `field`) and value to the fetched route; defaults seed the first load, and changing a filter calls `surface.refresh()` with the new query string.
+- Mount regions: a descriptor `regions[]` entry (also `detail.regions[]`) declares `{ id, behavior, title }`. The framework renders a titled, surface-classed region container and invokes the registered mount behavior with a safe context (`container`, `record`, `api`, `refresh`, `openModal`, `workspaceContext`). This is the keystone that gives module-owned widgets (tag pickers, file panels, Markdown preview, timers, checklists) a framework-placed home without growing the descriptor language. Missing mount behaviors render a recoverable error and do not break the surface.
+- Rich item rows: `detail.itemRows` now supports `itemTitleField`, `itemSubtitleField`, `chips`, `metaFields`, and `rowActions`. Row actions are state-gated by a `visibleWhen` predicate (`equals` / `in` / `truthy` / `falsy`) evaluated against the row record, and route actions interpolate `{token}` placeholders from that record.
+
+Tree/hierarchical index, multi-select bulk toolbar, pagination, and general form-field `visibleWhen` are intentionally deferred to the first surface that needs them, so each is proven against a real consumer rather than built speculatively. The imperative `LongtailForge.view` helpers and `renderDescriptor*` functions remain the supported escape hatch for fragments a descriptor cannot express; they must not be used to hand-build anatomy a descriptor field or shared capability already covers.
+
+## Implementation Notes For 0.33.5.18.2
+
+The framework list/detail layout is now `stacked`, and the `split-list-detail` layout is retired. Supported descriptor `layout` values are `single-column`, `stacked`, and `table-page`.
+
+- `stacked` renders, top to bottom: page header + surface actions, a collapsible filters panel, a height-capped scrollable index panel (`.view-stacked .view-collapsible-index-body` — ~5 rows, `overflow-y: auto`), then a full-width detail panel (`.view-stacked-detail`). This replaces the side-by-side split and also resolves the detail action-strip overflow the narrow split track caused.
+- `createFilterPanel` now renders a collapsible `<details>` (collapsed by default on rendered surfaces, `open` option to expand).
+- `createCollapsibleIndexPanel` supports an optional `summaryActions` node or node list for framework-owned summary-line controls such as right-aligned pagination. Summary actions hide automatically while the panel is collapsed; modules may supply the control behavior without rebuilding the panel anatomy.
+- Deprecated, retained for compatibility only: the `createSplitListDetail` primitive and `.view-split-list-detail` CSS. They are no longer wired into the renderer and `split-list-detail` is no longer a valid `layout`; do not use them in new work. Use `stacked`.

@@ -226,7 +226,7 @@ const listsModule = {
       id: "lists.workspace",
       moduleId: LIST_MODULE_ID,
       viewId: "lists",
-      layout: "split-list-detail",
+      layout: "stacked",
       pageHeader: {
         title: "Lists",
         titleKey: "label",
@@ -344,10 +344,11 @@ const listsModule = {
         },
       ],
       indexPanel: {
-        title: "Lists",
-        titleKey: "plural",
+        title: "List Selector",
         itemTitleField: "title",
         itemSubtitleField: "description",
+        initialSelection: "none",
+        collapseOnSelect: true,
         emptyState: {
           title: "No lists",
           message: "No lists match the current filters.",

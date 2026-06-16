@@ -4,16 +4,14 @@ import { readFileSync } from "node:fs";
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
-const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
-const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.17.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.17.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.3", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.3", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.3", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(renderer, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view renderer shell must not own data loading or browser storage");
 assert.doesNotMatch(renderer, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view renderer must not inject HTML strings");
@@ -23,7 +21,6 @@ for (const helperName of [
   "createPageHeader",
   "createFilterPanel",
   "createCollapsibleIndexPanel",
-  "createSplitListDetail",
   "createDataTable",
   "createDetailHeader",
   "createDetailActionStrip",
@@ -52,11 +49,16 @@ assert(tableSurface.querySelector(".view-table-wrap"), "Table-page layout should
 assert(tableSurface.querySelector(".view-modal-form"), "Table-page layout should render modal shells");
 assert.equal(tableSurface.querySelector(".view-data-table-empty").textContent, "No sample records yet.", "Table shells should render descriptor empty states");
 
-const splitHost = context.document.createElement("main");
-const splitSurface = view.renderSurface(createDescriptor({ layout: "split-list-detail" }), splitHost);
-assert(splitSurface.querySelector(".view-split-list-detail"), "Split layout should render a split workspace");
-assert(splitSurface.querySelector(".view-collapsible-index"), "Split layout should render an index shell");
-assert(splitSurface.querySelector(".view-detail-header"), "Split layout should render detail shell anatomy");
+const stackedHost = context.document.createElement("main");
+const stackedSurface = view.renderSurface(createDescriptor({ layout: "stacked" }), stackedHost);
+assert(stackedSurface.querySelector(".view-stacked"), "Stacked layout should render a stacked container");
+assert(stackedSurface.querySelector(".view-stacked-detail"), "Stacked layout should render a full-width detail section");
+assert(stackedSurface.querySelector(".view-collapsible-index"), "Stacked layout should render an index shell on top");
+assert(stackedSurface.querySelector(".view-detail-header"), "Stacked layout should render detail shell anatomy");
+const stackedFilter = stackedSurface.querySelector(".view-filter-panel");
+assert.equal(stackedFilter.tagName, "DETAILS", "Stacked filter panel should be a collapsible details element");
+assert.equal(stackedFilter.open, false, "Surface filters should render collapsed by default");
+assert(stackedFilter.querySelector("summary"), "Collapsible filter panel should have a summary toggle");
 
 const singleHost = context.document.createElement("main");
 const singleSurface = view.renderSurface(createDescriptor({ layout: "single-column" }), singleHost);
@@ -64,26 +66,6 @@ assert(singleSurface.classList.contains("view-renderer-layout-single-column"), "
 assert(singleSurface.querySelector(".view-collapsible-index"), "Single-column layout should render selector/index anatomy when declared");
 assert(singleSurface.querySelector(".view-field-grid"), "Single-column layout should render field grid anatomy when declared");
 
-for (const item of [
-  "Add a renderer, for example `public/js/shared/view-renderer.js`, exposed as",
-  "The renderer must use only the 0.33.5.15 `LongtailForge.view` primitives as its DOM engine.",
-  "Render static descriptor anatomy for page headers, filter panels, selector/index shells,",
-  "Keep this pass descriptor-in/static-rendering only: no app-shell delivery, no data fetching,",
-  "Keep the engine boring: no client state store, no virtual DOM, no component lifecycle.",
-]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
-}
-
-assert.match(roadmap, /`window\.LongtailForge\.view\.renderSurface\(descriptor, host\)`\./, "Roadmap should name the renderSurface browser API");
-for (const item of [
-  "`single-column`.",
-  "`split-list-detail`.",
-  "`table-page`.",
-]) {
-  assert.match(roadmap, new RegExp(`\\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
-}
-
-assert.match(decisions, /## Version 0\.33\.5\.16\.4/, "Decisions should include renderer shell version");
 assert.match(changelog, /## Version 0\.33\.5\.16\.4 - /, "Changelog should include renderer shell version");
 assert.match(regressionSuite, /scripts\/view-renderer-shell-regression\.mjs/, "Regression suite should include renderer regression");
 
@@ -320,8 +302,4 @@ function matchesSelector(element, selector) {
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

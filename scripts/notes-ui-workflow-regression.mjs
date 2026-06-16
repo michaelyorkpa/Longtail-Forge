@@ -49,24 +49,21 @@ async function assertProtectedView(session) {
   const html = result.contents.toString("utf8");
 
   assert.equal(result.statusCode, 200);
-  assert.match(html, /data-note-body/);
-  assert.match(html, /data-note-filter-tags/);
-  assert.match(html, /data-note-filter-collection/);
-  assert.match(html, /data-notes-collections-panel/);
-  assert.match(html, /data-note-collection-library-filter/);
-  assert.match(html, /data-note-collection-actions/);
+  // 0.33.5.18.3: the Notes workspace is now a minimal framework host; the read shell (page header,
+  // filters, index, detail) is framework-rendered and the notes-specific chrome (bucket tabs,
+  // collections panel, list, pagination) is mounted by notes.js. The two dialogs stay static (deferred to .18.4).
+  assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/);
+  assert.match(html, /js\/shared\/view-renderer\.js\?v=2/);
+  assert.match(html, /js\/shared\/icons\.js\?v=2/);
+  assert.match(html, /js\/shared\/view-builder\.js\?v=4/);
+  assert.match(html, /js\/notes\.js\?v=17/);
+  assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
+  // Editor + collection dialogs remain static (deferred to 0.33.5.18.4 Notes modals slice).
+  assert.match(html, /data-note-dialog/);
   assert.match(html, /data-note-collection-dialog/);
-  assert.match(html, /data-note-collection/);
+  assert.match(html, /data-note-body/);
   assert.match(html, /data-note-tags-editor/);
-  assert.match(html, /<details class="notes-filters-panel">/);
-  assert.doesNotMatch(html, /<details class="notes-filters-panel"[^>]* open/);
-  assert.match(html, /<div class="notes-library-tabs" role="tablist" aria-label="Library buckets">/);
-  assert.doesNotMatch(html, /data-notes-library-summary/);
-  assert.match(html, /js\/shared\/icons\.js\?v=1/);
-  assert.match(html, /js\/shared\/tags\.js\?v=1/);
-  assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
-  assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
-  assert.match(html, /css\/longtail-forge\.css\?v=21/);
+  assert.match(html, /data-note-collection/);
   assert.match(html, /Note Kind/);
   assert.match(html, /<option value="decision">Decision<\/option>/);
   assert.match(html, /<option value="procedure">Procedure<\/option>/);
@@ -79,7 +76,11 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(noteKindSelect, /<option value="task">Task<\/option>/);
   assert.doesNotMatch(noteKindSelect, /<option value="ticket">Ticket<\/option>/);
   assert.doesNotMatch(noteKindSelect, /<option value="user">User<\/option>/);
-  assert.match(html, /js\/notes\.js\?v=13/);
+  assert.match(html, /js\/shared\/icons\.js\?v=2/);
+  assert.match(html, /js\/shared\/tags\.js\?v=1/);
+  assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
+  assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
+  assert.match(html, /css\/longtail-forge\.css\?v=25/);
   assert.match(html, /data-note-context-target-type/);
   assert.match(html, /data-note-context-search/);
   assert.match(html, /data-note-context-results/);
@@ -99,7 +100,7 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /notes-locked-state/);
   assert.match(notesJs, /notes-status-badge/);
   assert.match(notesJs, /clientVisibleOption\.disabled = secureMode/);
-  assert.match(notesJs, /Secure note body hidden from previews\./);
+  assert.match(notesJs, /chipStrip\.prepend\(statusBadge\("Secure"\)\)/);
   assert.match(notesJs, /Secure notes do not allow framework file attachments yet\./);
   assert.match(notesJs, /securityInput\.disabled = Boolean\(note\)/);
   assert.match(notesJs, /collectionFilterOptions/);
@@ -124,6 +125,28 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(notesJs, /loadLibrary/);
   assert.match(notesJs, /collectionFilterIds/);
   assert.match(notesJs, /Original/);
+  // 0.33.5.18.3 declarative read shell conversion markers.
+  assert.match(notesJs, /buildNotesViewShell/);
+  assert.match(notesJs, /view\.renderSurface/);
+  assert.match(notesJs, /notesViewSurfaceDescriptor/);
+  assert.match(notesJs, /decorateNotesDeclarativeSurface/);
+  assert.match(notesJs, /createNotesLibraryPanel/);
+  assert.match(notesJs, /createNotesLibraryChrome/);
+  assert.match(notesJs, /createNotesListChrome/);
+  assert.match(notesJs, /createNotesPagination/);
+  assert.match(notesJs, /indexPanel\?\.before\(createNotesLibraryPanel\(\)\)/);
+  assert.match(notesJs, /summaryTitle\.textContent = "Notes List"/);
+  assert.match(notesJs, /summary\.classList\.add\("has-summary-actions"\)/);
+  assert.match(notesJs, /dataSource: null/);
+  assert.match(notesJs, /notes-library-tabs/);
+  assert.match(notesJs, /notes-library-toolbar/);
+  assert.match(notesJs, /icon:\s*"library-add"/);
+  assert.match(notesJs, /collapseNotesNavigationPanels/);
+  assert.match(notesJs, /tagChips\(note\.tags \|\| \[\], \{ limit: 2, showOverflow: true \}\)/);
+  assert.match(notesJs, /overflow\.textContent = "\.\.\."/);
+  assert.doesNotMatch(notesJs, /data-notes-list-title|notes-list-excerpt/);
+  assert.doesNotMatch(notesJs, /text:\s*"Collections"/);
+  assert.match(notesJs, /notesCollectionsPanel/);
 
   const linkedPanelJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8");
   assert.match(linkedPanelJs, /LongtailForge/);

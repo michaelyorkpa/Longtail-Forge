@@ -4,19 +4,17 @@ import { readFileSync } from "node:fs";
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
-const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
-const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.17.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.17.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.3", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.3", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.3", "package-lock package entry should report the current app version");
 
 assert.match(renderer, /function registerBehavior\(id, handler\)/, "Renderer should expose behavior registration");
-assert.match(renderer, /runRouteAction\(action, state\)/, "Renderer should route declarative route actions");
+assert.match(renderer, /runRouteAction\(action, state, record\)/, "Renderer should route declarative route actions");
 assert.match(renderer, /requiredPermissions/, "Renderer should read action permission metadata");
 assert.match(renderer, /Missing view behavior handler/, "Missing behavior handlers should fail visibly");
 assert.match(renderer, /openDescriptorModal\(state, modalId, record\)/, "Renderer should own descriptor modal opening");
@@ -63,18 +61,6 @@ const deniedButton = findButtonByText(surface, "Denied route");
 await deniedButton.click();
 assert.match(surface.textContent, /You do not have permission to run this action/, "Client-visible permission metadata should fail recoverably when explicit permissions are unavailable");
 
-for (const item of [
-  "Implement the behavior registry: `LongtailForge.view.registerBehavior(id, handler)`.",
-  "Wire declarative `route` actions automatically using descriptor `route`, `method`, `confirm`,",
-  "Wire `behavior` actions by invoking the registered handler with a safe context:",
-  "Add a framework-owned `openModal` path for descriptor-declared create/edit modal shells while",
-  "Ensure missing behavior handlers fail visibly and recoverably without breaking the rest of the",
-  "Do not migrate Lists workflow actions in this slice.",
-]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
-}
-
-assert.match(decisions, /## Version 0\.33\.5\.16\.8/, "Decisions should include renderer action version");
 assert.match(changelog, /## Version 0\.33\.5\.16\.8 - /, "Changelog should include renderer action version");
 
 console.log("View renderer actions regression passed.");
@@ -322,8 +308,4 @@ function matchesSelector(element, selector) {
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

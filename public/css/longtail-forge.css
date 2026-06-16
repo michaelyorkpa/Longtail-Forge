@@ -100,8 +100,11 @@ body {
 }
 
 .surface-main-panel {
+    box-sizing: border-box;
     display: grid;
     gap: 12px;
+    min-width: 0;
+    max-width: 100%;
     padding: 12px;
     background: var(--color-surface);
 }
@@ -333,6 +336,10 @@ summary.surface-modal-section-heading {
     min-width: 0;
 }
 
+.view-page-header {
+    margin-bottom: 8px;
+}
+
 .view-page-header-body,
 .view-detail-header-body {
     display: grid;
@@ -356,6 +363,7 @@ summary.surface-modal-section-heading {
 .view-empty-state-message {
     margin: 0;
     color: var(--color-text-secondary);
+    overflow-wrap: anywhere;
 }
 
 .view-status-message,
@@ -377,16 +385,66 @@ summary.surface-modal-section-heading {
 
 .view-filter-panel-fields,
 .view-field-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
     gap: 10px 12px;
     min-width: 0;
 }
 
+/* Fields flex to a normal width and wrap; per-field width hints keep narrow fields
+   (e.g. Qty/Unit) compact and wide fields roomy without ever overflowing the surface. */
+.view-filter-panel-fields > *,
+.view-field-grid > * {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.view-filter-panel-fields > [data-view-field-width="narrow"],
+.view-field-grid > [data-view-field-width="narrow"] {
+    flex: 0 1 110px;
+}
+
+.view-filter-panel-fields > [data-view-field-width="wide"],
+.view-field-grid > [data-view-field-width="wide"] {
+    flex: 2 1 320px;
+}
+
+.view-filter-panel-fields > button,
+.view-field-grid > button {
+    flex: 0 0 auto;
+    align-self: flex-end;
+}
+
 .view-collapsible-index-summary {
+    position: relative;
     cursor: pointer;
-    color: var(--color-text-secondary);
-    font-weight: 800;
+    color: var(--color-text);
+    font-weight: 700;
+}
+
+.view-collapsible-index-summary.has-summary-actions {
+    min-height: 34px;
+    padding-right: 150px;
+}
+
+.view-collapsible-index-title {
+    min-width: 0;
+}
+
+.view-collapsible-index-summary-actions {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    transform: translateY(-50%);
+}
+
+.view-collapsible-index:not([open]) .view-collapsible-index-summary-actions {
+    display: none;
 }
 
 .view-collapsible-index-body {
@@ -395,6 +453,31 @@ summary.surface-modal-section-heading {
     min-width: 0;
 }
 
+.view-stacked {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    min-width: 0;
+    width: 100%;
+}
+
+.view-stacked-detail {
+    min-width: 0;
+    width: 100%;
+}
+
+/* Stacked layout caps the index to an inset scroll region (~5 rows) above the full-width detail. */
+.view-stacked .view-collapsible-index-body {
+    max-height: 16.5rem;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/*
+ * Deprecated: the `split-list-detail` layout is retired in favor of `.view-stacked`.
+ * These rules (and the createSplitListDetail primitive) are retained for historical
+ * contract/regression compatibility and are no longer wired into the renderer.
+ */
 .view-split-list-detail {
     display: grid;
     grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.65fr);
@@ -4077,6 +4160,7 @@ dialog .form-actions {
 }
 
 .notes-library-summary,
+.notes-library-toolbar,
 .notes-library-tabs,
 .notes-collections-heading,
 .notes-list-toolbar,
@@ -4093,6 +4177,25 @@ dialog .form-actions {
     margin-bottom: 12px;
 }
 
+.view-stacked .notes-library-panel .view-collapsible-index-body {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+}
+
+.notes-library-toolbar {
+    justify-content: space-between;
+}
+
+.notes-library-tabs {
+    flex: 1 1 auto;
+}
+
+.notes-library-toolbar [data-note-collection-create] {
+    flex: 0 0 auto;
+    min-width: 40px;
+}
+
 .notes-library-card {
     min-width: 160px;
     display: grid;
@@ -4104,7 +4207,6 @@ dialog .form-actions {
 .notes-library-card span,
 .notes-list-meta,
 .notes-list-footer,
-.notes-list-excerpt,
 .notes-detail-header p,
 .notes-context-list,
 .notes-empty-state,
@@ -4184,9 +4286,15 @@ dialog .form-actions {
 
 .notes-collection-picker-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(150px, 0.85fr) minmax(190px, 1.15fr) auto;
     gap: 8px;
     align-items: end;
+}
+
+@media (max-width: 720px) {
+    .notes-collection-picker-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .notes-collection-controls label {
@@ -4309,14 +4417,16 @@ dialog .form-actions {
 
 .notes-list {
     display: grid;
-    gap: 8px;
+    gap: 6px;
 }
 
 .notes-list-item {
+    position: relative;
     width: 100%;
     display: grid;
-    gap: 6px;
-    padding: 12px;
+    gap: 3px;
+    min-height: 58px;
+    padding: 8px 10px;
     border: 1px solid var(--color-border-subtle);
     border-radius: 8px;
     background: var(--color-surface);
@@ -4331,13 +4441,29 @@ dialog .form-actions {
 
 .notes-list-heading {
     display: grid;
+    min-width: 0;
+    padding-right: min(44%, 280px);
     gap: 2px;
 }
 
-.notes-list-badges {
+.notes-list-chip-strip {
+    position: absolute;
+    top: 8px;
+    right: 8px;
     display: flex;
     flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: min(42%, 280px);
     gap: 6px;
+}
+
+.notes-list-chip-strip:empty {
+    display: none;
+}
+
+.notes-tag-overflow {
+    min-width: 34px;
+    justify-content: center;
 }
 
 .notes-status-badge {
@@ -4351,23 +4477,24 @@ dialog .form-actions {
     line-height: 1.3;
 }
 
-.notes-list-heading strong,
+.notes-list-heading strong {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .notes-detail-header h2 {
     overflow-wrap: anywhere;
 }
 
-.notes-list-excerpt {
-    font-size: 14px;
-    line-height: 1.4;
-}
-
-.notes-list-item.is-secure .notes-list-excerpt {
-    color: var(--color-muted);
-    font-style: italic;
-}
-
 .notes-list-footer,
 .notes-list-meta {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 13px;
 }
 
@@ -4770,7 +4897,9 @@ dialog .form-actions {
 .lists-filters-panel,
 .lists-index-panel,
 .lists-detail-panel {
+    box-sizing: border-box;
     min-width: 0;
+    max-width: 100%;
     padding: 16px;
     border: 1px solid var(--color-border);
     border-radius: 8px;
@@ -4796,12 +4925,22 @@ dialog .form-actions {
     min-width: 0;
 }
 
+.lists-detail-content {
+    display: grid;
+    gap: 14px;
+    min-width: 0;
+    max-width: 100%;
+}
+
 .lists-filters,
-.lists-form-grid,
-.lists-item-form {
+.lists-form-grid {
     display: grid;
     gap: 12px;
 }
+
+/* The item-entry form is governed by the framework `.view-field-grid` flex layout (with per-field
+   width hints); its legacy `.lists-item-form` grid rules below are inert and retained only until a
+   later cleanup. */
 
 .lists-filters {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -4821,6 +4960,24 @@ dialog .form-actions {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+/* Items table row actions are compact icon buttons; size the column to fit them in one row
+   (overrides the legacy 116px last-column cap from .list-table). */
+.lists-items-table td:last-child,
+.lists-items-table th:last-child {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.lists-items-table .lists-item-actions {
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+}
+
+.lists-items-table .lists-item-actions .icon-button {
+    min-width: 0;
+    flex: 0 0 auto;
 }
 
 .lists-list-toolbar,
@@ -4843,6 +5000,7 @@ dialog .form-actions {
     justify-content: flex-end;
     flex-wrap: wrap;
     min-width: 0;
+    max-width: 100%;
 }
 
 .lists-detail-heading h2,
@@ -5064,11 +5222,16 @@ dialog .form-actions {
     grid-template-columns: minmax(120px, 0.5fr) minmax(180px, 1fr) minmax(220px, 1fr) minmax(180px, 1fr) auto;
     gap: 10px;
     align-items: end;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .lists-item-entry {
+    box-sizing: border-box;
     display: grid;
     gap: 10px;
+    min-width: 0;
+    max-width: 100%;
     margin: 16px 0;
     padding: 12px;
     border: 1px solid var(--color-border-subtle);
@@ -5083,6 +5246,7 @@ dialog .form-actions {
 .lists-item-form {
     grid-template-columns: minmax(180px, 1.3fr) 80px 90px 130px minmax(140px, 1fr) minmax(130px, 1fr) minmax(150px, 0.8fr) auto auto;
     align-items: end;
+    min-width: 0;
 }
 
 .lists-item-advanced {
@@ -5124,11 +5288,15 @@ dialog .form-actions {
 }
 
 .lists-items {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
     overflow-x: auto;
 }
 
 .lists-items-table {
-    min-width: 760px;
+    min-width: 0;
+    table-layout: fixed;
 }
 
 .lists-items-table th:first-child,
@@ -5209,7 +5377,7 @@ dialog .form-actions {
     }
 
     .lists-items-table {
-        min-width: 680px;
+        min-width: 0;
     }
 }
 

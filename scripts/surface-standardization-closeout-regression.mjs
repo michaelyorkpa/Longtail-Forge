@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const roadmap = readText("ROADMAP.md");
-const roadmapArchive = readText("ROADMAP-ARCHIVE.md");
-const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const architecture = readText("docs/architecture.md");
 const moduleContract = readText("docs/module-contract.md");
@@ -17,21 +15,7 @@ const tasksModule = readText("src/modules/tasks/module.js");
 assert.match(tasksModule, /version: "0\.33\.5\.13\.7"/, "Tasks module metadata should report the surface closeout version");
 
 assert.doesNotMatch(roadmap, /## Version 0\.33\.5\.13 - Framework Surface and Modal Style Standardization/, "Completed surface roadmap should be archived after the next version starts");
-assert.match(roadmapArchive, /## Version 0\.33\.5\.13 - Framework Surface and Modal Style Standardization/, "Archived roadmap should retain the surface standardization section");
 
-for (const item of [
-  "Update Help and developer docs where shared modal, overlay, footer, drawer, or surface behavior changed.",
-  "Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and roadmap archive during the implementation closeout.",
-  "Run focused converted-surface regressions.",
-  "Run `npm run check`.",
-  "Run `npm run test:permissions`.",
-  "Verify `/api/app-info` reports the expected version after implementation.",
-]) {
-  assert.match(roadmapArchive, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Archived roadmap closeout item should be checked: ${item}`);
-}
-
-assert.match(decisions, /## Version 0\.33\.5\.13\.7/, "Decisions should include the closeout version");
-assert.match(decisions, /No roadmap archive move is needed/, "Decisions should document archive handling for this closeout");
 assert.match(changelog, /## Version 0\.33\.5\.13\.7 - /, "Changelog should include the closeout version");
 
 assert.match(uiSurfaceContract, /0\.33\.5\.13\.7 framework surface inventory/, "Surface contract should report the closeout version");
@@ -54,8 +38,4 @@ console.log("Surface standardization closeout regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

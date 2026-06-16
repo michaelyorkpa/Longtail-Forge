@@ -15,6 +15,7 @@ async function createTemplateFromTask({ session, task, recurrence }) {
 
   return taskRecurrenceRepository.createTemplate(session.workspace_id, {
     ...task,
+    status: "open",
     recurrence_anchor_date: task.due_date,
     rrule: buildRRule(normalized),
     recurrence_end_date: normalized.endDate,
@@ -46,7 +47,7 @@ async function updateTemplateFromTask({ session, task, recurrence }) {
     project_id: task.project_id,
     title: task.title,
     description: task.description,
-    status: task.status === "complete" || task.status === "archived" ? "open" : task.status,
+    status: "open",
     priority: task.priority,
     due_time: task.due_time,
     due_timezone: task.due_timezone,
@@ -95,7 +96,7 @@ async function createNextInstance({ session, completedTask, createTask }) {
       project_id: template.project_id,
       title: template.title,
       description: template.description,
-      status: template.status === "complete" || template.status === "archived" ? "open" : template.status,
+      status: "open",
       priority: template.priority,
       due_date: nextDate,
       due_time: template.due_time,

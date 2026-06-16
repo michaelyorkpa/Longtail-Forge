@@ -13,6 +13,12 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Slide Outs
+
+### Right Side
+
+
+
 ## Misc
 
 - I think I lost client change requests from the repo docs, somewhere. This needs to be added back into the project management tools section.

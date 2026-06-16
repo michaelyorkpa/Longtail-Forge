@@ -54,10 +54,10 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(html, /<details class="lists-index-panel"/);
   assert.match(html, /js\/shared\/icons\.js\?v=1/);
   assert.match(html, /js\/shared\/client-project-options\.js\?v=1/);
-  assert.match(html, /js\/shared\/view-builder\.js\?v=2/);
-  assert.match(html, /js\/shared\/view-renderer\.js\?v=1/);
-  assert.match(html, /js\/lists\.js\?v=5/);
-  assert.match(html, /css\/longtail-forge\.css\?v=21/);
+  assert.match(html, /js\/shared\/view-builder\.js\?v=3/);
+  assert.match(html, /js\/shared\/view-renderer\.js\?v=2/);
+  assert.match(html, /js\/lists\.js\?v=6/);
+  assert.match(html, /css\/longtail-forge\.css\?v=22/);
 
   assert.match(listsJs, /buildListsViewShell/);
   assert.match(listsJs, /view\.renderSurface\(renderDescriptor, host\)/);
@@ -159,7 +159,7 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /actual_cost/);
   assert.match(listsJs, /tracking_id/);
   assert.match(listsJs, /formatCurrency/);
-  assert.match(listsJs, /constrainedListsLayout/);
+  assert.match(listsJs, /activeListsViewDescriptor\?\.indexPanel\?\.collapseOnSelect/);
   assert.match(listsJs, /collapseIndexAfterSelection/);
   assert.match(listsJs, /indexPanel\.open = false/);
 

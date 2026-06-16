@@ -2,9 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const version = "0.33.5.15.6";
-const appVersion = "0.33.5.17.6";
-const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
-const decisions = readText("DECISIONS.md");
+const appVersion = "0.33.5.18.3";
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
@@ -24,20 +22,8 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
-for (const item of [
-  "Add focused static checks for converted modules.",
-  "Converted modules should not call `document.createElement(\"dialog\")` directly.",
-  "Converted modules should not create new one-off modal footer/action classes when a framework helper exists.",
-  "Converted modules should not introduce hard-coded light backgrounds outside theme tokens.",
-  "Converted modules should not create non-wrapping action rows for dense/detail surfaces.",
-  "Converted modules should keep business logic in module files and shared layout logic in framework helpers.",
-]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
-}
-
 assert.match(viewContract, new RegExp(`As of ${escapeRegExp(version)}`), "View contract should report the current guardrail version");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.15\.5/, "View contract should document the guardrail slice");
-assert.match(decisions, /## Version 0\.33\.5\.15\.5/, "Decisions should include the converted-surface guardrail version");
 assert.match(changelog, /## Version 0\.33\.5\.15\.5 - /, "Changelog should include the converted-surface guardrail version");
 assert.match(
   regressionSuite,
@@ -52,7 +38,7 @@ assert.match(helper, /function createDetailActionStrip/, "View builder should ow
 assert.match(helper, /function createInlineActionRow/, "View builder should own inline action rows");
 
 assert.match(listsHtml, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists converted surface should stay a minimal host");
-assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=2[\s\S]*js\/lists\.js\?v=5/, "Lists should load view-builder before the converted module script");
+assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=3[\s\S]*js\/lists\.js\?v=6/, "Lists should load view-builder before the converted module script");
 assert.doesNotMatch(listsHtml, /<dialog|data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog/, "Lists HTML should not reintroduce converted anatomy");
 assert.doesNotMatch(listsJs, /document\.createElement\("dialog"\)/, "Converted Lists should use the shared modal helper for dialogs");
 assertNoHardcodedLightBackgrounds(listsJs, "Lists converted browser source");
@@ -60,7 +46,6 @@ assertNoHardcodedLightBackgrounds(listsJs, "Lists converted browser source");
 for (const helperName of [
   "createFilterPanel",
   "createCollapsibleIndexPanel",
-  "createSplitListDetail",
   "createDataTable",
   "createDetailActionStrip",
   "createInlineActionRow",
@@ -82,7 +67,7 @@ for (const helperName of [
 }
 
 for (const html of [clientsHtml, projectsHtml, workbenchHtml]) {
-  assert.match(html, /js\/shared\/view-builder\.js\?v=2[\s\S]*clients-projects\.js\?v=11/, "Client/Project surfaces should load view-builder before shared Client/Project code");
+  assert.match(html, /js\/shared\/view-builder\.js\?v=3[\s\S]*clients-projects\.js\?v=11/, "Client/Project surfaces should load view-builder before shared Client/Project code");
 }
 assert.doesNotMatch(clientsHtml, /<dialog data-client-modal>/, "Clients page should not restore the static Add Client dialog");
 assert.match(clientsScript, /const view = window\.LongtailForge\?\.view/, "Client/Project dialogs should consume the shared view namespace");

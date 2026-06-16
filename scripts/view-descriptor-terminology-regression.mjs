@@ -46,7 +46,7 @@ const moduleDefinition = {
       id: "lists-workspace",
       moduleId: "lists",
       viewId: "lists",
-      layout: "split-list-detail",
+      layout: "stacked",
       pageHeader: {
         title: "Lists",
         titleKey: "plural",

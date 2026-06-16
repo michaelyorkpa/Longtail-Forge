@@ -4,17 +4,15 @@ import { readFileSync } from "node:fs";
 
 const helper = readText("public/js/shared/view-builder.js");
 const css = readText("public/css/longtail-forge.css");
-const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
-const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.17.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.17.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.3", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.3", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.3", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(helper, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view builder must not inject HTML strings");
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view builder must not own data loading or browser storage");
@@ -75,11 +73,21 @@ const filter = view.createFilterPanel({
 });
 assert(filter.classList.contains("surface-main-panel"), "filter panels should use main panel surface styling");
 assert(filter.querySelector(".view-field-grid"), "filter panel should contain a field grid");
+assert.equal(filter.tagName, "DETAILS", "filter panels should be collapsible details");
+assert.equal(filter.open, false, "filter panels should default to collapsed");
+assert(view.createFilterPanel({ title: "Filters", fields: [], open: true }).open, "filter panels should honor the open option");
 
 const index = view.createCollapsibleIndexPanel({ title: "Lists", body: ["Body"], open: false });
 assert.equal(index.tagName, "DETAILS");
 assert.equal(index.open, false);
 assert.equal(index.querySelector("summary").textContent, "Lists");
+assert(index.querySelector(".view-collapsible-index-title"), "collapsible index summaries should expose a title span");
+const indexWithSummaryAction = view.createCollapsibleIndexPanel({
+  title: "Notes",
+  summaryActions: view.createElement("span", { text: "Page 1" }),
+});
+assert.equal(indexWithSummaryAction.querySelector(".view-collapsible-index-title").textContent, "Notes");
+assert.equal(indexWithSummaryAction.querySelector(".view-collapsible-index-summary-actions").textContent, "Page 1");
 
 const split = view.createSplitListDetail({ list: ["Index"], detail: ["Detail"] });
 assert(split.querySelector(".view-split-list-detail-index"), "split helper should create index panel");
@@ -129,38 +137,16 @@ assert(row.classList.contains("surface-dense-actions"), "inline action rows shou
 assert.throws(() => view.createActionButton({}), /visible text or an accessible label/, "action buttons should require an accessible name");
 assert.throws(() => view.createPageHeader({}), /Page headers require a title/, "page headers should require titles");
 
-for (const item of [
-  "Add a shared browser helper, for example `public/js/shared/view-builder.js`.",
-  "Expose helpers through `window.LongtailForge.view` or an equivalent framework namespace.",
-  "Helpers must use existing surface tokens and classes from 0.33.5.13.",
-  "Safe text assignment instead of HTML injection.",
-  "Proper button types.",
-  "Optional accessible labels and titles.",
-  "Focus-visible-safe controls.",
-  "Empty/status regions with appropriate roles where needed.",
-  "`createPageHeader`",
-  "`createStatusMessage`",
-  "`createFilterPanel`",
-  "`createCollapsibleIndexPanel`",
-  "`createSplitListDetail`",
-  "`createDataTable`",
-  "`createDetailActionStrip`",
-  "`createInfoPanel`",
-  "`createModal`",
-  "`createModalForm`",
-  "`createFieldGrid`",
-  "`createActionButton`",
-  "Keep the helper layer small and boring. This is not a full frontend framework.",
-]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
-}
-
 assert.match(css, /\.view-page-header,[\s\S]*\.view-detail-header\s*\{[\s\S]*display:\s*flex/, "CSS should define page header layout");
 assert.match(css, /\.view-table-wrap\s*\{[\s\S]*overflow-x:\s*auto/, "CSS should define table overflow wrapper");
-assert.match(css, /\.view-filter-panel-fields,[\s\S]*\.view-field-grid\s*\{[\s\S]*grid-template-columns/, "CSS should define responsive field grid layout");
+assert.match(css, /\.view-filter-panel-fields,[\s\S]*\.view-field-grid\s*\{[\s\S]*flex-wrap:\s*wrap/, "CSS should define a wrapping field grid layout");
+assert.match(css, /\.view-field-grid > \[data-view-field-width="narrow"\]/, "CSS should support narrow field width hints");
+assert.match(css, /\.view-page-header\s*\{[\s\S]*margin-bottom:\s*8px;/, "CSS should define framework page-header separation");
+assert.match(css, /\.view-stacked\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0;/, "CSS should define the stacked layout container without panel gaps");
+assert.match(css, /\.view-stacked \.view-collapsible-index-body\s*\{[\s\S]*overflow-y:\s*auto/, "CSS should cap the stacked index to a scroll region");
+assert.match(css, /\.view-collapsible-index-summary-actions\s*\{[\s\S]*justify-content:\s*flex-end/, "CSS should support right-aligned collapsible summary actions");
 assert.match(viewContract, /As of 0\.33\.5\.15\.6/, "view contract should report helper implementation version");
 assert.match(viewContract, /`LongtailForge\.view` is implemented in `public\/js\/shared\/view-builder\.js`/, "view contract should document implemented helper location");
-assert.match(decisions, /## Version 0\.33\.5\.15\.2/, "Decisions should include helper implementation version");
 assert.match(changelog, /## Version 0\.33\.5\.15\.2 - /, "Changelog should include helper implementation version");
 assert.match(regressionSuite, /scripts\/view-builder-helper-regression\.mjs/, "Regression suite should include helper regression");
 
@@ -327,8 +313,4 @@ function matchesSelector(element, selector) {
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -1,4 +1,5 @@
 const api = window.LongtailForge.api;
+const view = window.LongtailForge.view;
 const PAGE_SIZE = 12;
 const BUCKET_LABELS = {
   active_work: "Active Work",
@@ -31,6 +32,8 @@ const LINK_TARGET_TYPE_LABELS = {
 };
 const LINK_TARGET_TYPE_ORDER = ["workspace", "client", "project", "task", "user"];
 
+buildNotesViewShell();
+
 const statusMessage = document.querySelector("[data-notes-status]");
 const bucketTabs = [...document.querySelectorAll("[data-notes-bucket]")];
 const filtersForm = document.querySelector("[data-notes-filters]");
@@ -45,7 +48,6 @@ const tagFilter = document.querySelector("[data-note-filter-tags]");
 const updatedFilter = document.querySelector("[data-note-filter-updated]");
 const sortSelect = document.querySelector("[data-note-sort]");
 const notesList = document.querySelector("[data-notes-list]");
-const listTitle = document.querySelector("[data-notes-list-title]");
 const detailPanel = document.querySelector("[data-note-detail]");
 const createButton = document.querySelector("[data-note-create]");
 const prevButton = document.querySelector("[data-notes-prev]");
@@ -130,11 +132,15 @@ filtersForm?.addEventListener("change", () => {
   renderNotes();
 });
 sortSelect?.addEventListener("change", renderNotes);
-prevButton?.addEventListener("click", () => {
+prevButton?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
   state.page = Math.max(1, state.page - 1);
   renderNotes();
 });
-nextButton?.addEventListener("click", () => {
+nextButton?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
   state.page += 1;
   renderNotes();
 });
@@ -160,6 +166,255 @@ contextApplyButton?.addEventListener("click", () => applyEditorLinkTarget());
 document.querySelector("[data-note-editor-toolbar]")?.addEventListener("click", handleEditorCommand);
 
 initialize();
+
+function buildNotesViewShell() {
+  const host = document.querySelector("[data-notes-host]");
+  if (!host || host.querySelector("[data-notes-list]")) {
+    return;
+  }
+  if (!view) {
+    throw new Error("Notes requires LongtailForge.view to build the protected workspace.");
+  }
+  registerNotesViewBehaviors();
+  const descriptor = notesViewSurfaceDescriptor();
+  const surface = view.renderSurface({ ...descriptor, dataSource: null }, host);
+  decorateNotesDeclarativeSurface(surface);
+}
+
+function registerNotesViewBehaviors() {
+  if (typeof view.registerBehavior !== "function") {
+    return;
+  }
+  view.registerBehavior("notes.create", () => openEditor());
+}
+
+function notesViewSurfaceDescriptor() {
+  const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
+  return surfaces.find((surface) => surface.id === "notes.workspace" && surface.moduleId === "notes")
+    || fallbackNotesViewSurfaceDescriptor();
+}
+
+function fallbackNotesViewSurfaceDescriptor() {
+  return {
+    id: "notes.workspace",
+    moduleId: "notes",
+    viewId: "notes",
+    layout: "stacked",
+    pageHeader: {
+      title: "Notes",
+      primaryAction: {
+        id: "create-note",
+        label: "Create Note",
+        role: "primary",
+        behavior: "notes.create",
+      },
+    },
+    filters: [
+      notesDescriptorSelect("status", "Status", [["active", "Active", true], ["pinned", "Pinned"], ["archived", "Archived"], ["all", "All visible"]]),
+      notesDescriptorSelect("visibility", "Visibility", [["all", "All visible", true], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"]]),
+      notesDescriptorSelect("security", "Security", [["all", "All", true], ["normal", "Normal"], ["secure", "Secure"]]),
+      notesDescriptorSelect("noteType", "Note Kind", [["all", "All kinds", true], ...Object.entries(NOTE_KIND_LABELS).filter(([value]) => !LEGACY_NOTE_KINDS.has(value)).map(([value, label]) => [value, label])]),
+      { id: "context-filter", field: "context", type: "search", label: "Context ID" },
+      { id: "owner-filter", field: "owner", type: "search", label: "Owner ID" },
+      { id: "tags-filter", field: "tags", type: "search", label: "Tags" },
+      { id: "updated-filter", field: "updatedSince", type: "date", label: "Updated Since" },
+      notesDescriptorSelect("sort", "Sort", [["updated_desc", "Updated", true], ["created_desc", "Created"], ["title_asc", "Title"], ["library_asc", "Library"], ["type_asc", "Note Kind"]]),
+    ],
+    indexPanel: {
+      title: "Notes",
+      emptyState: { message: "No notes match the current filters." },
+    },
+    detail: {
+      header: { titleField: "title", metaField: "library" },
+      emptyState: { message: "Select a note to read its details." },
+    },
+    dataSource: {
+      route: "/api/notes",
+      method: "GET",
+      fieldBindings: { id: "note_id", title: "title" },
+    },
+  };
+}
+
+function notesDescriptorSelect(field, label, options) {
+  return { id: `${field}-filter`, field, type: "select", label, options };
+}
+
+function decorateNotesDeclarativeSurface(surface) {
+  const createAction = surface.querySelector('[data-surface-action="notes.create"], [data-surface-action="create-note"]');
+  if (createAction) {
+    createAction.dataset.noteCreate = "";
+  }
+
+  const header = surface.querySelector(".view-page-header");
+  const status = view.createStatusMessage({ className: "notes-status-message" });
+  status.dataset.notesStatus = "";
+  header?.after(status);
+
+  const filterForm = surface.querySelector("[data-view-filter-form]");
+  if (filterForm) {
+    filterForm.classList.add("notes-filters");
+    filterForm.dataset.notesFilters = "";
+  }
+  decorateNotesFilter(surface, "status", "noteFilterStatus");
+  decorateNotesFilter(surface, "visibility", "noteFilterVisibility");
+  decorateNotesFilter(surface, "security", "noteFilterSecurity");
+  decorateNotesFilter(surface, "noteType", "noteFilterType");
+  decorateNotesFilter(surface, "context", "noteFilterContext");
+  decorateNotesFilter(surface, "owner", "noteFilterOwner");
+  decorateNotesFilter(surface, "tags", "noteFilterTags");
+  decorateNotesFilter(surface, "updatedSince", "noteFilterUpdated");
+  decorateNotesFilter(surface, "sort", "noteSort");
+
+  const indexPanel = surface.querySelector(".view-collapsible-index");
+  indexPanel?.classList.add("notes-index-panel");
+  const summary = indexPanel?.querySelector("summary");
+  if (summary) {
+    const summaryTitle = summary.querySelector(".view-collapsible-index-title") || summary;
+    summaryTitle.textContent = "Notes List";
+    summary.classList.add("has-summary-actions");
+    summary.appendChild(createNotesPagination());
+  }
+  const indexBody = indexPanel?.querySelector(".view-collapsible-index-body");
+  indexBody?.replaceChildren(createNotesListChrome());
+  indexPanel?.before(createNotesLibraryPanel());
+
+  const detail = surface.querySelector(".view-stacked-detail");
+  if (detail) {
+    detail.classList.add("notes-detail-panel");
+    detail.dataset.noteDetail = "";
+    detail.replaceChildren();
+  }
+}
+
+function decorateNotesFilter(surface, fieldName, datasetName) {
+  const wrapper = surface.querySelector(`[data-view-field="${fieldName}"]`);
+  const control = wrapper?.querySelector(`[data-view-input="${fieldName}"]`);
+  if (control) {
+    control.dataset[datasetName] = "";
+  }
+}
+
+function createNotesLibraryPanel() {
+  const panel = view.createCollapsibleIndexPanel({
+    title: "Library",
+    className: "notes-library-panel",
+    children: [createNotesLibraryChrome()],
+  });
+  panel.open = true;
+  return panel;
+}
+
+function createNotesLibraryChrome() {
+  const wrap = view.createElement("div", { className: "notes-library-chrome" });
+
+  const toolbar = view.createElement("div", { className: "notes-library-toolbar" });
+  const tabs = view.createElement("div", {
+    className: "notes-library-tabs",
+    attrs: { role: "tablist", "aria-label": "Library buckets" },
+  });
+  [["all", "All"], ["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"], ["archive", "Archive"]].forEach(([bucket, label]) => {
+    const button = view.createElement("button", {
+      text: label,
+      attrs: { type: "button", "aria-pressed": bucket === "all" ? "true" : "false" },
+    });
+    button.dataset.notesBucket = bucket;
+    tabs.appendChild(button);
+  });
+  const collectionCreate = notesIconButton({
+    icon: "library-add",
+    label: "New collection",
+    title: "New collection",
+  });
+  collectionCreate.dataset.noteCollectionCreate = "";
+  toolbar.append(tabs, collectionCreate);
+  wrap.appendChild(toolbar);
+
+  const collections = view.createElement("section", {
+    className: "notes-collections-panel",
+    attrs: { "aria-label": "Notes Collections" },
+  });
+  collections.dataset.notesCollectionsPanel = "";
+
+  const collectionControls = view.createElement("div", { className: "notes-collection-controls" });
+  const libraryLabel = view.createElement("label", { text: "Library" });
+  const librarySelect = view.createElement("select");
+  librarySelect.dataset.noteCollectionLibraryFilter = "";
+  [["all", "All Libraries"], ["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]].forEach(([value, label]) => {
+    librarySelect.appendChild(notesOptionElement(value, label));
+  });
+  libraryLabel.appendChild(librarySelect);
+  const pickerRow = view.createElement("div", { className: "notes-collection-picker-row" });
+  pickerRow.appendChild(libraryLabel);
+  const collectionLabel = view.createElement("label", { text: "Collection" });
+  const collectionSelect = view.createElement("select");
+  collectionSelect.dataset.noteFilterCollection = "";
+  collectionSelect.appendChild(notesOptionElement("", "All collections"));
+  collectionLabel.appendChild(collectionSelect);
+  pickerRow.appendChild(collectionLabel);
+  const collectionActions = view.createElement("span");
+  collectionActions.dataset.noteCollectionActions = "";
+  pickerRow.appendChild(collectionActions);
+  collectionControls.appendChild(pickerRow);
+  collections.appendChild(collectionControls);
+  wrap.appendChild(collections);
+  return wrap;
+}
+
+function createNotesListChrome() {
+  const wrap = view.createElement("div", { className: "notes-index-chrome" });
+  const list = view.createElement("div", { className: "notes-list" });
+  list.dataset.notesList = "";
+  wrap.appendChild(list);
+
+  return wrap;
+}
+
+function createNotesPagination() {
+  const pagination = view.createElement("div", { className: "notes-pagination" });
+  const prev = notesIconButton({
+    icon: "previous",
+    label: "Previous page",
+    title: "Previous page",
+  });
+  prev.disabled = true;
+  prev.dataset.notesPrev = "";
+  const pageEl = view.createElement("span", { text: "Page 1" });
+  pageEl.dataset.notesPage = "";
+  const next = notesIconButton({
+    icon: "next",
+    label: "Next page",
+    title: "Next page",
+  });
+  next.disabled = true;
+  next.dataset.notesNext = "";
+  pagination.append(prev, pageEl, next);
+  return pagination;
+}
+
+function notesIconButton(options) {
+  if (window.LongtailForge.icons?.createIconButton) {
+    return window.LongtailForge.icons.createIconButton({
+      ...options,
+      text: "",
+      iconOnly: true,
+    });
+  }
+  const button = view.createElement("button", {
+    text: options.label || options.title || "",
+    attrs: {
+      type: "button",
+      "aria-label": options.label || options.title || "",
+      title: options.title || options.label || "",
+    },
+  });
+  button.classList.add("icon-button");
+  return button;
+}
+
+function notesOptionElement(value, label) {
+  return view.createElement("option", { text: label, attrs: { value } });
+}
 
 async function initialize() {
   setStatus("Loading notes...");
@@ -258,7 +513,6 @@ function renderNotes() {
   const pageStart = (state.page - 1) * PAGE_SIZE;
   const pageNotes = notes.slice(pageStart, pageStart + PAGE_SIZE);
 
-  listTitle.textContent = bucketTitle();
   pageLabel.textContent = `Page ${state.page} of ${totalPages}`;
   prevButton.disabled = state.page <= 1;
   nextButton.disabled = state.page >= totalPages;
@@ -426,10 +680,9 @@ function noteListItem(note) {
   const button = document.createElement("button");
   const heading = document.createElement("span");
   const title = document.createElement("strong");
-  const badges = document.createElement("span");
   const meta = document.createElement("span");
-  const excerpt = document.createElement("span");
   const footer = document.createElement("span");
+  const chipStrip = tagChips(note.tags || [], { limit: 2, showOverflow: true });
 
   button.type = "button";
   button.className = "notes-list-item";
@@ -441,9 +694,9 @@ function noteListItem(note) {
 
   heading.className = "notes-list-heading";
   title.textContent = note.title || "Untitled note";
-  badges.className = "notes-list-badges";
+  chipStrip.classList.add("notes-list-chip-strip");
   if (isSecureNote(note)) {
-    badges.append(statusBadge("Secure"));
+    chipStrip.prepend(statusBadge("Secure"));
   }
   meta.className = "notes-list-meta";
   meta.textContent = [
@@ -452,10 +705,8 @@ function noteListItem(note) {
     noteKindLabel(note.note_type),
     formatToken(note.status),
   ].filter(Boolean).join(" - ");
-  heading.append(title, badges, meta);
+  heading.append(title, meta);
 
-  excerpt.className = "notes-list-excerpt";
-  excerpt.textContent = isSecureNote(note) ? "Secure note body hidden from previews." : note.body_excerpt || "";
   footer.className = "notes-list-footer";
   footer.textContent = [
     formatToken(note.visibility),
@@ -463,7 +714,7 @@ function noteListItem(note) {
     formatDate(note.updated_at),
   ].filter(Boolean).join(" - ");
 
-  button.append(heading, excerpt, footer, tagChips(note.tags || []));
+  button.append(heading, chipStrip, footer);
   return button;
 }
 
@@ -475,6 +726,7 @@ async function selectNote(noteId) {
     state.selectedNote = result.note;
     renderDetail(result.note);
     renderNotes();
+    collapseNotesNavigationPanels();
     updateUrl(noteId);
     setStatus("");
   } catch (error) {
@@ -482,6 +734,11 @@ async function selectNote(noteId) {
     renderDetailPrompt(message, { locked: isSecureError(error) });
     setStatus(message, true);
   }
+}
+
+function collapseNotesNavigationPanels() {
+  document.querySelector(".notes-library-panel")?.removeAttribute("open");
+  document.querySelector(".notes-index-panel")?.removeAttribute("open");
 }
 
 function renderDetail(note) {
@@ -1364,16 +1621,6 @@ function updateUrlCollection() {
   window.history.replaceState({}, "", url);
 }
 
-function bucketTitle() {
-  return {
-    all: "All Notes",
-    active_work: "Active Work",
-    ongoing_area: "Ongoing Areas",
-    reference: "Reference Library",
-    archive: "Archive",
-  }[state.activeBucket] || "Notes";
-}
-
 function noteKindLabel(value) {
   return NOTE_KIND_LABELS[value] || formatToken(value);
 }
@@ -1733,9 +1980,12 @@ function statusBadge(label) {
   return badge;
 }
 
-function tagChips(tags = []) {
+function tagChips(tags = [], options = {}) {
   const wrapper = document.createElement("span");
   const normalizedTags = Array.isArray(tags) ? tags : [];
+  const limit = Number.isInteger(options.limit) && options.limit >= 0 ? options.limit : normalizedTags.length;
+  const visibleTags = normalizedTags.slice(0, limit);
+  const hiddenCount = Math.max(0, normalizedTags.length - visibleTags.length);
 
   wrapper.className = "notes-tag-list";
   if (normalizedTags.length === 0) {
@@ -1743,7 +1993,7 @@ function tagChips(tags = []) {
     return wrapper;
   }
 
-  normalizedTags.forEach((tag) => {
+  visibleTags.forEach((tag) => {
     const chip = document.createElement("span");
     const swatch = document.createElement("span");
     const label = document.createElement("span");
@@ -1756,6 +2006,15 @@ function tagChips(tags = []) {
     chip.append(swatch, label);
     wrapper.append(chip);
   });
+
+  if (options.showOverflow && hiddenCount > 0) {
+    const overflow = document.createElement("span");
+
+    overflow.className = "tag-chip notes-tag-overflow";
+    overflow.textContent = "...";
+    overflow.title = `${hiddenCount} more ${hiddenCount === 1 ? "tag" : "tags"}`;
+    wrapper.append(overflow);
+  }
 
   return wrapper;
 }

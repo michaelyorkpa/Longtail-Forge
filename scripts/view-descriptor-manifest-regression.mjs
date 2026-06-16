@@ -87,8 +87,25 @@ const invalidLayoutErrors = validateModuleManifest(createModule({
 }));
 assert.match(
   invalidLayoutErrors.join("\n"),
-  /viewSurfaces\[0\]\.layout must be single-column, split-list-detail, or table-page/,
+  /viewSurfaces\[0\]\.layout must be single-column, stacked, or table-page/,
   "Unsupported layouts should fail before a renderer exists",
+);
+
+const invalidIndexSelectionErrors = validateModuleManifest(createModule({
+  viewSurfaces: [
+    {
+      ...validSurface(),
+      indexPanel: {
+        title: "Samples",
+        initialSelection: "latest",
+      },
+    },
+  ],
+}));
+assert.match(
+  invalidIndexSelectionErrors.join("\n"),
+  /viewSurfaces\[0\]\.indexPanel\.initialSelection must be first or none/,
+  "Index panel initial selection should be constrained to framework-known values",
 );
 
 console.log("View descriptor manifest regression passed.");
@@ -140,6 +157,11 @@ function validSurface() {
         default: "active",
       },
     ],
+    indexPanel: {
+      title: "Sample Selector",
+      initialSelection: "none",
+      collapseOnSelect: true,
+    },
     table: {
       columns: [
         {

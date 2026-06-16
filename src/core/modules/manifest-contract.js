@@ -65,7 +65,7 @@ const SETTING_FIELD_TYPES = new Set(["boolean", "text", "number", "select", "mul
 const NOTIFICATION_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 const NOTIFICATION_RECIPIENT_MODES = new Set(["actor", "assignees", "workspace_admins", "explicit_users"]);
 const TERMINOLOGY_WORKSPACE_TYPES = new Set(["default", "business", "personal", "family"]);
-const VIEW_SURFACE_LAYOUTS = new Set(["single-column", "split-list-detail", "table-page"]);
+const VIEW_SURFACE_LAYOUTS = new Set(["single-column", "stacked", "table-page"]);
 const VIEW_SURFACE_FIELDS = new Set([
   "id",
   "moduleId",
@@ -79,11 +79,15 @@ const VIEW_SURFACE_FIELDS = new Set([
   "modals",
   "dataSource",
   "actions",
+  "regions",
 ]);
 const VIEW_LABEL_FIELDS = new Set(["label", "labelKey", "title", "titleKey", "description", "descriptionKey"]);
 const VIEW_PAGE_HEADER_FIELDS = new Set([...VIEW_LABEL_FIELDS, "primaryAction"]);
-const VIEW_FILTER_FIELDS = new Set(["id", "field", "type", "label", "labelKey", "options", "optionsSource", "default"]);
-const VIEW_INDEX_PANEL_FIELDS = new Set([...VIEW_LABEL_FIELDS, "items", "itemTitleField", "itemSubtitleField", "itemMetaFields", "emptyState"]);
+const VIEW_FILTER_FIELDS = new Set(["id", "field", "type", "label", "labelKey", "options", "optionsSource", "default", "queryKey"]);
+const VIEW_REGION_FIELDS = new Set([...VIEW_LABEL_FIELDS, "id", "behavior", "placement", "className", "ariaLabel"]);
+const VIEW_CHIP_FIELDS = new Set(["field", "label", "labelKey"]);
+const VIEW_VISIBLE_WHEN_FIELDS = new Set(["field", "equals", "in", "truthy", "falsy"]);
+const VIEW_INDEX_PANEL_FIELDS = new Set([...VIEW_LABEL_FIELDS, "items", "itemTitleField", "itemSubtitleField", "itemMetaFields", "emptyState", "initialSelection", "collapseOnSelect"]);
 const VIEW_TABLE_FIELDS = new Set(["columns", "rowActions", "emptyState", "overflow"]);
 const VIEW_TABLE_COLUMN_FIELDS = new Set(["id", "field", "label", "labelKey", "formatter", "width", "widthHint", "align"]);
 const VIEW_DETAIL_FIELDS = new Set([
@@ -96,6 +100,7 @@ const VIEW_DETAIL_FIELDS = new Set([
   "itemForm",
   "itemRows",
   "emptyState",
+  "regions",
 ]);
 const VIEW_MODAL_FIELDS = new Set(["id", "label", "labelKey", "title", "titleKey", "fields", "footerActions", "actions"]);
 const VIEW_FIELD_FIELDS = new Set([
@@ -116,8 +121,20 @@ const VIEW_FIELD_FIELDS = new Set([
   "placement",
   "behavior",
   "hidden",
+  "width",
 ]);
-const VIEW_ITEM_ROWS_FIELDS = new Set(["itemsField", "columns", "actions", "emptyState"]);
+const VIEW_ITEM_ROWS_FIELDS = new Set([
+  "itemsField",
+  "columns",
+  "actions",
+  "emptyState",
+  "itemTitleField",
+  "itemSubtitleField",
+  "chips",
+  "metaFields",
+  "rowActions",
+  "actionsLabel",
+]);
 const VIEW_ITEM_ROW_COLUMN_FIELDS = new Set(["id", "field", "label", "labelKey", "type", "formatter"]);
 const VIEW_LINKED_RECORDS_FIELDS = new Set([
   "title",
@@ -142,6 +159,7 @@ const VIEW_ACTION_FIELDS = new Set([
   "confirm",
   "requiredPermissions",
   "behavior",
+  "visibleWhen",
 ]);
 const VIEW_ACTION_ROLES = new Set(["primary", "secondary", "destructive", "utility"]);
 const CORE_PERMISSION_IDS = new Set([
@@ -440,7 +458,7 @@ function validateViewSurfaces(viewSurfaces, errors) {
     requireString(surface, "viewId", errors, { prefix });
     requireString(surface, "layout", errors, { prefix });
     if (typeof surface.layout === "string" && !VIEW_SURFACE_LAYOUTS.has(surface.layout)) {
-      errors.push(`${prefix}.layout must be single-column, split-list-detail, or table-page.`);
+      errors.push(`${prefix}.layout must be single-column, stacked, or table-page.`);
     }
     validateDataSourceDescriptor(surface.dataSource, `${prefix}.dataSource`, errors, { required: true });
     validatePageHeaderDescriptor(surface.pageHeader, `${prefix}.pageHeader`, errors);
@@ -450,6 +468,7 @@ function validateViewSurfaces(viewSurfaces, errors) {
     validateDetailDescriptor(surface.detail, `${prefix}.detail`, errors);
     validateModalsDescriptor(surface.modals, `${prefix}.modals`, errors);
     validateActionsDescriptor(surface.actions, `${prefix}.actions`, errors);
+    validateRegionsDescriptor(surface.regions, `${prefix}.regions`, errors);
   });
 }
 
@@ -489,6 +508,7 @@ function listViewSurfaceActions(surface, prefix) {
   collectActionArray(surface?.detail?.actionStrip?.actions, `${prefix}.detail.actionStrip.actions`, actions);
   collectActionArray(surface?.detail?.itemForm?.actions, `${prefix}.detail.itemForm.actions`, actions);
   collectActionArray(surface?.detail?.itemRows?.actions, `${prefix}.detail.itemRows.actions`, actions);
+  collectActionArray(surface?.detail?.itemRows?.rowActions, `${prefix}.detail.itemRows.rowActions`, actions);
   collectActionArray(surface?.detail?.linkedRecords?.actions, `${prefix}.detail.linkedRecords.actions`, actions);
   for (const [modalIndex, modal] of (Array.isArray(surface?.modals) ? surface.modals : []).entries()) {
     collectActionArray(modal?.footerActions, `${prefix}.modals[${modalIndex}].footerActions`, actions);
@@ -572,6 +592,20 @@ function validateFiltersDescriptor(filters, prefix, errors) {
     validateLabelDescriptor(filter, filterPrefix, errors);
     optionalArray(filter, "options", errors);
     optionalString(filter, "optionsSource", errors, { prefix: filterPrefix });
+    optionalString(filter, "queryKey", errors, { prefix: filterPrefix });
+  });
+}
+
+function validateRegionsDescriptor(regions, prefix, errors) {
+  optionalArrayOfObjects(regions, prefix, errors, (region, index) => {
+    const regionPrefix = `${prefix}[${index}]`;
+    validateKnownObjectFields(region, VIEW_REGION_FIELDS, regionPrefix, errors);
+    requireString(region, "id", errors, { prefix: regionPrefix });
+    requireString(region, "behavior", errors, { prefix: regionPrefix });
+    validateLabelDescriptor(region, regionPrefix, errors);
+    optionalString(region, "placement", errors, { prefix: regionPrefix });
+    optionalString(region, "className", errors, { prefix: regionPrefix });
+    optionalString(region, "ariaLabel", errors, { prefix: regionPrefix });
   });
 }
 
@@ -590,6 +624,11 @@ function validateIndexPanelDescriptor(indexPanel, prefix, errors) {
   optionalString(indexPanel, "itemSubtitleField", errors, { prefix });
   optionalStringArray(indexPanel, "itemMetaFields", errors, { prefix });
   optionalPlainObject(indexPanel, "emptyState", errors, { prefix });
+  optionalString(indexPanel, "initialSelection", errors, { prefix });
+  if (typeof indexPanel.initialSelection === "string" && !["first", "none"].includes(indexPanel.initialSelection)) {
+    errors.push(`${prefix}.initialSelection must be first or none.`);
+  }
+  optionalBoolean(indexPanel, "collapseOnSelect", errors, { prefix });
 }
 
 function validateTableDescriptor(table, prefix, errors) {
@@ -632,6 +671,7 @@ function validateDetailDescriptor(detail, prefix, errors) {
   validateLinkedRecordsDescriptor(detail.linkedRecords, `${prefix}.linkedRecords`, errors);
   validateItemFormDescriptor(detail.itemForm, `${prefix}.itemForm`, errors);
   validateItemRowsDescriptor(detail.itemRows, `${prefix}.itemRows`, errors);
+  validateRegionsDescriptor(detail.regions, `${prefix}.regions`, errors);
   optionalArrayOfObjects(detail.summaryPanels, `${prefix}.summaryPanels`, errors, (panel, panelIndex) => {
     const panelPrefix = `${prefix}.summaryPanels[${panelIndex}]`;
     validateKnownObjectFields(panel, VIEW_LABEL_FIELDS, panelPrefix, errors);
@@ -705,6 +745,16 @@ function validateItemRowsDescriptor(itemRows, prefix, errors) {
   }
   validateKnownObjectFields(itemRows, VIEW_ITEM_ROWS_FIELDS, prefix, errors);
   optionalString(itemRows, "itemsField", errors, { prefix });
+  optionalString(itemRows, "itemTitleField", errors, { prefix });
+  optionalString(itemRows, "itemSubtitleField", errors, { prefix });
+  optionalString(itemRows, "actionsLabel", errors, { prefix });
+  optionalStringArray(itemRows, "metaFields", errors, { prefix });
+  optionalArrayOfObjects(itemRows.chips, `${prefix}.chips`, errors, (chip, chipIndex) => {
+    const chipPrefix = `${prefix}.chips[${chipIndex}]`;
+    validateKnownObjectFields(chip, VIEW_CHIP_FIELDS, chipPrefix, errors);
+    requireString(chip, "field", errors, { prefix: chipPrefix });
+    validateLabelDescriptor(chip, chipPrefix, errors);
+  });
   optionalArrayOfObjects(itemRows.columns, `${prefix}.columns`, errors, (column, columnIndex) => {
     const columnPrefix = `${prefix}.columns[${columnIndex}]`;
     validateKnownObjectFields(column, VIEW_ITEM_ROW_COLUMN_FIELDS, columnPrefix, errors);
@@ -715,6 +765,7 @@ function validateItemRowsDescriptor(itemRows, prefix, errors) {
     optionalString(column, "formatter", errors, { prefix: columnPrefix });
   });
   validateActionsDescriptor(itemRows.actions, `${prefix}.actions`, errors);
+  validateActionsDescriptor(itemRows.rowActions, `${prefix}.rowActions`, errors);
   optionalPlainObject(itemRows, "emptyState", errors, { prefix });
 }
 
@@ -784,6 +835,17 @@ function validateActionDescriptor(action, prefix, errors) {
   optionalString(action, "behavior", errors, { prefix });
   optionalStringArray(action, "requiredPermissions", errors, { prefix });
   optionalPlainObject(action, "confirm", errors, { prefix });
+  if (action.visibleWhen !== undefined) {
+    if (!isPlainObject(action.visibleWhen)) {
+      errors.push(`${prefix}.visibleWhen must be an object.`);
+    } else {
+      validateKnownObjectFields(action.visibleWhen, VIEW_VISIBLE_WHEN_FIELDS, `${prefix}.visibleWhen`, errors);
+      requireString(action.visibleWhen, "field", errors, { prefix: `${prefix}.visibleWhen` });
+      optionalArray(action.visibleWhen, "in", errors);
+      optionalBoolean(action.visibleWhen, "truthy", errors, { prefix: `${prefix}.visibleWhen` });
+      optionalBoolean(action.visibleWhen, "falsy", errors, { prefix: `${prefix}.visibleWhen` });
+    }
+  }
 }
 
 function validateLabelDescriptor(object, prefix, errors) {

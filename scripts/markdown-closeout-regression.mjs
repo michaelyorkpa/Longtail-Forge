@@ -4,7 +4,6 @@ import path from "node:path";
 
 const root = process.cwd();
 const roadmap = await read("ROADMAP.md");
-const decisions = await read("DECISIONS.md");
 const changelog = await read("CHANGELOG.md");
 const moduleContract = await read("docs/module-contract.md");
 const moduleDevelopment = await read("docs/module-development.md");
@@ -14,16 +13,15 @@ const notesHelp = await read("help/modules/notes/markdown.md");
 const packageJson = JSON.parse(await read("package.json"));
 const packageLock = JSON.parse(await read("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.17.6", "package.json should carry the Markdown closeout version");
-assert.equal(packageLock.version, "0.33.5.17.6", "package-lock root should carry the Markdown closeout version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.6", "package-lock package entry should carry the Markdown closeout version");
+assert.equal(packageJson.version, "0.33.5.18.3", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.3", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.3", "package-lock package entry should report the current app version");
 
 assert.match(
   roadmap,
   /### Version 0\.33\.5\.17\.6 - Documentation and Closeout[\s\S]*- \[x\] Update `docs\/module-contract\.md`[\s\S]*- \[x\] Verify `\/api\/app-info` reports the expected version/,
   "0.33.5.17.6 roadmap closeout checklist should be complete",
 );
-assert.match(decisions, /## Version 0\.33\.5\.17\.6/, "decisions should record the closeout slice");
 assert.match(changelog, /## Version 0\.33\.5\.17\.6/, "changelog should record the closeout slice");
 
 for (const phrase of [

@@ -40,6 +40,13 @@
       { type: "path", attrs: { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" } },
       { type: "path", attrs: { d: "M14 2v6h6" } },
     ]),
+    "library-add": Object.freeze([
+      { type: "path", attrs: { d: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20" } },
+      { type: "path", attrs: { d: "M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5Z" } },
+      { type: "path", attrs: { d: "M9 6h5" } },
+      { type: "path", attrs: { d: "M12 10v6" } },
+      { type: "path", attrs: { d: "M9 13h6" } },
+    ]),
     more: Object.freeze([
       { type: "circle", attrs: { cx: "12", cy: "12", r: "1" } },
       { type: "circle", attrs: { cx: "19", cy: "12", r: "1" } },
@@ -49,6 +56,8 @@
       { type: "rect", attrs: { x: "6", y: "4", width: "4", height: "16", rx: "1" } },
       { type: "rect", attrs: { x: "14", y: "4", width: "4", height: "16", rx: "1" } },
     ]),
+    previous: Object.freeze([{ type: "path", attrs: { d: "m15 18-6-6 6-6" } }]),
+    next: Object.freeze([{ type: "path", attrs: { d: "m9 18 6-6-6-6" } }]),
     refresh: Object.freeze([
       { type: "path", attrs: { d: "M3 12a9 9 0 0 1 15.5-6.2L21 8" } },
       { type: "path", attrs: { d: "M21 3v5h-5" } },

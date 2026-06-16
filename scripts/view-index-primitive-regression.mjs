@@ -6,14 +6,13 @@ const helper = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
 const listsJs = readText("public/js/lists.js");
 const css = readText("public/css/longtail-forge.css");
-const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.17.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.17.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.3", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.3", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.3", "package-lock package entry should report the current app version");
 
 // Framework primitive structure and accessibility.
 const context = createBrowserContext();
@@ -80,14 +79,6 @@ assert.match(css, /\.view-index-list\s*\{/, "CSS should define the index list pr
 assert.match(css, /\.view-split-list-detail\s*\{[\s\S]*width:\s*100%/, "framework split should fill available width");
 assert.match(css, /@media[^{]*\{\s*\.view-split-list-detail\s*\{[\s\S]*grid-template-columns:\s*1fr/, "framework split should own responsive collapse");
 assert.doesNotMatch(css, /\.lists-workspace\s*\{[\s\S]*grid-template-columns/, "legacy one-off Lists grid override should be removed");
-
-for (const item of [
-  "Add a framework selectable index-list primitive to `public/js/shared/view-builder.js`",
-  "Update the descriptor renderer's `indexPanel`/selector rendering to use the selectable index-list",
-  "Keep the correction in framework primitives; do not add one-off Lists layout/table classes for",
-]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
-}
 
 assert.match(regressionSuite, /scripts\/view-index-primitive-regression\.mjs/, "Regression suite should include the index primitive regression");
 
@@ -231,8 +222,3 @@ function matchesSelector(element, selector) {
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-

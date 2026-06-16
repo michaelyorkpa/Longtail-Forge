@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
-const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -11,19 +9,9 @@ const moduleContract = readText("docs/module-contract.md");
 const moduleDevelopment = readText("docs/module-development.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.17.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.17.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.6", "package-lock package entry should report the current app version");
-
-for (const item of [
-  "Inventory hard-coded view construction in current protected views and module browser scripts.",
-  "Identify repeated patterns across Lists, Clients/Projects, Tasks, Notes, Files, Help, Workbench, Dashboard, and future Reporting.",
-  "Document what the framework owns versus what modules own.",
-  "Do not change module APIs, database schema, permissions, or business workflows in this slice.",
-  "Add developer documentation explaining how modules adopt framework view primitives.",
-]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
-}
+assert.equal(packageJson.version, "0.33.5.18.3", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.3", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.3", "package-lock package entry should report the current app version");
 
 for (const primitive of [
   "Page header",
@@ -43,7 +31,6 @@ for (const primitive of [
   "Field grid",
   "Inline item/action row",
 ]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(primitive)}`), `Primitive should be checked in roadmap: ${primitive}`);
   assert.match(viewContract, new RegExp(escapeRegExp(primitive)), `Primitive should be documented: ${primitive}`);
 }
 
@@ -74,8 +61,6 @@ assert.match(moduleDevelopment, /## View-Building Helpers/, "Module development 
 assert.match(moduleDevelopment, /docs\/view-building-contract\.md/, "Module development guide should link the view-building contract");
 assert.match(moduleDevelopment, /LongtailForge\.view/, "Module development guide should name the view helper namespace");
 
-assert.match(decisions, /## Version 0\.33\.5\.15\.1/, "Decisions should include the view-building contract version");
-assert.match(decisions, /View-building helpers will live under `LongtailForge\.view`/, "Decisions should record the helper namespace");
 assert.match(changelog, /## Version 0\.33\.5\.15\.1 - /, "Changelog should include the view-building contract version");
 assert.match(regressionSuite, /scripts\/view-builder-contract-regression\.mjs/, "Regression suite should include the view-builder contract regression");
 

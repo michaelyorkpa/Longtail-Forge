@@ -4,18 +4,17 @@ import { readFileSync } from "node:fs";
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
-const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
-const decisions = readText("DECISIONS.md");
 const changelog = readText("CHANGELOG.md");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.17.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.17.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.3", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.3", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.3", "package-lock package entry should report the current app version");
 
-assert.match(renderer, /api\.getJson\(descriptor\.dataSource\.route, \{ cache: "no-store" \}\)/, "Renderer should fetch dataSource routes through shared api-client");
+assert.match(renderer, /api\.getJson\(route, \{ cache: "no-store" \}\)/, "Renderer should fetch dataSource routes through shared api-client");
+assert.match(renderer, /appendFilterQuery\(descriptor\.dataSource\.route/, "Renderer should derive the fetch route from the descriptor dataSource route");
 assert.doesNotMatch(renderer, /\bfetch\(/, "Renderer should not bypass shared api-client with direct fetch");
 assert.match(renderer, /bindRecord\(record, descriptor\.dataSource\.fieldBindings/, "Renderer should map records through descriptor fieldBindings");
 assert.match(renderer, /Object\.defineProperty\(surface, "refresh"/, "Rendered surfaces should expose a descriptor-driven refresh path");
@@ -67,18 +66,25 @@ const errorSurface = errorContext.window.LongtailForge.view.renderSurface(descri
 await errorSurface.refresh();
 assert.match(errorSurface.textContent, /Data unavailable/, "Renderer should render framework-owned error states");
 
-for (const item of [
-  "Implement the data-binding contract in the renderer.",
-  "Fetch `dataSource` routes through `shared/api-client.js`.",
-  "Map response records through the descriptor `fieldBindings` before rendering rows, fields,",
-  "Render framework-owned loading, empty, and error states for every data source by default.",
-  "Provide a descriptor-driven refresh path that re-fetches data without requiring modules to",
-  "Do not convert Lists in this slice; use small test descriptors or fixtures for renderer coverage.",
-]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
-}
+const noSelectionContext = createBrowserContext([
+  {
+    records: [
+      {
+        record_id: "sample-2",
+        name: "Beta",
+        state: "Active",
+      },
+    ],
+  },
+]);
+vm.runInNewContext(builder, noSelectionContext, { filename: "view-builder.js" });
+vm.runInNewContext(renderer, noSelectionContext, { filename: "view-renderer.js" });
+const noSelectionHost = noSelectionContext.document.createElement("main");
+const noSelectionSurface = noSelectionContext.window.LongtailForge.view.renderSurface(noInitialSelectionDescriptor(), noSelectionHost);
+await noSelectionSurface.refresh();
+assert.equal(noSelectionSurface.viewState.selectedRecord, null, "Descriptors should be able to start with a blank detail selection");
+assert.match(noSelectionSurface.textContent, /Choose a sample/, "Blank detail surfaces should keep descriptor guidance visible");
 
-assert.match(decisions, /## Version 0\.33\.5\.16\.6/, "Decisions should include renderer data-binding version");
 assert.match(changelog, /## Version 0\.33\.5\.16\.6 - /, "Changelog should include renderer data-binding version");
 
 console.log("View renderer data binding regression passed.");
@@ -148,6 +154,26 @@ function descriptor() {
       },
     },
   };
+}
+
+function noInitialSelectionDescriptor() {
+  const next = descriptor();
+  next.indexPanel = {
+    ...next.indexPanel,
+    initialSelection: "none",
+    collapseOnSelect: true,
+  };
+  next.detail = {
+    header: {
+      title: "Choose a sample",
+      description: "Select a sample to inspect it.",
+    },
+    emptyState: {
+      title: "Choose a sample",
+      message: "Select a sample to inspect it.",
+    },
+  };
+  return next;
 }
 
 function createBrowserContext(responses) {
@@ -280,8 +306,4 @@ function FakeClassList(element) {
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

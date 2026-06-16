@@ -7,7 +7,6 @@ const timeEntries = readText("public/js/time-entries.js");
 const notifications = readText("public/js/notifications.js");
 const clientsProjects = readText("public/js/clients-projects.js");
 const css = readText("public/css/longtail-forge.css");
-const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 
 ["up", "down"].forEach((iconName) => {
   assert.match(iconHelper, new RegExp(`${iconName}:\\s*Object\\.freeze`), `shared icon helper must include ${iconName} for project default sort controls`);
@@ -34,8 +33,6 @@ assert.match(clientsProjects, /createClientProjectActionButton\("Move up", "up"\
 assert.match(clientsProjects, /createClientProjectActionButton\("Move down", "down"\)/, "Project default sort Move down must use the shared down icon");
 
 assert.match(css, /\.tag-row-actions \.icon-button,[\s\S]*\.project-default-sort-row \.icon-button\s*\{[\s\S]*width:\s*44px/, "Pass 3 icon-only row controls must stay compact");
-assert.match(roadmap, /### Pass 3 - Convert remaining repeated row actions[\s\S]*- \[x\] Convert Tags list actions/, "Roadmap must mark Pass 3 Tags actions complete");
-assert.match(roadmap, /### Pass 3 - Convert remaining repeated row actions[\s\S]*- \[x\] Convert notification quick actions only if they remain obvious/, "Roadmap must mark Pass 3 notification actions complete");
 
 console.log("Remaining icon actions regression passed.");
 

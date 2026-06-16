@@ -18,6 +18,7 @@ try {
   await assertWeekdayRecurrenceSkipsWeekends(session);
   await assertWeekendRecurrenceSkipsWeekdays(session);
   await assertDailyRecurrenceRemainsSevenDays(session);
+  await assertFutureEditDoesNotPersistInstanceStatus(session);
   await assertTaskViewDialogIncludesFrequencyOptions();
 
   console.log("Task recurrence frequency regression passed.");
@@ -102,6 +103,45 @@ async function assertDailyRecurrenceRemainsSevenDays(session) {
   assert.equal(completed.createdTask.recurrence_instance_date, "2026-06-13");
 }
 
+async function assertFutureEditDoesNotPersistInstanceStatus(session) {
+  const task = (await tasksService.create({
+    title: "Future edit recurring task",
+    due_date: "2026-06-16",
+    recurrence: {
+      enabled: true,
+      frequency: "DAILY",
+      interval: 1,
+      endDate: "2026-06-30",
+    },
+  }, session)).task;
+
+  await tasksService.update(task.task_id, {
+    title: task.title,
+    status: "in_progress",
+  }, session);
+
+  const futureEdited = (await tasksService.update(task.task_id, {
+    title: "Future edit recurring task with tags",
+    recurrence: {
+      enabled: true,
+      frequency: "DAILY",
+      interval: 1,
+      endDate: "2026-06-30",
+      applyTo: "future",
+    },
+  }, session)).task;
+
+  assert.equal(futureEdited.status, "in_progress", "The current task instance should keep its real status.");
+  assert.equal(
+    await readTemplateStatus(session.workspace_id, task.recurrence_template_id),
+    "open",
+    "All-future recurrence edits should not persist the current instance status to the series template.",
+  );
+
+  const completed = await tasksService.complete(task.task_id, session);
+  assert.equal(completed.createdTask.status, "open", "Next recurring task instances should be created open.");
+}
+
 async function assertTaskViewDialogIncludesFrequencyOptions() {
   const tasksView = await fs.readFile(new URL("../views/protected/tasks.html", import.meta.url), "utf8");
 
@@ -128,4 +168,16 @@ LIMIT 1;
     username: user.username,
     workspace_id: user.active_workspace_id || user.home_workspace_id,
   };
+}
+
+async function readTemplateStatus(workspaceId, templateId) {
+  const rows = await querySql(`
+SELECT status
+FROM task_recurrence_templates
+WHERE workspace_id = '${workspaceId.replaceAll("'", "''")}'
+  AND recurrence_template_id = '${templateId.replaceAll("'", "''")}'
+LIMIT 1;
+`);
+
+  return rows[0]?.status || "";
 }

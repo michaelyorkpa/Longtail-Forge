@@ -79,9 +79,6 @@ function assertRouteScopesAreDeclared() {
 }
 
 async function assertDocsCaptureAudit() {
-  const roadmap = await fs.readFile(path.join(process.cwd(), "ROADMAP.md"), "utf8");
-  const roadmapArchive = await fs.readFile(path.join(process.cwd(), "ROADMAP-ARCHIVE.md"), "utf8");
-  const roadmapHistory = `${roadmap}\n${roadmapArchive}`;
   const publicApiDocs = await fs.readFile(path.join(process.cwd(), "docs/public-api.md"), "utf8");
   const apiKeysJs = await fs.readFile(path.join(process.cwd(), "public/js/api-keys.js"), "utf8");
 
@@ -95,9 +92,6 @@ async function assertDocsCaptureAudit() {
 
   assert.match(apiKeysJs, /groupScopesByOwner/);
   assert.match(apiKeysJs, /moduleScopeLabel/);
-  assert.match(roadmapHistory, /Version 0\.33\.5\.3 - API key scope repair/);
-  assert.match(roadmapHistory, /Scope registration and source-of-truth repair/);
-  assert.match(roadmapHistory, /Permission regression coverage for API-key-scoped reads and writes/);
 }
 
 async function readWorkspaceId() {

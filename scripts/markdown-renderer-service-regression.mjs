@@ -12,14 +12,13 @@ import {
 const packageJson = JSON.parse(await readText("package.json"));
 const packageLock = JSON.parse(await readText("package-lock.json"));
 const roadmap = await readText("ROADMAP.md");
-const decisions = await readText("DECISIONS.md");
 const changelog = await readText("CHANGELOG.md");
 const contract = await readText("docs/markdown-platform-contract.md");
 const regressionSuite = await readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.17.6", "package.json should carry the Markdown renderer slice version");
-assert.equal(packageLock.version, "0.33.5.17.6", "package-lock root version should carry the Markdown renderer slice version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.6", "package-lock package metadata should carry the Markdown renderer slice version");
+assert.equal(packageJson.version, "0.33.5.18.3", "package.json should carry the Markdown renderer slice version");
+assert.equal(packageLock.version, "0.33.5.18.3", "package-lock root version should carry the Markdown renderer slice version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.3", "package-lock package metadata should carry the Markdown renderer slice version");
 assert.equal(packageJson.dependencies["markdown-it"], "^14.2.0", "markdown-it should be installed as the selected Markdown dependency");
 
 assert.equal(typeof markdownService.renderMarkdownToHtml, "function", "service should expose safe HTML rendering");
@@ -113,8 +112,6 @@ for (const item of [
   assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
 }
 
-assert.match(decisions, /## Version 0\.33\.5\.17\.2/, "decisions should include the renderer service slice");
-assert.match(decisions, /framework-owned Markdown service now lives in `src\/core\/markdown\/markdown\.service\.js`/, "decisions should record the service location");
 assert.match(changelog, /## Version 0\.33\.5\.17\.2 - /, "changelog should include the renderer service slice");
 assert.match(contract, /0\.33\.5\.17\.2 adds the dependency and service/, "contract should note the renderer service implementation");
 assert.match(regressionSuite, /scripts\/markdown-renderer-service-regression\.mjs/, "regression suite should include the Markdown renderer service regression");

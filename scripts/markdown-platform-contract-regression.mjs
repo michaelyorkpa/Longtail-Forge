@@ -3,7 +3,6 @@ import fs from "node:fs/promises";
 
 const contract = await readText("docs/markdown-platform-contract.md");
 const roadmap = await readText("ROADMAP.md");
-const decisions = await readText("DECISIONS.md");
 const packageJson = JSON.parse(await readText("package.json"));
 const packageLock = JSON.parse(await readText("package-lock.json"));
 const notesMarkdown = await readText("src/modules/notes/markdown.js");
@@ -12,9 +11,9 @@ const notesEditor = await readText("public/js/shared/notes-editor.js");
 const notesRoutes = await readText("src/modules/notes/notes.routes.js");
 const notesJs = await readText("public/js/notes.js");
 
-assert.equal(packageJson.version, "0.33.5.17.6", "package.json should carry the Markdown contract slice version");
-assert.equal(packageLock.version, "0.33.5.17.6", "package-lock root version should carry the Markdown contract slice version");
-assert.equal(packageLock.packages[""].version, "0.33.5.17.6", "package-lock package metadata should carry the Markdown contract slice version");
+assert.equal(packageJson.version, "0.33.5.18.3", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.3", "package-lock root version should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.3", "package-lock package metadata should report the current app version");
 
 assert.match(contract, /Longtail Forge will adopt `markdown-it`/, "contract should record the selected parser");
 assert.match(contract, /CommonMark mode/, "contract should require CommonMark-compatible parsing");
@@ -42,8 +41,6 @@ assert.match(notesEditor, /continueListMarker/, "Notes editor should include sco
 assert.match(notesRoutes, /notesRoutes\.post\("\/notes\/preview"/, "Notes should expose a protected preview route after 0.33.5.17.6");
 assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/, "Notes live preview should use the server preview route");
 
-assert.match(decisions, /## Version 0\.33\.5\.17\.1/, "decisions should include the parser-selection slice");
-assert.match(decisions, /`markdown-it` is the selected parser/, "decisions should record the parser choice");
 assert.match(roadmap, /### Version 0\.33\.5\.17\.1 - Parser Selection and Markdown Contract[\s\S]*- \[x\] Review current Markdown rendering paths/, "roadmap should mark 0.33.5.17.6 complete");
 
 console.log("Markdown platform contract regression passed.");

@@ -26,9 +26,12 @@
       descriptor,
       actionError: null,
       error: null,
+      filterValues: initialFilterValues(descriptor),
       loading: Boolean(descriptor.dataSource?.route),
+      pendingMounts: [],
       records: [],
       selectedRecord: null,
+      selectedRecordId: "",
       surface: null,
       view,
     };
@@ -43,6 +46,7 @@
     state.surface = surface;
 
     const body = view.createElement("div", { className: "view-renderer-body" });
+    state.body = body;
     const refresh = async () => {
       if (!descriptor.dataSource?.route) {
         return state.records;
@@ -57,15 +61,18 @@
         state.error = null;
         renderInto(body, renderLayout(descriptor, view, state));
         try {
-          state.records = await loadBoundRecords(descriptor);
-          state.selectedRecord = state.records[0] || null;
+          state.records = await loadBoundRecords(descriptor, state.filterValues);
+          state.selectedRecord = initialSelectedRecord(descriptor, state);
+          state.selectedRecordId = recordId(state.selectedRecord);
         } catch (error) {
           state.records = [];
           state.selectedRecord = null;
+          state.selectedRecordId = "";
           state.error = error;
         } finally {
           state.loading = false;
           renderInto(body, renderLayout(descriptor, view, state));
+          flushMounts(state);
           inFlightRefresh = null;
         }
 
@@ -97,6 +104,7 @@
     });
 
     host.appendChild(surface);
+    flushMounts(state);
     if (descriptor.dataSource?.route) {
       refresh();
     }
@@ -115,17 +123,21 @@
     const children = [
       renderPageHeader(descriptor.pageHeader, view, state),
       renderActions(descriptor.actions, view, "Surface actions", state),
-      renderFilters(descriptor.filters, view),
+      renderFilters(descriptor.filters, view, state),
       renderDataStatus(state, view),
     ].filter(Boolean);
 
-    if (descriptor.layout === "split-list-detail") {
-      children.push(view.createSplitListDetail({
-        listLabel: descriptor.indexPanel?.title || descriptor.indexPanel?.label || "Index",
-        detailLabel: descriptor.detail?.header?.title || "Detail",
-        list: [renderIndexPanel(descriptor.indexPanel, view, state) || renderPlaceholder("Index", descriptor.indexPanel?.emptyState, view)],
-        detail: renderDetailShell(descriptor.detail, view, state),
+    if (descriptor.layout === "stacked") {
+      const container = view.createElement("div", { className: "view-stacked" });
+      container.appendChild(
+        renderIndexPanel(descriptor.indexPanel, view, state) || renderPlaceholder("Index", descriptor.indexPanel?.emptyState, view),
+      );
+      container.appendChild(view.createElement("section", {
+        className: ["view-stacked-detail", "surface-main-panel"],
+        attrs: { "aria-label": descriptor.detail?.header?.title || "Detail" },
+        children: renderDetailShell(descriptor.detail, view, state),
       }));
+      children.push(container);
     } else if (descriptor.layout === "table-page") {
       children.push(renderTableShell(descriptor.table, view, state));
       children.push(...renderDetailShell(descriptor.detail, view, state));
@@ -135,6 +147,7 @@
       children.push(...renderDetailShell(descriptor.detail, view, state));
     }
 
+    children.push(...renderRegions(descriptor.regions, view, state, state.selectedRecord));
     children.push(...renderModalShells(descriptor.modals, view));
     return children.filter(Boolean);
   }
@@ -151,13 +164,14 @@
     });
   }
 
-  function renderFilters(filters, view) {
+  function renderFilters(filters, view, state = null) {
     if (!Array.isArray(filters) || filters.length === 0) {
       return null;
     }
 
     const panel = view.createFilterPanel({
       title: "Filters",
+      open: false,
       fields: filters.map((filter) => renderFieldShell(filter, view, { disabled: true })),
     });
     const fieldGrid = panel.querySelector(".view-filter-panel-fields");
@@ -167,9 +181,53 @@
         "data-view-filter-form": "",
       },
     });
-    form.append(...filters.map((filter) => renderFieldShell(filter, view)));
+    form.append(...filters.map((filter) => renderFieldShell(filter, view, {
+      value: state ? state.filterValues?.[filter.field || filter.id] : undefined,
+    })));
     replaceNode(fieldGrid, form);
+
+    if (state) {
+      const applyFilters = (event) => {
+        if (event && typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        collectFilterValues(form, filters, state);
+        if (state.surface?.refresh) {
+          state.surface.refresh();
+        }
+      };
+      form.addEventListener("change", applyFilters);
+      form.addEventListener("submit", applyFilters);
+    }
+
     return panel;
+  }
+
+  function collectFilterValues(form, filters, state) {
+    if (!state.filterValues) {
+      state.filterValues = {};
+    }
+    for (const filter of filters) {
+      const key = filter.field || filter.id;
+      if (!key) {
+        continue;
+      }
+      const control = form.querySelector?.(`[data-view-input="${key}"]`);
+      if (control) {
+        state.filterValues[key] = control.type === "checkbox" ? Boolean(control.checked) : control.value;
+      }
+    }
+  }
+
+  function initialFilterValues(descriptor) {
+    const values = {};
+    for (const filter of (Array.isArray(descriptor.filters) ? descriptor.filters : [])) {
+      const key = filter.field || filter.id;
+      if (key && filter.default !== undefined) {
+        values[key] = filter.default;
+      }
+    }
+    return values;
   }
 
   function renderDataStatus(state, view) {
@@ -208,7 +266,7 @@
       body: records.length > 0
         ? [view.createIndexList({
           ariaLabel: indexPanel.title || indexPanel.label || "Index",
-          items: records.map((record) => buildIndexItem(indexPanel, record)),
+          items: records.map((record) => buildIndexItem(indexPanel, record, state)),
         })]
         : [
           renderPlaceholder(
@@ -217,11 +275,11 @@
             view,
           ),
         ],
-      open: indexPanel.open,
+      open: state.indexCollapsed ? false : indexPanel.open,
     });
   }
 
-  function buildIndexItem(indexPanel, record) {
+  function buildIndexItem(indexPanel, record, state) {
     const title = readDescriptorValue(record, indexPanel.itemTitleField, record.title || record.label || record.id || "Record");
     const subtitle = readDescriptorValue(record, indexPanel.itemSubtitleField, "");
     const meta = (indexPanel.itemMetaFields || [])
@@ -232,7 +290,37 @@
       id: record.id || "",
       label: title,
       meta: [subtitle, ...meta].filter(Boolean),
+      selected: recordId(record) === state.selectedRecordId,
+      onSelect: () => selectIndexRecord(state, record),
     };
+  }
+
+  function initialSelectedRecord(descriptor, state) {
+    const records = state.records || [];
+    const indexPanel = descriptor.indexPanel || {};
+    if (indexPanel.initialSelection === "none") {
+      return null;
+    }
+    if (state.selectedRecordId) {
+      return records.find((record) => recordId(record) === state.selectedRecordId) || records[0] || null;
+    }
+    return records[0] || null;
+  }
+
+  function selectIndexRecord(state, record) {
+    state.selectedRecord = record || null;
+    state.selectedRecordId = recordId(record);
+    if (state.descriptor.indexPanel?.collapseOnSelect) {
+      state.indexCollapsed = true;
+    }
+    if (state.body) {
+      renderInto(state.body, renderLayout(state.descriptor, state.view, state));
+      flushMounts(state);
+    }
+  }
+
+  function recordId(record) {
+    return String(record?.id || record?.record_id || record?.list_id || record?.note_id || "");
   }
 
   function renderTableShell(table, view, state) {
@@ -264,11 +352,77 @@
       renderActions(detail.actionStrip?.actions, view, detail.actionStrip?.label || "Detail actions", state),
       renderSummaryPanels(detail.summaryPanels, view, state.selectedRecord),
       renderFieldGridShell(detail.itemForm, view, state.selectedRecord),
-      renderItemCollection(detail.itemRows, view, state.selectedRecord) ||
+      renderItemCollection(detail.itemRows, view, state) ||
         (!state.selectedRecord ? renderPlaceholder("Items", detail.itemRows?.emptyState || detail.emptyState, view) : null),
+      ...renderRegions(detail.regions, view, state, state.selectedRecord),
     ];
 
     return children.flat().filter(Boolean);
+  }
+
+  function renderRegions(regions, view, state, record) {
+    if (!Array.isArray(regions) || regions.length === 0) {
+      return [];
+    }
+
+    return regions.map((region) => {
+      const container = view.createElement("section", {
+        className: ["view-region", "surface-main-panel", region.className],
+        attrs: {
+          "data-view-region": region.id || "",
+          ...(region.ariaLabel ? { "aria-label": region.ariaLabel } : {}),
+        },
+      });
+      if (region.title || region.label) {
+        container.appendChild(view.createElement("h3", {
+          className: "view-region-title",
+          text: region.title || region.label,
+        }));
+      }
+      const mountTarget = view.createElement("div", {
+        className: "view-region-body",
+        attrs: { "data-view-region-body": region.id || "" },
+      });
+      container.appendChild(mountTarget);
+      if (region.behavior) {
+        state.pendingMounts.push({ region, container: mountTarget, record });
+      }
+      return container;
+    });
+  }
+
+  function flushMounts(state) {
+    const pending = state.pendingMounts || [];
+    state.pendingMounts = [];
+    for (const mount of pending) {
+      const handler = behaviors.get(mount.region.behavior);
+      if (!handler) {
+        mount.container.appendChild(state.view.createElement("p", {
+          className: ["view-region-error", "view-status-message"],
+          text: `Missing view behavior handler: ${mount.region.behavior}`,
+          attrs: { role: "alert" },
+        }));
+        continue;
+      }
+      try {
+        handler({
+          action: null,
+          api: root.api || {},
+          container: mount.container,
+          openModal: (modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
+          record: mount.record,
+          refresh: state.surface.refresh,
+          region: mount.region,
+          workspaceContext: root.workspaceContext || {},
+        });
+      } catch (error) {
+        mount.container.appendChild(state.view.createElement("p", {
+          className: ["view-region-error", "view-status-message"],
+          text: error?.message || "Region could not be mounted.",
+          attrs: { role: "alert" },
+        }));
+      }
+    }
   }
 
   function renderDetailHeader(header, view, record) {
@@ -319,7 +473,8 @@
     });
   }
 
-  function renderItemCollection(itemRows, view, record) {
+  function renderItemCollection(itemRows, view, state) {
+    const record = state.selectedRecord;
     const items = Array.isArray(readDescriptorValue(record, itemRows?.itemsField || "items", []))
       ? readDescriptorValue(record, itemRows?.itemsField || "items", [])
       : [];
@@ -330,18 +485,74 @@
 
     return view.createElement("div", {
       className: "view-renderer-item-collection",
-      children: items.map((item) => view.createElement("article", {
-        className: "view-renderer-item-row surface-card",
-        children: [
-          view.createElement("strong", {
-            text: readDescriptorValue(item, itemRows.itemTitleField || "title", item.title || item.label || "Item"),
-          }),
-          view.createElement("p", {
-            text: readDescriptorValue(item, itemRows.itemSubtitleField || "description", item.description || ""),
-          }),
-        ],
-      })),
+      children: items.map((item) => renderItemRow(itemRows, item, view, state)),
     });
+  }
+
+  function renderItemRow(itemRows, item, view, state) {
+    const children = [
+      view.createElement("strong", {
+        className: "view-renderer-item-title",
+        text: readDescriptorValue(item, itemRows.itemTitleField || "title", item.title || item.label || "Item"),
+      }),
+    ];
+
+    const chips = (Array.isArray(itemRows.chips) ? itemRows.chips : [])
+      .map((chip) => readDescriptorValue(item, chip.field, chip.label || ""))
+      .filter(Boolean);
+    if (chips.length > 0) {
+      children.push(view.createElement("span", {
+        className: ["view-renderer-item-chips", "surface-chip-row"],
+        children: chips.map((chip) => view.createElement("span", { className: "surface-chip", text: String(chip) })),
+      }));
+    }
+
+    const subtitle = readDescriptorValue(item, itemRows.itemSubtitleField || "description", item.description || "");
+    if (subtitle) {
+      children.push(view.createElement("p", { className: "view-renderer-item-subtitle", text: subtitle }));
+    }
+
+    for (const field of (Array.isArray(itemRows.metaFields) ? itemRows.metaFields : [])) {
+      const value = readDescriptorValue(item, field, "");
+      if (value) {
+        children.push(view.createElement("span", { className: "view-renderer-item-meta", text: String(value) }));
+      }
+    }
+
+    const rowActions = (Array.isArray(itemRows.rowActions) ? itemRows.rowActions : [])
+      .filter((action) => evaluateVisibleWhen(action.visibleWhen, item))
+      .map((action) => normalizeAction(action, state, item));
+    if (rowActions.length > 0) {
+      children.push(view.createDetailActionStrip({
+        ariaLabel: itemRows.actionsLabel || "Item actions",
+        actions: rowActions,
+      }));
+    }
+
+    return view.createElement("article", {
+      className: "view-renderer-item-row surface-card",
+      children,
+    });
+  }
+
+  function evaluateVisibleWhen(condition, record) {
+    if (!condition || typeof condition !== "object") {
+      return true;
+    }
+    const value = readDescriptorValue(record, condition.field, undefined);
+    if (Object.prototype.hasOwnProperty.call(condition, "equals")) {
+      return value === condition.equals;
+    }
+    if (Array.isArray(condition.in)) {
+      return condition.in.includes(value);
+    }
+    if (condition.truthy === true) {
+      return Boolean(value);
+    }
+    if (condition.falsy === true) {
+      return !value;
+    }
+    return true;
   }
 
   function renderModalShells(modals, view) {
@@ -464,6 +675,7 @@
       className: "view-renderer-field",
       attrs: {
         "data-view-field": controlId,
+        ...(field.width ? { "data-view-field-width": field.width } : {}),
       },
     });
     label.appendChild(view.createElement("span", {
@@ -557,10 +769,36 @@
     });
   }
 
-  async function loadBoundRecords(descriptor) {
+  async function loadBoundRecords(descriptor, filterValues = {}) {
     const api = requireApiClient();
-    const body = await api.getJson(descriptor.dataSource.route, { cache: "no-store" });
+    const route = appendFilterQuery(descriptor.dataSource.route, descriptor.filters, filterValues);
+    const body = await api.getJson(route, { cache: "no-store" });
     return extractRecords(body).map((record) => bindRecord(record, descriptor.dataSource.fieldBindings || {}));
+  }
+
+  function appendFilterQuery(route, filters, filterValues) {
+    if (!Array.isArray(filters) || filters.length === 0 || !filterValues) {
+      return route;
+    }
+
+    const params = [];
+    for (const filter of filters) {
+      const key = filter.queryKey || filter.field || filter.id;
+      const valueKey = filter.field || filter.id;
+      if (!key || !valueKey) {
+        continue;
+      }
+      const value = filterValues[valueKey];
+      if (value === undefined || value === null || value === "" || value === false) {
+        continue;
+      }
+      params.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
+    }
+
+    if (params.length === 0) {
+      return route;
+    }
+    return `${route}${route.includes("?") ? "&" : "?"}${params.join("&")}`;
   }
 
   function extractRecords(body) {
@@ -630,17 +868,18 @@
     });
   }
 
-  function normalizeAction(action = {}, state = null) {
+  function normalizeAction(action = {}, state = null, recordOverride = undefined) {
     return {
       label: action.label || action.id || "Action",
       role: action.role,
       action: action.behavior || action.id,
       disabled: !state,
-      onClick: state ? () => runDescriptorAction(action, state) : undefined,
+      onClick: state ? () => runDescriptorAction(action, state, recordOverride) : undefined,
     };
   }
 
-  async function runDescriptorAction(action = {}, state) {
+  async function runDescriptorAction(action = {}, state, recordOverride = undefined) {
+    const record = recordOverride !== undefined ? recordOverride : state.selectedRecord;
     try {
       state.actionError = null;
       if (action.confirm && !(await confirmDescriptorAction(action))) {
@@ -649,18 +888,18 @@
       assertActionPermissions(action);
 
       if (action.route) {
-        await runRouteAction(action, state);
+        await runRouteAction(action, state, record);
         await state.surface.refresh();
         return;
       }
 
       if (action.behavior) {
-        await runBehaviorAction(action, state);
+        await runBehaviorAction(action, state, record);
         return;
       }
 
       if (action.modalId || action.modal) {
-        openDescriptorModal(state, action.modalId || action.modal, state.selectedRecord);
+        openDescriptorModal(state, action.modalId || action.modal, record);
         return;
       }
     } catch (error) {
@@ -682,28 +921,39 @@
     return true;
   }
 
-  async function runRouteAction(action, state) {
+  async function runRouteAction(action, state, record = null) {
     const api = requireApiClient();
     const method = String(action.method || "POST").toUpperCase();
+    const route = interpolateRoute(action.route, record);
 
     if (method === "GET") {
-      await api.getJson(action.route, { cache: "no-store" });
+      await api.getJson(route, { cache: "no-store" });
     } else if (method === "POST") {
-      await api.postJson(action.route, action.payload || {});
+      await api.postJson(route, action.payload || {});
     } else if (method === "PUT") {
-      await api.putJson(action.route, action.payload || {});
+      await api.putJson(route, action.payload || {});
     } else if (method === "PATCH") {
       if (typeof api.patchJson !== "function") {
         throw new Error("PATCH route actions require LongtailForge.api.patchJson.");
       }
-      await api.patchJson(action.route, action.payload || {});
+      await api.patchJson(route, action.payload || {});
     } else if (method === "DELETE") {
-      await api.deleteJson(action.route);
+      await api.deleteJson(route);
     } else {
       throw new Error(`Unsupported action method: ${method}`);
     }
 
     state.actionError = null;
+  }
+
+  function interpolateRoute(route, record) {
+    if (typeof route !== "string" || !record) {
+      return route;
+    }
+    return route.replace(/\{([\w.]+)\}/g, (match, field) => {
+      const value = readDescriptorValue(record, field, undefined);
+      return value === undefined || value === null ? match : encodeURIComponent(String(value));
+    });
   }
 
   function assertActionPermissions(action) {
@@ -720,7 +970,7 @@
     }
   }
 
-  async function runBehaviorAction(action, state) {
+  async function runBehaviorAction(action, state, recordOverride = null) {
     const handler = behaviors.get(action.behavior);
     if (!handler) {
       throw new Error(`Missing view behavior handler: ${action.behavior}`);
@@ -730,7 +980,7 @@
       action,
       api: requireApiClient(),
       openModal: (modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
-      record: state.selectedRecord,
+      record: recordOverride !== null ? recordOverride : state.selectedRecord,
       refresh: state.surface.refresh,
       workspaceContext: root.workspaceContext || {},
     });
@@ -765,6 +1015,7 @@
       return;
     }
     renderInto(body, renderLayout(state.descriptor, state.view, state));
+    flushMounts(state);
   }
 
   function inputTypeFor(type) {

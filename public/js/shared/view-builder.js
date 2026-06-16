@@ -178,14 +178,19 @@
   }
 
   function createFilterPanel(options = {}) {
-    const panel = createElement("section", {
+    const panel = createElement("details", {
       className: ["view-filter-panel", "surface-main-panel", options.className],
       attrs: options.ariaLabel ? { "aria-label": options.ariaLabel } : {},
     });
 
-    if (options.title) {
-      panel.appendChild(createHeading(options.headingLevel || 2, options.title, { className: "view-filter-panel-title" }));
+    if (options.open === true) {
+      panel.open = true;
     }
+
+    panel.appendChild(createElement("summary", {
+      className: "view-filter-panel-title",
+      text: options.title || "Filters",
+    }));
 
     const fieldGrid = createFieldGrid({
       fields: options.fields || [],
@@ -211,10 +216,20 @@
       details.open = true;
     }
 
-    details.appendChild(createElement("summary", {
+    const summary = createElement("summary", {
       className: "view-collapsible-index-summary",
+    });
+    summary.appendChild(createElement("span", {
+      className: "view-collapsible-index-title",
       text: requiredText(options.title, "Collapsible index panels require a title."),
     }));
+    if (options.summaryActions) {
+      summary.appendChild(createElement("span", {
+        className: "view-collapsible-index-summary-actions",
+        children: options.summaryActions,
+      }));
+    }
+    details.appendChild(summary);
 
     details.appendChild(createElement("div", {
       className: "view-collapsible-index-body",

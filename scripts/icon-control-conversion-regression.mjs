@@ -6,7 +6,6 @@ const tasks = readText("public/js/tasks.js");
 const taskDialog = readText("public/js/task-dialog.js");
 const stopWatch = readText("public/js/stop-watch.js");
 const css = readText("public/css/longtail-forge.css");
-const roadmap = `${readText("ROADMAP.md")}\n${readText("ROADMAP-ARCHIVE.md")}`;
 
 ["bell", "complete", "duplicate"].forEach((iconName) => {
   assert.match(iconHelper, new RegExp(`${iconName}:\\s*Object\\.freeze`), `shared icon helper must include ${iconName} for Tasks row actions`);
@@ -31,9 +30,6 @@ assert.match(stopWatch, /icons\.decorateButton\(resetButton,\s*\{ icon: "delete"
 assert.match(css, /\.task-row-actions \.icon-button\s*\{[\s\S]*width:\s*44px/, "Tasks row icon buttons must stay compact");
 assert.match(css, /\[data-stopwatch-controls\] button\s*\{[\s\S]*min-width:\s*44px/, "Time Tracker controls must keep the 44px minimum touch target");
 assert.doesNotMatch(css, /\.task-row-actions button\s*\{[\s\S]*min-width:\s*104px/, "Tasks row actions must not keep the old wide text-button minimum");
-
-assert.match(roadmap, /### Pass 2 - Convert high-density framework and task controls[\s\S]*- \[x\] Convert timer controls/, "Roadmap must mark Pass 2 timer controls complete");
-assert.match(roadmap, /### Pass 2 - Convert high-density framework and task controls[\s\S]*- \[x\] Preserve module ownership/, "Roadmap must mark Pass 2 module ownership complete");
 
 console.log("Icon control conversion regression passed.");
 

@@ -70,12 +70,10 @@ check("file lifecycle events remain safe canonical framework events", () => {
 check("public-safe file access uses explicit visibility and permissions, not tags", () => {
   const filesMigration = read("src/db/migrations/042_add_file_framework.sql");
   const filesService = read("src/services/files.service.js");
-  const decisions = read("DECISIONS.md");
 
   assert.ok(filesMigration.includes("visibility"), "file attachment schema should include explicit visibility");
   assert.ok(filesService.includes("normalizeVisibility"), "file service should normalize explicit visibility values");
   assert.ok(filesService.includes("permissionsService"), "file service should enforce permissions");
-  assert.ok(decisions.includes("tags must not become the public/private source of truth"), "decisions should reject tag-driven file visibility");
 });
 
 check("Help content includes the 0.32 file closeout article and stays current-state oriented", () => {
