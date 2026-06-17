@@ -23,6 +23,12 @@ assert.match(styles, /\.surface-modal-footer-action\[data-surface-action-role="p
 assert.match(styles, /\.surface-modal-footer-action\[data-surface-action-role="destructive"\]\s*\{[\s\S]*border-color:\s*var\(--color-danger-border\)/, "destructive footer actions should use danger tokens");
 assert.match(styles, /\.form-actions\.surface-modal-footer\s*\{[\s\S]*justify-content:\s*space-between;/, "shared footer layout should win over legacy form-actions alignment");
 
+// 0.33.5.18.5.4 framework modal scroll/footer fix: reserve the scrollbar gutter (no layout width shift)
+// and pin the form footer flush to the modal bottom (no negative bottom-margin gap below the footer).
+assert.match(styles, /\.view-modal-body,\s*\.view-modal-form\s*\{[\s\S]*scrollbar-gutter:\s*stable;/, "modal scroll regions should reserve the scrollbar gutter so the layout width does not shift");
+assert.match(styles, /\.view-modal-form\s*\{\s*padding-bottom:\s*0;/, "the scrolling modal form should drop its bottom padding so the sticky footer reaches the true bottom");
+assert.match(styles, /\.view-modal-form > \.surface-modal-footer\s*\{[\s\S]*position:\s*sticky;[\s\S]*bottom:\s*0;[\s\S]*margin:\s*12px -20px 0;/, "the form modal footer should stick flush to the bottom with no negative bottom-margin gap");
+
 assert.match(surfaceContract, /Adaptive Footer Labels/, "surface contract must document adaptive footer labels");
 assert.match(uiGuide, /adaptive visible text/, "UI guide must document adaptive visible text rules");
 

@@ -1,3 +1,9 @@
+## Version 0.33.5.18.5.4 - 2026-06-17 13:20 -04:00
+
+- Framework modal fix (affects every `view.createModalForm` modal — Notes editor/collection, Lists editor, Client/Project forms): when a modal grew tall enough to show a vertical scrollbar, the scrollbar's appearance shifted the modal's content width, and scrolled content (e.g. the Notes Body textarea) showed in a gap *below* the pinned footer.
+- Root cause: the sticky form footer's `margin-bottom: -20px` combined with the scrolling form's 20px bottom padding pushed the visible footer ~20px above the sticky stop, exposing a strip of scrolled content beneath it. Fixed by dropping the form's bottom padding (`.view-modal-form { padding-bottom: 0 }`) and removing the footer's negative bottom margin (now `12px -20px 0`) — the footer's own bottom padding supplies the inset and the sticky stop reaches the true bottom. Added `scrollbar-gutter: stable` to the modal scroll regions so the scrollbar toggling no longer reflows the content width.
+- CSS-only fix (no `view-builder`/module JS change); the `createModal` body-variant footer was already flex-pinned and unaffected. Tasks modals use the legacy `.form-actions` footer (overrides these rules) and are unaffected. Extended `modal-footer-contract-regression` with the gutter/padding/flush-footer assertions; bumped `longtail-forge.css` cache-busts on `notes.html` (?v=30), `lists.html` (?v=24), and `clients.html`/`projects.html` (?v=8); bumped app metadata to `0.33.5.18.5.4`.
+
 ## Version 0.33.5.18.5.3 - 2026-06-17 11:00 -04:00
 
 - Final sub-slice of the Notes workflow conversion: anatomy cleanup + strict declarative guardrails. The note and collection dialogs now build through the framework `view.renderDescriptorModalForm` helper (which was extended to forward a `size` hint so the editor stays `wide`) instead of calling the low-level `view.createModalForm` primitive directly.

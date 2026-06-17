@@ -71,73 +71,17 @@ This section is to define a series of human testing goals for different sections
 - Let clicking a related title open a read-only preview inside the Inspector.
 - Keep non-Workbench screens centered unless they opt into Inspector behavior.
 
-## Notes Add/Edit modal tweaks
+## Notes / Lists / Modals refinement — promoted to ROADMAP
 
-- Group "Note Details" and make collapsible
-  - Note details incldues:
-    - Library
-    - Collection
-    - Note Kind
-    - Visibility
-    - Security
-  - Should default open in Add modal
-  - Should default closed in Edit modal
+Promoted into `ROADMAP.md` as sub-slices **0.33.5.18.5.4 – 0.33.5.18.5.9**: framework modal scroll/footer
+fix, Notes add/edit modal refinement, Notes navigation standardization, Notes detail metadata/panels,
+Lists main page refinement, and Lists items-inset refinement.
 
-- Tags should be moved to button in footer, like tasks
-
-- As of 0.33.18.3 there's no file button/box in the Edit note modal
-  - Need to add file button in footer for attaching files
-
-## Notes Page/Notes Display
-
-- "Library" and "Notes List" headings don't match the "Filters" heading
-  - This should be standardized across all action pages
-
-- Library can ditch the "All", "Active", "Ongoing Areas", "Reference Library", and "Archive" buttons
-  - The library and collections drop downs will suffice
-  - Add "Archive" to the "Library" drop down
-  - Bring the drop downs in-line with "New Collection" icon button so the entire box renders as one tight row (or row-and-a-half if you count the Library and Collection headings)
-
-- Pagination can be moved to the bottom right of the Notes List box 
-  - Pagination needs to be hidden when "Notes List" is collapsed
-
-- Metadata box at top of note (below title) should contain ALL metadata
-  - Information Created, Updated, and Owner should be sized down and placed in the same format as the Library, Note Kind, Status, Visibility, and Security fields
-  - Linked record information is already available in the Linked records pane, so there's no need to duplicate it
-  - Owner shows up as the UUID, not the display name (username) format it should be
-
-- Linked records needs to be collapsible and start collapsed
-  - "Remove" and "Add Link" buttons should be icons
-
-- Files needs to be collapsible and start off collapsed
-  - Files currently displays with two bordered boxes around it, it doesn't need the outer, darker box (it's darker in dark mode, anyway)
-
-- Revisions box border is dark (in dark mode), it should be light
-  - Inner revision listings also use the dark border (in dark mode) and those should be light as well
+Deferred (kept here, not yet sliced):
 
 - Eventually, I'd like to be able to check off items on notes checklists from the display pages (might be very complicated.)
 
-## Lists Main Page
-
-- This screen is very long and not very well organized
-
-- Metadata like "active - procurement" etc. needs to be smaller
-
-- Buttons need to be put behind a 3 dot menu
-
-- Next needs to be half the width and not display so many chips, or stack them, or something
-
-- What does Source display?
-
-- Costs needs to be below the items
-
-- Lists Linked records needs to follow the Notes model for Linked records
-
-### Items inset
-
-- This box is a little un-tidy. 
-
-## Mobile Tweaks - Fill this section out after the above section standardizes the modal display
+## Mobile Tweaks - Fill this section out after the modal/display standardization slices above land
 
 - Projects -> Tasks
   - Get rid of "Task Details" heading (mobile & desktop)

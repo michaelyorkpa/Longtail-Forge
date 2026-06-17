@@ -397,6 +397,98 @@ Split into three focused sub-slices so each ships green and reviewable.
       guardrail + new `notes-ui-workflow` markers assert the modal-helper swap, no
       dialog/table/details, and the framework-built disclosures and context list.
 
+#### Version 0.33.5.18.5.4 - Framework Modal Scroll/Footer Fix
+
+Framework-wide modal fix (affects Notes, Lists, Clients/Projects, Tasks). Regression from the
+0.33.5.18.4 sticky-footer work. (User screenshots pending for exact repro.)
+
+- [x] Fix the layout shift when a modal grows tall enough to show a vertical scrollbar. — Added
+      `scrollbar-gutter: stable` to the modal scroll regions (`.view-modal-body`/`.view-modal-form`) so
+      toggling the vertical scrollbar no longer reflows the modal content width.
+- [x] Fix the gap that opens below the pinned footer when the modal body scrolls. — Root cause was the
+      sticky form footer's `margin-bottom: -20px` combined with the form's 20px bottom padding, which
+      pushed the visible footer ~20px above the sticky stop so scrolled content (the Body textarea)
+      showed beneath it. Fixed by dropping the form's bottom padding (`.view-modal-form { padding-bottom:
+      0 }`) and removing the footer's negative bottom margin (`12px -20px 0`); the footer's own bottom
+      padding supplies the inset. The body-variant footer (`createModal`) was already flex-pinned.
+- [x] Verify the fix across all framework modals. — Fix is in shared CSS; bumped cache-busts on every
+      framework-modal page (`notes.html` css?v=30, `lists.html` css?v=24, `clients.html`/`projects.html`
+      css?v=8) so notes editor/collection, lists editor, and client/project modals all pick it up.
+      (Visual confirmation at small viewport heights still pending user review.)
+- [x] Add a regression asserting the framework modal scroll/footer CSS contract; bump the affected asset
+      cache-busts. — `modal-footer-contract-regression` now asserts the gutter reservation, the
+      form's dropped bottom padding, and the flush (non-negative-margin) sticky footer.
+
+#### Version 0.33.5.18.5.5 - Notes Add/Edit Modal Refinement
+
+- [ ] Group the note "Details" fields (Library, Collection, Note Kind, Visibility, Security) into a
+      collapsible section — default open in the Add modal, default closed in the Edit modal. Framework:
+      a collapsible field-group/fieldset primitive + descriptor support (e.g. a modal field group with
+      `collapsible`/`defaultOpen`); module: supplies the fields and Add-vs-Edit state.
+- [ ] Move Tags to a footer utility button (matching the Tasks modal pattern) rather than an inline
+      section. Framework: modal-footer utility slot; module: tag-editor open/apply behavior.
+- [ ] Restore the file-attach affordance in the Edit note modal (a footer button); it was lost in the
+      0.33.5.18.3 conversion. Module: files integration mounted into the framework footer slot.
+- [ ] Keep note storage, validation, save payloads, secure rules, and revisions module-owned; add
+      regression markers for the collapsible group, footer Tags button, and footer file button.
+
+#### Version 0.33.5.18.5.6 - Notes Navigation Standardization
+
+- [ ] Standardize the "Library" and "Notes List" panel headings to match the "Filters" heading, as a
+      cross-action-page standard. Framework. (Verify against the current state first — 0.33.5.18.3 already
+      aligned the summaries; close any remaining gap.)
+- [ ] Simplify the Library panel: drop the All/Active/Ongoing Areas/Reference Library/Archive bucket
+      buttons in favor of the Library + Collection dropdowns; add "Archive" to the Library dropdown; bring
+      the dropdowns inline with the New Collection icon button so the panel reads as one tight row. Module:
+      Library chrome (`createNotesLibraryChrome`).
+- [ ] Move the Notes List pagination to the bottom-right of the Notes List box (currently in the panel
+      summary), keeping it hidden when the panel is collapsed. Framework: collapsible-index footer action
+      slot; module: pagination behavior.
+- [ ] Add regression markers for the standardized headings, simplified Library row, and pagination
+      placement.
+
+#### Version 0.33.5.18.5.7 - Notes Detail Metadata and Panels
+
+- [ ] Make the detail metadata row carry ALL metadata: size Created/Updated/Owner down into the same
+      chip/meta format as Library/Note Kind/Status/Visibility/Security; drop the duplicated linked-record
+      context (it already lives in the Linked Records panel); render Owner as the display name, not the
+      UUID. Module: metadata content + owner-name resolution; framework: meta-row format.
+- [ ] Make the Linked Records panel collapsible and collapsed by default; render Remove/Add Link as icon
+      buttons. Framework: collapsible info panel + icon actions; module: link behaviors.
+- [ ] Make the Files panel collapsible and collapsed by default; remove the redundant outer (darker) box
+      so it has a single border. Framework/module CSS.
+- [ ] Fix the Revisions panel border (and inner revision listing borders) to use the light border token in
+      dark mode. Likely a framework token/CSS fix.
+- [ ] Add regression markers for the metadata consolidation, owner display-name, and collapsible
+      Linked/Files panels.
+
+#### Version 0.33.5.18.5.8 - Lists Main Page Refinement
+
+Lists is already strict/declarative; this is UI/layout refinement that reuses the Notes patterns above.
+
+- [ ] Reorganize the Lists detail (it is very long and poorly organized) and shrink the metadata line
+      (e.g. "active - procurement") to match the compact Notes meta format.
+- [ ] Put the Lists detail action buttons behind a 3-dot overflow menu, reusing the framework
+      `view.createDetailActionMenu` / `renderDescriptorActionMenu` primitive added for Notes.
+- [ ] Tighten the "Next" panel: roughly half width, with fewer/stacked chips instead of a long chip run.
+- [ ] Investigate the "Source" panel — if it only repeats the "Independent list" chip, deprecate the
+      section.
+- [ ] Move the Costs panel below the items table.
+- [ ] Make Lists linked records follow the Notes linked-records model (collapsible, collapsed by default,
+      icon Add/Remove) from 0.33.5.18.5.7.
+
+#### Version 0.33.5.18.5.9 - Lists Items Inset Refinement
+
+- [ ] Rework the item-entry inset (it is messy): Item field larger and on the top line; Qty and Unit
+      side-by-side and narrower.
+- [ ] Put Needed, Assigned, and Status narrower and side-by-side with Qty/Unit; default the purchase
+      status to "needed" (not "cancelled").
+- [ ] Default "Save as reusable item" to on.
+- [ ] Put Details on the third line, opening as one long row; move Notes to the bottom; right-justify the
+      "Add Item" button.
+- [ ] Honor the framework field-grid/width hints so the inset wraps cleanly; keep item validation, catalog,
+      and save logic module-owned.
+
 ---
 
 ## Tasks (0.33.5.18.6 - 0.33.5.18.9)

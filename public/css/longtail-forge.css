@@ -274,13 +274,14 @@ summary.surface-modal-section-heading {
 }
 
 /* Footer stays pinned to the bottom of the scrolling modal and is always visible. In the form
-   variant it sticks within the scrolling form (negative margins bleed it to the padded edges);
-   in the body variant it is a non-growing flex child of the modal column. */
+   variant it sticks within the scrolling form; negative side margins bleed it to the padded edges,
+   and the bottom margin is 0 so the sticky footer sits flush against the form bottom (the form drops
+   its bottom padding above). In the body variant it is a non-growing flex child of the modal column. */
 .view-modal-form > .surface-modal-footer {
     position: sticky;
     bottom: 0;
     z-index: 2;
-    margin: 12px -20px -20px;
+    margin: 12px -20px 0;
 }
 
 .view-modal > .surface-modal-footer {
@@ -718,7 +719,17 @@ summary.surface-modal-section-heading {
     padding: 20px;
     overflow-x: hidden;
     overflow-y: auto;
+    /* Reserve the scrollbar gutter so toggling the vertical scrollbar never shifts the modal's
+       content width. */
+    scrollbar-gutter: stable;
     box-sizing: border-box;
+}
+
+/* The form variant pins its footer inside this scroll container (position: sticky), so it must not
+   keep bottom padding — the footer supplies its own bottom inset and the sticky stop must reach the
+   true bottom edge, otherwise scrolled content shows in the gap below the footer. */
+.view-modal-form {
+    padding-bottom: 0;
 }
 
 .view-action-button {
