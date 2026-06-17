@@ -4783,6 +4783,29 @@ li.markdown-task-list-item > ol {
     grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
 }
 
+/* Collapsible "Note Details" group (Library/Collection/Kind/Visibility/Security), the collapsible
+   "Linked Context" panel, and the footer-toggled Tags/Files panels in the note editor modal — all
+   share the same boxed/collapsible treatment. */
+.notes-detail-group,
+.notes-context-panel,
+.notes-editor-panel {
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.notes-detail-group > summary,
+.notes-context-panel > summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.notes-detail-group[open] > summary,
+.notes-context-panel[open] > summary {
+    margin-bottom: 10px;
+}
+
 .notes-editor-form input,
 .notes-editor-form select,
 .notes-editor-form textarea,

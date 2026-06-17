@@ -53,14 +53,14 @@ async function assertProtectedView(session) {
   // filters, index, detail) AND the editor + collection modals are framework-rendered; notes.js
   // mounts the notes-specific chrome and builds the dialog shells from the descriptor modals block.
   assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/);
-  assert.match(html, /js\/shared\/view-renderer\.js\?v=5/);
+  assert.match(html, /js\/shared\/view-renderer\.js\?v=6/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
-  assert.match(html, /js\/shared\/view-builder\.js\?v=6/);
-  assert.match(html, /js\/notes\.js\?v=24/);
+  assert.match(html, /js\/shared\/view-builder\.js\?v=7/);
+  assert.match(html, /js\/notes\.js\?v=27/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
-  assert.match(html, /css\/longtail-forge\.css\?v=30/);
+  assert.match(html, /css\/longtail-forge\.css\?v=32/);
   // No static read chrome or dialog markup remains in the host page.
   assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
   assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);
@@ -168,6 +168,18 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(notesJs, /document\.createElement\("(dialog|table|details)"\)/, "Notes should not hand-build dialog/table/details framework anatomy");
   assert.match(notesJs, /view\.createElement\("dl"/, "The read-only linked-context list should be built via the framework element builder");
   assert.match(notesJs, /view\.createElement\("details"/, "The collections menu and revisions panel should use the framework element builder for disclosures");
+
+  // 0.33.5.18.5.5 add/edit modal refinement: collapsible Note Details group + Tags/Files footer buttons.
+  assert.match(notesJs, /className: "notes-detail-group"/, "The note Details fields should be wrapped in a collapsible group");
+  assert.match(notesJs, /detailsGroup\.open = !note/, "The Details group should default open in Add and closed in Edit");
+  assert.match(notesJs, /utilityActions: \[tagsToggle, filesToggle\]/, "Tags and Files should render as footer utility actions");
+  assert.match(notesJs, /dataset\.noteTagsToggle/, "Tags should be a footer toggle button");
+  assert.match(notesJs, /dataset\.noteFilesToggle/, "Files should be a footer toggle button");
+  assert.match(notesJs, /function toggleNoteEditorPanel/, "Footer buttons should toggle hidden tag/file panels");
+  assert.match(notesJs, /function mountNoteEditorFiles/, "The editor should mount file attachments behind the Files button");
+  assert.match(notesJs, /filesMount\.dataset\.noteFilesEditor/, "The editor file panel should expose a files mount hook");
+  const viewBuilderJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/view-builder.js"), "utf8");
+  assert.match(viewBuilderJs, /surface-modal-footer-utilities[\s\S]*data-modal-footer-group": "utility"/, "The framework modal footer should support a utility action group");
 
   const linkedPanelJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8");
   assert.match(linkedPanelJs, /LongtailForge/);

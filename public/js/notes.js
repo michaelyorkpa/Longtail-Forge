@@ -83,7 +83,13 @@ const projectInput = document.querySelector("[data-note-project-id]");
 const taskInput = document.querySelector("[data-note-task-id]");
 const userInput = document.querySelector("[data-note-user-id]");
 const suggestionMessage = document.querySelector("[data-note-library-suggestion]");
+const detailsGroup = document.querySelector("[data-note-details-group]");
 const tagsEditor = document.querySelector("[data-note-tags-editor]");
+const filesEditor = document.querySelector("[data-note-files-editor]");
+const tagsToggle = document.querySelector("[data-note-tags-toggle]");
+const filesToggle = document.querySelector("[data-note-files-toggle]");
+const tagPanel = document.querySelector("[data-note-tags-panel]");
+const filePanel = document.querySelector("[data-note-files-panel]");
 const bodyInput = document.querySelector("[data-note-body]");
 const previewToggle = document.querySelector("[data-note-preview-toggle]");
 const preview = document.querySelector("[data-note-preview]");
@@ -111,6 +117,7 @@ let state = {
   collectionEditingId: "",
   collections: [],
   editingNoteId: "",
+  editorAttachmentController: null,
   editorSelectedTarget: null,
   libraryManuallyChanged: false,
   linkTargetSearchTimer: null,
@@ -169,6 +176,8 @@ contextTargetTypeInput?.addEventListener("change", () => loadEditorLinkTargets()
 contextSearchInput?.addEventListener("input", () => queueEditorLinkTargetSearch());
 contextApplyButton?.addEventListener("click", () => applyEditorLinkTarget());
 document.querySelector("[data-note-editor-toolbar]")?.addEventListener("click", handleEditorCommand);
+tagsToggle?.addEventListener("click", () => toggleNoteEditorPanel("tags"));
+filesToggle?.addEventListener("click", () => toggleNoteEditorPanel("files"));
 
 initialize();
 
@@ -587,7 +596,7 @@ function createNoteContextPanel() {
 
   const search = view.createElement("input", { attrs: { type: "search", autocomplete: "off", placeholder: "Search linked records" } });
   search.dataset.noteContextSearch = "";
-  const apply = view.createActionButton({ label: "Use Target" });
+  const apply = view.createActionButton({ icon: "add", iconOnly: true, label: "Use Target", title: "Use Target" });
   apply.dataset.noteContextApply = "";
   const grid = view.createElement("div", {
     className: "notes-picker-grid",
@@ -635,6 +644,14 @@ function createNoteDialogShell() {
   const save = view.createActionButton({ label: modal.footerActions?.find((action) => action.id === "save-note")?.label || "Save Note", type: "submit", role: "primary" });
   save.dataset.noteSave = "";
 
+  // Tags and Files live behind footer utility buttons (Tasks-modal pattern); each toggles a hidden panel.
+  const tagsToggle = view.createActionButton({ icon: "tag", iconOnly: true, label: "Note tags", title: "Note tags", role: "utility" });
+  tagsToggle.dataset.noteTagsToggle = "";
+  tagsToggle.setAttribute("aria-expanded", "false");
+  const filesToggle = view.createActionButton({ icon: "file", iconOnly: true, label: "Note files", title: "Note files", role: "utility" });
+  filesToggle.dataset.noteFilesToggle = "";
+  filesToggle.setAttribute("aria-expanded", "false");
+
   const dialog = view.renderDescriptorModalForm(modal, {
     title: modal.title || "Note",
     className: "notes-editor-dialog",
@@ -642,6 +659,7 @@ function createNoteDialogShell() {
     size: "wide",
     fields: [],
     actions: [cancel, save],
+    utilityActions: [tagsToggle, filesToggle],
   });
   dialog.dataset.noteDialog = "";
   const form = dialog.viewParts.form;
@@ -664,6 +682,12 @@ function createNoteDialogShell() {
       noteFieldLabel("Security", noteSelect("noteSecurity", modalFieldOptions(modal, "security"))),
     ],
   });
+  // Group the note "Details" fields into a collapsible section (openEditor opens it for Add, closes for Edit).
+  const detailsGroup = view.createElement("details", {
+    className: "notes-detail-group",
+    children: [view.createElement("summary", { text: "Note Details" }), selectGrid],
+  });
+  detailsGroup.dataset.noteDetailsGroup = "";
   const secureWarning = view.createElement("p", {
     className: "notes-secure-warning",
     text: "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.",
@@ -671,17 +695,25 @@ function createNoteDialogShell() {
   });
   secureWarning.dataset.noteSecureWarning = "";
   const contextPanel = createNoteContextPanel();
-  const tagsMount = view.createElement("div");
-  tagsMount.dataset.noteTagsEditor = "";
   const toolbar = createNoteEditorToolbar();
   const bodyField = noteFieldLabel("Body", noteTextarea("noteBody", { rows: 14 }));
   const preview = view.createElement("div", { className: "notes-preview", attrs: { hidden: true } });
   preview.dataset.notePreview = "";
+
+  const tagsMount = view.createElement("div");
+  tagsMount.dataset.noteTagsEditor = "";
+  const tagPanel = view.createElement("section", { className: "notes-editor-panel", children: [tagsMount], attrs: { hidden: true } });
+  tagPanel.dataset.noteTagsPanel = "";
+  const filesMount = view.createElement("div");
+  filesMount.dataset.noteFilesEditor = "";
+  const filePanel = view.createElement("section", { className: "notes-editor-panel", children: [filesMount], attrs: { hidden: true } });
+  filePanel.dataset.noteFilesPanel = "";
+
   const formStatus = view.createElement("p", { attrs: { role: "status", "aria-live": "polite" } });
   formStatus.dataset.noteFormStatus = "";
 
   const footer = dialog.viewParts.footer;
-  [heading, titleField, selectGrid, secureWarning, contextPanel, tagsMount, toolbar, bodyField, preview, formStatus].forEach((node) => {
+  [heading, titleField, detailsGroup, secureWarning, contextPanel, toolbar, bodyField, preview, tagPanel, filePanel, formStatus].forEach((node) => {
     form.insertBefore(node, footer);
   });
   return dialog;
@@ -1128,7 +1160,12 @@ async function openEditor(note = null) {
   previewToggle.setAttribute("aria-pressed", "false");
   formStatus.textContent = "";
   saveButton.disabled = false;
+  resetNoteEditorPanels();
+  if (detailsGroup) {
+    detailsGroup.open = !note;
+  }
   await mountTagEditor(note);
+  mountNoteEditorFiles(note);
   renderEditorContextSelection();
   await loadEditorLinkTargets();
   updateLibrarySuggestion();
@@ -1780,6 +1817,7 @@ function revisionItem(note, revision) {
 
 async function mountTagEditor(note) {
   if (!tagsEditor || !window.LongtailForge.tags) {
+    tagsToggle && (tagsToggle.hidden = !window.LongtailForge.tags);
     return;
   }
 
@@ -1789,6 +1827,64 @@ async function mountTagEditor(note) {
     selectedTags: note?.tags || [],
     tags: state.availableTags,
   });
+}
+
+function mountNoteEditorFiles(note) {
+  if (!filesToggle) {
+    return;
+  }
+  const secure = isSecureNote(note);
+  const filesAvailable = Boolean(filesEditor) && Boolean(window.LongtailForge.fileAttachments);
+  filesToggle.hidden = secure || !filesAvailable;
+
+  state.editorAttachmentController?.destroy?.();
+  state.editorAttachmentController = null;
+  if (!filesAvailable || secure) {
+    filesEditor?.replaceChildren?.();
+    return;
+  }
+
+  state.editorAttachmentController = window.LongtailForge.fileAttachments.mount(filesEditor, {
+    acceptedCategories: ["document", "image", "pdf", "spreadsheet", "presentation", "text", "other"],
+    canRemove: Boolean(note?.note_id) && note?.status !== "archived",
+    canUpload: Boolean(note?.note_id) && note?.status !== "archived",
+    clientId: note?.client_id || "",
+    moduleId: "notes",
+    projectId: note?.project_id || "",
+    saveFirstMessage: "Save the note before adding files.",
+    targetId: note?.note_id || "",
+    targetType: "note",
+    title: "Files",
+    visibility: fileVisibilityForNote(note || {}),
+  });
+}
+
+function resetNoteEditorPanels() {
+  [tagPanel, filePanel].forEach((panel) => {
+    if (panel) {
+      panel.hidden = true;
+    }
+  });
+  tagsToggle?.setAttribute("aria-expanded", "false");
+  filesToggle?.setAttribute("aria-expanded", "false");
+}
+
+function toggleNoteEditorPanel(panelName) {
+  const nextPanel = panelName === "files" ? filePanel : tagPanel;
+  const nextToggle = panelName === "files" ? filesToggle : tagsToggle;
+  const otherPanel = panelName === "files" ? tagPanel : filePanel;
+  const otherToggle = panelName === "files" ? tagsToggle : filesToggle;
+  if (!nextPanel) {
+    return;
+  }
+
+  const shouldOpen = nextPanel.hidden;
+  if (otherPanel) {
+    otherPanel.hidden = true;
+    otherToggle?.setAttribute("aria-expanded", "false");
+  }
+  nextPanel.hidden = !shouldOpen;
+  nextToggle?.setAttribute("aria-expanded", String(shouldOpen));
 }
 
 async function mutateNote(url) {
@@ -2332,8 +2428,8 @@ function normalizeText(value) {
   return String(value || "").trim();
 }
 
-function isSecureNote(note = {}) {
-  return note.security_mode === "secure";
+function isSecureNote(note) {
+  return note?.security_mode === "secure";
 }
 
 function isSecureEditorMode() {

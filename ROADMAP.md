@@ -421,16 +421,24 @@ Framework-wide modal fix (affects Notes, Lists, Clients/Projects, Tasks). Regres
 
 #### Version 0.33.5.18.5.5 - Notes Add/Edit Modal Refinement
 
-- [ ] Group the note "Details" fields (Library, Collection, Note Kind, Visibility, Security) into a
-      collapsible section — default open in the Add modal, default closed in the Edit modal. Framework:
-      a collapsible field-group/fieldset primitive + descriptor support (e.g. a modal field group with
-      `collapsible`/`defaultOpen`); module: supplies the fields and Add-vs-Edit state.
-- [ ] Move Tags to a footer utility button (matching the Tasks modal pattern) rather than an inline
-      section. Framework: modal-footer utility slot; module: tag-editor open/apply behavior.
-- [ ] Restore the file-attach affordance in the Edit note modal (a footer button); it was lost in the
-      0.33.5.18.3 conversion. Module: files integration mounted into the framework footer slot.
-- [ ] Keep note storage, validation, save payloads, secure rules, and revisions module-owned; add
-      regression markers for the collapsible group, footer Tags button, and footer file button.
+- [x] Group the note "Details" fields (Library, Collection, Note Kind, Visibility, Security) into a
+      collapsible section — default open in the Add modal, default closed in the Edit modal. — Built as a
+      module-owned `<details class="notes-detail-group">` via `view.createElement` (the sanctioned
+      builder under strict mode); `openEditor` sets `detailsGroup.open = !note`. (A dedicated framework
+      field-group primitive remains an optional future refinement.)
+- [x] Move Tags to a footer utility button (matching the Tasks modal pattern) rather than an inline
+      section. — Extended the framework footer (`createModalFooter`/`createModalForm`/
+      `renderDescriptorModalForm`) to accept `utilityActions`, rendered in a
+      `surface-modal-footer-utilities` group; the Tags button toggles a hidden tag panel (the picker
+      still mounts via `window.LongtailForge.tags.mountPicker`).
+- [x] Restore the file-attach affordance in the Edit note modal (a footer button). — Added a Files
+      footer utility button toggling a hidden file panel; `mountNoteEditorFiles` mounts
+      `window.LongtailForge.fileAttachments` (saved/non-secure notes; Add shows the "save first"
+      message), hidden for secure notes.
+- [x] Keep note storage, validation, save payloads, secure rules, and revisions module-owned; add
+      regression markers for the collapsible group, footer Tags button, and footer file button. — All
+      save/secure logic unchanged; `notes-ui-workflow` markers cover the collapsible group, the footer
+      utility actions, the toggle/mount helpers, and the framework footer utility-group support.
 
 #### Version 0.33.5.18.5.6 - Notes Navigation Standardization
 

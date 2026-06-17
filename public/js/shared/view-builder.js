@@ -535,7 +535,7 @@
       fields: options.fields || options.body || [],
       className: "view-modal-form-fields",
     });
-    const footer = createModalFooter({ actions: normalizeActions(options.actions) });
+    const footer = createModalFooter({ actions: normalizeActions(options.actions), utilityActions: options.utilityActions });
 
     dialog.setAttribute("aria-labelledby", titleId);
     form.append(title, body, footer);
@@ -549,6 +549,14 @@
       className: ["view-modal-footer", "surface-modal-footer", options.className],
       children: options.children || [],
     });
+    const utilityActions = normalizeActions(options.utilityActions);
+    if (utilityActions.length) {
+      footer.appendChild(createElement("div", {
+        className: ["surface-modal-footer-group", "surface-modal-footer-utilities"],
+        attrs: { "data-modal-footer-group": "utility" },
+        children: utilityActions,
+      }));
+    }
     const actions = normalizeActions(options.actions);
     if (actions.length) {
       footer.appendChild(createElement("div", {
