@@ -512,16 +512,20 @@ Lists is already strict/declarative; this is UI/layout refinement that reuses th
 
 #### Version 0.33.5.18.5.9 - Lists Items Inset Refinement
 
-- [ ] Rework the item-entry inset (it is messy): Item field larger and on the top line; Qty and Unit
-      side-by-side and narrower.
-- [ ] Put Needed, Assigned, and Status narrower and side-by-side with Qty/Unit; default the purchase
-      status to "needed" (not "cancelled").
-- [ ] "Needed" should be "Needed by"
-- [ ] Default "Save as reusable item" to on.
-- [ ] Put Details on the third line, opening as one long row; move Notes to the bottom; right-justify the
-      "Add Item" button.
-- [ ] Honor the framework field-grid/width hints so the inset wraps cleanly; keep item validation, catalog,
-      and save logic module-owned.
+- [x] Rework the item-entry inset (it is messy): Item field larger and on the top line; Qty and Unit
+      side-by-side and narrower. — Item uses the new `full` width hint (own top row); Qty/Unit use `narrow`.
+- [x] Put Needed, Assigned, and Status narrower and side-by-side with Qty/Unit; default the purchase
+      status to "needed" (not "cancelled"). — Needed by/Assigned/Status use the new `compact` width hint;
+      the `purchase_status` descriptor field has `default: "needed"` applied via `applySelectDefault`.
+- [x] "Needed" should be "Needed by" — `needed_by_date` entry label is now "Needed by".
+- [x] Default "Save as reusable item" to on. — `checkboxField` honors the descriptor `default: "true"` as
+      checked-by-default (`defaultChecked`, so it survives `form.reset()`); submit value stays `"true"`.
+- [x] Put Details on the third line, opening as one long row; move Notes to the bottom; right-justify the
+      "Add Item" button. — `.lists-item-advanced` is a full-width row whose fields flow via `.view-field-grid`;
+      Notes left the disclosure to become a full-width field; the Add Item button is `margin-left: auto`.
+- [x] Honor the framework field-grid/width hints so the inset wraps cleanly; keep item validation, catalog,
+      and save logic module-owned. — Layout is purely width-hint driven (`full`/`narrow`/`compact`); the
+      item routes, catalog suggestion/save, and validation are unchanged.
 
 #### Version 0.33.5.18.5.10 - Lists Items Table (Display) Refinement
 
@@ -531,20 +535,34 @@ columns + `createItemRow` + `.lists-items-table`). This is distinct from .18.5.9
 module-owned `.lists-items-table` styling (with framework width hints where they apply); item data,
 validation, catalog, and save logic stay module-owned.
 
-- [ ] Widen the Item column and truncate long names: cap the displayed `item_name` to ~20 characters with
-      an ellipsis (keep the full name in the cell `title`), and give the Item column the freed width.
-- [ ] Remove the per-row metadata sub-line from the table (`itemTitle`'s sibling `.lists-row-meta` =
-      `itemDetailSummary` — vendor / "Has URL" / est. & actual cost / tracking / notes). The table should
-      show only its dedicated columns; cost surfaces as its own column (below) and the rest stay in the
-      item editor.
-- [ ] Make the Qty column very narrow (it holds a small number + unit).
-- [ ] Add a dedicated Cost column to the items table, surfacing `estimated_cost`/`actual_cost` (formatted)
-      instead of burying cost in the removed row-meta line.
-- [ ] Rename the "Needed" column heading to "Needed By" and constrain the column to date width only.
-      (Pairs with .18.5.9's matching "Needed by" rename on the entry field.)
-- [ ] Make the Status column narrower.
-- [ ] Remove the Assigned column from the items table view. (Assigned stays editable in the item entry
-      inset per .18.5.9 — it just isn't a table column.)
+- [x] Widen the Item column and truncate long names: cap the displayed `item_name` to ~20 characters with
+      an ellipsis (keep the full name in the cell `title`), and give the Item column the freed width. —
+      `truncateItemName` caps at 20 + ellipsis with the full name in `itemCell.title`; Item (col 2) has no
+      fixed width so it absorbs the leftover, with `text-overflow: ellipsis` as a backstop.
+- [x] Remove the per-row metadata sub-line from the table (`itemTitle`'s sibling `.lists-row-meta` =
+      `itemDetailSummary` — vendor / "Has URL" / est. & actual cost / tracking / notes). — Removed the
+      row-meta node, the dead `itemDetailSummary`/`findUser` helpers, and the `.lists-row-meta` CSS.
+- [x] Make the Qty column very narrow (it holds a small number + unit). — Qty column is 64px.
+- [x] Add a dedicated Cost column to the items table, surfacing `estimated_cost`/`actual_cost` (formatted)
+      instead of burying cost in the removed row-meta line. — New Cost column via `applyItemCostCell`
+      (actual-or-estimated, with an `Estimated … · Actual …` tooltip), 84px wide.
+- [x] Rename the "Needed" column heading to "Needed By" and constrain the column to date width only. —
+      Heading is "Needed By"; the column is 116px (date width).
+- [x] Make the Status column narrower. — Status column is 104px.
+- [x] Remove the Assigned column from the items table view. — Dropped from the descriptor columns and
+      `createItemRow` (assignment stays editable in the item entry form per .18.5.9).
+
+#### Version 0.33.5.18.5.11 - Lists Add/Edit Item Modal
+
+Convert the (now well-laid-out) inline item-entry form into a framework-rendered modal, matching the app's
+other add/edit modals — framework renders the shell, the module provides the data.
+
+- [x] Render the add/edit item form as a framework modal via `view.renderDescriptorModalForm` from the
+      `detail.itemForm` descriptor (wide size), built once at startup and repopulated per open
+      (`createItemDialogShell` + `openItemDialog`), mirroring the create/edit list modal.
+- [x] Replace the inline `lists-item-entry` form with an Items header + Add Item button
+      (`createItemsHeader`, `data-list-action="add-item"`); the row Edit action opens the same modal
+      pre-filled. Item create/edit/save routes, catalog suggestions, and validation stay module-owned.
 
 ---
 

@@ -10,12 +10,12 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.18.5.8", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.5.8", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.5.8", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.5.11", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.5.11", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.5.11", "package-lock package entry should report the current app version");
 
 assert.match(html, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists protected view should remain a minimal host");
-assert.match(html, /js\/shared\/view-builder\.js\?v=3[\s\S]*js\/shared\/view-renderer\.js\?v=3[\s\S]*js\/lists\.js\?v=8/, "Lists should load the renderer between the view builder and module script");
+assert.match(html, /js\/shared\/view-builder\.js\?v=3[\s\S]*js\/shared\/view-renderer\.js\?v=3[\s\S]*js\/lists\.js\?v=13/, "Lists should load the renderer between the view builder and module script");
 assert.doesNotMatch(html, /data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog/, "Lists HTML should not reintroduce protected workspace anatomy");
 
 assert.match(listsModule, /viewSurfaces:\s*\[/, "Lists manifest should declare a viewSurfaces descriptor");
@@ -38,7 +38,7 @@ assert.doesNotMatch(listsJs, /selectList\(lists\[0\]\.list_id/, "Lists should no
 assert.match(listsJs, /\/api\/lists\?\$\{buildListQueryParams\(\)\}/, "Lists query route should stay module-owned");
 assert.match(listsJs, /api\.postJson\("\/api\/lists", payload\)/, "Lists create route should stay module-owned");
 assert.match(listsJs, /api\.putJson\(`\/api\/lists\/\$\{encodeURIComponent\(state\.editingListId\)\}`/, "Lists update route should stay module-owned");
-assert.match(listsJs, /createItemForm\(/, "Lists item entry should remain in the module script for this slice");
+assert.match(listsJs, /createItemDialogShell\(/, "Lists item add/edit form is a framework-rendered modal");
 assert.match(listsJs, /createLinkedRecordsPanel\(/, "Lists linked records management should remain in the module script for this slice");
 assert.match(listsJs, /createListDialogShell\(/, "Lists modal shell should remain imperative until the modal slice");
 

@@ -56,8 +56,8 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/client-project-options\.js\?v=1/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=3/);
   assert.match(html, /js\/shared\/view-renderer\.js\?v=3/);
-  assert.match(html, /js\/lists\.js\?v=8/);
-  assert.match(html, /css\/longtail-forge\.css\?v=26/);
+  assert.match(html, /js\/lists\.js\?v=13/);
+  assert.match(html, /css\/longtail-forge\.css\?v=31/);
 
   assert.match(listsJs, /buildListsViewShell/);
   assert.match(listsJs, /view\.renderSurface\(renderDescriptor, host\)/);
@@ -101,7 +101,7 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /delete-list/);
   assert.match(listsJs, /check-item/);
   assert.match(listsJs, /uncheck-item/);
-  assert.match(listsJs, /complete-item/);
+  assert.doesNotMatch(listsJs, /complete-item/, "The redundant complete/Done row action should be removed (the row checkbox already toggles done)");
   assert.match(listsJs, /move-item-up/);
   assert.match(listsJs, /move-item-down/);
   assert.match(listsJs, /setBusinessControlsVisible\(usesBusinessScope\(\)\)/);
@@ -174,6 +174,47 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /icon: "add",\s*iconOnly: true,\s*label: addAction\.label \|\| "Add Link"/, "Add Link should be an icon button");
   assert.match(listsJs, /behavior: removeAction\.behavior,\s*icon: "delete"/, "Remove link should be an icon button");
 
+  // 0.33.5.18.5.9 Lists item-entry inset refinement.
+  assert.match(listsJs, /behavior: "lists\.catalog-suggestions", width: "full"/, "Item field should take its own full-width top row");
+  assert.match(listsJs, /field: "needed_by_date", type: "date", label: "Needed by", width: "compact"/, "Needed by should be relabeled and narrowed");
+  assert.match(listsJs, /field: "assigned_user_id", type: "select", label: "Assigned", optionsSource: "users", width: "compact"/, "Assigned should sit narrow on the side-by-side row");
+  assert.match(listsJs, /field: "purchase_status", type: "select", label: "Status", default: "needed",[\s\S]*width: "compact"/, "Status should default to needed and be narrowed");
+  assert.match(listsJs, /field: "notes", type: "textarea", label: "Notes", rows: "2", width: "full"/, "Notes should leave the Details disclosure and become a full-width field");
+  assert.match(listsJs, /const notes = createItemFieldFromDescriptor\(itemFormField\("notes"\)\)/, "The item modal should build the Notes field from the descriptor");
+  assert.match(listsJs, /function applySelectDefault/, "Selects should honor a descriptor default (so new items start on Needed)");
+  assert.match(listsJs, /checkboxField\(field\.label \|\| field\.field, field\.field, "true", \{ checked: field\.default === "true"/, "Save-as-reusable should be checked by default from the descriptor default");
+  assert.match(listsJs, /input\.defaultChecked = true/, "Checked-by-default checkboxes should survive form.reset()");
+
+  // 0.33.5.18.5.11 Lists add/edit item modal.
+  assert.match(listsJs, /function createItemsHeader/, "The detail should render an Items header with an Add Item button");
+  assert.match(listsJs, /add\.dataset\.listAction = "add-item"/, "The Add Item button should open the item modal via the add-item action");
+  assert.match(listsJs, /function createItemDialogShell/, "The add/edit item form should be a framework-rendered modal");
+  assert.match(listsJs, /view\.renderDescriptorModalForm\(descriptor, \{[\s\S]*size: "wide"/, "The item modal should be built via renderDescriptorModalForm (framework renders, module supplies fields)");
+  assert.match(listsJs, /function openItemDialog/, "Add and Edit should open the shared item modal");
+  assert.match(listsJs, /function saveItem/, "The item modal should own its save submit");
+  assert.match(listsJs, /await openItemDialog\(list, list\?\.items\?\.find/, "Edit item should open the modal pre-filled");
+  assert.match(listsJs, /itemDialogForm\?\.addEventListener\("submit", saveItem\)/, "The item modal form should submit via saveItem");
+  assert.match(listsJs, /document\.body\.appendChild\(createItemDialogShell\(\)\)/, "The item modal shell should be appended once at startup");
+  assert.match(listsJs, /function populateItemAssigneeOptions/, "Assignee options must populate on open (the modal is built once before users load, so the field cannot read state.users at build time)");
+  assert.doesNotMatch(listsJs, /function createItemForm\b/, "The inline item form should be replaced by the modal");
+  assert.doesNotMatch(listsJs, /function populateItemForm\b/, "populateItemForm should be replaced by fillItemForm");
+
+  // 0.33.5.18.5.10 Lists items table (display) refinement.
+  assert.match(listsJs, /\{ id: "cost", field: "estimated_cost", label: "Cost" \}/, "Items table should carry a dedicated Cost column");
+  assert.match(listsJs, /\{ id: "needed", field: "needed_by_date", label: "Needed By" \}/, "Items table Needed column should be relabeled Needed By");
+  assert.doesNotMatch(listsJs, /\{ id: "assigned", field: "assigned_user_id", label: "Assigned" \}/, "Items table should no longer carry the Assigned column");
+  assert.match(listsJs, /function truncateItemName/, "Item names should be truncated in the table");
+  assert.match(listsJs, /itemCell\.title = itemName/, "Truncated item names should keep the full name in the cell title");
+  assert.match(listsJs, /function applyItemCostCell/, "The Cost column should render estimated/actual cost");
+  assert.doesNotMatch(listsJs, /function itemDetailSummary/, "The per-row metadata sub-line should be removed from the items table");
+  assert.doesNotMatch(listsJs, /lists-row-meta/, "The items table should no longer render the row-meta sub-line");
+  assert.match(listsJs, /row\.append\(doneCell, itemCell, qtyCell, costCell, neededCell, statusCell, actionsCell\)/, "Item rows should drop Assigned and add Cost after Qty");
+
+  // 0.33.5.18.5.10 follow-up: tighter table + row action overflow menu.
+  assert.match(listsJs, /function createItemRowActions/, "Row actions should be built by a dedicated helper");
+  assert.match(listsJs, /view\.renderDescriptorActionMenu\([\s\S]*rowActionButton\("edit-item", \{ menu: true \}\), rowActionButton\("delete-item", \{ menu: true \}\)/, "Edit and Delete should fold into a row '...' overflow menu");
+  assert.match(listsJs, /renderDescriptorInlineActions\(\s*\[rowActionButton\("move-item-up"\), rowActionButton\("move-item-down"\), menu\]/, "Up and Down should stay inline, ahead of the '...' menu");
+
   assert.match(styles, /\.view-split-list-detail/);
   assert.match(styles, /\.lists-index-panel summary/);
   assert.match(styles, /\.lists-state-summary/);
@@ -200,7 +241,18 @@ async function assertProtectedView(session) {
   assert.match(styles, /\.lists-source-context,[\s\S]*\.lists-cost-summary[\s\S]*background: var\(--color-surface-muted\)/);
   assert.match(styles, /\.lists-detail-title-row\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto/, "Lists detail title row should put the action menu to the right of the title");
   assert.match(styles, /\.lists-detail-meta\s*\{[\s\S]*font-size: 13px/, "Lists detail meta should use the compact Notes meta size");
+  assert.match(styles, /\.view-field-grid > \[data-view-field-width="full"\]\s*\{[\s\S]*flex: 1 1 100%/, "Framework field grid should support a full-row width hint");
+  assert.match(styles, /\.view-field-grid > \[data-view-field-width="compact"\]\s*\{[\s\S]*flex: 1 1 150px/, "Framework field grid should support a compact width hint");
+  assert.match(styles, /\.lists-items-header\s*\{[\s\S]*justify-content: space-between/, "The Items header should place the Add Item button opposite the title");
+  assert.match(styles, /\.lists-item-advanced\s*\{[\s\S]*flex: 1 1 100%/, "The Details disclosure should span its own full-width row");
+  assert.doesNotMatch(styles, /\.lists-item-advanced summary\s*\{[^}]*display:\s*(?:grid|flex)/, "The Details summary must keep the native disclosure caret (no display:grid/flex that flexes the marker away)");
   assert.match(styles, /\.lists-next-action\s*\{[\s\S]*max-width: 520px/, "The Next panel should be roughly half width");
+  assert.match(styles, /\.lists-items-table td:nth-child\(2\)\s*\{[\s\S]*text-overflow: ellipsis/, "The items table Item column should ellipsis-truncate");
+  assert.match(styles, /\.lists-items-table\s*\{[\s\S]*width: auto;[\s\S]*table-layout: auto/, "The items table should be content-sized so columns pack together (no full-width stretch)");
+  assert.match(styles, /\.lists-items-table th,\s*\.lists-items-table td\s*\{[\s\S]*padding: 8px 10px/, "The items table cells should use tighter padding");
+  assert.match(styles, /\.lists-items-table th:first-child,\s*\.lists-items-table td:first-child\s*\{[\s\S]*width: 1%/, "The Done column should shrink to its checkbox so it sits close to Item");
+  assert.match(styles, /\.lists-items\s*\{[\s\S]*overflow: visible/, "The items wrapper should not clip the row action menu");
+  assert.match(styles, /\.lists-items-table-wrap\s*\{[\s\S]*overflow: visible/, "The framework table wrapper should not clip the row action menu");
   assert.doesNotMatch(listsStyles, /#eff6ff|#f0fdfa|#fff7ed|#bfdbfe|#99f6e4|#fed7aa/);
 }
 

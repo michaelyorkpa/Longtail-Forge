@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.5.8";
+const appVersion = "0.33.5.18.5.11";
 const roadmap = readText("ROADMAP.md");
 const changelog = readText("CHANGELOG.md");
 const moduleContract = readText("docs/module-contract.md");
@@ -29,6 +29,7 @@ assert.match(moduleContract, /Non-converted surfaces may remain hand-built until
 assert.match(moduleDevelopment, /Before converting a module view, identify which pieces are framework-owned anatomy/, "Developer guide should include module view adoption steps");
 assert.match(moduleDevelopment, /Do not call `document\.createElement\("dialog"\)` directly in converted surfaces/, "Developer guide should include converted dialog guardrails");
 assert.match(uiLayoutGuide, /Use `LongtailForge\.view` for converted framework-owned view anatomy/, "UI layout guide should include view helper usage");
+assert.match(uiLayoutGuide, /Disclosure `<summary>` toggles must keep their native disclosure marker/, "UI layout guide should require disclosure summaries to keep the native caret");
 assert.match(architecture, /framework-owned view-building helper layer/, "Architecture doc should include the view-building helper boundary");
 assert.match(helpModules, /Shared framework view patterns/, "Help should describe shared module view behavior without developer-only class details");
 

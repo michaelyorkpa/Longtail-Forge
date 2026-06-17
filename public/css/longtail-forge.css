@@ -426,6 +426,18 @@ summary.surface-modal-section-heading {
     flex: 2 1 320px;
 }
 
+/* "compact" sits between narrow and the default: small but roomy enough for a date input or a short
+   select, and it grows to share a row. "full" forces a field onto its own row. */
+.view-filter-panel-fields > [data-view-field-width="compact"],
+.view-field-grid > [data-view-field-width="compact"] {
+    flex: 1 1 150px;
+}
+
+.view-filter-panel-fields > [data-view-field-width="full"],
+.view-field-grid > [data-view-field-width="full"] {
+    flex: 1 1 100%;
+}
+
 .view-filter-panel-fields > button,
 .view-field-grid > button {
     flex: 0 0 auto;
@@ -4993,17 +5005,10 @@ summary.view-info-panel-title {
     max-width: 100%;
 }
 
-.lists-row-meta,
 .lists-description,
 .lists-empty-state,
 .lists-locked-note {
     color: var(--color-muted);
-}
-
-.lists-row-meta {
-    display: block;
-    margin-top: 4px;
-    font-size: 0.85rem;
 }
 
 .lists-state-summary {
@@ -5208,20 +5213,34 @@ summary.view-info-panel-title {
     margin: 0;
 }
 
+/* The items section heading carries the "Items" title and the Add Item button (which opens the item
+   modal); the inline `.lists-item-entry` form was retired in favor of that modal. */
+.lists-items-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 16px 0 8px;
+}
+
+.lists-items-header h3 {
+    margin: 0;
+}
+
 .lists-item-form {
-    grid-template-columns: minmax(180px, 1.3fr) 80px 90px 130px minmax(140px, 1fr) minmax(130px, 1fr) minmax(150px, 0.8fr) auto auto;
     align-items: end;
     min-width: 0;
 }
 
 .lists-item-advanced {
-    min-width: 160px;
+    flex: 1 1 100%;
+    min-width: 0;
 }
 
 .lists-item-advanced summary {
-    min-height: 38px;
-    display: grid;
-    align-items: center;
+    /* No display override here: a plain disclosure summary keeps the native list-item marker (the
+       caret). A flex or grid display would remove that marker (see the UI layout guide). */
     cursor: pointer;
     font-weight: 700;
 }
@@ -5231,14 +5250,8 @@ summary.view-info-panel-title {
 }
 
 .lists-item-advanced-fields {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
+    /* Flows as one wrapping row via the inherited .view-field-grid flex; only the top spacing is local. */
     margin-top: 10px;
-}
-
-.lists-item-advanced-fields label:last-child {
-    grid-column: 1 / -1;
 }
 
 .lists-checkbox-field {
@@ -5256,18 +5269,44 @@ summary.view-info-panel-title {
     box-sizing: border-box;
     min-width: 0;
     max-width: 100%;
-    overflow-x: auto;
+    /* The compact auto-width table fits the detail panel, so the wrappers stay overflow:visible — that
+       lets the per-row "..." action menu open without being clipped by a scroll container. */
+    overflow: visible;
 }
 
+/* The framework data-table wrapper defaults to overflow-x:auto; the compact items table does not need
+   it, and clipping would hide the row action menu. */
+.lists-items-table-wrap {
+    overflow: visible;
+}
+
+/* Content-sized, left-packed columns (auto layout, not stretched to 100%) so adjacent columns sit close
+   together instead of leaving large gaps; long Item names are truncated in script. */
 .lists-items-table {
+    width: auto;
     min-width: 0;
-    table-layout: fixed;
+    table-layout: auto;
+}
+
+.lists-items-table th,
+.lists-items-table td {
+    padding: 8px 10px;
 }
 
 .lists-items-table th:first-child,
 .lists-items-table td:first-child {
-    width: 52px;
+    width: 1%;
+    white-space: nowrap;
     text-align: center;
+}
+
+/* Item names are capped to ~20 chars in script (full name in the cell title); the max-width keeps any
+   stray long token from widening the column. */
+.lists-items-table td:nth-child(2) {
+    max-width: 22ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .lists-item-actions {

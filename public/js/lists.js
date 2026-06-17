@@ -72,11 +72,19 @@ const listDescriptionInput = document.querySelector("[data-list-description]");
 const listFormStatus = document.querySelector("[data-list-form-status]");
 const listCancelButton = document.querySelector("[data-list-cancel]");
 const listSaveButton = document.querySelector("[data-list-save]");
+const itemDialog = document.querySelector("[data-list-item-dialog]");
+const itemDialogForm = document.querySelector("[data-list-item-form]");
+const itemDialogTitle = document.querySelector("[data-list-item-dialog-title]");
+const itemDialogClose = document.querySelector("[data-list-item-dialog-close]");
+const itemDialogCancel = document.querySelector("[data-list-item-cancel]");
+const itemDialogSave = document.querySelector("[data-list-item-save]");
+const itemDialogFormStatus = document.querySelector("[data-list-item-form-status]");
 
 let state = {
   clients: [],
   currentUserId: "",
   editingListId: "",
+  itemDialogList: null,
   itemSuggestions: new Map(),
   lists: [],
   selectedListId: new URLSearchParams(window.location.search).get("list") || "",
@@ -93,6 +101,9 @@ sortSelect?.addEventListener("change", () => refreshLists());
 listForm?.addEventListener("submit", saveList);
 listDialogClose?.addEventListener("click", closeListDialog);
 listCancelButton?.addEventListener("click", closeListDialog);
+itemDialogForm?.addEventListener("submit", saveItem);
+itemDialogClose?.addEventListener("click", closeItemDialog);
+itemDialogCancel?.addEventListener("click", closeItemDialog);
 listClientInput?.addEventListener("change", () => populateProjectOptions(listProjectInput, listClientInput.value));
 listProjectInput?.addEventListener("change", syncClientFromProject);
 listTypeInput?.addEventListener("change", () => setContextControlsVisible(shouldShowContextControls(listTypeInput.value)));
@@ -122,6 +133,7 @@ function buildListsViewShell() {
   const surface = view.renderSurface(renderDescriptor, host);
   decorateListsDeclarativeSurface(surface, renderDescriptor);
   document.body.appendChild(createListDialogShell());
+  document.body.appendChild(createItemDialogShell());
 }
 
 function registerListsViewBehaviors() {
@@ -144,7 +156,6 @@ function registerListsViewBehaviors() {
     "lists.link.remove": "remove-link",
     "lists.item.save": "save-item",
     "lists.item.edit": "edit-item",
-    "lists.item.complete": "complete-item",
     "lists.item.move-up": "move-item-up",
     "lists.item.move-down": "move-item-down",
     "lists.item.delete": "delete-item",
@@ -293,19 +304,19 @@ function listsItemFormDescriptor() {
   return {
     title: "Items",
     fields: [
-      { field: "item_name", type: "text", label: "Item", required: true, autocomplete: "off", behavior: "lists.catalog-suggestions" },
+      { field: "item_name", type: "text", label: "Item", required: true, autocomplete: "off", behavior: "lists.catalog-suggestions", width: "full" },
       { field: "catalog_item_id", type: "hidden", label: "Catalog Item" },
       { field: "quantity", type: "number", label: "Qty", default: "1", min: "0", step: "0.01", width: "narrow" },
       { field: "unit", type: "text", label: "Unit", width: "narrow" },
-      { field: "needed_by_date", type: "date", label: "Needed" },
-      { field: "assigned_user_id", type: "select", label: "Assigned", optionsSource: "users" },
-      { field: "purchase_status", type: "select", label: "Status", options: Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => [value, label]) },
+      { field: "needed_by_date", type: "date", label: "Needed by", width: "compact" },
+      { field: "assigned_user_id", type: "select", label: "Assigned", optionsSource: "users", width: "compact" },
+      { field: "purchase_status", type: "select", label: "Status", default: "needed", options: Object.entries(PURCHASE_STATUS_LABELS).map(([value, label]) => [value, label]), width: "compact" },
       { field: "vendor_name", type: "text", label: "Vendor or Store", placement: "advanced" },
       { field: "url", type: "url", label: "URL", placement: "advanced" },
       { field: "estimated_cost", type: "number", label: "Estimated Cost", min: "0", step: "0.01", placement: "advanced" },
       { field: "actual_cost", type: "number", label: "Actual Cost", min: "0", step: "0.01", placement: "advanced" },
       { field: "tracking_id", type: "text", label: "Tracking ID", placement: "advanced" },
-      { field: "notes", type: "textarea", label: "Notes", rows: "2", placement: "advanced" },
+      { field: "notes", type: "textarea", label: "Notes", rows: "2", width: "full" },
       { field: "save_to_catalog", type: "checkbox", label: "Save as reusable item", default: "true" },
     ],
     actions: [
@@ -321,14 +332,13 @@ function listsItemRowsDescriptor() {
       { id: "done", label: "Done", type: "checkbox" },
       { id: "item", field: "item_name", label: "Item" },
       { id: "quantity", field: "quantity", label: "Qty" },
-      { id: "needed", field: "needed_by_date", label: "Needed" },
+      { id: "cost", field: "estimated_cost", label: "Cost" },
+      { id: "needed", field: "needed_by_date", label: "Needed By" },
       { id: "status", field: "purchase_status", label: "Status" },
-      { id: "assigned", field: "assigned_user_id", label: "Assigned" },
       { id: "actions", label: "Actions", type: "actions" },
     ],
     actions: [
       { id: "edit-item", label: "Edit", role: "secondary", behavior: "lists.item.edit" },
-      { id: "complete-item", label: "Done", role: "secondary", behavior: "lists.item.complete" },
       { id: "move-item-up", label: "Up", role: "utility", behavior: "lists.item.move-up" },
       { id: "move-item-down", label: "Down", role: "utility", behavior: "lists.item.move-down" },
       { id: "delete-item", label: "Delete", role: "destructive", behavior: "lists.item.delete" },
@@ -817,18 +827,17 @@ function renderDetail(list) {
   const linkedRecords = createLinkedRecordsPanel(list, locked);
   const costSummary = createCostSummaryPanel(list);
   const description = view.createElement("p", { className: "lists-description" });
-  const itemForm = createItemForm(list, locked);
+  const itemsHeader = createItemsHeader(list, locked);
   const items = view.createElement("div", { className: "lists-items" });
 
   description.textContent = list.description || "No description.";
   items.appendChild(createItemsTable(list, locked));
 
   // Reorganized detail order: identity (header) -> what it is (description) -> what to do next ->
-  // provenance (only when meaningful) -> linked records -> add an item -> the items table ->
-  // the cost rollup beneath the items it totals.
-  article.append(...[header, description, nextAction, sourceContext, linkedRecords, itemForm, items, costSummary].filter(Boolean));
+  // provenance (only when meaningful) -> linked records -> Items heading + Add Item -> the items table ->
+  // the cost rollup beneath the items it totals. The add/edit item form opens as a modal.
+  article.append(...[header, description, nextAction, sourceContext, linkedRecords, itemsHeader, items, costSummary].filter(Boolean));
   detailPanel.replaceChildren(article);
-  void loadItemSuggestions(list).then(() => updateSuggestionDatalist(itemForm, list));
 }
 
 function createListDetailHeader(list, locked) {
@@ -902,47 +911,150 @@ function listWorkflowActionButton(action = {}, list, options = {}) {
   });
 }
 
-function createItemForm(list, locked) {
+function createItemsHeader(list, locked) {
+  // The item form now lives in a modal; the detail just carries an "Items" heading and an Add Item button
+  // that opens it (or a read-only notice when the list is locked).
   const descriptor = listsItemFormSurfaceDescriptor();
-  const section = view.createElement("section", { className: "lists-item-entry" });
-  const title = view.createElement("h3", { text: descriptor.title || descriptor.label || "Items" });
-  const form = view.createElement("form", { className: ["lists-item-form", "view-field-grid", "surface-modal-section-body"] });
-  const name = createItemFieldFromDescriptor(itemFormField("item_name"), list);
-  const catalogItemId = createItemFieldFromDescriptor(itemFormField("catalog_item_id"), list);
-  const quantity = createItemFieldFromDescriptor(itemFormField("quantity"), list);
-  const unit = createItemFieldFromDescriptor(itemFormField("unit"), list);
-  const needed = createItemFieldFromDescriptor(itemFormField("needed_by_date"), list);
-  const assigned = createItemFieldFromDescriptor(itemFormField("assigned_user_id"), list);
-  const purchase = createItemFieldFromDescriptor(itemFormField("purchase_status"), list);
+  const title = view.createElement("h3", { text: descriptor.title || "Items" });
+  const children = [title];
+  if (locked) {
+    children.push(view.createElement("p", { className: "lists-locked-note", text: readOnlyStateMessage(list) }));
+  } else {
+    const addAction = descriptor.actions?.[0] || {};
+    const add = view.createActionButton({ label: addAction.label || "Add Item", role: addAction.role || "primary" });
+    add.dataset.listAction = "add-item";
+    add.dataset.listId = list.list_id;
+    children.push(add);
+  }
+  return view.createElement("div", { className: "lists-items-header", children });
+}
+
+// The add/edit item form is a framework-rendered modal (createModalForm via renderDescriptorModalForm);
+// the module supplies the fields from the descriptor and owns the data, validation, and save routes.
+function createItemDialogShell() {
+  const descriptor = listsItemFormSurfaceDescriptor();
+  const name = createItemFieldFromDescriptor(itemFormField("item_name"));
+  const catalogItemId = createItemFieldFromDescriptor(itemFormField("catalog_item_id"));
+  const sideBySide = view.renderDescriptorFieldGrid({ fields: [] }, {
+    surface: false,
+    className: "lists-item-fields",
+    fields: ["quantity", "unit", "needed_by_date", "assigned_user_id", "purchase_status"]
+      .map((fieldName) => createItemFieldFromDescriptor(itemFormField(fieldName))),
+  });
+  const advancedDescriptorFields = (descriptor.fields || []).filter((field) => field.placement === "advanced");
   const advanced = view.createElement("details", { className: "lists-item-advanced" });
   const advancedSummary = view.createElement("summary", { text: "Details" });
-  const advancedFields = view.renderDescriptorFieldGrid({ fields: descriptor.fields.filter((field) => field.placement === "advanced") }, {
+  const advancedFields = view.renderDescriptorFieldGrid({ fields: advancedDescriptorFields }, {
     surface: false,
     className: "lists-item-advanced-fields",
-    fields: descriptor.fields
-      .filter((field) => field.placement === "advanced")
-      .map((field) => createItemFieldFromDescriptor(field, list)),
+    fields: advancedDescriptorFields.map((field) => createItemFieldFromDescriptor(field)),
   });
-  const saveToCatalog = createItemFieldFromDescriptor(itemFormField("save_to_catalog"), list);
-  const submitAction = descriptor.actions?.[0] || {};
-  const submit = view.createActionButton({ label: submitAction.label || "Add Item", type: "submit", role: submitAction.role || "primary" });
-
-  form.dataset.listItemForm = "";
-  form.dataset.listId = list.list_id;
   advanced.append(advancedSummary, advancedFields);
-  submit.disabled = locked;
-  form.append(name, catalogItemId, quantity, unit, needed, assigned, purchase, advanced, saveToCatalog, submit);
-  if (locked) {
-    const notice = view.createElement("p", {
-      className: "lists-locked-note",
-      text: readOnlyStateMessage(list),
-    });
-    section.append(title, notice);
-  } else {
-    section.append(title);
+  const notes = createItemFieldFromDescriptor(itemFormField("notes"));
+  const saveToCatalog = createItemFieldFromDescriptor(itemFormField("save_to_catalog"));
+  const formStatus = view.createStatusMessage({ className: "lists-form-status" });
+  formStatus.dataset.listItemFormStatus = "";
+
+  const saveAction = descriptor.actions?.[0] || {};
+  const cancel = view.createActionButton({ label: "Cancel", role: "secondary" });
+  cancel.dataset.listItemCancel = "";
+  const save = view.createActionButton({ label: saveAction.label || "Add Item", type: "submit", role: saveAction.role || "primary" });
+  save.dataset.listItemSave = "";
+
+  const dialog = view.renderDescriptorModalForm(descriptor, {
+    title: descriptor.title || "Item",
+    size: "wide",
+    className: "lists-item-dialog",
+    formClassName: "lists-item-form",
+    fields: [name, catalogItemId, sideBySide, advanced, notes, saveToCatalog, formStatus],
+    actions: [cancel, save],
+  });
+  dialog.dataset.listItemDialog = "";
+  dialog.viewParts.form.dataset.listItemForm = "";
+  dialog.viewParts.title.dataset.listItemDialogTitle = "";
+
+  const close = view.createActionButton({ label: "Close", className: "lists-dialog-close" });
+  close.dataset.listItemDialogClose = "";
+  const heading = view.createElement("div", {
+    className: "lists-dialog-heading",
+    children: [dialog.viewParts.title, close],
+  });
+  dialog.viewParts.form.insertBefore(heading, dialog.viewParts.body);
+  return dialog;
+}
+
+async function openItemDialog(list, item = null) {
+  if (!itemDialog || !list) {
+    return;
   }
-  section.appendChild(form);
-  return section;
+  state.itemDialogList = list;
+  itemDialogForm.reset();
+  itemDialogForm.dataset.listId = list.list_id;
+  itemDialogForm.dataset.editingItemId = item?.list_item_id || "";
+  populateItemAssigneeOptions();
+  setFormValue(itemDialogForm, "catalog_item_id", item?.catalog_item_id || "");
+  itemDialogTitle.textContent = item ? "Edit Item" : "Add Item";
+  itemDialogSave.textContent = item ? "Save Item" : (listsItemFormSurfaceDescriptor().actions?.[0]?.label || "Add Item");
+  itemDialogFormStatus.textContent = "";
+  const advanced = itemDialogForm.querySelector(".lists-item-advanced");
+  if (item) {
+    fillItemForm(itemDialogForm, item);
+    advanced?.setAttribute("open", "open");
+  } else {
+    advanced?.removeAttribute("open");
+  }
+  await loadItemSuggestions(list);
+  updateSuggestionDatalist(itemDialog, list);
+  if (typeof itemDialog.showModal === "function") {
+    itemDialog.showModal();
+  } else {
+    itemDialog.setAttribute("open", "open");
+  }
+  itemDialogForm.querySelector("[name='item_name']")?.focus();
+}
+
+function populateItemAssigneeOptions(selectedUserId = "") {
+  const select = itemDialogForm?.elements.assigned_user_id;
+  if (!select) {
+    return;
+  }
+  replaceOptions(select, [
+    option("", "Unassigned"),
+    ...state.users.map((user) => option(user.user_id, displayUser(user))),
+  ]);
+  select.value = selectedUserId || "";
+}
+
+function closeItemDialog() {
+  itemDialog?.close?.();
+  itemDialog?.removeAttribute("open");
+}
+
+async function saveItem(event) {
+  event.preventDefault();
+  const form = event.target;
+  const listId = form.dataset.listId;
+  const editingItemId = form.dataset.editingItemId || "";
+  const payload = Object.fromEntries(new FormData(form).entries());
+
+  payload.quantity = payload.quantity || 1;
+  payload.save_to_catalog = payload.save_to_catalog === "true";
+  try {
+    itemDialogSave.disabled = true;
+    itemDialogFormStatus.textContent = "Saving item...";
+    if (editingItemId) {
+      await api.putJson(`/api/lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(editingItemId)}`, payload);
+    } else {
+      await api.postJson(`/api/lists/${encodeURIComponent(listId)}/items`, payload);
+    }
+    closeItemDialog();
+    await refreshLists(listId);
+    setStatus("");
+  } catch (error) {
+    itemDialogFormStatus.textContent = error.message || "Item could not be saved.";
+  } finally {
+    itemDialogSave.disabled = false;
+  }
 }
 
 function listsItemFormSurfaceDescriptor() {
@@ -953,17 +1065,17 @@ function itemFormField(fieldName) {
   return listsItemFormSurfaceDescriptor().fields?.find((field) => field.field === fieldName) || { field: fieldName, type: "text", label: fieldName };
 }
 
-function createItemFieldFromDescriptor(field, list) {
-  const node = buildItemFieldNode(field, list);
+function createItemFieldFromDescriptor(field) {
+  const node = buildItemFieldNode(field);
   if (field.width && node && node.dataset) {
     node.dataset.viewFieldWidth = field.width;
   }
   return node;
 }
 
-function buildItemFieldNode(field, list) {
+function buildItemFieldNode(field) {
   if (field.field === "item_name") {
-    return createItemNameField(list, field);
+    return createItemNameField(field);
   }
   if (field.field === "catalog_item_id") {
     const input = view.createElement("input");
@@ -973,19 +1085,21 @@ function buildItemFieldNode(field, list) {
     return input;
   }
   if (field.field === "assigned_user_id") {
-    return selectField(field.label || "Assigned", field.field, [
-      option("", "Unassigned"),
-      ...state.users.map((user) => option(user.user_id, displayUser(user))),
-    ]);
+    // Built once (before users load) with just the placeholder; openItemDialog fills the user options.
+    return selectField(field.label || "Assigned", field.field, [option("", "Unassigned")]);
   }
   if (field.type === "select") {
-    return selectField(field.label || field.field, field.field, optionsFromDescriptor(field).map(([value, label]) => option(value, label)));
+    const node = selectField(field.label || field.field, field.field, optionsFromDescriptor(field).map(([value, label]) => option(value, label)));
+    applySelectDefault(node, field.default);
+    return node;
   }
   if (field.type === "textarea") {
     return textareaField(field.label || field.field, field.field, { rows: field.rows });
   }
   if (field.type === "checkbox") {
-    return checkboxField(field.label || field.field, field.field, field.default || "true");
+    // For checkboxes the descriptor `default` carries the checked-by-default state; the submitted value
+    // stays "true" so the save handler's `=== "true"` check is unaffected.
+    return checkboxField(field.label || field.field, field.field, "true", { checked: field.default === "true" || field.default === true });
   }
   return inputField(field.label || field.field, field.type || "text", field.field, {
     autocomplete: field.autocomplete,
@@ -1005,11 +1119,13 @@ function optionsFromDescriptor(field = {}) {
   });
 }
 
-function createItemNameField(list, field = {}) {
+function createItemNameField(field = {}) {
   const label = document.createElement("label");
   const input = document.createElement("input");
   const dataList = document.createElement("datalist");
-  const listId = `list-item-suggestions-${list.list_id}`;
+  // Fixed datalist id (the modal is built once and reused); suggestions are repopulated per open for the
+  // list currently in the dialog (state.itemDialogList).
+  const listId = "list-item-suggestions";
 
   input.type = "text";
   input.name = "item_name";
@@ -1020,11 +1136,11 @@ function createItemNameField(list, field = {}) {
   dataList.id = listId;
   dataList.dataset.listItemSuggestions = "";
   label.append(field.label || "Item", input, dataList);
-  input.addEventListener("input", () => applySuggestionSelection(input.form, list, input.value));
+  input.addEventListener("input", () => applySuggestionSelection(input.form, state.itemDialogList, input.value));
   return label;
 }
 
-function checkboxField(labelText, name, value) {
+function checkboxField(labelText, name, value, options = {}) {
   const label = document.createElement("label");
   const input = document.createElement("input");
 
@@ -1032,6 +1148,11 @@ function checkboxField(labelText, name, value) {
   input.type = "checkbox";
   input.name = name;
   input.value = value;
+  if (options.checked) {
+    // defaultChecked so form.reset() (after adding an item) restores the on state.
+    input.checked = true;
+    input.defaultChecked = true;
+  }
   label.append(input, labelText);
   return label;
 }
@@ -1246,13 +1367,12 @@ function createItemRow(list, item, index, total, locked) {
   const doneCell = document.createElement("td");
   const itemCell = document.createElement("td");
   const qtyCell = document.createElement("td");
+  const costCell = document.createElement("td");
   const neededCell = document.createElement("td");
   const statusCell = document.createElement("td");
-  const assignedCell = document.createElement("td");
   const actionsCell = document.createElement("td");
   const checkbox = document.createElement("input");
   const itemTitle = document.createElement("strong");
-  const itemNotes = document.createElement("span");
 
   checkbox.type = "checkbox";
   checkbox.checked = Boolean(item.checked_at);
@@ -1262,42 +1382,73 @@ function createItemRow(list, item, index, total, locked) {
   checkbox.dataset.itemId = item.list_item_id;
   doneCell.appendChild(checkbox);
 
-  itemTitle.textContent = item.item_name || "Untitled item";
-  itemNotes.className = "lists-row-meta";
-  itemNotes.textContent = itemDetailSummary(item);
-  itemCell.append(itemTitle, itemNotes);
+  // Show only the item name (truncated past 20 chars, full name in the cell title); vendor/url/tracking/
+  // notes live in the item editor and the cost surfaces in its own column below.
+  const itemName = item.item_name || "Untitled item";
+  itemTitle.textContent = truncateItemName(itemName, 20);
+  if (itemTitle.textContent !== itemName) {
+    itemCell.title = itemName;
+  }
+  itemCell.appendChild(itemTitle);
   qtyCell.textContent = [item.quantity ?? "", item.unit || ""].filter(Boolean).join(" ") || "-";
+  applyItemCostCell(costCell, item);
   neededCell.textContent = item.needed_by_date || "-";
   statusCell.textContent = PURCHASE_STATUS_LABELS[item.purchase_status] || item.purchase_status || "-";
-  assignedCell.textContent = displayUser(findUser(item.assigned_user_id)) || "Unassigned";
-  actionsCell.appendChild(view.renderDescriptorInlineActions(
-    listsItemRowsSurfaceDescriptor().actions.map((action) => itemRowActionButton(action, list, item, index, total, locked)),
-    {
-      className: "lists-item-actions",
-      ariaLabel: `${item.item_name || "Item"} actions`,
-    },
-  ));
-  row.append(doneCell, itemCell, qtyCell, neededCell, statusCell, assignedCell, actionsCell);
+  actionsCell.appendChild(createItemRowActions(list, item, index, total, locked));
+  row.append(doneCell, itemCell, qtyCell, costCell, neededCell, statusCell, actionsCell);
   return row;
+}
+
+function createItemRowActions(list, item, index, total, locked) {
+  // The reorder controls stay inline (up/down icons); edit and delete fold into a "..." overflow menu.
+  const actionById = new Map(listsItemRowsSurfaceDescriptor().actions.map((action) => [action.id, action]));
+  const rowActionButton = (id, options) => itemRowActionButton(actionById.get(id), list, item, index, total, locked, options);
+  const ariaLabel = `${item.item_name || "Item"} actions`;
+  const menu = view.renderDescriptorActionMenu(
+    [rowActionButton("edit-item", { menu: true }), rowActionButton("delete-item", { menu: true })],
+    { summaryLabel: "...", ariaLabel, title: "Item actions" },
+  );
+  return view.renderDescriptorInlineActions(
+    [rowActionButton("move-item-up"), rowActionButton("move-item-down"), menu],
+    { className: "lists-item-actions", ariaLabel },
+  );
+}
+
+function truncateItemName(text, max) {
+  const value = String(text || "");
+  return value.length > max ? `${value.slice(0, max)}…` : value;
+}
+
+function applyItemCostCell(cell, item) {
+  const estimated = Number(item.estimated_cost) || 0;
+  const actual = Number(item.actual_cost) || 0;
+  const display = actual || estimated;
+  cell.textContent = display ? formatCurrency(display) : "-";
+  if (estimated && actual) {
+    cell.title = `Estimated ${formatCurrency(estimated)} · Actual ${formatCurrency(actual)}`;
+  } else if (estimated) {
+    cell.title = `Estimated ${formatCurrency(estimated)}`;
+  } else if (actual) {
+    cell.title = `Actual ${formatCurrency(actual)}`;
+  }
 }
 
 const ITEM_ROW_ACTION_ICONS = {
   "edit-item": "edit",
-  "complete-item": "complete",
   "move-item-up": "up",
   "move-item-down": "down",
   "delete-item": "delete",
 };
 
-function itemRowActionButton(action, list, item, index, total, locked) {
+function itemRowActionButton(action, list, item, index, total, locked, options = {}) {
   const disabledByPosition = (action.id === "move-item-up" && index === 0) ||
-    (action.id === "move-item-down" && index >= total - 1) ||
-    (action.id === "complete-item" && Boolean(item.completed_at));
+    (action.id === "move-item-down" && index >= total - 1);
   return actionButton(action.label || action.id, action.id, list.list_id, action.role === "destructive" ? "secondary" : "", {
     itemId: item.list_item_id,
     disabled: locked || disabledByPosition,
     behavior: action.behavior,
-    icon: ITEM_ROW_ACTION_ICONS[action.id],
+    // Menu items render as labeled buttons (Edit/Delete); the inline up/down stay icon-only.
+    icon: options.menu ? undefined : ITEM_ROW_ACTION_ICONS[action.id],
   });
 }
 
@@ -1319,8 +1470,13 @@ async function handleDetailClick(event) {
       setStatus("");
       return;
     }
+    if (action === "add-item") {
+      await openItemDialog(list);
+      setStatus("");
+      return;
+    }
     if (action === "edit-item") {
-      populateItemForm(list, itemId);
+      await openItemDialog(list, list?.items?.find((entry) => entry.list_item_id === itemId) || null);
       setStatus("");
       return;
     }
@@ -1365,7 +1521,7 @@ async function runAction(action, list, itemId, linkId = "") {
     await api.postJson(`/api/lists/${listId}/restore`, {});
   } else if (action === "delete-list") {
     await api.deleteJson(`/api/lists/${listId}`);
-  } else if (action === "check-item" || action === "uncheck-item" || action === "complete-item") {
+  } else if (action === "check-item" || action === "uncheck-item") {
     await api.postJson(`/api/lists/${listId}${itemPath}/${action.replace("-item", "")}`, {});
   } else if (action === "delete-item") {
     await api.deleteJson(`/api/lists/${listId}${itemPath}`);
@@ -1419,48 +1575,12 @@ async function handleDetailSubmit(event) {
     } catch (error) {
       setStatus(error.message || "Link could not be added.", true);
     }
-    return;
   }
-
-  if (!event.target.matches("[data-list-item-form]")) {
-    return;
-  }
-
-  event.preventDefault();
-  const form = event.target;
-  const listId = form.dataset.listId;
-  const editingItemId = form.dataset.editingItemId || "";
-  const payload = Object.fromEntries(new FormData(form).entries());
-
-  payload.quantity = payload.quantity || 1;
-  payload.save_to_catalog = payload.save_to_catalog === "true";
-  try {
-    setStatus("Saving item...");
-    if (editingItemId) {
-      await api.putJson(`/api/lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(editingItemId)}`, payload);
-    } else {
-      await api.postJson(`/api/lists/${encodeURIComponent(listId)}/items`, payload);
-    }
-    form.reset();
-    form.dataset.editingItemId = "";
-    setFormValue(form, "catalog_item_id", "");
-    form.querySelector("button[type='submit']").textContent = "Add Item";
-    await refreshLists(listId);
-    setStatus("");
-  } catch (error) {
-    setStatus(error.message || "Item could not be saved.", true);
-  }
+  // The item add/edit form is a modal appended to the body (saved via saveItem); only the linked-records
+  // form is submitted from inside the detail panel.
 }
 
-function populateItemForm(list, itemId) {
-  const form = detailPanel.querySelector("[data-list-item-form]");
-  const item = list.items.find((entry) => entry.list_item_id === itemId);
-
-  if (!form || !item) {
-    return;
-  }
-
-  form.dataset.editingItemId = itemId;
+function fillItemForm(form, item) {
   setFormValue(form, "item_name", item.item_name);
   setFormValue(form, "quantity", item.quantity ?? 1);
   setFormValue(form, "unit", item.unit);
@@ -1475,9 +1595,6 @@ function populateItemForm(list, itemId) {
   setFormValue(form, "tracking_id", item.tracking_id);
   setFormValue(form, "notes", item.notes);
   setFormValue(form, "save_to_catalog", "");
-  form.querySelector(".lists-item-advanced")?.setAttribute("open", "open");
-  form.querySelector("button[type='submit']").textContent = "Save Item";
-  form.querySelector("[name='item_name']")?.focus();
 }
 
 async function loadItemSuggestions(list) {
@@ -1957,17 +2074,6 @@ function listCostSummary(list) {
   return pieces.join(" / ");
 }
 
-function itemDetailSummary(item) {
-  return [
-    item.vendor_name,
-    item.url ? "Has URL" : "",
-    item.estimated_cost ? `est. ${formatCurrency(item.estimated_cost)}` : "",
-    item.actual_cost ? `actual ${formatCurrency(item.actual_cost)}` : "",
-    item.tracking_id ? `tracking ${item.tracking_id}` : "",
-    item.notes,
-  ].filter(Boolean).join(" - ");
-}
-
 function stateFacts(list) {
   // A short fact run for the (now half-width) Next panel: progress, the next date, and assignment.
   // The context chip lives in the meta line and the source/independent chip in the Source panel, so
@@ -2072,6 +2178,19 @@ function selectField(labelText, name, options) {
   select.append(...options);
   label.append(labelText, select);
   return label;
+}
+
+function applySelectDefault(node, value) {
+  if (value === undefined || value === null || value === "") {
+    return;
+  }
+  const select = node.querySelector?.("select");
+  const optionEl = select ? [...select.options].find((entry) => entry.value === String(value)) : null;
+  if (select && optionEl) {
+    // defaultSelected so a new item starts on this option and form.reset() restores it.
+    optionEl.defaultSelected = true;
+    select.value = String(value);
+  }
 }
 
 function setFormValue(form, name, value) {
@@ -2186,10 +2305,6 @@ function detailMetaItems(list) {
     }
     return nodes;
   });
-}
-
-function findUser(userId) {
-  return state.users.find((user) => user.user_id === userId) || null;
 }
 
 function displayUser(user) {

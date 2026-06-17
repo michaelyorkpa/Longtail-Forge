@@ -11,9 +11,9 @@ const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.5.8", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.5.8", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.5.8", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.5.11", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.5.11", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.5.11", "package-lock package entry should report the current app version");
 
 assert.match(listsModule, /version:\s*"0\.33\.5\.16\.12"/, "Lists module should report the current declarative closeout version");
 assert.match(listsModule, /itemForm:\s*\{[\s\S]*field:\s*"item_name"[\s\S]*behavior:\s*"lists\.catalog-suggestions"[\s\S]*field:\s*"save_to_catalog"/, "Lists descriptor should declare item entry fields and catalog behavior hook");
@@ -43,7 +43,7 @@ assert.match(stylesheet, /\.surface-main-panel\s*\{[\s\S]*box-sizing:\s*border-b
 assert.match(stylesheet, /\.lists-detail-content\s*\{[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%;/, "Lists detail content should stay contained inside the framework detail panel");
 assert.match(stylesheet, /\.lists-item-entry\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%;/, "Lists item entry should not overflow the detail panel");
 assert.match(stylesheet, /\.lists-items\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*min-width:\s*0;[\s\S]*max-width:\s*100%;/, "Lists items wrapper should cap table overflow inside the detail panel");
-assert.match(stylesheet, /\.lists-items-table\s*\{[\s\S]*min-width:\s*0;[\s\S]*table-layout:\s*fixed;[\s\S]*\}/, "Lists item table should fit its wrapper instead of forcing a legacy minimum width");
+assert.match(stylesheet, /\.lists-items-table\s*\{[\s\S]*width:\s*auto;[\s\S]*min-width:\s*0;[\s\S]*table-layout:\s*auto;[\s\S]*\}/, "Lists item table should be content-sized (auto layout, not stretched) so columns pack together");
 assert.doesNotMatch(stylesheet, /\.lists-items-table\s*\{[\s\S]*min-width:\s*(680|760)px/, "Lists item table should not reintroduce the old fixed minimum width");
 
 assert.match(changelog, /## Version 0\.33\.5\.16\.10 - /, "Changelog should include the Lists item/modal descriptor version");
