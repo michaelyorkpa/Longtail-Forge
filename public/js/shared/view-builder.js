@@ -441,13 +441,20 @@
   }
 
   function createInfoPanel(options = {}) {
-    const panel = createElement("section", {
+    const panel = createElement(options.collapsible ? "details" : "section", {
       className: ["view-info-panel", "surface-main-panel", options.className],
       attrs: options.ariaLabel ? { "aria-label": options.ariaLabel } : {},
     });
+    if (options.collapsible && options.open) {
+      panel.open = true;
+    }
 
     if (options.title) {
-      panel.appendChild(createHeading(options.headingLevel || 3, options.title, { className: "view-info-panel-title" }));
+      if (options.collapsible) {
+        panel.appendChild(createElement("summary", { className: "view-info-panel-title", text: options.title }));
+      } else {
+        panel.appendChild(createHeading(options.headingLevel || 3, options.title, { className: "view-info-panel-title" }));
+      }
     }
 
     if (options.message) {

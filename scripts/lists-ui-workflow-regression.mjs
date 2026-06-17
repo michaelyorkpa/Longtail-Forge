@@ -57,7 +57,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-builder\.js\?v=3/);
   assert.match(html, /js\/shared\/view-renderer\.js\?v=3/);
   assert.match(html, /js\/lists\.js\?v=7/);
-  assert.match(html, /css\/longtail-forge\.css\?v=24/);
+  assert.match(html, /css\/longtail-forge\.css\?v=25/);
 
   assert.match(listsJs, /buildListsViewShell/);
   assert.match(listsJs, /view\.renderSurface\(renderDescriptor, host\)/);

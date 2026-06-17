@@ -439,6 +439,13 @@ summary.surface-modal-section-heading {
     font-weight: 700;
 }
 
+/* The Filters disclosure heading matches the Library / Notes List collapsible-index headings
+   (bold, clickable) so all action-page panel headings read consistently. */
+.view-filter-panel-title {
+    cursor: pointer;
+    font-weight: 700;
+}
+
 .view-collapsible-index-summary.has-summary-actions {
     min-height: 34px;
     padding-right: 150px;
@@ -467,6 +474,18 @@ summary.surface-modal-section-heading {
     display: grid;
     gap: 10px;
     min-width: 0;
+}
+
+/* Footer slot below the (scrollable) collapsible-index body — e.g. Notes List pagination. As a
+   <details> child after the body, it hides natively when the panel is collapsed. */
+.view-collapsible-index-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border-subtle);
 }
 
 .view-stacked {
@@ -4234,8 +4253,6 @@ dialog .form-actions {
     padding: 16px;
 }
 
-.notes-library-toolbar,
-.notes-library-tabs,
 .notes-pagination,
 .notes-editor-toolbar {
     display: flex;
@@ -4252,15 +4269,7 @@ dialog .form-actions {
     padding-right: 0;
 }
 
-.notes-library-toolbar {
-    justify-content: space-between;
-}
-
-.notes-library-tabs {
-    flex: 1 1 auto;
-}
-
-.notes-library-toolbar [data-note-collection-create] {
+.notes-collection-picker-row [data-note-collection-create] {
     flex: 0 0 auto;
     min-width: 40px;
 }
@@ -4268,7 +4277,6 @@ dialog .form-actions {
 .notes-list-meta,
 .notes-list-footer,
 .notes-detail-header p,
-.notes-context-list,
 .notes-empty-state,
 [data-note-library-suggestion],
 [data-note-form-status] {
@@ -4326,7 +4334,7 @@ dialog .form-actions {
 
 .notes-collection-picker-row {
     display: grid;
-    grid-template-columns: minmax(150px, 0.85fr) minmax(190px, 1.15fr) auto;
+    grid-template-columns: minmax(150px, 0.85fr) minmax(190px, 1.15fr) auto auto;
     gap: 8px;
     align-items: end;
 }
@@ -4556,7 +4564,8 @@ li.markdown-task-list-item > ol {
     gap: 10px;
     margin-top: 16px;
     padding: 12px;
-    border: 1px solid var(--color-border-subtle);
+    /* Use the standard (lighter) border token so the Revisions box stays visible in dark mode. */
+    border: 1px solid var(--color-border);
     border-radius: 8px;
 }
 
@@ -4565,7 +4574,9 @@ li.markdown-task-list-item > ol {
     font-size: 15px;
 }
 
-.notes-detail-section summary {
+.notes-detail-section summary,
+.notes-files-panel > summary,
+summary.view-info-panel-title {
     cursor: pointer;
     font-size: 15px;
     font-weight: 700;
@@ -4573,6 +4584,25 @@ li.markdown-task-list-item > ol {
 
 .notes-detail-section[open] summary {
     margin-bottom: 2px;
+}
+
+/* Collapsible Files panel: the panel itself is the bordered box (via .notes-detail-section), matching
+   Linked Records and Revisions. The embedded file-attachments component drops its own surface chrome and
+   its redundant "Files" heading so there is no box-in-box and no duplicated label. */
+.notes-files-panel .file-attachments {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+.notes-files-panel .file-attachments-header {
+    /* The panel summary already labels this "Files"; keep only the attachment count, right-aligned. */
+    justify-content: flex-end;
+}
+
+.notes-files-panel .file-attachments-header h3 {
+    display: none;
 }
 
 .notes-tag-list {
@@ -4728,7 +4758,7 @@ li.markdown-task-list-item > ol {
 
 .notes-revision-item {
     padding: 10px;
-    border: 1px solid var(--color-border-subtle);
+    border: 1px solid var(--color-border);
     border-radius: 6px;
 }
 
@@ -4743,22 +4773,6 @@ li.markdown-task-list-item > ol {
     padding: 12px;
     border-radius: 8px;
     background: var(--color-page-bg);
-}
-
-.notes-context-list {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: 6px 12px;
-    margin-top: 16px;
-}
-
-.notes-context-list dt {
-    font-weight: 700;
-}
-
-.notes-context-list dd {
-    margin: 0;
-    overflow-wrap: anywhere;
 }
 
 /* Modal width, padding, scrolling, and the pinned footer are framework-owned (.view-modal,

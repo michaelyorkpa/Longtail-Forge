@@ -1309,7 +1309,21 @@ async function attachNoteIntegrations(session, note) {
     body_html: renderNoteBodyHtml(note),
     links: await decorateNoteLinks(session, links),
     linked_context: await readLinkedContextSummary(session, note),
+    owner_display_name: await resolveNoteOwnerLabel(session, note),
   };
+}
+
+async function resolveNoteOwnerLabel(session, note = {}) {
+  const ownerUserId = normalizeOptionalText(note.owner_user_id);
+  if (!ownerUserId) {
+    return "";
+  }
+  try {
+    const user = await usersRepository.readById(session.workspace_id, ownerUserId);
+    return user ? (user.display_name || user.username || user.user_id) : "";
+  } catch {
+    return "";
+  }
 }
 
 function shapeNoteForBrowser(note = {}, { includeBodyHtml = false } = {}) {

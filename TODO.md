@@ -13,6 +13,27 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Actions -> Lists -> Items List
+
+- The list overlaps the action buttons
+- Item field should be wider and truncate over 20 characters
+- Metadata currently displayed doesn't need to be there
+- Qty width can be very narrow
+- Cost should have its own column
+- Needed heading should only be wide enough to accomodate date
+  - Should change heading to "Needed By"
+- Status can be narrower
+- Assigned doesn't need to be on that list view
+
+## Personal and Family Workspaces
+
+- Billable flag needs to be deprecated everywhere from the front end
+  - It can remain in the database as long as it can never be used on Personal or Family workspaces
+
+## Search
+
+- Archived notes should still show up in searches
+
 ## Dashboard/Workbench
 
 - Need to further flesh out the "Inspector" concept

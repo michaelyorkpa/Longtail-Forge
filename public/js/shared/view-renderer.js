@@ -652,6 +652,8 @@
       title: options.title || linkedRecords.title || linkedRecords.label || "Linked Records",
       className: options.className,
       ariaLabel: options.ariaLabel || linkedRecords.ariaLabel || "Linked records",
+      collapsible: options.collapsible,
+      open: options.open,
     });
     const records = view.createElement("div", {
       className: options.recordsClassName || "view-linked-record-list",

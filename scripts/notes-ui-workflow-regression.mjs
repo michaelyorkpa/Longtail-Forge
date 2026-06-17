@@ -53,14 +53,14 @@ async function assertProtectedView(session) {
   // filters, index, detail) AND the editor + collection modals are framework-rendered; notes.js
   // mounts the notes-specific chrome and builds the dialog shells from the descriptor modals block.
   assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/);
-  assert.match(html, /js\/shared\/view-renderer\.js\?v=6/);
+  assert.match(html, /js\/shared\/view-renderer\.js\?v=7/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
-  assert.match(html, /js\/shared\/view-builder\.js\?v=7/);
-  assert.match(html, /js\/notes\.js\?v=27/);
+  assert.match(html, /js\/shared\/view-builder\.js\?v=8/);
+  assert.match(html, /js\/notes\.js\?v=30/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
-  assert.match(html, /css\/longtail-forge\.css\?v=32/);
+  assert.match(html, /css\/longtail-forge\.css\?v=35/);
   // No static read chrome or dialog markup remains in the host page.
   assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
   assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);
@@ -109,10 +109,11 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /createNotesPagination/);
   assert.match(notesJs, /indexPanel\?\.before\(createNotesLibraryPanel\(\)\)/);
   assert.match(notesJs, /summaryTitle\.textContent = "Notes List"/);
-  assert.match(notesJs, /summary\.classList\.add\("has-summary-actions"\)/);
+  assert.match(notesJs, /className: "view-collapsible-index-footer"/);
   assert.match(notesJs, /dataSource: null/);
-  assert.match(notesJs, /notes-library-tabs/);
-  assert.match(notesJs, /notes-library-toolbar/);
+  assert.doesNotMatch(notesJs, /notes-library-tabs|dataset\.notesBucket/);
+  assert.match(notesJs, /notes-collection-picker-row/);
+  assert.match(notesJs, /\["archive", "Archive"\]/);
   assert.match(notesJs, /icon:\s*"library-add"/);
   assert.match(notesJs, /collapseNotesNavigationPanels/);
   assert.match(notesJs, /tagChips\(note\.tags \|\| \[\], \{ limit: 2, showOverflow: true \}\)/);
@@ -166,7 +167,6 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /view\.renderDescriptorModalForm\(modal, \{/, "Note dialogs should be built through the framework modal-form helper");
   assert.doesNotMatch(notesJs, /view\.createModalForm/, "Notes should no longer call the low-level createModalForm primitive directly");
   assert.doesNotMatch(notesJs, /document\.createElement\("(dialog|table|details)"\)/, "Notes should not hand-build dialog/table/details framework anatomy");
-  assert.match(notesJs, /view\.createElement\("dl"/, "The read-only linked-context list should be built via the framework element builder");
   assert.match(notesJs, /view\.createElement\("details"/, "The collections menu and revisions panel should use the framework element builder for disclosures");
 
   // 0.33.5.18.5.5 add/edit modal refinement: collapsible Note Details group + Tags/Files footer buttons.
@@ -180,6 +180,21 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /filesMount\.dataset\.noteFilesEditor/, "The editor file panel should expose a files mount hook");
   const viewBuilderJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/view-builder.js"), "utf8");
   assert.match(viewBuilderJs, /surface-modal-footer-utilities[\s\S]*data-modal-footer-group": "utility"/, "The framework modal footer should support a utility action group");
+
+  // 0.33.5.18.5.7 detail metadata + collapsible panels.
+  assert.match(notesJs, /\["Owner", note\.owner_display_name \|\| note\.owner_user_id\]/, "Owner should render the display name (falling back to the id) in the meta row");
+  assert.match(notesJs, /\["Created", formatDate\(note\.created_at\)\]/, "Created should move into the detail meta row");
+  assert.match(notesJs, /\["Updated", formatDate\(note\.updated_at\)\]/, "Updated should move into the detail meta row");
+  assert.doesNotMatch(notesJs, /view\.createElement\("dl"|notes-context-list/, "The duplicated linked-context dl should be removed from the detail");
+  assert.match(notesJs, /collapsible: true,\s*open: false/, "Linked Records should render collapsed by default");
+  assert.match(notesJs, /icon: "add",\s*iconOnly: true,\s*label: addAction\.label/, "Add Link should be an icon button");
+  assert.match(notesJs, /icon: "delete", iconOnly: true, label: "Remove"/, "Remove link should be an icon button");
+  assert.match(notesJs, /className: "notes-detail-section notes-files-panel", children: \[summary, mount\]/, "The Files panel should be a collapsible box matching Linked Records/Revisions (notes-detail-section)");
+  const notesCss = await fs.readFile(path.join(process.cwd(), "public/css/longtail-forge.css"), "utf8");
+  assert.match(notesCss, /\.notes-files-panel \.file-attachments\s*\{[\s\S]*border:\s*0;/, "The embedded file-attachments component should drop its own box inside the Files panel (single outer box)");
+  assert.match(notesCss, /\.notes-files-panel \.file-attachments-header h3\s*\{[\s\S]*display:\s*none;/, "The embedded file-attachments heading should be hidden (the panel summary already labels it)");
+  const notesServiceJs = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.service.js"), "utf8");
+  assert.match(notesServiceJs, /owner_display_name: await resolveNoteOwnerLabel\(session, note\)/, "The note read payload should resolve the owner display name");
 
   const linkedPanelJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8");
   assert.match(linkedPanelJs, /LongtailForge/);

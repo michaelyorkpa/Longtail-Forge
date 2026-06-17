@@ -11,14 +11,14 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.18.5.5", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.5.5", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.5.5", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.5.7", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.5.7", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.5.7", "package-lock package entry should report the current app version");
 
 // Protected view is now a minimal framework host; as of .18.4 the dialogs are framework-built too.
 assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Notes view should be a minimal framework host");
-assert.match(html, /css\/longtail-forge\.css\?v=32/, "Notes host should load the refreshed stylesheet");
-assert.match(html, /js\/shared\/icons\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=7[\s\S]*js\/shared\/view-renderer\.js\?v=6[\s\S]*js\/notes\.js\?v=27/, "Notes host should load the icon helper, view builder, and renderer before the module adapter");
+assert.match(html, /css\/longtail-forge\.css\?v=35/, "Notes host should load the refreshed stylesheet");
+assert.match(html, /js\/shared\/icons\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=8[\s\S]*js\/shared\/view-renderer\.js\?v=7[\s\S]*js\/notes\.js\?v=30/, "Notes host should load the icon helper, view builder, and renderer before the module adapter");
 assert.doesNotMatch(html, /data-notes-list|data-notes-collections-panel|data-note-filter-status|class="notes-filters-panel"/, "Notes static HTML should not own the converted read workspace anatomy");
 assert.doesNotMatch(html, /data-note-dialog/, "Editor dialog is framework-built as of .18.4, not static HTML");
 assert.doesNotMatch(html, /data-note-collection-dialog/, "Collection dialog is framework-built as of .18.4, not static HTML");
@@ -41,12 +41,13 @@ assert.match(notesJs, /decorateNotesDeclarativeSurface/, "notes.js should decora
 assert.match(notesJs, /createNotesLibraryPanel/, "notes.js should mount Library filters as a separate framework collapsible panel");
 assert.match(notesJs, /indexPanel\?\.before\(createNotesLibraryPanel\(\)\)/, "Library filters should be inserted separately from the Notes list panel");
 assert.match(notesJs, /summaryTitle\.textContent = "Notes List"/, "The descriptor index panel should be labelled Notes List");
-assert.match(notesJs, /summary\.classList\.add\("has-summary-actions"\)/, "Notes list summary should reserve a right-aligned pagination action area");
+assert.match(notesJs, /className: "view-collapsible-index-footer"/, "Notes pagination should mount in the collapsible-index footer slot");
 assert.match(notesJs, /createNotesLibraryChrome/, "Notes module should own Library bucket and collection filter chrome");
 assert.match(notesJs, /createNotesListChrome/, "Notes module should own Notes list and pagination chrome inside the framework index panel");
 assert.match(notesJs, /icon:\s*"library-add"/, "New Collection should use the shared library-add icon");
-assert.match(notesJs, /toolbar\.append\(tabs, collectionCreate\)/, "New Collection should sit in the Library toolbar with the bucket buttons");
-assert.match(notesJs, /createNotesPagination/, "Notes pagination should be mounted in the collapsible Notes summary");
+assert.match(notesJs, /children: \[libraryLabel, collectionLabel, collectionActions, collectionCreate\]/, "Library row should inline the dropdowns with the collection actions and New Collection button");
+assert.doesNotMatch(notesJs, /dataset\.notesBucket/, "The legacy Library bucket-tab buttons should be retired");
+assert.match(notesJs, /createNotesPagination/, "Notes pagination should be built for the footer slot");
 assert.match(notesJs, /collapseNotesNavigationPanels/, "Selecting a note should collapse the Library and Notes navigation panels");
 assert.match(notesJs, /detail\.replaceChildren\(\)/, "The Notes detail panel should start as a blank reading window");
 assert.match(notesJs, /tagChips\(note\.tags \|\| \[\], \{ limit: 2, showOverflow: true \}\)/, "Notes list stubs should cap visible tags at two");
@@ -57,15 +58,15 @@ assert.match(notesJs, /registerNotesViewBehaviors/, "notes.js should register th
 assert.match(stylesheet, /\.view-page-header\s*\{[\s\S]*margin-bottom:\s*8px;/, "Framework page headers should leave space before the next surface panel");
 assert.match(stylesheet, /\.view-collapsible-index-summary\s*\{[\s\S]*position:\s*relative;[\s\S]*color:\s*var\(--color-text\);[\s\S]*font-weight:\s*700;/, "Library and Notes List summaries should match the Filters heading style");
 assert.doesNotMatch(stylesheet, /\.view-collapsible-index-summary\s*\{[^}]*display:\s*flex;/, "Collapsible summaries should keep native disclosure markers instead of flexing away the caret");
-assert.match(stylesheet, /\.view-collapsible-index-summary\.has-summary-actions\s*\{[\s\S]*padding-right:\s*150px;/, "Only summaries with right-side controls should reserve action space");
+assert.match(stylesheet, /\.view-collapsible-index-footer\s*\{[\s\S]*justify-content:\s*flex-end;/, "The collapsible-index footer slot should right-align its actions (Notes List pagination)");
 assert.match(stylesheet, /\.view-stacked \.view-collapsible-index--unscrolled \.view-collapsible-index-body\s*\{[\s\S]*max-height:\s*none;[\s\S]*overflow:\s*visible;/, "A framework modifier (not a module class) should opt a static index panel out of the notes-list scroll cap");
 assert.match(notesJs, /view-collapsible-index--unscrolled/, "Notes Library panel should opt out of the scroll cap via the framework modifier class");
 assert.doesNotMatch(stylesheet, /\.view-stacked[^,{]*\.notes-/, "Framework stacked rules should not reference Notes module classes");
 assert.match(stylesheet, /\.view-stacked\s*\{[\s\S]*gap:\s*0;/, "Framework stacked panels should not leave white space between navigation and detail panels");
-assert.match(stylesheet, /\.notes-library-toolbar\s*\{[\s\S]*justify-content:\s*space-between;/, "Library toolbar should align bucket buttons and New Collection on one row");
-assert.match(stylesheet, /\.notes-library-toolbar \[data-note-collection-create\]\s*\{[\s\S]*flex:\s*0 0 auto;/, "New Collection should stay with the Library toolbar actions");
-assert.match(stylesheet, /\.notes-collection-picker-row\s*\{[\s\S]*grid-template-columns:\s*minmax\(150px, 0\.85fr\) minmax\(190px, 1\.15fr\) auto;/, "Library and Collection selects should sit side-by-side with collection actions");
-assert.match(stylesheet, /\.view-collapsible-index:not\(\[open\]\) \.view-collapsible-index-summary-actions\s*\{[\s\S]*display:\s*none;/, "Notes pagination should hide when the Notes panel is collapsed");
+assert.match(stylesheet, /\.view-filter-panel-title\s*\{[\s\S]*font-weight:\s*700;/, "The Filters heading should match the bold Library/Notes List headings");
+assert.match(stylesheet, /\.notes-collection-picker-row \[data-note-collection-create\]\s*\{[\s\S]*flex:\s*0 0 auto;/, "New Collection should sit inline in the Library picker row");
+assert.match(stylesheet, /\.notes-collection-picker-row\s*\{[\s\S]*grid-template-columns:\s*minmax\(150px, 0\.85fr\) minmax\(190px, 1\.15fr\) auto auto;/, "Library/Collection dropdowns, collection actions, and New Collection should form one tight row");
+assert.match(notesJs, /\["archive", "Archive"\]/, "The Library dropdown should include an Archive bucket option");
 assert.match(stylesheet, /\.notes-list-chip-strip\s*\{[\s\S]*position:\s*absolute;[\s\S]*top:\s*8px;[\s\S]*right:\s*8px;/, "Notes list chips should sit in the top-right of compact stubs");
 assert.match(stylesheet, /\.notes-tag-overflow\s*\{[\s\S]*min-width:\s*34px;/, "Notes list tag overflow chip should be compact and visible");
 assert.match(stylesheet, /\.notes-list-heading strong\s*\{[\s\S]*text-overflow:\s*ellipsis;[\s\S]*white-space:\s*nowrap;/, "Notes list titles should truncate to fit compact stubs");

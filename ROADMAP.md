@@ -442,33 +442,45 @@ Framework-wide modal fix (affects Notes, Lists, Clients/Projects, Tasks). Regres
 
 #### Version 0.33.5.18.5.6 - Notes Navigation Standardization
 
-- [ ] Standardize the "Library" and "Notes List" panel headings to match the "Filters" heading, as a
-      cross-action-page standard. Framework. (Verify against the current state first — 0.33.5.18.3 already
-      aligned the summaries; close any remaining gap.)
-- [ ] Simplify the Library panel: drop the All/Active/Ongoing Areas/Reference Library/Archive bucket
-      buttons in favor of the Library + Collection dropdowns; add "Archive" to the Library dropdown; bring
-      the dropdowns inline with the New Collection icon button so the panel reads as one tight row. Module:
-      Library chrome (`createNotesLibraryChrome`).
-- [ ] Move the Notes List pagination to the bottom-right of the Notes List box (currently in the panel
-      summary), keeping it hidden when the panel is collapsed. Framework: collapsible-index footer action
-      slot; module: pagination behavior.
-- [ ] Add regression markers for the standardized headings, simplified Library row, and pagination
-      placement.
+- [x] Standardize the "Library" and "Notes List" panel headings to match the "Filters" heading. — The
+      gap was the Filters heading: `.view-filter-panel-title` was plain weight while the collapsible-index
+      summaries were bold. Made `.view-filter-panel-title` bold/clickable (framework CSS), so all
+      action-page disclosure headings (Filters, Library, Notes List) read consistently.
+- [x] Simplify the Library panel: drop the bucket-tab buttons in favor of the Library + Collection
+      dropdowns; add "Archive" to the Library dropdown; bring the dropdowns inline with the New Collection
+      icon button as one tight row. — `createNotesLibraryChrome` now renders a single
+      `.notes-collection-picker-row` (Library dropdown · Collection dropdown · collection actions · New
+      Collection); the Library dropdown gained an "Archive" option and is the sole bucket selector
+      (`selectBucket`/`renderCollections` handle "archive"); the legacy bucket tabs + `updateBucketTabs`
+      were removed.
+- [x] Move the Notes List pagination to the bottom-right of the Notes List box, keeping it hidden when
+      collapsed. — Added a framework `.view-collapsible-index-footer` slot; pagination mounts there
+      (below the scrollable body) and hides natively when the `<details>` panel collapses.
+- [x] Add regression markers for the standardized headings, simplified Library row, and pagination
+      placement. — `notes-declarative-readonly-surface`/`notes-ui-workflow` updated (footer slot, one-row
+      picker, Archive option, retired bucket tabs, bold Filters heading).
 
 #### Version 0.33.5.18.5.7 - Notes Detail Metadata and Panels
 
-- [ ] Make the detail metadata row carry ALL metadata: size Created/Updated/Owner down into the same
-      chip/meta format as Library/Note Kind/Status/Visibility/Security; drop the duplicated linked-record
-      context (it already lives in the Linked Records panel); render Owner as the display name, not the
-      UUID. Module: metadata content + owner-name resolution; framework: meta-row format.
-- [ ] Make the Linked Records panel collapsible and collapsed by default; render Remove/Add Link as icon
-      buttons. Framework: collapsible info panel + icon actions; module: link behaviors.
-- [ ] Make the Files panel collapsible and collapsed by default; remove the redundant outer (darker) box
-      so it has a single border. Framework/module CSS.
-- [ ] Fix the Revisions panel border (and inner revision listing borders) to use the light border token in
-      dark mode. Likely a framework token/CSS fix.
-- [ ] Add regression markers for the metadata consolidation, owner display-name, and collapsible
-      Linked/Files panels.
+- [x] Make the detail metadata row carry ALL metadata: size Created/Updated/Owner into the same
+      chip/meta format; drop the duplicated linked-record context; render Owner as the display name. —
+      `detailMetaItems` now includes Ticket/Created/Updated/Owner (Owner = `owner_display_name`, resolved
+      server-side in `attachNoteIntegrations` via `resolveNoteOwnerLabel`, falling back to the id); the
+      `notes-context-list` dl (Client/Project/Task/User — already in Linked Records) was removed.
+- [x] Make the Linked Records panel collapsible and collapsed by default; render Remove/Add Link as icon
+      buttons. — Added a `collapsible`/`open` mode to the framework `createInfoPanel` (and
+      `renderDescriptorLinkedRecordsPanel`); Notes renders it collapsed; Add Link uses the `add` icon and
+      Remove uses the `delete` icon.
+- [x] Make the Files panel collapsible and collapsed by default; remove the redundant outer box. — The
+      Files panel is now a collapsible `<details class="notes-files-panel">` with no outer section box
+      (the file-attachments component supplies its own surface).
+- [x] Fix the Revisions panel border (and inner revision listing borders) to use the light border token
+      in dark mode. — `.notes-detail-section` and `.notes-revision-item` now use `var(--color-border)`
+      instead of the near-invisible-in-dark `var(--color-border-subtle)`.
+- [x] Add regression markers for the metadata consolidation, owner display-name, and collapsible
+      Linked/Files panels. — `notes-ui-workflow` asserts the meta-row Owner/Created/Updated, the removed
+      dl, the collapsed Linked Records, the icon Add/Remove, the collapsible Files panel, and the
+      server-side `owner_display_name` resolution.
 
 #### Version 0.33.5.18.5.8 - Lists Main Page Refinement
 
@@ -478,6 +490,9 @@ Lists is already strict/declarative; this is UI/layout refinement that reuses th
       (e.g. "active - procurement") to match the compact Notes meta format.
 - [ ] Put the Lists detail action buttons behind a 3-dot overflow menu, reusing the framework
       `view.createDetailActionMenu` / `renderDescriptorActionMenu` primitive added for Notes.
+- [ ] Fix the items list/table overlapping the detail action buttons — the items area currently overlaps
+      the detail's action controls. The detail reorg + 3-dot action menu above should largely resolve it;
+      verify the items table (`.lists-items-table-wrap`) clears the action strip at all widths.
 - [ ] Tighten the "Next" panel: roughly half width, with fewer/stacked chips instead of a long chip run.
 - [ ] Investigate the "Source" panel — if it only repeats the "Independent list" chip, deprecate the
       section.
@@ -491,11 +506,35 @@ Lists is already strict/declarative; this is UI/layout refinement that reuses th
       side-by-side and narrower.
 - [ ] Put Needed, Assigned, and Status narrower and side-by-side with Qty/Unit; default the purchase
       status to "needed" (not "cancelled").
+- [ ] "Needed" should be "Needed by"
 - [ ] Default "Save as reusable item" to on.
 - [ ] Put Details on the third line, opening as one long row; move Notes to the bottom; right-justify the
       "Add Item" button.
 - [ ] Honor the framework field-grid/width hints so the inset wraps cleanly; keep item validation, catalog,
       and save logic module-owned.
+
+#### Version 0.33.5.18.5.10 - Lists Items Table (Display) Refinement
+
+The read-only items *table* that lists existing items on the Lists detail page (`listsItemRowsDescriptor`
+columns + `createItemRow` + `.lists-items-table`). This is distinct from .18.5.9, which reworks the item
+*entry* inset form — here we only tune which columns show and how wide they are. Column widths are
+module-owned `.lists-items-table` styling (with framework width hints where they apply); item data,
+validation, catalog, and save logic stay module-owned.
+
+- [ ] Widen the Item column and truncate long names: cap the displayed `item_name` to ~20 characters with
+      an ellipsis (keep the full name in the cell `title`), and give the Item column the freed width.
+- [ ] Remove the per-row metadata sub-line from the table (`itemTitle`'s sibling `.lists-row-meta` =
+      `itemDetailSummary` — vendor / "Has URL" / est. & actual cost / tracking / notes). The table should
+      show only its dedicated columns; cost surfaces as its own column (below) and the rest stay in the
+      item editor.
+- [ ] Make the Qty column very narrow (it holds a small number + unit).
+- [ ] Add a dedicated Cost column to the items table, surfacing `estimated_cost`/`actual_cost` (formatted)
+      instead of burying cost in the removed row-meta line.
+- [ ] Rename the "Needed" column heading to "Needed By" and constrain the column to date width only.
+      (Pairs with .18.5.9's matching "Needed by" rename on the entry field.)
+- [ ] Make the Status column narrower.
+- [ ] Remove the Assigned column from the items table view. (Assigned stays editable in the item entry
+      inset per .18.5.9 — it just isn't a table column.)
 
 ---
 

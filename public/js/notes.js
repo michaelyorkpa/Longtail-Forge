@@ -40,7 +40,6 @@ const NOTE_WORKFLOW_HANDLERS = {
 buildNotesViewShell();
 
 const statusMessage = document.querySelector("[data-notes-status]");
-const bucketTabs = [...document.querySelectorAll("[data-notes-bucket]")];
 const filtersForm = document.querySelector("[data-notes-filters]");
 const statusFilter = document.querySelector("[data-note-filter-status]");
 const visibilityFilter = document.querySelector("[data-note-filter-visibility]");
@@ -133,8 +132,7 @@ let state = {
 
 createButton?.addEventListener("click", () => openEditor());
 collectionCreateButton?.addEventListener("click", () => openCollectionDialog("create"));
-bucketTabs.forEach((button) => button.addEventListener("click", () => selectBucket(button.dataset.notesBucket)));
-collectionLibraryFilter?.addEventListener("change", () => selectBucket(collectionLibraryFilter.value === "all" ? "all" : collectionLibraryFilter.value));
+collectionLibraryFilter?.addEventListener("change", () => selectBucket(collectionLibraryFilter.value));
 collectionFilter?.addEventListener("change", () => selectCollection(collectionFilter.value));
 filtersForm?.addEventListener("change", () => {
   state.page = 1;
@@ -410,11 +408,17 @@ function decorateNotesDeclarativeSurface(surface) {
   if (summary) {
     const summaryTitle = summary.querySelector(".view-collapsible-index-title") || summary;
     summaryTitle.textContent = "Notes List";
-    summary.classList.add("has-summary-actions");
-    summary.appendChild(createNotesPagination());
   }
   const indexBody = indexPanel?.querySelector(".view-collapsible-index-body");
   indexBody?.replaceChildren(createNotesListChrome());
+  // Pagination sits in a framework footer slot at the bottom of the Notes List panel (below the
+  // scrollable body), so it hides natively when the panel is collapsed.
+  if (indexPanel) {
+    indexPanel.appendChild(view.createElement("div", {
+      className: "view-collapsible-index-footer",
+      children: [createNotesPagination()],
+    }));
+  }
   indexPanel?.before(createNotesLibraryPanel());
 
   const detail = surface.querySelector(".view-stacked-detail");
@@ -446,55 +450,44 @@ function createNotesLibraryPanel() {
 function createNotesLibraryChrome() {
   const wrap = view.createElement("div", { className: "notes-library-chrome" });
 
-  const toolbar = view.createElement("div", { className: "notes-library-toolbar" });
-  const tabs = view.createElement("div", {
-    className: "notes-library-tabs",
-    attrs: { role: "tablist", "aria-label": "Library buckets" },
-  });
-  [["all", "All"], ["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"], ["archive", "Archive"]].forEach(([bucket, label]) => {
-    const button = view.createElement("button", {
-      text: label,
-      attrs: { type: "button", "aria-pressed": bucket === "all" ? "true" : "false" },
-    });
-    button.dataset.notesBucket = bucket;
-    tabs.appendChild(button);
-  });
-  const collectionCreate = notesIconButton({
-    icon: "library-add",
-    label: "New collection",
-    title: "New collection",
-  });
-  collectionCreate.dataset.noteCollectionCreate = "";
-  toolbar.append(tabs, collectionCreate);
-  wrap.appendChild(toolbar);
-
   const collections = view.createElement("section", {
     className: "notes-collections-panel",
     attrs: { "aria-label": "Notes Collections" },
   });
   collections.dataset.notesCollectionsPanel = "";
 
-  const collectionControls = view.createElement("div", { className: "notes-collection-controls" });
+  // One tight row: Library dropdown (bucket selector, incl. Archive), Collection dropdown, the selected
+  // collection's actions menu, and the New Collection icon button. The legacy bucket-tab buttons are
+  // retired — the Library dropdown is the sole bucket selector.
   const libraryLabel = view.createElement("label", { text: "Library" });
   const librarySelect = view.createElement("select");
   librarySelect.dataset.noteCollectionLibraryFilter = "";
-  [["all", "All Libraries"], ["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"]].forEach(([value, label]) => {
+  [["all", "All Libraries"], ["active_work", "Active Work"], ["ongoing_area", "Ongoing Areas"], ["reference", "Reference Library"], ["archive", "Archive"]].forEach(([value, label]) => {
     librarySelect.appendChild(notesOptionElement(value, label));
   });
   libraryLabel.appendChild(librarySelect);
-  const pickerRow = view.createElement("div", { className: "notes-collection-picker-row" });
-  pickerRow.appendChild(libraryLabel);
+
   const collectionLabel = view.createElement("label", { text: "Collection" });
   const collectionSelect = view.createElement("select");
   collectionSelect.dataset.noteFilterCollection = "";
   collectionSelect.appendChild(notesOptionElement("", "All collections"));
   collectionLabel.appendChild(collectionSelect);
-  pickerRow.appendChild(collectionLabel);
+
   const collectionActions = view.createElement("span");
   collectionActions.dataset.noteCollectionActions = "";
-  pickerRow.appendChild(collectionActions);
-  collectionControls.appendChild(pickerRow);
-  collections.appendChild(collectionControls);
+
+  const collectionCreate = notesIconButton({
+    icon: "library-add",
+    label: "New collection",
+    title: "New collection",
+  });
+  collectionCreate.dataset.noteCollectionCreate = "";
+
+  const pickerRow = view.createElement("div", {
+    className: "notes-collection-picker-row",
+    children: [libraryLabel, collectionLabel, collectionActions, collectionCreate],
+  });
+  collections.appendChild(pickerRow);
   wrap.appendChild(collections);
   return wrap;
 }
@@ -826,7 +819,6 @@ async function selectBucket(bucket) {
   state.page = 1;
   state.selectedNote = null;
   state.selectedCollectionId = "";
-  updateBucketTabs();
   setStatus("Loading notes...");
 
   try {
@@ -840,12 +832,6 @@ async function selectBucket(bucket) {
     renderEmptyList(error.message || "Notes could not be loaded.");
     setStatus(error.message || "Notes could not be loaded.", true);
   }
-}
-
-function updateBucketTabs() {
-  bucketTabs.forEach((button) => {
-    button.setAttribute("aria-pressed", String(button.dataset.notesBucket === state.activeBucket));
-  });
 }
 
 function renderNotes() {
@@ -882,7 +868,7 @@ function renderCollections() {
   }
 
   if (collectionLibraryFilter) {
-    collectionLibraryFilter.value = ["active_work", "ongoing_area", "reference"].includes(state.activeBucket)
+    collectionLibraryFilter.value = ["active_work", "ongoing_area", "reference", "archive"].includes(state.activeBucket)
       ? state.activeBucket
       : "all";
   }
@@ -1089,7 +1075,6 @@ function renderDetail(note) {
     className: "notes-collection-breadcrumb",
     text: `Collection: ${collectionLabel(note.note_collection_id) || "Uncategorized"}`,
   });
-  const context = view.createElement("dl", { className: "notes-context-list" });
   const links = renderLinksPanel(note);
   const files = renderFilesPanel(note);
   const revisions = renderRevisionsPanel(note);
@@ -1109,16 +1094,9 @@ function renderDetail(note) {
 
   const tags = view.createElement("div", { className: "notes-detail-tags", children: [tagChips(note.tags || [])] });
 
-  addLinkedContext(context, "Client", note.linked_context?.client, note.client_id);
-  addLinkedContext(context, "Project", note.linked_context?.project, note.project_id);
-  addLinkedContext(context, "Task", note.linked_context?.task, note.task_id);
-  addContext(context, "Ticket", note.ticket_id);
-  addLinkedContext(context, "User", note.linked_context?.user, note.linked_user_id);
-  addContext(context, "Created", formatDate(note.created_at));
-  addContext(context, "Updated", formatDate(note.updated_at));
-  addContext(context, "Owner", note.owner_user_id);
-
-  detailPanel.replaceChildren(header, collectionBreadcrumb, tags, tagsRule, body, context, links, files, revisions);
+  // Client/Project/Task/User context lives in the Linked Records panel; the metadata row carries all
+  // note-level metadata (incl. Created/Updated/Owner) so it is not duplicated here.
+  detailPanel.replaceChildren(header, collectionBreadcrumb, tags, tagsRule, body, links, files, revisions);
   mountFilesPanel(note, files.querySelector("[data-note-files-mount]"));
   loadRevisions(note, revisions.querySelector("[data-note-revisions-list]"));
 }
@@ -1605,7 +1583,10 @@ function renderLinksPanel(note) {
 
   const addAction = descriptor.actions?.find((action) => action.id === "add-link") || {};
   const add = view.createActionButton({
+    icon: "add",
+    iconOnly: true,
     label: addAction.label || "Add Link",
+    title: addAction.label || "Add Link",
     type: "submit",
     role: addAction.role || "primary",
     action: addAction.behavior || addAction.id,
@@ -1614,6 +1595,8 @@ function renderLinksPanel(note) {
 
   const section = view.renderDescriptorLinkedRecordsPanel(descriptor, {
     className: "notes-links-panel",
+    collapsible: true,
+    open: false,
     recordsClassName: "notes-link-list",
     formClassName: "notes-link-form view-field-grid surface-modal-section-body",
     formDataset: { noteLinkForm: "", noteId: note.note_id },
@@ -1690,7 +1673,7 @@ function linkItem(note, link) {
     text: link.subtitle || (LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType)),
   });
   const label = view.createElement("span", { className: "notes-link-item-label", children: [title, subtitle] });
-  const remove = view.createActionButton({ label: "Remove", role: "secondary", onClick: () => removeNoteLink(note, link) });
+  const remove = view.createActionButton({ icon: "delete", iconOnly: true, label: "Remove", title: "Remove", role: "secondary", onClick: () => removeNoteLink(note, link) });
   remove.dataset.noteLinkRemove = "";
   remove.hidden = note.status === "archived";
   return view.createElement("div", { className: "notes-link-item", children: [label, remove] });
@@ -1708,17 +1691,19 @@ async function removeNoteLink(note, link) {
 }
 
 function renderFilesPanel(note = {}) {
-  const section = document.createElement("section");
-  const mount = document.createElement("div");
-
-  section.className = "notes-detail-section";
-  mount.dataset.noteFilesMount = "";
+  // Collapsible (collapsed by default), boxed to match the Linked Records and Revisions sections
+  // (`notes-detail-section`). The embedded file-attachments component drops its own surface chrome and
+  // redundant heading inside this panel (see `.notes-files-panel` CSS) so there is a single outer box.
+  const summary = view.createElement("summary", { text: "Files" });
   if (isSecureNote(note)) {
-    section.append(sectionHeading("Files"), lockedNotice("Secure notes do not allow framework file attachments yet."));
-    return section;
+    return view.createElement("details", {
+      className: "notes-detail-section notes-files-panel",
+      children: [summary, lockedNotice("Secure notes do not allow framework file attachments yet.")],
+    });
   }
-  section.append(mount);
-  return section;
+  const mount = view.createElement("div");
+  mount.dataset.noteFilesMount = "";
+  return view.createElement("details", { className: "notes-detail-section notes-files-panel", children: [summary, mount] });
 }
 
 function mountFilesPanel(note, mount) {
@@ -2276,6 +2261,10 @@ function detailMetaItems(note = {}) {
     ["Status", formatToken(note.status)],
     ["Visibility", formatToken(note.visibility)],
     ["Security", formatToken(note.security_mode)],
+    ["Ticket", note.ticket_id],
+    ["Created", formatDate(note.created_at)],
+    ["Updated", formatDate(note.updated_at)],
+    ["Owner", note.owner_display_name || note.owner_user_id],
   ].filter(([, value]) => value);
 
   return items.flatMap(([label, value], index) => {
@@ -2295,39 +2284,6 @@ function detailMetaItems(note = {}) {
 
 function usesBusinessScope() {
   return state.workspaceType === "business";
-}
-
-function addContext(list, label, value) {
-  if (!value) {
-    return;
-  }
-
-  list.append(
-    view.createElement("dt", { text: label }),
-    view.createElement("dd", { text: value }),
-  );
-}
-
-function addLinkedContext(list, label, target, fallbackValue) {
-  if (!target && !fallbackValue) {
-    return;
-  }
-
-  const value = target?.label || fallbackValue;
-  const description = view.createElement("dd");
-  if (target?.sourceUrl && !target.unavailable) {
-    description.append(view.createElement("a", { text: value, attrs: { href: target.sourceUrl } }));
-  } else {
-    description.textContent = target?.unavailable ? "Unavailable linked record" : value;
-  }
-  list.append(view.createElement("dt", { text: label }), description);
-}
-
-function sectionHeading(label) {
-  const heading = document.createElement("h3");
-
-  heading.textContent = label;
-  return heading;
 }
 
 function emptyText(message) {
