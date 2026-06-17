@@ -1,3 +1,10 @@
+## Version 0.33.5.18.5.3 - 2026-06-17 11:00 -04:00
+
+- Final sub-slice of the Notes workflow conversion: anatomy cleanup + strict declarative guardrails. The note and collection dialogs now build through the framework `view.renderDescriptorModalForm` helper (which was extended to forward a `size` hint so the editor stays `wide`) instead of calling the low-level `view.createModalForm` primitive directly.
+- Removed the remaining hand-built framework anatomy from `notes.js`: the two `<details>` disclosures (collections actions menu, revisions panel) and the detail header/title/meta/body/tags/breadcrumb plus the read-only linked-context `dt`/`dd` list now use `view.createElement`. notes.js no longer contains any `document.createElement("dialog"|"table"|"details")`.
+- Added `notes.workspace` to the strict declarative guardrail (`scripts/view-descriptor-declarative-guardrails.mjs`): it forbids the low-level framework primitives and `document.createElement` of dialog/table/details, and requires `renderDescriptorActionMenu`/`renderDescriptorLinkedRecordsPanel`/`renderDescriptorModalForm`. `createCollapsibleIndexPanel` is an allowed, documented exception for the secondary Library navigation panel (the descriptor's single `indexPanel` can't yet express a second nav panel). Updated the developer guide inventory (Notes → `strict`).
+- Extended `notes-ui-workflow-regression` with the modal-helper-swap and no-hand-built-anatomy assertions; bumped `view-renderer.js?v=5` and `notes.js?v=24` on `notes.html`, updated the asserting regressions, and bumped app metadata to `0.33.5.18.5.3`. This completes 0.33.5.18.5.
+
 ## Version 0.33.5.18.5.2 - 2026-06-17 09:30 -04:00
 
 - Second sub-slice of the Notes workflow conversion: moved the editable linked-records panel into descriptor/renderer-supported anatomy. The `notes.workspace` descriptor now declares `detail.linkedRecords` (panel title, `recordsField`, the type/search/results form fields, and `add-link`/`remove-link` actions carrying `notes.link.*` behavior ids and `NOTE_PERMISSIONS.MANAGE_LINKS`), mirrored in the `notes.js` fallback.

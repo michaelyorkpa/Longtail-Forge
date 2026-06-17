@@ -35,7 +35,7 @@ Capabilities intentionally NOT yet in the descriptor (use an escape-hatch behavi
 
 ## Guardrails
 
-Strict guardrails currently enforce `lists.workspace`. Tags and Developer Example descriptors are inventoried and delivered through the descriptor pipeline, but their protected views are not strict-converted surfaces in this closeout.
+Strict guardrails currently enforce `lists.workspace` and `notes.workspace`. Tags and Developer Example descriptors are inventoried and delivered through the descriptor pipeline, but their protected views are not strict-converted surfaces in this closeout. (Notes mounts a secondary Library navigation panel via the framework `createCollapsibleIndexPanel` primitive — an allowed exception until the descriptor can express a second nav panel.)
 
 A strict declarative surface must:
 
@@ -75,7 +75,7 @@ The inventory below is current for 0.33.5.16.12. `strict` means the static guard
 | Files Settings | files-settings | files-settings.html | - | reported |
 | Help | help | help.html | - | reported |
 | Lists | lists | lists.html | lists.workspace | strict |
-| Notes | notes | notes.html | notes.workspace | reported |
+| Notes | notes | notes.html | notes.workspace | strict |
 | Notifications | notifications | notifications.html | - | reported |
 | Reporting | reporting | reporting.html | - | reported |
 | Search | search | search.html | - | reported |

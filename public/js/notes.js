@@ -635,7 +635,7 @@ function createNoteDialogShell() {
   const save = view.createActionButton({ label: modal.footerActions?.find((action) => action.id === "save-note")?.label || "Save Note", type: "submit", role: "primary" });
   save.dataset.noteSave = "";
 
-  const dialog = view.createModalForm({
+  const dialog = view.renderDescriptorModalForm(modal, {
     title: modal.title || "Note",
     className: "notes-editor-dialog",
     formClassName: "notes-editor-form",
@@ -694,7 +694,7 @@ function createCollectionDialogShell() {
   const save = view.createActionButton({ label: modal.footerActions?.find((action) => action.id === "save-collection")?.label || "Save Collection", type: "submit", role: "primary" });
   save.dataset.noteCollectionSave = "";
 
-  const dialog = view.createModalForm({
+  const dialog = view.renderDescriptorModalForm(modal, {
     title: modal.title || "Collection",
     className: "notes-collection-dialog",
     formClassName: "notes-collection-form",
@@ -870,25 +870,19 @@ function collectionActions(collection) {
     return disabled;
   }
 
-  const actions = document.createElement("details");
-  const summary = document.createElement("summary");
-  const menu = document.createElement("span");
   const child = actionButton("+", () => openCollectionDialog("create", { parent: collection }));
   const edit = actionButton("Edit", () => openCollectionDialog("edit", { collection }));
   const archive = actionButton("Archive", () => archiveCollection(collection));
   const remove = actionButton("Delete Empty", () => deleteEmptyCollection(collection));
 
-  actions.className = "notes-collection-actions";
-  summary.textContent = "...";
-  summary.title = "Collection actions";
-  menu.className = "notes-collection-actions-menu";
   child.title = "Create child collection";
   edit.title = "Rename or move collection";
   archive.title = "Archive collection";
   remove.title = "Delete empty collection";
-  menu.append(child, edit, archive, remove);
-  actions.append(summary, menu);
-  return actions;
+
+  const summary = view.createElement("summary", { text: "...", attrs: { title: "Collection actions" } });
+  const menu = view.createElement("span", { className: "notes-collection-actions-menu", children: [child, edit, archive, remove] });
+  return view.createElement("details", { className: "notes-collection-actions", children: [summary, menu] });
 }
 
 function selectCollection(collectionId) {
@@ -1053,48 +1047,36 @@ function collapseNotesNavigationPanels() {
 }
 
 function renderDetail(note) {
-  const header = document.createElement("header");
-  const titleRow = document.createElement("div");
-  const title = document.createElement("h2");
-  const titleRule = document.createElement("hr");
-  const meta = document.createElement("p");
-  const body = document.createElement("div");
-  const tags = document.createElement("div");
-  const tagsRule = document.createElement("hr");
-  const collectionBreadcrumb = document.createElement("p");
-  const context = document.createElement("dl");
+  const title = view.createElement("h2", { text: note.title || "Untitled note" });
+  const titleRow = view.createElement("div", { className: "notes-detail-title-row", children: [title, createNoteActionStrip(note)] });
+  const titleRule = view.createElement("hr", { className: "notes-detail-rule" });
+  const meta = view.createElement("p", { className: "notes-detail-meta", children: detailMetaItems(note) });
+  const header = view.createElement("header", { className: "notes-detail-header", children: [titleRow, titleRule, meta] });
+  const tagsRule = view.createElement("hr", { className: "notes-detail-rule" });
+  const collectionBreadcrumb = view.createElement("p", {
+    className: "notes-collection-breadcrumb",
+    text: `Collection: ${collectionLabel(note.note_collection_id) || "Uncategorized"}`,
+  });
+  const context = view.createElement("dl", { className: "notes-context-list" });
   const links = renderLinksPanel(note);
   const files = renderFilesPanel(note);
   const revisions = renderRevisionsPanel(note);
 
-  header.className = "notes-detail-header";
-  titleRow.className = "notes-detail-title-row";
-  title.textContent = note.title || "Untitled note";
-  titleRule.className = "notes-detail-rule";
-  meta.className = "notes-detail-meta";
-  meta.append(...detailMetaItems(note));
-  titleRow.append(title, createNoteActionStrip(note));
-  header.append(titleRow, titleRule, meta);
   if (isSecureNote(note)) {
-    const warning = document.createElement("p");
-    warning.className = "notes-secure-warning";
-    warning.textContent = note.secure_title_warning || "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.";
-    header.append(warning);
+    header.append(view.createElement("p", {
+      className: "notes-secure-warning",
+      text: note.secure_title_warning || "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.",
+    }));
   }
-  collectionBreadcrumb.className = "notes-collection-breadcrumb";
-  collectionBreadcrumb.textContent = `Collection: ${collectionLabel(note.note_collection_id) || "Uncategorized"}`;
 
-  body.className = "notes-rendered-body";
+  const body = view.createElement("div", { className: "notes-rendered-body" });
   body.innerHTML = note.body_html || "";
   if (!body.textContent.trim() && !note.body_html) {
     body.textContent = isSecureNote(note) ? "Secure note body is locked or unavailable." : "No body.";
   }
 
-  tags.className = "notes-detail-tags";
-  tags.append(tagChips(note.tags || []));
-  tagsRule.className = "notes-detail-rule";
+  const tags = view.createElement("div", { className: "notes-detail-tags", children: [tagChips(note.tags || [])] });
 
-  context.className = "notes-context-list";
   addLinkedContext(context, "Client", note.linked_context?.client, note.client_id);
   addLinkedContext(context, "Project", note.linked_context?.project, note.project_id);
   addLinkedContext(context, "Task", note.linked_context?.task, note.task_id);
@@ -1734,19 +1716,17 @@ function fileVisibilityForNote(note) {
 }
 
 function renderRevisionsPanel(note) {
-  const section = document.createElement("details");
-  const summary = document.createElement("summary");
-  const list = document.createElement("div");
+  const summary = view.createElement("summary", { text: "Revisions" });
+  const list = view.createElement("div", { text: "Loading revisions..." });
 
-  section.className = "notes-detail-section notes-revisions-panel";
-  summary.textContent = "Revisions";
   list.dataset.noteRevisionsList = "";
-  list.textContent = "Loading revisions...";
-  section.append(summary, list);
   if (note.status === "archived") {
     list.dataset.archived = "true";
   }
-  return section;
+  return view.createElement("details", {
+    className: "notes-detail-section notes-revisions-panel",
+    children: [summary, list],
+  });
 }
 
 async function loadRevisions(note, list) {
@@ -2226,12 +2206,10 @@ function addContext(list, label, value) {
     return;
   }
 
-  const term = document.createElement("dt");
-  const description = document.createElement("dd");
-
-  term.textContent = label;
-  description.textContent = value;
-  list.append(term, description);
+  list.append(
+    view.createElement("dt", { text: label }),
+    view.createElement("dd", { text: value }),
+  );
 }
 
 function addLinkedContext(list, label, target, fallbackValue) {
@@ -2239,20 +2217,14 @@ function addLinkedContext(list, label, target, fallbackValue) {
     return;
   }
 
-  const term = document.createElement("dt");
-  const description = document.createElement("dd");
   const value = target?.label || fallbackValue;
-
-  term.textContent = label;
+  const description = view.createElement("dd");
   if (target?.sourceUrl && !target.unavailable) {
-    const link = document.createElement("a");
-    link.href = target.sourceUrl;
-    link.textContent = value;
-    description.append(link);
+    description.append(view.createElement("a", { text: value, attrs: { href: target.sourceUrl } }));
   } else {
     description.textContent = target?.unavailable ? "Unavailable linked record" : value;
   }
-  list.append(term, description);
+  list.append(view.createElement("dt", { text: label }), description);
 }
 
 function sectionHeading(label) {

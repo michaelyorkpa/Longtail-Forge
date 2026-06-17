@@ -53,10 +53,10 @@ async function assertProtectedView(session) {
   // filters, index, detail) AND the editor + collection modals are framework-rendered; notes.js
   // mounts the notes-specific chrome and builds the dialog shells from the descriptor modals block.
   assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/);
-  assert.match(html, /js\/shared\/view-renderer\.js\?v=4/);
+  assert.match(html, /js\/shared\/view-renderer\.js\?v=5/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=6/);
-  assert.match(html, /js\/notes\.js\?v=23/);
+  assert.match(html, /js\/notes\.js\?v=24/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
@@ -124,7 +124,7 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /createNoteDialogShell/);
   assert.match(notesJs, /createCollectionDialogShell/);
   assert.match(notesJs, /document\.body\.append\(createNoteDialogShell\(\), createCollectionDialogShell\(\)\)/);
-  assert.match(notesJs, /view\.createModalForm/);
+  assert.match(notesJs, /view\.renderDescriptorModalForm/);
   assert.match(notesJs, /notesEditorModalDescriptor/);
   assert.match(notesJs, /notesCollectionModalDescriptor/);
   assert.match(notesJs, /dialog\.dataset\.noteDialog = ""/);
@@ -161,6 +161,13 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /api\.postJson\(`\/api\/notes\/\$\{encodeURIComponent\(note\.note_id\)\}\/links`/, "Notes should keep the link-add service route");
   assert.match(notesJs, /\/links\/\$\{encodeURIComponent\(noteLinkId\)\}\/remove`/, "Notes should keep the link-remove service route");
   assert.doesNotMatch(notesJs, /const section = document\.createElement\("section"\);\s*const list = document\.createElement\("div"\);\s*const form = document\.createElement\("form"\)/, "The linked-records panel should no longer hand-build its section/form anatomy");
+
+  // 0.33.5.18.5.3 anatomy cleanup + strict guardrails.
+  assert.match(notesJs, /view\.renderDescriptorModalForm\(modal, \{/, "Note dialogs should be built through the framework modal-form helper");
+  assert.doesNotMatch(notesJs, /view\.createModalForm/, "Notes should no longer call the low-level createModalForm primitive directly");
+  assert.doesNotMatch(notesJs, /document\.createElement\("(dialog|table|details)"\)/, "Notes should not hand-build dialog/table/details framework anatomy");
+  assert.match(notesJs, /view\.createElement\("dl"/, "The read-only linked-context list should be built via the framework element builder");
+  assert.match(notesJs, /view\.createElement\("details"/, "The collections menu and revisions panel should use the framework element builder for disclosures");
 
   const linkedPanelJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8");
   assert.match(linkedPanelJs, /LongtailForge/);

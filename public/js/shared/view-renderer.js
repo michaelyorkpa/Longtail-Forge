@@ -639,6 +639,7 @@
       title: options.title || modal.title || modal.label || "Modal",
       className: options.className,
       formClassName: options.formClassName,
+      size: options.size || modal.size,
       fields: options.fields || (modal.fields || []).map((field) => renderFieldShell(field, view)),
       actions: options.actions || [...(modal.footerActions || []), ...(modal.actions || [])].map((action) => normalizeAction(action)),
     });

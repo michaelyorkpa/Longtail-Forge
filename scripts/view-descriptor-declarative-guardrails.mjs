@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
 
-const appVersion = "0.33.5.18.5.2";
+const appVersion = "0.33.5.18.5.3";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
@@ -15,6 +15,8 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const listsModule = readText("src/modules/lists/module.js");
 const listsJs = readText("public/js/lists.js");
 const listsHtml = readText("views/protected/lists.html");
+const notesJs = readText("public/js/notes.js");
+const notesHtml = readText("views/protected/notes.html");
 
 const modules = listModules();
 const protectedViews = modules.flatMap((moduleDefinition) => (
@@ -39,7 +41,7 @@ for (const surface of surfaces) {
   const key = `${surface.moduleId}:${surface.viewId}`;
   surfacesByView.set(key, [...(surfacesByView.get(key) || []), surface]);
 }
-const strictDeclarativeSurfaceIds = new Set(["lists.workspace"]);
+const strictDeclarativeSurfaceIds = new Set(["lists.workspace", "notes.workspace"]);
 const inventory = protectedHtmlFiles.map((fileName) => {
   const view = protectedViewsByFile.get(fileName) || {
     id: fileName.replace(/\.html$/, ""),
@@ -64,8 +66,8 @@ assert.match(listsModule, /version:\s*"0\.33\.5\.16\.12"/, "Lists module should 
 assert.ok(inventory.length >= 20, "Protected view inventory should cover all protected HTML views");
 assert.deepEqual(
   inventory.filter((entry) => entry.strict).map((entry) => entry.surfaceIds[0]),
-  ["lists.workspace"],
-  "Only the converted Lists descriptor should be under strict declarative enforcement in this slice",
+  ["lists.workspace", "notes.workspace"],
+  "The converted Lists and Notes descriptors should be under strict declarative enforcement",
 );
 assert.ok(inventory.some((entry) => entry.moduleId === "tags" && entry.surfaceIds.includes("tags.management") && !entry.strict), "Tags descriptor should be inventoried but not strict yet");
 assert.ok(inventory.some((entry) => entry.moduleId === "developer-example" && entry.surfaceIds.includes("developer-example.surface") && !entry.strict), "Disabled example descriptor should be inventoried but not strict");
@@ -104,11 +106,41 @@ for (const helper of [
 assert.doesNotMatch(listsJs, /className:\s*["'`][^"'`]*(modal-actions|form-actions|list-table-wrap|lists-workspace)[^"'`]*/, "Strict declarative Lists source should not create one-off layout/footer class shells");
 assert.doesNotMatch(listsJs, /classList\.add\([^)]*(modal-actions|form-actions|list-table-wrap)[^)]*\)/, "Strict declarative Lists source should not add one-off layout/footer classes");
 
+// Notes strict declarative enforcement. Notes mounts a secondary Library navigation panel through the
+// framework `createCollapsibleIndexPanel` primitive, which is an allowed exception (the descriptor's
+// single indexPanel cannot yet express a second nav panel); everything else must match Lists' bar.
+assert.match(notesHtml, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Strict declarative Notes HTML should stay a minimal host");
+assertNoProtectedAnatomy(notesHtml, "views/protected/notes.html", /\b(data-note-dialog|data-notes-list|data-note-detail|data-note-collection-dialog)\b/, "Notes");
+for (const forbidden of [
+  "view.createPageHeader",
+  "view.createFilterPanel",
+  "view.createDataTable",
+  "view.createModalForm",
+  "view.createDetailActionStrip",
+  "view.createFieldGrid",
+  "view.createInlineActionRow",
+  "view.createSplitListDetail",
+  "document.createElement(\"dialog\")",
+  "document.createElement(\"table\")",
+  "document.createElement(\"details\")",
+]) {
+  assert.doesNotMatch(notesJs, new RegExp(escapeRegExp(forbidden)), `Strict declarative Notes source should not use ${forbidden}`);
+}
+for (const helper of [
+  "renderDescriptorActionMenu",
+  "renderDescriptorLinkedRecordsPanel",
+  "renderDescriptorModalForm",
+]) {
+  assert.match(notesJs, new RegExp(`view\\.${helper}`), `Strict declarative Notes source should consume ${helper}`);
+}
+assert.doesNotMatch(notesJs, /className:\s*["'`][^"'`]*(modal-actions|form-actions|list-table-wrap|notes-workspace)[^"'`]*/, "Strict declarative Notes source should not create one-off layout/footer class shells");
+
 assert.match(declarativeGuide, /# Declarative View Surfaces/, "Developer guide should document declarative view surfaces");
-assert.match(declarativeGuide, /Strict guardrails currently enforce `lists\.workspace`/, "Developer guide should identify current strict enforcement scope");
+assert.match(declarativeGuide, /Strict guardrails currently enforce `lists\.workspace` and `notes\.workspace`/, "Developer guide should identify current strict enforcement scope");
 assert.match(declarativeGuide, /Protected View Inventory/, "Developer guide should include protected view inventory");
 for (const expectedInventoryRow of [
   "| Lists | lists | lists.html | lists.workspace | strict |",
+  "| Notes | notes | notes.html | notes.workspace | strict |",
   "| Tags | tags | tags.html | tags.management | reported |",
   "| Developer Example | developer-example | developer-example.html | developer-example.surface | reported |",
   "| Tasks | tasks | tasks.html | - | reported |",
@@ -130,10 +162,10 @@ function readText(relativePath) {
   return readFileSync(new URL(`../${relativePath}`, import.meta.url), "utf8");
 }
 
-function assertNoProtectedAnatomy(html, label) {
+function assertNoProtectedAnatomy(html, label, hooksRegex = /\b(data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog)\b/, surfaceName = "Lists") {
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
   assert.doesNotMatch(body, /<(section|form|table|dialog|details|button|h1|h2|ul|ol)\b/i, `${label} should not ship framework-owned protected view anatomy`);
-  assert.doesNotMatch(body, /\b(data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog)\b/, `${label} should not ship Lists workspace hooks outside the descriptor host`);
+  assert.doesNotMatch(body, hooksRegex, `${label} should not ship ${surfaceName} workspace hooks outside the descriptor host`);
 }
 
 function nodeReport(entries) {

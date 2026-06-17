@@ -380,12 +380,22 @@ Split into three focused sub-slices so each ships green and reviewable.
 
 #### Version 0.33.5.18.5.3 - Notes Anatomy Cleanup and Strict Guardrails
 
-- [ ] Reduce `public/js/notes.js` to data bindings and behavior handlers with no hand-built
+- [x] Reduce `public/js/notes.js` to data bindings and behavior handlers with no hand-built
       framework-owned anatomy (swap `createModalForm` → `renderDescriptorModalForm`, remove raw
       `document.createElement` of structural tags including the read-only linked-context dt/dd list,
-      etc.).
-- [ ] Expand fail-on-violation declarative guardrails to the Notes surface.
-- [ ] Add regressions proving Notes no longer creates framework-owned anatomy by hand.
+      etc.). — The note/collection dialogs now build through `view.renderDescriptorModalForm` (the
+      renderer forwards the `size: "wide"` editor hint); the two `<details>` disclosures (collections
+      menu, revisions) and the detail header/body/tags/breadcrumb/context dt-dd list now use
+      `view.createElement`. notes.js no longer calls `createModalForm` or any
+      `document.createElement("dialog"|"table"|"details")`.
+- [x] Expand fail-on-violation declarative guardrails to the Notes surface. — `notes.workspace` is now
+      in `strictDeclarativeSurfaceIds`; `view-descriptor-declarative-guardrails` enforces a Notes block
+      (forbids the low-level framework primitives + `document.createElement` of dialog/table/details,
+      requires `renderDescriptorActionMenu`/`renderDescriptorLinkedRecordsPanel`/`renderDescriptorModalForm`).
+      `createCollapsibleIndexPanel` is an allowed, documented exception for the secondary Library nav panel.
+- [x] Add regressions proving Notes no longer creates framework-owned anatomy by hand. — The strict
+      guardrail + new `notes-ui-workflow` markers assert the modal-helper swap, no
+      dialog/table/details, and the framework-built disclosures and context list.
 
 ---
 

@@ -69,7 +69,7 @@ async function assertStaticBrowserContract() {
 
   assert.match(notesHtml, /js\/shared\/notes-editor\.js\?v=3/);
   assert.match(notesHtml, /css\/longtail-forge\.css\?v=29/);
-  assert.match(notesHtml, /js\/notes\.js\?v=23/);
+  assert.match(notesHtml, /js\/notes\.js\?v=24/);
   assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/);
   assert.match(notesJs, /previewRequestId/);
   assert.match(notesJs, /bodyInput\?\.addEventListener\("input", \(\) => renderPreview\(\)\)/);

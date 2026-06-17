@@ -93,6 +93,11 @@ This section is to define a series of human testing goals for different sections
 - "Library" and "Notes List" headings don't match the "Filters" heading
   - This should be standardized across all action pages
 
+- Library can ditch the "All", "Active", "Ongoing Areas", "Reference Library", and "Archive" buttons
+  - The library and collections drop downs will suffice
+  - Add "Archive" to the "Library" drop down
+  - Bring the drop downs in-line with "New Collection" icon button so the entire box renders as one tight row (or row-and-a-half if you count the Library and Collection headings)
+
 - Pagination can be moved to the bottom right of the Notes List box 
   - Pagination needs to be hidden when "Notes List" is collapsed
 
@@ -105,6 +110,10 @@ This section is to define a series of human testing goals for different sections
   - "Remove" and "Add Link" buttons should be icons
 
 - Files needs to be collapsible and start off collapsed
+  - Files currently displays with two bordered boxes around it, it doesn't need the outer, darker box (it's darker in dark mode, anyway)
+
+- Revisions box border is dark (in dark mode), it should be light
+  - Inner revision listings also use the dark border (in dark mode) and those should be light as well
 
 - Eventually, I'd like to be able to check off items on notes checklists from the display pages (might be very complicated.)
 
