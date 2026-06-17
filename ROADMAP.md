@@ -486,19 +486,29 @@ Framework-wide modal fix (affects Notes, Lists, Clients/Projects, Tasks). Regres
 
 Lists is already strict/declarative; this is UI/layout refinement that reuses the Notes patterns above.
 
-- [ ] Reorganize the Lists detail (it is very long and poorly organized) and shrink the metadata line
-      (e.g. "active - procurement") to match the compact Notes meta format.
-- [ ] Put the Lists detail action buttons behind a 3-dot overflow menu, reusing the framework
-      `view.createDetailActionMenu` / `renderDescriptorActionMenu` primitive added for Notes.
-- [ ] Fix the items list/table overlapping the detail action buttons — the items area currently overlaps
-      the detail's action controls. The detail reorg + 3-dot action menu above should largely resolve it;
-      verify the items table (`.lists-items-table-wrap`) clears the action strip at all widths.
-- [ ] Tighten the "Next" panel: roughly half width, with fewer/stacked chips instead of a long chip run.
-- [ ] Investigate the "Source" panel — if it only repeats the "Independent list" chip, deprecate the
-      section.
-- [ ] Move the Costs panel below the items table.
-- [ ] Make Lists linked records follow the Notes linked-records model (collapsible, collapsed by default,
-      icon Add/Remove) from 0.33.5.18.5.7.
+- [x] Reorganize the Lists detail (it is very long and poorly organized) and shrink the metadata line
+      (e.g. "active - procurement") to match the compact Notes meta format. — `renderDetail` now builds a
+      Notes-style header (`createListDetailHeader`: title row + rule + compact `detailMetaItems` labeled
+      spans) and a clear body order: header → description → Next → Source → Linked Records → item form →
+      items table → Costs.
+- [x] Put the Lists detail action buttons behind a 3-dot overflow menu, reusing the framework
+      `view.createDetailActionMenu` / `renderDescriptorActionMenu` primitive added for Notes. —
+      `createListActionStrip` now returns `view.renderDescriptorActionMenu(detailActionButtons(...))`;
+      `renderDescriptorActionStrip` is retired for Lists (guardrails updated to require the menu).
+- [x] Fix the items list/table overlapping the detail action buttons. — Collapsing the wide inline action
+      row into the "..." menu in the title row removes the overlap; the items table stays full-width below
+      in the stacked detail.
+- [x] Tighten the "Next" panel: roughly half width, with fewer/stacked chips instead of a long chip run. —
+      `.lists-next-action` is `max-width: 520px`; `stateFacts` is trimmed to progress / next-needed /
+      assignment (context + source chips dropped, since they live in the meta line / Source panel).
+- [x] Investigate the "Source" panel — if it only repeats the "Independent list" chip, deprecate the
+      section. — `shouldShowSourceContext` gates it; it renders only with real provenance/usage context
+      (duplicated-from, reusable source/template, finalized, BOM) and is omitted for plain independent lists.
+- [x] Move the Costs panel below the items table. — `costSummary` is now the last child appended in
+      `renderDetail`, beneath the items table it totals.
+- [x] Make Lists linked records follow the Notes linked-records model (collapsible, collapsed by default,
+      icon Add/Remove) from 0.33.5.18.5.7. — `createLinkedRecordsPanel` passes `collapsible: true,
+      open: false`; Add Link is the `add` icon button and Remove is the `delete` icon button.
 
 #### Version 0.33.5.18.5.9 - Lists Items Inset Refinement
 

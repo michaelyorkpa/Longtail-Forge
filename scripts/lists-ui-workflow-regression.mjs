@@ -56,8 +56,8 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/client-project-options\.js\?v=1/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=3/);
   assert.match(html, /js\/shared\/view-renderer\.js\?v=3/);
-  assert.match(html, /js\/lists\.js\?v=7/);
-  assert.match(html, /css\/longtail-forge\.css\?v=25/);
+  assert.match(html, /js\/lists\.js\?v=8/);
+  assert.match(html, /css\/longtail-forge\.css\?v=26/);
 
   assert.match(listsJs, /buildListsViewShell/);
   assert.match(listsJs, /view\.renderSurface\(renderDescriptor, host\)/);
@@ -163,6 +163,17 @@ async function assertProtectedView(session) {
   assert.match(listsJs, /collapseIndexAfterSelection/);
   assert.match(listsJs, /indexPanel\.open = false/);
 
+  // 0.33.5.18.5.8 Lists main page refinement.
+  assert.match(listsJs, /function createListDetailHeader/, "Lists detail should use a Notes-style header (title row + rule + meta)");
+  assert.match(listsJs, /view\.renderDescriptorActionMenu\(detailActionButtons/, "Lists detail actions should render as a 3-dot overflow menu");
+  assert.doesNotMatch(listsJs, /view\.renderDescriptorActionStrip/, "Lists detail actions should no longer use the inline action strip");
+  assert.match(listsJs, /function detailMetaItems/, "Lists detail meta should render as compact labeled spans like Notes");
+  assert.match(listsJs, /function shouldShowSourceContext/, "The Source panel should be gated so it is omitted for plain independent lists");
+  assert.match(listsJs, /shouldShowSourceContext\(list\) \? createSourceContextPanel\(list\) : null/, "renderDetail should only mount the Source panel when it is meaningful");
+  assert.match(listsJs, /collapsible: true,\s*open: false/, "Lists linked records should be collapsible and collapsed by default");
+  assert.match(listsJs, /icon: "add",\s*iconOnly: true,\s*label: addAction\.label \|\| "Add Link"/, "Add Link should be an icon button");
+  assert.match(listsJs, /behavior: removeAction\.behavior,\s*icon: "delete"/, "Remove link should be an icon button");
+
   assert.match(styles, /\.view-split-list-detail/);
   assert.match(styles, /\.lists-index-panel summary/);
   assert.match(styles, /\.lists-state-summary/);
@@ -187,6 +198,9 @@ async function assertProtectedView(session) {
   assert.match(styles, /@media \(max-width: 1366px\)[\s\S]*\.lists-link-form[\s\S]*repeat\(auto-fit, minmax\(180px, 1fr\)\)/);
   assert.match(styles, /\.lists-next-action[\s\S]*background: var\(--color-surface-muted\)/);
   assert.match(styles, /\.lists-source-context,[\s\S]*\.lists-cost-summary[\s\S]*background: var\(--color-surface-muted\)/);
+  assert.match(styles, /\.lists-detail-title-row\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto/, "Lists detail title row should put the action menu to the right of the title");
+  assert.match(styles, /\.lists-detail-meta\s*\{[\s\S]*font-size: 13px/, "Lists detail meta should use the compact Notes meta size");
+  assert.match(styles, /\.lists-next-action\s*\{[\s\S]*max-width: 520px/, "The Next panel should be roughly half width");
   assert.doesNotMatch(listsStyles, /#eff6ff|#f0fdfa|#fff7ed|#bfdbfe|#99f6e4|#fed7aa/);
 }
 

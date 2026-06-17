@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const version = "0.33.5.15.6";
-const appVersion = "0.33.5.18.5.7";
+const appVersion = "0.33.5.18.5.8";
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
@@ -38,7 +38,7 @@ assert.match(helper, /function createDetailActionStrip/, "View builder should ow
 assert.match(helper, /function createInlineActionRow/, "View builder should own inline action rows");
 
 assert.match(listsHtml, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists converted surface should stay a minimal host");
-assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=3[\s\S]*js\/lists\.js\?v=7/, "Lists should load view-builder before the converted module script");
+assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=3[\s\S]*js\/lists\.js\?v=8/, "Lists should load view-builder before the converted module script");
 assert.doesNotMatch(listsHtml, /<dialog|data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog/, "Lists HTML should not reintroduce converted anatomy");
 assert.doesNotMatch(listsJs, /document\.createElement\("dialog"\)/, "Converted Lists should use the shared modal helper for dialogs");
 assertNoHardcodedLightBackgrounds(listsJs, "Lists converted browser source");
@@ -56,7 +56,7 @@ for (const helperName of [
 }
 
 for (const helperName of [
-  "renderDescriptorActionStrip",
+  "renderDescriptorActionMenu",
   "renderDescriptorDataTable",
   "renderDescriptorFieldGrid",
   "renderDescriptorInlineActions",

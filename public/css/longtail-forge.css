@@ -4914,7 +4914,6 @@ summary.view-info-panel-title {
 
 /* List/detail split sizing is owned by the framework `.view-split-list-detail` primitive. */
 
-.lists-detail-header,
 .lists-detail-actions,
 .lists-dialog-heading,
 .lists-item-actions {
@@ -4941,13 +4940,49 @@ summary.view-info-panel-title {
     flex: 0 0 auto;
 }
 
-.lists-detail-header,
 .lists-dialog-heading {
     justify-content: space-between;
 }
 
+/* The detail header mirrors the Notes header: a title row (title + badges, with the 3-dot action menu
+   pushed to the right), a rule, and a compact meta line. */
 .lists-detail-header {
-    align-items: flex-start;
+    display: grid;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.lists-detail-title-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: start;
+}
+
+.lists-detail-title-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.lists-detail-title {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.lists-detail-rule {
+    width: 100%;
+    margin: 0;
+    border: 0;
+    border-top: 1px solid var(--color-border-subtle);
+}
+
+.lists-detail-meta {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 13px;
 }
 
 .lists-detail-actions {
@@ -5051,6 +5086,8 @@ summary.view-info-panel-title {
 .lists-next-action {
     display: grid;
     gap: 8px;
+    /* Roughly half width so the short fact run wraps into a compact block instead of a long chip line. */
+    max-width: 520px;
     margin: 14px 0;
     padding: 12px;
     border: 1px solid var(--color-border);

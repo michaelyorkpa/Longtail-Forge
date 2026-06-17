@@ -811,34 +811,50 @@ function renderDetail(list) {
 
   const locked = list.status === "archived" || list.status === "deleted" || list.status === "finalized";
   const article = view.createElement("section", { className: "lists-detail-content" });
-  const header = view.createDetailHeader({
-    title: list.title || "Untitled list",
-    meta: detailMeta(list),
-    badges: listBadges(list),
-    className: "lists-detail-header",
-  });
-  const actions = createListActionStrip(list, locked);
+  const header = createListDetailHeader(list, locked);
   const nextAction = createNextActionStrip(list);
-  const sourceContext = createSourceContextPanel(list);
+  const sourceContext = shouldShowSourceContext(list) ? createSourceContextPanel(list) : null;
   const linkedRecords = createLinkedRecordsPanel(list, locked);
   const costSummary = createCostSummaryPanel(list);
   const description = view.createElement("p", { className: "lists-description" });
   const itemForm = createItemForm(list, locked);
   const items = view.createElement("div", { className: "lists-items" });
 
-  header.appendChild(actions);
   description.textContent = list.description || "No description.";
   items.appendChild(createItemsTable(list, locked));
 
-  article.append(header, nextAction, sourceContext, costSummary, linkedRecords, description, itemForm, items);
+  // Reorganized detail order: identity (header) -> what it is (description) -> what to do next ->
+  // provenance (only when meaningful) -> linked records -> add an item -> the items table ->
+  // the cost rollup beneath the items it totals.
+  article.append(...[header, description, nextAction, sourceContext, linkedRecords, itemForm, items, costSummary].filter(Boolean));
   detailPanel.replaceChildren(article);
   void loadItemSuggestions(list).then(() => updateSuggestionDatalist(itemForm, list));
 }
 
+function createListDetailHeader(list, locked) {
+  // Mirrors the Notes detail header: a title row (title + badges on the left, a 3-dot action menu on
+  // the right), a rule, then a compact labeled meta line. Keeping the actions in a "..." menu stops the
+  // wide action row from overlapping the detail content.
+  const title = view.createElement("h2", { className: "lists-detail-title", text: list.title || "Untitled list" });
+  const titleGroup = view.createElement("div", {
+    className: "lists-detail-title-group",
+    children: [title, ...listBadges(list)],
+  });
+  const titleRow = view.createElement("div", {
+    className: "lists-detail-title-row",
+    children: [titleGroup, createListActionStrip(list, locked)],
+  });
+  const rule = view.createElement("hr", { className: "lists-detail-rule" });
+  const meta = view.createElement("p", { className: "lists-detail-meta", children: detailMetaItems(list) });
+  return view.createElement("header", { className: "lists-detail-header", children: [titleRow, rule, meta] });
+}
+
 function createListActionStrip(list, locked) {
-  return view.renderDescriptorActionStrip(detailActionButtons(list, locked), {
-    className: "lists-detail-actions",
-    ariaLabel: listsActionStripSurfaceDescriptor().label || "List actions",
+  const label = listsActionStripSurfaceDescriptor().label || "List actions";
+  return view.renderDescriptorActionMenu(detailActionButtons(list, locked), {
+    summaryLabel: "...",
+    ariaLabel: label,
+    title: label,
   });
 }
 
@@ -1054,13 +1070,18 @@ function createLinkedRecordsPanel(list, locked) {
   const targetIdInput = targetId.querySelector("input");
   const addAction = descriptor.actions?.find((action) => action.id === "add-link") || {};
   const submit = view.createActionButton({
+    icon: "add",
+    iconOnly: true,
     label: addAction.label || "Add Link",
+    title: addAction.label || "Add Link",
     type: "submit",
     role: addAction.role || "primary",
     action: addAction.behavior || addAction.id,
   });
   const section = view.renderDescriptorLinkedRecordsPanel(descriptor, {
     className: "lists-links-panel",
+    collapsible: true,
+    open: false,
     recordsClassName: "lists-link-list",
     formClassName: "lists-link-form view-field-grid surface-modal-section-body",
     formDataset: {
@@ -1201,6 +1222,7 @@ function createLinkItem(list, link, locked) {
   const remove = actionButton(removeAction.label || "Remove", removeAction.id || "remove-link", list.list_id, removeAction.role === "destructive" ? "secondary" : "", {
     disabled: locked,
     behavior: removeAction.behavior,
+    icon: "delete",
   });
   const target = link.target || {};
   const typeLabel = LIST_LINK_TYPE_LABELS[link.target_type] || formatToken(link.target_type);
@@ -1813,6 +1835,17 @@ function nextActionText(list) {
   return "Everything is checked. Complete or finalize the list when it is ready.";
 }
 
+function shouldShowSourceContext(list) {
+  // Only surface the Source panel when it carries real provenance or usage context. For a plain
+  // independent active list it would just repeat the "independent list" boilerplate already implied by
+  // the badges and the Next panel, so the section is deprecated for that case.
+  return Boolean(sourceContextLabel(list)) ||
+    list.is_reusable ||
+    list.status === "finalized" ||
+    list.isBillOfMaterials ||
+    list.list_type === "bill_of_materials";
+}
+
 function createSourceContextPanel(list) {
   const sourceContext = sourceContextLabel(list);
   const section = view.createInfoPanel({
@@ -1936,14 +1969,15 @@ function itemDetailSummary(item) {
 }
 
 function stateFacts(list) {
+  // A short fact run for the (now half-width) Next panel: progress, the next date, and assignment.
+  // The context chip lives in the meta line and the source/independent chip in the Source panel, so
+  // they are no longer repeated here.
   const state = listState(list);
   return [
     `${state.checkedItems}/${state.totalItems} checked`,
     `${state.incompleteItems} incomplete`,
     state.nextNeededDate ? `Next needed ${state.nextNeededDate}` : "No needed date",
     state.assignedUsers > 0 ? `${state.assignedUsers} assigned` : "No assignee",
-    state.contextLabel,
-    sourceContextLabel(list) ? "Has source context" : "Independent list",
   ];
 }
 
@@ -2127,15 +2161,31 @@ function listContextLabel(list) {
   return [client?.name, project?.name, list.is_reusable ? "Reusable" : ""].filter(Boolean).join(" / ") || "Workspace";
 }
 
-function detailMeta(list) {
-  return [
-    STATUS_LABELS[list.status] || list.status,
-    LIST_TYPE_LABELS[list.list_type] || list.list_type,
-    listContextLabel(list),
-    list.created_at ? `Created ${formatDateTime(list.created_at)}` : "",
-    list.updated_at ? `Updated ${formatDateTime(list.updated_at)}` : "",
-    list.finalized_at ? `Finalized ${formatDateTime(list.finalized_at)}` : "",
-  ].filter(Boolean).join(" - ");
+function detailMetaItems(list) {
+  // Compact labeled meta line (Notes format): each value is a span with a "Label: value" tooltip,
+  // separated by " - ", instead of the long pre-labeled run the header used to print.
+  const items = [
+    ["Status", STATUS_LABELS[list.status] || list.status],
+    ["Type", LIST_TYPE_LABELS[list.list_type] || list.list_type],
+    ["Context", listContextLabel(list)],
+    ["Created", list.created_at ? formatDateTime(list.created_at) : ""],
+    ["Updated", list.updated_at ? formatDateTime(list.updated_at) : ""],
+    ["Finalized", list.finalized_at ? formatDateTime(list.finalized_at) : ""],
+  ].filter(([, value]) => value);
+
+  return items.flatMap(([label, value], index) => {
+    const item = document.createElement("span");
+    const nodes = [];
+
+    item.textContent = value;
+    item.title = `${label}: ${value}`;
+    item.setAttribute("aria-label", `${label}: ${value}`);
+    nodes.push(item);
+    if (index < items.length - 1) {
+      nodes.push(document.createTextNode(" - "));
+    }
+    return nodes;
+  });
 }
 
 function findUser(userId) {
