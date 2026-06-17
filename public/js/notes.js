@@ -222,6 +222,27 @@ function notesWorkflowActionStripDescriptor() {
   };
 }
 
+function notesLinkedRecordsDescriptor() {
+  return notesViewSurfaceDescriptor().detail?.linkedRecords || notesLinkedRecordsFallbackDescriptor();
+}
+
+function notesLinkedRecordsFallbackDescriptor() {
+  return {
+    title: "Linked Records",
+    recordsField: "links",
+    emptyState: { message: "No linked records." },
+    fields: [
+      { field: "target_type", type: "select", label: "Type", behavior: "notes.link.target-type" },
+      { field: "target_search", type: "search", label: "Search records", placeholder: "Search records", autocomplete: "off", behavior: "notes.link.search" },
+      { field: "target_results", type: "select", label: "Record", required: true, behavior: "notes.link.results" },
+    ],
+    actions: [
+      { id: "add-link", label: "Add Link", role: "primary", behavior: "notes.link.add" },
+      { id: "remove-link", label: "Remove", role: "destructive", behavior: "notes.link.remove" },
+    ],
+  };
+}
+
 function createNoteActionStrip(note) {
   const label = notesActionStripDescriptor().label || "Note actions";
   return view.renderDescriptorActionMenu(detailActionButtons(note), {
@@ -302,6 +323,7 @@ function fallbackNotesViewSurfaceDescriptor() {
     detail: {
       header: { titleField: "title", metaField: "library" },
       actionStrip: notesWorkflowActionStripDescriptor(),
+      linkedRecords: notesLinkedRecordsFallbackDescriptor(),
       emptyState: { message: "Select a note to read its details." },
     },
     modals: [
@@ -1548,32 +1570,43 @@ async function refreshCollectionUi() {
 }
 
 function renderLinksPanel(note) {
-  const section = document.createElement("section");
-  const list = document.createElement("div");
-  const form = document.createElement("form");
-  const targetType = document.createElement("select");
-  const targetSearch = document.createElement("input");
-  const targetResults = document.createElement("select");
-  const add = document.createElement("button");
+  const descriptor = notesLinkedRecordsDescriptor();
+  const locked = note.status === "archived";
+  const typeField = noteFieldLabel("Type", noteSelect("noteLinkTargetType", []));
+  const searchField = noteFieldLabel("Search records", noteInput("noteLinkSearch", { type: "search" }));
+  const resultsField = noteFieldLabel("Record", noteSelect("noteLinkResults", []));
+  const targetType = typeField.querySelector("select");
+  const targetSearch = searchField.querySelector("input");
+  const targetResults = resultsField.querySelector("select");
   let searchTimer = null;
 
-  section.className = "notes-detail-section";
-  section.append(sectionHeading("Linked Records"));
-  list.className = "notes-link-list";
-  list.replaceChildren(...(note.links || []).map((link) => linkItem(note, link)));
-  if ((note.links || []).length === 0) {
-    list.append(emptyText("No linked records."));
-  }
-
-  form.className = "notes-link-form";
-  form.hidden = note.status === "archived";
   populateLinkTargetTypeSelect(targetType);
-  targetSearch.type = "search";
-  targetSearch.placeholder = "Search records";
+  targetSearch.placeholder = linkedRecordsField(descriptor, "target_search").placeholder || "Search records";
   targetResults.required = true;
-  add.type = "submit";
-  add.textContent = "Add Link";
-  form.append(targetType, targetSearch, targetResults, add);
+
+  const addAction = descriptor.actions?.find((action) => action.id === "add-link") || {};
+  const add = view.createActionButton({
+    label: addAction.label || "Add Link",
+    type: "submit",
+    role: addAction.role || "primary",
+    action: addAction.behavior || addAction.id,
+  });
+  add.dataset.noteLinkAdd = "";
+
+  const section = view.renderDescriptorLinkedRecordsPanel(descriptor, {
+    className: "notes-links-panel",
+    recordsClassName: "notes-link-list",
+    formClassName: "notes-link-form view-field-grid surface-modal-section-body",
+    formDataset: { noteLinkForm: "", noteId: note.note_id },
+    formFields: [typeField, searchField, resultsField],
+    formActions: [add],
+    locked,
+    emptyClassName: "notes-empty-state",
+  });
+  section.dataset.noteLinksPanel = "";
+  section.querySelector(".notes-link-list")?.replaceChildren(...linkRecordNodes(note));
+
+  const form = section.querySelector("[data-note-link-form]");
   const loadTargets = async () => {
     targetResults.disabled = true;
     targetResults.replaceChildren(new window.Option("Loading records...", ""));
@@ -1594,7 +1627,7 @@ function renderLinksPanel(note) {
     window.clearTimeout(searchTimer);
     searchTimer = window.setTimeout(loadTargets, 180);
   });
-  form.addEventListener("submit", async (event) => {
+  form?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const target = readSelectedLinkTarget(targetResults);
     if (!target) {
@@ -1608,34 +1641,40 @@ function renderLinksPanel(note) {
   });
   loadTargets();
 
-  section.append(list, form);
   return section;
 }
 
+function linkedRecordsField(descriptor, fieldName) {
+  return descriptor.fields?.find((field) => field.field === fieldName) || {};
+}
+
+function linkRecordNodes(note) {
+  const links = note.links || [];
+  if (links.length === 0) {
+    return [view.createElement("p", {
+      className: "notes-empty-state",
+      text: notesLinkedRecordsDescriptor().emptyState?.message || "No linked records.",
+    })];
+  }
+  return links.map((link) => linkItem(note, link));
+}
+
 function linkItem(note, link) {
-  const item = document.createElement("div");
-  const label = document.createElement("span");
   const sourceUrl = link.sourceUrl || link.source_url || "";
   const targetType = link.targetType || link.target_type || "";
   const targetId = link.targetId || link.target_id || "";
-  const title = sourceUrl ? document.createElement("a") : document.createElement("strong");
-  const subtitle = document.createElement("small");
-  const remove = document.createElement("button");
-
-  item.className = "notes-link-item";
-  label.className = "notes-link-item-label";
-  title.textContent = link.label || targetId || "Linked record";
-  if (sourceUrl) {
-    title.href = sourceUrl;
-  }
-  subtitle.textContent = link.subtitle || (LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType));
-  label.append(title, subtitle);
-  remove.type = "button";
-  remove.textContent = "Remove";
+  const title = view.createElement(sourceUrl ? "a" : "strong", {
+    text: link.label || targetId || "Linked record",
+    attrs: sourceUrl ? { href: sourceUrl } : {},
+  });
+  const subtitle = view.createElement("small", {
+    text: link.subtitle || (LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType)),
+  });
+  const label = view.createElement("span", { className: "notes-link-item-label", children: [title, subtitle] });
+  const remove = view.createActionButton({ label: "Remove", role: "secondary", onClick: () => removeNoteLink(note, link) });
+  remove.dataset.noteLinkRemove = "";
   remove.hidden = note.status === "archived";
-  remove.addEventListener("click", () => removeNoteLink(note, link));
-  item.append(label, remove);
-  return item;
+  return view.createElement("div", { className: "notes-link-item", children: [label, remove] });
 }
 
 async function addNoteLink(note, payload) {

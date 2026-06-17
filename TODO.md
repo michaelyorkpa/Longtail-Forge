@@ -61,6 +61,16 @@ This section is to define a series of human testing goals for different sections
   - Should be similar to context around displaying notes within workspace
   - Maybe just displays headings/titles?
 
+### Workbench Enhancements: Inspector
+
+- Anchor QAC near the bottom-right edge.
+- Make QAC a floating drawer/tray, not a permanent rail.
+- On 1920px desktop Workbench layouts, shift the main surface left by default.
+- Keep the Inspector visible on the Workbench all the time on wide screens.
+- Let the Inspector show related record titles when idle.
+- Let clicking a related title open a read-only preview inside the Inspector.
+- Keep non-Workbench screens centered unless they opt into Inspector behavior.
+
 ## Notes Add/Edit modal tweaks
 
 - Group "Note Details" and make collapsible

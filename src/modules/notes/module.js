@@ -308,6 +308,20 @@ const notesModule = {
             description: "Linked workspace context for this note.",
           },
         ],
+        linkedRecords: {
+          title: "Linked Records",
+          recordsField: "links",
+          emptyState: { message: "No linked records." },
+          fields: [
+            { field: "target_type", type: "select", label: "Type", behavior: "notes.link.target-type" },
+            { field: "target_search", type: "search", label: "Search records", placeholder: "Search records", autocomplete: "off", behavior: "notes.link.search" },
+            { field: "target_results", type: "select", label: "Record", required: true, behavior: "notes.link.results" },
+          ],
+          actions: [
+            { id: "add-link", label: "Add Link", role: "primary", behavior: "notes.link.add", requiredPermissions: [NOTE_PERMISSIONS.MANAGE_LINKS] },
+            { id: "remove-link", label: "Remove", role: "destructive", behavior: "notes.link.remove", requiredPermissions: [NOTE_PERMISSIONS.MANAGE_LINKS] },
+          ],
+        },
         emptyState: {
           title: "Select a note",
           message: "Select a note to read its details.",

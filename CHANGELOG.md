@@ -1,3 +1,9 @@
+## Version 0.33.5.18.5.2 - 2026-06-17 09:30 -04:00
+
+- Second sub-slice of the Notes workflow conversion: moved the editable linked-records panel into descriptor/renderer-supported anatomy. The `notes.workspace` descriptor now declares `detail.linkedRecords` (panel title, `recordsField`, the type/search/results form fields, and `add-link`/`remove-link` actions carrying `notes.link.*` behavior ids and `NOTE_PERMISSIONS.MANAGE_LINKS`), mirrored in the `notes.js` fallback.
+- `renderLinksPanel` now builds the panel through the framework `view.renderDescriptorLinkedRecordsPanel` helper (instead of a hand-built `<section>`/`<form>`), and the link rows are built via `linkRecordNodes` + `view.createElement` (replacing the raw `document.createElement` row markup). Link add/remove service routes (`/api/notes/:id/links`, `…/links/:id/remove`), the target-scope rules, and the search/debounce logic stay module-owned in `notes.js`.
+- Extended `notes-ui-workflow-regression` with the linked-records descriptor + helper assertions; bumped `notes.js?v=23` and app metadata to `0.33.5.18.5.2`. (The read-only linked-context metadata list and the remaining hand-built detail anatomy are addressed in 0.33.5.18.5.3.)
+
 ## Version 0.33.5.18.5.1 - 2026-06-16 17:05 -04:00
 
 - Began 0.33.5.18.5 (Notes workflow conversion) as three focused sub-slices. This first sub-slice converts the Notes detail workflow actions to a declarative action strip: the `notes.workspace` descriptor now declares `detail.actionStrip` with `behavior` ids (`notes.workflow.edit`/`archive`/`restore`) and `requiredPermissions` (`NOTE_PERMISSIONS.UPDATE`/`ARCHIVE`/`RESTORE`), mirrored in the `notes.js` fallback descriptor.

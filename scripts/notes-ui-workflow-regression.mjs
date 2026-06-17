@@ -56,7 +56,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=4/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=6/);
-  assert.match(html, /js\/notes\.js\?v=22/);
+  assert.match(html, /js\/notes\.js\?v=23/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
@@ -151,6 +151,16 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /view\.renderDescriptorActionMenu\(detailActionButtons\(note\)/, "Notes detail should render the workflow actions through the framework overflow-menu helper");
   assert.match(notesJs, /button\.dataset\.noteAction = action\.id/, "Action menu buttons should carry their declarative action id");
   assert.doesNotMatch(notesJs, /function detailActionsMenu/, "The hand-built <details> actions menu should be replaced by the framework action menu");
+
+  // 0.33.5.18.5.2 declarative linked-records panel.
+  assert.match(notesModuleSource, /linkedRecords:\s*\{[\s\S]*?recordsField:\s*"links"[\s\S]*?behavior:\s*"notes\.link\.add"[\s\S]*?behavior:\s*"notes\.link\.remove"/, "Notes descriptor should declare the linked-records panel with add/remove behaviors");
+  assert.match(notesModuleSource, /linkedRecords:\s*\{[\s\S]*?requiredPermissions:\s*\[NOTE_PERMISSIONS\.MANAGE_LINKS\]/, "Linked-records actions should require the manage-links permission");
+  assert.match(notesJs, /view\.renderDescriptorLinkedRecordsPanel\(descriptor/, "Notes linked-records panel should render through the framework helper");
+  assert.match(notesJs, /function linkRecordNodes\(note\)/, "Notes should build linked-record rows via linkRecordNodes");
+  assert.match(notesJs, /notesLinkedRecordsDescriptor\(\)/, "Notes should resolve the delivered linked-records descriptor");
+  assert.match(notesJs, /api\.postJson\(`\/api\/notes\/\$\{encodeURIComponent\(note\.note_id\)\}\/links`/, "Notes should keep the link-add service route");
+  assert.match(notesJs, /\/links\/\$\{encodeURIComponent\(noteLinkId\)\}\/remove`/, "Notes should keep the link-remove service route");
+  assert.doesNotMatch(notesJs, /const section = document\.createElement\("section"\);\s*const list = document\.createElement\("div"\);\s*const form = document\.createElement\("form"\)/, "The linked-records panel should no longer hand-build its section/form anatomy");
 
   const linkedPanelJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8");
   assert.match(linkedPanelJs, /LongtailForge/);

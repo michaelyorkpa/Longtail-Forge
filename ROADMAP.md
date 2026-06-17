@@ -368,15 +368,22 @@ Split into three focused sub-slices so each ships green and reviewable.
 
 #### Version 0.33.5.18.5.2 - Notes Linked Context and Linked Records
 
-- [ ] Move linked-context panel placement and linked-record rows into descriptor/renderer-supported
-      anatomy (`detail.linkedRecords` + `view.renderDescriptorLinkedRecordsPanel`) while keeping
-      linkage permission checks and service logic in Notes files.
+- [x] Move the linked-records panel and linked-record rows into descriptor/renderer-supported anatomy
+      (`detail.linkedRecords` + `view.renderDescriptorLinkedRecordsPanel`) while keeping linkage
+      permission checks and service logic in Notes files. — The `notes.workspace` descriptor declares
+      `detail.linkedRecords` (fields + `add-link`/`remove-link` actions carrying `notes.link.*`
+      behavior ids and `NOTE_PERMISSIONS.MANAGE_LINKS`); `renderLinksPanel` now builds the panel via
+      `view.renderDescriptorLinkedRecordsPanel` and rows via `linkRecordNodes`/`view.createElement`.
+      Add/remove service routes (`/api/notes/:id/links`, `…/remove`) and target-scope logic stay in
+      Notes. (The read-only linked-context metadata list — Client/Project/Task/User dt/dd — is folded
+      into the 0.33.5.18.5.3 anatomy cleanup.)
 
 #### Version 0.33.5.18.5.3 - Notes Anatomy Cleanup and Strict Guardrails
 
 - [ ] Reduce `public/js/notes.js` to data bindings and behavior handlers with no hand-built
       framework-owned anatomy (swap `createModalForm` → `renderDescriptorModalForm`, remove raw
-      `document.createElement` of structural tags, etc.).
+      `document.createElement` of structural tags including the read-only linked-context dt/dd list,
+      etc.).
 - [ ] Expand fail-on-violation declarative guardrails to the Notes surface.
 - [ ] Add regressions proving Notes no longer creates framework-owned anatomy by hand.
 
