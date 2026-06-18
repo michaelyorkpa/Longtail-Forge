@@ -1038,7 +1038,7 @@ async function listTargetsByType(session, targetType) {
     return clients.map((client) => shapeLinkTarget({
       target_type: "client",
       target_id: client.id,
-      label: client.name || client.id,
+      label: readableTargetLabel(client.name, "client"),
       subtitle: client.status ? `Client - ${client.status}` : "Client",
       source_url: `clients.html?client=${encodeURIComponent(client.id)}`,
       client_id: client.id,
@@ -1050,7 +1050,7 @@ async function listTargetsByType(session, targetType) {
     return projects.map((project) => shapeLinkTarget({
       target_type: "project",
       target_id: project.id,
-      label: project.name || project.id,
+      label: readableTargetLabel(project.name, "project"),
       subtitle: [project.client_name, project.status].filter(Boolean).join(" - ") || "Project",
       source_url: `projects.html?project=${encodeURIComponent(project.id)}`,
       client_id: project.client_id || "",
@@ -1063,7 +1063,7 @@ async function listTargetsByType(session, targetType) {
     return tasks.map((task) => shapeLinkTarget({
       target_type: "task",
       target_id: task.task_id,
-      label: task.title || task.task_id,
+      label: readableTargetLabel(task.title, "task"),
       subtitle: [task.client_name, task.project_name, task.status].filter(Boolean).join(" - ") || "Task",
       source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
       client_id: task.client_id || "",
@@ -1078,7 +1078,7 @@ async function listTargetsByType(session, targetType) {
     return users.map((user) => shapeLinkTarget({
       target_type: "user",
       target_id: user.user_id,
-      label: user.displayName || user.username || user.user_id,
+      label: readableTargetLabel(user.displayName || user.display_name || user.username, "user"),
       subtitle: user.username || "User",
       source_url: "settings.html",
       user_id: user.user_id,
@@ -1320,7 +1320,7 @@ async function resolveNoteOwnerLabel(session, note = {}) {
   }
   try {
     const user = await usersRepository.readById(session.workspace_id, ownerUserId);
-    return user ? (user.display_name || user.username || user.user_id) : "";
+    return user ? (user.display_name || user.displayName || user.username || "") : "";
   } catch {
     return "";
   }
@@ -1456,7 +1456,7 @@ async function readTargetSummary(session, target = {}) {
 
   try {
     if (!(await canTargetAccess(session, normalizedTarget))) {
-      return safeUnavailableTarget();
+      return safeUnavailableTarget(normalizedTarget);
     }
 
     if (normalizedTarget.target_type === "workspace") {
@@ -1470,47 +1470,47 @@ async function readTargetSummary(session, target = {}) {
     if (normalizedTarget.target_type === "client") {
       const client = await clientsRepository.readById(session.workspace_id, normalizedTarget.target_id);
       return client ? {
-        label: client.name || client.id,
+        label: readableTargetLabel(client.name, "client"),
         subtitle: client.status ? `Client - ${client.status}` : "Client",
         source_url: `clients.html?client=${encodeURIComponent(client.id)}`,
         client_id: client.id,
-      } : safeUnavailableTarget();
+      } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "project") {
       const project = await projectsRepository.readById(session.workspace_id, normalizedTarget.target_id);
       return project ? {
-        label: project.name || project.id,
+        label: readableTargetLabel(project.name, "project"),
         subtitle: [project.client_name, project.status].filter(Boolean).join(" - ") || "Project",
         source_url: `projects.html?project=${encodeURIComponent(project.id)}`,
         client_id: project.client_id || "",
         project_id: project.id,
-      } : safeUnavailableTarget();
+      } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "task") {
       const task = await tasksRepository.readById(session.workspace_id, normalizedTarget.target_id);
       return task ? {
-        label: task.title || task.task_id,
+        label: readableTargetLabel(task.title, "task"),
         subtitle: [task.client_name, task.project_name, task.status].filter(Boolean).join(" - ") || "Task",
         source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
         client_id: task.client_id || "",
         project_id: task.project_id || "",
         task_id: task.task_id,
-      } : safeUnavailableTarget();
+      } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "user") {
       const user = await usersRepository.readById(session.workspace_id, normalizedTarget.target_id);
       return user ? {
-        label: user.display_name || user.username || user.user_id,
+        label: readableTargetLabel(user.display_name || user.displayName || user.username, "user"),
         subtitle: user.username || "User",
         source_url: "settings.html",
         user_id: user.user_id,
-      } : safeUnavailableTarget();
+      } : safeUnavailableTarget(normalizedTarget);
     }
   } catch {
-    return safeUnavailableTarget();
+    return safeUnavailableTarget(normalizedTarget);
   }
 
-  return safeUnavailableTarget();
+  return safeUnavailableTarget(normalizedTarget);
 }
 
 function shapeLinkTarget(target = {}) {
@@ -1532,26 +1532,28 @@ function shapeLinkTarget(target = {}) {
   };
 }
 
-function safeUnavailableTarget() {
+function safeUnavailableTarget(target = {}) {
   return {
-    label: "",
+    label: safeTargetFallbackLabel(target),
     subtitle: "Unavailable",
     source_url: "",
     unavailable: true,
   };
 }
 
-function safeTargetFallbackLabel(target = {}) {
-  const targetType = target.target_type || target.targetType || "record";
-  const targetId = target.target_id || target.targetId || "";
-
-  return targetId ? `${formatTargetTypeLabel(targetType)} ${targetId}` : formatTargetTypeLabel(targetType);
+function readableTargetLabel(value, targetType) {
+  return normalizeOptionalText(value) || safeTargetFallbackLabel({ target_type: targetType });
 }
 
-function formatTargetTypeLabel(targetType = "") {
-  return String(targetType || "Record")
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+function safeTargetFallbackLabel(target = {}) {
+  const targetType = target.target_type || target.targetType || "record";
+  return {
+    client: "Unavailable client",
+    project: "Unavailable project",
+    task: "Unavailable task",
+    note: "Unavailable note",
+    list: "Unavailable list",
+  }[targetType] || "Unavailable linked context";
 }
 
 function suggestedLibraryForTargetType(targetType = "") {

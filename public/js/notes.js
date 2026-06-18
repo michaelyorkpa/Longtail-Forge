@@ -117,6 +117,7 @@ let state = {
   collections: [],
   editingNoteId: "",
   editorAttachmentController: null,
+  editorContextSummaries: {},
   editorSelectedTarget: null,
   libraryManuallyChanged: false,
   linkTargetSearchTimer: null,
@@ -235,9 +236,9 @@ function notesLinkedRecordsDescriptor() {
 
 function notesLinkedRecordsFallbackDescriptor() {
   return {
-    title: "Linked Records",
+    title: "Linked Context",
     recordsField: "links",
-    emptyState: { message: "No linked records." },
+    emptyState: { message: "No linked context." },
     fields: [
       { field: "target_type", type: "select", label: "Type", behavior: "notes.link.target-type" },
       { field: "target_search", type: "search", label: "Search records", placeholder: "Search records", autocomplete: "off", behavior: "notes.link.search" },
@@ -317,8 +318,8 @@ function fallbackNotesViewSurfaceDescriptor() {
       notesDescriptorSelect("visibility", "Visibility", [["all", "All visible", true], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"]]),
       notesDescriptorSelect("security", "Security", [["all", "All", true], ["normal", "Normal"], ["secure", "Secure"]]),
       notesDescriptorSelect("noteType", "Note Kind", [["all", "All kinds", true], ...Object.entries(NOTE_KIND_LABELS).filter(([value]) => !LEGACY_NOTE_KINDS.has(value)).map(([value, label]) => [value, label])]),
-      { id: "context-filter", field: "context", type: "search", label: "Context ID" },
-      { id: "owner-filter", field: "owner", type: "search", label: "Owner ID" },
+      { id: "context-filter", field: "context", type: "search", label: "Context" },
+      { id: "owner-filter", field: "owner", type: "search", label: "Owner" },
       { id: "tags-filter", field: "tags", type: "search", label: "Tags" },
       { id: "updated-filter", field: "updatedSince", type: "date", label: "Updated Since" },
       notesDescriptorSelect("sort", "Sort", [["updated_desc", "Updated", true], ["created_desc", "Created"], ["title_asc", "Title"], ["library_asc", "Library"], ["type_asc", "Note Kind"]]),
@@ -587,7 +588,7 @@ function createNoteContextPanel() {
   const panel = view.createElement("details", { className: "notes-context-panel" });
   panel.appendChild(view.createElement("summary", { text: "Linked Context" }));
 
-  const search = view.createElement("input", { attrs: { type: "search", autocomplete: "off", placeholder: "Search linked records" } });
+  const search = view.createElement("input", { attrs: { type: "search", autocomplete: "off", placeholder: "Search linked context" } });
   search.dataset.noteContextSearch = "";
   const apply = view.createActionButton({ icon: "add", iconOnly: true, label: "Use Target", title: "Use Target" });
   apply.dataset.noteContextApply = "";
@@ -1094,7 +1095,7 @@ function renderDetail(note) {
 
   const tags = view.createElement("div", { className: "notes-detail-tags", children: [tagChips(note.tags || [])] });
 
-  // Client/Project/Task/User context lives in the Linked Records panel; the metadata row carries all
+  // Client/Project/Task/User context lives in the Linked Context panel; the metadata row carries all
   // note-level metadata (incl. Created/Updated/Owner) so it is not duplicated here.
   detailPanel.replaceChildren(header, collectionBreadcrumb, tags, tagsRule, body, links, files, revisions);
   mountFilesPanel(note, files.querySelector("[data-note-files-mount]"));
@@ -1132,6 +1133,7 @@ async function openEditor(note = null) {
   projectInput.value = note?.project_id || "";
   taskInput.value = note?.task_id || "";
   userInput.value = note?.linked_user_id || "";
+  state.editorContextSummaries = note?.linked_context || {};
   editor?.setValue(note?.body_markdown || "");
   bodyInput.value = note?.body_markdown || "";
   preview.hidden = true;
@@ -1303,7 +1305,7 @@ function availableLinkTargetTypes() {
 
 function linkTargetOptionLabel(target = {}) {
   const typeLabel = LINK_TARGET_TYPE_LABELS[target.targetType] || formatToken(target.targetType || "record");
-  const parts = [target.label || target.targetId || "Untitled", target.subtitle].filter(Boolean);
+  const parts = [target.label || unavailableTargetLabel(target.targetType), target.subtitle].filter(Boolean);
   return `${typeLabel}: ${parts.join(" - ")}`;
 }
 
@@ -1389,23 +1391,44 @@ function renderEditorContextSelection(target = null) {
   const linked = [];
   if (target?.targetType === "workspace") {
     linked.push(`Workspace: ${target.label || "Workspace"}`);
-  }
-  if (clientInput.value) {
-    linked.push(`Client: ${clientInput.value}`);
-  }
-  if (projectInput.value) {
-    linked.push(`Project: ${projectInput.value}`);
-  }
-  if (taskInput.value) {
-    linked.push(`Task: ${taskInput.value}`);
-  }
-  if (userInput.value) {
-    linked.push(`User: ${userInput.value}`);
+  } else if (target?.targetType) {
+    linked.push(`${contextTypeLabel(target.targetType)}: ${target.label || unavailableTargetLabel(target.targetType)}`);
+  } else {
+    if (clientInput.value) {
+      linked.push(`Client: ${contextSummaryLabel("client")}`);
+    }
+    if (projectInput.value) {
+      linked.push(`Project: ${contextSummaryLabel("project")}`);
+    }
+    if (taskInput.value) {
+      linked.push(`Task: ${contextSummaryLabel("task")}`);
+    }
+    if (userInput.value) {
+      linked.push(`User: ${contextSummaryLabel("user")}`);
+    }
   }
 
   contextSelectedMessage.textContent = linked.length > 0
     ? `Linked context: ${linked.join(" / ")}`
     : "No linked context selected.";
+}
+
+function contextSummaryLabel(targetType) {
+  return state.editorContextSummaries?.[targetType]?.label || unavailableTargetLabel(targetType);
+}
+
+function contextTypeLabel(targetType) {
+  return LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType || "context");
+}
+
+function unavailableTargetLabel(targetType = "") {
+  return {
+    client: "Unavailable client",
+    project: "Unavailable project",
+    task: "Unavailable task",
+    note: "Unavailable note",
+    list: "Unavailable list",
+  }[targetType] || "Unavailable linked context";
 }
 
 function handleEditorCommand(event) {
@@ -1655,7 +1678,7 @@ function linkRecordNodes(note) {
   if (links.length === 0) {
     return [view.createElement("p", {
       className: "notes-empty-state",
-      text: notesLinkedRecordsDescriptor().emptyState?.message || "No linked records.",
+      text: notesLinkedRecordsDescriptor().emptyState?.message || "No linked context.",
     })];
   }
   return links.map((link) => linkItem(note, link));
@@ -1664,9 +1687,8 @@ function linkRecordNodes(note) {
 function linkItem(note, link) {
   const sourceUrl = link.sourceUrl || link.source_url || "";
   const targetType = link.targetType || link.target_type || "";
-  const targetId = link.targetId || link.target_id || "";
   const title = view.createElement(sourceUrl ? "a" : "strong", {
-    text: link.label || targetId || "Linked record",
+    text: link.label || "Unavailable linked context",
     attrs: sourceUrl ? { href: sourceUrl } : {},
   });
   const subtitle = view.createElement("small", {
@@ -1691,7 +1713,7 @@ async function removeNoteLink(note, link) {
 }
 
 function renderFilesPanel(note = {}) {
-  // Collapsible (collapsed by default), boxed to match the Linked Records and Revisions sections
+  // Collapsible (collapsed by default), boxed to match the Linked Context and Revisions sections
   // (`notes-detail-section`). The embedded file-attachments component drops its own surface chrome and
   // redundant heading inside this panel (see `.notes-files-panel` CSS) so there is a single outer box.
   const summary = view.createElement("summary", { text: "Files" });
@@ -2264,7 +2286,7 @@ function detailMetaItems(note = {}) {
     ["Ticket", note.ticket_id],
     ["Created", formatDate(note.created_at)],
     ["Updated", formatDate(note.updated_at)],
-    ["Owner", note.owner_display_name || note.owner_user_id],
+    ["Owner", note.owner_display_name || "Unavailable owner"],
   ].filter(([, value]) => value);
 
   return items.flatMap(([label, value], index) => {

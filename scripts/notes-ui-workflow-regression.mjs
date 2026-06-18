@@ -56,7 +56,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=7/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=8/);
-  assert.match(html, /js\/notes\.js\?v=30/);
+  assert.match(html, /js\/notes\.js\?v=31/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
@@ -159,6 +159,8 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /view\.renderDescriptorLinkedRecordsPanel\(descriptor/, "Notes linked-records panel should render through the framework helper");
   assert.match(notesJs, /function linkRecordNodes\(note\)/, "Notes should build linked-record rows via linkRecordNodes");
   assert.match(notesJs, /notesLinkedRecordsDescriptor\(\)/, "Notes should resolve the delivered linked-records descriptor");
+  assert.match(notesModuleSource, /linkedRecords:\s*\{[\s\S]*title:\s*"Linked Context"[\s\S]*No linked context\./, "Notes linked-records descriptor should use Linked Context in visible copy");
+  assert.doesNotMatch(notesModuleSource, /title:\s*"Linked Records"|No linked records\./, "Notes descriptor should not expose Linked Records copy");
   assert.match(notesJs, /api\.postJson\(`\/api\/notes\/\$\{encodeURIComponent\(note\.note_id\)\}\/links`/, "Notes should keep the link-add service route");
   assert.match(notesJs, /\/links\/\$\{encodeURIComponent\(noteLinkId\)\}\/remove`/, "Notes should keep the link-remove service route");
   assert.doesNotMatch(notesJs, /const section = document\.createElement\("section"\);\s*const list = document\.createElement\("div"\);\s*const form = document\.createElement\("form"\)/, "The linked-records panel should no longer hand-build its section/form anatomy");
@@ -182,11 +184,11 @@ async function assertProtectedView(session) {
   assert.match(viewBuilderJs, /surface-modal-footer-utilities[\s\S]*data-modal-footer-group": "utility"/, "The framework modal footer should support a utility action group");
 
   // 0.33.5.18.5.7 detail metadata + collapsible panels.
-  assert.match(notesJs, /\["Owner", note\.owner_display_name \|\| note\.owner_user_id\]/, "Owner should render the display name (falling back to the id) in the meta row");
+  assert.match(notesJs, /\["Owner", note\.owner_display_name \|\| "Unavailable owner"\]/, "Owner should render the display name or a safe fallback in the meta row");
   assert.match(notesJs, /\["Created", formatDate\(note\.created_at\)\]/, "Created should move into the detail meta row");
   assert.match(notesJs, /\["Updated", formatDate\(note\.updated_at\)\]/, "Updated should move into the detail meta row");
   assert.doesNotMatch(notesJs, /view\.createElement\("dl"|notes-context-list/, "The duplicated linked-context dl should be removed from the detail");
-  assert.match(notesJs, /collapsible: true,\s*open: false/, "Linked Records should render collapsed by default");
+  assert.match(notesJs, /collapsible: true,\s*open: false/, "Linked Context should render collapsed by default");
   assert.match(notesJs, /icon: "add",\s*iconOnly: true,\s*label: addAction\.label/, "Add Link should be an icon button");
   assert.match(notesJs, /icon: "delete", iconOnly: true, label: "Remove"/, "Remove link should be an icon button");
   assert.match(notesJs, /className: "notes-detail-section notes-files-panel", children: \[summary, mount\]/, "The Files panel should be a collapsible box matching Linked Records/Revisions (notes-detail-section)");

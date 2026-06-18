@@ -1,3 +1,10 @@
+## Version 0.33.5.18.6.1 - 2026-06-18 11:53 -04:00
+
+- Finalized the Notes context terminology guardrail slice. Added `docs/workflow-context-contract.md` and updated the Notes/module developer docs so direct `notes.client_id`/`notes.project_id` are Primary Context, `note_links` rows are Linked Context, and normal product UI avoids "Linked Records" copy except for internal/developer identifiers.
+- Renamed visible Notes linked-record panel copy to Linked Context while keeping backend descriptor keys/routes stable. Notes filters now show readable Context/Owner labels instead of ID-oriented labels, and the Notes host cache-bust moved to `notes.js?v=31`.
+- Tightened safe label behavior so Notes target picker options, linked context rows, primary/direct context summaries, and owner metadata use readable labels or safe fallbacks such as `Unavailable client`, `Unavailable project`, `Unavailable task`, `Unavailable note`, `Unavailable list`, `Unavailable linked context`, and `Unavailable owner` instead of exposing raw UUIDs in normal UI. Audit Logs remain allowed to display raw IDs.
+- Added `notes-context-terminology-regression.mjs`, expanded Notes UI/docs regressions, and bumped package metadata/regression version pins to `0.33.5.18.6.1`.
+
 ## Version 0.33.5.18.5.11 - 2026-06-18 14:30 -04:00
 
 - Lists add/edit item form is now a framework-rendered modal (matching the create/edit list modal and the rest of the app), instead of an always-visible inline form in the middle of the detail. The framework renders the shell (`view.renderDescriptorModalForm`, wide size) and the module supplies the fields from the `detail.itemForm` descriptor and owns the data, catalog suggestions, validation, and save routes — the same "framework renders, module provides data" pattern as the list modal.
@@ -6,6 +13,8 @@
 - Catalog suggestions are list-independent now: `createItemNameField` uses a fixed datalist id and the input handler reads the dialog's current list (`state.itemDialogList`); `openItemDialog` repopulates the datalist per open. Save (`saveItem`) and the item create/edit routes are unchanged and module-owned; the `complete`/check routes are unaffected.
 - Removed the now-dead `createItemForm`/`populateItemForm` and the inline-form bottom-row CSS (`.lists-item-form > [data-list-item-submit]`/`> .lists-checkbox-field`). Extended `lists-ui-workflow` (Items header + Add Item action, `createItemDialogShell`/`openItemDialog`/`saveItem`, modal submit wiring, inline-form removal) and pointed `lists-declarative` at `createItemDialogShell`. Bumped `lists.js?v=12` and `longtail-forge.css?v=31` on `lists.html`; bumped app metadata to `0.33.5.18.5.11`.
 - Bugfix 2026-06-18 15:10 -04:00: the Lists page failed to load — `ReferenceError: can't access lexical declaration 'state' before initialization`. `buildListsViewShell()` runs (and now builds the item modal) before the `let state` declaration, and the Assigned select was reading `state.users` at build time (TDZ). The select is now built with just the "Unassigned" placeholder; a new `populateItemAssigneeOptions` fills the user options when the modal opens (the same defer-options pattern the list dialog uses for Client/Project). Bumped `lists.js?v=13`.
+
+- Docs-only planning follow-up 2026-06-18 11:40 -04:00: evaluated the 0.33.5.18.6 Notes UI/context picker/Markdown standardization roadmap branch against the current Notes and shared-editor implementation shape. Removed the stale duplicate Lists heading and split the oversized Linked Context panel, shared picker, provider label/sort, Tags/Files modal, Markdown toolbar, and Markdown preview items into smaller sub-slices so each version can be completed in one implementation pass. No runtime code or package metadata changed.
 
 ## Version 0.33.5.18.5.10 - 2026-06-18 09:15 -04:00
 

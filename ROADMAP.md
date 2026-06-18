@@ -566,9 +566,703 @@ other add/edit modals — framework renders the shell, the module provides the d
 
 ---
 
-## Version 0.33.5.18.6 - Final Notes/Lists UI and Framework/Module Separation Clean Up
+## Version 0.33.5.18.6 - Final Notes UI, Context Picker, and Markdown Editor Standardization
 
+This release finalizes Notes as the template surface before the remaining workflow surfaces are cleaned up. Notes should establish the standard add/edit/view patterns for Primary Context, Linked Context, modal utility actions, safe target labels, and shared Markdown editor behavior.
 
+This section intentionally focuses on Notes and shared framework pieces required by Notes. Lists-specific add/edit cleanup will follow in the next roadmap section after screenshots/instructions are provided.
+
+Planning note:
+
+- 0.33.5.18.6.1, 0.33.5.18.6.2, and 0.33.5.18.6.3 are scoped to one implementation pass each.
+- 0.33.5.18.6.4 through 0.33.5.18.6.9 were split into sub-slices because each originally combined multiple state models, shared framework contracts, provider implementations, or renderer/sanitizer changes.
+- The split keeps Notes work first, shared contracts explicit, and closeout verification last.
+
+Decision:
+
+Notes keeps its current backend model:
+
+- Direct nullable context fields on the note row, such as `client_id` and `project_id`, represent **Primary Context**.
+- Link rows, such as `note_links`, represent **Linked Context**.
+- Primary Context and Linked Context are related, but they are not the same thing.
+- Primary Context may be shown inside Linked Context UI as a non-removable reference, but it must be edited through the Note Details / Primary Context controls.
+- Linked Context rows may be added or removed through the Linked Context panel when permissions allow.
+- Client and Project are nullable.
+- Client must not appear in Personal or Family workspace UI.
+- Personal/Family workspaces may still use nullable Project context.
+- UUIDs must not appear in normal user-facing UI except Audit Logs.
+
+Frontend terminology:
+
+- Use **Linked Context** everywhere in normal UI.
+- Do not use **Linked Records** in user-facing UI.
+- Backend table names, route names, and internal identifiers do not need to be renamed in this release.
+
+---
+
+### Version 0.33.5.18.6.1 - Notes UI terminology and context guardrails
+
+- [x] Add or update a docs/contract file for workflow record context terminology.
+  - [x] User-facing term: **Primary Context**.
+  - [x] User-facing term: **Linked Context**.
+  - [x] Avoid **Linked Records** in frontend copy unless referring to developer/internal implementation.
+- [x] Add or update Notes developer docs:
+  - [x] Direct `notes.client_id` and `notes.project_id` are Primary Context.
+  - [x] `note_links` rows are Linked Context.
+  - [x] Primary Context is used by framework-facing behavior such as permissions, tags, search, files, filters, public API shaping, and future resume context.
+  - [x] Linked Context is flexible related-record context and should not replace Primary Context.
+- [x] Add UI guardrails:
+  - [x] Normal app UI must not display raw UUIDs.
+  - [x] Audit Logs may display raw UUIDs.
+  - [x] If a linked/primary target cannot be resolved to a readable label, show a safe fallback label such as:
+    - `Unavailable client`
+    - `Unavailable project`
+    - `Unavailable task`
+    - `Unavailable note`
+    - `Unavailable list`
+    - `Unavailable linked context`
+  - [x] Do not expose the raw target ID in the fallback label.
+- [x] Rename visible Notes frontend copy:
+  - [x] `Linked Records` -> `Linked Context`
+  - [x] `Add Link` may remain acceptable if the surrounding section is clearly Linked Context.
+  - [x] Prefer `Use Target` or `Add Context` for new shared picker actions where sensible.
+- [x] Keep backend identifiers stable in this pass unless a later migration explicitly requires renaming.
+
+Acceptance criteria:
+
+- Notes view/create/edit UI consistently says Linked Context.
+- No normal Notes UI displays raw UUIDs.
+- Docs clearly define Primary Context vs Linked Context.
+- Personal/Family workspace UI never shows Client context.
+
+---
+
+### Version 0.33.5.18.6.2 - Add Primary Context controls to Add/Edit Note details
+
+- [ ] Add a **Primary Context** subsection inside the existing collapsible **Note Details** section of the Add/Edit Note modal.
+- [ ] Bind the controls to the note row's direct nullable context fields:
+  - [ ] `client_id`
+  - [ ] `project_id`
+- [ ] Business workspace behavior:
+  - [ ] Show Client select.
+  - [ ] Show Project select.
+  - [ ] Both fields must allow blank/null.
+  - [ ] Selecting a client without a project sets `client_id` and clears/keeps `project_id` null.
+  - [ ] Selecting a project with a client derives `client_id` from the selected project.
+  - [ ] Selecting a workspace-level project sets `project_id` and leaves `client_id` null.
+  - [ ] Clearing both saves null/empty Primary Context.
+- [ ] Personal/Family workspace behavior:
+  - [ ] Do not show Client.
+  - [ ] Show Project select only.
+  - [ ] Project must allow blank/null.
+  - [ ] Save `client_id` as null/empty.
+- [ ] Project labels in the Primary Context project select should be concise and readable.
+  - [ ] Business client project: `Project Name - Client Name`
+  - [ ] Business workspace project: `Project Name - Workspace Name`
+  - [ ] Personal/Family project: `Project Name`
+  - [ ] No raw UUID.
+  - [ ] No redundant `Project:` prefix.
+  - [ ] No status suffix unless explicitly needed elsewhere.
+- [ ] Client labels should be only the client name.
+  - [ ] No `Client:` prefix.
+  - [ ] No `- Client`.
+  - [ ] No status suffix.
+- [ ] Add regression coverage for:
+  - [ ] Business note with no Primary Context.
+  - [ ] Business note with client-only Primary Context.
+  - [ ] Business note with project-derived Primary Context.
+  - [ ] Business note with workspace project Primary Context.
+  - [ ] Personal/Family note with project-only Primary Context.
+  - [ ] Clearing Primary Context.
+
+Acceptance criteria:
+
+- Users can create and edit a note's Primary Context directly.
+- Primary Context is no longer hidden or only indirectly produced by task-created notes.
+- Client is never visible in Personal/Family workspaces.
+- Client and Project remain nullable.
+- No Primary Context select or summary displays UUIDs.
+
+---
+
+### Version 0.33.5.18.6.3 - Correct task-created note context behavior and display
+
+Current issue:
+
+Notes created from a task may receive client/project/task context in the database, but the edit dialog shows the primary client/project/task context as UUID text and does not clearly distinguish Primary Context from the linked task.
+
+Desired behavior:
+
+- [ ] When creating a note from a task:
+  - [ ] Assign the task's readable/available client/project as note Primary Context.
+  - [ ] Assign the task itself as Linked Context.
+  - [ ] Do not display task ID as part of a raw Primary Context text line.
+- [ ] In Add/Edit Note:
+  - [ ] Primary client/project appears in Note Details > Primary Context.
+  - [ ] The source task appears as a normal removable Linked Context row when permissions allow.
+  - [ ] Removing the task link does not remove Primary Context.
+  - [ ] Editing Primary Context does not remove unrelated Linked Context.
+- [ ] In View Note:
+  - [ ] Primary Context, where displayed, uses readable labels.
+  - [ ] The linked task appears in the Linked Context panel like other links.
+- [ ] Remove UUID display from task-created note edit flows.
+- [ ] Add regression coverage for a task-created note:
+  - [ ] Primary Context shows readable client/project labels.
+  - [ ] Linked Context shows readable task label.
+  - [ ] No UUIDs appear.
+  - [ ] Removing the task link preserves Primary Context.
+
+Acceptance criteria:
+
+- Notes created from tasks have clear Primary Context and clear Linked Context.
+- The task link is displayed like a normal linked context item.
+- Users do not see raw IDs in task-created note add/edit/view workflows.
+
+---
+
+### Version 0.33.5.18.6.4 - Redesign Add/Edit Note Linked Context panel
+
+Split into three sub-slices so the saved-note API behavior, unsaved draft behavior, and visual panel redesign can each ship green.
+
+#### Version 0.33.5.18.6.4.1 - Add/Edit Linked Context visual model and Primary Context row
+
+- [ ] Update the Add/Edit Note Linked Context section to match the cleaner View Note linked context pattern.
+- [ ] The Add/Edit Linked Context section should contain:
+  - [ ] A non-removable Primary Context display row/card.
+  - [ ] Existing Linked Context rows/cards.
+  - [ ] Target / Search / Record / `+ Use Target` add controls.
+- [ ] Primary Context display row/card:
+  - [ ] Clearly label it as `Primary Context`.
+  - [ ] Show readable labels only.
+  - [ ] If no Primary Context exists, show:
+    - `No primary context selected. Edit Primary Context in Note Details.`
+  - [ ] Do not show a Remove button on the Primary Context row/card.
+  - [ ] Include a small hint:
+    - `Edit in Note Details`
+- [ ] Linked Context rows/cards:
+  - [ ] Show readable target label.
+  - [ ] Show useful secondary context where appropriate.
+  - [ ] Show Remove button when permissions allow.
+  - [ ] Use an icon + `Remove` label or equivalent accessible icon button.
+  - [ ] Do not display UUIDs.
+- [ ] Add regression coverage proving Primary Context is visible but not removable in the Add/Edit Linked Context section.
+
+Acceptance criteria:
+
+- Add/Edit Note Linked Context visually matches the View Note linked context model.
+- Primary Context is visible but not removable from the Linked Context section.
+- No UUIDs appear in the redesigned panel.
+
+#### Version 0.33.5.18.6.4.2 - Existing-note Linked Context add/remove refresh
+
+- [ ] Existing saved note behavior:
+  - [ ] Adding Linked Context persists immediately through the API.
+  - [ ] Removing Linked Context persists immediately through the API.
+  - [ ] The user does not need to close/reopen the editor.
+  - [ ] The user does not need to save the whole note to see the linked context row update.
+- [ ] Preserve service-layer permission enforcement.
+  - [ ] UI controls are display hints only.
+  - [ ] Backend must still reject unauthorized link add/remove operations.
+- [ ] Add regression coverage:
+  - [ ] Existing note add linked context immediate update.
+  - [ ] Existing note remove linked context immediate update.
+  - [ ] No UUID display in updated rows.
+
+Acceptance criteria:
+
+- Saved notes can add/remove Linked Context without leaving the dialog.
+- The Add/Edit panel refreshes after each link mutation.
+- Service-layer permissions remain authoritative.
+
+#### Version 0.33.5.18.6.4.3 - Unsaved-note staged Linked Context
+
+- [ ] New unsaved note behavior:
+  - [ ] Adding Linked Context stages the link in local draft state.
+  - [ ] Removing staged Linked Context removes it from local draft state.
+  - [ ] Staged links persist when the note is saved.
+  - [ ] Staged links keep readable labels while the note remains unsaved.
+- [ ] Preserve Primary Context separately from staged Linked Context.
+- [ ] Add regression coverage:
+  - [ ] Unsaved note staged linked context.
+  - [ ] Removing a staged link before save.
+  - [ ] Saved note receives staged links.
+  - [ ] No UUID display.
+
+Acceptance criteria:
+
+- Unsaved notes can stage links before saving.
+- Staged links are visible, removable, and persisted on save.
+- Primary Context remains distinct from staged Linked Context.
+
+---
+
+### Version 0.33.5.18.6.5 - Shared Linked Context picker contract
+
+Decision:
+
+The Target / Search / Record / `+ Use Target` pattern should become a shared framework-owned Linked Context picker shell. The framework owns the UI anatomy. Source modules own the provider data, filtering, sorting, permission-safe labels, and target summaries.
+
+Split into three sub-slices so the contract, framework shell, and Notes adoption do not land in one large pass.
+
+#### Version 0.33.5.18.6.5.1 - Linked Context picker provider contract
+
+- [ ] Create or formalize a shared Linked Context picker contract.
+- [ ] Source modules should expose link target providers.
+  - [ ] The framework must not hard-code how Projects, Tasks, Notes, Lists, Clients, or future modules sort and label their own records.
+  - [ ] The framework may standardize the provider response shape.
+- [ ] Provider response shape should include normalized fields such as:
+  - [ ] `moduleId`
+  - [ ] `targetType`
+  - [ ] `targetId`
+  - [ ] `displayLabel`
+  - [ ] `secondaryLabel`
+  - [ ] `sortKey`
+  - [ ] `sourceUrl`
+  - [ ] `clientId`
+  - [ ] `projectId`
+  - [ ] `workspaceId`
+  - [ ] `isAvailable`
+  - [ ] Optional `primaryContextHints`
+- [ ] Add contract documentation:
+  - [ ] Source module provider responsibilities.
+  - [ ] Required fields.
+  - [ ] Sorting responsibility.
+  - [ ] Label safety rules.
+  - [ ] No UUID UI rule.
+
+Acceptance criteria:
+
+- The shared provider response contract is documented and regression-covered.
+- The framework contract says providers own sorting and label construction.
+- Provider labels must be safe for direct UI rendering without raw UUIDs.
+
+#### Version 0.33.5.18.6.5.2 - Framework Linked Context picker shell
+
+- [ ] Build or formalize the shared picker UI shell.
+- [ ] The shared picker UI shell should support:
+  - [ ] Target select.
+  - [ ] Search input.
+  - [ ] Record dropdown.
+  - [ ] `+ Use Target` action.
+  - [ ] Existing linked context row rendering.
+  - [ ] Remove action rendering.
+  - [ ] Empty state rendering.
+  - [ ] Permission-disabled/read-only state rendering.
+- [ ] The picker must render provider-supplied labels rather than constructing strings like:
+  - `Project: Name - Client - Active`
+  - `Client: Name - Client - Active`
+  - `Task: Name - Active`
+- [ ] Add framework shared-component regression coverage for the shell and provider-label rendering.
+
+Acceptance criteria:
+
+- The framework owns reusable picker anatomy.
+- The shell can be reused by Lists, Tasks, Files, Clients/Projects, and future modules.
+- The shell does not construct module-specific labels or sorting.
+
+#### Version 0.33.5.18.6.5.3 - Notes adoption of shared Linked Context picker
+
+- [ ] Migrate Add/Edit Note Linked Context controls to the shared picker shell.
+- [ ] Hide/deprecate `Workspace` as a normal selectable target in Add/Edit Note Linked Context unless a later workflow explicitly needs it.
+  - [ ] Backend support may remain if currently needed.
+  - [ ] Do not default the Add/Edit Note picker to Workspace when the user is trying to link useful context.
+- [ ] Notes Linked Context supported target types:
+  - [ ] Client, Business workspaces only.
+  - [ ] Project.
+  - [ ] Task.
+  - [ ] Note.
+  - [ ] List.
+  - [ ] User only if the current Notes link model intentionally continues to support user links.
+- [ ] Personal/Family workspace behavior:
+  - [ ] Do not show Client target.
+  - [ ] Do not show client labels in project/task display strings.
+- [ ] Business workspace behavior:
+  - [ ] Client target appears only if user can read clients.
+  - [ ] Workspace-level projects are supported.
+  - [ ] Workspace-level project/task labels use workspace name where client name would otherwise appear.
+- [ ] Add Notes UI regression coverage for the shared picker adoption.
+
+Acceptance criteria:
+
+- Add/Edit Note uses the shared Linked Context picker shell.
+- Notes target choices match workspace type and permission rules.
+- No picker option displays raw UUIDs or redundant type/status strings.
+
+---
+
+### Version 0.33.5.18.6.6 - Linked Context target label and sort rules
+
+Implement provider-owned display and sorting rules.
+
+Split by provider family so each pass can update one display/sort contract and its regressions.
+
+#### Version 0.33.5.18.6.6.1 - Client and Project target labels/sorting
+
+Client target:
+
+- [ ] Display label:
+  - `Client Name`
+- [ ] Do not show:
+  - `Client:`
+  - `- Client`
+  - status
+  - UUID
+- [ ] Sort alphabetically by client name.
+
+Project target:
+
+- [ ] Do not show:
+  - `Project:`
+  - status
+  - UUID
+- [ ] Business workspace display:
+  - [ ] Client project: `Project Name - Client Name`
+  - [ ] Workspace-level project: `Project Name - Workspace Name`
+- [ ] Business workspace sorting:
+  - [ ] Workspace-level projects first.
+  - [ ] Then sort by client/workspace display name.
+  - [ ] Then sort by project name.
+- [ ] Personal/Family workspace display:
+  - [ ] `Project Name`
+- [ ] Personal/Family sorting:
+  - [ ] Sort by project name.
+- [ ] Add provider and picker regression coverage for Client/Project options.
+
+Acceptance criteria:
+
+- Client and Project dropdown options are concise.
+- Project dropdown sorts by workspace/client grouping, then project.
+- Client/Project options do not include redundant type prefixes, redundant status suffixes, or UUIDs.
+
+#### Version 0.33.5.18.6.6.2 - Task target labels/sorting
+
+Task target:
+
+- [ ] Do not show:
+  - `Task:`
+  - status
+  - UUID
+- [ ] Truncate long task titles for dropdown display.
+  - [ ] Use approximately 20 characters for the task title portion.
+  - [ ] Preserve the full title in `title`, tooltip, or accessible label if possible.
+- [ ] Business workspace display:
+  - [ ] Client project task: `Task title… - Client Name | Project Name`
+  - [ ] Workspace project task: `Task title… - Workspace Name | Project Name`
+  - [ ] No project: `Task title…`
+- [ ] Personal/Family workspace display:
+  - [ ] With project: `Task title… - Project Name`
+  - [ ] No project: `Task title…`
+- [ ] Sort tasks by provider-defined usefulness.
+  - [ ] Prefer active/readable tasks.
+  - [ ] Then sort by client/workspace, project, task title where applicable.
+- [ ] Add provider and picker regression coverage for Task options.
+
+Acceptance criteria:
+
+- Task dropdown uses truncated task names plus readable context.
+- Task options do not include redundant target type prefixes, redundant status suffixes, or UUIDs.
+- Task sorting is provider-owned and deterministic.
+
+#### Version 0.33.5.18.6.6.3 - Note and List Linked Context targets
+
+Note target:
+
+- [ ] Add Note as a selectable Linked Context target.
+- [ ] Display label:
+  - [ ] `Note Title`
+- [ ] Optional secondary label may include Library bucket or collection if helpful.
+- [ ] Do not show secure/private/inaccessible note labels to unauthorized users.
+- [ ] Do not show UUIDs.
+
+List target:
+
+- [ ] Add List as a selectable Linked Context target.
+- [ ] Display label:
+  - [ ] `List Title`
+- [ ] Optional secondary label may include list type or primary context if helpful.
+- [ ] Do not show UUIDs.
+- [ ] Add provider and picker regression coverage for Note/List options.
+
+Acceptance criteria:
+
+- Note and List can be selected as Linked Context targets.
+- Note/List options are permission-safe and do not expose UUIDs.
+- Existing linked context rows can render Note/List labels safely.
+
+#### Version 0.33.5.18.6.6.4 - Unavailable target fallback labels
+
+Unavailable targets:
+
+- [ ] Existing links whose target cannot be resolved/read should show safe placeholders:
+  - [ ] `Unavailable linked context`
+  - [ ] `Unavailable client`
+  - [ ] `Unavailable project`
+  - [ ] `Unavailable task`
+  - [ ] `Unavailable note`
+  - [ ] `Unavailable list`
+- [ ] Do not expose raw target IDs.
+- [ ] Apply fallback behavior consistently to picker options, existing linked context rows, and Primary Context display where applicable.
+- [ ] Add regression coverage for unresolved/unreadable targets.
+
+Acceptance criteria:
+
+- Unavailable linked/primary targets never expose raw IDs.
+- Existing linked context rows use the same readable display rules as picker options.
+- Fallback labels are type-specific where the type is known and generic otherwise.
+
+---
+
+### Version 0.33.5.18.6.7 - Notes Tags and Files modal behavior
+
+Split into three sub-slices so modal-stack behavior is framework-safe before each utility moves.
+
+#### Version 0.33.5.18.6.7.1 - Modal-stack guardrails and utility labels
+
+- [ ] Rename Add/Edit Note footer utility buttons:
+  - [ ] `Note tags` -> `Tags`
+  - [ ] `Note files` -> `Files`
+  - [ ] Keep the existing icons.
+- [ ] Add shared modal-stack guardrails:
+  - [ ] Secondary modals must not break the underlying Add/Edit Note state.
+  - [ ] Closing secondary modal returns to the note editor.
+  - [ ] Saving/closing the note editor should prevent or safely close open secondary modals.
+  - [ ] Escape key and backdrop behavior must not accidentally close both modals unless explicitly intended.
+- [ ] Add framework/modal regression coverage for stacked secondary modal behavior.
+
+Acceptance criteria:
+
+- Button labels are simply `Tags` and `Files`.
+- Icons are preserved.
+- Secondary modal behavior is guarded before Tags/Files migrate.
+
+#### Version 0.33.5.18.6.7.2 - Tags stacked modal
+
+- [ ] Tags button behavior:
+  - [ ] Open a stacked modal/dialog above the Add/Edit Note modal.
+  - [ ] Do not expand an inline box below the Body field.
+  - [ ] Preserve note editor state while the Tags modal is open.
+  - [ ] Closing the Tags modal returns focus to the Tags button or sensible editor focus.
+  - [ ] Unsaved note: tag changes may be staged locally and saved with the note.
+  - [ ] Existing note: tag changes may persist immediately if the existing tag service supports that safely.
+- [ ] Add regression coverage:
+  - [ ] Tags opens as stacked modal, not inline panel.
+  - [ ] Editor state is preserved while Tags is open.
+  - [ ] Tags state persists correctly for unsaved/saved notes.
+
+Acceptance criteria:
+
+- Tags no longer opens an inline panel below Body.
+- Tags opens as a stacked modal.
+- Tags changes follow safe unsaved/saved-note behavior.
+
+#### Version 0.33.5.18.6.7.3 - Files stacked modal
+
+- [ ] Files button behavior:
+  - [ ] Open a stacked modal/dialog above the Add/Edit Note modal.
+  - [ ] Do not expand an inline box below the Body field.
+  - [ ] Existing saved normal note: show file attachment UI in the modal.
+  - [ ] New unsaved note: show a modal with this message:
+    - `Save the note before adding files.`
+  - [ ] The unsaved-note files message should use error/warning styling, preferably red/danger treatment.
+  - [ ] Secure note behavior must continue to follow secure-note file restrictions.
+- [ ] Add regression coverage:
+  - [ ] Files opens as stacked modal, not inline panel.
+  - [ ] Unsaved note Files modal shows save-first warning.
+  - [ ] Secure-note file restrictions still apply.
+
+Acceptance criteria:
+
+- Files no longer opens an inline panel below Body.
+- Files opens as a stacked modal.
+- Files on unsaved notes shows the red save-first message.
+- Secure-note file behavior is unchanged.
+
+---
+
+### Version 0.33.5.18.6.8 - Shared Markdown editor toolbar cleanup
+
+Decision:
+
+Markdown editor improvements should be made in the shared Markdown editor/helper so every module using the editor benefits consistently.
+
+Split into three sub-slices because toolbar UI, preview placement, and underline renderer/sanitizer support are different risk profiles.
+
+#### Version 0.33.5.18.6.8.1 - Markdown toolbar compact buttons and list commands
+
+- [ ] Update the shared Markdown editor toolbar.
+- [ ] Existing `List` button should be renamed visually to one of:
+  - [ ] `UL`
+  - [ ] `Bullets`
+  - [ ] Bullet-list icon
+- [ ] Add an ordered list button.
+  - [ ] Visual label may be `1.`
+  - [ ] Accessible label must be `Ordered list`.
+- [ ] Convert toolbar buttons to smaller/icon-style buttons:
+  - [ ] Bold: `B`
+  - [ ] Italic: `I`
+  - [ ] Heading: `H`
+  - [ ] Unordered list: bullet icon or `UL`
+  - [ ] Ordered list: `1.`
+  - [ ] Link: chain icon
+  - [ ] Wiki: Wikipedia/Wikimedia-style globe icon or compact `Wiki` icon if no approved icon exists
+  - [ ] Preview: eye icon preferred; magnifier acceptable
+- [ ] Keep accessible labels/tooltips for every icon button.
+- [ ] Do not add a new external icon dependency unless the project already has an approved icon path.
+- [ ] Add regression coverage:
+  - [ ] Ordered list insertion.
+  - [ ] Unordered list insertion.
+  - [ ] Existing keyboard indentation/list-continuation behavior still works.
+
+Acceptance criteria:
+
+- Ordered list button exists.
+- Existing `List` button is no longer generically labeled `List`.
+- Toolbar buttons are compact and accessible.
+- Existing list indentation/list-continuation behavior still works.
+
+#### Version 0.33.5.18.6.8.2 - Markdown toolbar stable placement
+
+- [ ] Ensure toolbar layout remains full-width above the Body editor.
+  - [ ] Toolbar must not move into preview columns.
+  - [ ] Toolbar must not change position when Preview is toggled.
+- [ ] Keep Preview as a toolbar action with an accessible label/tooltip.
+- [ ] Add regression coverage:
+  - [ ] Preview toggle preserves toolbar layout.
+  - [ ] Toolbar remains full-width above the editor/preview area.
+
+Acceptance criteria:
+
+- Toolbar stays full-width and stable when Preview toggles.
+- Preview remains reachable through the shared toolbar control.
+
+#### Version 0.33.5.18.6.8.3 - Safe underline Markdown contract
+
+- [ ] Add underline button only through an explicit safe Markdown contract.
+  - [ ] Visual label may be `U`.
+  - [ ] Accessible label must be `Underline`.
+  - [ ] Do not insert arbitrary unsafe raw HTML.
+  - [ ] If underline requires Markdown renderer support, update the framework Markdown contract and sanitizer deliberately.
+  - [ ] Safe implementation options:
+    - [ ] Allow sanitized `<u>` with no attributes, or
+    - [ ] Add a dedicated safe underline token handled by the Markdown adapter.
+- [ ] Add regression coverage:
+  - [ ] Underline insertion/rendering/sanitization if implemented.
+  - [ ] Underline cannot inject unsafe HTML, attributes, event handlers, or scripts.
+
+Acceptance criteria:
+
+- Underline exists only through a safe Markdown contract.
+- Underline rendering is documented and sanitized.
+- Unsafe underline payloads are rejected or stripped.
+
+---
+
+### Version 0.33.5.18.6.9 - Shared Markdown editor preview layout
+
+Split into two sub-slices so the shared editor layout can land before modal-specific stress coverage.
+
+#### Version 0.33.5.18.6.9.1 - Shared Markdown editor preview layout
+
+- [ ] Update shared Markdown editor preview behavior.
+- [ ] Preview off:
+  - [ ] Body editor shows the textarea full-width.
+  - [ ] Toolbar remains full-width above the textarea.
+- [ ] Preview on:
+  - [ ] Body section becomes a two-column editor/preview layout on sufficiently wide screens.
+  - [ ] Textarea shrinks to the left column.
+  - [ ] Preview renders in the right column.
+  - [ ] Toolbar remains full-width above both columns.
+- [ ] Markdown rendering:
+  - [ ] Preview must continue to use the same approved Markdown contract as saved rendering.
+  - [ ] Do not reintroduce ad-hoc client-only rendering.
+- [ ] Add regression coverage:
+  - [ ] Preview off full-width editor.
+  - [ ] Preview on two-column desktop layout.
+  - [ ] Toolbar remains full-width.
+
+Acceptance criteria:
+
+- Preview no longer simply opens downward as a cramped inline block on desktop.
+- Preview toggling creates a usable two-column body editor/preview layout on wide screens.
+- Toolbar remains stable above the editor/preview area.
+- Preview uses the shared Markdown renderer contract.
+
+#### Version 0.33.5.18.6.9.2 - Markdown preview responsive and modal behavior
+
+- [ ] Responsive behavior:
+  - [ ] On narrow screens, stack textarea and preview vertically.
+  - [ ] Do not create horizontal overflow.
+  - [ ] Preserve mobile usability.
+- [ ] Preview height behavior:
+  - [ ] Preview should grow with content more naturally.
+  - [ ] Avoid the current cramped preview box that cuts off content too aggressively.
+  - [ ] If height must be capped inside a modal, use a sensible scroll region that does not break the sticky footer.
+- [ ] Modal behavior:
+  - [ ] Preview layout must not break the framework modal scroll/footer fixes.
+  - [ ] Preview must not create content under the sticky footer.
+  - [ ] Preview must not shift footer buttons horizontally.
+- [ ] Add regression coverage:
+  - [ ] Preview on stacked mobile layout.
+  - [ ] Preview content grows/scrolls safely.
+  - [ ] Modal footer remains pinned and clean.
+
+Acceptance criteria:
+
+- Preview remains usable on narrow screens.
+- Preview content grows/scrolls safely.
+- Modal scrolling/footer remains correct.
+
+---
+
+### Version 0.33.5.18.6.10 - Notes UI regression pass and docs closeout
+
+- [ ] Add or update Notes UI workflow regressions covering:
+  - [ ] Create Note modal.
+  - [ ] Edit Note modal.
+  - [ ] View Note detail.
+  - [ ] Primary Context controls.
+  - [ ] Linked Context add/remove.
+  - [ ] Task-created note context display.
+  - [ ] Tags stacked modal.
+  - [ ] Files stacked modal.
+  - [ ] Unsaved-note files warning.
+  - [ ] Markdown toolbar buttons.
+  - [ ] Markdown preview two-column layout.
+  - [ ] Personal/Family workspace context hiding.
+  - [ ] No UUID user-facing UI.
+- [ ] Add or update framework shared-component regressions:
+  - [ ] Linked Context picker contract.
+  - [ ] Provider-owned labels/sorting.
+  - [ ] Modal stack behavior.
+  - [ ] Markdown editor toolbar.
+  - [ ] Markdown preview layout.
+- [ ] Update docs:
+  - [ ] `docs/notes-module.md`
+  - [ ] `docs/view-building-contract.md`
+  - [ ] `docs/module-contract.md`
+  - [ ] Any UI guardrails/contracts doc added in this release.
+- [ ] Update Help/user-facing text only if behavior exposed to users changes.
+- [ ] Update CHANGELOG.
+- [ ] Bump package/app metadata to the implemented version.
+- [ ] Run:
+  - [ ] `npm run check`
+  - [ ] Relevant Notes UI regression scripts.
+  - [ ] Relevant Markdown/editor regression scripts.
+  - [ ] Relevant permissions tests if context/visibility/readability changed.
+- [ ] Verify `/api/app-info` reports the expected version.
+- [ ] Keep this section focused on Notes and shared framework contracts.
+  - [ ] Do not perform Lists add/edit redesign in this section.
+  - [ ] Do not convert Tasks, Files, or Clients/Projects in this section.
+  - [ ] Do not rename database tables or route names.
+  - [ ] Do not introduce a frontend framework.
+
+Acceptance criteria:
+
+- Notes is a clean template for future add/edit/view module surfaces.
+- Primary Context and Linked Context are visually and behaviorally distinct.
+- Notes add/edit/view UI is free of raw UUID display.
+- Shared picker/modal/Markdown contracts are documented.
+- Tests/checks pass.
 
 ---
 

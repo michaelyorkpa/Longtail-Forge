@@ -6,6 +6,7 @@ const docs = await fs.readFile(path.join(process.cwd(), "docs/notes-module.md"),
 const importPlanning = await fs.readFile(path.join(process.cwd(), "docs/notes-import-planning.md"), "utf8");
 const readme = await fs.readFile(path.join(process.cwd(), "README.md"), "utf8");
 const moduleDevelopment = await fs.readFile(path.join(process.cwd(), "docs/module-development.md"), "utf8");
+const workflowContext = await fs.readFile(path.join(process.cwd(), "docs/workflow-context-contract.md"), "utf8");
 
 for (const heading of [
   "## Module Boundaries",
@@ -15,7 +16,8 @@ for (const heading of [
   "## Bucket Derivation",
   "## Visibility And Permissions",
   "## Note Data Model",
-  "## Linking Model",
+  "## Primary Context And Linked Context",
+  "## Linked Context Panel Helper",
   "## Resume Context Hooks",
   "## Markdown And Wiki Links",
   "## Revisions And Changelog",
@@ -51,15 +53,37 @@ for (const phrase of [
   "Note Kind",
   "content-kind metadata only",
   "legacy linked-context values",
-  "Client/project/task/ticket/user association belongs in direct context columns and `note_links`",
+  "Direct nullable `notes.client_id` and `notes.project_id` fields are Primary Context",
+  "`note_links` rows are Linked Context",
+  "docs/workflow-context-contract.md",
+  "Unavailable linked context",
   "notesService.listResumeContext",
   "Global resume-state storage, ranking, dismissal, Workbench feed behavior",
 ]) {
   assert.match(docs, new RegExp(escapeRegExp(phrase), "i"), `${phrase} should be documented`);
 }
 
+for (const phrase of [
+  "Primary Context",
+  "Linked Context",
+  "notes.client_id",
+  "notes.project_id",
+  "note_links",
+  "Normal app UI must not display raw UUIDs",
+  "Audit Logs may display raw IDs",
+  "Unavailable client",
+  "Unavailable project",
+  "Unavailable task",
+  "Unavailable note",
+  "Unavailable list",
+  "Unavailable linked context",
+]) {
+  assert.match(workflowContext, new RegExp(escapeRegExp(phrase), "i"), `${phrase} should be documented in workflow context contract`);
+}
+
 assert.match(readme, /docs\/notes-module\.md/, "README should link the Notes developer guide");
 assert.match(moduleDevelopment, /docs\/notes-module\.md/, "Module development guide should point to Notes as a first-party module example");
+assert.match(moduleDevelopment, /docs\/workflow-context-contract\.md/, "Module development guide should point to the shared workflow context contract");
 assert.match(importPlanning, /future OneNote import workflow/i, "Import planning should leave room for future OneNote import");
 assert.doesNotMatch(docs, /Knowledge Base publishing controls are implemented|user-authored Knowledge Base content is stored in Notes/i);
 

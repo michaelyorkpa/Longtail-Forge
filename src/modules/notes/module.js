@@ -264,8 +264,8 @@ const notesModule = {
           default: "all",
           options: [["all", "All kinds", true], ["general", "General"], ["meeting", "Meeting"], ["research", "Research"], ["decision", "Decision"], ["procedure", "Procedure"], ["reference", "Reference"], ["idea", "Idea"], ["log", "Log"]],
         },
-        { id: "context-filter", field: "context", type: "search", label: "Context ID" },
-        { id: "owner-filter", field: "owner", type: "search", label: "Owner ID" },
+        { id: "context-filter", field: "context", type: "search", label: "Context" },
+        { id: "owner-filter", field: "owner", type: "search", label: "Owner" },
         { id: "tags-filter", field: "tags", type: "search", label: "Tags" },
         { id: "updated-filter", field: "updatedSince", type: "date", label: "Updated Since" },
         {
@@ -309,9 +309,9 @@ const notesModule = {
           },
         ],
         linkedRecords: {
-          title: "Linked Records",
+          title: "Linked Context",
           recordsField: "links",
-          emptyState: { message: "No linked records." },
+          emptyState: { message: "No linked context." },
           fields: [
             { field: "target_type", type: "select", label: "Type", behavior: "notes.link.target-type" },
             { field: "target_search", type: "search", label: "Search records", placeholder: "Search records", autocomplete: "off", behavior: "notes.link.search" },
@@ -568,7 +568,7 @@ const notesModule = {
         id: "notes.overview",
         moduleId: "notes",
         title: "Notes",
-        description: "Current Notes behavior for usage, Library buckets, collections, linked records, Markdown, revisions, secure notes, and files.",
+        description: "Current Notes behavior for usage, Library buckets, collections, Linked Context, Markdown, revisions, secure notes, and files.",
         sortOrder: 120,
         audience: "user",
         tags: ["notes", "library"],

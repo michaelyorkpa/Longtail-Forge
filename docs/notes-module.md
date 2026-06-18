@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.5.17.6. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.18.6.1. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -12,7 +12,7 @@ Important files:
 
 - `src/modules/notes/module.js`: manifest, permissions, Help declarations, searchable/taggable/attachable declarations, and event metadata.
 - `src/modules/notes/notes.routes.js`: authenticated browser API routes mounted under `/api`.
-- `src/modules/notes/notes.service.js`: workflow boundary for CRUD, Library changes, collections, links, revisions, search sync, audit, and events.
+- `src/modules/notes/notes.service.js`: workflow boundary for CRUD, Library changes, collections, Primary Context, Linked Context, revisions, search sync, audit, and events.
 - `src/modules/notes/notes.repo.js`: module-owned SQL for Notes tables only.
 - `src/modules/notes/access-policy.js`: Notes permissions, aggregate visibility rules, lifecycle sanitization, and secure-note access checks.
 - `src/modules/notes/library.js`: stable Library bucket, visibility, status, Note Kind, legacy note type, and security mode constants.
@@ -20,6 +20,7 @@ Important files:
 - `src/modules/notes/secure-crypto.js`: application-managed secure-note encryption helpers.
 - `src/modules/notes/search-indexers.js`: `notes.records` search indexer.
 - `public/js/notes.js` and `views/protected/notes.html`: browser workspace and UI behavior.
+- `docs/workflow-context-contract.md`: shared Primary Context / Linked Context terminology and safe label rules.
 
 ## Library Model
 
@@ -30,7 +31,7 @@ Notes use three active Library buckets plus Archive represented by note status:
 - `reference`: retained reference material.
 - Archive: `notes.status = archived` with the original `library_bucket` preserved.
 
-Library bucket values are categorization metadata. They do not grant access, replace linked-record permissions, or make private/secure notes visible. `notesService.listLibrary()` counts only notes the current session can read, and archived counts stay separate from active counts.
+Library bucket values are categorization metadata. They do not grant access, replace Linked Context permissions, or make private/secure notes visible. `notesService.listLibrary()` counts only notes the current session can read, and archived counts stay separate from active counts.
 
 ## Collection Model
 
@@ -38,7 +39,7 @@ Collections live in `note_library_collections`. Notes use single-primary members
 
 Collections are scoped to one Library bucket. Parent/child collection trees use `parent_collection_id`, `path_cache`, and `depth`. Moving or renaming a collection recalculates descendant paths and reindexes affected notes through the framework search sync service.
 
-Collections are classification metadata only. They do not grant access, override visibility, bypass secure-note rules, or replace clients/projects/tasks/tickets/users/tags. Collection counts are calculated from permission-filtered note lists, so inaccessible private, secure, or linked-context-hidden notes do not leak through counts. Moving a note to a different Library bucket clears `note_collection_id` when the prior collection belongs to the old bucket.
+Collections are classification metadata only. They do not grant access, override visibility, bypass secure-note rules, or replace clients/projects/tasks/tickets/users/tags. Collection counts are calculated from permission-filtered note lists, so inaccessible private, secure, or Linked Context-hidden notes do not leak through counts. Moving a note to a different Library bucket clears `note_collection_id` when the prior collection belongs to the old bucket.
 
 Archived collections remain attached to notes but are hidden from normal collection tree data unless archived collections are explicitly requested. Deleting a collection is soft-delete only and is allowed only when it has no non-deleted notes and no active child collections.
 
@@ -62,7 +63,7 @@ The suggestion is advisory. `normalizeNotePayload()` records whether the bucket 
 
 Notes support `internal`, `workspace`, `private`, `client_visible`, and `public` visibility values at the schema level, but public/client-safe Notes surfaces are not implemented yet. Creating or updating `client_visible` notes requires `notes.publish_client_visible`, and secure notes cannot use `client_visible`.
 
-Read/write behavior is enforced by `canAccessNote()` and the service-layer `assertCanAccess()` calls. Normal Notes permissions do not grant secure-note access. Library buckets, collections, linked-record context, tags, and file attachments are never permission sources by themselves.
+Read/write behavior is enforced by `canAccessNote()` and the service-layer `assertCanAccess()` calls. Normal Notes permissions do not grant secure-note access. Library buckets, collections, Linked Context, tags, and file attachments are never permission sources by themselves.
 
 Disabled Notes workspaces block writes through module-state checks. Historical reads remain available because the Notes manifest sets `historicalReadAccess: true` and the protected view allows disabled reads.
 
@@ -72,7 +73,8 @@ Primary note storage lives in `notes`:
 
 - Identity and scope: `note_id`, `workspace_id`, owner/creator/updater fields.
 - Content and classification: `title`, `slug`, Markdown body fields, `note_type`, `library_bucket`, `library_bucket_source`, `note_collection_id`, status, visibility, security mode.
-- Linked context columns: `client_id`, `project_id`, `task_id`, `ticket_id`, `linked_user_id`.
+- Primary Context columns: `client_id`, `project_id`.
+- Legacy direct context columns retained for compatibility: `task_id`, `ticket_id`, `linked_user_id`.
 - Secure envelope fields: encrypted payload, wrapped data key, algorithms, nonces, auth tags, key version, payload version, and `encrypted_at`.
 - Import metadata: source IDs, source path, batch ID, original notebook/section/page metadata.
 
@@ -80,21 +82,21 @@ Normal notes store Markdown in `body_markdown`, a safe excerpt in `body_excerpt`
 
 `note_type` remains the database/API field name for compatibility, but the user-facing label is Note Kind. Current Note Kind values are `general`, `meeting`, `research`, `decision`, `procedure`, `reference`, `idea`, and `log`. Legacy linked-context values `client`, `project`, `task`, `ticket`, and `user` remain valid for existing rows and revisions so older data can be displayed and round-tripped safely, but they are no longer offered as new Note Kind choices.
 
-Note Kind is content-kind metadata only. It must not drive permissions, visibility, Library bucket placement, collection membership, linked-record access, tag assignment, or future Knowledge Base publication. Client/project/task/ticket/user association belongs in direct context columns and `note_links`.
+Note Kind is content-kind metadata only. It must not drive permissions, visibility, Library bucket placement, collection membership, Linked Context access, tag assignment, or future Knowledge Base publication. Client/project Primary Context belongs in direct context columns. Flexible related-record context belongs in `note_links`.
 
-## Linking Model
+## Primary Context And Linked Context
 
-Notes can use direct context columns and flexible `note_links` rows. The current supported link targets are workspace, client, project, task, and user; ticket context is reserved until a ticket module exists.
+Notes can use direct context columns and flexible `note_links` rows. Direct nullable `notes.client_id` and `notes.project_id` fields are Primary Context. `note_links` rows are Linked Context. Primary Context is used by framework-facing behavior such as permissions, tags, search, files, filters, public API shaping, and future resume context. Linked Context is flexible related-record context and should not replace Primary Context.
 
-Linked-record access is checked before reads, list inclusion, target lookup, link creation, and link removal. If the session cannot read the linked target, the note is hidden or the target operation is rejected. Links connect a note to context; they do not grant access to the note or to the target.
+The current supported link targets are workspace, client, project, task, and user; ticket context is reserved until a ticket module exists. Linked Context access is checked before reads, list inclusion, target lookup, link creation, and link removal. If the session cannot read the linked target, the note is hidden or the target operation is rejected. Links connect a note to context; they do not grant access to the note or to the target.
 
-The browser Notes workspace uses the Notes-owned `/api/notes/link-targets` picker route instead of raw ID entry for linked context. Picker results are permission-shaped by the target owner before labels are returned. Workspace, client, project, task, and user results include safe human labels, source URLs where the app has a record view, and context hints such as `clientId`, `projectId`, and `suggestedLibraryBucket`.
+The browser Notes workspace uses the Notes-owned `/api/notes/link-targets` picker route instead of raw ID entry for Linked Context. Picker results are permission-shaped by the target owner before labels are returned. Workspace, client, project, task, and user results include safe human labels, source URLs where the app has a record view, and context hints such as `clientId`, `projectId`, and `suggestedLibraryBucket`.
 
 Selecting a task in the picker sets task context and infers project/client context where those readable values are present. Task targets suggest Active Work. Client, project, and user targets suggest Ongoing Areas. Manual Library bucket choices are treated as user intent and are not overwritten by later picker changes.
 
-Note detail reads decorate direct linked context and `note_links` with safe labels and navigation URLs where available. Missing or inaccessible targets return an unavailable state or safe fallback ID display rather than leaking hidden record titles.
+Note detail reads decorate Primary Context and `note_links` with safe labels and navigation URLs where available. Missing or inaccessible targets return an unavailable state or a safe fallback label such as `Unavailable client`, `Unavailable project`, `Unavailable task`, `Unavailable note`, `Unavailable list`, or `Unavailable linked context`. Normal Notes UI must not display raw target IDs or UUIDs for unresolved context; Audit Logs may still display raw IDs because they are administrative records.
 
-## Linked-Record Panel Helper
+## Linked Context Panel Helper
 
 Notes owns the reusable browser helper at `public/js/shared/notes-linked-panel.js`. Other modules should mount `LongtailForge.notesLinkedPanel.mount(container, options)` instead of querying Notes tables or rebuilding note visibility rules.
 
@@ -106,7 +108,7 @@ The Tasks module mounts this helper in the Task detail dialog. Task-created note
 
 ## Resume Context Hooks
 
-Notes exposes a producer-owned `notesService.listResumeContext(session, options)` read model for future resume-state consumers. It returns permission-shaped Active Work note candidates with safe title, note kind, Library bucket, status, visibility/security badges, linked context IDs, safe note links, source URL, and last-updated timestamps.
+Notes exposes a producer-owned `notesService.listResumeContext(session, options)` read model for future resume-state consumers. It returns permission-shaped Active Work note candidates with safe title, note kind, Library bucket, status, visibility/security badges, context identifiers for internal consumers, safe note links, source URL, and last-updated timestamps.
 
 Recently edited Active Work notes may be eligible for future "Pick up where I left off" experiences, and Active Work notes linked to current work can appear as supporting context. Reference Library, Ongoing Areas, archived, deleted, private, and secure notes are excluded from this resume-context candidate payload. Secure/private note bodies, excerpts, hidden counts, and titles from notes the user cannot read must not appear in future Workbench or resume-context consumers.
 
@@ -144,7 +146,7 @@ The first implementation uses application-managed envelope encryption:
 
 Secure note titles remain plaintext metadata. The UI warns users not to put secrets in titles. This is database-at-rest protection, not zero-knowledge: a configured app server can decrypt after session and permission checks.
 
-Secure-note access is owner-only plus explicit secure-note permissions such as `notes.secure.view` and `notes.secure.manage`. Normal `notes.view`, workspace membership, Library bucket, collection, linked-record, tag, and file permissions do not grant secure body access. External/client users receive no default secure-note access.
+Secure-note access is owner-only plus explicit secure-note permissions such as `notes.secure.view` and `notes.secure.manage`. Normal `notes.view`, workspace membership, Library bucket, collection, Linked Context, tag, and file permissions do not grant secure body access. External/client users receive no default secure-note access.
 
 Secure note bodies are excluded from normal search, audit metadata, lifecycle metadata, notifications, Help content, file attachments, public/client controls, and list/collection previews. Existing plaintext secure placeholders block activation until recreated or explicitly migrated through reviewed tooling.
 

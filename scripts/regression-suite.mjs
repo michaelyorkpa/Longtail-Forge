@@ -13,6 +13,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/file-ui-integration-regression.mjs",
   "scripts/module-file-closeout-regression.mjs",
   "scripts/notes-developer-docs-regression.mjs",
+  "scripts/notes-context-terminology-regression.mjs",
   "scripts/notes-import-closeout-regression.mjs",
   "scripts/project-hierarchy-move-regression.mjs",
   "scripts/app-shell-navigation-regression.mjs",
