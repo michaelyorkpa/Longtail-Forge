@@ -693,24 +693,24 @@ Notes created from a task may receive client/project/task context in the databas
 
 Desired behavior:
 
-- [ ] When creating a note from a task:
-  - [ ] Assign the task's readable/available client/project as note Primary Context.
-  - [ ] Assign the task itself as Linked Context.
-  - [ ] Do not display task ID as part of a raw Primary Context text line.
-- [ ] In Add/Edit Note:
-  - [ ] Primary client/project appears in Note Details > Primary Context.
-  - [ ] The source task appears as a normal removable Linked Context row when permissions allow.
-  - [ ] Removing the task link does not remove Primary Context.
-  - [ ] Editing Primary Context does not remove unrelated Linked Context.
-- [ ] In View Note:
-  - [ ] Primary Context, where displayed, uses readable labels.
-  - [ ] The linked task appears in the Linked Context panel like other links.
-- [ ] Remove UUID display from task-created note edit flows.
-- [ ] Add regression coverage for a task-created note:
-  - [ ] Primary Context shows readable client/project labels.
-  - [ ] Linked Context shows readable task label.
-  - [ ] No UUIDs appear.
-  - [ ] Removing the task link preserves Primary Context.
+- [x] When creating a note from a task:
+  - [x] Assign the task's readable/available client/project as note Primary Context.
+  - [x] Assign the task itself as Linked Context.
+  - [x] Do not display task ID as part of a raw Primary Context text line.
+- [x] In Add/Edit Note:
+  - [x] Primary client/project appears in Note Details > Primary Context.
+  - [x] The source task appears as a normal removable Linked Context row when permissions allow.
+  - [x] Removing the task link does not remove Primary Context.
+  - [x] Editing Primary Context does not remove unrelated Linked Context.
+- [x] In View Note:
+  - [x] Primary Context, where displayed, uses readable labels.
+  - [x] The linked task appears in the Linked Context panel like other links.
+- [x] Remove UUID display from task-created note edit flows.
+- [x] Add regression coverage for a task-created note:
+  - [x] Primary Context shows readable client/project labels.
+  - [x] Linked Context shows readable task label.
+  - [x] No UUIDs appear.
+  - [x] Removing the task link preserves Primary Context.
 
 Acceptance criteria:
 
@@ -1079,15 +1079,43 @@ Acceptance criteria:
 
 ---
 
-### Version 0.33.5.18.6.8 - Shared Markdown editor toolbar cleanup
+### Version 0.33.5.18.6.8 - Shared Markdown editor and display cleanup
 
 Decision:
 
-Markdown editor improvements should be made in the shared Markdown editor/helper so every module using the editor benefits consistently.
+Markdown display and editor improvements should be made through the shared Markdown renderer/editor helper so every module using the approved contract benefits consistently.
 
-Split into three sub-slices because toolbar UI, preview placement, and underline renderer/sanitizer support are different risk profiles.
+Split into four sub-slices because rendered line-break semantics, toolbar UI, preview placement, and underline renderer/sanitizer support are different risk profiles.
 
-#### Version 0.33.5.18.6.8.1 - Markdown toolbar compact buttons and list commands
+#### Version 0.33.5.18.6.8.1 - Markdown soft line break display parity
+
+Current issue:
+
+The Note view display collapses single line endings inside a note body even when the editor preserves those single-newline breaks. Example manual smoke note: `ca3ee346-a528-405a-ad88-ab9a9d6bfecc` (`Factory Power Converter`) currently renders lines such as `12v side`, `Fuse 1 is lights`, `Fuse 2 is Heater`, and `Fuse 3 is Pump` as one visual paragraph instead of separate visible lines.
+
+Desired behavior:
+
+- [ ] Decide the Markdown contract for user-authored Notes single newlines:
+  - [ ] Prefer rendering Markdown soft line breaks as visible line breaks in Notes read display and Notes preview when that matches editor intent.
+  - [ ] Preserve saved Markdown exactly; do not rewrite existing note bodies to add trailing spaces, `<br>`, or blank lines.
+  - [ ] If the shared framework renderer change would unintentionally alter Help or future Knowledge Base article layout, introduce an explicit renderer mode for user-authored note bodies instead of changing repo-authored documentation behavior silently.
+- [ ] Ensure Notes read display and Notes preview use the same line-break behavior.
+- [ ] Preserve normal blank-line paragraph behavior.
+- [ ] Do not permit raw HTML or unsafe break-related markup as part of this fix.
+- [ ] Add regression coverage:
+  - [ ] A note body with single newlines renders visible line breaks in View Note.
+  - [ ] The same body renders the same line breaks in Preview.
+  - [ ] Saved Markdown remains unchanged.
+  - [ ] Paragraphs separated by blank lines still render as paragraphs.
+  - [ ] Automated regression creates its own fixture; the real note `ca3ee346-a528-405a-ad88-ab9a9d6bfecc` is only a manual smoke reference.
+
+Acceptance criteria:
+
+- Single newlines authored in Notes are visible in View Note and Preview according to the approved Markdown contract.
+- Saved note bodies are not rewritten.
+- Help/KB-style repo-authored Markdown behavior is either intentionally unchanged or explicitly documented if the shared contract changes.
+
+#### Version 0.33.5.18.6.8.2 - Markdown toolbar compact buttons and list commands
 
 - [ ] Update the shared Markdown editor toolbar.
 - [ ] Existing `List` button should be renamed visually to one of:
@@ -1120,7 +1148,7 @@ Acceptance criteria:
 - Toolbar buttons are compact and accessible.
 - Existing list indentation/list-continuation behavior still works.
 
-#### Version 0.33.5.18.6.8.2 - Markdown toolbar stable placement
+#### Version 0.33.5.18.6.8.3 - Markdown toolbar stable placement
 
 - [ ] Ensure toolbar layout remains full-width above the Body editor.
   - [ ] Toolbar must not move into preview columns.
@@ -1135,7 +1163,7 @@ Acceptance criteria:
 - Toolbar stays full-width and stable when Preview toggles.
 - Preview remains reachable through the shared toolbar control.
 
-#### Version 0.33.5.18.6.8.3 - Safe underline Markdown contract
+#### Version 0.33.5.18.6.8.4 - Safe underline Markdown contract
 
 - [ ] Add underline button only through an explicit safe Markdown contract.
   - [ ] Visual label may be `U`.
@@ -1227,6 +1255,7 @@ Acceptance criteria:
   - [ ] Files stacked modal.
   - [ ] Unsaved-note files warning.
   - [ ] Markdown toolbar buttons.
+  - [ ] Markdown line-break view/preview parity.
   - [ ] Markdown preview two-column layout.
   - [ ] Personal/Family workspace context hiding.
   - [ ] No UUID user-facing UI.

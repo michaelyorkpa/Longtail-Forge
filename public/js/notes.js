@@ -1279,7 +1279,7 @@ function readEditorPayload() {
     tagIds: state.tagPicker?.readTagIds?.() || [],
     client_id: usesBusinessScope() ? normalizeText(clientInput.value) || null : null,
     project_id: normalizeText(projectInput.value) || null,
-    task_id: normalizeText(taskInput.value) || null,
+    task_id: null,
     linked_user_id: normalizeText(userInput.value) || null,
     links: !state.editingNoteId && state.editorSelectedTarget ? [linkPayloadFromTarget(state.editorSelectedTarget)] : [],
   };
@@ -1556,7 +1556,7 @@ function applyContextTarget(target = {}) {
   } else if (target.targetType === "task") {
     clientInput.value = target.clientId || clientInput.value || "";
     projectInput.value = target.projectId || projectInput.value || "";
-    taskInput.value = target.taskId || target.targetId || "";
+    taskInput.value = "";
     userInput.value = "";
   } else if (target.targetType === "user") {
     clientInput.value = "";
@@ -1583,9 +1583,6 @@ function renderEditorContextSelection(target = null) {
   } else if (target?.targetType) {
     linked.push(`${contextTypeLabel(target.targetType)}: ${target.label || unavailableTargetLabel(target.targetType)}`);
   } else {
-    if (taskInput.value) {
-      linked.push(`Task: ${contextSummaryLabel("task")}`);
-    }
     if (userInput.value) {
       linked.push(`User: ${contextSummaryLabel("user")}`);
     }

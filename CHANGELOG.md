@@ -1,3 +1,11 @@
+## Version 0.33.5.18.6.3 - 2026-06-18 14:01 -04:00
+
+- Corrected task-created Notes so the task's readable client/project is stored and displayed as Primary Context while the task itself is stored as a normal removable Linked Context row.
+- Stopped the Notes browser from writing direct `task_id` Primary Context and added service compatibility that converts legacy `task_id` payloads into task `note_links` entries without disturbing client/project context.
+- Added migration `063_task_note_link_context.sql` to repair existing notes by creating missing task links from direct `notes.task_id` values before clearing the direct task column.
+- Added `notes-task-context-regression.mjs`, wired it into the regression suite, refreshed the Notes host cache key to `notes.js?v=37`, and bumped package metadata/regression version pins to `0.33.5.18.6.3`.
+- Docs-only planning follow-up 2026-06-18 14:29 -04:00: added a dedicated `0.33.5.18.6.8.1` roadmap sub-slice for Notes Markdown soft line break display parity, using note `ca3ee346-a528-405a-ad88-ab9a9d6bfecc` as a manual smoke reference and keeping the eventual fix scoped to renderer/preview behavior without rewriting saved note bodies.
+
 ## Version 0.33.5.18.6.2 - 2026-06-18 12:29 -04:00
 
 - Added explicit Add/Edit Note **Primary Context** controls inside the existing Note Details disclosure. The controls bind to the direct nullable `client_id` and `project_id` note fields, while the Linked Context panel remains focused on related-record links.

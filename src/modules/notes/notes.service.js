@@ -678,7 +678,7 @@ async function listArchived(session, query = {}) {
 function deriveLibrarySuggestion(payload = {}) {
   return {
     libraryBucket: deriveSuggestedLibraryBucket({
-      links: normalizeLinksInput(payload.links || []),
+      links: normalizeLinkPayloads(payload),
       clientIds: payload.clientIds || payload.client_ids || payload.client_id,
       projectIds: payload.projectIds || payload.project_ids || payload.project_id,
       taskIds: payload.taskIds || payload.task_ids || payload.task_id,
@@ -698,7 +698,7 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
       : previousBodyMarkdown,
   );
   const title = normalizeRequiredText(payload.title ?? previousNote?.title, "Note title");
-  const links = normalizeLinksInput(payload.links || []);
+  const links = normalizeLinkPayloads(payload);
   const suggestedLibraryBucket = deriveLibrarySuggestion({
     ...payload,
     links,
@@ -764,7 +764,7 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
     security_mode: securityMode,
     client_id: normalizeNullablePayloadText(payload, "clientId", "client_id", previousNote?.client_id),
     project_id: normalizeNullablePayloadText(payload, "projectId", "project_id", previousNote?.project_id),
-    task_id: normalizeNullablePayloadText(payload, "taskId", "task_id", previousNote?.task_id),
+    task_id: null,
     ticket_id: normalizeNullablePayloadText(payload, "ticketId", "ticket_id", previousNote?.ticket_id),
     linked_user_id: normalizeNullablePayloadText(payload, "linkedUserId", "linked_user_id", previousNote?.linked_user_id),
     note_collection_id: normalizeOptionalText(noteCollectionId) || null,
@@ -781,7 +781,7 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
 }
 
 async function createLinksFromPayload(session, noteId, payload = {}) {
-  const links = normalizeLinksInput(payload.links || []);
+  const links = normalizeLinkPayloads(payload);
 
   for (const link of links) {
     await createLink(noteId, link, session);
@@ -1223,6 +1223,24 @@ function normalizeLinksInput(links) {
       module_id: link.moduleId || link.module_id,
     }))
     .filter((link) => link.target_type && link.target_id);
+}
+
+function normalizeLinkPayloads(payload = {}) {
+  const links = normalizeLinksInput(payload.links || []);
+  const taskId = normalizeOptionalText(payload.taskId ?? payload.task_id);
+
+  if (
+    taskId &&
+    !links.some((link) => link.target_type === "task" && link.target_id === taskId)
+  ) {
+    links.push({
+      module_id: "tasks",
+      target_type: "task",
+      target_id: taskId,
+    });
+  }
+
+  return links;
 }
 
 async function maybeCreateRevision(session, previousNote, nextNote, changeSummary) {

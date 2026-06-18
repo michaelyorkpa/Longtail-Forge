@@ -113,9 +113,10 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   }, session);
   const read = await notesService.read(note.note.note_id, session);
 
+  assert.equal(read.note.task_id || "", "");
   assert.equal(read.note.links[0].label, "Picker Task");
   assert.equal(read.note.links[0].source_url, `tasks.html?task=${encodeURIComponent(task.task_id)}`);
-  assert.equal(read.note.linked_context.task.label, "Picker Task");
+  assert.equal(read.note.linked_context.task, undefined);
   assert.equal(read.note.linked_context.project.label, "Picker Project");
   assert.equal(read.note.linked_context.client.label, "Picker Client");
 }

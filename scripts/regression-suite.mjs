@@ -108,6 +108,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/notes-collections-regression.mjs",
   "scripts/notes-ui-workflow-regression.mjs",
   "scripts/notes-primary-context-regression.mjs",
+  "scripts/notes-task-context-regression.mjs",
   "scripts/notes-preview-editor-regression.mjs",
   "scripts/notes-secure-regression.mjs",
   "scripts/notes-integration-closeout-regression.mjs",

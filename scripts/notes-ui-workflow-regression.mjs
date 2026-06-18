@@ -56,7 +56,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=7/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=8/);
-  assert.match(html, /js\/notes\.js\?v=36/);
+  assert.match(html, /js\/notes\.js\?v=37/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
