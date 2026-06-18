@@ -76,6 +76,7 @@ const contextTargetTypeInput = document.querySelector("[data-note-context-target
 const contextSearchInput = document.querySelector("[data-note-context-search]");
 const contextResultsInput = document.querySelector("[data-note-context-results]");
 const contextApplyButton = document.querySelector("[data-note-context-apply]");
+const contextList = document.querySelector("[data-note-context-list]");
 const contextSelectedMessage = document.querySelector("[data-note-context-selected]");
 const clientInput = document.querySelector("[data-note-client-id]");
 const projectInput = document.querySelector("[data-note-project-id]");
@@ -120,6 +121,7 @@ let state = {
   editingNoteId: "",
   editorAttachmentController: null,
   editorContextSummaries: {},
+  editorNote: null,
   editorSelectedTarget: null,
   libraryManuallyChanged: false,
   linkTargetSearchTimer: null,
@@ -593,6 +595,12 @@ function noteSelect(dataName, options) {
 function createNoteContextPanel() {
   const panel = view.createElement("details", { className: "notes-context-panel" });
   panel.appendChild(view.createElement("summary", { text: "Linked Context" }));
+
+  const contextList = view.createElement("div", {
+    className: "notes-editor-context-list notes-link-list",
+  });
+  contextList.dataset.noteContextList = "";
+  panel.appendChild(contextList);
 
   const search = view.createElement("input", { attrs: { type: "search", autocomplete: "off", placeholder: "Search linked context" } });
   search.dataset.noteContextSearch = "";
@@ -1143,6 +1151,7 @@ function renderDetailPrompt(message, options = {}) {
 
 async function openEditor(note = null) {
   state.editingNoteId = note?.note_id || "";
+  state.editorNote = note;
   state.editorSelectedTarget = null;
   state.libraryManuallyChanged = false;
   dialogTitle.textContent = note ? "Edit Note" : "Create Note";
@@ -1240,6 +1249,8 @@ function workspaceVisibilityOptions() {
 }
 
 function closeEditor() {
+  state.editorNote = null;
+  state.editorSelectedTarget = null;
   dialog.close();
 }
 
@@ -1385,6 +1396,7 @@ function handlePrimaryClientChange() {
     projectInput.value = "";
   }
   populatePrimaryProjectOptions("");
+  renderEditorContextPanel();
   updateLibrarySuggestion();
 }
 
@@ -1395,6 +1407,7 @@ function handlePrimaryProjectChange() {
     clientInput.value = project?.clientId || "";
     populatePrimaryProjectOptions(projectInput?.value || "");
   }
+  renderEditorContextPanel();
   updateLibrarySuggestion();
 }
 
@@ -1573,6 +1586,7 @@ function applyContextTarget(target = {}) {
 }
 
 function renderEditorContextSelection(target = null) {
+  renderEditorContextPanel();
   if (!contextSelectedMessage) {
     return;
   }
@@ -1606,6 +1620,165 @@ function syncPrimaryContextControlsFromValues() {
   }
   populatePrimaryClientOptions(clientInput.value);
   populatePrimaryProjectOptions(projectInput.value);
+  renderEditorContextPanel();
+}
+
+function renderEditorContextPanel() {
+  if (!contextList) {
+    return;
+  }
+
+  const rows = [
+    editorPrimaryContextItem(),
+    ...editorLinkedContextRows(),
+  ];
+
+  if (rows.length === 1) {
+    rows.push(view.createElement("p", {
+      className: "notes-empty-state notes-editor-context-empty",
+      text: notesLinkedRecordsDescriptor().emptyState?.message || "No linked context.",
+    }));
+  }
+
+  contextList.replaceChildren(...rows);
+}
+
+function editorPrimaryContextItem() {
+  const body = view.createElement("span", {
+    className: "notes-link-item-label",
+    children: [
+      view.createElement("strong", { text: "Primary Context" }),
+      view.createElement("small", { text: editorPrimaryContextSummary() }),
+      view.createElement("small", { className: "notes-context-hint", text: "Edit in Note Details" }),
+    ],
+  });
+
+  return view.createElement("div", {
+    className: ["notes-link-item", "notes-primary-context-row"],
+    children: [body],
+  });
+}
+
+function editorPrimaryContextSummary() {
+  const parts = [];
+
+  if (usesBusinessScope() && clientInput?.value) {
+    parts.push(`Client: ${selectedOptionText(clientInput, unavailableTargetLabel("client"))}`);
+  }
+  if (projectInput?.value) {
+    parts.push(`Project: ${selectedOptionText(projectInput, unavailableTargetLabel("project"))}`);
+  }
+
+  return parts.length > 0
+    ? parts.join(" / ")
+    : "No primary context selected.";
+}
+
+function editorLinkedContextRows() {
+  const note = state.editorNote || {};
+  const rows = (note.links || []).map((link) => editorLinkedContextItem(note, link));
+
+  if (state.editorSelectedTarget && !noteHasLink(note, state.editorSelectedTarget)) {
+    rows.push(editorSelectedTargetItem(state.editorSelectedTarget));
+  }
+
+  return rows;
+}
+
+function editorLinkedContextItem(note, link) {
+  const targetType = link.targetType || link.target_type || "";
+  const remove = note.status === "archived"
+    ? null
+    : editorLinkedContextRemoveButton(() => removeEditorNoteLink(note, link));
+
+  return editorLinkedContextRow({
+    label: link.label || unavailableTargetLabel(targetType),
+    remove,
+    sourceUrl: link.sourceUrl || link.source_url || "",
+    subtitle: link.subtitle || (LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType)),
+  });
+}
+
+function editorSelectedTargetItem(target = {}) {
+  return editorLinkedContextRow({
+    label: target.label || unavailableTargetLabel(target.targetType),
+    remove: editorLinkedContextRemoveButton(clearEditorSelectedTarget),
+    subtitle: target.subtitle || (LINK_TARGET_TYPE_LABELS[target.targetType] || formatToken(target.targetType || "context")),
+  });
+}
+
+function editorLinkedContextRow({ label, subtitle, sourceUrl = "", remove = null } = {}) {
+  const title = view.createElement(sourceUrl ? "a" : "strong", {
+    text: label || "Unavailable linked context",
+    attrs: sourceUrl ? { href: sourceUrl } : {},
+  });
+  const subtitleNode = view.createElement("small", {
+    text: subtitle || "Linked Context",
+  });
+  const body = view.createElement("span", {
+    className: "notes-link-item-label",
+    children: [title, subtitleNode],
+  });
+  const children = [body];
+
+  if (remove) {
+    children.push(remove);
+  }
+
+  return view.createElement("div", {
+    className: ["notes-link-item", "notes-editor-link-item"],
+    children,
+  });
+}
+
+function editorLinkedContextRemoveButton(onClick) {
+  const remove = view.createActionButton({
+    icon: "delete",
+    iconOnly: true,
+    label: "Remove",
+    title: "Remove",
+    role: "secondary",
+    onClick,
+  });
+  remove.dataset.noteLinkRemove = "";
+  return remove;
+}
+
+function selectedOptionText(select, fallback) {
+  const selected = [...(select?.options || [])].find((option) => option.value === select.value);
+  return normalizeText(selected?.textContent) || fallback;
+}
+
+function clearEditorSelectedTarget() {
+  state.editorSelectedTarget = null;
+  renderEditorContextSelection();
+  updateLibrarySuggestion();
+}
+
+async function removeEditorNoteLink(note, link) {
+  const noteId = note?.note_id || state.editingNoteId;
+  const noteLinkId = link.noteLinkId || link.note_link_id;
+
+  if (!noteId || !noteLinkId) {
+    return;
+  }
+
+  formStatus.textContent = "Removing linked context...";
+  try {
+    await api.postJson(`/api/notes/${encodeURIComponent(noteId)}/links/${encodeURIComponent(noteLinkId)}/remove`, {});
+    const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
+    state.editorNote = result.note;
+    if (state.selectedNote?.note_id === noteId) {
+      state.selectedNote = result.note;
+      renderDetail(result.note);
+    }
+    await loadNotes();
+    renderNotes();
+    renderEditorContextSelection();
+    formStatus.textContent = "";
+  } catch (error) {
+    formStatus.textContent = safeNoteErrorMessage(error, "Linked context could not be removed.");
+  }
 }
 
 function contextTypeLabel(targetType) {

@@ -1,3 +1,9 @@
+## Version 0.33.5.18.6.4.1 - 2026-06-18 14:37 -04:00
+
+- Updated the Add/Edit Note **Linked Context** panel to render a View Note-style row model: a non-removable **Primary Context** row first, followed by saved/current Linked Context rows and the existing Target/Search/Record/Use Target picker controls.
+- The Primary Context row now shows readable Client/Project labels or `No primary context selected. Edit Primary Context in Note Details.`, includes the `Edit in Note Details` hint, and has no remove action. Linked Context rows show readable labels, secondary context, and accessible Remove icon buttons where allowed.
+- Added Notes UI regression coverage for the Add/Edit Linked Context visual model, bumped the protected Notes host cache keys to `notes.js?v=38` / `longtail-forge.css?v=37`, updated Notes developer docs/decisions/roadmap, and bumped package metadata/regression version pins to `0.33.5.18.6.4.1`.
+
 ## Version 0.33.5.18.6.3 - 2026-06-18 14:01 -04:00
 
 - Corrected task-created Notes so the task's readable client/project is stored and displayed as Primary Context while the task itself is stored as a normal removable Linked Context row.

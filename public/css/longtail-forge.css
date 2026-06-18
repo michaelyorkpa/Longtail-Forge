@@ -4670,6 +4670,18 @@ summary.view-info-panel-title {
     margin: 0;
 }
 
+.notes-editor-context-list {
+    margin-bottom: 12px;
+}
+
+.notes-primary-context-row {
+    background: var(--color-surface-muted);
+}
+
+.notes-primary-context-row .notes-context-hint {
+    color: var(--color-muted);
+}
+
 .notes-linked-panel {
     display: grid;
     gap: 10px;

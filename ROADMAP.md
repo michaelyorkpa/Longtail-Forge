@@ -726,26 +726,26 @@ Split into three sub-slices so the saved-note API behavior, unsaved draft behavi
 
 #### Version 0.33.5.18.6.4.1 - Add/Edit Linked Context visual model and Primary Context row
 
-- [ ] Update the Add/Edit Note Linked Context section to match the cleaner View Note linked context pattern.
-- [ ] The Add/Edit Linked Context section should contain:
-  - [ ] A non-removable Primary Context display row/card.
-  - [ ] Existing Linked Context rows/cards.
-  - [ ] Target / Search / Record / `+ Use Target` add controls.
-- [ ] Primary Context display row/card:
-  - [ ] Clearly label it as `Primary Context`.
-  - [ ] Show readable labels only.
-  - [ ] If no Primary Context exists, show:
+- [x] Update the Add/Edit Note Linked Context section to match the cleaner View Note linked context pattern.
+- [x] The Add/Edit Linked Context section should contain:
+  - [x] A non-removable Primary Context display row/card.
+  - [x] Existing Linked Context rows/cards.
+  - [x] Target / Search / Record / `+ Use Target` add controls.
+- [x] Primary Context display row/card:
+  - [x] Clearly label it as `Primary Context`.
+  - [x] Show readable labels only.
+  - [x] If no Primary Context exists, show:
     - `No primary context selected. Edit Primary Context in Note Details.`
-  - [ ] Do not show a Remove button on the Primary Context row/card.
-  - [ ] Include a small hint:
+  - [x] Do not show a Remove button on the Primary Context row/card.
+  - [x] Include a small hint:
     - `Edit in Note Details`
-- [ ] Linked Context rows/cards:
-  - [ ] Show readable target label.
-  - [ ] Show useful secondary context where appropriate.
-  - [ ] Show Remove button when permissions allow.
-  - [ ] Use an icon + `Remove` label or equivalent accessible icon button.
-  - [ ] Do not display UUIDs.
-- [ ] Add regression coverage proving Primary Context is visible but not removable in the Add/Edit Linked Context section.
+- [x] Linked Context rows/cards:
+  - [x] Show readable target label.
+  - [x] Show useful secondary context where appropriate.
+  - [x] Show Remove button when permissions allow.
+  - [x] Use an icon + `Remove` label or equivalent accessible icon button.
+  - [x] Do not display UUIDs.
+- [x] Add regression coverage proving Primary Context is visible but not removable in the Add/Edit Linked Context section.
 
 Acceptance criteria:
 
