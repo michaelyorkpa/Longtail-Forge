@@ -720,9 +720,9 @@ Acceptance criteria:
 
 ---
 
-### Version 0.33.5.18.6.4 - Redesign Add/Edit Note Linked Context panel
+### Version 0.33.5.18.6.4 - Redesign Add/Edit Note Linked Context panel and Notes List controls
 
-Split into three sub-slices so the saved-note API behavior, unsaved draft behavior, and visual panel redesign can each ship green.
+Split into four sub-slices so the saved-note API behavior, unsaved draft behavior, visual panel redesign, and Notes List sort control can each ship green.
 
 #### Version 0.33.5.18.6.4.1 - Add/Edit Linked Context visual model and Primary Context row
 
@@ -735,7 +735,7 @@ Split into three sub-slices so the saved-note API behavior, unsaved draft behavi
   - [x] Clearly label it as `Primary Context`.
   - [x] Show readable labels only.
   - [x] If no Primary Context exists, show:
-    - `No primary context selected. Edit Primary Context in Note Details.`
+    - `No primary context selected.`
   - [x] Do not show a Remove button on the Primary Context row/card.
   - [x] Include a small hint:
     - `Edit in Note Details`
@@ -755,18 +755,18 @@ Acceptance criteria:
 
 #### Version 0.33.5.18.6.4.2 - Existing-note Linked Context add/remove refresh
 
-- [ ] Existing saved note behavior:
-  - [ ] Adding Linked Context persists immediately through the API.
-  - [ ] Removing Linked Context persists immediately through the API.
-  - [ ] The user does not need to close/reopen the editor.
-  - [ ] The user does not need to save the whole note to see the linked context row update.
-- [ ] Preserve service-layer permission enforcement.
-  - [ ] UI controls are display hints only.
-  - [ ] Backend must still reject unauthorized link add/remove operations.
-- [ ] Add regression coverage:
-  - [ ] Existing note add linked context immediate update.
-  - [ ] Existing note remove linked context immediate update.
-  - [ ] No UUID display in updated rows.
+- [x] Existing saved note behavior:
+  - [x] Adding Linked Context persists immediately through the API.
+  - [x] Removing Linked Context persists immediately through the API.
+  - [x] The user does not need to close/reopen the editor.
+  - [x] The user does not need to save the whole note to see the linked context row update.
+- [x] Preserve service-layer permission enforcement.
+  - [x] UI controls are display hints only.
+  - [x] Backend must still reject unauthorized link add/remove operations.
+- [x] Add regression coverage:
+  - [x] Existing note add linked context immediate update.
+  - [x] Existing note remove linked context immediate update.
+  - [x] No UUID display in updated rows.
 
 Acceptance criteria:
 
@@ -793,6 +793,40 @@ Acceptance criteria:
 - Unsaved notes can stage links before saving.
 - Staged links are visible, removable, and persisted on save.
 - Primary Context remains distinct from staged Linked Context.
+
+#### Version 0.33.5.18.6.4.4 - Notes List sorting control
+
+- [ ] Add a Notes List sort dropdown below the inset, scrollable Notes List body.
+  - [ ] Place the sort control on the bottom-left of the Notes List panel footer.
+  - [ ] Preserve pagination/action controls on the bottom-right where applicable.
+  - [ ] Keep the sort control hidden when the Notes List panel is collapsed.
+- [ ] Sort the currently visible Notes List result set only.
+  - [ ] Respect the current workspace, Library, Collection, filters, search, and archive scope.
+  - [ ] Do not mutate note records, collection membership, or saved note metadata when sorting.
+  - [ ] Use a deterministic tie-breaker such as title, then note id, when primary sort values match.
+- [ ] Required sort options:
+  - [ ] `Alphabetical (A-Z)`
+  - [ ] `Alphabetical (Z-A)`
+  - [ ] `Date Created (Newest First)`
+  - [ ] `Date Created (Oldest First)`
+  - [ ] `Date Updated (Newest First)` [Default]
+  - [ ] `Date Updated (Oldest First)`
+- [ ] Candidate additional sort options to review before implementation:
+  - [ ] `Library / Collection, then Date Updated`
+  - [ ] `Note Kind, then Date Updated`
+  - [ ] `Primary Context, then Date Updated`
+- [ ] Add regression coverage:
+  - [ ] Default sort is Date Updated newest first.
+  - [ ] Alphabetical A-Z and Z-A apply to visible note titles.
+  - [ ] Created/updated ascending and descending order work with stable tie-breaks.
+  - [ ] Sorting preserves the active Library/Collection/filter/search scope.
+  - [ ] Sort dropdown placement stays below the scrollable Notes List body and does not overlap pagination.
+
+Acceptance criteria:
+
+- Users can reorder the Notes List without changing filters or navigating away.
+- Default ordering is Date Updated newest first.
+- The sort control is a compact dropdown in the Notes List footer, bottom-left below the scrollable list.
 
 ---
 
@@ -1258,6 +1292,7 @@ Acceptance criteria:
   - [ ] Markdown line-break view/preview parity.
   - [ ] Markdown preview two-column layout.
   - [ ] Personal/Family workspace context hiding.
+  - [ ] Notes List sorting controls and default order.
   - [ ] No UUID user-facing UI.
 - [ ] Add or update framework shared-component regressions:
   - [ ] Linked Context picker contract.

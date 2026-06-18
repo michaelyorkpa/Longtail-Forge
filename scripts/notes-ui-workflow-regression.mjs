@@ -56,7 +56,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=7/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=8/);
-  assert.match(html, /js\/notes\.js\?v=38/);
+  assert.match(html, /js\/notes\.js\?v=39/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
@@ -202,7 +202,7 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /contextList\.dataset\.noteContextList = ""/, "The Add/Edit Linked Context panel should expose a rendered context-list mount");
   assert.match(notesJs, /function renderEditorContextPanel\(\)/, "The Add/Edit Linked Context panel should have an editor render pass");
   assert.match(notesJs, /function editorPrimaryContextItem\(\)[\s\S]*text: "Primary Context"[\s\S]*Edit in Note Details/, "The editor panel should render a labeled Primary Context row with the Note Details hint");
-  assert.match(notesJs, /No primary context selected\. Edit Primary Context in Note Details\./, "The Primary Context row should have the required empty-state copy");
+  assert.match(notesJs, /No primary context selected\./, "The Primary Context row should have the required empty-state copy");
   assert.match(notesJs, /function editorLinkedContextRows\(\)[\s\S]*note\.links[\s\S]*state\.editorSelectedTarget/, "The editor panel should render saved links and the current selected target");
   assert.match(notesJs, /function editorLinkedContextRow\(\{ label, subtitle, sourceUrl = "", remove = null \} = \{\}\)/, "Linked Context rows should share a row/card renderer");
   assert.match(notesJs, /function editorLinkedContextRemoveButton\(onClick\)[\s\S]*icon: "delete"[\s\S]*label: "Remove"/, "Linked Context editor rows should use an accessible remove icon button");
@@ -213,6 +213,13 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(primaryContextItemSource, /noteLinkRemove|editorLinkedContextRemoveButton|Remove/, "The Primary Context editor row must not expose a remove action");
   assert.match(notesCss, /\.notes-editor-context-list\s*\{[\s\S]*margin-bottom:\s*12px;/, "The editor Linked Context rows should be separated from picker controls");
   assert.match(notesCss, /\.notes-primary-context-row\s*\{[\s\S]*background:\s*var\(--color-surface-muted\);/, "The Primary Context row should be visually distinct from removable Linked Context rows");
+
+  // 0.33.5.18.6.4.2 saved-note Linked Context add/remove refresh.
+  assert.match(notesJs, /async function applyEditorLinkTarget\(\)[\s\S]*if \(state\.editingNoteId\) \{\s*await addEditorNoteLink\(target\);\s*return;\s*\}/, "Saved-note Use Target should add Linked Context immediately instead of waiting for Save");
+  assert.doesNotMatch(notesJs, /state\.editingNoteId && state\.editorSelectedTarget && !noteHasLink/, "Saved-note link creation should no longer be deferred until Save Note");
+  assert.match(notesJs, /async function addEditorNoteLink\(target = \{\}\)[\s\S]*api\.postJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}\/links`, linkPayloadFromTarget\(target\)\)[\s\S]*await refreshEditorNote\(noteId\)/, "Saved-note add should persist through the link API and refresh the editor note");
+  assert.match(notesJs, /async function removeEditorNoteLink\(note, link\)[\s\S]*\/links\/\$\{encodeURIComponent\(noteLinkId\)\}\/remove`[\s\S]*await refreshEditorNote\(noteId\)/, "Saved-note remove should persist through the link API and refresh the editor note");
+  assert.match(notesJs, /async function refreshEditorNote\(noteId\)[\s\S]*api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}`[\s\S]*state\.editorNote = result\.note[\s\S]*renderDetail\(result\.note\)[\s\S]*renderEditorContextSelection\(\)/, "Editor link mutations should refresh the Add/Edit rows, underlying detail, and readable labels");
 
   const linkedPanelJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8");
   assert.match(linkedPanelJs, /LongtailForge/);

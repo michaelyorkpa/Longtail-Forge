@@ -1264,10 +1264,6 @@ async function saveNote(event) {
     const result = state.editingNoteId
       ? await api.putJson(`/api/notes/${encodeURIComponent(state.editingNoteId)}`, payload)
       : await api.postJson("/api/notes", payload);
-    if (state.editingNoteId && state.editorSelectedTarget && !noteHasLink(result.note, state.editorSelectedTarget)) {
-      await api.postJson(`/api/notes/${encodeURIComponent(result.note.note_id)}/links`, linkPayloadFromTarget(state.editorSelectedTarget));
-    }
-
     await Promise.all([loadCollections(), loadNotes()]);
     closeEditor();
     await selectNote(result.note.note_id);
@@ -1524,12 +1520,17 @@ function readSelectedLinkTarget(select) {
   }
 }
 
-function applyEditorLinkTarget() {
+async function applyEditorLinkTarget() {
   const target = readSelectedLinkTarget(contextResultsInput);
 
   if (!target?.targetType || !target.targetId) {
     state.editorSelectedTarget = null;
     renderEditorContextSelection();
+    return;
+  }
+
+  if (state.editingNoteId) {
+    await addEditorNoteLink(target);
     return;
   }
 
@@ -1766,19 +1767,57 @@ async function removeEditorNoteLink(note, link) {
   formStatus.textContent = "Removing linked context...";
   try {
     await api.postJson(`/api/notes/${encodeURIComponent(noteId)}/links/${encodeURIComponent(noteLinkId)}/remove`, {});
-    const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
-    state.editorNote = result.note;
-    if (state.selectedNote?.note_id === noteId) {
-      state.selectedNote = result.note;
-      renderDetail(result.note);
-    }
-    await loadNotes();
-    renderNotes();
-    renderEditorContextSelection();
+    await refreshEditorNote(noteId);
     formStatus.textContent = "";
   } catch (error) {
     formStatus.textContent = safeNoteErrorMessage(error, "Linked context could not be removed.");
   }
+}
+
+async function addEditorNoteLink(target = {}) {
+  const noteId = state.editingNoteId;
+
+  if (!noteId || !target.targetType || !target.targetId) {
+    return;
+  }
+  if (noteHasLink(state.editorNote || {}, target)) {
+    state.editorSelectedTarget = null;
+    renderEditorContextSelection();
+    formStatus.textContent = "Linked context is already added.";
+    return;
+  }
+
+  formStatus.textContent = "Adding linked context...";
+  if (contextApplyButton) {
+    contextApplyButton.disabled = true;
+  }
+
+  try {
+    await api.postJson(`/api/notes/${encodeURIComponent(noteId)}/links`, linkPayloadFromTarget(target));
+    state.editorSelectedTarget = null;
+    await refreshEditorNote(noteId);
+    formStatus.textContent = "";
+  } catch (error) {
+    formStatus.textContent = safeNoteErrorMessage(error, "Linked context could not be added.");
+  } finally {
+    if (contextApplyButton) {
+      contextApplyButton.disabled = false;
+    }
+  }
+}
+
+async function refreshEditorNote(noteId) {
+  const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
+
+  state.editorNote = result.note;
+  if (state.selectedNote?.note_id === noteId) {
+    state.selectedNote = result.note;
+    renderDetail(result.note);
+  }
+  await loadNotes();
+  renderNotes();
+  renderEditorContextSelection();
+  return result.note;
 }
 
 function contextTypeLabel(targetType) {
