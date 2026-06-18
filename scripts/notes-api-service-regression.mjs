@@ -189,6 +189,29 @@ async function assertNoteLifecycle(session) {
   });
   assert.ok(targetResult.notes.some((note) => note.note_id === noteId));
 
+  const stagedLinksResult = await notesService.create({
+    title: "Create payload staged links",
+    body_markdown: "Multiple staged links should persist when the note is saved.",
+    library_bucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
+    links: [
+      {
+        module_id: "framework",
+        target_type: "workspace",
+        target_id: session.workspace_id,
+      },
+      {
+        module_id: "users",
+        target_type: "user",
+        target_id: session.user_id,
+      },
+    ],
+  }, session);
+  assert.deepEqual(
+    stagedLinksResult.note.links.map((link) => link.targetType || link.target_type).sort(),
+    ["user", "workspace"],
+    "create-time staged links should persist as note_links rows",
+  );
+
   const updateResult = await notesService.update(noteId, {
     ...createResult.note,
     title: "Updated API service note",

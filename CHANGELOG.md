@@ -1,3 +1,9 @@
+## Version 0.33.5.18.6.4.3 - 2026-06-18 15:30 -04:00
+
+- Added unsaved-note Linked Context staging in the Add/Edit Note dialog. `Use Target` now adds draft Linked Context rows locally for new notes, and saving the note persists the staged targets through the create payload `links` array.
+- Added staged-row removal before save while preserving Primary Context fields independently from staged Linked Context.
+- Added Notes UI regression coverage for staged draft rows and a service regression proving create-time link arrays persist as `note_links` rows. Refreshed the Notes host cache key to `notes.js?v=40` and bumped package metadata/regression version pins to `0.33.5.18.6.4.3`.
+
 ## Version 0.33.5.18.6.4.2 - 2026-06-18 15:01 -04:00
 
 - Updated saved-note Add/Edit Linked Context behavior so `Use Target` persists a new Linked Context row immediately through the Notes link API and refreshes the editor rows, underlying detail panel, and note list without requiring Save Note.

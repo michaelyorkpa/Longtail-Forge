@@ -123,6 +123,7 @@ let state = {
   editorContextSummaries: {},
   editorNote: null,
   editorSelectedTarget: null,
+  editorStagedTargets: [],
   libraryManuallyChanged: false,
   linkTargetSearchTimer: null,
   linkTargets: [],
@@ -1153,6 +1154,7 @@ async function openEditor(note = null) {
   state.editingNoteId = note?.note_id || "";
   state.editorNote = note;
   state.editorSelectedTarget = null;
+  state.editorStagedTargets = [];
   state.libraryManuallyChanged = false;
   dialogTitle.textContent = note ? "Edit Note" : "Create Note";
   titleInput.value = note?.title || "";
@@ -1251,6 +1253,7 @@ function workspaceVisibilityOptions() {
 function closeEditor() {
   state.editorNote = null;
   state.editorSelectedTarget = null;
+  state.editorStagedTargets = [];
   dialog.close();
 }
 
@@ -1288,7 +1291,7 @@ function readEditorPayload() {
     project_id: normalizeText(projectInput.value) || null,
     task_id: null,
     linked_user_id: normalizeText(userInput.value) || null,
-    links: !state.editingNoteId && state.editorSelectedTarget ? [linkPayloadFromTarget(state.editorSelectedTarget)] : [],
+    links: !state.editingNoteId ? stagedLinkPayloads() : [],
   };
 }
 
@@ -1534,8 +1537,8 @@ async function applyEditorLinkTarget() {
     return;
   }
 
-  state.editorSelectedTarget = target;
   applyContextTarget(target);
+  stageEditorLinkTarget(target);
   renderEditorContextSelection(target);
   updateLibrarySuggestion({ preferredSuggestion: target.suggestedLibraryBucket });
 }
@@ -1548,12 +1551,79 @@ function linkPayloadFromTarget(target = {}) {
   };
 }
 
+function stagedLinkPayloads() {
+  const seen = new Set();
+  const links = [];
+
+  for (const target of state.editorStagedTargets || []) {
+    const targetKey = editorLinkTargetKey(target);
+    if (!targetKey || seen.has(targetKey)) {
+      continue;
+    }
+    seen.add(targetKey);
+    links.push(linkPayloadFromTarget(target));
+  }
+
+  return links;
+}
+
 function noteHasLink(note = {}, target = {}) {
-  return (note.links || []).some((link) => {
-    const targetType = link.targetType || link.target_type;
-    const targetId = link.targetId || link.target_id;
-    return targetType === target.targetType && targetId === target.targetId;
-  });
+  return (note.links || []).some((link) => editorLinkTargetMatches(link, target));
+}
+
+function editorLinkTargetKey(target = {}) {
+  const targetType = target.targetType || target.target_type || "";
+  const targetId = target.targetId || target.target_id || "";
+
+  if (!targetType || !targetId) {
+    return "";
+  }
+
+  return `${target.moduleId || target.module_id || ""}:${targetType}:${targetId}`;
+}
+
+function editorLinkTargetMatches(link = {}, target = {}) {
+  const linkModuleId = link.moduleId || link.module_id || "";
+  const targetModuleId = target.moduleId || target.module_id || "";
+  const linkTargetType = link.targetType || link.target_type || "";
+  const targetType = target.targetType || target.target_type || "";
+  const linkTargetId = link.targetId || link.target_id || "";
+  const targetId = target.targetId || target.target_id || "";
+
+  return linkTargetType === targetType &&
+    linkTargetId === targetId &&
+    (!linkModuleId || !targetModuleId || linkModuleId === targetModuleId);
+}
+
+function stagedTargetExists(target = {}) {
+  return (state.editorStagedTargets || []).some((stagedTarget) => editorLinkTargetMatches(stagedTarget, target));
+}
+
+function stageEditorLinkTarget(target = {}) {
+  if (!target.targetType || !target.targetId) {
+    return;
+  }
+  if (stagedTargetExists(target)) {
+    state.editorSelectedTarget = target;
+    renderEditorContextSelection(target);
+    formStatus.textContent = "Linked context is already staged.";
+    return;
+  }
+
+  state.editorStagedTargets = [...(state.editorStagedTargets || []), target];
+  state.editorSelectedTarget = target;
+  formStatus.textContent = "";
+  renderEditorContextSelection(target);
+}
+
+function removeEditorStagedTarget(target = {}) {
+  state.editorStagedTargets = (state.editorStagedTargets || [])
+    .filter((stagedTarget) => !editorLinkTargetMatches(stagedTarget, target));
+  if (editorLinkTargetMatches(state.editorSelectedTarget || {}, target)) {
+    state.editorSelectedTarget = null;
+  }
+  renderEditorContextSelection();
+  updateLibrarySuggestion();
 }
 
 function applyContextTarget(target = {}) {
@@ -1679,8 +1749,10 @@ function editorLinkedContextRows() {
   const note = state.editorNote || {};
   const rows = (note.links || []).map((link) => editorLinkedContextItem(note, link));
 
-  if (state.editorSelectedTarget && !noteHasLink(note, state.editorSelectedTarget)) {
-    rows.push(editorSelectedTargetItem(state.editorSelectedTarget));
+  for (const target of state.editorStagedTargets || []) {
+    if (!noteHasLink(note, target)) {
+      rows.push(editorStagedTargetItem(target));
+    }
   }
 
   return rows;
@@ -1700,10 +1772,10 @@ function editorLinkedContextItem(note, link) {
   });
 }
 
-function editorSelectedTargetItem(target = {}) {
+function editorStagedTargetItem(target = {}) {
   return editorLinkedContextRow({
     label: target.label || unavailableTargetLabel(target.targetType),
-    remove: editorLinkedContextRemoveButton(clearEditorSelectedTarget),
+    remove: editorLinkedContextRemoveButton(() => removeEditorStagedTarget(target)),
     subtitle: target.subtitle || (LINK_TARGET_TYPE_LABELS[target.targetType] || formatToken(target.targetType || "context")),
   });
 }
@@ -1748,12 +1820,6 @@ function editorLinkedContextRemoveButton(onClick) {
 function selectedOptionText(select, fallback) {
   const selected = [...(select?.options || [])].find((option) => option.value === select.value);
   return normalizeText(selected?.textContent) || fallback;
-}
-
-function clearEditorSelectedTarget() {
-  state.editorSelectedTarget = null;
-  renderEditorContextSelection();
-  updateLibrarySuggestion();
 }
 
 async function removeEditorNoteLink(note, link) {
@@ -2385,8 +2451,8 @@ async function openEditorForLinkedTarget(target) {
     targetId: target.targetId,
     targetType: target.targetType,
   };
-  state.editorSelectedTarget = matchedTarget;
   applyContextTarget(matchedTarget);
+  stageEditorLinkTarget(matchedTarget);
   if (target.noteKind && typeInput) {
     ensureNoteKindOption(target.noteKind);
     typeInput.value = target.noteKind;

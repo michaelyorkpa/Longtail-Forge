@@ -776,17 +776,17 @@ Acceptance criteria:
 
 #### Version 0.33.5.18.6.4.3 - Unsaved-note staged Linked Context
 
-- [ ] New unsaved note behavior:
-  - [ ] Adding Linked Context stages the link in local draft state.
-  - [ ] Removing staged Linked Context removes it from local draft state.
-  - [ ] Staged links persist when the note is saved.
-  - [ ] Staged links keep readable labels while the note remains unsaved.
-- [ ] Preserve Primary Context separately from staged Linked Context.
-- [ ] Add regression coverage:
-  - [ ] Unsaved note staged linked context.
-  - [ ] Removing a staged link before save.
-  - [ ] Saved note receives staged links.
-  - [ ] No UUID display.
+- [x] New unsaved note behavior:
+  - [x] Adding Linked Context stages the link in local draft state.
+  - [x] Removing staged Linked Context removes it from local draft state.
+  - [x] Staged links persist when the note is saved.
+  - [x] Staged links keep readable labels while the note remains unsaved.
+- [x] Preserve Primary Context separately from staged Linked Context.
+- [x] Add regression coverage:
+  - [x] Unsaved note staged linked context.
+  - [x] Removing a staged link before save.
+  - [x] Saved note receives staged links.
+  - [x] No UUID display.
 
 Acceptance criteria:
 

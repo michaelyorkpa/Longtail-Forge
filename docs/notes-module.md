@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.5.18.6.4.2. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.18.6.4.3. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -96,11 +96,11 @@ The Add/Edit Note modal exposes Primary Context inside the Note Details disclosu
 
 Task-created notes store the task's readable client/project as Primary Context and the task itself as a normal Linked Context row. The browser no longer writes `notes.task_id` as direct Primary Context; legacy `task_id` payloads are converted into task links, and migration `063_task_note_link_context.sql` repairs existing rows by creating a task link before clearing the direct task column. Removing the task link must not remove Primary Context, and editing Primary Context must not remove unrelated Linked Context.
 
-The Add/Edit Linked Context panel mirrors the View Note row model. It starts with a non-removable Primary Context display row, including the `Edit in Note Details` hint, then shows saved Linked Context rows and, for unsaved notes, the current selected target using readable labels and secondary context. Remove controls belong only to Linked Context rows; Primary Context changes continue to happen through the Note Details controls.
+The Add/Edit Linked Context panel mirrors the View Note row model. It starts with a non-removable Primary Context display row, including the `Edit in Note Details` hint, then shows saved Linked Context rows and staged unsaved-note Linked Context rows using readable labels and secondary context. Remove controls belong only to Linked Context rows; Primary Context changes continue to happen through the Note Details controls.
 
 Saved-note Add/Edit Linked Context mutations are immediate. `Use Target` posts a new `note_links` row through the Notes link API and refreshes the editor rows, underlying detail panel, and note list without requiring Save Note. Removing a saved Linked Context row uses the same API-first refresh path. These browser controls are convenience hints only; service-layer access checks remain authoritative.
 
-For new unsaved notes, selecting a task in the picker stages the task as Linked Context and infers project/client Primary Context where those readable values are present. Task targets suggest Active Work. Client, project, and user targets suggest Ongoing Areas. Manual Library bucket choices are treated as user intent and are not overwritten by later picker changes.
+For new unsaved notes, `Use Target` stages each selected target in local draft state and renders it as a removable Linked Context row before the note exists. Saving the note sends the staged targets as the create payload's `links` array so they become `note_links` rows. Removing a staged row removes only that draft link and does not clear Primary Context. Selecting a task still infers project/client Primary Context where those readable values are present. Task targets suggest Active Work. Client, project, and user targets suggest Ongoing Areas. Manual Library bucket choices are treated as user intent and are not overwritten by later picker changes.
 
 Note detail reads decorate Primary Context and `note_links` with safe labels and navigation URLs where available. Missing or inaccessible targets return an unavailable state or a safe fallback label such as `Unavailable client`, `Unavailable project`, `Unavailable task`, `Unavailable note`, `Unavailable list`, or `Unavailable linked context`. Normal Notes UI must not display raw target IDs or UUIDs for unresolved context; Audit Logs may still display raw IDs because they are administrative records.
 
