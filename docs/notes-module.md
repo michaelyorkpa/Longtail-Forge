@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.5.18.6.1. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.18.6.2. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -91,6 +91,8 @@ Notes can use direct context columns and flexible `note_links` rows. Direct null
 The current supported link targets are workspace, client, project, task, and user; ticket context is reserved until a ticket module exists. Linked Context access is checked before reads, list inclusion, target lookup, link creation, and link removal. If the session cannot read the linked target, the note is hidden or the target operation is rejected. Links connect a note to context; they do not grant access to the note or to the target.
 
 The browser Notes workspace uses the Notes-owned `/api/notes/link-targets` picker route instead of raw ID entry for Linked Context. Picker results are permission-shaped by the target owner before labels are returned. Workspace, client, project, task, and user results include safe human labels, source URLs where the app has a record view, and context hints such as `clientId`, `projectId`, and `suggestedLibraryBucket`.
+
+The Add/Edit Note modal exposes Primary Context inside the Note Details disclosure. Business workspaces show nullable Client and Project selects; the Client select lists active clients only. Personal and Family workspaces hide Client and keep Project available. Missing or unknown browser workspace context is treated as non-Business and must not show Client controls. Browser Client controls require both Business workspace type and the `clients_projects` workspace capability. The Visibility dropdown hides `Client Visible` outside client-capable Business workspaces and normalizes stale non-Business `client_visible` editor values back to `internal`. Client labels are the client name only. Project labels are `Project Name - Client Name` for business client projects, `Project Name - Workspace Name` for business workspace projects, and `Project Name` in Personal/Family workspaces.
 
 Selecting a task in the picker sets task context and infers project/client context where those readable values are present. Task targets suggest Active Work. Client, project, and user targets suggest Ongoing Areas. Manual Library bucket choices are treated as user intent and are not overwritten by later picker changes.
 

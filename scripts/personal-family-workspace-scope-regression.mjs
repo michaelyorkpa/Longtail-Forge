@@ -131,6 +131,7 @@ try {
     const filesScript = await fs.readFile(path.join(process.cwd(), "public/js/files.js"), "utf8");
     const listsPage = await fs.readFile(path.join(process.cwd(), "views/protected/lists.html"), "utf8");
     const listsScript = await fs.readFile(path.join(process.cwd(), "public/js/lists.js"), "utf8");
+    const notesScript = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
 
     assert.match(filesPage, /data-file-business-control/);
     assert.match(filesPage, /js\/files\.js\?v=1/);
@@ -145,6 +146,16 @@ try {
     assert.doesNotMatch(listsScript, /usesBusinessScope\(\) \? loadClientProjects\(\) : Promise\.resolve/);
     assert.match(listsScript, /state\.clients = window\.LongtailForge\.clientProjectOptions\.normalizeClients\(clientProjects\)/);
     assert.match(listsScript, /return !usesBusinessScope\(\) \|\| \["procurement", "parts", "supplies", "bill_of_materials"]/);
+
+    assert.match(notesScript, /workspaceType: ""/);
+    assert.match(notesScript, /clientField\.hidden = true/);
+    assert.match(notesScript, /context\.workspaceType \|\| context\.workspace_type \|\| ""/);
+    assert.match(notesScript, /primaryClientField\.hidden = !clientAvailable/);
+    assert.match(notesScript, /primaryClientField\.style\.display = clientAvailable \? "" : "none"/);
+    assert.match(notesScript, /return normalizeWorkspaceType\(state\.workspaceType\) === "business" && workspaceHasClientTools\(\)/);
+    assert.match(notesScript, /tools\.includes\("clients_projects"\)/);
+    assert.match(notesScript, /\.filter\(\(\[value\]\) => value !== "client_visible" \|\| usesBusinessScope\(\)\)/);
+    assert.match(notesScript, /visibility: readEditorVisibility\(\)/);
   });
 
   console.log(`Personal and Family workspace scope regression passed ${checks} checks.`);

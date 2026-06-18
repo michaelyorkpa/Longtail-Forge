@@ -762,11 +762,11 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
     status: normalizeEnum(payload.status || previousNote?.status || NOTE_STATUSES.ACTIVE, NOTE_STATUS_VALUES, "Note status"),
     visibility,
     security_mode: securityMode,
-    client_id: normalizeOptionalText(payload.clientId ?? payload.client_id ?? previousNote?.client_id),
-    project_id: normalizeOptionalText(payload.projectId ?? payload.project_id ?? previousNote?.project_id),
-    task_id: normalizeOptionalText(payload.taskId ?? payload.task_id ?? previousNote?.task_id),
-    ticket_id: normalizeOptionalText(payload.ticketId ?? payload.ticket_id ?? previousNote?.ticket_id),
-    linked_user_id: normalizeOptionalText(payload.linkedUserId ?? payload.linked_user_id ?? previousNote?.linked_user_id),
+    client_id: normalizeNullablePayloadText(payload, "clientId", "client_id", previousNote?.client_id),
+    project_id: normalizeNullablePayloadText(payload, "projectId", "project_id", previousNote?.project_id),
+    task_id: normalizeNullablePayloadText(payload, "taskId", "task_id", previousNote?.task_id),
+    ticket_id: normalizeNullablePayloadText(payload, "ticketId", "ticket_id", previousNote?.ticket_id),
+    linked_user_id: normalizeNullablePayloadText(payload, "linkedUserId", "linked_user_id", previousNote?.linked_user_id),
     note_collection_id: normalizeOptionalText(noteCollectionId) || null,
     owner_user_id: normalizeOptionalText(payload.ownerUserId ?? payload.owner_user_id ?? previousNote?.owner_user_id) || session.user_id,
     created_by_user_id: previousNote?.created_by_user_id || session.user_id,
@@ -1042,11 +1042,13 @@ async function listTargetsByType(session, targetType) {
       subtitle: client.status ? `Client - ${client.status}` : "Client",
       source_url: `clients.html?client=${encodeURIComponent(client.id)}`,
       client_id: client.id,
+      status: client.status || "",
     }));
   }
 
   if (targetType === "project") {
     const projects = await permissionsService.filterReadableProjects(session, await projectsRepository.readAll(session.workspace_id));
+    const workspace = await workspacesRepository.readById(session.workspace_id);
     return projects.map((project) => shapeLinkTarget({
       target_type: "project",
       target_id: project.id,
@@ -1054,7 +1056,9 @@ async function listTargetsByType(session, targetType) {
       subtitle: [project.client_name, project.status].filter(Boolean).join(" - ") || "Project",
       source_url: `projects.html?project=${encodeURIComponent(project.id)}`,
       client_id: project.client_id || "",
+      client_name: project.client_name || "",
       project_id: project.id,
+      workspace_name: workspace?.workspace_name || "Workspace",
     }));
   }
 
@@ -1478,12 +1482,15 @@ async function readTargetSummary(session, target = {}) {
     }
     if (normalizedTarget.target_type === "project") {
       const project = await projectsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+      const workspace = await workspacesRepository.readById(session.workspace_id);
       return project ? {
         label: readableTargetLabel(project.name, "project"),
         subtitle: [project.client_name, project.status].filter(Boolean).join(" - ") || "Project",
         source_url: `projects.html?project=${encodeURIComponent(project.id)}`,
         client_id: project.client_id || "",
+        client_name: project.client_name || "",
         project_id: project.id,
+        workspace_name: workspace?.workspace_name || "Workspace",
       } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "task") {
@@ -1525,9 +1532,12 @@ function shapeLinkTarget(target = {}) {
     subtitle: target.subtitle || "",
     sourceUrl: target.source_url || target.sourceUrl || targetSourceUrl({ target_type: targetType, target_id: targetId }),
     clientId: target.client_id || target.clientId || "",
+    clientName: target.client_name || target.clientName || "",
     projectId: target.project_id || target.projectId || "",
+    workspaceName: target.workspace_name || target.workspaceName || "",
     taskId: target.task_id || target.taskId || "",
     userId: target.user_id || target.userId || "",
+    status: target.status || "",
     suggestedLibraryBucket: target.suggested_library_bucket || target.suggestedLibraryBucket || suggestedLibraryForTargetType(targetType),
   };
 }
@@ -2350,6 +2360,16 @@ function safeAuditValue(value) {
   }
   delete safeValue.metadata_json;
   return safeValue;
+}
+
+function normalizeNullablePayloadText(payload = {}, camelField, snakeField, fallback = "") {
+  if (Object.hasOwn(payload, camelField)) {
+    return normalizeOptionalText(payload[camelField]);
+  }
+  if (Object.hasOwn(payload, snakeField)) {
+    return normalizeOptionalText(payload[snakeField]);
+  }
+  return normalizeOptionalText(fallback);
 }
 
 function copySecureEncryptionFields(note = {}) {

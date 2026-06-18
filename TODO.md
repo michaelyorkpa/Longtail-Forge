@@ -13,6 +13,12 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Notes - Suggested Library
+
+- Revisit this once the app is built more (not quite medium term, but not today 2026/06/18)
+  - Library suggestion should be directly below the Library drop down in Note Details, not in Linked context
+  - Revisit the logic that builds this and refine the algorithm
+
 ## Personal and Family Workspaces
 
 - Billable flag needs to be deprecated everywhere from the front end

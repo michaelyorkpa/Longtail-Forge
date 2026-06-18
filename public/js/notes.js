@@ -79,6 +79,8 @@ const contextApplyButton = document.querySelector("[data-note-context-apply]");
 const contextSelectedMessage = document.querySelector("[data-note-context-selected]");
 const clientInput = document.querySelector("[data-note-client-id]");
 const projectInput = document.querySelector("[data-note-project-id]");
+const primaryClientField = document.querySelector("[data-note-primary-client-field]");
+const primaryProjectField = document.querySelector("[data-note-primary-project-field]");
 const taskInput = document.querySelector("[data-note-task-id]");
 const userInput = document.querySelector("[data-note-user-id]");
 const suggestionMessage = document.querySelector("[data-note-library-suggestion]");
@@ -124,11 +126,13 @@ let state = {
   linkTargets: [],
   notes: [],
   page: 1,
+  primaryContextClients: [],
+  primaryContextProjects: [],
   previewRequestId: 0,
   selectedNote: null,
   selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
   tagPicker: null,
-  workspaceType: "business",
+  workspaceType: "",
 };
 
 createButton?.addEventListener("click", () => openEditor());
@@ -170,7 +174,9 @@ libraryInput?.addEventListener("change", () => {
 securityInput?.addEventListener("change", updateSecureUiState);
 previewToggle?.addEventListener("click", togglePreview);
 bodyInput?.addEventListener("input", () => renderPreview());
-[clientInput, projectInput, taskInput, userInput].forEach((input) => input?.addEventListener("input", updateLibrarySuggestion));
+clientInput?.addEventListener("change", handlePrimaryClientChange);
+projectInput?.addEventListener("change", handlePrimaryProjectChange);
+[taskInput, userInput].forEach((input) => input?.addEventListener("input", updateLibrarySuggestion));
 contextTargetTypeInput?.addEventListener("change", () => loadEditorLinkTargets());
 contextSearchInput?.addEventListener("input", () => queueEditorLinkTargetSearch());
 contextApplyButton?.addEventListener("click", () => applyEditorLinkTarget());
@@ -606,7 +612,7 @@ function createNoteContextPanel() {
   const selection = view.createElement("p", { className: "notes-picker-selection", text: "No linked context selected." });
   selection.dataset.noteContextSelected = "";
   panel.appendChild(selection);
-  ["noteClientId", "noteProjectId", "noteTaskId", "noteUserId"].forEach((name) => {
+  ["noteTaskId", "noteUserId"].forEach((name) => {
     const hidden = view.createElement("input", { attrs: { type: "hidden" } });
     hidden.dataset[name] = "";
     panel.appendChild(hidden);
@@ -615,6 +621,28 @@ function createNoteContextPanel() {
   suggestion.dataset.noteLibrarySuggestion = "";
   panel.appendChild(suggestion);
   return panel;
+}
+
+function createPrimaryContextSection() {
+  const clientSelect = noteSelect("noteClientId", []);
+  const projectSelect = noteSelect("noteProjectId", []);
+  const clientField = noteFieldLabel("Client", clientSelect);
+  const projectField = noteFieldLabel("Project", projectSelect);
+  const section = view.createElement("section", {
+    className: "notes-primary-context",
+    children: [
+      view.createElement("h3", { text: "Primary Context" }),
+      view.createElement("div", {
+        className: "notes-form-grid",
+        children: [clientField, projectField],
+      }),
+    ],
+  });
+
+  clientField.dataset.notePrimaryClientField = "";
+  projectField.dataset.notePrimaryProjectField = "";
+  clientField.hidden = true;
+  return section;
 }
 
 function createNoteEditorToolbar() {
@@ -672,14 +700,15 @@ function createNoteDialogShell() {
       noteFieldLabel("Library", noteSelect("noteLibrary", modalFieldOptions(modal, "library"))),
       noteFieldLabel("Collection", noteSelect("noteCollection", modalFieldOptions(modal, "collection"))),
       noteFieldLabel("Note Kind", noteSelect("noteType", modalFieldOptions(modal, "noteType"))),
-      noteFieldLabel("Visibility", noteSelect("noteVisibility", modalFieldOptions(modal, "visibility"))),
+      noteFieldLabel("Visibility", noteSelect("noteVisibility", modalFieldOptions(modal, "visibility").filter(([value]) => value !== "client_visible"))),
       noteFieldLabel("Security", noteSelect("noteSecurity", modalFieldOptions(modal, "security"))),
     ],
   });
+  const primaryContext = createPrimaryContextSection();
   // Group the note "Details" fields into a collapsible section (openEditor opens it for Add, closes for Edit).
   const detailsGroup = view.createElement("details", {
     className: "notes-detail-group",
-    children: [view.createElement("summary", { text: "Note Details" }), selectGrid],
+    children: [view.createElement("summary", { text: "Note Details" }), selectGrid, primaryContext],
   });
   detailsGroup.dataset.noteDetailsGroup = "";
   const secureWarning = view.createElement("p", {
@@ -773,8 +802,10 @@ async function initialize() {
 
 function applyWorkspaceContext() {
   const context = window.LongtailForge?.workspaceContext || {};
-  state.workspaceType = context.workspaceType || "business";
+  state.workspaceType = normalizeWorkspaceType(context.workspaceType || context.workspace_type || "");
+  populateWorkspaceVisibilityOptions();
   populateLinkTargetTypeSelect(contextTargetTypeInput);
+  updatePrimaryContextVisibility();
 }
 
 async function loadNotes() {
@@ -1125,7 +1156,7 @@ async function openEditor(note = null) {
   resetLegacyNoteKindOptions();
   ensureNoteKindOption(note?.note_type);
   typeInput.value = note?.note_type || "general";
-  visibilityInput.value = note?.visibility || "internal";
+  populateWorkspaceVisibilityOptions(note?.visibility || "internal");
   securityInput.value = note?.security_mode || "normal";
   securityInput.disabled = Boolean(note);
   updateSecureUiState();
@@ -1134,6 +1165,10 @@ async function openEditor(note = null) {
   taskInput.value = note?.task_id || "";
   userInput.value = note?.linked_user_id || "";
   state.editorContextSummaries = note?.linked_context || {};
+  await loadPrimaryContextOptions({
+    clientId: clientInput.value,
+    projectId: projectInput.value,
+  });
   editor?.setValue(note?.body_markdown || "");
   bodyInput.value = note?.body_markdown || "";
   preview.hidden = true;
@@ -1175,6 +1210,9 @@ function updateSecureVisibilityOptions(secureMode = false) {
 
   const clientVisibleOption = [...visibilityInput.options].find((option) => option.value === "client_visible");
   if (!clientVisibleOption) {
+    if (visibilityInput.value === "client_visible") {
+      visibilityInput.value = "internal";
+    }
     return;
   }
 
@@ -1183,6 +1221,22 @@ function updateSecureVisibilityOptions(secureMode = false) {
   if (secureMode && visibilityInput.value === "client_visible") {
     visibilityInput.value = "internal";
   }
+}
+
+function populateWorkspaceVisibilityOptions(selectedValue = visibilityInput?.value || "internal") {
+  if (!visibilityInput) {
+    return;
+  }
+
+  const options = workspaceVisibilityOptions();
+  visibilityInput.replaceChildren(...options.map(([value, label]) => notesOptionElement(value, label)));
+  visibilityInput.value = options.some(([value]) => value === selectedValue) ? selectedValue : "internal";
+  updateSecureVisibilityOptions(isSecureEditorMode());
+}
+
+function workspaceVisibilityOptions() {
+  return modalFieldOptions(notesEditorModalDescriptor(), "visibility")
+    .filter(([value]) => value !== "client_visible" || usesBusinessScope());
 }
 
 function closeEditor() {
@@ -1220,15 +1274,149 @@ function readEditorPayload() {
     library_bucket: libraryInput.value,
     noteCollectionId: collectionInput.value || null,
     note_type: typeInput.value,
-    visibility: visibilityInput.value,
+    visibility: readEditorVisibility(),
     security_mode: securityInput.value,
     tagIds: state.tagPicker?.readTagIds?.() || [],
-    client_id: normalizeText(clientInput.value) || null,
+    client_id: usesBusinessScope() ? normalizeText(clientInput.value) || null : null,
     project_id: normalizeText(projectInput.value) || null,
     task_id: normalizeText(taskInput.value) || null,
     linked_user_id: normalizeText(userInput.value) || null,
     links: !state.editingNoteId && state.editorSelectedTarget ? [linkPayloadFromTarget(state.editorSelectedTarget)] : [],
   };
+}
+
+function readEditorVisibility() {
+  return !usesBusinessScope() && visibilityInput.value === "client_visible"
+    ? "internal"
+    : visibilityInput.value;
+}
+
+async function loadPrimaryContextOptions(selected = {}) {
+  updatePrimaryContextVisibility();
+  const selectedProjectId = selected.projectId || projectInput?.value || "";
+  const selectedClientId = selected.clientId || clientInput?.value || "";
+
+  if (clientInput) {
+    clientInput.disabled = true;
+  }
+  if (projectInput) {
+    projectInput.disabled = true;
+  }
+
+  try {
+    const [clients, projects] = await Promise.all([
+      usesBusinessScope() ? fetchLinkTargets({ targetType: "client", limit: 50 }) : Promise.resolve([]),
+      fetchLinkTargets({ targetType: "project", limit: 50 }),
+    ]);
+    state.primaryContextClients = clients.filter(isActivePrimaryClientTarget);
+    state.primaryContextProjects = projects;
+
+    const selectedProject = findPrimaryContextProject(selectedProjectId);
+    const derivedClientId = usesBusinessScope() ? selectedProject?.clientId || selectedClientId || "" : "";
+    populatePrimaryClientOptions(derivedClientId);
+    populatePrimaryProjectOptions(selectedProjectId);
+  } catch {
+    state.primaryContextClients = [];
+    state.primaryContextProjects = [];
+    populatePrimaryClientOptions("");
+    populatePrimaryProjectOptions("");
+  } finally {
+    if (clientInput) {
+      clientInput.disabled = !usesBusinessScope();
+    }
+    if (projectInput) {
+      projectInput.disabled = false;
+    }
+  }
+}
+
+function updatePrimaryContextVisibility() {
+  const clientAvailable = usesBusinessScope();
+  if (primaryClientField) {
+    primaryClientField.hidden = !clientAvailable;
+    primaryClientField.style.display = clientAvailable ? "" : "none";
+  }
+  if (primaryProjectField) {
+    primaryProjectField.hidden = false;
+  }
+  if (clientInput) {
+    clientInput.disabled = !clientAvailable;
+  }
+  if (!clientAvailable && clientInput) {
+    clientInput.value = "";
+  }
+}
+
+function populatePrimaryClientOptions(selectedClientId = clientInput?.value || "") {
+  if (!clientInput) {
+    return;
+  }
+
+  const options = [new window.Option("No client", "")];
+  state.primaryContextClients.forEach((client) => {
+    options.push(new window.Option(primaryClientOptionLabel(client), client.clientId || client.targetId || ""));
+  });
+  clientInput.replaceChildren(...options);
+  clientInput.value = usesBusinessScope() && options.some((option) => option.value === selectedClientId) ? selectedClientId : "";
+}
+
+function populatePrimaryProjectOptions(selectedProjectId = projectInput?.value || "") {
+  if (!projectInput) {
+    return;
+  }
+
+  const selectedClientId = usesBusinessScope() ? clientInput?.value || "" : "";
+  const projects = state.primaryContextProjects
+    .filter((project) => !selectedClientId || project.clientId === selectedClientId);
+  const options = [
+    new window.Option("No project", ""),
+    ...projects.map((project) => new window.Option(primaryProjectOptionLabel(project), project.projectId || project.targetId || "")),
+  ];
+
+  projectInput.replaceChildren(...options);
+  projectInput.value = options.some((option) => option.value === selectedProjectId) ? selectedProjectId : "";
+}
+
+function handlePrimaryClientChange() {
+  if (!usesBusinessScope() && clientInput) {
+    clientInput.value = "";
+  }
+  if (projectInput) {
+    projectInput.value = "";
+  }
+  populatePrimaryProjectOptions("");
+  updateLibrarySuggestion();
+}
+
+function handlePrimaryProjectChange() {
+  const project = findPrimaryContextProject(projectInput?.value || "");
+
+  if (usesBusinessScope() && clientInput) {
+    clientInput.value = project?.clientId || "";
+    populatePrimaryProjectOptions(projectInput?.value || "");
+  }
+  updateLibrarySuggestion();
+}
+
+function findPrimaryContextProject(projectId) {
+  return state.primaryContextProjects.find((project) => (project.projectId || project.targetId || "") === projectId) || null;
+}
+
+function primaryClientOptionLabel(client = {}) {
+  return client.label || unavailableTargetLabel("client");
+}
+
+function isActivePrimaryClientTarget(client = {}) {
+  return normalizeText(client.status).toLowerCase() === "active";
+}
+
+function primaryProjectOptionLabel(project = {}) {
+  const projectName = project.label || unavailableTargetLabel("project");
+  if (!usesBusinessScope()) {
+    return projectName;
+  }
+  const contextName = project.clientName || project.workspaceName || window.LongtailForge?.workspaceContext?.workspaceName || "Workspace";
+  return `${projectName} - ${contextName}`;
 }
 
 function queueEditorLinkTargetSearch() {
@@ -1381,6 +1569,7 @@ function applyContextTarget(target = {}) {
     taskInput.value = "";
     userInput.value = "";
   }
+  syncPrimaryContextControlsFromValues();
 }
 
 function renderEditorContextSelection(target = null) {
@@ -1394,12 +1583,6 @@ function renderEditorContextSelection(target = null) {
   } else if (target?.targetType) {
     linked.push(`${contextTypeLabel(target.targetType)}: ${target.label || unavailableTargetLabel(target.targetType)}`);
   } else {
-    if (clientInput.value) {
-      linked.push(`Client: ${contextSummaryLabel("client")}`);
-    }
-    if (projectInput.value) {
-      linked.push(`Project: ${contextSummaryLabel("project")}`);
-    }
     if (taskInput.value) {
       linked.push(`Task: ${contextSummaryLabel("task")}`);
     }
@@ -1415,6 +1598,17 @@ function renderEditorContextSelection(target = null) {
 
 function contextSummaryLabel(targetType) {
   return state.editorContextSummaries?.[targetType]?.label || unavailableTargetLabel(targetType);
+}
+
+function syncPrimaryContextControlsFromValues() {
+  if (!clientInput || !projectInput) {
+    return;
+  }
+  if (!usesBusinessScope()) {
+    clientInput.value = "";
+  }
+  populatePrimaryClientOptions(clientInput.value);
+  populatePrimaryProjectOptions(projectInput.value);
 }
 
 function contextTypeLabel(targetType) {
@@ -2305,7 +2499,18 @@ function detailMetaItems(note = {}) {
 }
 
 function usesBusinessScope() {
-  return state.workspaceType === "business";
+  return normalizeWorkspaceType(state.workspaceType) === "business" && workspaceHasClientTools();
+}
+
+function normalizeWorkspaceType(value = "") {
+  const normalized = normalizeText(value).toLowerCase();
+  return ["business", "family", "personal"].includes(normalized) ? normalized : "";
+}
+
+function workspaceHasClientTools() {
+  const context = window.LongtailForge?.workspaceContext || {};
+  const tools = context.workspaceCapabilities?.availableTools || context.availableTools || [];
+  return Array.isArray(tools) && tools.includes("clients_projects");
 }
 
 function emptyText(message) {

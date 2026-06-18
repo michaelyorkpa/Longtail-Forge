@@ -639,41 +639,41 @@ Acceptance criteria:
 
 ### Version 0.33.5.18.6.2 - Add Primary Context controls to Add/Edit Note details
 
-- [ ] Add a **Primary Context** subsection inside the existing collapsible **Note Details** section of the Add/Edit Note modal.
-- [ ] Bind the controls to the note row's direct nullable context fields:
-  - [ ] `client_id`
-  - [ ] `project_id`
-- [ ] Business workspace behavior:
-  - [ ] Show Client select.
-  - [ ] Show Project select.
-  - [ ] Both fields must allow blank/null.
-  - [ ] Selecting a client without a project sets `client_id` and clears/keeps `project_id` null.
-  - [ ] Selecting a project with a client derives `client_id` from the selected project.
-  - [ ] Selecting a workspace-level project sets `project_id` and leaves `client_id` null.
-  - [ ] Clearing both saves null/empty Primary Context.
-- [ ] Personal/Family workspace behavior:
-  - [ ] Do not show Client.
-  - [ ] Show Project select only.
-  - [ ] Project must allow blank/null.
-  - [ ] Save `client_id` as null/empty.
-- [ ] Project labels in the Primary Context project select should be concise and readable.
-  - [ ] Business client project: `Project Name - Client Name`
-  - [ ] Business workspace project: `Project Name - Workspace Name`
-  - [ ] Personal/Family project: `Project Name`
-  - [ ] No raw UUID.
-  - [ ] No redundant `Project:` prefix.
-  - [ ] No status suffix unless explicitly needed elsewhere.
-- [ ] Client labels should be only the client name.
-  - [ ] No `Client:` prefix.
-  - [ ] No `- Client`.
-  - [ ] No status suffix.
-- [ ] Add regression coverage for:
-  - [ ] Business note with no Primary Context.
-  - [ ] Business note with client-only Primary Context.
-  - [ ] Business note with project-derived Primary Context.
-  - [ ] Business note with workspace project Primary Context.
-  - [ ] Personal/Family note with project-only Primary Context.
-  - [ ] Clearing Primary Context.
+- [x] Add a **Primary Context** subsection inside the existing collapsible **Note Details** section of the Add/Edit Note modal.
+- [x] Bind the controls to the note row's direct nullable context fields:
+  - [x] `client_id`
+  - [x] `project_id`
+- [x] Business workspace behavior:
+  - [x] Show Client select.
+  - [x] Show Project select.
+  - [x] Both fields must allow blank/null.
+  - [x] Selecting a client without a project sets `client_id` and clears/keeps `project_id` null.
+  - [x] Selecting a project with a client derives `client_id` from the selected project.
+  - [x] Selecting a workspace-level project sets `project_id` and leaves `client_id` null.
+  - [x] Clearing both saves null/empty Primary Context.
+- [x] Personal/Family workspace behavior:
+  - [x] Do not show Client.
+  - [x] Show Project select only.
+  - [x] Project must allow blank/null.
+  - [x] Save `client_id` as null/empty.
+- [x] Project labels in the Primary Context project select should be concise and readable.
+  - [x] Business client project: `Project Name - Client Name`
+  - [x] Business workspace project: `Project Name - Workspace Name`
+  - [x] Personal/Family project: `Project Name`
+  - [x] No raw UUID.
+  - [x] No redundant `Project:` prefix.
+  - [x] No status suffix unless explicitly needed elsewhere.
+- [x] Client labels should be only the client name.
+  - [x] No `Client:` prefix.
+  - [x] No `- Client`.
+  - [x] No status suffix.
+- [x] Add regression coverage for:
+  - [x] Business note with no Primary Context.
+  - [x] Business note with client-only Primary Context.
+  - [x] Business note with project-derived Primary Context.
+  - [x] Business note with workspace project Primary Context.
+  - [x] Personal/Family note with project-only Primary Context.
+  - [x] Clearing Primary Context.
 
 Acceptance criteria:
 

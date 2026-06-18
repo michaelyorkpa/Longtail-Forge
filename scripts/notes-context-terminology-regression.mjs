@@ -68,7 +68,7 @@ assert.match(notesService, /readableTargetLabel\(project\.name, "project"\)/);
 assert.match(notesService, /readableTargetLabel\(task\.title, "task"\)/);
 assert.match(notesService, /readableTargetLabel\(user\.display_name \|\| user\.displayName \|\| user\.username, "user"\)/);
 assert.doesNotMatch(notesService, /client\.name \|\| client\.id|project\.name \|\| project\.id|task\.title \|\| task\.task_id|user\.display_name \|\| user\.username \|\| user\.user_id|user\.displayName \|\| user\.username \|\| user\.user_id/);
-assert.match(notesHtml, /js\/notes\.js\?v=31/);
+assert.match(notesHtml, /js\/notes\.js\?v=36/);
 
 console.log("Notes context terminology regression passed.");
 
