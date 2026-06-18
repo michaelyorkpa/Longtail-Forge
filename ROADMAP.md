@@ -566,7 +566,13 @@ other add/edit modals — framework renders the shell, the module provides the d
 
 ---
 
-## Tasks (0.33.5.18.6 - 0.33.5.18.9)
+## Version 0.33.5.18.6 - Final Notes/Lists UI and Framework/Module Separation Clean Up
+
+
+
+---
+
+## Tasks (0.33.5.18.7 - 0.33.5.18.10)
 
 Tasks is the most complex surface (filters, list/board, detail, checklists, relationships, recurrence,
 bulk actions, timer controls, resume context/next action). Expect the heaviest use of registered
@@ -578,7 +584,7 @@ strips, summary panels, modal shell/form/footer, field grid, bulk-action toolbar
 states. Tasks owns: canonical task query, statuses, recurrence rules, relationships, checklist items,
 timer logic, resume/next-action data, validation, save payloads, permissions, workspace scope.
 
-### Version 0.33.5.18.6 - Tasks Declarative Read-Only Surface Proof
+### Version 0.33.5.18.7 - Tasks Declarative Read-Only Surface Proof
 
 - [ ] Add a `viewSurfaces` descriptor for the Tasks protected workspace read path.
 - [ ] Reduce `views/protected/tasks.html` to a minimal framework host element.
@@ -591,7 +597,7 @@ timer logic, resume/next-action data, validation, save payloads, permissions, wo
       imperative path until later slices.
 - [ ] Add regressions proving the read-only Tasks surface renders from the descriptor.
 
-### Version 0.33.5.18.7 - Task Detail, Checklists, Relationships, and Field Behaviors
+### Version 0.33.5.18.8 - Task Detail, Checklists, Relationships, and Field Behaviors
 
 - [ ] Move task detail anatomy (header, metadata, badges, summary panels, resume/next-action strip)
       into the descriptor.
@@ -602,7 +608,7 @@ timer logic, resume/next-action data, validation, save payloads, permissions, wo
 - [ ] Keep Tasks responsible for field meaning, validation, save payloads, and permissions.
 - [ ] Add regressions for descriptor-rendered task detail, checklist rows, and relationships.
 
-### Version 0.33.5.18.8 - Task Create/Edit Modal, Bulk Actions, Recurrence, and Timer Controls
+### Version 0.33.5.18.9 - Task Create/Edit Modal, Bulk Actions, Recurrence, and Timer Controls
 
 - [ ] Convert the task create/edit dialog (`public/js/task-dialog.js`) to descriptor-declared
       modal/form/footer anatomy with registered behaviors for custom field logic.
@@ -617,7 +623,7 @@ timer logic, resume/next-action data, validation, save payloads, permissions, wo
 - [ ] Add regressions for the descriptor task modal, bulk toolbar, recurrence behavior, and timer
       controls.
 
-### Version 0.33.5.18.9 - Tasks Workflow Actions and Layout Cleanup
+### Version 0.33.5.18.10 - Tasks Workflow Actions and Layout Cleanup
 
 - [ ] Express remaining Tasks workflow actions (complete, reopen, block/unblock, archive, delete,
       restore, assign, recurrence apply, and related actions) as declarative route actions or
@@ -629,7 +635,7 @@ timer logic, resume/next-action data, validation, save payloads, permissions, wo
 
 ---
 
-## Files (0.33.5.18.10 - 0.33.5.18.11)
+## Files (0.33.5.18.11 - 0.33.5.18.12)
 
 The framework already owns the file service (storage, scanning, lifecycle, downloads). This conversion
 is strictly the browse/attachment UI and must never bypass file permission, scan, storage, or download
@@ -639,7 +645,7 @@ Framework owns: page shell, filters, file table/cards, detail/preview shell, att
 upload control shell, row action placement, empty/loading/error states. Files owns: file metadata,
 placement meaning, permission checks, scan/storage/download routes, and attachment business rules.
 
-### Version 0.33.5.18.10 - Files Declarative Browse Surface Proof
+### Version 0.33.5.18.11 - Files Declarative Browse Surface Proof
 
 - [ ] Add a `viewSurfaces` descriptor for the Files browse read path.
 - [ ] Reduce `views/protected/files.html` to a minimal framework host element.
@@ -653,7 +659,7 @@ placement meaning, permission checks, scan/storage/download routes, and attachme
 - [ ] Add regressions proving the read-only Files browse surface renders from the descriptor without
       bypassing file routes.
 
-### Version 0.33.5.18.11 - File Upload, Attachment Panels, Row Actions, and Cleanup
+### Version 0.33.5.18.12 - File Upload, Attachment Panels, Row Actions, and Cleanup
 
 - [ ] Render the upload control with progress through the 0.33.5.18.1 capability, wired to the existing
       upload route via a registered behavior.
@@ -670,7 +676,7 @@ placement meaning, permission checks, scan/storage/download routes, and attachme
 
 ---
 
-## Clients/Projects Pages (0.33.5.18.12 - 0.33.5.18.13)
+## Clients/Projects Pages (0.33.5.18.13 - 0.33.5.18.14)
 
 The Add/Edit Client and Add/Edit Project dialogs were already converted to shared modal/form/footer
 helpers in 0.33.5.15.4. This cluster converts the remaining combined Clients/Projects page anatomy:
@@ -681,7 +687,7 @@ Framework owns: page shell, filters, hierarchy index/tree, split or table layout
 tables, action placement, empty/loading/error states. Clients/Projects owns: client/project hierarchy,
 billing metadata, Business-only gating, Personal/Family scope, validation, save payloads, permissions.
 
-### Version 0.33.5.18.12 - Clients/Projects Declarative Page Surface Proof
+### Version 0.33.5.18.13 - Clients/Projects Declarative Page Surface Proof
 
 - [ ] Add a `viewSurfaces` descriptor for the combined Clients/Projects page read path.
 - [ ] Reduce the Clients/Projects page HTML to a minimal framework host element.
@@ -695,7 +701,7 @@ billing metadata, Business-only gating, Personal/Family scope, validation, save 
 - [ ] Add regressions proving the read-only Clients/Projects page renders from the descriptor with
       correct hierarchy and Business-only gating.
 
-### Version 0.33.5.18.13 - Clients/Projects Hierarchy Interactions, Related Tables, Actions, and Cleanup
+### Version 0.33.5.18.14 - Clients/Projects Hierarchy Interactions, Related Tables, Actions, and Cleanup
 
 - [ ] Express hierarchy interactions (move/reparent), related-project and related-client tables, bulk
       controls, and page-level actions as declarative route actions or registered behaviors.
@@ -712,7 +718,7 @@ billing metadata, Business-only gating, Personal/Family scope, validation, save 
 
 ---
 
-## Version 0.33.5.18.14 - Cross-Surface Guardrails, Inventory, Documentation, and Closeout
+## Version 0.33.5.18.145- Cross-Surface Guardrails, Inventory, Documentation, and Closeout
 
 - [ ] Confirm fail-on-violation declarative guardrails are enforced on all four converted surfaces
       (Notes, Tasks, Files, Clients/Projects pages).
