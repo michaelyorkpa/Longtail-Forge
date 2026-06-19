@@ -1,3 +1,34 @@
+## Version 0.33.5.18.6.5.3 - 2026-06-18 22:26 -04:00
+
+- Migrated Add/Edit Note Linked Context controls to the shared framework picker shell while preserving Notes-owned target loading, search, use-target, staged-link, and saved-link mutation behavior.
+- Hid Workspace from the normal Add/Edit Note target picker, defaulted picker target selection to Project, and kept backend workspace-link support for legacy paths.
+- Added Note and List link targets to the Notes link-target service with permission-safe access checks, source URLs, and safe label shaping; tightened Personal/Family vs Business picker label behavior.
+- Extended Notes UI, shared picker, and Notes API regressions for shared-shell hooks, hidden Workspace picker options, Note/List target support, row hint rendering, and label-safety guardrails. Bumped package metadata/regression version pins to `0.33.5.18.6.5.3`.
+- Follow-up fix 2026-06-18 22:44 -04:00: initialized Notes browser state before building the framework shell so shared picker provider filtering can run during Add/Edit dialog construction without a `state` temporal-dead-zone crash; refreshed the Notes host cache key to `notes.js?v=43`.
+- Follow-up fix 2026-06-19 08:40 -04:00: repaired the View Note Linked Context picker so descriptor-linked selects populate their own records instead of routing through the Add/Edit shared picker mount; Business project picker labels now render as `Project Name (Client Name)` or `Project Name (Workspace Name)`, and the Notes host cache key is `notes.js?v=44`.
+- Follow-up fix 2026-06-19 08:56 -04:00: added the non-removable Primary Context card to the read-only Note view Linked Context panel and refreshed the Notes host cache key to `notes.js?v=45`.
+- Follow-up fix 2026-06-19 09:18 -04:00: made the Linked Context picker/read surfaces read-only for Primary Context. Linked Context can display a note's direct Primary Context, but Link Target, staged-link, saved-link, and URL-open flows no longer infer or write `client_id` / `project_id`; those fields are authored only through Note Details or explicit service payloads. Refreshed the Notes host cache key to `notes.js?v=46`.
+- Follow-up fix 2026-06-19 09:26 -04:00: hydrated saved notes from the authoritative no-store Notes API payload before populating the Edit Note modal, preventing the first modal open from showing stale Primary Context while the view page already shows current Primary Context. Refreshed the Notes host cache key to `notes.js?v=47`.
+- Follow-up fix 2026-06-19 09:38 -04:00: preserved saved Primary Context selections on first Edit modal open even when the first provider page omits the current client/project, restored task-created Note prefill for direct client/project Primary Context while keeping the task as removable Linked Context, added a bounded repair migration for task-created notes saved during the broken prefill window, and refreshed the Notes host cache key to `notes.js?v=48`.
+
+## Version 0.33.5.18.6.5.2 - 2026-06-18 17:03 -04:00
+
+- Added the framework-owned `LongtailForge.view.createLinkedContextPicker()` shell for the shared Target/Search/Record/Use Target Linked Context picker pattern, including existing-row rendering, remove actions, empty state, and read-only/permission-disabled display.
+- Documented that the shell owns picker anatomy while source modules/providers still own target availability, search/filtering, sorting, labels, URLs, context hints, save payloads, and permission enforcement.
+- Added shared-component regression coverage for picker anatomy, read-only state, provider-label rendering, CSS layout, and roadmap/docs coverage. Bumped package metadata/regression version pins to `0.33.5.18.6.5.2`.
+
+## Version 0.33.5.18.6.5.1 - 2026-06-18 16:34 -04:00
+
+- Added the shared `linked-context-target.v1` provider response contract with normalized target fields and safe-label validation for shared Linked Context picker providers.
+- Added module manifest `linkedContextProviders` support, registry/service listing helpers, and first-party provider descriptors for Client, Project, Task, Note, List, and User targets.
+- Documented provider ownership, sorting responsibility, required fields, and no-raw-ID label rules. Added regression coverage for the provider contract and bumped package metadata/regression version pins to `0.33.5.18.6.5.1`.
+
+## Version 0.33.5.18.6.4.4 - 2026-06-18 15:51 -04:00
+
+- Moved Notes List sorting out of the general Filters panel and into a bottom-left dropdown in the Notes List footer, below the scrollable list body, with pagination preserved on the right.
+- Added the required Notes List sort modes: title A-Z/Z-A, created newest/oldest, updated newest/oldest, Library / Collection then updated, Note Kind then updated, and Primary Context then updated. The default remains Date Updated newest first and ties are deterministic.
+- Added regression coverage for the footer placement, default sort, available sort modes, scoped sorting after filters, and stable tie-breaks. Refreshed the Notes host cache keys to `notes.js?v=41` / `longtail-forge.css?v=38` and bumped package metadata/regression version pins to `0.33.5.18.6.4.4`.
+
 ## Version 0.33.5.18.6.4.3 - 2026-06-18 15:30 -04:00
 
 - Added unsaved-note Linked Context staging in the Add/Edit Note dialog. `Use Target` now adds draft Linked Context rows locally for new notes, and saving the note persists the staged targets through the create payload `links` array.

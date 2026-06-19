@@ -1,4 +1,5 @@
 import { listTagPropagationResolverIds } from "../../services/tag-propagation-registry.js";
+import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../linked-context/provider-contract.js";
 
 const ACTIVE_MANIFEST_FIELDS = new Set([
   "id",
@@ -37,6 +38,7 @@ const ACTIVE_MANIFEST_FIELDS = new Set([
   "eventSummaries",
   "timerSources",
   "workItemSources",
+  "linkedContextProviders",
   "taggableTypes",
   "tagPropagation",
   "searchableTypes",
@@ -162,6 +164,21 @@ const VIEW_ACTION_FIELDS = new Set([
   "visibleWhen",
 ]);
 const VIEW_ACTION_ROLES = new Set(["primary", "secondary", "destructive", "utility"]);
+const LINKED_CONTEXT_PROVIDER_FIELDS = new Set([
+  "id",
+  "moduleId",
+  "targetType",
+  "label",
+  "description",
+  "provider",
+  "responseContract",
+  "requiredReadPermission",
+  "requiredPermissions",
+  "requiredModules",
+  "requiredWorkspaceCapabilities",
+  "workspaceTypes",
+  "terminology",
+]);
 const CORE_PERMISSION_IDS = new Set([
   "files.view",
   "files.upload",
@@ -250,6 +267,7 @@ function validateModuleManifest(moduleDefinition, allModuleIds = new Set()) {
   validateHooks(moduleDefinition.hooks, errors);
   validateTimerSources(moduleDefinition.timerSources, moduleDefinition.id, errors);
   validateWorkItemSources(moduleDefinition.workItemSources, moduleDefinition.id, errors);
+  validateLinkedContextProviders(moduleDefinition.linkedContextProviders, moduleDefinition.id, errors);
   validateTaggableTypes(moduleDefinition.taggableTypes, moduleDefinition.id, errors);
   validateTagPropagationDescriptors(moduleDefinition.tagPropagation, moduleDefinition.id, errors);
   validateSearchableTypes(moduleDefinition.searchableTypes, moduleDefinition.id, errors);
@@ -338,6 +356,10 @@ function validateModuleManifests(moduleDefinitions) {
       allTaggableTypes,
     }));
     errors.push(...validateAttachableTypeReferences(moduleDefinition, {
+      allModuleIds,
+      allPermissionIds,
+    }));
+    errors.push(...validateLinkedContextProviderReferences(moduleDefinition, {
       allModuleIds,
       allPermissionIds,
     }));
@@ -1135,6 +1157,70 @@ function validateTaggableTypes(taggableTypes, moduleId, errors) {
     optionalStringArray(item, "requiredModules", errors, { prefix: `taggableTypes[${index}]` });
     validateTerminology(item.terminology, `taggableTypes[${index}].terminology`, errors);
   });
+}
+
+function validateLinkedContextProviders(linkedContextProviders, moduleId, errors) {
+  optionalArrayOfObjects(linkedContextProviders, "linkedContextProviders", errors, (item, index) => {
+    const prefix = `linkedContextProviders[${index}]`;
+
+    validateKnownObjectFields(item, LINKED_CONTEXT_PROVIDER_FIELDS, prefix, errors);
+    requireString(item, "id", errors, { prefix });
+    validateModuleIdValue(item, "moduleId", moduleId, errors, { prefix });
+    requireString(item, "targetType", errors, { prefix });
+    requireString(item, "label", errors, { prefix });
+    requireString(item, "description", errors, { prefix });
+    requireString(item, "provider", errors, { prefix });
+    requireString(item, "responseContract", errors, { prefix });
+    requireString(item, "requiredReadPermission", errors, { prefix });
+    requireStringArray(item, "requiredPermissions", errors, { prefix });
+    optionalStringArray(item, "requiredModules", errors, { prefix });
+    optionalStringArray(item, "requiredWorkspaceCapabilities", errors, { prefix });
+    optionalStringArray(item, "workspaceTypes", errors, { prefix });
+    validateTerminology(item.terminology, `${prefix}.terminology`, errors);
+
+    if (item.responseContract !== undefined && item.responseContract !== LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT) {
+      errors.push(`${prefix}.responseContract must be ${LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT}.`);
+    }
+    if (
+      item.requiredReadPermission &&
+      Array.isArray(item.requiredPermissions) &&
+      !item.requiredPermissions.includes(item.requiredReadPermission)
+    ) {
+      errors.push(`${prefix}.requiredPermissions must include requiredReadPermission.`);
+    }
+  });
+}
+
+function validateLinkedContextProviderReferences(moduleDefinition, context) {
+  const errors = [];
+  const descriptors = Array.isArray(moduleDefinition?.linkedContextProviders) ? moduleDefinition.linkedContextProviders : [];
+
+  descriptors.forEach((descriptor, index) => {
+    const prefix = `linkedContextProviders[${index}]`;
+    const moduleLabel = moduleDefinition?.id || moduleDefinition?.name || "<unknown>";
+
+    if (descriptor?.moduleId && !context.allModuleIds.has(descriptor.moduleId)) {
+      errors.push(`${moduleLabel}: ${prefix}.moduleId references unknown module '${descriptor.moduleId}'.`);
+    }
+    for (const moduleId of descriptor?.requiredModules || []) {
+      if (!context.allModuleIds.has(moduleId)) {
+        errors.push(`${moduleLabel}: ${prefix}.requiredModules references unknown module '${moduleId}'.`);
+      }
+    }
+    for (const fieldName of ["requiredReadPermission"]) {
+      const permissionId = descriptor?.[fieldName];
+      if (permissionId && !context.allPermissionIds.has(permissionId)) {
+        errors.push(`${moduleLabel}: ${prefix}.${fieldName} references unknown permission '${permissionId}'.`);
+      }
+    }
+    for (const permissionId of descriptor?.requiredPermissions || []) {
+      if (permissionId && !context.allPermissionIds.has(permissionId)) {
+        errors.push(`${moduleLabel}: ${prefix}.requiredPermissions references unknown permission '${permissionId}'.`);
+      }
+    }
+  });
+
+  return errors;
 }
 
 function validateTagPropagationDescriptors(tagPropagation, moduleId, errors) {

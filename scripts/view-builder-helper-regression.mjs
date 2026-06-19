@@ -10,9 +10,9 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.6.4.3", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.6.4.3", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.4.3", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.6.5.3", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.6.5.3", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.6.5.3", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(helper, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view builder must not inject HTML strings");
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view builder must not own data loading or browser storage");
@@ -39,6 +39,7 @@ for (const helperName of [
   "createEmptyState",
   "createDetailHeader",
   "createInlineActionRow",
+  "createLinkedContextPicker",
 ]) {
   assert.equal(typeof view[helperName], "function", `LongtailForge.view.${helperName} should be exposed`);
 }
@@ -134,6 +135,13 @@ assert(modalForm.querySelector(".view-field-grid"), "modal forms should use fiel
 const row = view.createInlineActionRow({ actions: [{ label: "Edit", icon: "edit" }] });
 assert(row.classList.contains("surface-dense-actions"), "inline action rows should use dense actions");
 
+const linkedContextPicker = view.createLinkedContextPicker({
+  providers: [{ moduleId: "tasks", targetType: "task", label: "Task" }],
+  records: [{ moduleId: "tasks", targetType: "task", targetId: "task-1", displayLabel: "Task one" }],
+  linkedItems: [{ moduleId: "tasks", targetType: "task", targetId: "task-1", displayLabel: "Task one" }],
+});
+assert(linkedContextPicker.classList.contains("view-linked-context-picker"), "linked context picker should use the framework picker shell");
+
 assert.throws(() => view.createActionButton({}), /visible text or an accessible label/, "action buttons should require an accessible name");
 assert.throws(() => view.createPageHeader({}), /Page headers require a title/, "page headers should require titles");
 
@@ -145,6 +153,7 @@ assert.match(css, /\.view-page-header\s*\{[\s\S]*margin-bottom:\s*8px;/, "CSS sh
 assert.match(css, /\.view-stacked\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0;/, "CSS should define the stacked layout container without panel gaps");
 assert.match(css, /\.view-stacked \.view-collapsible-index-body\s*\{[\s\S]*overflow-y:\s*auto/, "CSS should cap the stacked index to a scroll region");
 assert.match(css, /\.view-collapsible-index-summary-actions\s*\{[\s\S]*justify-content:\s*flex-end/, "CSS should support right-aligned collapsible summary actions");
+assert.match(css, /\.view-linked-context-picker\s*\{[\s\S]*display:\s*grid/, "CSS should define the shared linked context picker shell");
 assert.match(viewContract, /As of 0\.33\.5\.15\.6/, "view contract should report helper implementation version");
 assert.match(viewContract, /`LongtailForge\.view` is implemented in `public\/js\/shared\/view-builder\.js`/, "view contract should document implemented helper location");
 assert.match(changelog, /## Version 0\.33\.5\.15\.2 - /, "Changelog should include helper implementation version");

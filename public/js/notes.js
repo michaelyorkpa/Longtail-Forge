@@ -23,18 +23,60 @@ const NOTE_KIND_LABELS = {
 };
 const LEGACY_NOTE_KINDS = new Set(["client", "project", "task", "ticket", "user"]);
 const COLLECTION_BUCKET_ORDER = ["active_work", "ongoing_area", "reference"];
+const DEFAULT_NOTE_SORT = "updated_desc";
+const NOTES_LIST_SORT_OPTIONS = [
+  ["title_asc", "Alphabetical (A-Z)"],
+  ["title_desc", "Alphabetical (Z-A)"],
+  ["created_desc", "Date Created (Newest First)"],
+  ["created_asc", "Date Created (Oldest First)"],
+  ["updated_desc", "Date Updated (Newest First)", true],
+  ["updated_asc", "Date Updated (Oldest First)"],
+  ["library_collection_updated_desc", "Library / Collection, then Date Updated"],
+  ["note_kind_updated_desc", "Note Kind, then Date Updated"],
+  ["primary_context_updated_desc", "Primary Context, then Date Updated"],
+];
 const LINK_TARGET_TYPE_LABELS = {
   workspace: "Workspace",
   client: "Client",
+  list: "List",
+  note: "Note",
   project: "Project",
   task: "Task",
   user: "User",
 };
-const LINK_TARGET_TYPE_ORDER = ["workspace", "client", "project", "task", "user"];
+const DEFAULT_LINK_TARGET_TYPE = "project";
+const LINK_TARGET_TYPE_ORDER = ["project", "task", "note", "list", "client", "user"];
 const NOTE_WORKFLOW_HANDLERS = {
   "notes.workflow.edit": (note) => openEditor(note),
   "notes.workflow.archive": (note) => archiveNote(note),
   "notes.workflow.restore": (note) => restoreNote(note),
+};
+
+let state = {
+  activeBucket: "all",
+  availableTags: [],
+  attachmentController: null,
+  collectionDialogMode: "create",
+  collectionEditingId: "",
+  collections: [],
+  editingNoteId: "",
+  editorAttachmentController: null,
+  editorContextSummaries: {},
+  editorNote: null,
+  editorSelectedTarget: null,
+  editorStagedTargets: [],
+  libraryManuallyChanged: false,
+  linkTargetSearchTimer: null,
+  linkTargets: [],
+  notes: [],
+  page: 1,
+  primaryContextClients: [],
+  primaryContextProjects: [],
+  previewRequestId: 0,
+  selectedNote: null,
+  selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
+  tagPicker: null,
+  workspaceType: "",
 };
 
 buildNotesViewShell();
@@ -111,33 +153,6 @@ const collectionSaveButton = document.querySelector("[data-note-collection-save]
 
 const editor = window.LongtailForge.notesEditor?.createPlainTextarea(bodyInput);
 
-let state = {
-  activeBucket: "all",
-  availableTags: [],
-  attachmentController: null,
-  collectionDialogMode: "create",
-  collectionEditingId: "",
-  collections: [],
-  editingNoteId: "",
-  editorAttachmentController: null,
-  editorContextSummaries: {},
-  editorNote: null,
-  editorSelectedTarget: null,
-  editorStagedTargets: [],
-  libraryManuallyChanged: false,
-  linkTargetSearchTimer: null,
-  linkTargets: [],
-  notes: [],
-  page: 1,
-  primaryContextClients: [],
-  primaryContextProjects: [],
-  previewRequestId: 0,
-  selectedNote: null,
-  selectedCollectionId: new URLSearchParams(window.location.search).get("collection") || "",
-  tagPicker: null,
-  workspaceType: "",
-};
-
 createButton?.addEventListener("click", () => openEditor());
 collectionCreateButton?.addEventListener("click", () => openCollectionDialog("create"));
 collectionLibraryFilter?.addEventListener("change", () => selectBucket(collectionLibraryFilter.value));
@@ -149,7 +164,10 @@ filtersForm?.addEventListener("change", () => {
   updateUrlCollection();
   renderNotes();
 });
-sortSelect?.addEventListener("change", renderNotes);
+sortSelect?.addEventListener("change", () => {
+  state.page = 1;
+  renderNotes();
+});
 prevButton?.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -331,7 +349,6 @@ function fallbackNotesViewSurfaceDescriptor() {
       { id: "owner-filter", field: "owner", type: "search", label: "Owner" },
       { id: "tags-filter", field: "tags", type: "search", label: "Tags" },
       { id: "updated-filter", field: "updatedSince", type: "date", label: "Updated Since" },
-      notesDescriptorSelect("sort", "Sort", [["updated_desc", "Updated", true], ["created_desc", "Created"], ["title_asc", "Title"], ["library_asc", "Library"], ["type_asc", "Note Kind"]]),
     ],
     indexPanel: {
       title: "Notes",
@@ -410,7 +427,6 @@ function decorateNotesDeclarativeSurface(surface) {
   decorateNotesFilter(surface, "owner", "noteFilterOwner");
   decorateNotesFilter(surface, "tags", "noteFilterTags");
   decorateNotesFilter(surface, "updatedSince", "noteFilterUpdated");
-  decorateNotesFilter(surface, "sort", "noteSort");
 
   const indexPanel = surface.querySelector(".view-collapsible-index");
   indexPanel?.classList.add("notes-index-panel");
@@ -425,8 +441,8 @@ function decorateNotesDeclarativeSurface(surface) {
   // scrollable body), so it hides natively when the panel is collapsed.
   if (indexPanel) {
     indexPanel.appendChild(view.createElement("div", {
-      className: "view-collapsible-index-footer",
-      children: [createNotesPagination()],
+      className: "view-collapsible-index-footer notes-list-panel-footer",
+      children: [createNotesListSortControl(), createNotesPagination()],
     }));
   }
   indexPanel?.before(createNotesLibraryPanel());
@@ -509,6 +525,22 @@ function createNotesListChrome() {
   wrap.appendChild(list);
 
   return wrap;
+}
+
+function createNotesListSortControl() {
+  const label = view.createElement("label", { className: "notes-list-sort", text: "Sort" });
+  const select = view.createElement("select");
+
+  select.dataset.noteSort = "";
+  NOTES_LIST_SORT_OPTIONS.forEach(([value, optionLabel, selected]) => {
+    const option = notesOptionElement(value, optionLabel);
+    option.selected = Boolean(selected);
+    select.appendChild(option);
+  });
+  select.value = DEFAULT_NOTE_SORT;
+  label.appendChild(select);
+
+  return label;
 }
 
 function createNotesPagination() {
@@ -597,30 +629,21 @@ function createNoteContextPanel() {
   const panel = view.createElement("details", { className: "notes-context-panel" });
   panel.appendChild(view.createElement("summary", { text: "Linked Context" }));
 
-  const contextList = view.createElement("div", {
-    className: "notes-editor-context-list notes-link-list",
+  const picker = view.createLinkedContextPicker({
+    providers: linkTargetProviderOptions(),
+    records: [],
+    linkedItems: [],
+    emptyMessage: notesLinkedRecordsDescriptor().emptyState?.message || "No linked context.",
+    onRemove: handleEditorLinkedContextRemove,
   });
-  contextList.dataset.noteContextList = "";
-  panel.appendChild(contextList);
+  picker.dataset.noteContextPicker = "";
+  picker.viewParts.rows.dataset.noteContextList = "";
+  picker.viewParts.targetSelect.dataset.noteContextTargetType = "";
+  picker.viewParts.searchInput.dataset.noteContextSearch = "";
+  picker.viewParts.recordSelect.dataset.noteContextResults = "";
+  picker.viewParts.useTargetButton.dataset.noteContextApply = "";
+  panel.appendChild(picker);
 
-  const search = view.createElement("input", { attrs: { type: "search", autocomplete: "off", placeholder: "Search linked context" } });
-  search.dataset.noteContextSearch = "";
-  const apply = view.createActionButton({ icon: "add", iconOnly: true, label: "Use Target", title: "Use Target" });
-  apply.dataset.noteContextApply = "";
-  const grid = view.createElement("div", {
-    className: "notes-picker-grid",
-    children: [
-      noteFieldLabel("Target", noteSelect("noteContextTargetType", [["workspace", "Workspace"], ["project", "Project"], ["task", "Task"], ["user", "User"]])),
-      noteFieldLabel("Search", search),
-      noteFieldLabel("Record", noteSelect("noteContextResults", [])),
-      apply,
-    ],
-  });
-  panel.appendChild(grid);
-
-  const selection = view.createElement("p", { className: "notes-picker-selection", text: "No linked context selected." });
-  selection.dataset.noteContextSelected = "";
-  panel.appendChild(selection);
   ["noteTaskId", "noteUserId"].forEach((name) => {
     const hidden = view.createElement("input", { attrs: { type: "hidden" } });
     hidden.dataset[name] = "";
@@ -1017,24 +1040,40 @@ function filteredNotes() {
 }
 
 function sortedNotes(notes) {
-  const sortValue = sortSelect?.value || "updated_desc";
+  const sortValue = sortSelect?.value || DEFAULT_NOTE_SORT;
   const sorted = [...notes];
 
   sorted.sort((left, right) => {
-    if (sortValue === "created_desc") {
-      return compareText(right.created_at, left.created_at);
-    }
     if (sortValue === "title_asc") {
-      return compareText(left.title, right.title);
+      return compareText(left.title, right.title) || compareNoteId(left, right);
     }
-    if (sortValue === "library_asc") {
-      return compareText(left.library_bucket, right.library_bucket) || compareText(left.title, right.title);
+    if (sortValue === "title_desc") {
+      return compareText(right.title, left.title) || compareNoteId(left, right);
     }
-    if (sortValue === "type_asc") {
-      return compareText(left.note_type, right.note_type) || compareText(left.title, right.title);
+    if (sortValue === "created_desc") {
+      return compareText(right.created_at, left.created_at) || compareNoteTitleThenId(left, right);
+    }
+    if (sortValue === "created_asc") {
+      return compareText(left.created_at, right.created_at) || compareNoteTitleThenId(left, right);
+    }
+    if (sortValue === "updated_asc") {
+      return compareText(left.updated_at, right.updated_at) || compareNoteTitleThenId(left, right);
+    }
+    if (sortValue === "library_collection_updated_desc") {
+      return compareNumber(bucketSortValue(left.library_bucket), bucketSortValue(right.library_bucket)) ||
+        compareText(collectionLabel(left.note_collection_id), collectionLabel(right.note_collection_id)) ||
+        compareNoteUpdatedDesc(left, right);
+    }
+    if (sortValue === "note_kind_updated_desc") {
+      return compareText(noteKindLabel(left.note_type), noteKindLabel(right.note_type)) ||
+        compareNoteUpdatedDesc(left, right);
+    }
+    if (sortValue === "primary_context_updated_desc") {
+      return compareText(primaryContextSortKey(left), primaryContextSortKey(right)) ||
+        compareNoteUpdatedDesc(left, right);
     }
 
-    return compareText(right.updated_at, left.updated_at);
+    return compareNoteUpdatedDesc(left, right);
   });
 
   return sorted;
@@ -1151,6 +1190,7 @@ function renderDetailPrompt(message, options = {}) {
 }
 
 async function openEditor(note = null) {
+  note = await hydrateEditorNote(note);
   state.editingNoteId = note?.note_id || "";
   state.editorNote = note;
   state.editorSelectedTarget = null;
@@ -1197,6 +1237,24 @@ async function openEditor(note = null) {
   updateLibrarySuggestion();
   dialog.showModal();
   titleInput.focus();
+}
+
+async function hydrateEditorNote(note = null) {
+  const noteId = note?.note_id || "";
+  if (!noteId) {
+    return note;
+  }
+
+  try {
+    const result = await api.getJson(`/api/notes/${encodeURIComponent(noteId)}`, { cache: "no-store" });
+    if (state.selectedNote?.note_id === noteId) {
+      state.selectedNote = result.note;
+      renderDetail(result.note);
+    }
+    return result.note;
+  } catch {
+    return note;
+  }
 }
 
 function updateSecureWarning() {
@@ -1321,7 +1379,7 @@ async function loadPrimaryContextOptions(selected = {}) {
     state.primaryContextClients = clients.filter(isActivePrimaryClientTarget);
     state.primaryContextProjects = projects;
 
-    const selectedProject = findPrimaryContextProject(selectedProjectId);
+    const selectedProject = findPrimaryContextProject(selectedProjectId) || primaryContextSummaryForSelection("project", selectedProjectId);
     const derivedClientId = usesBusinessScope() ? selectedProject?.clientId || selectedClientId || "" : "";
     populatePrimaryClientOptions(derivedClientId);
     populatePrimaryProjectOptions(selectedProjectId);
@@ -1366,6 +1424,9 @@ function populatePrimaryClientOptions(selectedClientId = clientInput?.value || "
   state.primaryContextClients.forEach((client) => {
     options.push(new window.Option(primaryClientOptionLabel(client), client.clientId || client.targetId || ""));
   });
+  if (usesBusinessScope() && selectedClientId && !optionListHasValue(options, selectedClientId)) {
+    options.push(primaryClientFallbackOption(selectedClientId));
+  }
   clientInput.replaceChildren(...options);
   clientInput.value = usesBusinessScope() && options.some((option) => option.value === selectedClientId) ? selectedClientId : "";
 }
@@ -1382,9 +1443,53 @@ function populatePrimaryProjectOptions(selectedProjectId = projectInput?.value |
     new window.Option("No project", ""),
     ...projects.map((project) => new window.Option(primaryProjectOptionLabel(project), project.projectId || project.targetId || "")),
   ];
+  if (selectedProjectId && !optionListHasValue(options, selectedProjectId)) {
+    options.push(primaryProjectFallbackOption(selectedProjectId));
+  }
 
   projectInput.replaceChildren(...options);
   projectInput.value = options.some((option) => option.value === selectedProjectId) ? selectedProjectId : "";
+}
+
+function optionListHasValue(options = [], value = "") {
+  return options.some((option) => option.value === value);
+}
+
+function primaryClientFallbackOption(selectedClientId = "") {
+  const summary = primaryContextSummaryForSelection("client", selectedClientId);
+  const option = new window.Option(summary.label ? primaryClientOptionLabel(summary) : unavailableTargetLabel("client"), selectedClientId);
+  const status = normalizeText(summary.status).toLowerCase();
+
+  option.dataset.primaryContextFallback = "";
+  option.disabled = Boolean(status && status !== "active");
+  return option;
+}
+
+function primaryProjectFallbackOption(selectedProjectId = "") {
+  const summary = primaryContextSummaryForSelection("project", selectedProjectId);
+  const option = new window.Option(summary.label
+    ? primaryProjectOptionLabel({ ...summary, projectId: selectedProjectId, targetId: selectedProjectId })
+    : unavailableTargetLabel("project"), selectedProjectId);
+
+  option.dataset.primaryContextFallback = "";
+  return option;
+}
+
+function primaryContextSummaryForSelection(targetType, selectedId = "") {
+  const summary = state.editorContextSummaries?.[targetType] || {};
+
+  if (!summary || typeof summary !== "object") {
+    return {};
+  }
+
+  const summaryIds = [
+    summary.targetId,
+    summary.target_id,
+    targetType === "client" ? summary.clientId : summary.projectId,
+    targetType === "client" ? summary.client_id : summary.project_id,
+  ].filter(Boolean);
+
+  return !selectedId || summaryIds.length === 0 || summaryIds.includes(selectedId) ? summary : {};
 }
 
 function handlePrimaryClientChange() {
@@ -1442,11 +1547,11 @@ async function loadEditorLinkTargets() {
   }
 
   contextResultsInput.disabled = true;
-  contextResultsInput.replaceChildren(new window.Option("Loading records...", ""));
+  replaceLinkTargetOptions([{ value: "", label: "Loading records...", disabled: true }]);
 
   try {
     const targets = await fetchLinkTargets({
-      targetType: contextTargetTypeInput?.value || "workspace",
+      targetType: contextTargetTypeInput?.value || defaultLinkTargetType(),
       search: contextSearchInput?.value || "",
       limit: 40,
     });
@@ -1454,7 +1559,7 @@ async function loadEditorLinkTargets() {
     populateLinkTargetSelect(contextResultsInput, targets);
   } catch {
     state.linkTargets = [];
-    contextResultsInput.replaceChildren(new window.Option("No records available", ""));
+    replaceLinkTargetOptions([{ value: "", label: "No records available", disabled: true }]);
   } finally {
     contextResultsInput.disabled = false;
   }
@@ -1475,13 +1580,19 @@ async function fetchLinkTargets({ targetType = "all", search = "", limit = 20 } 
 }
 
 function populateLinkTargetSelect(select, targets = []) {
-  const options = targets.map((target) => {
-    const option = new window.Option(linkTargetOptionLabel(target), target.targetId || "");
-    option.dataset.target = JSON.stringify(target);
-    return option;
-  });
+  const records = targets.map((target) => ({
+    ...pickerRecordFromTarget(target),
+    selected: false,
+  }));
+  replaceLinkTargetOptions(records, select);
 
-  select.replaceChildren(...(options.length > 0 ? options : [new window.Option("No records found", "")]));
+  [...(select?.options || [])].forEach((option, index) => {
+    const target = targets[index];
+    if (!target) {
+      return;
+    }
+    option.dataset.target = JSON.stringify(target);
+  });
 }
 
 function populateLinkTargetTypeSelect(select) {
@@ -1489,13 +1600,14 @@ function populateLinkTargetTypeSelect(select) {
     return;
   }
 
-  const selectedValue = availableLinkTargetTypes().includes(select.value) ? select.value : "workspace";
-  select.replaceChildren(...availableLinkTargetTypes().map((targetType) => {
+  const selectedValue = availableLinkTargetTypes().includes(select.value) ? select.value : defaultLinkTargetType();
+  const options = availableLinkTargetTypes().map((targetType) => {
     const option = document.createElement("option");
     option.value = targetType;
     option.textContent = LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType);
     return option;
-  }));
+  });
+  select.replaceChildren(...options);
   select.value = selectedValue;
 }
 
@@ -1503,10 +1615,79 @@ function availableLinkTargetTypes() {
   return LINK_TARGET_TYPE_ORDER.filter((targetType) => targetType !== "client" || usesBusinessScope());
 }
 
-function linkTargetOptionLabel(target = {}) {
-  const typeLabel = LINK_TARGET_TYPE_LABELS[target.targetType] || formatToken(target.targetType || "record");
-  const parts = [target.label || unavailableTargetLabel(target.targetType), target.subtitle].filter(Boolean);
-  return `${typeLabel}: ${parts.join(" - ")}`;
+function defaultLinkTargetType() {
+  const available = availableLinkTargetTypes();
+  return available.includes(DEFAULT_LINK_TARGET_TYPE)
+    ? DEFAULT_LINK_TARGET_TYPE
+    : available[0] || "project";
+}
+
+function linkTargetProviderOptions() {
+  return availableLinkTargetTypes().map((targetType) => ({
+    moduleId: {
+      client: "client-projects",
+      list: "lists",
+      note: "notes",
+      project: "client-projects",
+      task: "tasks",
+      user: "users",
+    }[targetType] || "",
+    targetType,
+    label: LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType),
+  }));
+}
+
+function replaceLinkTargetOptions(records = [], select = contextResultsInput) {
+  const parts = select === contextResultsInput ? editorContextPickerParts() : {};
+  if (select === contextResultsInput && typeof parts.setRecords === "function") {
+    parts.setRecords(records);
+    return;
+  }
+  const options = records.map((record) => {
+    const option = new window.Option(record.displayLabel || record.label || "No records found", record.targetId || record.value || "");
+    option.disabled = Boolean(record.disabled);
+    return option;
+  });
+  select?.replaceChildren(...options);
+}
+
+function pickerRecordFromTarget(target = {}) {
+  return {
+    moduleId: target.moduleId || target.module_id || "",
+    targetType: target.targetType || target.target_type || "",
+    targetId: target.targetId || target.target_id || "",
+    displayLabel: targetPickerDisplayLabel(target),
+    secondaryLabel: targetPickerSecondaryLabel(target),
+    sourceUrl: target.sourceUrl || target.source_url || "",
+    isAvailable: target.isAvailable !== false,
+  };
+}
+
+function targetPickerDisplayLabel(target = {}) {
+  const targetType = target.targetType || target.target_type || "";
+  const label = target.label || unavailableTargetLabel(targetType);
+  if (targetType === "project" && usesBusinessScope()) {
+    const contextName = target.clientName || target.client_name || target.workspaceName || target.workspace_name || window.LongtailForge?.workspaceContext?.workspaceName || "";
+    return contextName ? `${label} (${contextName})` : label;
+  }
+  return label;
+}
+
+function targetPickerSecondaryLabel(target = {}) {
+  if (!usesBusinessScope()) {
+    return "";
+  }
+
+  const targetType = target.targetType || target.target_type || "";
+  if (targetType === "project") {
+    return "";
+  }
+
+  if (targetType === "task") {
+    return target.clientName || target.client_name || target.projectName || target.project_name || target.workspaceName || target.workspace_name || "";
+  }
+
+  return "";
 }
 
 function readSelectedLinkTarget(select) {
@@ -1537,7 +1718,6 @@ async function applyEditorLinkTarget() {
     return;
   }
 
-  applyContextTarget(target);
   stageEditorLinkTarget(target);
   renderEditorContextSelection(target);
   updateLibrarySuggestion({ preferredSuggestion: target.suggestedLibraryBucket });
@@ -1626,36 +1806,6 @@ function removeEditorStagedTarget(target = {}) {
   updateLibrarySuggestion();
 }
 
-function applyContextTarget(target = {}) {
-  if (target.targetType === "client") {
-    clientInput.value = target.clientId || target.targetId || "";
-    projectInput.value = "";
-    taskInput.value = "";
-    userInput.value = "";
-  } else if (target.targetType === "project") {
-    clientInput.value = target.clientId || clientInput.value || "";
-    projectInput.value = target.projectId || target.targetId || "";
-    taskInput.value = "";
-    userInput.value = "";
-  } else if (target.targetType === "task") {
-    clientInput.value = target.clientId || clientInput.value || "";
-    projectInput.value = target.projectId || projectInput.value || "";
-    taskInput.value = "";
-    userInput.value = "";
-  } else if (target.targetType === "user") {
-    clientInput.value = "";
-    projectInput.value = "";
-    taskInput.value = "";
-    userInput.value = target.userId || target.targetId || "";
-  } else if (target.targetType === "workspace") {
-    clientInput.value = "";
-    projectInput.value = "";
-    taskInput.value = "";
-    userInput.value = "";
-  }
-  syncPrimaryContextControlsFromValues();
-}
-
 function renderEditorContextSelection(target = null) {
   renderEditorContextPanel();
   if (!contextSelectedMessage) {
@@ -1682,52 +1832,42 @@ function contextSummaryLabel(targetType) {
   return state.editorContextSummaries?.[targetType]?.label || unavailableTargetLabel(targetType);
 }
 
-function syncPrimaryContextControlsFromValues() {
-  if (!clientInput || !projectInput) {
-    return;
-  }
-  if (!usesBusinessScope()) {
-    clientInput.value = "";
-  }
-  populatePrimaryClientOptions(clientInput.value);
-  populatePrimaryProjectOptions(projectInput.value);
-  renderEditorContextPanel();
-}
-
 function renderEditorContextPanel() {
   if (!contextList) {
     return;
   }
 
-  const rows = [
+  const items = [
     editorPrimaryContextItem(),
     ...editorLinkedContextRows(),
   ];
+  const parts = editorContextPickerParts();
 
-  if (rows.length === 1) {
-    rows.push(view.createElement("p", {
-      className: "notes-empty-state notes-editor-context-empty",
-      text: notesLinkedRecordsDescriptor().emptyState?.message || "No linked context.",
-    }));
+  if (typeof parts.setLinkedItems === "function") {
+    parts.setLinkedItems(items);
+    return;
   }
 
-  contextList.replaceChildren(...rows);
+  contextList.replaceChildren(...items.map((item) => view.createElement("div", {
+    className: ["notes-link-item", item.className],
+    text: [item.displayLabel, item.secondaryLabel, item.hintLabel].filter(Boolean).join(" - "),
+  })));
+}
+
+function editorContextPickerParts() {
+  return contextList?.closest("[data-note-context-picker]")?.viewParts || {};
 }
 
 function editorPrimaryContextItem() {
-  const body = view.createElement("span", {
-    className: "notes-link-item-label",
-    children: [
-      view.createElement("strong", { text: "Primary Context" }),
-      view.createElement("small", { text: editorPrimaryContextSummary() }),
-      view.createElement("small", { className: "notes-context-hint", text: "Edit in Note Details" }),
-    ],
-  });
-
-  return view.createElement("div", {
-    className: ["notes-link-item", "notes-primary-context-row"],
-    children: [body],
-  });
+  return {
+    className: "notes-primary-context-row",
+    displayLabel: "Primary Context",
+    hintLabel: "Edit in Note Details",
+    removable: false,
+    secondaryLabel: editorPrimaryContextSummary(),
+    targetId: "",
+    targetType: "primary-context",
+  };
 }
 
 function editorPrimaryContextSummary() {
@@ -1760,61 +1900,38 @@ function editorLinkedContextRows() {
 
 function editorLinkedContextItem(note, link) {
   const targetType = link.targetType || link.target_type || "";
-  const remove = note.status === "archived"
-    ? null
-    : editorLinkedContextRemoveButton(() => removeEditorNoteLink(note, link));
 
-  return editorLinkedContextRow({
-    label: link.label || unavailableTargetLabel(targetType),
-    remove,
+  return {
+    displayLabel: targetPickerDisplayLabel({
+      ...link,
+      targetType,
+    }),
+    link,
+    moduleId: link.moduleId || link.module_id || "",
+    removable: note.status !== "archived",
+    secondaryLabel: targetPickerSecondaryLabel({
+      ...link,
+      targetType,
+    }),
     sourceUrl: link.sourceUrl || link.source_url || "",
-    subtitle: link.subtitle || (LINK_TARGET_TYPE_LABELS[targetType] || formatToken(targetType)),
-  });
+    targetId: link.targetId || link.target_id || "",
+    targetType,
+  };
 }
 
 function editorStagedTargetItem(target = {}) {
-  return editorLinkedContextRow({
-    label: target.label || unavailableTargetLabel(target.targetType),
-    remove: editorLinkedContextRemoveButton(() => removeEditorStagedTarget(target)),
-    subtitle: target.subtitle || (LINK_TARGET_TYPE_LABELS[target.targetType] || formatToken(target.targetType || "context")),
-  });
+  return {
+    ...pickerRecordFromTarget(target),
+    target,
+  };
 }
 
-function editorLinkedContextRow({ label, subtitle, sourceUrl = "", remove = null } = {}) {
-  const title = view.createElement(sourceUrl ? "a" : "strong", {
-    text: label || "Unavailable linked context",
-    attrs: sourceUrl ? { href: sourceUrl } : {},
-  });
-  const subtitleNode = view.createElement("small", {
-    text: subtitle || "Linked Context",
-  });
-  const body = view.createElement("span", {
-    className: "notes-link-item-label",
-    children: [title, subtitleNode],
-  });
-  const children = [body];
-
-  if (remove) {
-    children.push(remove);
+function handleEditorLinkedContextRemove(item = {}) {
+  if (item.link) {
+    removeEditorNoteLink(state.editorNote || {}, item.link);
+  } else if (item.target) {
+    removeEditorStagedTarget(item.target);
   }
-
-  return view.createElement("div", {
-    className: ["notes-link-item", "notes-editor-link-item"],
-    children,
-  });
-}
-
-function editorLinkedContextRemoveButton(onClick) {
-  const remove = view.createActionButton({
-    icon: "delete",
-    iconOnly: true,
-    label: "Remove",
-    title: "Remove",
-    role: "secondary",
-    onClick,
-  });
-  remove.dataset.noteLinkRemove = "";
-  return remove;
 }
 
 function selectedOptionText(select, fallback) {
@@ -2143,14 +2260,51 @@ function linkedRecordsField(descriptor, fieldName) {
 }
 
 function linkRecordNodes(note) {
+  const primaryContext = notePrimaryContextItem(note);
   const links = note.links || [];
-  if (links.length === 0) {
+  const items = [
+    primaryContext,
+    ...links.map((link) => linkItem(note, link)),
+  ].filter(Boolean);
+
+  if (items.length === 0) {
     return [view.createElement("p", {
       className: "notes-empty-state",
       text: notesLinkedRecordsDescriptor().emptyState?.message || "No linked context.",
     })];
   }
-  return links.map((link) => linkItem(note, link));
+  return items;
+}
+
+function notePrimaryContextItem(note = {}) {
+  const summary = notePrimaryContextSummary(note);
+
+  if (!summary) {
+    return null;
+  }
+
+  const title = view.createElement("strong", { text: "Primary Context" });
+  const subtitle = view.createElement("small", { text: summary });
+  const label = view.createElement("span", { className: "notes-link-item-label", children: [title, subtitle] });
+
+  return view.createElement("div", {
+    className: "notes-link-item notes-primary-context-row",
+    children: [label],
+  });
+}
+
+function notePrimaryContextSummary(note = {}) {
+  const context = note.linked_context || {};
+  const parts = [];
+
+  if (usesBusinessScope() && (note.client_id || context.client)) {
+    parts.push(`Client: ${context.client?.label || unavailableTargetLabel("client")}`);
+  }
+  if (note.project_id || context.project) {
+    parts.push(`Project: ${context.project?.label || unavailableTargetLabel("project")}`);
+  }
+
+  return parts.join(" / ");
 }
 
 function linkItem(note, link) {
@@ -2451,7 +2605,7 @@ async function openEditorForLinkedTarget(target) {
     targetId: target.targetId,
     targetType: target.targetType,
   };
-  applyContextTarget(matchedTarget);
+  await applyTaskCreatedPrimaryContext(target, matchedTarget);
   stageEditorLinkTarget(matchedTarget);
   if (target.noteKind && typeInput) {
     ensureNoteKindOption(target.noteKind);
@@ -2468,6 +2622,63 @@ async function openEditorForLinkedTarget(target) {
   }
   renderEditorContextSelection(matchedTarget);
   updateLibrarySuggestion({ preferredSuggestion: matchedTarget.suggestedLibraryBucket });
+}
+
+async function applyTaskCreatedPrimaryContext(target = {}, matchedTarget = {}) {
+  const targetType = target.targetType || target.target_type || "";
+
+  if (targetType !== "task") {
+    return;
+  }
+
+  const clientId = normalizeText(target.clientId || target.client_id || matchedTarget.clientId || matchedTarget.client_id);
+  const projectId = normalizeText(target.projectId || target.project_id || matchedTarget.projectId || matchedTarget.project_id);
+
+  if (!clientId && !projectId) {
+    return;
+  }
+
+  setTaskCreatedPrimaryContextSummaries({ ...matchedTarget, ...target, clientId, projectId });
+  await loadPrimaryContextOptions({ clientId, projectId });
+  if (usesBusinessScope() && clientInput) {
+    clientInput.value = clientId;
+  }
+  if (projectInput) {
+    projectInput.value = projectId;
+  }
+  renderEditorContextPanel();
+}
+
+function setTaskCreatedPrimaryContextSummaries(target = {}) {
+  const clientId = normalizeText(target.clientId || target.client_id);
+  const projectId = normalizeText(target.projectId || target.project_id);
+  const clientName = normalizeText(target.clientName || target.client_name);
+  const projectName = normalizeText(target.projectName || target.project_name);
+  const workspaceName = normalizeText(target.workspaceName || target.workspace_name || window.LongtailForge?.workspaceContext?.workspaceName);
+
+  state.editorContextSummaries = {
+    ...(state.editorContextSummaries || {}),
+    ...(clientId ? {
+      client: {
+        clientId,
+        label: clientName || unavailableTargetLabel("client"),
+        status: target.clientStatus || target.client_status || "",
+        targetId: clientId,
+        targetType: "client",
+      },
+    } : {}),
+    ...(projectId ? {
+      project: {
+        clientId,
+        clientName,
+        label: projectName || unavailableTargetLabel("project"),
+        projectId,
+        targetId: projectId,
+        targetType: "project",
+        workspaceName,
+      },
+    } : {}),
+  };
 }
 
 function updateUrl(noteId) {
@@ -2908,6 +3119,30 @@ function safeNoteErrorMessage(error = {}, fallback = "Note action failed.") {
 
 function compareText(left, right) {
   return String(left || "").localeCompare(String(right || ""));
+}
+
+function compareNumber(left, right) {
+  return Number(left || 0) - Number(right || 0);
+}
+
+function compareNoteUpdatedDesc(left = {}, right = {}) {
+  return compareText(right.updated_at, left.updated_at) || compareNoteTitleThenId(left, right);
+}
+
+function compareNoteTitleThenId(left = {}, right = {}) {
+  return compareText(left.title, right.title) || compareNoteId(left, right);
+}
+
+function compareNoteId(left = {}, right = {}) {
+  return compareText(left.note_id, right.note_id);
+}
+
+function primaryContextSortKey(note = {}) {
+  const context = note.linked_context || {};
+  const clientLabel = context.client?.label || note.client_name || note.client_id || "";
+  const projectLabel = context.project?.label || note.project_name || note.project_id || "";
+
+  return [clientLabel, projectLabel].filter(Boolean).join(" / ") || "zz";
 }
 
 function createOption(value, label) {

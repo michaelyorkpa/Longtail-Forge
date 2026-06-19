@@ -35,7 +35,9 @@ async function assertStaticTaskContextContract() {
   const notesServiceSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.service.js"), "utf8");
 
   assert.match(notesJs, /task_id: null/);
-  assert.match(notesJs, /target\.targetType === "task"[\s\S]*?taskInput\.value = ""/);
+  assert.doesNotMatch(notesJs, /primaryContextFromTarget|taskLinkPrimaryContext|applyContextTarget/, "Linked Context must not infer or mutate Primary Context from task targets");
+  assert.match(notesJs, /async function applyTaskCreatedPrimaryContext\(target = \{\}, matchedTarget = \{\}\)[\s\S]*if \(targetType !== "task"\) \{[\s\S]*return;[\s\S]*clientInput\.value = clientId[\s\S]*projectInput\.value = projectId/, "The task-created Note flow should explicitly prefill direct Primary Context controls for new task notes");
+  assert.match(notesJs, /await applyTaskCreatedPrimaryContext\(target, matchedTarget\);[\s\S]*stageEditorLinkTarget\(matchedTarget\);/, "Task-created Primary Context prefill should run before the task is staged as Linked Context");
   assert.doesNotMatch(notesJs, /linked\.push\(`Task: \$\{contextSummaryLabel\("task"\)\}`\)/);
   assert.match(notesServiceSource, /function normalizeLinkPayloads\(payload = \{\}\)/);
   assert.match(notesServiceSource, /links\.push\(\{\s*module_id: "tasks",\s*target_type: "task",\s*target_id: taskId,\s*\}\)/);
@@ -93,6 +95,7 @@ async function assertTaskCreatedNoteContext(session) {
 
 async function assertDirectTaskMigrationContract() {
   const migration = await fs.readFile(path.join(process.cwd(), "src/modules/notes/migrations/063_task_note_link_context.sql"), "utf8");
+  const repairMigration = await fs.readFile(path.join(process.cwd(), "src/modules/notes/migrations/064_repair_task_created_primary_context.sql"), "utf8");
 
   assert.match(migration, /INSERT OR IGNORE INTO note_links/);
   assert.match(migration, /'tasks'/);
@@ -100,6 +103,11 @@ async function assertDirectTaskMigrationContract() {
   assert.match(migration, /notes\.task_id/);
   assert.match(migration, /NOT EXISTS/);
   assert.match(migration, /UPDATE notes\s+SET task_id = NULL/);
+  assert.match(repairMigration, /WITH task_created_context AS/, "Task-created Primary Context repair should be a bounded Notes-owned migration");
+  assert.match(repairMigration, /notes\.note_type = 'log'[\s\S]*notes\.library_bucket = 'active_work'/, "Task-created repair should only target task-created note defaults");
+  assert.match(repairMigration, /ABS\(strftime\('%s', note_links\.created_at\) - strftime\('%s', notes\.created_at\)\) <= 60/, "Task-created repair should only use task links created with the note");
+  assert.match(repairMigration, /HAVING COUNT\(\*\) = 1/, "Task-created repair should not pick between multiple task links");
+  assert.match(repairMigration, /SET[\s\S]*client_id = COALESCE[\s\S]*project_id = COALESCE/, "Task-created repair should fill missing direct Primary Context fields");
 }
 
 async function createTaskContextFixtures(session) {

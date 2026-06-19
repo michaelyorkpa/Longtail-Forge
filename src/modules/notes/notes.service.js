@@ -37,6 +37,8 @@ import {
 } from "./secure-crypto.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
+import { LIST_PERMISSIONS, listResource } from "../lists/access-policy.js";
+import { listsRepository } from "../lists/lists.repo.js";
 import { tasksRepository } from "../tasks/tasks.repo.js";
 import { modulesService } from "../../core/modules/modules.service.js";
 import { auditService } from "../../core/audit.js";
@@ -49,7 +51,7 @@ import { workspacesRepository } from "../../repositories/workspaces.repo.js";
 import { normalizeWorkspaceType } from "../../utils/workspaces.js";
 
 const NOTES_MODULE_ID = "notes";
-const LINK_TARGET_TYPES = new Set(["workspace", "client", "project", "task", "user"]);
+const LINK_TARGET_TYPES = new Set(["workspace", "client", "project", "task", "note", "list", "user"]);
 const NOTE_TYPE_VALUES = new Set([...Object.values(NOTE_TYPES), ...Object.values(LEGACY_NOTE_TYPES)]);
 const LIBRARY_BUCKET_VALUES = new Set(Object.values(NOTE_LIBRARY_BUCKETS));
 const LIBRARY_BUCKET_SOURCE_VALUES = new Set(Object.values(NOTE_LIBRARY_BUCKET_SOURCES));
@@ -634,7 +636,7 @@ async function listLinkTargets(session, query = {}) {
   const targetType = normalizeOptionalText(query.targetType || query.target_type || "all") || "all";
   const search = normalizeOptionalText(query.q || query.query || query.search).toLowerCase();
   const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 20, 1), 50);
-  const targetTypes = targetType === "all" ? ["workspace", "client", "project", "task", "user"] : [targetType];
+  const targetTypes = targetType === "all" ? ["workspace", "client", "project", "task", "note", "list", "user"] : [targetType];
   const targets = [];
 
   for (const type of targetTypes) {
@@ -929,7 +931,7 @@ function decryptSecureRevisionForRead(revision = {}) {
   };
 }
 
-async function canAccessLinkedContext(session, note, links = []) {
+async function canAccessLinkedContext(session, note, links = [], seenTargets = new Set()) {
   const targets = [
     ...noteContextTargets(note),
     ...links.map((link) => ({
@@ -940,7 +942,7 @@ async function canAccessLinkedContext(session, note, links = []) {
   ].filter((target) => target.target_id || target.target_type === "workspace");
 
   for (const target of targets) {
-    if (!(await canTargetAccess(session, target))) {
+    if (!(await canTargetAccess(session, target, seenTargets))) {
       return false;
     }
   }
@@ -960,8 +962,14 @@ async function assertTargetAccess(session, target) {
   }
 }
 
-async function canTargetAccess(session, target) {
+async function canTargetAccess(session, target, seenTargets = new Set()) {
   const normalizedTarget = normalizeTarget(target);
+  const targetKey = linkedContextTargetKey(normalizedTarget);
+  if (seenTargets.has(targetKey)) {
+    return true;
+  }
+  const nextSeenTargets = new Set(seenTargets);
+  nextSeenTargets.add(targetKey);
 
   if (normalizedTarget.target_type === "workspace") {
     return normalizedTarget.target_id === session.workspace_id;
@@ -1001,6 +1009,14 @@ async function canTargetAccess(session, target) {
     });
   }
 
+  if (normalizedTarget.target_type === "note") {
+    return canAccessNoteTarget(session, normalizedTarget, nextSeenTargets);
+  }
+
+  if (normalizedTarget.target_type === "list") {
+    return canAccessListTarget(session, normalizedTarget);
+  }
+
   if (normalizedTarget.target_type === "user") {
     return normalizedTarget.target_id === session.user_id ||
       permissionsService.can(session, "users.manage", {
@@ -1011,6 +1027,43 @@ async function canTargetAccess(session, target) {
   }
 
   return false;
+}
+
+function linkedContextTargetKey(target = {}) {
+  return [target.module_id || "", target.target_type || "", target.target_id || ""].join(":");
+}
+
+async function canAccessNoteTarget(session, target, seenTargets = new Set()) {
+  const note = await notesRepository.readById(session.workspace_id, target.target_id);
+  if (!note || note.status === NOTE_STATUSES.DELETED || note.deleted_at) {
+    return false;
+  }
+
+  const links = await notesRepository.listLinks(session.workspace_id, note.note_id);
+  const linkedRecordAccess = await canAccessLinkedContext(session, note, links, seenTargets);
+  const access = canAccessNote({
+    note,
+    operation: "read",
+    session,
+    permissions: await readNotePermissionSet(session),
+    linkedRecordAccess,
+    ...(await readNotesModuleState(session)),
+  });
+  return access.allowed;
+}
+
+async function canAccessListTarget(session, target) {
+  if (!(await modulesService.canReadModule(session.workspace_id, "lists"))) {
+    return false;
+  }
+
+  const listRecord = await listsRepository.readById(session.workspace_id, target.target_id);
+  if (!listRecord || listRecord.status === "deleted" || listRecord.deleted_at) {
+    return false;
+  }
+
+  return permissionsService.can(session, LIST_PERMISSIONS.VIEW_ALL, listResource(listRecord)) ||
+    permissionsService.can(session, LIST_PERMISSIONS.VIEW, listResource(listRecord));
 }
 
 async function listTargetsByType(session, targetType) {
@@ -1063,6 +1116,7 @@ async function listTargetsByType(session, targetType) {
   }
 
   if (targetType === "task") {
+    const workspace = await workspacesRepository.readById(session.workspace_id);
     const tasks = await filterReadableTasks(session, await tasksRepository.readAll(session.workspace_id));
     return tasks.map((task) => shapeLinkTarget({
       target_type: "task",
@@ -1071,10 +1125,54 @@ async function listTargetsByType(session, targetType) {
       subtitle: [task.client_name, task.project_name, task.status].filter(Boolean).join(" - ") || "Task",
       source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
       client_id: task.client_id || "",
+      client_name: task.client_name || "",
       project_id: task.project_id || "",
+      project_name: task.project_name || "",
       task_id: task.task_id,
+      workspace_name: workspace?.workspace_name || "Workspace",
       suggested_library_bucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
     }));
+  }
+
+  if (targetType === "note") {
+    const notes = await filterAccessibleNotes(session, await notesRepository.list(session.workspace_id, {}));
+    return notes.map((note) => shapeLinkTarget({
+      target_type: "note",
+      target_id: note.note_id,
+      label: readableTargetLabel(note.title, "note"),
+      subtitle: "",
+      source_url: noteSourceUrl(note.note_id),
+      client_id: note.client_id || "",
+      project_id: note.project_id || "",
+      note_id: note.note_id,
+    }));
+  }
+
+  if (targetType === "list") {
+    if (!(await canReadLinkTargetType(session, "list"))) {
+      return [];
+    }
+    const lists = await listsRepository.list(session.workspace_id, {});
+    const readableLists = [];
+    for (const listRecord of lists) {
+      if (await canAccessListTarget(session, {
+        module_id: "lists",
+        target_type: "list",
+        target_id: listRecord.list_id,
+      })) {
+        readableLists.push(shapeLinkTarget({
+          target_type: "list",
+          target_id: listRecord.list_id,
+          label: readableTargetLabel(listRecord.title, "list"),
+          subtitle: "",
+          source_url: `lists.html?list=${encodeURIComponent(listRecord.list_id)}`,
+          client_id: listRecord.client_id || "",
+          project_id: listRecord.project_id || "",
+          list_id: listRecord.list_id,
+        }));
+      }
+    }
+    return readableLists;
   }
 
   if (targetType === "user") {
@@ -1101,6 +1199,8 @@ async function workspaceSupportsClientTargets(session) {
 async function canReadLinkTargetType(session, targetType) {
   const moduleId = {
     client: "client-projects",
+    list: "lists",
+    note: "notes",
     project: "client-projects",
     task: "tasks",
   }[targetType];
@@ -1145,7 +1245,14 @@ function targetMatchesSearch(target, search) {
     target.subtitle,
     target.targetId,
     target.clientId,
+    target.clientName,
+    target.listId,
+    target.noteId,
     target.projectId,
+    target.projectName,
+    target.workspaceName,
+    target.taskId,
+    target.userId,
   ].filter(Boolean).join(" ").toLowerCase().includes(search);
 }
 
@@ -1208,6 +1315,8 @@ function defaultModuleForTargetType(targetType) {
   return {
     workspace: "framework",
     client: "client-projects",
+    list: "lists",
+    note: "notes",
     project: "client-projects",
     task: "tasks",
     user: "users",
@@ -1513,13 +1622,39 @@ async function readTargetSummary(session, target = {}) {
     }
     if (normalizedTarget.target_type === "task") {
       const task = await tasksRepository.readById(session.workspace_id, normalizedTarget.target_id);
+      const workspace = await workspacesRepository.readById(session.workspace_id);
       return task ? {
         label: readableTargetLabel(task.title, "task"),
         subtitle: [task.client_name, task.project_name, task.status].filter(Boolean).join(" - ") || "Task",
         source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
         client_id: task.client_id || "",
+        client_name: task.client_name || "",
         project_id: task.project_id || "",
+        project_name: task.project_name || "",
         task_id: task.task_id,
+        workspace_name: workspace?.workspace_name || "Workspace",
+      } : safeUnavailableTarget(normalizedTarget);
+    }
+    if (normalizedTarget.target_type === "note") {
+      const note = await notesRepository.readById(session.workspace_id, normalizedTarget.target_id);
+      return note ? {
+        label: readableTargetLabel(note.title, "note"),
+        subtitle: "",
+        source_url: noteSourceUrl(note.note_id),
+        client_id: note.client_id || "",
+        project_id: note.project_id || "",
+        note_id: note.note_id,
+      } : safeUnavailableTarget(normalizedTarget);
+    }
+    if (normalizedTarget.target_type === "list") {
+      const listRecord = await listsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+      return listRecord ? {
+        label: readableTargetLabel(listRecord.title, "list"),
+        subtitle: "",
+        source_url: `lists.html?list=${encodeURIComponent(listRecord.list_id)}`,
+        client_id: listRecord.client_id || "",
+        project_id: listRecord.project_id || "",
+        list_id: listRecord.list_id,
       } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "user") {
@@ -1551,7 +1686,10 @@ function shapeLinkTarget(target = {}) {
     sourceUrl: target.source_url || target.sourceUrl || targetSourceUrl({ target_type: targetType, target_id: targetId }),
     clientId: target.client_id || target.clientId || "",
     clientName: target.client_name || target.clientName || "",
+    listId: target.list_id || target.listId || "",
+    noteId: target.note_id || target.noteId || "",
     projectId: target.project_id || target.projectId || "",
+    projectName: target.project_name || target.projectName || "",
     workspaceName: target.workspace_name || target.workspaceName || "",
     taskId: target.task_id || target.taskId || "",
     userId: target.user_id || target.userId || "",
@@ -2146,6 +2284,8 @@ function targetSourceUrl(target = {}) {
   return {
     workspace: "dashboard.html",
     client: "clients.html",
+    list: `lists.html?list=${targetId}`,
+    note: noteSourceUrl(target.target_id || ""),
     project: "projects.html",
     task: `tasks.html?task=${targetId}`,
     user: "settings.html",

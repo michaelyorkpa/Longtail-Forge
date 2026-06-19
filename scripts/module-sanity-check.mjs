@@ -239,6 +239,26 @@ check("work item sources expose dedicated list routes", () => {
   }
 });
 
+check("linked context providers expose module-owned target contracts", () => {
+  const providers = modulesService.listLinkedContextProviders();
+
+  assertUnique("linked context provider id", providers.map((provider) => provider.id));
+
+  for (const provider of providers) {
+    assert.ok(provider.moduleId, `linked context provider ${provider.id} moduleId is required`);
+    assert.ok(provider.targetType, `linked context provider ${provider.id} targetType is required`);
+    assert.ok(provider.label, `linked context provider ${provider.id} label is required`);
+    assert.ok(provider.provider, `linked context provider ${provider.id} provider registry id is required`);
+    assert.equal(provider.responseContract, "linked-context-target.v1", `${provider.id} response contract is required`);
+    assert.ok(provider.requiredReadPermission, `${provider.id} read permission is required`);
+    assert.ok(provider.requiredPermissions?.includes(provider.requiredReadPermission), `${provider.id} permissions should include requiredReadPermission`);
+  }
+
+  assert.ok(providers.some((provider) => provider.targetType === "task"), "task linked context provider should be registered");
+  assert.ok(providers.some((provider) => provider.targetType === "note"), "note linked context provider should be registered");
+  assert.ok(providers.some((provider) => provider.targetType === "list"), "list linked context provider should be registered");
+});
+
 check("workspace terminology resolver follows fallback order", () => {
   const terminology = {
     default: {

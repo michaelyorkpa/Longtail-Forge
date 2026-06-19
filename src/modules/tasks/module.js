@@ -1,6 +1,7 @@
 import { tasksRoutes } from "./tasks.routes.js";
 import { tasksPublicApiRoutes } from "./public-api.routes.js";
 import { registerTasksSearchIndexers } from "./search-indexers.js";
+import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
 
 registerTasksSearchIndexers();
 
@@ -347,6 +348,21 @@ const tasksModule = {
       allowedVisibilityValues: ["private", "workspace", "client"],
       lifecycleEvents: ["file.attachment.created", "file.attachment.removed"],
       requiredModules: ["tasks"],
+    },
+  ],
+  linkedContextProviders: [
+    {
+      id: "tasks.task",
+      moduleId: "tasks",
+      targetType: "task",
+      label: "Task",
+      description: "Permission-safe task targets for shared Linked Context pickers.",
+      provider: "tasks.linked-context.tasks",
+      responseContract: LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT,
+      requiredReadPermission: "tasks.view",
+      requiredPermissions: ["tasks.view"],
+      requiredModules: ["tasks"],
+      requiredWorkspaceCapabilities: ["projects", "clients_projects"],
     },
   ],
   tagPropagation: [

@@ -9,6 +9,7 @@ const [
   notesModule,
   notesService,
   notesHtml,
+  viewBuilder,
 ] = await Promise.all([
   fs.readFile(path.join(process.cwd(), "docs/workflow-context-contract.md"), "utf8"),
   fs.readFile(path.join(process.cwd(), "docs/notes-module.md"), "utf8"),
@@ -16,6 +17,7 @@ const [
   fs.readFile(path.join(process.cwd(), "src/modules/notes/module.js"), "utf8"),
   fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.service.js"), "utf8"),
   fs.readFile(path.join(process.cwd(), "views/protected/notes.html"), "utf8"),
+  fs.readFile(path.join(process.cwd(), "public/js/shared/view-builder.js"), "utf8"),
 ]);
 
 for (const phrase of [
@@ -43,7 +45,8 @@ assert.match(notesDocs, /Audit Logs may still display raw IDs/);
 
 assert.match(notesModule, /linkedRecords:\s*\{[\s\S]*title:\s*"Linked Context"[\s\S]*No linked context\./);
 assert.match(notesJs, /title:\s*"Linked Context"/);
-assert.match(notesJs, /placeholder:\s*"Search linked context"/);
+assert.match(viewBuilder, /placeholder:\s*options\.searchPlaceholder \|\| "Search linked context"/);
+assert.match(notesJs, /searchInput\.dataset\.noteContextSearch = ""/);
 assert.match(notesJs, /function unavailableTargetLabel/);
 assert.match(notesJs, /\["Owner", note\.owner_display_name \|\| "Unavailable owner"\]/);
 assert.match(notesJs, /targetType !== "client" \|\| usesBusinessScope\(\)/);
@@ -68,7 +71,7 @@ assert.match(notesService, /readableTargetLabel\(project\.name, "project"\)/);
 assert.match(notesService, /readableTargetLabel\(task\.title, "task"\)/);
 assert.match(notesService, /readableTargetLabel\(user\.display_name \|\| user\.displayName \|\| user\.username, "user"\)/);
 assert.doesNotMatch(notesService, /client\.name \|\| client\.id|project\.name \|\| project\.id|task\.title \|\| task\.task_id|user\.display_name \|\| user\.username \|\| user\.user_id|user\.displayName \|\| user\.username \|\| user\.user_id/);
-assert.match(notesHtml, /js\/notes\.js\?v=40/);
+assert.match(notesHtml, /js\/notes\.js\?v=48/);
 
 console.log("Notes context terminology regression passed.");
 

@@ -13,6 +13,11 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
+## Markdown rendering
+
+- I want external links (non-wiki) to open a new tab
+  - This setting should be configurable in User Settings -> Markdown Rendering
+
 ## Notes - Suggested Library
 
 - Revisit this once the app is built more (not quite medium term, but not today 2026/06/18)

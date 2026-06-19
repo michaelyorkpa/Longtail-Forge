@@ -796,31 +796,30 @@ Acceptance criteria:
 
 #### Version 0.33.5.18.6.4.4 - Notes List sorting control
 
-- [ ] Add a Notes List sort dropdown below the inset, scrollable Notes List body.
-  - [ ] Place the sort control on the bottom-left of the Notes List panel footer.
-  - [ ] Preserve pagination/action controls on the bottom-right where applicable.
-  - [ ] Keep the sort control hidden when the Notes List panel is collapsed.
-- [ ] Sort the currently visible Notes List result set only.
-  - [ ] Respect the current workspace, Library, Collection, filters, search, and archive scope.
-  - [ ] Do not mutate note records, collection membership, or saved note metadata when sorting.
-  - [ ] Use a deterministic tie-breaker such as title, then note id, when primary sort values match.
-- [ ] Required sort options:
-  - [ ] `Alphabetical (A-Z)`
-  - [ ] `Alphabetical (Z-A)`
-  - [ ] `Date Created (Newest First)`
-  - [ ] `Date Created (Oldest First)`
-  - [ ] `Date Updated (Newest First)` [Default]
-  - [ ] `Date Updated (Oldest First)`
-- [ ] Candidate additional sort options to review before implementation:
-  - [ ] `Library / Collection, then Date Updated`
-  - [ ] `Note Kind, then Date Updated`
-  - [ ] `Primary Context, then Date Updated`
-- [ ] Add regression coverage:
-  - [ ] Default sort is Date Updated newest first.
-  - [ ] Alphabetical A-Z and Z-A apply to visible note titles.
-  - [ ] Created/updated ascending and descending order work with stable tie-breaks.
-  - [ ] Sorting preserves the active Library/Collection/filter/search scope.
-  - [ ] Sort dropdown placement stays below the scrollable Notes List body and does not overlap pagination.
+- [x] Add a Notes List sort dropdown below the inset, scrollable Notes List body.
+  - [x] Place the sort control on the bottom-left of the Notes List panel footer.
+  - [x] Preserve pagination/action controls on the bottom-right where applicable.
+  - [x] Keep the sort control hidden when the Notes List panel is collapsed.
+- [x] Sort the currently visible Notes List result set only.
+  - [x] Respect the current workspace, Library, Collection, filters, search, and archive scope.
+  - [x] Do not mutate note records, collection membership, or saved note metadata when sorting.
+  - [x] Use a deterministic tie-breaker such as title, then note id, when primary sort values match.
+- [x] Required sort options:
+  - [x] `Alphabetical (A-Z)`
+  - [x] `Alphabetical (Z-A)`
+  - [x] `Date Created (Newest First)`
+  - [x] `Date Created (Oldest First)`
+  - [x] `Date Updated (Newest First)` [Default]
+  - [x] `Date Updated (Oldest First)`
+  - [x] `Library / Collection, then Date Updated`
+  - [x] `Note Kind, then Date Updated`
+  - [x] `Primary Context, then Date Updated`
+- [x] Add regression coverage:
+  - [x] Default sort is Date Updated newest first.
+  - [x] Alphabetical A-Z and Z-A apply to visible note titles.
+  - [x] Created/updated ascending and descending order work with stable tie-breaks.
+  - [x] Sorting preserves the active Library/Collection/filter/search scope.
+  - [x] Sort dropdown placement stays below the scrollable Notes List body and does not overlap pagination.
 
 Acceptance criteria:
 
@@ -840,29 +839,30 @@ Split into three sub-slices so the contract, framework shell, and Notes adoption
 
 #### Version 0.33.5.18.6.5.1 - Linked Context picker provider contract
 
-- [ ] Create or formalize a shared Linked Context picker contract.
-- [ ] Source modules should expose link target providers.
-  - [ ] The framework must not hard-code how Projects, Tasks, Notes, Lists, Clients, or future modules sort and label their own records.
-  - [ ] The framework may standardize the provider response shape.
-- [ ] Provider response shape should include normalized fields such as:
-  - [ ] `moduleId`
-  - [ ] `targetType`
-  - [ ] `targetId`
-  - [ ] `displayLabel`
-  - [ ] `secondaryLabel`
-  - [ ] `sortKey`
-  - [ ] `sourceUrl`
-  - [ ] `clientId`
-  - [ ] `projectId`
-  - [ ] `workspaceId`
-  - [ ] `isAvailable`
-  - [ ] Optional `primaryContextHints`
-- [ ] Add contract documentation:
-  - [ ] Source module provider responsibilities.
-  - [ ] Required fields.
-  - [ ] Sorting responsibility.
-  - [ ] Label safety rules.
-  - [ ] No UUID UI rule.
+- [x] Create or formalize a shared Linked Context picker contract. — Added the `linked-context-target.v1`
+      provider response contract and validation helpers in `src/core/linked-context/provider-contract.js`.
+- [x] Source modules should expose link target providers.
+  - [x] The framework must not hard-code how Projects, Tasks, Notes, Lists, Clients, or future modules sort and label their own records. — Provider descriptors live in module manifests; provider docs and regressions state source modules own filtering, sorting, labels, summaries, URLs, and context hints.
+  - [x] The framework may standardize the provider response shape. — The framework validates the normalized contract fields while leaving provider-owned query/sort/label behavior to source modules.
+- [x] Provider response shape should include normalized fields such as:
+  - [x] `moduleId`
+  - [x] `targetType`
+  - [x] `targetId`
+  - [x] `displayLabel`
+  - [x] `secondaryLabel`
+  - [x] `sortKey`
+  - [x] `sourceUrl`
+  - [x] `clientId`
+  - [x] `projectId`
+  - [x] `workspaceId`
+  - [x] `isAvailable`
+  - [x] Optional `primaryContextHints`
+- [x] Add contract documentation:
+  - [x] Source module provider responsibilities.
+  - [x] Required fields.
+  - [x] Sorting responsibility.
+  - [x] Label safety rules.
+  - [x] No UUID UI rule.
 
 Acceptance criteria:
 
@@ -872,55 +872,68 @@ Acceptance criteria:
 
 #### Version 0.33.5.18.6.5.2 - Framework Linked Context picker shell
 
-- [ ] Build or formalize the shared picker UI shell.
-- [ ] The shared picker UI shell should support:
-  - [ ] Target select.
-  - [ ] Search input.
-  - [ ] Record dropdown.
-  - [ ] `+ Use Target` action.
-  - [ ] Existing linked context row rendering.
-  - [ ] Remove action rendering.
-  - [ ] Empty state rendering.
-  - [ ] Permission-disabled/read-only state rendering.
-- [ ] The picker must render provider-supplied labels rather than constructing strings like:
+- [x] Build or formalize the shared picker UI shell. — Added `LongtailForge.view.createLinkedContextPicker()` as the framework-owned Target/Search/Record/Use Target shell.
+- [x] The shared picker UI shell should support:
+  - [x] Target select.
+  - [x] Search input.
+  - [x] Record dropdown.
+  - [x] `+ Use Target` action.
+  - [x] Existing linked context row rendering.
+  - [x] Remove action rendering.
+  - [x] Empty state rendering.
+  - [x] Permission-disabled/read-only state rendering.
+- [x] The picker must render provider-supplied labels rather than constructing strings like:
   - `Project: Name - Client - Active`
   - `Client: Name - Client - Active`
   - `Task: Name - Active`
-- [ ] Add framework shared-component regression coverage for the shell and provider-label rendering.
+- [x] Add framework shared-component regression coverage for the shell and provider-label rendering. — Added `linked-context-picker-shell-regression.mjs` plus shared view-helper exposure coverage.
 
 Acceptance criteria:
 
-- The framework owns reusable picker anatomy.
-- The shell can be reused by Lists, Tasks, Files, Clients/Projects, and future modules.
-- The shell does not construct module-specific labels or sorting.
+- [x] The framework owns reusable picker anatomy.
+- [x] The shell can be reused by Lists, Tasks, Files, Clients/Projects, and future modules.
+- [x] The shell does not construct module-specific labels or sorting.
 
 #### Version 0.33.5.18.6.5.3 - Notes adoption of shared Linked Context picker
 
-- [ ] Migrate Add/Edit Note Linked Context controls to the shared picker shell.
-- [ ] Hide/deprecate `Workspace` as a normal selectable target in Add/Edit Note Linked Context unless a later workflow explicitly needs it.
-  - [ ] Backend support may remain if currently needed.
-  - [ ] Do not default the Add/Edit Note picker to Workspace when the user is trying to link useful context.
-- [ ] Notes Linked Context supported target types:
-  - [ ] Client, Business workspaces only.
-  - [ ] Project.
-  - [ ] Task.
-  - [ ] Note.
-  - [ ] List.
-  - [ ] User only if the current Notes link model intentionally continues to support user links.
-- [ ] Personal/Family workspace behavior:
-  - [ ] Do not show Client target.
-  - [ ] Do not show client labels in project/task display strings.
-- [ ] Business workspace behavior:
-  - [ ] Client target appears only if user can read clients.
-  - [ ] Workspace-level projects are supported.
-  - [ ] Workspace-level project/task labels use workspace name where client name would otherwise appear.
-- [ ] Add Notes UI regression coverage for the shared picker adoption.
+- [x] Migrate Add/Edit Note Linked Context controls to the shared picker shell. — Add/Edit Notes now mount `LongtailForge.view.createLinkedContextPicker()` and bind the existing Notes target/search/record/use-target hooks through `viewParts`.
+- [x] Hide/deprecate `Workspace` as a normal selectable target in Add/Edit Note Linked Context unless a later workflow explicitly needs it.
+  - [x] Backend support may remain if currently needed. — The service still recognizes workspace links for legacy/backend paths.
+  - [x] Do not default the Add/Edit Note picker to Workspace when the user is trying to link useful context. — The normal picker default is Project.
+- [x] Notes Linked Context supported target types:
+  - [x] Client, Business workspaces only.
+  - [x] Project.
+  - [x] Task.
+  - [x] Note.
+  - [x] List.
+  - [x] User only if the current Notes link model intentionally continues to support user links. — User remains available behind existing user-read rules.
+- [x] Personal/Family workspace behavior:
+  - [x] Do not show Client target.
+  - [x] Do not show client labels in project/task display strings.
+- [x] Business workspace behavior:
+  - [x] Client target appears only if user can read clients.
+  - [x] Workspace-level projects are supported.
+  - [x] Workspace-level project/task labels use workspace name where client name would otherwise appear.
+- [x] Linked Context is read-only for Primary Context.
+  - [x] Linked Context picker/select/staged/saved-link flows do not create, update, delete, infer, or recover direct `client_id` / `project_id` Primary Context.
+  - [x] Primary Context can be displayed as a non-removable reference row, but direct Primary Context is authored only through Note Details or explicit service payload fields.
+- [x] Task-created Note creation remains a Notes-owned explicit create workflow.
+  - [x] Creating a note from a task pre-fills direct Primary Context controls from the task's readable client/project before save.
+  - [x] The task itself is still staged as removable Linked Context and does not own Primary Context.
+  - [x] Task-created notes saved during the broken prefill window are repaired only when they match the task-created defaults and a single task link created with the note.
+- [x] Saved-note Edit dialogs hydrate from the authoritative no-store Notes API payload before modal fields are populated.
+  - [x] The first Edit modal open uses the same current Primary Context that the Notes view page is already displaying.
+  - [x] Current saved client/project selections remain selected even when the first provider result page does not include that client/project option.
+- [x] Add Notes UI regression coverage for the shared picker adoption. — Extended Notes UI and linked-context picker regressions for shared shell hooks, hidden Workspace picker options, Note/List targets, label safety, and shared row hint rendering.
 
 Acceptance criteria:
 
-- Add/Edit Note uses the shared Linked Context picker shell.
-- Notes target choices match workspace type and permission rules.
-- No picker option displays raw UUIDs or redundant type/status strings.
+- [x] Add/Edit Note uses the shared Linked Context picker shell.
+- [x] Notes target choices match workspace type and permission rules.
+- [x] No picker option displays raw UUIDs or redundant type/status strings.
+- [x] Linked Context never mutates Primary Context.
+- [x] View-page Primary Context and first-open Edit modal Primary Context stay in sync.
+- [x] Notes created from task context carry the task client/project as direct Primary Context and the task as Linked Context.
 
 ---
 

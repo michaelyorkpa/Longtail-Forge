@@ -8,6 +8,7 @@ import { listsRoutes } from "./lists.routes.js";
 import { listsPublicApiRoutes } from "./public-api.routes.js";
 import { registerListsSearchIndexers } from "./search-indexers.js";
 import { LIST_MODULE_ID } from "./storage-contract.js";
+import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
 
 registerListsSearchIndexers();
 
@@ -614,6 +615,20 @@ const listsModule = {
       allowedVisibilityValues: ["private", "workspace", "client"],
       lifecycleEvents: ["file.attachment.created", "file.attachment.removed"],
       requiredModules: ["lists"],
+    },
+  ],
+  linkedContextProviders: [
+    {
+      id: "lists.list",
+      moduleId: LIST_MODULE_ID,
+      targetType: "list",
+      label: "List",
+      description: "Permission-safe list targets for shared Linked Context pickers.",
+      provider: "lists.linked-context.lists",
+      responseContract: LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT,
+      requiredReadPermission: LIST_PERMISSIONS.VIEW,
+      requiredPermissions: [LIST_PERMISSIONS.VIEW],
+      requiredModules: [LIST_MODULE_ID],
     },
   ],
   notificationEvents: [],

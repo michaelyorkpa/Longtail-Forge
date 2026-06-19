@@ -7,6 +7,7 @@ import {
 import { notesPublicApiRoutes } from "./public-api.routes.js";
 import { notesRoutes } from "./notes.routes.js";
 import { registerNotesSearchIndexers } from "./search-indexers.js";
+import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
 
 registerNotesSearchIndexers();
 
@@ -268,14 +269,6 @@ const notesModule = {
         { id: "owner-filter", field: "owner", type: "search", label: "Owner" },
         { id: "tags-filter", field: "tags", type: "search", label: "Tags" },
         { id: "updated-filter", field: "updatedSince", type: "date", label: "Updated Since" },
-        {
-          id: "sort-filter",
-          field: "sort",
-          type: "select",
-          label: "Sort",
-          default: "updated_desc",
-          options: [["updated_desc", "Updated", true], ["created_desc", "Created"], ["title_asc", "Title"], ["library_asc", "Library"], ["type_asc", "Note Kind"]],
-        },
       ],
       indexPanel: {
         title: "Notes",
@@ -548,6 +541,20 @@ const notesModule = {
       allowedFileCategories: ["document", "image", "pdf", "spreadsheet", "presentation", "text", "other"],
       allowedVisibilityValues: ["private", "workspace", "client"],
       lifecycleEvents: ["file.attachment.created", "file.attachment.removed"],
+      requiredModules: ["notes"],
+    },
+  ],
+  linkedContextProviders: [
+    {
+      id: "notes.note",
+      moduleId: "notes",
+      targetType: "note",
+      label: "Note",
+      description: "Permission-safe note targets for shared Linked Context pickers.",
+      provider: "notes.linked-context.notes",
+      responseContract: LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT,
+      requiredReadPermission: NOTE_PERMISSIONS.VIEW,
+      requiredPermissions: [NOTE_PERMISSIONS.VIEW],
       requiredModules: ["notes"],
     },
   ],

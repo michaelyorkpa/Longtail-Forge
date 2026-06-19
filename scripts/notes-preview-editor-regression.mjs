@@ -68,8 +68,8 @@ async function assertStaticBrowserContract() {
   const routesSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.routes.js"), "utf8");
 
   assert.match(notesHtml, /js\/shared\/notes-editor\.js\?v=3/);
-  assert.match(notesHtml, /css\/longtail-forge\.css\?v=37/);
-  assert.match(notesHtml, /js\/notes\.js\?v=40/);
+  assert.match(notesHtml, /css\/longtail-forge\.css\?v=39/);
+  assert.match(notesHtml, /js\/notes\.js\?v=48/);
   assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/);
   assert.match(notesJs, /previewRequestId/);
   assert.match(notesJs, /bodyInput\?\.addEventListener\("input", \(\) => renderPreview\(\)\)/);

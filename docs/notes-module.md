@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.5.18.6.4.3. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.18.6.5.3. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -21,6 +21,7 @@ Important files:
 - `src/modules/notes/search-indexers.js`: `notes.records` search indexer.
 - `public/js/notes.js` and `views/protected/notes.html`: browser workspace and UI behavior.
 - `docs/workflow-context-contract.md`: shared Primary Context / Linked Context terminology and safe label rules.
+- `docs/linked-context-picker-contract.md`: shared Linked Context picker provider/shell contract and normalized target response shape.
 
 ## Library Model
 
@@ -42,6 +43,14 @@ Collections are scoped to one Library bucket. Parent/child collection trees use 
 Collections are classification metadata only. They do not grant access, override visibility, bypass secure-note rules, or replace clients/projects/tasks/tickets/users/tags. Collection counts are calculated from permission-filtered note lists, so inaccessible private, secure, or Linked Context-hidden notes do not leak through counts. Moving a note to a different Library bucket clears `note_collection_id` when the prior collection belongs to the old bucket.
 
 Archived collections remain attached to notes but are hidden from normal collection tree data unless archived collections are explicitly requested. Deleting a collection is soft-delete only and is allowed only when it has no non-deleted notes and no active child collections.
+
+## Notes List Sorting
+
+The protected Notes workspace sorts the currently visible Notes List after applying workspace scope, Library, Collection, filters, search fields, and archive status. Sorting is a browser read-surface concern only; it does not mutate note rows, collection membership, timestamps, or saved metadata.
+
+The active sort control lives in the Notes List panel footer, below the scrollable list body. It is bottom-left in the footer while pagination remains bottom-right, and it is hidden automatically when the Notes List disclosure is collapsed. The default sort is `Date Updated (Newest First)`.
+
+Supported Notes List sort modes are `Alphabetical (A-Z)`, `Alphabetical (Z-A)`, `Date Created (Newest First)`, `Date Created (Oldest First)`, `Date Updated (Newest First)`, `Date Updated (Oldest First)`, `Library / Collection, then Date Updated`, `Note Kind, then Date Updated`, and `Primary Context, then Date Updated`. Sort ties fall back deterministically to title and then note id.
 
 ## Bucket Behavior
 
@@ -88,15 +97,17 @@ Note Kind is content-kind metadata only. It must not drive permissions, visibili
 
 Notes can use direct context columns and flexible `note_links` rows. Direct nullable `notes.client_id` and `notes.project_id` fields are Primary Context. `note_links` rows are Linked Context. Primary Context is used by framework-facing behavior such as permissions, tags, search, files, filters, public API shaping, and future resume context. Linked Context is flexible related-record context and should not replace Primary Context.
 
-The current supported link targets are workspace, client, project, task, and user; ticket context is reserved until a ticket module exists. Linked Context access is checked before reads, list inclusion, target lookup, link creation, and link removal. If the session cannot read the linked target, the note is hidden or the target operation is rejected. Links connect a note to context; they do not grant access to the note or to the target.
+The current backend-supported link targets are workspace, client, project, task, note, list, and user; ticket context is reserved until a ticket module exists. Linked Context access is checked before reads, list inclusion, target lookup, link creation, and link removal. If the session cannot read the linked target, the note is hidden or the target operation is rejected. Links connect a note to context; they do not grant access to the note or to the target.
 
-The browser Notes workspace uses the Notes-owned `/api/notes/link-targets` picker route instead of raw ID entry for Linked Context. Picker results are permission-shaped by the target owner before labels are returned. Workspace, client, project, task, and user results include safe human labels, source URLs where the app has a record view, and context hints such as `clientId`, `projectId`, and `suggestedLibraryBucket`.
+The browser Notes workspace uses the Notes-owned `/api/notes/link-targets` picker route instead of raw ID entry for Linked Context. Picker results are permission-shaped by the target owner before labels are returned. Client, project, task, note, list, and user results include safe human labels, source URLs where the app has a record view, and context hints such as `clientId`, `projectId`, and `suggestedLibraryBucket`. Workspace target support remains for legacy/backend compatibility, but Workspace is not a normal selectable target in the Add/Edit Note picker.
+
+As of 0.33.5.18.6.5.3, the shared Linked Context provider contract is formalized through module manifest `linkedContextProviders` descriptors and the `linked-context-target.v1` normalized response shape, and the framework exposes `LongtailForge.view.createLinkedContextPicker()` as the reusable picker shell. Notes declares itself as a Note target provider, while Clients/Projects, Tasks, Lists, and Users declare their own target providers. The Add/Edit Note dialog now uses the shared picker shell while Notes still owns target availability, target lookup, save payloads, Primary Context inference, and permission-safe labels.
 
 The Add/Edit Note modal exposes Primary Context inside the Note Details disclosure. Business workspaces show nullable Client and Project selects; the Client select lists active clients only. Personal and Family workspaces hide Client and keep Project available. Missing or unknown browser workspace context is treated as non-Business and must not show Client controls. Browser Client controls require both Business workspace type and the `clients_projects` workspace capability. The Visibility dropdown hides `Client Visible` outside client-capable Business workspaces and normalizes stale non-Business `client_visible` editor values back to `internal`. Client labels are the client name only. Project labels are `Project Name - Client Name` for business client projects, `Project Name - Workspace Name` for business workspace projects, and `Project Name` in Personal/Family workspaces.
 
 Task-created notes store the task's readable client/project as Primary Context and the task itself as a normal Linked Context row. The browser no longer writes `notes.task_id` as direct Primary Context; legacy `task_id` payloads are converted into task links, and migration `063_task_note_link_context.sql` repairs existing rows by creating a task link before clearing the direct task column. Removing the task link must not remove Primary Context, and editing Primary Context must not remove unrelated Linked Context.
 
-The Add/Edit Linked Context panel mirrors the View Note row model. It starts with a non-removable Primary Context display row, including the `Edit in Note Details` hint, then shows saved Linked Context rows and staged unsaved-note Linked Context rows using readable labels and secondary context. Remove controls belong only to Linked Context rows; Primary Context changes continue to happen through the Note Details controls.
+The Add/Edit Linked Context panel mirrors the View Note row model through the shared picker shell. It starts with a non-removable Primary Context display row, including the `Edit in Note Details` hint, then shows saved Linked Context rows and staged unsaved-note Linked Context rows using readable labels and secondary context. Remove controls belong only to Linked Context rows; Primary Context changes continue to happen through the Note Details controls. Personal and Family workspaces do not show Client as a target and do not include client labels in project/task picker display strings. Business workspaces can show Client when the user can read client/project data, and workspace-level project/task labels use the workspace name when no client name is present.
 
 Saved-note Add/Edit Linked Context mutations are immediate. `Use Target` posts a new `note_links` row through the Notes link API and refreshes the editor rows, underlying detail panel, and note list without requiring Save Note. Removing a saved Linked Context row uses the same API-first refresh path. These browser controls are convenience hints only; service-layer access checks remain authoritative.
 

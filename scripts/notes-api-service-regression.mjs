@@ -14,6 +14,7 @@ const { tagsService } = await import("../src/services/tags.service.js");
 const { filesService } = await import("../src/services/files.service.js");
 const { LEGACY_NOTE_TYPES, NOTE_LIBRARY_BUCKETS, NOTE_SECURITY_MODES, NOTE_STATUSES, NOTE_TYPES, NOTE_VISIBILITIES } = await import("../src/modules/notes/library.js");
 const { clientsRepository } = await import("../src/modules/client-projects/clients.repo.js");
+const { listsRepository } = await import("../src/modules/lists/lists.repo.js");
 const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
 const { tasksRepository } = await import("../src/modules/tasks/tasks.repo.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
@@ -42,6 +43,7 @@ try {
 async function assertLinkedRecordPickerReadModel(session) {
   const suffix = randomUUID().slice(0, 8);
   const clientId = `picker-client-${suffix}`;
+  const listId = `picker-list-${suffix}`;
   const projectId = `picker-project-${suffix}`;
   const taskId = `picker-task-${suffix}`;
 
@@ -69,6 +71,18 @@ async function assertLinkedRecordPickerReadModel(session) {
     status: "open",
     priority: "normal",
     billable: "yes",
+    created_by_user_id: session.user_id,
+    updated_by_user_id: session.user_id,
+  });
+  const list = await listsRepository.create(session.workspace_id, {
+    list_id: listId,
+    client_id: clientId,
+    project_id: projectId,
+    title: "Picker List",
+    description: "A list target for Notes Linked Context.",
+    list_type: "checklist",
+    status: "active",
+    is_reusable: false,
     created_by_user_id: session.user_id,
     updated_by_user_id: session.user_id,
   });
@@ -103,19 +117,47 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   assert.equal(projectTarget.label, "Picker Project");
   assert.equal(projectTarget.suggestedLibraryBucket, NOTE_LIBRARY_BUCKETS.ONGOING_AREA);
 
+  const referenceNote = await notesService.create({
+    title: "Picker reference note",
+    body_markdown: "Reference target body.",
+  }, session);
+
+  const noteTargets = await notesService.listLinkTargets(session, { targetType: "note", q: "Picker reference note" });
+  const noteTarget = noteTargets.targets.find((target) => target.targetId === referenceNote.note.note_id);
+  assert.equal(noteTarget.label, "Picker reference note");
+  assert.equal(noteTarget.noteId, referenceNote.note.note_id);
+  assert.equal(noteTarget.sourceUrl, `notes.html?note=${encodeURIComponent(referenceNote.note.note_id)}`);
+
+  const listTargets = await notesService.listLinkTargets(session, { targetType: "list", q: "Picker List" });
+  const listTarget = listTargets.targets.find((target) => target.targetId === list.list_id);
+  assert.equal(listTarget.label, "Picker List");
+  assert.equal(listTarget.listId, list.list_id);
+  assert.equal(listTarget.sourceUrl, `lists.html?list=${encodeURIComponent(list.list_id)}`);
+
   const note = await notesService.create({
     title: "Picker linked note",
     body_markdown: "Linked picker body.",
-    links: [{ targetType: "task", targetId: task.task_id }],
+    links: [
+      { targetType: "task", targetId: task.task_id },
+      { targetType: "note", targetId: referenceNote.note.note_id },
+      { targetType: "list", targetId: list.list_id },
+    ],
     task_id: task.task_id,
     project_id: projectId,
     client_id: clientId,
   }, session);
   const read = await notesService.read(note.note.note_id, session);
+  const taskLink = read.note.links.find((link) => link.target_type === "task" || link.targetType === "task");
+  const noteLink = read.note.links.find((link) => link.target_type === "note" || link.targetType === "note");
+  const listLink = read.note.links.find((link) => link.target_type === "list" || link.targetType === "list");
 
   assert.equal(read.note.task_id || "", "");
-  assert.equal(read.note.links[0].label, "Picker Task");
-  assert.equal(read.note.links[0].source_url, `tasks.html?task=${encodeURIComponent(task.task_id)}`);
+  assert.equal(taskLink.label, "Picker Task");
+  assert.equal(taskLink.source_url, `tasks.html?task=${encodeURIComponent(task.task_id)}`);
+  assert.equal(noteLink.label, "Picker reference note");
+  assert.equal(noteLink.source_url, `notes.html?note=${encodeURIComponent(referenceNote.note.note_id)}`);
+  assert.equal(listLink.label, "Picker List");
+  assert.equal(listLink.source_url, `lists.html?list=${encodeURIComponent(list.list_id)}`);
   assert.equal(read.note.linked_context.task, undefined);
   assert.equal(read.note.linked_context.project.label, "Picker Project");
   assert.equal(read.note.linked_context.client.label, "Picker Client");

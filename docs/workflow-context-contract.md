@@ -1,6 +1,6 @@
 # Workflow Context Contract
 
-This document defines the current user-facing context terminology for workflow records as of 0.33.5.18.6.1. It applies to Notes now and should guide future Tasks, Lists, Files, Clients/Projects, and Knowledge Base surfaces when they show related work context.
+This document defines the current user-facing context terminology for workflow records as of 0.33.5.18.6.5.3. It applies to Notes now and should guide future Tasks, Lists, Files, Clients/Projects, and Knowledge Base surfaces when they show related work context.
 
 ## Terms
 
@@ -35,3 +35,13 @@ If a primary or linked target cannot be resolved to a readable label, show a saf
 - `Unavailable linked context`
 
 These fallback labels are display labels only. They must not imply the target is deleted, unauthorized, or broken unless the service already exposes that state safely.
+
+## Shared Picker Provider Contract
+
+Shared Linked Context pickers use module-owned providers. The framework owns reusable picker anatomy through `LongtailForge.view.createLinkedContextPicker()`, but source modules own permission-safe target lookup, search filtering, sorting, display labels, secondary labels, source URLs, and Primary Context hints.
+
+Provider results use the `linked-context-target.v1` response contract documented in `docs/linked-context-picker-contract.md`. Normalized targets include `moduleId`, `targetType`, `targetId`, `displayLabel`, `secondaryLabel`, `sortKey`, `sourceUrl`, `clientId`, `projectId`, `workspaceId`, `isAvailable`, and optional `primaryContextHints`.
+
+The no-raw-ID rule applies to provider-rendered labels: `displayLabel` and `secondaryLabel` must be safe for direct UI rendering and must not echo raw target, client, project, or workspace identifiers.
+
+For Add/Edit Notes, normal Linked Context picker choices are Project, Task, Note, List, User, and Client only in Business/client-readable contexts. Workspace may remain available to backend compatibility paths, but it is not a normal picker option. Personal and Family workspaces must not show Client targets or client labels in project/task picker display strings.

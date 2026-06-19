@@ -1,4 +1,5 @@
 import { usersRoutes } from "../../routes/users.routes.js";
+import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
 
 const usersModule = {
   id: "users",
@@ -145,6 +146,21 @@ const usersModule = {
   workbench: [],
   timerSources: [],
   workItemSources: [],
+  linkedContextProviders: [
+    {
+      id: "users.user",
+      moduleId: "users",
+      targetType: "user",
+      label: "User",
+      description: "Permission-safe user targets for shared Linked Context pickers.",
+      provider: "users.linked-context.users",
+      responseContract: LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT,
+      requiredReadPermission: "users.manage",
+      requiredPermissions: ["users.manage"],
+      requiredModules: ["users"],
+      requiredWorkspaceCapabilities: ["team_members", "permissions", "family_permissions"],
+    },
+  ],
   workspaceCapabilityRequirements: ["team_members", "permissions", "family_permissions"],
 };
 

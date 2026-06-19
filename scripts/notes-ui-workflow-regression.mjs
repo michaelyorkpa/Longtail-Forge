@@ -55,12 +55,12 @@ async function assertProtectedView(session) {
   assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/);
   assert.match(html, /js\/shared\/view-renderer\.js\?v=7/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
-  assert.match(html, /js\/shared\/view-builder\.js\?v=8/);
-  assert.match(html, /js\/notes\.js\?v=40/);
+  assert.match(html, /js\/shared\/view-builder\.js\?v=9/);
+  assert.match(html, /js\/notes\.js\?v=48/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
-  assert.match(html, /css\/longtail-forge\.css\?v=37/);
+  assert.match(html, /css\/longtail-forge\.css\?v=39/);
   // No static read chrome or dialog markup remains in the host page.
   assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
   assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);
@@ -86,13 +86,17 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /resetLegacyNoteKindOptions/);
   assert.match(notesJs, /Legacy client/);
   assert.match(notesJs, /data-legacy-note-kind/);
+  assert.match(notesJs, /async function openEditor\(note = null\) \{\s*note = await hydrateEditorNote\(note\);/, "Edit Note should hydrate saved notes before filling modal fields");
+  assert.match(notesJs, /async function hydrateEditorNote\(note = null\)[\s\S]*api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}`[\s\S]*cache: "no-store"[\s\S]*renderDetail\(result\.note\)[\s\S]*return result\.note/, "Editor hydration should refresh the selected detail note before rendering editor state");
+  assert.match(notesJs, /function primaryContextSummaryForSelection\(targetType, selectedId = ""\)[\s\S]*summaryIds\.includes\(selectedId\)/, "Primary Context controls should preserve the current saved value even when it is not in the first provider page");
+  assert.match(notesJs, /function primaryProjectFallbackOption\(selectedProjectId = ""\)[\s\S]*primaryProjectOptionLabel/, "Saved project Primary Context should keep a readable current option fallback on first Edit open");
   assert.match(notesJs, /fetchLinkTargets/);
   assert.match(notesJs, /api\/notes\/link-targets/);
-  assert.match(notesJs, /LINK_TARGET_TYPE_ORDER = \["workspace", "client", "project", "task", "user"\]/);
+  assert.match(notesJs, /LINK_TARGET_TYPE_ORDER = \["project", "task", "note", "list", "client", "user"\]/);
   assert.match(notesJs, /availableLinkTargetTypes\(\)/);
   assert.match(notesJs, /targetType !== "client" \|\| usesBusinessScope\(\)/);
   assert.match(notesJs, /populateLinkTargetTypeSelect\(contextTargetTypeInput\)/);
-  assert.match(notesJs, /applyContextTarget/);
+  assert.doesNotMatch(notesJs, /function applyContextTarget/, "Linked Context should not mutate Primary Context controls");
   assert.match(notesJs, /openEditorForLinkedTarget/);
   assert.match(notesJs, /noteHasLink/);
   assert.doesNotMatch(notesJs, /loadLibrary/);
@@ -100,6 +104,10 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /Original/);
   // 0.33.5.18.3 declarative read shell conversion markers.
   assert.match(notesJs, /buildNotesViewShell/);
+  assert.ok(
+    notesJs.indexOf("let state = {") < notesJs.indexOf("buildNotesViewShell();"),
+    "Notes state should initialize before the shell builds provider-backed dialog controls",
+  );
   assert.match(notesJs, /view\.renderSurface/);
   assert.match(notesJs, /notesViewSurfaceDescriptor/);
   assert.match(notesJs, /decorateNotesDeclarativeSurface/);
@@ -109,7 +117,7 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /createNotesPagination/);
   assert.match(notesJs, /indexPanel\?\.before\(createNotesLibraryPanel\(\)\)/);
   assert.match(notesJs, /summaryTitle\.textContent = "Notes List"/);
-  assert.match(notesJs, /className: "view-collapsible-index-footer"/);
+  assert.match(notesJs, /className: "view-collapsible-index-footer notes-list-panel-footer"/);
   assert.match(notesJs, /dataSource: null/);
   assert.doesNotMatch(notesJs, /notes-library-tabs|dataset\.notesBucket/);
   assert.match(notesJs, /notes-collection-picker-row/);
@@ -138,8 +146,10 @@ async function assertProtectedView(session) {
   assert.match(noteKindOptions, /\["procedure", "Procedure"\]/);
   assert.match(noteKindOptions, /\["log", "Log"\]/);
   assert.doesNotMatch(noteKindOptions, /"client"|"ticket"|"user"/);
-  // Linked-context target picker stays module-owned (workspace/project/task/user, no client kind).
-  assert.match(notesJs, /\["workspace", "Workspace"\], \["project", "Project"\], \["task", "Task"\], \["user", "User"\]/);
+  // Linked-context picker target options are provider-backed and hide Workspace from normal Add/Edit use.
+  assert.match(notesJs, /const DEFAULT_LINK_TARGET_TYPE = "project"/);
+  assert.match(notesJs, /function linkTargetProviderOptions\(\)[\s\S]*client: "client-projects"[\s\S]*list: "lists"[\s\S]*note: "notes"[\s\S]*project: "client-projects"[\s\S]*task: "tasks"[\s\S]*user: "users"/);
+  assert.doesNotMatch(notesJs, /LINK_TARGET_TYPE_ORDER = \[[^\]]*"workspace"/, "Workspace should remain backend-compatible but hidden from the normal Add/Edit picker target menu");
 
   // 0.33.5.18.5.1 declarative workflow action strip.
   const notesModuleSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/module.js"), "utf8");
@@ -199,19 +209,21 @@ async function assertProtectedView(session) {
   assert.match(notesServiceJs, /owner_display_name: await resolveNoteOwnerLabel\(session, note\)/, "The note read payload should resolve the owner display name");
 
   // 0.33.5.18.6.4.1 Add/Edit Linked Context visual model with non-removable Primary Context row.
-  assert.match(notesJs, /contextList\.dataset\.noteContextList = ""/, "The Add/Edit Linked Context panel should expose a rendered context-list mount");
+  assert.match(notesJs, /picker\.viewParts\.rows\.dataset\.noteContextList = ""/, "The Add/Edit Linked Context panel should expose a rendered context-list mount");
   assert.match(notesJs, /function renderEditorContextPanel\(\)/, "The Add/Edit Linked Context panel should have an editor render pass");
-  assert.match(notesJs, /function editorPrimaryContextItem\(\)[\s\S]*text: "Primary Context"[\s\S]*Edit in Note Details/, "The editor panel should render a labeled Primary Context row with the Note Details hint");
+  assert.match(notesJs, /function editorPrimaryContextItem\(\)[\s\S]*displayLabel: "Primary Context"[\s\S]*hintLabel: "Edit in Note Details"/, "The editor panel should render a labeled Primary Context row with the Note Details hint");
   assert.match(notesJs, /No primary context selected\./, "The Primary Context row should have the required empty-state copy");
+  assert.match(notesJs, /function linkRecordNodes\(note\)[\s\S]*notePrimaryContextItem\(note\)[\s\S]*linkItem\(note, link\)/, "The View Note Linked Context panel should render Primary Context before flexible Linked Context rows");
+  assert.match(notesJs, /function notePrimaryContextItem\(note = \{\}\)[\s\S]*text: "Primary Context"[\s\S]*className: "notes-link-item notes-primary-context-row"/, "The View Note Primary Context card should be labeled and non-removable");
   assert.match(notesJs, /function editorLinkedContextRows\(\)[\s\S]*note\.links[\s\S]*state\.editorStagedTargets/, "The editor panel should render saved links and staged draft targets");
-  assert.match(notesJs, /function editorLinkedContextRow\(\{ label, subtitle, sourceUrl = "", remove = null \} = \{\}\)/, "Linked Context rows should share a row/card renderer");
-  assert.match(notesJs, /function editorLinkedContextRemoveButton\(onClick\)[\s\S]*icon: "delete"[\s\S]*label: "Remove"/, "Linked Context editor rows should use an accessible remove icon button");
+  assert.match(notesJs, /view\.createLinkedContextPicker\(\{[\s\S]*onRemove: handleEditorLinkedContextRemove/, "Add/Edit Linked Context rows should use the shared picker shell");
+  assert.match(notesJs, /function handleEditorLinkedContextRemove\(item = \{\}\)[\s\S]*removeEditorNoteLink[\s\S]*removeEditorStagedTarget/, "Linked Context editor rows should remove saved and staged links through the shared picker callback");
   const primaryContextItemSource = notesJs.slice(
     notesJs.indexOf("function editorPrimaryContextItem()"),
     notesJs.indexOf("function editorPrimaryContextSummary()"),
   );
-  assert.doesNotMatch(primaryContextItemSource, /noteLinkRemove|editorLinkedContextRemoveButton|Remove/, "The Primary Context editor row must not expose a remove action");
-  assert.match(notesCss, /\.notes-editor-context-list\s*\{[\s\S]*margin-bottom:\s*12px;/, "The editor Linked Context rows should be separated from picker controls");
+  assert.doesNotMatch(primaryContextItemSource, /noteLinkRemove|removable:\s*true|Remove/, "The Primary Context editor row must not expose a remove action");
+  assert.match(notesCss, /\.view-linked-context-picker-list\s*\{[\s\S]*gap:\s*8px;/, "The shared picker row list should keep selected Linked Context rows separated from picker controls");
   assert.match(notesCss, /\.notes-primary-context-row\s*\{[\s\S]*background:\s*var\(--color-surface-muted\);/, "The Primary Context row should be visually distinct from removable Linked Context rows");
 
   // 0.33.5.18.6.4.2 saved-note Linked Context add/remove refresh.
@@ -225,17 +237,68 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /editorStagedTargets: \[\]/, "The note editor should track unsaved Linked Context in draft state");
   assert.match(notesJs, /state\.editorStagedTargets = \[\]/, "Opening\/closing the editor should reset staged draft links");
   assert.match(notesJs, /links: !state\.editingNoteId \? stagedLinkPayloads\(\) : \[\]/, "New notes should save staged Linked Context through the create payload");
+  assert.doesNotMatch(notesJs, /readEditorPrimaryContextPayload|inferPrimaryContextFromEditorTargets|primaryContextFromTarget|taskLinkPrimaryContext/, "Linked Context should remain read-only for Primary Context");
   assert.match(notesJs, /function stagedLinkPayloads\(\)[\s\S]*state\.editorStagedTargets[\s\S]*linkPayloadFromTarget\(target\)/, "Staged targets should be converted to link payloads on save");
-  assert.match(notesJs, /async function applyEditorLinkTarget\(\)[\s\S]*if \(state\.editingNoteId\)[\s\S]*applyContextTarget\(target\);\s*stageEditorLinkTarget\(target\);/, "Unsaved Use Target should infer Primary Context and stage Linked Context locally");
+  assert.match(notesJs, /async function applyEditorLinkTarget\(\)[\s\S]*if \(state\.editingNoteId\)[\s\S]*stageEditorLinkTarget\(target\);/, "Unsaved Use Target should stage Linked Context without writing Primary Context");
   assert.match(notesJs, /function stageEditorLinkTarget\(target = \{\}\)[\s\S]*state\.editorStagedTargets = \[\.\.\.\(state\.editorStagedTargets \|\| \[\]\), target\]/, "Use Target should add unsaved Linked Context to local draft state");
   assert.match(notesJs, /function editorLinkedContextRows\(\)[\s\S]*for \(const target of state\.editorStagedTargets \|\| \[\]\)[\s\S]*editorStagedTargetItem\(target\)/, "Staged draft links should render as Linked Context rows");
-  assert.match(notesJs, /function editorStagedTargetItem\(target = \{\}\)[\s\S]*label: target\.label \|\| unavailableTargetLabel\(target\.targetType\)[\s\S]*remove: editorLinkedContextRemoveButton\(\(\) => removeEditorStagedTarget\(target\)\)/, "Staged draft rows should use readable labels and be removable before save");
+  assert.match(notesJs, /function editorStagedTargetItem\(target = \{\}\)[\s\S]*\.\.\.pickerRecordFromTarget\(target\)[\s\S]*target,/, "Staged draft rows should use provider labels and remain removable before save through the shared picker item callback");
   const removeStagedSource = notesJs.slice(
     notesJs.indexOf("function removeEditorStagedTarget(target = {})"),
-    notesJs.indexOf("function applyContextTarget(target = {})"),
+    notesJs.indexOf("function renderEditorContextSelection(target = null)"),
   );
   assert.match(removeStagedSource, /state\.editorStagedTargets = \(state\.editorStagedTargets \|\| \[\]\)[\s\S]*\.filter\(\(stagedTarget\) => !editorLinkTargetMatches\(stagedTarget, target\)\)/, "Removing a staged link should remove it from draft state");
   assert.doesNotMatch(removeStagedSource, /(clientInput|projectInput|taskInput|userInput)\.value\s*=/, "Removing a staged link must not clear Primary Context controls");
+
+  // 0.33.5.18.6.4.4 Notes List footer sorting.
+  assert.match(notesJs, /const DEFAULT_NOTE_SORT = "updated_desc"/, "Notes List default sort should be updated newest first");
+  assert.match(notesJs, /const NOTES_LIST_SORT_OPTIONS = \[[\s\S]*\["title_asc", "Alphabetical \(A-Z\)"\][\s\S]*\["title_desc", "Alphabetical \(Z-A\)"\][\s\S]*\["created_desc", "Date Created \(Newest First\)"\][\s\S]*\["created_asc", "Date Created \(Oldest First\)"\][\s\S]*\["updated_desc", "Date Updated \(Newest First\)", true\][\s\S]*\["updated_asc", "Date Updated \(Oldest First\)"\][\s\S]*\["library_collection_updated_desc", "Library \/ Collection, then Date Updated"\][\s\S]*\["note_kind_updated_desc", "Note Kind, then Date Updated"\][\s\S]*\["primary_context_updated_desc", "Primary Context, then Date Updated"\]/, "Notes List sort options should match the required labels and default");
+  assert.match(notesJs, /className: "view-collapsible-index-footer notes-list-panel-footer"[\s\S]*children: \[createNotesListSortControl\(\), createNotesPagination\(\)\]/, "Notes List sort should live in the footer before pagination");
+  assert.match(notesJs, /function createNotesListSortControl\(\)[\s\S]*className: "notes-list-sort"[\s\S]*select\.dataset\.noteSort = ""[\s\S]*select\.value = DEFAULT_NOTE_SORT/, "Notes List footer should render the sort dropdown");
+  assert.match(notesJs, /sortSelect\?\.addEventListener\("change", \(\) => \{\s*state\.page = 1;\s*renderNotes\(\);\s*\}\)/, "Changing Notes List sort should reset to page 1 and rerender");
+  assert.doesNotMatch(notesJs, /notesDescriptorSelect\("sort"/, "Sort should no longer be a Filters field in the browser fallback descriptor");
+  assert.doesNotMatch(notesModuleSource, /field:\s*"sort"/, "Sort should no longer be a Filters field in the Notes module descriptor");
+  const sortedNotesSource = notesJs.slice(
+    notesJs.indexOf("function sortedNotes(notes)"),
+    notesJs.indexOf("function noteListItem(note)"),
+  );
+  assert.match(sortedNotesSource, /const sortValue = sortSelect\?\.value \|\| DEFAULT_NOTE_SORT/, "Notes List sort should use the footer default when no control is available");
+  assert.match(sortedNotesSource, /sortValue === "title_asc"[\s\S]*compareText\(left\.title, right\.title\) \|\| compareNoteId\(left, right\)/, "Alphabetical A-Z should sort visible notes by title with a stable tie-break");
+  assert.match(sortedNotesSource, /sortValue === "title_desc"[\s\S]*compareText\(right\.title, left\.title\) \|\| compareNoteId\(left, right\)/, "Alphabetical Z-A should sort visible notes by title with a stable tie-break");
+  assert.match(sortedNotesSource, /sortValue === "created_desc"[\s\S]*compareText\(right\.created_at, left\.created_at\) \|\| compareNoteTitleThenId\(left, right\)/, "Created newest first should sort visible notes by created_at with stable tie-breaks");
+  assert.match(sortedNotesSource, /sortValue === "created_asc"[\s\S]*compareText\(left\.created_at, right\.created_at\) \|\| compareNoteTitleThenId\(left, right\)/, "Created oldest first should sort visible notes by created_at with stable tie-breaks");
+  assert.match(sortedNotesSource, /sortValue === "updated_asc"[\s\S]*compareText\(left\.updated_at, right\.updated_at\) \|\| compareNoteTitleThenId\(left, right\)/, "Updated oldest first should sort visible notes by updated_at with stable tie-breaks");
+  assert.match(sortedNotesSource, /sortValue === "library_collection_updated_desc"[\s\S]*bucketSortValue\(left\.library_bucket\)[\s\S]*collectionLabel\(left\.note_collection_id\)[\s\S]*compareNoteUpdatedDesc\(left, right\)/, "Library\/Collection should sort visible notes by bucket, collection, then updated newest first");
+  assert.match(sortedNotesSource, /sortValue === "note_kind_updated_desc"[\s\S]*noteKindLabel\(left\.note_type\)[\s\S]*compareNoteUpdatedDesc\(left, right\)/, "Note Kind should sort visible notes by kind, then updated newest first");
+  assert.match(sortedNotesSource, /sortValue === "primary_context_updated_desc"[\s\S]*primaryContextSortKey\(left\)[\s\S]*compareNoteUpdatedDesc\(left, right\)/, "Primary Context should sort visible notes by context, then updated newest first");
+  assert.match(sortedNotesSource, /return compareNoteUpdatedDesc\(left, right\)/, "Updated newest first should remain the default visible-note order");
+  assert.match(notesJs, /function compareNoteUpdatedDesc\(left = \{\}, right = \{\}\)[\s\S]*compareText\(right\.updated_at, left\.updated_at\) \|\| compareNoteTitleThenId\(left, right\)/, "Updated newest-first helper should use stable tie-breaks");
+  assert.match(notesJs, /function primaryContextSortKey\(note = \{\}\)[\s\S]*context\.client\?\.label[\s\S]*context\.project\?\.label[\s\S]*\|\| "zz"/, "Primary Context sort should prefer readable linked-context labels with an empty-context fallback");
+  assert.match(notesJs, /function renderNotes\(\)[\s\S]*const notes = sortedNotes\(filteredNotes\(\)\)/, "Sorting should apply only after Library\/Collection\/filter\/search scoping");
+  assert.match(notesCss, /\.notes-list-panel-footer\s*\{[\s\S]*justify-content:\s*space-between;/, "Notes List footer should keep sort left and pagination right");
+  assert.match(notesCss, /\.notes-list-sort select\s*\{[\s\S]*min-width:\s*220px;/, "Notes List sort dropdown should have a stable footer width");
+
+  // 0.33.5.18.6.5.3 Notes adoption of the shared Linked Context picker.
+  assert.match(notesJs, /picker\.dataset\.noteContextPicker = ""/, "The Add/Edit Note dialog should mount the shared Linked Context picker shell");
+  assert.match(notesJs, /picker\.viewParts\.targetSelect\.dataset\.noteContextTargetType = ""/, "The shared picker target select should keep the existing Notes behavior hook");
+  assert.match(notesJs, /picker\.viewParts\.searchInput\.dataset\.noteContextSearch = ""/, "The shared picker search input should keep the existing Notes behavior hook");
+  assert.match(notesJs, /picker\.viewParts\.recordSelect\.dataset\.noteContextResults = ""/, "The shared picker record select should keep the existing Notes behavior hook");
+  assert.match(notesJs, /picker\.viewParts\.useTargetButton\.dataset\.noteContextApply = ""/, "The shared picker Use Target action should keep the existing Notes behavior hook");
+  assert.match(notesJs, /function replaceLinkTargetOptions\(records = \[\], select = contextResultsInput\)[\s\S]*select === contextResultsInput[\s\S]*parts\.setRecords\(records\)/, "Notes should update Add/Edit record options through the shared picker update hook");
+  assert.match(notesJs, /function populateLinkTargetSelect\(select, targets = \[\]\)[\s\S]*replaceLinkTargetOptions\(records, select\)/, "Detail-page and Add/Edit Linked Context pickers should populate the select they were given");
+  assert.match(notesJs, /function replaceLinkTargetOptions\(records = \[\], select = contextResultsInput\)[\s\S]*select\?\.replaceChildren\(\.\.\.options\)/, "Plain descriptor-linked select controls should not be routed through the Add/Edit shared picker mount");
+  assert.match(notesJs, /function pickerRecordFromTarget\(target = \{\}\)[\s\S]*displayLabel: targetPickerDisplayLabel\(target\)[\s\S]*secondaryLabel: targetPickerSecondaryLabel\(target\)/, "Notes should normalize provider targets into shared picker records");
+  assert.match(notesJs, /function targetPickerDisplayLabel\(target = \{\}\)[\s\S]*targetType === "project" && usesBusinessScope\(\)[\s\S]*return contextName \? `\$\{label\} \(\$\{contextName\}\)` : label;/, "Business project target labels should render as Project Name (Client or Workspace)");
+  assert.match(notesJs, /function targetPickerSecondaryLabel\(target = \{\}\)[\s\S]*if \(!usesBusinessScope\(\)\) \{\s*return "";/, "Personal and Family workspaces should not show client labels in project/task picker strings");
+  assert.match(notesJs, /async function applyTaskCreatedPrimaryContext\(target = \{\}, matchedTarget = \{\}\)[\s\S]*targetType !== "task"[\s\S]*loadPrimaryContextOptions\(\{ clientId, projectId \}\)[\s\S]*renderEditorContextPanel\(\)/, "Task-created notes should explicitly prefill Primary Context without making the shared Linked Context picker a writer");
+  assert.match(notesJs, /function setTaskCreatedPrimaryContextSummaries\(target = \{\}\)[\s\S]*clientName[\s\S]*projectName[\s\S]*workspaceName/, "Task-created Primary Context fallback labels should come from task target metadata");
+  assert.doesNotMatch(notesJs, /notes-picker-grid/, "The Add/Edit Note dialog should no longer render the old Notes-owned picker grid");
+  assert.match(notesCss, /\.view-linked-context-picker-row-hint\s*\{[\s\S]*color:\s*var\(--color-muted\);/, "The shared picker should style Primary Context hint copy through shared row anatomy");
+  assert.match(notesServiceJs, /const LINK_TARGET_TYPES = new Set\(\["workspace", "client", "project", "task", "note", "list", "user"\]\)/, "Notes service should keep backend support for Workspace while adding Note/List link targets");
+  assert.match(notesServiceJs, /if \(targetType === "note"\)[\s\S]*notesRepository\.list[\s\S]*noteSourceUrl\(note\.note_id\)/, "Notes should provide permission-safe Note link targets");
+  assert.match(notesServiceJs, /if \(targetType === "list"\)[\s\S]*listsRepository\.list[\s\S]*canAccessListTarget[\s\S]*lists\.html\?list/, "Notes should provide permission-safe List link targets");
+  assert.match(notesServiceJs, /if \(normalizedTarget\.target_type === "note"\)[\s\S]*canAccessNoteTarget/, "Notes should validate linked Note target access");
+  assert.match(notesServiceJs, /if \(normalizedTarget\.target_type === "list"\)[\s\S]*canAccessListTarget/, "Notes should validate linked List target access");
 
   const linkedPanelJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8");
   assert.match(linkedPanelJs, /LongtailForge/);

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
 
-const appVersion = "0.33.5.18.6.4.3";
+const appVersion = "0.33.5.18.6.5.3";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");

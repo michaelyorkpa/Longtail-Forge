@@ -48,6 +48,7 @@ function cloneModuleDefinition(definition) {
     apiScopes: [...(definition.apiScopes || [])],
     timerSources: [...(definition.timerSources || [])],
     workItemSources: [...(definition.workItemSources || [])],
+    linkedContextProviders: [...(definition.linkedContextProviders || [])],
     taggableTypes: [...(definition.taggableTypes || [])],
     tagPropagation: [...(definition.tagPropagation || [])],
     searchableTypes: [...(definition.searchableTypes || [])],
@@ -209,6 +210,10 @@ function listAttachableTypes() {
   return listContribution("attachableTypes");
 }
 
+function listLinkedContextProviders() {
+  return listContribution("linkedContextProviders");
+}
+
 function listHelpSections() {
   return moduleDefinitions.flatMap((definition) => (
     definition.help?.sections || []
@@ -348,6 +353,7 @@ export {
   listNotificationTemplates,
   listPublicApiRoutes,
   listAttachableTypes,
+  listLinkedContextProviders,
   listSearchableTypes,
   listTagPropagationRules,
   listTaggableTypes,

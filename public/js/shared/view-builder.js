@@ -92,6 +92,18 @@
     return parent;
   }
 
+  function replaceElementChildren(parent, children = []) {
+    const childList = Array.isArray(children) ? children : [children];
+    if (typeof parent.replaceChildren === "function") {
+      parent.replaceChildren(...childList.filter((child) => child !== null && child !== undefined && child !== false));
+      return parent;
+    }
+
+    parent.textContent = "";
+    appendChildren(parent, childList);
+    return parent;
+  }
+
   function isNode(value) {
     return Boolean(value && typeof value === "object" && typeof value.nodeType === "number");
   }
@@ -590,6 +602,287 @@
     });
   }
 
+  function createLinkedContextPicker(options = {}) {
+    const readonly = Boolean(options.readonly || options.disabled || options.permissionDisabled);
+    const providerOptions = normalizePickerOptions(options.targets || options.providers || []);
+    const recordOptions = normalizePickerRecords(options.records || options.recordOptions || []);
+    const picker = createElement("section", {
+      className: ["view-linked-context-picker", readonly ? "is-readonly" : "", options.className],
+      attrs: {
+        "aria-label": options.ariaLabel || "Linked Context picker",
+        "data-view-readonly": readonly ? "true" : "false",
+      },
+    });
+    const rows = createElement("div", {
+      className: "view-linked-context-picker-list",
+      attrs: {
+        role: "list",
+        "aria-label": options.rowsLabel || "Selected linked context",
+      },
+    });
+    const empty = createElement("p", {
+      className: "view-linked-context-picker-empty",
+      text: options.emptyMessage || "No linked context selected.",
+    });
+    const targetSelect = createElement("select", {
+      className: "view-linked-context-picker-target",
+      attrs: { name: options.targetName || "linkedContextTarget" },
+    });
+    const searchInput = createElement("input", {
+      className: "view-linked-context-picker-search",
+      attrs: {
+        type: "search",
+        name: options.searchName || "linkedContextSearch",
+        placeholder: options.searchPlaceholder || "Search linked context",
+        autocomplete: "off",
+      },
+    });
+    const recordSelect = createElement("select", {
+      className: "view-linked-context-picker-record",
+      attrs: { name: options.recordName || "linkedContextRecord" },
+    });
+    const useTargetButton = createActionButton({
+      icon: "add",
+      label: options.useTargetLabel || "Use Target",
+      action: options.useTargetAction || "use-linked-context-target",
+      disabled: readonly || Boolean(options.useTargetDisabled),
+      onClick: options.onUseTarget,
+    });
+    const renderLinkedItems = (items = []) => {
+      const normalizedItems = normalizePickerRecords(items);
+      replaceElementChildren(rows, normalizedItems.map((item) => (
+        createLinkedContextPickerRow(item, {
+          readonly,
+          removeLabel: options.removeLabel,
+          removeAction: options.removeAction,
+          onRemove: options.onRemove,
+        })
+      )));
+      if (!normalizedItems.length) {
+        rows.appendChild(empty);
+      }
+    };
+    const setTargets = (targets = []) => {
+      replaceElementChildren(targetSelect, normalizePickerOptions(targets).map((target) => createPickerOption(target)));
+    };
+    const setRecords = (records = []) => {
+      const normalizedRecords = normalizePickerRecords(records);
+      replaceElementChildren(recordSelect, normalizedRecords.length
+        ? normalizedRecords.map((record) => createPickerOption({
+            value: record.targetId,
+            label: record.displayLabel,
+            disabled: record.disabled || record.isAvailable === false,
+            selected: record.selected,
+            dataset: {
+              moduleId: record.moduleId,
+              targetType: record.targetType,
+              targetId: record.targetId,
+              sourceUrl: record.sourceUrl,
+              secondaryLabel: record.secondaryLabel,
+            },
+          }))
+        : [createPickerOption({ value: "", label: options.noRecordsLabel || "No records found", disabled: true })]);
+    };
+    const setReadonly = (isReadonly) => {
+      const nextReadonly = Boolean(isReadonly);
+      if (nextReadonly) {
+        picker.classList.add("is-readonly");
+      } else {
+        picker.classList.remove("is-readonly");
+      }
+      picker.setAttribute("data-view-readonly", nextReadonly ? "true" : "false");
+      [targetSelect, searchInput, recordSelect, useTargetButton].forEach((control) => {
+        control.disabled = nextReadonly;
+      });
+    };
+
+    renderLinkedItems(options.linkedItems || options.rows || []);
+    setTargets(providerOptions);
+    setRecords(recordOptions);
+
+    [targetSelect, searchInput, recordSelect].forEach((control) => {
+      if (readonly) {
+        control.disabled = true;
+      }
+    });
+
+    if (typeof options.onTargetChange === "function") {
+      targetSelect.addEventListener("change", options.onTargetChange);
+    }
+    if (typeof options.onSearchInput === "function") {
+      searchInput.addEventListener("input", options.onSearchInput);
+    }
+    if (typeof options.onRecordChange === "function") {
+      recordSelect.addEventListener("change", options.onRecordChange);
+    }
+
+    const controls = createFieldGrid({
+      surface: false,
+      className: "view-linked-context-picker-controls",
+      fields: [
+        createLinkedContextPickerField({ label: options.targetLabel || "Target", control: targetSelect, width: "narrow" }),
+        createLinkedContextPickerField({ label: options.searchLabel || "Search", control: searchInput, width: "wide" }),
+        createLinkedContextPickerField({ label: options.recordLabel || "Record", control: recordSelect, width: "wide" }),
+        useTargetButton,
+      ],
+    });
+
+    picker.append(rows, controls);
+
+    if (readonly) {
+      picker.appendChild(createElement("p", {
+        className: "view-linked-context-picker-state",
+        text: options.permissionMessage || options.readonlyMessage || "Linked context is read-only.",
+      }));
+    }
+
+    assignViewParts(picker, {
+      rows,
+      empty,
+      controls,
+      targetSelect,
+      searchInput,
+      recordSelect,
+      useTargetButton,
+      setLinkedItems: renderLinkedItems,
+      setRecords,
+      setTargets,
+      setReadonly,
+    });
+    return picker;
+  }
+
+  function createLinkedContextPickerField(options = {}) {
+    const control = options.control;
+    const id = control.id || nextId("view-linked-context-picker-field");
+    control.id = id;
+    return createElement("label", {
+      className: "view-linked-context-picker-field",
+      attrs: { "data-view-field-width": options.width || "default", for: id },
+      children: [
+        createElement("span", { className: "view-linked-context-picker-field-label", text: options.label }),
+        control,
+      ],
+    });
+  }
+
+  function createLinkedContextPickerRow(item, options = {}) {
+    const title = createElement(item.sourceUrl ? "a" : "span", {
+      className: "view-linked-context-picker-row-label",
+      text: item.displayLabel,
+      attrs: item.sourceUrl ? { href: item.sourceUrl } : {},
+    });
+    const row = createElement("div", {
+      className: [
+        "view-linked-context-picker-row",
+        item.isAvailable === false ? "is-unavailable" : "",
+        item.className,
+      ],
+      attrs: { role: "listitem" },
+      dataset: {
+        moduleId: item.moduleId,
+        targetType: item.targetType,
+        targetId: item.targetId,
+        sourceUrl: item.sourceUrl,
+      },
+    });
+    const body = createElement("div", {
+      className: "view-linked-context-picker-row-body",
+      children: [title],
+    });
+
+    if (item.secondaryLabel) {
+      body.appendChild(createElement("span", {
+        className: "view-linked-context-picker-row-secondary",
+        text: item.secondaryLabel,
+      }));
+    }
+
+    if (item.hintLabel) {
+      body.appendChild(createElement("span", {
+        className: "view-linked-context-picker-row-hint",
+        text: item.hintLabel,
+      }));
+    }
+
+    row.appendChild(body);
+
+    if (item.removable !== false) {
+      const removeButton = createActionButton({
+        icon: "delete",
+        iconOnly: true,
+        label: options.removeLabel || "Remove linked context",
+        action: options.removeAction || "remove-linked-context",
+        disabled: options.readonly || item.disabled || item.isAvailable === false,
+        onClick: typeof options.onRemove === "function" ? (event) => options.onRemove(item, event) : undefined,
+      });
+      row.appendChild(createElement("div", {
+        className: "view-linked-context-picker-row-actions",
+        children: removeButton,
+      }));
+    }
+
+    return row;
+  }
+
+  function normalizePickerOptions(options) {
+    return (Array.isArray(options) ? options : [options]).filter(Boolean).map((option) => {
+      if (typeof option === "string") {
+        return {
+          value: option,
+          label: option,
+        };
+      }
+
+      const value = option.value || option.targetType || option.id || "";
+      return {
+        value,
+        label: pickerLabel(option.displayLabel || option.label || option.name, value || "Target"),
+        disabled: option.disabled || option.isAvailable === false,
+        selected: option.selected,
+        dataset: {
+          moduleId: option.moduleId,
+          targetType: option.targetType || value,
+          providerId: option.providerId || option.provider || option.id,
+        },
+      };
+    });
+  }
+
+  function normalizePickerRecords(records) {
+    return (Array.isArray(records) ? records : [records]).filter(Boolean).map((record) => ({
+      ...record,
+      moduleId: record.moduleId || "",
+      targetType: record.targetType || record.type || "",
+      targetId: record.targetId || record.value || record.id || "",
+      displayLabel: pickerLabel(record.displayLabel || record.label || record.name, "Unavailable linked context"),
+      secondaryLabel: pickerOptionalLabel(record.secondaryLabel || record.summary || record.meta),
+      sourceUrl: record.sourceUrl || "",
+      isAvailable: record.isAvailable !== false,
+    }));
+  }
+
+  function createPickerOption(option) {
+    const element = createElement("option", {
+      text: option.label,
+      attrs: { value: option.value },
+      dataset: option.dataset,
+    });
+    element.value = option.value;
+    element.disabled = Boolean(option.disabled);
+    element.selected = Boolean(option.selected);
+    return element;
+  }
+
+  function pickerLabel(value, fallback) {
+    const text = String(value || "").trim();
+    return text || fallback;
+  }
+
+  function pickerOptionalLabel(value) {
+    return String(value || "").trim();
+  }
+
   function createActionButton(options = {}) {
     const label = String(options.label || options.ariaLabel || options.text || "").trim();
     const text = options.text === undefined ? label : String(options.text || "").trim();
@@ -711,6 +1004,7 @@
     createIndexList,
     createInfoPanel,
     createInlineActionRow,
+    createLinkedContextPicker,
     createModal,
     createModalForm,
     createPageHeader,

@@ -1,5 +1,6 @@
 import { clientsRoutes } from "./clients.routes.js";
 import { registerClientProjectsSearchIndexers } from "./search-indexers.js";
+import { LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT } from "../../core/linked-context/provider-contract.js";
 
 registerClientProjectsSearchIndexers();
 
@@ -234,6 +235,35 @@ const clientProjectsModule = {
       allowedVisibilityValues: ["private", "workspace", "client"],
       lifecycleEvents: ["file.attachment.created", "file.attachment.removed"],
       requiredModules: ["client-projects"],
+    },
+  ],
+  linkedContextProviders: [
+    {
+      id: "client-projects.client",
+      moduleId: "client-projects",
+      targetType: "client",
+      label: "Client",
+      description: "Permission-safe client targets for shared Linked Context pickers.",
+      provider: "client-projects.linked-context.clients",
+      responseContract: LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT,
+      requiredReadPermission: "clients.manage",
+      requiredPermissions: ["clients.manage"],
+      requiredModules: ["client-projects"],
+      requiredWorkspaceCapabilities: ["clients_projects"],
+      workspaceTypes: ["business"],
+    },
+    {
+      id: "client-projects.project",
+      moduleId: "client-projects",
+      targetType: "project",
+      label: "Project",
+      description: "Permission-safe project targets for shared Linked Context pickers.",
+      provider: "client-projects.linked-context.projects",
+      responseContract: LINKED_CONTEXT_TARGET_RESPONSE_CONTRACT,
+      requiredReadPermission: "projects.manage",
+      requiredPermissions: ["projects.manage"],
+      requiredModules: ["client-projects"],
+      requiredWorkspaceCapabilities: ["projects", "clients_projects"],
     },
   ],
   tagPropagation: [

@@ -21,6 +21,7 @@ import {
   listModuleRouteEntries as listRegisteredModuleRouteEntries,
   listModuleRoutes as listRegisteredModuleRoutes,
   listModules as listRegisteredModules,
+  listLinkedContextProviders as listRegisteredLinkedContextProviders,
   listNotificationEvents as listRegisteredNotificationEvents,
   listNotificationFollowTargets as listRegisteredNotificationFollowTargets,
   listNotificationTemplates as listRegisteredNotificationTemplates,
@@ -143,6 +144,23 @@ function listSearchableTypes() {
 
 function listAttachableTypes() {
   return listRegisteredAttachableTypes();
+}
+
+function listLinkedContextProviders() {
+  return listRegisteredLinkedContextProviders();
+}
+
+async function listActiveLinkedContextProviders(workspaceId, session = null) {
+  if (!workspaceId) {
+    return [];
+  }
+
+  const providers = await listWorkspaceContributions(workspaceId, session, "linkedContextProviders");
+  return providers.sort((left, right) => (
+    String(left.targetType || "").localeCompare(String(right.targetType || "")) ||
+    String(left.label || "").localeCompare(String(right.label || "")) ||
+    String(left.id || "").localeCompare(String(right.id || ""))
+  ));
 }
 
 async function listActiveAttachableTypes(workspaceId) {
@@ -1322,6 +1340,8 @@ export const modulesService = {
   listModuleSettingsNavigation,
   listModules,
   listAttachableTypes,
+  listLinkedContextProviders,
+  listActiveLinkedContextProviders,
   listActiveAttachableTypes,
   listActiveSearchableTypes,
   listModuleBrowserAssets,

@@ -32,6 +32,7 @@ The first framework-owned primitives are:
 - Modal footer/action groups
 - Field grid
 - Inline item/action row
+- Linked Context picker shell
 
 These primitives should create safe, accessible DOM structures, apply the shared surface classes from `docs/ui-surface-contract.md`, and keep layout behavior consistent across protected views. They should stay small and boring: no virtual DOM, state manager, component lifecycle, router, build step, or frontend framework.
 
@@ -174,3 +175,9 @@ The framework list/detail layout is now `stacked`, and the `split-list-detail` l
 - `createFilterPanel` now renders a collapsible `<details>` (collapsed by default on rendered surfaces, `open` option to expand).
 - `createCollapsibleIndexPanel` supports an optional `summaryActions` node or node list for framework-owned summary-line controls such as right-aligned pagination. Summary actions hide automatically while the panel is collapsed; modules may supply the control behavior without rebuilding the panel anatomy.
 - Deprecated, retained for compatibility only: the `createSplitListDetail` primitive and `.view-split-list-detail` CSS. They are no longer wired into the renderer and `split-list-detail` is no longer a valid `layout`; do not use them in new work. Use `stacked`.
+
+## Implementation Notes For 0.33.5.18.6.5.2
+
+`LongtailForge.view.createLinkedContextPicker(options)` adds the shared framework shell for Linked Context picker anatomy. It renders the Target select, Search input, Record dropdown, `Use Target` action, existing linked-context rows, row Remove actions, empty state, and read-only/permission-disabled state while exposing those controls through `element.viewParts`.
+
+The helper is intentionally layout-only. Providers and consuming modules still own available target decisions, search/filter requests, record sorting, display labels, secondary labels, URLs, Primary Context hints, save payloads, API calls, and permission enforcement. The shell renders provider-supplied labels as text and must not synthesize module-specific strings such as target-type prefixes, client/status suffixes, or raw IDs.
