@@ -1,6 +1,6 @@
 # Linked Context Picker Provider And Shell Contract
 
-This document defines the shared Linked Context picker provider and shell contract as of 0.33.5.18.6.6.3. The framework owns the reusable picker shell. Source modules own provider data, permission-safe filtering, sorting, labels, summaries, and source URLs.
+This document defines the shared Linked Context picker provider and shell contract as of 0.33.5.18.6.6.4. The framework owns the reusable picker shell. Source modules own provider data, permission-safe filtering, sorting, labels, summaries, and source URLs.
 
 ## Ownership
 
@@ -42,6 +42,8 @@ String fields may be empty only when the value is truly unavailable or not relev
 Provider labels must be safe for direct UI rendering. `displayLabel` and `secondaryLabel` must not be raw UUIDs, raw target ids, raw client ids, raw project ids, or raw workspace ids. If the provider cannot resolve a readable label, it must return a safe fallback such as `Unavailable client`, `Unavailable project`, `Unavailable task`, `Unavailable note`, `Unavailable list`, or `Unavailable linked context`.
 
 IDs remain present in data fields so the selected record can be saved correctly, but normal app UI must render the safe labels instead of those IDs.
+
+Already-saved context rows may outlive their target records or target providers. Saved-row readback should use a soft read path that returns safe fallback labels when a target is stale, missing, disabled, or no longer recognized. This soft path is read-only. Create/update flows must keep strict validation and reject new links whose targets are unsupported, missing, or not readable/writable by the actor.
 
 ## Shared Picker Shell
 
@@ -103,6 +105,8 @@ Note targets sort by readable context, Library bucket, collection path, note tit
 The Lists provider owns List target option labels and sort keys. List targets keep the plain list title as compatibility `label` and full-title metadata, while picker `displayLabel` uses an approximately 20-character list-title prefix plus readable Primary Context with the same Business and Personal/Family context rules as Note targets. List secondary labels use readable Primary Context when available and may fall back to list type, such as `Checklist` or `Procurement`. List labels must not include `List:`, UUIDs, or raw ids.
 
 List targets sort by readable context, list type label, list title, and stable target id. Existing linked List rows keep the full safe list title as the row label and show readable Primary Context secondary text when available.
+
+When saved Note/List links point at missing targets, disabled modules, or legacy target types, existing rows render `Unavailable note`, `Unavailable list`, or `Unavailable linked context` without echoing the saved target id.
 
 ## First Providers
 

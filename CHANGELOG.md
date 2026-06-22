@@ -1,3 +1,10 @@
+## Version 0.33.5.18.6.6.4 - 2026-06-22 08:12 -04:00
+
+- Added a saved-target fallback read path for Notes Primary Context and Linked Context so stale or unresolvable saved rows render safe labels such as `Unavailable client`, `Unavailable project`, `Unavailable task`, `Unavailable note`, `Unavailable list`, or `Unavailable linked context` instead of raw IDs.
+- Kept create/update validation strict for new links and Primary Context writes while allowing historical/stale saved rows to remain readable with safe placeholders.
+- Added `linked-context-unavailable-fallback-regression.mjs`, wired it into the regression suite, updated Linked Context/Notes docs and decisions, and bumped package metadata/regression version pins to `0.33.5.18.6.6.4`.
+- Verification: `npm run check` passed 146/146 regression scripts plus ESLint; `/api/app-info` reports `0.33.5.18.6.6.4` after restarting the local 8001 server.
+
 ## Version 0.33.5.18.6.6.3 - 2026-06-22 02:12 -04:00
 
 - Upgraded Note and List Linked Context targets to first-class provider payloads: Note targets now return plain note-title display labels with safe Library/collection secondary context, and List targets return plain list-title display labels with list-type secondary context.

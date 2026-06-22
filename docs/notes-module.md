@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.5.18.6.6.3. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.18.6.6.4. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -101,7 +101,7 @@ The current backend-supported link targets are workspace, client, project, task,
 
 The browser Notes workspace uses the Notes-owned `/api/notes/link-targets` picker route instead of raw ID entry for Linked Context. Picker results are permission-shaped by the target owner before labels are returned. Client, project, task, note, list, and user results include safe human labels, source URLs where the app has a record view, and context hints such as `clientId`, `projectId`, and `suggestedLibraryBucket`. Workspace target support remains for legacy/backend compatibility, but Workspace is not a normal selectable target in the Add/Edit Note picker.
 
-As of 0.33.5.18.6.6.3, the shared Linked Context provider contract is formalized through module manifest `linkedContextProviders` descriptors and the `linked-context-target.v1` normalized response shape, and the framework exposes `LongtailForge.view.createLinkedContextPicker()` as the reusable picker shell. Notes declares itself as a Note target provider, while Clients/Projects, Tasks, Lists, and Users declare their own target providers. The Add/Edit Note dialog uses the shared picker shell while Notes still owns target availability, target lookup, save payloads, Primary Context prefill for task-created notes, and permission-safe target reads.
+As of 0.33.5.18.6.6.4, the shared Linked Context provider contract is formalized through module manifest `linkedContextProviders` descriptors and the `linked-context-target.v1` normalized response shape, and the framework exposes `LongtailForge.view.createLinkedContextPicker()` as the reusable picker shell. Notes declares itself as a Note target provider, while Clients/Projects, Tasks, Lists, and Users declare their own target providers. The Add/Edit Note dialog uses the shared picker shell while Notes still owns target availability, target lookup, save payloads, Primary Context prefill for task-created notes, and permission-safe target reads.
 
 Client and Project picker labels come from the provider-owned `displayLabel` and `sortKey` fields. Client options use the Clients/Projects-owned hierarchy payload: top-level clients sort alphabetically, child clients follow their parent alphabetically, and child display labels may carry the Clients/Projects indentation prefix. Business project options display `Project Name - Client Name` for client projects and `Project Name - Workspace Name` for workspace-level projects; they sort workspace-level projects first, then by workspace/client display name, then by project name. Personal and Family project options display and sort by project name only. The browser may keep simple `label` fallback behavior for older payloads, but it must prefer provider `displayLabel` whenever present.
 
@@ -120,6 +120,8 @@ Saved-note Add/Edit Linked Context mutations are immediate. `Use Target` posts a
 For new unsaved notes, `Use Target` stages each selected target in local draft state and renders it as a removable Linked Context row before the note exists. Saving the note sends the staged targets as the create payload's `links` array so they become `note_links` rows. Removing a staged row removes only that draft link and does not clear Primary Context. Selecting a task still infers project/client Primary Context where those readable values are present. Task targets suggest Active Work. Client, project, and user targets suggest Ongoing Areas. Manual Library bucket choices are treated as user intent and are not overwritten by later picker changes.
 
 Note detail reads decorate Primary Context and `note_links` with safe labels and navigation URLs where available. Missing or inaccessible targets return an unavailable state or a safe fallback label such as `Unavailable client`, `Unavailable project`, `Unavailable task`, `Unavailable note`, `Unavailable list`, or `Unavailable linked context`. Normal Notes UI must not display raw target IDs or UUIDs for unresolved context; Audit Logs may still display raw IDs because they are administrative records.
+
+As of 0.33.5.18.6.6.4, saved Primary Context and Linked Context readback uses a soft target normalizer so stale historical rows do not make a note unreadable solely because their target can no longer be resolved. These rows return safe fallback display fields and empty source URLs. New create/update writes still use strict target validation and must reject unsupported, missing, or inaccessible targets.
 
 ## Linked Context Panel Helper
 

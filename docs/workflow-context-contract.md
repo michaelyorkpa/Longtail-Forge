@@ -1,6 +1,6 @@
 # Workflow Context Contract
 
-This document defines the current user-facing context terminology for workflow records as of 0.33.5.18.6.6.3. It applies to Notes now and should guide future Tasks, Lists, Files, Clients/Projects, and Knowledge Base surfaces when they show related work context.
+This document defines the current user-facing context terminology for workflow records as of 0.33.5.18.6.6.4. It applies to Notes now and should guide future Tasks, Lists, Files, Clients/Projects, and Knowledge Base surfaces when they show related work context.
 
 ## Terms
 
@@ -49,3 +49,5 @@ For Add/Edit Notes, normal Linked Context picker choices are Project, Task, Note
 Task target labels are compact picker labels owned by the Task provider. They use a shortened task-title portion plus project context where present, avoid target-type/status/id suffixes, and expose the full task title through tooltip or accessible-label metadata when the displayed title is truncated. Active readable tasks sort before completed or archived tasks, then by context and title through provider-owned sort keys.
 
 Note and List target labels are provider-owned as well. Picker labels use an approximately 20-character safe title prefix plus readable Primary Context where present, following the same Business and Personal/Family context rules as Task picker labels. Existing linked Note/List rows keep the full safe title as the row label and show readable Primary Context secondary text when available. Notes may fall back to Library/collection secondary context, and Lists may fall back to list type, when no readable Primary Context exists. Private, secure, deleted, disabled-module, and inaccessible targets must be filtered before labels are returned. Neither target type should expose UUIDs, raw ids, or synthetic `Note:` / `List:` prefixes in normal UI.
+
+Saved Primary Context and Linked Context rows may outlive their target records or target providers. Read surfaces should handle those stale rows with safe fallback labels and no record URL. Write surfaces should remain strict and must not use the saved-row fallback path to create new invalid context.

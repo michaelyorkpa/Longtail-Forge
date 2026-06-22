@@ -280,7 +280,7 @@ async function assertProtectedView(session) {
   assert.match(notesCss, /\.notes-list-panel-footer\s*\{[\s\S]*justify-content:\s*space-between;/, "Notes List footer should keep sort left and pagination right");
   assert.match(notesCss, /\.notes-list-sort select\s*\{[\s\S]*min-width:\s*220px;/, "Notes List sort dropdown should have a stable footer width");
 
-  // 0.33.5.18.6.6.3 Notes adoption of provider-owned Linked Context labels.
+  // 0.33.5.18.6.6.4 Notes adoption of provider-owned Linked Context labels.
   assert.match(notesJs, /picker\.dataset\.noteContextPicker = ""/, "The Add/Edit Note dialog should mount the shared Linked Context picker shell");
   assert.match(notesJs, /picker\.viewParts\.targetSelect\.dataset\.noteContextTargetType = ""/, "The shared picker target select should keep the existing Notes behavior hook");
   assert.match(notesJs, /picker\.viewParts\.searchInput\.dataset\.noteContextSearch = ""/, "The shared picker search input should keep the existing Notes behavior hook");

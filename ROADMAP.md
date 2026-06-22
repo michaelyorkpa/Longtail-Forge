@@ -1104,16 +1104,16 @@ Acceptance criteria:
 
 Unavailable targets:
 
-- [ ] Existing links whose target cannot be resolved/read should show safe placeholders:
-  - [ ] `Unavailable linked context`
-  - [ ] `Unavailable client`
-  - [ ] `Unavailable project`
-  - [ ] `Unavailable task`
-  - [ ] `Unavailable note`
-  - [ ] `Unavailable list`
-- [ ] Do not expose raw target IDs.
-- [ ] Apply fallback behavior consistently to picker options, existing linked context rows, and Primary Context display where applicable.
-- [ ] Add regression coverage for unresolved/unreadable targets.
+- [x] Existing links whose target cannot be resolved/read should show safe placeholders:
+  - [x] `Unavailable linked context`
+  - [x] `Unavailable client`
+  - [x] `Unavailable project`
+  - [x] `Unavailable task`
+  - [x] `Unavailable note`
+  - [x] `Unavailable list`
+- [x] Do not expose raw target IDs.
+- [x] Apply fallback behavior consistently to picker options, existing linked context rows, and Primary Context display where applicable.
+- [x] Add regression coverage for unresolved/unreadable targets.
 
 Acceptance criteria:
 
@@ -1230,8 +1230,6 @@ Acceptance criteria:
 
 - [ ] Update the shared Markdown editor toolbar.
 - [ ] Existing `List` button should be renamed visually to one of:
-  - [ ] `UL`
-  - [ ] `Bullets`
   - [ ] Bullet-list icon
 - [ ] Add an ordered list button.
   - [ ] Visual label may be `1.`
@@ -1240,7 +1238,7 @@ Acceptance criteria:
   - [ ] Bold: `B`
   - [ ] Italic: `I`
   - [ ] Heading: `H`
-  - [ ] Unordered list: bullet icon or `UL`
+  - [ ] Unordered list: bullet icon
   - [ ] Ordered list: `1.`
   - [ ] Link: chain icon
   - [ ] Wiki: Wikipedia/Wikimedia-style globe icon or compact `Wiki` icon if no approved icon exists

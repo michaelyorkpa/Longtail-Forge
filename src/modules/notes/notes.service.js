@@ -954,7 +954,7 @@ async function canAccessLinkedContext(session, note, links = [], seenTargets = n
   ].filter((target) => target.target_id || target.target_type === "workspace");
 
   for (const target of targets) {
-    if (!(await canTargetAccess(session, target, seenTargets))) {
+    if (!(await canAccessSavedContextTarget(session, target, seenTargets))) {
       return false;
     }
   }
@@ -1039,6 +1039,131 @@ async function canTargetAccess(session, target, seenTargets = new Set()) {
   }
 
   return false;
+}
+
+async function canAccessSavedContextTarget(session, target, seenTargets = new Set()) {
+  const normalizedTarget = normalizeSavedTarget(target);
+  const targetKey = linkedContextTargetKey(normalizedTarget);
+  if (seenTargets.has(targetKey)) {
+    return true;
+  }
+  const nextSeenTargets = new Set(seenTargets);
+  nextSeenTargets.add(targetKey);
+
+  if (!normalizedTarget.target_type || !normalizedTarget.target_id) {
+    return true;
+  }
+
+  if (!LINK_TARGET_TYPES.has(normalizedTarget.target_type)) {
+    return true;
+  }
+
+  if (normalizedTarget.target_type === "workspace") {
+    return normalizedTarget.target_id === session.workspace_id;
+  }
+
+  if (normalizedTarget.target_type === "client") {
+    if (!(await workspaceSupportsClientTargets(session)) || !(await modulesService.canReadModule(session.workspace_id, "client-projects"))) {
+      return true;
+    }
+
+    const client = await clientsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+    if (!client) {
+      return true;
+    }
+
+    return permissionsService.can(session, "clients.manage", {
+      workspace_id: session.workspace_id,
+      client_id: client.id,
+      operation: "read",
+    });
+  }
+
+  if (normalizedTarget.target_type === "project") {
+    if (!(await modulesService.canReadModule(session.workspace_id, "client-projects"))) {
+      return true;
+    }
+
+    const project = await projectsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+    if (!project) {
+      return true;
+    }
+
+    return permissionsService.can(session, "projects.manage", {
+      workspace_id: session.workspace_id,
+      client_id: project.client_id,
+      project_id: project.id,
+      operation: "read",
+    });
+  }
+
+  if (normalizedTarget.target_type === "task") {
+    if (!(await modulesService.canReadModule(session.workspace_id, "tasks"))) {
+      return true;
+    }
+
+    const task = await tasksRepository.readById(session.workspace_id, normalizedTarget.target_id);
+    if (!task) {
+      return true;
+    }
+
+    return permissionsService.can(session, "tasks.view", {
+      workspace_id: session.workspace_id,
+      client_id: task.client_id,
+      project_id: task.project_id,
+      task_id: task.task_id,
+      operation: "read",
+    });
+  }
+
+  if (normalizedTarget.target_type === "note") {
+    const note = await notesRepository.readById(session.workspace_id, normalizedTarget.target_id);
+    if (!note || note.status === NOTE_STATUSES.DELETED || note.deleted_at) {
+      return true;
+    }
+
+    const links = await notesRepository.listLinks(session.workspace_id, note.note_id);
+    const linkedRecordAccess = await canAccessLinkedContext(session, note, links, nextSeenTargets);
+    const access = canAccessNote({
+      note,
+      operation: "read",
+      session,
+      permissions: await readNotePermissionSet(session),
+      linkedRecordAccess,
+      ...(await readNotesModuleState(session)),
+    });
+    return access.allowed;
+  }
+
+  if (normalizedTarget.target_type === "list") {
+    if (!(await modulesService.canReadModule(session.workspace_id, "lists"))) {
+      return true;
+    }
+
+    const listRecord = await listsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+    if (!listRecord || listRecord.status === "deleted" || listRecord.deleted_at) {
+      return true;
+    }
+
+    return permissionsService.can(session, LIST_PERMISSIONS.VIEW_ALL, listResource(listRecord)) ||
+      permissionsService.can(session, LIST_PERMISSIONS.VIEW, listResource(listRecord));
+  }
+
+  if (normalizedTarget.target_type === "user") {
+    const user = await usersRepository.readById(session.workspace_id, normalizedTarget.target_id);
+    if (!user) {
+      return true;
+    }
+
+    return normalizedTarget.target_id === session.user_id ||
+      permissionsService.can(session, "users.manage", {
+        workspace_id: session.workspace_id,
+        user_id: normalizedTarget.target_id,
+        operation: "read",
+      });
+  }
+
+  return true;
 }
 
 function linkedContextTargetKey(target = {}) {
@@ -1752,6 +1877,18 @@ function normalizeTarget(payload = {}) {
   };
 }
 
+function normalizeSavedTarget(payload = {}) {
+  const targetType = normalizeOptionalText(payload.targetType || payload.target_type);
+  const targetId = normalizeOptionalText(payload.targetId || payload.target_id);
+  const moduleId = normalizeOptionalText(payload.moduleId || payload.module_id) || defaultModuleForTargetType(targetType);
+
+  return {
+    module_id: moduleId,
+    target_type: targetType,
+    target_id: targetType === "workspace" && targetId === "current" ? payload.workspace_id || payload.workspaceId || targetId : targetId,
+  };
+}
+
 function defaultModuleForTargetType(targetType) {
   return {
     workspace: "framework",
@@ -2019,7 +2156,7 @@ async function readLinkedContextSummary(session, note = {}) {
 }
 
 async function readTargetSummary(session, target = {}) {
-  const normalizedTarget = normalizeTarget({
+  const normalizedTarget = normalizeSavedTarget({
     ...target,
     target_id: target.target_id || target.targetId,
     target_type: target.target_type || target.targetType,
@@ -2210,8 +2347,10 @@ function safeUnavailableTarget(target = {}) {
   return {
     label,
     display_label: label,
-    subtitle: "Unavailable",
-    secondary_label: "Unavailable",
+    full_label: label,
+    aria_label: label,
+    subtitle: "",
+    secondary_label: "",
     sort_key: sortText(label),
     source_url: "",
     is_available: false,

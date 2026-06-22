@@ -114,6 +114,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/linked-context-client-project-label-sort-regression.mjs",
   "scripts/linked-context-task-label-sort-regression.mjs",
   "scripts/linked-context-note-list-label-regression.mjs",
+  "scripts/linked-context-unavailable-fallback-regression.mjs",
   "scripts/notes-task-context-regression.mjs",
   "scripts/notes-preview-editor-regression.mjs",
   "scripts/notes-secure-regression.mjs",
