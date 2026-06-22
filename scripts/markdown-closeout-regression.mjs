@@ -13,14 +13,14 @@ const notesHelp = await read("help/modules/notes/markdown.md");
 const packageJson = JSON.parse(await read("package.json"));
 const packageLock = JSON.parse(await read("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.18.6.8.4", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.6.8.4", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.8.4", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.6.9.2", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.6.9.2", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.6.9.2", "package-lock package entry should report the current app version");
 
-assert.match(
+assert.doesNotMatch(
   roadmap,
-  /### Version 0\.33\.5\.17\.6 - Documentation and Closeout[\s\S]*- \[x\] Update `docs\/module-contract\.md`[\s\S]*- \[x\] Verify `\/api\/app-info` reports the expected version/,
-  "0.33.5.17.6 roadmap closeout checklist should be complete",
+  /### Version 0\.33\.5\.17\.6 - Documentation and Closeout/,
+  "0.33.5.17.6 roadmap closeout checklist should be archived out of the live roadmap",
 );
 assert.match(changelog, /## Version 0\.33\.5\.17\.6/, "changelog should record the closeout slice");
 
@@ -46,7 +46,7 @@ for (const phrase of [
 }
 
 for (const phrase of [
-  "current Notes implementation as of 0.33.5.18.6.8.4",
+  "current Notes implementation as of 0.33.5.18.6.9.2",
   "CommonMark paragraphs",
   "safe underline through the `++text++` token",
   "approved tables and task lists",

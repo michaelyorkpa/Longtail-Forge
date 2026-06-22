@@ -152,6 +152,7 @@ const filesSaveFirstWarning = document.querySelector("[data-note-files-save-firs
 const tagsToggle = document.querySelector("[data-note-tags-toggle]");
 const filesToggle = document.querySelector("[data-note-files-toggle]");
 const bodyInput = document.querySelector("[data-note-body]");
+const markdownEditor = document.querySelector("[data-note-markdown-editor]");
 const previewToggle = document.querySelector("[data-note-preview-toggle]");
 const preview = document.querySelector("[data-note-preview]");
 const formStatus = document.querySelector("[data-note-form-status]");
@@ -1307,6 +1308,7 @@ async function openEditor(note = null) {
   bodyInput.value = note?.body_markdown || "";
   preview.hidden = true;
   previewToggle.setAttribute("aria-pressed", "false");
+  updatePreviewLayoutState(false);
   formStatus.textContent = "";
   saveButton.disabled = false;
   resetNoteEditorPanels();
@@ -2141,11 +2143,17 @@ function handleEditorCommand(event) {
 
 function togglePreview() {
   const pressed = previewToggle.getAttribute("aria-pressed") === "true";
-  previewToggle.setAttribute("aria-pressed", String(!pressed));
-  preview.hidden = pressed;
-  if (!pressed) {
+  const visible = !pressed;
+  previewToggle.setAttribute("aria-pressed", String(visible));
+  preview.hidden = !visible;
+  updatePreviewLayoutState(visible);
+  if (visible) {
     void renderPreview();
   }
+}
+
+function updatePreviewLayoutState(visible) {
+  markdownEditor?.classList.toggle("is-preview-visible", visible);
 }
 
 async function renderPreview() {

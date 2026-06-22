@@ -1,6 +1,6 @@
 Note bodies use Markdown as the editable format. Headings, emphasis, safe underline using `++underlined text++`, links, blockquotes, inline code, fenced code blocks, ordered lists, unordered lists, nested lists, task lists, and tables are supported. Unsafe HTML and scriptable input are rejected before saving.
 
-The editor toolbar provides compact controls for bold, italic, underline, headings, unordered lists, ordered lists, checklists, links, wiki links, and Preview. Each toolbar control has a tooltip and accessible label. The toolbar stays above the Body editor and Preview area when Preview is toggled.
+The editor toolbar provides compact controls for bold, italic, underline, headings, unordered lists, ordered lists, checklists, links, wiki links, and Preview. Each toolbar control has a tooltip and accessible label. The toolbar stays above the Body editor and Preview area when Preview is toggled. On wider screens, Preview appears beside the Body editor so you can edit and review the rendered draft together. On narrow screens, Preview stacks below the Body editor and long previews scroll inside the Preview area.
 
 In the note body editor, Tab indents the current line or selected lines and Shift+Tab removes one indent level. Indented list markers render as nested lists, so a list item under another list item can be created by indenting the child line before its `-`, `*`, `+`, checklist, or numbered marker.
 

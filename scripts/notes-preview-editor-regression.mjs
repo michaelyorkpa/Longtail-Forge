@@ -70,10 +70,11 @@ async function assertStaticBrowserContract() {
   const css = await fs.readFile(path.join(process.cwd(), "public/css/longtail-forge.css"), "utf8");
   const routesSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.routes.js"), "utf8");
 
-  assert.match(notesHtml, /css\/longtail-forge\.css\?v=43/);
+  assert.match(notesHtml, /css\/longtail-forge\.css\?v=45/);
   assert.match(notesHtml, /js\/shared\/icons\.js\?v=3/);
   assert.match(notesHtml, /js\/shared\/notes-editor\.js\?v=4/);
-  assert.match(notesHtml, /js\/notes\.js\?v=58/);
+  assert.match(notesHtml, /js\/notes\.js\?v=59/);
+  assert.match(notesJs, /const markdownEditor = document\.querySelector\("\[data-note-markdown-editor\]"\);/);
   assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/);
   assert.match(notesJs, /previewRequestId/);
   assert.match(notesJs, /bodyInput\?\.addEventListener\("input", \(\) => renderPreview\(\)\)/);
@@ -94,8 +95,18 @@ async function assertStaticBrowserContract() {
   assert.match(notesEditorJs, /continueListMarker/);
   assert.match(notesEditorJs, /event\.key === "Enter"/);
   assertToolbarToggleDoesNotMoveMarkup(notesJs);
-  assert.match(css, /\.notes-markdown-editor,\s*\n\.notes-markdown-editor-body\s*\{[\s\S]*display:\s*grid;[\s\S]*width:\s*100%;/, "Markdown editor shell should keep toolbar/body/preview in a stable full-width stack");
+  assert.match(css, /\.notes-markdown-editor\s*\{[\s\S]*display:\s*grid;[\s\S]*width:\s*100%;[\s\S]*\}/, "Markdown editor shell should keep toolbar and body in a stable full-width stack");
+  assert.match(css, /\.notes-markdown-editor-body\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*width:\s*100%;[\s\S]*\}/, "Markdown editor body should default to a one-column full-width editor when preview is off");
+  assert.match(css, /@media\s*\(max-width:\s*899px\)\s*\{[\s\S]*\.notes-markdown-editor\.is-preview-visible \.notes-markdown-editor-body\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);[\s\S]*\}/, "Preview-on mobile layout should keep textarea and preview stacked");
+  assert.match(css, /@media\s*\(min-width:\s*900px\)\s*\{[\s\S]*\.notes-markdown-editor\.is-preview-visible \.notes-markdown-editor-body\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) minmax\(280px,\s*1fr\);[\s\S]*\}/, "Preview-on desktop layout should split editor and preview into two body columns");
   assert.match(css, /\.notes-markdown-editor > \.notes-editor-toolbar\s*\{[\s\S]*grid-column:\s*1 \/ -1;[\s\S]*width:\s*100%;[\s\S]*min-width:\s*0;/, "Toolbar should remain the full-width first row above editor and preview content");
+  assert.match(css, /\.notes-editor-form\s*\{[\s\S]*max-width:\s*100%;[\s\S]*overflow-x:\s*hidden;/, "Notes editor form should not allow preview layout to widen the modal scroll container");
+  assert.match(css, /\.notes-markdown-editor-body > label\s*\{[\s\S]*max-width:\s*100%;[\s\S]*min-width:\s*0;/, "Body field should fit the mobile stacked editor grid");
+  assert.match(css, /\.notes-preview\s*\{[\s\S]*box-sizing:\s*border-box;[\s\S]*width:\s*100%;[\s\S]*min-width:\s*0;[\s\S]*max-height:\s*min\(58vh,\s*560px\);[\s\S]*overflow:\s*auto;/, "Preview should fit its grid track and own long-content scrolling");
+  assert.match(css, /\.notes-preview pre,\s*\n\.notes-preview table\s*\{[\s\S]*max-width:\s*100%;[\s\S]*overflow-x:\s*auto;/, "Wide preview code and tables should scroll inside the preview instead of overflowing the modal");
+  assert.match(css, /\.notes-preview table\s*\{[\s\S]*display:\s*block;/, "Preview tables should become block scroll regions when wider than the preview column");
+  assert.match(css, /\.notes-preview code\s*\{[\s\S]*overflow-wrap:\s*anywhere;/, "Long inline code should not force horizontal overflow");
+  assert.doesNotMatch(css, /\.notes-editor-form > \.surface-modal-footer[\s\S]*position:/, "Notes should not override the framework-owned sticky modal footer positioning");
   assert.match(css, /li\.markdown-task-list-item\s*\{[\s\S]*list-style:\s*none;/, "task-list CSS should suppress the normal list marker");
   assert.match(css, /\.markdown-task-list-checkbox/, "task-list CSS should align rendered checkboxes");
   assert.ok(
@@ -107,8 +118,10 @@ async function assertStaticBrowserContract() {
 function assertToolbarToggleDoesNotMoveMarkup(notesJs) {
   const togglePreviewSource = notesJs.match(/function togglePreview\(\) \{[\s\S]*?\n\}/)?.[0] || "";
 
-  assert.match(togglePreviewSource, /preview\.hidden = pressed;/, "Preview toggle should continue toggling preview visibility");
+  assert.match(togglePreviewSource, /preview\.hidden = !visible;/, "Preview toggle should continue toggling preview visibility");
+  assert.match(togglePreviewSource, /updatePreviewLayoutState\(visible\);/, "Preview toggle should update only the editor layout state");
   assert.doesNotMatch(togglePreviewSource, /append|insertBefore|replaceChildren|noteEditorToolbar|noteMarkdownEditor/, "Preview toggle should not move toolbar/editor markup");
+  assert.match(notesJs, /function updatePreviewLayoutState\(visible\) \{[\s\S]*markdownEditor\?\.classList\.toggle\("is-preview-visible", visible\);[\s\S]*\}/);
 }
 
 async function assertEditorKeyboardBehavior() {

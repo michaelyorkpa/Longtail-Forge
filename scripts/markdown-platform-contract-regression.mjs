@@ -11,9 +11,9 @@ const notesEditor = await readText("public/js/shared/notes-editor.js");
 const notesRoutes = await readText("src/modules/notes/notes.routes.js");
 const notesJs = await readText("public/js/notes.js");
 
-assert.equal(packageJson.version, "0.33.5.18.6.8.4", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.6.8.4", "package-lock root version should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.8.4", "package-lock package metadata should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.6.9.2", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.6.9.2", "package-lock root version should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.6.9.2", "package-lock package metadata should report the current app version");
 
 assert.match(contract, /Longtail Forge will adopt `markdown-it`/, "contract should record the selected parser");
 assert.match(contract, /CommonMark mode/, "contract should require CommonMark-compatible parsing");
@@ -46,7 +46,7 @@ assert.match(notesRoutes, /notesRoutes\.post\("\/notes\/preview"/, "Notes should
 assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/, "Notes live preview should use the server preview route");
 assert.match(notesJs, /command:\s*"underline",\s*text:\s*"U",\s*label:\s*"Underline"/, "Notes toolbar should expose the safe underline command");
 
-assert.match(roadmap, /### Version 0\.33\.5\.17\.1 - Parser Selection and Markdown Contract[\s\S]*- \[x\] Review current Markdown rendering paths/, "roadmap should mark 0.33.5.17.6 complete");
+assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.17\.1 - Parser Selection and Markdown Contract/, "completed Markdown platform roadmap slices should be archived out of the live roadmap");
 
 console.log("Markdown platform contract regression passed.");
 

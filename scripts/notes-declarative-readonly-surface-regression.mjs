@@ -11,14 +11,14 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.18.6.8.4", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.6.8.4", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.8.4", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.6.9.2", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.6.9.2", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.6.9.2", "package-lock package entry should report the current app version");
 
 // Protected view is now a minimal framework host; as of .18.4 the dialogs are framework-built too.
 assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Notes view should be a minimal framework host");
-assert.match(html, /css\/longtail-forge\.css\?v=43/, "Notes host should load the refreshed stylesheet");
-assert.match(html, /js\/shared\/icons\.js\?v=3[\s\S]*js\/shared\/view-builder\.js\?v=10[\s\S]*js\/shared\/view-renderer\.js\?v=8[\s\S]*js\/notes\.js\?v=58/, "Notes host should load the icon helper, view builder, and renderer before the module adapter");
+assert.match(html, /css\/longtail-forge\.css\?v=45/, "Notes host should load the refreshed stylesheet");
+assert.match(html, /js\/shared\/icons\.js\?v=3[\s\S]*js\/shared\/view-builder\.js\?v=10[\s\S]*js\/shared\/view-renderer\.js\?v=8[\s\S]*js\/notes\.js\?v=59/, "Notes host should load the icon helper, view builder, and renderer before the module adapter");
 assert.doesNotMatch(html, /data-notes-list|data-notes-collections-panel|data-note-filter-status|class="notes-filters-panel"/, "Notes static HTML should not own the converted read workspace anatomy");
 assert.doesNotMatch(html, /data-note-dialog/, "Editor dialog is framework-built as of .18.4, not static HTML");
 assert.doesNotMatch(html, /data-note-collection-dialog/, "Collection dialog is framework-built as of .18.4, not static HTML");
@@ -79,14 +79,8 @@ assert.match(notesJs, /\/api\/notes\/preview/, "Notes live preview route should 
 assert.match(notesJs, /body_html/, "Notes detail should render the server Markdown-rendered body_html");
 assert.match(notesJs, /collectionFilterOptions/, "Notes collection read logic should remain in the module");
 
-for (const item of [
-  "Add a `viewSurfaces` descriptor for the Notes protected workspace read path on the Notes manifest.",
-  "Reduce `views/protected/notes.html` to a minimal framework host element the renderer fills.",
-  "Render the note body through the 0.33.5.17 Markdown service; do not reintroduce ad-hoc rendering.",
-  "Keep note creation/editing, modals, revisions, and linked-record management on the existing",
-]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
-}
+assert.match(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.9 are archived/, "live roadmap should document that completed Notes slices are archived");
+assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.3 - Notes Declarative Read-Only Surface Proof/, "completed Notes declarative proof slice should be archived out of the live roadmap");
 
 assert.match(changelog, /## Version 0\.33\.5\.18\.3 - /, "Changelog should record the Notes read-only proof");
 assert.match(regressionSuite, /scripts\/notes-declarative-readonly-surface-regression\.mjs/, "Regression suite should include the Notes declarative proof regression");
@@ -95,8 +89,4 @@ console.log("Notes declarative read-only surface regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

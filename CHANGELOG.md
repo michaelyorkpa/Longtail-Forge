@@ -1,3 +1,17 @@
+## Version 0.33.5.18.6.9.2 - 2026-06-22 13:58 -04:00
+
+- Completed the shared Markdown editor preview-layout branch by making Preview-on narrow screens stack Body and Preview vertically while preserving the desktop two-column layout.
+- Added a modal-safe Preview scroll region with table/code overflow containment so long rendered drafts do not widen the Notes editor modal, hide under the sticky footer, or shift footer actions.
+- Refreshed Notes/Markdown docs, Help copy, the Notes stylesheet cache key, package/regression version pins, decisions, and `notes-preview-editor-regression.mjs` coverage for responsive Preview behavior.
+- Verification: `npm run check` passed 150/150 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.9.2` after restarting the local 8001 server.
+
+## Version 0.33.5.18.6.9.1 - 2026-06-22 13:35 -04:00
+
+- Updated the Add/Edit Note Markdown editor so Preview off keeps the Body textarea full-width while Preview on uses a wide-screen two-column Body/Preview layout.
+- Kept the toolbar as the full-width first row above both editor columns and made preview layout state a CSS-owned shell state instead of reparenting toolbar/editor/preview markup.
+- Preserved the server-backed `POST /api/notes/preview` rendering path, refreshed Notes/Markdown docs and Help copy, bumped Notes cache keys, and expanded `notes-preview-editor-regression.mjs` for the new layout contract.
+- Verification: `npm run check` passed 150/150 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.9.1` after restarting the local 8001 server.
+
 ## Version 0.33.5.18.6.8.4 - 2026-06-22 13:16 -04:00
 
 - Added a safe underline Markdown contract using the dedicated `++underlined text++` token, rendered by the shared framework Markdown service as generated plain `<u>` output.

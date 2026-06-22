@@ -17,9 +17,9 @@ const changelog = await readText("CHANGELOG.md");
 const contract = await readText("docs/markdown-platform-contract.md");
 const regressionSuite = await readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.6.8.4", "package.json should carry the Markdown renderer slice version");
-assert.equal(packageLock.version, "0.33.5.18.6.8.4", "package-lock root version should carry the Markdown renderer slice version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.8.4", "package-lock package metadata should carry the Markdown renderer slice version");
+assert.equal(packageJson.version, "0.33.5.18.6.9.2", "package.json should carry the Markdown renderer slice version");
+assert.equal(packageLock.version, "0.33.5.18.6.9.2", "package-lock root version should carry the Markdown renderer slice version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.6.9.2", "package-lock package metadata should carry the Markdown renderer slice version");
 assert.equal(packageJson.dependencies["markdown-it"], "^14.2.0", "markdown-it should be installed as the selected Markdown dependency");
 
 assert.equal(typeof markdownService.renderMarkdownToHtml, "function", "service should expose safe HTML rendering");
@@ -104,24 +104,7 @@ for (const expected of ["Heading", "strong", "emphasis", "underlined text", "saf
 assert.doesNotMatch(plain, /[#*_`|]|\+\+|\[x\]|\[ \]/, "plain text should not expose Markdown control syntax");
 assert.equal(createMarkdownExcerpt(markdown, 30), "Heading Paragraph with strong...", "excerpts should come from the parser-backed plain text path");
 
-for (const item of [
-  "Add the selected Markdown dependency and wire it through a framework-owned service, for example",
-  "Render Markdown to sanitized HTML using the approved syntax contract.",
-  "Raw HTML.",
-  "Script/event attributes.",
-  "`javascript:` and other unsafe URLs.",
-  "Unsafe image sources if images are allowed.",
-  "Add a plain-text/excerpt conversion path that uses the same parser contract instead of",
-  "Nested ordered and unordered lists.",
-  "Mixed ordered/unordered list nesting.",
-  "Two-space and four-space indentation behavior.",
-  "Task lists if approved.",
-  "Tables if approved.",
-  "Code fences, inline code, blockquotes, links, and unsafe input.",
-  "Keep the service independent of Notes, Help, and future Knowledge Base business rules.",
-]) {
-  assert.match(roadmap, new RegExp(`- \\[x\\] ${escapeRegExp(item)}`), `Roadmap item should be checked: ${item}`);
-}
+assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.17\.2 - Shared Server-Side Markdown Renderer/, "completed Markdown renderer roadmap slice should be archived out of the live roadmap");
 
 assert.match(changelog, /## Version 0\.33\.5\.17\.2 - /, "changelog should include the renderer service slice");
 assert.match(contract, /0\.33\.5\.17\.2 adds the dependency and service/, "contract should note the renderer service implementation");

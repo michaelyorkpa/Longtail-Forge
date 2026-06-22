@@ -56,11 +56,11 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=8/);
   assert.match(html, /js\/shared\/icons\.js\?v=3/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=10/);
-  assert.match(html, /js\/notes\.js\?v=58/);
+  assert.match(html, /js\/notes\.js\?v=59/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=4/);
-  assert.match(html, /css\/longtail-forge\.css\?v=43/);
+  assert.match(html, /css\/longtail-forge\.css\?v=45/);
   // No static read chrome or dialog markup remains in the host page.
   assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
   assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);
