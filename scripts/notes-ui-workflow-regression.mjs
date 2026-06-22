@@ -60,7 +60,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
-  assert.match(html, /css\/longtail-forge\.css\?v=39/);
+  assert.match(html, /css\/longtail-forge\.css\?v=40/);
   // No static read chrome or dialog markup remains in the host page.
   assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
   assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);
@@ -206,6 +206,7 @@ async function assertProtectedView(session) {
   const notesCss = await fs.readFile(path.join(process.cwd(), "public/css/longtail-forge.css"), "utf8");
   assert.match(notesCss, /\.notes-files-panel \.file-attachments\s*\{[\s\S]*border:\s*0;/, "The embedded file-attachments component should drop its own box inside the Files panel (single outer box)");
   assert.match(notesCss, /\.notes-files-panel \.file-attachments-header h3\s*\{[\s\S]*display:\s*none;/, "The embedded file-attachments heading should be hidden (the panel summary already labels it)");
+  assert.match(notesCss, /\[data-note-links-panel\] \+ \.notes-files-panel,\s*\.notes-files-panel \+ \.notes-revisions-panel\s*\{[\s\S]*margin-top:\s*0;/, "Adjacent note detail utility panels should not add extra vertical spacing");
   const notesServiceJs = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.service.js"), "utf8");
   assert.match(notesServiceJs, /owner_display_name: await resolveNoteOwnerLabel\(session, note\)/, "The note read payload should resolve the owner display name");
 

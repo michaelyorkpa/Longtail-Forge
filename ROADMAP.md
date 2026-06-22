@@ -1072,8 +1072,12 @@ Note target:
 
 - [x] Add Note as a selectable Linked Context target.
 - [x] Display label:
-  - [x] `Note Title`
-- [x] Optional secondary label may include Library bucket or collection if helpful.
+  - [x] `Note title... - Client Name | Project Name` in Business client-project contexts.
+  - [x] `Note title... - Workspace Name | Project Name` in Business workspace-project contexts.
+  - [x] `Note title... - Project Name` in Personal/Family project contexts.
+  - [x] `Note title...` when no readable Primary Context exists.
+- [x] Truncate the picker title portion to approximately 20 characters while preserving the full title in provider metadata and linked rows.
+- [x] Secondary label uses readable Primary Context when present, with Library bucket or collection as the no-context fallback.
 - [x] Do not show secure/private/inaccessible note labels to unauthorized users.
 - [x] Do not show UUIDs.
 
@@ -1081,16 +1085,20 @@ List target:
 
 - [x] Add List as a selectable Linked Context target.
 - [x] Display label:
-  - [x] `List Title`
-- [x] Optional secondary label may include list type or primary context if helpful.
+  - [x] `List title... - Client Name | Project Name` in Business client-project contexts.
+  - [x] `List title... - Workspace Name | Project Name` in Business workspace-project contexts.
+  - [x] `List title... - Project Name` in Personal/Family project contexts.
+  - [x] `List title...` when no readable Primary Context exists.
+- [x] Truncate the picker title portion to approximately 20 characters while preserving the full title in provider metadata and linked rows.
+- [x] Secondary label uses readable Primary Context when present, with list type as the no-context fallback.
 - [x] Do not show UUIDs.
 - [x] Add provider and picker regression coverage for Note/List options.
 
 Acceptance criteria:
 
 - Note and List can be selected as Linked Context targets.
-- Note/List options are permission-safe and do not expose UUIDs.
-- Existing linked context rows can render Note/List labels safely.
+- Note/List options are permission-safe, use compact title-plus-context display labels, and do not expose UUIDs.
+- Existing linked context rows render full Note/List titles safely with readable Primary Context secondary text where available.
 
 #### Version 0.33.5.18.6.6.4 - Unavailable target fallback labels
 
@@ -1345,7 +1353,165 @@ Acceptance criteria:
 
 ---
 
-### Version 0.33.5.18.6.10 - Notes UI regression pass and docs closeout
+### Version 0.33.5.18.6.10 - Notes Sidebar Detail Layout
+
+Decision:
+
+Notes should adopt a desktop left-sidebar layout before Tasks, Files, and Clients/Projects are converted further. The current `stacked` layout was useful to stabilize the declarative surface, but Notes now needs a more standard workflow screen anatomy: controls/navigation on the left, selected record detail on the right.
+
+This must be implemented as a framework-owned responsive layout option, not a Notes-only CSS hack.
+
+The new layout should not resurrect the retired `split-list-detail` behavior. It should be a new layout primitive with a wider, scroll-safe sidebar intended for controls and navigation panels.
+
+Proposed layout name:
+
+- `sidebar-detail`
+- or `control-sidebar-detail`
+- or `navigation-detail`
+
+Recommended: `sidebar-detail`.
+
+Framework owns:
+
+- Desktop sidebar/detail grid anatomy.
+- Sidebar width, responsive breakpoints, overflow handling, panel stacking, and detail fill behavior.
+- Collapsible panel shell behavior.
+- Default responsive fallback to stacked layout on narrower screens.
+- Surface classes and theme-safe spacing/borders.
+- ARIA/focus behavior for collapsible panels.
+
+Notes owns:
+
+- Filter fields and filter query behavior.
+- Library bucket and collection behavior.
+- Notes List data, selection state, pagination, and sort behavior.
+- Selected note read/detail behavior.
+- Rules for when Notes List auto-collapses after selection.
+
+---
+
+#### Version 0.33.5.18.6.10.1 - Framework `sidebar-detail` layout primitive
+
+- [ ] Add a framework-owned `sidebar-detail` layout option to the view renderer.
+- [ ] Layout anatomy:
+  - [ ] Page header remains full-width above the workspace body.
+  - [ ] Workspace body becomes a two-column grid on desktop/wide screens.
+  - [ ] Left column is the sidebar/control column.
+  - [ ] Right column is the selected-record detail region.
+- [ ] Suggested desktop sizing:
+  - [ ] Sidebar min width around `300px`.
+  - [ ] Sidebar preferred width around `340px-380px`.
+  - [ ] Detail column uses `minmax(0, 1fr)`.
+- [ ] Sidebar should support stacked collapsible panels.
+- [ ] Sidebar should have safe vertical scrolling without trapping the whole page awkwardly.
+- [ ] Detail region should keep full available width and not inherit the old narrow split-layout behavior.
+- [ ] Responsive behavior:
+  - [ ] At medium/narrow breakpoints, fall back to the existing stacked layout pattern.
+  - [ ] Do not create horizontal overflow.
+  - [ ] Do not force a sidebar on mobile.
+- [ ] Do not revive `split-list-detail` as an active descriptor layout.
+- [ ] Keep deprecated split compatibility shims only as compatibility shims.
+- [ ] Add renderer/contract validation for the new layout value.
+- [ ] Add CSS using framework surface tokens only.
+- [ ] Add regression coverage proving:
+  - [ ] `sidebar-detail` renders sidebar and detail regions.
+  - [ ] Sidebar panels stack vertically.
+  - [ ] Detail region receives selected-record content.
+  - [ ] Narrow screens fall back safely.
+  - [ ] No old `split-list-detail` layout path is reactivated.
+
+Acceptance criteria:
+
+- Framework supports a reusable desktop sidebar/detail layout.
+- The layout is responsive and safe on narrower screens.
+- The implementation is reusable by Tasks, Files, Clients/Projects, and future modules.
+- No Notes-specific layout rules live in framework code.
+
+---
+
+#### Version 0.33.5.18.6.10.2 - Notes adoption of `sidebar-detail`
+
+- [ ] Change the Notes workspace descriptor from `layout: "stacked"` to the new framework layout.
+- [ ] Place these panels in the left sidebar:
+  - [ ] Filters
+  - [ ] Library
+  - [ ] Notes List
+- [ ] Place selected note detail in the right detail region.
+- [ ] Preserve existing Notes-owned behavior:
+  - [ ] Library bucket filtering.
+  - [ ] Collection filtering.
+  - [ ] Archive handling.
+  - [ ] Notes List pagination.
+  - [ ] Notes List sort dropdown.
+  - [ ] Current filters/search/tag/owner/context behavior.
+  - [ ] Blank detail state when no note is selected.
+  - [ ] Selected note detail rendering.
+  - [ ] Linked Context and Primary Context display.
+- [ ] Filters panel default:
+  - [ ] Open by default in the desktop sidebar layout.
+- [ ] Library panel default:
+  - [ ] Open by default in the desktop sidebar layout.
+- [ ] Notes List panel default:
+  - [ ] Open when no note is selected.
+  - [ ] Auto-collapse after a note is selected.
+  - [ ] If the user manually reopens Notes List, keep it open until navigation/session reset.
+  - [ ] If no note is selected again, open Notes List.
+- [ ] Preserve existing panel state where reasonable, but do not let stale stored state fight the new default behavior.
+- [ ] Ensure Notes List pagination/sort controls remain visible when Notes List is open and hidden when collapsed.
+- [ ] Ensure no Notes List content overlaps the selected note detail.
+- [ ] Ensure selected note detail starts near the top of the detail region and uses the available horizontal space.
+- [ ] Add regression coverage:
+  - [ ] Notes descriptor uses `sidebar-detail`.
+  - [ ] Filters/Library/Notes List mount in sidebar.
+  - [ ] Detail renders in main region.
+  - [ ] Filters default open.
+  - [ ] Library default open.
+  - [ ] Notes List default open with no selected note.
+  - [ ] Notes List auto-collapses after note selection.
+  - [ ] Manual Notes List reopen is respected.
+  - [ ] Narrow screens fall back to stacked behavior.
+  - [ ] Existing Notes filters, Library, selection, pagination, and sort behavior still work.
+
+Acceptance criteria:
+
+- Notes has a standard left-sidebar/detail layout on desktop.
+- Filters and Library start open.
+- Notes List starts open only when helpful, then gets out of the way after selection.
+- Users can manually reopen Notes List.
+- Mobile/narrow layouts remain usable.
+- Notes becomes the template for later workflow surfaces.
+
+---
+
+#### Version 0.33.5.18.6.10.3 - Sidebar layout documentation and guardrails
+
+- [ ] Update `docs/view-building-contract.md`:
+  - [ ] Document `sidebar-detail`.
+  - [ ] Explain when to use it.
+  - [ ] Explain how it differs from retired `split-list-detail`.
+  - [ ] Clarify sidebar/detail ownership boundaries.
+- [ ] Update Notes developer docs:
+  - [ ] Notes uses desktop sidebar/detail layout.
+  - [ ] Filters, Library, and Notes List are navigation/control panels.
+  - [ ] Selected note detail remains the main work region.
+- [ ] Add guardrails:
+  - [ ] Converted surfaces should not hand-build their own desktop sidebar/detail grids when the framework layout fits.
+  - [ ] Modules may own sidebar panel content and state behavior.
+  - [ ] Framework owns layout anatomy and responsive behavior.
+- [ ] Update CHANGELOG.
+- [ ] Bump app/package metadata.
+- [ ] Run:
+  - [ ] `npm run check`
+  - [ ] Notes surface regressions.
+  - [ ] View-renderer/layout regressions.
+
+Acceptance criteria:
+
+- The layout is documented as a reusable framework pattern.
+- Notes is documented as the first adopter.
+- Future Tasks/Files/Clients/Projects cleanup can reuse the same pattern instead of inventing new page anatomy.
+
+### Version 0.33.5.18.6.11 - Notes UI regression pass and docs closeout
 
 - [ ] Add or update Notes UI workflow regressions covering:
   - [ ] Create Note modal.

@@ -1182,26 +1182,31 @@ async function listTargetsByType(session, targetType) {
   if (targetType === "note") {
     const notes = await filterAccessibleNotes(session, await notesRepository.list(session.workspace_id, {}));
     const collectionsById = await readNoteCollectionsById(session);
+    const targetContext = await readLinkTargetContext(session);
     return notes.map((note) => {
       const noteTitle = noteTargetPlainLabel(note);
-      const secondaryLabel = noteTargetSecondaryLabel(note, collectionsById);
+      const displayLabel = noteTargetPickerDisplayLabel(note, targetContext);
+      const secondaryLabel = noteTargetSecondaryLabel(note, collectionsById, targetContext);
 
       return shapeLinkTarget({
         target_type: "note",
         target_id: note.note_id,
         label: noteTitle,
-        display_label: noteTitle,
+        display_label: displayLabel,
         secondary_label: secondaryLabel,
-        sort_key: noteTargetSortKey(note, collectionsById),
+        sort_key: noteTargetSortKey(note, collectionsById, targetContext),
         subtitle: secondaryLabel,
         source_url: noteSourceUrl(note.note_id),
         client_id: note.client_id || "",
+        client_name: recordTargetClientName(note, targetContext),
         project_id: note.project_id || "",
+        project_name: recordTargetProjectName(note, targetContext),
         note_id: note.note_id,
         title: noteTitle,
         full_label: noteTitle,
-        aria_label: noteTargetAccessibleLabel(note, collectionsById),
+        aria_label: noteTargetAccessibleLabel(note, collectionsById, targetContext),
         workspace_id: session.workspace_id,
+        workspace_name: targetContext.workspaceName,
       });
     });
   }
@@ -1211,6 +1216,7 @@ async function listTargetsByType(session, targetType) {
       return [];
     }
     const lists = await listsRepository.list(session.workspace_id, {});
+    const targetContext = await readLinkTargetContext(session);
     const readableLists = [];
     for (const listRecord of lists) {
       if (await canAccessListTarget(session, {
@@ -1218,22 +1224,28 @@ async function listTargetsByType(session, targetType) {
         target_type: "list",
         target_id: listRecord.list_id,
       })) {
+        const listTitle = listTargetPlainLabel(listRecord);
+        const displayLabel = listTargetPickerDisplayLabel(listRecord, targetContext);
+        const secondaryLabel = listTargetSecondaryLabel(listRecord, targetContext);
         readableLists.push(shapeLinkTarget({
           target_type: "list",
           target_id: listRecord.list_id,
-          label: listTargetPlainLabel(listRecord),
-          display_label: listTargetPlainLabel(listRecord),
-          secondary_label: listTargetSecondaryLabel(listRecord),
-          sort_key: listTargetSortKey(listRecord),
-          subtitle: listTargetSecondaryLabel(listRecord),
+          label: listTitle,
+          display_label: displayLabel,
+          secondary_label: secondaryLabel,
+          sort_key: listTargetSortKey(listRecord, targetContext),
+          subtitle: secondaryLabel,
           source_url: `lists.html?list=${encodeURIComponent(listRecord.list_id)}`,
           client_id: listRecord.client_id || "",
+          client_name: recordTargetClientName(listRecord, targetContext),
           project_id: listRecord.project_id || "",
+          project_name: recordTargetProjectName(listRecord, targetContext),
           list_id: listRecord.list_id,
-          title: listTargetPlainLabel(listRecord),
-          full_label: listTargetPlainLabel(listRecord),
-          aria_label: listTargetAccessibleLabel(listRecord),
+          title: listTitle,
+          full_label: listTitle,
+          aria_label: listTargetAccessibleLabel(listRecord, targetContext),
           workspace_id: session.workspace_id,
+          workspace_name: targetContext.workspaceName,
         }));
       }
     }
@@ -1480,25 +1492,70 @@ async function readNoteCollectionsById(session) {
   return new Map(collections.map((collection) => [collection.note_library_collection_id, collection]));
 }
 
+async function readLinkTargetContext(session) {
+  const workspace = await workspacesRepository.readById(session.workspace_id);
+  const baseContext = {
+    clientsById: new Map(),
+    isBusinessWorkspace: isBusinessWorkspaceRecord(workspace),
+    projectsById: new Map(),
+    workspace,
+    workspaceName: workspaceTargetName(workspace),
+  };
+
+  if (!(await modulesService.canReadModule(session.workspace_id, "client-projects"))) {
+    return baseContext;
+  }
+
+  const projects = await permissionsService.filterReadableProjects(session, await projectsRepository.readAll(session.workspace_id));
+  const clients = baseContext.isBusinessWorkspace
+    ? (await clientsService.listClients(session, {
+        include_depth: true,
+        shape: "flat",
+        status: "All",
+      })).clients || []
+    : [];
+
+  return {
+    ...baseContext,
+    clientsById: new Map(clients.map((client) => [client.id, client])),
+    projectsById: new Map(projects.map((project) => [project.id, project])),
+  };
+}
+
 function noteTargetPlainLabel(note = {}) {
   return readableTargetLabel(note.title || note.label, "note");
 }
 
-function noteTargetSecondaryLabel(note = {}, collectionsById = new Map()) {
+function noteTargetPickerDisplayLabel(note = {}, targetContext = {}) {
+  const title = truncateTaskTargetTitle(noteTargetPlainLabel(note));
+  const context = noteTargetContextLabel(note, targetContext);
+  return context ? `${title} - ${context}` : title;
+}
+
+function noteTargetSecondaryLabel(note = {}, collectionsById = new Map(), targetContext = {}) {
+  return noteTargetContextLabel(note, targetContext) || noteTargetLibrarySecondaryLabel(note, collectionsById);
+}
+
+function noteTargetLibrarySecondaryLabel(note = {}, collectionsById = new Map()) {
   return [
     noteTargetLibraryLabel(note),
     noteTargetCollectionLabel(note, collectionsById),
   ].filter(Boolean).join(" / ");
 }
 
-function noteTargetAccessibleLabel(note = {}, collectionsById = new Map()) {
+function noteTargetAccessibleLabel(note = {}, collectionsById = new Map(), targetContext = {}) {
   const label = noteTargetPlainLabel(note);
-  const secondaryLabel = noteTargetSecondaryLabel(note, collectionsById);
+  const secondaryLabel = noteTargetSecondaryLabel(note, collectionsById, targetContext);
   return secondaryLabel ? `${label} - ${secondaryLabel}` : label;
 }
 
-function noteTargetSortKey(note = {}, collectionsById = new Map()) {
+function noteTargetContextLabel(note = {}, targetContext = {}) {
+  return recordTargetContextLabel(note, targetContext);
+}
+
+function noteTargetSortKey(note = {}, collectionsById = new Map(), targetContext = {}) {
   return [
+    sortText(noteTargetContextLabel(note, targetContext)),
     noteTargetLibrarySortValue(note),
     sortText(noteTargetCollectionLabel(note, collectionsById)),
     sortText(noteTargetPlainLabel(note)),
@@ -1536,18 +1593,29 @@ function listTargetPlainLabel(listRecord = {}) {
   return readableTargetLabel(listRecord.title || listRecord.label, "list");
 }
 
-function listTargetSecondaryLabel(listRecord = {}) {
-  return listTargetTypeLabel(listRecord);
+function listTargetPickerDisplayLabel(listRecord = {}, targetContext = {}) {
+  const title = truncateTaskTargetTitle(listTargetPlainLabel(listRecord));
+  const context = listTargetContextLabel(listRecord, targetContext);
+  return context ? `${title} - ${context}` : title;
 }
 
-function listTargetAccessibleLabel(listRecord = {}) {
+function listTargetSecondaryLabel(listRecord = {}, targetContext = {}) {
+  return listTargetContextLabel(listRecord, targetContext) || listTargetTypeLabel(listRecord);
+}
+
+function listTargetAccessibleLabel(listRecord = {}, targetContext = {}) {
   const label = listTargetPlainLabel(listRecord);
-  const secondaryLabel = listTargetSecondaryLabel(listRecord);
+  const secondaryLabel = listTargetSecondaryLabel(listRecord, targetContext);
   return secondaryLabel ? `${label} - ${secondaryLabel}` : label;
 }
 
-function listTargetSortKey(listRecord = {}) {
+function listTargetContextLabel(listRecord = {}, targetContext = {}) {
+  return recordTargetContextLabel(listRecord, targetContext);
+}
+
+function listTargetSortKey(listRecord = {}, targetContext = {}) {
   return [
+    sortText(listTargetContextLabel(listRecord, targetContext)),
     sortText(listTargetTypeLabel(listRecord)),
     sortText(listTargetPlainLabel(listRecord)),
     sortText(listRecord.list_id || listRecord.listId),
@@ -1561,6 +1629,47 @@ function listTargetTypeLabel(listRecord = {}) {
 
 function workspaceTargetName(workspace = {}) {
   return readableTargetLabel(workspace?.workspace_name || workspace?.name, "workspace");
+}
+
+function recordTargetContextLabel(record = {}, targetContext = {}) {
+  const projectName = recordTargetProjectName(record, targetContext);
+  if (projectName) {
+    return targetContext.isBusinessWorkspace
+      ? `${recordTargetBusinessContextName(record, targetContext)} | ${projectName}`
+      : projectName;
+  }
+
+  if (targetContext.isBusinessWorkspace) {
+    return recordTargetClientName(record, targetContext);
+  }
+
+  return "";
+}
+
+function recordTargetBusinessContextName(record = {}, targetContext = {}) {
+  return recordTargetClientName(record, targetContext) || targetContext.workspaceName || workspaceTargetName(targetContext.workspace);
+}
+
+function recordTargetClientName(record = {}, targetContext = {}) {
+  const project = recordTargetProject(record, targetContext);
+  const projectClientName = normalizeOptionalText(project?.client_name || project?.clientName);
+  if (projectClientName) {
+    return readableTargetLabel(projectClientName, "client");
+  }
+
+  const clientId = normalizeOptionalText(record.client_id || record.clientId);
+  const client = clientId ? targetContext.clientsById?.get(clientId) : null;
+  return client ? clientTargetPlainLabel(client) : "";
+}
+
+function recordTargetProjectName(record = {}, targetContext = {}) {
+  const project = recordTargetProject(record, targetContext);
+  return project ? projectTargetPlainLabel(project) : "";
+}
+
+function recordTargetProject(record = {}, targetContext = {}) {
+  const projectId = normalizeOptionalText(record.project_id || record.projectId);
+  return projectId ? targetContext.projectsById?.get(projectId) : null;
 }
 
 function isBusinessWorkspaceRecord(workspace = {}) {
@@ -1995,42 +2104,50 @@ async function readTargetSummary(session, target = {}) {
         ? await notesRepository.readCollectionById(session.workspace_id, note.note_collection_id)
         : null;
       const collectionsById = collection ? new Map([[collection.note_library_collection_id, collection]]) : new Map();
+      const targetContext = await readLinkTargetContext(session);
       const noteTitle = note ? noteTargetPlainLabel(note) : "";
-      const secondaryLabel = note ? noteTargetSecondaryLabel(note, collectionsById) : "";
+      const secondaryLabel = note ? noteTargetSecondaryLabel(note, collectionsById, targetContext) : "";
       return note ? {
         label: noteTitle,
         display_label: noteTitle,
         secondary_label: secondaryLabel,
-        sort_key: noteTargetSortKey(note, collectionsById),
+        sort_key: noteTargetSortKey(note, collectionsById, targetContext),
         subtitle: secondaryLabel,
         source_url: noteSourceUrl(note.note_id),
         client_id: note.client_id || "",
+        client_name: recordTargetClientName(note, targetContext),
         project_id: note.project_id || "",
+        project_name: recordTargetProjectName(note, targetContext),
         note_id: note.note_id,
         title: noteTitle,
         full_label: noteTitle,
-        aria_label: noteTargetAccessibleLabel(note, collectionsById),
+        aria_label: noteTargetAccessibleLabel(note, collectionsById, targetContext),
         workspace_id: session.workspace_id,
+        workspace_name: targetContext.workspaceName,
       } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "list") {
       const listRecord = await listsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+      const targetContext = await readLinkTargetContext(session);
       const listTitle = listRecord ? listTargetPlainLabel(listRecord) : "";
-      const secondaryLabel = listRecord ? listTargetSecondaryLabel(listRecord) : "";
+      const secondaryLabel = listRecord ? listTargetSecondaryLabel(listRecord, targetContext) : "";
       return listRecord ? {
         label: listTitle,
         display_label: listTitle,
         secondary_label: secondaryLabel,
-        sort_key: listTargetSortKey(listRecord),
+        sort_key: listTargetSortKey(listRecord, targetContext),
         subtitle: secondaryLabel,
         source_url: `lists.html?list=${encodeURIComponent(listRecord.list_id)}`,
         client_id: listRecord.client_id || "",
+        client_name: recordTargetClientName(listRecord, targetContext),
         project_id: listRecord.project_id || "",
+        project_name: recordTargetProjectName(listRecord, targetContext),
         list_id: listRecord.list_id,
         title: listTitle,
         full_label: listTitle,
-        aria_label: listTargetAccessibleLabel(listRecord),
+        aria_label: listTargetAccessibleLabel(listRecord, targetContext),
         workspace_id: session.workspace_id,
+        workspace_name: targetContext.workspaceName,
       } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "user") {

@@ -96,13 +96,13 @@ Task targets sort by provider-defined usefulness first, with active readable tas
 
 ## Note And List Labels
 
-The Notes provider owns Note target option labels and sort keys. Note targets keep the plain note title as compatibility `label` and picker `displayLabel`. Note secondary labels may include safe Library/collection context, such as `Reference Library / Project Notes`. Note targets must not expose private, secure, or otherwise inaccessible note titles to unauthorized users, and labels must not include `Note:`, UUIDs, or raw ids.
+The Notes provider owns Note target option labels and sort keys. Note targets keep the plain note title as compatibility `label` and full-title metadata, while picker `displayLabel` uses an approximately 20-character note-title prefix plus readable Primary Context where present. Business client-project notes display `Note title... - Client Name | Project Name`; Business workspace-project notes display `Note title... - Workspace Name | Project Name`; Personal and Family project notes display `Note title... - Project Name`; Business client-only notes display `Note title... - Client Name`; and notes without readable context display only `Note title...`. Note secondary labels use readable Primary Context when available and may fall back to safe Library/collection context, such as `Reference Library / Project Notes`. Note targets must not expose private, secure, or otherwise inaccessible note titles to unauthorized users, and labels must not include `Note:`, UUIDs, or raw ids.
 
-Note targets sort by Library bucket, collection path, note title, and stable target id. Existing linked Note rows use the same safe title and secondary context as picker options.
+Note targets sort by readable context, Library bucket, collection path, note title, and stable target id. Existing linked Note rows keep the full safe note title as the row label and show readable Primary Context secondary text when available.
 
-The Lists provider owns List target option labels and sort keys. List targets keep the plain list title as compatibility `label` and picker `displayLabel`. List secondary labels may include the list type, such as `Checklist` or `Procurement`. List labels must not include `List:`, UUIDs, or raw ids.
+The Lists provider owns List target option labels and sort keys. List targets keep the plain list title as compatibility `label` and full-title metadata, while picker `displayLabel` uses an approximately 20-character list-title prefix plus readable Primary Context with the same Business and Personal/Family context rules as Note targets. List secondary labels use readable Primary Context when available and may fall back to list type, such as `Checklist` or `Procurement`. List labels must not include `List:`, UUIDs, or raw ids.
 
-List targets sort by list type label, list title, and stable target id. Existing linked List rows use the same safe title and secondary context as picker options.
+List targets sort by readable context, list type label, list title, and stable target id. Existing linked List rows keep the full safe list title as the row label and show readable Primary Context secondary text when available.
 
 ## First Providers
 

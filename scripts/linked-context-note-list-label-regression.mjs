@@ -9,6 +9,8 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-linked-c
 process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "linked-context-note-list-secure-key";
 process.env.SUPER_ADMIN_PASSWORD = "Linked-Context-Note-List-Test-123!";
 
+const { clientsRepository } = await import("../src/modules/client-projects/clients.repo.js");
+const { projectsRepository } = await import("../src/modules/client-projects/projects.repo.js");
 const { listsRepository } = await import("../src/modules/lists/lists.repo.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const {
@@ -47,6 +49,25 @@ async function assertBrowserExposesNoteAndListTargets() {
 
 async function createFixtures(session) {
   const suffix = randomUUID().slice(0, 8);
+  const clientId = `lcnl-client-${suffix}`;
+  const projectId = `lcnl-project-${suffix}`;
+  const clientName = `LCNL Context Client ${suffix}`;
+  const projectName = `LCNL Context Project ${suffix}`;
+
+  await setWorkspace(session.workspace_id, "business", "LCNL Business Workspace");
+  await clientsRepository.create(session.workspace_id, {
+    id: clientId,
+    name: clientName,
+    status: "Active",
+    billable: "yes",
+  });
+  await projectsRepository.create(session.workspace_id, clientId, {
+    id: projectId,
+    name: projectName,
+    status: "Active",
+    billable: "yes",
+  });
+
   const collectionResult = await notesService.createCollection({
     title: `LCNL Reference Collection ${suffix}`,
     libraryBucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
@@ -61,14 +82,18 @@ async function createFixtures(session) {
   const alphaNote = await notesService.create({
     title: `LCNL Alpha Note ${suffix}`,
     body_markdown: "Reference alpha note target.",
+    clientId,
     libraryBucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
     noteCollectionId: collectionId,
+    projectId,
   }, session);
   const zetaNote = await notesService.create({
     title: `LCNL Zeta Note ${suffix}`,
     body_markdown: "Reference zeta note target.",
+    clientId,
     libraryBucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
     noteCollectionId: collectionId,
+    projectId,
   }, session);
   const hiddenPrivateNote = await notesService.create({
     title: `LCNL Hidden Private Note ${suffix}`,
@@ -82,12 +107,16 @@ async function createFixtures(session) {
   }, session);
 
   const checklistList = await createList(session, {
+    client_id: clientId,
     list_id: `lcnl-checklist-${suffix}`,
+    project_id: projectId,
     title: `LCNL Checklist List ${suffix}`,
     list_type: "checklist",
   });
   const procurementList = await createList(session, {
+    client_id: clientId,
     list_id: `lcnl-procurement-${suffix}`,
+    project_id: projectId,
     title: `LCNL Procurement List ${suffix}`,
     list_type: "procurement",
   });
@@ -99,8 +128,11 @@ async function createFixtures(session) {
     hiddenPrivateNote: hiddenPrivateNote.note,
     hiddenSecureNote: hiddenSecureNote.note,
     checklistList,
+    clientName,
     collection: collectionResult.collection,
+    contextLabel: `${clientName} | ${projectName}`,
     procurementList,
+    projectName,
     suffix,
   };
 }
@@ -116,14 +148,14 @@ async function assertNoteTargets(session, limitedSession, fixtures) {
 
   assert.deepEqual(targets.map((target) => target.targetId), targetIds, "Note targets should sort by Library, collection, and title");
   assert.deepEqual(targets.map((target) => target.displayLabel), [
-    fixtures.activeNote.title,
-    fixtures.alphaNote.title,
-    fixtures.zetaNote.title,
+    compactTargetTitle(fixtures.activeNote.title),
+    `${compactTargetTitle(fixtures.alphaNote.title)} - ${fixtures.contextLabel}`,
+    `${compactTargetTitle(fixtures.zetaNote.title)} - ${fixtures.contextLabel}`,
   ]);
   assert.deepEqual(targets.map((target) => target.secondaryLabel), [
     "Active Work",
-    `Reference Library / ${fixtures.collection.title}`,
-    `Reference Library / ${fixtures.collection.title}`,
+    fixtures.contextLabel,
+    fixtures.contextLabel,
   ]);
 
   for (const target of targets) {
@@ -156,12 +188,12 @@ async function assertListTargets(session, fixtures) {
 
   assert.deepEqual(targets.map((target) => target.targetId), targetIds, "List targets should sort by list type and title");
   assert.deepEqual(targets.map((target) => target.displayLabel), [
-    fixtures.checklistList.title,
-    fixtures.procurementList.title,
+    `${compactTargetTitle(fixtures.checklistList.title)} - ${fixtures.contextLabel}`,
+    `${compactTargetTitle(fixtures.procurementList.title)} - ${fixtures.contextLabel}`,
   ]);
   assert.deepEqual(targets.map((target) => target.secondaryLabel), [
-    "Checklist",
-    "Procurement",
+    fixtures.contextLabel,
+    fixtures.contextLabel,
   ]);
 
   for (const target of targets) {
@@ -205,11 +237,11 @@ async function assertLinkedRows(session, fixtures) {
 
   assert.equal(noteLink.label, fixtures.alphaNote.title);
   assert.equal(noteLink.display_label, fixtures.alphaNote.title);
-  assert.equal(noteLink.secondary_label, `Reference Library / ${fixtures.collection.title}`);
+  assert.equal(noteLink.secondary_label, fixtures.contextLabel);
   assert.equal(noteLink.source_url, `notes.html?note=${encodeURIComponent(fixtures.alphaNote.note_id)}`);
   assert.equal(listLink.label, fixtures.checklistList.title);
   assert.equal(listLink.display_label, fixtures.checklistList.title);
-  assert.equal(listLink.secondary_label, "Checklist");
+  assert.equal(listLink.secondary_label, fixtures.contextLabel);
   assert.equal(listLink.source_url, `lists.html?list=${encodeURIComponent(fixtures.checklistList.list_id)}`);
 }
 
@@ -230,6 +262,20 @@ function assertCleanLabel(label, targetId) {
   assert.ok(label, "label should be present");
   assert.doesNotMatch(label, /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i, "labels should not expose UUIDs");
   assert.equal(label.includes(targetId), false, "labels should not echo raw target ids");
+}
+
+function compactTargetTitle(title) {
+  const text = String(title || "").trim();
+  return text.length > 20 ? `${text.slice(0, 17).trimEnd()}...` : text;
+}
+
+async function setWorkspace(workspaceId, workspaceType, workspaceName) {
+  await runSql(`
+UPDATE workspaces
+SET workspace_type = ${sqlText(workspaceType)},
+    name = ${sqlText(workspaceName)}
+WHERE workspace_id = ${sqlText(workspaceId)};
+`);
 }
 
 async function readWorkspace() {

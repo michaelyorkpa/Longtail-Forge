@@ -4,6 +4,7 @@
 - Added provider-owned Note/List sort keys, full-label metadata, workspace ids, and linked-row readback labels/source URLs while preserving permission filtering for private, secure, inaccessible, and disabled-module targets.
 - Added `linked-context-note-list-label-regression.mjs`, wired it into the regression suite, and updated Linked Context/Notes documentation, decisions, roadmap status, and package metadata for `0.33.5.18.6.6.3`.
 - Verification: `npm run check` passed 145/145 regression scripts plus ESLint; `/api/app-info` reports `0.33.5.18.6.6.3` after restarting the local 8001 server.
+- Corrective follow-up 2026-06-22 02:43 -04:00: updated Note/List Linked Context picker options to use approximately 20-character title prefixes plus readable Primary Context, kept existing linked rows on full titles with Primary Context secondary text, tightened Note detail panel spacing between Linked Context, Files, and Revisions, and refreshed the Notes stylesheet cache key to `longtail-forge.css?v=40`. Verification rerun: `npm run check` passed 145/145 regression scripts plus ESLint, and `/api/app-info` reports `0.33.5.18.6.6.3` after restarting the 8001 server.
 
 ## Version 0.33.5.18.6.6.2 - 2026-06-22 01:44 -04:00
 

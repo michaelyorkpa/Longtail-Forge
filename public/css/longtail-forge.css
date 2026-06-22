@@ -4685,6 +4685,11 @@ li.markdown-task-list-item > ol {
     border-radius: 8px;
 }
 
+[data-note-links-panel] + .notes-files-panel,
+.notes-files-panel + .notes-revisions-panel {
+    margin-top: 0;
+}
+
 .notes-detail-section h3 {
     margin: 0;
     font-size: 15px;
