@@ -1,3 +1,10 @@
+## Version 0.33.5.18.6.6.3 - 2026-06-22 02:12 -04:00
+
+- Upgraded Note and List Linked Context targets to first-class provider payloads: Note targets now return plain note-title display labels with safe Library/collection secondary context, and List targets return plain list-title display labels with list-type secondary context.
+- Added provider-owned Note/List sort keys, full-label metadata, workspace ids, and linked-row readback labels/source URLs while preserving permission filtering for private, secure, inaccessible, and disabled-module targets.
+- Added `linked-context-note-list-label-regression.mjs`, wired it into the regression suite, and updated Linked Context/Notes documentation, decisions, roadmap status, and package metadata for `0.33.5.18.6.6.3`.
+- Verification: `npm run check` passed 145/145 regression scripts plus ESLint; `/api/app-info` reports `0.33.5.18.6.6.3` after restarting the local 8001 server.
+
 ## Version 0.33.5.18.6.6.2 - 2026-06-22 01:44 -04:00
 
 - Moved Task Linked Context target labels and sorting onto the Notes provider payload: task dropdowns now use compact task-title labels with provider-owned Business/Personal/Family project context, active tasks before completed/archived tasks, and stable sort keys.

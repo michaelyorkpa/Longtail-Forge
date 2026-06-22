@@ -7,6 +7,7 @@ import {
   sanitizeNoteLifecyclePayload,
 } from "./access-policy.js";
 import {
+  NOTE_LIBRARY_BUCKET_LABELS,
   NOTE_LIBRARY_BUCKET_SOURCES,
   NOTE_LIBRARY_BUCKETS,
   NOTE_SECURITY_MODES,
@@ -64,6 +65,15 @@ const COLLECTION_SOURCE_VALUES = new Set(["manual", "imported"]);
 const LINKED_NOTE_SORT_MODES = new Set(["pinned", "recent", "updated", "title"]);
 const SECURE_NOTE_TITLE_WARNING = "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.";
 const TASK_TARGET_TITLE_MAX_LENGTH = 20;
+const LIST_TARGET_TYPE_LABELS = Object.freeze({
+  bill_of_materials: "Bill of Materials",
+  checklist: "Checklist",
+  packing: "Packing",
+  parts: "Parts",
+  procurement: "Procurement",
+  shopping: "Shopping",
+  supplies: "Supplies",
+});
 const SECURE_STORAGE_FIELDS = Object.freeze([
   "secure_payload",
   "secure_payload_version",
@@ -1171,16 +1181,29 @@ async function listTargetsByType(session, targetType) {
 
   if (targetType === "note") {
     const notes = await filterAccessibleNotes(session, await notesRepository.list(session.workspace_id, {}));
-    return notes.map((note) => shapeLinkTarget({
-      target_type: "note",
-      target_id: note.note_id,
-      label: readableTargetLabel(note.title, "note"),
-      subtitle: "",
-      source_url: noteSourceUrl(note.note_id),
-      client_id: note.client_id || "",
-      project_id: note.project_id || "",
-      note_id: note.note_id,
-    }));
+    const collectionsById = await readNoteCollectionsById(session);
+    return notes.map((note) => {
+      const noteTitle = noteTargetPlainLabel(note);
+      const secondaryLabel = noteTargetSecondaryLabel(note, collectionsById);
+
+      return shapeLinkTarget({
+        target_type: "note",
+        target_id: note.note_id,
+        label: noteTitle,
+        display_label: noteTitle,
+        secondary_label: secondaryLabel,
+        sort_key: noteTargetSortKey(note, collectionsById),
+        subtitle: secondaryLabel,
+        source_url: noteSourceUrl(note.note_id),
+        client_id: note.client_id || "",
+        project_id: note.project_id || "",
+        note_id: note.note_id,
+        title: noteTitle,
+        full_label: noteTitle,
+        aria_label: noteTargetAccessibleLabel(note, collectionsById),
+        workspace_id: session.workspace_id,
+      });
+    });
   }
 
   if (targetType === "list") {
@@ -1198,12 +1221,19 @@ async function listTargetsByType(session, targetType) {
         readableLists.push(shapeLinkTarget({
           target_type: "list",
           target_id: listRecord.list_id,
-          label: readableTargetLabel(listRecord.title, "list"),
-          subtitle: "",
+          label: listTargetPlainLabel(listRecord),
+          display_label: listTargetPlainLabel(listRecord),
+          secondary_label: listTargetSecondaryLabel(listRecord),
+          sort_key: listTargetSortKey(listRecord),
+          subtitle: listTargetSecondaryLabel(listRecord),
           source_url: `lists.html?list=${encodeURIComponent(listRecord.list_id)}`,
           client_id: listRecord.client_id || "",
           project_id: listRecord.project_id || "",
           list_id: listRecord.list_id,
+          title: listTargetPlainLabel(listRecord),
+          full_label: listTargetPlainLabel(listRecord),
+          aria_label: listTargetAccessibleLabel(listRecord),
+          workspace_id: session.workspace_id,
         }));
       }
     }
@@ -1445,6 +1475,90 @@ function truncateTaskTargetTitle(title) {
   return `${text.slice(0, TASK_TARGET_TITLE_MAX_LENGTH - 3).trimEnd()}...`;
 }
 
+async function readNoteCollectionsById(session) {
+  const collections = await notesRepository.listCollections(session.workspace_id, { includeArchived: true });
+  return new Map(collections.map((collection) => [collection.note_library_collection_id, collection]));
+}
+
+function noteTargetPlainLabel(note = {}) {
+  return readableTargetLabel(note.title || note.label, "note");
+}
+
+function noteTargetSecondaryLabel(note = {}, collectionsById = new Map()) {
+  return [
+    noteTargetLibraryLabel(note),
+    noteTargetCollectionLabel(note, collectionsById),
+  ].filter(Boolean).join(" / ");
+}
+
+function noteTargetAccessibleLabel(note = {}, collectionsById = new Map()) {
+  const label = noteTargetPlainLabel(note);
+  const secondaryLabel = noteTargetSecondaryLabel(note, collectionsById);
+  return secondaryLabel ? `${label} - ${secondaryLabel}` : label;
+}
+
+function noteTargetSortKey(note = {}, collectionsById = new Map()) {
+  return [
+    noteTargetLibrarySortValue(note),
+    sortText(noteTargetCollectionLabel(note, collectionsById)),
+    sortText(noteTargetPlainLabel(note)),
+    sortText(note.note_id || note.noteId),
+  ].join("|");
+}
+
+function noteTargetLibraryLabel(note = {}) {
+  const bucket = normalizeOptionalText(note.library_bucket || note.libraryBucket);
+  return NOTE_LIBRARY_BUCKET_LABELS[bucket] || formatLabelToken(bucket);
+}
+
+function noteTargetLibrarySortValue(note = {}) {
+  const bucket = normalizeOptionalText(note.library_bucket || note.libraryBucket);
+  const order = [
+    NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
+    NOTE_LIBRARY_BUCKETS.ONGOING_AREA,
+    NOTE_LIBRARY_BUCKETS.REFERENCE,
+  ];
+  const index = order.indexOf(bucket);
+  return index === -1 ? `9:${sortText(bucket)}` : `${index}:${bucket}`;
+}
+
+function noteTargetCollectionLabel(note = {}, collectionsById = new Map()) {
+  const collectionId = normalizeOptionalText(note.note_collection_id || note.noteCollectionId);
+  if (!collectionId) {
+    return "";
+  }
+
+  const collection = collectionsById.get(collectionId);
+  return normalizeOptionalText(collection?.path_cache || collection?.title);
+}
+
+function listTargetPlainLabel(listRecord = {}) {
+  return readableTargetLabel(listRecord.title || listRecord.label, "list");
+}
+
+function listTargetSecondaryLabel(listRecord = {}) {
+  return listTargetTypeLabel(listRecord);
+}
+
+function listTargetAccessibleLabel(listRecord = {}) {
+  const label = listTargetPlainLabel(listRecord);
+  const secondaryLabel = listTargetSecondaryLabel(listRecord);
+  return secondaryLabel ? `${label} - ${secondaryLabel}` : label;
+}
+
+function listTargetSortKey(listRecord = {}) {
+  return [
+    sortText(listTargetTypeLabel(listRecord)),
+    sortText(listTargetPlainLabel(listRecord)),
+    sortText(listRecord.list_id || listRecord.listId),
+  ].join("|");
+}
+
+function listTargetTypeLabel(listRecord = {}) {
+  const listType = normalizeOptionalText(listRecord.list_type || listRecord.listType);
+  return LIST_TARGET_TYPE_LABELS[listType] || formatLabelToken(listType);
+}
+
 function workspaceTargetName(workspace = {}) {
   return readableTargetLabel(workspace?.workspace_name || workspace?.name, "workspace");
 }
@@ -1455,6 +1569,14 @@ function isBusinessWorkspaceRecord(workspace = {}) {
 
 function sortText(value) {
   return normalizeOptionalText(value).toLowerCase();
+}
+
+function formatLabelToken(value) {
+  return normalizeOptionalText(value)
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1).toLowerCase()}`)
+    .join(" ");
 }
 
 function readProviderDisplayLabel(value) {
@@ -1869,24 +1991,46 @@ async function readTargetSummary(session, target = {}) {
     }
     if (normalizedTarget.target_type === "note") {
       const note = await notesRepository.readById(session.workspace_id, normalizedTarget.target_id);
+      const collection = note?.note_collection_id
+        ? await notesRepository.readCollectionById(session.workspace_id, note.note_collection_id)
+        : null;
+      const collectionsById = collection ? new Map([[collection.note_library_collection_id, collection]]) : new Map();
+      const noteTitle = note ? noteTargetPlainLabel(note) : "";
+      const secondaryLabel = note ? noteTargetSecondaryLabel(note, collectionsById) : "";
       return note ? {
-        label: readableTargetLabel(note.title, "note"),
-        subtitle: "",
+        label: noteTitle,
+        display_label: noteTitle,
+        secondary_label: secondaryLabel,
+        sort_key: noteTargetSortKey(note, collectionsById),
+        subtitle: secondaryLabel,
         source_url: noteSourceUrl(note.note_id),
         client_id: note.client_id || "",
         project_id: note.project_id || "",
         note_id: note.note_id,
+        title: noteTitle,
+        full_label: noteTitle,
+        aria_label: noteTargetAccessibleLabel(note, collectionsById),
+        workspace_id: session.workspace_id,
       } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "list") {
       const listRecord = await listsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+      const listTitle = listRecord ? listTargetPlainLabel(listRecord) : "";
+      const secondaryLabel = listRecord ? listTargetSecondaryLabel(listRecord) : "";
       return listRecord ? {
-        label: readableTargetLabel(listRecord.title, "list"),
-        subtitle: "",
+        label: listTitle,
+        display_label: listTitle,
+        secondary_label: secondaryLabel,
+        sort_key: listTargetSortKey(listRecord),
+        subtitle: secondaryLabel,
         source_url: `lists.html?list=${encodeURIComponent(listRecord.list_id)}`,
         client_id: listRecord.client_id || "",
         project_id: listRecord.project_id || "",
         list_id: listRecord.list_id,
+        title: listTitle,
+        full_label: listTitle,
+        aria_label: listTargetAccessibleLabel(listRecord),
+        workspace_id: session.workspace_id,
       } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "user") {

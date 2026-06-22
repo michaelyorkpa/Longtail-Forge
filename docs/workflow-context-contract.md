@@ -1,6 +1,6 @@
 # Workflow Context Contract
 
-This document defines the current user-facing context terminology for workflow records as of 0.33.5.18.6.6.2. It applies to Notes now and should guide future Tasks, Lists, Files, Clients/Projects, and Knowledge Base surfaces when they show related work context.
+This document defines the current user-facing context terminology for workflow records as of 0.33.5.18.6.6.3. It applies to Notes now and should guide future Tasks, Lists, Files, Clients/Projects, and Knowledge Base surfaces when they show related work context.
 
 ## Terms
 
@@ -47,3 +47,5 @@ The no-raw-ID rule applies to provider-rendered labels: `displayLabel` and `seco
 For Add/Edit Notes, normal Linked Context picker choices are Project, Task, Note, List, User, and Client only in Business/client-readable contexts. Workspace may remain available to backend compatibility paths, but it is not a normal picker option. Personal and Family workspaces must not show Client targets or client labels in project/task picker display strings.
 
 Task target labels are compact picker labels owned by the Task provider. They use a shortened task-title portion plus project context where present, avoid target-type/status/id suffixes, and expose the full task title through tooltip or accessible-label metadata when the displayed title is truncated. Active readable tasks sort before completed or archived tasks, then by context and title through provider-owned sort keys.
+
+Note and List target labels are provider-owned as well. Note target labels use the safe note title plus optional Library/collection secondary context; private, secure, and inaccessible note titles must be filtered before labels are returned. List target labels use the safe list title plus optional list-type secondary context. Neither target type should expose UUIDs, raw ids, or synthetic `Note:` / `List:` prefixes in normal UI.

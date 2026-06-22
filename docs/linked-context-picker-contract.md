@@ -1,6 +1,6 @@
 # Linked Context Picker Provider And Shell Contract
 
-This document defines the shared Linked Context picker provider and shell contract as of 0.33.5.18.6.6.2. The framework owns the reusable picker shell. Source modules own provider data, permission-safe filtering, sorting, labels, summaries, and source URLs.
+This document defines the shared Linked Context picker provider and shell contract as of 0.33.5.18.6.6.3. The framework owns the reusable picker shell. Source modules own provider data, permission-safe filtering, sorting, labels, summaries, and source URLs.
 
 ## Ownership
 
@@ -93,6 +93,16 @@ Task targets keep the full task title as compatibility `label`. Picker `displayL
 Task picker labels do not include `Task:`, status, UUIDs, or raw ids. When a picker label is truncated, the provider should also return the full task title through `title`, `fullLabel`, or `ariaLabel` so the shared picker can expose it as a tooltip or accessible label.
 
 Task targets sort by provider-defined usefulness first, with active readable tasks before completed or archived tasks. Within that rank, Business workspaces sort by client/workspace display name, then project name, then task title. Personal and Family workspaces sort by project name when present, then task title. Stable target-id tie-breaks keep the order deterministic.
+
+## Note And List Labels
+
+The Notes provider owns Note target option labels and sort keys. Note targets keep the plain note title as compatibility `label` and picker `displayLabel`. Note secondary labels may include safe Library/collection context, such as `Reference Library / Project Notes`. Note targets must not expose private, secure, or otherwise inaccessible note titles to unauthorized users, and labels must not include `Note:`, UUIDs, or raw ids.
+
+Note targets sort by Library bucket, collection path, note title, and stable target id. Existing linked Note rows use the same safe title and secondary context as picker options.
+
+The Lists provider owns List target option labels and sort keys. List targets keep the plain list title as compatibility `label` and picker `displayLabel`. List secondary labels may include the list type, such as `Checklist` or `Procurement`. List labels must not include `List:`, UUIDs, or raw ids.
+
+List targets sort by list type label, list title, and stable target id. Existing linked List rows use the same safe title and secondary context as picker options.
 
 ## First Providers
 

@@ -1070,21 +1070,21 @@ Acceptance criteria:
 
 Note target:
 
-- [ ] Add Note as a selectable Linked Context target.
-- [ ] Display label:
-  - [ ] `Note Title`
-- [ ] Optional secondary label may include Library bucket or collection if helpful.
-- [ ] Do not show secure/private/inaccessible note labels to unauthorized users.
-- [ ] Do not show UUIDs.
+- [x] Add Note as a selectable Linked Context target.
+- [x] Display label:
+  - [x] `Note Title`
+- [x] Optional secondary label may include Library bucket or collection if helpful.
+- [x] Do not show secure/private/inaccessible note labels to unauthorized users.
+- [x] Do not show UUIDs.
 
 List target:
 
-- [ ] Add List as a selectable Linked Context target.
-- [ ] Display label:
-  - [ ] `List Title`
-- [ ] Optional secondary label may include list type or primary context if helpful.
-- [ ] Do not show UUIDs.
-- [ ] Add provider and picker regression coverage for Note/List options.
+- [x] Add List as a selectable Linked Context target.
+- [x] Display label:
+  - [x] `List Title`
+- [x] Optional secondary label may include list type or primary context if helpful.
+- [x] Do not show UUIDs.
+- [x] Add provider and picker regression coverage for Note/List options.
 
 Acceptance criteria:
 
