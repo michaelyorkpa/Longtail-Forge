@@ -32,7 +32,7 @@ try {
   const app = createApp();
   const fixture = await seedFixture();
   server = await listen(app);
-  const baseUrl = `http://${server.address().address}:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
   const api = createApi(baseUrl, fixture.sessionId);
 
   await assertProtectedRouteRequiresAuth(baseUrl);

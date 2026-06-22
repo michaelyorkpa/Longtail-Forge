@@ -1,6 +1,6 @@
 # Workflow Context Contract
 
-This document defines the current user-facing context terminology for workflow records as of 0.33.5.18.6.5.3. It applies to Notes now and should guide future Tasks, Lists, Files, Clients/Projects, and Knowledge Base surfaces when they show related work context.
+This document defines the current user-facing context terminology for workflow records as of 0.33.5.18.6.5.4. It applies to Notes now and should guide future Tasks, Lists, Files, Clients/Projects, and Knowledge Base surfaces when they show related work context.
 
 ## Terms
 

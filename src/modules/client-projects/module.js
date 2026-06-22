@@ -37,7 +37,7 @@ const clientProjectsModule = {
   browserApiRoutes: [clientsRoutes],
   publicApiRoutes: [],
   browserAssetsDir: new URL("../../../public/js/", import.meta.url),
-  migrationsDir: new URL("./migrations/", import.meta.url),
+  migrationsDir: null,
   protectedViewsDir: new URL("../../../views/protected/", import.meta.url),
   seedHooks: [],
   repairHooks: [],

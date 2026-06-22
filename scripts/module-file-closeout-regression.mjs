@@ -68,10 +68,11 @@ check("file lifecycle events remain safe canonical framework events", () => {
 });
 
 check("public-safe file access uses explicit visibility and permissions, not tags", () => {
-  const filesMigration = read("src/db/migrations/042_add_file_framework.sql");
+  const currentSchema = read("src/db/schema/current.sql");
   const filesService = read("src/services/files.service.js");
 
-  assert.ok(filesMigration.includes("visibility"), "file attachment schema should include explicit visibility");
+  assert.ok(currentSchema.includes("CREATE TABLE file_attachments"), "current schema should define file attachments");
+  assert.ok(currentSchema.includes("visibility TEXT NOT NULL DEFAULT 'private'"), "file attachment schema should include explicit visibility");
   assert.ok(filesService.includes("normalizeVisibility"), "file service should normalize explicit visibility values");
   assert.ok(filesService.includes("permissionsService"), "file service should enforce permissions");
 });

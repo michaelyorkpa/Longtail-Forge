@@ -81,7 +81,7 @@ try {
   });
 
   server = await listen(createApp());
-  const baseUrl = `http://${server.address().address}:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
   const api = createApi(baseUrl, session.sessionId);
 
   await check("GET /api/search returns Help articles without raw body text", async () => {

@@ -84,6 +84,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/workspace-storage-regression.mjs",
   "scripts/legacy-cleanup-regression.mjs",
   "scripts/fresh-database-regression.mjs",
+  "scripts/baseline-adoption-regression.mjs",
   "scripts/performance-regression.mjs",
   "scripts/notification-regression.mjs",
   "scripts/search-api-regression.mjs",

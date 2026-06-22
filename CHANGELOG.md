@@ -1,3 +1,13 @@
+## Version 0.33.5.18.6.5.4 - 2026-06-19 12:51 -04:00
+
+- Consolidated the SQLite schema to a fresh `0.33.5.18.6.5.4` baseline in `src/db/schema/current.sql`, removed the historical core/module migration files, and updated startup to adopt compatible current-schema pre-baseline local databases in place while failing incompatible older databases with a clear backup/restore message.
+- Added isolated regression database/data-dir fixtures: the runner now prepares one seeded baseline DB and copies it into non-static scripts, while `fresh-database-regression.mjs` still tests a true empty database.
+- Added `LONGTAIL_DATA_DIR`, updated module manifests to `migrationsDir: null` where schema is folded into the baseline, and refreshed database/module documentation for the fresh-start contract.
+- Parallelized `scripts/check-js.mjs`, expanded it to `.js` and `.mjs`, updated migration-era regressions for the new baseline, and normalized loopback API regression URLs to `127.0.0.1:${port}`.
+- Efficiency result: `npm run check` improved from about 138.6s wall time to 63.6s wall time on this machine; the regression runner improved from 134.67s to 56.91s.
+- Verification: `npm run check` passed 141/141 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.5.4`. The old local DB was preserved at `data/longtail-forge.pre-0.33.5.18.6.5.4.db` before the local fresh baseline restart.
+- Corrective follow-up 2026-06-21 20:49 -04:00: restored the active local database from `data/longtail-forge.pre-0.33.5.18.6.5.4.db`, preserving 9 users and existing local records; added `baseline-adoption-regression.mjs` so compatible pre-baseline current-schema databases are adopted to the consolidated baseline without deleting users; fixed the queued SQLite helper so expected statement failures do not leak stderr into the next request during parallel checks; verified `npm run check` passed 142/142 regression scripts plus ESLint in repeated runner passes around 74-76s, `npm run test:permissions` passed 236 checks, SQLite integrity returned `ok`, the single baseline marker is present, restored-login succeeds for `support@longtailforge.local`, and `/api/app-info` reports `0.33.5.18.6.5.4`.
+
 ## Version 0.33.5.18.6.5.3 - 2026-06-18 22:26 -04:00
 
 - Migrated Add/Edit Note Linked Context controls to the shared framework picker shell while preserving Notes-owned target loading, search, use-target, staged-link, and saved-link mutation behavior.

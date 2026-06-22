@@ -111,8 +111,6 @@ async function assertActiveSourceHasNoLegacyOrganizationSurface() {
     /(^|[\\/])archive[\\/]/,
     /(^|[\\/])docs[\\/]storage-rename-plan\.md$/,
     /(^|[\\/])src[\\/]db[\\/]migrations\.js$/,
-    /(^|[\\/])src[\\/]db[\\/]migrations[\\/]/,
-    /(^|[\\/])src[\\/]modules[\\/][^\\/]+[\\/]migrations[\\/]/,
     /(^|[\\/])scripts[\\/]legacy-cleanup-regression\.mjs$/,
     /(^|[\\/])scripts[\\/]workspace-storage-regression\.mjs$/,
   ];

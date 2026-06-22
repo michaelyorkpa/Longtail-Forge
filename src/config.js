@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const dataDir = process.env.LONGTAIL_DATA_DIR || path.join(root, "data");
 const packageJson = JSON.parse(
   fs.readFileSync(path.join(root, "package.json"), "utf8"),
 );
@@ -23,10 +24,10 @@ const config = {
   root,
   publicDir: path.join(root, "public"),
   viewsDir: path.join(root, "views"),
-  dataDir: path.join(root, "data"),
+  dataDir,
   logsDir: path.join(root, "logs"),
   logDir: path.join(root, "logs"),
-  databaseFile: process.env.LONGTAIL_DATABASE_FILE || path.join(root, "data", "longtail-forge.db"),
+  databaseFile: process.env.LONGTAIL_DATABASE_FILE || path.join(dataDir, "longtail-forge.db"),
   migrationsDir: path.join(root, "src", "db", "migrations"),
   settingsFile: path.join(root, "data", "settings.json"),
   clientProjectFile: path.join(root, "data", "client-project.json"),

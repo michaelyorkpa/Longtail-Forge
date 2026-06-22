@@ -29,7 +29,7 @@ try {
   const app = createApp();
   server = await listen(app);
 
-  const baseUrl = `http://${server.address().address}:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
   const unauthenticated = createApi(baseUrl);
   const api = createApi(baseUrl, session.sessionId);
 

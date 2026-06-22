@@ -7,27 +7,35 @@ import { listModuleMigrationSources } from "../core/modules/registry.js";
 import { querySql, runSql, sqlText } from "./sqlite.js";
 
 const MIGRATIONS_TABLE = "schema_migrations";
-const BASELINE_VERSION = "0.31.22";
+const BASELINE_VERSION = "0.33.5.18.6.5.4";
 const BASELINE_MODULE_ID = "core";
-const BASELINE_NAME = "fresh_start_database";
-const LEGACY_MIGRATION_VERSION_CUTOFF = 31;
+const BASELINE_NAME = "current_fresh_start_database";
 const CURRENT_SCHEMA_FILE = path.join(config.root, "src", "db", "schema", "current.sql");
 
 async function runMigrations() {
   await fs.mkdir(config.dataDir, { recursive: true });
+  await maybeCopyRegressionBaseline();
 
   if (!(await tableExists(MIGRATIONS_TABLE)) && !(await hasExistingApplicationSchema())) {
     await applyFreshBaseline();
   }
 
   await ensureMigrationsTable();
-  await validateBaselineChecksum();
 
   if (!(await hasBaselineMarker()) && (await hasExistingApplicationSchema())) {
-    await recordExistingCurrentSchemaBaseline();
+    if (await canAdoptExistingDatabaseAsBaseline()) {
+      await adoptExistingDatabaseAsBaseline();
+    } else {
+      throw new Error(
+        `Existing database predates the ${BASELINE_VERSION} consolidated baseline and does not match the expected current schema. ` +
+        `Back up ${config.databaseFile}, then restore from a known-good current backup or start from a fresh database.`,
+      );
+    }
   }
 
-  const migrations = await readFutureMigrationFiles();
+  await validateBaselineChecksum();
+
+  const migrations = await readMigrationFiles();
   await backfillMissingChecksums(migrations);
   await validateAppliedMigrationChecksums(migrations);
   const appliedVersions = await readAppliedVersions();
@@ -40,6 +48,26 @@ async function runMigrations() {
     await applyMigration(migration);
     appliedVersions.add(migration.version);
   }
+}
+
+async function maybeCopyRegressionBaseline() {
+  const baselinePath = process.env.LTF_REGRESSION_BASELINE_DB;
+
+  if (!baselinePath || path.resolve(baselinePath) === path.resolve(config.databaseFile)) {
+    return;
+  }
+
+  try {
+    await fs.access(config.databaseFile);
+    return;
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  await fs.mkdir(path.dirname(config.databaseFile), { recursive: true });
+  await fs.copyFile(baselinePath, config.databaseFile);
 }
 
 async function ensureMigrationsTable() {
@@ -61,7 +89,7 @@ CREATE TABLE IF NOT EXISTS ${MIGRATIONS_TABLE} (
   }
 }
 
-async function readFutureMigrationFiles() {
+async function readMigrationFiles() {
   const migrationSources = [
     { moduleId: "core", migrationsDir: config.migrationsDir },
     ...listModuleMigrationSources(),
@@ -70,7 +98,6 @@ async function readFutureMigrationFiles() {
 
   return migrationGroups
     .flat()
-    .filter((migration) => isFutureMigrationVersion(migration.version))
     .sort((left, right) => left.version.localeCompare(right.version) || left.moduleId.localeCompare(right.moduleId));
 }
 
@@ -127,7 +154,7 @@ async function backfillMissingChecksums(migrations) {
   const migrationByVersion = new Map(
     migrations.map((migration) => [migration.version, migration]),
   );
-  const appliedMigrations = (await readAppliedMigrations()).filter(isFutureAppliedMigration);
+  const appliedMigrations = (await readAppliedMigrations()).filter((migration) => migration.version !== BASELINE_VERSION);
 
   for (const appliedMigration of appliedMigrations) {
     if (appliedMigration.checksum) {
@@ -155,7 +182,7 @@ async function validateAppliedMigrationChecksums(migrations) {
   const migrationByVersion = new Map(
     migrations.map((migration) => [migration.version, migration]),
   );
-  const appliedMigrations = (await readAppliedMigrations()).filter(isFutureAppliedMigration);
+  const appliedMigrations = (await readAppliedMigrations()).filter((migration) => migration.version !== BASELINE_VERSION);
 
   for (const appliedMigration of appliedMigrations) {
     const migration = migrationByVersion.get(appliedMigration.version);
@@ -181,16 +208,6 @@ FROM ${MIGRATIONS_TABLE};
 `);
 }
 
-function isFutureAppliedMigration(migration) {
-  return isFutureMigrationVersion(migration.version);
-}
-
-function isFutureMigrationVersion(version) {
-  const versionNumber = Number.parseInt(String(version || "").split(".").pop(), 10);
-
-  return Number.isInteger(versionNumber) && versionNumber > LEGACY_MIGRATION_VERSION_CUTOFF;
-}
-
 async function hasExistingApplicationSchema() {
   const rows = await querySql(`
 SELECT name
@@ -211,6 +228,82 @@ WHERE type = 'table'
   return rows.length > 0;
 }
 
+async function canAdoptExistingDatabaseAsBaseline() {
+  const historicalRows = await querySql(`
+SELECT version
+FROM ${MIGRATIONS_TABLE}
+WHERE version != ${sqlText(BASELINE_VERSION)}
+LIMIT 1;
+`);
+
+  if (historicalRows.length === 0) {
+    return false;
+  }
+
+  const requiredTables = [
+    "workspaces",
+    "workspace_settings",
+    "users",
+    "user_workspaces",
+    "tasks",
+    "task_checklist_items",
+    "task_relationships",
+    "notes",
+    "note_revisions",
+    "note_links",
+    "lists",
+    "list_items",
+    "files",
+    "file_storage_accounting",
+    "notifications",
+    "tags",
+    "search_index",
+    "work_resume_state",
+  ];
+  const tableRows = await querySql(`
+SELECT name
+FROM sqlite_master
+WHERE type = 'table'
+  AND name IN (${requiredTables.map(sqlText).join(", ")});
+`);
+  const existingTables = new Set(tableRows.map((row) => row.name));
+
+  if (!requiredTables.every((tableName) => existingTables.has(tableName))) {
+    return false;
+  }
+
+  const columnChecks = [
+    ["users", ["active_workspace_id", "protected_user"]],
+    ["tasks", ["resume_note", "last_worked_at"]],
+    ["notes", ["client_id", "project_id", "note_collection_id", "security_mode"]],
+    ["note_links", ["module_id", "target_type", "target_id", "scope_role"]],
+    ["lists", ["is_reusable", "source_list_id", "duplicated_from_list_id"]],
+    ["list_items", ["catalog_item_id", "purchase_status"]],
+    ["files", ["storage_kind", "external_source_provider", "external_availability_status"]],
+    ["search_index", ["library_bucket", "tags_text", "visibility"]],
+    ["work_resume_state", ["module_id", "record_type", "record_id"]],
+  ];
+
+  for (const [tableName, columnNames] of columnChecks) {
+    if (!(await columnsExist(tableName, columnNames))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+async function adoptExistingDatabaseAsBaseline() {
+  const baseline = await readBaselineSchema();
+
+  await runSql(`
+BEGIN TRANSACTION;
+DELETE FROM ${MIGRATIONS_TABLE};
+${createRecordMigrationSql(baseline)}
+COMMIT;
+`);
+}
+
 async function applyFreshBaseline() {
   const baseline = await readBaselineSchema();
 
@@ -220,18 +313,6 @@ ${baseline.sql}
 ${createRecordMigrationSql(baseline)}
 COMMIT;
 `);
-}
-
-async function recordExistingCurrentSchemaBaseline() {
-  const baseline = await readBaselineSchema();
-
-  if (!(await hasCurrentSchemaTables())) {
-    throw new Error(
-      "Existing database is not at the current 0.31.22 schema. Restore a backup and upgrade through 0.31.21 before using the fresh-start baseline.",
-    );
-  }
-
-  await recordMigration(baseline);
 }
 
 async function readBaselineSchema() {
@@ -268,45 +349,8 @@ LIMIT 1;
 `);
 
   if (rows.length > 0 && rows[0].checksum !== baseline.checksum) {
-    throw new Error("Applied fresh-start database baseline checksum does not match the current schema file.");
+    throw new Error(`Applied ${BASELINE_VERSION} fresh-start database baseline checksum does not match the current schema file.`);
   }
-}
-
-async function hasCurrentSchemaTables() {
-  const requiredTables = [
-    "active_work_timers",
-    "api_key_scopes",
-    "api_keys",
-    "app_settings",
-    "audit_logs",
-    "clients",
-    "modules",
-    "permissions",
-    "projects",
-    "role_permissions",
-    "roles",
-    "sessions",
-    "task_assignees",
-    "task_recurrence_assignees",
-    "task_recurrence_templates",
-    "task_reminder_offsets",
-    "tasks",
-    "time_entries",
-    "user_role_assignments",
-    "user_workspace_creation_permissions",
-    "user_workspaces",
-    "users",
-    "workspace_modules",
-    "workspace_settings",
-    "workspaces",
-  ];
-  const legacyTables = ["organizations", "organization_settings", "organization_modules", "active_timers", "active_task_timers"];
-  const [requiredChecks, legacyChecks] = await Promise.all([
-    Promise.all(requiredTables.map(tableExists)),
-    Promise.all(legacyTables.map(tableExists)),
-  ]);
-
-  return requiredChecks.every(Boolean) && legacyChecks.every((exists) => !exists);
 }
 
 async function applyMigration(migration) {
@@ -316,10 +360,6 @@ ${migration.sql}
 ${createRecordMigrationSql(migration)}
 COMMIT;
 `);
-}
-
-async function recordMigration(migration) {
-  await runSql(createRecordMigrationSql(migration));
 }
 
 function createRecordMigrationSql(migration) {

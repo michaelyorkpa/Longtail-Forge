@@ -173,13 +173,13 @@ async function assertRevisionMigrationApplied() {
   const rows = await querySql(`
 SELECT version, module_id, name
 FROM schema_migrations
-WHERE version = '045';
+WHERE version = '0.33.5.18.6.5.4';
 `);
 
   assert.deepEqual(rows[0], {
-    version: "045",
-    module_id: "notes",
-    name: "add_note_revisions_and_wiki_links",
+    version: "0.33.5.18.6.5.4",
+    module_id: "core",
+    name: "current_fresh_start_database",
   });
 }
 

@@ -25,7 +25,7 @@ try {
   const fixtures = await seedWorkflowFixtures();
   await searchIndexRebuildService.rebuildWorkspace({ audit: false, workspaceId: fixtures.workspaceId });
   server = await listen(createApp());
-  const api = createApi(`http://${server.address().address}:${server.address().port}`);
+  const api = createApi(`http://127.0.0.1:${server.address().port}`);
 
   await checkAsync("browser search discovers indexed Tasks, Time Entries, Clients, and Projects", async () => {
     const response = await api.get("/api/search?text=workflow-e2e&limit=10", { cookie: fixtures.sessionId });

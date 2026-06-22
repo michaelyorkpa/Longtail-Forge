@@ -937,6 +937,58 @@ Acceptance criteria:
 
 ---
 
+### Version 0.33.5.18.6.5.4 - Check, regression, and database efficiency implementation
+
+- [x] Consolidate the database to a fresh current SQLite baseline.
+  - [x] Replace historical migration replay with `src/db/schema/current.sql` as the fresh-start schema source.
+  - [x] Record a single baseline row in `schema_migrations` as `0.33.5.18.6.5.4 / core / current_fresh_start_database`.
+  - [x] Remove the historical core/module migration files from the tracked source tree.
+  - [x] Keep future post-baseline migrations possible through the existing runner.
+  - [x] Adopt compatible current-schema pre-baseline local databases in place by replacing historical migration rows with the consolidated baseline marker while preserving existing users and data.
+  - [x] Fail incompatible pre-baseline local databases with a clear backup/restore message instead of silently attempting a partial upgrade.
+- [x] Make regressions faster without weakening coverage.
+  - [x] Add a runner-prepared baseline database fixture and copy it into per-script temp DB/data directories.
+  - [x] Move default/search and file-storage regression buckets off the real local database path.
+  - [x] Add `LONGTAIL_DATA_DIR` support so file-storage checks isolate their files.
+  - [x] Keep `fresh-database-regression.mjs` on true empty-database startup.
+  - [x] Add `baseline-adoption-regression.mjs` to guard adoption of compatible existing local databases without deleting users.
+  - [x] Update migration-era regressions to assert the fresh baseline contract and current schema.
+- [x] Reduce static/source check overhead.
+  - [x] Parallelize `scripts/check-js.mjs` with bounded concurrency.
+  - [x] Expand syntax checking to `.js` and `.mjs`.
+  - [x] Keep the syntax check in the standard suite.
+- [x] Improve API regression stability under parallel execution.
+  - [x] Normalize local test server base URLs to `127.0.0.1:${port}` where scripts already bind to loopback.
+- [x] Update release bookkeeping and docs.
+  - [x] Update database, architecture, and module-contract documentation for the consolidated baseline.
+  - [x] Update `DECISIONS.md`, `CHANGELOG.md`, package metadata, and the ignored `C-R-DB-EFFICIENCY.md` results.
+  - [x] Preserve the old local dev database as `data/longtail-forge.pre-0.33.5.18.6.5.4.db` before restarting the local app on the new baseline.
+  - [x] Restore that preserved local dev database as the active database after discovering the fresh restart displaced existing local users.
+
+Efficiency result:
+
+- `npm run check` improved from about 138.6s wall time to 63.6s wall time on this machine.
+- The regression runner improved from 134.67s to 56.91s.
+- The isolated DB bucket's total script time dropped from 338.84s to 125.52s.
+
+Verification:
+
+- [x] `node scripts/fresh-database-regression.mjs`
+- [x] `node scripts/baseline-adoption-regression.mjs`
+- [x] `node scripts/legacy-cleanup-regression.mjs`
+- [x] `node scripts/regression-runner-regression.mjs`
+- [x] `node scripts/check-js.mjs`
+- [x] `npm run check`
+  - [x] Corrective reruns passed 142/142 regression scripts plus ESLint; runner time held around 74-76s.
+- [x] `npm run test:permissions`
+  - [x] Corrective rerun passed 236 permission checks.
+- [x] `sqlite3 data/longtail-forge.db "PRAGMA integrity_check;"`
+- [x] Active restored DB has 9 users and the single `0.33.5.18.6.5.4 / core / current_fresh_start_database` baseline marker.
+- [x] Login succeeds for restored `support@longtailforge.local`.
+- [x] `/api/app-info` reports `0.33.5.18.6.5.4`.
+
+---
+
 ### Version 0.33.5.18.6.6 - Linked Context target label and sort rules
 
 Implement provider-owned display and sorting rules.
@@ -2690,11 +2742,11 @@ Super Admins should have a backup/restore function on the dashboard that dumps t
 - [ ] Update `docs/architecture.md` to reflect the completed 0.3x architecture.
 - [ ] Verify `ROADMAP.md`, `TODO.md`, `DECISIONS.md`, `CHANGELOG.md`, and package versions are consistent.
 
-- [ ] Wipe existing DB migrations and create a new DB baseline
+- [x] Wipe existing DB migrations and create a new DB baseline — Completed in 0.33.5.18.6.5.4.
 
-- [ ] Evaluate all existing regressions and see what can be eliminated/lightened
+- [x] Evaluate all existing regressions and see what can be eliminated/lightened — Completed in 0.33.5.18.6.5.4 without removing coverage from the standard release gate.
 
-- [ ] Determine where efficiencies can be made in the code/Perform an efficiency refactor
+- [x] Determine where efficiencies can be made in the code/Perform an efficiency refactor — Initial regression/database efficiency pass completed in 0.33.5.18.6.5.4.
 
 - [ ] Evaluate whether TypeScript would be a useful addition for ensure module/framework contracts are adhered to
 

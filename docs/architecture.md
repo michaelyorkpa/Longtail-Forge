@@ -99,7 +99,7 @@ Framework/core includes:
 
 These systems are not optional workflow features. They are the foundation other features depend on.
 
-The current database startup contract is documented in [database.md](database.md). New installs use the 0.31.22 fresh-start baseline instead of replaying the historical migration chain, while future migrations still run after that baseline.
+The current database startup contract is documented in [database.md](database.md). New installs use the 0.33.5.18.6.5.4 consolidated fresh-start baseline instead of replaying the historical migration chain. Compatible existing local databases are adopted to that marker in place, and future migrations still run after the baseline.
 
 ---
 

@@ -94,20 +94,23 @@ async function assertTaskCreatedNoteContext(session) {
 }
 
 async function assertDirectTaskMigrationContract() {
-  const migration = await fs.readFile(path.join(process.cwd(), "src/modules/notes/migrations/063_task_note_link_context.sql"), "utf8");
-  const repairMigration = await fs.readFile(path.join(process.cwd(), "src/modules/notes/migrations/064_repair_task_created_primary_context.sql"), "utf8");
+  const currentSchema = await fs.readFile(path.join(process.cwd(), "src/db/schema/current.sql"), "utf8");
+  const rows = await querySql(`
+SELECT version, module_id, name
+FROM schema_migrations
+WHERE version = '0.33.5.18.6.5.4';
+`);
 
-  assert.match(migration, /INSERT OR IGNORE INTO note_links/);
-  assert.match(migration, /'tasks'/);
-  assert.match(migration, /'task'/);
-  assert.match(migration, /notes\.task_id/);
-  assert.match(migration, /NOT EXISTS/);
-  assert.match(migration, /UPDATE notes\s+SET task_id = NULL/);
-  assert.match(repairMigration, /WITH task_created_context AS/, "Task-created Primary Context repair should be a bounded Notes-owned migration");
-  assert.match(repairMigration, /notes\.note_type = 'log'[\s\S]*notes\.library_bucket = 'active_work'/, "Task-created repair should only target task-created note defaults");
-  assert.match(repairMigration, /ABS\(strftime\('%s', note_links\.created_at\) - strftime\('%s', notes\.created_at\)\) <= 60/, "Task-created repair should only use task links created with the note");
-  assert.match(repairMigration, /HAVING COUNT\(\*\) = 1/, "Task-created repair should not pick between multiple task links");
-  assert.match(repairMigration, /SET[\s\S]*client_id = COALESCE[\s\S]*project_id = COALESCE/, "Task-created repair should fill missing direct Primary Context fields");
+  assert.deepEqual(rows[0], {
+    version: "0.33.5.18.6.5.4",
+    module_id: "core",
+    name: "current_fresh_start_database",
+  });
+  assert.match(currentSchema, /CREATE TABLE note_links/, "fresh baseline should include flexible note links");
+  assert.match(currentSchema, /module_id TEXT NOT NULL/, "note links should retain module ownership metadata");
+  assert.match(currentSchema, /target_type TEXT NOT NULL/, "note links should retain target type metadata");
+  assert.match(currentSchema, /target_id TEXT NOT NULL/, "note links should retain target identity metadata");
+  assert.match(currentSchema, /task_id TEXT/, "fresh baseline should retain legacy direct task column for compatibility reads");
 }
 
 async function createTaskContextFixtures(session) {

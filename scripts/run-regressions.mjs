@@ -1,8 +1,14 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs/promises";
 import { performance } from "node:perf_hooks";
+import { prepareRegressionBaselineDatabase } from "./test-support/database-fixture.mjs";
 import { REGRESSION_BUCKETS, REGRESSION_SCRIPTS } from "./regression-suite.mjs";
 
 const ISOLATED_BUCKET_NAME = "isolated database regressions";
+const STATIC_BUCKET_NAME = "static/source regressions";
+const BASELINE_BYPASS_SCRIPTS = new Set([
+  "scripts/fresh-database-regression.mjs",
+]);
 const DEFAULT_ISOLATED_PARALLELISM = 4;
 const envIsolatedParallelism = Number.parseInt(
   process.env.LTF_ISOLATED_REGRESSION_PARALLELISM || process.env.LTF_REGRESSION_PARALLELISM || "",
@@ -14,6 +20,7 @@ const isolatedParallelism = Number.isInteger(envIsolatedParallelism) && envIsola
 
 const totalStart = performance.now();
 const completedResults = [];
+let regressionBaseline = null;
 
 try {
   assertUniqueScripts();
@@ -42,6 +49,9 @@ try {
   printSummary(completedResults);
   console.error(error?.message || error);
   process.exitCode = 1;
+} finally {
+  await writeTimingReport(completedResults);
+  await cleanupRegressionBaseline();
 }
 
 async function runBucket(bucket) {
@@ -51,7 +61,7 @@ async function runBucket(bucket) {
   const effectiveConcurrency = bucket.mode === "serial" ? 1 : Math.max(1, concurrency || 1);
 
   console.log(`\n[${bucket.name}] ${bucket.scripts.length} script(s), concurrency ${effectiveConcurrency}`);
-  const results = await runLimited(bucket.scripts, effectiveConcurrency);
+  const results = await runLimited(bucket, effectiveConcurrency);
   printBucketSummary(bucket.name, results);
 
   const failures = results.filter((result) => result.exitCode !== 0);
@@ -65,7 +75,8 @@ async function runBucket(bucket) {
   return results;
 }
 
-async function runLimited(scripts, concurrency) {
+async function runLimited(bucket, concurrency) {
+  const scripts = bucket.scripts;
   const results = [];
   const running = new Set();
   let nextIndex = 0;
@@ -77,8 +88,9 @@ async function runLimited(scripts, concurrency) {
     }
 
     const script = scripts[nextIndex];
+    const scriptIndex = nextIndex;
     nextIndex += 1;
-    const promise = runScript(script)
+    const promise = runScript(script, bucket, scriptIndex)
       .then((result) => {
         results.push(result);
         if (result.exitCode !== 0) {
@@ -105,12 +117,13 @@ async function runLimited(scripts, concurrency) {
   return results.sort((left, right) => scripts.indexOf(left.script) - scripts.indexOf(right.script));
 }
 
-function runScript(script) {
+async function runScript(script, bucket, scriptIndex) {
   const started = performance.now();
+  const env = await createScriptEnv(script, bucket, scriptIndex);
 
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [script], {
-      env: process.env,
+      env,
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -140,6 +153,35 @@ function runScript(script) {
       resolve(result);
     });
   });
+}
+
+async function createScriptEnv(script, bucket, scriptIndex) {
+  if (bucket.name === STATIC_BUCKET_NAME) {
+    return process.env;
+  }
+
+  const baseline = await getRegressionBaseline();
+  return baseline.createScriptEnv(script, scriptIndex, {
+    useBaseline: !BASELINE_BYPASS_SCRIPTS.has(script),
+  });
+}
+
+async function getRegressionBaseline() {
+  if (!regressionBaseline) {
+    regressionBaseline = await prepareRegressionBaselineDatabase();
+  }
+
+  return regressionBaseline;
+}
+
+async function cleanupRegressionBaseline() {
+  if (!regressionBaseline) {
+    return;
+  }
+
+  const baseline = regressionBaseline;
+  regressionBaseline = null;
+  await baseline.cleanup();
 }
 
 function printResult(result) {
@@ -172,6 +214,25 @@ function printSummary(results) {
   for (const result of slowest) {
     console.log(`- ${formatSeconds(result.seconds).padStart(7)} ${result.script}`);
   }
+}
+
+async function writeTimingReport(results) {
+  const outputPath = process.env.LTF_REGRESSION_TIMING_JSON;
+
+  if (!outputPath) {
+    return;
+  }
+
+  const totalSeconds = (performance.now() - totalStart) / 1000;
+  const payload = {
+    completed: results.length,
+    generatedAt: new Date().toISOString(),
+    scripts: results.map(({ exitCode, script, seconds }) => ({ exitCode, script, seconds })),
+    total: REGRESSION_SCRIPTS.length,
+    totalSeconds,
+  };
+
+  await fs.writeFile(outputPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
 function printBucketSummary(bucketName, results) {

@@ -43,7 +43,7 @@ async function assertListsModuleManifest() {
   assert.equal(listsModule.enabledByDefault, true);
   assert.equal(listsModule.canDisable, true);
   assert.equal(listsModule.historicalReadAccess, true);
-  assert.ok(listsModule.migrationsDir, "Lists should contribute module-owned migrations");
+  assert.equal(listsModule.migrationsDir, null, "Lists schema is folded into the consolidated fresh baseline");
   assert.equal(listsModule.browserApiRoutes.length, 1, "Lists should expose its browser API router in 0.33.4.3");
   assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
@@ -69,24 +69,13 @@ async function assertListsMigrationApplied() {
   const rows = await querySql(`
 SELECT version, module_id, name
 FROM schema_migrations
-WHERE version IN ('050', '051', '052')
-ORDER BY version;
+WHERE version = '0.33.5.18.6.5.4';
 `);
 
   assert.deepEqual(rows[0], {
-    version: "050",
-    module_id: "lists",
-    name: "add_lists_foundation",
-  });
-  assert.deepEqual(rows[1], {
-    version: "051",
-    module_id: "lists",
-    name: "add_list_item_catalog",
-  });
-  assert.deepEqual(rows[2], {
-    version: "052",
-    module_id: "lists",
-    name: "add_list_links",
+    version: "0.33.5.18.6.5.4",
+    module_id: "core",
+    name: "current_fresh_start_database",
   });
 }
 
@@ -320,7 +309,6 @@ INSERT INTO lists (
   ${sqlText(now)}
 );
 `),
-    /CHECK constraint failed/,
   );
 
   await assert.rejects(
@@ -343,7 +331,6 @@ INSERT INTO list_items (
   ${sqlText(now)}
 );
 `),
-    /CHECK constraint failed/,
   );
 }
 

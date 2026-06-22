@@ -38,7 +38,7 @@ async function assertNotesModuleManifest() {
   assert.equal(notesModule.enabledByDefault, true);
   assert.equal(notesModule.canDisable, true);
   assert.equal(notesModule.historicalReadAccess, true);
-  assert.ok(notesModule.migrationsDir, "Notes should contribute module-owned migrations");
+  assert.equal(notesModule.migrationsDir, null, "Notes schema is folded into the consolidated fresh baseline");
   assert.equal(notesModule.browserApiRoutes.length, 1, "Notes browser APIs should be registered");
   assert.ok(notesModule.searchableTypes.some((type) => (
     type.recordType === "note" &&
@@ -59,19 +59,14 @@ async function assertNotesMigrationApplied() {
   const rows = await querySql(`
 SELECT version, module_id, name
 FROM schema_migrations
-WHERE version IN ('044', '060')
-ORDER BY version;
+WHERE version = '0.33.5.18.6.5.4';
 `);
 
-  assert.deepEqual(rows, [{
-    version: "044",
-    module_id: "notes",
-    name: "add_notes_foundation",
-  }, {
-    version: "060",
-    module_id: "notes",
-    name: "note_kind_content_values",
-  }]);
+  assert.deepEqual(rows[0], {
+    version: "0.33.5.18.6.5.4",
+    module_id: "core",
+    name: "current_fresh_start_database",
+  });
 }
 
 async function assertNotesSchema() {

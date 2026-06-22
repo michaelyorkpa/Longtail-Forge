@@ -1,10 +1,10 @@
 # Longtail Forge Database
 
-As of version 0.31.22, new Longtail Forge installs use a fresh-start database baseline instead of replaying the historical 0.22.x-0.31.21 migration chain.
+As of version 0.33.5.18.6.5.4, new Longtail Forge installs use a consolidated fresh-start database baseline instead of replaying the historical 0.22.x-0.33.5.18.6.5.3 migration chain.
 
 As of version 0.31.24.2, the active SQLite helper keeps one queued sqlite process alive briefly between calls instead of spawning a new process for every query. The public database helper API remains `querySql`, `runSql`, `sqlText`, `sqlNullableText`, `sqlInteger`, and `sqlNullableInteger`; callers should continue to use those helpers rather than shelling out directly.
 
-As of version 0.32.6.3, framework search metadata lives in the canonical `search_index` table added by migration `040_add_search_index.sql`. FTS virtual tables are lookup engines only and are not the source of truth for workspace scope, module scope, permissions, visibility, or record lifecycle state.
+As of version 0.32.6.3, framework search metadata lives in the canonical `search_index` table. FTS virtual tables are lookup engines only and are not the source of truth for workspace scope, module scope, permissions, visibility, or record lifecycle state.
 
 ## Fresh Baseline
 
@@ -14,32 +14,32 @@ The active schema lives in:
 src/db/schema/current.sql
 ```
 
-That file creates the current workspace-native schema directly, including framework tables, first-party Tasks and Time Tracking tables, indexes, core role/permission seed rows, and the `schema_migrations` table.
+That file creates the current workspace-native schema directly, including framework tables, first-party module tables, indexes, current role/permission seed rows, and the `schema_migrations` table.
 
 Fresh databases record one baseline row:
 
 ```text
-version = 0.31.22
+version = 0.33.5.18.6.5.4
 module_id = core
-name = fresh_start_database
+name = current_fresh_start_database
 ```
 
-The old incremental migration files remain in the repository as historical reference, but startup no longer uses versions `001` through `031` for a new database.
+The old incremental migration files were consolidated into `current.sql` and removed from the active source tree. Startup no longer replays historical migration files for a new database.
 
 ## Existing Databases
 
-Existing databases that already upgraded through 0.31.21 keep their historical `schema_migrations` rows. On first 0.31.22 startup, the runner records the fresh-start baseline marker after confirming the required current tables exist and removed legacy tables are absent.
+There are no production users yet, but local developer data should still be preserved. When startup sees an existing application schema without the current baseline marker, it checks whether the database already matches the expected current schema shape. Compatible current-schema databases are adopted in place by replacing historical `schema_migrations` rows with the consolidated baseline marker, preserving users and records.
 
-The runner no longer requires old applied migration files for checksum validation. Checksum validation remains active for future migrations after the 0.31.22 baseline.
+Older or incompatible local databases still fail with a backup/restore message instead of attempting a partial upgrade through migration files that were intentionally removed.
 
-Partially upgraded databases that are not at the current schema should be restored from backup and upgraded through 0.31.21 before crossing into the fresh-start baseline era.
+Checksum validation remains active for the current baseline and for any future migrations after this reset.
 
 ## Future Migrations
 
-New schema changes after 0.31.22 should be added as normal SQL migration files with versions greater than `031`, such as:
+New schema changes after 0.33.5.18.6.5.4 should be added as normal SQL migration files with versions newer than the baseline, such as:
 
 ```text
-src/db/migrations/032_add_example.sql
+src/db/migrations/065_add_example.sql
 ```
 
 Future migrations are applied after the baseline and still receive checksum validation. Do not edit an applied future migration in place.

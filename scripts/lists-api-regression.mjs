@@ -21,7 +21,7 @@ try {
   await initializeDatabase();
   const fixtures = await seedFixtures();
   server = await listen(createApp());
-  const baseUrl = `http://${server.address().address}:${server.address().port}`;
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
   const api = createApi(baseUrl);
 
   await assertAuthenticationRequired(api);

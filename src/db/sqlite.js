@@ -75,6 +75,7 @@ function getSqliteProcess() {
     ["-json", config.databaseFile],
     { windowsHide: true },
   );
+  sqliteProcess.stdin.write(".bail on\n");
   sqliteProcess.stdin.write(".timeout 5000\n");
   sqliteProcess.stdout.on("data", handleStdout);
   sqliteProcess.stderr.on("data", handleStderr);
@@ -101,6 +102,10 @@ function handleStderr(chunk) {
 }
 
 function finishIfMarkerReceived() {
+  if (!currentRequest) {
+    return;
+  }
+
   const marker = markerToken(currentRequest.id);
   const markerText = JSON.stringify([{ __ltf_marker: marker }]);
   const markerIndex = currentRequest.stdout.indexOf(markerText);
@@ -146,7 +151,8 @@ function handleProcessExit(code, signal) {
     return;
   }
 
-  const error = new Error(`sqlite3 exited unexpectedly (${signal || code || "unknown"}).`);
+  const stderr = currentRequest?.stderr?.trim();
+  const error = new Error(stderr || `sqlite3 exited unexpectedly (${signal || code || "unknown"}).`);
   sqliteProcess = null;
   rejectCurrentAndQueued(error);
 }

@@ -186,13 +186,13 @@ async function assertAccessMigrationApplied() {
   const rows = await querySql(`
 SELECT version, module_id, name
 FROM schema_migrations
-WHERE version = '046';
+WHERE version = '0.33.5.18.6.5.4';
 `);
 
   assert.deepEqual(rows[0], {
-    version: "046",
-    module_id: "notes",
-    name: "add_note_access_indexes_and_import_metadata",
+    version: "0.33.5.18.6.5.4",
+    module_id: "core",
+    name: "current_fresh_start_database",
   });
 }
 
