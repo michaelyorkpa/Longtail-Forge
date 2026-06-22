@@ -66,12 +66,13 @@ for (const label of [
   assert.match(notesJs, new RegExp(escapeRegExp(label)), `${label} should be a browser fallback`);
 }
 
-assert.match(notesService, /readableTargetLabel\(client\.name, "client"\)/);
-assert.match(notesService, /readableTargetLabel\(project\.name, "project"\)/);
-assert.match(notesService, /readableTargetLabel\(task\.title, "task"\)/);
+assert.match(notesService, /function clientTargetPlainLabel\(client = \{\}\)[\s\S]*readableTargetLabel\(client\.name \|\| client\.label, "client"\)/);
+assert.match(notesService, /function clientTargetDisplayLabel\(client = \{\}\)[\s\S]*readProviderDisplayLabel\(client\.display_label \|\| client\.displayLabel\)/);
+assert.match(notesService, /function projectTargetPlainLabel\(project = \{\}\)[\s\S]*readableTargetLabel\(project\.name \|\| project\.label, "project"\)/);
+assert.match(notesService, /function taskTargetPlainLabel\(task = \{\}\)[\s\S]*readableTargetLabel\(task\.title \|\| task\.label, "task"\)/);
 assert.match(notesService, /readableTargetLabel\(user\.display_name \|\| user\.displayName \|\| user\.username, "user"\)/);
 assert.doesNotMatch(notesService, /client\.name \|\| client\.id|project\.name \|\| project\.id|task\.title \|\| task\.task_id|user\.display_name \|\| user\.username \|\| user\.user_id|user\.displayName \|\| user\.username \|\| user\.user_id/);
-assert.match(notesHtml, /js\/notes\.js\?v=49/);
+assert.match(notesHtml, /js\/notes\.js\?v=52/);
 
 console.log("Notes context terminology regression passed.");
 

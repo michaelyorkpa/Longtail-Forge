@@ -1,3 +1,19 @@
+## Version 0.33.5.18.6.6.2 - 2026-06-22 01:44 -04:00
+
+- Moved Task Linked Context target labels and sorting onto the Notes provider payload: task dropdowns now use compact task-title labels with provider-owned Business/Personal/Family project context, active tasks before completed/archived tasks, and stable sort keys.
+- Preserved full task titles through provider `title`/`fullLabel`/`ariaLabel` metadata and taught the shared picker plus Notes fallback path to expose that metadata as option tooltips/access labels.
+- Added `linked-context-task-label-sort-regression.mjs`, wired it into the regression suite, refreshed the Notes host cache key to `notes.js?v=52`, and updated Linked Context/Notes documentation, decisions, roadmap status, and package metadata for `0.33.5.18.6.6.2`.
+- Verification: `npm run check` passed 144/144 regression scripts plus ESLint; `/api/app-info` reports `0.33.5.18.6.6.2` after restarting the local 8001 server.
+
+## Version 0.33.5.18.6.6.1 - 2026-06-22 00:58 -04:00
+
+- Made Notes Linked Context Client/Project target labels provider-owned: Client options render only the client name, while Business project options render `Project Name - Client Name` or `Project Name - Workspace Name`; Personal/Family project options render only `Project Name`.
+- Added provider-owned Client/Project sort keys: clients sort alphabetically, Business projects sort workspace-level first then context name then project name, and Personal/Family projects sort by project name.
+- Updated the Notes browser picker to prefer provider `displayLabel`, `secondaryLabel`, and `sortKey` fields, keeping browser-built labels only as compatibility fallback.
+- Added `linked-context-client-project-label-sort-regression.mjs`, wired it into the regression suite, refreshed the Notes host cache key to `notes.js?v=50`, and updated Linked Context/Notes documentation, decisions, roadmap status, and package metadata for `0.33.5.18.6.6.1`.
+- Verification: `npm run check` passed 143/143 regression scripts plus ESLint; `/api/app-info` reports `0.33.5.18.6.6.1` after restarting the local 8001 server.
+- Corrective follow-up 2026-06-22 01:22 -04:00: moved Notes Client target ordering onto the Clients/Projects-owned hierarchy payload so Linked Context and Primary Context Client options sort top-level clients alphabetically with child clients nested under their parent, preserving the module-owned child indentation display. Extended the Client/Project target regression to guard against flat alphabetical client sorting and refreshed the Notes host cache key to `notes.js?v=51`. Verification rerun: `npm run check` passed 143/143 regression scripts plus ESLint, and `/api/app-info` reports `0.33.5.18.6.6.1` after restarting the local 8001 server.
+
 ## Version 0.33.5.18.6.5.4 - 2026-06-19 12:51 -04:00
 
 - Consolidated the SQLite schema to a fresh `0.33.5.18.6.5.4` baseline in `src/db/schema/current.sql`, removed the historical core/module migration files, and updated startup to adopt compatible current-schema pre-baseline local databases in place while failing incompatible older databases with a clear backup/restore message.

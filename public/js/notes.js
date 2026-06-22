@@ -1522,7 +1522,9 @@ function findPrimaryContextProject(projectId) {
 }
 
 function primaryClientOptionLabel(client = {}) {
-  return client.label || unavailableTargetLabel("client");
+  return providerDisplayLabel(client.displayLabel, client.display_label) ||
+    normalizeText(client.label) ||
+    unavailableTargetLabel("client");
 }
 
 function isActivePrimaryClientTarget(client = {}) {
@@ -1530,11 +1532,16 @@ function isActivePrimaryClientTarget(client = {}) {
 }
 
 function primaryProjectOptionLabel(project = {}) {
+  const providerLabel = providerDisplayLabel(project.displayLabel, project.display_label);
+  if (providerLabel) {
+    return providerLabel;
+  }
+
   const projectName = project.label || unavailableTargetLabel("project");
   if (!usesBusinessScope()) {
     return projectName;
   }
-  const contextName = project.clientName || project.workspaceName || window.LongtailForge?.workspaceContext?.workspaceName || "Workspace";
+  const contextName = project.clientName || project.client_name || project.workspaceName || project.workspace_name || window.LongtailForge?.workspaceContext?.workspaceName || "Workspace";
   return `${projectName} - ${contextName}`;
 }
 
@@ -1648,6 +1655,11 @@ function replaceLinkTargetOptions(records = [], select = contextResultsInput) {
   const options = records.map((record) => {
     const option = new window.Option(record.displayLabel || record.label || "No records found", record.targetId || record.value || "");
     option.disabled = Boolean(record.disabled);
+    const title = record.ariaLabel || record.title || record.fullLabel || record.displayLabel || record.label || "";
+    if (title) {
+      option.title = title;
+      option.setAttribute("aria-label", title);
+    }
     return option;
   });
   select?.replaceChildren(...options);
@@ -1660,22 +1672,35 @@ function pickerRecordFromTarget(target = {}) {
     targetId: target.targetId || target.target_id || "",
     displayLabel: targetPickerDisplayLabel(target),
     secondaryLabel: targetPickerSecondaryLabel(target),
+    sortKey: target.sortKey || target.sort_key || "",
     sourceUrl: target.sourceUrl || target.source_url || "",
-    isAvailable: target.isAvailable !== false,
+    title: target.title || "",
+    fullLabel: target.fullLabel || target.full_label || "",
+    ariaLabel: target.ariaLabel || target.aria_label || target.title || target.fullLabel || target.full_label || "",
+    isAvailable: target.isAvailable !== false && target.is_available !== false,
   };
 }
 
 function targetPickerDisplayLabel(target = {}) {
   const targetType = target.targetType || target.target_type || "";
-  const label = target.label || unavailableTargetLabel(targetType);
-  if (targetType === "project" && usesBusinessScope()) {
-    const contextName = target.clientName || target.client_name || target.workspaceName || target.workspace_name || window.LongtailForge?.workspaceContext?.workspaceName || "";
-    return contextName ? `${label} (${contextName})` : label;
+  const providerLabel = providerDisplayLabel(target.displayLabel, target.display_label);
+  if (providerLabel) {
+    return providerLabel;
   }
+
+  const label = target.label || unavailableTargetLabel(targetType);
+  if (targetType === "project") {
+    return primaryProjectOptionLabel({ ...target, label });
+  }
+
   return label;
 }
 
 function targetPickerSecondaryLabel(target = {}) {
+  if (Object.hasOwn(target, "secondaryLabel") || Object.hasOwn(target, "secondary_label")) {
+    return target.secondaryLabel ?? target.secondary_label ?? "";
+  }
+
   if (!usesBusinessScope()) {
     return "";
   }
@@ -3097,6 +3122,21 @@ function formatToken(value) {
 
 function normalizeText(value) {
   return String(value || "").trim();
+}
+
+function providerDisplayLabel(...values) {
+  for (const value of values) {
+    if (value === null || value === undefined) {
+      continue;
+    }
+
+    const label = String(value);
+    if (label.trim()) {
+      return label;
+    }
+  }
+
+  return "";
 }
 
 function isSecureNote(note) {

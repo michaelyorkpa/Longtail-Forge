@@ -110,7 +110,7 @@ function buildClientShape(clients, options = {}) {
     idField: "id",
     parentField: "parent_client_id",
     labelField: "name",
-  }).map(({ record, depth, path }) => decorateClientShape(record, { depth, includeDepth, path }));
+  }).map(({ record, depth, path }, index) => decorateClientShape(record, { depth, includeDepth, path, sortOrder: index }));
 
   if (shape === "tree") {
     return buildNestedTree(orderedClients, {
@@ -222,13 +222,14 @@ function buildNestedTree(flatRecords, { idField, parentField, childrenField }) {
   return roots;
 }
 
-function decorateClientShape(client, { depth, includeDepth, path }) {
+function decorateClientShape(client, { depth, includeDepth, path, sortOrder }) {
   return {
     ...client,
     ...(includeDepth ? {
       depth,
       display_label: formatIndentedLabel(client.name, depth),
       display_path: path,
+      sort_key: formatHierarchySortKey(sortOrder),
     } : {}),
   };
 }
@@ -247,6 +248,10 @@ function decorateProjectShape(project, { depth, includeDepth, path }) {
 function formatIndentedLabel(label, depth) {
   const text = String(label || "").trim();
   return depth > 0 ? `${"  ".repeat(depth)}- ${text}` : text;
+}
+
+function formatHierarchySortKey(sortOrder) {
+  return String(Number(sortOrder) || 0).padStart(6, "0");
 }
 
 function normalizeClientShapeOptions(query = {}) {

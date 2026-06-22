@@ -36,6 +36,7 @@ import {
   safeSecurePlaceholders,
 } from "./secure-crypto.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
+import { clientsService } from "../client-projects/clients.service.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
 import { LIST_PERMISSIONS, listResource } from "../lists/access-policy.js";
 import { listsRepository } from "../lists/lists.repo.js";
@@ -62,6 +63,7 @@ const NOTE_PERMISSION_VALUES = Object.values(NOTE_PERMISSIONS);
 const COLLECTION_SOURCE_VALUES = new Set(["manual", "imported"]);
 const LINKED_NOTE_SORT_MODES = new Set(["pinned", "recent", "updated", "title"]);
 const SECURE_NOTE_TITLE_WARNING = "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.";
+const TASK_TARGET_TITLE_MAX_LENGTH = 20;
 const SECURE_STORAGE_FIELDS = Object.freeze([
   "secure_payload",
   "secure_payload_version",
@@ -650,7 +652,7 @@ async function listLinkTargets(session, query = {}) {
   return {
     targets: targets
       .filter((target) => targetMatchesSearch(target, search))
-      .sort((left, right) => left.targetType.localeCompare(right.targetType) || left.label.localeCompare(right.label))
+      .sort(compareLinkTargets)
       .slice(0, limit),
   };
 }
@@ -1087,51 +1089,84 @@ async function listTargetsByType(session, targetType) {
       return [];
     }
 
-    const clients = await permissionsService.filterReadableClients(session, await clientsRepository.readAll(session.workspace_id));
-    return clients.map((client) => shapeLinkTarget({
-      target_type: "client",
-      target_id: client.id,
-      label: readableTargetLabel(client.name, "client"),
-      subtitle: client.status ? `Client - ${client.status}` : "Client",
-      source_url: `clients.html?client=${encodeURIComponent(client.id)}`,
-      client_id: client.id,
-      status: client.status || "",
-    }));
+    const { clients } = await clientsService.listClients(session, {
+      include_depth: true,
+      shape: "flat",
+      status: "All",
+    });
+    return clients.map((client, index) => {
+      const label = clientTargetPlainLabel(client);
+      const displayLabel = clientTargetDisplayLabel(client);
+
+      return shapeLinkTarget({
+        target_type: "client",
+        target_id: client.id,
+        label,
+        display_label: displayLabel,
+        secondary_label: "",
+        sort_key: clientTargetSortKey(client, index),
+        source_url: `clients.html?client=${encodeURIComponent(client.id)}`,
+        client_id: client.id,
+        workspace_id: session.workspace_id,
+        status: client.status || "",
+      });
+    });
   }
 
   if (targetType === "project") {
     const projects = await permissionsService.filterReadableProjects(session, await projectsRepository.readAll(session.workspace_id));
     const workspace = await workspacesRepository.readById(session.workspace_id);
-    return projects.map((project) => shapeLinkTarget({
-      target_type: "project",
-      target_id: project.id,
-      label: readableTargetLabel(project.name, "project"),
-      subtitle: [project.client_name, project.status].filter(Boolean).join(" - ") || "Project",
-      source_url: `projects.html?project=${encodeURIComponent(project.id)}`,
-      client_id: project.client_id || "",
-      client_name: project.client_name || "",
-      project_id: project.id,
-      workspace_name: workspace?.workspace_name || "Workspace",
-    }));
+    const isBusinessWorkspace = isBusinessWorkspaceRecord(workspace);
+    return projects.map((project) => {
+      const projectName = projectTargetPlainLabel(project);
+
+      return shapeLinkTarget({
+        target_type: "project",
+        target_id: project.id,
+        label: projectName,
+        display_label: projectTargetDisplayLabel(project, workspace, isBusinessWorkspace),
+        secondary_label: projectTargetSecondaryLabel(project, workspace, isBusinessWorkspace),
+        sort_key: projectTargetSortKey(project, workspace, isBusinessWorkspace),
+        source_url: `projects.html?project=${encodeURIComponent(project.id)}`,
+        client_id: project.client_id || "",
+        client_name: project.client_name || "",
+        project_id: project.id,
+        project_name: projectName,
+        workspace_id: session.workspace_id,
+        workspace_name: workspaceTargetName(workspace),
+      });
+    });
   }
 
   if (targetType === "task") {
     const workspace = await workspacesRepository.readById(session.workspace_id);
+    const isBusinessWorkspace = isBusinessWorkspaceRecord(workspace);
     const tasks = await filterReadableTasks(session, await tasksRepository.readAll(session.workspace_id));
-    return tasks.map((task) => shapeLinkTarget({
-      target_type: "task",
-      target_id: task.task_id,
-      label: readableTargetLabel(task.title, "task"),
-      subtitle: [task.client_name, task.project_name, task.status].filter(Boolean).join(" - ") || "Task",
-      source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
-      client_id: task.client_id || "",
-      client_name: task.client_name || "",
-      project_id: task.project_id || "",
-      project_name: task.project_name || "",
-      task_id: task.task_id,
-      workspace_name: workspace?.workspace_name || "Workspace",
-      suggested_library_bucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
-    }));
+    return tasks.map((task) => {
+      const taskTitle = taskTargetPlainLabel(task);
+      const displayLabel = taskTargetPickerDisplayLabel(task, workspace, isBusinessWorkspace);
+
+      return shapeLinkTarget({
+        target_type: "task",
+        target_id: task.task_id,
+        label: taskTitle,
+        display_label: displayLabel,
+        secondary_label: "",
+        sort_key: taskTargetSortKey(task, workspace, isBusinessWorkspace),
+        source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
+        client_id: task.client_id || "",
+        client_name: task.client_name || "",
+        project_id: task.project_id || "",
+        project_name: taskTargetProjectName(task),
+        task_id: task.task_id,
+        title: taskTitle,
+        full_label: taskTitle,
+        aria_label: taskTargetAccessibleLabel(task, workspace, isBusinessWorkspace),
+        workspace_id: session.workspace_id,
+        workspace_name: workspaceTargetName(workspace),
+        suggested_library_bucket: NOTE_LIBRARY_BUCKETS.ACTIVE_WORK,
+      });
+    });
   }
 
   if (targetType === "note") {
@@ -1241,8 +1276,14 @@ function targetMatchesSearch(target, search) {
   }
 
   return [
+    target.title,
+    target.fullLabel,
+    target.ariaLabel,
+    target.displayLabel,
+    target.secondaryLabel,
     target.label,
     target.subtitle,
+    target.sortKey,
     target.targetId,
     target.clientId,
     target.clientName,
@@ -1254,6 +1295,175 @@ function targetMatchesSearch(target, search) {
     target.taskId,
     target.userId,
   ].filter(Boolean).join(" ").toLowerCase().includes(search);
+}
+
+function compareLinkTargets(left = {}, right = {}) {
+  return compareText(left.targetType, right.targetType) ||
+    compareText(left.sortKey || left.displayLabel || left.label, right.sortKey || right.displayLabel || right.label) ||
+    compareText(left.displayLabel || left.label, right.displayLabel || right.label) ||
+    compareText(left.targetId, right.targetId);
+}
+
+function clientTargetPlainLabel(client = {}) {
+  return readableTargetLabel(client.name || client.label, "client");
+}
+
+function clientTargetDisplayLabel(client = {}) {
+  return readProviderDisplayLabel(client.display_label || client.displayLabel) || clientTargetPlainLabel(client);
+}
+
+function clientTargetSortKey(client = {}, index = 0) {
+  return normalizeOptionalText(client.sort_key || client.sortKey) || String(Number(index) || 0).padStart(6, "0");
+}
+
+function projectTargetPlainLabel(project = {}) {
+  return readableTargetLabel(project.name || project.label, "project");
+}
+
+function projectTargetDisplayLabel(project = {}, workspace = {}, isBusinessWorkspace = false) {
+  const projectName = projectTargetPlainLabel(project);
+  if (!isBusinessWorkspace) {
+    return projectName;
+  }
+
+  return `${projectName} - ${projectTargetContextLabel(project, workspace)}`;
+}
+
+function projectTargetSecondaryLabel(project = {}, workspace = {}, isBusinessWorkspace = false) {
+  return isBusinessWorkspace ? projectTargetContextLabel(project, workspace) : "";
+}
+
+function projectTargetSortKey(project = {}, workspace = {}, isBusinessWorkspace = false) {
+  const projectName = projectTargetPlainLabel(project);
+  if (!isBusinessWorkspace) {
+    return sortText(projectName);
+  }
+
+  const hasClientContext = Boolean(normalizeOptionalText(project.client_id || project.clientId));
+  const contextOrder = hasClientContext ? "1" : "0";
+  return [
+    contextOrder,
+    sortText(projectTargetContextLabel(project, workspace)),
+    sortText(projectName),
+  ].join("|");
+}
+
+function projectTargetContextLabel(project = {}, workspace = {}) {
+  const hasClientContext = Boolean(normalizeOptionalText(project.client_id || project.clientId));
+  if (hasClientContext) {
+    return readableTargetLabel(project.client_name || project.clientName, "client");
+  }
+
+  return workspaceTargetName(workspace);
+}
+
+function taskTargetPlainLabel(task = {}) {
+  return readableTargetLabel(task.title || task.label, "task");
+}
+
+function taskTargetPickerDisplayLabel(task = {}, workspace = {}, isBusinessWorkspace = false) {
+  const title = truncateTaskTargetTitle(taskTargetPlainLabel(task));
+  const context = taskTargetContextLabel(task, workspace, isBusinessWorkspace);
+  return context ? `${title} - ${context}` : title;
+}
+
+function taskTargetSummaryDisplayLabel(task = {}) {
+  return taskTargetPlainLabel(task);
+}
+
+function taskTargetAccessibleLabel(task = {}, workspace = {}, isBusinessWorkspace = false) {
+  const title = taskTargetPlainLabel(task);
+  const context = taskTargetContextLabel(task, workspace, isBusinessWorkspace);
+  return context ? `${title} - ${context}` : title;
+}
+
+function taskTargetContextLabel(task = {}, workspace = {}, isBusinessWorkspace = false) {
+  const projectName = taskTargetProjectName(task);
+  if (!projectName) {
+    return "";
+  }
+
+  if (!isBusinessWorkspace) {
+    return projectName;
+  }
+
+  return `${taskTargetBusinessContextName(task, workspace)} | ${projectName}`;
+}
+
+function taskTargetBusinessContextName(task = {}, workspace = {}) {
+  const hasClientContext = Boolean(normalizeOptionalText(task.client_id || task.clientId));
+  if (hasClientContext) {
+    return readableTargetLabel(task.client_name || task.clientName, "client");
+  }
+
+  return workspaceTargetName(workspace);
+}
+
+function taskTargetProjectName(task = {}) {
+  if (!normalizeOptionalText(task.project_id || task.projectId)) {
+    return "";
+  }
+
+  return readableTargetLabel(task.project_name || task.projectName, "project");
+}
+
+function taskTargetSortKey(task = {}, workspace = {}, isBusinessWorkspace = false) {
+  return [
+    taskTargetUsefulnessRank(task),
+    sortText(taskTargetSortContextName(task, workspace, isBusinessWorkspace)),
+    sortText(taskTargetProjectName(task)),
+    sortText(taskTargetPlainLabel(task)),
+    sortText(task.task_id || task.taskId),
+  ].join("|");
+}
+
+function taskTargetSortContextName(task = {}, workspace = {}, isBusinessWorkspace = false) {
+  if (!taskTargetProjectName(task)) {
+    return "";
+  }
+
+  return isBusinessWorkspace ? taskTargetBusinessContextName(task, workspace) : "";
+}
+
+function taskTargetUsefulnessRank(task = {}) {
+  const status = normalizeOptionalText(task.status).toLowerCase();
+  const isInactive = task.archived_at ||
+    task.archivedAt ||
+    task.completed_at ||
+    task.completedAt ||
+    status === "archived" ||
+    status === "complete";
+  return isInactive ? "1" : "0";
+}
+
+function truncateTaskTargetTitle(title) {
+  const text = normalizeOptionalText(title);
+  if (text.length <= TASK_TARGET_TITLE_MAX_LENGTH) {
+    return text;
+  }
+
+  return `${text.slice(0, TASK_TARGET_TITLE_MAX_LENGTH - 3).trimEnd()}...`;
+}
+
+function workspaceTargetName(workspace = {}) {
+  return readableTargetLabel(workspace?.workspace_name || workspace?.name, "workspace");
+}
+
+function isBusinessWorkspaceRecord(workspace = {}) {
+  return normalizeWorkspaceType(workspace?.workspace_type) === "business";
+}
+
+function sortText(value) {
+  return normalizeOptionalText(value).toLowerCase();
+}
+
+function readProviderDisplayLabel(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  const text = String(value);
+  return text.trim() ? text : "";
 }
 
 function noteContextTargets(note = {}) {
@@ -1600,39 +1810,61 @@ async function readTargetSummary(session, target = {}) {
     }
     if (normalizedTarget.target_type === "client") {
       const client = await clientsRepository.readById(session.workspace_id, normalizedTarget.target_id);
+      const label = client ? clientTargetPlainLabel(client) : "";
       return client ? {
-        label: readableTargetLabel(client.name, "client"),
-        subtitle: client.status ? `Client - ${client.status}` : "Client",
+        label,
+        display_label: label,
+        secondary_label: "",
+        sort_key: clientTargetSortKey(client, 0),
         source_url: `clients.html?client=${encodeURIComponent(client.id)}`,
         client_id: client.id,
+        workspace_id: session.workspace_id,
+        status: client.status || "",
       } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "project") {
       const project = await projectsRepository.readById(session.workspace_id, normalizedTarget.target_id);
       const workspace = await workspacesRepository.readById(session.workspace_id);
+      const isBusinessWorkspace = isBusinessWorkspaceRecord(workspace);
+      const projectName = project ? projectTargetPlainLabel(project) : "";
       return project ? {
-        label: readableTargetLabel(project.name, "project"),
-        subtitle: [project.client_name, project.status].filter(Boolean).join(" - ") || "Project",
+        label: projectName,
+        display_label: projectTargetDisplayLabel(project, workspace, isBusinessWorkspace),
+        secondary_label: projectTargetSecondaryLabel(project, workspace, isBusinessWorkspace),
+        sort_key: projectTargetSortKey(project, workspace, isBusinessWorkspace),
+        subtitle: projectTargetSecondaryLabel(project, workspace, isBusinessWorkspace),
         source_url: `projects.html?project=${encodeURIComponent(project.id)}`,
         client_id: project.client_id || "",
         client_name: project.client_name || "",
         project_id: project.id,
-        workspace_name: workspace?.workspace_name || "Workspace",
+        project_name: projectName,
+        workspace_id: session.workspace_id,
+        workspace_name: workspaceTargetName(workspace),
       } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "task") {
       const task = await tasksRepository.readById(session.workspace_id, normalizedTarget.target_id);
       const workspace = await workspacesRepository.readById(session.workspace_id);
+      const isBusinessWorkspace = isBusinessWorkspaceRecord(workspace);
+      const contextLabel = task ? taskTargetContextLabel(task, workspace, isBusinessWorkspace) : "";
+      const taskTitle = task ? taskTargetPlainLabel(task) : "";
       return task ? {
-        label: readableTargetLabel(task.title, "task"),
-        subtitle: [task.client_name, task.project_name, task.status].filter(Boolean).join(" - ") || "Task",
+        label: taskTitle,
+        display_label: taskTargetSummaryDisplayLabel(task),
+        secondary_label: contextLabel,
+        sort_key: taskTargetSortKey(task, workspace, isBusinessWorkspace),
+        subtitle: contextLabel,
         source_url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
         client_id: task.client_id || "",
         client_name: task.client_name || "",
         project_id: task.project_id || "",
-        project_name: task.project_name || "",
+        project_name: taskTargetProjectName(task),
         task_id: task.task_id,
-        workspace_name: workspace?.workspace_name || "Workspace",
+        title: taskTitle,
+        full_label: taskTitle,
+        aria_label: taskTargetAccessibleLabel(task, workspace, isBusinessWorkspace),
+        workspace_id: session.workspace_id,
+        workspace_name: workspaceTargetName(workspace),
       } : safeUnavailableTarget(normalizedTarget);
     }
     if (normalizedTarget.target_type === "note") {
@@ -1676,33 +1908,52 @@ async function readTargetSummary(session, target = {}) {
 function shapeLinkTarget(target = {}) {
   const targetType = target.target_type || target.targetType || "";
   const targetId = target.target_id || target.targetId || "";
+  const fallbackLabel = safeTargetFallbackLabel({ target_type: targetType, target_id: targetId });
+  const label = target.label || fallbackLabel;
+  const displayLabel = target.display_label || target.displayLabel || label;
+  const secondaryLabel = target.secondary_label || target.secondaryLabel || target.subtitle || "";
+  const workspaceId = target.workspace_id || target.workspaceId || (targetType === "workspace" ? targetId : "");
 
   return {
     moduleId: target.module_id || target.moduleId || defaultModuleForTargetType(targetType),
     targetType,
     targetId,
-    label: target.label || safeTargetFallbackLabel({ target_type: targetType, target_id: targetId }),
+    label,
     subtitle: target.subtitle || "",
+    displayLabel,
+    secondaryLabel,
+    sortKey: target.sort_key || target.sortKey || sortText(displayLabel),
     sourceUrl: target.source_url || target.sourceUrl || targetSourceUrl({ target_type: targetType, target_id: targetId }),
+    title: target.title || "",
+    fullLabel: target.full_label || target.fullLabel || "",
+    ariaLabel: target.aria_label || target.ariaLabel || "",
     clientId: target.client_id || target.clientId || "",
     clientName: target.client_name || target.clientName || "",
     listId: target.list_id || target.listId || "",
     noteId: target.note_id || target.noteId || "",
     projectId: target.project_id || target.projectId || "",
     projectName: target.project_name || target.projectName || "",
+    workspaceId,
     workspaceName: target.workspace_name || target.workspaceName || "",
     taskId: target.task_id || target.taskId || "",
     userId: target.user_id || target.userId || "",
+    isAvailable: target.is_available ?? target.isAvailable ?? true,
     status: target.status || "",
     suggestedLibraryBucket: target.suggested_library_bucket || target.suggestedLibraryBucket || suggestedLibraryForTargetType(targetType),
   };
 }
 
 function safeUnavailableTarget(target = {}) {
+  const label = safeTargetFallbackLabel(target);
+
   return {
-    label: safeTargetFallbackLabel(target),
+    label,
+    display_label: label,
     subtitle: "Unavailable",
+    secondary_label: "Unavailable",
+    sort_key: sortText(label),
     source_url: "",
+    is_available: false,
     unavailable: true,
   };
 }
@@ -1714,6 +1965,7 @@ function readableTargetLabel(value, targetType) {
 function safeTargetFallbackLabel(target = {}) {
   const targetType = target.target_type || target.targetType || "record";
   return {
+    workspace: "Workspace",
     client: "Unavailable client",
     project: "Unavailable project",
     task: "Unavailable task",

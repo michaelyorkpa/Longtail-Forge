@@ -1000,33 +1000,36 @@ Split by provider family so each pass can update one display/sort contract and i
 
 Client target:
 
-- [ ] Display label:
+- [x] Display label:
   - `Client Name`
-- [ ] Do not show:
+- [x] Do not show:
   - `Client:`
   - `- Client`
   - status
   - UUID
-- [ ] Sort alphabetically by client name.
+- [x] Sort by Clients/Projects-owned hierarchy order:
+  - [x] Top-level clients alphabetically.
+  - [x] Child clients under their parent alphabetically.
+  - [x] Preserve Clients/Projects-owned child indentation in picker display labels.
 
 Project target:
 
-- [ ] Do not show:
+- [x] Do not show:
   - `Project:`
   - status
   - UUID
-- [ ] Business workspace display:
-  - [ ] Client project: `Project Name - Client Name`
-  - [ ] Workspace-level project: `Project Name - Workspace Name`
-- [ ] Business workspace sorting:
-  - [ ] Workspace-level projects first.
-  - [ ] Then sort by client/workspace display name.
-  - [ ] Then sort by project name.
-- [ ] Personal/Family workspace display:
-  - [ ] `Project Name`
-- [ ] Personal/Family sorting:
-  - [ ] Sort by project name.
-- [ ] Add provider and picker regression coverage for Client/Project options.
+- [x] Business workspace display:
+  - [x] Client project: `Project Name - Client Name`
+  - [x] Workspace-level project: `Project Name - Workspace Name`
+- [x] Business workspace sorting:
+  - [x] Workspace-level projects first.
+  - [x] Then sort by client/workspace display name.
+  - [x] Then sort by project name.
+- [x] Personal/Family workspace display:
+  - [x] `Project Name`
+- [x] Personal/Family sorting:
+  - [x] Sort by project name.
+- [x] Add provider and picker regression coverage for Client/Project options.
 
 Acceptance criteria:
 
@@ -1038,24 +1041,24 @@ Acceptance criteria:
 
 Task target:
 
-- [ ] Do not show:
+- [x] Do not show:
   - `Task:`
   - status
   - UUID
-- [ ] Truncate long task titles for dropdown display.
-  - [ ] Use approximately 20 characters for the task title portion.
-  - [ ] Preserve the full title in `title`, tooltip, or accessible label if possible.
-- [ ] Business workspace display:
-  - [ ] Client project task: `Task title… - Client Name | Project Name`
-  - [ ] Workspace project task: `Task title… - Workspace Name | Project Name`
-  - [ ] No project: `Task title…`
-- [ ] Personal/Family workspace display:
-  - [ ] With project: `Task title… - Project Name`
-  - [ ] No project: `Task title…`
-- [ ] Sort tasks by provider-defined usefulness.
-  - [ ] Prefer active/readable tasks.
-  - [ ] Then sort by client/workspace, project, task title where applicable.
-- [ ] Add provider and picker regression coverage for Task options.
+- [x] Truncate long task titles for dropdown display.
+  - [x] Use approximately 20 characters for the task title portion.
+  - [x] Preserve the full title in `title`, tooltip, or accessible label if possible.
+- [x] Business workspace display:
+  - [x] Client project task: `Task title… - Client Name | Project Name`
+  - [x] Workspace project task: `Task title… - Workspace Name | Project Name`
+  - [x] No project: `Task title…`
+- [x] Personal/Family workspace display:
+  - [x] With project: `Task title… - Project Name`
+  - [x] No project: `Task title…`
+- [x] Sort tasks by provider-defined usefulness.
+  - [x] Prefer active/readable tasks.
+  - [x] Then sort by client/workspace, project, task title where applicable.
+- [x] Add provider and picker regression coverage for Task options.
 
 Acceptance criteria:
 

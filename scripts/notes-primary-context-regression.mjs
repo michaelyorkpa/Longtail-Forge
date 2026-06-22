@@ -35,7 +35,7 @@ async function assertBrowserPrimaryContextContract() {
   const notesCss = await fs.readFile(path.join(process.cwd(), "public/css/longtail-forge.css"), "utf8");
 
   assert.match(notesHtml, /css\/longtail-forge\.css\?v=39/);
-  assert.match(notesHtml, /js\/notes\.js\?v=49/);
+  assert.match(notesHtml, /js\/notes\.js\?v=52/);
   assert.match(notesJs, /function createPrimaryContextSection\(\)/);
   assert.match(notesJs, /text: "Primary Context"/);
   assert.match(notesJs, /noteSelect\("noteClientId", \[\]\)/);

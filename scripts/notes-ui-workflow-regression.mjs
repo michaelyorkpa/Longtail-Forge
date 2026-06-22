@@ -56,7 +56,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=7/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=9/);
-  assert.match(html, /js\/notes\.js\?v=49/);
+  assert.match(html, /js\/notes\.js\?v=52/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
@@ -279,7 +279,7 @@ async function assertProtectedView(session) {
   assert.match(notesCss, /\.notes-list-panel-footer\s*\{[\s\S]*justify-content:\s*space-between;/, "Notes List footer should keep sort left and pagination right");
   assert.match(notesCss, /\.notes-list-sort select\s*\{[\s\S]*min-width:\s*220px;/, "Notes List sort dropdown should have a stable footer width");
 
-  // 0.33.5.18.6.5.4 Notes adoption of the shared Linked Context picker.
+  // 0.33.5.18.6.6.2 Notes adoption of provider-owned Linked Context labels.
   assert.match(notesJs, /picker\.dataset\.noteContextPicker = ""/, "The Add/Edit Note dialog should mount the shared Linked Context picker shell");
   assert.match(notesJs, /picker\.viewParts\.targetSelect\.dataset\.noteContextTargetType = ""/, "The shared picker target select should keep the existing Notes behavior hook");
   assert.match(notesJs, /picker\.viewParts\.searchInput\.dataset\.noteContextSearch = ""/, "The shared picker search input should keep the existing Notes behavior hook");
@@ -289,7 +289,8 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /function populateLinkTargetSelect\(select, targets = \[\]\)[\s\S]*replaceLinkTargetOptions\(records, select\)/, "Detail-page and Add/Edit Linked Context pickers should populate the select they were given");
   assert.match(notesJs, /function replaceLinkTargetOptions\(records = \[\], select = contextResultsInput\)[\s\S]*select\?\.replaceChildren\(\.\.\.options\)/, "Plain descriptor-linked select controls should not be routed through the Add/Edit shared picker mount");
   assert.match(notesJs, /function pickerRecordFromTarget\(target = \{\}\)[\s\S]*displayLabel: targetPickerDisplayLabel\(target\)[\s\S]*secondaryLabel: targetPickerSecondaryLabel\(target\)/, "Notes should normalize provider targets into shared picker records");
-  assert.match(notesJs, /function targetPickerDisplayLabel\(target = \{\}\)[\s\S]*targetType === "project" && usesBusinessScope\(\)[\s\S]*return contextName \? `\$\{label\} \(\$\{contextName\}\)` : label;/, "Business project target labels should render as Project Name (Client or Workspace)");
+  assert.match(notesJs, /function targetPickerDisplayLabel\(target = \{\}\)[\s\S]*const providerLabel = providerDisplayLabel\(target\.displayLabel, target\.display_label\)[\s\S]*return providerLabel;/, "Business project target labels should render provider-owned labels directly");
+  assert.doesNotMatch(notesJs, /return contextName \? `\$\{label\} \(\$\{contextName\}\)` : label;/, "Business project target labels should no longer be reconstructed with browser-owned parentheses");
   assert.match(notesJs, /function targetPickerSecondaryLabel\(target = \{\}\)[\s\S]*if \(!usesBusinessScope\(\)\) \{\s*return "";/, "Personal and Family workspaces should not show client labels in project/task picker strings");
   assert.match(notesJs, /async function applyTaskCreatedPrimaryContext\(target = \{\}, matchedTarget = \{\}\)[\s\S]*targetType !== "task"[\s\S]*loadPrimaryContextOptions\(\{ clientId, projectId \}\)[\s\S]*renderEditorContextPanel\(\)/, "Task-created notes should explicitly prefill Primary Context without making the shared Linked Context picker a writer");
   assert.match(notesJs, /function setTaskCreatedPrimaryContextSummaries\(target = \{\}\)[\s\S]*clientName[\s\S]*projectName[\s\S]*workspaceName/, "Task-created Primary Context fallback labels should come from task target metadata");

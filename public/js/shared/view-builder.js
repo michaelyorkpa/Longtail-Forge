@@ -673,6 +673,8 @@
             label: record.displayLabel,
             disabled: record.disabled || record.isAvailable === false,
             selected: record.selected,
+            title: record.title || record.fullLabel || record.ariaLabel || "",
+            ariaLabel: record.ariaLabel || record.title || record.fullLabel || "",
             dataset: {
               moduleId: record.moduleId,
               targetType: record.targetType,
@@ -767,10 +769,14 @@
   }
 
   function createLinkedContextPickerRow(item, options = {}) {
+    const fullLabel = item.title || item.fullLabel || item.ariaLabel || item.displayLabel;
     const title = createElement(item.sourceUrl ? "a" : "span", {
       className: "view-linked-context-picker-row-label",
       text: item.displayLabel,
-      attrs: item.sourceUrl ? { href: item.sourceUrl } : {},
+      attrs: {
+        ...(item.sourceUrl ? { href: item.sourceUrl } : {}),
+        ...(fullLabel ? { title: fullLabel, "aria-label": fullLabel } : {}),
+      },
     });
     const row = createElement("div", {
       className: [
@@ -858,14 +864,21 @@
       displayLabel: pickerLabel(record.displayLabel || record.label || record.name, "Unavailable linked context"),
       secondaryLabel: pickerOptionalLabel(record.secondaryLabel || record.summary || record.meta),
       sourceUrl: record.sourceUrl || "",
+      title: pickerOptionalLabel(record.title || record.fullLabel || record.ariaLabel),
+      fullLabel: pickerOptionalLabel(record.fullLabel || record.title || record.ariaLabel),
+      ariaLabel: pickerOptionalLabel(record.ariaLabel || record.title || record.fullLabel),
       isAvailable: record.isAvailable !== false,
     }));
   }
 
   function createPickerOption(option) {
+    const title = pickerOptionalLabel(option.title || option.ariaLabel);
     const element = createElement("option", {
       text: option.label,
-      attrs: { value: option.value },
+      attrs: {
+        value: option.value,
+        ...(title ? { title, "aria-label": pickerOptionalLabel(option.ariaLabel) || title } : {}),
+      },
       dataset: option.dataset,
     });
     element.value = option.value;
