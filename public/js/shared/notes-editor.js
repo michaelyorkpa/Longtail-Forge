@@ -4,6 +4,7 @@
   const COMMANDS = Object.freeze({
     bold: { prefix: "**", suffix: "**", placeholder: "bold text" },
     italic: { prefix: "*", suffix: "*", placeholder: "italic text" },
+    underline: { prefix: "++", suffix: "++", placeholder: "underlined text" },
     heading: { prefix: "## ", suffix: "", placeholder: "Heading" },
     link: { prefix: "[", suffix: "](https://example.com)", placeholder: "link text" },
     checklist: { prefix: "- [ ] ", suffix: "", placeholder: "Checklist item" },

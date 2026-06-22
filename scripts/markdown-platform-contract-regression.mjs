@@ -11,15 +11,18 @@ const notesEditor = await readText("public/js/shared/notes-editor.js");
 const notesRoutes = await readText("src/modules/notes/notes.routes.js");
 const notesJs = await readText("public/js/notes.js");
 
-assert.equal(packageJson.version, "0.33.5.18.6.6.4", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.6.6.4", "package-lock root version should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.6.4", "package-lock package metadata should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.6.8.4", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.6.8.4", "package-lock root version should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.6.8.4", "package-lock package metadata should report the current app version");
 
 assert.match(contract, /Longtail Forge will adopt `markdown-it`/, "contract should record the selected parser");
 assert.match(contract, /CommonMark mode/, "contract should require CommonMark-compatible parsing");
 assert.match(contract, /Tables\./, "contract should approve tables explicitly");
 assert.match(contract, /Task lists\./, "contract should approve task lists explicitly");
+assert.match(contract, /Safe underline syntax using `\+\+underlined text\+\+`/, "contract should approve safe underline syntax explicitly");
+assert.match(contract, /generated plain `<u>` element with no source-provided attributes/, "contract should keep underline output generated and attribute-free");
 assert.match(contract, /Raw HTML is disabled by default/, "contract should keep raw HTML disabled");
+assert.match(contract, /raw underline HTML|Raw source underline tags/i, "contract should keep raw underline HTML out of scope");
 assert.match(contract, /http:`?, `https:`?, `mailto:`?/, "contract should define allowed link schemes");
 assert.match(contract, /Render Markdown to safe HTML/, "contract should define safe HTML rendering API");
 assert.match(contract, /Convert Markdown to plain text/, "contract should define plain-text conversion API");
@@ -38,8 +41,10 @@ assert.match(helpService, /renderMarkdownToHtml/, "Help should use the shared Ma
 assert.doesNotMatch(helpService, /function extractPlainTextFromHelpMarkdown/, "Help should not keep the old hand-rolled plain-text path");
 assert.match(notesEditor, /namespace\.notesEditor/, "browser editor helpers should remain Notes-owned");
 assert.match(notesEditor, /continueListMarker/, "Notes editor should include scoped list-continuation helpers");
+assert.match(notesEditor, /underline:\s*\{\s*prefix:\s*"\+\+"/, "Notes editor should expose the safe underline authoring command");
 assert.match(notesRoutes, /notesRoutes\.post\("\/notes\/preview"/, "Notes should expose a protected preview route after 0.33.5.17.6");
 assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/, "Notes live preview should use the server preview route");
+assert.match(notesJs, /command:\s*"underline",\s*text:\s*"U",\s*label:\s*"Underline"/, "Notes toolbar should expose the safe underline command");
 
 assert.match(roadmap, /### Version 0\.33\.5\.17\.1 - Parser Selection and Markdown Contract[\s\S]*- \[x\] Review current Markdown rendering paths/, "roadmap should mark 0.33.5.17.6 complete");
 

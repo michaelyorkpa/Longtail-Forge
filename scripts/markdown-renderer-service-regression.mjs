@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import {
+  MARKDOWN_RENDER_MODES,
   createMarkdownExcerpt,
   isSafeMarkdownUrl,
   markdownService,
@@ -16,20 +17,21 @@ const changelog = await readText("CHANGELOG.md");
 const contract = await readText("docs/markdown-platform-contract.md");
 const regressionSuite = await readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.6.6.4", "package.json should carry the Markdown renderer slice version");
-assert.equal(packageLock.version, "0.33.5.18.6.6.4", "package-lock root version should carry the Markdown renderer slice version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.6.4", "package-lock package metadata should carry the Markdown renderer slice version");
+assert.equal(packageJson.version, "0.33.5.18.6.8.4", "package.json should carry the Markdown renderer slice version");
+assert.equal(packageLock.version, "0.33.5.18.6.8.4", "package-lock root version should carry the Markdown renderer slice version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.6.8.4", "package-lock package metadata should carry the Markdown renderer slice version");
 assert.equal(packageJson.dependencies["markdown-it"], "^14.2.0", "markdown-it should be installed as the selected Markdown dependency");
 
 assert.equal(typeof markdownService.renderMarkdownToHtml, "function", "service should expose safe HTML rendering");
 assert.equal(typeof markdownService.markdownToPlainText, "function", "service should expose plain-text conversion");
 assert.equal(typeof markdownService.isSafeMarkdownUrl, "function", "service should expose safe URL validation");
+assert.equal(markdownService.MARKDOWN_RENDER_MODES.USER_AUTHORED, "user-authored", "service should expose explicit Markdown render modes");
 assert.equal(normalizeMarkdownSource(" A \r\n B  "), "A\n B", "source normalization should preserve content while normalizing line endings");
 
 const markdown = normalizeMarkdownSource(`
 # Heading
 
-Paragraph with **strong**, *emphasis*, [safe link](https://example.com/path), and \`inline code\`.
+Paragraph with **strong**, *emphasis*, ++underlined text++, [safe link](https://example.com/path), and \`inline code\`.
 
 > Quote
 
@@ -55,6 +57,7 @@ const html = renderMarkdownToHtml(markdown);
 assert.match(html, /<h1>Heading<\/h1>/, "headings should render");
 assert.match(html, /<strong>strong<\/strong>/, "strong text should render");
 assert.match(html, /<em>emphasis<\/em>/, "emphasis should render");
+assert.match(html, /<u>underlined text<\/u>/, "safe underline token should render to a plain underline element");
 assert.match(html, /<a href="https:\/\/example\.com\/path">safe link<\/a>/, "safe links should render");
 assert.match(html, /<blockquote>\s*<p>Quote<\/p>\s*<\/blockquote>/, "blockquotes should render");
 assert.match(html, /<ul>\s*<li>Parent\s*<ul>\s*<li>Child\s*<ol>\s*<li>Ordered child<\/li>/, "nested mixed lists should render");
@@ -63,15 +66,23 @@ assert.match(html, /<li class="markdown-task-list-item"><input class="markdown-t
 assert.match(html, /<table>[\s\S]*<th>Name<\/th>[\s\S]*<td>Alpha<\/td>[\s\S]*<\/table>/, "tables should render");
 assert.match(html, /<pre><code class="language-js">const value = 1;\n<\/code><\/pre>/, "fenced code blocks should render");
 
+const softBreakSource = "First line\nSecond line";
+const defaultBreakHtml = renderMarkdownToHtml(softBreakSource);
+const userAuthoredBreakHtml = renderMarkdownToHtml(softBreakSource, { mode: MARKDOWN_RENDER_MODES.USER_AUTHORED });
+assert.doesNotMatch(defaultBreakHtml, /<br>/, "document/default rendering should keep CommonMark soft-line behavior");
+assert.match(userAuthoredBreakHtml, /First line<br\s*\/?>\s*Second line/, "user-authored rendering should make soft line breaks visible");
+
 const unsafe = renderMarkdownToHtml(`
 <script>alert(1)</script>
 [bad](javascript:alert(1))
 ![bad](data:text/html,evil)
 <img src=x onerror=alert(1)>
+<u onclick="alert(1)">unsafe underline</u>
 ~~not enabled~~
 `);
 assert.doesNotMatch(unsafe, /<script|<img|href="javascript:|src="data:|<[^>]+\son[a-z]+=/i, "unsafe input should not render active HTML, event handlers, scriptable links, or unsafe images");
 assert.match(unsafe, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/, "raw HTML should be escaped rather than executed");
+assert.match(unsafe, /&lt;u onclick=&quot;alert\(1\)&quot;&gt;unsafe underline&lt;\/u&gt;/, "raw underline HTML should stay escaped instead of becoming an allowlisted tag");
 assert.match(unsafe, /<p>[\s\S]*bad[\s\S]*bad[\s\S]*<\/p>/, "unsafe links and images should degrade to plain text");
 assert.doesNotMatch(unsafe, /\[bad\]\(|!\[bad\]\(/, "unsafe links and images should not preserve Markdown URL syntax");
 assert.match(unsafe, /bad/, "unsafe images should degrade to alt text");
@@ -87,10 +98,10 @@ assert.equal(isSafeMarkdownUrl("javascript:alert(1)"), false);
 assert.equal(isSafeMarkdownUrl("data:text/html,evil"), false);
 
 const plain = markdownToPlainText(markdown);
-for (const expected of ["Heading", "strong", "emphasis", "safe link", "inline code", "Quote", "Parent", "Child", "Ordered child", "Open task", "Done task", "Alpha", "Ready", "const value = 1;"]) {
+for (const expected of ["Heading", "strong", "emphasis", "underlined text", "safe link", "inline code", "Quote", "Parent", "Child", "Ordered child", "Open task", "Done task", "Alpha", "Ready", "const value = 1;"]) {
   assert.match(plain, new RegExp(escapeRegExp(expected)), `plain text should include ${expected}`);
 }
-assert.doesNotMatch(plain, /[#*_`|]|\[x\]|\[ \]/, "plain text should not expose Markdown control syntax");
+assert.doesNotMatch(plain, /[#*_`|]|\+\+|\[x\]|\[ \]/, "plain text should not expose Markdown control syntax");
 assert.equal(createMarkdownExcerpt(markdown, 30), "Heading Paragraph with strong...", "excerpts should come from the parser-backed plain text path");
 
 for (const item of [

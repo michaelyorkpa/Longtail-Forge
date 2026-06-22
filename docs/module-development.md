@@ -74,6 +74,8 @@ Use `docs/ui-surface-contract.md` and `docs/ui-layout-guide.md` before adding or
 
 Use `LongtailForge.overlayHost.create({ host })` for small module-owned panels opened from modal footer or row actions, such as task Tags and Files. The overlay host owns placement, Escape/click-away handling, focus handling, responsive bottom-sheet behavior, and one-open-overlay state; the module or framework service still owns picker/upload content and persistence.
 
+Use `LongtailForge.view.showModal()` and `LongtailForge.view.closeModal()` for converted add/edit dialogs that may open stacked secondary dialogs above the parent editor. The framework owns parent/child stack guardrails and safe child closure; the module owns staged state, validation, save payloads, and the secondary dialog body.
+
 Use `.surface-main-panel` for main-screen filters, bulk toolbars, settings groups, notification/timer panels, and contextual work panels. Use `.surface-dense-actions` for row-local action clusters instead of reusing modal footer classes. Drawer and slideout shells are available for future side panels and become full-screen overlays on narrow screens.
 
 ## View-Building Helpers
@@ -90,7 +92,7 @@ For manifest-driven protected views, read `docs/declarative-view-surfaces.md` be
 
 ## Shared Icon And Action Controls
 
-Use `window.LongtailForge.icons` for common action icons and compact action buttons. The shared helper is framework-owned, uses a local Lucide-derived inline SVG subset, and renders by stable semantic names such as `add`, `edit`, `archive`, `restore`, `delete`, `start`, `pause`, `save`, `close`, `copy`, `refresh`, and `more`.
+Use `window.LongtailForge.icons` for common action icons and compact action buttons. The shared helper is framework-owned, uses a local Lucide-derived inline SVG subset, and renders by stable semantic names such as `add`, `edit`, `archive`, `restore`, `delete`, `start`, `pause`, `save`, `close`, `copy`, `refresh`, `more`, `link`, `eye`, `list`, and `list-checks`.
 
 Modules may use `createIcon`, `createIconButton`, or `decorateButton` for common actions, but module behavior, permission checks, API calls, and confirmation flows should remain in the owning module. Icon-only controls need an accessible label, and destructive controls should pass the danger variant or keep the existing `danger-button` class.
 
@@ -163,9 +165,11 @@ Search is framework-owned. Modules may provide `searchableTypes` descriptors wit
 
 Markdown rendering is framework-owned. Use `src/core/markdown/markdown.service.js` for generic Markdown rendering, plain-text extraction, excerpts, source normalization, and safe URL checks. If a module needs module-specific behavior, such as Notes wiki links or secure-note placeholders, keep that behavior in a thin module adapter over the framework service instead of adding another parser or regex renderer.
 
-The approved syntax set is CommonMark plus explicitly supported tables and task lists. Raw HTML, scriptable links, unsafe image sources, automatic URL linking, typographer replacements, broad extension bundles, and renderer rewrites of saved source are not part of the current contract. Saved Markdown should remain unchanged; render/search/preview output is where normalization and safety handling happen.
+The approved syntax set is CommonMark plus explicitly supported tables, task lists, and safe underline using the `++text++` token. Raw HTML, raw underline tags, scriptable links, unsafe image sources, automatic URL linking, typographer replacements, broad extension bundles, and renderer rewrites of saved source are not part of the current contract. Saved Markdown should remain unchanged; render/search/preview output is where normalization and safety handling happen.
 
-Notes is the reference module for user-authored Markdown. `src/modules/notes/markdown.js` validates unsafe note input, preserves wiki-link handling, and delegates safe rendering/plain text/excerpts to the framework service. Saved Notes detail reads expose `body_html`, while draft preview uses the protected `POST /api/notes/preview` route so browser preview stays aligned with saved rendering. The browser editor remains a textarea with authoring helpers in `public/js/shared/notes-editor.js`; do not replace it with WYSIWYG behavior unless a later roadmap version explicitly changes that product decision.
+The framework service supports default document rendering and explicit `user-authored` rendering. Document rendering keeps CommonMark soft-line behavior for repo-authored Help and future documentation-style content. Notes is the reference module for user-authored Markdown and opts into `user-authored` rendering so single newlines in note bodies display as visible line breaks in both saved reads and draft preview without rewriting stored Markdown.
+
+`src/modules/notes/markdown.js` validates unsafe note input, preserves wiki-link handling, and delegates safe rendering/plain text/excerpts to the framework service. Saved Notes detail reads expose `body_html`, while draft preview uses the protected `POST /api/notes/preview` route so browser preview stays aligned with saved rendering. The browser editor remains a textarea with authoring helpers in `public/js/shared/notes-editor.js`; do not replace it with WYSIWYG behavior unless a later roadmap version explicitly changes that product decision.
 
 Help is the reference framework-owned Markdown content consumer. Repo-authored Help files live under `help/`, article detail payloads include Markdown source fields plus safe rendered HTML fields, and Help search text comes from the shared Markdown plain-text path. Future Knowledge Base articles should consume the same service while keeping publication status, review workflow, source snapshots, and visibility rules inside the Knowledge Base module.
 

@@ -1,4 +1,5 @@
 import {
+  MARKDOWN_RENDER_MODES,
   createMarkdownExcerpt as createFrameworkMarkdownExcerpt,
   markdownToPlainText,
   normalizeMarkdownSource,
@@ -70,7 +71,7 @@ function renderMarkdownToSafeHtml(markdown = "") {
     wikiLinks.push({ placeholder, target, label });
     return placeholder;
   });
-  let html = renderMarkdownToHtml(placeholderMarkdown);
+  let html = renderMarkdownToHtml(placeholderMarkdown, { mode: MARKDOWN_RENDER_MODES.USER_AUTHORED });
 
   for (const wikiLink of wikiLinks) {
     html = html.replaceAll(

@@ -1,3 +1,52 @@
+## Version 0.33.5.18.6.8.4 - 2026-06-22 13:16 -04:00
+
+- Added a safe underline Markdown contract using the dedicated `++underlined text++` token, rendered by the shared framework Markdown service as generated plain `<u>` output.
+- Added the Add/Edit Note toolbar `U` control with accessible label/tooltip `Underline`, backed by the existing Notes editor helper command path and safe-token insertion.
+- Kept raw HTML disabled, documented the safe underline boundary across Markdown/Notes docs and Help, archived the previous `.8.3` roadmap slice, and expanded regressions for underline rendering, insertion, plain text, cache keys, and unsafe raw underline payloads.
+- Verification: `npm run check` passed 150/150 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.8.4` after restarting the local 8001 server.
+
+## Version 0.33.5.18.6.8.3 - 2026-06-22 12:54 -04:00
+
+- Wrapped the Add/Edit Note Markdown toolbar, Body field, and Preview in a stable `notes-markdown-editor` shell so the toolbar remains the full-width first row above the editor/preview body.
+- Kept Preview as the existing toolbar action while making preview toggling a visibility-only behavior that does not move or reparent toolbar/editor markup.
+- Updated Notes layout CSS, cache keys, docs, Help copy, decisions, package/regression version pins, and regression coverage for toolbar placement stability.
+- Verification: `npm run check` passed 150/150 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.8.3` after restarting the local 8001 server.
+
+## Version 0.33.5.18.6.8.2 - 2026-06-22 12:32 -04:00
+
+- Converted the Add/Edit Note Markdown toolbar to compact shared action controls with accessible labels/tooltips, replacing the generic visible `List` button with an unordered-list icon and adding an ordered-list `1.` control.
+- Extended the local shared icon subset with list, checklist, link, and eye icons, refreshed Notes cache keys, and kept toolbar commands routed through the existing Notes editor helpers.
+- Expanded Notes Markdown regression coverage for unordered/ordered list insertion and preserved the existing Tab/Enter indentation and list-continuation coverage; refreshed Notes docs, Help copy, decisions, and package/regression version pins to `0.33.5.18.6.8.2`.
+- Verification: `npm run check` passed 150/150 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.8.2` after restarting the local 8001 server.
+
+## Version 0.33.5.18.6.8.1 - 2026-06-22 12:17 -04:00
+
+- Added explicit Markdown render modes so default/document Markdown keeps CommonMark soft-line behavior while Notes uses a `user-authored` mode that renders single newlines as visible line breaks.
+- Updated Notes saved read display and draft preview to use the same user-authored renderer path without rewriting saved `body_markdown`, preserving blank-line paragraph behavior and escaping raw `<br>` markup.
+- Added `notes-markdown-soft-break-regression.mjs`, wired it into the regression suite, refreshed Markdown/Notes docs and Help copy, and bumped package metadata/regression version pins to `0.33.5.18.6.8.1`.
+- Verification: `npm run check` passed 150/150 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.8.1` after restarting the local 8001 server.
+
+## Version 0.33.5.18.6.7.3 - 2026-06-22 10:18 -04:00
+
+- Moved the Add/Edit Note `Files` utility from the inline panel below Body into a stacked child dialog above the note editor, using the existing shared file attachment helper for saved normal notes.
+- Added the required unsaved-note Files dialog warning, `Save the note before adding files.`, with danger styling, while keeping secure note drafts and saved secure notes unavailable for normal framework-managed attachments.
+- Added `notes-files-stacked-modal-regression.mjs`, wired it into the regression suite, refreshed Notes cache keys to `longtail-forge.css?v=41` and `notes.js?v=55`, and bumped package metadata/regression version pins to `0.33.5.18.6.7.3`.
+- Verification: `npm run check` passed 149/149 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.7.3` after restarting the local 8001 server.
+
+## Version 0.33.5.18.6.7.2 - 2026-06-22 09:04 -04:00
+
+- Moved the Add/Edit Note `Tags` utility from the inline panel below Body into a stacked child dialog above the note editor, using the existing shared tag picker inside the dialog.
+- Kept tag changes staged in the editor's tag picker for both new and existing notes so they persist through the normal `Save Note` create/update payload; Files remains on the existing inline panel for `0.33.5.18.6.7.3`.
+- Added `notes-tags-stacked-modal-regression.mjs`, wired it into the regression suite, refreshed the Notes host cache key to `notes.js?v=54`, and bumped package metadata/regression version pins to `0.33.5.18.6.7.2`.
+- Verification: `npm run check` passed 148/148 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.7.2` after restarting the local 8001 server.
+
+## Version 0.33.5.18.6.7.1 - 2026-06-22 08:42 -04:00
+
+- Renamed the Add/Edit Note footer utility buttons from `Note tags` / `Note files` to `Tags` / `Files` while preserving the existing icon-only controls.
+- Added framework-owned modal-stack guardrails through `LongtailForge.view.showModal()` / `LongtailForge.view.closeModal()`, routed Notes editor and descriptor modal openings through them, and documented the parent/child dialog ownership boundary.
+- Added `notes-modal-stack-guardrails-regression.mjs`, wired it into the regression suite, refreshed Notes cache keys, and bumped package metadata/regression version pins to `0.33.5.18.6.7.1`.
+- Verification: `npm run check` passed 147/147 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.7.1` after restarting the local 8001 server.
+
 ## Version 0.33.5.18.6.6.4 - 2026-06-22 08:12 -04:00
 
 - Added a saved-target fallback read path for Notes Primary Context and Linked Context so stale or unresolvable saved rows render safe labels such as `Unavailable client`, `Unavailable project`, `Unavailable task`, `Unavailable note`, `Unavailable list`, or `Unavailable linked context` instead of raw IDs.

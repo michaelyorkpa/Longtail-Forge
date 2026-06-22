@@ -3,44 +3,16 @@ import MarkdownIt from "markdown-it";
 const SAFE_LINK_SCHEMES = new Set(["http:", "https:", "mailto:"]);
 const SAFE_RELATIVE_PREFIXES = ["/", "./", "../", "#"];
 const TASK_LIST_ITEM_PATTERN = /<li>\[([ xX])\]\s+/g;
+const PLUS_MARKER = 0x2B;
+const BACKSLASH_MARKER = 0x5C;
+const LINE_FEED_MARKER = 0x0A;
+const MARKDOWN_RENDER_MODES = Object.freeze({
+  DOCUMENT: "document",
+  USER_AUTHORED: "user-authored",
+});
 
-const parser = MarkdownIt("commonmark", {
-  html: false,
-  linkify: false,
-  typographer: false,
-  breaks: false,
-}).enable(["table"]);
-
-parser.disable(["strikethrough"]);
-parser.validateLink = (url) => isSafeMarkdownUrl(url);
-
-parser.renderer.rules.link_open = (tokens, index, options, env, self) => {
-  const token = tokens[index];
-  const hrefIndex = token.attrIndex("href");
-
-  if (hrefIndex >= 0 && !isSafeMarkdownUrl(token.attrs[hrefIndex][1])) {
-    token.attrs.splice(hrefIndex, 1);
-  }
-
-  const target = token.attrGet("target");
-  if (target === "_blank") {
-    token.attrSet("rel", "noopener noreferrer");
-  }
-
-  return self.renderToken(tokens, index, options);
-};
-
-parser.renderer.rules.image = (tokens, index, options, env) => {
-  const token = tokens[index];
-  const src = token.attrGet("src") || "";
-
-  if (!env?.allowImages || !isSafeMarkdownUrl(src)) {
-    return escapeHtml(token.content || token.attrGet("alt") || "");
-  }
-
-  const alt = escapeAttribute(token.content || token.attrGet("alt") || "");
-  return `<img src="${escapeAttribute(src)}" alt="${alt}">`;
-};
+const documentParser = createParser();
+const userAuthoredParser = createParser({ softLineBreaks: true });
 
 function normalizeMarkdownSource(markdown = "") {
   return String(markdown || "")
@@ -51,14 +23,14 @@ function normalizeMarkdownSource(markdown = "") {
 
 function renderMarkdownToHtml(markdown = "", options = {}) {
   const source = stripUnsafeMarkdownLinks(normalizeMarkdownSource(markdown));
-  const html = parser.render(source, { allowImages: options.allowImages === true });
+  const html = parserForOptions(options).render(source, { allowImages: options.allowImages === true });
 
   return applyTaskListMarkup(html);
 }
 
 function markdownToPlainText(markdown = "", options = {}) {
   const source = stripUnsafeMarkdownLinks(normalizeMarkdownSource(markdown));
-  const tokens = parser.parse(source, { allowImages: options.allowImages === true });
+  const tokens = parserForOptions(options).parse(source, { allowImages: options.allowImages === true });
   const parts = [];
 
   collectPlainText(tokens, parts);
@@ -96,6 +68,111 @@ function isSafeMarkdownUrl(url = "") {
   } catch {
     return false;
   }
+}
+
+function createParser({ softLineBreaks = false } = {}) {
+  const parser = MarkdownIt("commonmark", {
+    html: false,
+    linkify: false,
+    typographer: false,
+    breaks: softLineBreaks,
+  }).enable(["table"]);
+
+  parser.disable(["strikethrough"]);
+  parser.inline.ruler.before("emphasis", "underline", underlineRule);
+  parser.validateLink = (url) => isSafeMarkdownUrl(url);
+
+  parser.renderer.rules.link_open = (tokens, index, options, env, self) => {
+    const token = tokens[index];
+    const hrefIndex = token.attrIndex("href");
+
+    if (hrefIndex >= 0 && !isSafeMarkdownUrl(token.attrs[hrefIndex][1])) {
+      token.attrs.splice(hrefIndex, 1);
+    }
+
+    const target = token.attrGet("target");
+    if (target === "_blank") {
+      token.attrSet("rel", "noopener noreferrer");
+    }
+
+    return self.renderToken(tokens, index, options);
+  };
+
+  parser.renderer.rules.image = (tokens, index, options, env) => {
+    const token = tokens[index];
+    const src = token.attrGet("src") || "";
+
+    if (!env?.allowImages || !isSafeMarkdownUrl(src)) {
+      return escapeHtml(token.content || token.attrGet("alt") || "");
+    }
+
+    const alt = escapeAttribute(token.content || token.attrGet("alt") || "");
+    return `<img src="${escapeAttribute(src)}" alt="${alt}">`;
+  };
+
+  return parser;
+}
+
+function underlineRule(state, silent) {
+  const start = state.pos;
+
+  if (
+    state.src.charCodeAt(start) !== PLUS_MARKER ||
+    state.src.charCodeAt(start + 1) !== PLUS_MARKER
+  ) {
+    return false;
+  }
+
+  const contentStart = start + 2;
+  const contentEnd = findUnderlineClose(state.src, contentStart, state.posMax);
+
+  if (contentEnd < 0 || contentEnd === contentStart) {
+    return false;
+  }
+
+  if (silent) {
+    return true;
+  }
+
+  const originalPosMax = state.posMax;
+  state.push("underline_open", "u", 1).markup = "++";
+  state.pos = contentStart;
+  state.posMax = contentEnd;
+  state.md.inline.tokenize(state);
+  state.push("underline_close", "u", -1).markup = "++";
+  state.pos = contentEnd + 2;
+  state.posMax = originalPosMax;
+  return true;
+}
+
+function findUnderlineClose(source = "", start = 0, max = source.length) {
+  for (let index = start; index < max - 1; index += 1) {
+    const code = source.charCodeAt(index);
+
+    if (code === LINE_FEED_MARKER) {
+      return -1;
+    }
+
+    if (
+      code === PLUS_MARKER &&
+      source.charCodeAt(index + 1) === PLUS_MARKER &&
+      source.charCodeAt(index - 1) !== BACKSLASH_MARKER
+    ) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function parserForOptions(options = {}) {
+  return usesUserAuthoredMode(options) ? userAuthoredParser : documentParser;
+}
+
+function usesUserAuthoredMode(options = {}) {
+  return options.softLineBreaks === true ||
+    options.mode === MARKDOWN_RENDER_MODES.USER_AUTHORED ||
+    options.renderMode === MARKDOWN_RENDER_MODES.USER_AUTHORED;
 }
 
 function applyTaskListMarkup(html = "") {
@@ -158,6 +235,7 @@ function escapeAttribute(value = "") {
 }
 
 const markdownService = Object.freeze({
+  MARKDOWN_RENDER_MODES,
   createMarkdownExcerpt,
   isSafeMarkdownUrl,
   markdownToPlainText,
@@ -166,6 +244,7 @@ const markdownService = Object.freeze({
 });
 
 export {
+  MARKDOWN_RENDER_MODES,
   createMarkdownExcerpt,
   isSafeMarkdownUrl,
   markdownService,

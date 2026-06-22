@@ -40,14 +40,16 @@ Approved extensions:
 
 - Tables.
 - Task lists.
+- Safe underline syntax using `++underlined text++`, rendered by the framework as a generated plain `<u>` element with no source-provided attributes.
 
-Do not enable broad extension bundles by default. Strikethrough, typographer replacements, automatic URL linking, footnotes, definition lists, emoji, math, custom containers, and similar extensions remain out of scope until a later version explicitly approves and tests them.
+Do not enable broad extension bundles by default. Strikethrough, typographer replacements, automatic URL linking, footnotes, definition lists, emoji, math, custom containers, raw underline HTML, and similar extensions remain out of scope until a later version explicitly approves and tests them.
 
 ## Disallowed Behavior
 
 The Markdown platform must reject, strip, or neutralize unsafe output while preserving the saved source text:
 
 - Raw HTML in source Markdown.
+- Raw source underline tags such as `<u>` or `<u onclick="...">`; underline authoring must use the approved `++text++` token instead.
 - Scriptable links such as `javascript:` and `vbscript:`.
 - Event-handler attributes and script-capable elements if unsafe input reaches the sanitizer.
 - Unsafe image sources, including `data:` and scriptable sources.
@@ -65,6 +67,13 @@ The framework-owned Markdown service should expose these capabilities:
 - Expose deterministic fixture-based expectations for supported syntax and unsafe input.
 
 The service should be module-agnostic. It must not know Notes visibility rules, Help article routing, Knowledge Base publication state, workspace module status, or record permissions.
+
+As of 0.33.5.18.6.8.1, the service exposes explicit render modes:
+
+- Default/document rendering keeps CommonMark soft-line behavior. Repo-authored Help and documentation-style Markdown should use this mode unless a later version intentionally changes that surface.
+- `user-authored` rendering makes soft line breaks visible in the rendered HTML. Notes uses this mode for saved detail reads and draft preview so textarea-authored single newlines display the way users expect without rewriting stored Markdown.
+
+As of 0.33.5.18.6.8.4, the service owns the safe underline contract. The parser recognizes the explicit `++text++` token and emits generated `<u>` output only for that token; it does not enable raw HTML, source-provided underline attributes, event handlers, scripts, or a general HTML allowlist.
 
 ## Module Responsibilities
 
@@ -104,4 +113,4 @@ The first migration targets are the current hand-rolled Markdown paths:
 - `src/services/help.service.js`: migrated in 0.33.5.17.4 to use the shared framework service for rendered Help article HTML and search/plain-text extraction while preserving Help-owned discovery, scoping, article metadata, routes, and navigation.
 - `public/js/shared/notes-editor.js` and `public/js/notes.js`: migrated in 0.33.5.17.5 so textarea authoring helpers stay browser-owned while draft preview rendering calls the protected Notes preview route backed by the same Notes Markdown adapter as saved rendering.
 
-0.33.5.17.1 defines the contract only. 0.33.5.17.2 adds the dependency and service in `src/core/markdown/markdown.service.js`. 0.33.5.17.3 migrates Notes server-side rendering and text extraction without changing saved Markdown. 0.33.5.17.4 migrates Help rendered article HTML and Help search text extraction without changing Markdown source files. 0.33.5.17.5 migrates Notes browser preview to server-rendered draft HTML and adds scoped Markdown textarea authoring helpers without changing saved Markdown. 0.33.5.17.6 closes the branch with current documentation for the framework Markdown boundary, approved syntax, Notes Help behavior, and deferred WYSIWYG/Knowledge Base scope.
+0.33.5.17.1 defines the contract only. 0.33.5.17.2 adds the dependency and service in `src/core/markdown/markdown.service.js`. 0.33.5.17.3 migrates Notes server-side rendering and text extraction without changing saved Markdown. 0.33.5.17.4 migrates Help rendered article HTML and Help search text extraction without changing Markdown source files. 0.33.5.17.5 migrates Notes browser preview to server-rendered draft HTML and adds scoped Markdown textarea authoring helpers without changing saved Markdown. 0.33.5.17.6 closes the branch with current documentation for the framework Markdown boundary, approved syntax, Notes Help behavior, and deferred WYSIWYG/Knowledge Base scope. 0.33.5.18.6.8.1 adds explicit document versus user-authored render modes so Notes can show soft line breaks visibly while Help/document-style Markdown keeps the prior layout behavior. 0.33.5.18.6.8.4 adds the safe underline token and toolbar command without enabling arbitrary raw HTML.

@@ -1024,9 +1024,7 @@
     });
     const parent = global.document?.body || state.surface;
     parent.appendChild(dialog);
-    if (typeof dialog.showModal === "function") {
-      dialog.showModal();
-    }
+    state.view.showModal(dialog);
     return dialog;
   }
 

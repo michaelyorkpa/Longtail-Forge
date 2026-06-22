@@ -53,14 +53,14 @@ async function assertProtectedView(session) {
   // filters, index, detail) AND the editor + collection modals are framework-rendered; notes.js
   // mounts the notes-specific chrome and builds the dialog shells from the descriptor modals block.
   assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/);
-  assert.match(html, /js\/shared\/view-renderer\.js\?v=7/);
-  assert.match(html, /js\/shared\/icons\.js\?v=2/);
-  assert.match(html, /js\/shared\/view-builder\.js\?v=9/);
-  assert.match(html, /js\/notes\.js\?v=52/);
+  assert.match(html, /js\/shared\/view-renderer\.js\?v=8/);
+  assert.match(html, /js\/shared\/icons\.js\?v=3/);
+  assert.match(html, /js\/shared\/view-builder\.js\?v=10/);
+  assert.match(html, /js\/notes\.js\?v=58/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
-  assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
-  assert.match(html, /css\/longtail-forge\.css\?v=40/);
+  assert.match(html, /js\/shared\/notes-editor\.js\?v=4/);
+  assert.match(html, /css\/longtail-forge\.css\?v=43/);
   // No static read chrome or dialog markup remains in the host page.
   assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
   assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);
@@ -133,7 +133,10 @@ async function assertProtectedView(session) {
   // 0.33.5.18.4 declarative editor + collection modal conversion markers.
   assert.match(notesJs, /createNoteDialogShell/);
   assert.match(notesJs, /createCollectionDialogShell/);
-  assert.match(notesJs, /document\.body\.append\(createNoteDialogShell\(\), createCollectionDialogShell\(\)\)/);
+  assert.match(
+    notesJs,
+    /document\.body\.append\(createNoteDialogShell\(\), createNoteTagsDialogShell\(\), createNoteFilesDialogShell\(\), createCollectionDialogShell\(\)\)/,
+  );
   assert.match(notesJs, /view\.renderDescriptorModalForm/);
   assert.match(notesJs, /notesEditorModalDescriptor/);
   assert.match(notesJs, /notesCollectionModalDescriptor/);
@@ -182,15 +185,20 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(notesJs, /document\.createElement\("(dialog|table|details)"\)/, "Notes should not hand-build dialog/table/details framework anatomy");
   assert.match(notesJs, /view\.createElement\("details"/, "The collections menu and revisions panel should use the framework element builder for disclosures");
 
-  // 0.33.5.18.5.5 add/edit modal refinement: collapsible Note Details group + Tags/Files footer buttons.
+  // 0.33.5.18.5.5 add/edit modal refinement, updated by 0.33.5.18.6.7.3 stacked utility modals.
   assert.match(notesJs, /className: "notes-detail-group"/, "The note Details fields should be wrapped in a collapsible group");
   assert.match(notesJs, /detailsGroup\.open = !note/, "The Details group should default open in Add and closed in Edit");
   assert.match(notesJs, /utilityActions: \[tagsToggle, filesToggle\]/, "Tags and Files should render as footer utility actions");
   assert.match(notesJs, /dataset\.noteTagsToggle/, "Tags should be a footer toggle button");
   assert.match(notesJs, /dataset\.noteFilesToggle/, "Files should be a footer toggle button");
-  assert.match(notesJs, /function toggleNoteEditorPanel/, "Footer buttons should toggle hidden tag/file panels");
+  assert.match(notesJs, /function createNoteTagsDialogShell/, "Tags should open in a stacked dialog");
+  assert.match(notesJs, /function openTagsDialog\(\)[\s\S]*view\.showModal\(tagsDialog, \{ parent: dialog, trigger: tagsToggle \}\)/, "Tags should open through the shared modal stack helper above the editor");
+  assert.doesNotMatch(notesJs, /tagPanel|noteTagsPanel|toggleNoteEditorPanel\("tags"\)/, "Tags should no longer render as a hidden inline editor panel");
+  assert.match(notesJs, /function createNoteFilesDialogShell/, "Files should open in a stacked dialog");
+  assert.match(notesJs, /function openFilesDialog\(\)[\s\S]*view\.showModal\(filesDialog, \{ parent: dialog, trigger: filesToggle \}\)/, "Files should open through the shared modal stack helper above the editor");
+  assert.doesNotMatch(notesJs, /noteFilesPanel|toggleNoteEditorPanel\("files"\)|function toggleNoteEditorPanel/, "Files should no longer render as a hidden inline editor panel");
   assert.match(notesJs, /function mountNoteEditorFiles/, "The editor should mount file attachments behind the Files button");
-  assert.match(notesJs, /filesMount\.dataset\.noteFilesEditor/, "The editor file panel should expose a files mount hook");
+  assert.match(notesJs, /filesMount\.dataset\.noteFilesEditor/, "The editor files dialog should expose a files mount hook");
   const viewBuilderJs = await fs.readFile(path.join(process.cwd(), "public/js/shared/view-builder.js"), "utf8");
   assert.match(viewBuilderJs, /surface-modal-footer-utilities[\s\S]*data-modal-footer-group": "utility"/, "The framework modal footer should support a utility action group");
 

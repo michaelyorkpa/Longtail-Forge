@@ -1127,59 +1127,20 @@ Acceptance criteria:
 
 Split into three sub-slices so modal-stack behavior is framework-safe before each utility moves.
 
-#### Version 0.33.5.18.6.7.1 - Modal-stack guardrails and utility labels
-
-- [ ] Rename Add/Edit Note footer utility buttons:
-  - [ ] `Note tags` -> `Tags`
-  - [ ] `Note files` -> `Files`
-  - [ ] Keep the existing icons.
-- [ ] Add shared modal-stack guardrails:
-  - [ ] Secondary modals must not break the underlying Add/Edit Note state.
-  - [ ] Closing secondary modal returns to the note editor.
-  - [ ] Saving/closing the note editor should prevent or safely close open secondary modals.
-  - [ ] Escape key and backdrop behavior must not accidentally close both modals unless explicitly intended.
-- [ ] Add framework/modal regression coverage for stacked secondary modal behavior.
-
-Acceptance criteria:
-
-- Button labels are simply `Tags` and `Files`.
-- Icons are preserved.
-- Secondary modal behavior is guarded before Tags/Files migrate.
-
-#### Version 0.33.5.18.6.7.2 - Tags stacked modal
-
-- [ ] Tags button behavior:
-  - [ ] Open a stacked modal/dialog above the Add/Edit Note modal.
-  - [ ] Do not expand an inline box below the Body field.
-  - [ ] Preserve note editor state while the Tags modal is open.
-  - [ ] Closing the Tags modal returns focus to the Tags button or sensible editor focus.
-  - [ ] Unsaved note: tag changes may be staged locally and saved with the note.
-  - [ ] Existing note: tag changes may persist immediately if the existing tag service supports that safely.
-- [ ] Add regression coverage:
-  - [ ] Tags opens as stacked modal, not inline panel.
-  - [ ] Editor state is preserved while Tags is open.
-  - [ ] Tags state persists correctly for unsaved/saved notes.
-
-Acceptance criteria:
-
-- Tags no longer opens an inline panel below Body.
-- Tags opens as a stacked modal.
-- Tags changes follow safe unsaved/saved-note behavior.
-
 #### Version 0.33.5.18.6.7.3 - Files stacked modal
 
-- [ ] Files button behavior:
-  - [ ] Open a stacked modal/dialog above the Add/Edit Note modal.
-  - [ ] Do not expand an inline box below the Body field.
-  - [ ] Existing saved normal note: show file attachment UI in the modal.
-  - [ ] New unsaved note: show a modal with this message:
+- [x] Files button behavior:
+  - [x] Open a stacked modal/dialog above the Add/Edit Note modal.
+  - [x] Do not expand an inline box below the Body field.
+  - [x] Existing saved normal note: show file attachment UI in the modal.
+  - [x] New unsaved note: show a modal with this message:
     - `Save the note before adding files.`
-  - [ ] The unsaved-note files message should use error/warning styling, preferably red/danger treatment.
-  - [ ] Secure note behavior must continue to follow secure-note file restrictions.
-- [ ] Add regression coverage:
-  - [ ] Files opens as stacked modal, not inline panel.
-  - [ ] Unsaved note Files modal shows save-first warning.
-  - [ ] Secure-note file restrictions still apply.
+  - [x] The unsaved-note files message should use error/warning styling, preferably red/danger treatment.
+  - [x] Secure note behavior must continue to follow secure-note file restrictions.
+- [x] Add regression coverage:
+  - [x] Files opens as stacked modal, not inline panel.
+  - [x] Unsaved note Files modal shows save-first warning.
+  - [x] Secure-note file restrictions still apply.
 
 Acceptance criteria:
 
@@ -1198,93 +1159,26 @@ Markdown display and editor improvements should be made through the shared Markd
 
 Split into four sub-slices because rendered line-break semantics, toolbar UI, preview placement, and underline renderer/sanitizer support are different risk profiles.
 
-#### Version 0.33.5.18.6.8.1 - Markdown soft line break display parity
-
-Current issue:
-
-The Note view display collapses single line endings inside a note body even when the editor preserves those single-newline breaks. Example manual smoke note: `ca3ee346-a528-405a-ad88-ab9a9d6bfecc` (`Factory Power Converter`) currently renders lines such as `12v side`, `Fuse 1 is lights`, `Fuse 2 is Heater`, and `Fuse 3 is Pump` as one visual paragraph instead of separate visible lines.
-
-Desired behavior:
-
-- [ ] Decide the Markdown contract for user-authored Notes single newlines:
-  - [ ] Prefer rendering Markdown soft line breaks as visible line breaks in Notes read display and Notes preview when that matches editor intent.
-  - [ ] Preserve saved Markdown exactly; do not rewrite existing note bodies to add trailing spaces, `<br>`, or blank lines.
-  - [ ] If the shared framework renderer change would unintentionally alter Help or future Knowledge Base article layout, introduce an explicit renderer mode for user-authored note bodies instead of changing repo-authored documentation behavior silently.
-- [ ] Ensure Notes read display and Notes preview use the same line-break behavior.
-- [ ] Preserve normal blank-line paragraph behavior.
-- [ ] Do not permit raw HTML or unsafe break-related markup as part of this fix.
-- [ ] Add regression coverage:
-  - [ ] A note body with single newlines renders visible line breaks in View Note.
-  - [ ] The same body renders the same line breaks in Preview.
-  - [ ] Saved Markdown remains unchanged.
-  - [ ] Paragraphs separated by blank lines still render as paragraphs.
-  - [ ] Automated regression creates its own fixture; the real note `ca3ee346-a528-405a-ad88-ab9a9d6bfecc` is only a manual smoke reference.
-
-Acceptance criteria:
-
-- Single newlines authored in Notes are visible in View Note and Preview according to the approved Markdown contract.
-- Saved note bodies are not rewritten.
-- Help/KB-style repo-authored Markdown behavior is either intentionally unchanged or explicitly documented if the shared contract changes.
-
-#### Version 0.33.5.18.6.8.2 - Markdown toolbar compact buttons and list commands
-
-- [ ] Update the shared Markdown editor toolbar.
-- [ ] Existing `List` button should be renamed visually to one of:
-  - [ ] Bullet-list icon
-- [ ] Add an ordered list button.
-  - [ ] Visual label may be `1.`
-  - [ ] Accessible label must be `Ordered list`.
-- [ ] Convert toolbar buttons to smaller/icon-style buttons:
-  - [ ] Bold: `B`
-  - [ ] Italic: `I`
-  - [ ] Heading: `H`
-  - [ ] Unordered list: bullet icon
-  - [ ] Ordered list: `1.`
-  - [ ] Link: chain icon
-  - [ ] Wiki: Wikipedia/Wikimedia-style globe icon or compact `Wiki` icon if no approved icon exists
-  - [ ] Preview: eye icon preferred; magnifier acceptable
-- [ ] Keep accessible labels/tooltips for every icon button.
-- [ ] Do not add a new external icon dependency unless the project already has an approved icon path.
-- [ ] Add regression coverage:
-  - [ ] Ordered list insertion.
-  - [ ] Unordered list insertion.
-  - [ ] Existing keyboard indentation/list-continuation behavior still works.
-
-Acceptance criteria:
-
-- Ordered list button exists.
-- Existing `List` button is no longer generically labeled `List`.
-- Toolbar buttons are compact and accessible.
-- Existing list indentation/list-continuation behavior still works.
-
-#### Version 0.33.5.18.6.8.3 - Markdown toolbar stable placement
-
-- [ ] Ensure toolbar layout remains full-width above the Body editor.
-  - [ ] Toolbar must not move into preview columns.
-  - [ ] Toolbar must not change position when Preview is toggled.
-- [ ] Keep Preview as a toolbar action with an accessible label/tooltip.
-- [ ] Add regression coverage:
-  - [ ] Preview toggle preserves toolbar layout.
-  - [ ] Toolbar remains full-width above the editor/preview area.
-
-Acceptance criteria:
-
-- Toolbar stays full-width and stable when Preview toggles.
-- Preview remains reachable through the shared toolbar control.
-
 #### Version 0.33.5.18.6.8.4 - Safe underline Markdown contract
 
-- [ ] Add underline button only through an explicit safe Markdown contract.
-  - [ ] Visual label may be `U`.
-  - [ ] Accessible label must be `Underline`.
-  - [ ] Do not insert arbitrary unsafe raw HTML.
-  - [ ] If underline requires Markdown renderer support, update the framework Markdown contract and sanitizer deliberately.
-  - [ ] Safe implementation options:
+- [x] Add underline button only through an explicit safe Markdown contract.
+  - [x] Visual label may be `U`.
+  - [x] Accessible label must be `Underline`.
+  - [x] Do not insert arbitrary unsafe raw HTML.
+  - [x] If underline requires Markdown renderer support, update the framework Markdown contract and sanitizer deliberately.
+  - [x] Safe implementation options:
     - [ ] Allow sanitized `<u>` with no attributes, or
-    - [ ] Add a dedicated safe underline token handled by the Markdown adapter.
-- [ ] Add regression coverage:
-  - [ ] Underline insertion/rendering/sanitization if implemented.
-  - [ ] Underline cannot inject unsafe HTML, attributes, event handlers, or scripts.
+    - [x] Add a dedicated safe underline token handled by the Markdown adapter.
+- [x] Add regression coverage:
+  - [x] Underline insertion/rendering/sanitization if implemented.
+  - [x] Underline cannot inject unsafe HTML, attributes, event handlers, or scripts.
+
+Implementation notes:
+
+- The shared Markdown renderer now recognizes the dedicated `++underlined text++` safe underline token and emits generated plain `<u>` output for that token only.
+- Raw HTML remains disabled. Source underline tags, source-provided attributes, event handlers, and script payloads are escaped/rejected instead of becoming an allowlist.
+- The Add/Edit Note toolbar exposes a compact `U` control with accessible label/tooltip `Underline`, backed by the existing Notes editor helper command path.
+- `markdown-renderer-service-regression.mjs`, `markdown-platform-contract-regression.mjs`, and `notes-preview-editor-regression.mjs` cover safe underline rendering, toolbar insertion, plain-text extraction, cache keys, docs, and unsafe raw underline payloads.
 
 Acceptance criteria:
 

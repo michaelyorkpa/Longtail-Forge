@@ -65,6 +65,8 @@ Dense task-style modal footers may keep recognizable utility and commit controls
 
 Use `LongtailForge.overlayHost.create({ host })` for small module-owned panels opened from modal footer or row actions. The framework host owns placement, close behavior, focus handling, Escape, click-away, responsive sizing, mobile bottom-sheet presentation, trigger `aria-expanded`, panel dialog semantics, and ensuring only one overlay is open per host. Modules own the panel body, picker/upload content, save payloads, validation, permissions, and record meaning.
 
+Use `LongtailForge.view.showModal()` and `LongtailForge.view.closeModal()` for converted modal surfaces that may open secondary dialogs above a parent editor. The framework owns parent/child dialog stack tracking, top-dialog Escape/backdrop guardrails, focus return, and safe child closure when the parent closes. Modules still own the secondary dialog content and save behavior.
+
 ## Drawers and Slideouts
 
 Use `.surface-drawer` for narrower side panels such as future navigation drawers, filter drawers, or quick-edit side panels. Use `.surface-slideout` for wider contextual detail views that need more room for fields, linked context, or review content. Both shells use header, body, and footer anatomy so close controls, titles, scrollable content, and actions stay predictable. The framework owns shell spacing, elevation, focus styling, and responsive placement. Modules own the panel content, validation, record actions, and save behavior.

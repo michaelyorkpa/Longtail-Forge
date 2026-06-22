@@ -4410,6 +4410,18 @@ dialog .form-actions {
     padding: 0.6rem 0.75rem;
 }
 
+.notes-files-save-first-warning {
+    margin: 0;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--color-danger-border);
+    border-radius: 6px;
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
 .notes-locked-state {
     margin: 0;
     padding: 0.65rem 0.75rem;
@@ -4955,8 +4967,34 @@ summary.view-info-panel-title {
     box-sizing: border-box;
 }
 
+.notes-markdown-editor,
+.notes-markdown-editor-body {
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    width: 100%;
+}
+
+.notes-markdown-editor > .notes-editor-toolbar {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+}
+
 .notes-editor-toolbar button {
     min-width: 40px;
+}
+
+.notes-editor-toolbar .notes-editor-toolbar-button {
+    flex: 0 0 auto;
+    min-width: 44px;
+    padding-inline: 10px;
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.notes-editor-toolbar .notes-editor-toolbar-button.icon-button {
+    padding: 0;
 }
 
 [data-note-tags-editor] .tag-picker {

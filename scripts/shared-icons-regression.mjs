@@ -9,10 +9,10 @@ const packageJson = readText("package.json");
 const protectedViews = readdirSync(new URL("../views/protected/", import.meta.url))
   .filter((fileName) => fileName.endsWith(".html"));
 
-const requiredIcons = ["add", "edit", "archive", "restore", "delete", "start", "pause", "save", "close", "copy", "refresh", "more", "complete", "duplicate", "up", "down", "tag", "file"];
+const requiredIcons = ["add", "edit", "archive", "restore", "delete", "start", "pause", "save", "close", "copy", "refresh", "more", "complete", "duplicate", "up", "down", "tag", "file", "eye", "link", "list", "list-checks"];
 
 requiredIcons.forEach((iconName) => {
-  assert.match(iconHelper, new RegExp(`${iconName}:\\s*Object\\.freeze`), `shared icon helper must register the ${iconName} icon`);
+  assert.match(iconHelper, new RegExp(`["']?${escapeRegExp(iconName)}["']?:\\s*Object\\.freeze`), `shared icon helper must register the ${iconName} icon`);
 });
 
 assert.match(iconHelper, /createElementNS\(svgNamespace,\s*"svg"\)/, "icons must be rendered as DOM-created inline SVG");
@@ -47,4 +47,8 @@ console.log("Shared icons regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

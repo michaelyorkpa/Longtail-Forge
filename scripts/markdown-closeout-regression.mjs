@@ -13,9 +13,9 @@ const notesHelp = await read("help/modules/notes/markdown.md");
 const packageJson = JSON.parse(await read("package.json"));
 const packageLock = JSON.parse(await read("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.18.6.6.4", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.6.6.4", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.6.4", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.6.8.4", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.6.8.4", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.6.8.4", "package-lock package entry should report the current app version");
 
 assert.match(
   roadmap,
@@ -26,8 +26,8 @@ assert.match(changelog, /## Version 0\.33\.5\.17\.6/, "changelog should record t
 
 for (const phrase of [
   "Markdown rendering is a framework-owned content service",
-  "CommonMark plus explicitly enabled tables and task lists",
-  "broad extension bundles, raw HTML, unsafe links, unsafe image sources",
+  "CommonMark plus explicitly enabled tables, task lists, and safe underline",
+  "broad extension bundles, raw HTML, raw underline tags, unsafe links, unsafe image sources",
   "Notes owns note body storage, revisions, wiki-link behavior",
   "Help owns article discovery, metadata, ToC navigation",
   "Future Knowledge Base records will own publication status",
@@ -46,8 +46,9 @@ for (const phrase of [
 }
 
 for (const phrase of [
-  "current Notes implementation as of 0.33.5.18.6.6.4",
+  "current Notes implementation as of 0.33.5.18.6.8.4",
   "CommonMark paragraphs",
+  "safe underline through the `++text++` token",
   "approved tables and task lists",
   "Draft preview uses the protected `POST /api/notes/preview` route",
   "Tab indentation, Shift+Tab outdent, predictable Enter list continuation",
@@ -57,6 +58,7 @@ for (const phrase of [
 
 for (const phrase of [
   "task lists, and tables are supported",
+  "safe underline using `++underlined text++`",
   "Pressing Enter after a predictable list item continues the same list style",
   "Preview button renders the draft through the same safe Markdown path used after saving",
   "does not auto-create notes",

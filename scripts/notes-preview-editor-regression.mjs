@@ -37,6 +37,8 @@ async function assertServerPreview(session) {
     "| --- | --- |",
     "| A | B |",
     "",
+    "++underlined text++",
+    "",
     "[[Reference Note|friendly label]]",
   ].join("\n");
   const preview = await notesService.previewMarkdown({ body_markdown: markdown }, session);
@@ -47,6 +49,7 @@ async function assertServerPreview(session) {
   assert.match(preview.bodyHtml, /<h1>Preview Heading<\/h1>/);
   assert.match(preview.bodyHtml, /<li>\s*(?:<p>)?Parent(?:<\/p>)?\s*<ul>\s*<li>Child<\/li>/);
   assert.match(preview.bodyHtml, /<table>/);
+  assert.match(preview.bodyHtml, /<u>underlined text<\/u>/);
   assert.match(preview.bodyHtml, /<span class="note-wiki-link"/);
 
   const taskPreview = await notesService.previewMarkdown({ body_markdown: "- [x] Completed\n- [ ] Open" }, session);
@@ -67,22 +70,45 @@ async function assertStaticBrowserContract() {
   const css = await fs.readFile(path.join(process.cwd(), "public/css/longtail-forge.css"), "utf8");
   const routesSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.routes.js"), "utf8");
 
-  assert.match(notesHtml, /js\/shared\/notes-editor\.js\?v=3/);
-  assert.match(notesHtml, /css\/longtail-forge\.css\?v=40/);
-  assert.match(notesHtml, /js\/notes\.js\?v=52/);
+  assert.match(notesHtml, /css\/longtail-forge\.css\?v=43/);
+  assert.match(notesHtml, /js\/shared\/icons\.js\?v=3/);
+  assert.match(notesHtml, /js\/shared\/notes-editor\.js\?v=4/);
+  assert.match(notesHtml, /js\/notes\.js\?v=58/);
   assert.match(notesJs, /api\.postJson\("\/api\/notes\/preview"/);
   assert.match(notesJs, /previewRequestId/);
   assert.match(notesJs, /bodyInput\?\.addEventListener\("input", \(\) => renderPreview\(\)\)/);
+  assert.match(notesJs, /function createNoteMarkdownEditorSection\(toolbar, bodyField, preview\)[\s\S]*className:\s*"notes-markdown-editor-body"[\s\S]*children:\s*\[bodyField,\s*preview\][\s\S]*className:\s*"notes-markdown-editor"[\s\S]*children:\s*\[toolbar,\s*body\]/);
+  assert.match(notesJs, /const markdownEditor = createNoteMarkdownEditorSection\(toolbar, bodyField, preview\);/);
+  assert.match(notesJs, /\[heading, titleField, detailsGroup, secureWarning, contextPanel, markdownEditor, formStatus\]\.forEach/);
+  assert.doesNotMatch(notesJs, /\[heading, titleField, detailsGroup, secureWarning, contextPanel, toolbar, bodyField, preview, formStatus\]\.forEach/, "toolbar should not be a loose sibling that can fall into preview/body layout");
+  assert.match(notesJs, /command:\s*"unorderedList",\s*icon:\s*"list",\s*label:\s*"Unordered list"/);
+  assert.match(notesJs, /command:\s*"orderedList",\s*text:\s*"1\.",\s*label:\s*"Ordered list"/);
+  assert.match(notesJs, /command:\s*"underline",\s*text:\s*"U",\s*label:\s*"Underline"/);
+  assert.match(notesJs, /command:\s*"link",\s*icon:\s*"link",\s*label:\s*"Link"/);
+  assert.match(notesJs, /preview:\s*true,\s*icon:\s*"eye",\s*label:\s*"Preview"/);
+  assert.match(notesJs, /ariaLabel:\s*action\.label/);
+  assert.match(notesJs, /title:\s*action\.label/);
+  assert.doesNotMatch(notesJs, /"unorderedList",\s*"List",\s*"List"/, "toolbar should not expose the old generic List text button");
   assert.doesNotMatch(notesJs, /function markdownPreviewNodes/);
   assert.doesNotMatch(notesJs, /paragraph\.startsWith\("# "\)/);
   assert.match(notesEditorJs, /continueListMarker/);
   assert.match(notesEditorJs, /event\.key === "Enter"/);
+  assertToolbarToggleDoesNotMoveMarkup(notesJs);
+  assert.match(css, /\.notes-markdown-editor,\s*\n\.notes-markdown-editor-body\s*\{[\s\S]*display:\s*grid;[\s\S]*width:\s*100%;/, "Markdown editor shell should keep toolbar/body/preview in a stable full-width stack");
+  assert.match(css, /\.notes-markdown-editor > \.notes-editor-toolbar\s*\{[\s\S]*grid-column:\s*1 \/ -1;[\s\S]*width:\s*100%;[\s\S]*min-width:\s*0;/, "Toolbar should remain the full-width first row above editor and preview content");
   assert.match(css, /li\.markdown-task-list-item\s*\{[\s\S]*list-style:\s*none;/, "task-list CSS should suppress the normal list marker");
   assert.match(css, /\.markdown-task-list-checkbox/, "task-list CSS should align rendered checkboxes");
   assert.ok(
     routesSource.indexOf('notesRoutes.post("/notes/preview"') < routesSource.indexOf('notesRoutes.get("/notes/:noteId"'),
     "preview route should be declared before dynamic note routes",
   );
+}
+
+function assertToolbarToggleDoesNotMoveMarkup(notesJs) {
+  const togglePreviewSource = notesJs.match(/function togglePreview\(\) \{[\s\S]*?\n\}/)?.[0] || "";
+
+  assert.match(togglePreviewSource, /preview\.hidden = pressed;/, "Preview toggle should continue toggling preview visibility");
+  assert.doesNotMatch(togglePreviewSource, /append|insertBefore|replaceChildren|noteEditorToolbar|noteMarkdownEditor/, "Preview toggle should not move toolbar/editor markup");
 }
 
 async function assertEditorKeyboardBehavior() {
@@ -98,6 +124,30 @@ async function assertEditorKeyboardBehavior() {
   };
   vm.runInNewContext(source, { window: windowStub });
   const editorApi = windowStub.LongtailForge.notesEditor;
+
+  const unorderedInsert = createTextarea("", 0, 0);
+  editorApi.applyCommand(unorderedInsert, "unorderedList");
+  assert.equal(unorderedInsert.value, "- List item");
+
+  const unorderedSelection = createTextarea("existing item", 0, "existing item".length);
+  editorApi.applyCommand(unorderedSelection, "unorderedList");
+  assert.equal(unorderedSelection.value, "- existing item");
+
+  const orderedInsert = createTextarea("", 0, 0);
+  editorApi.applyCommand(orderedInsert, "orderedList");
+  assert.equal(orderedInsert.value, "1. List item");
+
+  const orderedSelection = createTextarea("existing item", 0, "existing item".length);
+  editorApi.applyCommand(orderedSelection, "orderedList");
+  assert.equal(orderedSelection.value, "1. existing item");
+
+  const underlineInsert = createTextarea("", 0, 0);
+  editorApi.applyCommand(underlineInsert, "underline");
+  assert.equal(underlineInsert.value, "++underlined text++");
+
+  const underlineSelection = createTextarea("existing item", 0, "existing item".length);
+  editorApi.applyCommand(underlineSelection, "underline");
+  assert.equal(underlineSelection.value, "++existing item++");
 
   const indentTarget = createTextarea("alpha\nbeta", 0, "alpha\nbeta".length);
   editorApi.handleKeydown(keyEvent("Tab"), indentTarget);

@@ -73,7 +73,7 @@ The current protected UI still mixes static HTML shells with browser-script DOM 
 
 ## Implementation Notes For 0.33.5.15.2
 
-The first helper implementation exposes direct functions such as `createPageHeader`, `createStatusMessage`, `createFilterPanel`, `createCollapsibleIndexPanel`, `createSplitListDetail`, `createDataTable`, `createDetailActionStrip`, `createInfoPanel`, `createModal`, `createModalForm`, `createFieldGrid`, and `createActionButton`.
+The first helper implementation exposes direct functions such as `createPageHeader`, `createStatusMessage`, `createFilterPanel`, `createCollapsibleIndexPanel`, `createSplitListDetail`, `createDataTable`, `createDetailActionStrip`, `createInfoPanel`, `createModal`, `createModalForm`, `showModal`, `closeModal`, `closeChildModals`, `isTopModal`, `createFieldGrid`, and `createActionButton`.
 
 It also exposes `createEmptyState`, `createDetailHeader`, `createInlineActionRow`, and `createElement` because those primitives are part of the documented inventory and keep consuming modules from recreating the same safe DOM boilerplate.
 
@@ -181,3 +181,9 @@ The framework list/detail layout is now `stacked`, and the `split-list-detail` l
 `LongtailForge.view.createLinkedContextPicker(options)` adds the shared framework shell for Linked Context picker anatomy. It renders the Target select, Search input, Record dropdown, `Use Target` action, existing linked-context rows, row Remove actions, empty state, and read-only/permission-disabled state while exposing those controls through `element.viewParts`.
 
 The helper is intentionally layout-only. Providers and consuming modules still own available target decisions, search/filter requests, record sorting, display labels, secondary labels, URLs, Primary Context hints, save payloads, API calls, and permission enforcement. The shell renders provider-supplied labels as text and must not synthesize module-specific strings such as target-type prefixes, client/status suffixes, or raw IDs.
+
+## Implementation Notes For 0.33.5.18.6.7.1
+
+Converted modal surfaces should open and close through `LongtailForge.view.showModal(dialog, options)` and `LongtailForge.view.closeModal(dialog, value)` instead of calling `dialog.showModal()` / `dialog.close()` directly when stacked secondary dialogs are possible. The helper records parent/child dialog relationships, tracks the top dialog, prevents non-top dialogs from reacting to Escape or backdrop-style clicks, and closes child dialogs when the parent editor closes.
+
+The stack helper owns only dialog lifecycle guardrails and focus return. Modules still own the dialog body, staged form state, save payloads, validation, permissions, target lookups, and whether a secondary utility opens as a modal, overlay, or inline panel for the current roadmap slice.
