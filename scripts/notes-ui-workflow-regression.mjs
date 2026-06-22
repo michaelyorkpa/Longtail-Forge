@@ -56,7 +56,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=7/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=9/);
-  assert.match(html, /js\/notes\.js\?v=48/);
+  assert.match(html, /js\/notes\.js\?v=49/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=3/);
@@ -88,6 +88,7 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /data-legacy-note-kind/);
   assert.match(notesJs, /async function openEditor\(note = null\) \{\s*note = await hydrateEditorNote\(note\);/, "Edit Note should hydrate saved notes before filling modal fields");
   assert.match(notesJs, /async function hydrateEditorNote\(note = null\)[\s\S]*api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}`[\s\S]*cache: "no-store"[\s\S]*renderDetail\(result\.note\)[\s\S]*return result\.note/, "Editor hydration should refresh the selected detail note before rendering editor state");
+  assert.match(notesJs, /const selectedProjectId = note\?\.project_id \|\| "";[\s\S]*projectInput\.value = selectedProjectId;[\s\S]*projectId: selectedProjectId/, "Edit Note should not read direct project context back from a select before its option exists");
   assert.match(notesJs, /function primaryContextSummaryForSelection\(targetType, selectedId = ""\)[\s\S]*summaryIds\.includes\(selectedId\)/, "Primary Context controls should preserve the current saved value even when it is not in the first provider page");
   assert.match(notesJs, /function primaryProjectFallbackOption\(selectedProjectId = ""\)[\s\S]*primaryProjectOptionLabel/, "Saved project Primary Context should keep a readable current option fallback on first Edit open");
   assert.match(notesJs, /fetchLinkTargets/);

@@ -1211,14 +1211,16 @@ async function openEditor(note = null) {
   securityInput.value = note?.security_mode || "normal";
   securityInput.disabled = Boolean(note);
   updateSecureUiState();
-  clientInput.value = note?.client_id || "";
-  projectInput.value = note?.project_id || "";
+  const selectedClientId = note?.client_id || "";
+  const selectedProjectId = note?.project_id || "";
+  clientInput.value = selectedClientId;
+  projectInput.value = selectedProjectId;
   taskInput.value = note?.task_id || "";
   userInput.value = note?.linked_user_id || "";
   state.editorContextSummaries = note?.linked_context || {};
   await loadPrimaryContextOptions({
-    clientId: clientInput.value,
-    projectId: projectInput.value,
+    clientId: selectedClientId,
+    projectId: selectedProjectId,
   });
   editor?.setValue(note?.body_markdown || "");
   bodyInput.value = note?.body_markdown || "";

@@ -924,6 +924,7 @@ Acceptance criteria:
 - [x] Saved-note Edit dialogs hydrate from the authoritative no-store Notes API payload before modal fields are populated.
   - [x] The first Edit modal open uses the same current Primary Context that the Notes view page is already displaying.
   - [x] Current saved client/project selections remain selected even when the first provider result page does not include that client/project option.
+  - [x] Direct hydrated `client_id` / `project_id` values are passed into option loading before browser select controls can drop values whose options are not mounted yet.
 - [x] Add Notes UI regression coverage for the shared picker adoption. — Extended Notes UI and linked-context picker regressions for shared shell hooks, hidden Workspace picker options, Note/List targets, label safety, and shared row hint rendering.
 
 Acceptance criteria:

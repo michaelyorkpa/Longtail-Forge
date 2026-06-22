@@ -35,7 +35,7 @@ async function assertBrowserPrimaryContextContract() {
   const notesCss = await fs.readFile(path.join(process.cwd(), "public/css/longtail-forge.css"), "utf8");
 
   assert.match(notesHtml, /css\/longtail-forge\.css\?v=39/);
-  assert.match(notesHtml, /js\/notes\.js\?v=48/);
+  assert.match(notesHtml, /js\/notes\.js\?v=49/);
   assert.match(notesJs, /function createPrimaryContextSection\(\)/);
   assert.match(notesJs, /text: "Primary Context"/);
   assert.match(notesJs, /noteSelect\("noteClientId", \[\]\)/);
@@ -58,6 +58,7 @@ async function assertBrowserPrimaryContextContract() {
   assert.match(notesJs, /visibility: readEditorVisibility\(\)/);
   assert.match(notesJs, /async function openEditor\(note = null\) \{\s*note = await hydrateEditorNote\(note\);/, "Edit Note should hydrate saved notes before Primary Context controls are populated");
   assert.match(notesJs, /async function hydrateEditorNote\(note = null\)[\s\S]*api\.getJson\(`\/api\/notes\/\$\{encodeURIComponent\(noteId\)\}`[\s\S]*cache: "no-store"[\s\S]*return result\.note/, "Editor hydration should read the authoritative no-store note payload");
+  assert.match(notesJs, /const selectedClientId = note\?\.client_id \|\| "";[\s\S]*const selectedProjectId = note\?\.project_id \|\| "";[\s\S]*loadPrimaryContextOptions\(\{[\s\S]*clientId: selectedClientId,[\s\S]*projectId: selectedProjectId,[\s\S]*\}\);/, "Edit Note should pass direct note IDs into Primary Context option loading before browser selects can drop unavailable values");
   assert.match(notesJs, /function primaryClientFallbackOption\(selectedClientId = ""\)/, "Saved Primary Context client values should stay selectable even when provider paging omits them");
   assert.match(notesJs, /function primaryProjectFallbackOption\(selectedProjectId = ""\)/, "Saved Primary Context project values should stay selectable even when provider paging omits them");
   assert.match(notesJs, /populatePrimaryClientOptions\(derivedClientId\);[\s\S]*populatePrimaryProjectOptions\(selectedProjectId\);/, "Primary Context option loading should preserve selected direct context values");
