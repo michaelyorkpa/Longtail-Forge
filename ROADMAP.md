@@ -8,7 +8,7 @@ Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and im
 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
 The active roadmap continues with Tasks, Files, and Clients/Projects view conversion work.
-0.33.5.18.7.4 is the most recently completed Tasks read-only list binding slice. The next live work starts with 0.33.5.18.8.1.
+0.33.5.18.8.4 is the most recently completed Tasks list surface framework/module separation slice. The next live work starts with 0.33.5.18.9.1.
 
 ## Tasks (0.33.5.18.7 - 0.33.5.18.10)
 
@@ -61,123 +61,21 @@ guardrail enforcement are intentionally separated below.
 
 ---
 
-### Version 0.33.5.18.7 - Tasks Slide-Out Filter Sidebar and Read-Only Surface Proof
-
-This slice converts the Tasks page shell to the framework-owned action surface pattern while keeping existing task list behavior and appearance mostly intact.
-
-#### Version 0.33.5.18.7.4 - Tasks read-only list binding and no-visual-redesign pass
-
-- [x] Bind the current task list data into the descriptor-backed surface.
-- [x] Preserve existing task list appearance unless a framework-owned wrapper is required.
-- [x] Do not redesign task rows in this slice.
-- [x] Preserve existing list density, row controls, due-date display, status display, assignee display, and task row actions where currently available.
-- [x] Move only framework-owned shell/layout anatomy out of `public/js/tasks.js`.
-- [x] Keep task row data shaping and workflow handlers in Tasks-owned code.
-- [x] Add regressions proving:
-  - [x] Existing task list rows still render.
-  - [x] Existing row-level actions still appear.
-  - [x] Existing filters still affect the visible task list.
-  - [x] Task list remains the main panel.
-  - [x] No task list rows render in the sidebar.
-
-Acceptance criteria:
-
-- The task list looks essentially the same.
-- Framework owns the surrounding shell.
-- Tasks owns row meaning and behavior.
-
----
-
 ### Version 0.33.5.18.8 - Tasks Bulk Actions and Main List Surface Cleanup
 
 This slice keeps the task list as the main panel and introduces the framework-owned bulk-action toolbar shell.
 
-#### Version 0.33.5.18.8.1 - Collapsed bulk-action toolbar shell
-
-- [ ] Add a framework-rendered bulk-action toolbar at the top of the main task list panel.
-- [ ] Toolbar must be collapsed by default.
-- [ ] Toolbar should show a compact summary when collapsed, such as:
-  - [ ] `Bulk actions`
-  - [ ] Selected count if tasks are selected.
-- [ ] Toolbar expands when:
-  - [ ] User opens it manually.
-  - [ ] Optional: one or more tasks are selected, if this matches current behavior.
-- [ ] Bulk toolbar placement:
-  - [ ] Above the task list.
-  - [ ] Inside the main panel.
-  - [ ] Not inside the filter sidebar.
-- [ ] Framework owns toolbar anatomy and collapse behavior.
-- [ ] Tasks owns selected task state and bulk action handlers.
-- [ ] Add regressions proving:
-  - [ ] Bulk toolbar appears above the task list.
-  - [ ] Bulk toolbar starts collapsed.
-  - [ ] Bulk toolbar is not in the sidebar.
-  - [ ] Selection count displays when applicable.
-  - [ ] Expanding/collapsing does not reload or reorder the task list.
-
-Acceptance criteria:
-
-- Bulk actions are available but do not dominate the page.
-- The main task list remains visually primary.
-
-#### Version 0.33.5.18.8.2 - Non-destructive bulk action behavior wiring
-
-- [ ] Wire existing non-destructive bulk action behavior into the framework toolbar.
-- [ ] Preserve existing non-destructive bulk operations, where currently implemented:
-  - [ ] Assign/reassign.
-  - [ ] Change status.
-  - [ ] Change priority.
-  - [ ] Change due date.
-  - [ ] Change due time.
-  - [ ] Add/remove/replace tags.
-- [ ] Leave archive, restore, delete, and soft-delete lifecycle/destructive behavior for 0.33.5.18.8.3.
-- [ ] Keep all permission checks service/API-owned.
-- [ ] Toolbar buttons are display hints only; backend routes remain authoritative.
-- [ ] Add regressions proving:
-  - [ ] Bulk action buttons dispatch to Tasks-owned behavior handlers.
-  - [ ] Bulk action permissions are respected.
-  - [ ] Due date/time clearing still works.
-  - [ ] Tag add/remove/replace still works.
-  - [ ] Bulk actions refresh the task list without rebuilding the whole page by hand.
-
-Acceptance criteria:
-
-- Non-destructive bulk behavior is preserved.
-- Framework owns placement; Tasks owns meaning.
-
-#### Version 0.33.5.18.8.3 - Bulk lifecycle and destructive behavior wiring
-
-- [ ] Wire existing lifecycle/destructive bulk behavior into the framework toolbar where currently implemented.
-- [ ] Preserve existing lifecycle/destructive operations, where currently implemented:
-  - [ ] Archive.
-  - [ ] Restore.
-  - [ ] Delete/soft-delete.
-- [ ] Do not introduce a new permanent-delete workflow if Tasks does not already ship one.
-- [ ] Keep all permission checks service/API-owned.
-- [ ] Toolbar buttons are display hints only; backend routes remain authoritative.
-- [ ] Preserve existing confirmation prompts for destructive operations.
-- [ ] Add regressions proving:
-  - [ ] Archive/restore/delete controls only appear where supported.
-  - [ ] Destructive actions still confirm.
-  - [ ] Lifecycle/destructive bulk permissions are respected.
-  - [ ] Bulk lifecycle/destructive actions refresh the task list without rebuilding the whole page by hand.
-
-Acceptance criteria:
-
-- Bulk lifecycle behavior is preserved without expanding the Tasks deletion model.
-- Framework owns placement; Tasks owns lifecycle meaning.
-
 #### Version 0.33.5.18.8.4 - Task list surface framework/module separation
 
-- [ ] Continue reducing `public/js/tasks.js` to data binding and behavior handlers.
-- [ ] Remove hand-built framework-owned task page anatomy where shared helpers now exist.
-- [ ] Preserve task list row content and appearance.
-- [ ] Keep any genuinely task-specific row fragments as Tasks-owned escape hatches.
-- [ ] Add guardrail inventory, but do not yet fail strict guardrails for all Tasks code until 0.33.5.18.10.
-- [ ] Add regressions proving:
-  - [ ] Tasks uses framework page/status/filter/sidebar/list-shell/bulk-toolbar primitives.
-  - [ ] Task-specific row rendering remains module-owned.
-  - [ ] No duplicated filter sidebar shell exists in Tasks code.
+- [x] Continue reducing `public/js/tasks.js` to data binding and behavior handlers.
+- [x] Remove hand-built framework-owned task page anatomy where shared helpers now exist.
+- [x] Preserve task list row content and appearance.
+- [x] Keep any genuinely task-specific row fragments as Tasks-owned escape hatches.
+- [x] Add guardrail inventory, but do not yet fail strict guardrails for all Tasks code until 0.33.5.18.10.
+- [x] Add regressions proving:
+  - [x] Tasks uses framework page/status/filter/sidebar/list-shell/bulk-toolbar primitives.
+  - [x] Task-specific row rendering remains module-owned.
+  - [x] No duplicated filter sidebar shell exists in Tasks code.
 
 Acceptance criteria:
 

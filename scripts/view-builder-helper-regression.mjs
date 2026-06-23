@@ -10,9 +10,9 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.7.4", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.7.4", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.7.4", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.8.4", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.8.4", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.8.4", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(helper, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view builder must not inject HTML strings");
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view builder must not own data loading or browser storage");
@@ -26,6 +26,7 @@ const view = context.window.LongtailForge.view;
 for (const helperName of [
   "createPageHeader",
   "createStatusMessage",
+  "createBulkActionToolbar",
   "createFilterPanel",
   "createCollapsibleIndexPanel",
   "createSplitListDetail",
@@ -40,6 +41,7 @@ for (const helperName of [
   "createDetailHeader",
   "createInlineActionRow",
   "createLinkedContextPicker",
+  "createListShell",
   "showModal",
   "closeModal",
   "closeChildModals",
@@ -81,6 +83,31 @@ assert(filter.querySelector(".view-field-grid"), "filter panel should contain a 
 assert.equal(filter.tagName, "DETAILS", "filter panels should be collapsible details");
 assert.equal(filter.open, false, "filter panels should default to collapsed");
 assert(view.createFilterPanel({ title: "Filters", fields: [], open: true }).open, "filter panels should honor the open option");
+
+const bulkToolbar = view.createBulkActionToolbar({
+  label: "Bulk Actions",
+  selectedCount: 2,
+  body: [context.document.createElement("label")],
+});
+assert.equal(bulkToolbar.tagName, "DETAILS", "bulk action toolbar should be a collapsible details shell");
+assert.equal(bulkToolbar.open, false, "bulk action toolbar should default to collapsed");
+assert.equal(bulkToolbar.querySelector(".view-bulk-action-toolbar-title").textContent, "Bulk Actions");
+assert.equal(bulkToolbar.querySelector(".view-bulk-action-toolbar-count").textContent, "2 selected");
+assert.equal(bulkToolbar.querySelector(".view-bulk-action-toolbar-count").hidden, false, "bulk action toolbar should show nonzero selected counts");
+assert(bulkToolbar.viewParts.body.classList.contains("view-bulk-action-toolbar-body"), "bulk action toolbar should expose a framework-owned body");
+assert.equal(view.createBulkActionToolbar({ label: "Bulk Actions" }).querySelector(".view-bulk-action-toolbar-count").hidden, true, "bulk action toolbar should hide zero selected counts");
+
+const listShell = view.createListShell({
+  toolbar: view.createElement("button", { text: "Bulk Actions" }),
+  statusAttrs: { "data-list-status": "" },
+  statusDataset: { listStatus: "" },
+  children: view.createElement("div", { text: "Rows" }),
+});
+assert(listShell.classList.contains("view-list-shell"), "list shell should use the framework list shell class");
+assert.equal(listShell.viewParts.status.getAttribute("role"), "status", "list shell should expose a status mount");
+assert.equal(listShell.viewParts.status.getAttribute("aria-live"), "polite", "list shell status should be polite by default");
+assert.equal(listShell.viewParts.status.dataset.listStatus, "", "list shell should expose a status part with caller hooks");
+assert.equal(listShell.textContent, "Bulk ActionsRows", "list shell should place toolbar before status and content");
 
 const index = view.createCollapsibleIndexPanel({ title: "Lists", body: ["Body"], open: false });
 assert.equal(index.tagName, "DETAILS");
@@ -156,10 +183,14 @@ assert.throws(() => view.createActionButton({}), /visible text or an accessible 
 assert.throws(() => view.createPageHeader({}), /Page headers require a title/, "page headers should require titles");
 
 assert.match(css, /\.view-page-header,[\s\S]*\.view-detail-header\s*\{[\s\S]*display:\s*flex/, "CSS should define page header layout");
+assert.match(css, /\.view-list-shell\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0;/, "CSS should define a no-gap list shell");
+assert.match(css, /\.view-list-shell-status:empty\s*\{[\s\S]*display:\s*none/, "CSS should hide empty list-shell status mounts");
 assert.match(css, /\.view-table-wrap\s*\{[\s\S]*overflow-x:\s*auto/, "CSS should define table overflow wrapper");
 assert.match(css, /\.view-filter-panel-fields,[\s\S]*\.view-field-grid\s*\{[\s\S]*flex-wrap:\s*wrap/, "CSS should define a wrapping field grid layout");
 assert.match(css, /\.view-field-grid > \[data-view-field-width="narrow"\]/, "CSS should support narrow field width hints");
 assert.match(css, /\.view-page-header\s*\{[\s\S]*margin-bottom:\s*8px;/, "CSS should define framework page-header separation");
+assert.match(css, /\.view-bulk-action-toolbar-summary\s*\{[\s\S]*display:\s*flex/, "CSS should define the framework bulk toolbar summary");
+assert.match(css, /\.view-bulk-action-toolbar-count\s*\{[\s\S]*margin-left:\s*auto/, "CSS should define the framework bulk toolbar count");
 assert.match(css, /\.view-stacked\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0;/, "CSS should define the stacked layout container without panel gaps");
 assert.match(css, /\.view-stacked \.view-collapsible-index-body\s*\{[\s\S]*overflow-y:\s*auto/, "CSS should cap the stacked index to a scroll region");
 assert.match(css, /\.view-collapsible-index-summary-actions\s*\{[\s\S]*justify-content:\s*flex-end/, "CSS should support right-aligned collapsible summary actions");

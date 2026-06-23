@@ -60,10 +60,10 @@ assert.doesNotMatch(
 );
 assert.match(
   tasksScript,
-  /class="task-bulk-toolbar surface-main-panel"/,
-  "Tasks generated bulk toolbar should prove the shared main-panel shell",
+  /view\.createBulkActionToolbar\(\{[\s\S]*className:\s*"task-bulk-toolbar"/,
+  "Tasks generated bulk toolbar should use the shared bulk-action toolbar shell",
 );
-assert.match(tasksView, /css\/longtail-forge\.css\?v=55/, "Tasks view must load the drawer/main-surface stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=60/, "Tasks view must load the drawer/main-surface stylesheet cache key");
 
 for (const expected of [
   ".surface-main-panel",

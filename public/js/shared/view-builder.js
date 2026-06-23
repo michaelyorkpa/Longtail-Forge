@@ -220,6 +220,81 @@
     return panel;
   }
 
+  function createBulkActionToolbar(options = {}) {
+    const selectedCount = Math.max(0, Number(options.selectedCount) || 0);
+    const toolbar = createElement("details", {
+      className: ["view-bulk-action-toolbar", "surface-main-panel", options.className],
+      attrs: {
+        "aria-label": options.ariaLabel || options.label || "Bulk actions",
+        ...options.attrs,
+      },
+      dataset: options.dataset,
+    });
+
+    if (options.open === true) {
+      toolbar.open = true;
+    }
+
+    const summary = createElement("summary", { className: "view-bulk-action-toolbar-summary" });
+    const label = createElement("span", {
+      className: "view-bulk-action-toolbar-title",
+      text: options.label || "Bulk Actions",
+    });
+    const count = createElement("span", {
+      className: ["view-bulk-action-toolbar-count", "surface-chip"],
+      text: bulkSelectionCountText(selectedCount),
+      attrs: {
+        "aria-live": "polite",
+        "data-view-bulk-selection-count": "",
+      },
+      hidden: selectedCount === 0,
+    });
+    const body = createElement("div", {
+      className: ["view-bulk-action-toolbar-body", options.bodyClassName],
+      children: options.body || [],
+    });
+
+    summary.append(label, count);
+    toolbar.append(summary, body);
+    assignViewParts(toolbar, { body, count, label, summary });
+    return toolbar;
+  }
+
+  function createListShell(options = {}) {
+    const shell = createElement(options.tagName || "div", {
+      className: ["view-list-shell", options.className],
+      attrs: {
+        ...(options.ariaLabel ? { "aria-label": options.ariaLabel } : {}),
+        ...options.attrs,
+      },
+      dataset: options.dataset,
+    });
+
+    appendChildren(shell, options.before);
+    appendChildren(shell, options.toolbar);
+
+    let status = null;
+    if (options.status !== false) {
+      status = createElement(options.statusTagName || "p", {
+        className: ["view-list-shell-status", options.statusClassName],
+        text: options.statusMessage || "",
+        attrs: {
+          role: options.statusRole || "status",
+          "aria-live": options.statusLive || "polite",
+          ...options.statusAttrs,
+        },
+        dataset: options.statusDataset,
+        hidden: options.statusHidden,
+      });
+      shell.appendChild(status);
+    }
+
+    appendChildren(shell, options.children);
+    appendChildren(shell, options.after);
+    assignViewParts(shell, { status });
+    return shell;
+  }
+
   function createCollapsibleIndexPanel(options = {}) {
     const details = createElement("details", {
       className: ["view-collapsible-index", "surface-main-panel", options.className],
@@ -1162,6 +1237,10 @@
     return text;
   }
 
+  function bulkSelectionCountText(count) {
+    return `${count} selected`;
+  }
+
   function assignViewParts(element, parts) {
     Object.defineProperty(element, "viewParts", {
       configurable: true,
@@ -1172,6 +1251,7 @@
 
   root.view = Object.freeze({
     createActionButton,
+    createBulkActionToolbar,
     createCollapsibleIndexPanel,
     createDataTable,
     createDetailActionMenu,
@@ -1185,6 +1265,7 @@
     createInfoPanel,
     createInlineActionRow,
     createLinkedContextPicker,
+    createListShell,
     createModal,
     createModalForm,
     closeChildModals,

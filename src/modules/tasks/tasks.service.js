@@ -969,6 +969,10 @@ async function applyBulkAction(taskId, action, payload, session) {
     return archive(taskId, session);
   }
 
+  if (action === "restore") {
+    return restore(taskId, session);
+  }
+
   const previousTask = await readTaskOrThrow(session.workspace_id, taskId);
 
   if (action === "status") {

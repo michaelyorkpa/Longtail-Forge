@@ -1,6 +1,6 @@
 # Declarative View Surfaces
 
-This guide describes the current `viewSurfaces` authoring contract as of 0.33.5.18.7.4.
+This guide describes the current `viewSurfaces` authoring contract as of 0.33.5.18.8.4.
 
 Declarative view surfaces are framework-rendered protected surfaces described by module manifest data. They are for common app anatomy: page headers, filters, selector/index panels, split layouts, tables, detail headers, action strips, summary panels, field grids, modal shells, modal footers, item rows, and linked-record panels.
 
@@ -32,11 +32,11 @@ The 0.33.5.18 conversions use three shared capabilities added in 0.33.5.18.1:
 - Mount regions: add `regions[]` (or `detail.regions[]`) entries shaped `{ id, behavior, title }`. The framework renders the region container and calls the registered behavior with `{ container, record, api, refresh, openModal, workspaceContext }`. Use this to host module-owned widgets (tag pickers, file panels, Markdown preview, timers, checklists) instead of hand-building them in the page. A missing behavior renders a recoverable error.
 - Rich item rows: `detail.itemRows` supports `itemTitleField`, `itemSubtitleField`, `chips`, `metaFields`, and `rowActions`. Gate row actions with `visibleWhen` (`equals` / `in` / `truthy` / `falsy`) against the row record; route actions interpolate `{token}` placeholders from that record.
 
-Capabilities intentionally NOT yet in the descriptor (use an escape-hatch behavior, or wait for the surface that introduces them): hierarchical/tree index, multi-select bulk toolbar, pagination/load-more, and general form-field `visibleWhen`. The imperative `LongtailForge.view` helpers and `renderDescriptor*` functions remain the escape hatch for genuinely custom fragments; do not use them to rebuild anatomy a descriptor already covers.
+Capabilities intentionally NOT yet in the descriptor (use an escape-hatch behavior, or wait for the surface that introduces them): hierarchical/tree index, descriptor-declared multi-select bulk toolbar actions, pagination/load-more, and general form-field `visibleWhen`. The imperative `LongtailForge.view` helpers and `renderDescriptor*` functions remain the escape hatch for genuinely custom fragments; do not use them to rebuild anatomy a descriptor already covers. As of 0.33.5.18.8.4, `LongtailForge.view.createBulkActionToolbar` provides a framework-owned collapsed shell for module-owned bulk-control bodies, `LongtailForge.view.createListShell` provides a framework-owned list wrapper/status mount for module-owned row bodies, and Tasks wires non-destructive bulk status, priority, assignee, due-date, due-time, tag, archive, and restore behavior through its module-owned route/service path. Tasks does not expose task delete controls because no shipped task delete workflow exists.
 
 ## Guardrails
 
-Strict guardrails currently enforce `lists.workspace` and `notes.workspace`. Tasks now declares `tasks.workspace` for the protected page shell/read path, with ordered sidebar panels for a non-collapsible saved task view selector and collapsed Sorting and Filters controls. The main task list is bound through the `tasks-main-list` detail region, but its selected-view query contract, row data shaping, bulk toolbar, row actions, and dialog workflows remain module-owned and reported-only until later Tasks slices. Tags and Developer Example descriptors are inventoried and delivered through the descriptor pipeline, but their protected views are not strict-converted surfaces in this closeout. (Notes mounts a secondary Library navigation panel via the framework `createCollapsibleIndexPanel` primitive - an allowed exception until the descriptor can express a second nav panel.)
+Strict guardrails currently enforce `lists.workspace` and `notes.workspace`. Tasks now declares `tasks.workspace` for the protected page shell/read path, with ordered sidebar panels for a non-collapsible saved task view selector and collapsed Sorting and Filters controls. The main task list is bound through the `tasks-main-list` detail region, and the list shell and bulk toolbar use shared framework helpers, but its selected-view query contract, row data shaping, bulk control body, row actions, and dialog workflows remain module-owned and reported-only until later Tasks slices. Tags and Developer Example descriptors are inventoried and delivered through the descriptor pipeline, but their protected views are not strict-converted surfaces in this closeout. (Notes mounts a secondary Library navigation panel via the framework `createCollapsibleIndexPanel` primitive - an allowed exception until the descriptor can express a second nav panel.)
 
 A strict declarative surface must:
 
@@ -62,7 +62,7 @@ The module adapter decorates descriptor-rendered nodes with compatibility hooks 
 
 ## Protected View Inventory
 
-The inventory below is current for 0.33.5.18.7.4. `strict` means the static guardrail fails on declarative-surface violations. `reported` means the view is known to the inventory but is not strict-converted in this slice.
+The inventory below is current for 0.33.5.18.8.4. `strict` means the static guardrail fails on declarative-surface violations. `reported` means the view is known to the inventory but is not strict-converted in this slice.
 
 | Module | View | File | Descriptor Surface | Guardrail |
 | --- | --- | --- | --- | --- |

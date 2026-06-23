@@ -5,6 +5,26 @@ const TASK_VIEW_VALUES = new Set(["all", ...QUICK_FILTERS]);
 const view = window.LongtailForge?.view;
 
 let activeTasksViewDescriptor = null;
+let state = {
+  tasks: [],
+  options: {
+    clients: [],
+    projects: [],
+    users: [],
+    workspaceType: "business",
+    taskTimersEnabled: true,
+    timeTrackingEnabled: true,
+  },
+  editingTaskId: "",
+  currentUserId: "",
+  quickFilter: DEFAULT_TASK_VIEW,
+  selectedTaskIds: new Set(),
+  attachmentCounts: {},
+  noteCounts: {},
+  taskTimers: [],
+  tagOptions: [],
+};
+let hasLoadedTasks = false;
 
 buildTasksViewShell();
 window.LongtailForge.tasksDialog?.configure?.();
@@ -41,7 +61,10 @@ const bulkTagActionControl = document.querySelector("[data-task-bulk-tag-action-
 const bulkTagActionInput = document.querySelector("[data-task-bulk-tag-action]");
 const bulkTagsControl = document.querySelector("[data-task-bulk-tags-control]");
 const bulkTagsInput = document.querySelector("[data-task-bulk-tags]");
+const bulkLifecycleControl = document.querySelector("[data-task-bulk-lifecycle-control]");
+const bulkLifecycleInput = document.querySelector("[data-task-bulk-lifecycle]");
 const bulkApplyButton = document.querySelector("[data-task-bulk-apply]");
+const bulkSelectionCount = document.querySelector("[data-task-bulk-selection-count]");
 const recurringInput = document.querySelector("[data-task-recurring]");
 const recurrenceDetailsButton = document.querySelector("[data-task-recurrence-details]");
 const recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]");
@@ -49,26 +72,6 @@ const recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]")
 const api = window.LongtailForge.api;
 const pageController = window.LongtailForge.pageController;
 const modal = window.LongtailForge.modal;
-let state = {
-  tasks: [],
-  options: {
-    clients: [],
-    projects: [],
-    users: [],
-    workspaceType: "business",
-    taskTimersEnabled: true,
-    timeTrackingEnabled: true,
-  },
-  editingTaskId: "",
-  currentUserId: "",
-  quickFilter: DEFAULT_TASK_VIEW,
-  selectedTaskIds: new Set(),
-  attachmentCounts: {},
-  noteCounts: {},
-  taskTimers: [],
-  tagOptions: [],
-};
-let hasLoadedTasks = false;
 
 addTaskButton?.addEventListener("click", () => openTaskDialog());
 taskViewSelector?.addEventListener("change", handleTaskViewChange);
@@ -82,6 +85,7 @@ bulkClearDueTimeInput?.addEventListener("change", updateBulkControls);
 bulkAssigneesControl?.addEventListener("change", updateBulkControls);
 bulkTagActionInput?.addEventListener("change", updateBulkControls);
 bulkTagsInput?.addEventListener("change", updateBulkControls);
+bulkLifecycleInput?.addEventListener("change", updateBulkControls);
 bulkApplyButton?.addEventListener("click", applyBulkAction);
 selectAllInput?.addEventListener("change", toggleVisibleSelection);
 [sortInput, statusFilter, assigneeFilter, clientFilter, projectFilter, tagFilter].forEach((input) => {
@@ -281,83 +285,134 @@ function createTaskFilterChrome() {
 }
 
 function createTaskMainListChrome() {
-  return taskTemplateElement(`
-    <div class="tasks-main-list-surface" data-task-main-list-surface>
-      <details class="task-bulk-toolbar surface-main-panel" data-task-bulk-toolbar>
-        <summary>Bulk Actions</summary>
-        <div class="task-bulk-grid">
-          <label data-task-bulk-status-control>
-            Status
-            <select data-task-bulk-status>
-              <option value="" selected>-</option>
-              <option value="open">Open</option>
-              <option value="in_progress">In Progress</option>
-              <option value="blocked">Blocked</option>
-              <option value="complete">Complete</option>
-            </select>
-          </label>
-          <label data-task-bulk-priority-control>
-            Priority
-            <select data-task-bulk-priority>
-              <option value="" selected>-</option>
-              <option value="low">Low</option>
-              <option value="normal">Normal</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
-          </label>
-          <label data-task-bulk-due-date-control>
-            Due Date
-            <input type="date" data-task-bulk-due-date>
-            <span class="checkbox-line">
-              <input type="checkbox" data-task-bulk-clear-due-date>
-              Clear due date
-            </span>
-          </label>
-          <label data-task-bulk-due-time-control>
-            Due Time
-            <input type="time" data-task-bulk-due-time>
-            <span class="checkbox-line">
-              <input type="checkbox" data-task-bulk-clear-due-time>
-              Clear due time
-            </span>
-          </label>
-          <label data-task-bulk-assignee-control>
-            Assignees
-            <div class="task-bulk-assignee-list" data-task-bulk-assignees></div>
-          </label>
-          <label data-task-bulk-tag-action-control hidden>
-            Tag Action
-            <select data-task-bulk-tag-action>
-              <option value="" selected>-</option>
-              <option value="tag_add">Add tags</option>
-              <option value="tag_remove">Remove tags</option>
-              <option value="tag_replace">Replace direct tags</option>
-            </select>
-          </label>
-          <label data-task-bulk-tags-control hidden>
-            Tags
-            <select data-task-bulk-tags multiple size="4"></select>
-          </label>
-          <button type="button" data-task-bulk-apply disabled>Apply to 0</button>
-        </div>
-      </details>
+  if (typeof view?.createListShell !== "function") {
+    throw new Error("Tasks list surface requires LongtailForge.view.createListShell.");
+  }
 
-      <p data-task-status role="status" aria-live="polite"></p>
+  const selectAll = view.createElement("input", {
+    attrs: {
+      type: "checkbox",
+      "data-task-select-all": "",
+      "aria-label": "Select all visible tasks",
+    },
+  });
+  const taskListBody = view.createElement("tbody", {
+    attrs: { "data-task-list": "" },
+  });
+  const table = view.createElement("table", {
+    className: "list-table task-table",
+    children: [
+      view.createElement("thead", {
+        children: view.createElement("tr", {
+          children: [
+            view.createElement("th", { children: selectAll }),
+            view.createElement("th", {
+              attrs: {
+                colspan: "6",
+                "aria-label": "Task details",
+              },
+            }),
+          ],
+        }),
+      }),
+      taskListBody,
+    ],
+  });
+  const list = view.createElement("div", {
+    className: ["view-table-wrap", "list-table-wrap"],
+    attrs: { "data-task-list-surface": "" },
+    children: table,
+  });
 
-      <div class="list-table-wrap" data-task-list-surface>
-        <table class="list-table task-table">
-          <thead>
-            <tr>
-              <th><input type="checkbox" data-task-select-all aria-label="Select all visible tasks"></th>
-              <th colspan="6">Task Details</th>
-            </tr>
-          </thead>
-          <tbody data-task-list></tbody>
-        </table>
-      </div>
+  return view.createListShell({
+    className: "tasks-main-list-surface",
+    attrs: { "data-task-main-list-surface": "" },
+    toolbar: createTaskBulkToolbarChrome(),
+    statusAttrs: { "data-task-status": "" },
+    children: list,
+  });
+}
+
+function createTaskBulkToolbarChrome() {
+  if (typeof view?.createBulkActionToolbar !== "function") {
+    throw new Error("Tasks bulk actions require LongtailForge.view.createBulkActionToolbar.");
+  }
+
+  const controls = taskTemplateElement(`
+    <div>
+      <label data-task-bulk-status-control>
+        Status
+        <select data-task-bulk-status>
+          <option value="" selected>-</option>
+          <option value="open">Open</option>
+          <option value="in_progress">In Progress</option>
+          <option value="blocked">Blocked</option>
+          <option value="complete">Complete</option>
+        </select>
+      </label>
+      <label data-task-bulk-priority-control>
+        Priority
+        <select data-task-bulk-priority>
+          <option value="" selected>-</option>
+          <option value="low">Low</option>
+          <option value="normal">Normal</option>
+          <option value="high">High</option>
+          <option value="urgent">Urgent</option>
+        </select>
+      </label>
+      <label data-task-bulk-due-date-control>
+        Due Date
+        <input type="date" data-task-bulk-due-date>
+        <span class="checkbox-line">
+          <input type="checkbox" data-task-bulk-clear-due-date>
+          Clear due date
+        </span>
+      </label>
+      <label data-task-bulk-due-time-control>
+        Due Time
+        <input type="time" data-task-bulk-due-time>
+        <span class="checkbox-line">
+          <input type="checkbox" data-task-bulk-clear-due-time>
+          Clear due time
+        </span>
+      </label>
+      <label data-task-bulk-assignee-control>
+        Assignees
+        <div class="task-bulk-assignee-list" data-task-bulk-assignees></div>
+      </label>
+      <label data-task-bulk-tag-action-control hidden>
+        Tag Action
+        <select data-task-bulk-tag-action>
+          <option value="" selected>-</option>
+          <option value="tag_add">Add tags</option>
+          <option value="tag_remove">Remove tags</option>
+          <option value="tag_replace">Replace direct tags</option>
+        </select>
+      </label>
+      <label data-task-bulk-tags-control hidden>
+        Tags
+        <select data-task-bulk-tags multiple size="4"></select>
+      </label>
+      <label data-task-bulk-lifecycle-control hidden>
+        Lifecycle
+        <select data-task-bulk-lifecycle>
+          <option value="" selected>-</option>
+        </select>
+      </label>
+      <button type="button" data-task-bulk-apply disabled>Apply to 0</button>
     </div>
   `);
+
+  return view.createBulkActionToolbar({
+    label: "Bulk Actions",
+    selectedCount: state.selectedTaskIds.size,
+    className: "task-bulk-toolbar",
+    bodyClassName: "task-bulk-grid",
+    attrs: {
+      "data-task-bulk-toolbar": "",
+    },
+    body: [...controls.children],
+  });
 }
 
 function taskTemplateElement(markup) {
@@ -1109,9 +1164,12 @@ async function applyBulkAction() {
 }
 
 function updateBulkControls() {
-  const selectedCount = state.selectedTaskIds.size;
-  const hasSelectedAction = selectedBulkActions([...state.selectedTaskIds]).length > 0;
+  const taskIds = [...state.selectedTaskIds];
+  const selectedCount = taskIds.length;
 
+  updateBulkToolbarSummary(selectedCount);
+  updateBulkLifecycleOptions(taskIds);
+  const hasSelectedAction = selectedBulkActions(taskIds).length > 0;
   bulkStatusControl?.removeAttribute("hidden");
   bulkPriorityControl?.removeAttribute("hidden");
   bulkDueDateControl?.removeAttribute("hidden");
@@ -1133,12 +1191,22 @@ function updateBulkControls() {
   }
 }
 
+function updateBulkToolbarSummary(selectedCount) {
+  if (!bulkSelectionCount) {
+    return;
+  }
+
+  bulkSelectionCount.textContent = `${selectedCount} selected`;
+  bulkSelectionCount.hidden = selectedCount === 0;
+}
+
 function selectedBulkActions(taskIds) {
   if (taskIds.length === 0) {
     return [];
   }
 
   const actions = [];
+  const lifecycleAction = bulkLifecycleInput?.value || "";
   const status = bulkStatusInput?.value || "";
   const priority = bulkPriorityInput?.value || "";
   const dueDate = bulkDueDateInput?.value || "";
@@ -1148,6 +1216,10 @@ function selectedBulkActions(taskIds) {
   const assigneeIds = selectedBulkAssigneeIds();
   const tagAction = bulkTagActionInput?.value || "";
   const tagIds = selectedBulkTagIds();
+
+  if (lifecycleAction === "restore") {
+    pushLifecycleBulkAction(actions, lifecycleAction, taskIds);
+  }
 
   if (status) {
     actions.push({ action: "status", task_ids: taskIds, status });
@@ -1173,11 +1245,70 @@ function selectedBulkActions(taskIds) {
     actions.push({ action: tagAction, task_ids: taskIds, tagIds });
   }
 
+  if (lifecycleAction === "archive") {
+    pushLifecycleBulkAction(actions, lifecycleAction, taskIds);
+  }
+
   return actions;
+}
+
+function pushLifecycleBulkAction(actions, lifecycleAction, taskIds) {
+  const lifecycleTaskIds = bulkLifecycleTaskIds(lifecycleAction, taskIds);
+
+  if (lifecycleTaskIds.length > 0) {
+    actions.push({ action: lifecycleAction, task_ids: lifecycleTaskIds });
+  }
+}
+
+function bulkLifecycleTaskIds(lifecycleAction, taskIds) {
+  return selectedTasksForBulk(taskIds)
+    .filter((task) => lifecycleAction === "restore"
+      ? task.status === "archived"
+      : task.status !== "archived")
+    .map((task) => task.task_id);
+}
+
+function selectedTasksForBulk(taskIds) {
+  const ids = new Set(taskIds);
+  return state.tasks.filter((task) => ids.has(task.task_id));
+}
+
+function updateBulkLifecycleOptions(taskIds) {
+  if (!bulkLifecycleControl || !bulkLifecycleInput) {
+    return;
+  }
+
+  const selectedTasks = selectedTasksForBulk(taskIds);
+  const canArchive = selectedTasks.some((task) => task.status !== "archived");
+  const canRestore = selectedTasks.some((task) => task.status === "archived");
+  const selectedValue = bulkLifecycleInput.value;
+  const options = [{ value: "", label: "-" }];
+
+  if (canArchive) {
+    options.push({ value: "archive", label: "Archive selected" });
+  }
+
+  if (canRestore) {
+    options.push({ value: "restore", label: "Restore selected" });
+  }
+
+  bulkLifecycleInput.replaceChildren(...options.map((entry) => {
+    const option = document.createElement("option");
+    option.value = entry.value;
+    option.textContent = entry.label;
+    return option;
+  }));
+
+  bulkLifecycleInput.value = options.some((entry) => entry.value === selectedValue) ? selectedValue : "";
+  bulkLifecycleControl.hidden = selectedTasks.length === 0 || options.length <= 1;
 }
 
 async function confirmMixedBulkActions(actions, taskIds) {
   const warnings = mixedBulkActionWarnings(actions, taskIds);
+
+  if (actions.some((action) => action.action === "archive")) {
+    return confirmBulkArchive(actions, taskIds, warnings);
+  }
 
   if (warnings.length === 0) {
     return true;
@@ -1192,6 +1323,25 @@ async function confirmMixedBulkActions(actions, taskIds) {
     message: `${warnings.join(" ")} Apply these bulk changes to ${taskIds.length} selected task${taskIds.length === 1 ? "" : "s"}?`,
     confirmLabel: "Apply Changes",
     cancelLabel: "Review First",
+  });
+}
+
+async function confirmBulkArchive(actions, taskIds, warnings = []) {
+  const archiveAction = actions.find((action) => action.action === "archive");
+  const archiveCount = archiveAction?.task_ids?.length || taskIds.length;
+  const archiveText = `Archive ${archiveCount} selected task${archiveCount === 1 ? "" : "s"}? Archived tasks move to the Archived view and can be restored later.`;
+  const message = [warnings.join(" "), archiveText].filter(Boolean).join(" ");
+
+  if (!modal?.confirm) {
+    return window.confirm(message);
+  }
+
+  return modal.confirm({
+    title: "Archive selected tasks?",
+    message,
+    confirmLabel: "Archive Tasks",
+    cancelLabel: "Review First",
+    danger: true,
   });
 }
 
@@ -1284,6 +1434,9 @@ function resetBulkInputs() {
     [...bulkTagsInput.options].forEach((entry) => {
       entry.selected = false;
     });
+  }
+  if (bulkLifecycleInput) {
+    bulkLifecycleInput.value = "";
   }
   syncBulkDueControlStates();
 }
@@ -1625,7 +1778,7 @@ window.LongtailForge.pageController.register("tasks", {
       { name: "task dialog exists", ok: Boolean(taskDialog) },
       { name: "task view selector exists", ok: Boolean(taskViewSelector) },
       { name: "sort select exists", ok: Boolean(sortInput) },
-      { name: "bulk controls exist", ok: Boolean(bulkToolbar && bulkStatusInput && bulkPriorityInput && bulkAssigneesControl && bulkApplyButton) },
+      { name: "bulk controls exist", ok: Boolean(bulkToolbar && bulkStatusInput && bulkPriorityInput && bulkAssigneesControl && bulkLifecycleInput && bulkApplyButton) },
       { name: "copy link exists", ok: Boolean(copyTaskLinkButton) },
       { name: "recurrence controls exist", ok: Boolean(recurringInput && recurrenceDetailsButton && recurrenceDialog) },
     ];

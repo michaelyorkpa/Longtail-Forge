@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const tasksModule = readText("src/modules/tasks/module.js");
+const currentTasksVersion = "0.33.5.18.8.4";
 
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.notificationToggle, \{ icon: "bell", label: "Follow task notifications", text: "", title: "Follow task notifications", iconOnly: true \}\)/, "Notification settings should render as a bell-only follow toggle when icons are available");
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.tagToggle, \{ icon: "tag", label: "Task tags", text: "", title: "Task tags", iconOnly: true \}\)/, "Tags footer action should be icon-only");
@@ -40,10 +41,14 @@ assert.match(stylesheet, /\.task-blocked-reason-field textarea \{[\s\S]*min-heig
 assert.match(stylesheet, /\.task-footer-panel \{[\s\S]*background: transparent;/, "Tags and Files panels should not look like boxed modal sections");
 assert.match(stylesheet, /\[data-task-notification-toggle\]\.is-following \{[\s\S]*color: var\(--color-danger\);/, "Followed task notification bell should be red");
 
-assert.match(tasksModule, /version: "0\.33\.5\.18\.7\.4"/, "Tasks module version should match the current Tasks descriptor-host release");
+assert.match(tasksModule, new RegExp(`version: "${escapeRegExp(currentTasksVersion)}"`), "Tasks module version should match the current Tasks release");
 
 console.log("Task modal follow-up regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

@@ -6,6 +6,7 @@ const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const iconsScript = readText("public/js/shared/icons.js");
 const tasksModule = readText("src/modules/tasks/module.js");
+const currentTasksVersion = "0.33.5.18.8.4";
 
 assert.match(taskDialogScript, /<details class="task-details-field[^"]*" data-task-details-panel open>/, "Task Details should be a collapsible panel in the page dialog");
 assert.match(taskDialogScript, /class="task-parent-field"[\s\S]*Parent Task[\s\S]*data-task-parent-task/, "Parent Task should live inside Task Details");
@@ -17,7 +18,7 @@ assert.match(taskDialogScript, /<details class="task-recurrence-field[^"]*" data
 assert.match(taskDialogScript, /<details class="task-reminder-field[^"]*" data-task-reminder-details>/, "Reminders should remain collapsed by default");
 assert.match(taskDialogScript, /data-task-tags-toggle[\s\S]*data-task-files-toggle[\s\S]*data-copy-task-link/, "Tags and Files should move to footer actions before utility/save controls");
 assert.match(taskDialogScript, /data-task-tags-panel hidden[\s\S]*data-task-files-panel hidden/, "Tags and Files pickers should mount in hidden footer panels");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=55/, "Task reflow should cache-bust shared CSS");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=60/, "Task reflow should cache-bust shared CSS");
 assert.match(tasksView, /js\/shared\/icons\.js\?v=4/, "Task reflow should cache-bust shared icons");
 assert.match(tasksView, /js\/task-dialog\.js\?v=10/, "Task reflow should cache-bust Task dialog JS");
 
@@ -41,10 +42,14 @@ assert.match(stylesheet, /\.task-footer-panel \{[\s\S]*grid-column: 1 \/ -1;/, "
 
 assert.match(iconsScript, /tag: Object\.freeze/, "Shared icons should include a tag icon");
 assert.match(iconsScript, /file: Object\.freeze/, "Shared icons should include a file icon");
-assert.match(tasksModule, /version: "0\.33\.5\.18\.7\.4"/, "Tasks module version should match the current Tasks descriptor-host release");
+assert.match(tasksModule, new RegExp(`version: "${escapeRegExp(currentTasksVersion)}"`), "Tasks module version should match the current Tasks release");
 
 console.log("Task modal reflow regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

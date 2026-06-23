@@ -1,3 +1,37 @@
+## Version 0.33.5.18.8.4 - 2026-06-23 05:46 -04:00
+
+- Added `LongtailForge.view.createListShell()` as a framework-owned list surface helper for shared wrapper, status mount, and toolbar/content slots without moving module-owned row rendering into the framework.
+- Switched the Tasks main list mount to compose through `createListShell()` and the shared `.view-table-wrap` overflow wrapper while preserving the existing dense task table, row content, row actions, selected-task state, and canonical task query behavior.
+- Added `tasks-list-surface-boundary-regression.mjs`, refreshed Tasks/view-surface/module docs and decisions, archived 0.33.5.18.8.3, marked 0.33.5.18.8.4 complete in the roadmap, bumped package/module metadata to `0.33.5.18.8.4`, and refreshed Tasks host cache keys to `longtail-forge.css?v=60`, `view-builder.js?v=13`, and `tasks.js?v=16`.
+- Verification: `npm run check` passed 159/159 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.8.4` after restarting the local 8001 server.
+
+## Version 0.33.5.18.8.3 - 2026-06-23 05:31 -04:00
+
+- Added the Tasks bulk Lifecycle selector inside the framework-owned bulk toolbar shell, offering Archive for selected non-archived tasks and Restore for selected archived tasks.
+- Routed bulk archive and restore payloads through `POST /api/tasks/bulk` / `tasksService.bulkUpdate()`, delegating to the existing `archive()` and `restore()` service functions so permissions, audit entries, events, search indexing, and parent recovery remain service-owned.
+- Preserved a dangerous confirmation prompt for bulk archive, kept bulk restore aligned with the existing row-level restore behavior, and intentionally did not add task delete, soft-delete, or permanent-delete controls because Tasks does not ship a task delete workflow.
+- Added `tasks-bulk-lifecycle-toolbar-regression.mjs`, refreshed Tasks/view-surface/module docs and decisions, archived 0.33.5.18.8.2, marked 0.33.5.18.8.3 complete in the roadmap, bumped package/module metadata to `0.33.5.18.8.3`, and refreshed Tasks host cache keys to `longtail-forge.css?v=59` and `tasks.js?v=15`.
+- Verification: `npm run check` passed 158/158 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.8.3` after restarting the local 8001 server.
+
+## Version 0.33.5.18.8.2 - 2026-06-23 04:55 -04:00
+
+- Added `tasks-bulk-nondestructive-toolbar-regression.mjs` to prove the framework-owned Tasks bulk toolbar dispatches through Tasks-owned non-destructive behavior handlers.
+- Preserved bulk status, priority, assignee replacement, due date, due time, and tag add/remove/replace behavior through `POST /api/tasks/bulk` / `tasksService.bulkUpdate()`, with route/service permission checks remaining authoritative.
+- Confirmed due date/time clearing, tag add/remove/replace, partial permission failures, and post-apply canonical list refresh without rebuilding the descriptor page shell by hand.
+- Left archive, restore, delete, and other lifecycle/destructive bulk behavior for 0.33.5.18.8.3, refreshed Tasks/view-surface/module docs and decisions, archived 0.33.5.18.8.1, marked 0.33.5.18.8.2 complete in the roadmap, and bumped package/module metadata to `0.33.5.18.8.2`.
+- Verification: `npm run check` passed 157/157 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.8.2` after restarting the local 8001 server.
+- Corrective follow-up - 2026-06-23 05:11 -04:00: Centered the `Clear due date` and `Clear due time` checkbox/label pairs directly under their bulk Due Date and Due Time fields, reset those scoped checkboxes so they do not inherit full-width input styling, and refreshed the Tasks stylesheet cache key to `longtail-forge.css?v=58`. Verification rerun: `npm run check` passed 157/157 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.8.2`.
+
+## Version 0.33.5.18.8.1 - 2026-06-23 04:09 -04:00
+
+- Added the shared `LongtailForge.view.createBulkActionToolbar` helper for framework-owned collapsed bulk toolbar anatomy, selected-count chip placement, and generic toolbar classes.
+- Moved the Tasks bulk action toolbar shell onto the shared helper while preserving the existing Tasks-owned status/priority/due date/due time/assignee/tag controls, selected-task state, apply behavior, confirmations, and auto-open-on-selection rule.
+- Kept the bulk toolbar above the task list, inside the main task-list panel, and outside the `Saved Task Views` / `Sorting and Filters` sidebar panels.
+- Added `tasks-bulk-toolbar-shell-regression.mjs`, refreshed Tasks/view-surface/module docs and decisions, archived 0.33.5.18.7.4, marked 0.33.5.18.8.1 complete in the roadmap, and bumped Tasks host cache keys to `longtail-forge.css?v=57`, `view-builder.js?v=12`, and `tasks.js?v=14`.
+- Verification: `npm run check` passed 156/156 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.8.1` after restarting the local 8001 server.
+- Corrective follow-up - 2026-06-23 04:26 -04:00: Initialized Tasks state before the descriptor shell renders so the shared bulk toolbar can read the selected-task count without raising `can't access lexical declaration 'state' before initialization`; refreshed the Tasks host cache key to `tasks.js?v=14`. Verification rerun: `npm run check` passed 156/156 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.8.1`.
+- Corrective follow-up - 2026-06-23 04:36 -04:00: Restored the Bulk Actions disclosure caret with a framework-owned CSS marker, removed the empty status-row whitespace between Bulk Actions and the task list, removed the visible `Task Details` table heading while preserving an accessible header label, and refreshed the Tasks stylesheet cache key to `longtail-forge.css?v=57`. Verification rerun: `npm run check` passed 156/156 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.8.1`.
+
 ## Version 0.33.5.18.7.4 - 2026-06-23 03:49 -04:00
 
 - Bound the existing Tasks main list to the descriptor-backed `tasks-main-list` detail region through the Tasks-owned `tasks.main.list` behavior.

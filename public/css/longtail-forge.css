@@ -387,6 +387,79 @@ summary.surface-modal-section-heading {
     overflow-wrap: anywhere;
 }
 
+.view-bulk-action-toolbar {
+    grid-column: 1 / -1;
+}
+
+.view-bulk-action-toolbar-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    color: var(--color-text);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.view-bulk-action-toolbar-summary::-webkit-details-marker {
+    display: none;
+}
+
+.view-bulk-action-toolbar-summary::marker {
+    content: "";
+}
+
+.view-bulk-action-toolbar-summary::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 0;
+    height: 0;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 6px solid var(--color-text-secondary);
+    transition: transform 0.16s ease;
+}
+
+.view-bulk-action-toolbar[open] > .view-bulk-action-toolbar-summary::before {
+    transform: rotate(90deg);
+}
+
+.view-bulk-action-toolbar-title {
+    min-width: 0;
+}
+
+.view-bulk-action-toolbar-count {
+    margin-left: auto;
+    padding: 2px 8px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.view-bulk-action-toolbar-count[hidden] {
+    display: none;
+}
+
+.view-bulk-action-toolbar-body {
+    padding-top: 12px;
+}
+
+.view-list-shell {
+    display: grid;
+    gap: 0;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.view-list-shell-status {
+    margin: 0;
+}
+
+.view-list-shell-status:empty {
+    display: none;
+}
+
 .view-status-message,
 .view-empty-state {
     margin: 0;
@@ -3413,17 +3486,7 @@ button.danger-button {
     width: 100%;
 }
 
-.task-bulk-toolbar {
-    margin-bottom: 16px;
-}
-
-.task-filter-details,
-.task-bulk-toolbar {
-    grid-column: 1 / -1;
-}
-
 .task-filter-details summary,
-.task-bulk-toolbar summary,
 .inline-bulk-controls summary {
     color: var(--color-text);
     font-weight: 700;
@@ -3456,6 +3519,28 @@ button.danger-button {
 .task-bulk-grid label,
 .task-filter-grid label {
     align-self: start;
+}
+
+.task-bulk-grid .checkbox-line {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    justify-self: center;
+    gap: 6px;
+    width: max-content;
+    max-width: 100%;
+    white-space: nowrap;
+}
+
+.task-bulk-grid .checkbox-line input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: auto;
+    margin: 0;
+}
+
+.task-bulk-grid [data-task-bulk-apply] {
+    grid-column: 4;
+    align-self: end;
 }
 
 .task-bulk-assignee-list {
@@ -3491,11 +3576,6 @@ button.danger-button {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.tasks-main-list-surface {
-    display: grid;
-    gap: 16px;
 }
 
 .view-slideout-sidebar-main > .tasks-main-list-region {
@@ -6712,6 +6792,10 @@ button:disabled {
     }
 
     .tag-description-field {
+        grid-column: auto;
+    }
+
+    .task-bulk-grid [data-task-bulk-apply] {
         grid-column: auto;
     }
 

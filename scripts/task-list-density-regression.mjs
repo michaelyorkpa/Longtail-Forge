@@ -5,7 +5,8 @@ const tasks = readText("public/js/tasks.js");
 const styles = readText("public/css/longtail-forge.css");
 const icons = readText("public/js/shared/icons.js");
 
-assert.match(tasks, /<th colspan="6">Task Details<\/th>/, "Tasks table header should match the dense task-detail row layout");
+assert.match(tasks, /view\.createElement\("th"[\s\S]*colspan:\s*"6"[\s\S]*"aria-label":\s*"Task details"[\s\S]*\}\)/, "Tasks table header should keep an accessible but visually empty dense task-detail column");
+assert.doesNotMatch(tasks, /<th colspan="6">Task Details<\/th>/, "Tasks table header should not show a visible Task Details label");
 assert.match(tasks, /row\.classList\.add\("task-density-row"\)/, "Task rows should use the dense row class");
 assert.match(tasks, /contentCell\.colSpan = 6/, "Task detail content should span the non-selection columns");
 assert.match(tasks, /titleBand\.className = "task-density-title"/, "Dense task rows should have a title band");
