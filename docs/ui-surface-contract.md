@@ -1,6 +1,6 @@
 # UI Surface Contract
 
-This document captures the 0.33.5.13.7 framework surface inventory, token contract, modal section contract, modal footer/action contract, overlay host contract, drawer/slideout shell contract, main-screen internal surface contract, and first adoption pass. It is the closeout reference for shipped shared surface behavior, not a promise that every listed surface has already been converted.
+This document captures the 0.33.5.13.7 framework surface inventory, token contract, modal section contract, modal footer/action contract, overlay host contract, drawer/slideout shell contract, main-screen internal surface contract, first adoption pass, and the 0.33.5.18.6.11 action-surface slide-out closeout. It is the closeout reference for shipped shared surface behavior, not a promise that every listed surface has already been converted.
 
 ## Surface Inventory
 
@@ -72,6 +72,10 @@ Use `LongtailForge.view.showModal()` and `LongtailForge.view.closeModal()` for c
 Use `.surface-drawer` for narrower side panels such as future navigation drawers, filter drawers, or quick-edit side panels. Use `.surface-slideout` for wider contextual detail views that need more room for fields, linked context, or review content. Both shells use header, body, and footer anatomy so close controls, titles, scrollable content, and actions stay predictable. The framework owns shell spacing, elevation, focus styling, and responsive placement. Modules own the panel content, validation, record actions, and save behavior.
 
 On narrow screens, drawers and slideouts become full-screen overlays instead of squeezed side panels. They should keep the user in the current workflow and return focus to the triggering control when paired with a framework open/close helper.
+
+Descriptor-backed action/workflow surfaces that need controls beside a primary record view should prefer `layout: "slide-out-sidebar"` instead of a persistent split. The framework-owned `.view-slideout-sidebar` shell uses a fixed off-canvas drawer, backdrop, screen-left funnel/filter trigger, footer-visible offset, and scroll lock. The trigger stays near the lower-left viewport edge and lifts above the visible footer without overlapping it. The main/detail panel stays central, full-width within the page container, and top-anchored; opening the drawer must not squeeze or re-center the selected-record view.
+
+`slide-out-sidebar` is distinct from the generic `.surface-drawer` and `.surface-slideout` helper shells because it is a full page/workflow anatomy driven by a `viewSurfaces` descriptor. It is also distinct from the retired `split-list-detail` center split and the persistent split-column `sidebar-detail` layout. Modules may mount filters, libraries, record lists, sort controls, pagination, and other module-owned controls inside ordered drawer panels, but the framework owns the drawer shell, panel chrome, ARIA state, Escape/backdrop/trigger close behavior, focus return, reduced-motion fallback, and overflow containment.
 
 ## Main-Screen Internal Surfaces
 

@@ -67,13 +67,16 @@ const SETTING_FIELD_TYPES = new Set(["boolean", "text", "number", "select", "mul
 const NOTIFICATION_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 const NOTIFICATION_RECIPIENT_MODES = new Set(["actor", "assignees", "workspace_admins", "explicit_users"]);
 const TERMINOLOGY_WORKSPACE_TYPES = new Set(["default", "business", "personal", "family"]);
-const VIEW_SURFACE_LAYOUTS = new Set(["single-column", "stacked", "table-page"]);
+const VIEW_SURFACE_LAYOUTS = new Set(["single-column", "stacked", "sidebar-detail", "slide-out-sidebar", "table-page"]);
+const VIEW_SIDEBAR_PANEL_TYPES = new Set(["filters", "navigation", "index"]);
 const VIEW_SURFACE_FIELDS = new Set([
   "id",
   "moduleId",
   "viewId",
   "layout",
   "pageHeader",
+  "sidebarLabel",
+  "sidebarPanels",
   "filters",
   "indexPanel",
   "table",
@@ -87,6 +90,8 @@ const VIEW_LABEL_FIELDS = new Set(["label", "labelKey", "title", "titleKey", "de
 const VIEW_PAGE_HEADER_FIELDS = new Set([...VIEW_LABEL_FIELDS, "primaryAction"]);
 const VIEW_FILTER_FIELDS = new Set(["id", "field", "type", "label", "labelKey", "options", "optionsSource", "default", "queryKey"]);
 const VIEW_REGION_FIELDS = new Set([...VIEW_LABEL_FIELDS, "id", "behavior", "placement", "className", "ariaLabel"]);
+const VIEW_SIDEBAR_PANEL_FIELDS = new Set([...VIEW_LABEL_FIELDS, "id", "type", "behavior", "collapsible", "open", "emptyState", "className", "ariaLabel", "footer"]);
+const VIEW_SIDEBAR_PANEL_FOOTER_FIELDS = new Set([...VIEW_LABEL_FIELDS, "id", "behavior", "className", "ariaLabel"]);
 const VIEW_CHIP_FIELDS = new Set(["field", "label", "labelKey"]);
 const VIEW_VISIBLE_WHEN_FIELDS = new Set(["field", "equals", "in", "truthy", "falsy"]);
 const VIEW_INDEX_PANEL_FIELDS = new Set([...VIEW_LABEL_FIELDS, "items", "itemTitleField", "itemSubtitleField", "itemMetaFields", "emptyState", "initialSelection", "collapseOnSelect"]);
@@ -480,10 +485,12 @@ function validateViewSurfaces(viewSurfaces, errors) {
     requireString(surface, "viewId", errors, { prefix });
     requireString(surface, "layout", errors, { prefix });
     if (typeof surface.layout === "string" && !VIEW_SURFACE_LAYOUTS.has(surface.layout)) {
-      errors.push(`${prefix}.layout must be single-column, stacked, or table-page.`);
+      errors.push(`${prefix}.layout must be single-column, stacked, sidebar-detail, slide-out-sidebar, or table-page.`);
     }
     validateDataSourceDescriptor(surface.dataSource, `${prefix}.dataSource`, errors, { required: true });
     validatePageHeaderDescriptor(surface.pageHeader, `${prefix}.pageHeader`, errors);
+    optionalString(surface, "sidebarLabel", errors, { prefix });
+    validateSidebarPanelsDescriptor(surface.sidebarPanels, `${prefix}.sidebarPanels`, errors);
     validateFiltersDescriptor(surface.filters, `${prefix}.filters`, errors);
     validateIndexPanelDescriptor(surface.indexPanel, `${prefix}.indexPanel`, errors);
     validateTableDescriptor(surface.table, `${prefix}.table`, errors);
@@ -588,6 +595,45 @@ function validateViewMethodReference(method, prefix, moduleLabel, errors) {
   if (typeof method === "string" && !HTTP_METHODS.has(method)) {
     errors.push(`${moduleLabel}: ${prefix} must be a supported HTTP method.`);
   }
+}
+
+function validateSidebarPanelsDescriptor(sidebarPanels, prefix, errors) {
+  optionalArrayOfObjects(sidebarPanels, prefix, errors, (panel, index) => {
+    const panelPrefix = `${prefix}[${index}]`;
+    validateKnownObjectFields(panel, VIEW_SIDEBAR_PANEL_FIELDS, panelPrefix, errors);
+    requireString(panel, "id", errors, { prefix: panelPrefix });
+    requireString(panel, "type", errors, { prefix: panelPrefix });
+    if (typeof panel.type === "string" && !VIEW_SIDEBAR_PANEL_TYPES.has(panel.type)) {
+      errors.push(`${panelPrefix}.type must be filters, navigation, or index.`);
+    }
+    validateLabelDescriptor(panel, panelPrefix, errors);
+    optionalString(panel, "behavior", errors, { prefix: panelPrefix });
+    if (panel.type === "navigation") {
+      requireString(panel, "behavior", errors, { prefix: panelPrefix });
+    }
+    optionalBoolean(panel, "collapsible", errors, { prefix: panelPrefix });
+    optionalBoolean(panel, "open", errors, { prefix: panelPrefix });
+    optionalPlainObject(panel, "emptyState", errors, { prefix: panelPrefix });
+    optionalString(panel, "className", errors, { prefix: panelPrefix });
+    optionalString(panel, "ariaLabel", errors, { prefix: panelPrefix });
+    validateSidebarPanelFooterDescriptor(panel.footer, `${panelPrefix}.footer`, errors);
+  });
+}
+
+function validateSidebarPanelFooterDescriptor(footer, prefix, errors) {
+  if (footer === undefined) {
+    return;
+  }
+  if (!isPlainObject(footer)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+  validateKnownObjectFields(footer, VIEW_SIDEBAR_PANEL_FOOTER_FIELDS, prefix, errors);
+  validateLabelDescriptor(footer, prefix, errors);
+  optionalString(footer, "id", errors, { prefix });
+  optionalString(footer, "behavior", errors, { prefix });
+  optionalString(footer, "className", errors, { prefix });
+  optionalString(footer, "ariaLabel", errors, { prefix });
 }
 
 function validatePageHeaderDescriptor(pageHeader, prefix, errors) {

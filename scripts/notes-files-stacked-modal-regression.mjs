@@ -8,17 +8,17 @@ const notesJs = readText("public/js/notes.js");
 const notesCss = readText("public/css/longtail-forge.css");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.6.9.2", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.6.9.2", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.9.2", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.6.11", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.6.11", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.6.11", "package-lock package entry should report the current app version");
 
-assert.match(notesHtml, /css\/longtail-forge\.css\?v=45/, "Notes should cache-bust the stacked Files modal warning styles");
-assert.match(notesHtml, /js\/notes\.js\?v=59/, "Notes should cache-bust the stacked Files modal browser wiring");
-assert.match(notesHtml, /js\/shared\/view-builder\.js\?v=10/, "Notes should keep using the modal-stack-enabled view builder");
-assert.match(notesHtml, /js\/shared\/view-renderer\.js\?v=8/, "Notes should keep using the modal-stack-enabled renderer");
+assert.match(notesHtml, /css\/longtail-forge\.css\?v=49/, "Notes should cache-bust the stacked Files modal warning styles");
+assert.match(notesHtml, /js\/notes\.js\?v=64/, "Notes should cache-bust the stacked Files modal browser wiring");
+assert.match(notesHtml, /js\/shared\/view-builder\.js\?v=11/, "Notes should keep using the modal-stack-enabled view builder");
+assert.match(notesHtml, /js\/shared\/view-renderer\.js\?v=11/, "Notes should keep using the modal-stack-enabled renderer");
 
 assert.match(notesJs, /function createNoteFilesDialogShell\(\)/, "Notes should build a dedicated Files dialog shell");
-assert.match(notesJs, /document\.body\.append\(createNoteDialogShell\(\), createNoteTagsDialogShell\(\), createNoteFilesDialogShell\(\), createCollectionDialogShell\(\)\)/, "The Files dialog should be a sibling dialog, not inline editor content");
+assert.match(notesJs, /document\.body\.append\([\s\S]*createNoteDialogShell\(\),[\s\S]*createNoteTagsDialogShell\(\),[\s\S]*createNoteFilesDialogShell\(\),[\s\S]*createCollectionDialogShell\(\),[\s\S]*createCollectionActionsDialogShell\(\),[\s\S]*\)/, "The Files dialog should be a sibling dialog, not inline editor content");
 assert.match(notesJs, /dialog\.dataset\.noteFilesDialog = ""/, "The Files dialog should expose a stable dialog hook");
 assert.match(notesJs, /filesMount\.dataset\.noteFilesEditor = ""/, "The shared file attachment helper should mount inside the stacked Files dialog");
 assert.match(notesJs, /saveFirstWarning\.dataset\.noteFilesSaveFirstWarning = ""/, "The unsaved-note warning should expose a stable hook");

@@ -50,6 +50,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/lists-items-modals-descriptor-regression.mjs",
   "scripts/lists-workflow-linked-layout-regression.mjs",
   "scripts/notes-declarative-readonly-surface-regression.mjs",
+  "scripts/notes-slideout-closeout-regression.mjs",
   "scripts/markdown-platform-contract-regression.mjs",
   "scripts/markdown-renderer-service-regression.mjs",
   "scripts/markdown-closeout-regression.mjs",

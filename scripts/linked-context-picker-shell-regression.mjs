@@ -12,9 +12,9 @@ const moduleContract = readText("docs/module-contract.md");
 const roadmap = readText("ROADMAP.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.6.9.2", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.6.9.2", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.9.2", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.6.11", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.6.11", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.6.11", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "picker shell must not own data loading or browser storage");
 assert.match(helper, /function createLinkedContextPicker/, "view builder should implement the shared Linked Context picker shell");
@@ -140,7 +140,7 @@ assert.match(pickerContract, /as of 0\.33\.5\.18\.6\.5\.3/i, "picker contract sh
 assert.match(pickerContract, /`LongtailForge\.view\.createLinkedContextPicker\(options\)`/, "picker contract should name the shared shell helper");
 assert.match(viewContract, /createLinkedContextPicker/, "view-building contract should list the shared picker primitive");
 assert.match(moduleContract, /shared Linked Context picker shell/, "module contract should document framework picker anatomy ownership");
-assert.match(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.9 are archived/, "live roadmap should document that completed Notes slices are archived");
+assert.match(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.10\.7 are archived/, "live roadmap should document that completed Notes slices are archived");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.6\.5\.2 - Framework Linked Context picker shell/, "completed picker shell slice should be archived out of the live roadmap");
 assert.match(regressionSuite, /scripts\/linked-context-picker-shell-regression\.mjs/, "regression suite should include picker shell regression");
 

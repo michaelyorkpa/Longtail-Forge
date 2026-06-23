@@ -23,6 +23,22 @@ footerInner.append(footerBrand, footerLicense);
 footer.appendChild(footerInner);
 document.body.appendChild(footer);
 
+function updateFooterMetrics() {
+  const root = document.documentElement;
+  const viewportHeight = window.innerHeight || root.clientHeight || 0;
+  const footerRect = typeof footer.getBoundingClientRect === "function"
+    ? footer.getBoundingClientRect()
+    : { top: viewportHeight };
+  const footerTop = Number.isFinite(footerRect.top) ? footerRect.top : viewportHeight;
+  const footerBottom = Number.isFinite(footerRect.bottom) ? footerRect.bottom : footerTop;
+  const visibleFooterOffset = Math.max(
+    0,
+    Math.min(viewportHeight, footerBottom) - Math.max(footerTop, 0),
+  );
+
+  root.style.setProperty("--site-footer-visible-offset", `${Math.ceil(visibleFooterOffset)}px`);
+}
+
 async function updateFooterBrand() {
   try {
     const response = await fetch("/api/app-info", {
@@ -49,7 +65,12 @@ async function updateFooterBrand() {
       "Longtail Forge",
       "Copyright \u00a9 2026 Raymond Tec",
     ].join("\n");
+  } finally {
+    updateFooterMetrics();
   }
 }
 
 updateFooterBrand();
+updateFooterMetrics();
+window.addEventListener?.("resize", updateFooterMetrics);
+window.addEventListener?.("scroll", updateFooterMetrics, { passive: true });

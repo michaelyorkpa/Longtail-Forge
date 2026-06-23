@@ -176,6 +176,24 @@ The framework list/detail layout is now `stacked`, and the `split-list-detail` l
 - `createCollapsibleIndexPanel` supports an optional `summaryActions` node or node list for framework-owned summary-line controls such as right-aligned pagination. Summary actions hide automatically while the panel is collapsed; modules may supply the control behavior without rebuilding the panel anatomy.
 - Deprecated, retained for compatibility only: the `createSplitListDetail` primitive and `.view-split-list-detail` CSS. They are no longer wired into the renderer and `split-list-detail` is no longer a valid `layout`; do not use them in new work. Use `stacked`.
 
+## Implementation Notes For 0.33.5.18.6.10.2
+
+The descriptor renderer supports `layout: "sidebar-detail"` with an optional ordered `sidebarPanels[]` array. When present, the framework renders those panels top-to-bottom in the left sidebar and keeps the primary detail surface in the main region. Supported panel types are `filters`, `navigation`, and `index`.
+
+The framework owns sidebar panel shell anatomy: stable heading/summary markup, optional non-collapsible panel sections, initial open/closed state, scroll-safe body regions, and footer slots for controls such as sort and pagination. Modules still own panel labels, content, queries, record reads, filtering, selection state, and behavior handlers. Navigation panels and panel footers use the same module-owned behavior mount boundary as descriptor regions.
+
+Descriptors without `sidebarPanels[]` keep the implicit Filters plus Index sidebar fallback, so adopting the new ordered panel contract is opt-in per surface.
+
+## Implementation Notes For 0.33.5.18.6.11
+
+The reusable action/workflow surface pattern is `layout: "slide-out-sidebar"`. It is the preferred anatomy for future Tasks, Tickets, Notes, Lists, Files, and Clients/Projects conversions when a surface needs filters, libraries, navigation, or record browsing beside a primary record/detail view. The drawer opens from the screen-left edge; the primary/detail region remains in the central main content panel at full available width.
+
+`slide-out-sidebar` reuses the ordered `sidebarPanels[]` contract from `sidebar-detail`, but changes the page anatomy. The framework owns the off-canvas drawer, funnel/filter trigger, backdrop, trigger/Escape/backdrop close behavior, focus movement into the drawer, focus return to the trigger, ARIA open state, body scroll locking, reduced-motion fallback, panel body/footer overflow, and surface classes. Modules own panel content, reads, filters, record selection, sort/pagination behavior, and module-specific rules for whether an action keeps the drawer open or returns the user to the main detail.
+
+The main/detail panel for a slide-out action surface should be top-anchored in the content area and must not be squeezed, resized, or re-centered when the drawer opens. The funnel trigger should stay near the screen-left lower viewport edge, using the footer-visible offset so it lifts above the footer without overlapping it.
+
+This is not the retired center `split-list-detail` behavior and not the rejected persistent split-column `sidebar-detail` anatomy. `split-list-detail` remains compatibility-only, and `sidebar-detail` is a historical/intermediate split-column layout rather than the default direction for future action/workflow surfaces.
+
 ## Implementation Notes For 0.33.5.18.6.5.2
 
 `LongtailForge.view.createLinkedContextPicker(options)` adds the shared framework shell for Linked Context picker anatomy. It renders the Target select, Search input, Record dropdown, `Use Target` action, existing linked-context rows, row Remove actions, empty state, and read-only/permission-disabled state while exposing those controls through `element.viewParts`.

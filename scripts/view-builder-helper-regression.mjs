@@ -10,9 +10,9 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.6.9.2", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.6.9.2", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.9.2", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.6.11", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.6.11", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.6.11", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(helper, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view builder must not inject HTML strings");
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view builder must not own data loading or browser storage");
@@ -93,6 +93,12 @@ const indexWithSummaryAction = view.createCollapsibleIndexPanel({
 });
 assert.equal(indexWithSummaryAction.querySelector(".view-collapsible-index-title").textContent, "Notes");
 assert.equal(indexWithSummaryAction.querySelector(".view-collapsible-index-summary-actions").textContent, "Page 1");
+const indexWithFooter = view.createCollapsibleIndexPanel({
+  title: "Notes",
+  body: ["Body"],
+  footer: view.createElement("button", { text: "Next" }),
+});
+assert.equal(indexWithFooter.querySelector(".view-collapsible-index-footer").textContent, "Next", "collapsible index panels should expose a footer slot after the body");
 
 const split = view.createSplitListDetail({ list: ["Index"], detail: ["Detail"] });
 assert(split.querySelector(".view-split-list-detail-index"), "split helper should create index panel");
@@ -157,6 +163,7 @@ assert.match(css, /\.view-page-header\s*\{[\s\S]*margin-bottom:\s*8px;/, "CSS sh
 assert.match(css, /\.view-stacked\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0;/, "CSS should define the stacked layout container without panel gaps");
 assert.match(css, /\.view-stacked \.view-collapsible-index-body\s*\{[\s\S]*overflow-y:\s*auto/, "CSS should cap the stacked index to a scroll region");
 assert.match(css, /\.view-collapsible-index-summary-actions\s*\{[\s\S]*justify-content:\s*flex-end/, "CSS should support right-aligned collapsible summary actions");
+assert.match(css, /\.view-collapsible-index-footer\s*\{[\s\S]*justify-content:\s*flex-end/, "CSS should support right-aligned collapsible footers");
 assert.match(css, /\.view-linked-context-picker\s*\{[\s\S]*display:\s*grid/, "CSS should define the shared linked context picker shell");
 assert.match(viewContract, /As of 0\.33\.5\.15\.6/, "view contract should report helper implementation version");
 assert.match(viewContract, /`LongtailForge\.view` is implemented in `public\/js\/shared\/view-builder\.js`/, "view contract should document implemented helper location");

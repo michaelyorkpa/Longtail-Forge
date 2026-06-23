@@ -219,7 +219,8 @@ const notesModule = {
       id: "notes.workspace",
       moduleId: "notes",
       viewId: "notes",
-      layout: "stacked",
+      layout: "slide-out-sidebar",
+      sidebarLabel: "Notes navigation",
       pageHeader: {
         title: "Notes",
         titleKey: "label",
@@ -232,6 +233,35 @@ const notesModule = {
           requiredPermissions: [NOTE_PERMISSIONS.CREATE],
         },
       },
+      sidebarPanels: [
+        {
+          id: "notes-filters",
+          type: "filters",
+          title: "Filters",
+          open: false,
+          className: "notes-filters-panel",
+        },
+        {
+          id: "notes-library",
+          type: "navigation",
+          title: "Library",
+          behavior: "notes.sidebar.library",
+          open: true,
+          className: "notes-library-panel view-collapsible-index--unscrolled",
+          ariaLabel: "Notes Library",
+        },
+        {
+          id: "notes-list",
+          type: "index",
+          title: "Notes List",
+          open: true,
+          className: "notes-index-panel",
+          footer: {
+            id: "notes-list-footer",
+            behavior: "notes.sidebar.notes-list-footer",
+          },
+        },
+      ],
       filters: [
         {
           id: "status-filter",

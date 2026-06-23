@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const version = "0.33.5.15.6";
-const appVersion = "0.33.5.18.6.9.2";
+const appVersion = "0.33.5.18.6.11";
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
@@ -38,7 +38,7 @@ assert.match(helper, /function createDetailActionStrip/, "View builder should ow
 assert.match(helper, /function createInlineActionRow/, "View builder should own inline action rows");
 
 assert.match(listsHtml, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists converted surface should stay a minimal host");
-assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=3[\s\S]*js\/lists\.js\?v=13/, "Lists should load view-builder before the converted module script");
+assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=4[\s\S]*js\/lists\.js\?v=13/, "Lists should load view-builder before the converted module script");
 assert.doesNotMatch(listsHtml, /<dialog|data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog/, "Lists HTML should not reintroduce converted anatomy");
 assert.doesNotMatch(listsJs, /document\.createElement\("dialog"\)/, "Converted Lists should use the shared modal helper for dialogs");
 assertNoHardcodedLightBackgrounds(listsJs, "Lists converted browser source");
@@ -67,7 +67,7 @@ for (const helperName of [
 }
 
 for (const html of [clientsHtml, projectsHtml, workbenchHtml]) {
-  assert.match(html, /js\/shared\/view-builder\.js\?v=3[\s\S]*clients-projects\.js\?v=11/, "Client/Project surfaces should load view-builder before shared Client/Project code");
+  assert.match(html, /js\/shared\/view-builder\.js\?v=4[\s\S]*clients-projects\.js\?v=11/, "Client/Project surfaces should load view-builder before shared Client/Project code");
 }
 assert.doesNotMatch(clientsHtml, /<dialog data-client-modal>/, "Clients page should not restore the static Add Client dialog");
 assert.match(clientsScript, /const view = window\.LongtailForge\?\.view/, "Client/Project dialogs should consume the shared view namespace");

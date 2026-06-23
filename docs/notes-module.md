@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.5.18.6.9.2. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.18.6.11. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -22,6 +22,14 @@ Important files:
 - `public/js/notes.js` and `views/protected/notes.html`: browser workspace and UI behavior.
 - `docs/workflow-context-contract.md`: shared Primary Context / Linked Context terminology and safe label rules.
 - `docs/linked-context-picker-contract.md`: shared Linked Context picker provider/shell contract and normalized target response shape.
+
+## Workspace Layout
+
+The protected Notes workspace uses the framework `notes.workspace` descriptor with `layout: "slide-out-sidebar"`. The left slide-out drawer hosts the descriptor-owned `sidebarPanels[]` order: Filters, Library, and Notes List. The primary/detail region remains the selected-note reading surface in the central content box.
+
+The framework owns the slide-out shell, footer-aware screen-left funnel trigger, backdrop, Escape/backdrop/trigger close behavior, focus return, panel shell, disclosure behavior, scroll-safe panel bodies, and footer slot placement. Notes owns the panel content and behavior: filter query state, Library bucket/collection controls, Notes List data rendering, sorting/pagination controls, archive handling, selected-note detail rendering, Linked Context display, and Primary Context display. Filters start collapsed inside the drawer, Library starts open, and selecting a note closes the drawer so the central detail remains primary. Library and Collection controls stack on separate lines, Collection actions open from a modal beside the Collection dropdown, collection create/edit handoffs wait for that actions modal to close before opening the editor as a top-level modal, and compact Notes List rows show one visible tag chip plus overflow to avoid metadata overlap.
+
+As of 0.33.5.18.6.11, Notes is the template implementation for future action/workflow surfaces that need side navigation without sacrificing the main record view. Future module conversions should reuse the slide-out sidebar pattern when appropriate and should not bring back the retired center `split-list-detail` layout or the rejected persistent split-column `sidebar-detail` anatomy as the default direction.
 
 ## Library Model
 

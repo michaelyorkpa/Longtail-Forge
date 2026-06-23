@@ -250,7 +250,18 @@
       children: options.children || options.body || [],
     }));
 
+    if (hasChildren(options.footer)) {
+      details.appendChild(createElement("div", {
+        className: ["view-collapsible-index-footer", options.footerClassName],
+        children: options.footer,
+      }));
+    }
+
     return details;
+  }
+
+  function hasChildren(children) {
+    return children !== undefined && children !== null && (!Array.isArray(children) || children.length > 0);
   }
 
   function createIndexList(options = {}) {

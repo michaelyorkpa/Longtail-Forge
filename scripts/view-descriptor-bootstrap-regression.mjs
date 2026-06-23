@@ -17,9 +17,9 @@ const appShellServiceSource = readText("src/services/app-shell.service.js");
 const modulesServiceSource = readText("src/core/modules/modules.service.js");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.6.9.2", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.6.9.2", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.9.2", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.6.11", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.6.11", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.6.11", "package-lock package entry should report the current app version");
 
 assert.match(appShellServiceSource, /modulesService\.listActiveViewSurfaces\(session\.workspace_id, session\)/, "App shell should deliver view descriptors through the existing bootstrap path");
 assert.doesNotMatch(appShellServiceSource, /view-surfaces|viewSurfaces\/bootstrap|descriptor\/bootstrap/, "Descriptors should not get a separate bootstrap transport");
@@ -41,6 +41,7 @@ assert.ok(Array.isArray(allowedShell.viewSurfaces), "App shell should include a 
 assert.ok(Array.isArray(allowedShell.workspaceContext.viewSurfaces), "Workspace context should include the delivered viewSurfaces array");
 assert.deepEqual(allowedShell.workspaceContext.viewSurfaces, allowedShell.viewSurfaces, "Workspace context should use the same descriptor payload");
 assert.ok(allowedShell.viewSurfaces.some((surface) => surface.id === "tags.management"), "Allowed protected views should deliver descriptors");
+assert.ok(allowedShell.viewSurfaces.some((surface) => surface.id === "notes.workspace" && surface.layout === "slide-out-sidebar"), "Allowed protected views should deliver the Notes slide-out sidebar descriptor");
 assert.equal(allowedShell.viewSurfaces.some((surface) => surface.id === "developer-example.surface"), false, "Disabled module descriptors should not leak through app shell");
 
 const deniedShell = await appShellService.bootstrap(deniedSession);

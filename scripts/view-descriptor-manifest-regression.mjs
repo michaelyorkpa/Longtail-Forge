@@ -10,6 +10,71 @@ assert.equal(ACTIVE_MANIFEST_FIELDS.has("viewSurfaces"), true, "viewSurfaces sho
 const validErrors = validateModuleManifest(createModule());
 assert.deepEqual(validErrors, [], `Valid viewSurfaces descriptor should pass validation: ${validErrors.join("; ")}`);
 
+const sidebarDetailErrors = validateModuleManifest(createModule({
+  viewSurfaces: [
+    {
+      ...validSurface(),
+      layout: "sidebar-detail",
+    },
+  ],
+}));
+assert.deepEqual(sidebarDetailErrors, [], `sidebar-detail layout should pass validation: ${sidebarDetailErrors.join("; ")}`);
+
+const slideOutSidebarErrors = validateModuleManifest(createModule({
+  viewSurfaces: [
+    {
+      ...validSurface(),
+      layout: "slide-out-sidebar",
+      sidebarLabel: "Record tools",
+      sidebarPanels: [
+        {
+          id: "controls",
+          type: "filters",
+          title: "Controls",
+          open: true,
+        },
+      ],
+    },
+  ],
+}));
+assert.deepEqual(slideOutSidebarErrors, [], `slide-out-sidebar layout should pass validation: ${slideOutSidebarErrors.join("; ")}`);
+
+const sidebarPanelErrors = validateModuleManifest(createModule({
+  viewSurfaces: [
+    {
+      ...validSurface(),
+      layout: "sidebar-detail",
+      sidebarLabel: "Record tools",
+      sidebarPanels: [
+        {
+          id: "controls",
+          type: "filters",
+          title: "Controls",
+          open: true,
+        },
+        {
+          id: "library",
+          type: "navigation",
+          title: "Library",
+          behavior: "sample.library",
+          collapsible: false,
+        },
+        {
+          id: "records",
+          type: "index",
+          title: "Samples",
+          open: false,
+          footer: {
+            title: "Sort and pagination",
+            behavior: "sample.recordsFooter",
+          },
+        },
+      ],
+    },
+  ],
+}));
+assert.deepEqual(sidebarPanelErrors, [], `sidebar panel descriptors should pass validation: ${sidebarPanelErrors.join("; ")}`);
+
 const unknownTopLevelErrors = validateModuleManifest(createModule({
   viewSurfaces: [
     {
@@ -87,7 +152,7 @@ const invalidLayoutErrors = validateModuleManifest(createModule({
 }));
 assert.match(
   invalidLayoutErrors.join("\n"),
-  /viewSurfaces\[0\]\.layout must be single-column, stacked, or table-page/,
+  /viewSurfaces\[0\]\.layout must be single-column, stacked, sidebar-detail, slide-out-sidebar, or table-page/,
   "Unsupported layouts should fail before a renderer exists",
 );
 
@@ -106,6 +171,49 @@ assert.match(
   invalidIndexSelectionErrors.join("\n"),
   /viewSurfaces\[0\]\.indexPanel\.initialSelection must be first or none/,
   "Index panel initial selection should be constrained to framework-known values",
+);
+
+const invalidSidebarPanelErrors = validateModuleManifest(createModule({
+  viewSurfaces: [
+    {
+      ...validSurface(),
+      layout: "sidebar-detail",
+      sidebarPanels: [
+        {
+          id: "bad-panel",
+          type: "custom",
+          surprise: true,
+          footer: {
+            surprise: true,
+          },
+        },
+        {
+          id: "library",
+          type: "navigation",
+        },
+      ],
+    },
+  ],
+}));
+assert.match(
+  invalidSidebarPanelErrors.join("\n"),
+  /viewSurfaces\[0\]\.sidebarPanels\[0\]\.surprise is not a supported field/,
+  "Sidebar panel descriptors should reject unknown fields",
+);
+assert.match(
+  invalidSidebarPanelErrors.join("\n"),
+  /viewSurfaces\[0\]\.sidebarPanels\[0\]\.type must be filters, navigation, or index/,
+  "Sidebar panel descriptors should reject unknown panel types",
+);
+assert.match(
+  invalidSidebarPanelErrors.join("\n"),
+  /viewSurfaces\[0\]\.sidebarPanels\[0\]\.footer\.surprise is not a supported field/,
+  "Sidebar panel footer descriptors should reject unknown fields",
+);
+assert.match(
+  invalidSidebarPanelErrors.join("\n"),
+  /viewSurfaces\[0\]\.sidebarPanels\[1\]\.behavior is required/,
+  "Navigation sidebar panels should require a module-owned mount behavior",
 );
 
 console.log("View descriptor manifest regression passed.");

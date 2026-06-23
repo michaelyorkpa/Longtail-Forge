@@ -40,6 +40,9 @@
       { type: "path", attrs: { d: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" } },
       { type: "path", attrs: { d: "M14 2v6h6" } },
     ]),
+    filter: Object.freeze([
+      { type: "path", attrs: { d: "M3 4h18l-7 8v6l-4 2v-8Z" } },
+    ]),
     eye: Object.freeze([
       { type: "path", attrs: { d: "M2.1 12.3a1 1 0 0 1 0-.6 10.8 10.8 0 0 1 19.8 0 1 1 0 0 1 0 .6 10.8 10.8 0 0 1-19.8 0" } },
       { type: "circle", attrs: { cx: "12", cy: "12", r: "3" } },

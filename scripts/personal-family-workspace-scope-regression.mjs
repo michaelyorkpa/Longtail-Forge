@@ -141,7 +141,7 @@ try {
     assert.match(filesScript, /clientLabel/);
     assert.match(filesScript, /projectLabel/);
 
-    assert.match(listsPage, /js\/shared\/view-builder\.js\?v=3/);
+    assert.match(listsPage, /js\/shared\/view-builder\.js\?v=4/);
     assert.match(listsPage, /js\/lists\.js\?v=13/);
     assert.doesNotMatch(listsScript, /usesBusinessScope\(\) \? loadClientProjects\(\) : Promise\.resolve/);
     assert.match(listsScript, /state\.clients = window\.LongtailForge\.clientProjectOptions\.normalizeClients\(clientProjects\)/);

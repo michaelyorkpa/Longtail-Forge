@@ -114,7 +114,6 @@ const prevButton = document.querySelector("[data-notes-prev]");
 const nextButton = document.querySelector("[data-notes-next]");
 const pageLabel = document.querySelector("[data-notes-page]");
 const collectionPanel = document.querySelector("[data-notes-collections-panel]");
-const collectionCreateButton = document.querySelector("[data-note-collection-create]");
 const collectionLibraryFilter = document.querySelector("[data-note-collection-library-filter]");
 const collectionActionsMount = document.querySelector("[data-note-collection-actions]");
 const dialog = document.querySelector("[data-note-dialog]");
@@ -168,11 +167,15 @@ const collectionParentInput = document.querySelector("[data-note-collection-pare
 const collectionFormStatus = document.querySelector("[data-note-collection-form-status]");
 const collectionCancelButton = document.querySelector("[data-note-collection-cancel]");
 const collectionSaveButton = document.querySelector("[data-note-collection-save]");
+const collectionActionsDialog = document.querySelector("[data-note-collection-actions-dialog]");
+const collectionActionsDialogTitle = document.querySelector("[data-note-collection-actions-dialog-title]");
+const collectionActionsDialogBody = document.querySelector("[data-note-collection-actions-dialog-body]");
+const collectionActionsDialogCloseButton = document.querySelector("[data-note-collection-actions-dialog-close]");
 
 const editor = window.LongtailForge.notesEditor?.createPlainTextarea(bodyInput);
 
 createButton?.addEventListener("click", () => openEditor());
-collectionCreateButton?.addEventListener("click", () => openCollectionDialog("create"));
+collectionActionsDialogCloseButton?.addEventListener("click", closeCollectionActionsDialog);
 collectionLibraryFilter?.addEventListener("change", () => selectBucket(collectionLibraryFilter.value));
 collectionFilter?.addEventListener("change", () => selectCollection(collectionFilter.value));
 filtersForm?.addEventListener("change", () => {
@@ -243,7 +246,13 @@ function buildNotesViewShell() {
   // dialogs (createNoteDialogShell/createCollectionDialogShell), so suppress the framework duplicates.
   const surface = view.renderSurface({ ...descriptor, dataSource: null, modals: [] }, host);
   decorateNotesDeclarativeSurface(surface);
-  document.body.append(createNoteDialogShell(), createNoteTagsDialogShell(), createNoteFilesDialogShell(), createCollectionDialogShell());
+  document.body.append(
+    createNoteDialogShell(),
+    createNoteTagsDialogShell(),
+    createNoteFilesDialogShell(),
+    createCollectionDialogShell(),
+    createCollectionActionsDialogShell(),
+  );
 }
 
 function registerNotesViewBehaviors() {
@@ -251,6 +260,12 @@ function registerNotesViewBehaviors() {
     return;
   }
   view.registerBehavior("notes.create", () => openEditor());
+  view.registerBehavior("notes.sidebar.library", ({ container }) => {
+    container.replaceChildren(createNotesLibraryChrome());
+  });
+  view.registerBehavior("notes.sidebar.notes-list-footer", ({ container }) => {
+    container.replaceChildren(createNotesListSortControl(), createNotesPagination());
+  });
   Object.keys(NOTE_WORKFLOW_HANDLERS).forEach((behaviorId) => {
     view.registerBehavior(behaviorId, ({ record }) => runNoteWorkflow(behaviorId, record || state.selectedNote));
   });
@@ -352,7 +367,8 @@ function fallbackNotesViewSurfaceDescriptor() {
     id: "notes.workspace",
     moduleId: "notes",
     viewId: "notes",
-    layout: "stacked",
+    layout: "slide-out-sidebar",
+    sidebarLabel: "Notes navigation",
     pageHeader: {
       title: "Notes",
       primaryAction: {
@@ -362,6 +378,35 @@ function fallbackNotesViewSurfaceDescriptor() {
         behavior: "notes.create",
       },
     },
+    sidebarPanels: [
+      {
+        id: "notes-filters",
+        type: "filters",
+        title: "Filters",
+          open: false,
+        className: "notes-filters-panel",
+      },
+      {
+        id: "notes-library",
+        type: "navigation",
+        title: "Library",
+        behavior: "notes.sidebar.library",
+        open: true,
+        className: "notes-library-panel view-collapsible-index--unscrolled",
+        ariaLabel: "Notes Library",
+      },
+      {
+        id: "notes-list",
+        type: "index",
+        title: "Notes List",
+        open: true,
+        className: "notes-index-panel",
+        footer: {
+          id: "notes-list-footer",
+          behavior: "notes.sidebar.notes-list-footer",
+        },
+      },
+    ],
     filters: [
       notesDescriptorSelect("status", "Status", [["active", "Active", true], ["pinned", "Pinned"], ["archived", "Archived"], ["all", "All visible"]]),
       notesDescriptorSelect("visibility", "Visibility", [["all", "All visible", true], ["internal", "Internal"], ["private", "Private"], ["workspace", "Workspace"], ["client_visible", "Client Visible"]]),
@@ -450,7 +495,8 @@ function decorateNotesDeclarativeSurface(surface) {
   decorateNotesFilter(surface, "tags", "noteFilterTags");
   decorateNotesFilter(surface, "updatedSince", "noteFilterUpdated");
 
-  const indexPanel = surface.querySelector(".view-collapsible-index");
+  const indexPanel = surface.querySelector('[data-view-sidebar-panel="notes-list"]')
+    || surface.querySelector(".view-collapsible-index");
   indexPanel?.classList.add("notes-index-panel");
   const summary = indexPanel?.querySelector("summary");
   if (summary) {
@@ -459,17 +505,14 @@ function decorateNotesDeclarativeSurface(surface) {
   }
   const indexBody = indexPanel?.querySelector(".view-collapsible-index-body");
   indexBody?.replaceChildren(createNotesListChrome());
-  // Pagination sits in a framework footer slot at the bottom of the Notes List panel (below the
-  // scrollable body), so it hides natively when the panel is collapsed.
-  if (indexPanel) {
-    indexPanel.appendChild(view.createElement("div", {
-      className: "view-collapsible-index-footer notes-list-panel-footer",
-      children: [createNotesListSortControl(), createNotesPagination()],
-    }));
+  const indexFooter = indexPanel?.querySelector(".view-collapsible-index-footer");
+  if (indexFooter) {
+    indexFooter.classList.add("notes-list-panel-footer");
   }
-  indexPanel?.before(createNotesLibraryPanel());
 
-  const detail = surface.querySelector(".view-stacked-detail");
+  const detail = surface.querySelector(".view-slideout-sidebar-main")
+    || surface.querySelector(".view-sidebar-detail-primary")
+    || surface.querySelector(".view-stacked-detail");
   if (detail) {
     detail.classList.add("notes-detail-panel");
     detail.dataset.noteDetail = "";
@@ -485,16 +528,6 @@ function decorateNotesFilter(surface, fieldName, datasetName) {
   }
 }
 
-function createNotesLibraryPanel() {
-  const panel = view.createCollapsibleIndexPanel({
-    title: "Library",
-    className: "notes-library-panel view-collapsible-index--unscrolled",
-    children: [createNotesLibraryChrome()],
-  });
-  panel.open = true;
-  return panel;
-}
-
 function createNotesLibraryChrome() {
   const wrap = view.createElement("div", { className: "notes-library-chrome" });
 
@@ -504,9 +537,8 @@ function createNotesLibraryChrome() {
   });
   collections.dataset.notesCollectionsPanel = "";
 
-  // One tight row: Library dropdown (bucket selector, incl. Archive), Collection dropdown, the selected
-  // collection's actions menu, and the New Collection icon button. The legacy bucket-tab buttons are
-  // retired — the Library dropdown is the sole bucket selector.
+  // Library remains the bucket selector. Collection actions sit beside the Collection dropdown and
+  // open a modal so the drawer does not grow a dropdown menu inside its scroll region.
   const libraryLabel = view.createElement("label", { text: "Library" });
   const librarySelect = view.createElement("select");
   librarySelect.dataset.noteCollectionLibraryFilter = "";
@@ -524,16 +556,14 @@ function createNotesLibraryChrome() {
   const collectionActions = view.createElement("span");
   collectionActions.dataset.noteCollectionActions = "";
 
-  const collectionCreate = notesIconButton({
-    icon: "library-add",
-    label: "New collection",
-    title: "New collection",
+  const collectionControlRow = view.createElement("div", {
+    className: "notes-collection-control-row",
+    children: [collectionLabel, collectionActions],
   });
-  collectionCreate.dataset.noteCollectionCreate = "";
 
   const pickerRow = view.createElement("div", {
     className: "notes-collection-picker-row",
-    children: [libraryLabel, collectionLabel, collectionActions, collectionCreate],
+    children: [libraryLabel, collectionControlRow],
   });
   collections.appendChild(pickerRow);
   wrap.appendChild(collections);
@@ -896,6 +926,22 @@ function createCollectionDialogShell() {
   return dialog;
 }
 
+function createCollectionActionsDialogShell() {
+  const body = view.createElement("div", { className: "notes-collection-actions-modal-body" });
+  body.dataset.noteCollectionActionsDialogBody = "";
+  const close = view.createActionButton({ label: "Close", role: "secondary" });
+  close.dataset.noteCollectionActionsDialogClose = "";
+  const dialog = view.createModal({
+    title: "Collection actions",
+    className: "notes-collection-actions-dialog",
+    body: [body],
+    actions: [close],
+  });
+  dialog.dataset.noteCollectionActionsDialog = "";
+  dialog.viewParts.title.dataset.noteCollectionActionsDialogTitle = "";
+  return dialog;
+}
+
 async function initialize() {
   setStatus("Loading notes...");
 
@@ -907,6 +953,9 @@ async function initialize() {
     populateCollectionFilter();
     renderNotes();
     await openNoteFromUrl();
+    if (!state.selectedNote && !new URLSearchParams(window.location.search).get("note")) {
+      renderBlankDetailPrompt();
+    }
     setStatus("");
   } catch (error) {
     renderEmptyList(error.message || "Notes could not be loaded.");
@@ -972,7 +1021,7 @@ async function selectBucket(bucket) {
     renderCollections();
     populateCollectionFilter();
     renderNotes();
-    renderDetailPrompt("Select a note.");
+    renderBlankDetailPrompt();
     setStatus("");
   } catch (error) {
     renderEmptyList(error.message || "Notes could not be loaded.");
@@ -1005,13 +1054,7 @@ function renderCollections() {
     return;
   }
 
-  if (state.activeBucket === "archive") {
-    collectionPanel.hidden = false;
-    collectionCreateButton.hidden = true;
-  } else {
-    collectionPanel.hidden = false;
-    collectionCreateButton.hidden = false;
-  }
+  collectionPanel.hidden = false;
 
   if (collectionLibraryFilter) {
     collectionLibraryFilter.value = ["active_work", "ongoing_area", "reference", "archive"].includes(state.activeBucket)
@@ -1023,30 +1066,77 @@ function renderCollections() {
 }
 
 function collectionActions(collection) {
-  if (!collection || state.activeBucket === "archive") {
-    const disabled = document.createElement("button");
+  const trigger = notesIconButton({
+    icon: "more",
+    label: "Collection actions",
+    title: "Collection actions",
+  });
+  trigger.classList.add("notes-collection-actions-trigger");
+  trigger.setAttribute("aria-haspopup", "dialog");
+  trigger.addEventListener("click", () => openCollectionActionsDialog(collection || null, trigger));
+  return view.createElement("span", { className: "notes-collection-actions", children: [trigger] });
+}
 
-    disabled.type = "button";
-    disabled.className = "notes-collection-actions-disabled";
-    disabled.textContent = "...";
-    disabled.disabled = true;
-    disabled.title = "Select a collection to manage it.";
-    return disabled;
+function openCollectionActionsDialog(collection = null, trigger = null) {
+  if (!collectionActionsDialog || !collectionActionsDialogBody) {
+    return;
   }
 
-  const child = actionButton("+", () => openCollectionDialog("create", { parent: collection }));
-  const edit = actionButton("Edit", () => openCollectionDialog("edit", { collection }));
-  const archive = actionButton("Archive", () => archiveCollection(collection));
-  const remove = actionButton("Delete Empty", () => deleteEmptyCollection(collection));
+  const canManageCollection = Boolean(collection?.note_library_collection_id) && state.activeBucket !== "archive";
+  const parentOptions = canManageCollection ? { parent: collection } : {};
+  const disabledTitle = collection?.note_library_collection_id
+    ? "Archived collections cannot be changed here."
+    : "Select a collection to use this action.";
 
-  child.title = "Create child collection";
-  edit.title = "Rename or move collection";
-  archive.title = "Archive collection";
-  remove.title = "Delete empty collection";
+  if (collectionActionsDialogTitle) {
+    collectionActionsDialogTitle.textContent = collection?.title
+      ? `Collection actions: ${collection.title}`
+      : "Collection actions";
+  }
 
-  const summary = view.createElement("summary", { text: "...", attrs: { title: "Collection actions" } });
-  const menu = view.createElement("span", { className: "notes-collection-actions-menu", children: [child, edit, archive, remove] });
-  return view.createElement("details", { className: "notes-collection-actions", children: [summary, menu] });
+  const create = collectionDialogAction("New collection", () => {
+    afterCollectionActionsDialogClosed(() => openCollectionDialog("create", parentOptions));
+  }, { role: "primary" });
+  const edit = collectionDialogAction("Edit", () => {
+    afterCollectionActionsDialogClosed(() => openCollectionDialog("edit", { collection }));
+  }, { disabled: !canManageCollection, title: canManageCollection ? "Rename or move collection" : disabledTitle });
+  const archive = collectionDialogAction("Archive", () => {
+    afterCollectionActionsDialogClosed(() => archiveCollection(collection));
+  }, { disabled: !canManageCollection, title: canManageCollection ? "Archive collection" : disabledTitle });
+  const remove = collectionDialogAction("Delete Empty", () => {
+    afterCollectionActionsDialogClosed(() => deleteEmptyCollection(collection));
+  }, { disabled: !canManageCollection, role: "destructive", title: canManageCollection ? "Delete empty collection" : disabledTitle });
+
+  collectionActionsDialogBody.replaceChildren(create, edit, archive, remove);
+  view.showModal(collectionActionsDialog, { trigger });
+  create.focus();
+}
+
+function closeCollectionActionsDialog() {
+  view.closeModal(collectionActionsDialog);
+}
+
+function afterCollectionActionsDialogClosed(callback) {
+  if (typeof callback !== "function") {
+    return;
+  }
+  if (!collectionActionsDialog?.open) {
+    callback();
+    return;
+  }
+
+  collectionActionsDialog.addEventListener("close", () => callback(), { once: true });
+  closeCollectionActionsDialog();
+}
+
+function collectionDialogAction(label, onClick, options = {}) {
+  return view.createActionButton({
+    label,
+    role: options.role || "secondary",
+    disabled: options.disabled,
+    title: options.title || label,
+    onClick,
+  });
 }
 
 function selectCollection(collectionId) {
@@ -1167,7 +1257,7 @@ function noteListItem(note) {
   const title = document.createElement("strong");
   const meta = document.createElement("span");
   const footer = document.createElement("span");
-  const chipStrip = tagChips(note.tags || [], { limit: 2, showOverflow: true });
+  const chipStrip = tagChips(note.tags || [], { limit: 1, showOverflow: true });
 
   button.type = "button";
   button.className = "notes-list-item";
@@ -1211,7 +1301,7 @@ async function selectNote(noteId) {
     state.selectedNote = result.note;
     renderDetail(result.note);
     renderNotes();
-    collapseNotesNavigationPanels();
+    closeNotesSlideOutDrawer();
     updateUrl(noteId);
     setStatus("");
   } catch (error) {
@@ -1221,9 +1311,11 @@ async function selectNote(noteId) {
   }
 }
 
-function collapseNotesNavigationPanels() {
-  document.querySelector(".notes-library-panel")?.removeAttribute("open");
-  document.querySelector(".notes-index-panel")?.removeAttribute("open");
+function closeNotesSlideOutDrawer() {
+  const trigger = document.querySelector("[data-view-slideout-sidebar-trigger]");
+  if (trigger?.getAttribute("aria-expanded") === "true") {
+    trigger.click();
+  }
 }
 
 function renderDetail(note) {
@@ -1267,8 +1359,31 @@ function renderDetailPrompt(message, options = {}) {
   const prompt = document.createElement("p");
 
   prompt.className = options.locked ? "notes-empty-state notes-locked-state" : "notes-empty-state";
-  prompt.textContent = message;
+  if (options.sidebarHint) {
+    prompt.classList.add("notes-empty-state--sidebar-hint");
+    prompt.append("Open the ", inlineFilterIcon(), " sidebar and select a note to view here.");
+  } else {
+    prompt.textContent = message;
+  }
   detailPanel.replaceChildren(prompt);
+}
+
+function renderBlankDetailPrompt() {
+  renderDetailPrompt("", { sidebarHint: true });
+}
+
+function inlineFilterIcon() {
+  const icon = document.createElement("span");
+  icon.className = "notes-empty-state-icon";
+  icon.setAttribute("aria-hidden", "true");
+
+  try {
+    icon.appendChild(window.LongtailForge?.icons?.createIcon("filter", { size: 16 }) || document.createTextNode(""));
+  } catch {
+    icon.textContent = "";
+  }
+
+  return icon;
 }
 
 async function openEditor(note = null) {
@@ -2205,7 +2320,7 @@ function openCollectionDialog(mode, options = {}) {
   populateCollectionParentOptions(collection, parent);
   collectionFormStatus.textContent = "";
   collectionSaveButton.disabled = false;
-  view.showModal(collectionDialog);
+  view.showModal(collectionDialog, { parent: null });
   collectionTitleInput.focus();
 }
 
@@ -3110,15 +3225,6 @@ function collectionDescendantIds(collection) {
   }
 
   return descendants;
-}
-
-function actionButton(label, handler) {
-  const button = document.createElement("button");
-
-  button.type = "button";
-  button.textContent = label;
-  button.addEventListener("click", handler);
-  return button;
 }
 
 function detailMetaItems(note = {}) {

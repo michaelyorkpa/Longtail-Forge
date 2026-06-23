@@ -53,14 +53,14 @@ async function assertProtectedView(session) {
   // filters, index, detail) AND the editor + collection modals are framework-rendered; notes.js
   // mounts the notes-specific chrome and builds the dialog shells from the descriptor modals block.
   assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/);
-  assert.match(html, /js\/shared\/view-renderer\.js\?v=8/);
-  assert.match(html, /js\/shared\/icons\.js\?v=3/);
-  assert.match(html, /js\/shared\/view-builder\.js\?v=10/);
-  assert.match(html, /js\/notes\.js\?v=59/);
+  assert.match(html, /js\/shared\/view-renderer\.js\?v=11/);
+  assert.match(html, /js\/shared\/icons\.js\?v=4/);
+  assert.match(html, /js\/shared\/view-builder\.js\?v=11/);
+  assert.match(html, /js\/notes\.js\?v=64/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=4/);
-  assert.match(html, /css\/longtail-forge\.css\?v=45/);
+  assert.match(html, /css\/longtail-forge\.css\?v=49/);
   // No static read chrome or dialog markup remains in the host page.
   assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
   assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);
@@ -68,7 +68,9 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(html, /Client ID|Project ID|Task ID|User ID/);
 
   const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
-  assert.match(notesJs, /notes-collection-actions-menu/);
+  const notesModuleSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/module.js"), "utf8");
+  assert.match(notesJs, /createCollectionActionsDialogShell/);
+  assert.match(notesJs, /notes-collection-actions-modal-body/);
   assert.match(notesJs, /safeNoteErrorMessage/);
   assert.match(notesJs, /notes-locked-state/);
   assert.match(notesJs, /notes-status-badge/);
@@ -111,21 +113,33 @@ async function assertProtectedView(session) {
   );
   assert.match(notesJs, /view\.renderSurface/);
   assert.match(notesJs, /notesViewSurfaceDescriptor/);
+  assert.match(notesModuleSource, /layout:\s*"slide-out-sidebar"/);
+  assert.doesNotMatch(notesModuleSource, /layout:\s*"sidebar-detail"/);
+  assert.match(notesJs, /layout:\s*"slide-out-sidebar"/);
   assert.match(notesJs, /decorateNotesDeclarativeSurface/);
-  assert.match(notesJs, /createNotesLibraryPanel/);
+  assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.library"[\s\S]*container\.replaceChildren\(createNotesLibraryChrome\(\)\)/);
   assert.match(notesJs, /createNotesLibraryChrome/);
   assert.match(notesJs, /createNotesListChrome/);
   assert.match(notesJs, /createNotesPagination/);
-  assert.match(notesJs, /indexPanel\?\.before\(createNotesLibraryPanel\(\)\)/);
+  assert.match(notesJs, /surface\.querySelector\('\[data-view-sidebar-panel="notes-list"\]'\)/);
+  assert.match(notesJs, /surface\.querySelector\("\.view-slideout-sidebar-main"\)/);
   assert.match(notesJs, /summaryTitle\.textContent = "Notes List"/);
-  assert.match(notesJs, /className: "view-collapsible-index-footer notes-list-panel-footer"/);
+  assert.match(notesJs, /indexFooter\.classList\.add\("notes-list-panel-footer"\)/);
   assert.match(notesJs, /dataSource: null/);
   assert.doesNotMatch(notesJs, /notes-library-tabs|dataset\.notesBucket/);
   assert.match(notesJs, /notes-collection-picker-row/);
   assert.match(notesJs, /\["archive", "Archive"\]/);
-  assert.match(notesJs, /icon:\s*"library-add"/);
-  assert.match(notesJs, /collapseNotesNavigationPanels/);
-  assert.match(notesJs, /tagChips\(note\.tags \|\| \[\], \{ limit: 2, showOverflow: true \}\)/);
+  assert.match(notesJs, /icon:\s*"more"/);
+  assert.match(notesJs, /collectionDialogAction\("New collection"[\s\S]*role: "primary"/);
+  assert.match(notesJs, /disabled: !canManageCollection/);
+  assert.match(notesJs, /afterCollectionActionsDialogClosed\(\(\) => openCollectionDialog\("create", parentOptions\)\)/);
+  assert.match(notesJs, /afterCollectionActionsDialogClosed\(\(\) => openCollectionDialog\("edit", \{ collection \}\)\)/);
+  assert.match(notesJs, /view\.showModal\(collectionDialog, \{ parent: null \}\)/);
+  assert.doesNotMatch(notesJs, /dataset\.noteCollectionCreate|notes-collection-actions-menu/);
+  assert.match(notesModuleSource, /id:\s*"notes-filters"[\s\S]*open:\s*false[\s\S]*id:\s*"notes-library"[\s\S]*open:\s*true/, "Notes drawer should start with Filters collapsed and Library open");
+  assert.match(notesJs, /closeNotesSlideOutDrawer/);
+  assert.match(notesJs, /trigger\?\.getAttribute\("aria-expanded"\) === "true"[\s\S]*trigger\.click\(\)/, "Selecting a note should close the slide-out drawer through the framework trigger");
+  assert.match(notesJs, /tagChips\(note\.tags \|\| \[\], \{ limit: 1, showOverflow: true \}\)/);
   assert.match(notesJs, /overflow\.textContent = "\.\.\."/);
   assert.doesNotMatch(notesJs, /data-notes-list-title|notes-list-excerpt/);
   assert.doesNotMatch(notesJs, /text:\s*"Collections"/);
@@ -135,7 +149,7 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /createCollectionDialogShell/);
   assert.match(
     notesJs,
-    /document\.body\.append\(createNoteDialogShell\(\), createNoteTagsDialogShell\(\), createNoteFilesDialogShell\(\), createCollectionDialogShell\(\)\)/,
+    /document\.body\.append\([\s\S]*createNoteDialogShell\(\),[\s\S]*createNoteTagsDialogShell\(\),[\s\S]*createNoteFilesDialogShell\(\),[\s\S]*createCollectionDialogShell\(\),[\s\S]*createCollectionActionsDialogShell\(\),[\s\S]*\)/,
   );
   assert.match(notesJs, /view\.renderDescriptorModalForm/);
   assert.match(notesJs, /notesEditorModalDescriptor/);
@@ -156,7 +170,6 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(notesJs, /LINK_TARGET_TYPE_ORDER = \[[^\]]*"workspace"/, "Workspace should remain backend-compatible but hidden from the normal Add/Edit picker target menu");
 
   // 0.33.5.18.5.1 declarative workflow action strip.
-  const notesModuleSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/module.js"), "utf8");
   assert.match(notesModuleSource, /actionStrip:\s*\{[\s\S]*?behavior:\s*"notes\.workflow\.edit"[\s\S]*?behavior:\s*"notes\.workflow\.archive"[\s\S]*?behavior:\s*"notes\.workflow\.restore"/, "Notes descriptor should declare the workflow action strip behaviors");
   assert.match(notesModuleSource, /actionStrip:\s*\{[\s\S]*?requiredPermissions:\s*\[NOTE_PERMISSIONS\.UPDATE\]/, "Edit action should require the note update permission");
   assert.match(notesJs, /NOTE_WORKFLOW_HANDLERS/, "Notes should dispatch workflow actions through a registered behavior map");
@@ -263,7 +276,7 @@ async function assertProtectedView(session) {
   // 0.33.5.18.6.4.4 Notes List footer sorting.
   assert.match(notesJs, /const DEFAULT_NOTE_SORT = "updated_desc"/, "Notes List default sort should be updated newest first");
   assert.match(notesJs, /const NOTES_LIST_SORT_OPTIONS = \[[\s\S]*\["title_asc", "Alphabetical \(A-Z\)"\][\s\S]*\["title_desc", "Alphabetical \(Z-A\)"\][\s\S]*\["created_desc", "Date Created \(Newest First\)"\][\s\S]*\["created_asc", "Date Created \(Oldest First\)"\][\s\S]*\["updated_desc", "Date Updated \(Newest First\)", true\][\s\S]*\["updated_asc", "Date Updated \(Oldest First\)"\][\s\S]*\["library_collection_updated_desc", "Library \/ Collection, then Date Updated"\][\s\S]*\["note_kind_updated_desc", "Note Kind, then Date Updated"\][\s\S]*\["primary_context_updated_desc", "Primary Context, then Date Updated"\]/, "Notes List sort options should match the required labels and default");
-  assert.match(notesJs, /className: "view-collapsible-index-footer notes-list-panel-footer"[\s\S]*children: \[createNotesListSortControl\(\), createNotesPagination\(\)\]/, "Notes List sort should live in the footer before pagination");
+  assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.notes-list-footer"[\s\S]*container\.replaceChildren\(createNotesListSortControl\(\), createNotesPagination\(\)\)/, "Notes List sort should live in the footer before pagination");
   assert.match(notesJs, /function createNotesListSortControl\(\)[\s\S]*className: "notes-list-sort"[\s\S]*select\.dataset\.noteSort = ""[\s\S]*select\.value = DEFAULT_NOTE_SORT/, "Notes List footer should render the sort dropdown");
   assert.match(notesJs, /sortSelect\?\.addEventListener\("change", \(\) => \{\s*state\.page = 1;\s*renderNotes\(\);\s*\}\)/, "Changing Notes List sort should reset to page 1 and rerender");
   assert.doesNotMatch(notesJs, /notesDescriptorSelect\("sort"/, "Sort should no longer be a Filters field in the browser fallback descriptor");
@@ -286,6 +299,7 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /function primaryContextSortKey\(note = \{\}\)[\s\S]*context\.client\?\.label[\s\S]*context\.project\?\.label[\s\S]*\|\| "zz"/, "Primary Context sort should prefer readable linked-context labels with an empty-context fallback");
   assert.match(notesJs, /function renderNotes\(\)[\s\S]*const notes = sortedNotes\(filteredNotes\(\)\)/, "Sorting should apply only after Library\/Collection\/filter\/search scoping");
   assert.match(notesCss, /\.notes-list-panel-footer\s*\{[\s\S]*justify-content:\s*space-between;/, "Notes List footer should keep sort left and pagination right");
+  assert.match(notesCss, /\.notes-list-panel-footer \.view-sidebar-panel-footer-region\s*\{[\s\S]*justify-content:\s*space-between;/, "Notes List footer mount region should keep sort left and pagination right");
   assert.match(notesCss, /\.notes-list-sort select\s*\{[\s\S]*min-width:\s*220px;/, "Notes List sort dropdown should have a stable footer width");
 
   // 0.33.5.18.6.6.4 Notes adoption of provider-owned Linked Context labels.

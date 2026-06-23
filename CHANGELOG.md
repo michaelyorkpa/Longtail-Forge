@@ -1,3 +1,59 @@
+## Version 0.33.5.18.6.11 - 2026-06-22 19:11 -04:00
+
+- Closed out the Notes slide-out sidebar pass with a dedicated closeout regression tying together package metadata, roadmap/archive state, framework docs, Notes docs, Decisions, and focused renderer/Notes/Markdown/Linked Context guardrails.
+- Documented `slide-out-sidebar` as the preferred action/workflow surface anatomy for future side-navigation conversions, while keeping `split-list-detail` retired and `sidebar-detail` out of the future-default path.
+- Refreshed current-version regression pins, updated package metadata, archived 0.33.5.18.6.10.7, and marked 0.33.5.18.6.11 complete in the roadmap.
+- Verification: `npm run check` passed 151/151 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.11` after restarting the local 8001 server.
+- Corrective follow-up - 2026-06-23 01:50 -04:00: Added a centered blank Notes detail prompt with the filter icon and the message `Open the sidebar and select a note to view here.` while preserving locked/error detail prompts. Verification rerun: `npm run check` passed 151/151 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.11`.
+
+## Version 0.33.5.18.6.10.7 - 2026-06-22 17:29 -04:00
+
+- Reworked Notes drawer behavior so the drawer starts closed, selecting a note closes the drawer through the framework trigger, and filtering, Library changes, sorting, and pagination keep the drawer open.
+- Moved the slide-out funnel trigger to a footer-aware lower-left position and top-anchored wide/detail work surfaces so Notes detail screens no longer sit vertically centered on load.
+- Polished Notes drawer navigation: Filters start collapsed, Library starts open, Library and Collection controls stack on separate lines, and compact Notes List rows show one visible tag chip plus overflow to prevent metadata overlap.
+- Corrective follow-up - 2026-06-22 17:56 -04:00: Restored the footer to the bottom of short pages, returned the funnel trigger to the screen-left gutter while still lifting above visible footer height, and moved Library collection actions into a modal with an always-available New collection action plus disabled manage actions until a collection is selected.
+- Corrective follow-up - 2026-06-22 18:07 -04:00: Fixed the Collection actions modal handoff so New collection and Edit wait for the actions modal to close before opening the collection editor as a top-level modal instead of flashing closed as an action-modal child.
+- Updated focused Notes and renderer regressions, refreshed Notes host cache keys, updated the Notes developer guide, archived 0.33.5.18.6.10.6, and marked 0.33.5.18.6.10.7 complete in the roadmap.
+- Verification: After the corrective follow-up, `npm run check` passed 150/150 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.10.7`; the protected Notes host file references `longtail-forge.css?v=49` and `notes.js?v=64`.
+
+## Version 0.33.5.18.6.10.6 - 2026-06-22 17:05 -04:00
+
+- Moved the Notes `notes.workspace` descriptor from the persistent `sidebar-detail` layout to the framework-owned `slide-out-sidebar` layout.
+- Kept Filters, Library, Notes List, Notes List sort, and Notes List pagination in the ordered drawer panel stack while keeping Create Note in the Notes header/action area.
+- Retargeted Notes detail decoration to the central `.view-slideout-sidebar-main` primary panel so blank and selected-note detail states remain in the main content box without a desktop split column.
+- Updated focused Notes and descriptor bootstrap regressions for the slide-out sidebar adoption, refreshed the Notes host cache key, updated the Notes developer guide, archived 0.33.5.18.6.10.5, and marked 0.33.5.18.6.10.6 complete in the roadmap.
+- Verification: `npm run check` passed 150/150 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.10.6` after restarting the local 8001 server.
+
+## Version 0.33.5.18.6.10.5 - 2026-06-22 16:14 -04:00
+
+- Added the framework-owned `slide-out-sidebar` descriptor layout shell with a left-edge funnel trigger, off-canvas drawer, backdrop, Escape/backdrop/trigger close behavior, focus return, and body scroll locking.
+- Reused the existing ordered `sidebarPanels[]` contract inside the drawer so Filters, Library/navigation panels, index/list panels, and footer mounts can move without a new module-specific panel model.
+- Added renderer and manifest regressions for `slide-out-sidebar`, the funnel trigger, drawer ARIA/open-close state, focus behavior, panel ordering, non-squeezing central detail content, and off-canvas CSS.
+- Bumped shared renderer/icon/CSS cache keys for Notes and Lists, refreshed current-version regression pins, updated the ignored decisions record, and marked 0.33.5.18.6.10.5 complete in the roadmap.
+- Verification: `npm run check` passed 150/150 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.10.5` after restarting the local 8001 server.
+
+## Version 0.33.5.18.6.10.3 - 2026-06-22 15:52 -04:00
+
+- Converted the Notes `notes.workspace` descriptor from `stacked` to `sidebar-detail` and declared ordered Notes sidebar panels for Filters, Library, and Notes List.
+- Moved Library and Notes List footer content onto Notes-owned sidebar behavior mounts while keeping the framework responsible for the sidebar shell, panel placement, primary/detail region, and responsive fallback.
+- Preserved existing Notes filter, Library/collection, archive, selection, blank-detail, selected-detail, Linked Context, Primary Context, Notes List sorting, and pagination behavior. Filters and Library now start open; Notes List auto-collapse/default-state work remains deferred to 0.33.5.18.6.10.4.
+- Updated Notes sidebar-detail regressions, Notes cache keys, the Notes module guide, roadmap/archive bookkeeping, version metadata, and the ignored decisions record.
+- Verification: `npm run check` passed 150/150 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.10.3` after restarting the local 8001 server.
+
+## Version 0.33.5.18.6.10.2 - 2026-06-22 15:34 -04:00
+
+- Added the reusable `sidebarPanels[]` descriptor contract for `sidebar-detail`, with generic `filters`, `navigation`, and `index` panel types that render in declared order.
+- Added framework-owned sidebar panel anatomy for stable headings/summaries, optional non-collapsible panels, initial open/closed state, scroll-safe bodies, and footer slots for controls such as sort or pagination while keeping panel content and behavior module-owned.
+- Extended manifest validation plus view-builder/view-renderer regressions for sidebar panel descriptors, panel order, native collapsible summaries, and footer-after-body placement. Updated the view-building contract note, archived the completed 0.33.5.18.6.10.1 roadmap slice, bumped shared builder/renderer cache keys, and refreshed current-version regression pins.
+- Verification: `npm run check` passed 150/150 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.10.2` after restarting the local 8001 server.
+
+## Version 0.33.5.18.6.10.1 - 2026-06-22 14:58 -04:00
+
+- Added the framework-owned `sidebar-detail` descriptor layout primitive: page header/actions stay full-width above a desktop left-sidebar plus primary-detail workspace body.
+- Added sidebar/detail CSS with a 300px minimum sidebar, 340-380px preferred width, scroll-safe sidebar overflow, primary detail fill behavior, and a narrow-screen one-column fallback without reactivating `split-list-detail`.
+- Extended manifest validation and renderer shell regression coverage for `sidebar-detail`, refreshed current-version regression pins, bumped Notes/Lists renderer cache keys, updated the ignored decisions record, and marked 0.33.5.18.6.10.1 complete in the roadmap.
+- Verification: `npm run check` passed 150/150 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.6.10.1` after restarting the local 8001 server.
+
 ## Version 0.33.5.18.6.9.2 - 2026-06-22 13:58 -04:00
 
 - Completed the shared Markdown editor preview-layout branch by making Preview-on narrow screens stack Body and Preview vertically while preserving the desktop two-column layout.

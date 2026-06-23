@@ -32,6 +32,7 @@
       records: [],
       selectedRecord: null,
       selectedRecordId: "",
+      slideOutSidebarOpen: false,
       surface: null,
       view,
     };
@@ -123,11 +124,11 @@
     const children = [
       renderPageHeader(descriptor.pageHeader, view, state),
       renderActions(descriptor.actions, view, "Surface actions", state),
-      renderFilters(descriptor.filters, view, state),
       renderDataStatus(state, view),
     ].filter(Boolean);
 
     if (descriptor.layout === "stacked") {
+      children.splice(2, 0, renderFilters(descriptor.filters, view, state));
       const container = view.createElement("div", { className: "view-stacked" });
       container.appendChild(
         renderIndexPanel(descriptor.indexPanel, view, state) || renderPlaceholder("Index", descriptor.indexPanel?.emptyState, view),
@@ -138,10 +139,28 @@
         children: renderDetailShell(descriptor.detail, view, state),
       }));
       children.push(container);
+    } else if (descriptor.layout === "sidebar-detail") {
+      const container = view.createElement("div", { className: "view-sidebar-detail" });
+      const sidebar = view.createElement("aside", {
+        className: "view-sidebar-detail-sidebar",
+        attrs: { "aria-label": descriptor.sidebarLabel || "View controls" },
+      });
+      sidebar.append(...renderSidebarPanels(descriptor, view, state));
+      container.appendChild(sidebar);
+      container.appendChild(view.createElement("section", {
+        className: ["view-sidebar-detail-primary", "surface-main-panel"],
+        attrs: { "aria-label": descriptor.detail?.header?.title || "Detail" },
+        children: renderDetailShell(descriptor.detail, view, state),
+      }));
+      children.push(container);
+    } else if (descriptor.layout === "slide-out-sidebar") {
+      children.push(renderSlideOutSidebarLayout(descriptor, view, state));
     } else if (descriptor.layout === "table-page") {
+      children.splice(2, 0, renderFilters(descriptor.filters, view, state));
       children.push(renderTableShell(descriptor.table, view, state));
       children.push(...renderDetailShell(descriptor.detail, view, state));
     } else {
+      children.splice(2, 0, renderFilters(descriptor.filters, view, state));
       children.push(renderIndexPanel(descriptor.indexPanel, view, state));
       children.push(renderTableShell(descriptor.table, view, state));
       children.push(...renderDetailShell(descriptor.detail, view, state));
@@ -150,6 +169,175 @@
     children.push(...renderRegions(descriptor.regions, view, state, state.selectedRecord));
     children.push(...renderModalShells(descriptor.modals, view));
     return children.filter(Boolean);
+  }
+
+  function renderSlideOutSidebarLayout(descriptor, view, state) {
+    const drawerId = `${descriptor.id || "view"}-slideout-sidebar`;
+    const container = view.createElement("div", { className: "view-slideout-sidebar" });
+    const trigger = createSlideOutSidebarButton(view, {
+      className: "view-slideout-sidebar-toggle",
+      icon: "filter",
+      label: "Open filters and navigation",
+    });
+    const backdrop = view.createElement("div", {
+      className: "view-slideout-sidebar-backdrop",
+      attrs: {
+        "aria-hidden": "true",
+        "data-view-slideout-sidebar-backdrop": "",
+      },
+      hidden: true,
+    });
+    const drawer = view.createElement("aside", {
+      id: drawerId,
+      className: ["view-slideout-sidebar-drawer", "surface-drawer"],
+      attrs: {
+        "aria-hidden": "true",
+        "aria-label": descriptor.sidebarLabel || "View controls",
+        tabindex: "-1",
+      },
+    });
+    const closeButton = createSlideOutSidebarButton(view, {
+      className: "view-slideout-sidebar-close",
+      icon: "close",
+      label: "Close filters and navigation",
+    });
+    const headingId = `${drawerId}-title`;
+    drawer.setAttribute("aria-labelledby", headingId);
+    drawer.appendChild(view.createElement("header", {
+      className: "view-slideout-sidebar-header",
+      children: [
+        view.createElement("h2", {
+          id: headingId,
+          className: "view-slideout-sidebar-title",
+          text: descriptor.sidebarLabel || "View controls",
+        }),
+        closeButton,
+      ],
+    }));
+    drawer.appendChild(view.createElement("div", {
+      className: "view-slideout-sidebar-body",
+      children: renderSidebarPanels(descriptor, view, state),
+    }));
+    const main = view.createElement("section", {
+      className: ["view-slideout-sidebar-main", "surface-main-panel"],
+      attrs: { "aria-label": descriptor.detail?.header?.title || "Detail" },
+      children: renderDetailShell(descriptor.detail, view, state),
+    });
+
+    trigger.setAttribute("aria-controls", drawerId);
+    closeButton.setAttribute("aria-controls", drawerId);
+
+    container.append(trigger, backdrop, drawer, main);
+    wireSlideOutSidebar(state, { backdrop, closeButton, drawer, trigger });
+    syncSlideOutSidebarState(state, { backdrop, closeButton, drawer, trigger }, { focus: false });
+
+    return container;
+  }
+
+  function createSlideOutSidebarButton(view, options = {}) {
+    let button = null;
+    if (root.icons?.createIconButton) {
+      try {
+        button = root.icons.createIconButton({
+          icon: options.icon,
+          label: options.label,
+          title: options.label,
+        });
+      } catch {
+        button = null;
+      }
+    }
+    if (!button) {
+      button = view.createElement("button", {
+        text: options.label || "Toggle sidebar",
+        attrs: { type: "button" },
+      });
+    }
+    button.classList.add(options.className);
+    return button;
+  }
+
+  function wireSlideOutSidebar(state, elements) {
+    const close = () => setSlideOutSidebarOpen(state, elements, false);
+    const toggle = () => setSlideOutSidebarOpen(state, elements, !state.slideOutSidebarOpen);
+    const closeOnEscape = (event) => {
+      if (event?.key === "Escape" && state.slideOutSidebarOpen) {
+        event.preventDefault?.();
+        close();
+      }
+    };
+
+    elements.trigger.addEventListener("click", toggle);
+    elements.closeButton.addEventListener("click", close);
+    elements.backdrop.addEventListener("click", close);
+    elements.drawer.addEventListener("keydown", closeOnEscape);
+    elements.trigger.addEventListener("keydown", closeOnEscape);
+    elements.backdrop.addEventListener("keydown", closeOnEscape);
+    elements.drawer.addEventListener("transitionend", () => {
+      if (state.slideOutSidebarOpen) {
+        focusSlideOutSidebar(elements.drawer);
+      }
+    });
+
+    elements.trigger.setAttribute("data-view-slideout-sidebar-trigger", "");
+    elements.closeButton.setAttribute("data-view-slideout-sidebar-close", "");
+  }
+
+  function setSlideOutSidebarOpen(state, elements, open) {
+    state.slideOutSidebarOpen = Boolean(open);
+    syncSlideOutSidebarState(state, elements, { focus: true });
+  }
+
+  function syncSlideOutSidebarState(state, elements, options = {}) {
+    const open = Boolean(state.slideOutSidebarOpen);
+    elements.trigger.setAttribute("aria-expanded", String(open));
+    elements.trigger.setAttribute("aria-pressed", String(open));
+    elements.closeButton.setAttribute("aria-expanded", String(open));
+    elements.drawer.setAttribute("aria-hidden", String(!open));
+    setElementHidden(elements.backdrop, !open);
+    setElementClass(elements.drawer, "is-open", open);
+    setElementClass(elements.backdrop, "is-open", open);
+    setElementClass(global.document?.body, "view-slideout-sidebar-lock", open);
+
+    if (options.focus !== false) {
+      if (open) {
+        focusSlideOutSidebar(elements.drawer);
+      } else {
+        elements.trigger.focus?.();
+      }
+    }
+  }
+
+  function setElementHidden(element, hidden) {
+    if (!element) {
+      return;
+    }
+    element.hidden = Boolean(hidden);
+    if (hidden) {
+      element.setAttribute?.("hidden", "");
+    } else {
+      element.removeAttribute?.("hidden");
+    }
+  }
+
+  function setElementClass(element, className, active) {
+    if (!element?.classList) {
+      return;
+    }
+    if (typeof element.classList.toggle === "function") {
+      element.classList.toggle(className, Boolean(active));
+      return;
+    }
+    if (active) {
+      element.classList.add(className);
+    } else if (typeof element.classList.remove === "function") {
+      element.classList.remove(className);
+    }
+  }
+
+  function focusSlideOutSidebar(drawer) {
+    const focusTarget = drawer?.querySelector?.("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])") || drawer;
+    focusTarget?.focus?.();
   }
 
   function renderPageHeader(pageHeader, view, state) {
@@ -164,19 +352,26 @@
     });
   }
 
-  function renderFilters(filters, view, state = null) {
+  function renderFilters(filters, view, state = null, options = {}) {
     if (!Array.isArray(filters) || filters.length === 0) {
       return null;
     }
 
     const panel = view.createFilterPanel({
-      title: "Filters",
-      open: false,
+      title: options.title || "Filters",
+      open: options.open === true,
       fields: filters.map((filter) => renderFieldShell(filter, view, { disabled: true })),
     });
     const fieldGrid = panel.querySelector(".view-filter-panel-fields");
+    const form = renderFilterForm(filters, view, state, fieldGrid?.className || "view-filter-panel-fields");
+    replaceNode(fieldGrid, form);
+
+    return panel;
+  }
+
+  function renderFilterForm(filters, view, state = null, className = "view-filter-panel-fields") {
     const form = view.createElement("form", {
-      className: fieldGrid?.className || "view-filter-panel-fields",
+      className,
       attrs: {
         "data-view-filter-form": "",
       },
@@ -184,7 +379,6 @@
     form.append(...filters.map((filter) => renderFieldShell(filter, view, {
       value: state ? state.filterValues?.[filter.field || filter.id] : undefined,
     })));
-    replaceNode(fieldGrid, form);
 
     if (state) {
       const applyFilters = (event) => {
@@ -200,7 +394,7 @@
       form.addEventListener("submit", applyFilters);
     }
 
-    return panel;
+    return form;
   }
 
   function collectFilterValues(form, filters, state) {
@@ -255,28 +449,187 @@
     return null;
   }
 
-  function renderIndexPanel(indexPanel, view, state) {
+  function renderIndexPanel(indexPanel, view, state, options = {}) {
     if (!indexPanel) {
       return null;
     }
-    const records = state.records || [];
 
     return view.createCollapsibleIndexPanel({
-      title: indexPanel.title || indexPanel.label || "Index",
-      body: records.length > 0
-        ? [view.createIndexList({
-          ariaLabel: indexPanel.title || indexPanel.label || "Index",
-          items: records.map((record) => buildIndexItem(indexPanel, record, state)),
-        })]
-        : [
-          renderPlaceholder(
-            indexPanel.emptyState?.title || "No records",
-            indexPanel.emptyState,
-            view,
-          ),
-        ],
-      open: state.indexCollapsed ? false : indexPanel.open,
+      title: options.title || indexPanel.title || indexPanel.label || "Index",
+      body: renderIndexPanelBody(indexPanel, view, state, options),
+      open: state.indexCollapsed ? false : (options.open ?? indexPanel.open),
+      className: options.className,
+      footer: options.footer,
+      footerClassName: options.footerClassName,
     });
+  }
+
+  function renderIndexPanelBody(indexPanel, view, state, options = {}) {
+    const records = state.records || [];
+    const title = options.title || indexPanel?.title || indexPanel?.label || "Index";
+    return records.length > 0
+      ? [view.createIndexList({
+        ariaLabel: title,
+        items: records.map((record) => buildIndexItem(indexPanel, record, state)),
+      })]
+      : [
+        renderPlaceholder(
+          indexPanel?.emptyState?.title || "No records",
+          indexPanel?.emptyState,
+          view,
+        ),
+      ];
+  }
+
+  function renderSidebarPanels(descriptor, view, state) {
+    if (!Array.isArray(descriptor.sidebarPanels) || descriptor.sidebarPanels.length === 0) {
+      return [
+        renderFilters(descriptor.filters, view, state),
+        descriptor.indexPanel
+          ? renderIndexPanel(descriptor.indexPanel, view, state) || renderPlaceholder("Index", descriptor.indexPanel?.emptyState, view)
+          : null,
+      ].filter(Boolean);
+    }
+
+    return descriptor.sidebarPanels
+      .map((panel) => renderSidebarPanel(panel, descriptor, view, state))
+      .filter(Boolean);
+  }
+
+  function renderSidebarPanel(panel, descriptor, view, state) {
+    const panelType = panel.type || "navigation";
+    if (!panel.id) {
+      return null;
+    }
+
+    if (panelType === "filters") {
+      return renderSidebarPanelShell(panel, view, {
+        body: [renderFilterForm(descriptor.filters || [], view, state)],
+        fallbackTitle: "Filters",
+        footer: renderSidebarPanelFooter(panel, view, state),
+      });
+    }
+
+    if (panelType === "index") {
+      if (!descriptor.indexPanel) {
+        return null;
+      }
+      return renderSidebarPanelShell(panel, view, {
+        body: renderIndexPanelBody(descriptor.indexPanel, view, state, {
+          title: panel.title || panel.label,
+        }),
+        fallbackTitle: descriptor.indexPanel.title || descriptor.indexPanel.label || "Index",
+        footer: renderSidebarPanelFooter(panel, view, state),
+      });
+    }
+
+    if (panelType === "navigation") {
+      const body = [];
+      if (panel.behavior) {
+        const mountTarget = view.createElement("div", {
+          className: "view-sidebar-panel-region",
+          attrs: { "data-view-sidebar-panel-region": panel.id },
+        });
+        state.pendingMounts.push({ region: panel, container: mountTarget, record: state.selectedRecord });
+        body.push(mountTarget);
+      } else {
+        body.push(renderPlaceholder(panel.title || panel.label || "Panel", panel.emptyState, view));
+      }
+      return renderSidebarPanelShell(panel, view, {
+        body,
+        fallbackTitle: "Navigation",
+        footer: renderSidebarPanelFooter(panel, view, state),
+      });
+    }
+
+    return null;
+  }
+
+  function renderSidebarPanelShell(panel, view, options = {}) {
+    const title = panel.title || panel.label || options.fallbackTitle || "Panel";
+    const body = (Array.isArray(options.body) ? options.body : [options.body]).filter(Boolean);
+    const footer = normalizeSidebarPanelFooter(options.footer);
+    const className = [
+      "view-sidebar-panel",
+      panel.type ? `view-sidebar-panel--${panel.type}` : "",
+      panel.className,
+    ];
+    const dataset = {
+      viewSidebarPanel: panel.id,
+      viewSidebarPanelType: panel.type || "navigation",
+    };
+
+    if (panel.collapsible === false) {
+      const section = view.createElement("section", {
+        className: [...className, "surface-main-panel"],
+        dataset,
+        attrs: panel.ariaLabel ? { "aria-label": panel.ariaLabel } : {},
+      });
+      section.appendChild(view.createElement("h3", {
+        className: "view-sidebar-panel-title",
+        text: title,
+      }));
+      section.appendChild(view.createElement("div", {
+        className: "view-sidebar-panel-body",
+        children: body,
+      }));
+      if (footer) {
+        section.appendChild(view.createElement("div", {
+          className: ["view-sidebar-panel-footer", "view-collapsible-index-footer"],
+          children: footer,
+        }));
+      }
+      return section;
+    }
+
+    const details = view.createCollapsibleIndexPanel({
+      title,
+      body,
+      open: panel.open !== false,
+      className: className.filter(Boolean).join(" "),
+      ariaLabel: panel.ariaLabel,
+      footer,
+      footerClassName: "view-sidebar-panel-footer",
+    });
+    details.dataset.viewSidebarPanel = panel.id;
+    details.dataset.viewSidebarPanelType = panel.type || "navigation";
+    return details;
+  }
+
+  function renderSidebarPanelFooter(panel, view, state) {
+    if (!panel.footer) {
+      return [];
+    }
+
+    const footer = panel.footer;
+    const children = [];
+    const label = footer.title || footer.label || footer.description;
+    if (label) {
+      children.push(view.createElement("span", {
+        className: "view-sidebar-panel-footer-text",
+        text: label,
+      }));
+    }
+    if (footer.behavior) {
+      const footerRegion = {
+        ...footer,
+        id: footer.id || `${panel.id}-footer`,
+      };
+      const mountTarget = view.createElement("div", {
+        className: "view-sidebar-panel-footer-region",
+        attrs: { "data-view-sidebar-panel-footer": footerRegion.id },
+      });
+      state.pendingMounts.push({ region: footerRegion, container: mountTarget, record: state.selectedRecord });
+      children.push(mountTarget);
+    }
+    return children;
+  }
+
+  function normalizeSidebarPanelFooter(footer) {
+    if (!footer || (Array.isArray(footer) && footer.length === 0)) {
+      return null;
+    }
+    return footer;
   }
 
   function buildIndexItem(indexPanel, record, state) {

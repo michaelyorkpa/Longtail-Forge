@@ -11,214 +11,146 @@ conversion work.
 
 ## Version 0.33.5.18.6 - Final Notes UI, Context Picker, and Markdown Editor Standardization
 
-Completed 0.33.5.18.6.1 through 0.33.5.18.6.9 are archived. The live Notes follow-up now starts
-with the sidebar-detail layout work below.
+Completed 0.33.5.18.6.1 through 0.33.5.18.6.10.7 are archived. 0.33.5.18.6.11 is the most
+recently completed Notes slide-out sidebar closeout slice. The next live work starts with Tasks 0.33.5.18.7.
 
-### Version 0.33.5.18.6.10 - Notes Sidebar Detail Layout
+### Version 0.33.5.18.6.10 - Notes Slide-Out Action Sidebar Layout
 
 Decision:
 
-Notes should adopt a desktop left-sidebar layout before Tasks, Files, and Clients/Projects are converted further. The current `stacked` layout was useful to stabilize the declarative surface, but Notes now needs a more standard workflow screen anatomy: controls/navigation on the left, selected record detail on the right.
+Notes should adopt a slide-out left sidebar before Tasks, Tickets, Lists, Files, and Clients/Projects
+are converted further. This is the default direction for individual action/workflow surfaces: a
+left-edge drawer carries controls, filters, libraries, and navigation panels, while the center/primary
+area remains the selected-record work surface inside the main content box.
+
+This is not the retired center split that divided the main work area down the middle, and it is not
+the persistent left-column split produced by the first `sidebar-detail` implementation. The selected
+record detail must keep the primary visual weight and available width. The sidebar is a temporary
+slide-out control/navigation panel that opens from the left edge and closes back out of the way.
 
 This must be implemented as a framework-owned responsive layout option, not a Notes-only CSS hack.
 
-The new layout should not resurrect the retired `split-list-detail` behavior. It should be a new layout primitive with a wider, scroll-safe sidebar intended for controls and navigation panels.
+The new layout should not resurrect the retired `split-list-detail` behavior and should supersede
+the split-column `sidebar-detail` direction for Notes and future action/workflow surfaces.
 
-Proposed layout name:
+Target layout name:
 
-- `sidebar-detail`
-- or `control-sidebar-detail`
-- or `navigation-detail`
-
-Recommended: `sidebar-detail`.
+- `slide-out-sidebar`
 
 Framework owns:
 
-- Desktop sidebar/detail grid anatomy.
-- Sidebar width, responsive breakpoints, overflow handling, panel stacking, and detail fill behavior.
-- Collapsible panel shell behavior.
-- Default responsive fallback to stacked layout on narrower screens.
+- The slide-out/off-canvas sidebar shell.
+- The left-edge toggle affordance near the action surface, using a funnel/filter icon.
+- Open/close state, Escape handling, backdrop/outside-click handling, focus return, and ARIA state.
+- Motion, reduced-motion fallback, z-index, viewport anchoring, and scroll containment.
+- Ordered/collapsible sidebar panel shell behavior inside the drawer.
+- Responsive behavior for desktop and narrow screens without turning the main content into a split grid.
 - Surface classes and theme-safe spacing/borders.
-- ARIA/focus behavior for collapsible panels.
+- The reusable action/workflow surface pattern that future module conversions can adopt.
 
 Notes owns:
 
 - Filter fields and filter query behavior.
 - Library bucket and collection behavior.
+- Which Notes panels appear in the slide-out sidebar.
 - Notes List data, selection state, pagination, and sort behavior.
 - Selected note read/detail behavior.
-- Rules for when Notes List auto-collapses after selection.
+- Rules for when the slide-out panel opens, closes, and preserves in-session browsing state after
+  Notes-specific actions.
+
+This implementation is split so each sub-version is a single pass. Documentation, broad regression reconciliation, version metadata, and changelog closeout for this layout pass belong in 0.33.5.18.6.11.
 
 ---
 
-#### Version 0.33.5.18.6.10.1 - Framework `sidebar-detail` layout primitive
+### Version 0.33.5.18.6.11 - Notes slide-out sidebar regression pass and docs closeout
 
-- [ ] Add a framework-owned `sidebar-detail` layout option to the view renderer.
-- [ ] Layout anatomy:
-  - [ ] Page header remains full-width above the workspace body.
-  - [ ] Workspace body becomes a two-column grid on desktop/wide screens.
-  - [ ] Left column is the sidebar/control column.
-  - [ ] Right column is the selected-record detail region.
-- [ ] Suggested desktop sizing:
-  - [ ] Sidebar min width around `300px`.
-  - [ ] Sidebar preferred width around `340px-380px`.
-  - [ ] Detail column uses `minmax(0, 1fr)`.
-- [ ] Sidebar should support stacked collapsible panels.
-- [ ] Sidebar should have safe vertical scrolling without trapping the whole page awkwardly.
-- [ ] Detail region should keep full available width and not inherit the old narrow split-layout behavior.
-- [ ] Responsive behavior:
-  - [ ] At medium/narrow breakpoints, fall back to the existing stacked layout pattern.
-  - [ ] Do not create horizontal overflow.
-  - [ ] Do not force a sidebar on mobile.
-- [ ] Do not revive `split-list-detail` as an active descriptor layout.
-- [ ] Keep deprecated split compatibility shims only as compatibility shims.
-- [ ] Add renderer/contract validation for the new layout value.
-- [ ] Add CSS using framework surface tokens only.
-- [ ] Add regression coverage proving:
-  - [ ] `sidebar-detail` renders sidebar and detail regions.
-  - [ ] Sidebar panels stack vertically.
-  - [ ] Detail region receives selected-record content.
-  - [ ] Narrow screens fall back safely.
-  - [ ] No old `split-list-detail` layout path is reactivated.
-
-Acceptance criteria:
-
-- Framework supports a reusable desktop sidebar/detail layout.
-- The layout is responsive and safe on narrower screens.
-- The implementation is reusable by Tasks, Files, Clients/Projects, and future modules.
-- No Notes-specific layout rules live in framework code.
-
----
-
-#### Version 0.33.5.18.6.10.2 - Notes adoption of `sidebar-detail`
-
-- [ ] Change the Notes workspace descriptor from `layout: "stacked"` to the new framework layout.
-- [ ] Place these panels in the left sidebar:
-  - [ ] Filters
-  - [ ] Library
-  - [ ] Notes List
-- [ ] Place selected note detail in the right detail region.
-- [ ] Preserve existing Notes-owned behavior:
-  - [ ] Library bucket filtering.
-  - [ ] Collection filtering.
-  - [ ] Archive handling.
-  - [ ] Notes List pagination.
-  - [ ] Notes List sort dropdown.
-  - [ ] Current filters/search/tag/owner/context behavior.
-  - [ ] Blank detail state when no note is selected.
-  - [ ] Selected note detail rendering.
-  - [ ] Linked Context and Primary Context display.
-- [ ] Filters panel default:
-  - [ ] Open by default in the desktop sidebar layout.
-- [ ] Library panel default:
-  - [ ] Open by default in the desktop sidebar layout.
-- [ ] Notes List panel default:
-  - [ ] Open when no note is selected.
-  - [ ] Auto-collapse after a note is selected.
-  - [ ] If the user manually reopens Notes List, keep it open until navigation/session reset.
-  - [ ] If no note is selected again, open Notes List.
-- [ ] Preserve existing panel state where reasonable, but do not let stale stored state fight the new default behavior.
-- [ ] Ensure Notes List pagination/sort controls remain visible when Notes List is open and hidden when collapsed.
-- [ ] Ensure no Notes List content overlaps the selected note detail.
-- [ ] Ensure selected note detail starts near the top of the detail region and uses the available horizontal space.
-- [ ] Add regression coverage:
-  - [ ] Notes descriptor uses `sidebar-detail`.
-  - [ ] Filters/Library/Notes List mount in sidebar.
-  - [ ] Detail renders in main region.
-  - [ ] Filters default open.
-  - [ ] Library default open.
-  - [ ] Notes List default open with no selected note.
-  - [ ] Notes List auto-collapses after note selection.
-  - [ ] Manual Notes List reopen is respected.
-  - [ ] Narrow screens fall back to stacked behavior.
-  - [ ] Existing Notes filters, Library, selection, pagination, and sort behavior still work.
-
-Acceptance criteria:
-
-- Notes has a standard left-sidebar/detail layout on desktop.
-- Filters and Library start open.
-- Notes List starts open only when helpful, then gets out of the way after selection.
-- Users can manually reopen Notes List.
-- Mobile/narrow layouts remain usable.
-- Notes becomes the template for later workflow surfaces.
-
----
-
-#### Version 0.33.5.18.6.10.3 - Sidebar layout documentation and guardrails
-
-- [ ] Update `docs/view-building-contract.md`:
-  - [ ] Document `sidebar-detail`.
-  - [ ] Explain when to use it.
-  - [ ] Explain how it differs from retired `split-list-detail`.
-  - [ ] Clarify sidebar/detail ownership boundaries.
-- [ ] Update Notes developer docs:
-  - [ ] Notes uses desktop sidebar/detail layout.
-  - [ ] Filters, Library, and Notes List are navigation/control panels.
-  - [ ] Selected note detail remains the main work region.
-- [ ] Add guardrails:
-  - [ ] Converted surfaces should not hand-build their own desktop sidebar/detail grids when the framework layout fits.
-  - [ ] Modules may own sidebar panel content and state behavior.
-  - [ ] Framework owns layout anatomy and responsive behavior.
-- [ ] Update CHANGELOG.
-- [ ] Bump app/package metadata.
-- [ ] Run:
-  - [ ] `npm run check`
-  - [ ] Notes surface regressions.
-  - [ ] View-renderer/layout regressions.
+- [x] Close out the 0.33.5.18.6.10 slide-out sidebar pass with focused framework and Notes coverage.
+- [x] Add or update framework layout regressions covering:
+  - [x] `slide-out-sidebar` descriptor validation or equivalent contract validation.
+  - [x] Funnel trigger rendering and accessible state.
+  - [x] Left-side off-canvas closed/open rendering.
+  - [x] Ordered sidebar panel rendering inside the drawer.
+  - [x] Collapsible sidebar panel accessible behavior inside the drawer.
+  - [x] Panel footer/body overflow behavior.
+  - [x] Escape, outside click/backdrop, and trigger close behavior.
+  - [x] Focus movement into the drawer and focus return to the trigger.
+  - [x] Reduced-motion behavior.
+  - [x] Main content/detail remains central and is not squeezed by the drawer.
+  - [x] Main content/detail is top-anchored rather than vertically centered in the viewport.
+  - [x] Funnel trigger is anchored near the screen-left lower viewport/footer edge with the correct gutter and no footer overlap.
+  - [x] `split-list-detail` remains retired and compatibility-only.
+  - [x] The split-column `sidebar-detail` implementation is not presented as the future action/workflow default.
+- [x] Add or update Notes slide-out sidebar regressions covering:
+  - [x] Filters, Library, and Notes List render inside the drawer.
+  - [x] Selected note detail renders in the primary/main content box and keeps full available width.
+  - [x] Selected and blank note detail states anchor to the top of the main content area.
+  - [x] Drawer default closed on page load/navigation.
+  - [x] Filters start collapsed and Library starts open when the drawer is opened.
+  - [x] Funnel trigger opens/closes the drawer.
+  - [x] Funnel trigger stays near the screen-left lower viewport/footer edge and avoids footer overlap.
+  - [x] Filtering, Library changes, sorting, and pagination keep the drawer open.
+  - [x] Selecting a note closes the drawer and updates the central detail view.
+  - [x] Escape and outside click close the drawer without changing selection.
+  - [x] Notes List pagination/sort controls remain usable inside the drawer.
+  - [x] Library and Collection controls render on separate lines without drawer horizontal scroll.
+  - [x] Collection actions render beside the Collection dropdown, open in a modal, keep New collection reachable without selection, disable edit/archive/delete until a manageable collection is selected, and hand off to the create/edit collection editor without closing it as a child modal.
+  - [x] Notes List rows show at most one visible tag chip and do not overlap metadata.
+  - [x] Existing Notes filtering, Library, archive, selection, and detail flows still work.
+- [x] Add or update Notes UI workflow regressions covering:
+  - [x] Create Note modal.
+  - [x] Edit Note modal.
+  - [x] View Note detail.
+  - [x] Primary Context controls.
+  - [x] Linked Context add/remove.
+  - [x] Task-created note context display.
+  - [x] Tags stacked modal.
+  - [x] Files stacked modal.
+  - [x] Unsaved-note files warning.
+  - [x] Markdown toolbar buttons.
+  - [x] Markdown line-break view/preview parity.
+  - [x] Markdown preview two-column layout.
+  - [x] Personal/Family workspace context hiding.
+  - [x] Notes List sorting controls and default order.
+  - [x] No UUID user-facing UI.
+- [x] Add or update framework shared-component regressions:
+  - [x] Linked Context picker contract.
+  - [x] Provider-owned labels/sorting.
+  - [x] Modal stack behavior.
+  - [x] Markdown editor toolbar.
+  - [x] Markdown preview layout.
+- [x] Update docs:
+  - [x] `docs/notes-module.md`
+  - [x] `docs/view-building-contract.md`
+  - [x] `docs/module-contract.md`
+  - [x] `docs/ui-surface-contract.md` if new drawer/sidebar classes or focus/overflow rules are added.
+  - [x] Any UI guardrails/contracts doc added in this release.
+- [x] Document that the slide-out sidebar pattern is the preferred action/workflow surface anatomy for future Tasks, Tickets, Notes, Lists, Files, and Clients/Projects conversions when the surface needs filters/navigation beside a primary record view.
+- [x] Document that the slide-out sidebar pattern is not the retired center `split-list-detail` behavior and not the rejected persistent split-column `sidebar-detail` anatomy.
+- [x] Document that slide-out action surfaces should keep their primary/detail panel top-anchored and keep the funnel trigger near the screen-left lower viewport/footer edge without overlapping the footer.
+- [x] Confirm `DECISIONS.md` matches the implemented framework/module ownership boundary.
+- [x] Update Help/user-facing text only if behavior exposed to users changes.
+- [x] Update CHANGELOG.
+- [x] Bump package/app metadata to the implemented version.
+- [x] Run:
+  - [x] `npm run check`
+  - [x] Relevant Notes UI regression scripts.
+  - [x] Relevant Markdown/editor regression scripts.
+  - [x] Relevant permissions tests if context/visibility/readability changed.
+- [x] Verify `/api/app-info` reports the expected version.
+- [x] Keep this section focused on Notes and shared framework contracts.
+  - [x] Do not perform Lists add/edit redesign in this section.
+  - [x] Do not convert Tasks, Files, or Clients/Projects in this section.
+  - [x] Do not rename database tables or route names.
+  - [x] Do not introduce a frontend framework.
 
 Acceptance criteria:
 
-- The layout is documented as a reusable framework pattern.
+- The slide-out sidebar is documented as a reusable framework pattern.
 - Notes is documented as the first adopter.
-- Future Tasks/Files/Clients/Projects cleanup can reuse the same pattern instead of inventing new page anatomy.
-
-### Version 0.33.5.18.6.11 - Notes UI regression pass and docs closeout
-
-- [ ] Add or update Notes UI workflow regressions covering:
-  - [ ] Create Note modal.
-  - [ ] Edit Note modal.
-  - [ ] View Note detail.
-  - [ ] Primary Context controls.
-  - [ ] Linked Context add/remove.
-  - [ ] Task-created note context display.
-  - [ ] Tags stacked modal.
-  - [ ] Files stacked modal.
-  - [ ] Unsaved-note files warning.
-  - [ ] Markdown toolbar buttons.
-  - [ ] Markdown line-break view/preview parity.
-  - [ ] Markdown preview two-column layout.
-  - [ ] Personal/Family workspace context hiding.
-  - [ ] Notes List sorting controls and default order.
-  - [ ] No UUID user-facing UI.
-- [ ] Add or update framework shared-component regressions:
-  - [ ] Linked Context picker contract.
-  - [ ] Provider-owned labels/sorting.
-  - [ ] Modal stack behavior.
-  - [ ] Markdown editor toolbar.
-  - [ ] Markdown preview layout.
-- [ ] Update docs:
-  - [ ] `docs/notes-module.md`
-  - [ ] `docs/view-building-contract.md`
-  - [ ] `docs/module-contract.md`
-  - [ ] Any UI guardrails/contracts doc added in this release.
-- [ ] Update Help/user-facing text only if behavior exposed to users changes.
-- [ ] Update CHANGELOG.
-- [ ] Bump package/app metadata to the implemented version.
-- [ ] Run:
-  - [ ] `npm run check`
-  - [ ] Relevant Notes UI regression scripts.
-  - [ ] Relevant Markdown/editor regression scripts.
-  - [ ] Relevant permissions tests if context/visibility/readability changed.
-- [ ] Verify `/api/app-info` reports the expected version.
-- [ ] Keep this section focused on Notes and shared framework contracts.
-  - [ ] Do not perform Lists add/edit redesign in this section.
-  - [ ] Do not convert Tasks, Files, or Clients/Projects in this section.
-  - [ ] Do not rename database tables or route names.
-  - [ ] Do not introduce a frontend framework.
-
-Acceptance criteria:
-
+- Future action/workflow surfaces can reuse the same pattern instead of inventing new page anatomy.
 - Notes is a clean template for future add/edit/view module surfaces.
+- Notes keeps detail content top-anchored and the filter trigger footer-aware without footer overlap.
+- Notes drawer controls and list rows remain readable without cramped two-column controls, inline action-menu scroll, or overlapping tag chips.
 - Primary Context and Linked Context are visually and behaviorally distinct.
 - Notes add/edit/view UI is free of raw UUID display.
 - Shared picker/modal/Markdown contracts are documented.
