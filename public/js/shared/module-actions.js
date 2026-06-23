@@ -13,7 +13,7 @@
       requiredModules: ["tasks"],
       requiredPermissions: ["tasks.create"],
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-      open: (params, hostContext) => namespace.tasksDialog.openAdd(params, hostContext),
+      open: (params, hostContext) => namespace.tasksDialog.openTaskEditor({ ...params, mode: "add" }, hostContext),
     },
     {
       id: "tasks.edit",
@@ -25,7 +25,7 @@
       requiredModules: ["tasks"],
       requiredPermissions: ["tasks.view"],
       requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-      open: (params, hostContext) => namespace.tasksDialog.openEdit(params, hostContext),
+      open: (params, hostContext) => namespace.tasksDialog.openTaskEditor({ ...params, mode: "edit" }, hostContext),
     },
     {
       id: "time-entries.add",
@@ -230,6 +230,7 @@
           namespace.pageController.setStatus(options.statusElement, message, statusOptions);
         }
       },
+      trigger,
     };
   }
 

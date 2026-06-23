@@ -1,3 +1,49 @@
+## Version 0.33.5.18.9.6 - 2026-06-23 17:40 -04:00
+
+- Preserved the Task modal Task Timer section as a framework-owned section shell with Tasks-owned timer state, start/pause/finalize/reset handlers, sourced active-timer routes, permission gates, status-transition side effects, audit entries, last-worked updates, and search reindexing.
+- Preserved Task modal utilities inside framework-owned heading/footer placement: Tags stay on the Tags-owned picker, Files stay on the Files-owned attachment helper, linked Notes stay on the Notes-owned linked panel, Copy Link remains Tasks-owned URL/clipboard behavior, and notification follow/unfollow remains the heading bell backed by notification subscription helpers.
+- Added `tasks-timer-utility-escape-hatch-regression.mjs`, updated Tasks/view-surface docs and decisions, archived 0.33.5.18.9.5, marked 0.33.5.18.9.6 complete in the roadmap, and bumped package/module metadata to `0.33.5.18.9.6`.
+- Verification: `npm run check` passed 165/165 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.9.6 after restarting the local 8001 server.
+
+## Version 0.33.5.18.9.5 - 2026-06-23 17:17 -04:00
+
+- Preserved the Task modal Checklist section as a framework-owned section shell with Tasks-owned row rendering, add/edit/check/uncheck/reorder/delete controls, progress state, and API/service behavior.
+- Added `tasks-checklist-escape-hatch-regression.mjs` to prove checklist creation, edit/check/uncheck, reorder/delete, progress refresh, task-owned rows, service side effects, and duplicate checklist modal prevention stay intact alongside the existing `task-checklist-regression.mjs` lifecycle coverage.
+- Updated Tasks/view-surface docs and decisions, archived 0.33.5.18.9.4, marked 0.33.5.18.9.5 complete in the roadmap, and bumped package/module metadata to `0.33.5.18.9.5`.
+- Verification: `npm run check` passed 164/164 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.9.5 after restarting the local 8001 server.
+
+## Version 0.33.5.18.9.4 - 2026-06-23 16:47 -04:00
+
+- Moved the Task recurrence child editor onto a framework-built `createModalForm()` shell and routed both the Task editor and recurrence child editor through the shared modal stack helpers while preserving task-owned recurrence draft hydration, summary text, and save payload behavior.
+- Preserved inline reminder override behavior: task/effective policy details still hydrate the Reminders section, override fields still toggle locally, and saves still submit `reminderOverrideEnabled` plus `reminderPolicy` through the Tasks service.
+- Added `tasks-recurrence-reminder-escape-hatch-regression.mjs`, refreshed recurrence frequency and modal-shell regressions for the helper-built recurrence dialog, updated Tasks/view-surface docs and decisions, archived 0.33.5.18.9.3, marked 0.33.5.18.9.4 complete in the roadmap, bumped package/module metadata to `0.33.5.18.9.4`, and refreshed Tasks/Workbench cache keys to `longtail-forge.css?v=66` / `longtail-forge.css?v=17` and `task-dialog.js?v=16`.
+- Verification: `npm run check` passed 163/163 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.9.4 after restarting the local 8001 server.
+
+## Version 0.33.5.18.9.3 - 2026-06-23 10:45 -04:00
+
+- Reorganized the canonical Task editor into one `Task Details` framework-owned section shell for status, priority, parent task, scheduling, resume/next action, primary context, description, assignment, and status-gated blocked reason while preserving task-owned save payloads, validation, recurrence, checklist, timer, tags, files, notes, and notification behavior.
+- Updated Task Primary Context behavior so Business workspaces use nullable Client/Project controls, Project can derive Client, Personal/Family workspaces hide Client and save empty client context, and saved/defaulted context values hydrate with readable fallback labels instead of raw IDs.
+- Removed the narrower Task-only modal width override so the Task editor uses the shared wide modal sizing, bumped Tasks and Workbench CSS/dialog cache keys, added `tasks-modal-context-sections-regression.mjs`, refreshed modal/context regressions and docs, archived 0.33.5.18.9.2, marked 0.33.5.18.9.3 complete in the roadmap, and bumped package/module metadata to `0.33.5.18.9.3`.
+- Corrective follow-up 2026-06-23 11:41 -04:00: collapsed the temporary extra Task Details sub-boxes back into one `Task Details` section, ordered Parent Task, scheduling, resume/next action, Client/Project, Description, Assignees, and status-gated Blocked Reason inside that section, and refreshed Tasks/Workbench cache keys to `longtail-forge.css?v=62` / `longtail-forge.css?v=13` and `task-dialog.js?v=13`.
+- Corrective follow-up 2026-06-23 12:27 -04:00: moved shared modal disclosure carets inside `.surface-modal-section-heading`, hid browser-native summary markers, changed Task Timer from `fieldset`/`legend` to a normal modal group heading so the border stays intact, and refreshed Tasks/Workbench cache keys to `longtail-forge.css?v=63` / `longtail-forge.css?v=14` and `task-dialog.js?v=14`.
+- Corrective follow-up 2026-06-23 12:38 -04:00: replaced the Tasks/Notes module-specific modal title-row classes with shared `.surface-modal-heading`, moved Notes editor section summaries onto `.surface-modal-section-heading` / `.surface-modal-group`, refreshed Notes/Tasks/Workbench cache keys to `longtail-forge.css?v=50` / `longtail-forge.css?v=64` / `longtail-forge.css?v=15`, `notes.js?v=65`, and `task-dialog.js?v=15`, and added regression coverage forbidding `task-dialog-heading` / `notes-dialog-heading` from returning.
+- Corrective follow-up 2026-06-23 16:21 -04:00: moved converted modal group padding/gap onto shared `.surface-modal-group`, removed legacy task-only reminder/notes borders and summary styling from the Task modal, removed note-only heading spacing from Notes modal groups, refreshed Notes/Tasks/Workbench stylesheet cache keys to `longtail-forge.css?v=51` / `longtail-forge.css?v=65` / `longtail-forge.css?v=16`, and added regression coverage proving module-specific modal heading spacing does not override the shared heading contract.
+- Verification rerun: `npm run check` passed 162/162 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.9.3.
+
+## Version 0.33.5.18.9.2 - 2026-06-23 10:19 -04:00
+
+- Added `LongtailForge.tasksDialog.openTaskEditor()` as the canonical Task editor opener, with `openAdd()` and `openEdit()` preserved as compatibility aliases.
+- Routed Tasks page add/edit/duplicate flows, Workbench add/edit flows, and framework module actions through the canonical opener, including caller defaults, source context, focus return, and refresh hooks after save.
+- Added `tasks-canonical-editor-opener-regression.mjs`, refreshed module-action regressions, updated Tasks/view-surface/module docs and decisions, archived 0.33.5.18.9.1, marked 0.33.5.18.9.2 complete in the roadmap, and bumped package/module metadata to `0.33.5.18.9.2`.
+- Verification: `npm run check` passed with 161/161 regressions and ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.9.2.
+
+## Version 0.33.5.18.9.1 - 2026-06-23 06:16 -04:00
+
+- Converted the canonical Tasks Add/Edit dialog shell to render through `LongtailForge.view.renderDescriptorModalForm()` from a Tasks-owned `task.editor` descriptor, while preserving task-owned field fragments, save payloads, validation, recurrence, checklist, timer, tags, files, notes, and notification follow behavior.
+- Kept Workbench on the same shared task dialog by loading `view-builder.js?v=13` and `view-renderer.js?v=12` before `task-dialog.js?v=11`, and advanced the Tasks host to `task-dialog.js?v=11`.
+- Added `tasks-modal-shell-regression.mjs`, refreshed modal/footer regressions for the framework-built shell, updated Tasks/view-surface/module docs and decisions, archived 0.33.5.18.8.4, marked 0.33.5.18.9.1 complete in the roadmap, and bumped package/module metadata to `0.33.5.18.9.1`.
+- Verification: `npm run check` passed 160/160 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.9.1` after restarting the local 8001 server.
+
 ## Version 0.33.5.18.8.4 - 2026-06-23 05:46 -04:00
 
 - Added `LongtailForge.view.createListShell()` as a framework-owned list surface helper for shared wrapper, status mount, and toolbar/content slots without moving module-owned row rendering into the framework.

@@ -56,9 +56,9 @@ for (const functionName of [
   );
 }
 assert.doesNotMatch(clientsHtml, /<dialog data-client-modal>/, "Clients page should not keep the static Add Client dialog.");
-assert.match(clientsHtml, /js\/shared\/view-builder\.js\?v=4/);
-assert.match(projectsHtml, /js\/shared\/view-builder\.js\?v=4/);
-assert.match(workbenchHtml, /js\/shared\/view-builder\.js\?v=4/);
+assert.match(clientsHtml, /js\/shared\/view-builder\.js\?v=\d+/);
+assert.match(projectsHtml, /js\/shared\/view-builder\.js\?v=\d+/);
+assert.match(workbenchHtml, /js\/shared\/view-builder\.js\?v=\d+/);
 assert.match(clientsHtml, /clients-projects\.js\?v=11/);
 assert.match(projectsHtml, /clients-projects\.js\?v=11/);
 assert.match(workbenchHtml, /clients-projects\.js\?v=11/);

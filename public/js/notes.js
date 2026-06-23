@@ -678,8 +678,8 @@ function noteSelect(dataName, options) {
 }
 
 function createNoteContextPanel() {
-  const panel = view.createElement("details", { className: "notes-context-panel" });
-  panel.appendChild(view.createElement("summary", { text: "Linked Context" }));
+  const panel = view.createElement("details", { className: "notes-context-panel surface-modal-group" });
+  panel.appendChild(view.createElement("summary", { className: "surface-modal-section-heading", text: "Linked Context" }));
 
   const picker = view.createLinkedContextPicker({
     providers: linkTargetProviderOptions(),
@@ -715,7 +715,7 @@ function createPrimaryContextSection() {
   const section = view.createElement("section", {
     className: "notes-primary-context",
     children: [
-      view.createElement("h3", { text: "Primary Context" }),
+      view.createElement("h3", { className: "surface-modal-section-heading", text: "Primary Context" }),
       view.createElement("div", {
         className: "notes-form-grid",
         children: [clientField, projectField],
@@ -807,7 +807,8 @@ function createNoteDialogShell() {
 
   const close = view.createActionButton({ label: "Close", className: "notes-dialog-close" });
   close.dataset.noteDialogClose = "";
-  const heading = view.createElement("div", { className: "notes-dialog-heading", children: [dialog.viewParts.title, close] });
+  const heading = view.createElement("div", { className: "surface-modal-heading", children: [dialog.viewParts.title, close] });
+  heading.dataset.noteDialogHeading = "";
 
   const titleField = noteFieldLabel("Title", noteInput("noteTitle", { type: "text", required: true }));
   const selectGrid = view.createElement("div", {
@@ -823,8 +824,8 @@ function createNoteDialogShell() {
   const primaryContext = createPrimaryContextSection();
   // Group the note "Details" fields into a collapsible section (openEditor opens it for Add, closes for Edit).
   const detailsGroup = view.createElement("details", {
-    className: "notes-detail-group",
-    children: [view.createElement("summary", { text: "Note Details" }), selectGrid, primaryContext],
+    className: "notes-detail-group surface-modal-group",
+    children: [view.createElement("summary", { className: "surface-modal-section-heading", text: "Note Details" }), selectGrid, primaryContext],
   });
   detailsGroup.dataset.noteDetailsGroup = "";
   const secureWarning = view.createElement("p", {
@@ -908,7 +909,8 @@ function createCollectionDialogShell() {
 
   const close = view.createActionButton({ label: "Close", className: "notes-dialog-close" });
   close.dataset.noteCollectionDialogClose = "";
-  const heading = view.createElement("div", { className: "notes-dialog-heading", children: [dialog.viewParts.title, close] });
+  const heading = view.createElement("div", { className: "surface-modal-heading", children: [dialog.viewParts.title, close] });
+  heading.dataset.noteCollectionDialogHeading = "";
 
   const nameField = noteFieldLabel("Name", noteInput("noteCollectionTitle", { type: "text", required: true }));
   const grid = view.createElement("div", {

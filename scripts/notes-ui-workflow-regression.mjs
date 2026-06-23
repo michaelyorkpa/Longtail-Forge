@@ -56,11 +56,11 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=11/);
   assert.match(html, /js\/shared\/icons\.js\?v=4/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=11/);
-  assert.match(html, /js\/notes\.js\?v=64/);
+  assert.match(html, /js\/notes\.js\?v=65/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=4/);
-  assert.match(html, /css\/longtail-forge\.css\?v=49/);
+  assert.match(html, /css\/longtail-forge\.css\?v=51/);
   // No static read chrome or dialog markup remains in the host page.
   assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
   assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);
@@ -199,7 +199,11 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /view\.createElement\("details"/, "The collections menu and revisions panel should use the framework element builder for disclosures");
 
   // 0.33.5.18.5.5 add/edit modal refinement, updated by 0.33.5.18.6.7.3 stacked utility modals.
-  assert.match(notesJs, /className: "notes-detail-group"/, "The note Details fields should be wrapped in a collapsible group");
+  assert.match(notesJs, /className: "notes-detail-group surface-modal-group"/, "The note Details fields should be wrapped in a shared modal group");
+  assert.match(notesJs, /className: "surface-modal-heading"/, "The note dialog title row should use the shared modal heading class");
+  assert.match(notesJs, /className: "surface-modal-section-heading", text: "Note Details"/, "The note Details heading should use the shared modal section heading class");
+  assert.match(notesJs, /className: "surface-modal-section-heading", text: "Linked Context"/, "The Linked Context heading should use the shared modal section heading class");
+  assert.doesNotMatch(notesJs, /notes-dialog-heading/, "Notes should not keep a note-only modal heading row class");
   assert.match(notesJs, /detailsGroup\.open = !note/, "The Details group should default open in Add and closed in Edit");
   assert.match(notesJs, /utilityActions: \[tagsToggle, filesToggle\]/, "Tags and Files should render as footer utility actions");
   assert.match(notesJs, /dataset\.noteTagsToggle/, "Tags should be a footer toggle button");

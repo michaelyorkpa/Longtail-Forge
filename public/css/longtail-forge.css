@@ -101,7 +101,25 @@ body.view-slideout-sidebar-lock {
 }
 
 .surface-modal-group {
+    box-sizing: border-box;
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
     background: var(--color-surface-raised);
+}
+
+.surface-modal-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+}
+
+.surface-modal-heading > .view-modal-title {
+    margin: 0;
+    min-width: 0;
 }
 
 .surface-main-panel {
@@ -120,14 +138,41 @@ body.view-slideout-sidebar-lock {
 
 .surface-modal-section-heading {
     margin: 0;
-    color: var(--color-text-secondary);
+    color: var(--color-text);
     font-size: 14px;
-    font-weight: 800;
+    font-weight: 700;
     line-height: 1.35;
 }
 
 summary.surface-modal-section-heading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    list-style: none;
     cursor: pointer;
+}
+
+summary.surface-modal-section-heading::-webkit-details-marker {
+    display: none;
+}
+
+summary.surface-modal-section-heading::marker {
+    content: "";
+}
+
+summary.surface-modal-section-heading::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 0;
+    height: 0;
+    border-block: 4px solid transparent;
+    border-left: 5px solid currentColor;
+    transform: translateY(1px);
+}
+
+details[open] > summary.surface-modal-section-heading::before {
+    transform: rotate(90deg) translateX(1px);
 }
 
 .surface-modal-section-heading:focus-visible {
@@ -3751,42 +3796,12 @@ button.danger-button {
     cursor: pointer;
 }
 
-.task-notes-field {
-    padding: 10px 0;
-    border-top: 1px solid var(--color-border);
-    border-bottom: 1px solid var(--color-border);
-}
-
-.task-notes-field summary {
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.task-notes-field .notes-linked-panel {
-    margin-top: 10px;
-}
-
 .task-scope-cell,
 .task-assignee-cell {
     max-width: 220px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-}
-
-.task-reminder-field {
-    padding: 10px 0;
-    border-top: 1px solid var(--color-border);
-    border-bottom: 1px solid var(--color-border);
-}
-
-.task-reminder-field summary {
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.task-reminder-field p {
-    margin-top: 10px;
 }
 
 dialog .form-actions {
@@ -4313,19 +4328,16 @@ dialog .form-actions {
     margin: 4px 0 0;
 }
 
-.task-detail-dialog {
-    width: min(92vw, 760px);
-}
-
 .task-form {
     position: relative;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
-    padding: 20px;
+    padding: 20px 20px 0;
 }
 
-.task-dialog-heading,
+.task-form > .surface-modal-heading,
+.task-form > .view-modal-form-fields,
 .task-title-field,
 .task-metadata-ribbon,
 .task-blocked-reason-field,
@@ -4342,26 +4354,20 @@ dialog .form-actions {
     grid-column: 1 / -1;
 }
 
-.task-dialog-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.task-form > .view-modal-form-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
-    min-width: 0;
+    padding: 0;
 }
 
-.task-dialog-heading h2 {
-    margin: 0;
-    min-width: 0;
-}
-
-.task-dialog-heading [data-task-notification-toggle].is-following {
+.surface-modal-heading [data-task-notification-toggle].is-following {
     border-color: var(--color-danger-border);
     color: var(--color-danger);
 }
 
-.task-dialog-heading [data-task-notification-toggle].is-following:hover:not(:disabled),
-.task-dialog-heading [data-task-notification-toggle].is-following:focus-visible {
+.surface-modal-heading [data-task-notification-toggle].is-following:hover:not(:disabled),
+.surface-modal-heading [data-task-notification-toggle].is-following:focus-visible {
     background: var(--color-danger-bg);
     color: var(--color-danger);
 }
@@ -4401,14 +4407,11 @@ dialog .form-actions {
 
 .task-details-field,
 .task-checklist-field,
-.task-assignee-field,
 .task-recurrence-field,
 .task-timer-field,
 .task-reminder-field,
 .task-notes-field {
-    display: grid;
-    gap: 10px;
-    padding: 12px;
+    min-width: 0;
 }
 
 .task-details-field {
@@ -4416,23 +4419,20 @@ dialog .form-actions {
     min-width: 0;
 }
 
-.task-details-field summary,
-.task-checklist-field summary {
-    list-style-position: outside;
-}
-
 .task-details-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
-    margin-top: 10px;
 }
 
 .task-details-grid > label {
     min-width: 0;
 }
 
-.task-parent-field {
+.task-blocked-reason-field,
+.task-assignee-field,
+.task-parent-field,
+.task-description-field {
     grid-column: 1 / -1;
 }
 
@@ -4460,7 +4460,6 @@ dialog .form-actions {
 .task-reminder-field,
 .task-recurrence-field,
 .task-timer-field,
-.task-assignee-field,
 .task-footer-panel,
 .task-reminder-policy-editor {
     display: grid;
@@ -4551,17 +4550,8 @@ dialog .form-actions {
     width: min(92vw, 520px);
 }
 
-.task-recurrence-form {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-    padding: 24px;
-}
-
-.task-recurrence-form h2,
-.task-recurrence-form label:last-of-type,
-.task-recurrence-form .task-modal-actions {
-    grid-column: 1 / -1;
+.task-recurrence-fields {
+    gap: 12px;
 }
 
 .reminder-offset-grid {
@@ -5242,18 +5232,13 @@ summary.view-info-panel-title {
     background: var(--color-page-bg);
 }
 
-/* Modal width, padding, scrolling, and the pinned footer are framework-owned (.view-modal,
-   .view-modal-form, .surface-modal-footer). The editor opts into the framework "wide" size via
-   view.createModalForm({ size: "wide" }); the module only styles its own content below. */
-.notes-dialog-heading,
+/* Modal width, padding, scrolling, the heading row, and the pinned footer are framework-owned
+   (.view-modal, .view-modal-form, .surface-modal-heading, .surface-modal-footer). The editor opts
+   into the framework "wide" size via view.createModalForm({ size: "wide" }); the module only styles
+   its own content below. */
 .notes-form-grid {
     display: grid;
     gap: 12px;
-}
-
-.notes-dialog-heading {
-    grid-template-columns: 1fr auto;
-    align-items: center;
 }
 
 .notes-form-grid {
@@ -5274,7 +5259,6 @@ summary.view-info-panel-title {
 
 .notes-primary-context h3 {
     margin: 0;
-    font-size: 14px;
 }
 
 /* Collapsible "Note Details" group (Library/Collection/Kind/Visibility/Security), the collapsible
@@ -5283,21 +5267,7 @@ summary.view-info-panel-title {
 .notes-detail-group,
 .notes-context-panel,
 .notes-editor-panel {
-    border: 1px solid var(--color-border-subtle);
-    border-radius: 8px;
-    padding: 12px;
-}
-
-.notes-detail-group > summary,
-.notes-context-panel > summary {
-    cursor: pointer;
-    font-weight: 700;
-    color: var(--color-text);
-}
-
-.notes-detail-group[open] > summary,
-.notes-context-panel[open] > summary {
-    margin-bottom: 10px;
+    min-width: 0;
 }
 
 .notes-editor-form input,

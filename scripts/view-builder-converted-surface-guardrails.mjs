@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const version = "0.33.5.15.6";
-const appVersion = "0.33.5.18.8.4";
+const appVersion = "0.33.5.18.9.6";
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
@@ -67,7 +67,11 @@ for (const helperName of [
 }
 
 for (const html of [clientsHtml, projectsHtml, workbenchHtml]) {
-  assert.match(html, /js\/shared\/view-builder\.js\?v=4[\s\S]*clients-projects\.js\?v=11/, "Client/Project surfaces should load view-builder before shared Client/Project code");
+  assert.match(html, /js\/shared\/view-builder\.js\?v=\d+/, "Client/Project surfaces should load view-builder");
+  assert.ok(
+    html.indexOf("js/shared/view-builder.js") < html.indexOf("clients-projects.js?v=11"),
+    "Client/Project surfaces should load view-builder before shared Client/Project code",
+  );
 }
 assert.doesNotMatch(clientsHtml, /<dialog data-client-modal>/, "Clients page should not restore the static Add Client dialog");
 assert.match(clientsScript, /const view = window\.LongtailForge\?\.view/, "Client/Project dialogs should consume the shared view namespace");

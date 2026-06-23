@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.5.18.8.4";
+const appVersion = "0.33.5.18.9.6";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModuleSource = readText("src/modules/tasks/module.js");
@@ -20,7 +20,7 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
-assert.match(tasksModuleSource, /version:\s*"0\.33\.5\.18\.8\.4"/, "Tasks module should report the lifecycle bulk wiring version");
+assert.match(tasksModuleSource, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the current app version");
 
 const bulkChrome = functionBlock(tasksScript, "createTaskBulkToolbarChrome");
 const updateBulkControls = functionBlock(tasksScript, "updateBulkControls");
@@ -50,7 +50,7 @@ assert.match(applyBulkAction, /api\.postJson\("\/api\/tasks\/bulk", payload\)/, 
 assert.match(applyBulkAction, /resetBulkInputs\(\);[\s\S]*await reloadTaskList\(\)/, "Bulk lifecycle actions should reset controls and refresh canonical list data after apply");
 assert.doesNotMatch(applyBulkAction, /buildTasksViewShell|createTaskMainListChrome|renderSurface/, "Bulk lifecycle apply should not rebuild the framework page shell");
 assert.doesNotMatch(reloadTaskList, /buildTasksViewShell|createTaskMainListChrome|renderSurface/, "Bulk lifecycle refresh should reload list data without rebuilding the page shell");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=60[\s\S]*js\/shared\/view-builder\.js\?v=13[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=16/, "Tasks host should load the lifecycle bulk cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=66[\s\S]*js\/shared\/view-builder\.js\?v=13[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=16/, "Tasks host should load the lifecycle bulk cache keys");
 assert.match(styles, /\.task-bulk-grid \[data-task-bulk-apply\]\s*\{[\s\S]*grid-column:\s*4;[\s\S]*align-self:\s*end;/, "Desktop bulk apply action should remain aligned with the lifecycle column");
 assert.match(styles, /@media[\s\S]*\.task-bulk-grid \[data-task-bulk-apply\]\s*\{[\s\S]*grid-column:\s*auto;/, "Mobile bulk apply action should return to the one-column grid");
 assert.match(regressionSuite, /scripts\/tasks-bulk-lifecycle-toolbar-regression\.mjs/, "Regression suite should include the lifecycle bulk toolbar regression");
@@ -225,6 +225,10 @@ async function assertIntegrity() {
 
 function readText(pathName) {
   return readFileSync(new URL(`../${pathName}`, import.meta.url), "utf8");
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function functionBlock(source, functionName) {

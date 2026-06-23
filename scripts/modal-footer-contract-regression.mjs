@@ -32,50 +32,20 @@ assert.match(styles, /\.view-modal-form > \.surface-modal-footer\s*\{[\s\S]*posi
 assert.match(surfaceContract, /Adaptive Footer Labels/, "surface contract must document adaptive footer labels");
 assert.match(uiGuide, /adaptive visible text/, "UI guide must document adaptive visible text rules");
 
-for (const [label, text] of [
-  ["fallback Tasks dialog", taskDialogScript],
-]) {
-  assert.match(
-    text,
-    /class="form-actions task-modal-actions surface-modal-footer surface-modal-footer--dense" data-modal-footer/,
-    `${label} should use the shared dense modal footer shell`,
-  );
-  assert.match(
-    text,
-    /data-modal-footer-group="utility"[\s\S]*data-surface-action="tags"[\s\S]*data-surface-action="files"[\s\S]*data-surface-action="copy-link"[\s\S]*data-modal-footer-group="commit"[\s\S]*data-surface-action="cancel"[\s\S]*data-surface-action="save"/,
-    `${label} should order utility actions before secondary and primary commit actions`,
-  );
-  assert.match(
-    text,
-    /data-surface-action="tags" data-surface-action-role="utility" data-task-tags-toggle/,
-    `${label} should mark Tags as a utility footer action`,
-  );
-  assert.match(
-    text,
-    /data-surface-action="files" data-surface-action-role="utility" data-task-files-toggle/,
-    `${label} should mark Files as a utility footer action`,
-  );
-  assert.match(
-    text,
-    /data-surface-action="copy-link" data-surface-action-role="utility" data-copy-task-link hidden/,
-    `${label} should mark Copy Link as a hidden utility action until a saved task exists`,
-  );
-  assert.match(
-    text,
-    /type="button" data-surface-action="cancel" data-surface-action-role="secondary" data-cancel-task/,
-    `${label} should keep Cancel as a secondary non-submit action`,
-  );
-  assert.match(
-    text,
-    /type="submit" data-surface-action="save" data-surface-action-role="primary" data-save-task/,
-    `${label} should keep Save as the primary submit action`,
-  );
-  assert.match(
-    text,
-    /class="form-actions task-modal-actions surface-modal-footer" data-modal-footer[\s\S]*data-surface-action="cancel"[\s\S]*data-surface-action="save"/,
-    `${label} recurrence dialog should use the shared modal footer shell`,
-  );
-}
+assert.match(taskDialogScript, /view\.renderDescriptorModalForm\(descriptor, \{[\s\S]*utilityActions: taskEditorUtilityActions\(descriptor\)[\s\S]*actions: taskEditorCommitActions\(descriptor\)/, "Tasks editor should render through the framework modal footer helper");
+assert.match(taskDialogScript, /dialog\.viewParts\.footer\.classList\.add\("form-actions", "task-modal-actions", "surface-modal-footer--dense"\)/, "Tasks editor should apply the shared dense modal footer shell to the framework footer");
+assert.match(taskDialogScript, /dialog\.viewParts\.footer\.dataset\.modalFooter = ""/, "Tasks editor should keep the modal footer hook on the framework footer");
+assert.match(taskDialogScript, /function taskEditorUtilityActions\(descriptor\)[\s\S]*view\.createActionButton\(\{[\s\S]*action: action\.id[\s\S]*className: "surface-modal-footer-action"[\s\S]*role: action\.role[\s\S]*button\.dataset\.taskTagsToggle[\s\S]*button\.dataset\.taskFilesToggle[\s\S]*button\.dataset\.copyTaskLink[\s\S]*button\.hidden = true/, "Tasks utility footer actions should be framework action buttons with module-owned hooks");
+assert.match(taskDialogScript, /function taskEditorCommitActions\(descriptor\)[\s\S]*view\.createActionButton\(\{[\s\S]*action: action\.id[\s\S]*className: "surface-modal-footer-action"[\s\S]*type: action\.id === "save" \? "submit" : "button"[\s\S]*button\.dataset\.cancelTask[\s\S]*button\.dataset\.saveTask/, "Tasks commit footer actions should be framework action buttons with module-owned hooks");
+assert.ok(
+  taskDialogScript.indexOf("function taskEditorUtilityActions") < taskDialogScript.indexOf("function taskEditorCommitActions"),
+  "Tasks utility footer actions should remain declared before commit footer actions",
+);
+assert.match(
+  taskDialogScript,
+  /function createTaskRecurrenceDialog\(\)[\s\S]*view\.createModalForm\(\{[\s\S]*actions: taskRecurrenceActions\(descriptor\)[\s\S]*dialog\.viewParts\.footer\.classList\.add\("task-modal-actions"\)[\s\S]*dialog\.viewParts\.footer\.dataset\.modalFooter = ""/,
+  "Task recurrence dialog should use the shared modal footer shell through the framework child modal helper",
+);
 
 for (const expectedCall of [
   /icons\.decorateButton\(fields\.tagToggle, \{ icon: "tag", label: "Task tags", text: "", title: "Task tags", iconOnly: true \}\)/,
@@ -87,8 +57,8 @@ for (const expectedCall of [
   assert.match(taskDialogScript, expectedCall, "dense task footer icon-only controls should keep labels and titles");
 }
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=60/, "Tasks view must load the footer-contract stylesheet cache key");
-assert.match(tasksView, /js\/task-dialog\.js\?v=10/, "Tasks view must load the footer-contract task-dialog cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=66/, "Tasks view must load the footer-contract stylesheet cache key");
+assert.match(tasksView, /js\/task-dialog\.js\?v=16/, "Tasks view must load the footer-contract task-dialog cache key");
 
 console.log("Modal footer contract regression passed.");
 

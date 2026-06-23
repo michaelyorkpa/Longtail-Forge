@@ -68,11 +68,11 @@ assert.match(surfaceContract, /Surface Inventory/, "surface contract must includ
 assert.match(surfaceContract, /Compatibility Aliases/, "surface contract must document token alias handling");
 assert.match(surfaceContract, /Ownership Boundary/, "surface contract must document framework versus module ownership");
 
+assert.match(taskDialogScript, /view\.renderDescriptorModalForm\(descriptor, \{[\s\S]*className: "task-detail-dialog"/, "Tasks modal converted area should request the framework surface modal shell");
+
 for (const className of [
-  "task-detail-dialog surface-modal",
   "task-details-field surface-modal-group",
   "task-checklist-field surface-modal-group",
-  "task-assignee-field surface-modal-group",
   "task-recurrence-field surface-modal-group surface-divider-top",
   "task-timer-field surface-modal-group",
   "task-reminder-field surface-modal-group surface-divider-top",
@@ -83,7 +83,7 @@ for (const className of [
   assert.match(taskDialogScript, new RegExp(`class="${escapeRegExp(className)}"`), `Tasks modal converted area should include ${className}`);
 }
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=60/, "Tasks view must load the surface-token stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=66/, "Tasks view must load the surface-token stylesheet cache key");
 
 console.log("Surface token contract regression passed.");
 

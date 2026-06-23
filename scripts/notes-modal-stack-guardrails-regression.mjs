@@ -10,14 +10,14 @@ const viewBuilderJs = readText("public/js/shared/view-builder.js");
 const viewRendererJs = readText("public/js/shared/view-renderer.js");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.8.4", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.8.4", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.8.4", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.9.6", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.9.6", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.9.6", "package-lock package entry should report the current app version");
 
 assert.match(notesHtml, /js\/shared\/view-builder\.js\?v=11/, "Notes should cache-bust the shared view builder stack helper");
 assert.match(notesHtml, /js\/shared\/view-renderer\.js\?v=11/, "Notes should cache-bust the shared view renderer modal opener");
-assert.match(notesHtml, /css\/longtail-forge\.css\?v=49/, "Notes should cache-bust stacked modal warning styles");
-assert.match(notesHtml, /js\/notes\.js\?v=64/, "Notes should cache-bust the Notes modal wiring");
+assert.match(notesHtml, /css\/longtail-forge\.css\?v=51/, "Notes should cache-bust stacked modal warning styles");
+assert.match(notesHtml, /js\/notes\.js\?v=65/, "Notes should cache-bust the Notes modal wiring");
 
 assert.match(notesJs, /label: "Tags", title: "Tags", role: "utility"/, "Tags utility should use the concise label while keeping the icon button");
 assert.match(notesJs, /label: "Files", title: "Files", role: "utility"/, "Files utility should use the concise label while keeping the icon button");

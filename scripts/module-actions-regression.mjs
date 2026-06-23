@@ -86,19 +86,19 @@ check("host and target pages load the shared action contract", () => {
 check("Workbench Add Task dispatches a module action instead of navigating away", () => {
   assert.match(workbenchView, /data-workbench-add-task/);
   assert.doesNotMatch(workbenchView, /href="tasks\.html\?new=1"/);
-  assert.match(workbenchScript, /moduleActions\.open\("tasks\.add", \{\}, \{ setStatus \}\)/);
+  assert.match(workbenchScript, /moduleActions\.open\("tasks\.add", \{[\s\S]*context: \{ source: "workbench" \}[\s\S]*\}, \{ refresh: loadWorkbench, setStatus \}\)/);
 });
 
 check("Tasks actions use module-owned reusable dialog helpers", () => {
   assert.match(workbenchView, /js\/task-dialog\.js/);
   assert.match(taskView, /js\/task-dialog\.js/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.tasksDialog\.openAdd\(params, hostContext\)/);
-  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.tasksDialog\.openEdit\(params, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.tasksDialog\.openTaskEditor\(\{ \.\.\.params, mode: "add" \}, hostContext\)/);
+  assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.tasksDialog\.openTaskEditor\(\{ \.\.\.params, mode: "edit" \}, hostContext\)/);
   assert.match(taskDialogScript, /namespace\.moduleActions\?\.register\?\.\(\{/);
   assert.match(taskDialogScript, /actionId: "tasks\.add"/);
   assert.match(taskDialogScript, /actionId: "tasks\.edit"/);
   assert.match(tasksScript, /tasksDialog\?\.configure/);
-  assert.match(tasksScript, /tasksDialog\.open/);
+  assert.match(tasksScript, /tasksDialog\.openTaskEditor/);
 });
 
 check("Time Entry actions use module-owned reusable dialog helpers", () => {

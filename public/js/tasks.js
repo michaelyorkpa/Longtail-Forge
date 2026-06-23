@@ -1054,11 +1054,14 @@ function duplicateTask(task) {
 function openTaskDialog(task = null, options = {}) {
   state.editingTaskId = options.duplicate === true ? "" : task?.task_id || "";
   configureTaskDialog();
-  return window.LongtailForge.tasksDialog.open({
+  return window.LongtailForge.tasksDialog.openTaskEditor({
+    defaults: options.defaults || {},
     duplicate: options.duplicate === true,
     focusNotes: options.focusNotes === true,
+    mode: task && options.duplicate !== true ? "edit" : "add",
+    returnFocusTo: options.returnFocusTo || document.activeElement,
     task,
-  });
+  }, options.hostContext || null);
 }
 
 function configureTaskDialog() {

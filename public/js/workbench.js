@@ -428,9 +428,10 @@ async function completeTask(task) {
 async function openAddTaskAction() {
   setStatus("Opening task form...");
   try {
-    const result = await window.LongtailForge.moduleActions.open("tasks.add", {}, { setStatus });
+    const result = await window.LongtailForge.moduleActions.open("tasks.add", {
+      context: { source: "workbench" },
+    }, { refresh: loadWorkbench, setStatus });
     if (result.completed) {
-      await loadWorkbench();
       setStatus("Task created.");
       return;
     }
@@ -444,11 +445,11 @@ async function openTaskAction(task) {
   setStatus("Opening task...");
   try {
     const result = await window.LongtailForge.moduleActions.open("tasks.edit", {
+      context: { source: "workbench", sourceType: "task-workbench-item" },
       recordId: task.task_id,
       taskId: task.task_id,
-    }, { setStatus });
+    }, { refresh: loadWorkbench, setStatus });
     if (result.completed) {
-      await loadWorkbench();
       setStatus("Task updated.");
       return;
     }

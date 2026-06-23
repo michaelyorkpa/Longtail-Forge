@@ -19,6 +19,7 @@
   let recurrenceDialog = null;
   let form = null;
   let fields = {};
+  let currentTaskEditorRequest = null;
 
   function configure(options = {}) {
     context = {
@@ -40,28 +41,114 @@
     return taskDialogApi;
   }
 
-  async function openAdd(params = {}, hostContext = null) {
-    const prepared = await prepareStandaloneContext({ hostContext, params });
-    configure(prepared);
+  async function openTaskEditor(params = {}, hostContext = null) {
+    const request = normalizeTaskEditorRequest(params, hostContext);
+    currentTaskEditorRequest = request;
+
+    if (request.needsStandaloneContext) {
+      const prepared = await prepareStandaloneContext({ hostContext, params: request.defaults, taskId: request.taskId });
+      configure(prepared);
+      request.task = request.task || prepared.task || null;
+    } else {
+      configure({ hostContext: hostContext || context?.hostContext || null });
+    }
+
     return open({
-      defaults: params,
+      defaults: request.defaults,
+      duplicate: request.duplicate,
+      focusNotes: request.focusNotes,
       hostContext,
-      task: null,
+      returnFocusTo: request.returnFocusTo,
+      task: request.task,
     });
   }
 
-  async function openEdit(params = {}, hostContext = null) {
-    const taskId = params.taskId || params.recordId || params.id || "";
-    if (!taskId) {
+  function openAdd(params = {}, hostContext = null) {
+    return openTaskEditor({ ...params, mode: "add" }, hostContext);
+  }
+
+  function openEdit(params = {}, hostContext = null) {
+    return openTaskEditor({ ...params, mode: "edit" }, hostContext);
+  }
+
+  function normalizeTaskEditorRequest(params = {}, hostContext = null) {
+    const mode = normalizeTaskEditorMode(params);
+    const duplicate = params.duplicate === true || mode === "duplicate";
+    const task = params.task || null;
+    const taskId = task?.task_id || params.taskId || params.task_id || params.recordId || params.id || "";
+    const defaults = normalizeTaskEditorDefaults(params);
+    const returnFocusTo = params.returnFocusTo || params.trigger || hostContext?.trigger || document.activeElement || null;
+    const needsTaskFetch = Boolean(taskId) && !task && (mode === "edit" || duplicate);
+
+    if (mode === "edit" && !task && !taskId) {
       throw new Error("Task ID is required.");
     }
 
-    const prepared = await prepareStandaloneContext({ hostContext, params, taskId });
-    configure(prepared);
-    return open({
-      hostContext,
-      task: prepared.task,
-    });
+    return {
+      context: params.context || params.sourceContext || null,
+      defaults,
+      duplicate,
+      focusNotes: params.focusNotes === true,
+      mode: duplicate ? "add" : mode,
+      needsStandaloneContext: Boolean(hostContext) || !context || needsTaskFetch,
+      onSaved: typeof params.onSaved === "function" ? params.onSaved : null,
+      refresh: typeof params.refresh === "function" ? params.refresh : null,
+      returnFocusTo,
+      task,
+      taskId,
+    };
+  }
+
+  function normalizeTaskEditorMode(params = {}) {
+    const explicitMode = String(params.mode || params.action || "").toLowerCase();
+    if (["add", "create", "new"].includes(explicitMode)) {
+      return "add";
+    }
+    if (["edit", "update"].includes(explicitMode)) {
+      return "edit";
+    }
+    if (["duplicate", "copy"].includes(explicitMode)) {
+      return "duplicate";
+    }
+    if (params.duplicate === true) {
+      return "duplicate";
+    }
+    return params.task || params.taskId || params.task_id || params.recordId || params.id ? "edit" : "add";
+  }
+
+  function normalizeTaskEditorDefaults(params = {}) {
+    const sourceContext = params.context || params.sourceContext || {};
+    const defaults = {
+      ...(sourceContext.defaults || {}),
+      ...(params.defaults || {}),
+    };
+    for (const key of [
+      "blockedReason",
+      "blocked_reason",
+      "clientId",
+      "client_id",
+      "description",
+      "dueDate",
+      "due_date",
+      "dueTime",
+      "due_time",
+      "nextAction",
+      "next_action",
+      "priority",
+      "projectId",
+      "project_id",
+      "resumeNote",
+      "resume_note",
+      "status",
+      "title",
+    ]) {
+      if (params[key] !== undefined) {
+        defaults[key] = params[key];
+      } else if (sourceContext[key] !== undefined) {
+        defaults[key] = sourceContext[key];
+      }
+    }
+    return defaults;
   }
 
   async function prepareStandaloneContext({ hostContext = null, taskId = "" } = {}) {
@@ -88,9 +175,11 @@
     };
   }
 
-  async function open({ task = null, duplicate = false, defaults = {}, focusNotes = false, hostContext = null } = {}) {
+  async function open({ task = null, duplicate = false, defaults = {}, focusNotes = false, hostContext = null, returnFocusTo = null } = {}) {
     ensureDialog();
     const isDuplicate = duplicate === true;
+    const statusDefault = taskDefaultStatuses().includes(defaults.status) ? defaults.status : "";
+    const priorityDefault = taskDefaultPriorities().includes(defaults.priority) ? defaults.priority : "";
 
     currentTask = isDuplicate ? null : task;
     currentTaskId = isDuplicate ? "" : task?.task_id || "";
@@ -102,12 +191,16 @@
 
     fields.title.textContent = isDuplicate ? "Duplicate Task" : task ? "Edit Task" : "Add Task";
     fields.copyLink.hidden = !task || isDuplicate;
-    fields.titleInput.value = isDuplicate && task?.title ? `Copy of ${task.title}` : task?.title || "";
-    fields.status.value = isDuplicate ? "open" : task?.status || "open";
-    fields.priority.value = task?.priority || "normal";
-    fields.client.value = task ? task.client_id || "" : defaults.clientId || defaults.client_id || "all";
-    populateProjectInput(task?.project_id || defaults.projectId || defaults.project_id || "");
-    if (!task) {
+    fields.titleInput.value = isDuplicate && task?.title ? `Copy of ${task.title}` : task?.title || defaults.title || "";
+    fields.status.value = isDuplicate ? "open" : task?.status || statusDefault || "open";
+    fields.priority.value = task?.priority || priorityDefault || "normal";
+    const selectedClientId = task ? task.client_id || "" : defaults.clientId || defaults.client_id || "";
+    const selectedProjectId = task?.project_id || defaults.projectId || defaults.project_id || "";
+    ensureClientOption(selectedClientId, task);
+    fields.client.value = selectedClientId;
+    populateProjectInput(selectedProjectId, task, { allowFallback: true });
+    syncClientFromSelectedProject();
+    if (!task && !statusDefault && !priorityDefault) {
       applySelectedProjectTaskDefaults();
     }
     fields.dueDate.value = task?.due_date || defaults.dueDate || defaults.due_date || "";
@@ -132,11 +225,7 @@
     mountTaskNotesPanel(isDuplicate ? null : task, { focus: focusNotes === true });
     writeTaskNotificationFollowFields(isDuplicate ? null : task);
 
-    if (typeof dialog.showModal === "function") {
-      dialog.showModal();
-    } else {
-      dialog.setAttribute("open", "");
-    }
+    showTaskModal(dialog, { trigger: returnFocusTo });
 
     fields.titleInput.focus();
     return new Promise((resolve) => {
@@ -147,6 +236,8 @@
         fileAttachmentsController = null;
         notesPanelController?.destroy?.();
         notesPanelController = null;
+        restoreTaskEditorFocus(returnFocusTo);
+        currentTaskEditorRequest = null;
         resolve(dialog.returnValue || "closed");
       }, { once: true });
     });
@@ -156,10 +247,8 @@
     dialog = document.querySelector("[data-task-dialog]");
     recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]");
 
-    if (!dialog) {
-      const fragment = document.createElement("div");
-      fragment.innerHTML = taskDialogMarkup();
-      document.body.append(...fragment.children);
+    if (!dialog || !recurrenceDialog) {
+      document.body.append(...createTaskDialogElements({ includeEditor: !dialog, includeRecurrence: !recurrenceDialog }));
       dialog = document.querySelector("[data-task-dialog]");
       recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]");
     }
@@ -227,6 +316,7 @@
     };
     decorateTaskDialogControls();
     configureTaskOverlayHost();
+    bindRecurrenceDialogEvents();
 
     if (form.dataset.taskDialogBound === "true") {
       return;
@@ -236,7 +326,7 @@
     form.addEventListener("submit", saveTask);
     fields.cancel?.addEventListener("click", () => {
       context?.hostContext?.cancel?.({ actionId: currentTaskId ? "tasks.edit" : "tasks.add" });
-      dialog.close("cancel");
+      closeTaskModal(dialog, "cancel");
     });
     fields.copyLink?.addEventListener("click", copyCurrentTaskLink);
     fields.client?.addEventListener("change", () => {
@@ -244,6 +334,7 @@
       refreshParentTaskOptions();
     });
     fields.project?.addEventListener("change", () => {
+      syncClientFromSelectedProject();
       applySelectedProjectTaskDefaults();
       refreshParentTaskOptions();
     });
@@ -260,8 +351,6 @@
     fields.checklistList?.addEventListener("click", handleChecklistClick);
     fields.checklistList?.addEventListener("change", handleChecklistChange);
     fields.recurrenceDetails?.addEventListener("click", openRecurrenceDialog);
-    fields.recurrence.cancel?.addEventListener("click", () => recurrenceDialog?.close());
-    fields.recurrence.form?.addEventListener("submit", saveRecurrenceDraft);
     fields.timerStart?.addEventListener("click", () => saveTaskTimer("running"));
     fields.timerPause?.addEventListener("click", () => saveTaskTimer("paused"));
     fields.timerFinalize?.addEventListener("click", finalizeTaskTimer);
@@ -318,6 +407,16 @@
     }
   }
 
+  function bindRecurrenceDialogEvents() {
+    if (!fields.recurrence?.form || fields.recurrence.form.dataset.taskRecurrenceBound === "true") {
+      return;
+    }
+
+    fields.recurrence.form.dataset.taskRecurrenceBound = "true";
+    fields.recurrence.cancel?.addEventListener("click", () => closeTaskModal(recurrenceDialog, "cancel"));
+    fields.recurrence.form.addEventListener("submit", saveRecurrenceDraft);
+  }
+
   function populateFormOptions() {
     if (!form) {
       return;
@@ -332,11 +431,10 @@
 
     replaceOptions(fields.client, hasClientScope
       ? [
-        option("all", "All Projects"),
-        option("", getWorkspaceScopeLabel()),
+        option("", "No client"),
         ...(options.clients || []).map((client) => option(client.id, optionLabel(client))),
       ]
-      : [option("all", "All Projects")]);
+      : [option("", "No client")]);
     populateProjectInput(fields.project?.value || "");
     replaceOptions(
       fields.assignees,
@@ -344,21 +442,72 @@
     );
   }
 
-  function populateProjectInput(selectedProjectId = "") {
-    const selectedClientId = usesClientScope() ? fields.client?.value || "all" : "all";
+  function populateProjectInput(selectedProjectId = "", sourceTask = currentTask, { allowFallback = false } = {}) {
+    const selectedClientId = usesClientScope() ? fields.client?.value || "" : "";
     const projects = (context?.options?.projects || []).filter((project) =>
-      selectedClientId === "all" || (project.client_id || "") === selectedClientId,
+      !selectedClientId || (project.client_id || "") === selectedClientId,
     );
-
-    replaceOptions(fields.project, [
-      option("", selectedClientId === "" ? getWorkspaceScopeLabel() : "No project"),
+    const projectOptions = [
+      option("", "No project"),
       ...projects.map((project) => option(project.id, optionLabel(project))),
-    ]);
+    ];
 
-    if (projects.some((project) => project.id === selectedProjectId)) {
+    if (allowFallback && selectedProjectId && !optionListHasValue(projectOptions, selectedProjectId)) {
+      const fallback = option(selectedProjectId, projectFallbackLabel(sourceTask, selectedProjectId));
+      fallback.dataset.contextFallback = "project";
+      projectOptions.push(fallback);
+    }
+
+    replaceOptions(fields.project, projectOptions);
+
+    if (optionListHasValue([...fields.project.options], selectedProjectId)) {
       fields.project.value = selectedProjectId;
     }
     writeTaskMetadataRibbon();
+  }
+
+  function ensureClientOption(selectedClientId = "", sourceTask = currentTask) {
+    if (!fields.client || !usesClientScope() || !selectedClientId || optionListHasValue([...fields.client.options], selectedClientId)) {
+      return;
+    }
+
+    const fallback = option(selectedClientId, clientFallbackLabel(sourceTask, selectedClientId));
+    fallback.dataset.contextFallback = "client";
+    fields.client.appendChild(fallback);
+  }
+
+  function syncClientFromSelectedProject() {
+    if (!usesClientScope() || !fields.client) {
+      writeTaskMetadataRibbon();
+      return;
+    }
+
+    if (!fields.project?.value) {
+      writeTaskMetadataRibbon();
+      return;
+    }
+
+    const project = findProjectOption(fields.project.value);
+    if (!project) {
+      writeTaskMetadataRibbon();
+      return;
+    }
+
+    const derivedClientId = project.client_id || "";
+    if (fields.client.value !== derivedClientId) {
+      ensureClientOption(derivedClientId, {
+        client_id: derivedClientId,
+        client_name: project.client_name || project.clientName || "",
+      });
+      fields.client.value = derivedClientId;
+      populateProjectInput(fields.project.value);
+    } else {
+      writeTaskMetadataRibbon();
+    }
+  }
+
+  function findProjectOption(projectId = "") {
+    return (context?.options?.projects || []).find((project) => project.id === projectId) || null;
   }
 
   function applySelectedProjectTaskDefaults() {
@@ -399,15 +548,13 @@
       await syncParentTaskRelationship(result.task?.task_id || "");
       currentTask = result.task;
       currentTaskId = result.task?.task_id || "";
-      if (typeof context?.onSaved === "function") {
-        await context.onSaved(result);
-      }
+      await notifyTaskEditorSaved(result);
       context?.hostContext?.complete?.({
         actionId: wasEditing ? "tasks.edit" : "tasks.add",
         recordId: result.task?.task_id || "",
         title: result.task?.title || "",
       });
-      dialog.close("complete");
+      closeTaskModal(dialog, "complete");
       setStatus("");
     } catch (error) {
       setStatus(error.message || "Task was not saved.", { isError: true });
@@ -495,7 +642,7 @@
       title: fields.titleInput.value,
       status: fields.status.value,
       priority: fields.priority.value,
-      client_id: fields.client.value === "all" ? "" : fields.client.value,
+      client_id: usesClientScope() ? fields.client.value : "",
       project_id: fields.project.value,
       due_date: fields.dueDate.value,
       due_time: fields.dueTime.value,
@@ -1013,8 +1160,36 @@
 
     writeChecklistFields(currentTask);
 
-    if (typeof context?.onSaved === "function" && result?.task) {
-      context.onSaved(result);
+    if (result?.task) {
+      notifyTaskEditorSaved(result).catch((error) => {
+        setStatus(error.message || "Task refresh hook failed.", { isError: true });
+      });
+    }
+  }
+
+  async function notifyTaskEditorSaved(result) {
+    const configuredCallback = context?.onSaved;
+    const requestCallback = currentTaskEditorRequest?.onSaved;
+    const requestRefresh = currentTaskEditorRequest?.refresh;
+    const hostRefresh = context?.hostContext?.refresh;
+
+    if (typeof configuredCallback === "function") {
+      await configuredCallback(result);
+    }
+    if (typeof requestCallback === "function" && requestCallback !== configuredCallback) {
+      await requestCallback(result);
+    }
+    if (typeof requestRefresh === "function") {
+      await requestRefresh(result);
+    }
+    if (typeof hostRefresh === "function" && hostRefresh !== requestRefresh) {
+      await hostRefresh(result);
+    }
+  }
+
+  function restoreTaskEditorFocus(target) {
+    if (target && target.isConnected && typeof target.focus === "function") {
+      target.focus();
     }
   }
 
@@ -1103,9 +1278,6 @@
     [...fields.assignees.options].forEach((item) => {
       item.selected = selectedIds.has(item.value);
     });
-    if (fields.assignees.closest("details")) {
-      fields.assignees.closest("details").open = selectedIds.size > 0;
-    }
   }
 
   function openRecurrenceDialog() {
@@ -1113,11 +1285,7 @@
     fields.recurrence.interval.value = String(recurrenceDraft.interval || 1);
     fields.recurrence.endDate.value = recurrenceDraft.endDate || "";
 
-    if (typeof recurrenceDialog.showModal === "function") {
-      recurrenceDialog.showModal();
-    } else {
-      recurrenceDialog.setAttribute("open", "");
-    }
+    showTaskModal(recurrenceDialog, { parent: dialog, trigger: fields.recurrenceDetails });
   }
 
   function saveRecurrenceDraft(event) {
@@ -1129,7 +1297,7 @@
       endDate: fields.recurrence.endDate.value || "",
     };
     updateRecurrenceState();
-    recurrenceDialog.close();
+    closeTaskModal(recurrenceDialog, "saved");
   }
 
   function writeRecurrenceFields(details = {}) {
@@ -1306,6 +1474,25 @@
     return record?.optionLabel || record?.display_label || record?.displayName || record?.name || record?.title || "";
   }
 
+  function optionListHasValue(options = [], value = "") {
+    return options.some((item) => item.value === value);
+  }
+
+  function clientFallbackLabel(sourceTask = null) {
+    return sourceTask?.client_name || sourceTask?.clientName || "Unavailable client";
+  }
+
+  function projectFallbackLabel(sourceTask = null) {
+    const projectName = sourceTask?.project_name || sourceTask?.projectName || "";
+    const clientName = sourceTask?.client_name || sourceTask?.clientName || "";
+
+    if (projectName && usesClientScope() && clientName) {
+      return `${projectName} - ${clientName}`;
+    }
+
+    return projectName || "Unavailable project";
+  }
+
   function displayUser(user) {
     const displayName = String(user.displayName || user.display_name || user.username || user.user_id || "").trim();
     const email = String(user.username || user.email || "").trim();
@@ -1315,19 +1502,6 @@
     }
 
     return displayName || email || user.user_id;
-  }
-
-  function getWorkspaceScopeLabel() {
-    if (namespace.getWorkspaceProjectsLabel) {
-      return namespace.getWorkspaceProjectsLabel();
-    }
-
-    const workspaceName = String(namespace.workspaceContext?.workspaceName || "").trim() ||
-      document.querySelector("[data-workspace-selector]")?.selectedOptions?.[0]?.textContent?.trim() ||
-      document.querySelector("[data-workspace-name]")?.textContent?.trim() ||
-      "Workspace";
-
-    return `${workspaceName} Projects`;
   }
 
   function taskDefaultStatuses() {
@@ -1473,7 +1647,7 @@
     const chips = [
       { label: "Status", value: selectedText(fields.status) || formatToken(fields.status?.value) },
       { label: "Priority", value: selectedText(fields.priority) || formatToken(fields.priority?.value) },
-      usesClientScope() ? { label: "Client", value: selectedText(fields.client) || getWorkspaceScopeLabel() } : null,
+      usesClientScope() ? { label: "Client", value: selectedText(fields.client) || "No client" } : null,
       { label: "Project", value: selectedText(fields.project) || "No project" },
       fields.dueDate?.value ? { label: "Due Date", value: fields.dueDate.value } : null,
       fields.dueTime?.value ? { label: "Due Time", value: fields.dueTime.value } : null,
@@ -1533,39 +1707,272 @@
     };
   }
 
-  function taskDialogMarkup() {
+  function createTaskDialogElements(options = {}) {
+    const includeEditor = options.includeEditor !== false;
+    const includeRecurrence = options.includeRecurrence !== false;
+    return [
+      includeEditor ? createTaskEditorDialog() : null,
+      includeRecurrence ? createTaskRecurrenceDialog() : null,
+    ].filter(Boolean);
+  }
+
+  function createTaskEditorDialog() {
+    const view = requireTaskDialogView();
+    const descriptor = taskEditorModalDescriptor();
+    const dialog = view.renderDescriptorModalForm(descriptor, {
+      title: descriptor.title,
+      className: "task-detail-dialog",
+      formClassName: "task-form",
+      size: descriptor.size,
+      fields: taskEditorFieldNodes(),
+      utilityActions: taskEditorUtilityActions(descriptor),
+      actions: taskEditorCommitActions(descriptor),
+    });
+    const notificationToggle = view.createActionButton({
+      action: "follow-task-notifications",
+      className: "task-notification-toggle",
+      icon: "bell",
+      iconOnly: true,
+      label: "Follow task notifications",
+      role: "utility",
+      title: "Follow task notifications",
+    });
+    const heading = view.createElement("div", {
+      className: "surface-modal-heading",
+      children: [dialog.viewParts.title, notificationToggle],
+    });
+
+    dialog.dataset.taskDialog = "";
+    dialog.viewParts.form.dataset.taskForm = "";
+    dialog.viewParts.title.dataset.taskDialogTitle = "";
+    dialog.viewParts.body.classList.add("task-form-fields");
+    dialog.viewParts.body.dataset.taskFormFields = "";
+    dialog.viewParts.footer.classList.add("form-actions", "task-modal-actions", "surface-modal-footer--dense");
+    dialog.viewParts.footer.dataset.modalFooter = "";
+    heading.dataset.taskDialogHeading = "";
+    notificationToggle.dataset.taskNotificationToggle = "";
+    notificationToggle.hidden = true;
+    notificationToggle.setAttribute("aria-pressed", "false");
+    dialog.viewParts.form.insertBefore(heading, dialog.viewParts.body);
+    return dialog;
+  }
+
+  function requireTaskDialogView() {
+    const view = namespace.view;
+    if (!view?.renderDescriptorModalForm || !view?.createModalForm || !view?.showModal || !view?.closeModal || !view?.createActionButton || !view?.createElement) {
+      throw new Error("Task dialog requires LongtailForge.view modal helpers.");
+    }
+    return view;
+  }
+
+  function showTaskModal(targetDialog, options = {}) {
+    requireTaskDialogView().showModal(targetDialog, options);
+  }
+
+  function closeTaskModal(targetDialog, value = "") {
+    requireTaskDialogView().closeModal(targetDialog, value);
+  }
+
+  function taskEditorModalDescriptor() {
+    return {
+      id: "task.editor",
+      title: "Task",
+      size: "wide",
+      fields: [
+        { id: "title", label: "Title", type: "text", required: true, width: "full" },
+        { id: "metadata", label: "Task summary", type: "region", width: "full" },
+        { id: "task_details", label: "Task Details", type: "section", width: "full" },
+        { id: "checklist", label: "Checklist", type: "section", width: "full" },
+        { id: "recurrence", label: "Recurrence", type: "section", width: "full" },
+        { id: "timer", label: "Task Timer", type: "section", width: "full" },
+        { id: "reminders", label: "Reminders", type: "section", width: "full" },
+        { id: "notes", label: "Notes", type: "section", width: "full" },
+      ],
+      utilityActions: [
+        { id: "tags", label: "Task tags", icon: "tag", role: "utility" },
+        { id: "files", label: "Task files", icon: "file", role: "utility" },
+        { id: "copy-link", label: "Copy task link", icon: "copy", role: "utility" },
+      ],
+      footerActions: [
+        { id: "cancel", label: "Cancel", role: "secondary" },
+        { id: "save", label: "Save task", role: "primary" },
+      ],
+    };
+  }
+
+  function taskEditorUtilityActions(descriptor) {
+    const view = requireTaskDialogView();
+    return descriptor.utilityActions.map((action) => {
+      const button = view.createActionButton({
+        action: action.id,
+        className: "surface-modal-footer-action",
+        icon: action.icon,
+        iconOnly: true,
+        label: action.label,
+        role: action.role,
+        title: action.label,
+      });
+
+      if (action.id === "tags") {
+        button.dataset.taskTagsToggle = "";
+      } else if (action.id === "files") {
+        button.dataset.taskFilesToggle = "";
+      } else if (action.id === "copy-link") {
+        button.dataset.copyTaskLink = "";
+        button.hidden = true;
+      }
+      return button;
+    });
+  }
+
+  function taskEditorCommitActions(descriptor) {
+    const view = requireTaskDialogView();
+    return descriptor.footerActions.map((action) => {
+      const button = view.createActionButton({
+        action: action.id,
+        className: "surface-modal-footer-action",
+        label: action.label,
+        role: action.role,
+        type: action.id === "save" ? "submit" : "button",
+      });
+
+      if (action.id === "cancel") {
+        button.dataset.cancelTask = "";
+      } else if (action.id === "save") {
+        button.dataset.saveTask = "";
+      }
+      return button;
+    });
+  }
+
+  function taskEditorFieldNodes() {
+    return taskTemplateElements(taskEditorFieldMarkup());
+  }
+
+  function taskTemplateElements(markup) {
+    const template = document.createElement("template");
+    template.innerHTML = markup.trim();
+    return [...template.content.children];
+  }
+
+  function taskEditorFieldMarkup() {
     return `
-      <dialog class="task-detail-dialog surface-modal" data-task-dialog>
-        <form method="dialog" class="task-form" data-task-form>
-          <div class="task-dialog-heading"><h2 data-task-dialog-title>Task</h2><button type="button" data-task-notification-toggle hidden aria-pressed="false">Follow task notifications</button></div>
-          <label class="task-title-field">Title<input type="text" data-task-title required></label>
-          <div class="task-metadata-ribbon surface-chip-row" data-task-metadata-ribbon aria-label="Task summary"></div>
-          <details class="task-details-field surface-modal-group" data-task-details-panel open><summary class="surface-modal-section-heading">Task Details</summary><div class="task-details-grid surface-modal-section-body"><label class="task-parent-field">Parent Task<select data-task-parent-task></select></label><label>Status<select data-task-form-status><option value="open">Open</option><option value="in_progress">In Progress</option><option value="blocked">Blocked</option><option value="complete">Complete</option><option value="archived">Archived</option></select></label><label>Priority<select data-task-priority><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label data-client-workspace-control>Client<select data-task-client></select></label><label>Project<select data-task-project></select></label><label>Due Date<input type="date" data-task-due-date></label><label>Due Time<input type="time" data-task-due-time></label></div></details>
-          <label class="task-resume-note-field">Resume note<textarea rows="2" data-task-resume-note placeholder="Where did you leave off?"></textarea></label>
-          <label class="task-next-action-field">Next action<textarea rows="2" maxlength="240" data-task-next-action placeholder="What's the next thing?"></textarea></label>
-          <label class="task-blocked-reason-field" data-task-blocked-reason-field hidden>Blocked reason<textarea rows="1" data-task-blocked-reason></textarea></label>
-          <details class="task-checklist-field surface-modal-group" data-task-checklist-field><summary class="surface-modal-section-heading">Checklist</summary><p class="surface-modal-section-help" data-task-checklist-status>0 / 0 complete</p><div class="task-checklist-add-row surface-modal-section-body"><input type="text" maxlength="240" data-task-checklist-input aria-label="Checklist item" placeholder="Add checklist item"><button type="button" data-task-checklist-add>Add</button></div><div class="task-checklist-list" data-task-checklist-list></div></details>
-          <details class="task-assignee-field surface-modal-group" data-task-assignee-panel><summary class="surface-modal-section-heading">Assignees</summary><div class="surface-modal-section-body"><select multiple data-task-assignees aria-label="Assignees"></select></div></details>
-          <details class="task-recurrence-field surface-modal-group surface-divider-top" data-task-recurrence-panel><summary class="surface-modal-section-heading">Recurrence</summary><div class="task-recurrence-controls surface-modal-section-body"><label class="inline-option"><input type="checkbox" data-task-recurring>Recurring?</label><button type="button" data-task-recurrence-details disabled>Details</button></div><p class="surface-modal-section-help" data-task-recurrence-summary>Not recurring.</p></details>
-          <fieldset class="task-timer-field surface-modal-group" data-task-timer-field hidden><legend class="surface-modal-section-heading">Task Timer</legend><p class="surface-modal-section-help" data-task-timer-status>No active timer.</p><div class="task-timer-controls surface-modal-section-body surface-dense-actions"><strong class="surface-chip" data-task-timer-display>00:00:00</strong><button type="button" data-task-timer-start>Start</button><button type="button" data-task-timer-pause disabled>Pause</button><button type="button" data-task-timer-finalize disabled>Save Time</button><button type="button" data-task-timer-reset disabled>Reset</button></div></fieldset>
-          <details class="task-reminder-field surface-modal-group surface-divider-top" data-task-reminder-details><summary class="surface-modal-section-heading">Reminders</summary><p class="surface-modal-section-help" data-task-effective-reminders></p><label class="inline-option"><input type="checkbox" data-task-reminder-override>Override reminder defaults</label><div class="reminder-offset-grid surface-modal-section-body" data-task-reminder-override-fields hidden><label>Timed Reminder 1 (hours before)<input type="number" min="1" step="1" data-task-reminder-date-time-hours-1></label><label>Timed Reminder 2 (hours before)<input type="number" min="1" step="1" data-task-reminder-date-time-hours-2></label><label>Date-Only Reminder 1 (days before)<input type="number" min="1" step="1" data-task-reminder-date-only-days-1></label><label>Date-Only Reminder 2 (days before)<input type="number" min="1" step="1" data-task-reminder-date-only-days-2></label></div></details>
-          <section class="task-footer-panel task-tags-field surface-overlay-panel" data-task-tags-panel hidden><div data-task-tags></div></section>
-          <section class="task-footer-panel task-files-field surface-overlay-panel" data-task-files-panel hidden><div data-task-files></div></section>
-          <details class="task-notes-field surface-modal-group surface-divider-top" data-task-notes-panel><summary class="surface-modal-section-heading">Notes</summary><div class="surface-modal-section-body" data-task-notes></div></details>
-          <label class="task-description-field">Description<textarea rows="5" data-task-description></textarea></label>
-          <div class="form-actions task-modal-actions surface-modal-footer surface-modal-footer--dense" data-modal-footer><div class="surface-modal-footer-group surface-modal-footer-utilities" data-modal-footer-group="utility"><button class="surface-modal-footer-action" type="button" data-surface-action="tags" data-surface-action-role="utility" data-task-tags-toggle title="Task tags">Tags</button><button class="surface-modal-footer-action" type="button" data-surface-action="files" data-surface-action-role="utility" data-task-files-toggle title="Task files">Files</button><button class="surface-modal-footer-action" type="button" data-surface-action="copy-link" data-surface-action-role="utility" data-copy-task-link hidden>Copy Link</button></div><div class="surface-modal-footer-group surface-modal-footer-commit" data-modal-footer-group="commit"><button class="surface-modal-footer-action" type="button" data-surface-action="cancel" data-surface-action-role="secondary" data-cancel-task>Cancel</button><button class="surface-modal-footer-action" type="submit" data-surface-action="save" data-surface-action-role="primary" data-save-task>Save Task</button></div></div>
-        </form>
-      </dialog>
-      <dialog class="task-recurrence-dialog" data-task-recurrence-dialog>
-        <form method="dialog" class="task-recurrence-form" data-task-recurrence-form>
-          <h2>Recurrence</h2>
-          <label>Frequency<select data-task-recurrence-frequency><option value="DAILY">Daily</option><option value="WEEKDAYS">Weekdays</option><option value="WEEKENDS">Weekends</option><option value="WEEKLY" selected>Weekly</option><option value="MONTHLY">Monthly</option></select></label>
-          <label>Every<input type="number" min="1" step="1" value="1" data-task-recurrence-interval></label>
-          <label>End Date<input type="date" data-task-recurrence-end-date></label>
-          <div class="form-actions task-modal-actions surface-modal-footer" data-modal-footer><div class="surface-modal-footer-group surface-modal-footer-commit" data-modal-footer-group="commit"><button class="surface-modal-footer-action" type="button" data-surface-action="cancel" data-surface-action-role="secondary" data-task-recurrence-cancel>Cancel</button><button class="surface-modal-footer-action" type="submit" data-surface-action="save" data-surface-action-role="primary">Save Recurrence</button></div></div>
-        </form>
-      </dialog>
+      <label class="task-title-field">Title<input type="text" data-task-title required></label>
+      <div class="task-metadata-ribbon surface-chip-row" data-task-metadata-ribbon aria-label="Task summary"></div>
+      <details class="task-details-field surface-modal-group" data-task-details-panel open><summary class="surface-modal-section-heading">Task Details</summary><div class="task-details-grid surface-modal-section-body"><label>Status<select data-task-form-status><option value="open">Open</option><option value="in_progress">In Progress</option><option value="blocked">Blocked</option><option value="complete">Complete</option><option value="archived">Archived</option></select></label><label>Priority<select data-task-priority><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label class="task-parent-field">Parent Task<select data-task-parent-task></select></label><label>Due Date<input type="date" data-task-due-date></label><label>Due Time<input type="time" data-task-due-time></label><label class="task-resume-note-field">Resume note<textarea rows="2" data-task-resume-note placeholder="Where did you leave off?"></textarea></label><label class="task-next-action-field">Next action<textarea rows="2" maxlength="240" data-task-next-action placeholder="What's the next thing?"></textarea></label><label data-client-workspace-control>Client<select data-task-client></select></label><label>Project<select data-task-project></select></label><label class="task-description-field">Description<textarea rows="5" data-task-description></textarea></label><label class="task-assignee-field">Assignees<select multiple data-task-assignees aria-label="Assignees"></select></label><label class="task-blocked-reason-field" data-task-blocked-reason-field hidden>Blocked reason<textarea rows="1" data-task-blocked-reason></textarea></label></div></details>
+      <details class="task-checklist-field surface-modal-group" data-task-checklist-field><summary class="surface-modal-section-heading">Checklist</summary><p class="surface-modal-section-help" data-task-checklist-status>0 / 0 complete</p><div class="task-checklist-add-row surface-modal-section-body"><input type="text" maxlength="240" data-task-checklist-input aria-label="Checklist item" placeholder="Add checklist item"><button type="button" data-task-checklist-add>Add</button></div><div class="task-checklist-list" data-task-checklist-list></div></details>
+      <details class="task-recurrence-field surface-modal-group surface-divider-top" data-task-recurrence-panel><summary class="surface-modal-section-heading">Recurrence</summary><div class="task-recurrence-controls surface-modal-section-body"><label class="inline-option"><input type="checkbox" data-task-recurring>Recurring?</label><button type="button" data-task-recurrence-details disabled>Details</button></div><p class="surface-modal-section-help" data-task-recurrence-summary>Not recurring.</p></details>
+      <section class="task-timer-field surface-modal-group" data-task-timer-field hidden><h3 class="surface-modal-section-heading">Task Timer</h3><p class="surface-modal-section-help" data-task-timer-status>No active timer.</p><div class="task-timer-controls surface-modal-section-body surface-dense-actions"><strong class="surface-chip" data-task-timer-display>00:00:00</strong><button type="button" data-task-timer-start>Start</button><button type="button" data-task-timer-pause disabled>Pause</button><button type="button" data-task-timer-finalize disabled>Save Time</button><button type="button" data-task-timer-reset disabled>Reset</button></div></section>
+      <details class="task-reminder-field surface-modal-group surface-divider-top" data-task-reminder-details><summary class="surface-modal-section-heading">Reminders</summary><p class="surface-modal-section-help" data-task-effective-reminders></p><label class="inline-option"><input type="checkbox" data-task-reminder-override>Override reminder defaults</label><div class="reminder-offset-grid surface-modal-section-body" data-task-reminder-override-fields hidden><label>Timed Reminder 1 (hours before)<input type="number" min="1" step="1" data-task-reminder-date-time-hours-1></label><label>Timed Reminder 2 (hours before)<input type="number" min="1" step="1" data-task-reminder-date-time-hours-2></label><label>Date-Only Reminder 1 (days before)<input type="number" min="1" step="1" data-task-reminder-date-only-days-1></label><label>Date-Only Reminder 2 (days before)<input type="number" min="1" step="1" data-task-reminder-date-only-days-2></label></div></details>
+      <section class="task-footer-panel task-tags-field surface-overlay-panel" data-task-tags-panel hidden><div data-task-tags></div></section>
+      <section class="task-footer-panel task-files-field surface-overlay-panel" data-task-files-panel hidden><div data-task-files></div></section>
+      <details class="task-notes-field surface-modal-group surface-divider-top" data-task-notes-panel><summary class="surface-modal-section-heading">Notes</summary><div class="surface-modal-section-body" data-task-notes></div></details>
     `;
+  }
+
+  function createTaskRecurrenceDialog() {
+    const view = requireTaskDialogView();
+    const descriptor = taskRecurrenceModalDescriptor();
+    const dialog = view.createModalForm({
+      title: descriptor.title,
+      className: "task-recurrence-dialog",
+      formClassName: "task-recurrence-form",
+      fields: taskRecurrenceFieldNodes(),
+      actions: taskRecurrenceActions(descriptor),
+    });
+
+    dialog.dataset.taskRecurrenceDialog = "";
+    dialog.viewParts.form.dataset.taskRecurrenceForm = "";
+    dialog.viewParts.body.classList.add("task-recurrence-fields");
+    dialog.viewParts.footer.classList.add("task-modal-actions");
+    dialog.viewParts.footer.dataset.modalFooter = "";
+    return dialog;
+  }
+
+  function taskRecurrenceModalDescriptor() {
+    return {
+      id: "task.recurrence",
+      title: "Recurrence",
+      fields: [
+        { id: "frequency", label: "Frequency", width: "compact" },
+        { id: "interval", label: "Every", width: "compact" },
+        { id: "end_date", label: "End Date", width: "full" },
+      ],
+      footerActions: [
+        { id: "cancel", label: "Cancel", role: "secondary" },
+        { id: "save", label: "Save Recurrence", role: "primary" },
+      ],
+    };
+  }
+
+  function taskRecurrenceFieldNodes() {
+    const view = requireTaskDialogView();
+    const descriptor = taskRecurrenceModalDescriptor();
+    const fieldById = Object.fromEntries(descriptor.fields.map((field) => [field.id, field]));
+    return [
+      view.createElement("label", {
+        attrs: { "data-view-field-width": fieldById.frequency.width },
+        children: [
+          fieldById.frequency.label,
+          view.createElement("select", {
+            dataset: { taskRecurrenceFrequency: "" },
+            children: taskRecurrenceFrequencyOptions().map((item) => view.createElement("option", {
+              attrs: { value: item.value, selected: item.selected },
+              text: item.label,
+            })),
+          }),
+        ],
+      }),
+      view.createElement("label", {
+        attrs: { "data-view-field-width": fieldById.interval.width },
+        children: [
+          fieldById.interval.label,
+          view.createElement("input", {
+            attrs: { type: "number", min: "1", step: "1", value: "1" },
+            dataset: { taskRecurrenceInterval: "" },
+          }),
+        ],
+      }),
+      view.createElement("label", {
+        className: "task-recurrence-end-date-field",
+        attrs: { "data-view-field-width": fieldById.end_date.width },
+        children: [
+          fieldById.end_date.label,
+          view.createElement("input", {
+            attrs: { type: "date" },
+            dataset: { taskRecurrenceEndDate: "" },
+          }),
+        ],
+      }),
+    ];
+  }
+
+  function taskRecurrenceFrequencyOptions() {
+    return [
+      { value: "DAILY", label: "Daily" },
+      { value: "WEEKDAYS", label: "Weekdays" },
+      { value: "WEEKENDS", label: "Weekends" },
+      { value: "WEEKLY", label: "Weekly", selected: true },
+      { value: "MONTHLY", label: "Monthly" },
+    ];
+  }
+
+  function taskRecurrenceActions(descriptor) {
+    const view = requireTaskDialogView();
+    return descriptor.footerActions.map((action) => {
+      const button = view.createActionButton({
+        action: action.id,
+        className: "surface-modal-footer-action",
+        label: action.label,
+        role: action.role,
+        type: action.id === "save" ? "submit" : "button",
+      });
+
+      if (action.id === "cancel") {
+        button.dataset.taskRecurrenceCancel = "";
+      }
+      return button;
+    });
   }
 
   const taskDialogApi = {
@@ -1573,6 +1980,7 @@
     open,
     openAdd,
     openEdit,
+    openTaskEditor,
   };
 
   namespace.tasksDialog = taskDialogApi;
@@ -1583,7 +1991,7 @@
     label: "Add Task",
     mode: "add",
     moduleId: "tasks",
-    open: openAdd,
+    open: (params, hostContext) => openTaskEditor({ ...params, mode: "add" }, hostContext),
     recordType: "task",
     requiredModules: ["tasks"],
     requiredPermissions: ["tasks.create"],
@@ -1596,7 +2004,7 @@
     label: "Edit Task",
     mode: "edit",
     moduleId: "tasks",
-    open: openEdit,
+    open: (params, hostContext) => openTaskEditor({ ...params, mode: "edit" }, hostContext),
     recordType: "task",
     requiredModules: ["tasks"],
     requiredPermissions: ["tasks.view"],

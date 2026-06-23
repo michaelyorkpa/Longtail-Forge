@@ -8,7 +8,7 @@ Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and im
 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
 The active roadmap continues with Tasks, Files, and Clients/Projects view conversion work.
-0.33.5.18.8.4 is the most recently completed Tasks list surface framework/module separation slice. The next live work starts with 0.33.5.18.9.1.
+0.33.5.18.9.6 is the most recently completed timer and utility modal preservation slice. The next live work starts with 0.33.5.18.10.1.
 
 ## Tasks (0.33.5.18.7 - 0.33.5.18.10)
 
@@ -59,30 +59,6 @@ preserve bulk workflows, standardize the canonical task modal, and lock strict g
 time. Bulk behavior, specialized modal fragments, workflow actions, relationships, and strict
 guardrail enforcement are intentionally separated below.
 
----
-
-### Version 0.33.5.18.8 - Tasks Bulk Actions and Main List Surface Cleanup
-
-This slice keeps the task list as the main panel and introduces the framework-owned bulk-action toolbar shell.
-
-#### Version 0.33.5.18.8.4 - Task list surface framework/module separation
-
-- [x] Continue reducing `public/js/tasks.js` to data binding and behavior handlers.
-- [x] Remove hand-built framework-owned task page anatomy where shared helpers now exist.
-- [x] Preserve task list row content and appearance.
-- [x] Keep any genuinely task-specific row fragments as Tasks-owned escape hatches.
-- [x] Add guardrail inventory, but do not yet fail strict guardrails for all Tasks code until 0.33.5.18.10.
-- [x] Add regressions proving:
-  - [x] Tasks uses framework page/status/filter/sidebar/list-shell/bulk-toolbar primitives.
-  - [x] Task-specific row rendering remains module-owned.
-  - [x] No duplicated filter sidebar shell exists in Tasks code.
-
-Acceptance criteria:
-
-- Tasks follows the Notes-style framework/module boundary without forcing a task row redesign.
-
----
-
 ### Version 0.33.5.18.9 - Canonical Task Add/Edit Modal Standardization
 
 This slice standardizes the task create/edit modal so it becomes the single editor used by Tasks, Workbench, future Quick Action Center, and future system-triggered task creation flows.
@@ -91,153 +67,25 @@ Decision:
 
 There must be one canonical Task add/edit modal. Other surfaces may open it with defaults/context, but they must not create separate task forms.
 
-#### Version 0.33.5.18.9.1 - Framework-rendered Task modal shell
-
-- [ ] Convert the task create/edit dialog to descriptor-declared modal/form/footer anatomy.
-- [ ] Use the same modal patterns established by Notes and current Lists:
-  - [ ] Framework-owned modal shell.
-  - [ ] Framework-owned footer/action placement.
-  - [ ] Framework-owned field grid.
-  - [ ] Collapsible sections where appropriate.
-  - [ ] Utility buttons where appropriate.
-- [ ] Keep Tasks-owned logic in Tasks files:
-  - [ ] Save payload creation.
-  - [ ] Validation.
-  - [ ] Workspace-type behavior.
-  - [ ] Client/project visibility.
-  - [ ] Assignment behavior.
-  - [ ] Due-date behavior.
-  - [ ] Status/priority behavior.
-  - [ ] Recurrence/checklist/timer-specific meaning.
-- [ ] Preserve existing task create/edit routes and payloads.
-- [ ] Keep recurrence, checklist, timer, tags, files, notes, and other specialized task fragments on their existing task-owned paths until their dedicated preservation slices.
-- [ ] Add regressions proving:
-  - [ ] Add Task modal uses framework modal shell.
-  - [ ] Edit Task modal uses framework modal shell.
-  - [ ] Footer buttons follow Notes/Lists placement.
-  - [ ] Existing create/edit save behavior still works.
-  - [ ] Personal/Family modal hides Client controls.
-
-Acceptance criteria:
-
-- Task add/edit modal visually and structurally matches the newer modal system.
-- Task business logic stays module-owned.
-
-#### Version 0.33.5.18.9.2 - Canonical Task editor open API/behavior
-
-- [ ] Create or formalize one browser entry point for opening the Task editor.
-- [ ] The canonical opener should support:
-  - [ ] Create new task.
-  - [ ] Edit existing task.
-  - [ ] Create task with defaults.
-  - [ ] Create task with context from another surface.
-  - [ ] Return focus to caller.
-  - [ ] Optional callback/refresh after save.
-- [ ] Supported calling surfaces:
-  - [ ] Tasks page.
-  - [ ] Workbench.
-  - [ ] Future Quick Action Center.
-  - [ ] Future module actions that need to create a task from context.
-- [ ] Do not duplicate task form markup in Workbench or QAC.
-- [ ] Workbench should call the same canonical editor behavior when it needs a task add/edit flow.
-- [ ] Future QAC should call the same canonical editor behavior.
-- [ ] Add regressions proving:
-  - [ ] Tasks page can open create/edit through the canonical opener.
-  - [ ] Workbench can call the same opener without duplicating modal markup.
-  - [ ] Defaults/context can be passed into the modal.
-  - [ ] Focus returns to the calling control after close.
-  - [ ] After save, caller refresh hooks can run.
-
-Acceptance criteria:
-
-- There is one Task editor.
-- Other surfaces call it; they do not rebuild it.
-
-#### Version 0.33.5.18.9.3 - Task modal field sections and workspace context
-
-- [ ] Organize the Task modal into clear sections.
-- [ ] Standardize framework-owned section shells for:
-  - [ ] Core task details.
-  - [ ] Assignment and scheduling.
-  - [ ] Primary context.
-  - [ ] Advanced details.
-- [ ] Keep recurrence, checklist, timer, tags, files, notes, and other specialized task fragments mounted through existing task-owned behavior until their dedicated preservation slices.
-- [ ] Business workspace behavior:
-  - [ ] Client selector may appear where task context supports client.
-  - [ ] Project selector may appear.
-  - [ ] Project may derive Client where appropriate.
-- [ ] Personal/Family workspace behavior:
-  - [ ] Client selector must not appear.
-  - [ ] Project selector may appear if supported.
-- [ ] Keep nullable context fields nullable.
-- [ ] No raw UUIDs in normal modal UI.
-- [ ] Add regressions proving:
-  - [ ] Business context fields behave correctly.
-  - [ ] Personal/Family hides Client.
-  - [ ] Context can be cleared where nullable.
-  - [ ] Edit modal hydrates readable labels before fields populate.
-  - [ ] No UUIDs appear.
-
-Acceptance criteria:
-
-- The Task modal becomes a clean template-quality modal.
-- Workspace-specific context rules match Notes/List direction.
-
-#### Version 0.33.5.18.9.4 - Recurrence and reminder modal escape-hatch preservation
-
-- [ ] Preserve existing recurrence behavior.
-- [ ] Preserve existing reminder override behavior, if currently present in the modal.
-- [ ] Do not force complex task-specific editors into generic descriptor fields if that makes them brittle.
-- [ ] Use registered behaviors or mount regions for genuinely task-specific fragments.
-- [ ] Framework owns shells and placement.
-- [ ] Tasks owns rules and state.
-- [ ] Add regressions proving:
-  - [ ] Recurrence still opens/saves correctly.
-  - [ ] Recurrence details still summarize correctly in the Task modal.
-  - [ ] Reminder overrides still hydrate and save correctly where supported.
-  - [ ] Recurrence/reminder fragments do not create duplicate modal shells.
-
-Acceptance criteria:
-
-- Recurrence and reminders survive modal standardization without becoming brittle generic fields.
-
-#### Version 0.33.5.18.9.5 - Checklist modal escape-hatch preservation
-
-- [ ] Preserve existing checklist behavior.
-- [ ] Preserve checklist add/edit/check/uncheck/reorder/delete behavior.
-- [ ] Keep checklist rows as Tasks-owned fragments if generic descriptor rows would make the workflow brittle.
-- [ ] Framework owns surrounding section shell and placement.
-- [ ] Tasks owns checklist rules, API calls, row state, and progress meaning.
-- [ ] Add regressions proving:
-  - [ ] Checklist creation still works.
-  - [ ] Checklist edit/check/uncheck behavior still works.
-  - [ ] Checklist reorder/delete behavior still works.
-  - [ ] Checklist progress still updates the task summary.
-  - [ ] Checklist fragments do not create duplicate modal shells.
-
-Acceptance criteria:
-
-- Checklist behavior remains intact inside the standardized Task modal.
-
 #### Version 0.33.5.18.9.6 - Timer and modal utility escape-hatch preservation
 
-- [ ] Preserve existing timer-related behavior.
-- [ ] Preserve task modal utility actions where currently supported:
-  - [ ] Tags.
-  - [ ] Files.
-  - [ ] Notes/linked notes.
-  - [ ] Copy task link.
-  - [ ] Notification follow/unfollow.
-- [ ] Keep timer state behavior and utility child dialogs/panels Tasks-owned where needed.
-- [ ] Framework owns footer/utility placement and modal stack anatomy.
-- [ ] Tasks owns timer rules, file/tag/note/link behavior, and workflow state.
-- [ ] Add regressions proving:
-  - [ ] Timer actions still work.
-  - [ ] Tags utility behavior still works.
-  - [ ] Files utility behavior still works.
-  - [ ] Notes/linked notes behavior still works where currently supported.
-  - [ ] Copy link and notification follow/unfollow behavior still work where currently supported.
-  - [ ] Utility fragments do not create duplicate modal shells.
+- [x] Preserve existing timer-related behavior.
+- [x] Preserve task modal utility actions where currently supported:
+  - [x] Tags.
+  - [x] Files.
+  - [x] Notes/linked notes.
+  - [x] Copy task link.
+  - [x] Notification follow/unfollow.
+- [x] Keep timer state behavior and utility child dialogs/panels Tasks-owned where needed.
+- [x] Framework owns footer/utility placement and modal stack anatomy.
+- [x] Tasks owns timer rules, file/tag/note/link behavior, and workflow state.
+- [x] Add regressions proving:
+  - [x] Timer actions still work.
+  - [x] Tags utility behavior still works.
+  - [x] Files utility behavior still works.
+  - [x] Notes/linked notes behavior still works where currently supported.
+  - [x] Copy link and notification follow/unfollow behavior still work where currently supported.
+  - [x] Utility fragments do not create duplicate modal shells.
 
 Acceptance criteria:
 
