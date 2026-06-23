@@ -160,64 +160,597 @@ Acceptance criteria:
 
 ## Tasks (0.33.5.18.7 - 0.33.5.18.10)
 
-Tasks is the most complex surface (filters, list/board, detail, checklists, relationships, recurrence,
-bulk actions, timer controls, resume context/next action). Expect the heaviest use of registered
-behaviors as the escape hatch; keep business logic in `public/js/tasks.js` and
-`public/js/task-dialog.js`.
+Decision:
 
-Framework owns: page shell, filters, task table/list, detail shell, badge/metadata rows, action
-strips, summary panels, modal shell/form/footer, field grid, bulk-action toolbar, empty/loading/error
-states. Tasks owns: canonical task query, statuses, recurrence rules, relationships, checklist items,
-timer logic, resume/next-action data, validation, save payloads, permissions, workspace scope.
+Tasks should adopt the framework-owned slide-out action sidebar pattern proven by Notes, but Tasks should not copy the Notes information architecture exactly.
 
-### Version 0.33.5.18.7 - Tasks Declarative Read-Only Surface Proof
+For Tasks, the task list is the primary work surface. The task list must remain in the main content panel. The slide-out sidebar is for choosing a task view, sorting, and filtering only.
+
+Framework owns:
+
+- Page shell.
+- Slide-out filter sidebar shell.
+- Filter/funnel trigger placement and behavior.
+- Sidebar open/close state, backdrop/outside click, Escape handling, focus return, ARIA state, reduced-motion handling, scroll containment, and responsive behavior.
+- Filter preset selector shell.
+- Collapsible Sorting and Filters section shell.
+- Main task-list surface shell.
+- Bulk-action toolbar shell.
+- Modal shell/form/footer anatomy.
+- Shared field-grid, action, empty/loading/error, and dense-control anatomy.
+
+Tasks owns:
+
+- Canonical task query behavior.
+- Task statuses and lifecycle rules.
+- Assignment rules.
+- Due-date logic.
+- Priority, tags, project/client context, recurrence, blocking/relationships, checklist, timer, and resume/next-action meaning.
+- Task list row data and existing task list presentation.
+- Save payloads, validation, permissions, routes, and workflow behavior.
+
+Guardrails:
+
+- Do not move the task list into the sidebar.
+- Do not redesign the task list rows unless needed for framework/module separation.
+- Do not create a second task editor for Workbench, Quick Action Center, or future system calls.
+- The Tasks add/edit modal should become the canonical task editor invoked by Tasks, Workbench, and future Quick Action Center flows.
+- Follow the newer Notes patterns first. Use Lists patterns only where still valid, because Lists is expected to receive a larger rewrite soon.
+- Client controls must remain Business-workspace-only wherever task context editing appears.
+- Personal/Family workspaces must not show Client UI.
+
+Sizing note:
+
+This docs-only evaluation keeps 0.33.5.18.7 as the read-only shell/sidebar/list proof, then splits the
+larger generated Tasks slices so one implementation pass does not have to move framework ownership,
+preserve bulk workflows, standardize the canonical task modal, and lock strict guardrails at the same
+time. Bulk behavior, specialized modal fragments, workflow actions, relationships, and strict
+guardrail enforcement are intentionally separated below.
+
+---
+
+### Version 0.33.5.18.7 - Tasks Slide-Out Filter Sidebar and Read-Only Surface Proof
+
+This slice converts the Tasks page shell to the framework-owned action surface pattern while keeping existing task list behavior and appearance mostly intact.
+
+#### Version 0.33.5.18.7.1 - Tasks descriptor and minimal protected host
 
 - [ ] Add a `viewSurfaces` descriptor for the Tasks protected workspace read path.
 - [ ] Reduce `views/protected/tasks.html` to a minimal framework host element.
-- [ ] Move task filters, the task table/list, detail header, badge/metadata rows, and read-only
-      summary panels into the descriptor.
-- [ ] Define the normalized Tasks read endpoint and `fieldBindings`, preserving the canonical task
-      query, status set, recurrence/relationship display, resume context, and workspace scope.
-- [ ] Preserve all Tasks routes, response payloads, permissions, and scope behavior.
-- [ ] Keep task creation/editing, checklists, bulk actions, timers, and modals on the existing
-      imperative path until later slices.
-- [ ] Add regressions proving the read-only Tasks surface renders from the descriptor.
+- [ ] Register Tasks as a converted surface only for the page shell/read path in this slice.
+- [ ] Use the framework `slide-out-sidebar` layout pattern.
+- [ ] Main panel must be the task list surface.
+- [ ] Sidebar must be filter/navigation controls only.
+- [ ] Keep existing task routes, payloads, permissions, and list behavior unchanged.
+- [ ] Keep create/edit task modal, checklist editing, timers, recurrence, and bulk actions on existing imperative paths until later slices.
+- [ ] Add regressions proving:
+  - [ ] Tasks page renders from a descriptor.
+  - [ ] The protected view is reduced to a host.
+  - [ ] The slide-out filter sidebar shell exists.
+  - [ ] The task list remains in the main panel.
+  - [ ] The task list is not rendered inside the sidebar.
 
-### Version 0.33.5.18.8 - Task Detail, Checklists, Relationships, and Field Behaviors
+Acceptance criteria:
 
-- [ ] Move task detail anatomy (header, metadata, badges, summary panels, resume/next-action strip)
-      into the descriptor.
-- [ ] Render checklist rows through the editable item-row capability from 0.33.5.18.1, keeping
-      checklist add/edit/check/reorder/delete logic in Tasks files via registered behaviors.
-- [ ] Render relationships and linked context through descriptor/renderer-supported anatomy while
-      keeping relationship rules in Tasks files.
-- [ ] Keep Tasks responsible for field meaning, validation, save payloads, and permissions.
-- [ ] Add regressions for descriptor-rendered task detail, checklist rows, and relationships.
+- Tasks has a descriptor-backed page shell.
+- The sidebar exists but does not own the task list.
+- Existing task list behavior still works.
 
-### Version 0.33.5.18.9 - Task Create/Edit Modal, Bulk Actions, Recurrence, and Timer Controls
+#### Version 0.33.5.18.7.2 - Framework-owned Tasks filter sidebar anatomy
 
-- [ ] Convert the task create/edit dialog (`public/js/task-dialog.js`) to descriptor-declared
-      modal/form/footer anatomy with registered behaviors for custom field logic.
-- [ ] Render the multi-select bulk-action toolbar through the 0.33.5.18.1 capability; keep bulk
-      due/tag/status logic in Tasks files.
-- [ ] Express the recurrence dialog through the descriptor modal contract plus a registered behavior
-      for recurrence rule editing.
-- [ ] Wire timer start/pause/resume controls as registered behaviors; the framework owns placement and
-      the timer chip surface, Tasks owns timer state and routes.
-- [ ] Preserve every task create, edit, bulk-edit, recurrence, relationship, checklist, and timer
-      workflow.
-- [ ] Add regressions for the descriptor task modal, bulk toolbar, recurrence behavior, and timer
-      controls.
+- [ ] Add Tasks sidebar panels using the framework slide-out sidebar pattern.
+- [ ] Sidebar top control: task view selector dropdown.
+- [ ] The task view selector must not be a collapsible section.
+- [ ] Task view selector options:
+  - [ ] `My Tasks`
+  - [ ] `All`
+  - [ ] `Unassigned`
+  - [ ] `Overdue`
+  - [ ] `Due Today`
+  - [ ] `Due This Week`
+  - [ ] `Completed`
+  - [ ] `Archived`
+- [ ] Default selected view: `My Tasks`.
+- [ ] Add a `Sorting and Filters` section below the task view selector.
+- [ ] `Sorting and Filters` must be collapsed by default.
+- [ ] Existing detailed filters should move into `Sorting and Filters`.
+- [ ] Preserve Business/Personal/Family context rules:
+  - [ ] Business workspaces may show Client and Project filters.
+  - [ ] Personal/Family workspaces must not show Client filters.
+  - [ ] Project filters may remain available where supported.
+- [ ] Preserve existing tag, owner/assignee, due-date, status, priority, and context filtering where implemented.
+- [ ] Add regressions proving:
+  - [ ] View selector appears at top of sidebar.
+  - [ ] View selector is a dropdown, not a collapsible group.
+  - [ ] Sorting and Filters appears below it.
+  - [ ] Sorting and Filters starts collapsed.
+  - [ ] Client filter is hidden in Personal/Family workspaces.
+  - [ ] Sidebar trigger/open/close behavior follows the Notes slide-out pattern.
 
-### Version 0.33.5.18.10 - Tasks Workflow Actions and Layout Cleanup
+Acceptance criteria:
 
-- [ ] Express remaining Tasks workflow actions (complete, reopen, block/unblock, archive, delete,
-      restore, assign, recurrence apply, and related actions) as declarative route actions or
-      registered behaviors.
-- [ ] Reduce `public/js/tasks.js` and `public/js/task-dialog.js` to data bindings and behavior
-      handlers with no hand-built framework-owned anatomy.
+- Tasks has the correct filter sidebar anatomy.
+- The high-level task view selector is fast and obvious.
+- Advanced sorting/filtering is available but tucked away.
+
+#### Version 0.33.5.18.7.3 - Task view selector query contract
+
+Define the query behavior for the top dropdown.
+
+- [ ] Implement task view selector query mapping in Tasks-owned code, not framework code.
+- [ ] Framework owns the selector UI; Tasks owns what each option means.
+- [ ] Suggested query definitions:
+  - [ ] `My Tasks`: active/open tasks assigned to the current user.
+  - [ ] `All`: active/open tasks regardless of assignee.
+  - [ ] `Unassigned`: active/open tasks with no assignee.
+  - [ ] `Overdue`: active/open tasks with due date before the current workspace/user-local date.
+  - [ ] `Due Today`: active/open tasks due on the current workspace/user-local date.
+  - [ ] `Due This Week`: active/open tasks due from today through the end of the current week.
+  - [ ] `Completed`: completed tasks.
+  - [ ] `Archived`: archived tasks.
+- [ ] Ensure `Completed` and `Archived` do not leak into the normal active/open views unless intentionally selected.
+- [ ] Advanced filters should narrow the selected task view, not silently replace it.
+- [ ] Add a clear/reset behavior:
+  - [ ] Reset advanced filters without changing the selected task view.
+  - [ ] Changing the selected task view should preserve only safe compatible advanced filters.
+- [ ] Add regressions proving:
+  - [ ] Each task view produces the expected canonical query.
+  - [ ] Due-date views use workspace/user-local date logic.
+  - [ ] Advanced filters combine predictably with the selected view.
+  - [ ] Completed and Archived are intentionally scoped.
+  - [ ] Personal/Family queries never include client-only UI assumptions.
+
+Acceptance criteria:
+
+- The task view selector works as a first-class Tasks query control.
+- The framework does not hard-code task status/due-date meaning.
+- The selected view and advanced filters combine predictably.
+
+#### Version 0.33.5.18.7.4 - Tasks read-only list binding and no-visual-redesign pass
+
+- [ ] Bind the current task list data into the descriptor-backed surface.
+- [ ] Preserve existing task list appearance unless a framework-owned wrapper is required.
+- [ ] Do not redesign task rows in this slice.
+- [ ] Preserve existing list density, row controls, due-date display, status display, assignee display, and task row actions where currently available.
+- [ ] Move only framework-owned shell/layout anatomy out of `public/js/tasks.js`.
+- [ ] Keep task row data shaping and workflow handlers in Tasks-owned code.
+- [ ] Add regressions proving:
+  - [ ] Existing task list rows still render.
+  - [ ] Existing row-level actions still appear.
+  - [ ] Existing filters still affect the visible task list.
+  - [ ] Task list remains the main panel.
+  - [ ] No task list rows render in the sidebar.
+
+Acceptance criteria:
+
+- The task list looks essentially the same.
+- Framework owns the surrounding shell.
+- Tasks owns row meaning and behavior.
+
+---
+
+### Version 0.33.5.18.8 - Tasks Bulk Actions and Main List Surface Cleanup
+
+This slice keeps the task list as the main panel and introduces the framework-owned bulk-action toolbar shell.
+
+#### Version 0.33.5.18.8.1 - Collapsed bulk-action toolbar shell
+
+- [ ] Add a framework-rendered bulk-action toolbar at the top of the main task list panel.
+- [ ] Toolbar must be collapsed by default.
+- [ ] Toolbar should show a compact summary when collapsed, such as:
+  - [ ] `Bulk actions`
+  - [ ] Selected count if tasks are selected.
+- [ ] Toolbar expands when:
+  - [ ] User opens it manually.
+  - [ ] Optional: one or more tasks are selected, if this matches current behavior.
+- [ ] Bulk toolbar placement:
+  - [ ] Above the task list.
+  - [ ] Inside the main panel.
+  - [ ] Not inside the filter sidebar.
+- [ ] Framework owns toolbar anatomy and collapse behavior.
+- [ ] Tasks owns selected task state and bulk action handlers.
+- [ ] Add regressions proving:
+  - [ ] Bulk toolbar appears above the task list.
+  - [ ] Bulk toolbar starts collapsed.
+  - [ ] Bulk toolbar is not in the sidebar.
+  - [ ] Selection count displays when applicable.
+  - [ ] Expanding/collapsing does not reload or reorder the task list.
+
+Acceptance criteria:
+
+- Bulk actions are available but do not dominate the page.
+- The main task list remains visually primary.
+
+#### Version 0.33.5.18.8.2 - Non-destructive bulk action behavior wiring
+
+- [ ] Wire existing non-destructive bulk action behavior into the framework toolbar.
+- [ ] Preserve existing non-destructive bulk operations, where currently implemented:
+  - [ ] Assign/reassign.
+  - [ ] Change status.
+  - [ ] Change priority.
+  - [ ] Change due date.
+  - [ ] Change due time.
+  - [ ] Add/remove/replace tags.
+- [ ] Leave archive, restore, delete, and soft-delete lifecycle/destructive behavior for 0.33.5.18.8.3.
+- [ ] Keep all permission checks service/API-owned.
+- [ ] Toolbar buttons are display hints only; backend routes remain authoritative.
+- [ ] Add regressions proving:
+  - [ ] Bulk action buttons dispatch to Tasks-owned behavior handlers.
+  - [ ] Bulk action permissions are respected.
+  - [ ] Due date/time clearing still works.
+  - [ ] Tag add/remove/replace still works.
+  - [ ] Bulk actions refresh the task list without rebuilding the whole page by hand.
+
+Acceptance criteria:
+
+- Non-destructive bulk behavior is preserved.
+- Framework owns placement; Tasks owns meaning.
+
+#### Version 0.33.5.18.8.3 - Bulk lifecycle and destructive behavior wiring
+
+- [ ] Wire existing lifecycle/destructive bulk behavior into the framework toolbar where currently implemented.
+- [ ] Preserve existing lifecycle/destructive operations, where currently implemented:
+  - [ ] Archive.
+  - [ ] Restore.
+  - [ ] Delete/soft-delete.
+- [ ] Do not introduce a new permanent-delete workflow if Tasks does not already ship one.
+- [ ] Keep all permission checks service/API-owned.
+- [ ] Toolbar buttons are display hints only; backend routes remain authoritative.
+- [ ] Preserve existing confirmation prompts for destructive operations.
+- [ ] Add regressions proving:
+  - [ ] Archive/restore/delete controls only appear where supported.
+  - [ ] Destructive actions still confirm.
+  - [ ] Lifecycle/destructive bulk permissions are respected.
+  - [ ] Bulk lifecycle/destructive actions refresh the task list without rebuilding the whole page by hand.
+
+Acceptance criteria:
+
+- Bulk lifecycle behavior is preserved without expanding the Tasks deletion model.
+- Framework owns placement; Tasks owns lifecycle meaning.
+
+#### Version 0.33.5.18.8.4 - Task list surface framework/module separation
+
+- [ ] Continue reducing `public/js/tasks.js` to data binding and behavior handlers.
+- [ ] Remove hand-built framework-owned task page anatomy where shared helpers now exist.
+- [ ] Preserve task list row content and appearance.
+- [ ] Keep any genuinely task-specific row fragments as Tasks-owned escape hatches.
+- [ ] Add guardrail inventory, but do not yet fail strict guardrails for all Tasks code until 0.33.5.18.10.
+- [ ] Add regressions proving:
+  - [ ] Tasks uses framework page/status/filter/sidebar/list-shell/bulk-toolbar primitives.
+  - [ ] Task-specific row rendering remains module-owned.
+  - [ ] No duplicated filter sidebar shell exists in Tasks code.
+
+Acceptance criteria:
+
+- Tasks follows the Notes-style framework/module boundary without forcing a task row redesign.
+
+---
+
+### Version 0.33.5.18.9 - Canonical Task Add/Edit Modal Standardization
+
+This slice standardizes the task create/edit modal so it becomes the single editor used by Tasks, Workbench, future Quick Action Center, and future system-triggered task creation flows.
+
+Decision:
+
+There must be one canonical Task add/edit modal. Other surfaces may open it with defaults/context, but they must not create separate task forms.
+
+#### Version 0.33.5.18.9.1 - Framework-rendered Task modal shell
+
+- [ ] Convert the task create/edit dialog to descriptor-declared modal/form/footer anatomy.
+- [ ] Use the same modal patterns established by Notes and current Lists:
+  - [ ] Framework-owned modal shell.
+  - [ ] Framework-owned footer/action placement.
+  - [ ] Framework-owned field grid.
+  - [ ] Collapsible sections where appropriate.
+  - [ ] Utility buttons where appropriate.
+- [ ] Keep Tasks-owned logic in Tasks files:
+  - [ ] Save payload creation.
+  - [ ] Validation.
+  - [ ] Workspace-type behavior.
+  - [ ] Client/project visibility.
+  - [ ] Assignment behavior.
+  - [ ] Due-date behavior.
+  - [ ] Status/priority behavior.
+  - [ ] Recurrence/checklist/timer-specific meaning.
+- [ ] Preserve existing task create/edit routes and payloads.
+- [ ] Keep recurrence, checklist, timer, tags, files, notes, and other specialized task fragments on their existing task-owned paths until their dedicated preservation slices.
+- [ ] Add regressions proving:
+  - [ ] Add Task modal uses framework modal shell.
+  - [ ] Edit Task modal uses framework modal shell.
+  - [ ] Footer buttons follow Notes/Lists placement.
+  - [ ] Existing create/edit save behavior still works.
+  - [ ] Personal/Family modal hides Client controls.
+
+Acceptance criteria:
+
+- Task add/edit modal visually and structurally matches the newer modal system.
+- Task business logic stays module-owned.
+
+#### Version 0.33.5.18.9.2 - Canonical Task editor open API/behavior
+
+- [ ] Create or formalize one browser entry point for opening the Task editor.
+- [ ] The canonical opener should support:
+  - [ ] Create new task.
+  - [ ] Edit existing task.
+  - [ ] Create task with defaults.
+  - [ ] Create task with context from another surface.
+  - [ ] Return focus to caller.
+  - [ ] Optional callback/refresh after save.
+- [ ] Supported calling surfaces:
+  - [ ] Tasks page.
+  - [ ] Workbench.
+  - [ ] Future Quick Action Center.
+  - [ ] Future module actions that need to create a task from context.
+- [ ] Do not duplicate task form markup in Workbench or QAC.
+- [ ] Workbench should call the same canonical editor behavior when it needs a task add/edit flow.
+- [ ] Future QAC should call the same canonical editor behavior.
+- [ ] Add regressions proving:
+  - [ ] Tasks page can open create/edit through the canonical opener.
+  - [ ] Workbench can call the same opener without duplicating modal markup.
+  - [ ] Defaults/context can be passed into the modal.
+  - [ ] Focus returns to the calling control after close.
+  - [ ] After save, caller refresh hooks can run.
+
+Acceptance criteria:
+
+- There is one Task editor.
+- Other surfaces call it; they do not rebuild it.
+
+#### Version 0.33.5.18.9.3 - Task modal field sections and workspace context
+
+- [ ] Organize the Task modal into clear sections.
+- [ ] Standardize framework-owned section shells for:
+  - [ ] Core task details.
+  - [ ] Assignment and scheduling.
+  - [ ] Primary context.
+  - [ ] Advanced details.
+- [ ] Keep recurrence, checklist, timer, tags, files, notes, and other specialized task fragments mounted through existing task-owned behavior until their dedicated preservation slices.
+- [ ] Business workspace behavior:
+  - [ ] Client selector may appear where task context supports client.
+  - [ ] Project selector may appear.
+  - [ ] Project may derive Client where appropriate.
+- [ ] Personal/Family workspace behavior:
+  - [ ] Client selector must not appear.
+  - [ ] Project selector may appear if supported.
+- [ ] Keep nullable context fields nullable.
+- [ ] No raw UUIDs in normal modal UI.
+- [ ] Add regressions proving:
+  - [ ] Business context fields behave correctly.
+  - [ ] Personal/Family hides Client.
+  - [ ] Context can be cleared where nullable.
+  - [ ] Edit modal hydrates readable labels before fields populate.
+  - [ ] No UUIDs appear.
+
+Acceptance criteria:
+
+- The Task modal becomes a clean template-quality modal.
+- Workspace-specific context rules match Notes/List direction.
+
+#### Version 0.33.5.18.9.4 - Recurrence and reminder modal escape-hatch preservation
+
+- [ ] Preserve existing recurrence behavior.
+- [ ] Preserve existing reminder override behavior, if currently present in the modal.
+- [ ] Do not force complex task-specific editors into generic descriptor fields if that makes them brittle.
+- [ ] Use registered behaviors or mount regions for genuinely task-specific fragments.
+- [ ] Framework owns shells and placement.
+- [ ] Tasks owns rules and state.
+- [ ] Add regressions proving:
+  - [ ] Recurrence still opens/saves correctly.
+  - [ ] Recurrence details still summarize correctly in the Task modal.
+  - [ ] Reminder overrides still hydrate and save correctly where supported.
+  - [ ] Recurrence/reminder fragments do not create duplicate modal shells.
+
+Acceptance criteria:
+
+- Recurrence and reminders survive modal standardization without becoming brittle generic fields.
+
+#### Version 0.33.5.18.9.5 - Checklist modal escape-hatch preservation
+
+- [ ] Preserve existing checklist behavior.
+- [ ] Preserve checklist add/edit/check/uncheck/reorder/delete behavior.
+- [ ] Keep checklist rows as Tasks-owned fragments if generic descriptor rows would make the workflow brittle.
+- [ ] Framework owns surrounding section shell and placement.
+- [ ] Tasks owns checklist rules, API calls, row state, and progress meaning.
+- [ ] Add regressions proving:
+  - [ ] Checklist creation still works.
+  - [ ] Checklist edit/check/uncheck behavior still works.
+  - [ ] Checklist reorder/delete behavior still works.
+  - [ ] Checklist progress still updates the task summary.
+  - [ ] Checklist fragments do not create duplicate modal shells.
+
+Acceptance criteria:
+
+- Checklist behavior remains intact inside the standardized Task modal.
+
+#### Version 0.33.5.18.9.6 - Timer and modal utility escape-hatch preservation
+
+- [ ] Preserve existing timer-related behavior.
+- [ ] Preserve task modal utility actions where currently supported:
+  - [ ] Tags.
+  - [ ] Files.
+  - [ ] Notes/linked notes.
+  - [ ] Copy task link.
+  - [ ] Notification follow/unfollow.
+- [ ] Keep timer state behavior and utility child dialogs/panels Tasks-owned where needed.
+- [ ] Framework owns footer/utility placement and modal stack anatomy.
+- [ ] Tasks owns timer rules, file/tag/note/link behavior, and workflow state.
+- [ ] Add regressions proving:
+  - [ ] Timer actions still work.
+  - [ ] Tags utility behavior still works.
+  - [ ] Files utility behavior still works.
+  - [ ] Notes/linked notes behavior still works where currently supported.
+  - [ ] Copy link and notification follow/unfollow behavior still work where currently supported.
+  - [ ] Utility fragments do not create duplicate modal shells.
+
+Acceptance criteria:
+
+- Timer and modal utility workflows remain intact inside the standardized Task modal.
+
+---
+
+### Version 0.33.5.18.10 - Tasks Workflow Actions, Detail/Relationship Cleanup, and Strict Guardrails
+
+This is the closeout phase that finishes the Tasks conversion after the sidebar, list shell, bulk toolbar, and canonical modal are stable.
+
+#### Version 0.33.5.18.10.1 - Task lifecycle action descriptor wiring
+
+- [ ] Express remaining task lifecycle actions as declarative actions or registered behaviors.
+- [ ] Include supported lifecycle actions such as:
+  - [ ] Complete.
+  - [ ] Reopen.
+  - [ ] Block/unblock.
+  - [ ] Archive.
+  - [ ] Restore.
+  - [ ] Delete/soft-delete.
+- [ ] Do not introduce a new permanent-delete workflow if Tasks does not already ship one.
+- [ ] Framework owns placement and disabled/loading/error display.
+- [ ] Tasks owns route calls, permission implications, and workflow meaning.
+- [ ] Add regressions proving:
+  - [ ] Each lifecycle action dispatches to the correct Tasks-owned handler.
+  - [ ] Disabled/read-only/permission states display correctly.
+  - [ ] Destructive operations confirm.
+  - [ ] Lifecycle actions refresh the list consistently.
+
+Acceptance criteria:
+
+- Task lifecycle action placement is framework-standard.
+- Task lifecycle meaning remains module-owned.
+
+#### Version 0.33.5.18.10.2 - Task assignment, scheduling, recurrence, and timer action wiring
+
+- [ ] Express remaining non-lifecycle workflow actions as declarative actions or registered behaviors where currently supported.
+- [ ] Include supported workflow actions such as:
+  - [ ] Assign/reassign.
+  - [ ] Change due date.
+  - [ ] Change due time.
+  - [ ] Apply recurrence action.
+  - [ ] Start/pause/resume timer.
+- [ ] Keep complex edit flows in the canonical Task modal when an inline action would hide necessary context.
+- [ ] Framework owns placement and disabled/loading/error display.
+- [ ] Tasks owns route calls, permission implications, and workflow meaning.
+- [ ] Add regressions proving:
+  - [ ] Each supported action dispatches to the correct Tasks-owned handler.
+  - [ ] Disabled/read-only/permission states display correctly.
+  - [ ] Actions preserve workspace/client/project visibility rules.
+  - [ ] Actions refresh the list consistently.
+
+Acceptance criteria:
+
+- Task workflow action placement is framework-standard without flattening complex task rules into framework code.
+
+#### Version 0.33.5.18.10.3 - Task detail/read panel cleanup
+
+- [ ] Standardize any task detail/read panel anatomy that remains hand-built.
+- [ ] Render detail metadata/badges/summary panels using framework primitives where applicable.
+- [ ] Preserve the current task list as the primary view.
+- [ ] If task detail is modal-based, keep it modal-based; do not create a new persistent detail column unless separately approved.
+- [ ] Add regressions proving:
+  - [ ] Task detail/read metadata uses framework primitives.
+  - [ ] No raw UUIDs appear in normal task UI.
+  - [ ] Existing detail/read behavior is preserved.
+
+Acceptance criteria:
+
+- Detail UI follows the same contracts as Notes without changing the main task-list-first workflow.
+
+#### Version 0.33.5.18.10.4 - Task relationships and linked context cleanup
+
+- [ ] Render relationships/linked context through shared framework-supported anatomy where applicable.
+- [ ] Keep relationship rules in Tasks-owned files.
+- [ ] Preserve parent/child relationship behavior.
+- [ ] Preserve blocking summary behavior.
+- [ ] Preserve linked context and task-created note context display where currently supported.
+- [ ] Add regressions proving:
+  - [ ] Relationship/linked context display remains permission-safe.
+  - [ ] No raw UUIDs appear in normal relationship or linked context UI.
+  - [ ] Existing relationship behavior is preserved.
+  - [ ] Existing linked context/task-created note behavior is preserved.
+
+Acceptance criteria:
+
+- Relationship and linked context UI follows shared contracts without changing Tasks relationship rules.
+
+#### Version 0.33.5.18.10.5 - Tasks strict guardrail inventory and escape-hatch map
+
+- [ ] Inventory remaining hand-built framework-owned anatomy in `public/js/tasks.js` and `public/js/task-dialog.js`.
+- [ ] Inventory documented Tasks-owned escape hatches for:
+  - [ ] Task row-specific content.
+  - [ ] Recurrence editor internals.
+  - [ ] Checklist behavior fragments.
+  - [ ] Timer state behavior.
+  - [ ] Task modal utility fragments where generic fields would be brittle.
+- [ ] Document which remaining fragments are intentional Tasks ownership rather than framework shell construction.
+- [ ] Add or update non-failing guardrail inventory coverage, but do not fail strict Tasks guardrails until 0.33.5.18.10.6.
+- [ ] Add regressions proving:
+  - [ ] The inventory identifies framework-owned anatomy that must be removed before strict enforcement.
+  - [ ] Documented escape hatches are explicit and narrow.
+  - [ ] Existing task workflows still pass.
+
+Acceptance criteria:
+
+- Strict enforcement has a clear allowlist before it becomes a hard gate.
+
+#### Version 0.33.5.18.10.6 - Tasks strict declarative guardrail enforcement
+
+- [ ] Reduce `public/js/tasks.js` and `public/js/task-dialog.js` to data bindings and behavior handlers.
+- [ ] Remove hand-built framework-owned anatomy where a framework primitive now exists.
+- [ ] Keep documented escape hatches for task-specific fragments.
 - [ ] Expand fail-on-violation declarative guardrails to the Tasks surface.
-- [ ] Add regressions proving Tasks no longer creates framework-owned anatomy by hand.
+- [ ] Guardrails should forbid new hand-built framework-owned anatomy for:
+  - [ ] Page shell.
+  - [ ] Slide-out sidebar shell.
+  - [ ] Filter panel shell.
+  - [ ] Bulk toolbar shell.
+  - [ ] Modal shell/footer.
+  - [ ] Standard field grids.
+  - [ ] Standard action placement.
+- [ ] Guardrails should allow documented Tasks-owned fragments for:
+  - [ ] Task row-specific content.
+  - [ ] Recurrence editor internals.
+  - [ ] Checklist behavior fragments where necessary.
+  - [ ] Timer state behavior.
+- [ ] Add regressions proving:
+  - [ ] Tasks no longer creates framework-owned shells by hand.
+  - [ ] Documented escape hatches are the only exceptions.
+  - [ ] Existing task workflows still pass.
+
+Acceptance criteria:
+
+- Tasks is guarded like Notes.
+- New code cannot quietly backslide into one-off UI construction.
+
+#### Version 0.33.5.18.10.7 - Tasks docs, changelog, and closeout
+
+- [ ] Update `docs/tasks-module.md` or create it if missing.
+- [ ] Update `docs/view-building-contract.md` for Tasks as a slide-out-sidebar adopter.
+- [ ] Update `docs/module-contract.md` if the canonical Task editor opener becomes a cross-surface module action pattern.
+- [ ] Update guardrail documentation with the Tasks strict enforcement scope and escape hatches.
+- [ ] Document the canonical Task editor entry point for:
+  - [ ] Tasks page.
+  - [ ] Workbench.
+  - [ ] Future Quick Action Center.
+  - [ ] Future module-triggered task creation.
+- [ ] Update `DECISIONS.md` if a new canonical cross-surface editor pattern is formalized.
+- [ ] Update CHANGELOG.
+- [ ] Bump package/app metadata.
+- [ ] Run:
+  - [ ] `npm run check`
+  - [ ] Tasks UI regressions.
+  - [ ] Task modal regressions.
+  - [ ] Bulk-action regressions.
+  - [ ] Permissions tests if task visibility/assignment/context behavior changed.
+- [ ] Verify `/api/app-info` reports the expected version.
+- [ ] Do not convert Files or Clients/Projects in this closeout.
+- [ ] Do not redesign the task list rows in this closeout unless required to remove framework-owned anatomy.
+
+Acceptance criteria:
+
+- Tasks is converted enough to be a clean template for Files and Clients/Projects.
+- Filter sidebar uses the same framework-owned slide-out pattern as Notes.
+- Task list remains the primary main-panel view.
+- Bulk actions are collapsed above the list.
+- Add/Edit Task modal is canonical and reusable from Workbench/QAC/future module calls.
+- Framework/module separation is documented and regression-covered.
 
 ---
 
