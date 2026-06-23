@@ -1,6 +1,6 @@
 # Declarative View Surfaces
 
-This guide describes the current `viewSurfaces` authoring contract as of 0.33.5.16.12.
+This guide describes the current `viewSurfaces` authoring contract as of 0.33.5.18.7.4.
 
 Declarative view surfaces are framework-rendered protected surfaces described by module manifest data. They are for common app anatomy: page headers, filters, selector/index panels, split layouts, tables, detail headers, action strips, summary panels, field grids, modal shells, modal footers, item rows, and linked-record panels.
 
@@ -19,9 +19,10 @@ Modules still own business behavior. A module descriptor may name fields, routes
 
 ## Layouts (0.33.5.18.2)
 
-Supported `layout` values: `single-column`, `stacked`, `table-page`. The `split-list-detail` layout is **retired** (the `createSplitListDetail` primitive and `.view-split-list-detail` CSS remain only as deprecated compatibility shims).
+Supported `layout` values: `single-column`, `stacked`, `sidebar-detail`, `slide-out-sidebar`, and `table-page`. The `split-list-detail` layout is **retired** (the `createSplitListDetail` primitive and `.view-split-list-detail` CSS remain only as deprecated compatibility shims).
 
 - `stacked` is the standard list/detail layout: a collapsible filters panel, a height-capped scrollable index panel on top, then a full-width detail panel below. Filters render collapsed by default.
+- `slide-out-sidebar` is the preferred action/workflow surface anatomy when filters, libraries, or navigation need to sit beside a primary record or list surface without squeezing the main content.
 
 ## Shared Capabilities (0.33.5.18.1)
 
@@ -35,7 +36,7 @@ Capabilities intentionally NOT yet in the descriptor (use an escape-hatch behavi
 
 ## Guardrails
 
-Strict guardrails currently enforce `lists.workspace` and `notes.workspace`. Tags and Developer Example descriptors are inventoried and delivered through the descriptor pipeline, but their protected views are not strict-converted surfaces in this closeout. (Notes mounts a secondary Library navigation panel via the framework `createCollapsibleIndexPanel` primitive — an allowed exception until the descriptor can express a second nav panel.)
+Strict guardrails currently enforce `lists.workspace` and `notes.workspace`. Tasks now declares `tasks.workspace` for the protected page shell/read path, with ordered sidebar panels for a non-collapsible saved task view selector and collapsed Sorting and Filters controls. The main task list is bound through the `tasks-main-list` detail region, but its selected-view query contract, row data shaping, bulk toolbar, row actions, and dialog workflows remain module-owned and reported-only until later Tasks slices. Tags and Developer Example descriptors are inventoried and delivered through the descriptor pipeline, but their protected views are not strict-converted surfaces in this closeout. (Notes mounts a secondary Library navigation panel via the framework `createCollapsibleIndexPanel` primitive - an allowed exception until the descriptor can express a second nav panel.)
 
 A strict declarative surface must:
 
@@ -61,7 +62,7 @@ The module adapter decorates descriptor-rendered nodes with compatibility hooks 
 
 ## Protected View Inventory
 
-The inventory below is current for 0.33.5.16.12. `strict` means the static guardrail fails on declarative-surface violations. `reported` means the view is known to the inventory but is not strict-converted in this slice.
+The inventory below is current for 0.33.5.18.7.4. `strict` means the static guardrail fails on declarative-surface violations. `reported` means the view is known to the inventory but is not strict-converted in this slice.
 
 | Module | View | File | Descriptor Surface | Guardrail |
 | --- | --- | --- | --- | --- |
@@ -80,7 +81,7 @@ The inventory below is current for 0.33.5.16.12. `strict` means the static guard
 | Reporting | reporting | reporting.html | - | reported |
 | Search | search | search.html | - | reported |
 | Tags | tags | tags.html | tags.management | reported |
-| Tasks | tasks | tasks.html | - | reported |
+| Tasks | tasks | tasks.html | tasks.workspace | reported |
 | Tasks Settings | tasks-settings | tasks-settings.html | - | reported |
 | Time Entries | time-entries | time-entries.html | - | reported |
 | Time Tracker | time-tracker | time-tracker.html | - | reported |

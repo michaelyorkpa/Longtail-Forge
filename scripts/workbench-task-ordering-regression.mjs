@@ -48,8 +48,8 @@ assert.match(
 );
 assert.match(
   tasksScript,
-  /if \(!state\.quickFilter\) \{\s*statusFilter\.value = "all";/s,
-  "Tasks All quick-filter should reset the stale Completed or Archived status filter.",
+  /function defaultStatusForTaskView\(taskView\)[\s\S]*return "active";/,
+  "Tasks active saved views should reset stale Completed or Archived status filters to Active.",
 );
 
 console.log("Workbench task ordering regression passed.");

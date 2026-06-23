@@ -23,6 +23,7 @@ import { normalizeUtcIso } from "../../utils/timezones.js";
 const TASKS_MODULE_ID = "tasks";
 const STATUSES = new Set(["open", "in_progress", "blocked", "complete", "archived"]);
 const PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
+const TASK_VIEW_FILTERS = new Set(["my", "all", "unassigned", "overdue", "today", "week", "completed", "archived"]);
 
 async function list(session, query = {}) {
   const { tasks } = await queryTasks(session, query);
@@ -1713,21 +1714,28 @@ function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId
   const now = new Date();
   const today = localDateKey(now, session.timezone);
   const dueSoonCutoff = addDaysKey(today, 7);
+  const currentWeekEnd = currentWeekEndKey(today);
+  const taskView = normalizedTaskView(query.taskView || query.task_view || query.view);
   const statusFilter = normalizedTaskFilter(query.status || query.status_filter || query.filter);
-  const quickFilter = normalizedTaskFilter(query.quickFilter || query.quick_filter || query.assigneeFilter || query.assignee_filter);
+  const quickFilter = normalizedTaskFilter(query.quickFilter || query.quick_filter || (!taskView ? query.assigneeFilter || query.assignee_filter : ""));
   const dueFilter = normalizedTaskFilter(query.due || query.due_filter) || quickDueFilter(quickFilter);
   const timerFilter = normalizedTaskFilter(query.timer || query.timer_status);
+  const assigneeFilter = normalizedTaskFilter(query.assignee || query.assignee_scope || query.assignee_filter_value);
   const projectId = String(query.projectId || query.project_id || "").trim();
   const clientId = String(query.clientId || query.client_id || "").trim();
   const assigneeId = String(query.assigneeId || query.assignee_id || "").trim();
   const hasProjectFilter = hasQueryFilter(query, ["projectId", "project_id"]);
   const hasClientFilter = hasQueryFilter(query, ["clientId", "client_id"]);
 
+  if (taskView && !matchesTaskView(task, taskView, session.user_id, today, currentWeekEnd)) {
+    return false;
+  }
+
   if (!matchesStatusFilter(task, statusFilter)) {
     return false;
   }
 
-  if (!matchesQuickFilter(task, quickFilter, session.user_id)) {
+  if (!taskView && !matchesQuickFilter(task, quickFilter, session.user_id)) {
     return false;
   }
 
@@ -1743,7 +1751,7 @@ function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId
     return false;
   }
 
-  if (assigneeId && !(task.assignee_ids || []).includes(assigneeId)) {
+  if (!matchesAdvancedAssigneeFilter(task, assigneeFilter, assigneeId, session.user_id)) {
     return false;
   }
 
@@ -1755,6 +1763,42 @@ function taskMatchesCanonicalQuery(task, query = {}, session = {}, timerByTaskId
     if (["running", "paused"].includes(timerFilter) && timer?.timer_status !== timerFilter) {
       return false;
     }
+  }
+
+  return true;
+}
+
+function matchesTaskView(task, taskView, currentUserId, today, currentWeekEnd) {
+  if (taskView === "my") {
+    return isActiveTask(task) && (task.assignee_ids || []).includes(currentUserId);
+  }
+
+  if (taskView === "all") {
+    return isActiveTask(task);
+  }
+
+  if (taskView === "unassigned") {
+    return isActiveTask(task) && (task.assignee_ids || []).length === 0;
+  }
+
+  if (taskView === "overdue") {
+    return isActiveTask(task) && Boolean(task.due_date) && task.due_date < today;
+  }
+
+  if (taskView === "today") {
+    return isActiveTask(task) && task.due_date === today;
+  }
+
+  if (taskView === "week") {
+    return isActiveTask(task) && Boolean(task.due_date) && task.due_date >= today && task.due_date <= currentWeekEnd;
+  }
+
+  if (taskView === "completed") {
+    return task.status === "complete";
+  }
+
+  if (taskView === "archived") {
+    return task.status === "archived";
   }
 
   return true;
@@ -1795,6 +1839,22 @@ function matchesQuickFilter(task, filter, currentUserId) {
 
   if (["overdue", "today", "week", "next_due"].includes(filter)) {
     return true;
+  }
+
+  return true;
+}
+
+function matchesAdvancedAssigneeFilter(task, filter, assigneeId, currentUserId) {
+  if (filter === "me" || filter === "assigned_to_me") {
+    return (task.assignee_ids || []).includes(currentUserId);
+  }
+
+  if (filter === "unassigned") {
+    return (task.assignee_ids || []).length === 0;
+  }
+
+  if (assigneeId) {
+    return (task.assignee_ids || []).includes(assigneeId);
   }
 
   return true;
@@ -1893,6 +1953,19 @@ function taskDueSortValue(task) {
 
 function normalizedTaskFilter(value) {
   return String(value || "").trim().toLowerCase();
+}
+
+function normalizedTaskView(value) {
+  const taskView = normalizedTaskFilter(value);
+  const aliases = {
+    assigned: "my",
+    assigned_to_me: "my",
+    complete: "completed",
+    due_today: "today",
+    due_this_week: "week",
+  };
+  const normalized = aliases[taskView] || taskView;
+  return TASK_VIEW_FILTERS.has(normalized) ? normalized : "";
 }
 
 function readBoolean(value) {
@@ -2109,6 +2182,18 @@ function addDaysKey(dateKey, days) {
   const date = new Date(`${dateKey}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + days);
   return localDateKey(date);
+}
+
+function currentWeekEndKey(dateKey) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  const daysUntilSaturday = (6 - date.getUTCDay() + 7) % 7;
+  return addCalendarDaysKey(dateKey, daysUntilSaturday);
+}
+
+function addCalendarDaysKey(dateKey, days) {
+  const date = new Date(`${dateKey}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 function isActiveStatus(status) {

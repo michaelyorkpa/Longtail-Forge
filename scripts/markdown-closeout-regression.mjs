@@ -13,9 +13,9 @@ const notesHelp = await read("help/modules/notes/markdown.md");
 const packageJson = JSON.parse(await read("package.json"));
 const packageLock = JSON.parse(await read("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.18.6.11", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.6.11", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.11", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.7.4", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.7.4", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.7.4", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(
   roadmap,

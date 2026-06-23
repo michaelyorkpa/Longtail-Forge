@@ -49,7 +49,7 @@ const taskModule = read("src/modules/tasks/module.js");
   assert.ok(helper.includes(snippet), `file attachment helper should contain ${snippet}`);
 });
 
-assert.ok(tasksPage.includes("data-task-files"), "Tasks page should reserve task attachment mount point.");
+assert.ok(taskDialog.includes("data-task-files"), "Task dialog should reserve task attachment mount point.");
 assert.ok(
   tasksPage.indexOf("js/shared/file-attachments.js") < tasksPage.indexOf("js/task-dialog.js"),
   "Task attachment helper must load before task dialog.",

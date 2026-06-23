@@ -1,13 +1,20 @@
 const TASK_FILTER_STORAGE_KEY = "lf_tasks_filters_v1";
+const DEFAULT_TASK_VIEW = "my";
 const QUICK_FILTERS = new Set(["my", "unassigned", "overdue", "today", "week", "complete", "archived"]);
+const TASK_VIEW_VALUES = new Set(["all", ...QUICK_FILTERS]);
+const view = window.LongtailForge?.view;
+
+let activeTasksViewDescriptor = null;
+
+buildTasksViewShell();
+window.LongtailForge.tasksDialog?.configure?.();
 
 const taskStatus = document.querySelector("[data-task-status]");
 const taskList = document.querySelector("[data-task-list]");
 const addTaskButton = document.querySelector("[data-add-task]");
 const taskDialog = document.querySelector("[data-task-dialog]");
 const copyTaskLinkButton = document.querySelector("[data-copy-task-link]");
-const quickFilters = document.querySelector("[data-task-quick-filters]");
-const filterDetails = document.querySelector("[data-task-filter-details]");
+const taskViewSelector = document.querySelector("[data-task-view-selector]");
 const sortInput = document.querySelector("[data-task-sort]");
 const statusFilter = document.querySelector("[data-task-status-filter]");
 const assigneeFilter = document.querySelector("[data-task-assignee-filter]");
@@ -15,6 +22,7 @@ const clientFilter = document.querySelector("[data-task-client-filter]");
 const projectFilter = document.querySelector("[data-task-project-filter]");
 const tagFilterControl = document.querySelector("[data-task-tag-filter-control]");
 const tagFilter = document.querySelector("[data-task-tag-filter]");
+const resetTaskFiltersButton = document.querySelector("[data-task-reset-filters]");
 const selectAllInput = document.querySelector("[data-task-select-all]");
 const bulkToolbar = document.querySelector("[data-task-bulk-toolbar]");
 const bulkStatusControl = document.querySelector("[data-task-bulk-status-control]");
@@ -53,7 +61,7 @@ let state = {
   },
   editingTaskId: "",
   currentUserId: "",
-  quickFilter: "",
+  quickFilter: DEFAULT_TASK_VIEW,
   selectedTaskIds: new Set(),
   attachmentCounts: {},
   noteCounts: {},
@@ -63,8 +71,8 @@ let state = {
 let hasLoadedTasks = false;
 
 addTaskButton?.addEventListener("click", () => openTaskDialog());
-quickFilters?.addEventListener("click", handleQuickFilterClick);
-filterDetails?.addEventListener("toggle", handleFilterDetailsToggle);
+taskViewSelector?.addEventListener("change", handleTaskViewChange);
+resetTaskFiltersButton?.addEventListener("click", resetAdvancedTaskFilters);
 bulkStatusInput?.addEventListener("change", updateBulkControls);
 bulkPriorityInput?.addEventListener("change", updateBulkControls);
 bulkDueDateInput?.addEventListener("change", updateBulkControls);
@@ -84,6 +92,279 @@ selectAllInput?.addEventListener("change", toggleVisibleSelection);
 });
 
 loadTasks();
+
+function buildTasksViewShell() {
+  const host = document.querySelector("[data-tasks-host]");
+  if (!host || host.querySelector("[data-task-list]")) {
+    return;
+  }
+  if (!view) {
+    throw new Error("Tasks requires LongtailForge.view to build the protected workspace.");
+  }
+
+  registerTasksViewBehaviors();
+  activeTasksViewDescriptor = tasksViewSurfaceDescriptor();
+  const surface = view.renderSurface({ ...activeTasksViewDescriptor, dataSource: null, modals: [] }, host);
+  decorateTasksDeclarativeSurface(surface);
+}
+
+function registerTasksViewBehaviors() {
+  if (typeof view?.registerBehavior !== "function") {
+    return;
+  }
+  view.registerBehavior("tasks.create", () => openTaskDialog());
+  view.registerBehavior("tasks.sidebar.view-selector", ({ container }) => {
+    container.replaceChildren(createTaskViewSelectorChrome());
+  });
+  view.registerBehavior("tasks.sidebar.filters", ({ container }) => {
+    container.replaceChildren(createTaskFilterChrome());
+  });
+  view.registerBehavior("tasks.main.list", ({ container }) => {
+    container.replaceChildren(createTaskMainListChrome());
+  });
+}
+
+function tasksViewSurfaceDescriptor() {
+  const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
+  return surfaces.find((surface) => surface.id === "tasks.workspace" && surface.moduleId === "tasks")
+    || fallbackTasksViewSurfaceDescriptor();
+}
+
+function fallbackTasksViewSurfaceDescriptor() {
+  return {
+    id: "tasks.workspace",
+    moduleId: "tasks",
+    viewId: "tasks",
+    layout: "slide-out-sidebar",
+    sidebarLabel: "Task filters",
+    pageHeader: {
+      title: "Tasks",
+      primaryAction: {
+        id: "create-task",
+        label: "Add Task",
+        role: "primary",
+        behavior: "tasks.create",
+      },
+    },
+    sidebarPanels: [
+      {
+        id: "tasks-view-selector",
+        type: "navigation",
+        title: "Saved Task Views",
+        behavior: "tasks.sidebar.view-selector",
+        collapsible: false,
+        className: "tasks-view-selector-panel",
+        ariaLabel: "Saved task views",
+      },
+      {
+        id: "tasks-filters",
+        type: "navigation",
+        title: "Sorting and Filters",
+        behavior: "tasks.sidebar.filters",
+        open: false,
+        className: "tasks-filters-panel",
+        ariaLabel: "Sorting and task filters",
+      },
+    ],
+    detail: {
+      regions: [
+        {
+          id: "tasks-main-list",
+          behavior: "tasks.main.list",
+          className: "tasks-main-list-region",
+          ariaLabel: "Task list",
+        },
+      ],
+    },
+    dataSource: {
+      route: "/api/tasks",
+      method: "GET",
+      fieldBindings: {
+        id: "task_id",
+        title: "title",
+        status: "status",
+      },
+    },
+  };
+}
+
+function decorateTasksDeclarativeSurface(surface) {
+  const createAction = surface.querySelector('[data-surface-action="tasks.create"], [data-surface-action="create-task"]');
+  if (createAction) {
+    createAction.dataset.addTask = "";
+  }
+
+  const main = surface.querySelector(".view-slideout-sidebar-main")
+    || surface.querySelector(".view-sidebar-detail-primary")
+    || surface.querySelector(".view-stacked-detail");
+  if (main) {
+    main.classList.add("tasks-main-list-panel");
+    main.dataset.tasksMainPanel = "";
+  }
+}
+
+function createTaskViewSelectorChrome() {
+  return taskTemplateElement(`
+    <div class="task-view-selector-control" data-task-view-selector-control>
+      <select data-task-view-selector aria-label="Saved Task Views">
+        <option value="my" selected>My Tasks</option>
+        <option value="all">All</option>
+        <option value="unassigned">Unassigned</option>
+        <option value="overdue">Overdue</option>
+        <option value="today">Due Today</option>
+        <option value="week">Due This Week</option>
+        <option value="complete">Completed</option>
+        <option value="archived">Archived</option>
+      </select>
+    </div>
+  `);
+}
+
+function createTaskFilterChrome() {
+  return taskTemplateElement(`
+    <div class="task-page-toolbar" data-task-filter-toolbar aria-label="Sorting and task filters">
+      <div class="task-filter-grid" data-task-filter-details>
+        <label>
+          Sort
+          <select data-task-sort>
+            <option value="due_asc" selected>Due Date</option>
+            <option value="priority_desc">Priority</option>
+            <option value="status_asc">Status</option>
+            <option value="last_worked">Last Worked</option>
+            <option value="context">Project / Client</option>
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </label>
+        <label>
+          Status
+          <select data-task-status-filter>
+            <option value="active" selected>Active</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In Progress</option>
+            <option value="blocked">Blocked</option>
+            <option value="complete">Complete</option>
+            <option value="archived">Archived</option>
+            <option value="all">All</option>
+          </select>
+        </label>
+        <label>
+          Assignee
+          <select data-task-assignee-filter>
+            <option value="all" selected>All assignees</option>
+          </select>
+        </label>
+        <label data-client-workspace-control>
+          Client
+          <select data-task-client-filter>
+            <option value="all" selected>All clients</option>
+          </select>
+        </label>
+        <label>
+          Project
+          <select data-task-project-filter>
+            <option value="all" selected>All projects</option>
+          </select>
+        </label>
+        <label data-task-tag-filter-control hidden>
+          Tag
+          <select data-task-tag-filter>
+            <option value="all" selected>All tags</option>
+          </select>
+        </label>
+        <div class="task-filter-actions">
+          <button type="button" data-task-reset-filters>Reset Filters</button>
+        </div>
+      </div>
+    </div>
+  `);
+}
+
+function createTaskMainListChrome() {
+  return taskTemplateElement(`
+    <div class="tasks-main-list-surface" data-task-main-list-surface>
+      <details class="task-bulk-toolbar surface-main-panel" data-task-bulk-toolbar>
+        <summary>Bulk Actions</summary>
+        <div class="task-bulk-grid">
+          <label data-task-bulk-status-control>
+            Status
+            <select data-task-bulk-status>
+              <option value="" selected>-</option>
+              <option value="open">Open</option>
+              <option value="in_progress">In Progress</option>
+              <option value="blocked">Blocked</option>
+              <option value="complete">Complete</option>
+            </select>
+          </label>
+          <label data-task-bulk-priority-control>
+            Priority
+            <select data-task-bulk-priority>
+              <option value="" selected>-</option>
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </label>
+          <label data-task-bulk-due-date-control>
+            Due Date
+            <input type="date" data-task-bulk-due-date>
+            <span class="checkbox-line">
+              <input type="checkbox" data-task-bulk-clear-due-date>
+              Clear due date
+            </span>
+          </label>
+          <label data-task-bulk-due-time-control>
+            Due Time
+            <input type="time" data-task-bulk-due-time>
+            <span class="checkbox-line">
+              <input type="checkbox" data-task-bulk-clear-due-time>
+              Clear due time
+            </span>
+          </label>
+          <label data-task-bulk-assignee-control>
+            Assignees
+            <div class="task-bulk-assignee-list" data-task-bulk-assignees></div>
+          </label>
+          <label data-task-bulk-tag-action-control hidden>
+            Tag Action
+            <select data-task-bulk-tag-action>
+              <option value="" selected>-</option>
+              <option value="tag_add">Add tags</option>
+              <option value="tag_remove">Remove tags</option>
+              <option value="tag_replace">Replace direct tags</option>
+            </select>
+          </label>
+          <label data-task-bulk-tags-control hidden>
+            Tags
+            <select data-task-bulk-tags multiple size="4"></select>
+          </label>
+          <button type="button" data-task-bulk-apply disabled>Apply to 0</button>
+        </div>
+      </details>
+
+      <p data-task-status role="status" aria-live="polite"></p>
+
+      <div class="list-table-wrap" data-task-list-surface>
+        <table class="list-table task-table">
+          <thead>
+            <tr>
+              <th><input type="checkbox" data-task-select-all aria-label="Select all visible tasks"></th>
+              <th colspan="6">Task Details</th>
+            </tr>
+          </thead>
+          <tbody data-task-list></tbody>
+        </table>
+      </div>
+    </div>
+  `);
+}
+
+function taskTemplateElement(markup) {
+  const template = document.createElement("template");
+  template.innerHTML = markup.trim();
+  return template.content.firstElementChild;
+}
 
 async function loadTasks() {
   setStatus("Loading tasks...");
@@ -161,26 +442,21 @@ async function loadCanonicalTasks() {
 
 function buildTaskQuery() {
   const params = new URLSearchParams();
+  const taskView = selectedTaskView();
   const statusValue = statusFilter?.value || "active";
   const assigneeValue = assigneeFilter?.value || "all";
   const clientValue = usesClientScope() ? clientFilter?.value || "all" : "all";
   const projectValue = projectFilter?.value || "all";
   const tagValue = tagFilter?.value || "all";
 
+  params.set("task_view", canonicalTaskViewValue(taskView));
   params.set("status", canonicalStatusValue(statusValue));
   params.set("sort", canonicalSortValue(sortInput?.value || "due_asc"));
 
-  if (state.quickFilter) {
-    const quickFilter = canonicalQuickFilterValue(state.quickFilter);
-    if (quickFilter) {
-      params.set("quick_filter", quickFilter);
-    }
-  }
-
   if (assigneeValue === "me") {
-    params.set("quick_filter", "assigned_to_me");
+    params.set("assignee", "me");
   } else if (assigneeValue === "unassigned") {
-    params.set("quick_filter", "unassigned");
+    params.set("assignee", "unassigned");
   } else if (assigneeValue !== "all") {
     params.set("assignee_id", assigneeValue);
   }
@@ -208,12 +484,16 @@ function canonicalStatusValue(value) {
   return value || "active";
 }
 
-function canonicalQuickFilterValue(value) {
+function canonicalTaskViewValue(value) {
   return {
-    my: "assigned_to_me",
+    all: "all",
+    my: "my",
     unassigned: "unassigned",
-    complete: "",
-    archived: "",
+    overdue: "overdue",
+    today: "today",
+    week: "week",
+    complete: "completed",
+    archived: "archived",
   }[value] || value;
 }
 
@@ -343,7 +623,7 @@ function renderTasks() {
   const tasks = state.tasks;
 
   syncSelectionToTasks(tasks);
-  updateQuickFilterState();
+  updateTaskViewSelectorState();
   updateBulkControls();
   taskList.replaceChildren();
 
@@ -1057,54 +1337,104 @@ function setClientScopeControlsVisible(isVisible) {
   });
 }
 
-function handleQuickFilterClick(event) {
-  const button = event.target.closest("[data-task-quick-filter]");
-
-  if (!button) {
+function handleTaskViewChange() {
+  if (!taskViewSelector) {
     return;
   }
 
-  const quickFilter = button.dataset.taskQuickFilter || "";
-  state.quickFilter = quickFilter === "all"
-    ? ""
-    : state.quickFilter === quickFilter
-      ? ""
-      : quickFilter;
-  applyQuickFilterDefaults();
-  saveFilterState();
-  reloadTaskList();
-}
-
-function handleFilterDetailsToggle() {
-  if (!filterDetails.open || state.quickFilter === "") {
-    return;
-  }
-
-  state.quickFilter = "";
-  applyQuickFilterDefaults();
+  const selectedView = TASK_VIEW_VALUES.has(taskViewSelector.value) ? taskViewSelector.value : DEFAULT_TASK_VIEW;
+  state.quickFilter = selectedView;
+  preserveCompatibleAdvancedFiltersForTaskView(selectedView);
   saveFilterState();
   reloadTaskList();
 }
 
 function applyQuickFilterDefaults() {
-  if (!state.quickFilter) {
-    statusFilter.value = "all";
-  } else if (state.quickFilter === "complete") {
-    statusFilter.value = "complete";
-  } else if (state.quickFilter === "archived") {
-    statusFilter.value = "archived";
-  } else if (QUICK_FILTERS.has(state.quickFilter)) {
-    statusFilter.value = "active";
+  setStatusFilterValue(defaultStatusForTaskView(selectedTaskView()));
+}
+
+function resetAdvancedTaskFilters() {
+  resetAdvancedFilterControlsForTaskView(selectedTaskView());
+  saveFilterState();
+  reloadTaskList();
+}
+
+function resetAdvancedFilterControlsForTaskView(taskView) {
+  if (sortInput) {
+    sortInput.value = "due_asc";
+  }
+  setStatusFilterValue(defaultStatusForTaskView(taskView));
+  setSelectValue(assigneeFilter, "all");
+  setSelectValue(clientFilter, "all");
+  setSelectValue(projectFilter, "all");
+  setSelectValue(tagFilter, "all");
+}
+
+function preserveCompatibleAdvancedFiltersForTaskView(taskView) {
+  if (!isStatusFilterCompatibleWithTaskView(taskView, statusFilter?.value || "active")) {
+    setStatusFilterValue(defaultStatusForTaskView(taskView));
+  }
+
+  if (["my", "unassigned"].includes(taskView)) {
+    setSelectValue(assigneeFilter, "all");
+  }
+
+  if (!usesClientScope()) {
+    setSelectValue(clientFilter, "all");
   }
 }
 
-function updateQuickFilterState() {
-  quickFilters?.querySelectorAll("[data-task-quick-filter]").forEach((button) => {
-    const quickFilter = button.dataset.taskQuickFilter || "";
-    button.dataset.active = (quickFilter === "all" ? state.quickFilter === "" : quickFilter === state.quickFilter)
-      ? "true"
-      : "false";
-  });
+function updateTaskViewSelectorState() {
+  if (!taskViewSelector) {
+    return;
+  }
+
+  const selectedView = selectedTaskView();
+  taskViewSelector.value = TASK_VIEW_VALUES.has(selectedView) ? selectedView : DEFAULT_TASK_VIEW;
+}
+
+function selectedTaskView() {
+  return TASK_VIEW_VALUES.has(state.quickFilter) ? state.quickFilter : DEFAULT_TASK_VIEW;
+}
+
+function defaultStatusForTaskView(taskView) {
+  if (taskView === "complete") {
+    return "complete";
+  }
+
+  if (taskView === "archived") {
+    return "archived";
+  }
+
+  return "active";
+}
+
+function isStatusFilterCompatibleWithTaskView(taskView, statusValue) {
+  const status = canonicalStatusValue(statusValue);
+
+  if (taskView === "complete") {
+    return status === "complete" || status === "all";
+  }
+
+  if (taskView === "archived") {
+    return status === "archived" || status === "all";
+  }
+
+  return !["complete", "archived"].includes(status);
+}
+
+function setStatusFilterValue(value) {
+  setSelectValue(statusFilter, value);
+}
+
+function setSelectValue(select, value) {
+  if (!select) {
+    return;
+  }
+
+  if ([...select.options].some((item) => item.value === value)) {
+    select.value = value;
+  }
 }
 
 function upsertTask(task) {
@@ -1155,10 +1485,18 @@ function restoreFilterState() {
     if (saved.sort && sortInput) {
       sortInput.value = saved.sort;
     }
-    state.quickFilter = QUICK_FILTERS.has(saved.quickFilter) ? saved.quickFilter : "";
+    if (Object.hasOwn(saved, "quickFilter")) {
+      state.quickFilter = saved.quickFilter === "" ? "all" : TASK_VIEW_VALUES.has(saved.quickFilter)
+        ? saved.quickFilter
+        : DEFAULT_TASK_VIEW;
+    } else {
+      state.quickFilter = DEFAULT_TASK_VIEW;
+    }
   } catch {
-    state.quickFilter = "";
+    state.quickFilter = DEFAULT_TASK_VIEW;
   }
+  applyQuickFilterDefaults();
+  updateTaskViewSelectorState();
 }
 
 function saveFilterState() {
@@ -1285,7 +1623,7 @@ window.LongtailForge.pageController.register("tasks", {
       { name: "task list exists", ok: Boolean(taskList) },
       { name: "add button exists", ok: Boolean(addTaskButton) },
       { name: "task dialog exists", ok: Boolean(taskDialog) },
-      { name: "quick filters exist", ok: Boolean(quickFilters?.querySelector("[data-task-quick-filter]")) },
+      { name: "task view selector exists", ok: Boolean(taskViewSelector) },
       { name: "sort select exists", ok: Boolean(sortInput) },
       { name: "bulk controls exist", ok: Boolean(bulkToolbar && bulkStatusInput && bulkPriorityInput && bulkAssigneesControl && bulkApplyButton) },
       { name: "copy link exists", ok: Boolean(copyTaskLinkButton) },

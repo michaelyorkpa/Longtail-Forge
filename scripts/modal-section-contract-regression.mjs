@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const styles = readText("public/css/longtail-forge.css");
-const tasksView = readText("views/protected/tasks.html");
 const taskDialogScript = readText("public/js/task-dialog.js");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 
@@ -39,7 +38,6 @@ assert.match(
 );
 
 for (const source of [
-  ["static Tasks dialog", tasksView],
   ["fallback Tasks dialog", taskDialogScript],
 ]) {
   const [label, text] = source;
@@ -90,17 +88,17 @@ for (const source of [
 }
 
 assert.match(
-  tasksView,
+  taskDialogScript,
   /class="task-recurrence-field surface-modal-group surface-divider-top"[\s\S]*class="surface-modal-section-heading">Recurrence/,
   "Recurrence divider should live on the section being toggled, above its heading",
 );
 assert.match(
-  tasksView,
+  taskDialogScript,
   /class="task-reminder-field surface-modal-group surface-divider-top"[\s\S]*class="surface-modal-section-heading">Reminders/,
   "Reminder divider should live on the section being toggled, above its heading",
 );
 assert.match(
-  tasksView,
+  taskDialogScript,
   /class="task-notes-field surface-modal-group surface-divider-top"[\s\S]*class="surface-modal-section-heading">Notes/,
   "Notes divider should live on the section being toggled, above its heading",
 );

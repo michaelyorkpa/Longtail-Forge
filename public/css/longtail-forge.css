@@ -3405,6 +3405,14 @@ button.danger-button {
     color: var(--color-accent);
 }
 
+.task-view-selector-control {
+    display: grid;
+}
+
+.task-view-selector-control select {
+    width: 100%;
+}
+
 .task-bulk-toolbar {
     margin-bottom: 16px;
 }
@@ -3432,6 +3440,13 @@ button.danger-button {
 
 .task-filter-grid {
     grid-template-columns: repeat(5, minmax(130px, 1fr));
+}
+
+.task-filter-actions {
+    display: flex;
+    align-items: end;
+    justify-content: flex-end;
+    min-width: 0;
 }
 
 .task-bulk-grid {
@@ -3476,6 +3491,40 @@ button.danger-button {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.tasks-main-list-surface {
+    display: grid;
+    gap: 16px;
+}
+
+.view-slideout-sidebar-main > .tasks-main-list-region {
+    border: 0;
+    padding: 0;
+    background: transparent;
+}
+
+.view-slideout-sidebar-drawer .task-page-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    margin-bottom: 0;
+}
+
+.view-slideout-sidebar-drawer .task-filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.view-slideout-sidebar-drawer .tasks-filters-panel .view-collapsible-index-body {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+}
+
+.view-slideout-sidebar-drawer .task-quick-filters {
+    align-items: stretch;
+}
+
+.view-slideout-sidebar-drawer .task-quick-filters button {
+    flex: 1 1 120px;
 }
 
 .project-page-toolbar h2 {

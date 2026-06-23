@@ -1,3 +1,36 @@
+## Version 0.33.5.18.7.4 - 2026-06-23 03:49 -04:00
+
+- Bound the existing Tasks main list to the descriptor-backed `tasks-main-list` detail region through the Tasks-owned `tasks.main.list` behavior.
+- Preserved the current dense task rows, due/status/assignee metadata, row-level actions, selection state, empty states, and canonical filter reload path without a visual task-row redesign.
+- Kept `Saved Task Views` and `Sorting and Filters` as the only slide-out sidebar panels; task rows and the bulk toolbar stay in the main panel.
+- Added `tasks-readonly-list-binding-regression.mjs`, refreshed Tasks/view-surface/module docs and decisions, archived 0.33.5.18.7.3, marked 0.33.5.18.7.4 complete in the roadmap, and bumped Tasks host cache keys to `longtail-forge.css?v=55` and `tasks.js?v=12`.
+- Verification: `npm run check` passed 155/155 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.7.4` after restarting the local 8001 server.
+
+## Version 0.33.5.18.7.3 - 2026-06-23 03:37 -04:00
+
+- Added the Tasks-owned `task_view` query contract for the `Saved Task Views` dropdown so the framework owns selector placement while Tasks owns status, assignment, due-date, completed, and archived semantics.
+- Scoped `My Tasks`, `All`, `Unassigned`, `Overdue`, `Due Today`, `Due This Week`, `Completed`, and `Archived` in `tasks.service.js`, including user/workspace-local date handling for due-date views and intentional history scoping for completed/archived tasks.
+- Added `Reset Filters` to `Sorting and Filters`; it clears advanced sort/status/assignee/client/project/tag filters without changing the selected saved task view, while task-view changes preserve only compatible advanced filters.
+- Added `tasks-view-selector-query-contract-regression.mjs`, refreshed Tasks docs/decisions, archived 0.33.5.18.7.2, marked 0.33.5.18.7.3 complete in the roadmap, and bumped Tasks host cache keys to `longtail-forge.css?v=54` and `tasks.js?v=11`.
+- Verification: `npm run check` passed 154/154 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.7.3` after restarting the local 8001 server.
+
+## Version 0.33.5.18.7.2 - 2026-06-23 03:06 -04:00
+
+- Replaced the old Tasks quick-filter button row with a non-collapsible `Saved Task Views` dropdown in the first slide-out sidebar panel.
+- Added a collapsed `Sorting and Filters` sidebar panel below the selector and moved the existing detailed sort, status, assignee, client, project, and tag controls into it.
+- Preserved Tasks-owned query/filter state, Business-only client control visibility, main-panel task-list ownership, bulk actions, and existing create/edit workflow paths.
+- Added the Tasks filter-sidebar anatomy regression, refreshed descriptor/read-only regressions, updated Tasks/view-surface documentation, archived 0.33.5.18.7.1, and marked 0.33.5.18.7.2 complete in the roadmap.
+- Verification: `npm run check` passed 153/153 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.7.2` after restarting the local 8001 server.
+- Corrective follow-up - 2026-06-23 03:21 -04:00: Renamed the first Tasks drawer panel to `Saved Task Views`, removed the repeated visible selector label, expanded the `Sorting and Filters` panel body inside the drawer to avoid a nested scrollbar where possible, and refreshed the Tasks host cache keys to `longtail-forge.css?v=53` and `tasks.js?v=10`. Verification rerun: `npm run check` passed 153/153 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.7.2`.
+
+## Version 0.33.5.18.7.1 - 2026-06-23 02:44 -04:00
+
+- Added the `tasks.workspace` `viewSurfaces` descriptor for the protected Tasks read path using the framework `slide-out-sidebar` shell.
+- Reduced `views/protected/tasks.html` to a minimal descriptor host while keeping existing Tasks routes, payloads, permissions, task-list behavior, bulk actions, timers, recurrence, checklist editing, and create/edit dialog paths module-owned.
+- Moved the existing filter and main-list compatibility chrome into the Tasks adapter so the sidebar contains only filters/navigation and the task list remains in the main panel.
+- Updated Tasks, declarative-view, module-contract, view-building, and regression documentation for the reported-only Tasks descriptor adoption.
+- Verification: `npm run check` passed 152/152 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.7.1` after restarting the local 8001 server.
+
 ## Version 0.33.5.18.6.11 - 2026-06-22 19:11 -04:00
 
 - Closed out the Notes slide-out sidebar pass with a dedicated closeout regression tying together package metadata, roadmap/archive state, framework docs, Notes docs, Decisions, and focused renderer/Notes/Markdown/Linked Context guardrails.

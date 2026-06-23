@@ -143,10 +143,10 @@ async function assertFutureEditDoesNotPersistInstanceStatus(session) {
 }
 
 async function assertTaskViewDialogIncludesFrequencyOptions() {
-  const tasksView = await fs.readFile(new URL("../views/protected/tasks.html", import.meta.url), "utf8");
+  const taskDialogScript = await fs.readFile(new URL("../public/js/task-dialog.js", import.meta.url), "utf8");
 
-  assert.match(tasksView, /<option value="WEEKDAYS">Weekdays<\/option>/, "Tasks view dialog must expose Weekdays recurrence");
-  assert.match(tasksView, /<option value="WEEKENDS">Weekends<\/option>/, "Tasks view dialog must expose Weekends recurrence");
+  assert.match(taskDialogScript, /<option value="WEEKDAYS">Weekdays<\/option>/, "Tasks dialog must expose Weekdays recurrence");
+  assert.match(taskDialogScript, /<option value="WEEKENDS">Weekends<\/option>/, "Tasks dialog must expose Weekends recurrence");
 }
 
 async function readSeedSession() {

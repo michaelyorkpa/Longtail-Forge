@@ -12,7 +12,7 @@ const tasksDocs = readText("docs/tasks-module.md");
 const tasksHelp = readText("help/framework/tasks-basics.md");
 const tasksModule = readText("src/modules/tasks/module.js");
 
-assert.match(tasksModule, /version: "0\.33\.5\.13\.7"/, "Tasks module metadata should report the surface closeout version");
+assert.match(tasksModule, /version: "0\.33\.5\.18\.7\.4"/, "Tasks module metadata should report the current Tasks descriptor-host version");
 
 assert.doesNotMatch(roadmap, /## Version 0\.33\.5\.13 - Framework Surface and Modal Style Standardization/, "Completed surface roadmap should be archived after the next version starts");
 
@@ -28,7 +28,7 @@ assert.match(moduleContract, /Framework-owned UI surface contracts live in `docs
 assert.match(architecture, /As of version 0\.33\.5\.15\.6/, "Architecture should report the current architecture version");
 assert.match(architecture, /framework-owned UI surface contract/, "Architecture should include the surface contract in current state");
 
-assert.match(tasksDocs, /0\.33\.5\.13\.7/, "Tasks developer docs should report the closeout version");
+assert.match(tasksDocs, /0\.33\.5\.18\.7\.4/, "Tasks developer docs should report the current Tasks descriptor-host version");
 assert.match(tasksDocs, /Tags and Files register with the shared framework overlay host/, "Tasks docs should describe shipped overlay behavior");
 assert.doesNotMatch(tasksDocs, /until the shared framework overlay standardization pass replaces that temporary placement/, "Tasks docs should not describe completed overlay work as future");
 assert.match(tasksHelp, /Footer icons open task tags and files inside the task workflow/, "Help should describe current task Tags and Files behavior");

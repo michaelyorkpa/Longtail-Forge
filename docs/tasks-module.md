@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.5.13.7. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.5.18.7.4. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -8,7 +8,17 @@ Tasks stay integrated through framework contracts for permissions, app shell nav
 
 ## Current Workflow Surface
 
-The protected Tasks page is `tasks.html` under the Projects menu. It supports scoped task creation, editing, duplicate, complete, reopen, archive, restore, bulk status/priority/assignee/due date/due time/tag updates, tag filtering, notification following, recurrence settings, reminders, files, and task timers when Time Tracking is enabled.
+The protected Tasks page is `tasks.html` under the Projects menu. As of 0.33.5.18.7.4, the page shell is descriptor-backed through `tasks.workspace` with the framework `slide-out-sidebar` layout and a minimal protected host. The main panel remains the task list surface, while the slide-out sidebar mounts task view, sorting, and filter controls only.
+
+The current task list mounts through the descriptor `tasks-main-list` detail region and the Tasks-owned `tasks.main.list` behavior. The framework owns the main panel/region placement and the slide-out shell; Tasks continues to own the existing `createTaskMainListChrome`, `renderTasks`, `createTaskRow`, canonical query construction, row data shaping, selection state, and row workflow handlers. The region wrapper is visually neutral in this slice so the existing task list density and row appearance are preserved.
+
+The sidebar starts with a non-collapsible `Saved Task Views` dropdown. Options are `My Tasks`, `All`, `Unassigned`, `Overdue`, `Due Today`, `Due This Week`, `Completed`, and `Archived`; `My Tasks` is the default when there is no saved explicit selection. The dropdown does not repeat a second visible label inside the panel. `Sorting and Filters` appears below the dropdown as a collapsed section containing the existing sort, status, assignee, client, project, and tag filters. Client controls remain Business-workspace-only.
+
+The selected saved task view is sent to the Tasks service as `task_view`; the framework does not interpret task status, assignment, or due-date semantics. `My Tasks`, `All`, `Unassigned`, `Overdue`, `Due Today`, and `Due This Week` are active-task views. `My Tasks` is active tasks assigned to the current user, `All` is active tasks regardless of assignee, `Unassigned` is active tasks with no assignee, `Overdue` is active tasks with a due date before the current user/workspace-local date, `Due Today` is active tasks due on the current local date, and `Due This Week` is active tasks due from today through the current week end. `Completed` and `Archived` are intentionally selected history views and do not leak into normal active views.
+
+Sorting and Filters controls narrow the selected saved task view instead of replacing it. Changing the saved task view preserves compatible advanced filters, clears incompatible assignee filters for `My Tasks` and `Unassigned`, and resets incompatible status filters to the selected view's default. The `Reset Filters` action resets sort, status, assignee, client, project, and tag controls without changing the selected saved task view.
+
+Tasks still owns scoped task creation, editing, duplicate, complete, reopen, archive, restore, bulk status/priority/assignee/due date/due time/tag updates, tag filtering, notification following, recurrence settings, reminders, files, and task timers when Time Tracking is enabled. The create/edit dialog, checklist editing, timers, recurrence, bulk actions, routes, payloads, permissions, and canonical task queries remain on the existing module-owned imperative paths until later conversion slices.
 
 Bulk task updates keep due date and due time as separate actions. Due dates can be set or cleared; clearing due date clears due time. Due time can be set or cleared only when the task has a due date, with per-task partial errors for invalid or inaccessible targets. Bulk tag add/remove/replace behavior goes through the Tags-owned bulk assignment contract so direct/manual tag changes preserve propagated and system tag assignments. The browser shows an in-app confirmation before mixed due date, due time, or tag values are overwritten, added, removed, or cleared.
 
@@ -80,6 +90,10 @@ Core regression coverage for the current Tasks QoL line includes:
 - `scripts/task-checklist-regression.mjs`
 - `scripts/task-relationships-regression.mjs`
 - `scripts/task-list-density-regression.mjs`
+- `scripts/tasks-declarative-readonly-surface-regression.mjs`
+- `scripts/tasks-filter-sidebar-anatomy-regression.mjs`
+- `scripts/tasks-readonly-list-binding-regression.mjs`
+- `scripts/tasks-view-selector-query-contract-regression.mjs`
 - `scripts/task-qol-closeout-regression.mjs`
 - `scripts/task-bulk-due-tags-regression.mjs`
 - `scripts/task-modal-compact-layout-regression.mjs`

@@ -3,10 +3,9 @@ import { readFileSync } from "node:fs";
 
 const tasks = readText("public/js/tasks.js");
 const styles = readText("public/css/longtail-forge.css");
-const taskView = readText("views/protected/tasks.html");
 const icons = readText("public/js/shared/icons.js");
 
-assert.match(taskView, /<th colspan="6">Task Details<\/th>/, "Tasks table header should match the dense task-detail row layout");
+assert.match(tasks, /<th colspan="6">Task Details<\/th>/, "Tasks table header should match the dense task-detail row layout");
 assert.match(tasks, /row\.classList\.add\("task-density-row"\)/, "Task rows should use the dense row class");
 assert.match(tasks, /contentCell\.colSpan = 6/, "Task detail content should span the non-selection columns");
 assert.match(tasks, /titleBand\.className = "task-density-title"/, "Dense task rows should have a title band");

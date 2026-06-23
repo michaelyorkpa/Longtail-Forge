@@ -33,7 +33,6 @@ assert.match(surfaceContract, /Adaptive Footer Labels/, "surface contract must d
 assert.match(uiGuide, /adaptive visible text/, "UI guide must document adaptive visible text rules");
 
 for (const [label, text] of [
-  ["static Tasks dialog", tasksView],
   ["fallback Tasks dialog", taskDialogScript],
 ]) {
   assert.match(
@@ -88,7 +87,7 @@ for (const expectedCall of [
   assert.match(taskDialogScript, expectedCall, "dense task footer icon-only controls should keep labels and titles");
 }
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=23/, "Tasks view must load the footer-contract stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=55/, "Tasks view must load the footer-contract stylesheet cache key");
 assert.match(tasksView, /js\/task-dialog\.js\?v=10/, "Tasks view must load the footer-contract task-dialog cache key");
 
 console.log("Modal footer contract regression passed.");

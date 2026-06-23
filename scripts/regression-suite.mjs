@@ -57,6 +57,9 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/dashboard-workbench-regression.mjs",
   "scripts/task-list-density-regression.mjs",
   "scripts/task-list-canonical-ui-regression.mjs",
+  "scripts/tasks-declarative-readonly-surface-regression.mjs",
+  "scripts/tasks-filter-sidebar-anatomy-regression.mjs",
+  "scripts/tasks-readonly-list-binding-regression.mjs",
   "scripts/client-picker-hierarchy-regression.mjs",
   "scripts/client-modal-footer-actions-regression.mjs",
   "scripts/time-entries-screen-regression.mjs",
@@ -157,6 +160,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/work-resume-state-closeout-regression.mjs",
   "scripts/files-time-tracking-qol-closeout-regression.mjs",
   "scripts/task-canonical-query-regression.mjs",
+  "scripts/tasks-view-selector-query-contract-regression.mjs",
   "scripts/task-options-payload-regression.mjs",
   "scripts/project-default-assignee-regression.mjs",
 ]);

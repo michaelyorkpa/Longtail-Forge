@@ -61,7 +61,7 @@ const tasksModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.13.7",
+  version: "0.33.5.18.7.4",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -119,6 +119,70 @@ const tasksModule = {
     },
   ],
   publicViews: [],
+  viewSurfaces: [
+    {
+      id: "tasks.workspace",
+      moduleId: "tasks",
+      viewId: "tasks",
+      layout: "slide-out-sidebar",
+      sidebarLabel: "Task filters",
+      pageHeader: {
+        title: "Tasks",
+        titleKey: "label",
+        primaryAction: {
+          id: "create-task",
+          label: "Add Task",
+          labelKey: "createButton",
+          role: "primary",
+          behavior: "tasks.create",
+          requiredPermissions: ["tasks.create"],
+        },
+      },
+      sidebarPanels: [
+        {
+          id: "tasks-view-selector",
+          type: "navigation",
+          title: "Saved Task Views",
+          behavior: "tasks.sidebar.view-selector",
+          collapsible: false,
+          className: "tasks-view-selector-panel",
+          ariaLabel: "Saved task views",
+        },
+        {
+          id: "tasks-filters",
+          type: "navigation",
+          title: "Sorting and Filters",
+          behavior: "tasks.sidebar.filters",
+          open: false,
+          className: "tasks-filters-panel",
+          ariaLabel: "Sorting and task filters",
+        },
+      ],
+      detail: {
+        regions: [
+          {
+            id: "tasks-main-list",
+            behavior: "tasks.main.list",
+            className: "tasks-main-list-region",
+            ariaLabel: "Task list",
+          },
+        ],
+      },
+      dataSource: {
+        route: "/api/tasks",
+        method: "GET",
+        fieldBindings: {
+          id: "task_id",
+          title: "title",
+          status: "status",
+          priority: "priority",
+          dueDate: "due_date",
+          dueTime: "due_time",
+          assignees: "assignee_names",
+        },
+      },
+    },
+  ],
   browserAssets: [
     {
       id: "tasks-dialog-script",

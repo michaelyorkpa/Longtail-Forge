@@ -6,13 +6,13 @@ const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const tasksModule = readText("src/modules/tasks/module.js");
 
-assert.match(tasksView, /class="task-dialog-heading"/, "Task modal should use a compact heading row");
-assert.match(tasksView, /data-task-notification-toggle hidden aria-pressed="false"/, "Task notification settings should be a direct accessible bell toggle");
-assert.doesNotMatch(tasksView, /task-notification-popover|data-task-notification-field|<legend>Notifications<\/legend>/, "Task notification settings should not appear as a popover or separate in-body box");
-assert.match(tasksView, /class="task-metadata-ribbon[^"]*" data-task-metadata-ribbon aria-label="Task summary"/, "Task modal should expose a metadata ribbon after the title field");
-assert.doesNotMatch(tasksView, /data-task-completion-field/, "Task modal should not keep a separate Time to Completion block");
+assert.match(taskDialogScript, /class="task-dialog-heading"/, "Task modal should use a compact heading row");
+assert.match(taskDialogScript, /data-task-notification-toggle hidden aria-pressed="false"/, "Task notification settings should be a direct accessible bell toggle");
+assert.doesNotMatch(taskDialogScript, /task-notification-popover|data-task-notification-field|<legend>Notifications<\/legend>/, "Task notification settings should not appear as a popover or separate in-body box");
+assert.match(taskDialogScript, /class="task-metadata-ribbon[^"]*" data-task-metadata-ribbon aria-label="Task summary"/, "Task modal should expose a metadata ribbon after the title field");
+assert.doesNotMatch(taskDialogScript, /data-task-completion-field/, "Task modal should not keep a separate Time to Completion block");
 assert.match(tasksView, /<script src="js\/task-dialog\.js\?v=10"><\/script>/, "Task dialog cache bust should advance");
-assert.match(tasksView, /<link rel="stylesheet" href="css\/longtail-forge\.css\?v=23">/, "Shared stylesheet cache bust should advance");
+assert.match(tasksView, /<link rel="stylesheet" href="css\/longtail-forge\.css\?v=55">/, "Shared stylesheet cache bust should advance");
 
 assert.match(taskDialogScript, /notificationToggle: dialog\.querySelector\("\[data-task-notification-toggle\]"\)/, "Task dialog should bind the notification bell toggle");
 assert.match(taskDialogScript, /toggleTaskNotificationFollow/, "Task dialog should follow or unfollow from the bell");
@@ -31,7 +31,7 @@ assert.match(stylesheet, /\.task-dialog-heading \{[\s\S]*justify-content: space-
 assert.match(stylesheet, /\.task-metadata-ribbon \{[\s\S]*flex-wrap: wrap;/, "Task metadata ribbon should wrap safely");
 assert.match(stylesheet, /\.task-metadata-chip \{[\s\S]*overflow-wrap: anywhere;/, "Task metadata chips should avoid text overflow");
 
-assert.match(tasksModule, /version: "0\.33\.5\.13\.7"/, "Tasks module version should match the current modal release");
+assert.match(tasksModule, /version: "0\.33\.5\.18\.7\.4"/, "Tasks module version should match the current Tasks descriptor-host release");
 
 console.log("Task modal compact layout regression passed.");
 

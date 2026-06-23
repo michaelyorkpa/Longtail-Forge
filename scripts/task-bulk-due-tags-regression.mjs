@@ -155,13 +155,12 @@ async function assertPartialFailures(session, fixtures) {
 }
 
 async function assertBrowserWiring() {
-  const tasksHtml = await fs.readFile(new URL("../views/protected/tasks.html", import.meta.url), "utf8");
   const tasksJs = await fs.readFile(new URL("../public/js/tasks.js", import.meta.url), "utf8");
 
-  assert.match(tasksHtml, /data-task-bulk-due-date/);
-  assert.match(tasksHtml, /data-task-bulk-clear-due-date/);
-  assert.match(tasksHtml, /data-task-bulk-due-time/);
-  assert.match(tasksHtml, /data-task-bulk-clear-due-time/);
+  assert.match(tasksJs, /data-task-bulk-due-date/);
+  assert.match(tasksJs, /data-task-bulk-clear-due-date/);
+  assert.match(tasksJs, /data-task-bulk-due-time/);
+  assert.match(tasksJs, /data-task-bulk-clear-due-time/);
   assert.match(tasksJs, /confirmMixedBulkActions/);
   assert.match(tasksJs, /hasMixedTagValues/);
   assert.match(tasksJs, /action: "due_date"/);

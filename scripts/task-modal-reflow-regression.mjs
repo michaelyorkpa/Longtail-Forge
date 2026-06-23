@@ -7,18 +7,18 @@ const stylesheet = readText("public/css/longtail-forge.css");
 const iconsScript = readText("public/js/shared/icons.js");
 const tasksModule = readText("src/modules/tasks/module.js");
 
-assert.match(tasksView, /<details class="task-details-field[^"]*" data-task-details-panel open>/, "Task Details should be a collapsible panel in the page dialog");
-assert.match(tasksView, /class="task-parent-field"[\s\S]*Parent Task[\s\S]*data-task-parent-task/, "Parent Task should live inside Task Details");
-assert.match(tasksView, /data-task-parent-task[\s\S]*data-task-form-status[\s\S]*data-task-priority[\s\S]*data-task-client[\s\S]*data-task-project[\s\S]*data-task-due-date[\s\S]*data-task-due-time/, "Task Details field order should match the two-column reflow contract");
-assert.match(tasksView, /class="task-resume-note-field"[\s\S]*class="task-next-action-field"/, "Resume Note should appear beside/before Next Action below Task Details");
-assert.match(tasksView, /<details class="task-checklist-field[^"]*" data-task-checklist-field>/, "Checklist should be collapsible");
-assert.match(tasksView, /<details class="task-assignee-field[^"]*" data-task-assignee-panel>/, "Assignees should be collapsible");
-assert.match(tasksView, /<details class="task-recurrence-field[^"]*" data-task-recurrence-panel>/, "Recurrence should remain collapsed by default");
-assert.match(tasksView, /<details class="task-reminder-field[^"]*" data-task-reminder-details>/, "Reminders should remain collapsed by default");
-assert.match(tasksView, /data-task-tags-toggle[\s\S]*data-task-files-toggle[\s\S]*data-copy-task-link/, "Tags and Files should move to footer actions before utility/save controls");
-assert.match(tasksView, /data-task-tags-panel hidden[\s\S]*data-task-files-panel hidden/, "Tags and Files pickers should mount in hidden footer panels");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=23/, "Task reflow should cache-bust shared CSS");
-assert.match(tasksView, /js\/shared\/icons\.js\?v=3/, "Task reflow should cache-bust shared icons");
+assert.match(taskDialogScript, /<details class="task-details-field[^"]*" data-task-details-panel open>/, "Task Details should be a collapsible panel in the page dialog");
+assert.match(taskDialogScript, /class="task-parent-field"[\s\S]*Parent Task[\s\S]*data-task-parent-task/, "Parent Task should live inside Task Details");
+assert.match(taskDialogScript, /data-task-parent-task[\s\S]*data-task-form-status[\s\S]*data-task-priority[\s\S]*data-task-client[\s\S]*data-task-project[\s\S]*data-task-due-date[\s\S]*data-task-due-time/, "Task Details field order should match the two-column reflow contract");
+assert.match(taskDialogScript, /class="task-resume-note-field"[\s\S]*class="task-next-action-field"/, "Resume Note should appear beside/before Next Action below Task Details");
+assert.match(taskDialogScript, /<details class="task-checklist-field[^"]*" data-task-checklist-field>/, "Checklist should be collapsible");
+assert.match(taskDialogScript, /<details class="task-assignee-field[^"]*" data-task-assignee-panel>/, "Assignees should be collapsible");
+assert.match(taskDialogScript, /<details class="task-recurrence-field[^"]*" data-task-recurrence-panel>/, "Recurrence should remain collapsed by default");
+assert.match(taskDialogScript, /<details class="task-reminder-field[^"]*" data-task-reminder-details>/, "Reminders should remain collapsed by default");
+assert.match(taskDialogScript, /data-task-tags-toggle[\s\S]*data-task-files-toggle[\s\S]*data-copy-task-link/, "Tags and Files should move to footer actions before utility/save controls");
+assert.match(taskDialogScript, /data-task-tags-panel hidden[\s\S]*data-task-files-panel hidden/, "Tags and Files pickers should mount in hidden footer panels");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=55/, "Task reflow should cache-bust shared CSS");
+assert.match(tasksView, /js\/shared\/icons\.js\?v=4/, "Task reflow should cache-bust shared icons");
 assert.match(tasksView, /js\/task-dialog\.js\?v=10/, "Task reflow should cache-bust Task dialog JS");
 
 assert.match(taskDialogScript, /fields\.taskDetailsPanel\.open = !task \|\| isDuplicate/, "Task Details should open for Add/Duplicate and collapse for Edit");
@@ -41,7 +41,7 @@ assert.match(stylesheet, /\.task-footer-panel \{[\s\S]*grid-column: 1 \/ -1;/, "
 
 assert.match(iconsScript, /tag: Object\.freeze/, "Shared icons should include a tag icon");
 assert.match(iconsScript, /file: Object\.freeze/, "Shared icons should include a file icon");
-assert.match(tasksModule, /version: "0\.33\.5\.13\.7"/, "Tasks module version should match the modal reflow release");
+assert.match(tasksModule, /version: "0\.33\.5\.18\.7\.4"/, "Tasks module version should match the current Tasks descriptor-host release");
 
 console.log("Task modal reflow regression passed.");
 

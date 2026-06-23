@@ -11,9 +11,9 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.18.6.11", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.6.11", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.6.11", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.7.4", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.7.4", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.7.4", "package-lock package entry should report the current app version");
 
 // Protected view is now a minimal framework host; as of .18.4 the dialogs are framework-built too.
 assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Notes view should be a minimal framework host");
@@ -101,7 +101,7 @@ assert.match(notesJs, /\/api\/notes\/preview/, "Notes live preview route should 
 assert.match(notesJs, /body_html/, "Notes detail should render the server Markdown-rendered body_html");
 assert.match(notesJs, /collectionFilterOptions/, "Notes collection read logic should remain in the module");
 
-assert.match(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.10\.7 are archived/, "live roadmap should document that completed Notes slices are archived");
+assert.match(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.11 are archived/, "live roadmap should document that completed Notes slices are archived");
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.3 - Notes Declarative Read-Only Surface Proof/, "completed Notes declarative proof slice should be archived out of the live roadmap");
 
 assert.match(changelog, /## Version 0\.33\.5\.18\.3 - /, "Changelog should record the Notes read-only proof");

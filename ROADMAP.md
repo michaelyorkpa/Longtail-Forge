@@ -6,157 +6,9 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and implementation slices
 are archived in `ROADMAP-ARCHIVE.md`.
-The active roadmap continues with the remaining Notes, Tasks, Files, and Clients/Projects view
-conversion work.
-
-## Version 0.33.5.18.6 - Final Notes UI, Context Picker, and Markdown Editor Standardization
-
-Completed 0.33.5.18.6.1 through 0.33.5.18.6.10.7 are archived. 0.33.5.18.6.11 is the most
-recently completed Notes slide-out sidebar closeout slice. The next live work starts with Tasks 0.33.5.18.7.
-
-### Version 0.33.5.18.6.10 - Notes Slide-Out Action Sidebar Layout
-
-Decision:
-
-Notes should adopt a slide-out left sidebar before Tasks, Tickets, Lists, Files, and Clients/Projects
-are converted further. This is the default direction for individual action/workflow surfaces: a
-left-edge drawer carries controls, filters, libraries, and navigation panels, while the center/primary
-area remains the selected-record work surface inside the main content box.
-
-This is not the retired center split that divided the main work area down the middle, and it is not
-the persistent left-column split produced by the first `sidebar-detail` implementation. The selected
-record detail must keep the primary visual weight and available width. The sidebar is a temporary
-slide-out control/navigation panel that opens from the left edge and closes back out of the way.
-
-This must be implemented as a framework-owned responsive layout option, not a Notes-only CSS hack.
-
-The new layout should not resurrect the retired `split-list-detail` behavior and should supersede
-the split-column `sidebar-detail` direction for Notes and future action/workflow surfaces.
-
-Target layout name:
-
-- `slide-out-sidebar`
-
-Framework owns:
-
-- The slide-out/off-canvas sidebar shell.
-- The left-edge toggle affordance near the action surface, using a funnel/filter icon.
-- Open/close state, Escape handling, backdrop/outside-click handling, focus return, and ARIA state.
-- Motion, reduced-motion fallback, z-index, viewport anchoring, and scroll containment.
-- Ordered/collapsible sidebar panel shell behavior inside the drawer.
-- Responsive behavior for desktop and narrow screens without turning the main content into a split grid.
-- Surface classes and theme-safe spacing/borders.
-- The reusable action/workflow surface pattern that future module conversions can adopt.
-
-Notes owns:
-
-- Filter fields and filter query behavior.
-- Library bucket and collection behavior.
-- Which Notes panels appear in the slide-out sidebar.
-- Notes List data, selection state, pagination, and sort behavior.
-- Selected note read/detail behavior.
-- Rules for when the slide-out panel opens, closes, and preserves in-session browsing state after
-  Notes-specific actions.
-
-This implementation is split so each sub-version is a single pass. Documentation, broad regression reconciliation, version metadata, and changelog closeout for this layout pass belong in 0.33.5.18.6.11.
-
----
-
-### Version 0.33.5.18.6.11 - Notes slide-out sidebar regression pass and docs closeout
-
-- [x] Close out the 0.33.5.18.6.10 slide-out sidebar pass with focused framework and Notes coverage.
-- [x] Add or update framework layout regressions covering:
-  - [x] `slide-out-sidebar` descriptor validation or equivalent contract validation.
-  - [x] Funnel trigger rendering and accessible state.
-  - [x] Left-side off-canvas closed/open rendering.
-  - [x] Ordered sidebar panel rendering inside the drawer.
-  - [x] Collapsible sidebar panel accessible behavior inside the drawer.
-  - [x] Panel footer/body overflow behavior.
-  - [x] Escape, outside click/backdrop, and trigger close behavior.
-  - [x] Focus movement into the drawer and focus return to the trigger.
-  - [x] Reduced-motion behavior.
-  - [x] Main content/detail remains central and is not squeezed by the drawer.
-  - [x] Main content/detail is top-anchored rather than vertically centered in the viewport.
-  - [x] Funnel trigger is anchored near the screen-left lower viewport/footer edge with the correct gutter and no footer overlap.
-  - [x] `split-list-detail` remains retired and compatibility-only.
-  - [x] The split-column `sidebar-detail` implementation is not presented as the future action/workflow default.
-- [x] Add or update Notes slide-out sidebar regressions covering:
-  - [x] Filters, Library, and Notes List render inside the drawer.
-  - [x] Selected note detail renders in the primary/main content box and keeps full available width.
-  - [x] Selected and blank note detail states anchor to the top of the main content area.
-  - [x] Drawer default closed on page load/navigation.
-  - [x] Filters start collapsed and Library starts open when the drawer is opened.
-  - [x] Funnel trigger opens/closes the drawer.
-  - [x] Funnel trigger stays near the screen-left lower viewport/footer edge and avoids footer overlap.
-  - [x] Filtering, Library changes, sorting, and pagination keep the drawer open.
-  - [x] Selecting a note closes the drawer and updates the central detail view.
-  - [x] Escape and outside click close the drawer without changing selection.
-  - [x] Notes List pagination/sort controls remain usable inside the drawer.
-  - [x] Library and Collection controls render on separate lines without drawer horizontal scroll.
-  - [x] Collection actions render beside the Collection dropdown, open in a modal, keep New collection reachable without selection, disable edit/archive/delete until a manageable collection is selected, and hand off to the create/edit collection editor without closing it as a child modal.
-  - [x] Notes List rows show at most one visible tag chip and do not overlap metadata.
-  - [x] Existing Notes filtering, Library, archive, selection, and detail flows still work.
-- [x] Add or update Notes UI workflow regressions covering:
-  - [x] Create Note modal.
-  - [x] Edit Note modal.
-  - [x] View Note detail.
-  - [x] Primary Context controls.
-  - [x] Linked Context add/remove.
-  - [x] Task-created note context display.
-  - [x] Tags stacked modal.
-  - [x] Files stacked modal.
-  - [x] Unsaved-note files warning.
-  - [x] Markdown toolbar buttons.
-  - [x] Markdown line-break view/preview parity.
-  - [x] Markdown preview two-column layout.
-  - [x] Personal/Family workspace context hiding.
-  - [x] Notes List sorting controls and default order.
-  - [x] No UUID user-facing UI.
-- [x] Add or update framework shared-component regressions:
-  - [x] Linked Context picker contract.
-  - [x] Provider-owned labels/sorting.
-  - [x] Modal stack behavior.
-  - [x] Markdown editor toolbar.
-  - [x] Markdown preview layout.
-- [x] Update docs:
-  - [x] `docs/notes-module.md`
-  - [x] `docs/view-building-contract.md`
-  - [x] `docs/module-contract.md`
-  - [x] `docs/ui-surface-contract.md` if new drawer/sidebar classes or focus/overflow rules are added.
-  - [x] Any UI guardrails/contracts doc added in this release.
-- [x] Document that the slide-out sidebar pattern is the preferred action/workflow surface anatomy for future Tasks, Tickets, Notes, Lists, Files, and Clients/Projects conversions when the surface needs filters/navigation beside a primary record view.
-- [x] Document that the slide-out sidebar pattern is not the retired center `split-list-detail` behavior and not the rejected persistent split-column `sidebar-detail` anatomy.
-- [x] Document that slide-out action surfaces should keep their primary/detail panel top-anchored and keep the funnel trigger near the screen-left lower viewport/footer edge without overlapping the footer.
-- [x] Confirm `DECISIONS.md` matches the implemented framework/module ownership boundary.
-- [x] Update Help/user-facing text only if behavior exposed to users changes.
-- [x] Update CHANGELOG.
-- [x] Bump package/app metadata to the implemented version.
-- [x] Run:
-  - [x] `npm run check`
-  - [x] Relevant Notes UI regression scripts.
-  - [x] Relevant Markdown/editor regression scripts.
-  - [x] Relevant permissions tests if context/visibility/readability changed.
-- [x] Verify `/api/app-info` reports the expected version.
-- [x] Keep this section focused on Notes and shared framework contracts.
-  - [x] Do not perform Lists add/edit redesign in this section.
-  - [x] Do not convert Tasks, Files, or Clients/Projects in this section.
-  - [x] Do not rename database tables or route names.
-  - [x] Do not introduce a frontend framework.
-
-Acceptance criteria:
-
-- The slide-out sidebar is documented as a reusable framework pattern.
-- Notes is documented as the first adopter.
-- Future action/workflow surfaces can reuse the same pattern instead of inventing new page anatomy.
-- Notes is a clean template for future add/edit/view module surfaces.
-- Notes keeps detail content top-anchored and the filter trigger footer-aware without footer overlap.
-- Notes drawer controls and list rows remain readable without cramped two-column controls, inline action-menu scroll, or overlapping tag chips.
-- Primary Context and Linked Context are visually and behaviorally distinct.
-- Notes add/edit/view UI is free of raw UUID display.
-- Shared picker/modal/Markdown contracts are documented.
-- Tests/checks pass.
-
----
+Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
+The active roadmap continues with Tasks, Files, and Clients/Projects view conversion work.
+0.33.5.18.7.4 is the most recently completed Tasks read-only list binding slice. The next live work starts with 0.33.5.18.8.1.
 
 ## Tasks (0.33.5.18.7 - 0.33.5.18.10)
 
@@ -213,113 +65,20 @@ guardrail enforcement are intentionally separated below.
 
 This slice converts the Tasks page shell to the framework-owned action surface pattern while keeping existing task list behavior and appearance mostly intact.
 
-#### Version 0.33.5.18.7.1 - Tasks descriptor and minimal protected host
-
-- [ ] Add a `viewSurfaces` descriptor for the Tasks protected workspace read path.
-- [ ] Reduce `views/protected/tasks.html` to a minimal framework host element.
-- [ ] Register Tasks as a converted surface only for the page shell/read path in this slice.
-- [ ] Use the framework `slide-out-sidebar` layout pattern.
-- [ ] Main panel must be the task list surface.
-- [ ] Sidebar must be filter/navigation controls only.
-- [ ] Keep existing task routes, payloads, permissions, and list behavior unchanged.
-- [ ] Keep create/edit task modal, checklist editing, timers, recurrence, and bulk actions on existing imperative paths until later slices.
-- [ ] Add regressions proving:
-  - [ ] Tasks page renders from a descriptor.
-  - [ ] The protected view is reduced to a host.
-  - [ ] The slide-out filter sidebar shell exists.
-  - [ ] The task list remains in the main panel.
-  - [ ] The task list is not rendered inside the sidebar.
-
-Acceptance criteria:
-
-- Tasks has a descriptor-backed page shell.
-- The sidebar exists but does not own the task list.
-- Existing task list behavior still works.
-
-#### Version 0.33.5.18.7.2 - Framework-owned Tasks filter sidebar anatomy
-
-- [ ] Add Tasks sidebar panels using the framework slide-out sidebar pattern.
-- [ ] Sidebar top control: task view selector dropdown.
-- [ ] The task view selector must not be a collapsible section.
-- [ ] Task view selector options:
-  - [ ] `My Tasks`
-  - [ ] `All`
-  - [ ] `Unassigned`
-  - [ ] `Overdue`
-  - [ ] `Due Today`
-  - [ ] `Due This Week`
-  - [ ] `Completed`
-  - [ ] `Archived`
-- [ ] Default selected view: `My Tasks`.
-- [ ] Add a `Sorting and Filters` section below the task view selector.
-- [ ] `Sorting and Filters` must be collapsed by default.
-- [ ] Existing detailed filters should move into `Sorting and Filters`.
-- [ ] Preserve Business/Personal/Family context rules:
-  - [ ] Business workspaces may show Client and Project filters.
-  - [ ] Personal/Family workspaces must not show Client filters.
-  - [ ] Project filters may remain available where supported.
-- [ ] Preserve existing tag, owner/assignee, due-date, status, priority, and context filtering where implemented.
-- [ ] Add regressions proving:
-  - [ ] View selector appears at top of sidebar.
-  - [ ] View selector is a dropdown, not a collapsible group.
-  - [ ] Sorting and Filters appears below it.
-  - [ ] Sorting and Filters starts collapsed.
-  - [ ] Client filter is hidden in Personal/Family workspaces.
-  - [ ] Sidebar trigger/open/close behavior follows the Notes slide-out pattern.
-
-Acceptance criteria:
-
-- Tasks has the correct filter sidebar anatomy.
-- The high-level task view selector is fast and obvious.
-- Advanced sorting/filtering is available but tucked away.
-
-#### Version 0.33.5.18.7.3 - Task view selector query contract
-
-Define the query behavior for the top dropdown.
-
-- [ ] Implement task view selector query mapping in Tasks-owned code, not framework code.
-- [ ] Framework owns the selector UI; Tasks owns what each option means.
-- [ ] Suggested query definitions:
-  - [ ] `My Tasks`: active/open tasks assigned to the current user.
-  - [ ] `All`: active/open tasks regardless of assignee.
-  - [ ] `Unassigned`: active/open tasks with no assignee.
-  - [ ] `Overdue`: active/open tasks with due date before the current workspace/user-local date.
-  - [ ] `Due Today`: active/open tasks due on the current workspace/user-local date.
-  - [ ] `Due This Week`: active/open tasks due from today through the end of the current week.
-  - [ ] `Completed`: completed tasks.
-  - [ ] `Archived`: archived tasks.
-- [ ] Ensure `Completed` and `Archived` do not leak into the normal active/open views unless intentionally selected.
-- [ ] Advanced filters should narrow the selected task view, not silently replace it.
-- [ ] Add a clear/reset behavior:
-  - [ ] Reset advanced filters without changing the selected task view.
-  - [ ] Changing the selected task view should preserve only safe compatible advanced filters.
-- [ ] Add regressions proving:
-  - [ ] Each task view produces the expected canonical query.
-  - [ ] Due-date views use workspace/user-local date logic.
-  - [ ] Advanced filters combine predictably with the selected view.
-  - [ ] Completed and Archived are intentionally scoped.
-  - [ ] Personal/Family queries never include client-only UI assumptions.
-
-Acceptance criteria:
-
-- The task view selector works as a first-class Tasks query control.
-- The framework does not hard-code task status/due-date meaning.
-- The selected view and advanced filters combine predictably.
-
 #### Version 0.33.5.18.7.4 - Tasks read-only list binding and no-visual-redesign pass
 
-- [ ] Bind the current task list data into the descriptor-backed surface.
-- [ ] Preserve existing task list appearance unless a framework-owned wrapper is required.
-- [ ] Do not redesign task rows in this slice.
-- [ ] Preserve existing list density, row controls, due-date display, status display, assignee display, and task row actions where currently available.
-- [ ] Move only framework-owned shell/layout anatomy out of `public/js/tasks.js`.
-- [ ] Keep task row data shaping and workflow handlers in Tasks-owned code.
-- [ ] Add regressions proving:
-  - [ ] Existing task list rows still render.
-  - [ ] Existing row-level actions still appear.
-  - [ ] Existing filters still affect the visible task list.
-  - [ ] Task list remains the main panel.
-  - [ ] No task list rows render in the sidebar.
+- [x] Bind the current task list data into the descriptor-backed surface.
+- [x] Preserve existing task list appearance unless a framework-owned wrapper is required.
+- [x] Do not redesign task rows in this slice.
+- [x] Preserve existing list density, row controls, due-date display, status display, assignee display, and task row actions where currently available.
+- [x] Move only framework-owned shell/layout anatomy out of `public/js/tasks.js`.
+- [x] Keep task row data shaping and workflow handlers in Tasks-owned code.
+- [x] Add regressions proving:
+  - [x] Existing task list rows still render.
+  - [x] Existing row-level actions still appear.
+  - [x] Existing filters still affect the visible task list.
+  - [x] Task list remains the main panel.
+  - [x] No task list rows render in the sidebar.
 
 Acceptance criteria:
 

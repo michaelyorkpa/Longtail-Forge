@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.6.11";
+const appVersion = "0.33.5.18.7.4";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -17,14 +17,8 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cl
 assert.equal(packageLock.version, appVersion, "package-lock root should report the closeout version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the closeout version");
 
-const closeoutSection = sectionBetween(
-  roadmap,
-  "### Version 0.33.5.18.6.11 - Notes slide-out sidebar regression pass and docs closeout",
-  "\n---",
-);
-assert.match(closeoutSection, /- \[x\] Close out the 0\.33\.5\.18\.6\.10 slide-out sidebar pass/, "Roadmap should mark the closeout pass complete");
-assert.doesNotMatch(closeoutSection, /- \[ \]/, "Roadmap closeout section should not leave unchecked work");
-assert.match(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.10\.7 are archived/, "Roadmap should document that earlier Notes slices are archived");
+assert.match(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.11 are archived/, "Roadmap should document that completed Notes slices are archived");
+assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.6\.11 - Notes slide-out sidebar regression pass and docs closeout/, "Live roadmap should not keep the prior completed Notes closeout slice after Tasks 7.1 completes");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.6\.10\.7 - Notes List slide-out behavior/, "Live roadmap should not keep the prior completed slice after the closeout");
 
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the closeout version");
@@ -72,14 +66,6 @@ console.log("Notes slide-out closeout regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-}
-
-function sectionBetween(source, start, end) {
-  const startIndex = source.indexOf(start);
-  assert.notEqual(startIndex, -1, `Missing section start: ${start}`);
-  const endIndex = source.indexOf(end, startIndex + start.length);
-  assert.notEqual(endIndex, -1, `Missing section end after: ${start}`);
-  return source.slice(startIndex, endIndex);
 }
 
 function escapeRegExp(value) {

@@ -43,8 +43,8 @@ async function assertTaskNotesPanelSourceContract() {
     fs.readFile(path.join(process.cwd(), "public/js/shared/notes-linked-panel.js"), "utf8"),
   ]);
 
-  assert.match(tasksPage, /data-task-notes-panel/);
-  assert.match(tasksPage, /data-task-notes/);
+  assert.match(taskDialog, /data-task-notes-panel/);
+  assert.match(taskDialog, /data-task-notes/);
   assert.ok(tasksPage.indexOf("js/shared/notes-linked-panel.js") < tasksPage.indexOf("js/task-dialog.js"), "Tasks page should load Notes helper before task dialog.");
   assert.ok(workbenchPage.indexOf("js/shared/notes-linked-panel.js") < workbenchPage.indexOf("js/task-dialog.js"), "Workbench should load Notes helper before task dialog.");
   assert.match(taskDialog, /namespace\.notesLinkedPanel\.mount/);

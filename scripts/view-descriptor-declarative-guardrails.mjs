@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
 
-const appVersion = "0.33.5.18.6.11";
+const appVersion = "0.33.5.18.7.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
@@ -71,7 +71,7 @@ assert.deepEqual(
 );
 assert.ok(inventory.some((entry) => entry.moduleId === "tags" && entry.surfaceIds.includes("tags.management") && !entry.strict), "Tags descriptor should be inventoried but not strict yet");
 assert.ok(inventory.some((entry) => entry.moduleId === "developer-example" && entry.surfaceIds.includes("developer-example.surface") && !entry.strict), "Disabled example descriptor should be inventoried but not strict");
-assert.ok(inventory.some((entry) => entry.moduleId === "tasks" && entry.surfaceIds.length === 0 && !entry.strict), "Non-declarative protected views should remain reported-only");
+assert.ok(inventory.some((entry) => entry.moduleId === "tasks" && entry.surfaceIds.includes("tasks.workspace") && !entry.strict), "Tasks descriptor should be inventoried but not strict yet");
 
 assert.match(listsHtml, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Strict declarative Lists HTML should stay a minimal host");
 assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=4[\s\S]*js\/shared\/view-renderer\.js\?v=6[\s\S]*js\/lists\.js\?v=13/, "Strict declarative Lists HTML should load the renderer before the module adapter");
@@ -143,7 +143,7 @@ for (const expectedInventoryRow of [
   "| Notes | notes | notes.html | notes.workspace | strict |",
   "| Tags | tags | tags.html | tags.management | reported |",
   "| Developer Example | developer-example | developer-example.html | developer-example.surface | reported |",
-  "| Tasks | tasks | tasks.html | - | reported |",
+  "| Tasks | tasks | tasks.html | tasks.workspace | reported |",
 ]) {
   assert.match(declarativeGuide, new RegExp(escapeRegExp(expectedInventoryRow)), `Developer guide should include inventory row: ${expectedInventoryRow}`);
 }

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const styles = readText("public/css/longtail-forge.css");
 const tasksView = readText("views/protected/tasks.html");
+const tasksScript = readText("public/js/tasks.js");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 const uiGuide = readText("docs/ui-layout-guide.md");
 
@@ -48,16 +49,21 @@ assert.match(
 );
 
 assert.match(
-  tasksView,
+  tasksScript,
+  /main\.classList\.add\("tasks-main-list-panel"\)/,
+  "Tasks generated task list should remain mounted in the main panel",
+);
+assert.doesNotMatch(
+  tasksScript,
   /class="task-page-toolbar task-sticky-controls surface-main-panel surface-main-panel--sticky"/,
-  "Tasks filter toolbar should prove the shared main-panel sticky shell",
+  "Tasks filter toolbar should no longer require the old sticky main-panel shell",
 );
 assert.match(
-  tasksView,
+  tasksScript,
   /class="task-bulk-toolbar surface-main-panel"/,
-  "Tasks bulk toolbar should prove the shared main-panel shell",
+  "Tasks generated bulk toolbar should prove the shared main-panel shell",
 );
-assert.match(tasksView, /css\/longtail-forge\.css\?v=23/, "Tasks view must load the drawer/main-surface stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=55/, "Tasks view must load the drawer/main-surface stylesheet cache key");
 
 for (const expected of [
   ".surface-main-panel",

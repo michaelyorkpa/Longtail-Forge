@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const styles = readText("public/css/longtail-forge.css");
 const tasksView = readText("views/protected/tasks.html");
+const taskDialogScript = readText("public/js/task-dialog.js");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 const uiGuide = readText("docs/ui-layout-guide.md");
 
@@ -79,10 +80,10 @@ for (const className of [
   "task-footer-panel task-files-field surface-overlay-panel",
   "task-notes-field surface-modal-group surface-divider-top",
 ]) {
-  assert.match(tasksView, new RegExp(`class="${escapeRegExp(className)}"`), `Tasks modal converted area should include ${className}`);
+  assert.match(taskDialogScript, new RegExp(`class="${escapeRegExp(className)}"`), `Tasks modal converted area should include ${className}`);
 }
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=23/, "Tasks view must load the surface-token stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=55/, "Tasks view must load the surface-token stylesheet cache key");
 
 console.log("Surface token contract regression passed.");
 

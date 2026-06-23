@@ -275,16 +275,15 @@ async function assertTimeEntriesBulkConsumer(session, fixtures) {
 }
 
 async function assertBrowserWiring() {
-  const tasksHtml = await fs.readFile(path.join(process.cwd(), "views/protected/tasks.html"), "utf8");
   const tasksJs = await fs.readFile(path.join(process.cwd(), "public/js/tasks.js"), "utf8");
   const timeEntriesHtml = await fs.readFile(path.join(process.cwd(), "views/protected/time-entries.html"), "utf8");
   const timeEntriesJs = await fs.readFile(path.join(process.cwd(), "public/js/time-entries.js"), "utf8");
 
-  assert.match(tasksHtml, /data-task-bulk-tag-action/);
-  assert.match(tasksHtml, /data-task-bulk-tags/);
-  assert.match(tasksHtml, /value="tag_add"/);
-  assert.match(tasksHtml, /value="tag_remove"/);
-  assert.match(tasksHtml, /value="tag_replace"/);
+  assert.match(tasksJs, /data-task-bulk-tag-action/);
+  assert.match(tasksJs, /data-task-bulk-tags/);
+  assert.match(tasksJs, /value="tag_add"/);
+  assert.match(tasksJs, /value="tag_remove"/);
+  assert.match(tasksJs, /value="tag_replace"/);
   assert.match(tasksJs, /bulkTagActionInput/);
   assert.match(tasksJs, /selectedBulkTagIds/);
   assert.match(timeEntriesHtml, /data-time-entry-select-all/);

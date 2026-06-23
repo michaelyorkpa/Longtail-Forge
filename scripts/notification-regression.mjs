@@ -513,8 +513,8 @@ async function runNotificationUiContractTests() {
     assert.match(notificationSubscriptions, /root\.notificationSubscriptions/);
     assert.match(notificationSubscriptions, /\/api\/notifications\/subscriptions/);
     assert.match(tasksPage, /js\/shared\/notification-subscriptions\.js/);
-    assert.match(tasksPage, /data-task-notification-toggle hidden aria-pressed="false"/);
-    assert.doesNotMatch(tasksPage, /data-task-notification-follow|task-notification-popover/);
+    assert.match(taskDialog, /data-task-notification-toggle hidden aria-pressed="false"/);
+    assert.doesNotMatch(taskDialog, /data-task-notification-follow|task-notification-popover/);
     assert.match(taskDialog, /toggleTaskNotificationFollow/);
     assert.match(taskDialog, /notificationSubscriptions\.follow\(target\)/);
     assert.match(taskDialog, /notificationSubscriptions\.unfollow\(target\)/);
