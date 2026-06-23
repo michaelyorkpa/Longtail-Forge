@@ -26,7 +26,7 @@ assert.match(tasksModule, /primaryAction:\s*\{[\s\S]*behavior:\s*"tasks\.create"
 
 assert.match(tasksView, /<main class="wide-page tasks-page" data-tasks-host><\/main>/, "Tasks protected view should be reduced to a minimal host");
 assert.match(tasksView, /css\/longtail-forge\.css\?v=55/, "Tasks protected view should load the current stylesheet cache key");
-assert.match(tasksView, /js\/shared\/view-builder\.js\?v=11[\s\S]*js\/shared\/view-renderer\.js\?v=11[\s\S]*js\/task-dialog\.js\?v=10[\s\S]*js\/tasks\.js\?v=12/, "Tasks protected view should load the renderer before the module adapter");
+assert.match(tasksView, /js\/shared\/view-builder\.js\?v=11[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/task-dialog\.js\?v=10[\s\S]*js\/tasks\.js\?v=12/, "Tasks protected view should load the renderer before the module adapter");
 assertNoProtectedAnatomy(tasksView, "views/protected/tasks.html");
 
 assert.match(tasksScript, /buildTasksViewShell\(\);[\s\S]*tasksDialog\?\.configure\?\.\(\)/, "Tasks adapter should build the descriptor shell before querying task hooks");

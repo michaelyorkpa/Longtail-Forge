@@ -705,8 +705,10 @@
       renderActions(detail.actionStrip?.actions, view, detail.actionStrip?.label || "Detail actions", state),
       renderSummaryPanels(detail.summaryPanels, view, state.selectedRecord),
       renderFieldGridShell(detail.itemForm, view, state.selectedRecord),
-      renderItemCollection(detail.itemRows, view, state) ||
-        (!state.selectedRecord ? renderPlaceholder("Items", detail.itemRows?.emptyState || detail.emptyState, view) : null),
+      detail.itemRows
+        ? renderItemCollection(detail.itemRows, view, state) ||
+          (!state.selectedRecord ? renderPlaceholder("Items", detail.itemRows.emptyState || detail.emptyState, view) : null)
+        : null,
       ...renderRegions(detail.regions, view, state, state.selectedRecord),
     ];
 

@@ -7,6 +7,7 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
 const tasksScript = readText("public/js/tasks.js");
 const tasksView = readText("views/protected/tasks.html");
+const renderer = readText("public/js/shared/view-renderer.js");
 const styles = readText("public/css/longtail-forge.css");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
@@ -57,7 +58,8 @@ assert.match(buildTaskQuery, /params\.set\("tags", tagValue\)/, "Tag filter shou
 assert.match(tasksScript, /\[sortInput, statusFilter, assigneeFilter, clientFilter, projectFilter, tagFilter\]\.forEach\(\(input\) => \{[\s\S]*await reloadTaskList\(\)/, "Existing filter controls should still reload the visible task list");
 
 assert.match(tasksView, /<main class="wide-page tasks-page" data-tasks-host><\/main>/, "Tasks protected view should remain a minimal descriptor host");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=55[\s\S]*js\/tasks\.js\?v=12/, "Tasks host should load the read-only list binding cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=55[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=12/, "Tasks host should load the read-only list binding cache keys");
+assert.match(renderer, /detail\.itemRows\s*\? renderItemCollection\(detail\.itemRows, view, state\)/, "Renderer should only show the generic Items placeholder when itemRows are declared");
 assert.match(styles, /\.view-slideout-sidebar-main > \.tasks-main-list-region\s*\{[\s\S]*border:\s*0;[\s\S]*padding:\s*0;[\s\S]*background:\s*transparent/, "Framework region wrapper should not visually redesign the task list");
 assert.match(regressionSuite, /scripts\/tasks-readonly-list-binding-regression\.mjs/, "Regression suite should include the Tasks read-only list binding regression");
 

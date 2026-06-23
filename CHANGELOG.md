@@ -5,6 +5,7 @@
 - Kept `Saved Task Views` and `Sorting and Filters` as the only slide-out sidebar panels; task rows and the bulk toolbar stay in the main panel.
 - Added `tasks-readonly-list-binding-regression.mjs`, refreshed Tasks/view-surface/module docs and decisions, archived 0.33.5.18.7.3, marked 0.33.5.18.7.4 complete in the roadmap, and bumped Tasks host cache keys to `longtail-forge.css?v=55` and `tasks.js?v=12`.
 - Verification: `npm run check` passed 155/155 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.7.4` after restarting the local 8001 server.
+- Corrective follow-up - 2026-06-23 03:59 -04:00: Removed the stray framework `Items / No records loaded.` placeholder from region-only detail surfaces so the Tasks main panel opens directly on Bulk Actions and the task list; refreshed the Tasks host renderer cache key to `view-renderer.js?v=12`. Verification rerun: `npm run check` passed 155/155 regression scripts plus ESLint; `PRAGMA integrity_check` returned `ok`; `/api/app-info` reports `0.33.5.18.7.4`.
 
 ## Version 0.33.5.18.7.3 - 2026-06-23 03:37 -04:00
 

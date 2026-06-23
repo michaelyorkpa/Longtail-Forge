@@ -83,6 +83,24 @@ assert.match(surface.textContent, /hello/, "Item rows should render meta fields"
 assert.match(surface.textContent, /Complete/, "Row actions matching visibleWhen should render");
 assert.doesNotMatch(surface.textContent, /Reopen/, "Row actions failing visibleWhen should not render");
 
+// Region-only detail surfaces should not invent an item collection placeholder.
+const regionOnlyContext = createBrowserContext([]);
+vm.runInNewContext(builder, regionOnlyContext, { filename: "view-builder.js" });
+vm.runInNewContext(renderer, regionOnlyContext, { filename: "view-renderer.js" });
+regionOnlyContext.window.LongtailForge.view.registerBehavior("caps.regionOnly", (ctx) => {
+  ctx.container.appendChild(regionOnlyContext.document.createElement("p")).textContent = "REGION_ONLY_MOUNT";
+});
+const regionOnlyHost = regionOnlyContext.document.createElement("main");
+const regionOnlySurface = regionOnlyContext.window.LongtailForge.view.renderSurface({
+  id: "region-only-detail",
+  layout: "single-column",
+  detail: {
+    regions: [{ id: "main-region", behavior: "caps.regionOnly" }],
+  },
+}, regionOnlyHost);
+assert.match(regionOnlySurface.textContent, /REGION_ONLY_MOUNT/, "Region-only detail surfaces should mount registered regions");
+assert.doesNotMatch(regionOnlySurface.textContent, /Items|No records loaded/, "Region-only detail surfaces should not render the generic item placeholder");
+
 // Missing mount behavior fails visibly without breaking the surface.
 const missingContext = createBrowserContext([{ records: [{ record_id: "r1", name: "Record One" }] }]);
 vm.runInNewContext(builder, missingContext, { filename: "view-builder.js" });
