@@ -7,8 +7,8 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and implementation slices
 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
-The active roadmap continues with Tasks, Files, and Clients/Projects view conversion work.
-0.33.5.18.10.7 is the most recently completed Tasks docs, changelog, and closeout slice. The next live work starts with 0.33.5.18.11.
+The active roadmap continues with cross-module modal standardization, Files, and Clients/Projects view conversion work.
+0.33.5.18.10.7 is the most recently completed Tasks docs, changelog, and closeout slice. The next live work starts with 0.33.5.18.10.8.1 before Files begins.
 
 ## Tasks (0.33.5.18.7 - 0.33.5.18.10)
 
@@ -95,6 +95,146 @@ Acceptance criteria:
 - Bulk actions are collapsed above the list.
 - Add/Edit Task modal is canonical and reusable from Workbench/QAC/future module calls.
 - Framework/module separation is documented and regression-covered.
+
+---
+
+### Version 0.33.5.18.10.8 - Cross-Module Modal Action Standardization
+
+This corrective branch is inserted before Files because Tasks and Notes are now the two converted modal
+proof surfaces. Their modal shell/footer anatomy is already framework-owned, but their action styles
+and heading controls have drifted. Standardizing the converted modal contract here keeps Files and
+Clients/Projects from inheriting two competing patterns.
+
+Framework owns:
+
+- Modal shell, heading row, footer shell, footer utility group, footer commit group, sticky footer
+  behavior, action button primitive styling, dense/compact button sizing, focus return, Escape/backdrop
+  modal stack behavior, and accessible default structure.
+- The visual standard for converted modal action placement:
+  - Footer utility actions such as Tags, Files, and Copy Link should use icon plus short visible text
+    unless a deliberately dense surface opts into icon-only controls with explicit accessible labels.
+  - Footer commit actions should follow the compact Tasks pattern for Cancel and Save: recognizable
+    icon buttons with accessible labels, titles, native button types, and consistent primary/secondary
+    roles.
+  - The modal heading action slot should hold one contextual record-level utility such as a Follow
+    Notifications bell, not a duplicate Close button when the footer already has Cancel/Close.
+
+Modules own:
+
+- Which buttons appear, when they are enabled, their labels/icons, API calls, save payloads, validation,
+  permission checks, record URLs, notification event meaning, and any picker/upload bodies opened by
+  footer utility actions.
+- Tasks remains the source of truth for task save/cancel/copy/follow/tags/files/notes behavior.
+- Notes remains the source of truth for note save/cancel/copy/follow/tags/files/linked-context,
+  revision, secure-note, Library, visibility, and notification producer behavior.
+
+Guardrails:
+
+- Do not add a Notes follow bell that only changes subscription state without Notes producing meaningful
+  note notifications.
+- Do not move Tags, Files, Copy Link, or Follow behavior into the generic modal helper.
+- Do not create another module-specific modal footer class when `.surface-modal-footer`,
+  `.surface-modal-footer-utilities`, `.surface-modal-footer-commit`, and
+  `.surface-modal-footer-action` can express the anatomy.
+- Do not regress the Tasks modal heading bell, save/cancel controls, footer focus return, tag picker,
+  file attachment helper, or copy-link behavior.
+- Do not make secure-note files available while secure attachments remain out of scope.
+
+#### Version 0.33.5.18.10.8.1 - Modal action ownership and regression contract
+
+- [ ] Update `docs/ui-surface-contract.md` and `docs/view-building-contract.md` with the converted
+      modal action ownership standard.
+- [ ] Update `docs/tasks-module.md` and `docs/notes-module.md` so Tasks and Notes describe the same
+      heading/footer ownership boundary.
+- [ ] Add or update static regressions proving converted modal footers use framework footer groups,
+      framework action buttons, stable action roles, and no module-specific footer anatomy.
+- [ ] Document the exact standard:
+  - [ ] Tags, Files, and Copy Link are footer utility actions and should render as icon plus text on
+        converted add/edit modals unless the surface intentionally opts into dense icon-only mode.
+  - [ ] Cancel and Save are footer commit actions and should use the compact Tasks icon treatment with
+        clear accessible labels and titles.
+  - [ ] Follow Notifications belongs in the modal heading action slot for saved records that can emit
+        notifications.
+- [ ] Keep this slice documentation/static-regression only; do not change modal behavior yet.
+- [ ] Run `npm run check`.
+
+Acceptance criteria:
+
+- Framework-owned modal footer anatomy is documented once and applies to both Tasks and Notes.
+- Module-owned modal action semantics remain explicit.
+- The next implementation slice has no ambiguity about which visual pattern to use.
+
+#### Version 0.33.5.18.10.8.2 - Notes and Tasks modal footer parity
+
+- [ ] Update the Notes modal footer utility actions to use icon plus text for Tags and Files.
+- [ ] Add a Notes Copy Link footer utility action using the same record-URL/clipboard fallback pattern
+      as Tasks, with Notes-owned URL construction and status messaging.
+- [ ] Update the Notes modal footer commit actions to match the Tasks compact Cancel and Save icon
+      treatment while preserving submit/cancel behavior, accessible labels, and focus return.
+- [ ] Update Tasks footer utility actions to match the shared utility standard where space allows:
+      Tags, Files, and Copy Link should use icon plus text; Cancel and Save should remain compact
+      commit controls.
+- [ ] Keep Tags picker ownership in Tags, Files attachment ownership in Files, copy-link behavior in
+      the owning module, and save payloads in the owning module.
+- [ ] Add regressions covering Tasks and Notes footer utility/commit grouping, icon/text expectations,
+      copy-link presence, and cache keys.
+- [ ] Run `npm run check`.
+
+Acceptance criteria:
+
+- Tasks and Notes modal footers look like the same modal system.
+- Footer utility actions are readable and grouped on the left.
+- Footer commit actions are compact and grouped on the right.
+- Notes has a Copy Link footer action for saved notes without duplicating Tasks code or changing
+  note save semantics.
+
+#### Version 0.33.5.18.10.8.3 - Notes notification producer and follow bell
+
+- [ ] Inspect the framework notification subscription helper and notification service contract used by
+      Tasks.
+- [ ] Add Notes notification producer support for meaningful note changes, excluding the acting user's
+      own changes where the existing notification model supports that pattern.
+- [ ] Define which Notes events notify followers, such as note updated, archived/restored, revision
+      restored, linked context changed, tags changed, or files changed; keep noisy body autosave-style
+      behavior out of scope unless deliberately added later.
+- [ ] Add a saved-note Follow Notifications bell to the Notes modal heading action slot.
+- [ ] Remove the superfluous top Close button from the Notes modal once the heading bell is present;
+      footer Cancel remains the normal dismissal control.
+- [ ] Ensure unsaved notes either hide or disable the follow bell with clear accessible state because
+      there is no note id to follow yet.
+- [ ] Keep the subscription UI framework-owned where possible, but keep Notes event emission and note
+      notification meaning Notes-owned.
+- [ ] Add service/browser regressions for Notes notification production, heading bell display, saved vs
+      unsaved state, and no duplicate Close button.
+- [ ] Run `npm run check`.
+- [ ] Run notification-specific regressions.
+
+Acceptance criteria:
+
+- Notes can produce notifications that make following a note useful.
+- The Notes modal heading uses a follow bell instead of a duplicate Close button.
+- Notification subscription behavior remains framework-owned, while note event meaning remains
+  Notes-owned.
+
+#### Version 0.33.5.18.10.8.4 - Modal standardization closeout
+
+- [ ] Update `docs/ui-surface-contract.md`, `docs/view-building-contract.md`, `docs/tasks-module.md`,
+      and `docs/notes-module.md` with the shipped modal action standard.
+- [ ] Update `DECISIONS.md` with the finalized cross-module modal action ownership decision.
+- [ ] Update CHANGELOG and package metadata.
+- [ ] Ensure strict converted-surface guardrails protect the standardized modal footer/heading pattern.
+- [ ] Run:
+  - [ ] `npm run check`
+  - [ ] Notes modal regressions.
+  - [ ] Tasks modal regressions.
+  - [ ] Notification regressions.
+- [ ] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Tasks and Notes share the same converted modal action standard.
+- The framework/module modal ownership boundary is documented and regression-covered.
+- Files can begin after this branch without inheriting conflicting modal footer patterns.
 
 ---
 

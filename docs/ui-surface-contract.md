@@ -60,7 +60,22 @@ The existing aliases `--color-background`, `--color-page`, and `--color-surface-
 
 ## Adaptive Footer Labels
 
-Dense task-style modal footers may keep recognizable utility and commit controls icon-only when the button has a clear accessible label, hover title, native button type, and regression coverage. Wider or less dense modal footers should prefer icon plus short visible text for primary, destructive, unusual, and ambiguous actions. Utility actions such as Tags, Files, Copy Link, and Follow/Unfollow can remain icon-only when the icon is recognizable and the accessible name is clear.
+Converted add/edit modals should use one shared action model. The framework owns footer placement,
+utility and commit grouping, sticky footer behavior, shared action button anatomy, accessible defaults,
+and focus return. Modules own which actions appear, record-specific labels/icons, availability, API
+calls, save payloads, validation, permissions, record URLs, notification event meaning, and picker or
+upload bodies.
+
+Footer utility actions such as Tags, Files, and Copy Link should use an icon plus short visible text on
+converted add/edit modals unless a deliberately dense surface opts into icon-only controls with clear
+accessible labels, hover titles, native button types, and regression coverage. Footer commit actions
+should follow the compact Tasks pattern for Cancel and Save: recognizable icon buttons with accessible
+labels, titles, native button types, and consistent secondary/primary roles.
+
+The modal heading action slot should hold one contextual record-level utility such as a Follow
+Notifications bell. It should not carry a duplicate Close button when the footer already provides
+Cancel or Close behavior. A module should not show a follow bell as a cosmetic control until that module
+can produce meaningful notifications through the framework notification system.
 
 ## Overlay Host
 
@@ -92,7 +107,7 @@ Use `.surface-dense-actions` for compact row, table, and list action clusters. D
 
 The framework owns the tokens, shared class names, focus visibility, overlay host behavior, drawer/slideout shell behavior, responsive placement, and generic footer/action alignment. Modules own form fields, record-specific content, picker/upload bodies, save payloads, validation, permissions, and business meaning.
 
-The first concrete converted area is the Tasks modal surface shell: converted modal title rows use `.surface-modal-heading`, modal groups use `.surface-modal-group`, modal section headings use `.surface-modal-section-heading`, grouped controls use `.surface-modal-section-body`, helper/status text uses `.surface-modal-section-help`, footer picker hosts use `.surface-overlay-panel`, top-only divider intent is marked with `.surface-divider-top`, footer actions use `.surface-modal-footer` with utility and commit groups, and Tags/Files footer panels register with the shared overlay host. Notes and Tasks must not keep module-specific title-row heading classes or module-specific modal heading spacing for converted add/edit modals. Collapsible modal section summaries must use the shared inside-the-box caret instead of relying on browser-native markers, and non-collapsible modal group headings should not use `fieldset`/`legend` when that would cut the box border. The first main-screen proof target is the Tasks filter toolbar and bulk toolbar using `.surface-main-panel`. The first adoption pass extends the shared classes to Notifications boxes and task timer surfaces without changing module behavior. Later 0.33.5.13 slices will broaden module adoption.
+The first concrete converted area is the Tasks modal surface shell: converted modal title rows use `.surface-modal-heading`, modal groups use `.surface-modal-group`, modal section headings use `.surface-modal-section-heading`, grouped controls use `.surface-modal-section-body`, helper/status text uses `.surface-modal-section-help`, footer picker hosts use `.surface-overlay-panel`, top-only divider intent is marked with `.surface-divider-top`, footer actions use `.surface-modal-footer` with utility and commit groups, and Tags/Files footer panels register with the shared overlay host. Notes and Tasks must not keep module-specific title-row heading classes or module-specific modal heading spacing for converted add/edit modals. Converted modal footer utility actions should use icon plus text for readable module utilities such as Tags, Files, and Copy Link; compact commit actions should keep the Tasks-style Cancel and Save icon treatment with accessible labels. Collapsible modal section summaries must use the shared inside-the-box caret instead of relying on browser-native markers, and non-collapsible modal group headings should not use `fieldset`/`legend` when that would cut the box border. The first main-screen proof target is the Tasks filter toolbar and bulk toolbar using `.surface-main-panel`. The first adoption pass extends the shared classes to Notifications boxes and task timer surfaces without changing module behavior. Later 0.33.5.13 slices will broaden module adoption.
 
 Declarative `viewSurfaces` descriptors are the manifest form of the same ownership boundary. A descriptor may name framework anatomy such as page headers, filter panels, selector/index panels, split workspaces, tables, detail headers, metadata/badge rows, action strips, summary panels, modal shells, field grids, and footer action groups. The descriptor describes the shape; the framework applies shared surface classes, accessibility defaults, overflow wrappers, responsive behavior, focus-safe controls, and workspace terminology. The owning module still supplies the data endpoint, field bindings, route and permission contract, named behavior handlers, validation, save payloads, and record-specific workflow semantics.
 

@@ -21,7 +21,8 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the Tasks conversion closeout version");
 
 assert.match(roadmap, /0\.33\.5\.18\.10\.7 is the most recently completed Tasks docs, changelog, and closeout slice/, "Roadmap should report the completed Tasks closeout slice");
-assert.match(roadmap, /The next live work starts with 0\.33\.5\.18\.11/, "Roadmap should point to Files as the next live work");
+assert.match(roadmap, /The next live work starts with 0\.33\.5\.18\.10\.8\.1 before Files begins/, "Roadmap should point to modal action standardization before Files");
+assert.match(roadmap, /### Version 0\.33\.5\.18\.10\.8 - Cross-Module Modal Action Standardization/, "Roadmap should include the inserted modal action standardization branch");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.6 - Tasks strict declarative guardrail enforcement/, "Live roadmap should archive the previous completed Tasks slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the Tasks conversion closeout version");
 

@@ -46,6 +46,32 @@ Modules own data loading, state decisions, validation, API calls, save payloads,
 
 Converted surfaces should keep legacy classes as compatibility aliases during the pilot when that avoids unrelated style or test breakage. New converted structures should use framework helper output and framework surface classes as the primary layout source. Do not add new one-off classes for framework-owned anatomy.
 
+## Converted Modal Action Standard
+
+Converted add/edit modals should treat the modal shell, title/heading row, heading action slot, footer
+shell, footer utility group, footer commit group, sticky footer behavior, action button primitive
+styling, focus return, and modal stack behavior as framework-owned anatomy. The owning module decides
+which actions appear, which labels/icons are correct for the record, when actions are enabled, and what
+the action does.
+
+The shared footer standard is:
+
+- Utility actions such as Tags, Files, and Copy Link live in `.surface-modal-footer-utilities` and use
+  icon plus short visible text on normal converted add/edit modals. Dense icon-only utility buttons are
+  allowed only when the surface deliberately opts into a compact treatment and keeps accessible labels,
+  titles, native button types, and regression coverage.
+- Commit actions live in `.surface-modal-footer-commit`. Cancel and Save should follow the compact
+  Tasks pattern: recognizable icon buttons with accessible labels, titles, native button types, and
+  consistent secondary/primary roles.
+- One contextual record-level action may live beside the modal title in the heading action slot. For
+  saved records that can emit notifications, that action should be the Follow Notifications bell. A
+  duplicate top Close button should not be used when the footer already has Cancel or Close behavior.
+
+Notification follow buttons stay split by ownership: the framework owns subscription helpers and common
+bell display, while the owning module must produce meaningful record notifications before the bell is
+shown as an active workflow. Notes must not add a cosmetic follow bell until Notes emits note
+notifications through the framework notification service.
+
 ## Inventory Snapshot
 
 The current protected UI still mixes static HTML shells with browser-script DOM construction. The first inventory found these repeated patterns:
