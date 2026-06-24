@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.10.7";
+const appVersion = "0.33.5.18.10.8.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -23,7 +23,7 @@ assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.6\.10\.7 - Notes List s
 
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the closeout version");
 
-assert.match(notesDocs, /current Notes implementation as of 0\.33\.5\.18\.6\.11/, "Notes developer guide should report the closeout version");
+assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`), "Notes developer guide should report the current version");
 assert.match(notesDocs, /layout: "slide-out-sidebar"/, "Notes guide should document the slide-out descriptor layout");
 assert.match(notesDocs, /Filters start collapsed inside the drawer, Library starts open/, "Notes guide should document drawer defaults");
 assert.match(notesDocs, /collection create\/edit handoffs wait for that actions modal to close/, "Notes guide should document collection modal handoff behavior");

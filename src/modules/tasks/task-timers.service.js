@@ -46,8 +46,12 @@ async function save(taskId, payload, session) {
     timer_status: timerStatus,
   }, session);
   await markTaskWorked(session, task.task_id, `task_timer_${timerStatus}`);
+  const updatedTask = await tasksRepository.readById(session.workspace_id, task.task_id);
 
-  return { timer: taskTimerFromUnified(result.timer, task) };
+  return {
+    task: updatedTask || task,
+    timer: taskTimerFromUnified(result.timer, updatedTask || task),
+  };
 }
 
 async function remove(taskId, session) {
@@ -57,8 +61,10 @@ async function remove(taskId, session) {
   await activeTimersService.removeSourced(taskTimerSource(task), session);
   await revertTaskTimerStartTransition(task, timer, session);
   await markTaskWorked(session, task.task_id, "task_timer_removed");
+  const updatedTask = await tasksRepository.readById(session.workspace_id, task.task_id);
 
   return {
+    task: updatedTask || task,
     task_id: task.task_id,
     removed: true,
   };
@@ -102,9 +108,11 @@ async function finalize(taskId, payload, session) {
     },
   });
   await markTaskWorked(session, task.task_id, "task_timer_finalized");
+  const updatedTask = await tasksRepository.readById(session.workspace_id, task.task_id);
 
   return {
     ...result,
+    task: updatedTask || task,
     task_timer_removed: true,
     task_id: task.task_id,
   };

@@ -63,7 +63,7 @@ assert.match(
   /view\.createBulkActionToolbar\(\{[\s\S]*className:\s*"task-bulk-toolbar"/,
   "Tasks generated bulk toolbar should use the shared bulk-action toolbar shell",
 );
-assert.match(tasksView, /css\/longtail-forge\.css\?v=68/, "Tasks view must load the drawer/main-surface stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=69/, "Tasks view must load the drawer/main-surface stylesheet cache key");
 
 for (const expected of [
   ".surface-main-panel",

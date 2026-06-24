@@ -32,8 +32,9 @@ try {
 async function assertStartMovesOpenTask(session, projectId) {
   const task = await createTask(session, projectId, "Timer start transition");
 
-  await taskTimersService.save(task.task_id, runningTimerPayload(), session);
+  const result = await taskTimersService.save(task.task_id, runningTimerPayload(), session);
 
+  assert.equal(result.task?.status, "in_progress", "timer start response should include the updated task status");
   assert.equal(await readTaskStatus(session.workspace_id, task.task_id), "in_progress");
   assert.equal(
     await readTimerTransitionFlag(session.workspace_id, session.user_id, task.task_id),
@@ -51,11 +52,12 @@ async function assertPauseLeavesInProgress(session, projectId) {
   const task = await createTask(session, projectId, "Timer pause transition");
 
   await taskTimersService.save(task.task_id, runningTimerPayload(), session);
-  await taskTimersService.save(task.task_id, {
+  const result = await taskTimersService.save(task.task_id, {
     accumulated_elapsed_seconds: 10,
     timer_status: "paused",
   }, session);
 
+  assert.equal(result.task?.status, "in_progress", "timer pause response should keep the current task status");
   assert.equal(await readTaskStatus(session.workspace_id, task.task_id), "in_progress");
 }
 
@@ -63,8 +65,9 @@ async function assertRemoveRevertsOnlyTimerMovedTask(session, projectId) {
   const openTask = await createTask(session, projectId, "Timer remove reverts open");
 
   await taskTimersService.save(openTask.task_id, runningTimerPayload(), session);
-  await taskTimersService.remove(openTask.task_id, session);
+  const openReset = await taskTimersService.remove(openTask.task_id, session);
 
+  assert.equal(openReset.task?.status, "open", "timer reset response should include reverted open status");
   assert.equal(await readTaskStatus(session.workspace_id, openTask.task_id), "open");
   assert.equal(
     await auditCount(session.workspace_id, "task_timer_status_reverted", openTask.task_id),
@@ -77,8 +80,9 @@ async function assertRemoveRevertsOnlyTimerMovedTask(session, projectId) {
   });
 
   await taskTimersService.save(inProgressTask.task_id, runningTimerPayload(), session);
-  await taskTimersService.remove(inProgressTask.task_id, session);
+  const inProgressReset = await taskTimersService.remove(inProgressTask.task_id, session);
 
+  assert.equal(inProgressReset.task?.status, "in_progress", "timer reset response should preserve existing in-progress status");
   assert.equal(await readTaskStatus(session.workspace_id, inProgressTask.task_id), "in_progress");
   assert.equal(
     await auditCount(session.workspace_id, "task_timer_status_reverted", inProgressTask.task_id),
@@ -91,11 +95,12 @@ async function assertFinalizeLeavesInProgress(session, projectId) {
   const task = await createTask(session, projectId, "Timer finalize transition");
 
   await taskTimersService.save(task.task_id, runningTimerPayload(), session);
-  await taskTimersService.finalize(task.task_id, {
+  const result = await taskTimersService.finalize(task.task_id, {
     duration_seconds: 60,
     end_time: "2026-06-06T15:00:00.000Z",
   }, session);
 
+  assert.equal(result.task?.status, "in_progress", "timer finalize response should include the current task status");
   assert.equal(await readTaskStatus(session.workspace_id, task.task_id), "in_progress");
   assert.equal(
     await readTaskTimerCount(session.workspace_id, session.user_id, task.task_id),

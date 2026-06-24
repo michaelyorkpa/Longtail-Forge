@@ -1356,6 +1356,9 @@ async function saveTaskTimerAction(task, timerStatus) {
       accumulated_elapsed_seconds: elapsedSeconds,
       last_active_start_time: new Date().toISOString(),
     });
+    if (result.task) {
+      upsertTask(result.task);
+    }
     if (result.timer) {
       upsertTaskTimerState(result.timer);
     }

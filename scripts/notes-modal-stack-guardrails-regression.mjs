@@ -10,17 +10,17 @@ const viewBuilderJs = readText("public/js/shared/view-builder.js");
 const viewRendererJs = readText("public/js/shared/view-renderer.js");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.10.7", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.10.7", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.10.7", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.10.8.5", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.10.8.5", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.10.8.5", "package-lock package entry should report the current app version");
 
 assert.match(notesHtml, /js\/shared\/view-builder\.js\?v=11/, "Notes should cache-bust the shared view builder stack helper");
 assert.match(notesHtml, /js\/shared\/view-renderer\.js\?v=11/, "Notes should cache-bust the shared view renderer modal opener");
-assert.match(notesHtml, /css\/longtail-forge\.css\?v=51/, "Notes should cache-bust stacked modal warning styles");
-assert.match(notesHtml, /js\/notes\.js\?v=65/, "Notes should cache-bust the Notes modal wiring");
+assert.match(notesHtml, /css\/longtail-forge\.css\?v=52/, "Notes should cache-bust stacked modal warning styles");
+assert.match(notesHtml, /js\/notes\.js\?v=67/, "Notes should cache-bust the Notes modal wiring");
 
-assert.match(notesJs, /label: "Tags", title: "Tags", role: "utility"/, "Tags utility should use the concise label while keeping the icon button");
-assert.match(notesJs, /label: "Files", title: "Files", role: "utility"/, "Files utility should use the concise label while keeping the icon button");
+assert.match(notesJs, /label: "Tags"[\s\S]*iconOnly: false[\s\S]*role: "utility"[\s\S]*text: "Tags"[\s\S]*title: "Tags"/, "Tags utility should use the concise icon plus text label");
+assert.match(notesJs, /label: "Files"[\s\S]*iconOnly: false[\s\S]*role: "utility"[\s\S]*text: "Files"[\s\S]*title: "Files"/, "Files utility should use the concise icon plus text label");
 assert.doesNotMatch(notesJs, /Note tags|Note files/, "Notes utility buttons should not expose the old longer labels");
 assert.match(notesJs, /view\.showModal\(dialog\)/, "The Add/Edit Note dialog should open through the shared modal stack helper");
 assert.match(notesJs, /view\.closeModal\(dialog\)/, "Closing or saving the Add/Edit Note dialog should close child modals safely");

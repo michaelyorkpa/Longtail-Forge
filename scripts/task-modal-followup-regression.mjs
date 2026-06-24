@@ -4,12 +4,12 @@ import { readFileSync } from "node:fs";
 const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = "0.33.5.18.10.7";
+const currentTasksVersion = "0.33.5.18.10.8.5";
 
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.notificationToggle, \{ icon: "bell", label: "Follow task notifications", text: "", title: "Follow task notifications", iconOnly: true \}\)/, "Notification settings should render as a bell-only follow toggle when icons are available");
-assert.match(taskDialogScript, /icons\.decorateButton\(fields\.tagToggle, \{ icon: "tag", label: "Task tags", text: "", title: "Task tags", iconOnly: true \}\)/, "Tags footer action should be icon-only");
-assert.match(taskDialogScript, /icons\.decorateButton\(fields\.fileToggle, \{ icon: "file", label: "Task files", text: "", title: "Task files", iconOnly: true \}\)/, "Files footer action should be icon-only");
-assert.match(taskDialogScript, /icons\.decorateButton\(fields\.copyLink, \{ icon: "copy", label: "Copy task link", text: "", title: "Copy task link", iconOnly: true \}\)/, "Copy Link should be icon-only");
+assert.match(taskDialogScript, /icons\.decorateButton\(fields\.tagToggle, \{ icon: "tag", label: "Task tags", text: "Tags", title: "Task tags", iconOnly: false \}\)/, "Tags footer action should include visible text");
+assert.match(taskDialogScript, /icons\.decorateButton\(fields\.fileToggle, \{ icon: "file", label: "Task files", text: "Files", title: "Task files", iconOnly: false \}\)/, "Files footer action should include visible text");
+assert.match(taskDialogScript, /icons\.decorateButton\(fields\.copyLink, \{ icon: "copy", label: "Copy task link", text: "Copy Link", title: "Copy task link", iconOnly: false \}\)/, "Copy Link should include visible text");
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.cancel, \{ icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true \}\)/, "Cancel should be icon-only");
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.save, \{ icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true \}\)/, "Save Task should be icon-only");
 assert.match(taskDialogScript, /notificationToggle\.dataset\.taskNotificationToggle = ""[\s\S]*notificationToggle\.hidden = true[\s\S]*notificationToggle\.setAttribute\("aria-pressed", "false"\)/, "Task notification bell should be the direct follow toggle");
@@ -26,8 +26,8 @@ assert.match(taskDialogScript, /completionSeconds !== null && completionSeconds 
 assert.doesNotMatch(taskDialogScript, /fields\.status\?\.value === "archived"[\s\S]*label: "TTC"/, "Archived status should not produce a TTC chip");
 assert.match(taskDialogScript, /fields\.checklistField\.open = items\.length > 0/, "Checklist should open only when checklist items exist");
 assert.doesNotMatch(taskDialogScript, /fields\.assignees\.closest\("details"\)\.open = selectedIds\.size > 0/, "Task Details should not collapse just because a task is unassigned");
-assert.match(taskDialogScript, /function toggleTaskFooterPanel/, "Footer buttons should toggle task footer panels");
-assert.match(taskDialogScript, /nextPanel\.hidden = !shouldOpen/, "Footer panel toggle should expose the selected Tags or Files panel");
+assert.match(taskDialogScript, /function openTaskTagsDialog\(\)[\s\S]*showTaskModal\(tagsDialog, \{ parent: dialog, trigger: fields\.tagToggle \}\)/, "Tags footer button should open a stacked child dialog");
+assert.match(taskDialogScript, /function openTaskFilesDialog\(\)[\s\S]*showTaskModal\(filesDialog, \{ parent: dialog, trigger: fields\.fileToggle \}\)/, "Files footer button should open a stacked child dialog");
 
 assert.match(taskDialogScript, /taskEditorLabel\(view, "Resume note", taskEditorTextarea\(view, \{[\s\S]*rows: "2",[\s\S]*"data-task-resume-note": "",[\s\S]*placeholder: "Where did you leave off\?"/, "Resume Note should remain a textarea");
 assert.match(taskDialogScript, /taskEditorLabel\(view, "Next action", taskEditorTextarea\(view, \{[\s\S]*rows: "2",[\s\S]*maxlength: "240",[\s\S]*"data-task-next-action": ""/, "Next Action should be a two-line textarea");
@@ -40,8 +40,8 @@ assert.doesNotMatch(taskDialogScript, /<h3>Task Tags<\/h3>|<h3>Task Files<\/h3>/
 
 assert.match(stylesheet, /\.task-resume-note-field textarea,[\s\S]*\.task-next-action-field textarea \{[\s\S]*min-height: 54px;/, "Resume Note and Next Action should share a compact two-line height");
 assert.match(stylesheet, /\.task-blocked-reason-field textarea \{[\s\S]*min-height: 40px;/, "Blocked Reason should use a compact one-line height");
-assert.match(stylesheet, /\.task-footer-panel \{[\s\S]*background: transparent;/, "Tags and Files panels should not look like boxed modal sections");
-assert.match(stylesheet, /\[data-task-notification-toggle\]\.is-following \{[\s\S]*color: var\(--color-danger\);/, "Followed task notification bell should be red");
+assert.doesNotMatch(stylesheet, /\.task-footer-panel \{[\s\S]*background: transparent;/, "Tags and Files should not rely on parent-body footer panel styling");
+assert.match(stylesheet, /\[data-task-notification-toggle\]\.is-following,[\s\S]*\[data-note-notification-toggle\]\.is-following \{[\s\S]*color: var\(--color-danger\);/, "Followed task and note notification bells should be red");
 
 assert.match(tasksModule, new RegExp(`version: "${escapeRegExp(currentTasksVersion)}"`), "Tasks module version should match the current Tasks release");
 

@@ -3092,7 +3092,7 @@ async function emitNoteEvent(eventName, session, previousValue, newValue, metada
   await modulesService.emitInternalEvent(eventName, {
     session,
     moduleId: NOTES_MODULE_ID,
-    recordType: metadata.link ? "note_link" : "note",
+    recordType: "note",
     recordId: note.note_id,
     previousValue: safeAuditValue(previousValue),
     newValue: safeAuditValue(newValue),
@@ -3114,6 +3114,9 @@ async function emitNoteEvent(eventName, session, previousValue, newValue, metada
       }),
       ...(recipientUserIds.length > 0 ? { recipient_user_ids: recipientUserIds } : {}),
       ...metadata,
+      ...(note.security_mode === NOTE_SECURITY_MODES.SECURE
+        ? { suppress_notifications: true, notification_suppression_reason: "secure_note" }
+        : {}),
     },
   });
 }

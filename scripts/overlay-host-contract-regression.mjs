@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 
 const overlayHost = readText("public/js/shared/overlay-host.js");
 const tasksView = readText("views/protected/tasks.html");
-const taskDialogScript = readText("public/js/task-dialog.js");
 const styles = readText("public/css/longtail-forge.css");
 const surfaceContract = readText("docs/ui-surface-contract.md");
 const uiGuide = readText("docs/ui-layout-guide.md");
@@ -22,7 +21,7 @@ assert.match(overlayHost, /closeActive\(state\);[\s\S]*state\.active = overlay/,
 assert.match(overlayHost, /overlay\.previousFocus\.focus\(\)/, "overlay host should return focus to the triggering control when closing directly");
 
 assert.match(styles, /\.surface-overlay-host\s*\{[\s\S]*position:\s*relative/, "overlay hosts should provide a positioning context");
-assert.match(styles, /\.surface-overlay-panel\[hidden\],\s*\.task-footer-panel\[hidden\]\s*\{[\s\S]*display:\s*none !important/, "hidden overlay panels should stay closed when module layout classes set display");
+assert.match(styles, /\.surface-overlay-panel\[hidden\]\s*\{[\s\S]*display:\s*none !important/, "hidden overlay panels should stay closed when module layout classes set display");
 assert.match(styles, /\.surface-overlay-panel\[data-overlay-panel\]\s*\{[\s\S]*box-sizing:\s*border-box[\s\S]*position:\s*absolute[\s\S]*max-height:\s*min\(58vh,\s*520px\)[\s\S]*background:\s*var\(--color-surface-overlay\)/, "desktop overlay panels should be anchored, constrained, and opaque");
 assert.match(styles, /\.surface-overlay-panel--bottom-sheet\[data-overlay-panel\]\s*\{[\s\S]*position:\s*fixed[\s\S]*inset:\s*auto 0 0 0/, "mobile overlays should become bottom sheets");
 assert.match(surfaceContract, /overlay host behavior/, "surface contract should keep overlay host behavior framework-owned");
@@ -31,19 +30,8 @@ assert.match(surfaceContract, /\.surface-overlay-panel--bottom-sheet/, "surface 
 assert.match(uiGuide, /overlay host owns placement, close behavior, focus handling, Escape, click-away, responsive sizing, and one-open-overlay behavior/, "UI guide should document overlay host ownership");
 
 assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1/, "Tasks view should load the shared overlay host before task-dialog");
-assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=18/, "Tasks view should load overlay host before task dialog code");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=68/, "Tasks view should load the overlay-host stylesheet cache key");
-assert.match(taskDialogScript, /taskEditorFooterPanel\(view, "task-tags-field", \{ "data-task-tags-panel": "" \}[\s\S]*"data-task-tags": ""/, "Tasks tags panel should keep module-owned tag picker mount");
-assert.match(taskDialogScript, /taskEditorFooterPanel\(view, "task-files-field", \{ "data-task-files-panel": "" \}[\s\S]*"data-task-files": ""/, "Tasks files panel should keep module-owned file attachment mount");
-
-assert.match(taskDialogScript, /namespace\.overlayHost\.create\(\{ host: form \}\)/, "Task dialog should create a shared overlay host from the form");
-assert.match(taskDialogScript, /taskOverlayHost\.register\(\{[\s\S]*name: "tags"[\s\S]*panel: fields\.tagPanel[\s\S]*trigger: fields\.tagToggle/, "Task dialog should register Tags with the shared overlay host");
-assert.match(taskDialogScript, /taskOverlayHost\.register\(\{[\s\S]*name: "files"[\s\S]*panel: fields\.filePanel[\s\S]*trigger: fields\.fileToggle/, "Task dialog should register Files with the shared overlay host");
-assert.match(taskDialogScript, /taskOverlayHost\.toggle\(panelName\)/, "Task dialog should toggle footer panels through the shared overlay host");
-assert.match(taskDialogScript, /function toggleTaskFooterPanelFallback/, "Task dialog should keep a no-helper fallback path");
-assert.match(taskDialogScript, /taskOverlayHost\?\.closeAll\?\.\(\)/, "Task dialog should close shared overlays when hiding panels or closing the dialog");
-assert.match(taskDialogScript, /mountTaskTagPicker[\s\S]*tagPicker = await namespace\.tags\.mountPicker/, "Task dialog should keep Tags picker content module-owned");
-assert.match(taskDialogScript, /mountTaskFileAttachments[\s\S]*fileAttachmentsController = namespace\.fileAttachments\.mount/, "Task dialog should keep Files attachment content framework-owned");
+assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=21/, "Tasks view should keep loading the shared overlay host before task dialog code for any remaining non-modal overlay users");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=69/, "Tasks view should load the overlay-host stylesheet cache key");
 
 console.log("Overlay host contract regression passed.");
 

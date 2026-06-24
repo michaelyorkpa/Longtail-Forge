@@ -1,3 +1,42 @@
+## Version 0.33.5.18.10.8.5 - 2026-06-24 16:09 -04:00
+
+- Finalized the cross-module converted modal action standard for Tasks and Notes: shared heading action slot, footer utility group, footer commit group, icon-plus-text utility actions, compact Cancel/Save commit controls, and stacked child dialogs for substantial Tags/Files utilities.
+- Documented the framework/module ownership boundary across the UI surface, view-building, Tasks, and Notes developer docs, and recorded the finalized decision in `DECISIONS.md` for Files and later module conversions.
+- Strengthened modal/static regressions so the strict converted-surface guardrails protect the standardized footer/heading pattern, reject one-off converted modal anatomy, and keep follow bells tied to meaningful module-produced notifications.
+- Marked 0.33.5.18.10.8.5 as the modal standardization closeout, archived 0.33.5.18.10.8.4, and bumped package/app plus Notes/Tasks module metadata to `0.33.5.18.10.8.5`.
+- Verification 2026-06-24 16:14 -04:00: `npm run check` passed 175/175 regression scripts plus ESLint, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.10.8.5 after restarting the local 8001 server.
+
+## Version 0.33.5.18.10.8.4 - 2026-06-24 14:55 -04:00
+
+- Added Notes notification producer support for followable non-secure note events: update, archive, restore, link, and unlink. Notes suppresses secure-note notification delivery and suppresses followed-note self-notifications for the acting user.
+- Replaced the Notes modal's duplicate top Close button with a saved-note Follow Notifications bell backed by the framework notification subscription helper; unsaved and secure notes do not expose an active follow target.
+- Added `notes-notification-follow-regression.mjs`, updated notification/modal/static regressions and cache keys, refreshed Notes/Tasks/modal docs, marked 0.33.5.18.10.8.4 complete, archived 0.33.5.18.10.8.3, and bumped package/app plus Notes/Tasks module metadata to `0.33.5.18.10.8.4`.
+- Verification 2026-06-24 15:08 -04:00: `npm run check` passed 175/175 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok` for all local DB files under `data`; `/api/app-info` returned 0.33.5.18.10.8.4 after restarting the local 8001 server.
+- Corrective follow-up 2026-06-24 15:13 -04:00: changed the Notes modal Follow Notifications heading control to render as the bell icon only, matching the Tasks notification bell, while preserving its accessible label/title and follow/unfollow behavior.
+- Corrective follow-up 2026-06-24 15:42 -04:00: restored immediate visible Task status updates after starting/resetting/finalizing a task timer by returning the authoritative task payload from timer mutations, applying it in the Tasks modal and row action paths, adding regression coverage for returned task status, and refreshing Tasks/Workbench cache keys to `task-dialog.js?v=21` and `tasks.js?v=20`.
+- Verification 2026-06-24 15:48 -04:00: `npm run check` passed 175/175 regression scripts plus ESLint, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.10.8.4 after restarting the local 8001 server.
+
+## Version 0.33.5.18.10.8.3 - 2026-06-24 14:10 -04:00
+
+- Aligned Notes and Tasks converted modal footers so Tags, Files, and Copy Link are icon-plus-text utility actions while Cancel and Save remain compact icon commit controls.
+- Added saved-note Copy Link to the Notes editor footer with Notes-owned URL construction, clipboard fallback, saved-only visibility, and in-modal status messaging.
+- Added `notes-tasks-modal-footer-visual-parity-regression.mjs`, updated modal/footer regressions and cache keys, refreshed modal docs, marked 0.33.5.18.10.8.3 complete, archived 0.33.5.18.10.8.2, and bumped package/app plus Tasks module metadata to `0.33.5.18.10.8.3`.
+- Verification 2026-06-24 14:22 -04:00: `npm run check` passed 174/174 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok` for all local DB files under `data`; `/api/app-info` returned 0.33.5.18.10.8.3 after restarting the local 8001 server.
+
+## Version 0.33.5.18.10.8.2 - 2026-06-24 13:35 -04:00
+
+- Converted Task modal Tags and Files footer utilities from parent-body overlay panels into stacked framework child dialogs opened from the Task editor footer.
+- Preserved Tags-owned staged picker behavior, Files-owned attachment helper behavior, unsaved-task save-first messaging, focus return, parent-close cleanup, and Task save/cancel cleanup.
+- Added `tasks-tags-files-child-dialog-regression.mjs`, updated modal/overlay/timer/static regressions for the new child-dialog contract, refreshed Tasks/Notes/modal docs, marked 0.33.5.18.10.8.2 complete, archived 0.33.5.18.10.8.1, and bumped package/module metadata to `0.33.5.18.10.8.2`.
+- Verification 2026-06-24 13:46 -04:00: `npm run check` passed 173/173 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok` for all local DB files under `data`; `/api/app-info` returned 0.33.5.18.10.8.2 after restarting the local 8001 server.
+
+## Version 0.33.5.18.10.8.1 - 2026-06-24 13:01 -04:00
+
+- Documented the converted modal action ownership contract across the UI surface, view-building, Tasks, and Notes developer docs: framework owns modal heading/footer anatomy and stack behavior, while modules own action semantics, routes, payloads, permissions, notification meaning, and picker/upload bodies.
+- Added `modal-action-standardization-contract-regression.mjs` to lock the 10.8.1 docs/static-regression-only boundary, footer utility/commit grouping, stable action roles, Task/Notes ownership language, and the deferred Task Tags/Files child-dialog work.
+- Marked 0.33.5.18.10.8.1 complete in the roadmap, archived the completed 0.33.5.18.10.7 roadmap slice, and bumped package/module metadata to `0.33.5.18.10.8.1`.
+- Verification 2026-06-24 13:10 -04:00: `npm run check` passed 172/172 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.10.8.1 after restarting the local 8001 server.
+
 ## Version 0.33.5.18.10.7 - 2026-06-24 09:36 -04:00
 
 - Closed the Tasks view-conversion documentation slice by updating the Tasks module handoff, view-building contract, module contract, declarative surface guide, strict guardrail inventory, and decisions for the completed `tasks.workspace` conversion.

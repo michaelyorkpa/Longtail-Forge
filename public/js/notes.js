@@ -119,7 +119,7 @@ const collectionActionsMount = document.querySelector("[data-note-collection-act
 const dialog = document.querySelector("[data-note-dialog]");
 const form = document.querySelector("[data-note-form]");
 const dialogTitle = document.querySelector("[data-note-dialog-title]");
-const dialogCloseButton = document.querySelector("[data-note-dialog-close]");
+const notificationToggle = document.querySelector("[data-note-notification-toggle]");
 const titleInput = document.querySelector("[data-note-title]");
 const libraryInput = document.querySelector("[data-note-library]");
 const collectionInput = document.querySelector("[data-note-collection]");
@@ -150,6 +150,7 @@ const filesDialogCloseButton = document.querySelector("[data-note-files-dialog-c
 const filesSaveFirstWarning = document.querySelector("[data-note-files-save-first-warning]");
 const tagsToggle = document.querySelector("[data-note-tags-toggle]");
 const filesToggle = document.querySelector("[data-note-files-toggle]");
+const copyLinkButton = document.querySelector("[data-copy-note-link]");
 const bodyInput = document.querySelector("[data-note-body]");
 const markdownEditor = document.querySelector("[data-note-markdown-editor]");
 const previewToggle = document.querySelector("[data-note-preview-toggle]");
@@ -202,7 +203,7 @@ nextButton?.addEventListener("click", (event) => {
   renderNotes();
 });
 form?.addEventListener("submit", saveNote);
-dialogCloseButton?.addEventListener("click", closeEditor);
+notificationToggle?.addEventListener("click", toggleNoteNotificationFollow);
 cancelButton?.addEventListener("click", closeEditor);
 collectionForm?.addEventListener("submit", saveCollection);
 collectionDialogCloseButton?.addEventListener("click", closeCollectionDialog);
@@ -229,6 +230,7 @@ tagsDialog?.addEventListener("close", handleTagsDialogClose);
 filesToggle?.addEventListener("click", openFilesDialog);
 filesDialogCloseButton?.addEventListener("click", closeFilesDialog);
 filesDialog?.addEventListener("close", handleFilesDialogClose);
+copyLinkButton?.addEventListener("click", copyCurrentNoteLink);
 
 initialize();
 
@@ -777,18 +779,65 @@ function createNoteMarkdownEditorSection(toolbar, bodyField, preview) {
 
 function createNoteDialogShell() {
   const modal = notesEditorModalDescriptor();
-  const cancel = view.createActionButton({ label: "Cancel", role: "secondary" });
+  const cancel = view.createActionButton({
+    action: "cancel-note",
+    className: "surface-modal-footer-action",
+    icon: "close",
+    iconOnly: true,
+    label: "Cancel",
+    role: "secondary",
+    title: "Cancel",
+  });
   cancel.dataset.noteCancel = "";
-  const save = view.createActionButton({ label: modal.footerActions?.find((action) => action.id === "save-note")?.label || "Save Note", type: "submit", role: "primary" });
+  const save = view.createActionButton({
+    action: "save-note",
+    className: "surface-modal-footer-action",
+    icon: "save",
+    iconOnly: true,
+    label: modal.footerActions?.find((action) => action.id === "save-note")?.label || "Save Note",
+    role: "primary",
+    title: modal.footerActions?.find((action) => action.id === "save-note")?.label || "Save Note",
+    type: "submit",
+  });
   save.dataset.noteSave = "";
 
   // Tags and Files live behind footer utility buttons (Tasks-modal pattern) and open stacked child dialogs.
-  const tagsToggle = view.createActionButton({ icon: "tag", iconOnly: true, label: "Tags", title: "Tags", role: "utility" });
+  const tagsToggle = view.createActionButton({
+    action: "note-tags",
+    className: "surface-modal-footer-action",
+    icon: "tag",
+    iconOnly: false,
+    label: "Tags",
+    role: "utility",
+    text: "Tags",
+    title: "Tags",
+  });
   tagsToggle.dataset.noteTagsToggle = "";
   tagsToggle.setAttribute("aria-expanded", "false");
-  const filesToggle = view.createActionButton({ icon: "file", iconOnly: true, label: "Files", title: "Files", role: "utility" });
+  const filesToggle = view.createActionButton({
+    action: "note-files",
+    className: "surface-modal-footer-action",
+    icon: "file",
+    iconOnly: false,
+    label: "Files",
+    role: "utility",
+    text: "Files",
+    title: "Files",
+  });
   filesToggle.dataset.noteFilesToggle = "";
   filesToggle.setAttribute("aria-expanded", "false");
+  const copyLink = view.createActionButton({
+    action: "copy-note-link",
+    className: "surface-modal-footer-action",
+    icon: "copy",
+    iconOnly: false,
+    label: "Copy note link",
+    role: "utility",
+    text: "Copy Link",
+    title: "Copy note link",
+  });
+  copyLink.dataset.copyNoteLink = "";
+  copyLink.hidden = true;
 
   const dialog = view.renderDescriptorModalForm(modal, {
     title: modal.title || "Note",
@@ -797,7 +846,7 @@ function createNoteDialogShell() {
     size: "wide",
     fields: [],
     actions: [cancel, save],
-    utilityActions: [tagsToggle, filesToggle],
+    utilityActions: [tagsToggle, filesToggle, copyLink],
   });
   dialog.dataset.noteDialog = "";
   const form = dialog.viewParts.form;
@@ -805,9 +854,19 @@ function createNoteDialogShell() {
   dialog.viewParts.title.dataset.noteDialogTitle = "";
   dialog.viewParts.body.remove();
 
-  const close = view.createActionButton({ label: "Close", className: "notes-dialog-close" });
-  close.dataset.noteDialogClose = "";
-  const heading = view.createElement("div", { className: "surface-modal-heading", children: [dialog.viewParts.title, close] });
+  const notificationToggle = view.createActionButton({
+    action: "follow-note-notifications",
+    className: "notes-notification-toggle",
+    icon: "bell",
+    iconOnly: true,
+    label: "Follow note notifications",
+    role: "utility",
+    text: "",
+    title: "Follow note notifications",
+  });
+  notificationToggle.dataset.noteNotificationToggle = "";
+  notificationToggle.hidden = true;
+  const heading = view.createElement("div", { className: "surface-modal-heading", children: [dialog.viewParts.title, notificationToggle] });
   heading.dataset.noteDialogHeading = "";
 
   const titleField = noteFieldLabel("Title", noteInput("noteTitle", { type: "text", required: true }));
@@ -1428,6 +1487,11 @@ async function openEditor(note = null) {
   updatePreviewLayoutState(false);
   formStatus.textContent = "";
   saveButton.disabled = false;
+  if (copyLinkButton) {
+    copyLinkButton.hidden = !note?.note_id;
+    copyLinkButton.disabled = !note?.note_id;
+  }
+  await writeNoteNotificationFollowFields(note);
   resetNoteEditorPanels();
   if (detailsGroup) {
     detailsGroup.open = !note;
@@ -1517,13 +1581,130 @@ function closeEditor() {
   state.editorStagedTargets = [];
   state.filesDialogNoteId = "";
   state.tagsDialogNoteId = "";
+  if (copyLinkButton) {
+    copyLinkButton.hidden = true;
+    copyLinkButton.disabled = true;
+  }
+  resetNoteNotificationFollowFields();
   view.closeModal(dialog);
+}
+
+async function copyCurrentNoteLink() {
+  const noteId = state.editingNoteId || state.editorNote?.note_id || "";
+  if (!noteId) {
+    setEditorFormStatus("Save the note before copying a link.", true);
+    return;
+  }
+
+  const url = new window.URL("notes.html", window.location.href);
+  url.searchParams.set("note", noteId);
+
+  try {
+    await navigator.clipboard.writeText(url.toString());
+    setEditorFormStatus("Note link copied.");
+  } catch {
+    setEditorFormStatus(url.toString());
+  }
+}
+
+async function writeNoteNotificationFollowFields(note) {
+  if (!notificationToggle) {
+    return;
+  }
+
+  const noteId = note?.note_id || "";
+  const canEmitNotifications = note?.security_mode !== "secure";
+  const subscriptions = window.LongtailForge?.notificationSubscriptions;
+  const canToggleNotifications = Boolean(noteId && canEmitNotifications && subscriptions?.noteTarget);
+  writeNoteNotificationFollowState(false);
+  notificationToggle.hidden = !canToggleNotifications;
+  notificationToggle.disabled = !canToggleNotifications;
+
+  if (!canToggleNotifications) {
+    notificationToggle.title = noteId ? "Note notifications unavailable" : "Save the note before following notifications";
+    notificationToggle.setAttribute("aria-label", notificationToggle.title);
+    return;
+  }
+
+  notificationToggle.disabled = true;
+  notificationToggle.title = "Checking notification follow state";
+  notificationToggle.setAttribute("aria-label", "Checking notification follow state");
+
+  try {
+    const result = await subscriptions.readStatus(subscriptions.noteTarget(noteId));
+    writeNoteNotificationFollowState(result.isFollowing === true);
+  } catch {
+    notificationToggle.disabled = true;
+    notificationToggle.title = "Notification follow state unavailable";
+    notificationToggle.setAttribute("aria-label", "Notification follow state unavailable");
+  }
+}
+
+async function toggleNoteNotificationFollow() {
+  const noteId = state.editingNoteId || state.editorNote?.note_id || "";
+  const subscriptions = window.LongtailForge?.notificationSubscriptions;
+  if (!noteId || !subscriptions?.noteTarget || !notificationToggle) {
+    return;
+  }
+
+  const isFollowing = notificationToggle.dataset.isFollowing === "true";
+  notificationToggle.disabled = true;
+  notificationToggle.title = isFollowing ? "Unfollowing note notifications" : "Following note notifications";
+  notificationToggle.setAttribute("aria-label", isFollowing ? "Unfollowing note notifications" : "Following note notifications");
+  setEditorFormStatus(isFollowing ? "Unfollowing note notifications..." : "Following note notifications...");
+
+  try {
+    const target = subscriptions.noteTarget(noteId);
+    const result = isFollowing
+      ? await subscriptions.unfollow(target)
+      : await subscriptions.follow(target);
+
+    writeNoteNotificationFollowState(result.isFollowing === true);
+    setEditorFormStatus(result.isFollowing ? "Note notifications followed." : "Note notifications unfollowed.");
+  } catch (error) {
+    writeNoteNotificationFollowState(isFollowing);
+    setEditorFormStatus(error.message || "Notification follow change failed.", true);
+  }
+}
+
+function writeNoteNotificationFollowState(isFollowing) {
+  if (!notificationToggle) {
+    return;
+  }
+
+  const label = isFollowing ? "Unfollow note notifications" : "Follow note notifications";
+  notificationToggle.dataset.isFollowing = String(isFollowing);
+  notificationToggle.classList.toggle("is-following", isFollowing);
+  notificationToggle.disabled = false;
+  notificationToggle.title = label;
+  notificationToggle.setAttribute("aria-label", label);
+  notificationToggle.setAttribute("aria-pressed", String(isFollowing));
+}
+
+function resetNoteNotificationFollowFields() {
+  if (!notificationToggle) {
+    return;
+  }
+
+  writeNoteNotificationFollowState(false);
+  notificationToggle.hidden = true;
+  notificationToggle.disabled = true;
+}
+
+function setEditorFormStatus(message, isError = false) {
+  if (!formStatus) {
+    setStatus(message, isError);
+    return;
+  }
+
+  formStatus.textContent = message;
+  formStatus.classList.toggle("error-text", isError);
 }
 
 async function saveNote(event) {
   event.preventDefault();
   saveButton.disabled = true;
-  formStatus.textContent = "Saving note...";
+  setEditorFormStatus("Saving note...");
 
   try {
     const payload = readEditorPayload();
@@ -1533,9 +1714,9 @@ async function saveNote(event) {
     await Promise.all([loadCollections(), loadNotes()]);
     closeEditor();
     await selectNote(result.note.note_id);
-    formStatus.textContent = "";
+    setEditorFormStatus("");
   } catch (error) {
-    formStatus.textContent = safeNoteErrorMessage(error, "Note could not be saved.");
+    setEditorFormStatus(safeNoteErrorMessage(error, "Note could not be saved."), true);
     saveButton.disabled = false;
   }
 }

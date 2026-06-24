@@ -7,8 +7,8 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and implementation slices
 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
-The active roadmap continues with cross-module modal standardization, Files, and Clients/Projects view conversion work.
-0.33.5.18.10.7 is the most recently completed Tasks docs, changelog, and closeout slice. The next live work starts with 0.33.5.18.10.8.1 before Files begins.
+The active roadmap continues with Files and Clients/Projects view conversion work.
+0.33.5.18.10.8.5 is the most recently completed modal standardization closeout slice. The next live work starts with 0.33.5.18.11.
 
 ## Tasks (0.33.5.18.7 - 0.33.5.18.10)
 
@@ -63,41 +63,6 @@ guardrail enforcement are intentionally separated below.
 
 This is the closeout phase that finishes the Tasks conversion after the sidebar, list shell, bulk toolbar, and canonical modal are stable.
 
-#### Version 0.33.5.18.10.7 - Tasks docs, changelog, and closeout
-
-- [x] Update `docs/tasks-module.md` or create it if missing.
-- [x] Update `docs/view-building-contract.md` for Tasks as a slide-out-sidebar adopter.
-- [x] Update `docs/module-contract.md` if the canonical Task editor opener becomes a cross-surface module action pattern.
-- [x] Update guardrail documentation with the Tasks strict enforcement scope and escape hatches.
-- [x] Document the canonical Task editor entry point for:
-  - [x] Tasks page.
-  - [x] Workbench.
-  - [x] Future Quick Action Center.
-  - [x] Future module-triggered task creation.
-- [x] Update `DECISIONS.md` if a new canonical cross-surface editor pattern is formalized.
-- [x] Update CHANGELOG.
-- [x] Bump package/app metadata.
-- [x] Run:
-  - [x] `npm run check`
-  - [x] Tasks UI regressions.
-  - [x] Task modal regressions.
-  - [x] Bulk-action regressions.
-  - [x] Permissions tests were not required because task visibility/assignment/context behavior did not change.
-- [x] Verify `/api/app-info` reports the expected version.
-- [x] Do not convert Files or Clients/Projects in this closeout.
-- [x] Do not redesign the task list rows in this closeout unless required to remove framework-owned anatomy.
-
-Acceptance criteria:
-
-- Tasks is converted enough to be a clean template for Files and Clients/Projects.
-- Filter sidebar uses the same framework-owned slide-out pattern as Notes.
-- Task list remains the primary main-panel view.
-- Bulk actions are collapsed above the list.
-- Add/Edit Task modal is canonical and reusable from Workbench/QAC/future module calls.
-- Framework/module separation is documented and regression-covered.
-
----
-
 ### Version 0.33.5.18.10.8 - Cross-Module Modal Action Standardization
 
 This corrective branch is inserted before Files because Tasks and Notes are now the two converted modal
@@ -143,124 +108,19 @@ Guardrails:
   file attachment helper, or copy-link behavior.
 - Do not make secure-note files available while secure attachments remain out of scope.
 
-#### Version 0.33.5.18.10.8.1 - Modal action ownership and regression contract
-
-- [ ] Update `docs/ui-surface-contract.md` and `docs/view-building-contract.md` with the converted
-      modal action ownership standard.
-- [ ] Update `docs/tasks-module.md` and `docs/notes-module.md` so Tasks and Notes describe the same
-      heading/footer ownership boundary.
-- [ ] Add or update static regressions proving converted modal footers use framework footer groups,
-      framework action buttons, stable action roles, and no module-specific footer anatomy.
-- [ ] Document the exact standard:
-  - [ ] Tags, Files, and Copy Link are footer utility actions and should render as icon plus text on
-        converted add/edit modals unless the surface intentionally opts into dense icon-only mode.
-  - [ ] Cancel and Save are footer commit actions and should use the compact Tasks icon treatment with
-        clear accessible labels and titles.
-  - [ ] Follow Notifications belongs in the modal heading action slot for saved records that can emit
-        notifications.
-- [ ] Keep this slice documentation/static-regression only; do not change modal behavior yet.
-- [ ] Run `npm run check`.
-
-Acceptance criteria:
-
-- Framework-owned modal footer anatomy is documented once and applies to both Tasks and Notes.
-- Module-owned modal action semantics remain explicit.
-- The next implementation slice has no ambiguity about which visual pattern to use.
-
-#### Version 0.33.5.18.10.8.2 - Tasks Tags and Files child-dialog parity
-
-- [ ] Replace the Tasks modal's inline/body-mounted Tags and Files utility panels with stacked child
-      dialogs opened from the Task modal footer, following the Notes modal pattern.
-- [ ] Keep Tags picker ownership in Tags and Files attachment ownership in Files; Tasks only owns
-      task-specific placement, save-first messaging, target identifiers, visibility, refresh hooks,
-      and footer utility button behavior.
-- [ ] Use `LongtailForge.view.createModal()` or `createModalForm()` plus `showModal()` / `closeModal()`
-      so the framework owns child dialog shell, backdrop/Escape behavior, stack ordering, focus return,
-      and parent-close cleanup.
-- [ ] Preserve current Task rules:
-  - [ ] Unsaved tasks show a save-first state for Files.
-  - [ ] Tags remain staged and save through the normal Task save payload.
-  - [ ] File attachments remain permission-checked through the Files helper and existing file routes.
-  - [ ] Closing Tags or Files returns focus to the footer utility button.
-  - [ ] Saving or canceling the Task editor closes any child Tags/Files dialog safely.
-- [ ] Remove or stop using the body/overlay mounts that make Tags and Files appear inside the Task
-      modal body in inconsistent locations.
-- [ ] Add regressions proving Task Tags and Files open stacked child dialogs like Notes and are not
-      mounted as inline parent-body panels.
-- [ ] Run `npm run check`.
-
-Acceptance criteria:
-
-- Task Tags and Files behave like Notes Tags and Files: footer utility button opens a child dialog
-  above the parent editor.
-- Tags and Files content remains owned by the Tags and Files helpers.
-- The Task editor body no longer grows or shifts when Tags or Files are opened.
-
-#### Version 0.33.5.18.10.8.3 - Notes and Tasks modal footer visual parity
-
-- [ ] Update the Notes modal footer utility actions to use icon plus text for Tags and Files.
-- [ ] Add a Notes Copy Link footer utility action using the same record-URL/clipboard fallback pattern
-      as Tasks, with Notes-owned URL construction and status messaging.
-- [ ] Update the Notes modal footer commit actions to match the Tasks compact Cancel and Save icon
-      treatment while preserving submit/cancel behavior, accessible labels, and focus return.
-- [ ] Update Tasks footer utility actions to match the shared utility standard where space allows:
-      Tags, Files, and Copy Link should use icon plus text; Cancel and Save should remain compact
-      commit controls.
-- [ ] Keep Tags picker ownership in Tags, Files attachment ownership in Files, copy-link behavior in
-      the owning module, and save payloads in the owning module.
-- [ ] Add regressions covering Tasks and Notes footer utility/commit grouping, icon/text expectations,
-      copy-link presence, and cache keys.
-- [ ] Run `npm run check`.
-
-Acceptance criteria:
-
-- Tasks and Notes modal footers look like the same modal system.
-- Footer utility actions are readable and grouped on the left.
-- Footer commit actions are compact and grouped on the right.
-- Notes has a Copy Link footer action for saved notes without duplicating Tasks code or changing
-  note save semantics.
-
-#### Version 0.33.5.18.10.8.4 - Notes notification producer and follow bell
-
-- [ ] Inspect the framework notification subscription helper and notification service contract used by
-      Tasks.
-- [ ] Add Notes notification producer support for meaningful note changes, excluding the acting user's
-      own changes where the existing notification model supports that pattern.
-- [ ] Define which Notes events notify followers, such as note updated, archived/restored, revision
-      restored, linked context changed, tags changed, or files changed; keep noisy body autosave-style
-      behavior out of scope unless deliberately added later.
-- [ ] Add a saved-note Follow Notifications bell to the Notes modal heading action slot.
-- [ ] Remove the superfluous top Close button from the Notes modal once the heading bell is present;
-      footer Cancel remains the normal dismissal control.
-- [ ] Ensure unsaved notes either hide or disable the follow bell with clear accessible state because
-      there is no note id to follow yet.
-- [ ] Keep the subscription UI framework-owned where possible, but keep Notes event emission and note
-      notification meaning Notes-owned.
-- [ ] Add service/browser regressions for Notes notification production, heading bell display, saved vs
-      unsaved state, and no duplicate Close button.
-- [ ] Run `npm run check`.
-- [ ] Run notification-specific regressions.
-
-Acceptance criteria:
-
-- Notes can produce notifications that make following a note useful.
-- The Notes modal heading uses a follow bell instead of a duplicate Close button.
-- Notification subscription behavior remains framework-owned, while note event meaning remains
-  Notes-owned.
-
 #### Version 0.33.5.18.10.8.5 - Modal standardization closeout
 
-- [ ] Update `docs/ui-surface-contract.md`, `docs/view-building-contract.md`, `docs/tasks-module.md`,
+- [x] Update `docs/ui-surface-contract.md`, `docs/view-building-contract.md`, `docs/tasks-module.md`,
       and `docs/notes-module.md` with the shipped modal action standard.
-- [ ] Update `DECISIONS.md` with the finalized cross-module modal action ownership decision.
-- [ ] Update CHANGELOG and package metadata.
-- [ ] Ensure strict converted-surface guardrails protect the standardized modal footer/heading pattern.
-- [ ] Run:
-  - [ ] `npm run check`
-  - [ ] Notes modal regressions.
-  - [ ] Tasks modal regressions.
-  - [ ] Notification regressions.
-- [ ] Verify `/api/app-info` reports the expected version.
+- [x] Update `DECISIONS.md` with the finalized cross-module modal action ownership decision.
+- [x] Update CHANGELOG and package metadata.
+- [x] Ensure strict converted-surface guardrails protect the standardized modal footer/heading pattern.
+- [x] Run:
+  - [x] `npm run check`
+  - [x] Notes modal regressions.
+  - [x] Tasks modal regressions.
+  - [x] Notification regressions.
+- [x] Verify `/api/app-info` reports the expected version.
 
 Acceptance criteria:
 

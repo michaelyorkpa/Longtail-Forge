@@ -16,7 +16,7 @@ The strict guardrails fail when Tasks reintroduces hand-built framework-owned an
 | Filter panel shell | Saved Task Views and Sorting/Filters mount through descriptor regions and shared helper-built controls; Tasks owns query semantics only. |
 | Bulk toolbar shell | `LongtailForge.view.createBulkActionToolbar()` owns the toolbar wrapper, summary, and selected-count placement. Tasks owns bulk-control values and payloads. |
 | Modal shell/footer | `LongtailForge.view.renderDescriptorModalForm()` owns the canonical add/edit Task modal shell and footer actions. The recurrence child dialog uses shared modal helpers. |
-| Standard field grids | Task Details, Checklist, Recurrence, Timer, Reminders, Notes, Tags, and Files section placement is helper-built rather than parsed from raw markup. |
+| Standard field grids | Task Details, Checklist, Recurrence, Timer, Reminders, and Notes section placement is helper-built rather than parsed from raw markup; Tags and Files utility content lives in stacked child dialogs. |
 | Standard action placement | Row lifecycle actions use `createDetailActionStrip()`, workflow actions use `createDetailActionMenu()`, and modal actions use framework action buttons. |
 
 ## Documented Tasks-Owned Escape Hatches
@@ -32,7 +32,7 @@ These fragments remain module-owned because they carry Tasks-specific behavior o
 | Workflow and lifecycle behavior | `taskWorkflowActionsForTask()`, `taskLifecycleActionsForTask()`, behavior handlers | Shared helpers own placement. Tasks owns visibility, permissions metadata, route calls, refresh behavior, and lifecycle meaning. |
 | Bulk action semantics | bulk control readers, `selectedBulkActions()`, confirmation helpers, `/api/tasks/bulk` calls | Shared helpers own toolbar placement. Tasks owns allowed mutations, confirmations, tag/assignee/lifecycle payloads, and result reconciliation. |
 | Relationship and recovery context | `appendTaskContext()`, `blockingSummaryText()`, relationship route/service paths | Tasks owns parent/child validation, blocking counts, recovery behavior, and chip values. |
-| Task modal utility behavior | Tags, Files, Notes, Copy Link, notification follow/unfollow | Framework owns footer/heading placement. Tags, Files, Notes, notifications, and Tasks own their behavior and routes. |
+| Task modal utility behavior | Tags, Files, Notes, Copy Link, notification follow/unfollow | Framework owns footer/heading placement and stacked Tags/Files child dialog shells. Tags, Files, Notes, notifications, and Tasks own their behavior and routes. |
 | Workspace context and payload rules | Client/Project visibility, assignment, validation, create/update payload builders | Business-only Client controls, Personal/Family behavior, nullable context, assignments, and save validation stay in Tasks. |
 
 ## Regression Coverage

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.10.7";
+const appVersion = "0.33.5.18.10.8.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -38,7 +38,8 @@ const checklistSection = functionBlock(taskDialogScript, "taskEditorChecklistSec
 const recurrenceSection = functionBlock(taskDialogScript, "taskEditorRecurrenceSection");
 const timerSection = functionBlock(taskDialogScript, "taskEditorTimerSection");
 const reminderSection = functionBlock(taskDialogScript, "taskEditorReminderSection");
-const footerPanel = functionBlock(taskDialogScript, "taskEditorFooterPanel");
+const tagsDialog = functionBlock(taskDialogScript, "createTaskTagsDialog");
+const filesDialog = functionBlock(taskDialogScript, "createTaskFilesDialog");
 const recurrenceFields = functionBlock(taskDialogScript, "taskRecurrenceFieldNodes");
 const checklistRow = functionBlock(taskDialogScript, "checklistItemRow");
 const timerWriter = functionBlock(taskDialogScript, "writeTaskTimerFields");
@@ -64,7 +65,8 @@ assert.match(checklistSection, /className: \["task-checklist-field", "surface-mo
 assert.match(recurrenceSection, /className: \["task-recurrence-field", "surface-modal-group", "surface-divider-top"\][\s\S]*"data-task-recurrence-panel"[\s\S]*"data-task-recurring"[\s\S]*"data-task-recurrence-details"[\s\S]*"data-task-recurrence-summary"/, "Recurrence section shell should be helper-built");
 assert.match(timerSection, /className: \["task-timer-field", "surface-modal-group"\][\s\S]*"data-task-timer-field"[\s\S]*"data-task-timer-start"[\s\S]*"data-task-timer-pause"[\s\S]*"data-task-timer-finalize"[\s\S]*"data-task-timer-reset"/, "Task Timer section shell should be helper-built");
 assert.match(reminderSection, /className: \["task-reminder-field", "surface-modal-group", "surface-divider-top"\][\s\S]*"data-task-reminder-details"[\s\S]*"data-task-reminder-override"[\s\S]*"data-task-reminder-override-fields"/, "Reminder section shell should be helper-built");
-assert.match(footerPanel, /className: \["task-footer-panel", fieldClassName, "surface-overlay-panel"\][\s\S]*hidden: true/, "Footer utility panel placement should be helper-built");
+assert.match(tagsDialog, /view\.createModal\(\{[\s\S]*title: "Task Tags"[\s\S]*body: \[tagsMount\][\s\S]*actions: \[close\]/, "Tags utility child dialog shell should be helper-built");
+assert.match(filesDialog, /view\.createModal\(\{[\s\S]*title: "Task Files"[\s\S]*body: \[filesMount\][\s\S]*actions: \[close\]/, "Files utility child dialog shell should be helper-built");
 
 assert.match(taskRow, /document\.createElement\("tr"\)[\s\S]*row\.classList\.add\("task-density-row"\)[\s\S]*appendTaskMetadata\(metaBand, task\)[\s\S]*appendTaskContext\(metaBand, task\)/, "Task row-specific content should remain an explicit escape hatch");
 assert.match(workflowMenu, /taskWorkflowActionsForTask\(task\)[\s\S]*view\.createDetailActionMenu/, "Workflow action choice should remain Tasks-owned while placement uses the shared action menu");

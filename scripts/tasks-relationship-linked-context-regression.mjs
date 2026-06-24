@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.10.7";
+const appVersion = "0.33.5.18.10.8.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -85,8 +85,8 @@ assert.match(relationshipRegression, /circular/i, "Existing relationship regress
 assert.match(relationshipRegression, /blocking child tasks/i, "Existing relationship regression should preserve blocking-child coverage");
 assert.match(relationshipRegression, /relationshipSummary/, "Existing relationship regression should preserve relationship summary coverage");
 assert.match(linkedPanelRegression, /AccessBeforeShaping|createClientUserSession|private|secure/i, "Existing linked panel regression should preserve permission-safe read-model coverage");
-assert.match(tasksView, /js\/shared\/notes-linked-panel\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/task-dialog\.js\?v=18[\s\S]*js\/tasks\.js\?v=19/, "Tasks host should load refreshed linked-context, framework helper, and task row assets");
-assert.match(workbenchView, /js\/shared\/notes-linked-panel\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/task-dialog\.js\?v=18/, "Workbench host should load refreshed linked-context and framework helper assets before the shared Task dialog");
+assert.match(tasksView, /js\/shared\/notes-linked-panel\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/task-dialog\.js\?v=21[\s\S]*js\/tasks\.js\?v=20/, "Tasks host should load refreshed linked-context, framework helper, and task row assets");
+assert.match(workbenchView, /js\/shared\/notes-linked-panel\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/task-dialog\.js\?v=21/, "Workbench host should load refreshed linked-context and framework helper assets before the shared Task dialog");
 assert.match(tasksDocs, /0\.33\.5\.18\.10\.4[\s\S]*relationships and linked notes/, "Tasks docs should document the relationship and linked-context cleanup");
 assert.match(notesDocs, /Tasks module mounts this helper[\s\S]*Task-created note links/, "Notes docs should keep the task-created note context contract");
 assert.match(moduleContract, /0\.33\.5\.18\.10\.4[\s\S]*Task relationship and linked-note display/, "Module contract should document the 10.4 ownership boundary");

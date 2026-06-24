@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.10.7";
+const appVersion = "0.33.5.18.10.8.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -71,7 +71,7 @@ assert.match(permissionCheck, /requiredPermissions[\s\S]*requiredAnyPermissions/
 assert.match(timerDisabledReason, /Task timers are disabled[\s\S]*Time Tracking is disabled[\s\S]*project-linked task[\s\S]*Completed and archived tasks cannot use task timers/, "Timer disabled state should mirror shipped timer eligibility reasons");
 assert.match(runWorkflowAction, /handler\(\{[\s\S]*record:\s*task[\s\S]*refresh:\s*reloadTaskList[\s\S]*trigger/, "Workflow handlers should receive the Tasks record, refresh hook, and trigger");
 assert.match(openWorkflowDialog, /openTaskDialog\(task, \{[\s\S]*focusTarget:\s*action\.focusTarget \|\| ""[\s\S]*returnFocusTo:\s*trigger \|\| document\.activeElement/, "Complex workflow actions should reopen the canonical task editor with field focus and focus return");
-assert.match(saveTimerAction, /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(task\.task_id\)\}\/timer`[\s\S]*timer_status:[\s\S]*accumulated_elapsed_seconds:[\s\S]*last_active_start_time:[\s\S]*await reloadTaskList\(\)/, "Timer workflow actions should use existing Tasks timer routes and refresh the list");
+assert.match(saveTimerAction, /api\.putJson\(`\/api\/tasks\/\$\{encodeURIComponent\(task\.task_id\)\}\/timer`[\s\S]*timer_status:[\s\S]*accumulated_elapsed_seconds:[\s\S]*last_active_start_time:[\s\S]*if \(result\.task\)[\s\S]*upsertTask\(result\.task\)[\s\S]*await reloadTaskList\(\)/, "Timer workflow actions should use existing Tasks timer routes, apply returned task state, and refresh the list");
 assert.match(readElapsed, /accumulated_elapsed_seconds[\s\S]*timer\.timer_status !== "running"[\s\S]*Date\.now\(\) - startedAt/, "Timer pause should preserve elapsed running time");
 assert.match(configureDialog, /onSaved:\s*async \(result\) => \{[\s\S]*await reloadTaskList\(\)/, "Canonical editor saves should refresh the task list consistently");
 
@@ -85,7 +85,7 @@ assert.match(tasksStyles, /\.task-row-actions \.view-detail-action-menu-list \.i
 assert.match(tasksStyles, /\.view-detail-action-menu\[data-view-floating-menu\] \.view-detail-action-menu-list\s*\{[\s\S]*position:\s*fixed;[\s\S]*visibility:\s*hidden/, "Workflow menu list should float outside the Tasks row action rail until positioned");
 assert.match(tasksStyles, /\.view-detail-action-menu\[data-view-floating-menu\]\[data-view-floating-menu-positioned\] \.view-detail-action-menu-list\s*\{[\s\S]*visibility:\s*visible/, "Workflow menu list should become visible only after shared viewport positioning");
 assert.match(tasksRoutes, /tasksRoutes\.put\("\/tasks\/:taskId\/timer"[\s\S]*taskTimersService\.save/, "Browser API should keep timer start/pause/resume on the existing task timer route");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=68[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/task-dialog\.js\?v=18[\s\S]*js\/tasks\.js\?v=19/, "Tasks host should load the workflow descriptor cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=69[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/task-dialog\.js\?v=21[\s\S]*js\/tasks\.js\?v=20/, "Tasks host should load the workflow descriptor cache key");
 assert.match(regressionSuite, /scripts\/tasks-workflow-action-descriptor-regression\.mjs/, "Regression suite should include the task workflow descriptor regression");
 
 console.log("Tasks workflow action descriptor regression passed.");

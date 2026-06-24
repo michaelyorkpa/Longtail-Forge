@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.10.7";
+const appVersion = "0.33.5.18.10.8.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -55,11 +55,11 @@ assert.doesNotMatch(mainChrome, /data-task-filter-details|data-task-view-selecto
 assert.match(declarativeGuardrails, /const strictDeclarativeSurfaceIds = new Set\(\["lists\.workspace", "notes\.workspace", "tasks\.workspace"\]\)/, "Tasks should now be under strict declarative enforcement");
 assert.match(declarativeGuardrails, /Tasks descriptor should be strict-converted/, "Guardrail inventory should explicitly enforce Tasks strict conversion");
 assert.match(declarativeGuide, /\| Tasks \| tasks \| tasks\.html \| tasks\.workspace \| strict \|/, "Declarative guide should keep Tasks in the strict inventory");
-assert.match(declarativeGuide, /list shell, bulk toolbar, row lifecycle action strip, row workflow action menu, add\/edit modal shell, top detail\/read metadata badge row, recurrence child-modal shell, Checklist section shell, Task Timer section shell, and utility footer\/heading placement use shared framework helpers[\s\S]*Strict Tasks guardrails now fail/, "Declarative guide should document the Tasks framework-helper boundary");
+assert.match(declarativeGuide, /list shell, bulk toolbar, row lifecycle action strip, row workflow action menu, add\/edit modal shell, top detail\/read metadata badge row, recurrence child-modal shell, Checklist section shell, Task Timer section shell, utility footer\/heading placement, and stacked Tags\/Files utility child dialogs use shared framework helpers[\s\S]*Strict Tasks guardrails now fail/, "Declarative guide should document the Tasks framework-helper boundary");
 assert.match(viewContract, /list-shell boundary shipped in 0\.33\.5\.18\.8\.4/, "View-building contract should document the Tasks list-shell boundary");
 assert.match(tasksDocs, /As of 0\.33\.5\.18\.8\.4[\s\S]*framework list shell owns the main list wrapper, status mount, and table overflow wrapper/, "Tasks docs should document the list-shell boundary");
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=68[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=19/, "Tasks host should load the list-shell cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=69[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=20/, "Tasks host should load the list-shell cache keys");
 assert.match(regressionSuite, /scripts\/tasks-list-surface-boundary-regression\.mjs/, "Regression suite should include the Tasks list-surface boundary regression");
 
 console.log("Tasks list surface boundary regression passed.");

@@ -208,8 +208,7 @@ details[open] > summary.surface-modal-section-heading::before {
     box-shadow: var(--shadow-card);
 }
 
-.surface-overlay-panel[hidden],
-.task-footer-panel[hidden] {
+.surface-overlay-panel[hidden] {
     display: none !important;
 }
 
@@ -4375,7 +4374,6 @@ dialog .form-actions {
 .task-recurrence-field,
 .task-timer-field,
 .task-reminder-field,
-.task-footer-panel,
 .task-notes-field,
 .task-description-field,
 .task-modal-actions {
@@ -4389,13 +4387,16 @@ dialog .form-actions {
     padding: 0;
 }
 
-.surface-modal-heading [data-task-notification-toggle].is-following {
+.surface-modal-heading [data-task-notification-toggle].is-following,
+.surface-modal-heading [data-note-notification-toggle].is-following {
     border-color: var(--color-danger-border);
     color: var(--color-danger);
 }
 
 .surface-modal-heading [data-task-notification-toggle].is-following:hover:not(:disabled),
-.surface-modal-heading [data-task-notification-toggle].is-following:focus-visible {
+.surface-modal-heading [data-task-notification-toggle].is-following:focus-visible,
+.surface-modal-heading [data-note-notification-toggle].is-following:hover:not(:disabled),
+.surface-modal-heading [data-note-notification-toggle].is-following:focus-visible {
     background: var(--color-danger-bg);
     color: var(--color-danger);
 }
@@ -4488,15 +4489,9 @@ dialog .form-actions {
 .task-reminder-field,
 .task-recurrence-field,
 .task-timer-field,
-.task-footer-panel,
 .task-reminder-policy-editor {
     display: grid;
     gap: 10px;
-}
-
-.task-footer-panel {
-    padding: 4px 0;
-    background: transparent;
 }
 
 .task-reminder-field p,

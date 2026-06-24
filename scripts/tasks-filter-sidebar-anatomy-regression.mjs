@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.10.7";
+const appVersion = "0.33.5.18.10.8.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -48,7 +48,7 @@ assert.match(tasksScript, /function usesClientScope\(\)[\s\S]*state\.options\.wo
 assert.match(tasksScript, /setClientScopeControlsVisible\(hasClientScope\)/, "Tasks filter population should keep client controls scoped by workspace type");
 assert.match(tasksScript, /document\.querySelectorAll\("\[data-client-workspace-control\]"\)/, "Client filter visibility should use the shared data hook across generated controls");
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=68[\s\S]*js\/tasks\.js\?v=19/, "Tasks host should load the current sidebar anatomy cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=69[\s\S]*js\/tasks\.js\?v=20/, "Tasks host should load the current sidebar anatomy cache keys");
 assert.match(styles, /\.task-view-selector-control\s*\{[\s\S]*display:\s*grid/, "Saved Task Views selector should have a stable drawer layout");
 assert.match(styles, /\.view-slideout-sidebar-drawer \.task-page-toolbar\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/, "Sorting and Filters controls should stay one-column in the drawer");
 assert.match(styles, /\.view-slideout-sidebar-drawer \.tasks-filters-panel \.view-collapsible-index-body\s*\{[\s\S]*max-height:\s*none;[\s\S]*overflow-y:\s*visible/, "Sorting and Filters panel should expand inside the drawer instead of forcing a small internal scroll pane");

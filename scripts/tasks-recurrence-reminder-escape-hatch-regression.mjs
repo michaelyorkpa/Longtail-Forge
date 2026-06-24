@@ -19,8 +19,8 @@ assert.doesNotMatch(
 );
 assert.match(
   taskDialogScript,
-  /function ensureDialog\(\)[\s\S]*if \(!dialog \|\| !recurrenceDialog\)[\s\S]*createTaskDialogElements\(\{ includeEditor: !dialog, includeRecurrence: !recurrenceDialog \}\)/,
-  "Task dialog setup should recreate only missing modal shells instead of duplicating both shells.",
+  /function ensureDialog\(\)[\s\S]*if \(!dialog \|\| !recurrenceDialog \|\| !tagsDialog \|\| !filesDialog\)[\s\S]*createTaskDialogElements\(\{[\s\S]*includeEditor: !dialog,[\s\S]*includeFiles: !filesDialog,[\s\S]*includeRecurrence: !recurrenceDialog,[\s\S]*includeTags: !tagsDialog,[\s\S]*\}\)/,
+  "Task dialog setup should recreate only missing editor, recurrence, Tags, and Files modal shells.",
 );
 assert.match(
   taskDialogScript,

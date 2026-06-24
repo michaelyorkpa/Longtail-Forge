@@ -1,6 +1,6 @@
 # UI Surface Contract
 
-This document captures the 0.33.5.13.7 framework surface inventory, token contract, modal section contract, modal footer/action contract, overlay host contract, drawer/slideout shell contract, main-screen internal surface contract, first adoption pass, and the 0.33.5.18.6.11 action-surface slide-out closeout. It is the closeout reference for shipped shared surface behavior, not a promise that every listed surface has already been converted.
+This document captures the 0.33.5.13.7 framework surface inventory, token contract, modal section contract, modal footer/action contract, overlay host contract, drawer/slideout shell contract, main-screen internal surface contract, first adoption pass, the 0.33.5.18.6.11 action-surface slide-out closeout, the 0.33.5.18.10.8.1 converted modal action ownership standard, the 0.33.5.18.10.8.2 Task Tags/Files child-dialog parity pass, the 0.33.5.18.10.8.3 Notes/Tasks footer visual parity pass, the 0.33.5.18.10.8.4 Notes notification follow-bell pass, and the 0.33.5.18.10.8.5 modal standardization closeout. It is the closeout reference for shipped shared surface behavior, not a promise that every listed surface has already been converted.
 
 ## Surface Inventory
 
@@ -60,7 +60,7 @@ The existing aliases `--color-background`, `--color-page`, and `--color-surface-
 
 ## Adaptive Footer Labels
 
-Converted add/edit modals should use one shared action model. The framework owns footer placement,
+As of 0.33.5.18.10.8.1, converted add/edit modals should use one shared action model. The framework owns footer placement,
 utility and commit grouping, sticky footer behavior, shared action button anatomy, accessible defaults,
 and focus return. Modules own which actions appear, record-specific labels/icons, availability, API
 calls, save payloads, validation, permissions, record URLs, notification event meaning, and picker or
@@ -78,10 +78,32 @@ child dialog shell, modal stack behavior, Escape/backdrop handling, parent-close
 return. The owning module still owns record-specific placement, target identifiers, save-first states,
 visibility rules, refresh behavior, and the Tags/Files helper mounting.
 
+As of 0.33.5.18.10.8.2, both Notes and Tasks use stacked child dialogs for converted Add/Edit modal
+Tags and Files utilities instead of inline parent-body panels.
+
+As of 0.33.5.18.10.8.3, Notes and Tasks converted add/edit modal footer utilities use icon plus
+short visible text for Tags, Files, and Copy Link where present. Cancel and Save remain compact
+commit controls with icons, accessible labels, titles, native button types, and primary/secondary
+roles.
+
 The modal heading action slot should hold one contextual record-level utility such as a Follow
 Notifications bell. It should not carry a duplicate Close button when the footer already provides
 Cancel or Close behavior. A module should not show a follow bell as a cosmetic control until that module
 can produce meaningful notifications through the framework notification system.
+
+As of 0.33.5.18.10.8.4, Notes satisfies that requirement for saved non-secure notes: the editor
+heading uses a Follow Notifications bell backed by the framework subscription helper, the duplicate top
+Close button is removed, and footer Cancel remains the normal dismissal action. The framework owns the
+subscription APIs, target access rechecks, delivery, preferences, and target decoration; Notes owns
+which note events notify followers and when secure-note events suppress delivery.
+
+As of 0.33.5.18.10.8.5, this is the finalized converted modal action standard for the next module
+conversions. New converted add/edit modals should reuse the same heading action slot, footer utility
+group, footer commit group, `.surface-modal-footer-action` buttons, and stacked child-dialog pattern
+instead of introducing module-specific heading or footer anatomy. Strict converted-surface guardrails
+should fail when a converted module rebuilds modal footer groups, renders substantial footer utilities
+inside the parent modal body, restores a duplicate top Close button where footer Cancel exists, or shows
+a Follow Notifications bell for records that cannot emit meaningful notifications.
 
 ## Overlay Host
 

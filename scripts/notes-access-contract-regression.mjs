@@ -44,7 +44,7 @@ async function assertNotesManifestContract() {
   const eventNames = notesModule.eventTypes.map((eventType) => eventType.event);
   const auditTypes = notesModule.auditRecordTypes.map((recordType) => recordType.recordType);
 
-  assert.equal(notesModule.version, "0.33.5.14.4");
+  assert.equal(notesModule.version, "0.33.5.18.10.8.5");
   assert.deepEqual(permissionIds, Object.values(NOTE_PERMISSIONS));
   assert.deepEqual(notesModule.resourceDefinitions, [NOTE_RESOURCE_DEFINITION]);
   assert.deepEqual(auditTypes, NOTE_AUDIT_RECORD_TYPES.map((recordType) => recordType.recordType));

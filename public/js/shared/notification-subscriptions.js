@@ -9,6 +9,14 @@
     };
   }
 
+  function noteTarget(noteId) {
+    return {
+      moduleId: "notes",
+      targetType: "note",
+      targetId: noteId,
+    };
+  }
+
   function targetParams(target) {
     const params = new URLSearchParams({
       moduleId: target.moduleId || target.module_id || "",
@@ -47,6 +55,7 @@
 
   root.notificationSubscriptions = {
     follow,
+    noteTarget,
     readStatus,
     taskTarget,
     unfollow,

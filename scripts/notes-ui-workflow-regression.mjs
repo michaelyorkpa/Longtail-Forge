@@ -34,7 +34,7 @@ try {
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.5.14.4");
+  assert.equal(notesModule.version, "0.33.5.18.10.8.5");
   assert.ok(notesModule.navigation.some((item) => item.href === "notes.html" && item.parent === "projects.html"));
   assert.ok(notesModule.protectedViews.some((view) => view.file === "notes.html" && view.allowDisabledRead === true));
   assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/notes.js"));
@@ -56,11 +56,11 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=11/);
   assert.match(html, /js\/shared\/icons\.js\?v=4/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=11/);
-  assert.match(html, /js\/notes\.js\?v=65/);
+  assert.match(html, /js\/notes\.js\?v=67/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=4/);
-  assert.match(html, /css\/longtail-forge\.css\?v=51/);
+  assert.match(html, /css\/longtail-forge\.css\?v=52/);
   // No static read chrome or dialog markup remains in the host page.
   assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
   assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);
@@ -205,9 +205,10 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /className: "surface-modal-section-heading", text: "Linked Context"/, "The Linked Context heading should use the shared modal section heading class");
   assert.doesNotMatch(notesJs, /notes-dialog-heading/, "Notes should not keep a note-only modal heading row class");
   assert.match(notesJs, /detailsGroup\.open = !note/, "The Details group should default open in Add and closed in Edit");
-  assert.match(notesJs, /utilityActions: \[tagsToggle, filesToggle\]/, "Tags and Files should render as footer utility actions");
+  assert.match(notesJs, /utilityActions: \[tagsToggle, filesToggle, copyLink\]/, "Tags, Files, and Copy Link should render as footer utility actions");
   assert.match(notesJs, /dataset\.noteTagsToggle/, "Tags should be a footer toggle button");
   assert.match(notesJs, /dataset\.noteFilesToggle/, "Files should be a footer toggle button");
+  assert.match(notesJs, /dataset\.copyNoteLink/, "Copy Link should be a footer utility button");
   assert.match(notesJs, /function createNoteTagsDialogShell/, "Tags should open in a stacked dialog");
   assert.match(notesJs, /function openTagsDialog\(\)[\s\S]*view\.showModal\(tagsDialog, \{ parent: dialog, trigger: tagsToggle \}\)/, "Tags should open through the shared modal stack helper above the editor");
   assert.doesNotMatch(notesJs, /tagPanel|noteTagsPanel|toggleNoteEditorPanel\("tags"\)/, "Tags should no longer render as a hidden inline editor panel");

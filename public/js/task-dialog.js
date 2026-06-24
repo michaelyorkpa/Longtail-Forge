@@ -7,7 +7,6 @@
   let context = null;
   let fileAttachmentsController = null;
   let notesPanelController = null;
-  let taskOverlayHost = null;
   let tagPicker = null;
   let recurrenceDraft = defaultRecurrenceDraft();
   let taskTimers = [];
@@ -17,6 +16,8 @@
   let currentParentTaskId = "";
   let dialog = null;
   let recurrenceDialog = null;
+  let tagsDialog = null;
+  let filesDialog = null;
   let form = null;
   let fields = {};
   let currentTaskEditorRequest = null;
@@ -230,7 +231,7 @@
     fields.resumeNote.value = task?.resume_note || defaults.resumeNote || defaults.resume_note || "";
     fields.description.value = task?.description || defaults.description || "";
     fields.taskDetailsPanel.open = !task || isDuplicate;
-    hideTaskFooterPanels();
+    closeTaskUtilityDialogs();
     updateBlockedReasonState();
     await writeParentTaskFields(isDuplicate ? null : task);
     writeTaskCompletionFields(isDuplicate ? null : task);
@@ -250,7 +251,7 @@
     focusTaskEditorTarget(focusNotes ? "notes" : focusTarget);
     return new Promise((resolve) => {
       dialog.addEventListener("close", () => {
-        taskOverlayHost?.closeAll?.();
+        closeTaskUtilityDialogs();
         clearTaskTimerInterval();
         fileAttachmentsController?.destroy?.();
         fileAttachmentsController = null;
@@ -266,11 +267,20 @@
   function ensureDialog() {
     dialog = document.querySelector("[data-task-dialog]");
     recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]");
+    tagsDialog = document.querySelector("[data-task-tags-dialog]");
+    filesDialog = document.querySelector("[data-task-files-dialog]");
 
-    if (!dialog || !recurrenceDialog) {
-      document.body.append(...createTaskDialogElements({ includeEditor: !dialog, includeRecurrence: !recurrenceDialog }));
+    if (!dialog || !recurrenceDialog || !tagsDialog || !filesDialog) {
+      document.body.append(...createTaskDialogElements({
+        includeEditor: !dialog,
+        includeFiles: !filesDialog,
+        includeRecurrence: !recurrenceDialog,
+        includeTags: !tagsDialog,
+      }));
       dialog = document.querySelector("[data-task-dialog]");
       recurrenceDialog = document.querySelector("[data-task-recurrence-dialog]");
+      tagsDialog = document.querySelector("[data-task-tags-dialog]");
+      filesDialog = document.querySelector("[data-task-files-dialog]");
     }
 
     form = dialog.querySelector("[data-task-form]");
@@ -288,8 +298,8 @@
       dueDate: dialog.querySelector("[data-task-due-date]"),
       dueTime: dialog.querySelector("[data-task-due-time]"),
       effectiveReminders: dialog.querySelector("[data-task-effective-reminders]"),
-      fileContainer: dialog.querySelector("[data-task-files]"),
-      filePanel: dialog.querySelector("[data-task-files-panel]"),
+      fileContainer: filesDialog?.querySelector("[data-task-files]"),
+      fileDialogClose: filesDialog?.querySelector("[data-task-files-dialog-close]"),
       fileToggle: dialog.querySelector("[data-task-files-toggle]"),
       notesContainer: dialog.querySelector("[data-task-notes]"),
       notesPanel: dialog.querySelector("[data-task-notes-panel]"),
@@ -307,8 +317,8 @@
       reminderOverride: dialog.querySelector("[data-task-reminder-override]"),
       reminderOverrideFields: dialog.querySelector("[data-task-reminder-override-fields]"),
       status: dialog.querySelector("[data-task-form-status]"),
-      tagContainer: dialog.querySelector("[data-task-tags]"),
-      tagPanel: dialog.querySelector("[data-task-tags-panel]"),
+      tagContainer: tagsDialog?.querySelector("[data-task-tags]"),
+      tagDialogClose: tagsDialog?.querySelector("[data-task-tags-dialog-close]"),
       tagToggle: dialog.querySelector("[data-task-tags-toggle]"),
       taskDetailsPanel: dialog.querySelector("[data-task-details-panel]"),
       notificationToggle: dialog.querySelector("[data-task-notification-toggle]"),
@@ -336,8 +346,8 @@
       interval: recurrenceDialog.querySelector("[data-task-recurrence-interval]"),
     };
     decorateTaskDialogControls();
-    configureTaskOverlayHost();
     bindRecurrenceDialogEvents();
+    bindTaskUtilityDialogEvents();
 
     if (form.dataset.taskDialogBound === "true") {
       return;
@@ -376,8 +386,8 @@
     fields.timerPause?.addEventListener("click", () => saveTaskTimer("paused"));
     fields.timerFinalize?.addEventListener("click", finalizeTaskTimer);
     fields.timerReset?.addEventListener("click", resetTaskTimer);
-    fields.tagToggle?.addEventListener("click", () => toggleTaskFooterPanel("tags"));
-    fields.fileToggle?.addEventListener("click", () => toggleTaskFooterPanel("files"));
+    fields.tagToggle?.addEventListener("click", openTaskTagsDialog);
+    fields.fileToggle?.addEventListener("click", openTaskFilesDialog);
     fields.notificationToggle?.addEventListener("click", toggleTaskNotificationFollow);
     fields.notesContainer?.addEventListener("notes-linked-panel:link", () => context?.onNotesChanged?.());
     fields.notesContainer?.addEventListener("notes-linked-panel:unlink", () => context?.onNotesChanged?.());
@@ -395,37 +405,11 @@
     icons.decorateButton(fields.timerFinalize, { icon: "save", label: "Save task timer as time", text: "Save Time", iconOnly: false });
     icons.decorateButton(fields.timerReset, { icon: "restore", label: "Reset task timer", text: "Reset", iconOnly: false, variant: "danger" });
     icons.decorateButton(fields.notificationToggle, { icon: "bell", label: "Follow task notifications", text: "", title: "Follow task notifications", iconOnly: true });
-    icons.decorateButton(fields.tagToggle, { icon: "tag", label: "Task tags", text: "", title: "Task tags", iconOnly: true });
-    icons.decorateButton(fields.fileToggle, { icon: "file", label: "Task files", text: "", title: "Task files", iconOnly: true });
-    icons.decorateButton(fields.copyLink, { icon: "copy", label: "Copy task link", text: "", title: "Copy task link", iconOnly: true });
+    icons.decorateButton(fields.tagToggle, { icon: "tag", label: "Task tags", text: "Tags", title: "Task tags", iconOnly: false });
+    icons.decorateButton(fields.fileToggle, { icon: "file", label: "Task files", text: "Files", title: "Task files", iconOnly: false });
+    icons.decorateButton(fields.copyLink, { icon: "copy", label: "Copy task link", text: "Copy Link", title: "Copy task link", iconOnly: false });
     icons.decorateButton(fields.cancel, { icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true });
     icons.decorateButton(fields.save, { icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true });
-  }
-
-  function configureTaskOverlayHost() {
-    if (!namespace.overlayHost?.create || !form) {
-      return;
-    }
-
-    taskOverlayHost = namespace.overlayHost.create({ host: form });
-
-    if (fields.tagPanel && fields.tagToggle) {
-      taskOverlayHost.register({
-        name: "tags",
-        panel: fields.tagPanel,
-        title: "Task tags",
-        trigger: fields.tagToggle,
-      });
-    }
-
-    if (fields.filePanel && fields.fileToggle) {
-      taskOverlayHost.register({
-        name: "files",
-        panel: fields.filePanel,
-        title: "Task files",
-        trigger: fields.fileToggle,
-      });
-    }
   }
 
   function bindRecurrenceDialogEvents() {
@@ -436,6 +420,20 @@
     fields.recurrence.form.dataset.taskRecurrenceBound = "true";
     fields.recurrence.cancel?.addEventListener("click", () => closeTaskModal(recurrenceDialog, "cancel"));
     fields.recurrence.form.addEventListener("submit", saveRecurrenceDraft);
+  }
+
+  function bindTaskUtilityDialogEvents() {
+    if (tagsDialog && tagsDialog.dataset.taskTagsDialogBound !== "true") {
+      tagsDialog.dataset.taskTagsDialogBound = "true";
+      fields.tagDialogClose?.addEventListener("click", closeTaskTagsDialog);
+      tagsDialog.addEventListener("close", handleTaskTagsDialogClose);
+    }
+
+    if (filesDialog && filesDialog.dataset.taskFilesDialogBound !== "true") {
+      filesDialog.dataset.taskFilesDialogBound = "true";
+      fields.fileDialogClose?.addEventListener("click", closeTaskFilesDialog);
+      filesDialog.addEventListener("close", handleTaskFilesDialogClose);
+    }
   }
 
   function populateFormOptions() {
@@ -689,9 +687,7 @@
       if (fields.tagToggle) {
         fields.tagToggle.hidden = true;
       }
-      if (fields.tagPanel) {
-        fields.tagPanel.hidden = true;
-      }
+      closeTaskTagsDialog();
       return;
     }
 
@@ -714,9 +710,7 @@
       if (fields.fileToggle) {
         fields.fileToggle.hidden = true;
       }
-      if (fields.filePanel) {
-        fields.filePanel.hidden = true;
-      }
+      closeTaskFilesDialog();
       return;
     }
 
@@ -811,45 +805,60 @@
     }
   }
 
-  function toggleTaskFooterPanel(panelName) {
-    if (taskOverlayHost) {
-      taskOverlayHost.toggle(panelName);
+  function openTaskTagsDialog() {
+    if (!tagsDialog || fields.tagToggle?.hidden) {
       return;
     }
 
-    toggleTaskFooterPanelFallback(panelName);
+    closeTaskFilesDialog();
+    fields.tagToggle?.setAttribute("aria-expanded", "true");
+    showTaskModal(tagsDialog, { parent: dialog, trigger: fields.tagToggle });
+    tagsDialog.querySelector("[data-tag-picker-input]")?.focus();
   }
 
-  function hideTaskFooterPanels() {
-    taskOverlayHost?.closeAll?.();
-
-    if (fields.tagPanel) {
-      fields.tagPanel.hidden = true;
-      fields.tagToggle?.setAttribute("aria-expanded", "false");
-    }
-    if (fields.filePanel) {
-      fields.filePanel.hidden = true;
-      fields.fileToggle?.setAttribute("aria-expanded", "false");
-    }
-  }
-
-  function toggleTaskFooterPanelFallback(panelName) {
-    const nextPanel = panelName === "files" ? fields.filePanel : fields.tagPanel;
-    const nextToggle = panelName === "files" ? fields.fileToggle : fields.tagToggle;
-    const otherPanel = panelName === "files" ? fields.tagPanel : fields.filePanel;
-    const otherToggle = panelName === "files" ? fields.tagToggle : fields.fileToggle;
-
-    if (!nextPanel) {
+  function closeTaskTagsDialog() {
+    if (!tagsDialog) {
       return;
     }
 
-    const shouldOpen = nextPanel.hidden;
-    if (otherPanel) {
-      otherPanel.hidden = true;
-      otherToggle?.setAttribute("aria-expanded", "false");
+    closeTaskModal(tagsDialog);
+  }
+
+  function handleTaskTagsDialogClose() {
+    fields.tagToggle?.setAttribute("aria-expanded", "false");
+  }
+
+  function openTaskFilesDialog() {
+    if (!filesDialog || fields.fileToggle?.hidden) {
+      return;
     }
-    nextPanel.hidden = !shouldOpen;
-    nextToggle?.setAttribute("aria-expanded", String(shouldOpen));
+
+    closeTaskTagsDialog();
+    fields.fileToggle?.setAttribute("aria-expanded", "true");
+    showTaskModal(filesDialog, { parent: dialog, trigger: fields.fileToggle });
+    const focusTarget = currentTaskId
+      ? filesDialog.querySelector("[data-file-attachment-input]")
+      : fields.fileDialogClose;
+    focusTarget?.focus();
+  }
+
+  function closeTaskFilesDialog() {
+    if (!filesDialog) {
+      return;
+    }
+
+    closeTaskModal(filesDialog);
+  }
+
+  function handleTaskFilesDialogClose() {
+    fields.fileToggle?.setAttribute("aria-expanded", "false");
+  }
+
+  function closeTaskUtilityDialogs() {
+    fields.tagToggle?.setAttribute("aria-expanded", "false");
+    fields.fileToggle?.setAttribute("aria-expanded", "false");
+    closeTaskTagsDialog();
+    closeTaskFilesDialog();
   }
 
   async function toggleTaskNotificationFollow() {
@@ -930,8 +939,7 @@
         accumulated_elapsed_seconds: elapsedSeconds,
         last_active_start_time: new Date().toISOString(),
       });
-      upsertTaskTimer(result.timer);
-      writeTaskTimerFields(task);
+      applyTaskTimerMutationResult(result, task);
       setStatus("");
     } catch (error) {
       setStatus(error.message || "Task timer was not saved.", { isError: true });
@@ -951,12 +959,12 @@
     setStatus("Saving task timer...");
 
     try {
-      await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer/finalize`, {
+      const result = await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer/finalize`, {
         duration_seconds: durationSeconds,
         end_time: new Date().toISOString(),
       });
       removeTaskTimer(task.task_id);
-      writeTaskTimerFields(task);
+      applyTaskTimerMutationResult(result, task);
       setStatus("Task time saved.");
     } catch (error) {
       setStatus(error.message || "Task time was not saved.", { isError: true });
@@ -982,13 +990,63 @@
     }
 
     try {
-      await api.deleteJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer`);
+      const result = await api.deleteJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer`);
       removeTaskTimer(task.task_id);
-      writeTaskTimerFields(task);
+      applyTaskTimerMutationResult(result, task);
       setStatus("Task timer reset.");
     } catch (error) {
       setStatus(error.message || "Task timer was not reset.", { isError: true });
     }
+  }
+
+  function applyTaskTimerMutationResult(result, fallbackTask = currentTask) {
+    if (result?.timer) {
+      upsertTaskTimer(result.timer);
+    }
+
+    if (result?.task) {
+      currentTask = {
+        ...(currentTask || {}),
+        ...result.task,
+      };
+      currentTaskId = result.task.task_id || currentTaskId;
+      rememberTaskInContext(currentTask);
+      syncTaskStatusField(currentTask);
+      updateBlockedReasonState();
+      writeTaskMetadataRibbon(currentTask);
+      notifyTaskEditorSaved(result).catch((error) => {
+        setStatus(error.message || "Task refresh hook failed.", { isError: true });
+      });
+      writeTaskTimerFields(currentTask);
+      return currentTask;
+    }
+
+    writeTaskTimerFields(fallbackTask);
+    return fallbackTask;
+  }
+
+  function syncTaskStatusField(task) {
+    if (!fields.status || !task?.status) {
+      return;
+    }
+
+    if ([...fields.status.options].some((item) => item.value === task.status)) {
+      fields.status.value = task.status;
+    }
+  }
+
+  function rememberTaskInContext(task) {
+    if (!task?.task_id || !Array.isArray(context?.tasks)) {
+      return;
+    }
+
+    const existingIndex = context.tasks.findIndex((item) => item.task_id === task.task_id);
+    if (existingIndex >= 0) {
+      context.tasks.splice(existingIndex, 1, task);
+      return;
+    }
+
+    context.tasks.unshift(task);
   }
 
   function writeTaskTimerFields(task) {
@@ -1771,9 +1829,13 @@
   function createTaskDialogElements(options = {}) {
     const includeEditor = options.includeEditor !== false;
     const includeRecurrence = options.includeRecurrence !== false;
+    const includeTags = options.includeTags !== false;
+    const includeFiles = options.includeFiles !== false;
     return [
       includeEditor ? createTaskEditorDialog() : null,
       includeRecurrence ? createTaskRecurrenceDialog() : null,
+      includeTags ? createTaskTagsDialog() : null,
+      includeFiles ? createTaskFilesDialog() : null,
     ].filter(Boolean);
   }
 
@@ -1818,9 +1880,49 @@
     return dialog;
   }
 
+  function createTaskTagsDialog() {
+    const view = requireTaskDialogView();
+    const tagsMount = view.createElement("div", {
+      attrs: { "data-task-tags": "" },
+    });
+    const close = view.createActionButton({
+      label: "Done",
+      role: "primary",
+    });
+    close.dataset.taskTagsDialogClose = "";
+    const dialog = view.createModal({
+      title: "Task Tags",
+      className: "task-tags-dialog",
+      body: [tagsMount],
+      actions: [close],
+    });
+    dialog.dataset.taskTagsDialog = "";
+    return dialog;
+  }
+
+  function createTaskFilesDialog() {
+    const view = requireTaskDialogView();
+    const filesMount = view.createElement("div", {
+      attrs: { "data-task-files": "" },
+    });
+    const close = view.createActionButton({
+      label: "Done",
+      role: "primary",
+    });
+    close.dataset.taskFilesDialogClose = "";
+    const dialog = view.createModal({
+      title: "Task Files",
+      className: "task-files-dialog",
+      body: [filesMount],
+      actions: [close],
+    });
+    dialog.dataset.taskFilesDialog = "";
+    return dialog;
+  }
+
   function requireTaskDialogView() {
     const view = namespace.view;
-    if (!view?.renderDescriptorModalForm || !view?.createModalForm || !view?.showModal || !view?.closeModal || !view?.createActionButton || !view?.createElement || !view?.createDetailBadgeRow) {
+    if (!view?.renderDescriptorModalForm || !view?.createModal || !view?.createModalForm || !view?.showModal || !view?.closeModal || !view?.createActionButton || !view?.createElement || !view?.createDetailBadgeRow) {
       throw new Error("Task dialog requires LongtailForge.view modal helpers.");
     }
     return view;
@@ -1850,9 +1952,9 @@
         { id: "notes", label: "Notes", type: "section", width: "full" },
       ],
       utilityActions: [
-        { id: "tags", label: "Task tags", icon: "tag", role: "utility" },
-        { id: "files", label: "Task files", icon: "file", role: "utility" },
-        { id: "copy-link", label: "Copy task link", icon: "copy", role: "utility" },
+        { id: "tags", label: "Task tags", icon: "tag", role: "utility", text: "Tags" },
+        { id: "files", label: "Task files", icon: "file", role: "utility", text: "Files" },
+        { id: "copy-link", label: "Copy task link", icon: "copy", role: "utility", text: "Copy Link" },
       ],
       footerActions: [
         { id: "cancel", label: "Cancel", role: "secondary" },
@@ -1868,9 +1970,10 @@
         action: action.id,
         className: "surface-modal-footer-action",
         icon: action.icon,
-        iconOnly: true,
+        iconOnly: false,
         label: action.label,
         role: action.role,
+        text: action.text || action.label,
         title: action.label,
       });
 
@@ -1916,12 +2019,6 @@
       taskEditorRecurrenceSection(view),
       taskEditorTimerSection(view),
       taskEditorReminderSection(view),
-      taskEditorFooterPanel(view, "task-tags-field", { "data-task-tags-panel": "" }, view.createElement("div", {
-        attrs: { "data-task-tags": "" },
-      })),
-      taskEditorFooterPanel(view, "task-files-field", { "data-task-files-panel": "" }, view.createElement("div", {
-        attrs: { "data-task-files": "" },
-      })),
       taskEditorNotesSection(view),
     ];
   }
@@ -2136,15 +2233,6 @@
           ],
         }),
       ],
-    });
-  }
-
-  function taskEditorFooterPanel(view, fieldClassName, attrs, child) {
-    return view.createElement("section", {
-      className: ["task-footer-panel", fieldClassName, "surface-overlay-panel"],
-      attrs,
-      hidden: true,
-      children: child,
     });
   }
 

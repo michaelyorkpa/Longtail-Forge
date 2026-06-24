@@ -11,7 +11,7 @@ const uiLayoutGuide = readText("docs/ui-layout-guide.md");
 const tasksDocs = readText("docs/tasks-module.md");
 const tasksHelp = readText("help/framework/tasks-basics.md");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = "0.33.5.18.10.7";
+const currentTasksVersion = "0.33.5.18.10.8.5";
 
 assert.match(tasksModule, new RegExp(`version: "${escapeRegExp(currentTasksVersion)}"`), "Tasks module metadata should report the current Tasks version");
 
@@ -30,7 +30,7 @@ assert.match(architecture, /As of version 0\.33\.5\.15\.6/, "Architecture should
 assert.match(architecture, /framework-owned UI surface contract/, "Architecture should include the surface contract in current state");
 
 assert.match(tasksDocs, new RegExp(escapeRegExp(currentTasksVersion)), "Tasks developer docs should report the current Tasks version");
-assert.match(tasksDocs, /Tags and Files register with the shared framework overlay host/, "Tasks docs should describe shipped overlay behavior");
+assert.match(tasksDocs, /Task Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should describe shipped child-dialog behavior");
 assert.doesNotMatch(tasksDocs, /until the shared framework overlay standardization pass replaces that temporary placement/, "Tasks docs should not describe completed overlay work as future");
 assert.match(tasksHelp, /Footer icons open task tags and files inside the task workflow/, "Help should describe current task Tags and Files behavior");
 assert.doesNotMatch(tasksHelp, /overlay host|surface-modal|surface-main-panel|framework-owned UI surface/, "Product Help should not expose developer-only surface internals");

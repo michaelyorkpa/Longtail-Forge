@@ -414,6 +414,7 @@ function validateNotificationEvents(notificationEvents, moduleId, errors) {
     }
     optionalString(item, "recipientResolver", errors, { prefix: `notificationEvents[${index}]` });
     optionalString(item, "recipientMode", errors, { prefix: `notificationEvents[${index}]` });
+    optionalBoolean(item, "suppressActorSubscriptions", errors, { prefix: `notificationEvents[${index}]` });
     if (!item.recipientResolver && !item.recipientMode) {
       errors.push(`notificationEvents[${index}] must include recipientResolver or recipientMode.`);
     }

@@ -277,6 +277,10 @@ async function readTargetMetadata(notification, session) {
     return readTaskTargetMetadata(notification, session, metadata);
   }
 
+  if (recordType === "note") {
+    return readNoteTargetMetadata(notification, session, metadata);
+  }
+
   return {
     ...metadata,
     canOpen: Boolean(notification.url),
@@ -325,6 +329,10 @@ async function createFromEvent(event, declaration = null) {
     return { notifications: [] };
   }
 
+  if (isNotificationSuppressed(event)) {
+    return { notifications: [] };
+  }
+
   const summary = summarizeNotificationEvent(event);
   const template = modulesService.listNotificationTemplates().find((candidate) => candidate.event === event.name);
   const workspaceDefault = await readWorkspaceDefault(workspaceId, notificationDeclaration.id);
@@ -333,7 +341,10 @@ async function createFromEvent(event, declaration = null) {
   }
   const recipients = await resolveRecipients(event, notificationDeclaration);
   const enabledRecipients = await filterEnabledRecipients(workspaceId, recipients, notificationDeclaration.id);
-  const subscribedRecipients = await readSubscribedRecipientIds(event, notificationDeclaration);
+  const rawSubscribedRecipients = await readSubscribedRecipientIds(event, notificationDeclaration);
+  const subscribedRecipients = notificationDeclaration.suppressActorSubscriptions === true
+    ? suppressActorRecipients(rawSubscribedRecipients, event)
+    : rawSubscribedRecipients;
   const metadata = buildNotificationEventMetadata(event, notificationDeclaration);
   const defaultRecipients = shouldPreserveActorRecipient(event, notificationDeclaration)
     ? enabledRecipients
@@ -450,6 +461,13 @@ function suppressActorRecipients(recipientIds, event) {
   }
 
   return recipientIds.filter((userId) => String(userId || "").trim() !== actorUserId);
+}
+
+function isNotificationSuppressed(event) {
+  const metadata = normalizeMetadata(event?.metadata);
+  return metadata.suppress_notifications === true ||
+    metadata.suppressNotifications === true ||
+    Boolean(String(metadata.notification_suppression_reason || "").trim());
 }
 
 function shouldPreserveActorRecipient(event, declaration) {
@@ -570,6 +588,28 @@ async function readTaskTargetMetadata(notification, session, baseMetadata) {
         projectName: task.project_name || "",
       },
       label: task.title || "",
+      targetExists: true,
+      url: notification.url || "",
+    };
+  } catch {
+    return baseMetadata;
+  }
+}
+
+async function readNoteTargetMetadata(notification, session, baseMetadata) {
+  const { notesService } = await import("../modules/notes/notes.service.js");
+
+  try {
+    const result = await notesService.read(notification.record_id, session);
+    const note = result.note || {};
+    return {
+      ...baseMetadata,
+      canOpen: Boolean(notification.url),
+      context: {
+        clientName: note.linked_context?.client?.label || "",
+        projectName: note.linked_context?.project?.label || "",
+      },
+      label: note.title || "",
       targetExists: true,
       url: notification.url || "",
     };

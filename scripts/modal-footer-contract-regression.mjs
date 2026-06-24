@@ -48,17 +48,17 @@ assert.match(
 );
 
 for (const expectedCall of [
-  /icons\.decorateButton\(fields\.tagToggle, \{ icon: "tag", label: "Task tags", text: "", title: "Task tags", iconOnly: true \}\)/,
-  /icons\.decorateButton\(fields\.fileToggle, \{ icon: "file", label: "Task files", text: "", title: "Task files", iconOnly: true \}\)/,
-  /icons\.decorateButton\(fields\.copyLink, \{ icon: "copy", label: "Copy task link", text: "", title: "Copy task link", iconOnly: true \}\)/,
+  /icons\.decorateButton\(fields\.tagToggle, \{ icon: "tag", label: "Task tags", text: "Tags", title: "Task tags", iconOnly: false \}\)/,
+  /icons\.decorateButton\(fields\.fileToggle, \{ icon: "file", label: "Task files", text: "Files", title: "Task files", iconOnly: false \}\)/,
+  /icons\.decorateButton\(fields\.copyLink, \{ icon: "copy", label: "Copy task link", text: "Copy Link", title: "Copy task link", iconOnly: false \}\)/,
   /icons\.decorateButton\(fields\.cancel, \{ icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true \}\)/,
   /icons\.decorateButton\(fields\.save, \{ icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true \}\)/,
 ]) {
-  assert.match(taskDialogScript, expectedCall, "dense task footer icon-only controls should keep labels and titles");
+  assert.match(taskDialogScript, expectedCall, "task footer controls should keep visible utility labels and compact commit labels");
 }
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=68/, "Tasks view must load the footer-contract stylesheet cache key");
-assert.match(tasksView, /js\/task-dialog\.js\?v=18/, "Tasks view must load the footer-contract task-dialog cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=69/, "Tasks view must load the footer-contract stylesheet cache key");
+assert.match(tasksView, /js\/task-dialog\.js\?v=21/, "Tasks view must load the footer-contract task-dialog cache key");
 
 console.log("Modal footer contract regression passed.");
 

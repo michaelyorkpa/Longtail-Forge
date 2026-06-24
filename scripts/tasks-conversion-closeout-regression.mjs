@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.10.7";
+const appVersion = "0.33.5.18.10.8.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -20,13 +20,14 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Tasks conversion closeout version");
 assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the Tasks conversion closeout version");
 
-assert.match(roadmap, /0\.33\.5\.18\.10\.7 is the most recently completed Tasks docs, changelog, and closeout slice/, "Roadmap should report the completed Tasks closeout slice");
-assert.match(roadmap, /The next live work starts with 0\.33\.5\.18\.10\.8\.1 before Files begins/, "Roadmap should point to modal action standardization before Files");
+assert.match(roadmap, /0\.33\.5\.18\.10\.8\.5 is the most recently completed modal standardization closeout slice/, "Roadmap should report the completed modal standardization closeout slice");
+assert.match(roadmap, /The next live work starts with 0\.33\.5\.18\.11/, "Roadmap should point to Files work after modal standardization");
 assert.match(roadmap, /### Version 0\.33\.5\.18\.10\.8 - Cross-Module Modal Action Standardization/, "Roadmap should include the inserted modal action standardization branch");
+assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.7 - Tasks docs, changelog, and closeout/, "Live roadmap should archive the previous completed Tasks closeout slice");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.6 - Tasks strict declarative guardrail enforcement/, "Live roadmap should archive the previous completed Tasks slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the Tasks conversion closeout version");
 
-assert.match(tasksDocs, /current Tasks module behavior as of 0\.33\.5\.18\.10\.7/, "Tasks docs should report the current Tasks closeout version");
+assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current Tasks closeout version");
 assert.match(tasksDocs, /## Canonical Task Editor Entry Point/, "Tasks docs should document the canonical editor entry point");
 assert.match(tasksDocs, /The Tasks page calls `LongtailForge\.tasksDialog\.openTaskEditor\(\)`/, "Tasks docs should document the Tasks page opener path");
 assert.match(tasksDocs, /Workbench calls the same opener through the registered module action path/, "Tasks docs should document the Workbench opener path");
@@ -36,7 +37,7 @@ assert.match(tasksDocs, /new surfaces should call `openTaskEditor\(\)` or the re
 assert.match(tasksDocs, /The protected Tasks page is `tasks\.html` under the Projects menu/, "Tasks docs should preserve the shipped Tasks page location");
 assert.match(tasksDocs, /The main panel remains the task list surface/, "Tasks docs should preserve task-list-first behavior");
 
-assert.match(viewContract, /Updated through 0\.33\.5\.18\.10\.7, it also records the current helper and descriptor implementation/, "View-building contract should report the Tasks closeout version");
+assert.match(viewContract, new RegExp(`Updated through ${escapeRegExp(appVersion)}, it also records the current helper and descriptor implementation`), "View-building contract should report the Tasks closeout version");
 assert.match(viewContract, /## Implementation Notes For 0\.33\.5\.18\.10\.7/, "View-building contract should include Tasks closeout notes");
 assert.match(viewContract, /Tasks is now a completed `slide-out-sidebar` adopter and a template for future list-first workflow conversions/, "View-building contract should document Tasks as a slide-out-sidebar adopter");
 assert.match(viewContract, /Unlike Notes, Tasks keeps the task list as the primary main-panel surface/, "View-building contract should preserve the task-list-first direction");

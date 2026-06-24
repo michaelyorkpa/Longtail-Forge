@@ -1,6 +1,6 @@
 # View-Building Contract
 
-As of 0.33.5.15.6, this document defines the first framework-owned view-building boundary, records the inventory that the 0.33.5.15 helper work should address, documents the initial helper implementation, records the first Lists protected-workspace pilot plus Client/Project modal adoption, documents the static guardrails for those converted surfaces, and closes the helper line with current-state module adoption guidance. Updated through 0.33.5.18.10.7, it also records the current helper and descriptor implementation, the converted Lists, Notes, and Tasks protected-workspace surfaces, the strict guardrails for those converted surfaces, and the completed Tasks conversion guidance. The helper does not change module APIs, database schema, permissions, or business workflows.
+As of 0.33.5.15.6, this document defines the first framework-owned view-building boundary, records the inventory that the 0.33.5.15 helper work should address, documents the initial helper implementation, records the first Lists protected-workspace pilot plus Client/Project modal adoption, documents the static guardrails for those converted surfaces, and closes the helper line with current-state module adoption guidance. Updated through 0.33.5.18.10.8.5, it also records the current helper and descriptor implementation, the converted Lists, Notes, and Tasks protected-workspace surfaces, the strict guardrails for those converted surfaces, the completed Tasks conversion guidance, the finalized cross-module converted modal action ownership standard, Task/Notes stacked child-dialog parity, Notes/Tasks footer visual parity, and the Notes notification follow-bell pass. The helper does not change module APIs, database schema, permissions, or business workflows.
 
 The earlier surface contract in `docs/ui-surface-contract.md` defines shared tokens, CSS classes, modal/footer/overlay shells, drawer/slideout shells, dense actions, chips, and focus behavior. This document defines the next layer above that: the common DOM structures the framework should help modules build.
 
@@ -48,7 +48,7 @@ Converted surfaces should keep legacy classes as compatibility aliases during th
 
 ## Converted Modal Action Standard
 
-Converted add/edit modals should treat the modal shell, title/heading row, heading action slot, footer
+As of 0.33.5.18.10.8.1, converted add/edit modals should treat the modal shell, title/heading row, heading action slot, footer
 shell, footer utility group, footer commit group, sticky footer behavior, action button primitive
 styling, focus return, and modal stack behavior as framework-owned anatomy. The owning module decides
 which actions appear, which labels/icons are correct for the record, when actions are enabled, and what
@@ -73,8 +73,32 @@ The shared footer standard is:
 
 Notification follow buttons stay split by ownership: the framework owns subscription helpers and common
 bell display, while the owning module must produce meaningful record notifications before the bell is
-shown as an active workflow. Notes must not add a cosmetic follow bell until Notes emits note
-notifications through the framework notification service.
+shown as an active workflow. As of 0.33.5.18.10.8.4, Notes emits meaningful non-secure note
+notifications and uses a heading Follow Notifications bell for saved non-secure notes. The framework
+still owns the subscription API, target access recheck, delivery, preferences, and target decoration;
+Notes owns event declarations, event emission, secure-note suppression, and the bell's saved/secure
+availability rules.
+
+As of 0.33.5.18.10.8.2, Tasks follows the same stacked child-dialog pattern that Notes already uses
+for substantial modal footer utilities. The Task footer Tags and Files buttons open child dialogs
+through `LongtailForge.view.showModal()` with the parent Task editor and triggering footer button, while
+the Tags picker and Files attachment helper remain mounted by their owning helpers. The parent editor no
+longer grows inline Tags or Files panels inside its body.
+
+As of 0.33.5.18.10.8.3, Notes and Tasks use the same footer visual treatment for converted add/edit
+modals: Tags, Files, and Copy Link are icon-plus-text utility actions in the left footer group, while
+Cancel and Save remain compact icon commit controls in the right footer group. Copy-link URL
+construction, clipboard fallback, picker staging, file attachment availability, save payloads, and
+validation stay module-owned.
+
+As of 0.33.5.18.10.8.5, the converted modal action standard is closed for Tasks and Notes and becomes
+the starting guardrail for Files and later module conversions. Converted modules should pass utility
+and commit actions through `renderDescriptorModalForm()` / shared modal helpers, keep one contextual
+heading action when appropriate, and use stacked child dialogs for substantial footer utilities. Strict
+guardrails should reject module-specific modal footer/heading anatomy where the shared helper can
+express the pattern, duplicate top Close buttons on add/edit modals that already have footer dismissal,
+inline parent-body Tags/Files picker panels, and active follow bells without module-produced
+notifications.
 
 ## Inventory Snapshot
 
@@ -99,6 +123,8 @@ The current protected UI still mixes static HTML shells with browser-script DOM 
 - Converted surfaces should keep business logic in module files and shared layout logic in framework helpers.
 - Converted surfaces should not call `document.createElement("dialog")` directly when the shared modal helper fits the use case.
 - Converted surfaces should not create new one-off modal footer/action classes when a framework helper exists.
+- Converted modal surfaces should not bypass the shared heading action slot, utility footer group,
+  commit footer group, or stacked child-dialog pattern for standardized add/edit modal actions.
 - Converted surfaces should not introduce hard-coded light backgrounds outside theme tokens.
 - Converted surfaces should not create non-wrapping action rows for dense/detail surfaces.
 - Non-converted surfaces may continue existing markup during the pilot, but inventory and guardrail scripts should report what remains so conversion is deliberate.

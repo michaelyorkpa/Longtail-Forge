@@ -34,7 +34,7 @@ async function assertNotesModuleManifest() {
   const notesModule = modulesService.getModule("notes");
 
   assert.equal(notesModule.id, "notes");
-  assert.equal(notesModule.version, "0.33.5.14.4");
+  assert.equal(notesModule.version, "0.33.5.18.10.8.5");
   assert.equal(notesModule.enabledByDefault, true);
   assert.equal(notesModule.canDisable, true);
   assert.equal(notesModule.historicalReadAccess, true);
@@ -45,10 +45,14 @@ async function assertNotesModuleManifest() {
     type.indexer === "notes.records" &&
     type.sourceLabel === "Notes"
   )), "Notes should register searchable note records");
-  assert.ok(notesModule.notificationEvents.some((event) => (
-    event.id === "note.updated" &&
-    event.recipientMode === "explicit_users"
-  )), "Notes should declare conservative owner update notifications");
+  assert.ok(["note.updated", "note.archived", "note.restored", "note.linked", "note.unlinked"].every((eventId) => (
+    notesModule.notificationEvents.some((event) => event.id === eventId && event.recipientMode === "explicit_users")
+  )), "Notes should declare followable non-secure note notifications");
+  assert.ok(notesModule.notificationFollowTargets.some((target) => (
+    target.targetType === "note" &&
+    target.eventTypes.includes("note.updated") &&
+    target.eventTypes.includes("note.unlinked")
+  )), "Notes should declare note notification follow targets");
   assert.ok(notesModule.help.articles.some((article) => article.id === "notes.attachments-search"));
   assert.ok(notesModule.taggableTypes.some((type) => type.targetType === "note"), "Notes should register note tag targets");
   assert.ok(notesModule.attachableTypes.some((type) => type.targetType === "note"), "Notes should register note attachment targets");
