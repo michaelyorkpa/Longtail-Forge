@@ -8,7 +8,7 @@ Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and im
 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
 The active roadmap continues with Files and Clients/Projects view conversion work.
-0.33.5.18.10.8.5 is the most recently completed modal standardization closeout slice. The next live work starts with 0.33.5.18.11.
+0.33.5.18.10.8.5 is the most recently completed modal standardization closeout slice. The next live work starts with 0.33.5.18.11.1.
 
 ## Tasks (0.33.5.18.7 - 0.33.5.18.10)
 
@@ -136,38 +136,226 @@ The framework already owns the file service (storage, scanning, lifecycle, downl
 is strictly the browse/attachment UI and must never bypass file permission, scan, storage, or download
 routes.
 
-Framework owns: page shell, filters, file table/cards, detail/preview shell, attachment panel shells,
-upload control shell, row action placement, empty/loading/error states. Files owns: file metadata,
-placement meaning, permission checks, scan/storage/download routes, and attachment business rules.
+Decision:
 
-### Version 0.33.5.18.11 - Files Declarative Browse Surface Proof
+Files should adopt the same standardized framework/module UI boundary established by Notes and Tasks,
+but Files should not become a generic document manager or cross-module record browser. The Files page is
+the workspace file recovery and audit surface. Attachment management remains closest to the record that
+owns the work context, with the shared Files attachment helper providing consistent upload/list/action
+anatomy.
+
+Framework owns:
+
+- Files page shell.
+- Slide-out filter/sidebar shell when the browse surface needs many filters.
+- Filter control placement, status/empty/loading/error states, table/list/card wrappers, detail/preview
+  shell, metadata badge rows, dense row/action placement, attachment panel shell, upload control shell,
+  progress/result placement, modal/child-dialog shell, focus return, and accessible control anatomy.
+
+Files owns:
+
+- File and attachment metadata.
+- Storage keys, scan/quarantine state, retention/delete/restore meaning, download availability, upload
+  acceptance, attachment target validation, allowed file categories, visibility values, per-record
+  placement meaning, permission checks, file lifecycle/audit events, and all file/attachment routes.
+- Human-readable labels for files, attachment targets, clients, projects, scan/status values, and safe
+  unavailable/deleted/quarantined fallbacks.
+- Which actions are visible, route calls, confirmations, save-first states, upload payloads, refresh
+  behavior, and the shared attachment helper body.
+
+Guardrails:
+
+- Do not expose protected storage paths, direct filesystem URLs, scanner internals, signed URLs, or raw
+  storage keys in browser UI, descriptors, events, audit summaries, or regressions.
+- Do not bypass `/api/files`, `/api/files/attachments`, download, delete, restore, report, quarantine,
+  or attachment routes from the converted UI.
+- Do not add rename, move, hard purge, permanent delete, or direct metadata-edit controls unless the
+  Files service first ships explicit routes, permissions, audit behavior, and regressions for them.
+- Do not show Client filters or Client metadata controls outside Business workspaces.
+- Normal Files UI should prefer readable module, target, client, and project labels. Raw IDs may remain
+  internal payload values or advanced troubleshooting filters only when there is no safe readable label.
+- Do not make secure-note files available while secure attachments remain out of scope.
+- Do not let attachment panels render substantial upload/list bodies inline in converted add/edit modal
+  bodies. Notes and Tasks open Files from footer utility actions as stacked child dialogs, and Files
+  should preserve that model for future attachable modules.
+
+Sizing note:
+
+The original generated Files work grouped the browse page, filters, attachment helper, upload/dropzone,
+row actions, route safety, cleanup, and strict guardrails into two broad slices. This split keeps the
+read-only descriptor proof, filter/readable-label cleanup, upload behavior, attachment panels, actions,
+and strict guardrails separately reviewable like the Notes and Tasks conversions.
+
+### Version 0.33.5.18.11 - Files Browse Surface and Read Controls
+
+#### Version 0.33.5.18.11.1 - Files descriptor and minimal protected host
 
 - [ ] Add a `viewSurfaces` descriptor for the Files browse read path.
-- [ ] Reduce `views/protected/files.html` to a minimal framework host element.
-- [ ] Move file filters, the browse table/cards, file detail/preview read anatomy, and summary/status
-      panels into the descriptor.
-- [ ] Define the normalized Files read endpoint and `fieldBindings`, reusing existing file list routes.
-- [ ] Preserve framework file service ownership: read paths must continue to flow through existing
-      permission-checked file routes.
-- [ ] Keep upload, attachment management, and row mutations on the existing imperative path until the
-      next slice.
-- [ ] Add regressions proving the read-only Files browse surface renders from the descriptor without
-      bypassing file routes.
+- [ ] Reduce `views/protected/files.html` to a minimal framework host element that loads the shared
+      view builder/renderer plus the Files adapter.
+- [ ] Keep the existing navigation, app-shell, module availability, and `files.view` permission gates.
+- [ ] Keep upload, attachment management, and row mutations on the existing imperative path until their
+      dedicated slices.
+- [ ] Add regressions proving the Files protected host is minimal and the descriptor is delivered only
+      when the Files surface is available to the current workspace/user.
 
-### Version 0.33.5.18.12 - File Upload, Attachment Panels, Row Actions, and Cleanup
+#### Version 0.33.5.18.11.2 - Files filter sidebar and readable scope controls
 
-- [ ] Render the upload control with progress through the 0.33.5.18.1 capability, wired to the existing
-      upload route via a registered behavior.
+- [ ] Move Files browse filters into the descriptor using the slide-out sidebar pattern when the full
+      filter set is visible.
+- [ ] Preserve the current filter meanings for module, target type, target ID, client, project,
+      filename, and status while moving framework-owned label/control placement out of static HTML.
+- [ ] Replace normal Client/Project/target filter display with readable labels or safe picker/select
+      controls where a provider exists; keep raw IDs out of normal browse UI except explicit advanced
+      troubleshooting inputs.
+- [ ] Keep Client filters Business-workspace-only and ensure Personal/Family workspaces cannot see or
+      submit Client filter controls from the converted UI.
+- [ ] Add regressions proving filter changes refetch through the Files route, sidebar open/close follows
+      the Notes/Tasks slide-out contract, and non-Business workspaces hide Client controls.
+
+#### Version 0.33.5.18.11.3 - Files read endpoint, field bindings, and list shell
+
+- [ ] Define the normalized Files browse read endpoint and descriptor `fieldBindings`, reusing the
+      existing permission-checked attachment list route or a thin normalized wrapper over it.
+- [ ] Move the browse table/list/card shell, status mount, empty state, loading state, and error state
+      into descriptor-rendered or shared-helper anatomy.
+- [ ] Keep Files responsible for attachment row shaping, readable filename/display name, module label,
+      target label, client/project labels, attachment timestamp, file size, status, scan status, and
+      deleted/quarantined/pending fallbacks.
+- [ ] Ensure normal browse rows never fall back to raw UUIDs when a safe readable label is available.
+- [ ] Add regressions proving the browse list renders from descriptor data without querying storage,
+      search, tags, or attachment tables directly in browser code.
+
+#### Version 0.33.5.18.11.4 - Files detail, preview, and summary read anatomy
+
+- [ ] Add a framework-owned detail/preview shell for the selected file or selected attachment row.
+- [ ] Render metadata through shared badge/detail rows: status, scan status, module/target, client,
+      project, size, uploaded/attached timestamps, uploader when available, and safe delete/quarantine
+      hints.
+- [ ] Keep actual preview/download availability Files-owned and route-backed; the descriptor must not
+      infer downloadability from browser-only status checks.
+- [ ] Add summary/status panels for current filters, result count, unavailable/deleted states, and
+      permission-safe scan/quarantine messaging.
+- [ ] Add regressions proving detail metadata is readable, permission-safe, and does not expose storage
+      paths, scanner internals, or raw protected IDs in normal UI.
+
+#### Version 0.33.5.18.11.5 - Files read-only browse proof closeout
+
+- [ ] Add or update Files browse developer docs if the implementation changes the Files UI boundary.
+- [ ] Confirm no upload, delete, restore, report, quarantine, attachment removal, schema, permission,
+      or storage behavior changed in the read-only browse slices.
+- [ ] Run `npm run check` with a full timeout.
+- [ ] Verify `/api/app-info` still reports the expected current version unless this slice deliberately
+      completes with a version bump.
+
+Acceptance criteria:
+
+- Files has a descriptor-backed, permission-safe browse shell.
+- Filters and readable context labels match the Notes/Tasks control standard without changing file
+  service behavior.
+- Upload and mutation actions remain untouched until 0.33.5.18.12.
+
+### Version 0.33.5.18.12 - File Upload, Attachment Panels, Actions, and Strict Guardrails
+
+#### Version 0.33.5.18.12.1 - Upload control shell and progress/result behavior
+
+- [ ] Render the Files upload/dropzone shell, accepted-file hint, upload button, progress/status, and
+      per-file result list through shared framework anatomy or descriptor mount regions.
+- [ ] Keep file reading, base64 payload construction, batch upload payloads, accepted categories,
+      size/type checks, target IDs, visibility, and upload route calls in Files-owned browser/service
+      paths.
+- [ ] Preserve multi-file upload and drag/drop behavior in both the Files page and reusable attachment
+      surfaces where currently supported.
+- [ ] Add regressions proving successful, partial-failure, and rejected upload states remain visible
+      without moving scanner/storage rules into framework UI code.
+
+#### Version 0.33.5.18.12.2 - Shared attachment panel shell standardization
+
 - [ ] Convert the shared attachment panel (`public/js/shared/file-attachments.js`) view anatomy to
-      descriptor/renderer-supported panels and overlay host usage, keeping upload/scan/download logic
-      in Files files.
-- [ ] Express row actions (download, rename, move, delete, restore) as declarative route actions or
-      registered behaviors honoring the existing file routes and permissions.
-- [ ] Reduce `public/js/files.js` and the view portions of `public/js/shared/file-attachments.js` to
-      data bindings and behavior handlers with no hand-built framework-owned anatomy.
+      framework-owned panel, list, empty, status, upload-result, and dense-action shells while keeping
+      the helper's upload/list/download/remove/delete/restore logic Files-owned.
+- [ ] Preserve saved-record attachment behavior and unsaved-record save-first messaging for Notes,
+      Tasks, and future attachable modules.
+- [ ] Keep the attachment helper body compatible with stacked child dialogs opened from converted modal
+      footer utility buttons.
+- [ ] Ensure deleted/unavailable/quarantined attachments show gentle recovery-safe states instead of
+      breaking the host modal or hiding history.
+- [ ] Add regressions proving Notes and Tasks Files utilities still open stacked child dialogs and that
+      attachment helper focus/status behavior is preserved.
+
+#### Version 0.33.5.18.12.3 - Files row and attachment action wiring
+
+- [ ] Express existing shipped actions through declarative route actions or registered Files behaviors:
+      download, report, quarantine where permitted, remove attachment, delete file, and restore file.
+- [ ] Preserve existing confirmations, danger styling, permission-shaped visibility, scan/download
+      availability, retention semantics, and post-action refresh behavior.
+- [ ] Keep route calls on the existing Files routes and keep API/service permission checks authoritative.
+- [ ] Do not add rename, move, hard purge, permanent delete, or direct metadata edit controls in this
+      slice.
+- [ ] Add regressions proving action buttons use shared dense/action placement, remain accessible, and
+      never bypass the Files routes.
+
+#### Version 0.33.5.18.12.4 - Files visual states and control parity
+
+- [ ] Align Files page and attachment-panel controls with the Notes/Tasks converted control standard:
+      icon buttons for dense row actions where appropriate, visible text for ambiguous upload/report
+      actions, accessible labels/titles, wrapping action rows, and theme-token surfaces.
+- [ ] Standardize file status chips, scan-status chips, deleted/restored/quarantined messaging,
+      attachment counts, and empty states across Files page and reusable attachment panels.
+- [ ] Ensure normal Files UI uses broad product language such as recovery, available, unavailable,
+      attachment, upload, download, restore, and review rather than punitive or diagnostic copy.
+- [ ] Add responsive regressions or static guardrails proving action controls do not overlap file names,
+      metadata, or attachment panel content on narrow widths.
+
+#### Version 0.33.5.18.12.5 - Files strict guardrail inventory and escape-hatch map
+
+- [ ] Add `docs/files-strict-guardrail-inventory.md` or an equivalent section in the view-building docs
+      before strict enforcement.
+- [ ] Inventory remaining framework-owned candidates in `public/js/files.js` and
+      `public/js/shared/file-attachments.js`: page header, filters, table/list shell, attachment panel
+      shell, upload/dropzone shell, empty/status states, dense actions, and modal/overlay placement.
+- [ ] Document intentional Files-owned escape hatches: file reading, upload payloads, accepted
+      categories, scan/download availability, route calls, confirmations, permission-aware visibility,
+      target metadata, deleted/quarantined recovery states, and host refresh callbacks.
+- [ ] Add non-failing guardrail inventory coverage, but do not fail strict Files guardrails until the
+      enforcement slice.
+
+#### Version 0.33.5.18.12.6 - Files strict declarative guardrail enforcement
+
+- [ ] Reduce `public/js/files.js` and framework-owned view portions of
+      `public/js/shared/file-attachments.js` to data bindings, helper mounts, and Files-owned behavior
+      handlers.
 - [ ] Expand fail-on-violation declarative guardrails to the Files surface.
-- [ ] Add regressions proving Files no longer creates framework-owned anatomy by hand and never
-      bypasses file routes.
+- [ ] Guard against hand-built framework-owned page/filter/table/panel/upload/action anatomy once a
+      descriptor field or shared helper owns it.
+- [ ] Keep documented Files-owned escape hatches allowed so the guardrail does not outlaw file route,
+      upload, scan, permission, and attachment behavior.
+- [ ] Add regressions proving Files no longer creates framework-owned anatomy by hand and never bypasses
+      file routes.
+
+#### Version 0.33.5.18.12.7 - Files docs, changelog, and closeout
+
+- [ ] Update `docs/view-building-contract.md`, `docs/declarative-view-surfaces.md`,
+      `docs/module-contract.md`, and Files-specific developer docs with the completed Files conversion
+      boundary.
+- [ ] Update `DECISIONS.md` with the Files UI standardization and strict-surface decision.
+- [ ] Update `CHANGELOG.md` and package metadata to the implemented version.
+- [ ] Archive completed Files roadmap sections according to the roadmap bookkeeping rule.
+- [ ] Run:
+  - [ ] `npm run check`
+  - [ ] Files browse regressions.
+  - [ ] Files attachment/upload regressions.
+  - [ ] Notes and Tasks Files utility regressions.
+  - [ ] `npm run test:permissions` if file permission, attachment target, workspace gating, or route
+        guard behavior changed.
+- [ ] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Files page and reusable attachment panels share the standardized converted control system.
+- File service behavior remains authoritative for storage, scanning, permissions, lifecycle, downloads,
+  uploads, delete/restore, reporting, quarantine, and attachment target validation.
+- Strict guardrails protect Files like Notes and Tasks without outlawing required Files-owned behavior.
 
 ---
 

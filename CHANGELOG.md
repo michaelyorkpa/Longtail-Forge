@@ -5,6 +5,7 @@
 - Strengthened modal/static regressions so the strict converted-surface guardrails protect the standardized footer/heading pattern, reject one-off converted modal anatomy, and keep follow bells tied to meaningful module-produced notifications.
 - Marked 0.33.5.18.10.8.5 as the modal standardization closeout, archived 0.33.5.18.10.8.4, and bumped package/app plus Notes/Tasks module metadata to `0.33.5.18.10.8.5`.
 - Verification 2026-06-24 16:14 -04:00: `npm run check` passed 175/175 regression scripts plus ESLint, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.10.8.5 after restarting the local 8001 server.
+- Planning follow-up 2026-06-24 16:27 -04:00: split the Files `0.33.5.18.11` and `0.33.5.18.12` roadmap work into smaller browse, filter/readable-label, detail/summary, upload, attachment-panel, action, guardrail, and closeout slices so the Files conversion follows the Notes/Tasks standardization pattern without changing runtime behavior.
 
 ## Version 0.33.5.18.10.8.4 - 2026-06-24 14:55 -04:00
 
