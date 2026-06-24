@@ -6,20 +6,20 @@ const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const iconsScript = readText("public/js/shared/icons.js");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = "0.33.5.18.9.6";
+const currentTasksVersion = "0.33.5.18.10.7";
 
-assert.match(taskDialogScript, /<details class="task-details-field surface-modal-group" data-task-details-panel open>/, "Task Details should be the single collapsible field panel in the page dialog");
+assert.match(taskDialogScript, /function taskEditorDetailsSection[\s\S]*className: \["task-details-field", "surface-modal-group"\][\s\S]*"data-task-details-panel": ""[\s\S]*open: true/, "Task Details should be the single collapsible field panel in the page dialog");
 assert.match(taskDialogScript, /Task Details[\s\S]*data-task-form-status[\s\S]*data-task-priority[\s\S]*data-task-parent-task[\s\S]*data-task-due-date[\s\S]*data-task-due-time[\s\S]*data-task-resume-note[\s\S]*data-task-next-action[\s\S]*data-task-client[\s\S]*data-task-project[\s\S]*data-task-description[\s\S]*data-task-assignees[\s\S]*data-task-blocked-reason/, "Task Details should contain status, priority, parent, scheduling, resume/next action, context, description, assignment, and blocked reason");
 assert.doesNotMatch(taskDialogScript, /Core Task Details|Assignment and Scheduling|<summary class="surface-modal-section-heading">Primary Context<\/summary>|Advanced Details/, "Task Details should not be split into extra modal boxes");
-assert.match(taskDialogScript, /<details class="task-checklist-field[^"]*" data-task-checklist-field>/, "Checklist should be collapsible");
-assert.match(taskDialogScript, /<details class="task-recurrence-field[^"]*" data-task-recurrence-panel>/, "Recurrence should remain collapsed by default");
-assert.match(taskDialogScript, /<details class="task-reminder-field[^"]*" data-task-reminder-details>/, "Reminders should remain collapsed by default");
+assert.match(taskDialogScript, /function taskEditorChecklistSection[\s\S]*className: \["task-checklist-field", "surface-modal-group"\][\s\S]*"data-task-checklist-field": ""/, "Checklist should be collapsible");
+assert.match(taskDialogScript, /function taskEditorRecurrenceSection[\s\S]*className: \["task-recurrence-field", "surface-modal-group", "surface-divider-top"\][\s\S]*"data-task-recurrence-panel": ""/, "Recurrence should remain collapsed by default");
+assert.match(taskDialogScript, /function taskEditorReminderSection[\s\S]*className: \["task-reminder-field", "surface-modal-group", "surface-divider-top"\][\s\S]*"data-task-reminder-details": ""/, "Reminders should remain collapsed by default");
 assert.match(taskDialogScript, /utilityActions: \[[\s\S]*id: "tags"[\s\S]*id: "files"[\s\S]*id: "copy-link"/, "Tags and Files should move to footer utility actions before commit controls");
 assert.match(taskDialogScript, /button\.dataset\.taskTagsToggle[\s\S]*button\.dataset\.taskFilesToggle[\s\S]*button\.dataset\.copyTaskLink/, "Footer utility actions should keep task-owned hooks");
-assert.match(taskDialogScript, /data-task-tags-panel hidden[\s\S]*data-task-files-panel hidden/, "Tags and Files pickers should mount in hidden footer panels");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=66/, "Task reflow should cache-bust shared CSS");
+assert.match(taskDialogScript, /taskEditorFooterPanel\(view, "task-tags-field", \{ "data-task-tags-panel": "" \}[\s\S]*taskEditorFooterPanel\(view, "task-files-field", \{ "data-task-files-panel": "" \}/, "Tags and Files pickers should mount in hidden footer panels");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=68/, "Task reflow should cache-bust shared CSS");
 assert.match(tasksView, /js\/shared\/icons\.js\?v=4/, "Task reflow should cache-bust shared icons");
-assert.match(tasksView, /js\/task-dialog\.js\?v=16/, "Task reflow should cache-bust Task dialog JS");
+assert.match(tasksView, /js\/task-dialog\.js\?v=18/, "Task reflow should cache-bust Task dialog JS");
 
 assert.match(taskDialogScript, /fields\.taskDetailsPanel\.open = !task \|\| isDuplicate/, "Task Details should open for Add/Duplicate and collapse for Edit");
 assert.match(taskDialogScript, /writeParentTaskFields/, "Task dialog should populate Parent Task options");
@@ -29,7 +29,8 @@ assert.match(taskDialogScript, /\/api\/tasks\/\$\{encodeURIComponent\(nextParent
 assert.match(taskDialogScript, /toggleTaskFooterPanel/, "Task dialog should toggle Tags and Files footer panels");
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.tagToggle, \{ icon: "tag"/, "Tags footer action should use a recognizable tag icon");
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.fileToggle, \{ icon: "file"/, "Files footer action should use a recognizable file icon");
-assert.match(taskDialogScript, /function taskEditorFieldMarkup\(\)/, "Task-owned editor field markup should remain present");
+assert.match(taskDialogScript, /function taskEditorFieldNodes\(\)/, "Task-owned editor field nodes should remain present");
+assert.doesNotMatch(taskDialogScript, /function taskEditorFieldMarkup\(\)|taskTemplateElements|document\.createElement\("template"\)|innerHTML/, "Task-owned editor fields should not use raw markup templates");
 assert.match(taskDialogScript, /data-task-details-panel/, "Task-owned editor fields should include Task Details");
 assert.match(taskDialogScript, /button\.dataset\.taskTagsToggle/, "Framework-built footer action should include the Tags hook");
 
@@ -52,3 +53,4 @@ function readText(path) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+

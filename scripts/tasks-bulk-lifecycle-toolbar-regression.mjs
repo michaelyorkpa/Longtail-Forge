@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.5.18.9.6";
+const appVersion = "0.33.5.18.10.7";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModuleSource = readText("src/modules/tasks/module.js");
@@ -22,7 +22,7 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 assert.match(tasksModuleSource, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the current app version");
 
-const bulkChrome = functionBlock(tasksScript, "createTaskBulkToolbarChrome");
+const bulkControls = functionBlock(tasksScript, "taskBulkToolbarControls");
 const updateBulkControls = functionBlock(tasksScript, "updateBulkControls");
 const selectedBulkActions = functionBlock(tasksScript, "selectedBulkActions");
 const lifecycleTaskIds = functionBlock(tasksScript, "bulkLifecycleTaskIds");
@@ -31,7 +31,7 @@ const archiveConfirmation = functionBlock(tasksScript, "confirmBulkArchive");
 const applyBulkAction = functionBlock(tasksScript, "applyBulkAction");
 const reloadTaskList = functionBlock(tasksScript, "reloadTaskList");
 
-assert.match(bulkChrome, /data-task-bulk-lifecycle-control hidden[\s\S]*data-task-bulk-lifecycle/, "Bulk toolbar should expose a module-owned lifecycle control");
+assert.match(bulkControls, /data-task-bulk-lifecycle[\s\S]*data-task-bulk-lifecycle-control[\s\S]*hidden:\s*true/, "Bulk toolbar should expose a module-owned lifecycle control");
 assert.match(tasksScript, /bulkLifecycleInput\?\.addEventListener\("change", updateBulkControls\)/, "Lifecycle control changes should update bulk action state");
 assert.match(updateBulkControls, /updateBulkLifecycleOptions\(taskIds\)[\s\S]*selectedBulkActions\(taskIds\)/, "Lifecycle options should be refreshed before apply state is calculated");
 assert.match(selectedBulkActions, /lifecycleAction === "restore"[\s\S]*pushLifecycleBulkAction\(actions, lifecycleAction, taskIds\)/, "Restore should dispatch as a Tasks-owned bulk action");
@@ -42,7 +42,7 @@ assert.match(lifecycleOptions, /value: "restore", label: "Restore selected"/, "R
 assert.match(archiveConfirmation, /title:\s*"Archive selected tasks\?"/, "Bulk archive should preserve an explicit archive confirmation prompt");
 assert.match(archiveConfirmation, /danger:\s*true/, "Bulk archive confirmation should remain dangerous");
 assert.doesNotMatch(selectedBulkActions, /action:\s*"(delete|soft_delete|permanent_delete)"/, "Bulk lifecycle wiring should not invent delete payloads");
-assert.doesNotMatch(bulkChrome, /value="(?:delete|soft_delete|permanent_delete)"/, "Bulk toolbar should not expose unsupported delete actions");
+assert.doesNotMatch(bulkControls, /"(?:delete|soft_delete|permanent_delete)"/, "Bulk toolbar should not expose unsupported delete actions");
 assert.doesNotMatch(tasksRoutesSource, /tasksRoutes\.delete\("\/tasks\/:taskId"\s*,/, "Browser API should not expose a task delete route");
 assert.doesNotMatch(tasksPublicRoutesSource, /tasksPublicApiRoutes\.delete|\/api\/v1\/tasks\/:taskId\/delete/, "Public API should not expose a task delete route");
 assert.match(tasksServiceSource, /if \(action === "archive"\) \{[\s\S]*return archive\(taskId, session\);[\s\S]*if \(action === "restore"\) \{[\s\S]*return restore\(taskId, session\);/, "Bulk lifecycle actions should delegate to existing service lifecycle functions");
@@ -50,7 +50,7 @@ assert.match(applyBulkAction, /api\.postJson\("\/api\/tasks\/bulk", payload\)/, 
 assert.match(applyBulkAction, /resetBulkInputs\(\);[\s\S]*await reloadTaskList\(\)/, "Bulk lifecycle actions should reset controls and refresh canonical list data after apply");
 assert.doesNotMatch(applyBulkAction, /buildTasksViewShell|createTaskMainListChrome|renderSurface/, "Bulk lifecycle apply should not rebuild the framework page shell");
 assert.doesNotMatch(reloadTaskList, /buildTasksViewShell|createTaskMainListChrome|renderSurface/, "Bulk lifecycle refresh should reload list data without rebuilding the page shell");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=66[\s\S]*js\/shared\/view-builder\.js\?v=13[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=16/, "Tasks host should load the lifecycle bulk cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=68[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=19/, "Tasks host should load the lifecycle bulk cache keys");
 assert.match(styles, /\.task-bulk-grid \[data-task-bulk-apply\]\s*\{[\s\S]*grid-column:\s*4;[\s\S]*align-self:\s*end;/, "Desktop bulk apply action should remain aligned with the lifecycle column");
 assert.match(styles, /@media[\s\S]*\.task-bulk-grid \[data-task-bulk-apply\]\s*\{[\s\S]*grid-column:\s*auto;/, "Mobile bulk apply action should return to the one-column grid");
 assert.match(regressionSuite, /scripts\/tasks-bulk-lifecycle-toolbar-regression\.mjs/, "Regression suite should include the lifecycle bulk toolbar regression");
@@ -237,3 +237,4 @@ function functionBlock(source, functionName) {
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
+

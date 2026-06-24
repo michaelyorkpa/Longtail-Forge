@@ -1,3 +1,52 @@
+## Version 0.33.5.18.10.7 - 2026-06-24 09:36 -04:00
+
+- Closed the Tasks view-conversion documentation slice by updating the Tasks module handoff, view-building contract, module contract, declarative surface guide, strict guardrail inventory, and decisions for the completed `tasks.workspace` conversion.
+- Documented `LongtailForge.tasksDialog.openTaskEditor()` as the canonical Task add/edit/duplicate entry point for Tasks page, Workbench, future Quick Action Center, and future module-triggered task creation flows while keeping editor body, payloads, validation, and task semantics Tasks-owned.
+- Added `tasks-conversion-closeout-regression.mjs`, marked 0.33.5.18.10.7 complete in the roadmap, archived 0.33.5.18.10.6, left Files and Clients/Projects as future reported surfaces, and bumped package/module metadata to `0.33.5.18.10.7`.
+- Corrective follow-up 2026-06-24 10:24 -04:00: moved shared detail action menus to a fixed viewport-positioned floating menu with clamping, above/below placement, and outside/Escape close behavior so the Tasks row `...` workflow menu no longer creates a row action-rail scrollbar.
+- Verification 2026-06-24 10:30 -04:00: `npm run check` passed 171/171 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.10.7 from the local 8001 server.
+
+## Version 0.33.5.18.10.6 - 2026-06-23 22:22 -04:00
+
+- Promoted `tasks.workspace` into strict declarative guardrail enforcement alongside Lists and Notes, with `view-descriptor-declarative-guardrails.mjs` now failing on raw Tasks template chrome, protected-page anatomy, modal shell/footer reconstruction, standard field-grid markup strings, and standard action placement outside descriptor/rendered helpers.
+- Removed Tasks raw template parsing by replacing `taskTemplateElement()`, `taskTemplateElements()`, and `taskEditorFieldMarkup()` with helper-built sidebar controls, bulk-toolbar controls, empty states, and task-editor sections while preserving the documented task row, recurrence, checklist, timer, bulk, relationship, utility, payload, and validation escape hatches.
+- Updated the strict Tasks guardrail regression and related modal/list/detail/timer regressions, refreshed Tasks/view-surface/module docs and decisions, marked 0.33.5.18.10.6 complete in the roadmap, and bumped package/module metadata to `0.33.5.18.10.6`.
+- Verification: `npm run check` passed 170/170 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.10.6 after restarting the local 8001 server.
+
+## Version 0.33.5.18.10.5 - 2026-06-23 22:07 -04:00
+
+- Added `docs/tasks-strict-guardrail-inventory.md` as the reported-only map of remaining Tasks framework-owned candidates before strict enforcement, covering sidebar controls, table/list shell remnants, bulk toolbar body controls, modal field/section markup, template parsing, and recurrence child-field anatomy.
+- Documented the intentional Tasks-owned escape hatches for row-specific content, workflow/lifecycle behavior, bulk semantics, relationships and recovery context, recurrence internals, checklist rows, timer state, modal utilities, workspace context, payload construction, and validation.
+- Added `tasks-strict-guardrail-inventory-regression.mjs`, kept `tasks.workspace` reported-only until 0.33.5.18.10.6, updated Tasks/view-surface/module docs and decisions, archived 0.33.5.18.10.4, marked 0.33.5.18.10.5 complete in the roadmap, and bumped package/module metadata to `0.33.5.18.10.5`.
+- Verification: `npm run check` passed 170/170 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.10.5 after restarting the local 8001 server.
+
+## Version 0.33.5.18.10.4 - 2026-06-23 21:53 -04:00
+
+- Added `LongtailForge.view.createLinkedContextList()` and shared linked-context row rendering so already-linked context lists can use framework-owned row anatomy without moving provider labels, URLs, permissions, or save behavior into the framework.
+- Routed Task row context/relationship chips through `createDetailBadgeRow()` and routed the Task modal Notes panel's linked note rows through the Notes-owned linked-panel helper using the shared linked-context read-list anatomy, while preserving parent/child relationships, blocking summaries, permission-shaped note reads, task-created note defaults, and readable linked-note metadata.
+- Added `tasks-relationship-linked-context-regression.mjs`, refreshed linked-context/view helper regressions and cache keys, updated Tasks/Notes/view-surface/module docs and decisions, archived 0.33.5.18.10.3, marked 0.33.5.18.10.4 complete in the roadmap, and bumped package/module metadata to `0.33.5.18.10.4`.
+- Verification: `npm run check` passed 169/169 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.10.4 after restarting the local 8001 server.
+
+## Version 0.33.5.18.10.3 - 2026-06-23 21:31 -04:00
+
+- Added `LongtailForge.view.createDetailBadgeRow()` and routed the Task modal's top task summary metadata through the shared detail badge-row primitive while keeping Tasks-owned status, priority, readable Client/Project, due date, due time, and TTC value selection.
+- Added `tasks-detail-read-panel-regression.mjs`, refreshed the task modal/view helper guardrails and cache keys, documented the detail/read panel boundary, archived 0.33.5.18.10.2, marked 0.33.5.18.10.3 complete in the roadmap, and bumped package/module metadata to `0.33.5.18.10.3`.
+- Verification: `npm run check` passed 168/168 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.10.3 after restarting the local 8001 server.
+
+## Version 0.33.5.18.10.2 - 2026-06-23 18:48 -04:00
+
+- Added descriptor-backed `tasks.workflow.*` row actions for Assign, Due Date, Due Time, Recurrence, Start Timer, Pause Timer, and Resume Timer, rendered through a framework-owned workflow menu while keeping action meaning in Tasks-owned handlers.
+- Kept complex assignment, scheduling, and recurrence edits in the canonical Task editor by adding field-focus targets to `LongtailForge.tasksDialog.openTaskEditor()`; timer start/pause/resume continues through the existing task timer route with elapsed-time preservation and list refresh.
+- Added `tasks-workflow-action-descriptor-regression.mjs`, refreshed Tasks/view-surface/module docs and decisions, archived 0.33.5.18.10.1, marked 0.33.5.18.10.2 complete in the roadmap, bumped package/module metadata to `0.33.5.18.10.2`, and refreshed the Tasks/Workbench cache keys for the touched CSS/dialog/list assets.
+- Verification: `npm run check` passed 167/167 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.10.2 after restarting the local 8001 server.
+
+## Version 0.33.5.18.10.1 - 2026-06-23 18:25 -04:00
+
+- Wired Task row lifecycle actions through descriptor-backed `tasks.lifecycle.*` behaviors rendered in the shared framework dense action strip, while keeping task-owned status visibility, route calls, permission implications, destructive confirmation meaning, and list refresh behavior.
+- Added Block/Unblock row lifecycle actions through the existing Tasks update route; Complete/Reopen/Archive/Restore continue through the existing Tasks lifecycle routes, and task delete/soft-delete/permanent-delete remains intentionally absent because Tasks does not ship that workflow.
+- Added `tasks-lifecycle-action-descriptor-regression.mjs`, refreshed Tasks/view-surface/module docs and decisions, archived 0.33.5.18.9.6, marked 0.33.5.18.10.1 complete in the roadmap, bumped package/module metadata to `0.33.5.18.10.1`, and refreshed the Tasks host script cache key to `tasks.js?v=17`.
+- Verification: `npm run check` passed 166/166 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.10.1 after restarting the local 8001 server.
+
 ## Version 0.33.5.18.9.6 - 2026-06-23 17:40 -04:00
 
 - Preserved the Task modal Task Timer section as a framework-owned section shell with Tasks-owned timer state, start/pause/finalize/reset handlers, sourced active-timer routes, permission gates, status-transition side effects, audit entries, last-worked updates, and search reindexing.

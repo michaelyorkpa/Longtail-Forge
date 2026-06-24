@@ -10,9 +10,9 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.18.9.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.9.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.9.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.10.7", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.10.7", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.10.7", "package-lock package entry should report the current app version");
 
 // Framework primitive structure and accessibility.
 const context = createBrowserContext();
@@ -222,3 +222,4 @@ function matchesSelector(element, selector) {
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
+

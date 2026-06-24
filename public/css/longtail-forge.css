@@ -34,6 +34,9 @@
     --page-standard-width: 1120px;
     --page-form-width: 920px;
     --site-footer-visible-offset: 0px;
+    --view-action-menu-left: 0px;
+    --view-action-menu-max-height: 320px;
+    --view-action-menu-top: 0px;
 }
 
 html[data-theme="dark"] {
@@ -1071,6 +1074,24 @@ details[open] > summary.surface-modal-section-heading::before {
     border-radius: 6px;
     background: var(--color-surface);
     box-shadow: var(--shadow-card);
+}
+
+.view-detail-action-menu[data-view-floating-menu] .view-detail-action-menu-list {
+    position: fixed;
+    z-index: 1000;
+    top: var(--view-action-menu-top, 0);
+    left: var(--view-action-menu-left, 0);
+    right: auto;
+    box-sizing: border-box;
+    max-width: min(260px, calc(100vw - 16px));
+    max-height: min(var(--view-action-menu-max-height, 320px), calc(100vh - 16px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    visibility: hidden;
+}
+
+.view-detail-action-menu[data-view-floating-menu][data-view-floating-menu-positioned] .view-detail-action-menu-list {
+    visibility: visible;
 }
 
 .view-detail-action-menu:not([open]) .view-detail-action-menu-list {
@@ -3755,6 +3776,13 @@ button.danger-button {
     min-width: 44px;
     width: 44px;
     padding: 0;
+}
+
+.task-row-actions .view-detail-action-menu-list .icon-button {
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-start;
+    padding: 0 10px;
 }
 
 .task-context-summary {

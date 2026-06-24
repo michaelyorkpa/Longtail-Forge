@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.5.18.9.6";
+const appVersion = "0.33.5.18.10.7";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModuleSource = readText("src/modules/tasks/module.js");
@@ -20,12 +20,13 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 assert.match(tasksModuleSource, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the current app version");
 
 const bulkChrome = functionBlock(tasksScript, "createTaskBulkToolbarChrome");
+const bulkControls = functionBlock(tasksScript, "taskBulkToolbarControls");
 const selectedBulkActions = functionBlock(tasksScript, "selectedBulkActions");
 const applyBulkAction = functionBlock(tasksScript, "applyBulkAction");
 const reloadTaskList = functionBlock(tasksScript, "reloadTaskList");
 
 assert.match(tasksScript, /bulkApplyButton\?\.addEventListener\("click", applyBulkAction\)/, "Bulk apply control should dispatch to the Tasks-owned handler");
-assert.match(bulkChrome, /view\.createBulkActionToolbar\(\{[\s\S]*body:\s*\[\.\.\.controls\.children\]/, "Framework toolbar should host the Tasks-owned bulk control body");
+assert.match(bulkChrome, /view\.createBulkActionToolbar\(\{[\s\S]*body:\s*taskBulkToolbarControls\(\)/, "Framework toolbar should host the Tasks-owned bulk control body");
 assert.match(applyBulkAction, /api\.postJson\("\/api\/tasks\/bulk", payload\)/, "Tasks handler should call the Tasks-owned bulk route");
 assert.match(applyBulkAction, /resetBulkInputs\(\);[\s\S]*await reloadTaskList\(\)/, "Bulk updates should reset controls and refresh the task list after apply");
 assert.doesNotMatch(applyBulkAction, /buildTasksViewShell|createTaskMainListChrome|renderSurface/, "Bulk apply should not rebuild the framework page shell");
@@ -35,7 +36,7 @@ for (const action of ["status", "priority", "due_date", "due_time", "assignee_re
   assert.match(selectedBulkActions, new RegExp(`action:\\s*"${action}"`), `Browser should be able to build ${action} bulk payloads`);
 }
 for (const action of ["tag_add", "tag_remove", "tag_replace"]) {
-  assert.match(bulkChrome, new RegExp(`<option value="${action}"`), `Browser should expose the ${action} bulk tag action`);
+  assert.match(bulkControls, new RegExp(`\\["${action}"`), `Browser should expose the ${action} bulk tag action`);
 }
 assert.match(selectedBulkActions, /actions\.push\(\{ action: tagAction, task_ids: taskIds, tagIds \}\)/, "Browser should build selected tag action payloads dynamically");
 assert.doesNotMatch(selectedBulkActions, /action:\s*"(delete|soft_delete|permanent_delete)"/, "Bulk toolbar wiring should not emit unsupported delete actions");
@@ -270,3 +271,4 @@ function functionBlock(source, functionName) {
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
+

@@ -12,19 +12,22 @@ const moduleContract = readText("docs/module-contract.md");
 const roadmap = readText("ROADMAP.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.9.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.9.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.9.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.10.7", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.10.7", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.10.7", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "picker shell must not own data loading or browser storage");
 assert.match(helper, /function createLinkedContextPicker/, "view builder should implement the shared Linked Context picker shell");
+assert.match(helper, /function createLinkedContextList/, "view builder should implement the shared Linked Context read-list shell");
 assert.match(helper, /createLinkedContextPicker,/, "view builder should expose the picker shell on LongtailForge.view");
+assert.match(helper, /createLinkedContextList,/, "view builder should expose the read-list shell on LongtailForge.view");
 
 const context = createBrowserContext();
 vm.runInNewContext(helper, context, { filename: "view-builder.js" });
 const view = context.window.LongtailForge.view;
 
 assert.equal(typeof view.createLinkedContextPicker, "function", "LongtailForge.view.createLinkedContextPicker should be exposed");
+assert.equal(typeof view.createLinkedContextList, "function", "LongtailForge.view.createLinkedContextList should be exposed");
 
 const picker = view.createLinkedContextPicker({
   providers: [
@@ -131,6 +134,26 @@ assert(findByDatasetValue(readonlyPicker, "surfaceAction", "use-linked-context-t
 assert(findByDatasetValue(readonlyPicker, "surfaceAction", "remove-linked-context").disabled, "readonly picker should disable Remove");
 assert.equal(findByClass(readonlyPicker, "view-linked-context-picker-state").textContent, "You can view linked context but cannot change it.");
 
+const linkedContextList = view.createLinkedContextList({
+  items: [{
+    moduleId: "notes",
+    targetType: "note",
+    targetId: "note-1",
+    displayLabel: "Installation note",
+    secondaryLabel: "Internal | Normal",
+    hintLabel: "Panel note excerpt",
+    sourceUrl: "/notes.html?note=note-1",
+  }],
+});
+assert(linkedContextList.classList.contains("view-linked-context-picker-list"), "linked context list should reuse picker list class");
+assert.equal(findByClass(linkedContextList, "view-linked-context-picker-row-label").textContent, "Installation note");
+assert.equal(findByClass(linkedContextList, "view-linked-context-picker-row-secondary").textContent, "Internal | Normal");
+assert.equal(findByClass(linkedContextList, "view-linked-context-picker-row-hint").textContent, "Panel note excerpt");
+assert.equal(findByClass(linkedContextList, "view-linked-context-picker-row-label").tagName, "A", "linked context list labels with source URLs should render as links");
+assert.equal(typeof linkedContextList.viewParts.setLinkedItems, "function", "linked context list should expose a row update hook");
+linkedContextList.viewParts.setLinkedItems([]);
+assert.equal(findByClass(linkedContextList, "view-linked-context-picker-empty").textContent, "No linked context selected.");
+
 assert.match(css, /\.view-linked-context-picker\s*\{[\s\S]*display:\s*grid/, "CSS should define picker shell layout");
 assert.match(css, /\.view-linked-context-picker-row\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*auto/, "CSS should define stable row/action layout");
 assert.match(css, /\.view-linked-context-picker-row-hint\s*\{[\s\S]*color:\s*var\(--color-muted\)/, "CSS should style row hint text separately from record labels");
@@ -139,6 +162,7 @@ assert.match(css, /\.view-linked-context-picker-field input,[\s\S]*\.view-linked
 assert.match(pickerContract, /as of 0\.33\.5\.18\.6\.5\.3/i, "picker contract should document the shell version");
 assert.match(pickerContract, /`LongtailForge\.view\.createLinkedContextPicker\(options\)`/, "picker contract should name the shared shell helper");
 assert.match(viewContract, /createLinkedContextPicker/, "view-building contract should list the shared picker primitive");
+assert.match(viewContract, /createLinkedContextList/, "view-building contract should list the shared read-list primitive");
 assert.match(moduleContract, /shared Linked Context picker shell/, "module contract should document framework picker anatomy ownership");
 assert.match(roadmap, /Completed 0\.33\.5\.18\.6\.1 through 0\.33\.5\.18\.6\.11 are archived/, "live roadmap should document that completed Notes slices are archived");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.6\.5\.2 - Framework Linked Context picker shell/, "completed picker shell slice should be archived out of the live roadmap");
@@ -307,3 +331,4 @@ function matchesSelector(element, selector) {
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
+

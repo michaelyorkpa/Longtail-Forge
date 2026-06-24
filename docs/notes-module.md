@@ -143,6 +143,8 @@ The helper accepts `targetType`, `targetId`, optional `moduleId`, optional `clie
 
 The Tasks module mounts this helper in the Task detail dialog. Task-created note links include task context plus available project/client context, default Note Kind to `log`, suggest the Active Work Library bucket, and keep the normal `internal` visibility default unless the user changes it. Task list note counts also use the Notes-owned target read model so private, secure, disabled, or inaccessible notes do not leak through badge counts.
 
+As of 0.33.5.18.10.4, the helper may render already-linked note rows through `LongtailForge.view.createLinkedContextList()` so the framework owns reusable row anatomy while Notes still owns the linked-note read model, permission-shaped actions, secure-note hints, readable labels, task-created note defaults, and link/unlink writes.
+
 ## Resume Context Hooks
 
 Notes exposes a producer-owned `notesService.listResumeContext(session, options)` read model for future resume-state consumers. It returns permission-shaped Active Work note candidates with safe title, note kind, Library bucket, status, visibility/security badges, context identifiers for internal consumers, safe note links, source URL, and last-updated timestamps.

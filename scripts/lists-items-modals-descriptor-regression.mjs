@@ -11,9 +11,9 @@ const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.9.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.9.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.9.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.10.7", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.10.7", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.10.7", "package-lock package entry should report the current app version");
 
 assert.match(listsModule, /version:\s*"0\.33\.5\.16\.12"/, "Lists module should report the current declarative closeout version");
 assert.match(listsModule, /itemForm:\s*\{[\s\S]*field:\s*"item_name"[\s\S]*behavior:\s*"lists\.catalog-suggestions"[\s\S]*field:\s*"save_to_catalog"/, "Lists descriptor should declare item entry fields and catalog behavior hook");
@@ -54,3 +54,4 @@ console.log("Lists items and modals descriptor regression passed.");
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
+

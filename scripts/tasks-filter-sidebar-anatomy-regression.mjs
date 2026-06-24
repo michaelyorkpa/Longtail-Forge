@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.9.6";
+const appVersion = "0.33.5.18.10.7";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -36,19 +36,19 @@ const taskViewChrome = functionBlock(tasksScript, "createTaskViewSelectorChrome"
 const filterChrome = functionBlock(tasksScript, "createTaskFilterChrome");
 assert.match(
   taskViewChrome,
-  /<select data-task-view-selector aria-label="Saved Task Views">\s*<option value="my" selected>My Tasks<\/option>\s*<option value="all">All<\/option>\s*<option value="unassigned">Unassigned<\/option>\s*<option value="overdue">Overdue<\/option>\s*<option value="today">Due Today<\/option>\s*<option value="week">Due This Week<\/option>\s*<option value="complete">Completed<\/option>\s*<option value="archived">Archived<\/option>\s*<\/select>/,
+  /"data-task-view-selector"[\s\S]*"aria-label": "Saved Task Views"[\s\S]*\["my", "My Tasks", true\],\s*\["all", "All"\],\s*\["unassigned", "Unassigned"\],\s*\["overdue", "Overdue"\],\s*\["today", "Due Today"\],\s*\["week", "Due This Week"\],\s*\["complete", "Completed"\],\s*\["archived", "Archived"\]/,
   "Saved Task Views selector should expose the expected options in order with My Tasks selected",
 );
 assert.doesNotMatch(taskViewChrome, /<details|<button|<label|>\s*Task View\s*<|data-task-list/, "Saved Task Views selector panel should not be collapsible, button-based, repeat a visible label, or list-owning");
 assert.match(filterChrome, /data-task-filter-details/, "Sorting and Filters panel should own the detailed filter fields");
-assert.match(filterChrome, /data-task-sort[\s\S]*data-task-status-filter[\s\S]*data-task-assignee-filter[\s\S]*data-client-workspace-control[\s\S]*data-task-client-filter[\s\S]*data-task-project-filter[\s\S]*data-task-tag-filter/, "Detailed filter panel should preserve existing sort, status, assignee, client, project, and tag controls");
+assert.match(filterChrome, /"data-task-sort"[\s\S]*"data-task-status-filter"[\s\S]*"data-task-assignee-filter"[\s\S]*"data-task-client-filter"[\s\S]*"data-client-workspace-control"[\s\S]*"data-task-project-filter"[\s\S]*"data-task-tag-filter"/, "Detailed filter panel should preserve existing sort, status, assignee, client, project, and tag controls");
 assert.doesNotMatch(filterChrome, /data-task-view-selector|data-task-list|data-task-bulk-toolbar/, "Sorting and Filters panel should not contain the view selector, task list, or bulk toolbar");
 
 assert.match(tasksScript, /function usesClientScope\(\)[\s\S]*state\.options\.workspaceType === "business"/, "Client filter visibility should remain Business-workspace-only");
 assert.match(tasksScript, /setClientScopeControlsVisible\(hasClientScope\)/, "Tasks filter population should keep client controls scoped by workspace type");
 assert.match(tasksScript, /document\.querySelectorAll\("\[data-client-workspace-control\]"\)/, "Client filter visibility should use the shared data hook across generated controls");
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=66[\s\S]*js\/tasks\.js\?v=16/, "Tasks host should load the current sidebar anatomy cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=68[\s\S]*js\/tasks\.js\?v=19/, "Tasks host should load the current sidebar anatomy cache keys");
 assert.match(styles, /\.task-view-selector-control\s*\{[\s\S]*display:\s*grid/, "Saved Task Views selector should have a stable drawer layout");
 assert.match(styles, /\.view-slideout-sidebar-drawer \.task-page-toolbar\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/, "Sorting and Filters controls should stay one-column in the drawer");
 assert.match(styles, /\.view-slideout-sidebar-drawer \.tasks-filters-panel \.view-collapsible-index-body\s*\{[\s\S]*max-height:\s*none;[\s\S]*overflow-y:\s*visible/, "Sorting and Filters panel should expand inside the drawer instead of forcing a small internal scroll pane");
@@ -78,3 +78,4 @@ function sourceSlice(source, startText, endText) {
   assert.notEqual(end, -1, `Missing source end after: ${startText}`);
   return source.slice(start, end + endText.length);
 }
+

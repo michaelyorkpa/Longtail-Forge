@@ -57,6 +57,9 @@ async function assertTaskNotesPanelSourceContract() {
   assert.match(tasksScript, /focusNotes: true/);
   assert.match(linkedPanel, /noteKind/);
   assert.match(linkedPanel, /libraryBucket/);
+  assert.match(linkedPanel, /namespace\.view\?\.createLinkedContextList/, "Linked notes panel should prefer the framework linked-context read-list anatomy");
+  assert.match(linkedPanel, /function linkedNoteListItem[\s\S]*displayLabel: note\.label \|\| "Untitled note"[\s\S]*secondaryLabel: linkedNoteSecondaryLabel\(note\)/, "Linked notes panel should map notes into safe readable framework rows");
+  assert.doesNotMatch(linkedPanel, /displayLabel:\s*note\.id|textContent\s*=\s*note\.id/, "Linked notes panel should not expose raw note IDs as visible labels");
   assert.match(notesScript, /typeInput\.value = "log"/);
   assert.match(notesScript, /libraryInput\.value = "active_work"/);
 }

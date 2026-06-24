@@ -281,9 +281,9 @@ async function assertBrowserWiring() {
 
   assert.match(tasksJs, /data-task-bulk-tag-action/);
   assert.match(tasksJs, /data-task-bulk-tags/);
-  assert.match(tasksJs, /value="tag_add"/);
-  assert.match(tasksJs, /value="tag_remove"/);
-  assert.match(tasksJs, /value="tag_replace"/);
+  assert.match(tasksJs, /\["tag_add", "Add tags"\]/);
+  assert.match(tasksJs, /\["tag_remove", "Remove tags"\]/);
+  assert.match(tasksJs, /\["tag_replace", "Replace direct tags"\]/);
   assert.match(tasksJs, /bulkTagActionInput/);
   assert.match(tasksJs, /selectedBulkTagIds/);
   assert.match(timeEntriesHtml, /data-time-entry-select-all/);

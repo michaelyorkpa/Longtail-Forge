@@ -1,6 +1,6 @@
 # Linked Context Picker Provider And Shell Contract
 
-This document defines the shared Linked Context picker provider and shell contract as of 0.33.5.18.6.6.4. The framework owns the reusable picker shell. Source modules own provider data, permission-safe filtering, sorting, labels, summaries, and source URLs.
+This document defines the shared Linked Context picker provider and shell contract as of 0.33.5.18.10.4. The framework owns the reusable picker shell and linked-context read-list anatomy. Source modules own provider data, permission-safe filtering, sorting, labels, summaries, and source URLs.
 
 ## Ownership
 
@@ -49,6 +49,8 @@ Already-saved context rows may outlive their target records or target providers.
 
 `LongtailForge.view.createLinkedContextPicker(options)` is the framework-owned shell for the Target / Search / Record / `Use Target` picker pattern.
 
+`LongtailForge.view.createLinkedContextList(options)` is the framework-owned read-list shell for already-linked context rows when a workflow does not need Target / Search / Record controls.
+
 The shell renders:
 
 - Target select.
@@ -60,7 +62,9 @@ The shell renders:
 - Empty state text.
 - Read-only or permission-disabled state text.
 
-The shell owns anatomy, class names, accessible labels, field layout, row/action placement, empty-state placement, and disabled-control rendering. It exposes the created controls and update hooks through `element.viewParts` so consuming modules can bind provider queries, refresh provider/record options, refresh selected rows, and save behavior without rebuilding the shell.
+The picker shell owns anatomy, class names, accessible labels, field layout, row/action placement, empty-state placement, and disabled-control rendering. It exposes the created controls and update hooks through `element.viewParts` so consuming modules can bind provider queries, refresh provider/record options, refresh selected rows, and save behavior without rebuilding the shell.
+
+The read-list shell owns row/list anatomy, accessible list labels, empty-state placement, and remove-action placement for already-linked rows. It reuses the same row normalizer as the picker so display labels, secondary labels, source URLs, hints, unavailable state, and removable actions behave consistently. It does not fetch linked records, decide permissions, or generate labels.
 
 The shell does not fetch provider data, sort records, infer workspace behavior, decide which providers are available, validate save payloads, call module APIs, or build module-specific labels. Record options and rows render provider-supplied `displayLabel` and optional `secondaryLabel` fields as separate UI text, with IDs retained only in data attributes and control values for module-owned save handlers.
 

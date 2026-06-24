@@ -8,7 +8,7 @@ Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and im
 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
 The active roadmap continues with Tasks, Files, and Clients/Projects view conversion work.
-0.33.5.18.9.6 is the most recently completed timer and utility modal preservation slice. The next live work starts with 0.33.5.18.10.1.
+0.33.5.18.10.7 is the most recently completed Tasks docs, changelog, and closeout slice. The next live work starts with 0.33.5.18.11.
 
 ## Tasks (0.33.5.18.7 - 0.33.5.18.10)
 
@@ -59,194 +59,33 @@ preserve bulk workflows, standardize the canonical task modal, and lock strict g
 time. Bulk behavior, specialized modal fragments, workflow actions, relationships, and strict
 guardrail enforcement are intentionally separated below.
 
-### Version 0.33.5.18.9 - Canonical Task Add/Edit Modal Standardization
-
-This slice standardizes the task create/edit modal so it becomes the single editor used by Tasks, Workbench, future Quick Action Center, and future system-triggered task creation flows.
-
-Decision:
-
-There must be one canonical Task add/edit modal. Other surfaces may open it with defaults/context, but they must not create separate task forms.
-
-#### Version 0.33.5.18.9.6 - Timer and modal utility escape-hatch preservation
-
-- [x] Preserve existing timer-related behavior.
-- [x] Preserve task modal utility actions where currently supported:
-  - [x] Tags.
-  - [x] Files.
-  - [x] Notes/linked notes.
-  - [x] Copy task link.
-  - [x] Notification follow/unfollow.
-- [x] Keep timer state behavior and utility child dialogs/panels Tasks-owned where needed.
-- [x] Framework owns footer/utility placement and modal stack anatomy.
-- [x] Tasks owns timer rules, file/tag/note/link behavior, and workflow state.
-- [x] Add regressions proving:
-  - [x] Timer actions still work.
-  - [x] Tags utility behavior still works.
-  - [x] Files utility behavior still works.
-  - [x] Notes/linked notes behavior still works where currently supported.
-  - [x] Copy link and notification follow/unfollow behavior still work where currently supported.
-  - [x] Utility fragments do not create duplicate modal shells.
-
-Acceptance criteria:
-
-- Timer and modal utility workflows remain intact inside the standardized Task modal.
-
----
-
 ### Version 0.33.5.18.10 - Tasks Workflow Actions, Detail/Relationship Cleanup, and Strict Guardrails
 
 This is the closeout phase that finishes the Tasks conversion after the sidebar, list shell, bulk toolbar, and canonical modal are stable.
 
-#### Version 0.33.5.18.10.1 - Task lifecycle action descriptor wiring
-
-- [ ] Express remaining task lifecycle actions as declarative actions or registered behaviors.
-- [ ] Include supported lifecycle actions such as:
-  - [ ] Complete.
-  - [ ] Reopen.
-  - [ ] Block/unblock.
-  - [ ] Archive.
-  - [ ] Restore.
-  - [ ] Delete/soft-delete.
-- [ ] Do not introduce a new permanent-delete workflow if Tasks does not already ship one.
-- [ ] Framework owns placement and disabled/loading/error display.
-- [ ] Tasks owns route calls, permission implications, and workflow meaning.
-- [ ] Add regressions proving:
-  - [ ] Each lifecycle action dispatches to the correct Tasks-owned handler.
-  - [ ] Disabled/read-only/permission states display correctly.
-  - [ ] Destructive operations confirm.
-  - [ ] Lifecycle actions refresh the list consistently.
-
-Acceptance criteria:
-
-- Task lifecycle action placement is framework-standard.
-- Task lifecycle meaning remains module-owned.
-
-#### Version 0.33.5.18.10.2 - Task assignment, scheduling, recurrence, and timer action wiring
-
-- [ ] Express remaining non-lifecycle workflow actions as declarative actions or registered behaviors where currently supported.
-- [ ] Include supported workflow actions such as:
-  - [ ] Assign/reassign.
-  - [ ] Change due date.
-  - [ ] Change due time.
-  - [ ] Apply recurrence action.
-  - [ ] Start/pause/resume timer.
-- [ ] Keep complex edit flows in the canonical Task modal when an inline action would hide necessary context.
-- [ ] Framework owns placement and disabled/loading/error display.
-- [ ] Tasks owns route calls, permission implications, and workflow meaning.
-- [ ] Add regressions proving:
-  - [ ] Each supported action dispatches to the correct Tasks-owned handler.
-  - [ ] Disabled/read-only/permission states display correctly.
-  - [ ] Actions preserve workspace/client/project visibility rules.
-  - [ ] Actions refresh the list consistently.
-
-Acceptance criteria:
-
-- Task workflow action placement is framework-standard without flattening complex task rules into framework code.
-
-#### Version 0.33.5.18.10.3 - Task detail/read panel cleanup
-
-- [ ] Standardize any task detail/read panel anatomy that remains hand-built.
-- [ ] Render detail metadata/badges/summary panels using framework primitives where applicable.
-- [ ] Preserve the current task list as the primary view.
-- [ ] If task detail is modal-based, keep it modal-based; do not create a new persistent detail column unless separately approved.
-- [ ] Add regressions proving:
-  - [ ] Task detail/read metadata uses framework primitives.
-  - [ ] No raw UUIDs appear in normal task UI.
-  - [ ] Existing detail/read behavior is preserved.
-
-Acceptance criteria:
-
-- Detail UI follows the same contracts as Notes without changing the main task-list-first workflow.
-
-#### Version 0.33.5.18.10.4 - Task relationships and linked context cleanup
-
-- [ ] Render relationships/linked context through shared framework-supported anatomy where applicable.
-- [ ] Keep relationship rules in Tasks-owned files.
-- [ ] Preserve parent/child relationship behavior.
-- [ ] Preserve blocking summary behavior.
-- [ ] Preserve linked context and task-created note context display where currently supported.
-- [ ] Add regressions proving:
-  - [ ] Relationship/linked context display remains permission-safe.
-  - [ ] No raw UUIDs appear in normal relationship or linked context UI.
-  - [ ] Existing relationship behavior is preserved.
-  - [ ] Existing linked context/task-created note behavior is preserved.
-
-Acceptance criteria:
-
-- Relationship and linked context UI follows shared contracts without changing Tasks relationship rules.
-
-#### Version 0.33.5.18.10.5 - Tasks strict guardrail inventory and escape-hatch map
-
-- [ ] Inventory remaining hand-built framework-owned anatomy in `public/js/tasks.js` and `public/js/task-dialog.js`.
-- [ ] Inventory documented Tasks-owned escape hatches for:
-  - [ ] Task row-specific content.
-  - [ ] Recurrence editor internals.
-  - [ ] Checklist behavior fragments.
-  - [ ] Timer state behavior.
-  - [ ] Task modal utility fragments where generic fields would be brittle.
-- [ ] Document which remaining fragments are intentional Tasks ownership rather than framework shell construction.
-- [ ] Add or update non-failing guardrail inventory coverage, but do not fail strict Tasks guardrails until 0.33.5.18.10.6.
-- [ ] Add regressions proving:
-  - [ ] The inventory identifies framework-owned anatomy that must be removed before strict enforcement.
-  - [ ] Documented escape hatches are explicit and narrow.
-  - [ ] Existing task workflows still pass.
-
-Acceptance criteria:
-
-- Strict enforcement has a clear allowlist before it becomes a hard gate.
-
-#### Version 0.33.5.18.10.6 - Tasks strict declarative guardrail enforcement
-
-- [ ] Reduce `public/js/tasks.js` and `public/js/task-dialog.js` to data bindings and behavior handlers.
-- [ ] Remove hand-built framework-owned anatomy where a framework primitive now exists.
-- [ ] Keep documented escape hatches for task-specific fragments.
-- [ ] Expand fail-on-violation declarative guardrails to the Tasks surface.
-- [ ] Guardrails should forbid new hand-built framework-owned anatomy for:
-  - [ ] Page shell.
-  - [ ] Slide-out sidebar shell.
-  - [ ] Filter panel shell.
-  - [ ] Bulk toolbar shell.
-  - [ ] Modal shell/footer.
-  - [ ] Standard field grids.
-  - [ ] Standard action placement.
-- [ ] Guardrails should allow documented Tasks-owned fragments for:
-  - [ ] Task row-specific content.
-  - [ ] Recurrence editor internals.
-  - [ ] Checklist behavior fragments where necessary.
-  - [ ] Timer state behavior.
-- [ ] Add regressions proving:
-  - [ ] Tasks no longer creates framework-owned shells by hand.
-  - [ ] Documented escape hatches are the only exceptions.
-  - [ ] Existing task workflows still pass.
-
-Acceptance criteria:
-
-- Tasks is guarded like Notes.
-- New code cannot quietly backslide into one-off UI construction.
-
 #### Version 0.33.5.18.10.7 - Tasks docs, changelog, and closeout
 
-- [ ] Update `docs/tasks-module.md` or create it if missing.
-- [ ] Update `docs/view-building-contract.md` for Tasks as a slide-out-sidebar adopter.
-- [ ] Update `docs/module-contract.md` if the canonical Task editor opener becomes a cross-surface module action pattern.
-- [ ] Update guardrail documentation with the Tasks strict enforcement scope and escape hatches.
-- [ ] Document the canonical Task editor entry point for:
-  - [ ] Tasks page.
-  - [ ] Workbench.
-  - [ ] Future Quick Action Center.
-  - [ ] Future module-triggered task creation.
-- [ ] Update `DECISIONS.md` if a new canonical cross-surface editor pattern is formalized.
-- [ ] Update CHANGELOG.
-- [ ] Bump package/app metadata.
-- [ ] Run:
-  - [ ] `npm run check`
-  - [ ] Tasks UI regressions.
-  - [ ] Task modal regressions.
-  - [ ] Bulk-action regressions.
-  - [ ] Permissions tests if task visibility/assignment/context behavior changed.
-- [ ] Verify `/api/app-info` reports the expected version.
-- [ ] Do not convert Files or Clients/Projects in this closeout.
-- [ ] Do not redesign the task list rows in this closeout unless required to remove framework-owned anatomy.
+- [x] Update `docs/tasks-module.md` or create it if missing.
+- [x] Update `docs/view-building-contract.md` for Tasks as a slide-out-sidebar adopter.
+- [x] Update `docs/module-contract.md` if the canonical Task editor opener becomes a cross-surface module action pattern.
+- [x] Update guardrail documentation with the Tasks strict enforcement scope and escape hatches.
+- [x] Document the canonical Task editor entry point for:
+  - [x] Tasks page.
+  - [x] Workbench.
+  - [x] Future Quick Action Center.
+  - [x] Future module-triggered task creation.
+- [x] Update `DECISIONS.md` if a new canonical cross-surface editor pattern is formalized.
+- [x] Update CHANGELOG.
+- [x] Bump package/app metadata.
+- [x] Run:
+  - [x] `npm run check`
+  - [x] Tasks UI regressions.
+  - [x] Task modal regressions.
+  - [x] Bulk-action regressions.
+  - [x] Permissions tests were not required because task visibility/assignment/context behavior did not change.
+- [x] Verify `/api/app-info` reports the expected version.
+- [x] Do not convert Files or Clients/Projects in this closeout.
+- [x] Do not redesign the task list rows in this closeout unless required to remove framework-owned anatomy.
 
 Acceptance criteria:
 

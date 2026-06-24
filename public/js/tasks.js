@@ -3,6 +3,23 @@ const DEFAULT_TASK_VIEW = "my";
 const QUICK_FILTERS = new Set(["my", "unassigned", "overdue", "today", "week", "complete", "archived"]);
 const TASK_VIEW_VALUES = new Set(["all", ...QUICK_FILTERS]);
 const view = window.LongtailForge?.view;
+const TASK_LIFECYCLE_BEHAVIOR_HANDLERS = Object.freeze({
+  "tasks.lifecycle.complete": ({ record }) => postTaskAction(record, "complete"),
+  "tasks.lifecycle.reopen": ({ record }) => postTaskAction(record, "reopen"),
+  "tasks.lifecycle.block": ({ action, record }) => updateTaskLifecycleStatus(record, action.statusPayload || { status: "blocked" }),
+  "tasks.lifecycle.unblock": ({ action, record }) => updateTaskLifecycleStatus(record, action.statusPayload || { status: "open", blocked_reason: "" }),
+  "tasks.lifecycle.archive": ({ record }) => postTaskAction(record, "archive"),
+  "tasks.lifecycle.restore": ({ record }) => postTaskAction(record, "restore"),
+});
+const TASK_WORKFLOW_BEHAVIOR_HANDLERS = Object.freeze({
+  "tasks.workflow.assign": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
+  "tasks.workflow.due-date": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
+  "tasks.workflow.due-time": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
+  "tasks.workflow.recurrence": ({ action, record, trigger }) => openTaskDialogForWorkflow(record, action, trigger),
+  "tasks.workflow.timer.start": ({ action, record }) => saveTaskTimerAction(record, action.timerStatus || "running"),
+  "tasks.workflow.timer.pause": ({ action, record }) => saveTaskTimerAction(record, action.timerStatus || "paused"),
+  "tasks.workflow.timer.resume": ({ action, record }) => saveTaskTimerAction(record, action.timerStatus || "running"),
+});
 
 let activeTasksViewDescriptor = null;
 let state = {
@@ -117,6 +134,8 @@ function registerTasksViewBehaviors() {
     return;
   }
   view.registerBehavior("tasks.create", () => openTaskDialog());
+  registerTaskLifecycleBehaviors();
+  registerTaskWorkflowBehaviors();
   view.registerBehavior("tasks.sidebar.view-selector", ({ container }) => {
     container.replaceChildren(createTaskViewSelectorChrome());
   });
@@ -125,6 +144,24 @@ function registerTasksViewBehaviors() {
   });
   view.registerBehavior("tasks.main.list", ({ container }) => {
     container.replaceChildren(createTaskMainListChrome());
+  });
+}
+
+function registerTaskLifecycleBehaviors() {
+  taskLifecycleActionStripDescriptor().actions.forEach((action) => {
+    const handler = TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior];
+    if (handler) {
+      view.registerBehavior(action.behavior, handler);
+    }
+  });
+}
+
+function registerTaskWorkflowBehaviors() {
+  taskWorkflowActionMenuDescriptor().actions.forEach((action) => {
+    const handler = TASK_WORKFLOW_BEHAVIOR_HANDLERS[action.behavior];
+    if (handler) {
+      view.registerBehavior(action.behavior, handler);
+    }
   });
 }
 
@@ -208,80 +245,85 @@ function decorateTasksDeclarativeSurface(surface) {
 }
 
 function createTaskViewSelectorChrome() {
-  return taskTemplateElement(`
-    <div class="task-view-selector-control" data-task-view-selector-control>
-      <select data-task-view-selector aria-label="Saved Task Views">
-        <option value="my" selected>My Tasks</option>
-        <option value="all">All</option>
-        <option value="unassigned">Unassigned</option>
-        <option value="overdue">Overdue</option>
-        <option value="today">Due Today</option>
-        <option value="week">Due This Week</option>
-        <option value="complete">Completed</option>
-        <option value="archived">Archived</option>
-      </select>
-    </div>
-  `);
+  return view.createElement("div", {
+    className: "task-view-selector-control",
+    attrs: { "data-task-view-selector-control": "" },
+    children: view.createElement("select", {
+      attrs: {
+        "data-task-view-selector": "",
+        "aria-label": "Saved Task Views",
+      },
+      children: taskOptions([
+        ["my", "My Tasks", true],
+        ["all", "All"],
+        ["unassigned", "Unassigned"],
+        ["overdue", "Overdue"],
+        ["today", "Due Today"],
+        ["week", "Due This Week"],
+        ["complete", "Completed"],
+        ["archived", "Archived"],
+      ]),
+    }),
+  });
 }
 
 function createTaskFilterChrome() {
-  return taskTemplateElement(`
-    <div class="task-page-toolbar" data-task-filter-toolbar aria-label="Sorting and task filters">
-      <div class="task-filter-grid" data-task-filter-details>
-        <label>
-          Sort
-          <select data-task-sort>
-            <option value="due_asc" selected>Due Date</option>
-            <option value="priority_desc">Priority</option>
-            <option value="status_asc">Status</option>
-            <option value="last_worked">Last Worked</option>
-            <option value="context">Project / Client</option>
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-          </select>
-        </label>
-        <label>
-          Status
-          <select data-task-status-filter>
-            <option value="active" selected>Active</option>
-            <option value="open">Open</option>
-            <option value="in_progress">In Progress</option>
-            <option value="blocked">Blocked</option>
-            <option value="complete">Complete</option>
-            <option value="archived">Archived</option>
-            <option value="all">All</option>
-          </select>
-        </label>
-        <label>
-          Assignee
-          <select data-task-assignee-filter>
-            <option value="all" selected>All assignees</option>
-          </select>
-        </label>
-        <label data-client-workspace-control>
-          Client
-          <select data-task-client-filter>
-            <option value="all" selected>All clients</option>
-          </select>
-        </label>
-        <label>
-          Project
-          <select data-task-project-filter>
-            <option value="all" selected>All projects</option>
-          </select>
-        </label>
-        <label data-task-tag-filter-control hidden>
-          Tag
-          <select data-task-tag-filter>
-            <option value="all" selected>All tags</option>
-          </select>
-        </label>
-        <div class="task-filter-actions">
-          <button type="button" data-task-reset-filters>Reset Filters</button>
-        </div>
-      </div>
-    </div>
-  `);
+  return view.createElement("div", {
+    className: "task-page-toolbar",
+    attrs: {
+      "data-task-filter-toolbar": "",
+      "aria-label": "Sorting and task filters",
+    },
+    children: view.createElement("div", {
+      className: "task-filter-grid",
+      attrs: { "data-task-filter-details": "" },
+      children: [
+        taskControlLabel("Sort", taskSelect({ "data-task-sort": "" }, [
+          ["due_asc", "Due Date", true],
+          ["priority_desc", "Priority"],
+          ["status_asc", "Status"],
+          ["last_worked", "Last Worked"],
+          ["context", "Project / Client"],
+          ["newest", "Newest"],
+          ["oldest", "Oldest"],
+        ])),
+        taskControlLabel("Status", taskSelect({ "data-task-status-filter": "" }, [
+          ["active", "Active", true],
+          ["open", "Open"],
+          ["in_progress", "In Progress"],
+          ["blocked", "Blocked"],
+          ["complete", "Complete"],
+          ["archived", "Archived"],
+          ["all", "All"],
+        ])),
+        taskControlLabel("Assignee", taskSelect({ "data-task-assignee-filter": "" }, [
+          ["all", "All assignees", true],
+        ])),
+        taskControlLabel("Client", taskSelect({ "data-task-client-filter": "" }, [
+          ["all", "All clients", true],
+        ]), { attrs: { "data-client-workspace-control": "" } }),
+        taskControlLabel("Project", taskSelect({ "data-task-project-filter": "" }, [
+          ["all", "All projects", true],
+        ])),
+        taskControlLabel("Tag", taskSelect({ "data-task-tag-filter": "" }, [
+          ["all", "All tags", true],
+        ]), {
+          attrs: { "data-task-tag-filter-control": "" },
+          hidden: true,
+        }),
+        view.createElement("div", {
+          className: "task-filter-actions",
+          children: view.createElement("button", {
+            attrs: {
+              type: "button",
+              "data-task-reset-filters": "",
+            },
+            text: "Reset Filters",
+          }),
+        }),
+      ],
+    }),
+  });
 }
 
 function createTaskMainListChrome() {
@@ -338,71 +380,6 @@ function createTaskBulkToolbarChrome() {
     throw new Error("Tasks bulk actions require LongtailForge.view.createBulkActionToolbar.");
   }
 
-  const controls = taskTemplateElement(`
-    <div>
-      <label data-task-bulk-status-control>
-        Status
-        <select data-task-bulk-status>
-          <option value="" selected>-</option>
-          <option value="open">Open</option>
-          <option value="in_progress">In Progress</option>
-          <option value="blocked">Blocked</option>
-          <option value="complete">Complete</option>
-        </select>
-      </label>
-      <label data-task-bulk-priority-control>
-        Priority
-        <select data-task-bulk-priority>
-          <option value="" selected>-</option>
-          <option value="low">Low</option>
-          <option value="normal">Normal</option>
-          <option value="high">High</option>
-          <option value="urgent">Urgent</option>
-        </select>
-      </label>
-      <label data-task-bulk-due-date-control>
-        Due Date
-        <input type="date" data-task-bulk-due-date>
-        <span class="checkbox-line">
-          <input type="checkbox" data-task-bulk-clear-due-date>
-          Clear due date
-        </span>
-      </label>
-      <label data-task-bulk-due-time-control>
-        Due Time
-        <input type="time" data-task-bulk-due-time>
-        <span class="checkbox-line">
-          <input type="checkbox" data-task-bulk-clear-due-time>
-          Clear due time
-        </span>
-      </label>
-      <label data-task-bulk-assignee-control>
-        Assignees
-        <div class="task-bulk-assignee-list" data-task-bulk-assignees></div>
-      </label>
-      <label data-task-bulk-tag-action-control hidden>
-        Tag Action
-        <select data-task-bulk-tag-action>
-          <option value="" selected>-</option>
-          <option value="tag_add">Add tags</option>
-          <option value="tag_remove">Remove tags</option>
-          <option value="tag_replace">Replace direct tags</option>
-        </select>
-      </label>
-      <label data-task-bulk-tags-control hidden>
-        Tags
-        <select data-task-bulk-tags multiple size="4"></select>
-      </label>
-      <label data-task-bulk-lifecycle-control hidden>
-        Lifecycle
-        <select data-task-bulk-lifecycle>
-          <option value="" selected>-</option>
-        </select>
-      </label>
-      <button type="button" data-task-bulk-apply disabled>Apply to 0</button>
-    </div>
-  `);
-
   return view.createBulkActionToolbar({
     label: "Bulk Actions",
     selectedCount: state.selectedTaskIds.size,
@@ -411,14 +388,123 @@ function createTaskBulkToolbarChrome() {
     attrs: {
       "data-task-bulk-toolbar": "",
     },
-    body: [...controls.children],
+    body: taskBulkToolbarControls(),
   });
 }
 
-function taskTemplateElement(markup) {
-  const template = document.createElement("template");
-  template.innerHTML = markup.trim();
-  return template.content.firstElementChild;
+function taskBulkToolbarControls() {
+  return [
+    taskControlLabel("Status", taskSelect({ "data-task-bulk-status": "" }, [
+      ["", "-", true],
+      ["open", "Open"],
+      ["in_progress", "In Progress"],
+      ["blocked", "Blocked"],
+      ["complete", "Complete"],
+    ]), { attrs: { "data-task-bulk-status-control": "" } }),
+    taskControlLabel("Priority", taskSelect({ "data-task-bulk-priority": "" }, [
+      ["", "-", true],
+      ["low", "Low"],
+      ["normal", "Normal"],
+      ["high", "High"],
+      ["urgent", "Urgent"],
+    ]), { attrs: { "data-task-bulk-priority-control": "" } }),
+    taskControlLabel("Due Date", [
+      view.createElement("input", {
+        attrs: {
+          type: "date",
+          "data-task-bulk-due-date": "",
+        },
+      }),
+      taskCheckboxLine("Clear due date", { "data-task-bulk-clear-due-date": "" }),
+    ], { attrs: { "data-task-bulk-due-date-control": "" } }),
+    taskControlLabel("Due Time", [
+      view.createElement("input", {
+        attrs: {
+          type: "time",
+          "data-task-bulk-due-time": "",
+        },
+      }),
+      taskCheckboxLine("Clear due time", { "data-task-bulk-clear-due-time": "" }),
+    ], { attrs: { "data-task-bulk-due-time-control": "" } }),
+    taskControlLabel("Assignees", view.createElement("div", {
+      className: "task-bulk-assignee-list",
+      attrs: { "data-task-bulk-assignees": "" },
+    }), { attrs: { "data-task-bulk-assignee-control": "" } }),
+    taskControlLabel("Tag Action", taskSelect({ "data-task-bulk-tag-action": "" }, [
+      ["", "-", true],
+      ["tag_add", "Add tags"],
+      ["tag_remove", "Remove tags"],
+      ["tag_replace", "Replace direct tags"],
+    ]), {
+      attrs: { "data-task-bulk-tag-action-control": "" },
+      hidden: true,
+    }),
+    taskControlLabel("Tags", view.createElement("select", {
+      attrs: {
+        "data-task-bulk-tags": "",
+        multiple: true,
+        size: "4",
+      },
+    }), {
+      attrs: { "data-task-bulk-tags-control": "" },
+      hidden: true,
+    }),
+    taskControlLabel("Lifecycle", taskSelect({ "data-task-bulk-lifecycle": "" }, [
+      ["", "-", true],
+    ]), {
+      attrs: { "data-task-bulk-lifecycle-control": "" },
+      hidden: true,
+    }),
+    view.createElement("button", {
+      attrs: {
+        type: "button",
+        "data-task-bulk-apply": "",
+        disabled: true,
+      },
+      text: "Apply to 0",
+    }),
+  ];
+}
+
+function taskControlLabel(label, controls, options = {}) {
+  return view.createElement("label", {
+    className: options.className,
+    attrs: options.attrs,
+    hidden: options.hidden,
+    children: [label, controls],
+  });
+}
+
+function taskSelect(attrs, options = []) {
+  return view.createElement("select", {
+    attrs,
+    children: taskOptions(options),
+  });
+}
+
+function taskOptions(options = []) {
+  return options.map(([value, label, selected = false]) => view.createElement("option", {
+    attrs: {
+      value,
+      selected,
+    },
+    text: label,
+  }));
+}
+
+function taskCheckboxLine(label, attrs = {}) {
+  return view.createElement("span", {
+    className: "checkbox-line",
+    children: [
+      view.createElement("input", {
+        attrs: {
+          type: "checkbox",
+          ...attrs,
+        },
+      }),
+      label,
+    ],
+  });
 }
 
 async function loadTasks() {
@@ -639,20 +725,24 @@ function renderBulkAssigneeOptions() {
 
   const selectedIds = new Set(selectedBulkAssigneeIds());
   const controls = state.options.users.map((user) => {
-    const label = document.createElement("label");
-    const checkbox = document.createElement("input");
-    const name = document.createElement("span");
     const labelText = displayUser(user);
-
-    checkbox.type = "checkbox";
-    checkbox.value = user.user_id;
-    checkbox.checked = selectedIds.has(user.user_id);
-    name.className = "task-bulk-assignee-name";
-    name.textContent = labelText;
-    name.title = labelText;
-    label.className = "task-bulk-assignee-option";
-    label.append(checkbox, name);
-    return label;
+    return view.createElement("label", {
+      className: "task-bulk-assignee-option",
+      children: [
+        view.createElement("input", {
+          attrs: {
+            type: "checkbox",
+            value: user.user_id,
+            checked: selectedIds.has(user.user_id),
+          },
+        }),
+        view.createElement("span", {
+          className: "task-bulk-assignee-name",
+          attrs: { title: labelText },
+          text: labelText,
+        }),
+      ],
+    });
   });
 
   bulkAssigneesControl.replaceChildren(...controls);
@@ -683,13 +773,12 @@ function renderTasks() {
   taskList.replaceChildren();
 
   if (tasks.length === 0) {
-    const row = document.createElement("tr");
-    const cell = document.createElement("td");
-
-    cell.colSpan = 7;
-    cell.textContent = emptyTaskMessage();
-    row.appendChild(cell);
-    taskList.appendChild(row);
+    taskList.appendChild(view.createElement("tr", {
+      children: view.createElement("td", {
+        attrs: { colspan: "7" },
+        text: emptyTaskMessage(),
+      }),
+    }));
     updateSelectionControls(tasks);
     return;
   }
@@ -797,16 +886,521 @@ function createActions(task) {
     icon: "bell",
     title: "Follow notifications",
   });
-  const completeButton = task.status === "complete"
-    ? actionButton("Reopen", () => postTaskAction(task, "reopen"))
-    : actionButton("Complete", () => postTaskAction(task, "complete"));
-  const archiveButton = task.status === "archived"
-    ? actionButton("Restore", () => postTaskAction(task, "restore"))
-    : actionButton("Archive", () => confirmArchive(task));
 
   wrap.className = "task-row-actions";
-  wrap.append(editButton, duplicateButton, copyButton, followButton, completeButton, archiveButton);
+  wrap.append(editButton, duplicateButton, copyButton, followButton, createTaskWorkflowActionMenu(task), createTaskLifecycleActionStrip(task));
   return wrap;
+}
+
+function createTaskWorkflowActionMenu(task) {
+  const actions = taskWorkflowActionsForTask(task).map((action) => taskWorkflowActionButton(action, task));
+
+  if (actions.length === 0) {
+    return document.createDocumentFragment();
+  }
+
+  if (typeof view?.createDetailActionMenu === "function") {
+    return view.createDetailActionMenu({
+      ariaLabel: "Task workflow actions",
+      className: "task-row-workflow-actions",
+      summaryLabel: "...",
+      title: "Task workflow actions",
+      floating: true,
+      actions,
+    });
+  }
+
+  const fallback = document.createElement("div");
+  fallback.className = "task-row-workflow-actions";
+  fallback.append(...actions);
+  return fallback;
+}
+
+function taskWorkflowActionsForTask(task) {
+  const actions = taskWorkflowActionMenuDescriptor().actions || [];
+  return actions.filter((action) => taskWorkflowActionVisible(action, task));
+}
+
+function taskWorkflowActionMenuDescriptor() {
+  return {
+    label: "Task workflow actions",
+    actions: [
+      {
+        id: "assign-task",
+        label: "Assign",
+        icon: "edit",
+        role: "secondary",
+        behavior: "tasks.workflow.assign",
+        focusTarget: "assignees",
+        requiredPermissions: ["tasks.assign"],
+        requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
+      },
+      {
+        id: "change-task-due-date",
+        label: "Due Date",
+        icon: "edit",
+        role: "secondary",
+        behavior: "tasks.workflow.due-date",
+        focusTarget: "due_date",
+        requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
+      },
+      {
+        id: "change-task-due-time",
+        label: "Due Time",
+        icon: "edit",
+        role: "secondary",
+        behavior: "tasks.workflow.due-time",
+        focusTarget: "due_time",
+        requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
+      },
+      {
+        id: "apply-task-recurrence",
+        label: "Recurrence",
+        icon: "refresh",
+        role: "secondary",
+        behavior: "tasks.workflow.recurrence",
+        focusTarget: "recurrence",
+        requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
+      },
+      {
+        id: "start-task-timer",
+        label: "Start Timer",
+        icon: "start",
+        role: "secondary",
+        behavior: "tasks.workflow.timer.start",
+        timerStatus: "running",
+        timerVisibility: "none",
+        requiredPermissions: ["tasks.view", "time_entries.create"],
+        visibleStatuses: ["open", "in_progress", "blocked"],
+      },
+      {
+        id: "pause-task-timer",
+        label: "Pause Timer",
+        icon: "pause",
+        role: "secondary",
+        behavior: "tasks.workflow.timer.pause",
+        timerStatus: "paused",
+        timerVisibility: "running",
+        requiredPermissions: ["tasks.view", "time_entries.create"],
+        visibleStatuses: ["open", "in_progress", "blocked"],
+      },
+      {
+        id: "resume-task-timer",
+        label: "Resume Timer",
+        icon: "start",
+        role: "secondary",
+        behavior: "tasks.workflow.timer.resume",
+        timerStatus: "running",
+        timerVisibility: "paused",
+        requiredPermissions: ["tasks.view", "time_entries.create"],
+        visibleStatuses: ["open", "in_progress", "blocked"],
+      },
+    ],
+  };
+}
+
+function taskWorkflowActionVisible(action, task) {
+  const visibleStatuses = action.visibleStatuses || [];
+  if (visibleStatuses.length > 0 && !visibleStatuses.includes(task.status || "open")) {
+    return false;
+  }
+
+  const timer = taskTimerForTask(task);
+  if (action.timerVisibility === "none") {
+    return !timer;
+  }
+  if (action.timerVisibility === "running") {
+    return timer?.timer_status === "running";
+  }
+  if (action.timerVisibility === "paused") {
+    return Boolean(timer && timer.timer_status !== "running");
+  }
+
+  return true;
+}
+
+function taskWorkflowActionButton(action, task) {
+  const disabledReason = taskWorkflowDisabledReason(action, task);
+  const options = {
+    label: action.label,
+    title: disabledReason || action.title || action.label,
+    icon: action.icon,
+    text: action.label,
+    iconOnly: false,
+    variant: action.variant,
+    role: action.role,
+    action: action.behavior || action.id,
+    disabled: Boolean(disabledReason),
+    onClick: (event) => runTaskWorkflowAction(action, task, event?.currentTarget || null),
+  };
+  const button = typeof view?.createActionButton === "function"
+    ? view.createActionButton(options)
+    : actionButton(action.label, options.onClick, { icon: action.icon, title: options.title });
+
+  button.dataset.taskWorkflowAction = action.id;
+  button.dataset.taskWorkflowBehavior = action.behavior || "";
+  button.dataset.taskId = task.task_id || "";
+  if (disabledReason) {
+    button.disabled = true;
+  }
+  return button;
+}
+
+function taskWorkflowDisabledReason(action, task) {
+  if (!task?.task_id) {
+    return "Task action is unavailable.";
+  }
+  if (!hasTaskWorkflowPermission(action, task)) {
+    return "You do not have permission to run this action.";
+  }
+  if (action.timerStatus) {
+    return taskTimerDisabledReason(action, task);
+  }
+  return "";
+}
+
+function hasTaskWorkflowPermission(action, task) {
+  const permissions = workspacePermissionSet();
+  if (!permissions) {
+    return true;
+  }
+
+  const requiredPermissions = Array.isArray(action.requiredPermissions) ? action.requiredPermissions : [];
+  if (requiredPermissions.some((permissionId) => !permissionAllowsTaskAction(permissions, permissionId, task))) {
+    return false;
+  }
+
+  const requiredAnyPermissions = Array.isArray(action.requiredAnyPermissions) ? action.requiredAnyPermissions : [];
+  if (requiredAnyPermissions.length > 0 && !requiredAnyPermissions.some((permissionId) => permissionAllowsTaskAction(permissions, permissionId, task))) {
+    return false;
+  }
+
+  return true;
+}
+
+function taskTimerDisabledReason(action, task) {
+  const timer = taskTimerForTask(task);
+  if (state.options.taskTimersEnabled === false) {
+    return "Task timers are disabled.";
+  }
+  if (state.options.timeTrackingEnabled === false) {
+    return "Time Tracking is disabled.";
+  }
+  if (!task.project_id) {
+    return "Task timers require a project-linked task.";
+  }
+  if (task.status === "complete" || task.status === "archived") {
+    return "Completed and archived tasks cannot use task timers.";
+  }
+  if (action.timerVisibility === "running" && timer?.timer_status !== "running") {
+    return "No running task timer.";
+  }
+  if (action.timerVisibility === "paused" && (!timer || timer.timer_status === "running")) {
+    return "No paused task timer.";
+  }
+  return "";
+}
+
+function createTaskLifecycleActionStrip(task) {
+  const actions = taskLifecycleActionsForTask(task).map((action) => taskLifecycleActionButton(action, task));
+
+  if (typeof view?.createDetailActionStrip === "function") {
+    return view.createDetailActionStrip({
+      ariaLabel: "Task lifecycle actions",
+      className: "task-row-lifecycle-actions",
+      actions,
+    });
+  }
+
+  const fallback = document.createElement("div");
+  fallback.className = "task-row-lifecycle-actions";
+  fallback.append(...actions);
+  return fallback;
+}
+
+function taskLifecycleActionsForTask(task) {
+  const actions = taskLifecycleActionStripDescriptor().actions || [];
+  return actions.filter((action) => taskLifecycleActionVisible(action, task));
+}
+
+function taskLifecycleActionStripDescriptor() {
+  return {
+    label: "Task lifecycle actions",
+    actions: [
+      {
+        id: "complete-task",
+        label: "Complete",
+        icon: "complete",
+        role: "secondary",
+        behavior: "tasks.lifecycle.complete",
+        requiredPermissions: ["tasks.complete"],
+        visibleStatuses: ["open", "in_progress", "blocked"],
+      },
+      {
+        id: "reopen-task",
+        label: "Reopen",
+        icon: "restore",
+        role: "secondary",
+        behavior: "tasks.lifecycle.reopen",
+        requiredPermissions: ["tasks.complete"],
+        visibleStatuses: ["complete"],
+      },
+      {
+        id: "block-task",
+        label: "Block",
+        icon: "pause",
+        role: "secondary",
+        behavior: "tasks.lifecycle.block",
+        requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
+        statusPayload: { status: "blocked" },
+        visibleStatuses: ["open", "in_progress"],
+      },
+      {
+        id: "unblock-task",
+        label: "Unblock",
+        icon: "restore",
+        role: "secondary",
+        behavior: "tasks.lifecycle.unblock",
+        requiredAnyPermissions: ["tasks.edit_all", "tasks.edit_own"],
+        statusPayload: { status: "open", blocked_reason: "" },
+        visibleStatuses: ["blocked"],
+      },
+      {
+        id: "archive-task",
+        label: "Archive",
+        icon: "archive",
+        role: "destructive",
+        variant: "danger",
+        behavior: "tasks.lifecycle.archive",
+        requiredPermissions: ["tasks.archive"],
+        visibleStatuses: ["open", "in_progress", "blocked", "complete"],
+        confirm: {
+          title: "Archive task",
+          confirmLabel: "Archive",
+          danger: true,
+          message: (taskRecord) => `Archive "${taskRecord.title}"?`,
+        },
+      },
+      {
+        id: "restore-task",
+        label: "Restore",
+        icon: "restore",
+        role: "secondary",
+        behavior: "tasks.lifecycle.restore",
+        requiredPermissions: ["tasks.restore"],
+        visibleStatuses: ["archived"],
+      },
+    ],
+  };
+}
+
+function taskLifecycleActionVisible(action, task) {
+  const visibleStatuses = action.visibleStatuses || [];
+  if (visibleStatuses.length === 0) {
+    return true;
+  }
+  return visibleStatuses.includes(task.status || "open");
+}
+
+function taskLifecycleActionButton(action, task) {
+  const disabledReason = taskLifecycleDisabledReason(action, task);
+  const options = {
+    label: action.label,
+    title: disabledReason || action.title || action.label,
+    icon: action.icon,
+    text: "",
+    iconOnly: true,
+    variant: action.variant,
+    role: action.role,
+    action: action.behavior || action.id,
+    disabled: Boolean(disabledReason),
+    onClick: () => runTaskLifecycleAction(action, task),
+  };
+  const button = typeof view?.createActionButton === "function"
+    ? view.createActionButton(options)
+    : actionButton(action.label, options.onClick, { icon: action.icon, title: options.title });
+
+  button.dataset.taskLifecycleAction = action.id;
+  button.dataset.taskLifecycleBehavior = action.behavior || "";
+  button.dataset.taskId = task.task_id || "";
+  if (disabledReason) {
+    button.disabled = true;
+  }
+  return button;
+}
+
+function taskLifecycleDisabledReason(action, task) {
+  if (!task?.task_id) {
+    return "Task action is unavailable.";
+  }
+  if (!hasTaskLifecyclePermission(action, task)) {
+    return "You do not have permission to run this action.";
+  }
+  return "";
+}
+
+function hasTaskLifecyclePermission(action, task) {
+  const permissions = workspacePermissionSet();
+  if (!permissions) {
+    return true;
+  }
+
+  const requiredPermissions = Array.isArray(action.requiredPermissions) ? action.requiredPermissions : [];
+  if (requiredPermissions.some((permissionId) => !permissionAllowsTaskAction(permissions, permissionId, task))) {
+    return false;
+  }
+
+  const requiredAnyPermissions = Array.isArray(action.requiredAnyPermissions) ? action.requiredAnyPermissions : [];
+  if (requiredAnyPermissions.length > 0 && !requiredAnyPermissions.some((permissionId) => permissionAllowsTaskAction(permissions, permissionId, task))) {
+    return false;
+  }
+
+  return true;
+}
+
+function workspacePermissionSet() {
+  const rawPermissions = window.LongtailForge?.workspaceContext?.permissionIds ||
+    window.LongtailForge?.workspaceContext?.permissions;
+  if (!Array.isArray(rawPermissions)) {
+    return null;
+  }
+  const permissionIds = rawPermissions
+    .map((permission) => typeof permission === "string" ? permission : permission?.permissionId || permission?.permission_id || permission?.id)
+    .filter(Boolean);
+  return new Set(permissionIds);
+}
+
+function permissionAllowsTaskAction(permissions, permissionId, task) {
+  if (!permissions.has(permissionId)) {
+    return false;
+  }
+  if (permissionId === "tasks.edit_own") {
+    return isOwnTask(task);
+  }
+  return true;
+}
+
+function isOwnTask(task) {
+  const userId = currentUserId();
+  return Boolean(userId && (
+    task.created_by_user_id === userId ||
+    (task.assignee_ids || []).includes(userId)
+  ));
+}
+
+async function runTaskLifecycleAction(action, task) {
+  const handler = TASK_LIFECYCLE_BEHAVIOR_HANDLERS[action.behavior];
+  if (!handler) {
+    setStatus(`Missing task lifecycle behavior: ${action.behavior}`, { isError: true });
+    return;
+  }
+  if (action.confirm && !await confirmTaskLifecycleAction(action, task)) {
+    return;
+  }
+
+  await handler({
+    action,
+    api,
+    record: task,
+    refresh: reloadTaskList,
+    workspaceContext: window.LongtailForge?.workspaceContext || {},
+  });
+}
+
+async function runTaskWorkflowAction(action, task, trigger = null) {
+  const handler = TASK_WORKFLOW_BEHAVIOR_HANDLERS[action.behavior];
+  if (!handler) {
+    setStatus(`Missing task workflow behavior: ${action.behavior}`, { isError: true });
+    return;
+  }
+
+  await handler({
+    action,
+    api,
+    record: task,
+    refresh: reloadTaskList,
+    trigger,
+    workspaceContext: window.LongtailForge?.workspaceContext || {},
+  });
+}
+
+function openTaskDialogForWorkflow(task, action, trigger = null) {
+  if (!task?.task_id) {
+    setStatus("Task action is unavailable.", { isError: true });
+    return null;
+  }
+
+  return openTaskDialog(task, {
+    focusTarget: action.focusTarget || "",
+    returnFocusTo: trigger || document.activeElement,
+  });
+}
+
+async function saveTaskTimerAction(task, timerStatus) {
+  if (!task?.task_id) {
+    setStatus("Task timer action is unavailable.", { isError: true });
+    return;
+  }
+
+  const timer = taskTimerForTask(task);
+  const elapsedSeconds = readTaskTimerElapsedSeconds(timer);
+  const isRunning = timerStatus === "running";
+  const verb = isRunning ? (timer ? "Resuming" : "Starting") : "Pausing";
+
+  setStatus(`${verb} task timer...`);
+
+  try {
+    const result = await api.putJson(`/api/tasks/${encodeURIComponent(task.task_id)}/timer`, {
+      active_task_timer_id: timer?.active_task_timer_id || timer?.active_timer_id || "",
+      timer_status: isRunning ? "running" : "paused",
+      accumulated_elapsed_seconds: elapsedSeconds,
+      last_active_start_time: new Date().toISOString(),
+    });
+    if (result.timer) {
+      upsertTaskTimerState(result.timer);
+    }
+    await reloadTaskList();
+    setStatus("");
+  } catch (error) {
+    setStatus(error.message || "Task timer action failed.", { isError: true });
+  }
+}
+
+function taskTimerForTask(task) {
+  return state.taskTimers.find((timer) => timer.task_id === task?.task_id);
+}
+
+function upsertTaskTimerState(timer) {
+  const existingIndex = state.taskTimers.findIndex((item) => item.task_id === timer.task_id);
+  state.taskTimers = state.taskTimers.map((item) =>
+    item.timer_status === "running" && item.task_id !== timer.task_id
+      ? { ...item, timer_status: "paused", last_active_start_time: null }
+      : item,
+  );
+
+  if (existingIndex >= 0) {
+    state.taskTimers.splice(existingIndex, 1, timer);
+  } else {
+    state.taskTimers.push(timer);
+  }
+}
+
+function readTaskTimerElapsedSeconds(timer) {
+  if (!timer) {
+    return 0;
+  }
+
+  const baseSeconds = Number.parseInt(timer.accumulated_elapsed_seconds, 10) || 0;
+  if (timer.timer_status !== "running" || !timer.last_active_start_time) {
+    return baseSeconds;
+  }
+
+  const startedAt = new Date(timer.last_active_start_time).getTime();
+  if (!Number.isFinite(startedAt)) {
+    return baseSeconds;
+  }
+
+  return baseSeconds + Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
 }
 
 function appendTaskMetadata(container, task) {
@@ -859,7 +1453,28 @@ function appendTaskContext(container, task) {
     return;
   }
 
+  const summary = typeof view?.createDetailBadgeRow === "function"
+    ? view.createDetailBadgeRow({
+        ariaLabel: "Task context",
+        className: "task-context-summary",
+        badges: chips.map(taskContextBadge),
+      })
+    : taskContextSummaryFallback(chips);
+  container.appendChild(summary);
+}
+
+function taskContextBadge(chip) {
+  return {
+    className: ["task-context-chip", chip.className],
+    label: chip.label,
+    title: chip.title || `${chip.label}: ${chip.value}`,
+    value: chip.value,
+  };
+}
+
+function taskContextSummaryFallback(chips) {
   const summary = document.createElement("div");
+
   summary.className = "task-context-summary";
   chips.forEach((chip) => {
     const node = document.createElement("span");
@@ -868,7 +1483,7 @@ function appendTaskContext(container, task) {
     node.title = chip.title || `${chip.label}: ${chip.value}`;
     summary.appendChild(node);
   });
-  container.appendChild(summary);
+  return summary;
 }
 
 function actionButton(label, handler, options = {}) {
@@ -897,8 +1512,10 @@ function taskActionIcon(label) {
     Duplicate: "duplicate",
     Edit: "edit",
     "Follow Notifications": "bell",
+    Block: "pause",
     Reopen: "restore",
     Restore: "restore",
+    Unblock: "restore",
   }[label] || "more";
 }
 
@@ -1015,17 +1632,23 @@ async function followTaskNotifications(task) {
   }
 }
 
-async function confirmArchive(task) {
-  const confirmed = await modal.confirm({
-    title: "Archive task",
-    message: `Archive "${task.title}"?`,
-    confirmLabel: "Archive",
-    danger: true,
-  });
-
-  if (confirmed) {
-    await postTaskAction(task, "archive");
+async function confirmTaskLifecycleAction(action, task) {
+  const confirmOptions = typeof action.confirm === "object" ? action.confirm : {};
+  const message = typeof confirmOptions.message === "function"
+    ? confirmOptions.message(task)
+    : confirmOptions.message || `Continue with ${action.label || action.id}?`;
+  if (modal?.confirm) {
+    return modal.confirm({
+      title: confirmOptions.title || action.label || "Confirm task action",
+      message,
+      confirmLabel: confirmOptions.confirmLabel || action.label || "Continue",
+      danger: confirmOptions.danger === true || action.role === "destructive",
+    });
   }
+  if (typeof window.confirm === "function") {
+    return window.confirm(message);
+  }
+  return true;
 }
 
 async function postTaskAction(task, action) {
@@ -1047,6 +1670,19 @@ async function postTaskAction(task, action) {
   }
 }
 
+async function updateTaskLifecycleStatus(task, payload) {
+  setStatus(`${formatToken(payload.status)} task...`);
+
+  try {
+    const result = await api.putJson(`/api/tasks/${encodeURIComponent(task.task_id)}`, payload);
+    upsertTask(result.task);
+    await reloadTaskList();
+    setStatus("");
+  } catch (error) {
+    setStatus(error.message || "Task action failed.", { isError: true });
+  }
+}
+
 function duplicateTask(task) {
   openTaskDialog(task, { duplicate: true });
 }
@@ -1058,6 +1694,7 @@ function openTaskDialog(task = null, options = {}) {
     defaults: options.defaults || {},
     duplicate: options.duplicate === true,
     focusNotes: options.focusNotes === true,
+    focusTarget: options.focusTarget || "",
     mode: task && options.duplicate !== true ? "edit" : "add",
     returnFocusTo: options.returnFocusTo || document.activeElement,
     task,

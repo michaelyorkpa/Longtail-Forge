@@ -70,20 +70,44 @@ assert.match(surfaceContract, /Ownership Boundary/, "surface contract must docum
 
 assert.match(taskDialogScript, /view\.renderDescriptorModalForm\(descriptor, \{[\s\S]*className: "task-detail-dialog"/, "Tasks modal converted area should request the framework surface modal shell");
 
-for (const className of [
-  "task-details-field surface-modal-group",
-  "task-checklist-field surface-modal-group",
-  "task-recurrence-field surface-modal-group surface-divider-top",
-  "task-timer-field surface-modal-group",
-  "task-reminder-field surface-modal-group surface-divider-top",
-  "task-footer-panel task-tags-field surface-overlay-panel",
-  "task-footer-panel task-files-field surface-overlay-panel",
-  "task-notes-field surface-modal-group surface-divider-top",
+for (const { className, pattern } of [
+  {
+    className: "task-details-field surface-modal-group",
+    pattern: /className: \["task-details-field", "surface-modal-group"\]/,
+  },
+  {
+    className: "task-checklist-field surface-modal-group",
+    pattern: /className: \["task-checklist-field", "surface-modal-group"\]/,
+  },
+  {
+    className: "task-recurrence-field surface-modal-group surface-divider-top",
+    pattern: /className: \["task-recurrence-field", "surface-modal-group", "surface-divider-top"\]/,
+  },
+  {
+    className: "task-timer-field surface-modal-group",
+    pattern: /className: \["task-timer-field", "surface-modal-group"\]/,
+  },
+  {
+    className: "task-reminder-field surface-modal-group surface-divider-top",
+    pattern: /className: \["task-reminder-field", "surface-modal-group", "surface-divider-top"\]/,
+  },
+  {
+    className: "task-footer-panel task-tags-field surface-overlay-panel",
+    pattern: /taskEditorFooterPanel\(view, "task-tags-field"[\s\S]*className: \["task-footer-panel", fieldClassName, "surface-overlay-panel"\]/,
+  },
+  {
+    className: "task-footer-panel task-files-field surface-overlay-panel",
+    pattern: /taskEditorFooterPanel\(view, "task-files-field"[\s\S]*className: \["task-footer-panel", fieldClassName, "surface-overlay-panel"\]/,
+  },
+  {
+    className: "task-notes-field surface-modal-group surface-divider-top",
+    pattern: /className: \["task-notes-field", "surface-modal-group", "surface-divider-top"\]/,
+  },
 ]) {
-  assert.match(taskDialogScript, new RegExp(`class="${escapeRegExp(className)}"`), `Tasks modal converted area should include ${className}`);
+  assert.match(taskDialogScript, pattern, `Tasks modal converted area should include ${className}`);
 }
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=66/, "Tasks view must load the surface-token stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=68/, "Tasks view must load the surface-token stylesheet cache key");
 
 console.log("Surface token contract regression passed.");
 

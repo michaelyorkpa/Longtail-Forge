@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.9.6";
+const appVersion = "0.33.5.18.10.7";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -37,7 +37,7 @@ assert.match(tasksScript, /view\.renderSurface\(\{ \.\.\.activeTasksViewDescript
 assert.match(tasksModule, /sidebarPanels:\s*\[[\s\S]*id:\s*"tasks-view-selector"[\s\S]*id:\s*"tasks-filters"/, "Tasks descriptor should own sidebar panel placement through the framework");
 assert.match(tasksModule, /detail:\s*\{[\s\S]*regions:\s*\[[\s\S]*id:\s*"tasks-main-list"[\s\S]*behavior:\s*"tasks\.main\.list"/, "Tasks descriptor should mount the main list through a framework region");
 assert.match(mainChrome, /view\.createListShell\(\{[\s\S]*toolbar:\s*createTaskBulkToolbarChrome\(\)[\s\S]*statusAttrs:\s*\{\s*"data-task-status":\s*""\s*\}[\s\S]*children:\s*list/, "Tasks main list should use the framework list shell with a status mount and bulk toolbar slot");
-assert.match(bulkChrome, /view\.createBulkActionToolbar\(\{[\s\S]*body:\s*\[\.\.\.controls\.children\]/, "Tasks bulk controls should stay inside the framework bulk toolbar shell");
+assert.match(bulkChrome, /view\.createBulkActionToolbar\(\{[\s\S]*body:\s*taskBulkToolbarControls\(\)/, "Tasks bulk controls should stay inside the framework bulk toolbar shell");
 assert.doesNotMatch(mainChrome, /taskTemplateElement|<div class="list-table-wrap"|<table class="list-table task-table"|<p data-task-status/, "Tasks should not hand-build framework-owned main-list shell markup");
 assert.match(mainChrome, /className:\s*\["view-table-wrap", "list-table-wrap"\]/, "Tasks should use the shared table overflow wrapper while preserving compatibility table styling");
 
@@ -45,21 +45,21 @@ assert.match(renderTasks, /taskList\.replaceChildren\(\)[\s\S]*tasks\.forEach\(\
 assert.match(createTaskRow, /row\.classList\.add\("task-density-row"\)/, "Task rows should keep the dense row class");
 assert.match(createTaskRow, /appendTaskMetadata\(metaBand, task\)/, "Task rows should keep task-specific metadata rendering");
 assert.match(createTaskRow, /contentCell\.colSpan = 6/, "Task rows should keep the current dense table span");
-assert.match(createActions, /actionButton\("Edit"[\s\S]*actionButton\("Duplicate"[\s\S]*actionButton\("Copy Link"[\s\S]*actionButton\("Follow Notifications"[\s\S]*actionButton\("Complete"[\s\S]*actionButton\("Archive"/, "Task-specific row actions should remain module-owned");
+assert.match(createActions, /actionButton\("Edit"[\s\S]*actionButton\("Duplicate"[\s\S]*actionButton\("Copy Link"[\s\S]*actionButton\("Follow Notifications"[\s\S]*createTaskLifecycleActionStrip\(task\)/, "Task row utilities should remain module-owned while lifecycle placement uses the framework action strip");
 assert.doesNotMatch(viewBuilder, /task-density-row|data-task-list|data-task-bulk|task_view/, "Framework list shell should not know Tasks row or query semantics");
 
 assert.doesNotMatch(taskViewChrome, /data-task-filter-details|data-task-list|data-task-bulk-toolbar/, "Saved Task Views sidebar panel should not duplicate filters, rows, or bulk actions");
 assert.doesNotMatch(filterChrome, /data-task-view-selector|data-task-list|data-task-bulk-toolbar|task-density-row/, "Sorting and Filters sidebar panel should not duplicate saved views, rows, or bulk actions");
 assert.doesNotMatch(mainChrome, /data-task-filter-details|data-task-view-selector/, "Main list shell should not duplicate sidebar filter/view controls");
 
-assert.match(declarativeGuardrails, /const strictDeclarativeSurfaceIds = new Set\(\["lists\.workspace", "notes\.workspace"\]\)/, "Tasks should remain reported-only, not strict-converted, in this slice");
-assert.match(declarativeGuardrails, /Tasks descriptor should be inventoried but not strict yet/, "Guardrail inventory should explicitly report Tasks without strict enforcement");
-assert.match(declarativeGuide, /\| Tasks \| tasks \| tasks\.html \| tasks\.workspace \| reported \|/, "Declarative guide should keep Tasks in the reported inventory");
-assert.match(declarativeGuide, /list shell, bulk toolbar, add\/edit modal shell, recurrence child-modal shell, Checklist section shell, Task Timer section shell, and utility footer\/heading placement use shared framework helpers[\s\S]*reported-only until later Tasks slices/, "Declarative guide should document the Tasks framework-helper boundary");
+assert.match(declarativeGuardrails, /const strictDeclarativeSurfaceIds = new Set\(\["lists\.workspace", "notes\.workspace", "tasks\.workspace"\]\)/, "Tasks should now be under strict declarative enforcement");
+assert.match(declarativeGuardrails, /Tasks descriptor should be strict-converted/, "Guardrail inventory should explicitly enforce Tasks strict conversion");
+assert.match(declarativeGuide, /\| Tasks \| tasks \| tasks\.html \| tasks\.workspace \| strict \|/, "Declarative guide should keep Tasks in the strict inventory");
+assert.match(declarativeGuide, /list shell, bulk toolbar, row lifecycle action strip, row workflow action menu, add\/edit modal shell, top detail\/read metadata badge row, recurrence child-modal shell, Checklist section shell, Task Timer section shell, and utility footer\/heading placement use shared framework helpers[\s\S]*Strict Tasks guardrails now fail/, "Declarative guide should document the Tasks framework-helper boundary");
 assert.match(viewContract, /list-shell boundary shipped in 0\.33\.5\.18\.8\.4/, "View-building contract should document the Tasks list-shell boundary");
 assert.match(tasksDocs, /As of 0\.33\.5\.18\.8\.4[\s\S]*framework list shell owns the main list wrapper, status mount, and table overflow wrapper/, "Tasks docs should document the list-shell boundary");
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=66[\s\S]*js\/shared\/view-builder\.js\?v=13[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=16/, "Tasks host should load the list-shell cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=68[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=19/, "Tasks host should load the list-shell cache keys");
 assert.match(regressionSuite, /scripts\/tasks-list-surface-boundary-regression\.mjs/, "Regression suite should include the Tasks list-surface boundary regression");
 
 console.log("Tasks list surface boundary regression passed.");
@@ -78,3 +78,4 @@ function functionBlock(source, functionName) {
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
+

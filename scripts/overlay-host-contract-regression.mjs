@@ -31,10 +31,10 @@ assert.match(surfaceContract, /\.surface-overlay-panel--bottom-sheet/, "surface 
 assert.match(uiGuide, /overlay host owns placement, close behavior, focus handling, Escape, click-away, responsive sizing, and one-open-overlay behavior/, "UI guide should document overlay host ownership");
 
 assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1/, "Tasks view should load the shared overlay host before task-dialog");
-assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=16/, "Tasks view should load overlay host before task dialog code");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=66/, "Tasks view should load the overlay-host stylesheet cache key");
-assert.match(taskDialogScript, /<section class="task-footer-panel task-tags-field surface-overlay-panel" data-task-tags-panel hidden>[\s\S]*<div data-task-tags><\/div>/, "Tasks tags panel should keep module-owned tag picker mount");
-assert.match(taskDialogScript, /<section class="task-footer-panel task-files-field surface-overlay-panel" data-task-files-panel hidden>[\s\S]*<div data-task-files><\/div>/, "Tasks files panel should keep module-owned file attachment mount");
+assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=18/, "Tasks view should load overlay host before task dialog code");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=68/, "Tasks view should load the overlay-host stylesheet cache key");
+assert.match(taskDialogScript, /taskEditorFooterPanel\(view, "task-tags-field", \{ "data-task-tags-panel": "" \}[\s\S]*"data-task-tags": ""/, "Tasks tags panel should keep module-owned tag picker mount");
+assert.match(taskDialogScript, /taskEditorFooterPanel\(view, "task-files-field", \{ "data-task-files-panel": "" \}[\s\S]*"data-task-files": ""/, "Tasks files panel should keep module-owned file attachment mount");
 
 assert.match(taskDialogScript, /namespace\.overlayHost\.create\(\{ host: form \}\)/, "Task dialog should create a shared overlay host from the form");
 assert.match(taskDialogScript, /taskOverlayHost\.register\(\{[\s\S]*name: "tags"[\s\S]*panel: fields\.tagPanel[\s\S]*trigger: fields\.tagToggle/, "Task dialog should register Tags with the shared overlay host");

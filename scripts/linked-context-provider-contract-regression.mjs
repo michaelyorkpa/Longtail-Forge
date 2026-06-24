@@ -17,9 +17,9 @@ const workflowContract = await fs.readFile(path.join(root, "docs", "workflow-con
 const pickerContract = await fs.readFile(path.join(root, "docs", "linked-context-picker-contract.md"), "utf8");
 const moduleContract = await fs.readFile(path.join(root, "docs", "module-contract.md"), "utf8");
 
-assert.equal(packageJson.version, "0.33.5.18.9.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.9.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.9.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.10.7", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.10.7", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.10.7", "package-lock package entry should report the current app version");
 
 assert.deepEqual(LINKED_CONTEXT_TARGET_RESPONSE_FIELDS, [
   "moduleId",
@@ -129,3 +129,4 @@ assert.ok(
 );
 
 console.log("Linked Context provider contract regression passed.");
+

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.9.6";
+const appVersion = "0.33.5.18.10.7";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -25,8 +25,8 @@ assert.match(tasksModule, /dataSource:\s*\{[\s\S]*route:\s*"\/api\/tasks"[\s\S]*
 assert.match(tasksModule, /primaryAction:\s*\{[\s\S]*behavior:\s*"tasks\.create"[\s\S]*requiredPermissions:\s*\["tasks\.create"\]/, "Tasks descriptor should keep create permission intent on the header action");
 
 assert.match(tasksView, /<main class="wide-page tasks-page" data-tasks-host><\/main>/, "Tasks protected view should be reduced to a minimal host");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=66/, "Tasks protected view should load the current stylesheet cache key");
-assert.match(tasksView, /js\/shared\/view-builder\.js\?v=13[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/task-dialog\.js\?v=16[\s\S]*js\/tasks\.js\?v=16/, "Tasks protected view should load the renderer before the module adapter");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=68/, "Tasks protected view should load the current stylesheet cache key");
+assert.match(tasksView, /js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/task-dialog\.js\?v=18[\s\S]*js\/tasks\.js\?v=19/, "Tasks protected view should load the renderer before the module adapter");
 assertNoProtectedAnatomy(tasksView, "views/protected/tasks.html");
 
 assert.match(tasksScript, /buildTasksViewShell\(\);[\s\S]*tasksDialog\?\.configure\?\.\(\)/, "Tasks adapter should build the descriptor shell before querying task hooks");
@@ -60,7 +60,7 @@ assert.match(styles, /\.view-list-shell\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s
 assert.match(styles, /\.view-list-shell-status:empty\s*\{[\s\S]*display:\s*none/, "Empty list status text should not create a gap between Bulk Actions and the task list");
 assert.match(styles, /\.view-slideout-sidebar-main > \.tasks-main-list-region\s*\{[\s\S]*border:\s*0;[\s\S]*padding:\s*0;[\s\S]*background:\s*transparent/, "Tasks list region wrapper should not add a visible redesign layer");
 
-assert.match(declarativeGuide, /\| Tasks \| tasks \| tasks\.html \| tasks\.workspace \| reported \|/, "Declarative guide should inventory Tasks as reported with a descriptor");
+assert.match(declarativeGuide, /\| Tasks \| tasks \| tasks\.html \| tasks\.workspace \| strict \|/, "Declarative guide should inventory Tasks as a strict descriptor surface");
 assert.match(regressionSuite, /scripts\/tasks-declarative-readonly-surface-regression\.mjs/, "Regression suite should include the Tasks descriptor-host regression");
 
 console.log("Tasks declarative read-only surface regression passed.");
@@ -85,3 +85,4 @@ function functionBlock(source, functionName) {
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
+

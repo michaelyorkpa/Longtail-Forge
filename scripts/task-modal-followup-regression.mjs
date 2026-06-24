@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = "0.33.5.18.9.6";
+const currentTasksVersion = "0.33.5.18.10.7";
 
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.notificationToggle, \{ icon: "bell", label: "Follow task notifications", text: "", title: "Follow task notifications", iconOnly: true \}\)/, "Notification settings should render as a bell-only follow toggle when icons are available");
 assert.match(taskDialogScript, /icons\.decorateButton\(fields\.tagToggle, \{ icon: "tag", label: "Task tags", text: "", title: "Task tags", iconOnly: true \}\)/, "Tags footer action should be icon-only");
@@ -29,10 +29,11 @@ assert.doesNotMatch(taskDialogScript, /fields\.assignees\.closest\("details"\)\.
 assert.match(taskDialogScript, /function toggleTaskFooterPanel/, "Footer buttons should toggle task footer panels");
 assert.match(taskDialogScript, /nextPanel\.hidden = !shouldOpen/, "Footer panel toggle should expose the selected Tags or Files panel");
 
-assert.match(taskDialogScript, /data-task-resume-note placeholder="Where did you leave off\?"><\/textarea>/, "Resume Note should remain a textarea");
-assert.match(taskDialogScript, /<textarea rows="2" maxlength="240" data-task-next-action/, "Next Action should be a two-line textarea");
-assert.match(taskDialogScript, /<textarea rows="1" data-task-blocked-reason><\/textarea>/, "Blocked Reason should be one line tall");
-assert.match(taskDialogScript, /<details class="task-checklist-field[^"]*" data-task-checklist-field>/, "Checklist should not start open in fallback markup");
+assert.match(taskDialogScript, /taskEditorLabel\(view, "Resume note", taskEditorTextarea\(view, \{[\s\S]*rows: "2",[\s\S]*"data-task-resume-note": "",[\s\S]*placeholder: "Where did you leave off\?"/, "Resume Note should remain a textarea");
+assert.match(taskDialogScript, /taskEditorLabel\(view, "Next action", taskEditorTextarea\(view, \{[\s\S]*rows: "2",[\s\S]*maxlength: "240",[\s\S]*"data-task-next-action": ""/, "Next Action should be a two-line textarea");
+assert.match(taskDialogScript, /taskEditorLabel\(view, "Blocked reason", taskEditorTextarea\(view, \{[\s\S]*rows: "1",[\s\S]*"data-task-blocked-reason": ""/, "Blocked Reason should be one line tall");
+assert.match(taskDialogScript, /function taskEditorChecklistSection\(view\) \{[\s\S]*className: \["task-checklist-field", "surface-modal-group"\],[\s\S]*attrs: \{ "data-task-checklist-field": "" \}/, "Checklist should not start open in fallback markup");
+assert.doesNotMatch(taskDialogScript, /function taskEditorChecklistSection\(view\) \{[\s\S]*attrs: \{ "data-task-checklist-field": "", open: true \}/, "Checklist should not start open in fallback markup");
 assert.match(taskDialogScript, /Task Details[\s\S]*data-task-assignees[\s\S]*data-task-blocked-reason/, "Assignees should live inside Task Details before the final Blocked Reason field");
 assert.doesNotMatch(taskDialogScript, /data-task-assignment-schedule-panel|Assignment and Scheduling/, "Assignment should not have a separate modal section");
 assert.doesNotMatch(taskDialogScript, /<h3>Task Tags<\/h3>|<h3>Task Files<\/h3>/, "Tags and Files footer panels should not add boxed headings in the modal");
@@ -53,3 +54,4 @@ function readText(path) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.9.6";
+const appVersion = "0.33.5.18.10.7";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -48,8 +48,9 @@ assert.match(createTaskRow, /appendTaskMetadata\(metaBand, task\)/, "Task rows s
 assert.match(createTaskRow, /contentCell\.colSpan = 6/, "Task rows should keep the current table density");
 
 const createActions = functionBlock(tasksScript, "createActions");
-assert.match(createActions, /actionButton\("Edit"[\s\S]*actionButton\("Duplicate"[\s\S]*actionButton\("Copy Link"[\s\S]*actionButton\("Follow Notifications"[\s\S]*actionButton\("Complete"[\s\S]*actionButton\("Archive"/, "Existing row-level actions should still appear");
-assert.match(createActions, /actionButton\("Reopen"[\s\S]*actionButton\("Restore"/, "Completed and archived row actions should still appear when applicable");
+assert.match(createActions, /actionButton\("Edit"[\s\S]*actionButton\("Duplicate"[\s\S]*actionButton\("Copy Link"[\s\S]*actionButton\("Follow Notifications"[\s\S]*createTaskLifecycleActionStrip\(task\)/, "Existing row utility actions should still appear while lifecycle actions use the framework action strip");
+const lifecycleDescriptor = functionBlock(tasksScript, "taskLifecycleActionStripDescriptor");
+assert.match(lifecycleDescriptor, /id:\s*"complete-task"[\s\S]*id:\s*"reopen-task"[\s\S]*id:\s*"block-task"[\s\S]*id:\s*"unblock-task"[\s\S]*id:\s*"archive-task"[\s\S]*id:\s*"restore-task"/, "Completed, blocked, archived, and active lifecycle row actions should still appear when applicable");
 
 const buildTaskQuery = functionBlock(tasksScript, "buildTaskQuery");
 assert.match(buildTaskQuery, /params\.set\("task_view", canonicalTaskViewValue\(taskView\)\)/, "Saved task view should still affect visible task reads");
@@ -61,7 +62,7 @@ assert.match(buildTaskQuery, /params\.set\("tags", tagValue\)/, "Tag filter shou
 assert.match(tasksScript, /\[sortInput, statusFilter, assigneeFilter, clientFilter, projectFilter, tagFilter\]\.forEach\(\(input\) => \{[\s\S]*await reloadTaskList\(\)/, "Existing filter controls should still reload the visible task list");
 
 assert.match(tasksView, /<main class="wide-page tasks-page" data-tasks-host><\/main>/, "Tasks protected view should remain a minimal descriptor host");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=66[\s\S]*js\/shared\/view-builder\.js\?v=13[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=16/, "Tasks host should load the read-only list binding cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=68[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=19/, "Tasks host should load the read-only list binding cache keys");
 assert.match(renderer, /detail\.itemRows\s*\? renderItemCollection\(detail\.itemRows, view, state\)/, "Renderer should only show the generic Items placeholder when itemRows are declared");
 assert.match(styles, /\.view-slideout-sidebar-main > \.tasks-main-list-region\s*\{[\s\S]*border:\s*0;[\s\S]*padding:\s*0;[\s\S]*background:\s*transparent/, "Framework region wrapper should not visually redesign the task list");
 assert.match(styles, /\.view-list-shell\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0/, "Framework list shell should own no-gap list placement");
@@ -83,3 +84,4 @@ function functionBlock(source, functionName) {
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
+

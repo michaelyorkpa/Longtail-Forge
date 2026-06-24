@@ -57,6 +57,7 @@
       defaults: request.defaults,
       duplicate: request.duplicate,
       focusNotes: request.focusNotes,
+      focusTarget: request.focusTarget,
       hostContext,
       returnFocusTo: request.returnFocusTo,
       task: request.task,
@@ -89,6 +90,7 @@
       defaults,
       duplicate,
       focusNotes: params.focusNotes === true,
+      focusTarget: normalizeTaskEditorFocusTarget(params.focusTarget || params.focusField || params.focus),
       mode: duplicate ? "add" : mode,
       needsStandaloneContext: Boolean(hostContext) || !context || needsTaskFetch,
       onSaved: typeof params.onSaved === "function" ? params.onSaved : null,
@@ -114,6 +116,24 @@
       return "duplicate";
     }
     return params.task || params.taskId || params.task_id || params.recordId || params.id ? "edit" : "add";
+  }
+
+  function normalizeTaskEditorFocusTarget(value) {
+    const normalized = String(value || "").trim().toLowerCase().replace(/-/g, "_");
+    return {
+      assign: "assignees",
+      assignee: "assignees",
+      assignees: "assignees",
+      due: "due_date",
+      due_date: "due_date",
+      duedate: "due_date",
+      due_time: "due_time",
+      duetime: "due_time",
+      notes: "notes",
+      recurrence: "recurrence",
+      recurring: "recurrence",
+      timer: "timer",
+    }[normalized] || "";
   }
 
   function normalizeTaskEditorDefaults(params = {}) {
@@ -175,7 +195,7 @@
     };
   }
 
-  async function open({ task = null, duplicate = false, defaults = {}, focusNotes = false, hostContext = null, returnFocusTo = null } = {}) {
+  async function open({ task = null, duplicate = false, defaults = {}, focusNotes = false, focusTarget = "", hostContext = null, returnFocusTo = null } = {}) {
     ensureDialog();
     const isDuplicate = duplicate === true;
     const statusDefault = taskDefaultStatuses().includes(defaults.status) ? defaults.status : "";
@@ -227,7 +247,7 @@
 
     showTaskModal(dialog, { trigger: returnFocusTo });
 
-    fields.titleInput.focus();
+    focusTaskEditorTarget(focusNotes ? "notes" : focusTarget);
     return new Promise((resolve) => {
       dialog.addEventListener("close", () => {
         taskOverlayHost?.closeAll?.();
@@ -277,6 +297,7 @@
       project: dialog.querySelector("[data-task-project]"),
       parentTask: dialog.querySelector("[data-task-parent-task]"),
       recurrenceDetails: dialog.querySelector("[data-task-recurrence-details]"),
+      recurrenceField: dialog.querySelector("[data-task-recurrence-panel]"),
       recurrenceSummary: dialog.querySelector("[data-task-recurrence-summary]"),
       recurring: dialog.querySelector("[data-task-recurring]"),
       reminderDateOnlyDays1: dialog.querySelector("[data-task-reminder-date-only-days-1]"),
@@ -1533,6 +1554,39 @@
     context?.hostContext?.setStatus?.(message, options);
   }
 
+  function focusTaskEditorTarget(target) {
+    const focusTarget = normalizeTaskEditorFocusTarget(target);
+    const targetMap = {
+      assignees: fields.assignees,
+      due_date: fields.dueDate,
+      due_time: fields.dueTime,
+      recurrence: fields.recurring || fields.recurrenceDetails,
+      timer: fields.timerStart,
+    };
+    const panelMap = {
+      assignees: fields.taskDetailsPanel,
+      due_date: fields.taskDetailsPanel,
+      due_time: fields.taskDetailsPanel,
+      recurrence: fields.recurrenceField,
+      timer: fields.timerField,
+    };
+
+    if (focusTarget === "notes") {
+      fields.notesPanel?.scrollIntoView?.({ block: "nearest" });
+      fields.titleInput.focus();
+      return;
+    }
+
+    const panel = panelMap[focusTarget];
+    if (panel && "open" in panel) {
+      panel.open = true;
+    }
+
+    const targetElement = targetMap[focusTarget] || fields.titleInput;
+    targetElement?.scrollIntoView?.({ block: "nearest" });
+    targetElement?.focus?.();
+  }
+
   function updateBlockedReasonState() {
     if (!fields?.blockedReasonField || !fields?.blockedReason) {
       return;
@@ -1644,7 +1698,7 @@
     const completionSeconds = hasCompletedTaskMetrics(task)
       ? task?.completionMetrics?.duration_seconds
       : null;
-    const chips = [
+    const badges = [
       { label: "Status", value: selectedText(fields.status) || formatToken(fields.status?.value) },
       { label: "Priority", value: selectedText(fields.priority) || formatToken(fields.priority?.value) },
       usesClientScope() ? { label: "Client", value: selectedText(fields.client) || "No client" } : null,
@@ -1654,18 +1708,25 @@
       completionSeconds !== null && completionSeconds !== undefined && Number.isFinite(Number(completionSeconds))
         ? { label: "TTC", value: formatDaysDuration(Number(completionSeconds)), className: "is-completion" }
         : null,
-    ].filter((chip) => chip && chip.value);
+    ].filter((badge) => badge && badge.value);
 
-    fields.metadataRibbon.replaceChildren(...chips.map(createMetadataChip));
+    const ribbon = requireTaskDialogView().createDetailBadgeRow({
+      ariaLabel: "Task summary",
+      className: "task-metadata-ribbon",
+      badges: badges.map(createMetadataBadge),
+    });
+    fields.metadataRibbon.className = ribbon.className;
+    fields.metadataRibbon.replaceChildren(...Array.from(ribbon.children));
   }
 
-  function createMetadataChip(chip) {
-    const node = document.createElement("span");
-    node.className = ["task-metadata-chip", chip.className].filter(Boolean).join(" ");
-    node.tabIndex = 0;
-    node.textContent = `${chip.label}: ${chip.value}`;
-    node.title = `${chip.label}: ${chip.value}`;
-    return node;
+  function createMetadataBadge(badge) {
+    return {
+      className: ["task-metadata-chip", badge.className],
+      focusable: true,
+      label: badge.label,
+      value: badge.value,
+      title: `${badge.label}: ${badge.value}`,
+    };
   }
 
   function selectedText(select) {
@@ -1759,7 +1820,7 @@
 
   function requireTaskDialogView() {
     const view = namespace.view;
-    if (!view?.renderDescriptorModalForm || !view?.createModalForm || !view?.showModal || !view?.closeModal || !view?.createActionButton || !view?.createElement) {
+    if (!view?.renderDescriptorModalForm || !view?.createModalForm || !view?.showModal || !view?.closeModal || !view?.createActionButton || !view?.createElement || !view?.createDetailBadgeRow) {
       throw new Error("Task dialog requires LongtailForge.view modal helpers.");
     }
     return view;
@@ -1846,28 +1907,318 @@
   }
 
   function taskEditorFieldNodes() {
-    return taskTemplateElements(taskEditorFieldMarkup());
+    const view = requireTaskDialogView();
+    return [
+      taskEditorTitleField(view),
+      taskEditorMetadataRibbon(view),
+      taskEditorDetailsSection(view),
+      taskEditorChecklistSection(view),
+      taskEditorRecurrenceSection(view),
+      taskEditorTimerSection(view),
+      taskEditorReminderSection(view),
+      taskEditorFooterPanel(view, "task-tags-field", { "data-task-tags-panel": "" }, view.createElement("div", {
+        attrs: { "data-task-tags": "" },
+      })),
+      taskEditorFooterPanel(view, "task-files-field", { "data-task-files-panel": "" }, view.createElement("div", {
+        attrs: { "data-task-files": "" },
+      })),
+      taskEditorNotesSection(view),
+    ];
   }
 
-  function taskTemplateElements(markup) {
-    const template = document.createElement("template");
-    template.innerHTML = markup.trim();
-    return [...template.content.children];
+  function taskEditorTitleField(view) {
+    return taskEditorLabel(view, "Title", view.createElement("input", {
+      attrs: {
+        type: "text",
+        "data-task-title": "",
+        required: true,
+      },
+    }), { className: "task-title-field" });
   }
 
-  function taskEditorFieldMarkup() {
-    return `
-      <label class="task-title-field">Title<input type="text" data-task-title required></label>
-      <div class="task-metadata-ribbon surface-chip-row" data-task-metadata-ribbon aria-label="Task summary"></div>
-      <details class="task-details-field surface-modal-group" data-task-details-panel open><summary class="surface-modal-section-heading">Task Details</summary><div class="task-details-grid surface-modal-section-body"><label>Status<select data-task-form-status><option value="open">Open</option><option value="in_progress">In Progress</option><option value="blocked">Blocked</option><option value="complete">Complete</option><option value="archived">Archived</option></select></label><label>Priority<select data-task-priority><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="urgent">Urgent</option></select></label><label class="task-parent-field">Parent Task<select data-task-parent-task></select></label><label>Due Date<input type="date" data-task-due-date></label><label>Due Time<input type="time" data-task-due-time></label><label class="task-resume-note-field">Resume note<textarea rows="2" data-task-resume-note placeholder="Where did you leave off?"></textarea></label><label class="task-next-action-field">Next action<textarea rows="2" maxlength="240" data-task-next-action placeholder="What's the next thing?"></textarea></label><label data-client-workspace-control>Client<select data-task-client></select></label><label>Project<select data-task-project></select></label><label class="task-description-field">Description<textarea rows="5" data-task-description></textarea></label><label class="task-assignee-field">Assignees<select multiple data-task-assignees aria-label="Assignees"></select></label><label class="task-blocked-reason-field" data-task-blocked-reason-field hidden>Blocked reason<textarea rows="1" data-task-blocked-reason></textarea></label></div></details>
-      <details class="task-checklist-field surface-modal-group" data-task-checklist-field><summary class="surface-modal-section-heading">Checklist</summary><p class="surface-modal-section-help" data-task-checklist-status>0 / 0 complete</p><div class="task-checklist-add-row surface-modal-section-body"><input type="text" maxlength="240" data-task-checklist-input aria-label="Checklist item" placeholder="Add checklist item"><button type="button" data-task-checklist-add>Add</button></div><div class="task-checklist-list" data-task-checklist-list></div></details>
-      <details class="task-recurrence-field surface-modal-group surface-divider-top" data-task-recurrence-panel><summary class="surface-modal-section-heading">Recurrence</summary><div class="task-recurrence-controls surface-modal-section-body"><label class="inline-option"><input type="checkbox" data-task-recurring>Recurring?</label><button type="button" data-task-recurrence-details disabled>Details</button></div><p class="surface-modal-section-help" data-task-recurrence-summary>Not recurring.</p></details>
-      <section class="task-timer-field surface-modal-group" data-task-timer-field hidden><h3 class="surface-modal-section-heading">Task Timer</h3><p class="surface-modal-section-help" data-task-timer-status>No active timer.</p><div class="task-timer-controls surface-modal-section-body surface-dense-actions"><strong class="surface-chip" data-task-timer-display>00:00:00</strong><button type="button" data-task-timer-start>Start</button><button type="button" data-task-timer-pause disabled>Pause</button><button type="button" data-task-timer-finalize disabled>Save Time</button><button type="button" data-task-timer-reset disabled>Reset</button></div></section>
-      <details class="task-reminder-field surface-modal-group surface-divider-top" data-task-reminder-details><summary class="surface-modal-section-heading">Reminders</summary><p class="surface-modal-section-help" data-task-effective-reminders></p><label class="inline-option"><input type="checkbox" data-task-reminder-override>Override reminder defaults</label><div class="reminder-offset-grid surface-modal-section-body" data-task-reminder-override-fields hidden><label>Timed Reminder 1 (hours before)<input type="number" min="1" step="1" data-task-reminder-date-time-hours-1></label><label>Timed Reminder 2 (hours before)<input type="number" min="1" step="1" data-task-reminder-date-time-hours-2></label><label>Date-Only Reminder 1 (days before)<input type="number" min="1" step="1" data-task-reminder-date-only-days-1></label><label>Date-Only Reminder 2 (days before)<input type="number" min="1" step="1" data-task-reminder-date-only-days-2></label></div></details>
-      <section class="task-footer-panel task-tags-field surface-overlay-panel" data-task-tags-panel hidden><div data-task-tags></div></section>
-      <section class="task-footer-panel task-files-field surface-overlay-panel" data-task-files-panel hidden><div data-task-files></div></section>
-      <details class="task-notes-field surface-modal-group surface-divider-top" data-task-notes-panel><summary class="surface-modal-section-heading">Notes</summary><div class="surface-modal-section-body" data-task-notes></div></details>
-    `;
+  function taskEditorMetadataRibbon(view) {
+    return view.createElement("div", {
+      className: ["task-metadata-ribbon", "view-detail-badges", "surface-chip-row"],
+      attrs: {
+        "data-task-metadata-ribbon": "",
+        "aria-label": "Task summary",
+      },
+    });
+  }
+
+  function taskEditorDetailsSection(view) {
+    return view.createElement("details", {
+      className: ["task-details-field", "surface-modal-group"],
+      attrs: {
+        "data-task-details-panel": "",
+        open: true,
+      },
+      children: [
+        taskEditorSectionHeading(view, "summary", "Task Details"),
+        view.createElement("div", {
+          className: ["task-details-grid", "surface-modal-section-body"],
+          children: [
+            taskEditorLabel(view, "Status", taskEditorSelect(view, { "data-task-form-status": "" }, [
+              ["open", "Open"],
+              ["in_progress", "In Progress"],
+              ["blocked", "Blocked"],
+              ["complete", "Complete"],
+              ["archived", "Archived"],
+            ])),
+            taskEditorLabel(view, "Priority", taskEditorSelect(view, { "data-task-priority": "" }, [
+              ["low", "Low"],
+              ["normal", "Normal"],
+              ["high", "High"],
+              ["urgent", "Urgent"],
+            ])),
+            taskEditorLabel(view, "Parent Task", taskEditorSelect(view, { "data-task-parent-task": "" }), {
+              className: "task-parent-field",
+            }),
+            taskEditorLabel(view, "Due Date", taskEditorInput(view, "date", { "data-task-due-date": "" })),
+            taskEditorLabel(view, "Due Time", taskEditorInput(view, "time", { "data-task-due-time": "" })),
+            taskEditorLabel(view, "Resume note", taskEditorTextarea(view, {
+              rows: "2",
+              "data-task-resume-note": "",
+              placeholder: "Where did you leave off?",
+            }), { className: "task-resume-note-field" }),
+            taskEditorLabel(view, "Next action", taskEditorTextarea(view, {
+              rows: "2",
+              maxlength: "240",
+              "data-task-next-action": "",
+              placeholder: "What's the next thing?",
+            }), { className: "task-next-action-field" }),
+            taskEditorLabel(view, "Client", taskEditorSelect(view, { "data-task-client": "" }), {
+              attrs: { "data-client-workspace-control": "" },
+            }),
+            taskEditorLabel(view, "Project", taskEditorSelect(view, { "data-task-project": "" })),
+            taskEditorLabel(view, "Description", taskEditorTextarea(view, {
+              rows: "5",
+              "data-task-description": "",
+            }), { className: "task-description-field" }),
+            taskEditorLabel(view, "Assignees", taskEditorSelect(view, {
+              "data-task-assignees": "",
+              "aria-label": "Assignees",
+              multiple: true,
+            }), { className: "task-assignee-field" }),
+            taskEditorLabel(view, "Blocked reason", taskEditorTextarea(view, {
+              rows: "1",
+              "data-task-blocked-reason": "",
+            }), {
+              className: "task-blocked-reason-field",
+              attrs: { "data-task-blocked-reason-field": "" },
+              hidden: true,
+            }),
+          ],
+        }),
+      ],
+    });
+  }
+
+  function taskEditorChecklistSection(view) {
+    return view.createElement("details", {
+      className: ["task-checklist-field", "surface-modal-group"],
+      attrs: { "data-task-checklist-field": "" },
+      children: [
+        taskEditorSectionHeading(view, "summary", "Checklist"),
+        view.createElement("p", {
+          className: "surface-modal-section-help",
+          attrs: { "data-task-checklist-status": "" },
+          text: "0 / 0 complete",
+        }),
+        view.createElement("div", {
+          className: ["task-checklist-add-row", "surface-modal-section-body"],
+          children: [
+            taskEditorInput(view, "text", {
+              maxlength: "240",
+              "data-task-checklist-input": "",
+              "aria-label": "Checklist item",
+              placeholder: "Add checklist item",
+            }),
+            taskEditorButton(view, "Add", { "data-task-checklist-add": "" }),
+          ],
+        }),
+        view.createElement("div", {
+          className: "task-checklist-list",
+          attrs: { "data-task-checklist-list": "" },
+        }),
+      ],
+    });
+  }
+
+  function taskEditorRecurrenceSection(view) {
+    return view.createElement("details", {
+      className: ["task-recurrence-field", "surface-modal-group", "surface-divider-top"],
+      attrs: { "data-task-recurrence-panel": "" },
+      children: [
+        taskEditorSectionHeading(view, "summary", "Recurrence"),
+        view.createElement("div", {
+          className: ["task-recurrence-controls", "surface-modal-section-body"],
+          children: [
+            taskEditorInlineCheckbox(view, "Recurring?", { "data-task-recurring": "" }),
+            taskEditorButton(view, "Details", { "data-task-recurrence-details": "", disabled: true }),
+          ],
+        }),
+        view.createElement("p", {
+          className: "surface-modal-section-help",
+          attrs: { "data-task-recurrence-summary": "" },
+          text: "Not recurring.",
+        }),
+      ],
+    });
+  }
+
+  function taskEditorTimerSection(view) {
+    return view.createElement("section", {
+      className: ["task-timer-field", "surface-modal-group"],
+      attrs: { "data-task-timer-field": "" },
+      hidden: true,
+      children: [
+        taskEditorSectionHeading(view, "h3", "Task Timer"),
+        view.createElement("p", {
+          className: "surface-modal-section-help",
+          attrs: { "data-task-timer-status": "" },
+          text: "No active timer.",
+        }),
+        view.createElement("div", {
+          className: ["task-timer-controls", "surface-modal-section-body", "surface-dense-actions"],
+          children: [
+            view.createElement("strong", {
+              className: "surface-chip",
+              attrs: { "data-task-timer-display": "" },
+              text: "00:00:00",
+            }),
+            taskEditorButton(view, "Start", { "data-task-timer-start": "" }),
+            taskEditorButton(view, "Pause", { "data-task-timer-pause": "", disabled: true }),
+            taskEditorButton(view, "Save Time", { "data-task-timer-finalize": "", disabled: true }),
+            taskEditorButton(view, "Reset", { "data-task-timer-reset": "", disabled: true }),
+          ],
+        }),
+      ],
+    });
+  }
+
+  function taskEditorReminderSection(view) {
+    return view.createElement("details", {
+      className: ["task-reminder-field", "surface-modal-group", "surface-divider-top"],
+      attrs: { "data-task-reminder-details": "" },
+      children: [
+        taskEditorSectionHeading(view, "summary", "Reminders"),
+        view.createElement("p", {
+          className: "surface-modal-section-help",
+          attrs: { "data-task-effective-reminders": "" },
+        }),
+        taskEditorInlineCheckbox(view, "Override reminder defaults", { "data-task-reminder-override": "" }),
+        view.createElement("div", {
+          className: ["reminder-offset-grid", "surface-modal-section-body"],
+          attrs: { "data-task-reminder-override-fields": "" },
+          hidden: true,
+          children: [
+            taskEditorLabel(view, "Timed Reminder 1 (hours before)", taskEditorInput(view, "number", {
+              min: "1",
+              step: "1",
+              "data-task-reminder-date-time-hours-1": "",
+            })),
+            taskEditorLabel(view, "Timed Reminder 2 (hours before)", taskEditorInput(view, "number", {
+              min: "1",
+              step: "1",
+              "data-task-reminder-date-time-hours-2": "",
+            })),
+            taskEditorLabel(view, "Date-Only Reminder 1 (days before)", taskEditorInput(view, "number", {
+              min: "1",
+              step: "1",
+              "data-task-reminder-date-only-days-1": "",
+            })),
+            taskEditorLabel(view, "Date-Only Reminder 2 (days before)", taskEditorInput(view, "number", {
+              min: "1",
+              step: "1",
+              "data-task-reminder-date-only-days-2": "",
+            })),
+          ],
+        }),
+      ],
+    });
+  }
+
+  function taskEditorFooterPanel(view, fieldClassName, attrs, child) {
+    return view.createElement("section", {
+      className: ["task-footer-panel", fieldClassName, "surface-overlay-panel"],
+      attrs,
+      hidden: true,
+      children: child,
+    });
+  }
+
+  function taskEditorNotesSection(view) {
+    return view.createElement("details", {
+      className: ["task-notes-field", "surface-modal-group", "surface-divider-top"],
+      attrs: { "data-task-notes-panel": "" },
+      children: [
+        taskEditorSectionHeading(view, "summary", "Notes"),
+        view.createElement("div", {
+          className: "surface-modal-section-body",
+          attrs: { "data-task-notes": "" },
+        }),
+      ],
+    });
+  }
+
+  function taskEditorSectionHeading(view, tagName, text) {
+    return view.createElement(tagName, {
+      className: "surface-modal-section-heading",
+      text,
+    });
+  }
+
+  function taskEditorLabel(view, label, controls, options = {}) {
+    return view.createElement("label", {
+      className: options.className,
+      attrs: options.attrs,
+      hidden: options.hidden,
+      children: [label, controls],
+    });
+  }
+
+  function taskEditorInlineCheckbox(view, label, attrs = {}) {
+    return view.createElement("label", {
+      className: "inline-option",
+      children: [
+        taskEditorInput(view, "checkbox", attrs),
+        label,
+      ],
+    });
+  }
+
+  function taskEditorSelect(view, attrs = {}, options = []) {
+    return view.createElement("select", {
+      attrs,
+      children: options.map(([value, label]) => view.createElement("option", {
+        attrs: { value },
+        text: label,
+      })),
+    });
+  }
+
+  function taskEditorInput(view, type, attrs = {}) {
+    return view.createElement("input", {
+      attrs: {
+        type,
+        ...attrs,
+      },
+    });
+  }
+
+  function taskEditorTextarea(view, attrs = {}) {
+    return view.createElement("textarea", { attrs });
+  }
+
+  function taskEditorButton(view, label, attrs = {}) {
+    return view.createElement("button", {
+      attrs: {
+        type: "button",
+        ...attrs,
+      },
+      text: label,
+    });
   }
 
   function createTaskRecurrenceDialog() {

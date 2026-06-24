@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.9.6";
+const appVersion = "0.33.5.18.10.7";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -19,7 +19,7 @@ assert.match(taskDialogScript, /id: "task_details", label: "Task Details"[\s\S]*
 assert.match(taskDialogScript, /Task Details[\s\S]*Checklist[\s\S]*Recurrence[\s\S]*Task Timer[\s\S]*Reminders[\s\S]*Notes/, "Task editor markup should keep Task Details before specialized escape hatches");
 assert.doesNotMatch(taskDialogScript, /Core Task Details|Assignment and Scheduling|<summary class="surface-modal-section-heading">Primary Context<\/summary>|Advanced Details/, "Task Details should not be split into extra visible section boxes");
 assert.doesNotMatch(taskDialogScript, /task-core-details-field|task-assignment-schedule-field|task-primary-context-field|task-advanced-details-field/, "Task Details should not keep obsolete split-section classes");
-assert.match(taskDialogScript, /Task Details[\s\S]*data-task-form-status[\s\S]*data-task-priority[\s\S]*data-task-parent-task[\s\S]*data-task-due-date[\s\S]*data-task-due-time[\s\S]*data-task-resume-note[\s\S]*data-task-next-action[\s\S]*data-client-workspace-control[\s\S]*data-task-client[\s\S]*data-task-project[\s\S]*data-task-description[\s\S]*data-task-assignees[\s\S]*data-task-blocked-reason/, "Task Details should keep parent, scheduling, context, description, assignment, and blocked reason in the requested order");
+assert.match(taskDialogScript, /taskEditorDetailsSection[\s\S]*Task Details[\s\S]*data-task-form-status[\s\S]*data-task-priority[\s\S]*data-task-parent-task[\s\S]*data-task-due-date[\s\S]*data-task-due-time[\s\S]*data-task-resume-note[\s\S]*data-task-next-action[\s\S]*data-task-client[\s\S]*data-client-workspace-control[\s\S]*data-task-project[\s\S]*data-task-description[\s\S]*data-task-assignees[\s\S]*data-task-blocked-reason/, "Task Details should keep parent, scheduling, context, description, assignment, and blocked reason in the requested order");
 assert.match(taskDialogScript, /const isBlocked = fields\.status\?\.value === "blocked"[\s\S]*fields\.blockedReasonField\.hidden = !isBlocked;[\s\S]*fields\.blockedReason\.disabled = !isBlocked;/, "Blocked Reason should only be selectable when status is blocked");
 
 assert.match(taskDialogScript, /dialog\.querySelectorAll\("\[data-client-workspace-control\]"\)\.forEach\(\(element\) => \{[\s\S]*element\.hidden = !hasClientScope;/, "Personal and Family workspaces should hide Client controls");
@@ -54,3 +54,4 @@ function readText(path) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+

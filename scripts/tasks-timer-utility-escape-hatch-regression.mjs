@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.9.6";
+const appVersion = "0.33.5.18.10.7";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -24,7 +24,9 @@ assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`
 const editorDialog = functionBlock(taskDialogScript, "createTaskEditorDialog");
 const editorDescriptor = functionBlock(taskDialogScript, "taskEditorModalDescriptor");
 const utilityActions = functionBlock(taskDialogScript, "taskEditorUtilityActions");
-const fieldMarkup = functionBlock(taskDialogScript, "taskEditorFieldMarkup");
+const timerSection = functionBlock(taskDialogScript, "taskEditorTimerSection");
+const footerPanel = functionBlock(taskDialogScript, "taskEditorFooterPanel");
+const notesSection = functionBlock(taskDialogScript, "taskEditorNotesSection");
 const ensureDialog = functionBlock(taskDialogScript, "ensureDialog");
 const decorateControls = functionBlock(taskDialogScript, "decorateTaskDialogControls");
 const tagMount = functionBlock(taskDialogScript, "mountTaskTagPicker");
@@ -53,11 +55,12 @@ assert.match(editorDescriptor, /utilityActions:\s*\[[\s\S]*id: "tags", label: "T
 assert.match(utilityActions, /view\.createActionButton\(\{[\s\S]*className: "surface-modal-footer-action"[\s\S]*iconOnly: true[\s\S]*role: action\.role[\s\S]*title: action\.label/, "Utility footer actions should be framework action buttons");
 assert.match(utilityActions, /button\.dataset\.taskTagsToggle = ""[\s\S]*button\.dataset\.taskFilesToggle = ""[\s\S]*button\.dataset\.copyTaskLink = ""[\s\S]*button\.hidden = true/, "Utility footer actions should keep task-owned tags/files/copy hooks");
 
-assert.match(fieldMarkup, /<section class="task-timer-field surface-modal-group" data-task-timer-field hidden>[\s\S]*data-task-timer-start[\s\S]*data-task-timer-pause[\s\S]*data-task-timer-finalize[\s\S]*data-task-timer-reset/, "Task timer controls should remain in the shared modal section shell");
-assert.match(fieldMarkup, /class="task-timer-controls surface-modal-section-body surface-dense-actions"[\s\S]*class="surface-chip" data-task-timer-display/, "Task timer controls should keep shared dense-action and chip anatomy");
-assert.match(fieldMarkup, /<section class="task-footer-panel task-tags-field surface-overlay-panel" data-task-tags-panel hidden><div data-task-tags><\/div><\/section>/, "Tags utility panel should stay a task-owned overlay panel body");
-assert.match(fieldMarkup, /<section class="task-footer-panel task-files-field surface-overlay-panel" data-task-files-panel hidden><div data-task-files><\/div><\/section>/, "Files utility panel should stay a task-owned overlay panel body");
-assert.match(fieldMarkup, /<details class="task-notes-field surface-modal-group surface-divider-top" data-task-notes-panel><summary class="surface-modal-section-heading">Notes<\/summary><div class="surface-modal-section-body" data-task-notes><\/div><\/details>/, "Notes linked panel should stay in its shared modal section shell");
+assert.match(timerSection, /className: \["task-timer-field", "surface-modal-group"\][\s\S]*"data-task-timer-field": ""[\s\S]*hidden: true[\s\S]*data-task-timer-start[\s\S]*data-task-timer-pause[\s\S]*data-task-timer-finalize[\s\S]*data-task-timer-reset/, "Task timer controls should remain in the shared modal section shell");
+assert.match(timerSection, /className: \["task-timer-controls", "surface-modal-section-body", "surface-dense-actions"\][\s\S]*className: "surface-chip"[\s\S]*"data-task-timer-display": ""/, "Task timer controls should keep shared dense-action and chip anatomy");
+assert.match(taskDialogScript, /taskEditorFooterPanel\(view, "task-tags-field", \{ "data-task-tags-panel": "" \}[\s\S]*"data-task-tags": ""/, "Tags utility panel should stay a task-owned overlay panel body");
+assert.match(taskDialogScript, /taskEditorFooterPanel\(view, "task-files-field", \{ "data-task-files-panel": "" \}[\s\S]*"data-task-files": ""/, "Files utility panel should stay a task-owned overlay panel body");
+assert.match(footerPanel, /className: \["task-footer-panel", fieldClassName, "surface-overlay-panel"\][\s\S]*hidden: true/, "Tags and Files utility panels should stay hidden framework-placed footer panels");
+assert.match(notesSection, /className: \["task-notes-field", "surface-modal-group", "surface-divider-top"\][\s\S]*"data-task-notes-panel": ""[\s\S]*taskEditorSectionHeading\(view, "summary", "Notes"\)[\s\S]*"data-task-notes": ""/, "Notes linked panel should stay in its shared modal section shell");
 assert.doesNotMatch(taskDialogScript, /createTaskTimerDialog|data-task-timer-dialog|<dialog[^>]+timer|createTaskTagsDialog|createTaskFilesDialog|data-task-tags-dialog|data-task-files-dialog/i, "Timer/tags/files utility fragments should not create duplicate modal shells");
 
 assert.match(ensureDialog, /fields\.timerStart\?\.addEventListener\("click", \(\) => saveTaskTimer\("running"\)\)[\s\S]*fields\.timerPause\?\.addEventListener\("click", \(\) => saveTaskTimer\("paused"\)\)[\s\S]*fields\.timerFinalize\?\.addEventListener\("click", finalizeTaskTimer\)[\s\S]*fields\.timerReset\?\.addEventListener\("click", resetTaskTimer\)/, "Task timer buttons should still dispatch to Tasks-owned handlers");
@@ -119,7 +122,7 @@ assert.match(timerSource, /source_module_id: TASKS_MODULE_ID[\s\S]*source_type: 
 assert.match(taskTimerRegression, /taskTimersService\.save[\s\S]*taskTimersService\.remove[\s\S]*taskTimersService\.finalize/, "Existing task timer regression should keep service lifecycle coverage");
 assert.match(notificationRegression, /task notification follow UI uses shared subscription helper[\s\S]*notificationSubscriptions\\\.follow\\\(target\\\)[\s\S]*notificationSubscriptions\\\.unfollow\\\(target\\\)/, "Existing notification regression should keep task follow/unfollow helper coverage");
 assert.match(tasksDocs, /As of 0\.33\.5\.18\.9\.6[\s\S]*Task Timer section keeps the shared `\.surface-modal-group` shell[\s\S]*Tags and Files stay in framework-placed footer utility actions[\s\S]*linked Notes panel stays mounted through the Notes-owned helper/, "Tasks docs should document the 9.6 timer and utility boundary");
-assert.match(declarativeGuide, /As of 0\.33\.5\.18\.9\.6[\s\S]*timer state, tags, files, linked notes, copy-link, notification follow/, "Declarative guide should document the 9.6 utility escape hatches");
+assert.match(declarativeGuide, /As of 0\.33\.5\.18\.10\.3[\s\S]*timer state, tags, files, linked notes, copy-link, notification follow/, "Declarative guide should document the utility escape hatches");
 assert.match(viewContract, /timer and utility preservation shipped in 0\.33\.5\.18\.9\.6[\s\S]*Task Timer state, Tags, Files, linked Notes, Copy Link, and notification follow\/unfollow/, "View-building contract should record the 9.6 preservation slice");
 assert.match(regressionSuite, /scripts\/tasks-timer-utility-escape-hatch-regression\.mjs/, "Regression suite should include the timer/utility escape-hatch regression");
 
@@ -139,3 +142,4 @@ function functionBlock(source, functionName) {
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
+

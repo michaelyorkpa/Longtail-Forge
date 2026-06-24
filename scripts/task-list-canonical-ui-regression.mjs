@@ -22,10 +22,10 @@ assert.doesNotMatch(tasksScript, /function priorityRank\(/, "Tasks browser must 
 
 assert.match(tasksView, /<main class="wide-page tasks-page" data-tasks-host><\/main>/, "Tasks protected view should remain a descriptor host");
 assert.doesNotMatch(tasksView, /data-task-view-selector|data-task-list|data-task-dialog|data-task-bulk-toolbar/, "Tasks protected view should not ship view, list, bulk, or dialog anatomy");
-assert.match(tasksScript, /<option value="my" selected>My Tasks<\/option>\s*<option value="all">All<\/option>\s*<option value="unassigned">Unassigned<\/option>/, "All task view option should remain between My Tasks and Unassigned");
+assert.match(tasksScript, /\["my", "My Tasks", true\],\s*\["all", "All"\],\s*\["unassigned", "Unassigned"\]/, "All task view option should remain between My Tasks and Unassigned");
 assert.doesNotMatch(tasksScript, /data-task-quick-filter/, "Tasks sidebar should not keep the old quick-filter button controls");
-assert.match(tasksScript, /<option value="last_worked">Last Worked<\/option>/, "Tasks sort control should expose Last Worked");
-assert.match(tasksScript, /<option value="context">Project \/ Client<\/option>/, "Tasks sort control should expose Project / Client context sorting");
+assert.match(tasksScript, /\["last_worked", "Last Worked"\]/, "Tasks sort control should expose Last Worked");
+assert.match(tasksScript, /\["context", "Project \/ Client"\]/, "Tasks sort control should expose Project / Client context sorting");
 assert.match(taskDensityRegression, /task-density-row/, "Dense task row regression should remain active");
 
 console.log("Task list canonical UI regression passed.");

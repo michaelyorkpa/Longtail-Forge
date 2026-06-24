@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
 
-const appVersion = "0.33.5.18.9.6";
+const appVersion = "0.33.5.18.10.7";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
@@ -17,6 +17,9 @@ const listsJs = readText("public/js/lists.js");
 const listsHtml = readText("views/protected/lists.html");
 const notesJs = readText("public/js/notes.js");
 const notesHtml = readText("views/protected/notes.html");
+const tasksJs = readText("public/js/tasks.js");
+const taskDialogJs = readText("public/js/task-dialog.js");
+const tasksHtml = readText("views/protected/tasks.html");
 
 const modules = listModules();
 const protectedViews = modules.flatMap((moduleDefinition) => (
@@ -41,7 +44,7 @@ for (const surface of surfaces) {
   const key = `${surface.moduleId}:${surface.viewId}`;
   surfacesByView.set(key, [...(surfacesByView.get(key) || []), surface]);
 }
-const strictDeclarativeSurfaceIds = new Set(["lists.workspace", "notes.workspace"]);
+const strictDeclarativeSurfaceIds = new Set(["lists.workspace", "notes.workspace", "tasks.workspace"]);
 const inventory = protectedHtmlFiles.map((fileName) => {
   const view = protectedViewsByFile.get(fileName) || {
     id: fileName.replace(/\.html$/, ""),
@@ -66,12 +69,12 @@ assert.match(listsModule, /version:\s*"0\.33\.5\.16\.12"/, "Lists module should 
 assert.ok(inventory.length >= 20, "Protected view inventory should cover all protected HTML views");
 assert.deepEqual(
   inventory.filter((entry) => entry.strict).map((entry) => entry.surfaceIds[0]),
-  ["lists.workspace", "notes.workspace"],
-  "The converted Lists and Notes descriptors should be under strict declarative enforcement",
+  ["lists.workspace", "notes.workspace", "tasks.workspace"],
+  "The converted Lists, Notes, and Tasks descriptors should be under strict declarative enforcement",
 );
 assert.ok(inventory.some((entry) => entry.moduleId === "tags" && entry.surfaceIds.includes("tags.management") && !entry.strict), "Tags descriptor should be inventoried but not strict yet");
 assert.ok(inventory.some((entry) => entry.moduleId === "developer-example" && entry.surfaceIds.includes("developer-example.surface") && !entry.strict), "Disabled example descriptor should be inventoried but not strict");
-assert.ok(inventory.some((entry) => entry.moduleId === "tasks" && entry.surfaceIds.includes("tasks.workspace") && !entry.strict), "Tasks descriptor should be inventoried but not strict yet");
+assert.ok(inventory.some((entry) => entry.moduleId === "tasks" && entry.surfaceIds.includes("tasks.workspace") && entry.strict), "Tasks descriptor should be strict-converted");
 
 assert.match(listsHtml, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Strict declarative Lists HTML should stay a minimal host");
 assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=4[\s\S]*js\/shared\/view-renderer\.js\?v=6[\s\S]*js\/lists\.js\?v=13/, "Strict declarative Lists HTML should load the renderer before the module adapter");
@@ -135,15 +138,52 @@ for (const helper of [
 }
 assert.doesNotMatch(notesJs, /className:\s*["'`][^"'`]*(modal-actions|form-actions|list-table-wrap|notes-workspace)[^"'`]*/, "Strict declarative Notes source should not create one-off layout/footer class shells");
 
+// Tasks strict declarative enforcement. Task rows, recurrence internals, checklist rows, timer state,
+// bulk semantics, payloads, and validation remain Tasks-owned escape hatches, but framework-owned
+// shells must come from the descriptor renderer or shared view helpers, not raw template strings.
+assert.match(tasksHtml, /<main class="wide-page tasks-page" data-tasks-host><\/main>/, "Strict declarative Tasks HTML should stay a minimal host");
+assertNoProtectedAnatomy(tasksHtml, "views/protected/tasks.html", /\b(data-task-dialog|data-task-list|data-task-filter-details|data-task-view-selector|data-task-bulk-toolbar)\b/, "Tasks");
+for (const forbidden of [
+  "taskTemplateElement",
+  "taskTemplateElements",
+  "taskEditorFieldMarkup",
+  "document.createElement(\"template\")",
+  "innerHTML",
+  "document.createElement(\"dialog\")",
+  "document.createElement(\"details\")",
+]) {
+  assert.doesNotMatch(`${tasksJs}\n${taskDialogJs}`, new RegExp(escapeRegExp(forbidden)), `Strict declarative Tasks source should not use ${forbidden}`);
+}
+for (const helper of [
+  "renderSurface",
+  "createListShell",
+  "createBulkActionToolbar",
+  "createDetailActionStrip",
+  "createDetailActionMenu",
+]) {
+  assert.match(tasksJs, new RegExp(`view\\.${helper}`), `Strict declarative Tasks source should consume ${helper}`);
+}
+for (const helper of [
+  "renderDescriptorModalForm",
+  "createElement",
+]) {
+  assert.match(taskDialogJs, new RegExp(`view\\.${helper}`), `Strict declarative Task dialog source should consume ${helper}`);
+}
+assert.match(taskDialogJs, /createDetailBadgeRow/, "Strict declarative Task dialog source should consume createDetailBadgeRow");
+assert.match(tasksJs, /function createTaskRow\(task\)[\s\S]*document\.createElement\("tr"\)[\s\S]*appendTaskMetadata\(metaBand, task\)[\s\S]*appendTaskContext\(metaBand, task\)/, "Task row-specific content should remain the documented strict escape hatch");
+assert.match(taskDialogJs, /function taskRecurrenceFieldNodes\(\)[\s\S]*taskRecurrenceFrequency[\s\S]*taskRecurrenceInterval[\s\S]*taskRecurrenceEndDate/, "Recurrence editor internals should remain the documented strict escape hatch");
+assert.match(taskDialogJs, /function checklistItemRow\(item, index, totalItems\)[\s\S]*document\.createElement\("div"\)[\s\S]*taskChecklistToggle[\s\S]*taskChecklistLabel/, "Checklist behavior fragments should remain the documented strict escape hatch");
+assert.match(taskDialogJs, /function writeTaskTimerFields\(task\)[\s\S]*taskTimersEnabled[\s\S]*timeTrackingEnabled[\s\S]*timer_status/, "Timer state behavior should remain the documented strict escape hatch");
+
 assert.match(declarativeGuide, /# Declarative View Surfaces/, "Developer guide should document declarative view surfaces");
-assert.match(declarativeGuide, /Strict guardrails currently enforce `lists\.workspace` and `notes\.workspace`/, "Developer guide should identify current strict enforcement scope");
+assert.match(declarativeGuide, /Strict guardrails currently enforce `lists\.workspace`, `notes\.workspace`, and `tasks\.workspace`/, "Developer guide should identify current strict enforcement scope");
 assert.match(declarativeGuide, /Protected View Inventory/, "Developer guide should include protected view inventory");
 for (const expectedInventoryRow of [
   "| Lists | lists | lists.html | lists.workspace | strict |",
   "| Notes | notes | notes.html | notes.workspace | strict |",
+  "| Tasks | tasks | tasks.html | tasks.workspace | strict |",
   "| Tags | tags | tags.html | tags.management | reported |",
   "| Developer Example | developer-example | developer-example.html | developer-example.surface | reported |",
-  "| Tasks | tasks | tasks.html | tasks.workspace | reported |",
 ]) {
   assert.match(declarativeGuide, new RegExp(escapeRegExp(expectedInventoryRow)), `Developer guide should include inventory row: ${expectedInventoryRow}`);
 }
@@ -197,3 +237,4 @@ function inferModuleId(fileName) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+

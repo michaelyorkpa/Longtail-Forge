@@ -62,25 +62,25 @@ assert.match(
 
 assert.match(
   taskDialogScript,
-  /class="task-timer-controls surface-modal-section-body surface-dense-actions"/,
+  /className: \["task-timer-controls", "surface-modal-section-body", "surface-dense-actions"\]/,
   "Task timer controls should use the shared dense action placement",
 );
 assert.match(
   taskDialogScript,
-  /<strong class="surface-chip" data-task-timer-display>00:00:00<\/strong>/,
+  /className: "surface-chip"[\s\S]*"data-task-timer-display": ""[\s\S]*text: "00:00:00"/,
   "Task timer display should use the shared chip surface",
 );
 assert.match(
   taskDialogScript,
-  /class="task-timer-controls surface-modal-section-body surface-dense-actions"/,
+  /className: \["task-timer-controls", "surface-modal-section-body", "surface-dense-actions"\]/,
   "Fallback task dialog timer controls should use the shared dense action placement",
 );
 assert.match(
   taskDialogScript,
-  /<strong class="surface-chip" data-task-timer-display>00:00:00<\/strong>/,
+  /className: "surface-chip"[\s\S]*"data-task-timer-display": ""[\s\S]*text: "00:00:00"/,
   "Fallback task dialog timer display should use the shared chip surface",
 );
-assert.match(tasksView, /css\/longtail-forge\.css\?v=66/, "Tasks view should load the adoption-pass stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=68/, "Tasks view should load the adoption-pass stylesheet cache key");
 
 assert.match(
   styles,

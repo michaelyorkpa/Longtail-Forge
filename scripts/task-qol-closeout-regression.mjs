@@ -137,7 +137,7 @@ async function assertResumeSafeTaskSurface(session, noRoleSession) {
 
 async function assertTasksHelpAndDocsAreCurrent() {
   const tasksModule = modulesService.getModule("tasks");
-  assert.equal(tasksModule.version, "0.33.5.18.9.6");
+  assert.equal(tasksModule.version, "0.33.5.18.10.7");
   assert.ok(tasksModule.help?.articles?.some((article) => article.id === "tasks.resume-context"));
 
   const docs = await fs.readFile(new URL("../docs/tasks-module.md", import.meta.url), "utf8");
@@ -222,3 +222,4 @@ LIMIT 1;
     workspace_id: user.active_workspace_id || user.home_workspace_id,
   };
 }
+

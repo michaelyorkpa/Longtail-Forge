@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.5.18.9.6. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.5.18.10.7. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -8,7 +8,7 @@ Tasks stay integrated through framework contracts for permissions, app shell nav
 
 ## Current Workflow Surface
 
-The protected Tasks page is `tasks.html` under the Projects menu. As of 0.33.5.18.9.6, the page shell is descriptor-backed through `tasks.workspace` with the framework `slide-out-sidebar` layout and a minimal protected host. The main panel remains the task list surface, while the slide-out sidebar mounts task view, sorting, and filter controls only.
+The protected Tasks page is `tasks.html` under the Projects menu. As of 0.33.5.18.10.4, the page shell is descriptor-backed through `tasks.workspace` with the framework `slide-out-sidebar` layout and a minimal protected host. The main panel remains the task list surface, while the slide-out sidebar mounts task view, sorting, and filter controls only.
 
 The current task list mounts through the descriptor `tasks-main-list` detail region and the Tasks-owned `tasks.main.list` behavior. As of 0.33.5.18.8.4, the framework list shell owns the main list wrapper, status mount, and table overflow wrapper through `LongtailForge.view.createListShell()` and shared `.view-list-shell` / `.view-table-wrap` CSS. Tasks continues to own the task table header/body hooks, `renderTasks`, `createTaskRow`, canonical query construction, row data shaping, selection state, bulk control body, selected-count value, and row/bulk workflow handlers. The region wrapper is visually neutral so the existing task list density and row appearance are preserved.
 
@@ -18,9 +18,30 @@ The selected saved task view is sent to the Tasks service as `task_view`; the fr
 
 Sorting and Filters controls narrow the selected saved task view instead of replacing it. Changing the saved task view preserves compatible advanced filters, clears incompatible assignee filters for `My Tasks` and `Unassigned`, and resets incompatible status filters to the selected view's default. The `Reset Filters` action resets sort, status, assignee, client, project, and tag controls without changing the selected saved task view.
 
-Tasks still owns scoped task creation, editing, duplicate, complete, reopen, archive, restore, bulk status/priority/assignee/due date/due time/tag updates, tag filtering, notification following, recurrence settings, reminders, files, and task timers when Time Tracking is enabled. As of 0.33.5.18.9.1, the create/edit dialog shell renders through the framework `renderDescriptorModalForm()` helper from the Tasks-owned `task.editor` descriptor. The framework owns the dialog/form/footer/action groups and field-grid wrapper; Tasks owns the task field fragments, save payloads, validation, workspace-specific behavior, routes, permissions, and canonical task queries.
+Tasks still owns scoped task creation, editing, duplicate, complete, reopen, block/unblock, archive, restore, bulk status/priority/assignee/due date/due time/tag updates, tag filtering, notification following, recurrence settings, reminders, files, and task timers when Time Tracking is enabled. As of 0.33.5.18.10.1, task row lifecycle actions are descriptor-backed and registered as `tasks.lifecycle.*` behaviors inside a framework-owned dense action strip. Complete/Reopen/Archive/Restore continue through existing Tasks lifecycle routes; Block/Unblock use the existing Tasks update route with status payloads. The framework owns lifecycle action placement and button disabled display, while Tasks owns status visibility, route calls, permission implications, service side effects, and list refreshes.
+
+As of 0.33.5.18.10.2, non-lifecycle row workflow actions are descriptor-backed and registered as `tasks.workflow.*` behaviors inside a framework-owned row workflow menu. Assign, Due Date, Due Time, and Recurrence open the canonical Task editor with the relevant field focused, so assignment eligibility, workspace/client/project visibility, recurrence payloads, validation, and save refresh hooks remain in the existing Task modal and service. Start Timer, Pause Timer, and Resume Timer call the existing `/api/tasks/:taskId/timer` route, preserve accumulated elapsed time, and refresh the list after the task timer service applies Time Tracking gates, project-linked eligibility, permissions, sourced active-timer state, and open-to-in-progress side effects.
+
+As of 0.33.5.18.10.3, the canonical Task detail/editor modal renders its top summary metadata through the framework `LongtailForge.view.createDetailBadgeRow()` detail badge row primitive. Tasks still owns which badges appear and how values are selected: status, priority, readable Client/Project context, due date, due time, and saved TTC completion duration. The task list remains the primary view; opening a task still uses the modal detail/editor rather than a persistent detail column. Normal task metadata uses hydrated readable labels or safe fallbacks such as `No client` and `No project`, not raw IDs.
+
+As of 0.33.5.18.10.4, task relationships and linked notes use shared framework row anatomy where it fits without moving rules out of owning modules. Task row context chips, including blocking-child summaries from `relationshipSummary`, render through `LongtailForge.view.createDetailBadgeRow()` while Tasks still owns the chip labels, values, and relationship summary calculation. The Task modal Notes panel uses the Notes-owned linked-panel helper, and that helper renders linked note rows through `LongtailForge.view.createLinkedContextList()` while preserving Notes-owned permission-safe reads, create/link/unlink actions, task-created note defaults, secure-note body hiding, and readable labels. Relationship and linked-note UI must not show raw UUIDs as normal labels.
+
+As of 0.33.5.18.10.6, strict declarative guardrails now enforce `tasks.workspace`. `docs/tasks-strict-guardrail-inventory.md` is the fail-on-violation contract for Tasks: the protected host stays minimal, raw template parsing for framework-owned chrome is gone, sidebar/filter/list/bulk/modal/action shells must come from descriptor rendering or shared view helpers, and standard field sections are helper-built. Intentional Tasks-owned escape hatches remain task row-specific content, recurrence internals, checklist behavior fragments, timer state behavior, task modal utilities, relationship context, bulk semantics, workspace context, payload rules, and validation.
+
+As of 0.33.5.18.9.1, the create/edit dialog shell renders through the framework `renderDescriptorModalForm()` helper from the Tasks-owned `task.editor` descriptor. The framework owns the dialog/form/footer/action groups and field-grid wrapper; Tasks owns the task field fragments, save payloads, validation, workspace-specific behavior, routes, permissions, and canonical task queries.
 
 As of 0.33.5.18.9.2, `LongtailForge.tasksDialog.openTaskEditor()` is the canonical browser entry point for the Task editor. It supports add, edit, duplicate, caller defaults, source context, focus return to the triggering control, and caller refresh hooks after save. The Tasks page, Workbench, and `LongtailForge.moduleActions` route Task add/edit flows through that opener. `openAdd()` and `openEdit()` remain compatibility aliases, but new surfaces should call `openTaskEditor()` or the registered module action instead of building separate task forms.
+
+## Canonical Task Editor Entry Point
+
+As of 0.33.5.18.10.7, the canonical Task editor entry point is the supported cross-surface contract for browser Task creation and editing:
+
+- The Tasks page calls `LongtailForge.tasksDialog.openTaskEditor()` for add, edit, duplicate, URL-driven new-task defaults, focus return, and post-save list refresh.
+- Workbench calls the same opener through the registered module action path so task creation and editing reuse Tasks-owned validation, context, assignment, recurrence, checklist, timer, tags, files, notes, and save behavior.
+- Future Quick Action Center flows should dispatch the registered Task module action or call `openTaskEditor()` with defaults/source context; they should not create a separate quick-task form unless a later roadmap item explicitly changes the canonical editor contract.
+- Future module-triggered task creation should pass safe caller defaults, `sourceContext`, `hostContext`, `returnFocusTo`, and `onSaved` or `refresh` callbacks into the opener rather than importing Task field internals or duplicating save payload construction.
+
+The framework may own action discovery, availability filtering, dispatch status, focus return, and host lifecycle around module actions. Tasks owns the editor body, field hydration, payload construction, validation, route calls, permission implications, recurrence/checklist/timer/utility behavior, and refresh semantics. Supported focus targets include assignment, due date, due time, recurrence, timer, and notes; complex assignment, scheduling, recurrence, and workspace-context edits should stay in the canonical editor instead of being flattened into inline controls.
 
 As of 0.33.5.18.9.3, the Task editor uses one framework-owned `Task Details` section before the specialized task-owned fragments. Task Details contains status, priority, parent task, due date, due time, resume note, next action, nullable Client/Project controls, description, assignees, and the final blocked reason field. Blocked Reason is hidden and disabled unless Status is `Blocked`. The dialog uses the shared `wide` modal size without a narrower Task-only width override.
 
@@ -38,7 +59,7 @@ As of 0.33.5.18.8.3, the framework toolbar shell wires the existing non-destruct
 
 The task dialog includes:
 
-- title and a compact metadata ribbon for status, priority, client/project context, due date, due time, and saved completion duration
+- title and a compact framework detail badge row for status, priority, client/project context, due date, due time, and saved completion duration
 - `Task Details` for status, priority, parent task, due date, due time, resume note, next action, nullable Business Client and Project scope, description, assignees, and status-gated blocked reason
 - a `TTC:` completion duration chip only for saved completed tasks with persisted completion metadata
 - lightweight checklist controls
@@ -48,7 +69,7 @@ Task modal notification following is owned by the heading bell. The dialog does 
 
 Recurrence, reminders, checklist, timer, tags, files, notes, and other specialized task fragments remain mounted through their existing Tasks-owned paths. The recurrence editor uses a shared child-modal shell, but its fields and behavior are task-owned. Reminder overrides remain inline in the Reminders section: the modal hydrates task policy/effective policy details, toggles the override fields locally, and saves `reminderOverrideEnabled` plus `reminderPolicy` through the Tasks service. Checklist remains inline in the Task editor with no separate checklist dialog shell.
 
-The task dialog includes a Notes panel mounted through the Notes-owned linked-record helper. Saved tasks show notes linked through task context or `note_links`, permitted create/link/unlink actions, and the empty state "No notes linked to this task." Unsaved tasks show "Save the task before adding notes." New notes created from a task carry task context, available project/client context, Note Kind `log`, the Active Work Library suggestion, and the normal internal visibility default unless the user changes it.
+The task dialog includes a Notes panel mounted through the Notes-owned linked-record helper. Saved tasks show notes linked through task context or `note_links`, permitted create/link/unlink actions, and the empty state "No notes linked to this task." Unsaved tasks show "Save the task before adding notes." New notes created from a task carry task context, available project/client context, Note Kind `log`, the Active Work Library suggestion, and the normal internal visibility default unless the user changes it. Linked note rows use the shared linked-context read-list anatomy, but Notes remains the source of truth for which notes are readable, linkable, unlinkable, private, secure, disabled, or archived.
 
 Task list rows show compact linked-note count badges where the current user may read linked notes. Clicking a note count opens the Task detail dialog focused on the Notes panel. Counts come from the Notes target read model, so inaccessible private, secure, disabled, or otherwise unreadable notes do not leak through task-row metadata.
 
@@ -82,6 +103,8 @@ Checklist mutations update `last_worked_at`, task search indexing, audit metadat
 Tasks can link parent and child tasks for planning. Relationship behavior prevents circular references, enforces workspace boundaries, and keeps business-workspace client context compatible when both records have client context.
 
 A child task can be marked blocking. Incomplete blocking children keep or move the parent task into `blocked` and preserve a useful blocked reason. When blockers clear, the service can recover auto-blocked parent tasks. Relationship summaries are exposed on readable task details, summaries, Workbench items, search documents, and relationship events.
+
+The browser may display compact blocking-child relationship summaries in the task list and a readable Parent Task selector in the canonical Task modal, but relationship rules stay in the Tasks service and repository. Parent options use readable task titles; task IDs remain control values and API identifiers only.
 
 ## Recurrence
 

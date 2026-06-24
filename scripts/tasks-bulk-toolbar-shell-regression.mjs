@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.9.6";
+const appVersion = "0.33.5.18.10.7";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -22,6 +22,7 @@ assert.match(viewBuilder, /createBulkActionToolbar,/, "Framework bulk toolbar he
 
 const mainChrome = functionBlock(tasksScript, "createTaskMainListChrome");
 const bulkChrome = functionBlock(tasksScript, "createTaskBulkToolbarChrome");
+const bulkControls = functionBlock(tasksScript, "taskBulkToolbarControls");
 const updateBulkControls = functionBlock(tasksScript, "updateBulkControls");
 assert(
   tasksScript.indexOf("let state = {") < tasksScript.indexOf("buildTasksViewShell();"),
@@ -30,7 +31,7 @@ assert(
 assert.match(mainChrome, /view\.createListShell\(\{[\s\S]*toolbar:\s*createTaskBulkToolbarChrome\(\)[\s\S]*children:\s*list/, "Bulk toolbar should appear above status and task list through the framework list shell");
 assert.match(bulkChrome, /view\.createBulkActionToolbar\(\{[\s\S]*label:\s*"Bulk Actions"[\s\S]*selectedCount:\s*state\.selectedTaskIds\.size[\s\S]*bodyClassName:\s*"task-bulk-grid"[\s\S]*"data-task-bulk-toolbar":\s*""/, "Tasks should pass module-owned bulk controls into the framework shell");
 assert.doesNotMatch(bulkChrome, /<details|<summary/, "Tasks should not hand-build the bulk toolbar details or summary shell");
-assert.match(bulkChrome, /data-task-bulk-status-control[\s\S]*data-task-bulk-priority-control[\s\S]*data-task-bulk-due-date-control[\s\S]*data-task-bulk-due-time-control[\s\S]*data-task-bulk-assignee-control[\s\S]*data-task-bulk-tag-action-control[\s\S]*data-task-bulk-lifecycle-control/, "Tasks should keep existing bulk control fields and lifecycle control");
+assert.match(bulkControls, /data-task-bulk-status-control[\s\S]*data-task-bulk-priority-control[\s\S]*data-task-bulk-due-date-control[\s\S]*data-task-bulk-due-time-control[\s\S]*data-task-bulk-assignee-control[\s\S]*data-task-bulk-tag-action-control[\s\S]*data-task-bulk-lifecycle-control/, "Tasks should keep existing bulk control fields and lifecycle control");
 assert.match(updateBulkControls, /updateBulkToolbarSummary\(selectedCount\)/, "Bulk control updates should refresh the framework summary count");
 assert.match(updateBulkControls, /if \(bulkToolbar && selectedCount > 0\) \{[\s\S]*bulkToolbar\.open = true/, "Bulk toolbar should auto-expand when tasks are selected");
 assert.doesNotMatch(updateBulkControls, /reloadTaskList|renderTasks/, "Expanding or summarizing the bulk toolbar should not reload or reorder the task list");
@@ -41,7 +42,7 @@ const filterChrome = functionBlock(tasksScript, "createTaskFilterChrome");
 assert.doesNotMatch(taskViewChrome, /data-task-bulk-toolbar|data-task-bulk-status-control/, "Saved Task Views sidebar panel should not contain the bulk toolbar");
 assert.doesNotMatch(filterChrome, /data-task-bulk-toolbar|data-task-bulk-status-control/, "Sorting and Filters sidebar panel should not contain the bulk toolbar");
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=66[\s\S]*js\/shared\/view-builder\.js\?v=13[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=16/, "Tasks host should load the bulk toolbar shell cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=68[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=19/, "Tasks host should load the bulk toolbar shell cache keys");
 assert.match(styles, /\.view-bulk-action-toolbar-summary\s*\{[\s\S]*display:\s*flex[\s\S]*cursor:\s*pointer/, "Shared CSS should own bulk toolbar summary anatomy");
 assert.match(styles, /\.view-bulk-action-toolbar-summary::before\s*\{[\s\S]*border-left:\s*6px solid var\(--color-text-secondary\)/, "Shared CSS should show a custom disclosure caret for the bulk toolbar");
 assert.match(styles, /\.view-bulk-action-toolbar\[open\] > \.view-bulk-action-toolbar-summary::before\s*\{[\s\S]*transform:\s*rotate\(90deg\)/, "Shared CSS should rotate the bulk toolbar caret when open");
@@ -66,3 +67,4 @@ function functionBlock(source, functionName) {
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
+

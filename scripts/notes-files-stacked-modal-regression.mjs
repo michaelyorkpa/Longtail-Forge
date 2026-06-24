@@ -8,9 +8,9 @@ const notesJs = readText("public/js/notes.js");
 const notesCss = readText("public/css/longtail-forge.css");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.9.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.9.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.9.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.10.7", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.10.7", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.10.7", "package-lock package entry should report the current app version");
 
 assert.match(notesHtml, /css\/longtail-forge\.css\?v=51/, "Notes should cache-bust the stacked Files modal warning styles");
 assert.match(notesHtml, /js\/notes\.js\?v=65/, "Notes should cache-bust the stacked Files modal browser wiring");
@@ -47,3 +47,4 @@ console.log("Notes Files stacked modal regression passed.");
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
+

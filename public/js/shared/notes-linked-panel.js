@@ -119,8 +119,45 @@
       return list;
     }
 
+    if (namespace.view?.createLinkedContextList) {
+      return namespace.view?.createLinkedContextList({
+        ariaLabel: "Linked notes",
+        className: "notes-linked-panel-list",
+        emptyMessage: state.options.emptyMessage || "No linked notes yet.",
+        items: state.notes.map((note) => linkedNoteListItem(state, note)),
+        onRemove: (item) => unlinkNote(container, state, item.note),
+        removeAction: "unlink-note",
+        removeLabel: "Unlink note",
+        readonly: isReadonly(state),
+      });
+    }
+
     state.notes.forEach((note) => list.append(noteItem(container, state, note)));
     return list;
+  }
+
+  function linkedNoteListItem(state, note) {
+    return {
+      className: "notes-linked-panel-item",
+      displayLabel: note.label || "Untitled note",
+      fullLabel: note.label || "Untitled note",
+      hintLabel: note.excerpt || (note.security_mode === "secure" ? "Secure note body is hidden." : ""),
+      isAvailable: note.isAvailable !== false,
+      moduleId: "notes",
+      note,
+      removable: canUnlink(state, note),
+      secondaryLabel: linkedNoteSecondaryLabel(note),
+      sourceUrl: note.sourceUrl || `notes.html?note=${encodeURIComponent(note.id || "")}`,
+      targetId: note.id || "",
+      targetType: "note",
+    };
+  }
+
+  function linkedNoteSecondaryLabel(note) {
+    return [note.visibility, note.security_mode, note.status]
+      .filter(Boolean)
+      .map(formatToken)
+      .join(" | ");
   }
 
   function noteItem(container, state, note) {

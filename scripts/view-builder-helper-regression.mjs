@@ -10,9 +10,9 @@ const packageLock = JSON.parse(readText("package-lock.json"));
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.9.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.9.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.9.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.10.7", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.10.7", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.10.7", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(helper, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view builder must not inject HTML strings");
 assert.doesNotMatch(helper, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view builder must not own data loading or browser storage");
@@ -31,7 +31,9 @@ for (const helperName of [
   "createCollapsibleIndexPanel",
   "createSplitListDetail",
   "createDataTable",
+  "createDetailActionMenu",
   "createDetailActionStrip",
+  "createDetailBadgeRow",
   "createInfoPanel",
   "createModal",
   "createModalForm",
@@ -40,6 +42,7 @@ for (const helperName of [
   "createEmptyState",
   "createDetailHeader",
   "createInlineActionRow",
+  "createLinkedContextList",
   "createLinkedContextPicker",
   "createListShell",
   "showModal",
@@ -153,6 +156,17 @@ const detailHeader = view.createDetailHeader({ title: "Project", meta: "Active",
 assert(detailHeader.querySelector(".view-detail-title"), "detail header should include a title");
 assert(detailHeader.querySelector(".surface-chip-row"), "detail header should include badge row");
 
+const detailBadgeRow = view.createDetailBadgeRow({
+  ariaLabel: "Task summary",
+  badges: [{ label: "Status", value: "Open", className: "task-metadata-chip", focusable: true }],
+});
+assert(detailBadgeRow.classList.contains("view-detail-badges"), "detail badge rows should use framework detail badge anatomy");
+assert(detailBadgeRow.classList.contains("surface-chip-row"), "detail badge rows should use the shared chip row surface");
+assert.equal(detailBadgeRow.getAttribute("aria-label"), "Task summary");
+assert(detailBadgeRow.querySelector(".surface-chip"), "detail badge rows should create shared surface chips");
+assert.equal(detailBadgeRow.querySelector(".surface-chip").textContent, "Status: Open");
+assert.equal(detailBadgeRow.querySelector(".surface-chip").getAttribute("tabindex"), "0", "detail badge rows should support focusable badges");
+
 const info = view.createInfoPanel({ title: "Summary", items: [{ label: "Items", value: "3" }] });
 assert(info.classList.contains("surface-main-panel"), "info panels should use main panel surface styling");
 assert.equal(info.querySelector("dt").textContent, "Items");
@@ -172,12 +186,30 @@ assert(modalForm.querySelector(".view-field-grid"), "modal forms should use fiel
 const row = view.createInlineActionRow({ actions: [{ label: "Edit", icon: "edit" }] });
 assert(row.classList.contains("surface-dense-actions"), "inline action rows should use dense actions");
 
+const actionMenu = view.createDetailActionMenu({
+  ariaLabel: "Row workflow actions",
+  actions: [{ label: "Assign", icon: "edit", text: "Assign" }],
+});
+assert(actionMenu.classList.contains("view-detail-action-menu"), "detail action menus should use framework menu anatomy");
+assert.equal(actionMenu.getAttribute("data-view-floating-menu"), "", "detail action menus should float by default");
+assert.equal(actionMenu.querySelector("summary").textContent, "...", "detail action menus should expose a compact summary");
+assert(actionMenu.querySelector(".view-detail-action-menu-list"), "detail action menus should expose a menu list");
+assert.match(helper, /function wireFloatingDetailActionMenu/, "detail action menus should wire shared floating menu behavior");
+assert.match(helper, /function positionFloatingDetailActionMenu/, "detail action menus should use shared viewport positioning");
+
 const linkedContextPicker = view.createLinkedContextPicker({
   providers: [{ moduleId: "tasks", targetType: "task", label: "Task" }],
   records: [{ moduleId: "tasks", targetType: "task", targetId: "task-1", displayLabel: "Task one" }],
   linkedItems: [{ moduleId: "tasks", targetType: "task", targetId: "task-1", displayLabel: "Task one" }],
 });
 assert(linkedContextPicker.classList.contains("view-linked-context-picker"), "linked context picker should use the framework picker shell");
+
+const linkedContextList = view.createLinkedContextList({
+  items: [{ moduleId: "notes", targetType: "note", targetId: "note-1", displayLabel: "Panel note", hintLabel: "Active Work" }],
+});
+assert(linkedContextList.classList.contains("view-linked-context-picker-list"), "linked context lists should reuse linked-context row anatomy");
+assert.equal(linkedContextList.querySelector(".view-linked-context-picker-row-label").textContent, "Panel note");
+assert.equal(linkedContextList.querySelector(".view-linked-context-picker-row-hint").textContent, "Active Work");
 
 assert.throws(() => view.createActionButton({}), /visible text or an accessible label/, "action buttons should require an accessible name");
 assert.throws(() => view.createPageHeader({}), /Page headers require a title/, "page headers should require titles");
@@ -191,6 +223,8 @@ assert.match(css, /\.view-field-grid > \[data-view-field-width="narrow"\]/, "CSS
 assert.match(css, /\.view-page-header\s*\{[\s\S]*margin-bottom:\s*8px;/, "CSS should define framework page-header separation");
 assert.match(css, /\.view-bulk-action-toolbar-summary\s*\{[\s\S]*display:\s*flex/, "CSS should define the framework bulk toolbar summary");
 assert.match(css, /\.view-bulk-action-toolbar-count\s*\{[\s\S]*margin-left:\s*auto/, "CSS should define the framework bulk toolbar count");
+assert.match(css, /\.view-detail-action-menu\[data-view-floating-menu\] \.view-detail-action-menu-list\s*\{[\s\S]*position:\s*fixed;[\s\S]*max-height:[\s\S]*overflow-y:\s*auto/, "CSS should let floating detail action menus escape parent overflow");
+assert.match(css, /\.view-detail-action-menu\[data-view-floating-menu\]\[data-view-floating-menu-positioned\] \.view-detail-action-menu-list\s*\{[\s\S]*visibility:\s*visible/, "CSS should reveal floating action menus only after positioning");
 assert.match(css, /\.view-stacked\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*0;/, "CSS should define the stacked layout container without panel gaps");
 assert.match(css, /\.view-stacked \.view-collapsible-index-body\s*\{[\s\S]*overflow-y:\s*auto/, "CSS should cap the stacked index to a scroll region");
 assert.match(css, /\.view-collapsible-index-summary-actions\s*\{[\s\S]*justify-content:\s*flex-end/, "CSS should support right-aligned collapsible summary actions");
@@ -365,3 +399,4 @@ function matchesSelector(element, selector) {
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 }
+

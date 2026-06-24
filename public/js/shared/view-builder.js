@@ -486,6 +486,18 @@
     return tr;
   }
 
+  function createDetailBadgeRow(options = {}) {
+    return createElement("div", {
+      className: ["view-detail-badges", "surface-chip-row", options.className],
+      attrs: {
+        ...(options.ariaLabel ? { "aria-label": options.ariaLabel } : {}),
+        ...(options.attrs || {}),
+      },
+      dataset: options.dataset,
+      children: normalizeDetailBadges(options.badges || options.items),
+    });
+  }
+
   function createDetailHeader(options = {}) {
     const header = createElement("header", {
       className: ["view-detail-header", options.className],
@@ -505,10 +517,7 @@
     header.appendChild(body);
 
     if (options.badges) {
-      header.appendChild(createElement("div", {
-        className: ["view-detail-badges", "surface-chip-row"],
-        children: options.badges,
-      }));
+      header.appendChild(createDetailBadgeRow({ badges: options.badges }));
     }
 
     return header;
@@ -523,9 +532,15 @@
   }
 
   function createDetailActionMenu(options = {}) {
+    const floating = options.floating !== false;
+    const attrs = options.ariaLabel ? { "aria-label": options.ariaLabel } : {};
+    if (floating) {
+      attrs["data-view-floating-menu"] = "";
+    }
+
     const menu = createElement("details", {
       className: ["view-detail-action-menu", "surface-dense-actions", options.className],
-      attrs: options.ariaLabel ? { "aria-label": options.ariaLabel } : {},
+      attrs,
     });
     const summary = createElement("summary", {
       className: "view-detail-action-menu-summary",
@@ -537,7 +552,138 @@
       children: normalizeActions(options.actions),
     });
     menu.append(summary, list);
+    if (floating) {
+      wireFloatingDetailActionMenu(menu, summary, list);
+    }
     return menu;
+  }
+
+  function wireFloatingDetailActionMenu(menu, summary, list) {
+    const doc = menu.ownerDocument || document;
+    const win = doc.defaultView || global;
+    let listenersActive = false;
+
+    const position = () => positionFloatingDetailActionMenu(menu, summary, list);
+    const handlePointerDown = (event) => {
+      if (!menu.contains(event.target)) {
+        closeFloatingDetailActionMenu(menu, list);
+      }
+    };
+    const handleKeydown = (event) => {
+      if (event.key === "Escape" && menu.open) {
+        event.preventDefault();
+        closeFloatingDetailActionMenu(menu, list);
+        summary.focus?.();
+      }
+    };
+    const addListeners = () => {
+      if (listenersActive) {
+        return;
+      }
+      listenersActive = true;
+      doc.addEventListener?.("pointerdown", handlePointerDown, true);
+      doc.addEventListener?.("keydown", handleKeydown);
+      win.addEventListener?.("resize", position);
+      win.addEventListener?.("scroll", position, true);
+    };
+    const removeListeners = () => {
+      if (!listenersActive) {
+        return;
+      }
+      listenersActive = false;
+      doc.removeEventListener?.("pointerdown", handlePointerDown, true);
+      doc.removeEventListener?.("keydown", handleKeydown);
+      win.removeEventListener?.("resize", position);
+      win.removeEventListener?.("scroll", position, true);
+    };
+
+    menu.addEventListener("toggle", () => {
+      if (menu.open) {
+        closeOtherFloatingDetailActionMenus(menu);
+        position();
+        addListeners();
+      } else {
+        removeListeners();
+        resetFloatingDetailActionMenu(menu, list);
+      }
+    });
+
+    list.addEventListener("click", (event) => {
+      if (event.target?.closest?.("button")) {
+        closeFloatingDetailActionMenu(menu, list);
+      }
+    });
+  }
+
+  function closeOtherFloatingDetailActionMenus(currentMenu) {
+    const doc = currentMenu.ownerDocument || document;
+    if (typeof doc.querySelectorAll !== "function") {
+      return;
+    }
+    doc.querySelectorAll(".view-detail-action-menu[data-view-floating-menu][open]").forEach((menu) => {
+      if (menu !== currentMenu) {
+        menu.open = false;
+      }
+    });
+  }
+
+  function closeFloatingDetailActionMenu(menu, list) {
+    if (menu.open) {
+      menu.open = false;
+    }
+    resetFloatingDetailActionMenu(menu, list);
+  }
+
+  function resetFloatingDetailActionMenu(menu, list) {
+    menu.removeAttribute?.("data-view-floating-menu-positioned");
+    menu.removeAttribute?.("data-view-floating-menu-placement");
+    if (list.style?.removeProperty) {
+      list.style.removeProperty("--view-action-menu-top");
+      list.style.removeProperty("--view-action-menu-left");
+      list.style.removeProperty("--view-action-menu-max-height");
+    }
+  }
+
+  function positionFloatingDetailActionMenu(menu, summary, list) {
+    if (!menu.open) {
+      return;
+    }
+    if (typeof summary.getBoundingClientRect !== "function" || typeof list.getBoundingClientRect !== "function") {
+      menu.setAttribute("data-view-floating-menu-positioned", "");
+      return;
+    }
+
+    const doc = menu.ownerDocument || document;
+    const win = doc.defaultView || global;
+    const viewportWidth = win.innerWidth || doc.documentElement?.clientWidth || 1024;
+    const viewportHeight = win.innerHeight || doc.documentElement?.clientHeight || 768;
+    const margin = 8;
+    const gap = 4;
+    const summaryRect = summary.getBoundingClientRect();
+    const listRect = list.getBoundingClientRect();
+    const maxHeight = Math.max(120, viewportHeight - (margin * 2));
+    const listWidth = Math.max(listRect.width || list.offsetWidth || 160, 140);
+    const listHeight = Math.min(listRect.height || list.offsetHeight || maxHeight, maxHeight);
+    const belowTop = summaryRect.bottom + gap;
+    const belowSpace = viewportHeight - belowTop - margin;
+    const aboveSpace = summaryRect.top - gap - margin;
+    const placeAbove = listHeight > belowSpace && aboveSpace > belowSpace;
+    const unclampedTop = placeAbove ? summaryRect.top - gap - listHeight : belowTop;
+    const top = clampNumber(unclampedTop, margin, viewportHeight - margin - listHeight);
+    const left = clampNumber(summaryRect.right - listWidth, margin, viewportWidth - margin - listWidth);
+
+    list.style.setProperty("--view-action-menu-top", `${Math.round(top)}px`);
+    list.style.setProperty("--view-action-menu-left", `${Math.round(left)}px`);
+    list.style.setProperty("--view-action-menu-max-height", `${Math.round(maxHeight)}px`);
+    menu.setAttribute("data-view-floating-menu-placement", placeAbove ? "above" : "below");
+    menu.setAttribute("data-view-floating-menu-positioned", "");
+  }
+
+  function clampNumber(value, min, max) {
+    if (max < min) {
+      return min;
+    }
+    return Math.min(Math.max(value, min), max);
   }
 
   function createInfoPanel(options = {}) {
@@ -890,20 +1036,13 @@
       disabled: readonly || Boolean(options.useTargetDisabled),
       onClick: options.onUseTarget,
     });
-    const renderLinkedItems = (items = []) => {
-      const normalizedItems = normalizePickerRecords(items);
-      replaceElementChildren(rows, normalizedItems.map((item) => (
-        createLinkedContextPickerRow(item, {
-          readonly,
-          removeLabel: options.removeLabel,
-          removeAction: options.removeAction,
-          onRemove: options.onRemove,
-        })
-      )));
-      if (!normalizedItems.length) {
-        rows.appendChild(empty);
-      }
-    };
+    const renderLinkedItems = (items = []) => renderLinkedContextRows(rows, items, {
+      empty,
+      readonly,
+      removeLabel: options.removeLabel,
+      removeAction: options.removeAction,
+      onRemove: options.onRemove,
+    });
     const setTargets = (targets = []) => {
       replaceElementChildren(targetSelect, normalizePickerOptions(targets).map((target) => createPickerOption(target)));
     };
@@ -994,6 +1133,56 @@
       setReadonly,
     });
     return picker;
+  }
+
+  function createLinkedContextList(options = {}) {
+    const rows = createElement("div", {
+      className: ["view-linked-context-picker-list", options.className],
+      attrs: {
+        role: "list",
+        "aria-label": options.ariaLabel || options.rowsLabel || "Linked context",
+      },
+    });
+    const empty = createElement("p", {
+      className: "view-linked-context-picker-empty",
+      text: options.emptyMessage || "No linked context selected.",
+    });
+
+    renderLinkedContextRows(rows, options.items || options.records || options.linkedItems || options.rows || [], {
+      empty,
+      readonly: Boolean(options.readonly || options.disabled || options.permissionDisabled),
+      removeLabel: options.removeLabel,
+      removeAction: options.removeAction,
+      onRemove: options.onRemove,
+    });
+
+    assignViewParts(rows, {
+      empty,
+      setLinkedItems: (items = []) => renderLinkedContextRows(rows, items, {
+        empty,
+        readonly: Boolean(options.readonly || options.disabled || options.permissionDisabled),
+        removeLabel: options.removeLabel,
+        removeAction: options.removeAction,
+        onRemove: options.onRemove,
+      }),
+    });
+    return rows;
+  }
+
+  function renderLinkedContextRows(rows, items = [], options = {}) {
+    const normalizedItems = normalizePickerRecords(items);
+    replaceElementChildren(rows, normalizedItems.map((item) => (
+      createLinkedContextPickerRow(item, {
+        readonly: options.readonly,
+        removeLabel: options.removeLabel,
+        removeAction: options.removeAction,
+        onRemove: options.onRemove,
+      })
+    )));
+    if (!normalizedItems.length && options.empty) {
+      rows.appendChild(options.empty);
+    }
+    return rows;
   }
 
   function createLinkedContextPickerField(options = {}) {
@@ -1212,6 +1401,50 @@
     });
   }
 
+  function normalizeDetailBadges(badges) {
+    if (!badges) {
+      return [];
+    }
+
+    return (Array.isArray(badges) ? badges : [badges])
+      .filter((badge) => badge !== null && badge !== undefined && badge !== false && badge !== "")
+      .map((badge) => {
+        if (isNode(badge)) {
+          return badge;
+        }
+        if (typeof badge === "object") {
+          return createDetailBadge(badge);
+        }
+        return createElement("span", {
+          className: "surface-chip",
+          text: String(badge),
+        });
+      });
+  }
+
+  function createDetailBadge(badge = {}) {
+    const text = badge.text ?? detailBadgeText(badge);
+    return createElement("span", {
+      className: ["surface-chip", badge.className],
+      text,
+      attrs: {
+        ...(text ? { title: badge.title || text } : {}),
+        ...(badge.focusable ? { tabindex: "0" } : {}),
+        ...(badge.attrs || {}),
+      },
+      dataset: badge.dataset,
+    });
+  }
+
+  function detailBadgeText(badge = {}) {
+    const label = badge.label === null || badge.label === undefined ? "" : String(badge.label).trim();
+    const value = badge.value === null || badge.value === undefined ? "" : String(badge.value).trim();
+    if (label && value) {
+      return `${label}: ${value}`;
+    }
+    return label || value;
+  }
+
   function renderCell(row, rowIndex, column) {
     if (typeof column.render === "function") {
       return column.render(row, rowIndex);
@@ -1256,6 +1489,7 @@
     createDataTable,
     createDetailActionMenu,
     createDetailActionStrip,
+    createDetailBadgeRow,
     createDetailHeader,
     createElement,
     createEmptyState,
@@ -1264,6 +1498,7 @@
     createIndexList,
     createInfoPanel,
     createInlineActionRow,
+    createLinkedContextList,
     createLinkedContextPicker,
     createListShell,
     createModal,
