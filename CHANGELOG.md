@@ -5,8 +5,10 @@
 - Added `tasks-conversion-closeout-regression.mjs`, marked 0.33.5.18.10.7 complete in the roadmap, archived 0.33.5.18.10.6, left Files and Clients/Projects as future reported surfaces, and bumped package/module metadata to `0.33.5.18.10.7`.
 - Corrective follow-up 2026-06-24 10:24 -04:00: moved shared detail action menus to a fixed viewport-positioned floating menu with clamping, above/below placement, and outside/Escape close behavior so the Tasks row `...` workflow menu no longer creates a row action-rail scrollbar.
 - Planning follow-up 2026-06-24 11:22 -04:00: inserted the 0.33.5.18.10.8 cross-module modal action standardization branch before Files, documented framework-owned modal footer/heading anatomy versus module-owned action behavior, and recorded the Notes notification producer dependency before replacing the Notes top Close button with a follow bell.
+- Planning follow-up 2026-06-24 12:31 -04:00: split Task Tags/Files child-dialog parity into 0.33.5.18.10.8.2 so the Task modal stops opening Tags and Files inside the parent editor body and instead follows the stacked child-dialog pattern already used by Notes.
 - Verification 2026-06-24 10:30 -04:00: `npm run check` passed 171/171 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.10.7 from the local 8001 server.
 - Planning verification 2026-06-24 11:27 -04:00: `npm run check` passed 171/171 regression scripts plus ESLint after the modal standardization roadmap/docs update; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.10.7 from the local 8001 server.
+- Planning verification 2026-06-24 12:32 -04:00: `npm run check` passed 171/171 regression scripts plus ESLint after adding the Task Tags/Files child-dialog parity slice; SQLite `PRAGMA integrity_check` returned `ok`; `/api/app-info` returned 0.33.5.18.10.7 from the local 8001 server.
 
 ## Version 0.33.5.18.10.6 - 2026-06-23 22:22 -04:00
 

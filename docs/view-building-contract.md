@@ -60,6 +60,10 @@ The shared footer standard is:
   icon plus short visible text on normal converted add/edit modals. Dense icon-only utility buttons are
   allowed only when the surface deliberately opts into a compact treatment and keeps accessible labels,
   titles, native button types, and regression coverage.
+- Utility actions that open substantial picker or upload content, including Tags and Files, should open
+  stacked child dialogs through `LongtailForge.view.showModal()` / `closeModal()` rather than expanding
+  inline inside the parent editor body. The framework owns the child dialog shell and stack behavior;
+  modules own helper mounting, target IDs, visibility, save-first states, and refresh behavior.
 - Commit actions live in `.surface-modal-footer-commit`. Cancel and Save should follow the compact
   Tasks pattern: recognizable icon buttons with accessible labels, titles, native button types, and
   consistent secondary/primary roles.

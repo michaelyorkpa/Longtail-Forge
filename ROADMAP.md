@@ -109,7 +109,8 @@ Framework owns:
 
 - Modal shell, heading row, footer shell, footer utility group, footer commit group, sticky footer
   behavior, action button primitive styling, dense/compact button sizing, focus return, Escape/backdrop
-  modal stack behavior, and accessible default structure.
+  modal stack behavior, stacked child-dialog behavior for utility pickers, and accessible default
+  structure.
 - The visual standard for converted modal action placement:
   - Footer utility actions such as Tags, Files, and Copy Link should use icon plus short visible text
     unless a deliberately dense surface opts into icon-only controls with explicit accessible labels.
@@ -133,6 +134,8 @@ Guardrails:
 - Do not add a Notes follow bell that only changes subscription state without Notes producing meaningful
   note notifications.
 - Do not move Tags, Files, Copy Link, or Follow behavior into the generic modal helper.
+- Do not render Tags or Files picker/upload panels inline in the parent add/edit modal body once a
+  converted module has footer utility actions; use stacked child dialogs like Notes.
 - Do not create another module-specific modal footer class when `.surface-modal-footer`,
   `.surface-modal-footer-utilities`, `.surface-modal-footer-commit`, and
   `.surface-modal-footer-action` can express the anatomy.
@@ -164,7 +167,36 @@ Acceptance criteria:
 - Module-owned modal action semantics remain explicit.
 - The next implementation slice has no ambiguity about which visual pattern to use.
 
-#### Version 0.33.5.18.10.8.2 - Notes and Tasks modal footer parity
+#### Version 0.33.5.18.10.8.2 - Tasks Tags and Files child-dialog parity
+
+- [ ] Replace the Tasks modal's inline/body-mounted Tags and Files utility panels with stacked child
+      dialogs opened from the Task modal footer, following the Notes modal pattern.
+- [ ] Keep Tags picker ownership in Tags and Files attachment ownership in Files; Tasks only owns
+      task-specific placement, save-first messaging, target identifiers, visibility, refresh hooks,
+      and footer utility button behavior.
+- [ ] Use `LongtailForge.view.createModal()` or `createModalForm()` plus `showModal()` / `closeModal()`
+      so the framework owns child dialog shell, backdrop/Escape behavior, stack ordering, focus return,
+      and parent-close cleanup.
+- [ ] Preserve current Task rules:
+  - [ ] Unsaved tasks show a save-first state for Files.
+  - [ ] Tags remain staged and save through the normal Task save payload.
+  - [ ] File attachments remain permission-checked through the Files helper and existing file routes.
+  - [ ] Closing Tags or Files returns focus to the footer utility button.
+  - [ ] Saving or canceling the Task editor closes any child Tags/Files dialog safely.
+- [ ] Remove or stop using the body/overlay mounts that make Tags and Files appear inside the Task
+      modal body in inconsistent locations.
+- [ ] Add regressions proving Task Tags and Files open stacked child dialogs like Notes and are not
+      mounted as inline parent-body panels.
+- [ ] Run `npm run check`.
+
+Acceptance criteria:
+
+- Task Tags and Files behave like Notes Tags and Files: footer utility button opens a child dialog
+  above the parent editor.
+- Tags and Files content remains owned by the Tags and Files helpers.
+- The Task editor body no longer grows or shifts when Tags or Files are opened.
+
+#### Version 0.33.5.18.10.8.3 - Notes and Tasks modal footer visual parity
 
 - [ ] Update the Notes modal footer utility actions to use icon plus text for Tags and Files.
 - [ ] Add a Notes Copy Link footer utility action using the same record-URL/clipboard fallback pattern
@@ -188,7 +220,7 @@ Acceptance criteria:
 - Notes has a Copy Link footer action for saved notes without duplicating Tasks code or changing
   note save semantics.
 
-#### Version 0.33.5.18.10.8.3 - Notes notification producer and follow bell
+#### Version 0.33.5.18.10.8.4 - Notes notification producer and follow bell
 
 - [ ] Inspect the framework notification subscription helper and notification service contract used by
       Tasks.
@@ -216,7 +248,7 @@ Acceptance criteria:
 - Notification subscription behavior remains framework-owned, while note event meaning remains
   Notes-owned.
 
-#### Version 0.33.5.18.10.8.4 - Modal standardization closeout
+#### Version 0.33.5.18.10.8.5 - Modal standardization closeout
 
 - [ ] Update `docs/ui-surface-contract.md`, `docs/view-building-contract.md`, `docs/tasks-module.md`,
       and `docs/notes-module.md` with the shipped modal action standard.
