@@ -133,8 +133,9 @@ try {
     const listsScript = await fs.readFile(path.join(process.cwd(), "public/js/lists.js"), "utf8");
     const notesScript = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
 
-    assert.match(filesPage, /data-file-business-control/);
-    assert.match(filesPage, /js\/files\.js\?v=1/);
+    assert.match(filesPage, /data-files-host/);
+    assert.match(filesPage, /js\/shared\/client-project-options\.js[\s\S]*js\/files\.js\?v=5/);
+    assert.match(filesScript, /dataset\.fileBusinessControl/);
     assert.match(filesScript, /await window\.LongtailForge\.workspaceContextReady/);
     assert.match(filesScript, /clientId: usesBusinessScope\(\) \? clientFilter\?\.value : ""/);
     assert.match(filesScript, /targetLabel/);

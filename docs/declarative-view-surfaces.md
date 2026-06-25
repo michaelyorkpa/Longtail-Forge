@@ -1,8 +1,8 @@
 # Declarative View Surfaces
 
-This guide describes the current `viewSurfaces` authoring contract as of 0.33.5.18.10.7.
+This guide describes the current `viewSurfaces` authoring contract as of 0.33.5.18.11.4.
 
-Declarative view surfaces are framework-rendered protected surfaces described by module manifest data. They are for common app anatomy: page headers, filters, selector/index panels, split layouts, tables, detail headers, action strips, summary panels, field grids, modal shells, modal footers, item rows, and linked-record panels.
+Declarative view surfaces are framework-rendered protected surfaces described by module manifest data or by framework-owned descriptor registries for framework-owned pages. They are for common app anatomy: page headers, filters, selector/index panels, split layouts, tables, detail headers, action strips, summary panels, field grids, modal shells, modal footers, item rows, and linked-record panels.
 
 Modules still own business behavior. A module descriptor may name fields, routes, permissions, labels, and behavior IDs, but the module browser script or service still owns data meaning, validation, save payloads, API calls, permission enforcement, and workflow decisions.
 
@@ -38,7 +38,7 @@ As of 0.33.5.18.10.3, Tasks uses one framework-owned Task Details section and a 
 
 ## Guardrails
 
-Strict guardrails currently enforce `lists.workspace`, `notes.workspace`, and `tasks.workspace`. Tasks declares `tasks.workspace` for the protected page shell/read path, with ordered sidebar panels for a non-collapsible saved task view selector and collapsed Sorting and Filters controls. The main task list is bound through the `tasks-main-list` detail region, and the list shell, bulk toolbar, row lifecycle action strip, row workflow action menu, add/edit modal shell, top detail/read metadata badge row, recurrence child-modal shell, Checklist section shell, Task Timer section shell, utility footer/heading placement, and stacked Tags/Files utility child dialogs use shared framework helpers. Strict Tasks guardrails now fail if Tasks reintroduces raw template parsing, protected-page anatomy, modal shell/footer construction, standard field-grid markup strings, or standard action placement outside descriptor/rendered helpers. Tasks still owns selected-view query behavior, row data shaping, lifecycle and workflow behavior handlers, row utility actions, metadata value selection, recurrence/reminder/checklist/timer behavior, tags/files/notes/copy-link/notification behavior, bulk semantics, relationship rules, payloads, validation, and dialog workflows as documented escape hatches in `docs/tasks-strict-guardrail-inventory.md`. The 0.33.5.18.10.7 closeout also locks `LongtailForge.tasksDialog.openTaskEditor()` as the canonical module-owned Task editor opener for Tasks page, Workbench, future Quick Action Center, and future module-triggered task creation flows. Tags and Developer Example descriptors are inventoried and delivered through the descriptor pipeline, but their protected views are not strict-converted surfaces in this closeout. (Notes mounts a secondary Library navigation panel via the framework `createCollapsibleIndexPanel` primitive - an allowed exception until the descriptor can express a second nav panel.)
+Strict guardrails currently enforce `lists.workspace`, `notes.workspace`, and `tasks.workspace`. Tasks declares `tasks.workspace` for the protected page shell/read path, with ordered sidebar panels for a non-collapsible saved task view selector and collapsed Sorting and Filters controls. The main task list is bound through the `tasks-main-list` detail region, and the list shell, bulk toolbar, row lifecycle action strip, row workflow action menu, add/edit modal shell, top detail/read metadata badge row, recurrence child-modal shell, Checklist section shell, Task Timer section shell, utility footer/heading placement, and stacked Tags/Files utility child dialogs use shared framework helpers. Strict Tasks guardrails now fail if Tasks reintroduces raw template parsing, protected-page anatomy, modal shell/footer construction, standard field-grid markup strings, or standard action placement outside descriptor/rendered helpers. Tasks still owns selected-view query behavior, row data shaping, lifecycle and workflow behavior handlers, row utility actions, metadata value selection, recurrence/reminder/checklist/timer behavior, tags/files/notes/copy-link/notification behavior, bulk semantics, relationship rules, payloads, validation, and dialog workflows as documented escape hatches in `docs/tasks-strict-guardrail-inventory.md`. The 0.33.5.18.10.7 closeout also locks `LongtailForge.tasksDialog.openTaskEditor()` as the canonical module-owned Task editor opener for Tasks page, Workbench, future Quick Action Center, and future module-triggered task creation flows. Tags and Developer Example descriptors are inventoried and delivered through the descriptor pipeline, but their protected views are not strict-converted surfaces in this closeout. Files now exposes the framework-owned `files.browse` descriptor as a reported surface; its protected host is minimal, its filter sidebar mounts through `files.browse.filters`, and its results region mounts a shared list shell, summary/info panels, selected detail header/badge rows, preview/availability panel, and data table through `files.browse.results` while Files keeps route calls, query semantics, row shaping, readable-label fallbacks, safe file badge/truncation tooltip data, uploaded/uploader display shaping, route-backed availability, and download/delete/restore actions. (Notes mounts a secondary Library navigation panel via the framework `createCollapsibleIndexPanel` primitive - an allowed exception until the descriptor can express a second nav panel.)
 
 A strict declarative surface must:
 
@@ -64,7 +64,7 @@ The module adapter decorates descriptor-rendered nodes with compatibility hooks 
 
 ## Protected View Inventory
 
-The inventory below is current for 0.33.5.18.10.7. `strict` means the static guardrail fails on declarative-surface violations. `reported` means the view is known to the inventory but is not strict-converted in this slice.
+The inventory below is current for 0.33.5.18.11.4. `strict` means the static guardrail fails on declarative-surface violations. `reported` means the view is known to the inventory but is not strict-converted in this slice.
 
 | Module | View | File | Descriptor Surface | Guardrail |
 | --- | --- | --- | --- | --- |
@@ -74,7 +74,7 @@ The inventory below is current for 0.33.5.18.10.7. `strict` means the static gua
 | Client Projects | projects | projects.html | - | reported |
 | Dashboard | dashboard | dashboard.html | - | reported |
 | Developer Example | developer-example | developer-example.html | developer-example.surface | reported |
-| Files | files | files.html | - | reported |
+| Files | files | files.html | files.browse | reported |
 | Files Settings | files-settings | files-settings.html | - | reported |
 | Help | help | help.html | - | reported |
 | Lists | lists | lists.html | lists.workspace | strict |

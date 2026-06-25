@@ -9,7 +9,7 @@ const packageJson = readText("package.json");
 const protectedViews = readdirSync(new URL("../views/protected/", import.meta.url))
   .filter((fileName) => fileName.endsWith(".html"));
 
-const requiredIcons = ["add", "edit", "archive", "restore", "delete", "start", "pause", "save", "close", "copy", "refresh", "more", "complete", "duplicate", "up", "down", "tag", "file", "eye", "link", "list", "list-checks"];
+const requiredIcons = ["add", "edit", "archive", "restore", "delete", "download", "start", "pause", "save", "close", "copy", "refresh", "more", "complete", "duplicate", "up", "down", "tag", "file", "eye", "link", "list", "list-checks"];
 
 requiredIcons.forEach((iconName) => {
   assert.match(iconHelper, new RegExp(`["']?${escapeRegExp(iconName)}["']?:\\s*Object\\.freeze`), `shared icon helper must register the ${iconName} icon`);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.10.8.5";
+const appVersion = "0.33.5.18.11.4";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -20,9 +20,9 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Tasks conversion closeout version");
 assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the Tasks conversion closeout version");
 
-assert.match(roadmap, /0\.33\.5\.18\.10\.8\.5 is the most recently completed modal standardization closeout slice/, "Roadmap should report the completed modal standardization closeout slice");
-assert.match(roadmap, /The next live work starts with 0\.33\.5\.18\.11/, "Roadmap should point to Files work after modal standardization");
-assert.match(roadmap, /### Version 0\.33\.5\.18\.10\.8 - Cross-Module Modal Action Standardization/, "Roadmap should include the inserted modal action standardization branch");
+assert.match(roadmap, /0\.33\.5\.18\.11\.4 is the most recently completed Files detail\/summary read slice/, "Roadmap should report the current Files browse slice");
+assert.match(roadmap, /The next live work starts with 0\.33\.5\.18\.11\.5/, "Roadmap should point to the next Files browse slice");
+assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.10\.8 - Cross-Module Modal Action Standardization/, "Live roadmap should archive the completed modal action standardization branch");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.7 - Tasks docs, changelog, and closeout/, "Live roadmap should archive the previous completed Tasks closeout slice");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.6 - Tasks strict declarative guardrail enforcement/, "Live roadmap should archive the previous completed Tasks slice");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the Tasks conversion closeout version");
@@ -48,10 +48,10 @@ assert.match(moduleContract, /As of 0\.33\.5\.18\.10\.7, the canonical Task edit
 assert.match(moduleContract, /Future Quick Action Center or module-triggered task creation flows should dispatch the registered Task module action or call the opener/, "Module contract should document future callers");
 assert.match(moduleContract, /The Task editor is the first completed workflow example for this pattern/, "Module contract should identify the completed workflow example");
 
-assert.match(declarativeDocs, /viewSurfaces` authoring contract as of 0\.33\.5\.18\.10\.7/, "Declarative view docs should report the Tasks closeout version");
+assert.match(declarativeDocs, /viewSurfaces` authoring contract as of 0\.33\.5\.18\.11\.4/, "Declarative view docs should report the current Files descriptor version");
 assert.match(declarativeDocs, /Strict guardrails currently enforce `lists\.workspace`, `notes\.workspace`, and `tasks\.workspace`/, "Declarative view docs should include Tasks in strict guardrails");
 assert.match(declarativeDocs, /The 0\.33\.5\.18\.10\.7 closeout also locks `LongtailForge\.tasksDialog\.openTaskEditor\(\)` as the canonical module-owned Task editor opener/, "Declarative view docs should document the Tasks editor closeout contract");
-assert.match(declarativeDocs, /\| Files \| files \| files\.html \| - \| reported \|/, "Declarative inventory should leave Files reported in this closeout");
+assert.match(declarativeDocs, /\| Files \| files \| files\.html \| files\.browse \| reported \|/, "Declarative inventory should report Files through the framework descriptor surface");
 assert.match(declarativeDocs, /\| Client Projects \| clients \| clients\.html \| - \| reported \|/, "Declarative inventory should leave Clients reported in this closeout");
 assert.match(declarativeDocs, /\| Client Projects \| projects \| projects\.html \| - \| reported \|/, "Declarative inventory should leave Projects reported in this closeout");
 

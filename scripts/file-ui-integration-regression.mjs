@@ -78,12 +78,21 @@ assert.ok(tasksScript.includes('moduleId: "tasks"'), "Task count request should 
 assert.ok(tasksScript.includes('targetType: "task"'), "Task count request should use task target type.");
 assert.ok(tasksScript.includes("task-attachment-count"), "Task rows should render attachment count chips.");
 
-assert.ok(filesPage.includes("data-file-filters"), "Files page should expose filter form.");
+assert.ok(filesPage.includes('<main class="wide-page files-page" data-files-host></main>'), "Files page should expose the minimal descriptor host.");
 assert.ok(filesPage.includes("js/shared/modal.js"), "Files page should load the shared modal helper for in-app warnings.");
-assert.ok(filesPage.includes("data-file-business-control"), "Files page should mark business-only client controls.");
-assert.ok(filesPage.includes("js/files.js?v=1"), "Files page should cache-bust the protected Files script.");
+assert.ok(
+  filesPage.indexOf("js/shared/client-project-options.js") < filesPage.indexOf("js/shared/view-builder.js?v=16") &&
+    filesPage.indexOf("js/shared/view-builder.js?v=16") < filesPage.indexOf("js/shared/view-renderer.js?v=12") &&
+    filesPage.indexOf("js/shared/view-renderer.js?v=12") < filesPage.indexOf("js/files.js?v=5"),
+  "Files page should load client/project helpers plus the shared view builder/renderer before the Files adapter.",
+);
+assert.ok(filesPage.includes("js/files.js?v=5"), "Files page should cache-bust the protected Files script.");
+assert.doesNotMatch(filesPage, /\b(data-file-filters|data-file-business-control|data-file-list)\b/, "Files page should not ship browse hooks outside the descriptor host.");
+assert.ok(filesScript.includes("data-file-filters") || filesScript.includes("dataset.fileFilters"), "Files adapter should mount the filter form.");
+assert.ok(filesScript.includes("data-file-business-control") || filesScript.includes("dataset.fileBusinessControl"), "Files adapter should mark business-only client controls.");
 ["data-file-filter-module", "data-file-filter-target-type", "data-file-filter-target-id", "data-file-filter-client", "data-file-filter-project", "data-file-filter-filename", "data-file-filter-status"].forEach((selector) => {
-  assert.ok(filesPage.includes(selector), `Files page should expose ${selector}.`);
+  const datasetName = selector.replace(/^data-/, "").replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase());
+  assert.ok(filesScript.includes(selector) || filesScript.includes(`dataset.${datasetName}`), `Files adapter should expose ${selector}.`);
 });
 assert.ok(filesScript.includes("/api/files/attachments?"), "Files surface should browse framework attachments.");
 assert.ok(filesScript.includes("moduleId"), "Files surface should filter by module.");

@@ -32,6 +32,11 @@ import {
 } from "./registry.js";
 import { internalEventBus } from "../events/event-bus.js";
 import { resolveContributionTerminology, resolveModuleDefinitionTerminology } from "./terminology.js";
+import {
+  FRAMEWORK_VIEW_SURFACE_MODULE_ID,
+  listFrameworkProtectedViews,
+  listFrameworkViewSurfaces,
+} from "../view-surfaces/framework-view-surfaces.js";
 import { querySql, runSql, sqlText } from "../../db/sqlite.js";
 import { permissionsRepository } from "../../repositories/permissions.repo.js";
 import { AppError } from "../../utils/app-error.js";
@@ -39,6 +44,10 @@ import { getWorkspaceCapabilities } from "../../utils/workspaces.js";
 
 const TIME_TRACKING_MODULE_ID = "time-tracking";
 const TASKS_MODULE_ID = "tasks";
+const FRAMEWORK_VIEW_SURFACE_MODULE = Object.freeze({
+  id: FRAMEWORK_VIEW_SURFACE_MODULE_ID,
+  workspaceCapabilityRequirements: [],
+});
 let moduleEventHookUnsubscribers = [];
 let moduleEventHooksRegistered = false;
 const AVAILABLE_FRAMEWORK_DEPENDENCIES = new Set([
@@ -861,20 +870,31 @@ async function listActiveViewSurfaces(workspaceId, session = null) {
   const availableTools = new Set(workspaceCapabilities.availableTools || []);
   const workspaceType = workspaceCapabilities.workspaceType || "business";
   const modulesById = new Map(listModules().map((moduleDefinition) => [moduleDefinition.id, moduleDefinition]));
-  const protectedViewsByKey = new Map(listRegisteredModuleProtectedViews()
-    .map(normalizeViewContribution)
-    .map((view) => [`${view.moduleId}:${view.id}`, view]));
+  const protectedViewsByKey = new Map([
+    ...listRegisteredModuleProtectedViews().map(normalizeViewContribution),
+    ...listFrameworkProtectedViews().map(normalizeViewContribution),
+  ].map((view) => [`${view.moduleId}:${view.id}`, view]));
+  const viewSurfaceEntries = [
+    ...listRegisteredModuleViewSurfaces().map((surface) => ({ surface, frameworkOwned: false })),
+    ...listFrameworkViewSurfaces().map((surface) => ({ surface, frameworkOwned: true })),
+  ];
   const surfaces = [];
 
-  for (const surface of listRegisteredModuleViewSurfaces()) {
-    const moduleDefinition = modulesById.get(surface.moduleId);
+  for (const { surface, frameworkOwned } of viewSurfaceEntries) {
+    const moduleDefinition = frameworkOwned
+      ? FRAMEWORK_VIEW_SURFACE_MODULE
+      : modulesById.get(surface.moduleId);
     const protectedView = protectedViewsByKey.get(`${surface.moduleId}:${surface.viewId}`);
 
-    if (!moduleDefinition || !protectedView || !enabledModuleIds.has(surface.moduleId)) {
+    if (!frameworkOwned && (!moduleDefinition || !protectedView || !enabledModuleIds.has(surface.moduleId))) {
       continue;
     }
 
-    if (!requiredModulesEnabled(surface, enabledModuleIds)) {
+    if (frameworkOwned && (!moduleDefinition || !protectedView)) {
+      continue;
+    }
+
+    if (!requiredModulesEnabled(frameworkOwned ? omitOwningModuleRequirement(surface) : surface, enabledModuleIds)) {
       continue;
     }
 
@@ -1121,6 +1141,12 @@ function normalizeViewContribution(view) {
     path: normalizeViewPath(view.path),
     file: String(view.file || "").trim(),
   };
+}
+
+function omitOwningModuleRequirement(contribution) {
+  const { moduleId: _moduleId, ...rest } = contribution;
+
+  return rest;
 }
 
 function normalizeAssetContribution(asset) {

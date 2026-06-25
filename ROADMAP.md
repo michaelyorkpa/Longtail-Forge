@@ -8,127 +8,8 @@ Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and im
 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
 The active roadmap continues with Files and Clients/Projects view conversion work.
-0.33.5.18.10.8.5 is the most recently completed modal standardization closeout slice. The next live work starts with 0.33.5.18.11.1.
-
-## Tasks (0.33.5.18.7 - 0.33.5.18.10)
-
-Decision:
-
-Tasks should adopt the framework-owned slide-out action sidebar pattern proven by Notes, but Tasks should not copy the Notes information architecture exactly.
-
-For Tasks, the task list is the primary work surface. The task list must remain in the main content panel. The slide-out sidebar is for choosing a task view, sorting, and filtering only.
-
-Framework owns:
-
-- Page shell.
-- Slide-out filter sidebar shell.
-- Filter/funnel trigger placement and behavior.
-- Sidebar open/close state, backdrop/outside click, Escape handling, focus return, ARIA state, reduced-motion handling, scroll containment, and responsive behavior.
-- Filter preset selector shell.
-- Collapsible Sorting and Filters section shell.
-- Main task-list surface shell.
-- Bulk-action toolbar shell.
-- Modal shell/form/footer anatomy.
-- Shared field-grid, action, empty/loading/error, and dense-control anatomy.
-
-Tasks owns:
-
-- Canonical task query behavior.
-- Task statuses and lifecycle rules.
-- Assignment rules.
-- Due-date logic.
-- Priority, tags, project/client context, recurrence, blocking/relationships, checklist, timer, and resume/next-action meaning.
-- Task list row data and existing task list presentation.
-- Save payloads, validation, permissions, routes, and workflow behavior.
-
-Guardrails:
-
-- Do not move the task list into the sidebar.
-- Do not redesign the task list rows unless needed for framework/module separation.
-- Do not create a second task editor for Workbench, Quick Action Center, or future system calls.
-- The Tasks add/edit modal should become the canonical task editor invoked by Tasks, Workbench, and future Quick Action Center flows.
-- Follow the newer Notes patterns first. Use Lists patterns only where still valid, because Lists is expected to receive a larger rewrite soon.
-- Client controls must remain Business-workspace-only wherever task context editing appears.
-- Personal/Family workspaces must not show Client UI.
-
-Sizing note:
-
-This docs-only evaluation keeps 0.33.5.18.7 as the read-only shell/sidebar/list proof, then splits the
-larger generated Tasks slices so one implementation pass does not have to move framework ownership,
-preserve bulk workflows, standardize the canonical task modal, and lock strict guardrails at the same
-time. Bulk behavior, specialized modal fragments, workflow actions, relationships, and strict
-guardrail enforcement are intentionally separated below.
-
-### Version 0.33.5.18.10 - Tasks Workflow Actions, Detail/Relationship Cleanup, and Strict Guardrails
-
-This is the closeout phase that finishes the Tasks conversion after the sidebar, list shell, bulk toolbar, and canonical modal are stable.
-
-### Version 0.33.5.18.10.8 - Cross-Module Modal Action Standardization
-
-This corrective branch is inserted before Files because Tasks and Notes are now the two converted modal
-proof surfaces. Their modal shell/footer anatomy is already framework-owned, but their action styles
-and heading controls have drifted. Standardizing the converted modal contract here keeps Files and
-Clients/Projects from inheriting two competing patterns.
-
-Framework owns:
-
-- Modal shell, heading row, footer shell, footer utility group, footer commit group, sticky footer
-  behavior, action button primitive styling, dense/compact button sizing, focus return, Escape/backdrop
-  modal stack behavior, stacked child-dialog behavior for utility pickers, and accessible default
-  structure.
-- The visual standard for converted modal action placement:
-  - Footer utility actions such as Tags, Files, and Copy Link should use icon plus short visible text
-    unless a deliberately dense surface opts into icon-only controls with explicit accessible labels.
-  - Footer commit actions should follow the compact Tasks pattern for Cancel and Save: recognizable
-    icon buttons with accessible labels, titles, native button types, and consistent primary/secondary
-    roles.
-  - The modal heading action slot should hold one contextual record-level utility such as a Follow
-    Notifications bell, not a duplicate Close button when the footer already has Cancel/Close.
-
-Modules own:
-
-- Which buttons appear, when they are enabled, their labels/icons, API calls, save payloads, validation,
-  permission checks, record URLs, notification event meaning, and any picker/upload bodies opened by
-  footer utility actions.
-- Tasks remains the source of truth for task save/cancel/copy/follow/tags/files/notes behavior.
-- Notes remains the source of truth for note save/cancel/copy/follow/tags/files/linked-context,
-  revision, secure-note, Library, visibility, and notification producer behavior.
-
-Guardrails:
-
-- Do not add a Notes follow bell that only changes subscription state without Notes producing meaningful
-  note notifications.
-- Do not move Tags, Files, Copy Link, or Follow behavior into the generic modal helper.
-- Do not render Tags or Files picker/upload panels inline in the parent add/edit modal body once a
-  converted module has footer utility actions; use stacked child dialogs like Notes.
-- Do not create another module-specific modal footer class when `.surface-modal-footer`,
-  `.surface-modal-footer-utilities`, `.surface-modal-footer-commit`, and
-  `.surface-modal-footer-action` can express the anatomy.
-- Do not regress the Tasks modal heading bell, save/cancel controls, footer focus return, tag picker,
-  file attachment helper, or copy-link behavior.
-- Do not make secure-note files available while secure attachments remain out of scope.
-
-#### Version 0.33.5.18.10.8.5 - Modal standardization closeout
-
-- [x] Update `docs/ui-surface-contract.md`, `docs/view-building-contract.md`, `docs/tasks-module.md`,
-      and `docs/notes-module.md` with the shipped modal action standard.
-- [x] Update `DECISIONS.md` with the finalized cross-module modal action ownership decision.
-- [x] Update CHANGELOG and package metadata.
-- [x] Ensure strict converted-surface guardrails protect the standardized modal footer/heading pattern.
-- [x] Run:
-  - [x] `npm run check`
-  - [x] Notes modal regressions.
-  - [x] Tasks modal regressions.
-  - [x] Notification regressions.
-- [x] Verify `/api/app-info` reports the expected version.
-
-Acceptance criteria:
-
-- Tasks and Notes share the same converted modal action standard.
-- The framework/module modal ownership boundary is documented and regression-covered.
-- Files can begin after this branch without inheriting conflicting modal footer patterns.
-
----
+Completed 0.33.5.18.11.1 through 0.33.5.18.11.3 are archived in `ROADMAP-ARCHIVE.md`.
+0.33.5.18.11.4 is the most recently completed Files detail/summary read slice. The next live work starts with 0.33.5.18.11.5.
 
 ## Files (0.33.5.18.11 - 0.33.5.18.12)
 
@@ -188,55 +69,17 @@ and strict guardrails separately reviewable like the Notes and Tasks conversions
 
 ### Version 0.33.5.18.11 - Files Browse Surface and Read Controls
 
-#### Version 0.33.5.18.11.1 - Files descriptor and minimal protected host
-
-- [ ] Add a `viewSurfaces` descriptor for the Files browse read path.
-- [ ] Reduce `views/protected/files.html` to a minimal framework host element that loads the shared
-      view builder/renderer plus the Files adapter.
-- [ ] Keep the existing navigation, app-shell, module availability, and `files.view` permission gates.
-- [ ] Keep upload, attachment management, and row mutations on the existing imperative path until their
-      dedicated slices.
-- [ ] Add regressions proving the Files protected host is minimal and the descriptor is delivered only
-      when the Files surface is available to the current workspace/user.
-
-#### Version 0.33.5.18.11.2 - Files filter sidebar and readable scope controls
-
-- [ ] Move Files browse filters into the descriptor using the slide-out sidebar pattern when the full
-      filter set is visible.
-- [ ] Preserve the current filter meanings for module, target type, target ID, client, project,
-      filename, and status while moving framework-owned label/control placement out of static HTML.
-- [ ] Replace normal Client/Project/target filter display with readable labels or safe picker/select
-      controls where a provider exists; keep raw IDs out of normal browse UI except explicit advanced
-      troubleshooting inputs.
-- [ ] Keep Client filters Business-workspace-only and ensure Personal/Family workspaces cannot see or
-      submit Client filter controls from the converted UI.
-- [ ] Add regressions proving filter changes refetch through the Files route, sidebar open/close follows
-      the Notes/Tasks slide-out contract, and non-Business workspaces hide Client controls.
-
-#### Version 0.33.5.18.11.3 - Files read endpoint, field bindings, and list shell
-
-- [ ] Define the normalized Files browse read endpoint and descriptor `fieldBindings`, reusing the
-      existing permission-checked attachment list route or a thin normalized wrapper over it.
-- [ ] Move the browse table/list/card shell, status mount, empty state, loading state, and error state
-      into descriptor-rendered or shared-helper anatomy.
-- [ ] Keep Files responsible for attachment row shaping, readable filename/display name, module label,
-      target label, client/project labels, attachment timestamp, file size, status, scan status, and
-      deleted/quarantined/pending fallbacks.
-- [ ] Ensure normal browse rows never fall back to raw UUIDs when a safe readable label is available.
-- [ ] Add regressions proving the browse list renders from descriptor data without querying storage,
-      search, tags, or attachment tables directly in browser code.
-
 #### Version 0.33.5.18.11.4 - Files detail, preview, and summary read anatomy
 
-- [ ] Add a framework-owned detail/preview shell for the selected file or selected attachment row.
-- [ ] Render metadata through shared badge/detail rows: status, scan status, module/target, client,
+- [x] Add a framework-owned detail/preview shell for the selected file or selected attachment row.
+- [x] Render metadata through shared badge/detail rows: status, scan status, module/target, client,
       project, size, uploaded/attached timestamps, uploader when available, and safe delete/quarantine
       hints.
-- [ ] Keep actual preview/download availability Files-owned and route-backed; the descriptor must not
+- [x] Keep actual preview/download availability Files-owned and route-backed; the descriptor must not
       infer downloadability from browser-only status checks.
-- [ ] Add summary/status panels for current filters, result count, unavailable/deleted states, and
+- [x] Add summary/status panels for current filters, result count, unavailable/deleted states, and
       permission-safe scan/quarantine messaging.
-- [ ] Add regressions proving detail metadata is readable, permission-safe, and does not expose storage
+- [x] Add regressions proving detail metadata is readable, permission-safe, and does not expose storage
       paths, scanner internals, or raw protected IDs in normal UI.
 
 #### Version 0.33.5.18.11.5 - Files read-only browse proof closeout
@@ -244,6 +87,9 @@ and strict guardrails separately reviewable like the Notes and Tasks conversions
 - [ ] Add or update Files browse developer docs if the implementation changes the Files UI boundary.
 - [ ] Confirm no upload, delete, restore, report, quarantine, attachment removal, schema, permission,
       or storage behavior changed in the read-only browse slices.
+- [ ] Confirm the browse row remains scan-friendly at common desktop widths: file-type icon, truncated
+      filename/target/Client/Project labels with hover/focus reveal, and accessible icon-only
+      Download/Delete controls.
 - [ ] Run `npm run check` with a full timeout.
 - [ ] Verify `/api/app-info` still reports the expected current version unless this slice deliberately
       completes with a version bump.
@@ -253,6 +99,8 @@ Acceptance criteria:
 - Files has a descriptor-backed, permission-safe browse shell.
 - Filters and readable context labels match the Notes/Tasks control standard without changing file
   service behavior.
+- Browse rows are compact and readable: file-type icon plus truncated filename, target, Client, and
+  Project labels with full-value reveal, and accessible icon-only Download/Delete controls.
 - Upload and mutation actions remain untouched until 0.33.5.18.12.
 
 ### Version 0.33.5.18.12 - File Upload, Attachment Panels, Actions, and Strict Guardrails

@@ -1719,6 +1719,9 @@ function attachmentSelectColumns() {
   files.file_size_bytes,
   files.status AS file_status,
   files.scan_status,
+  files.created_at AS file_created_at,
+  files.updated_at AS file_updated_at,
+  files.uploaded_by_user_id AS file_uploaded_by_user_id,
   files.quarantine_reason,
   files.deleted_at AS file_deleted_at
 `;
@@ -1774,6 +1777,10 @@ function shapeAttachment(attachment) {
       originalFilename: attachment.original_filename,
       scanStatus: attachment.scan_status,
       status: attachment.file_status,
+      createdAt: attachment.file_created_at || null,
+      created_at: attachment.file_created_at || null,
+      updatedAt: attachment.file_updated_at || null,
+      updated_at: attachment.file_updated_at || null,
       deletedAt: attachment.file_deleted_at || null,
       deleted_at: attachment.file_deleted_at || null,
     },
@@ -1782,6 +1789,7 @@ function shapeAttachment(attachment) {
 
 async function shapeAttachmentForRead(session, attachment) {
   const shaped = shapeAttachment(attachment);
+  const uploadedByLabel = uploadedByLabelForSession(session, attachment.file_uploaded_by_user_id);
   const [target, contextLabels] = await Promise.all([
     readAttachmentTargetLabel(session.workspace_id, attachment),
     readAttachmentContextLabels(session.workspace_id, attachment),
@@ -1789,6 +1797,11 @@ async function shapeAttachmentForRead(session, attachment) {
 
   return {
     ...shaped,
+    file: {
+      ...shaped.file,
+      uploadedByLabel,
+      uploaded_by_label: uploadedByLabel,
+    },
     target: target
       ? {
           id: shaped.targetId,
@@ -1803,6 +1816,14 @@ async function shapeAttachmentForRead(session, attachment) {
     projectLabel: contextLabels.projectLabel,
     project_label: contextLabels.projectLabel,
   };
+}
+
+function uploadedByLabelForSession(session, uploadedByUserId) {
+  if (!uploadedByUserId || uploadedByUserId !== session.user_id) {
+    return "";
+  }
+
+  return session.display_name || session.displayName || session.username || "Current user";
 }
 
 async function readAttachmentTargetLabel(workspaceId, attachment) {

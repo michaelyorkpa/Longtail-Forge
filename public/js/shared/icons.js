@@ -25,6 +25,11 @@
       { type: "path", attrs: { d: "M10 11v6" } },
       { type: "path", attrs: { d: "M14 11v6" } },
     ]),
+    download: Object.freeze([
+      { type: "path", attrs: { d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" } },
+      { type: "path", attrs: { d: "M7 10l5 5 5-5" } },
+      { type: "path", attrs: { d: "M12 15V3" } },
+    ]),
     down: Object.freeze([{ type: "path", attrs: { d: "m6 9 6 6 6-6" } }]),
     edit: Object.freeze([
       { type: "path", attrs: { d: "M21.2 6.8a2 2 0 0 0-4-4L4 16v4h4Z" } },

@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
+import {
+  listFrameworkProtectedViews,
+  listFrameworkViewSurfaces,
+} from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const appVersion = "0.33.5.18.10.8.5";
+const appVersion = "0.33.5.18.11.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
@@ -22,23 +26,32 @@ const taskDialogJs = readText("public/js/task-dialog.js");
 const tasksHtml = readText("views/protected/tasks.html");
 
 const modules = listModules();
-const protectedViews = modules.flatMap((moduleDefinition) => (
-  moduleDefinition.protectedViews || []
-).map((view) => ({
-  ...view,
-  moduleId: view.moduleId || moduleDefinition.id,
-  moduleEnabledByDefault: moduleDefinition.enabledByDefault,
-})));
+const protectedViews = [
+  ...modules.flatMap((moduleDefinition) => (
+    moduleDefinition.protectedViews || []
+  ).map((view) => ({
+    ...view,
+    moduleId: view.moduleId || moduleDefinition.id,
+    moduleEnabledByDefault: moduleDefinition.enabledByDefault,
+  }))),
+  ...listFrameworkProtectedViews().map((view) => ({
+    ...view,
+    moduleEnabledByDefault: true,
+  })),
+];
 const protectedViewsByFile = new Map(protectedViews.map((view) => [view.file, view]));
 const protectedHtmlFiles = readdirSync(new URL("../views/protected/", import.meta.url))
   .filter((fileName) => fileName.endsWith(".html"))
   .sort();
-const surfaces = modules.flatMap((moduleDefinition) => (
-  moduleDefinition.viewSurfaces || []
-).map((surface) => ({
-  ...surface,
-  moduleId: surface.moduleId || moduleDefinition.id,
-})));
+const surfaces = [
+  ...modules.flatMap((moduleDefinition) => (
+    moduleDefinition.viewSurfaces || []
+  ).map((surface) => ({
+    ...surface,
+    moduleId: surface.moduleId || moduleDefinition.id,
+  }))),
+  ...listFrameworkViewSurfaces(),
+];
 const surfacesByView = new Map();
 for (const surface of surfaces) {
   const key = `${surface.moduleId}:${surface.viewId}`;
@@ -74,6 +87,7 @@ assert.deepEqual(
 );
 assert.ok(inventory.some((entry) => entry.moduleId === "tags" && entry.surfaceIds.includes("tags.management") && !entry.strict), "Tags descriptor should be inventoried but not strict yet");
 assert.ok(inventory.some((entry) => entry.moduleId === "developer-example" && entry.surfaceIds.includes("developer-example.surface") && !entry.strict), "Disabled example descriptor should be inventoried but not strict");
+assert.ok(inventory.some((entry) => entry.moduleId === "framework" && entry.surfaceIds.includes("files.browse") && !entry.strict), "Files descriptor should be inventoried as a framework-owned reported surface");
 assert.ok(inventory.some((entry) => entry.moduleId === "tasks" && entry.surfaceIds.includes("tasks.workspace") && entry.strict), "Tasks descriptor should be strict-converted");
 
 assert.match(listsHtml, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Strict declarative Lists HTML should stay a minimal host");
@@ -184,6 +198,7 @@ for (const expectedInventoryRow of [
   "| Tasks | tasks | tasks.html | tasks.workspace | strict |",
   "| Tags | tags | tags.html | tags.management | reported |",
   "| Developer Example | developer-example | developer-example.html | developer-example.surface | reported |",
+  "| Files | files | files.html | files.browse | reported |",
 ]) {
   assert.match(declarativeGuide, new RegExp(escapeRegExp(expectedInventoryRow)), `Developer guide should include inventory row: ${expectedInventoryRow}`);
 }

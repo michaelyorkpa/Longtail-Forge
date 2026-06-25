@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.10.8.5";
+const appVersion = "0.33.5.18.11.4";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -46,11 +46,11 @@ assert.match(taskDecorateControls, /icons\.decorateButton\(fields\.cancel, \{ ic
 assert.match(notesView, /js\/notes\.js\?v=67/, "Notes view should cache-bust follow-bell browser wiring");
 assert.match(tasksView, /js\/task-dialog\.js\?v=21/, "Tasks view should cache-bust footer visual parity browser wiring");
 assert.match(workbenchView, /js\/task-dialog\.js\?v=21/, "Workbench should cache-bust the shared Task dialog browser wiring");
-assert.match(notesDocs, /current Notes implementation as of 0\.33\.5\.18\.10\.8\.5/, "Notes docs should report the current modal footer version");
+assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`), "Notes docs should report the current module handoff version");
 assert.match(notesDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Notes docs should document footer utility visual parity");
-assert.match(tasksDocs, /current Tasks module behavior as of 0\.33\.5\.18\.10\.8\.5/, "Tasks docs should report the current modal footer version");
+assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current module handoff version");
 assert.match(tasksDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Tasks docs should document footer utility visual parity");
-assert.match(roadmap, /0\.33\.5\.18\.10\.8\.5 is the most recently completed modal standardization closeout slice/, "Roadmap should report the completed modal standardization closeout slice");
+assert.match(roadmap, /0\.33\.5\.18\.11\.4 is the most recently completed Files detail\/summary read slice/, "Roadmap should report the current completed Files browse slice");
 assert.match(regressionSuite, /scripts\/notes-tasks-modal-footer-visual-parity-regression\.mjs/, "Regression suite should include the modal footer visual parity regression");
 
 console.log("Notes and Tasks modal footer visual parity regression passed.");

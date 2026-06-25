@@ -5,76 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Files | Longtail Forge</title>
     <script src="js/theme-init.js"></script>
-    <link rel="stylesheet" href="css/longtail-forge.css?v=5">
+    <link rel="stylesheet" href="css/longtail-forge.css?v=6">
   </head>
   <body data-page-title="Files">
-    <main class="settings-page files-page">
-      <h1>Files</h1>
-
-      <form class="file-filters" data-file-filters>
-        <label>
-          Module
-          <input type="text" data-file-filter-module placeholder="tasks">
-        </label>
-        <label>
-          Target Type
-          <input type="text" data-file-filter-target-type placeholder="task">
-        </label>
-        <label>
-          Target ID
-          <input type="text" data-file-filter-target-id autocomplete="off">
-        </label>
-        <label data-file-business-control>
-          Client ID
-          <input type="text" data-file-filter-client autocomplete="off">
-        </label>
-        <label>
-          Project ID
-          <input type="text" data-file-filter-project autocomplete="off">
-        </label>
-        <label>
-          Filename
-          <input type="search" data-file-filter-filename autocomplete="off">
-        </label>
-        <label>
-          Status
-          <select data-file-filter-status>
-            <option value="available">Available</option>
-            <option value="deleted">Deleted</option>
-            <option value="pending">Pending</option>
-            <option value="quarantined">Quarantined</option>
-            <option value="all">All visible</option>
-          </select>
-        </label>
-        <button type="submit">Apply Filters</button>
-      </form>
-
-      <p data-file-status role="status" aria-live="polite"></p>
-
-      <div class="report-table-wrap">
-        <table class="report-table files-table">
-          <thead>
-            <tr>
-              <th scope="col">File</th>
-              <th scope="col">Module</th>
-              <th scope="col">Target</th>
-              <th scope="col" data-file-business-control>Client</th>
-              <th scope="col">Project</th>
-              <th scope="col">Status</th>
-              <th scope="col">Attached</th>
-              <th scope="col">Actions</th>
-            </tr>
-          </thead>
-          <tbody data-file-list></tbody>
-        </table>
-      </div>
-    </main>
+    <main class="wide-page files-page" data-files-host></main>
 
     <script src="js/navigation.js"></script>
     <script src="js/shared/modal.js"></script>
     <script src="js/shared/api-client.js"></script>
-    <script src="js/shared/icons.js?v=1"></script>
-    <script src="js/files.js?v=1"></script>
+    <script src="js/shared/client-project-options.js"></script>
+    <script src="js/shared/icons.js?v=5"></script>
+    <script src="js/shared/view-builder.js?v=16"></script>
+    <script src="js/shared/view-renderer.js?v=12"></script>
+    <script src="js/files.js?v=5"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

@@ -18,6 +18,10 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 - I want external links (non-wiki) to open a new tab
   - This setting should be configurable in User Settings -> Markdown Rendering
 
+## Tasks
+
+- Need a "Complete" button (checkmark) that saves from the edit modal
+
 ## Notes - Suggested Library
 
 - Revisit this once the app is built more (not quite medium term, but not today 2026/06/18)
@@ -28,10 +32,6 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - Billable flag needs to be deprecated everywhere from the front end
   - It can remain in the database as long as it can never be used on Personal or Family workspaces
-
-## Search
-
-- Archived notes should still show up in searches
 
 ## Dashboard/Workbench
 

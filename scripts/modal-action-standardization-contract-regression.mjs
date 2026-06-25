@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.10.8.5";
+const appVersion = "0.33.5.18.11.4";
+const modalStandardVersion = "0.33.5.18.10.8.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -24,8 +25,8 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module metadata should report the modal action contract version");
 assert.match(notesModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Notes module metadata should report the modal action contract version");
 
-assert.match(roadmap, /0\.33\.5\.18\.10\.8\.5 is the most recently completed modal standardization closeout slice/, "Roadmap should report 10.8.5 as the completed slice");
-assert.match(roadmap, /The next live work starts with 0\.33\.5\.18\.11/, "Roadmap should point to Files work next");
+assert.match(roadmap, /0\.33\.5\.18\.11\.4 is the most recently completed Files detail\/summary read slice/, "Roadmap should report the current Files browse slice");
+assert.match(roadmap, /The next live work starts with 0\.33\.5\.18\.11\.5/, "Roadmap should point to the next Files browse slice");
 
 for (const [name, doc] of [
   ["UI surface contract", uiSurfaceContract],
@@ -38,20 +39,22 @@ for (const [name, doc] of [
   assert.match(doc, /Follow\s+Notifications bell/, `${name} should document the heading follow bell standard`);
   assert.match(doc, /meaningful\s+(record\s+)?notifications/, `${name} should block cosmetic follow bells`);
   assert.match(doc, /stacked child dialogs/, `${name} should document child dialogs for substantial utility content`);
-  assert.match(doc, /0\.33\.5\.18\.10\.8\.5/, `${name} should record the 10.8.5 modal standardization closeout`);
+  assert.match(doc, new RegExp(escapeRegExp(modalStandardVersion)), `${name} should record the 10.8.5 modal standardization closeout`);
   assert.match(doc, /finalized converted modal action standard|finalized cross-module converted modal action ownership standard/, `${name} should document the finalized converted modal action standard`);
   assert.match(doc, /Strict converted-surface guardrails|Strict\s+guardrails/, `${name} should document strict converted-surface guardrails`);
   assert.match(doc, /module-specific (heading or footer|modal footer\/heading) anatomy|module-specific modal footer\/heading anatomy/, `${name} should reject one-off converted modal anatomy`);
   assert.match(doc, /inline (parent-body )?Tags\/Files|substantial footer utilities\s+inside the parent modal body|expanding\s+inline\s+inside the parent editor body/, `${name} should reject inline parent-body utility panels`);
 }
 
-assert.match(tasksDocs, /current Tasks module behavior as of 0\.33\.5\.18\.10\.8\.5/, "Tasks docs should report the current modal contract version");
+assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current module handoff version");
+assert.match(tasksDocs, new RegExp(`As of ${escapeRegExp(modalStandardVersion)}[\\s\\S]*Task editor is the Tasks reference implementation`), "Tasks docs should keep the historical modal contract version");
 assert.match(tasksDocs, /Task Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should document the shipped child-dialog behavior");
 assert.match(tasksDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Tasks docs should align utility action placement");
 assert.match(tasksDocs, /Task modal notification following is owned by the heading bell/, "Tasks docs should align heading action placement");
 assert.match(tasksDocs, /Task editor is the Tasks reference implementation for the finalized converted-modal action standard/, "Tasks docs should identify the reference modal standard");
 
-assert.match(notesDocs, /current Notes implementation as of 0\.33\.5\.18\.10\.8\.5/, "Notes docs should report the current modal contract version");
+assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`), "Notes docs should report the current module handoff version");
+assert.match(notesDocs, new RegExp(`As of ${escapeRegExp(modalStandardVersion)}[\\s\\S]*Notes editor is the Notes reference implementation`), "Notes docs should keep the historical modal contract version");
 assert.match(notesDocs, /`Tags`, `Files`, and saved-note `Copy Link`/, "Notes docs should document the shipped Copy Link footer utility");
 assert.match(notesDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Notes docs should align utility action placement");
 assert.match(notesDocs, /heading action slot uses a saved-note Follow Notifications bell/, "Notes docs should document the shipped heading follow action");
@@ -75,7 +78,7 @@ assert.match(notesJs, /createNoteFilesDialogShell[\s\S]*view\.createModal\([\s\S
 assert.match(notesJs, /action: "follow-note-notifications"[\s\S]*icon: "bell"[\s\S]*iconOnly: true/, "Notes heading action should be the saved-note follow bell");
 assert.doesNotMatch(notesJs, /data-note-dialog-close|noteDialogClose/, "Notes should not keep the duplicate top Close button hook");
 
-assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "Changelog should include the modal action contract version");
+assert.match(changelog, new RegExp(`## Version ${escapeRegExp(modalStandardVersion)} - `), "Changelog should include the modal action contract version");
 assert.match(changelog, /Finalized the cross-module converted modal action standard/, "Changelog should summarize the finalized modal standard");
 assert.match(changelog, /strict converted-surface guardrails protect the standardized footer\/heading pattern/, "Changelog should summarize the guardrail closeout");
 assert.match(regressionSuite, /scripts\/modal-action-standardization-contract-regression\.mjs/, "Regression suite should include the modal action contract regression");

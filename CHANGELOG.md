@@ -1,3 +1,37 @@
+## Version 0.33.5.18.11.4 - 2026-06-25 14:55 -04:00
+
+- Added the Files browse selected-file read anatomy: summary panel, selectable rows, selected-file detail header, safe metadata rows, preview/availability panel, and selected-row styling through shared view helpers.
+- Extended the existing permission-checked Files attachment read model with safe uploaded timestamp and uploader display labels without adding a parallel detail endpoint or exposing uploader IDs, storage keys, hashes, scanner internals, or protected paths.
+- Kept download/delete/restore behavior Files-owned while the detail panel uses the existing row-shaped route-backed availability state and existing download route action.
+- Added `scripts/files-detail-summary-regression.mjs`, updated Files cache keys, refreshed Files detail/summary docs/decisions, archived the completed 0.33.5.18.11.3 roadmap slice, and bumped package plus current Notes/Tasks module metadata to `0.33.5.18.11.4`.
+- Verification 2026-06-25 15:16 -04:00: `npm run check` passed 179/179 regression scripts plus ESLint, SQLite `PRAGMA integrity_check` returned `ok` for all local DB files under `data`, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.11.4 after restarting the local 8001 server.
+
+## Version 0.33.5.18.11.3 - 2026-06-25 14:06 -04:00
+
+- Moved the Files browse results region onto the shared list shell/data table anatomy while preserving the service-owned `/api/files/attachments` read route and Files-owned filter/query/action behavior.
+- Added readable Files row shaping for display filename, module, target, Client, Project, status, scan state, timestamp, file size metadata, and safe action availability without falling back to raw protected IDs in normal rows.
+- Added safe file-type icons, truncated filename/target/Client/Project labels with hover/focus reveal, and accessible icon-only Download/Delete/Restore controls with the new shared download icon.
+- Added `scripts/files-browse-list-shell-regression.mjs`, updated Files cache keys and icon regressions, refreshed Files descriptor docs/decisions, archived the completed 0.33.5.18.11.2 roadmap slice, and bumped package plus current Notes/Tasks module metadata to `0.33.5.18.11.3`.
+- Verification 2026-06-25 14:14 -04:00: `npm run check` passed 178/178 regression scripts plus ESLint, SQLite `PRAGMA integrity_check` returned `ok` for all local DB files under `data`, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.11.3 after restarting the local 8001 server.
+- Follow-up fix 2026-06-25 14:29 -04:00: replaced duplicate native/title row hover behavior with one body-level floating tooltip, kept truncated Files labels clipped inside table cells, and changed the file badge to show safe extension text such as `JPG`.
+- Follow-up verification 2026-06-25 14:32 -04:00: `npm run check` passed 178/178 regression scripts plus ESLint, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.11.3.
+
+## Version 0.33.5.18.11.2 - 2026-06-25 12:51 -04:00
+
+- Moved the Files browse filters into the framework-owned `files.browse` slide-out sidebar descriptor, with Files-owned `files.browse.filters` and `files.browse.results` mount behaviors preserving the existing `/api/files/attachments` read path.
+- Replaced normal Client/Project filters with readable select controls populated through the existing client/project provider, kept raw module/target/project ID filters behind an advanced disclosure, and ensured non-Business workspaces hide, disable, and omit Client filter values.
+- Added `scripts/files-filter-sidebar-regression.mjs`, updated the Files descriptor host and file UI integration regressions for the new sidebar/cache-key contract, refreshed Files descriptor docs/decisions, and bumped package plus current Notes/Tasks module metadata to `0.33.5.18.11.2`.
+- Verification 2026-06-25 12:57 -04:00: `npm run check` passed 177/177 regression scripts plus ESLint, SQLite `PRAGMA integrity_check` returned `ok` for all local DB files under `data`, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.11.2 after restarting the local 8001 server.
+- Planning follow-up 2026-06-25 13:37 -04:00: updated the Files 0.33.5.18.11.3/11.5 roadmap and decisions to require file-type icons, truncated filename/target/Client/Project labels with hover/focus reveal, and accessible icon-only Download/Delete row controls before read-only browse closeout.
+
+## Version 0.33.5.18.11.1 - 2026-06-25 10:55 -04:00
+
+- Added the framework-owned `files.browse` descriptor and merged framework descriptors into the existing app-shell `viewSurfaces` delivery path, gated by the protected Files `files.view` permission.
+- Reduced `views/protected/files.html` to a minimal descriptor host that loads the shared view builder/renderer and Files adapter; `public/js/files.js` now mounts the existing browse filters, status, table, and row download/delete/restore controls through `files.browse.legacy`.
+- Kept uploads, attachment panels, storage/accounting, scan/quarantine, delete/restore, download, and attachment target validation on the existing Files routes/services/helpers while the later Files slices convert those controls deliberately.
+- Added `scripts/files-descriptor-host-regression.mjs`, expanded declarative descriptor inventory for framework-owned descriptors, refreshed Files descriptor docs/decisions, archived the completed modal standardization roadmap branch, and bumped package plus current Notes/Tasks module metadata to `0.33.5.18.11.1`.
+- Verification 2026-06-25 11:03 -04:00: `npm run check` passed 176/176 regression scripts plus ESLint, SQLite `PRAGMA integrity_check` returned `ok` for all local DB files under `data`, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.11.1 after restarting the local 8001 server.
+
 ## Version 0.33.5.18.10.8.5 - 2026-06-24 16:09 -04:00
 
 - Finalized the cross-module converted modal action standard for Tasks and Notes: shared heading action slot, footer utility group, footer commit group, icon-plus-text utility actions, compact Cancel/Save commit controls, and stacked child dialogs for substantial Tags/Files utilities.
