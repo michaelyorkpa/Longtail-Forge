@@ -122,6 +122,14 @@ Acceptance criteria:
 
 ### Version 0.33.5.18.12 - File Upload, Attachment Panels, Actions, and Strict Guardrails
 
+Scope note:
+
+This branch starts after the 0.33.5.18.11.13 browse/edit/preview closeout. Files is already a compact
+browse/recovery listing with route-backed File Context and Preview modal workflows. These slices may
+standardize upload, attachment-panel, action, visual-state, and strict-guardrail anatomy, but they must
+not reintroduce inline Browse Summary, selected-file detail, Metadata, Preview, selected-row state, or
+Inspector behavior on the Files browse page.
+
 #### Version 0.33.5.18.12.1 - Upload control shell and progress/result behavior
 
 - [ ] Render the Files upload/dropzone shell, accepted-file hint, upload button, progress/status, and
@@ -131,6 +139,8 @@ Acceptance criteria:
       paths.
 - [ ] Preserve multi-file upload and drag/drop behavior in both the Files page and reusable attachment
       surfaces where currently supported.
+- [ ] Keep upload UI out of File Context and Preview; those already-shipped modals remain focused on
+      attachment context editing and route-backed preview only.
 - [ ] Add regressions proving successful, partial-failure, and rejected upload states remain visible
       without moving scanner/storage rules into framework UI code.
 
@@ -143,6 +153,8 @@ Acceptance criteria:
       Tasks, and future attachable modules.
 - [ ] Keep the attachment helper body compatible with stacked child dialogs opened from converted modal
       footer utility buttons.
+- [ ] Do not turn attachment panels into inline File Context, Preview, Metadata, or Inspector surfaces;
+      any future edit/preview affordance must call the canonical route-backed Files modal workflow.
 - [ ] Ensure deleted/unavailable/quarantined attachments show gentle recovery-safe states instead of
       breaking the host modal or hiding history.
 - [ ] Add regressions proving Notes and Tasks Files utilities still open stacked child dialogs and that
@@ -151,14 +163,18 @@ Acceptance criteria:
 #### Version 0.33.5.18.12.3 - Files row and attachment action wiring
 
 - [ ] Express existing shipped actions through declarative route actions or registered Files behaviors:
-      download, report, quarantine where permitted, remove attachment, delete file, and restore file.
+      download, report, quarantine where existing route/permission support permits it, remove attachment,
+      delete file, and restore file.
 - [ ] Treat File Context edit and Files Preview as already-shipped 0.33.5.18.11 workflows; this slice
       may preserve their placement/visual parity but must not reimplement those routes or modals.
+- [ ] Preserve action isolation: row click/Enter opens File Context, Preview/View opens the Preview
+      modal, Download downloads, and Delete/Restore/Report/Quarantine remain distinct controls.
 - [ ] Preserve existing confirmations, danger styling, permission-shaped visibility, scan/download
       availability, retention semantics, and post-action refresh behavior.
 - [ ] Keep route calls on the existing Files routes and keep API/service permission checks authoritative.
 - [ ] Do not add rename, move, hard purge, permanent delete, storage moves, file replacement, or direct
       file-metadata edit controls in this slice.
+- [ ] Keep unsupported files download-only rather than routing them into a preview/detail panel.
 - [ ] Add regressions proving action buttons use shared dense/action placement, remain accessible, and
       never bypass the Files routes.
 
@@ -171,6 +187,8 @@ Acceptance criteria:
       changing their route-backed behavior from 0.33.5.18.11.
 - [ ] Standardize file status chips, scan-status chips, deleted/restored/quarantined messaging,
       attachment counts, and empty states across Files page and reusable attachment panels.
+- [ ] Preserve the compact listing boundary during visual work: no persistent inline preview, metadata,
+      selected-file detail, selected-row state, or nested dashboard-like browse panels.
 - [ ] Ensure normal Files UI uses broad product language such as recovery, available, unavailable,
       attachment, upload, download, restore, and review rather than punitive or diagnostic copy.
 - [ ] Add responsive regressions or static guardrails proving action controls do not overlap file names,
@@ -186,6 +204,9 @@ Acceptance criteria:
 - [ ] Document intentional Files-owned escape hatches: file reading, upload payloads, accepted
       categories, scan/download availability, route calls, confirmations, permission-aware visibility,
       target metadata, deleted/quarantined recovery states, and host refresh callbacks.
+- [ ] Document the already-shipped File Context and Preview modal openers/routes as allowed Files-owned
+      behavior, while marking inline detail/summary/preview/metadata panels, selected-row state, and
+      Inspector-style browse behavior as forbidden.
 - [ ] Add non-failing guardrail inventory coverage, but do not fail strict Files guardrails until the
       enforcement slice.
 
@@ -199,6 +220,9 @@ Acceptance criteria:
       descriptor field or shared helper owns it.
 - [ ] Keep documented Files-owned escape hatches allowed so the guardrail does not outlaw file route,
       upload, scan, permission, and attachment behavior.
+- [ ] Keep the canonical File Context/Preview modal workflows, row action isolation, readable-label
+      fallbacks, and attachment helper behavior allowed while failing reintroduced inline browse detail,
+      metadata, preview, selected-row, or Inspector anatomy.
 - [ ] Add regressions proving Files no longer creates framework-owned anatomy by hand and never bypasses
       file routes.
 
@@ -216,6 +240,8 @@ Acceptance criteria:
 - [ ] Run:
   - [ ] `npm run check`
   - [ ] Files browse regressions.
+  - [ ] Files edit modal and preview modal preservation regressions if touched by visual/action/guardrail
+        work.
   - [ ] Files attachment/upload regressions.
   - [ ] Notes and Tasks Files utility regressions.
   - [ ] `npm run test:permissions` if file permission, attachment target, workspace gating, or route
@@ -225,6 +251,8 @@ Acceptance criteria:
 Acceptance criteria:
 
 - Files page and reusable attachment panels share the standardized converted control system.
+- File Context and Preview remain the already-shipped route-backed modal workflows, with no inline
+  browse detail/preview/metadata panel or selected-row state returning.
 - File service behavior remains authoritative for storage, scanning, permissions, lifecycle, downloads,
   uploads, delete/restore, reporting, quarantine, and attachment target validation.
 - Strict guardrails protect Files like Notes and Tasks without outlawing required Files-owned behavior.
