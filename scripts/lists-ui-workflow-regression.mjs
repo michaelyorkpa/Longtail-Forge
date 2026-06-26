@@ -53,7 +53,7 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(html, /data-list-dialog/);
   assert.doesNotMatch(html, /<details class="lists-index-panel"/);
   assert.match(html, /js\/shared\/icons\.js\?v=2/);
-  assert.match(html, /js\/shared\/client-project-options\.js\?v=1/);
+  assert.match(html, /js\/shared\/client-project-options\.js\?v=2/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=4/);
   assert.match(html, /js\/shared\/view-renderer\.js\?v=6/);
   assert.match(html, /js\/lists\.js\?v=13/);

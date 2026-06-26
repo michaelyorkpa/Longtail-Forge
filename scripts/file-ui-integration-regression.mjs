@@ -81,12 +81,12 @@ assert.ok(tasksScript.includes("task-attachment-count"), "Task rows should rende
 assert.ok(filesPage.includes('<main class="wide-page files-page" data-files-host></main>'), "Files page should expose the minimal descriptor host.");
 assert.ok(filesPage.includes("js/shared/modal.js"), "Files page should load the shared modal helper for in-app warnings.");
 assert.ok(
-  filesPage.indexOf("js/shared/client-project-options.js") < filesPage.indexOf("js/shared/view-builder.js?v=16") &&
+  filesPage.indexOf("js/shared/client-project-options.js?v=2") < filesPage.indexOf("js/shared/view-builder.js?v=16") &&
     filesPage.indexOf("js/shared/view-builder.js?v=16") < filesPage.indexOf("js/shared/view-renderer.js?v=12") &&
-    filesPage.indexOf("js/shared/view-renderer.js?v=12") < filesPage.indexOf("js/files.js?v=7"),
+    filesPage.indexOf("js/shared/view-renderer.js?v=12") < filesPage.indexOf("js/files.js?v=10"),
   "Files page should load client/project helpers plus the shared view builder/renderer before the Files adapter.",
 );
-assert.ok(filesPage.includes("js/files.js?v=7"), "Files page should cache-bust the protected Files script.");
+assert.ok(filesPage.includes("js/files.js?v=10"), "Files page should cache-bust the protected Files script.");
 assert.doesNotMatch(filesPage, /\b(data-file-filters|data-file-business-control|data-file-list)\b/, "Files page should not ship browse hooks outside the descriptor host.");
 assert.ok(filesScript.includes("data-file-filters") || filesScript.includes("dataset.fileFilters"), "Files adapter should mount the filter form.");
 assert.ok(filesScript.includes("data-file-business-control") || filesScript.includes("dataset.fileBusinessControl"), "Files adapter should mark business-only client controls.");
@@ -114,8 +114,17 @@ assert.ok(appShell.includes('href: "files.html"'), "Files page should appear in 
 
 assert.ok(filesRoutes.includes('"/files/attachments/counts"'), "Files routes should expose count endpoint.");
 assert.ok(filesRoutes.includes('"/files/attachable-targets"'), "Files routes should expose attachable target option endpoint.");
+assert.ok(filesRoutes.includes('"/files/attachments/:fileAttachmentId/preview"'), "Files routes should expose the attachment-scoped preview descriptor endpoint.");
+assert.ok(filesRoutes.includes('"/files/attachments/:fileAttachmentId/preview/content"'), "Files routes should expose the attachment-scoped preview content endpoint.");
+assert.ok(
+  filesRoutes.indexOf('"/files/attachments/:fileAttachmentId/preview/content"') < filesRoutes.indexOf('"/files/attachments/:fileAttachmentId/preview"') &&
+    filesRoutes.indexOf('"/files/attachments/:fileAttachmentId/preview"') < filesRoutes.indexOf('"/files/:fileId"'),
+  "Files preview descriptor and content endpoints should be registered before the generic file route.",
+);
 assert.ok(filesService.includes("countAttachmentsForTargets"), "Files service should own attachment count queries.");
 assert.ok(filesService.includes("listAttachableTargetOptions"), "Files service should own attachable target option queries.");
+assert.ok(filesService.includes("readAttachmentPreviewDescriptor"), "Files service should own attachment preview descriptors.");
+assert.ok(filesService.includes("readAttachmentPreviewContent"), "Files service should own attachment preview content.");
 assert.ok(filesService.includes("normalizeFileStatusFilter"), "Files service should normalize status filters.");
 assert.ok(filesService.includes("filters.filename"), "Files service should filter browse results by filename.");
 assert.ok(filesService.includes("filters.clientId"), "Files service should filter browse results by client.");

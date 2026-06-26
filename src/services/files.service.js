@@ -16,6 +16,7 @@ import { auditService } from "./audit.service.js";
 import { AppError } from "../utils/app-error.js";
 import { notesService } from "../modules/notes/notes.service.js";
 import { NOTE_SECURITY_MODES } from "../modules/notes/library.js";
+import { renderMarkdownToHtml } from "../core/markdown/markdown.service.js";
 
 const DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_ALLOWED_VISIBILITY = new Set(["private", "workspace", "client"]);
@@ -23,8 +24,12 @@ const DEFAULT_ATTACHMENT_LIMIT = 50;
 const MAX_ATTACHMENT_LIMIT = 200;
 const DEFAULT_ATTACHABLE_TARGET_LIMIT = 50;
 const MAX_ATTACHABLE_TARGET_LIMIT = 100;
+const MAX_TEXT_PREVIEW_BYTES = 512 * 1024;
 const ATTACHMENT_SORT_MODES = new Set(["newest", "oldest", "filename", "size", "status"]);
 const FILE_TYPE_POLICY_MODES = new Set(["safe_default", "allowlist", "blocklist"]);
+const IMAGE_PREVIEW_EXTENSIONS = new Set([".gif", ".jpg", ".jpeg", ".png"]);
+const MARKDOWN_PREVIEW_EXTENSIONS = new Set([".md"]);
+const TEXT_PREVIEW_EXTENSIONS = new Set([".txt"]);
 const ALLOWED_EXTENSIONS = new Map([
   [".csv", { category: "spreadsheet", mime: "text/csv", risky: false }],
   [".doc", { category: "document", mime: "application/msword", risky: true }],
@@ -523,6 +528,103 @@ async function downloadFile(session, fileId) {
     file: shapeFile(file),
     headers: buildDownloadHeaders(file),
     stream,
+  };
+}
+
+async function readAttachmentPreviewDescriptor(session, attachmentId) {
+  const { attachment, availability } = await readAttachmentPreviewAccess(session, attachmentId);
+
+  return {
+    preview: shapeAttachmentPreviewDescriptor(attachment, availability),
+  };
+}
+
+async function readAttachmentPreviewContent(session, attachmentId) {
+  const { attachment, availability } = await readAttachmentPreviewAccess(session, attachmentId);
+  const preview = shapeAttachmentPreviewDescriptor(attachment, availability);
+
+  if (availability.state !== "previewable") {
+    throw new AppError(previewContentUnavailableMessage(availability.state), availability.state === "unauthorized" ? 403 : 409);
+  }
+
+  const file = await readFileRow(session.workspace_id, attachment.file_id);
+
+  if (!file) {
+    throw new AppError("File not found.", 404);
+  }
+
+  const stream = await getFileStorageAdapter(file.storage_provider).read(file.storage_key);
+
+  if (availability.kind === "image") {
+    return {
+      headers: buildPreviewImageHeaders(attachment),
+      kind: "image",
+      preview,
+      stream,
+    };
+  }
+
+  const text = await readPreviewTextContent(stream);
+
+  if (availability.kind === "markdown") {
+    return {
+      content: {
+        bodyFormat: "markdown",
+        bodyHtml: renderMarkdownToHtml(text),
+        bodyHtmlFormat: "html",
+        bodyMarkdown: text,
+        kind: "markdown",
+      },
+      preview,
+    };
+  }
+
+  return {
+    content: {
+      encoding: "utf-8",
+      kind: "text",
+      text,
+    },
+    preview,
+  };
+}
+
+async function readAttachmentPreviewAccess(session, attachmentId) {
+  const attachment = await readAttachmentById(session.workspace_id, attachmentId);
+
+  if (!attachment || attachment.removed_at) {
+    throw new AppError("Attachment not found.", 404);
+  }
+
+  const attachableType = await resolveAttachableType(
+    session.workspace_id,
+    attachment.module_id,
+    attachment.target_type,
+  );
+  const target = await readAttachableTarget(session.workspace_id, attachableType, attachment.target_id);
+  await assertCanUseAttachableTarget(session, attachableType, "read", target);
+
+  const canDownload = await permissionsService.can(session, "files.download", {
+    client_id: attachment.client_id,
+    project_id: attachment.project_id,
+    workspace_id: session.workspace_id,
+    operation: "preview",
+  });
+
+  if (!canDownload) {
+    return {
+      attachment,
+      availability: {
+        kind: previewKindForAttachment(attachment),
+        reason: "files_download_permission_required",
+        state: "unauthorized",
+      },
+    };
+  }
+
+  return {
+    attachment,
+    availability: previewAvailabilityForAttachment(attachment),
   };
 }
 
@@ -1587,6 +1689,98 @@ function buildDownloadHeaders(file) {
   };
 }
 
+function buildPreviewImageHeaders(attachment) {
+  const filename = sanitizeFilename(attachment.original_filename || attachment.display_name || "preview");
+  const extensionRule = ALLOWED_EXTENSIONS.get(String(attachment.extension || "").toLowerCase());
+
+  return {
+    "Cache-Control": "no-store",
+    "Content-Disposition": `inline; filename="${filename.replaceAll("\"", "")}"`,
+    "Content-Length": String(attachment.file_size_bytes || 0),
+    "Content-Security-Policy": "sandbox",
+    "Content-Type": extensionRule?.mime || attachment.mime_type_detected || "application/octet-stream",
+    "X-Content-Type-Options": "nosniff",
+  };
+}
+
+function previewContentUnavailableMessage(state) {
+  if (state === "unauthorized") {
+    return "You do not have permission to preview that file.";
+  }
+
+  return "Preview content is not available for that file.";
+}
+
+async function readPreviewTextContent(stream) {
+  const chunks = [];
+  let totalBytes = 0;
+
+  for await (const chunk of stream) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    totalBytes += buffer.length;
+
+    if (totalBytes > MAX_TEXT_PREVIEW_BYTES) {
+      stream.destroy?.();
+      throw new AppError("Preview content is too large.", 413);
+    }
+
+    chunks.push(buffer);
+  }
+
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+function previewAvailabilityForAttachment(attachment) {
+  const kind = previewKindForAttachment(attachment);
+  const fileStatus = String(attachment.file_status || "").trim();
+  const scanStatus = String(attachment.scan_status || "").trim();
+
+  if (fileStatus !== "available" || !["not_required", "passed"].includes(scanStatus)) {
+    return {
+      kind,
+      reason: fileStatus !== "available" ? `file_${fileStatus || "unavailable"}` : `scan_${scanStatus || "unavailable"}`,
+      state: "unavailable",
+    };
+  }
+
+  if (kind === "unsupported") {
+    return {
+      kind,
+      reason: "unsupported_file_type",
+      state: "download_only",
+    };
+  }
+
+  if ((kind === "text" || kind === "markdown") && Number(attachment.file_size_bytes || 0) > MAX_TEXT_PREVIEW_BYTES) {
+    return {
+      kind,
+      reason: "too_large_for_preview",
+      state: "too_large_for_preview",
+    };
+  }
+
+  return {
+    kind,
+    reason: "",
+    state: "previewable",
+  };
+}
+
+function previewKindForAttachment(attachment) {
+  const extension = String(attachment.extension || "").toLowerCase();
+
+  if (IMAGE_PREVIEW_EXTENSIONS.has(extension)) {
+    return "image";
+  }
+  if (MARKDOWN_PREVIEW_EXTENSIONS.has(extension)) {
+    return "markdown";
+  }
+  if (TEXT_PREVIEW_EXTENSIONS.has(extension)) {
+    return "text";
+  }
+  return "unsupported";
+}
+
 async function readFileRow(workspaceId, fileId) {
   const rows = await querySql(`
 SELECT *
@@ -1909,6 +2103,67 @@ function shapeAttachment(attachment) {
       deleted_at: attachment.file_deleted_at || null,
     },
   };
+}
+
+function shapeAttachmentPreviewDescriptor(attachment, availability = {}) {
+  const extension = String(attachment.extension || "").trim();
+  const filename = attachment.display_name || attachment.original_filename || "File";
+  const state = availability.state || "unavailable";
+  const kind = availability.kind || previewKindForAttachment(attachment);
+  const contentAvailable = state === "previewable";
+  const contentUrl = previewContentUrlForAttachment(attachment);
+
+  const descriptor = {
+    fileAttachmentId: attachment.file_attachment_id,
+    file_attachment_id: attachment.file_attachment_id,
+    fileId: attachment.file_id,
+    file_id: attachment.file_id,
+    moduleId: attachment.module_id,
+    module_id: attachment.module_id,
+    targetType: attachment.target_type,
+    target_type: attachment.target_type,
+    targetId: attachment.target_id,
+    target_id: attachment.target_id,
+    state,
+    previewState: state,
+    preview_state: state,
+    kind,
+    previewKind: kind,
+    preview_kind: kind,
+    reason: availability.reason || "",
+    filename,
+    fileName: filename,
+    file_name: filename,
+    fileType: fileTypeLabel(extension, attachment.mime_type_detected),
+    file_type: fileTypeLabel(extension, attachment.mime_type_detected),
+    extension,
+    mimeType: attachment.mime_type_detected || "",
+    mime_type: attachment.mime_type_detected || "",
+    fileSizeBytes: Number(attachment.file_size_bytes || 0),
+    file_size_bytes: Number(attachment.file_size_bytes || 0),
+    status: attachment.file_status,
+    scanStatus: attachment.scan_status,
+    scan_status: attachment.scan_status,
+    contentAvailable,
+    content_available: contentAvailable,
+  };
+
+  if (contentAvailable) {
+    descriptor.contentUrl = contentUrl;
+    descriptor.content_url = contentUrl;
+  }
+
+  return descriptor;
+}
+
+function previewContentUrlForAttachment(attachment) {
+  return `/api/files/attachments/${encodeURIComponent(attachment.file_attachment_id)}/preview/content`;
+}
+
+function fileTypeLabel(extension, mimeType = "") {
+  const normalizedExtension = String(extension || "").replace(/^\./, "").trim();
+
+  return normalizedExtension ? normalizedExtension.toUpperCase() : String(mimeType || "file").trim();
 }
 
 async function shapeAttachmentForRead(session, attachment) {
@@ -2838,6 +3093,8 @@ export const filesService = {
   listFileStatuses,
   listScanStatuses,
   quarantineFile,
+  readAttachmentPreviewContent,
+  readAttachmentPreviewDescriptor,
   readFileForSession,
   readWorkspaceFileSettings,
   readStorageAccounting,

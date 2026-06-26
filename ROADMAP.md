@@ -1,4 +1,4 @@
-﻿# Longtail Forge Roadmap
+# Longtail Forge Roadmap
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
@@ -8,8 +8,8 @@ Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and im
 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
 The active roadmap continues with Files and Clients/Projects view conversion work.
-Completed 0.33.5.18.11.1 through 0.33.5.18.11.7 are archived in `ROADMAP-ARCHIVE.md`.
-0.33.5.18.11.8 is the current Files edit modal shell closeout slice. The next live work starts with 0.33.5.18.11.9.
+Completed 0.33.5.18.11.1 through 0.33.5.18.11.12 are archived in `ROADMAP-ARCHIVE.md`.
+0.33.5.18.11.13 is the most recently completed Files browse/edit/preview closeout slice. The next live work starts with 0.33.5.18.12.1.
 
 ## Files (0.33.5.18.11 - 0.33.5.18.12)
 
@@ -75,267 +75,43 @@ The 0.33.5.18.11.4 inline detail/summary/preview anatomy made the Files browse p
 The remaining 0.33.5.18.11 slices intentionally reset Files to a compact browse-first listing, then add
 File Context editing and Preview as separate route-backed modal workflows.
 
-#### Version 0.33.5.18.11.8 - Files edit modal shell and read-only metadata
-
-Intent:
-
-Add the Files-owned edit modal shell using the same modal standards as Notes and Tasks, but do not wire row click or save behavior yet.
-
-- [x] Add a canonical Files editor opener, for example `LongtailForge.filesDialog.openFileEditor()` or a clearly named Files-owned equivalent.
-- [x] Build the modal with the shared framework modal/form/footer helpers used by converted Notes and Tasks modals.
-- [x] The modal title should be simple, such as `Edit File` or `File Context`.
-- [x] The modal should show the file name and compact read-only metadata.
-  - [x] File name
-  - [x] file type
-  - [x] size
-  - [x] status
-  - [x] scan state
-  - [x] uploaded timestamp
-  - [x] attached timestamp
-  - [x] uploader when available
-- [x] The only editable controls in the modal are:
-  - [x] Target
-  - [x] Client in Business workspaces only
-  - [x] Project
-- [x] Do not add filename rename.
-- [x] Do not add file replacement.
-- [x] Do not add storage provider controls.
-- [x] Do not add scan/quarantine controls.
-- [x] Do not add hard delete or permanent purge.
-- [x] Do not add download-only metadata editing.
-- [x] In Business workspaces:
-  - [x] Show Client and Project controls.
-  - [x] Client should filter Project and Target choices where possible.
-- [x] In Personal/Family workspaces:
-  - [x] Hide Client controls entirely.
-  - [x] Do not submit Client values.
-  - [x] Show Project where supported.
-- [x] Load target choices through the new target option provider.
-- [x] Keep Save disabled, hidden, or non-submitting until the save wiring slice; do not ship a fake save.
-- [x] Do not add row-click behavior in this slice.
-- [x] Do not add preview behavior in this slice.
-- [x] Add regressions proving:
-  - [x] the canonical opener creates the modal shell.
-  - [x] the modal uses shared modal/form/footer helpers.
-  - [x] read-only metadata is visible but not editable.
-  - [x] only Target, Business Client, and Project are editable controls.
-  - [x] Personal/Family scope hides Client controls.
-  - [x] no filename, binary, storage, scan, quarantine, hard-delete, or purge controls exist.
-  - [x] Cancel/Close returns focus to the opener.
-- [x] Run `npm run check`.
-- [x] Verify `/api/app-info` reports the expected version.
-
-Acceptance criteria:
-
-- Files has a real shared-helper modal shell for attachment context editing.
-- The modal is not yet opened by table rows and does not submit context changes.
-- Metadata moves out of the browse page and into a modal as read-only context.
-
-#### Version 0.33.5.18.11.9 - Files edit modal row-open and save wiring
-
-Intent:
-
-Wire the compact Files listing to the File Context modal and connect Save to the route-backed context update path.
-
-- [ ] Clicking a file row opens the edit modal.
-- [ ] Pressing Enter on a focused file row opens the edit modal.
-- [ ] Pressing Space on a focused file row opens the edit modal only if that matches the existing table accessibility pattern; otherwise keep Enter only and document the choice.
-- [ ] Row action buttons must not trigger the row-open behavior.
-- [ ] Save calls the new context update route and refreshes the Files list.
-- [ ] Cancel/Close returns focus to the triggering row or action.
-- [ ] Save success should close the modal or keep it open with a clear saved status, matching the closest Notes/Tasks modal behavior.
-- [ ] Save failure should keep the modal open and show a clear inline status.
-- [ ] Add regressions proving:
-  - [ ] row click opens the edit modal
-  - [ ] row keyboard open works
-  - [ ] row Download/Delete/Restore actions do not open the edit modal
-  - [ ] Business scope shows Target/Client/Project controls
-  - [ ] Personal/Family scope hides Client controls
-  - [ ] only context fields are editable
-  - [ ] save calls the route-backed context update path
-  - [ ] save success refreshes the Files list without reopening the bad inline detail panel
-  - [ ] save errors stay inside the modal
-  - [ ] focus returns correctly
-- [ ] Run `npm run check`.
-- [ ] Run `npm run test:permissions` if route/permission behavior changes.
-- [ ] Verify `/api/app-info` reports the expected version.
-
-Acceptance criteria:
-
-- Clicking a file row opens that modal.
-- The modal matches the Notes/Tasks converted modal standard.
-- The modal edits attachment context only.
-- Row click, Download, Delete, Restore, and future Preview actions remain distinct.
-
-#### Version 0.33.5.18.11.10 - Files preview availability route and contract
-
-Intent:
-
-Add the attachment-scoped preview route contract and availability states before rendering preview content or adding UI.
-
-- [ ] Add route-backed preview support for attachment rows, preferably attachment-scoped, for example:
-  - [ ] `GET /api/files/attachments/:fileAttachmentId/preview`
-  - [ ] or an equivalent pair of descriptor/content routes if streaming images separately is cleaner.
-- [ ] Preview access must be evaluated against the selected attachment context, not just a raw file ID.
-- [ ] Preview must require the same safe availability rules as download:
-  - [ ] file status is available
-  - [ ] scan status is `passed` or `not_required`
-  - [ ] user can read the attachment target
-  - [ ] user has the required Files permission
-- [ ] Return a permission-safe preview descriptor with:
-  - [ ] preview state such as `previewable`, `download_only`, `too_large_for_preview`, `unavailable`, or `unauthorized`
-  - [ ] preview kind such as `image`, `text`, `markdown`, or `unsupported`
-  - [ ] readable filename/file type
-  - [ ] route-backed content URL only when a separate content route is required
-- [ ] Other file types should return a safe `download_only` preview state.
-- [ ] Do not return actual image/text/Markdown content in this slice unless it is required to prove the route contract.
-- [ ] Do not make quarantined, deleted, pending, failed-scan, or unauthorized files previewable.
-- [ ] Decide and document audit/lifecycle policy for preview descriptors:
-  - [ ] If preview descriptors are recorded, use a distinct action such as `file.previewed`.
-  - [ ] If preview descriptors are not recorded yet, document that decision explicitly.
-- [ ] Add regressions proving:
-  - [ ] preview descriptors are attachment-scoped
-  - [ ] unsupported files return download-only
-  - [ ] deleted/quarantined/pending/failed-scan files are not previewable
-  - [ ] unauthorized attachments are not previewable
-  - [ ] no storage keys/paths leak
-- [ ] Run `npm run check`.
-- [ ] Run `npm run test:permissions` if preview introduces new permission behavior.
-- [ ] Verify `/api/app-info` reports the expected version.
-
-Acceptance criteria:
-
-- Files has a route-backed preview availability contract.
-- The route is attachment-scoped and permission-safe.
-- No browser preview UI or Inspector behavior is introduced yet.
-
-#### Version 0.33.5.18.11.11 - Files preview content handlers
-
-Intent:
-
-Add safe content generation for image, text, and Markdown previews behind the preview route contract.
-
-- [ ] Add preview categories for this slice:
-  - [ ] image: JPG/JPEG/PNG/GIF
-  - [ ] text: TXT
-  - [ ] markdown: MD
-- [ ] Image preview content must be served through authenticated Files routes, not protected storage paths or raw filesystem URLs.
-- [ ] Text previews should be size-capped.
-  - [ ] If the text file exceeds the preview cap, return `download_only` or a clear `too_large_for_preview` state.
-- [ ] Markdown previews must use the existing server-backed Markdown platform.
-  - [ ] Do not add a second browser-only Markdown parser.
-  - [ ] Keep raw HTML disabled.
-  - [ ] Keep unsafe links/images neutralized according to the Markdown platform contract.
-- [ ] Markdown previews should be size-capped before rendering.
-- [ ] Preview content must not expose storage keys, protected storage paths, scanner internals, raw filesystem URLs, or file hashes.
-- [ ] Do not make quarantined, deleted, pending, failed-scan, or unauthorized files previewable.
-- [ ] Add regressions proving:
-  - [ ] images are previewable
-  - [ ] text files are previewable
-  - [ ] Markdown files render through the shared Markdown service
-  - [ ] unsafe Markdown stays safe
-  - [ ] unsupported files return download-only
-  - [ ] deleted/quarantined/pending/failed-scan files are not previewable
-  - [ ] unauthorized attachments are not previewable
-  - [ ] no storage keys/paths leak
-- [ ] Run `npm run check`.
-- [ ] Verify `/api/app-info` reports the expected version.
-
-Acceptance criteria:
-
-- Image, text, and Markdown previews work.
-- Unsupported files are clearly download-only.
-- Preview content is produced only through authenticated Files routes/services.
-- No Inspector work is introduced in this slice.
-
-#### Version 0.33.5.18.11.12 - Files preview modal and browse row preview action
-
-Intent:
-
-Add the user-facing View/Preview button to the Files listing and render previews in a dedicated Files preview modal.
-
-- [ ] Add a View/Preview action to the main Files listing.
-- [ ] Use a clear icon and accessible label/title, for example `Preview <filename>`.
-- [ ] Show the Preview action only for previewable files, or show a disabled/download-only marker for non-previewable files.
-- [ ] Non-previewable files should be visibly marked as download-only without adding noisy detail panels.
-- [ ] Clicking Preview opens a dedicated Files Preview modal.
-- [ ] Do not use the future Inspector in this slice.
-- [ ] Do not add a persistent right-side preview pane in this slice.
-- [ ] The preview modal should use the shared modal shell/stack behavior.
-- [ ] The preview modal should render:
-  - [ ] images inside a constrained preview area
-  - [ ] text files in a readable scroll-safe text/code-style region
-  - [ ] Markdown files as safe rendered Markdown
-- [ ] The preview modal should include a Download action when the file remains downloadable.
-- [ ] The preview modal should include a simple Close action.
-- [ ] The preview modal should handle:
-  - [ ] loading state
-  - [ ] preview unavailable
-  - [ ] download-only
-  - [ ] too large for preview
-  - [ ] permission failure
-  - [ ] scan/status unavailable
-- [ ] Preview modal close should return focus to the Preview button that opened it.
-- [ ] The edit modal and preview modal should remain separate:
-  - [ ] row click opens edit
-  - [ ] Preview button opens preview
-  - [ ] Download button downloads
-  - [ ] Delete/Restore buttons mutate lifecycle
-- [ ] Add regressions proving:
-  - [ ] Preview button exists for image/text/Markdown rows
-  - [ ] unsupported files are download-only
-  - [ ] Preview opens the modal
-  - [ ] row click does not open Preview
-  - [ ] Preview button does not open Edit
-  - [ ] modal content renders safely
-  - [ ] focus returns correctly
-  - [ ] narrow widths remain scroll-safe
-- [ ] Run `npm run check`.
-- [ ] Verify `/api/app-info` reports the expected version.
-
-Acceptance criteria:
-
-- The Files listing has a clear Preview/View action.
-- Preview lives in a modal, not in the main browse page and not in the future Inspector.
-- Row click, Preview, Download, and Delete/Restore each have distinct behavior.
-
 #### Version 0.33.5.18.11.13 - Files browse/edit/preview closeout and 0.33.5.18.12 handoff
 
 Intent:
 
 Close the revised Files browse/edit/preview branch and update the next Files upload/action slices so they do not conflict with the new route-backed File Context editor.
 
-- [ ] Update `ROADMAP.md` to mark completed 0.33.5.18.11.5 through 0.33.5.18.11.12 slices.
-- [ ] Update Files developer docs with the revised Files UX boundary:
-  - [ ] Files page is a compact browse/recovery surface.
-  - [ ] Filter sidebar owns browse filtering.
-  - [ ] Main panel owns listing only.
-  - [ ] Row click opens File Context edit modal.
-  - [ ] Preview button opens Files Preview modal.
-  - [ ] Metadata is read-only inside the edit modal.
-  - [ ] Context editing is route-backed and attachment-scoped.
-  - [ ] Preview is route-backed and attachment-scoped.
-  - [ ] Inspector integration is deferred.
-- [ ] Update `docs/view-building-contract.md` with the revised Files page state.
-- [ ] Update Files-related decisions/docs to clarify that the 0.33.5.18.11.4 inline detail/summary anatomy was intentionally replaced by modal-based edit/preview behavior.
-- [ ] Update `CHANGELOG.md`.
-- [ ] Update package/app/module metadata to the implemented version.
-- [ ] Adjust the upcoming 0.33.5.18.12 Files upload/action slices so they do not say or imply that route-backed attachment context editing is forbidden.
-  - [ ] Continue forbidding rename, file replacement, storage moves, hard purge, permanent delete, raw storage controls, and unsafe direct metadata editing.
-  - [ ] Allow the already-shipped File Context editor as the only attachment-context edit surface.
-  - [ ] Exclude the already-shipped Preview modal from 0.33.5.18.12 action-wiring scope except for visual parity and guardrail documentation.
-- [ ] Confirm existing Files upload and reusable attachment panel behavior still works.
-- [ ] Confirm Notes and Tasks Files footer utility dialogs still work.
-- [ ] Run:
-  - [ ] `npm run check`
-  - [ ] Files browse regressions
-  - [ ] Files edit modal regressions
-  - [ ] Files preview regressions
-  - [ ] Files attachment/upload regressions if touched
-  - [ ] Notes and Tasks Files utility regressions
-  - [ ] `npm run test:permissions` if any route/permission behavior changed
-- [ ] Verify `/api/app-info` reports the expected version.
-- [ ] Archive completed roadmap sections according to the roadmap bookkeeping rule.
+- [x] Update `ROADMAP.md` to mark completed 0.33.5.18.11.5 through 0.33.5.18.11.12 slices.
+- [x] Update Files developer docs with the revised Files UX boundary:
+  - [x] Files page is a compact browse/recovery surface.
+  - [x] Filter sidebar owns browse filtering.
+  - [x] Main panel owns listing only.
+  - [x] Row click opens File Context edit modal.
+  - [x] Preview button opens Files Preview modal.
+  - [x] Metadata is read-only inside the edit modal.
+  - [x] Context editing is route-backed and attachment-scoped.
+  - [x] Preview is route-backed and attachment-scoped.
+  - [x] Inspector integration is deferred.
+- [x] Update `docs/view-building-contract.md` with the revised Files page state.
+- [x] Update Files-related decisions/docs to clarify that the 0.33.5.18.11.4 inline detail/summary anatomy was intentionally replaced by modal-based edit/preview behavior.
+- [x] Update `CHANGELOG.md`.
+- [x] Update package/app/module metadata to the implemented version.
+- [x] Adjust the upcoming 0.33.5.18.12 Files upload/action slices so they do not say or imply that route-backed attachment context editing is forbidden.
+  - [x] Continue forbidding rename, file replacement, storage moves, hard purge, permanent delete, raw storage controls, and unsafe direct metadata editing.
+  - [x] Allow the already-shipped File Context editor as the only attachment-context edit surface.
+  - [x] Exclude the already-shipped Preview modal from 0.33.5.18.12 action-wiring scope except for visual parity and guardrail documentation.
+- [x] Confirm existing Files upload and reusable attachment panel behavior still works.
+- [x] Confirm Notes and Tasks Files footer utility dialogs still work.
+- [x] Run:
+  - [x] `npm run check`
+  - [x] Files browse regressions
+  - [x] Files edit modal regressions
+  - [x] Files preview regressions
+  - [x] Files attachment/upload regressions if touched
+  - [x] Notes and Tasks Files utility regressions
+  - [x] `npm run test:permissions` if any route/permission behavior changed
+- [x] Verify `/api/app-info` reports the expected version.
+- [x] Archive completed roadmap sections according to the roadmap bookkeeping rule.
 
 Acceptance criteria:
 

@@ -21,12 +21,21 @@ const clients = context.window.LongtailForge.clientProjectOptions.normalizeClien
     { id: "zeta", name: "Zeta Client", projects: [] },
     { id: "beta-child", name: "Beta Child", parent_client_id: "beta", projects: [] },
     { id: "alpha-child", name: "Alpha Child", parent_client_id: "alpha", projects: [] },
-    { id: "beta", name: "Beta Client", projects: [] },
+    {
+      id: "beta",
+      name: "Beta Client",
+      projects: [
+        { id: "beta-project-child", name: "Beta Project Child", parent_project_id: "beta-project" },
+        { id: "beta-project", name: "Beta Project" },
+        { id: "beta-project-z", name: "Beta Project Z" },
+      ],
+    },
     { id: "alpha", name: "Alpha Client", projects: [] },
     { id: "alpha-grandchild", name: "Alpha Grandchild", parent_client_id: "alpha-child", projects: [] },
   ],
   workspaceProjects: [
     { id: "workspace-z", name: "Zulu Workspace Project" },
+    { id: "workspace-child", name: "Workspace Child Project", parent_project_id: "workspace-a" },
     { id: "workspace-a", name: "Alpha Workspace Project" },
   ],
 });
@@ -58,9 +67,14 @@ assert.deepEqual(
   "Child client labels should be indented and prefixed with '-'.",
 );
 assert.deepEqual(
-  plain(clients[0].projects.map((project) => project.name)),
-  ["Alpha Workspace Project", "Zulu Workspace Project"],
-  "Workspace projects should be alphabetized inside the workspace option.",
+  plain(clients[0].projects.map((project) => project.optionLabel)),
+  ["Alpha Workspace Project", "  - Workspace Child Project", "Zulu Workspace Project"],
+  "Workspace projects should keep parent-before-child hierarchy inside the workspace option.",
+);
+assert.deepEqual(
+  plain(clients.find((client) => client.id === "beta").projects.map((project) => project.optionLabel)),
+  ["Beta Project", "  - Beta Project Child", "Beta Project Z"],
+  "Client projects should keep parent-before-child hierarchy inside the client option.",
 );
 
 await assertPageLoadsHelperBeforeScript("views/protected/time-tracker.html", "js/stop-watch.js");
@@ -76,7 +90,7 @@ console.log("Client picker hierarchy regression passed.");
 
 async function assertPageLoadsHelperBeforeScript(pagePath, scriptPath) {
   const html = await fs.readFile(new URL(pagePath, root), "utf8");
-  const helperIndex = html.indexOf("js/shared/client-project-options.js?v=1");
+  const helperIndex = html.indexOf("js/shared/client-project-options.js?v=2");
   const scriptIndex = html.indexOf(scriptPath);
 
   assert.ok(helperIndex >= 0, `${pagePath} should load the shared client-project options helper.`);

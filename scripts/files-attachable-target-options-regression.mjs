@@ -79,6 +79,24 @@ try {
     assertSafeLabels(result.body);
   });
 
+  await checkAsync("Unfiltered target options include readable Tasks and Notes", async () => {
+    const result = await api.get("/api/files/attachable-targets", {
+      cookie: fixtures.adminSessionId,
+      query: {
+        clientId: fixtures.clientId,
+        projectId: fixtures.projectId,
+      },
+    });
+
+    assert.equal(result.status, 200);
+    assert.ok(result.body.options.some((option) => option.moduleId === "tasks" && option.targetType === "task" && option.targetId === fixtures.allowedTaskId));
+    assert.ok(result.body.options.some((option) => option.moduleId === "notes" && option.targetType === "note" && option.targetId === fixtures.allowedNoteId));
+    assert.ok(result.body.targetTypes.some((entry) => entry.moduleId === "tasks" && entry.targetType === "task" && entry.label === "Tasks: Task"));
+    assert.ok(result.body.targetTypes.some((entry) => entry.moduleId === "notes" && entry.targetType === "note" && entry.label === "Notes: Note"));
+    assertNoStorageLeak(result.body);
+    assertSafeLabels(result.body);
+  });
+
   await checkAsync("Personal and Family-style target options omit Client controls and option payload values", async () => {
     await setWorkspaceType(fixtures.workspaceId, "family");
 
@@ -198,6 +216,7 @@ LIMIT 1;
   const clientId = randomUUID();
   const projectId = randomUUID();
   const allowedTaskId = randomUUID();
+  const allowedNoteId = randomUUID();
   const archivedTaskId = randomUUID();
   const rawLabelTaskId = randomUUID();
   const otherWorkspaceId = randomUUID();
@@ -234,6 +253,15 @@ LIMIT 1;
     projectId,
     taskId: rawLabelTaskId,
     title: rawLabelTaskId,
+    userId: admin.user_id,
+    workspaceId,
+  });
+  await insertNote({
+    clientId,
+    noteId: allowedNoteId,
+    now,
+    projectId,
+    title: "Allowed Option Note",
     userId: admin.user_id,
     workspaceId,
   });
@@ -274,6 +302,7 @@ VALUES (${sqlText(otherWorkspaceId)}, 'Other Attachable Target Options Workspace
 
   return {
     adminSessionId: adminSession.sessionId,
+    allowedNoteId,
     allowedTaskId,
     archivedTaskId,
     clientId,
@@ -419,6 +448,57 @@ VALUES (
   ${archivedAt ? sqlText(archivedAt) : "NULL"},
   ${sqlText(userId)},
   ${sqlText(userId)},
+  ${sqlText(now)},
+  ${sqlText(now)}
+);
+`);
+}
+
+async function insertNote({ clientId = null, noteId, now, projectId = null, title, userId, workspaceId }) {
+  await runSql(`
+INSERT INTO notes (
+  note_id,
+  workspace_id,
+  title,
+  slug,
+  body_markdown,
+  body_excerpt,
+  body_plaintext_index,
+  note_type,
+  library_bucket,
+  library_bucket_source,
+  status,
+  visibility,
+  security_mode,
+  owner_user_id,
+  created_by_user_id,
+  updated_by_user_id,
+  client_id,
+  project_id,
+  metadata_json,
+  created_at,
+  updated_at
+)
+VALUES (
+  ${sqlText(noteId)},
+  ${sqlText(workspaceId)},
+  ${sqlText(title)},
+  NULL,
+  '',
+  '',
+  '',
+  'general',
+  'reference',
+  'manual',
+  'active',
+  'private',
+  'normal',
+  ${sqlText(userId)},
+  ${sqlText(userId)},
+  ${sqlText(userId)},
+  ${clientId ? sqlText(clientId) : "NULL"},
+  ${projectId ? sqlText(projectId) : "NULL"},
+  '{}',
   ${sqlText(now)},
   ${sqlText(now)}
 );

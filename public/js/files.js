@@ -5,6 +5,10 @@ const state = {
   clients: [],
   projects: [],
 };
+const TEXT_PREVIEW_MAX_BYTES = 512 * 1024;
+const IMAGE_PREVIEW_EXTENSIONS = new Set(["gif", "jpg", "jpeg", "png"]);
+const MARKDOWN_PREVIEW_EXTENSIONS = new Set(["md"]);
+const TEXT_PREVIEW_EXTENSIONS = new Set(["txt"]);
 
 let activeFilesViewDescriptor = null;
 let filesBehaviorRegistered = false;
@@ -24,11 +28,13 @@ let fileTableMount = null;
 let activeFilesTooltip = null;
 let activeFilesTooltipTarget = null;
 let activeFileEditorDialog = null;
+let activeFilePreviewDialog = null;
 let fileEditorOptionRequestId = 0;
 
 window.LongtailForge.filesDialog = Object.freeze({
   ...(window.LongtailForge.filesDialog || {}),
   openFileEditor,
+  openFilePreview,
 });
 
 buildFilesViewShell();
@@ -339,11 +345,12 @@ function flattenProjectOptions(clients) {
       projects.push({
         id: project.id,
         clientId: client.isWorkspaceScope ? "" : client.id,
-        label: clientLabel ? `${clientLabel} / ${project.name || "Untitled Project"}` : project.name || "Untitled Project",
+        label: clientLabel ? `${clientLabel} / ${project.optionLabel || project.name || "Untitled Project"}` : project.optionLabel || project.name || "Untitled Project",
+        projectLabel: project.optionLabel || project.name || "Untitled Project",
       });
     });
   });
-  return projects.sort((left, right) => left.label.localeCompare(right.label));
+  return projects;
 }
 
 function populateClientProjectFilters() {
@@ -381,7 +388,7 @@ function populateProjectFilter() {
 
   projectFilter.replaceChildren(
     createOption("", "All projects"),
-    ...projects.map((project) => createOption(project.id, project.label)),
+    ...projects.map((project) => createOption(project.id, selectedClientId ? project.projectLabel : project.label)),
   );
   projectFilter.value = projects.some((project) => project.id === previousValue) ? previousValue : "";
 }
@@ -459,6 +466,7 @@ function renderFilesTable(rows) {
 
 function fileRow(attachment) {
   const file = attachment.file || {};
+  const attachmentId = attachment.fileAttachmentId || attachment.file_attachment_id || "";
   const fileId = attachment.fileId || attachment.file_id;
   const targetLabel = attachment.targetLabel || attachment.target_label || attachment.target?.label || "";
   const targetType = attachment.targetType || attachment.target_type || "";
@@ -468,10 +476,13 @@ function fileRow(attachment) {
   const status = file.status || "available";
   const scanStatus = file.scanStatus || file.scan_status || "";
   const extension = file.extension || extensionFromFilename(file.originalFilename || fileName);
+  const fileSizeBytes = Number(file.fileSizeBytes || file.file_size_bytes || 0);
+  const preview = previewAvailabilityForRow({ extension, fileSizeBytes, scanStatus, status });
   const fileTypeLabel = fileTypeDisplay(extension, file.mimeTypeDetected || file.mime_type_detected);
 
   return {
     attachment,
+    attachmentId,
     file: {
       ...file,
       displayName: file.displayName || fileName,
@@ -496,7 +507,12 @@ function fileRow(attachment) {
     attachedAtLabel: formatDate(attachment.createdAt || attachment.created_at),
     uploadedAtLabel: formatDate(file.createdAt || file.created_at),
     uploadedByLabel: file.uploadedByLabel || file.uploaded_by_label || "",
-    fileSizeLabel: formatBytes(file.fileSizeBytes || file.file_size_bytes),
+    fileSizeBytes,
+    fileSizeLabel: formatBytes(fileSizeBytes),
+    previewKind: preview.kind,
+    previewReason: preview.reason,
+    previewable: preview.state === "previewable",
+    previewState: preview.state,
     downloadable: Boolean(fileId && status === "available" && ["not_required", "passed"].includes(scanStatus)),
     deletable: Boolean(fileId && status !== "deleted"),
     restorable: Boolean(fileId && status === "deleted"),
@@ -516,8 +532,49 @@ function createFilesTable(rows) {
 
   if (tbody) {
     tbody.dataset.fileList = "";
+    wireFilesTableRows(tbody, rows);
   }
   return table;
+}
+
+function wireFilesTableRows(tbody, rows) {
+  Array.from(tbody.querySelectorAll("tr")).forEach((rowElement, index) => {
+    const row = rows[index];
+
+    if (!row?.attachmentId) {
+      return;
+    }
+
+    wireFileTableRow(rowElement, row);
+  });
+}
+
+function wireFileTableRow(rowElement, row) {
+  rowElement.tabIndex = 0;
+  rowElement.dataset.fileEditorRow = "";
+  rowElement.dataset.fileAttachmentId = row.attachmentId;
+  rowElement.setAttribute("aria-label", `Edit File Context for ${row.fileName}`);
+
+  rowElement.addEventListener("click", (event) => {
+    if (isFileRowActionEvent(event)) {
+      return;
+    }
+
+    openFileEditor(row, { trigger: rowElement });
+  });
+
+  rowElement.addEventListener("keydown", (event) => {
+    if (event.target !== rowElement || event.key !== "Enter" || isFileRowActionEvent(event)) {
+      return;
+    }
+
+    event.preventDefault();
+    openFileEditor(row, { trigger: rowElement });
+  });
+}
+
+function isFileRowActionEvent(event) {
+  return Boolean(event.target?.closest?.("[data-file-action], a, button, input, select, textarea"));
 }
 
 function filesTableColumns() {
@@ -647,6 +704,11 @@ function createFileActions(row) {
   const actions = document.createElement("div");
 
   actions.className = "files-row-actions surface-dense-actions";
+  if (row.previewable) {
+    actions.appendChild(createPreviewAction(row));
+  } else if (row.downloadable) {
+    actions.appendChild(createDownloadOnlyMarker(row));
+  }
   if (row.downloadable) {
     actions.appendChild(createDownloadAction(row));
   }
@@ -657,6 +719,44 @@ function createFileActions(row) {
     actions.appendChild(createRestoreAction(row));
   }
   return actions;
+}
+
+function createPreviewAction(row) {
+  const button = view.createActionButton({
+    icon: "eye",
+    iconOnly: true,
+    label: `Preview ${row.fileName}`,
+    text: "",
+    title: `Preview ${row.fileName}`,
+    action: "preview-file",
+    className: "files-row-action",
+    onClick: (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openFilePreview(row, { trigger: event.currentTarget });
+    },
+  });
+
+  button.dataset.fileAction = "preview";
+  return button;
+}
+
+function createDownloadOnlyMarker(row) {
+  const marker = document.createElement("span");
+  const label = previewUnavailableLabel(row);
+  const icon = window.LongtailForge.icons?.createIcon?.("eye", { decorative: true });
+
+  marker.className = "action-button icon-button files-row-action files-row-preview-unavailable";
+  marker.dataset.fileAction = "preview-unavailable";
+  marker.setAttribute("aria-label", label);
+  marker.setAttribute("role", "img");
+  marker.title = label;
+  if (icon) {
+    marker.appendChild(icon);
+  } else {
+    marker.textContent = "Preview unavailable";
+  }
+  return marker;
 }
 
 function createDownloadAction(row) {
@@ -711,6 +811,227 @@ function createRestoreAction(row) {
   return button;
 }
 
+function openFilePreview(attachmentOrRow = {}, options = {}) {
+  requireFilesViewHelper("createActionButton");
+  requireFilesViewHelper("closeModal");
+  requireFilesViewHelper("createModal");
+  requireFilesViewHelper("showModal");
+
+  const row = normalizeFileEditorRow(attachmentOrRow);
+  const trigger = options.trigger && typeof options.trigger.focus === "function"
+    ? options.trigger
+    : document.activeElement;
+
+  if (activeFilePreviewDialog?.isConnected) {
+    view.closeModal(activeFilePreviewDialog, "replace");
+  }
+
+  const dialog = buildFilePreviewDialog(row);
+
+  dialog.addEventListener("close", () => {
+    if (activeFilePreviewDialog === dialog) {
+      activeFilePreviewDialog = null;
+    }
+    dialog.remove();
+  }, { once: true });
+
+  document.body.appendChild(dialog);
+  activeFilePreviewDialog = dialog;
+  view.showModal(dialog, { parent: options.parent || null, trigger });
+  loadFilePreview(dialog, row);
+  return dialog;
+}
+
+function buildFilePreviewDialog(row) {
+  let dialog = null;
+  const body = view.createElement("div", {
+    className: "files-preview-body",
+    attrs: { "aria-live": "polite" },
+    dataset: { filePreviewBody: "" },
+    children: [createFilePreviewStatus("Loading preview...")],
+  });
+  const downloadAction = createPreviewDownloadAction(row);
+  const closeButton = view.createActionButton({
+    action: "close-file-preview",
+    className: "surface-modal-footer-action",
+    icon: "close",
+    iconOnly: true,
+    label: "Close Preview",
+    role: "secondary",
+    text: "",
+    title: "Close Preview",
+    onClick: () => view.closeModal(dialog, "close"),
+  });
+
+  dialog = view.createModal({
+    title: `Preview ${row.fileName}`,
+    className: "files-preview-dialog",
+    size: "wide",
+    body: [body],
+    actions: [downloadAction, closeButton].filter(Boolean),
+  });
+  dialog.dataset.filePreviewDialog = "";
+  dialog.dataset.fileAttachmentId = row.attachmentId || "";
+  if (dialog.viewParts?.body) {
+    dialog.viewParts.body.classList.add("files-preview-modal-body");
+  }
+  if (dialog.viewParts?.footer) {
+    dialog.viewParts.footer.classList.add("files-preview-actions");
+    dialog.viewParts.footer.dataset.modalFooter = "";
+  }
+  return dialog;
+}
+
+function createPreviewDownloadAction(row) {
+  if (!row.downloadable || !row.fileId) {
+    return null;
+  }
+
+  const link = document.createElement("a");
+  const label = `Download ${row.fileName}`;
+  const icon = window.LongtailForge.icons?.createIcon?.("download", { decorative: true });
+
+  link.href = `/api/files/${encodeURIComponent(row.fileId)}/download`;
+  link.className = "action-button icon-button surface-modal-footer-action files-preview-download";
+  link.setAttribute("download", "");
+  link.setAttribute("aria-label", label);
+  link.title = label;
+  link.dataset.fileAction = "preview-download";
+  link.dataset.surfaceAction = "download-preview-file";
+  link.dataset.surfaceActionRole = "utility";
+  if (icon) {
+    link.appendChild(icon);
+  } else {
+    link.textContent = "Download";
+  }
+  return link;
+}
+
+async function loadFilePreview(dialog, row) {
+  if (!row.attachmentId) {
+    renderFilePreviewUnavailable(dialog, "Preview is not available for this file.");
+    return;
+  }
+
+  setFilePreviewStatus(dialog, "Checking preview availability...");
+
+  try {
+    const descriptorResponse = await api.getJson(`/api/files/attachments/${encodeURIComponent(row.attachmentId)}/preview`, { cache: "no-store" });
+    const preview = descriptorResponse.preview || {};
+
+    if (!dialog.isConnected) {
+      return;
+    }
+
+    if (preview.state !== "previewable" || !preview.contentUrl) {
+      renderFilePreviewState(dialog, preview);
+      return;
+    }
+
+    if (preview.kind === "image") {
+      renderFilePreviewImage(dialog, preview);
+      return;
+    }
+
+    setFilePreviewStatus(dialog, "Loading preview...");
+    const contentResponse = await api.getJson(preview.contentUrl, { cache: "no-store" });
+
+    if (!dialog.isConnected) {
+      return;
+    }
+
+    renderFilePreviewContent(dialog, preview, contentResponse.content || {});
+  } catch (error) {
+    if (error.status === 401) {
+      window.location.replace("/login.html");
+      return;
+    }
+
+    renderFilePreviewUnavailable(dialog, error.message || "Preview could not be loaded.", true);
+  }
+}
+
+function renderFilePreviewContent(dialog, preview, content) {
+  if (content.kind === "text") {
+    renderFilePreviewText(dialog, content.text || "");
+    return;
+  }
+
+  if (content.kind === "markdown") {
+    renderFilePreviewMarkdown(dialog, content.bodyHtml || "");
+    return;
+  }
+
+  renderFilePreviewState(dialog, preview);
+}
+
+function renderFilePreviewImage(dialog, preview) {
+  const image = document.createElement("img");
+  const wrapper = view.createElement("div", {
+    className: "files-preview-image-frame",
+    children: [image],
+  });
+
+  image.alt = preview.filename ? `Preview of ${preview.filename}` : "File preview";
+  image.src = preview.contentUrl;
+  image.addEventListener("load", () => {
+    setFilePreviewBody(dialog, wrapper);
+  }, { once: true });
+  image.addEventListener("error", () => {
+    renderFilePreviewUnavailable(dialog, "Image preview could not be loaded.", true);
+  }, { once: true });
+  setFilePreviewStatus(dialog, "Loading image preview...");
+}
+
+function renderFilePreviewText(dialog, text) {
+  const pre = document.createElement("pre");
+  const code = document.createElement("code");
+
+  pre.className = "files-preview-text";
+  code.textContent = text || "";
+  pre.appendChild(code);
+  setFilePreviewBody(dialog, pre);
+}
+
+function renderFilePreviewMarkdown(dialog, html) {
+  const content = view.createElement("div", {
+    className: "files-preview-markdown notes-preview",
+    attrs: { "data-file-preview-markdown": "" },
+  });
+
+  content.innerHTML = html || "";
+  setFilePreviewBody(dialog, content);
+}
+
+function renderFilePreviewState(dialog, preview = {}) {
+  const state = preview.state || "unavailable";
+  const message = previewStateMessage(state);
+
+  renderFilePreviewUnavailable(dialog, message, state === "unauthorized");
+}
+
+function renderFilePreviewUnavailable(dialog, message, isError = false) {
+  setFilePreviewBody(dialog, createFilePreviewStatus(message, isError));
+}
+
+function createFilePreviewStatus(message, isError = false) {
+  return view.createElement("p", {
+    className: ["files-preview-status", isError ? "error-text" : ""],
+    attrs: { role: "status" },
+    text: message,
+  });
+}
+
+function setFilePreviewStatus(dialog, message, isError = false) {
+  setFilePreviewBody(dialog, createFilePreviewStatus(message, isError));
+}
+
+function setFilePreviewBody(dialog, content) {
+  const body = dialog.querySelector("[data-file-preview-body]");
+
+  body?.replaceChildren(content);
+}
+
 function openFileEditor(attachmentOrRow = {}, options = {}) {
   requireFilesViewHelper("renderDescriptorModalForm");
   requireFilesViewHelper("createActionButton");
@@ -726,7 +1047,7 @@ function openFileEditor(attachmentOrRow = {}, options = {}) {
     view.closeModal(activeFileEditorDialog, "replace");
   }
 
-  const dialog = buildFileEditorDialog(row);
+  const dialog = buildFileEditorDialog(row, options);
 
   dialog.addEventListener("close", () => {
     if (activeFileEditorDialog === dialog) {
@@ -749,8 +1070,23 @@ function normalizeFileEditorRow(attachmentOrRow = {}) {
   return fileRow(attachmentOrRow?.attachment || attachmentOrRow || {});
 }
 
-function buildFileEditorDialog(row) {
+function buildFileEditorDialog(row, options = {}) {
   let dialog = null;
+  const previewButton = view.createActionButton({
+    action: "preview-file-from-context",
+    className: "surface-modal-footer-action",
+    icon: "eye",
+    iconOnly: true,
+    label: `Preview ${row.fileName}`,
+    role: "secondary",
+    text: "",
+    title: `Preview ${row.fileName}`,
+    onClick: (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openFilePreview(row, { trigger: event.currentTarget });
+    },
+  });
   const closeButton = view.createActionButton({
     action: "close-file-context",
     className: "surface-modal-footer-action",
@@ -762,20 +1098,36 @@ function buildFileEditorDialog(row) {
     title: "Close File Context",
     onClick: () => view.closeModal(dialog, "cancel"),
   });
+  const saveButton = view.createActionButton({
+    action: "save-file-context",
+    className: "surface-modal-footer-action",
+    icon: "save",
+    iconOnly: true,
+    label: "Save File Context",
+    role: "primary",
+    text: "",
+    title: "Save File Context",
+    type: "submit",
+  });
 
+  previewButton.dataset.fileContextPreview = "";
+  previewButton.hidden = !row.previewable;
+  previewButton.disabled = !row.previewable;
   closeButton.dataset.fileContextClose = "";
+  saveButton.dataset.fileContextSave = "";
   dialog = view.renderDescriptorModalForm(fileEditorModalDescriptor(), {
     title: "File Context",
     className: "files-file-context-dialog",
     formClassName: "files-file-context-form",
     size: "wide",
     fields: [],
-    actions: [closeButton],
+    actions: [previewButton, closeButton, saveButton],
   });
   dialog.dataset.fileEditorDialog = "";
   dialog.viewParts.form.dataset.fileContextForm = "";
   dialog.viewParts.form.addEventListener("submit", (event) => {
     event.preventDefault();
+    saveFileEditorContext(dialog, row, options);
   });
   dialog.viewParts.body.classList.add("files-file-context-body");
   dialog.viewParts.body.replaceChildren(
@@ -785,6 +1137,7 @@ function buildFileEditorDialog(row) {
   );
   dialog.viewParts.footer.classList.add("files-file-context-actions");
   dialog.viewParts.footer.dataset.modalFooter = "";
+  hydrateFileEditorContextControls(dialog, row, usesBusinessScope());
   bindFileEditorControlEvents(dialog, row);
   return dialog;
 }
@@ -862,9 +1215,9 @@ function createFileEditorControlsSection() {
       view.createFieldGrid({
         className: "files-file-context-controls-grid",
         fields: [
-          createFileContextField("Target", targetSelect),
           clientField,
           createFileContextField("Project", projectSelect),
+          createFileContextField("Target", targetSelect),
         ],
       }),
     ],
@@ -898,7 +1251,11 @@ function createFileEditorStatus() {
 }
 
 function bindFileEditorControlEvents(dialog, row) {
+  dialog.querySelector("[data-file-context-target]")?.addEventListener("change", () => {
+    syncFileEditorSaveState(dialog);
+  });
   dialog.querySelector("[data-file-context-client]")?.addEventListener("change", () => {
+    hydrateFileEditorProjectControl(dialog, row);
     loadFileEditorTargetOptions(dialog, row);
   });
   dialog.querySelector("[data-file-context-project]")?.addEventListener("change", () => {
@@ -940,9 +1297,7 @@ function fileEditorTargetOptionQuery(dialog, row) {
   const values = {
     clientId,
     limit: "100",
-    moduleId: row.moduleId,
     projectId: fileEditorSelectedValue(dialog, "[data-file-context-project]", row.projectId),
-    targetType: row.targetType,
   };
 
   Object.entries(values).forEach(([key, value]) => {
@@ -963,11 +1318,26 @@ function fileEditorSelectedValue(dialog, selector, fallbackValue = "") {
   return control.value || "";
 }
 
+function fileEditorSelectedContext(dialog, row) {
+  return {
+    clientId: usesBusinessScope() ? fileEditorSelectedValue(dialog, "[data-file-context-client]", row.clientId) : "",
+    projectId: fileEditorSelectedValue(dialog, "[data-file-context-project]", row.projectId),
+  };
+}
+
 function hydrateFileEditorOptionControls(dialog, row, response) {
   const business = (response.workspaceType || state.workspaceType) === "business";
   const targetSelect = dialog.querySelector("[data-file-context-target]");
+
+  hydrateFileEditorContextControls(dialog, row, business);
+  if (targetSelect) {
+    hydrateTargetSelect(targetSelect, row, response.options || [], fileEditorSelectedContext(dialog, row));
+  }
+  setFileEditorControlsDisabled(dialog, false, business);
+}
+
+function hydrateFileEditorContextControls(dialog, row, business = usesBusinessScope()) {
   const clientSelect = dialog.querySelector("[data-file-context-client]");
-  const projectSelect = dialog.querySelector("[data-file-context-project]");
   const clientField = dialog.querySelector("[data-file-context-business-control]");
 
   if (clientField) {
@@ -979,24 +1349,50 @@ function hydrateFileEditorOptionControls(dialog, row, response) {
     hydrateContextSelect(clientSelect, {
       currentLabel: row.clientLabel,
       currentValue: business ? row.clientId : "",
-      options: business ? response.filters?.client?.options || [] : [],
+      options: business ? fileEditorClientOptions() : [],
       placeholder: "All clients",
       selectedValue: business ? fileEditorSelectedValue(dialog, "[data-file-context-client]", row.clientId) : "",
     });
   }
-  if (projectSelect) {
-    hydrateContextSelect(projectSelect, {
-      currentLabel: row.projectLabel,
-      currentValue: row.projectId,
-      options: response.filters?.project?.options || [],
-      placeholder: "All projects",
-      selectedValue: fileEditorSelectedValue(dialog, "[data-file-context-project]", row.projectId),
-    });
+  hydrateFileEditorProjectControl(dialog, row);
+}
+
+function hydrateFileEditorProjectControl(dialog, row) {
+  const projectSelect = dialog.querySelector("[data-file-context-project]");
+
+  if (!projectSelect) {
+    return;
   }
-  if (targetSelect) {
-    hydrateTargetSelect(targetSelect, row, response.options || []);
-  }
-  setFileEditorControlsDisabled(dialog, false, business);
+
+  const selectedClientId = usesBusinessScope()
+    ? fileEditorSelectedValue(dialog, "[data-file-context-client]", row.clientId)
+    : "";
+
+  hydrateContextSelect(projectSelect, {
+    currentLabel: row.projectLabel,
+    currentValue: row.projectId,
+    options: fileEditorProjectOptions(selectedClientId),
+    placeholder: "All projects",
+    selectedValue: fileEditorSelectedValue(dialog, "[data-file-context-project]", row.projectId),
+  });
+}
+
+function fileEditorClientOptions() {
+  return state.clients.map((client) => ({
+    label: window.LongtailForge.clientProjectOptions?.optionLabel?.(client) || client.name || "Untitled Client",
+    value: client.id,
+  }));
+}
+
+function fileEditorProjectOptions(clientId = "") {
+  const projects = clientId
+    ? state.projects.filter((project) => project.clientId === clientId)
+    : state.projects;
+
+  return projects.map((project) => ({
+    label: clientId ? project.projectLabel : project.label,
+    value: project.id,
+  }));
 }
 
 function hydrateContextSelect(select, config) {
@@ -1015,16 +1411,16 @@ function hydrateContextSelect(select, config) {
   select.dataset.fileContextLoaded = "true";
 }
 
-function hydrateTargetSelect(select, row, options) {
+function hydrateTargetSelect(select, row, options, context = {}) {
   const currentValue = fileEditorTargetOptionValue(fileEditorCurrentTargetOption(row));
   const selectedValue = select.dataset.fileContextLoaded === "true" ? select.value : currentValue;
   const optionNodes = [
     createOption("", "Choose a target"),
-    ...safeOptionList(options).map((option) => createFileEditorTargetOption(option)),
+    ...safeOptionList(options).map((option) => createFileEditorTargetOption(option, context)),
   ];
 
   if (currentValue && !optionNodes.some((option) => option.value === currentValue) && row.targetLabel) {
-    const currentOption = createFileEditorTargetOption(fileEditorCurrentTargetOption(row));
+    const currentOption = createFileEditorTargetOption(fileEditorCurrentTargetOption(row), context);
     currentOption.disabled = true;
     optionNodes.splice(1, 0, currentOption);
   }
@@ -1034,8 +1430,8 @@ function hydrateTargetSelect(select, row, options) {
   select.dataset.fileContextLoaded = "true";
 }
 
-function createFileEditorTargetOption(option) {
-  const optionNode = createOption(fileEditorTargetOptionValue(option), fileEditorTargetOptionLabel(option));
+function createFileEditorTargetOption(option, context = {}) {
+  const optionNode = createOption(fileEditorTargetOptionValue(option), fileEditorTargetOptionLabel(option, context));
 
   optionNode.dataset.moduleId = option.moduleId || option.value?.moduleId || "";
   optionNode.dataset.targetId = option.targetId || option.value?.targetId || "";
@@ -1048,11 +1444,13 @@ function createFileEditorTargetOption(option) {
 function fileEditorCurrentTargetOption(row) {
   return {
     clientId: row.clientId,
+    clientLabel: row.clientLabel,
     contextLabel: [row.clientLabel, row.projectLabel].filter(Boolean).join(" / "),
     label: row.targetLabel || "Current target",
     moduleId: row.moduleId,
     moduleLabel: row.moduleLabel,
     projectId: row.projectId,
+    projectLabel: row.projectLabel,
     targetId: row.targetId,
     targetType: row.targetType,
     targetTypeLabel: formatToken(row.targetType || ""),
@@ -1078,12 +1476,33 @@ function fileEditorTargetOptionValue(option) {
   });
 }
 
-function fileEditorTargetOptionLabel(option) {
+function fileEditorTargetOptionLabel(option, context = {}) {
   const targetLabel = metadataText(option.label, "Untitled target");
   const typeLabel = [option.moduleLabel, option.targetTypeLabel].filter(Boolean).join(": ");
   const baseLabel = typeLabel ? `${typeLabel} - ${targetLabel}` : targetLabel;
+  const contextLabel = fileEditorTargetContextLabel(option, context);
 
-  return option.contextLabel ? `${baseLabel} (${option.contextLabel})` : baseLabel;
+  return contextLabel ? `${baseLabel} (${contextLabel})` : baseLabel;
+}
+
+function fileEditorTargetContextLabel(option, context = {}) {
+  const contextParts = [];
+  const optionClientId = option.clientId || option.value?.clientId || "";
+  const optionProjectId = option.projectId || option.value?.projectId || "";
+
+  if (option.clientLabel && (!context.clientId || context.clientId !== optionClientId)) {
+    contextParts.push(option.clientLabel);
+  }
+  if (option.projectLabel && (!context.projectId || context.projectId !== optionProjectId)) {
+    contextParts.push(option.projectLabel);
+  }
+  if (contextParts.length > 0) {
+    return contextParts.join(" / ");
+  }
+  if (!option.clientLabel && !option.projectLabel && option.contextLabel) {
+    return option.contextLabel;
+  }
+  return "";
 }
 
 function safeOptionList(options) {
@@ -1097,6 +1516,101 @@ function setFileEditorControlsDisabled(dialog, disabled, business = usesBusiness
   dialog.querySelectorAll("[data-file-context-client]").forEach((control) => {
     control.disabled = disabled || !business;
   });
+  syncFileEditorSaveState(dialog, disabled);
+}
+
+function syncFileEditorSaveState(dialog, forceDisabled = false) {
+  const saveButton = dialog.querySelector("[data-file-context-save]");
+  const targetSelect = dialog.querySelector("[data-file-context-target]");
+  const selectedTarget = targetSelect?.selectedOptions?.[0];
+
+  if (!saveButton) {
+    return;
+  }
+
+  saveButton.disabled = forceDisabled || !targetSelect?.value || selectedTarget?.disabled;
+}
+
+async function saveFileEditorContext(dialog, row, options = {}) {
+  if (!row.attachmentId) {
+    setFileEditorStatus(dialog, "Attachment context could not be saved.", true);
+    return;
+  }
+
+  let payload = null;
+
+  try {
+    payload = fileEditorContextPayload(dialog);
+  } catch (error) {
+    setFileEditorStatus(dialog, error.message || "Choose a target before saving.", true);
+    syncFileEditorSaveState(dialog);
+    return;
+  }
+
+  setFileEditorStatus(dialog, "Saving file context...");
+  setFileEditorControlsDisabled(dialog, true);
+
+  try {
+    await api.patchJson(`/api/files/attachments/${encodeURIComponent(row.attachmentId)}/context`, payload);
+    setFileEditorStatus(dialog, "File context saved.");
+    view.closeModal(dialog, "saved");
+    await loadFiles();
+    focusFileRowByAttachmentId(row.attachmentId);
+    if (typeof options.onSaved === "function") {
+      options.onSaved({ attachmentId: row.attachmentId, payload });
+    }
+  } catch (error) {
+    setFileEditorControlsDisabled(dialog, false);
+    setFileEditorStatus(dialog, error.message || "File context was not saved.", true);
+  }
+}
+
+function fileEditorContextPayload(dialog) {
+  const targetSelect = dialog.querySelector("[data-file-context-target]");
+  const selectedTarget = targetSelect?.selectedOptions?.[0] || null;
+  const targetValue = parseFileEditorTargetValue(targetSelect?.value || "");
+  const payload = {
+    moduleId: selectedTarget?.dataset.moduleId || targetValue.moduleId || "",
+    targetId: selectedTarget?.dataset.targetId || targetValue.targetId || "",
+    targetType: selectedTarget?.dataset.targetType || targetValue.targetType || "",
+  };
+  const clientId = usesBusinessScope()
+    ? selectedTarget?.dataset.clientId || targetValue.clientId || fileEditorSelectedValue(dialog, "[data-file-context-client]")
+    : "";
+  const projectId = selectedTarget?.dataset.projectId || targetValue.projectId || fileEditorSelectedValue(dialog, "[data-file-context-project]");
+
+  if (!payload.moduleId || !payload.targetType || !payload.targetId || selectedTarget?.disabled) {
+    throw new Error("Choose an available target before saving.");
+  }
+  if (clientId) {
+    payload.clientId = clientId;
+  }
+  if (projectId) {
+    payload.projectId = projectId;
+  }
+
+  return payload;
+}
+
+function parseFileEditorTargetValue(value) {
+  if (!value) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function focusFileRowByAttachmentId(attachmentId) {
+  const row = Array.from(document.querySelectorAll("[data-file-editor-row]"))
+    .find((element) => element.dataset.fileAttachmentId === attachmentId);
+
+  row?.focus?.();
 }
 
 function setFileEditorStatus(dialog, message, isError = false) {
@@ -1126,6 +1640,80 @@ function applyWorkspaceContext() {
 
 function usesBusinessScope() {
   return state.workspaceType === "business";
+}
+
+function previewAvailabilityForRow(row) {
+  const kind = previewKindForExtension(row.extension);
+  const status = String(row.status || "").trim();
+  const scanStatus = String(row.scanStatus || "").trim();
+
+  if (status !== "available" || !["not_required", "passed"].includes(scanStatus)) {
+    return {
+      kind,
+      reason: status !== "available" ? `file_${status || "unavailable"}` : `scan_${scanStatus || "unavailable"}`,
+      state: "unavailable",
+    };
+  }
+
+  if (kind === "unsupported") {
+    return {
+      kind,
+      reason: "unsupported_file_type",
+      state: "download_only",
+    };
+  }
+
+  if ((kind === "text" || kind === "markdown") && Number(row.fileSizeBytes || 0) > TEXT_PREVIEW_MAX_BYTES) {
+    return {
+      kind,
+      reason: "too_large_for_preview",
+      state: "too_large_for_preview",
+    };
+  }
+
+  return {
+    kind,
+    reason: "",
+    state: "previewable",
+  };
+}
+
+function previewKindForExtension(extension) {
+  const normalizedExtension = String(extension || "").replace(/^\./, "").toLowerCase();
+
+  if (IMAGE_PREVIEW_EXTENSIONS.has(normalizedExtension)) {
+    return "image";
+  }
+  if (MARKDOWN_PREVIEW_EXTENSIONS.has(normalizedExtension)) {
+    return "markdown";
+  }
+  if (TEXT_PREVIEW_EXTENSIONS.has(normalizedExtension)) {
+    return "text";
+  }
+  return "unsupported";
+}
+
+function previewUnavailableLabel(row) {
+  if (row.previewState === "too_large_for_preview") {
+    return `Preview too large; download ${row.fileName}`;
+  }
+  if (row.previewState === "download_only") {
+    return `Download-only ${row.fileName}`;
+  }
+  return `Preview unavailable for ${row.fileName}`;
+}
+
+function previewStateMessage(state) {
+  if (state === "download_only") {
+    return "This file type is download-only.";
+  }
+  if (state === "too_large_for_preview") {
+    return "This file is too large to preview. Use Download to open it outside Longtail Forge.";
+  }
+  if (state === "unauthorized") {
+    return "You do not have permission to preview this file.";
+  }
+  return "Preview is not available for this file.";
 }
 
 async function deleteFile(fileId, file = {}) {

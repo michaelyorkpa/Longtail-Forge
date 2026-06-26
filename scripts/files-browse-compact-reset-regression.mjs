@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.11.8";
+const appVersion = "0.33.5.18.11.13";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
@@ -15,8 +15,8 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
-assert.match(filesHtml, /css\/longtail-forge\.css\?v=8/, "Files host should cache-bust the stylesheet for the compact reset");
-assert.match(filesHtml, /js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=7/, "Files host should load the compact-reset adapter after the renderer");
+assert.match(filesHtml, /css\/longtail-forge\.css\?v=11/, "Files host should cache-bust the stylesheet for the compact reset");
+assert.match(filesHtml, /js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=10/, "Files host should load the compact-reset adapter after the renderer");
 
 assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Files descriptor should keep the service-owned attachments read route");
 [
@@ -95,7 +95,10 @@ assert.doesNotMatch(fileRow, /targetLabel:\s*[^,\n]*(targetId|target_id)|clientL
   assert.doesNotMatch(filesScript, pattern, `Files browse script should not contain inline detail/dashboard marker ${pattern}`);
 });
 
-assert.match(styles, /\.files-table\s*\{[\s\S]*table-layout:\s*fixed[\s\S]*min-width:\s*960px/, "Files table should keep a fixed-width scan-friendly layout");
+assert.match(styles, /\.view-slideout-sidebar-main > \.files-browse-results-region\s*\{[\s\S]*border:\s*0;[\s\S]*padding:\s*0;[\s\S]*background:\s*transparent/, "Files browse results should not add an extra framed panel around the listing");
+assert.match(styles, /\.files-table-wrap\s*\{[\s\S]*overflow-x:\s*auto;[\s\S]*border:\s*1px solid var\(--color-border\)[\s\S]*border-radius:\s*8px/, "Files table wrapper should own the single listing frame");
+assert.match(styles, /\.files-table\s*\{[\s\S]*table-layout:\s*fixed[\s\S]*min-width:\s*0;[\s\S]*font-size:\s*14px/, "Files table should stay compact without forcing horizontal overflow");
+assert.doesNotMatch(styles, /\.files-table\s*\{[\s\S]*min-width:\s*960px/, "Files table should not force a horizontal scrollbar at normal desktop widths");
 assert.match(styles, /\.files-truncate\s*\{[\s\S]*overflow:\s*hidden[\s\S]*text-overflow:\s*ellipsis[\s\S]*white-space:\s*nowrap/, "Files labels should keep clipped ellipsis behavior");
 assert.match(styles, /\.files-floating-tooltip\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*10000[\s\S]*pointer-events:\s*none/, "Truncated labels should reveal through the body-level floating tooltip");
 [

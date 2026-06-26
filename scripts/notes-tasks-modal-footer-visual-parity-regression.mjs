@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.11.8";
+const appVersion = "0.33.5.18.11.13";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -50,7 +50,7 @@ assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeR
 assert.match(notesDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Notes docs should document footer utility visual parity");
 assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current module handoff version");
 assert.match(tasksDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Tasks docs should document footer utility visual parity");
-assert.match(roadmap, /#### Version 0\.33\.5\.18\.11\.8 - Files edit modal shell and read-only metadata/, "Roadmap should report the current Files edit modal shell slice");
+assert.match(roadmap, /#### Version 0\.33\.5\.18\.11\.13 - Files browse\/edit\/preview closeout and 0\.33\.5\.18\.12 handoff/, "Roadmap should report the current Files browse/edit/preview closeout slice");
 assert.match(regressionSuite, /scripts\/notes-tasks-modal-footer-visual-parity-regression\.mjs/, "Regression suite should include the modal footer visual parity regression");
 
 console.log("Notes and Tasks modal footer visual parity regression passed.");

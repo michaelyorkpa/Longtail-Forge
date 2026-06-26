@@ -9,12 +9,11 @@
           .filter((client) => includeInactive || !isInactiveRecord(client))
           .map((client) => normalizeClient(client, { includeInactive }))
       : [];
-    const workspaceProjects = Array.isArray(data?.workspaceProjects)
+    const workspaceProjects = orderProjectHierarchy(Array.isArray(data?.workspaceProjects)
       ? data.workspaceProjects
           .filter((project) => includeInactive || !isInactiveRecord(project))
           .map((project) => normalizeProject(project, "yes"))
-          .sort(compareByName)
-      : [];
+      : []);
     const orderedClients = orderClientHierarchy(clients);
 
     if (workspaceProjects.length === 0) {
@@ -55,12 +54,11 @@
       billingRate: parseOptionalMoney(client?.billing_rate),
       billingPeriod: normalizeOptionalBillingPeriod(client?.billing_period),
       billingRounding: normalizeOptionalBillingRounding(client?.billing_rounding),
-      projects: Array.isArray(client?.projects)
+      projects: orderProjectHierarchy(Array.isArray(client?.projects)
         ? client.projects
             .filter((project) => includeInactive || !isInactiveRecord(project))
             .map((project) => normalizeProject(project, billable))
-            .sort(compareByName)
-        : [],
+        : []),
     };
   }
 
@@ -69,6 +67,8 @@
       ...project,
       id: String(project?.id || "").trim(),
       name: String(project?.name || "").trim(),
+      client_id: String(project?.client_id || project?.clientId || "").trim(),
+      parent_project_id: String(project?.parent_project_id || project?.parentProjectId || "").trim(),
       status: isInactiveRecord(project) ? "Inactive" : "Active",
       billable: normalizeBillable(project?.billable, fallbackBillable),
       billingRate: parseOptionalMoney(project?.billing_rate),
@@ -118,6 +118,53 @@
 
     return {
       ...client,
+      displayName: label,
+      hierarchyDepth: depth,
+      optionLabel: label,
+    };
+  }
+
+  function orderProjectHierarchy(projects) {
+    const byId = new Map(projects.filter((project) => project.id).map((project) => [project.id, project]));
+    const childrenByParent = new Map();
+
+    projects.forEach((project) => {
+      const parentId = byId.has(project.parent_project_id) ? project.parent_project_id : "";
+      if (!childrenByParent.has(parentId)) {
+        childrenByParent.set(parentId, []);
+      }
+      childrenByParent.get(parentId).push(project);
+    });
+    childrenByParent.forEach((children) => children.sort(compareByName));
+
+    const ordered = [];
+    const visited = new Set();
+
+    function appendProject(project, depth) {
+      if (!project?.id || visited.has(project.id)) {
+        return;
+      }
+
+      visited.add(project.id);
+      ordered.push(withProjectHierarchyLabel(project, depth));
+      (childrenByParent.get(project.id) || []).forEach((child) => appendProject(child, depth + 1));
+    }
+
+    (childrenByParent.get("") || []).forEach((project) => appendProject(project, 0));
+    projects
+      .filter((project) => project.id && !visited.has(project.id))
+      .sort(compareByName)
+      .forEach((project) => appendProject(project, 0));
+
+    return ordered;
+  }
+
+  function withProjectHierarchyLabel(project, depth) {
+    const prefix = depth > 0 ? `${"  ".repeat(depth)}- ` : "";
+    const label = `${prefix}${project.name || "Untitled Project"}`;
+
+    return {
+      ...project,
       displayName: label,
       hierarchyDepth: depth,
       optionLabel: label,

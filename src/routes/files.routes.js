@@ -27,6 +27,30 @@ filesRoutes.get("/files/attachments/counts", asyncRoute(async (request, response
   response.status(200).json(result);
 }));
 
+filesRoutes.get("/files/attachments/:fileAttachmentId/preview/content", asyncRoute(async (request, response) => {
+  const result = await filesService.readAttachmentPreviewContent(request.session, request.params.fileAttachmentId);
+
+  if (result.stream) {
+    for (const [header, value] of Object.entries(result.headers)) {
+      response.setHeader(header, value);
+    }
+
+    result.stream.on("error", (error) => {
+      response.destroy(error);
+    });
+    result.stream.pipe(response);
+    return;
+  }
+
+  response.setHeader("Cache-Control", "no-store");
+  response.status(200).json(result);
+}));
+
+filesRoutes.get("/files/attachments/:fileAttachmentId/preview", asyncRoute(async (request, response) => {
+  const result = await filesService.readAttachmentPreviewDescriptor(request.session, request.params.fileAttachmentId);
+  response.status(200).json(result);
+}));
+
 filesRoutes.get("/files/storage/accounting", asyncRoute(async (request, response) => {
   const result = await filesService.readStorageAccounting(request.session, request.query);
   response.status(200).json(result);
