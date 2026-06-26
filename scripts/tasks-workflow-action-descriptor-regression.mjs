@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.11.13";
+const appVersion = "0.33.5.18.12.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -85,7 +85,7 @@ assert.match(tasksStyles, /\.task-row-actions \.view-detail-action-menu-list \.i
 assert.match(tasksStyles, /\.view-detail-action-menu\[data-view-floating-menu\] \.view-detail-action-menu-list\s*\{[\s\S]*position:\s*fixed;[\s\S]*visibility:\s*hidden/, "Workflow menu list should float outside the Tasks row action rail until positioned");
 assert.match(tasksStyles, /\.view-detail-action-menu\[data-view-floating-menu\]\[data-view-floating-menu-positioned\] \.view-detail-action-menu-list\s*\{[\s\S]*visibility:\s*visible/, "Workflow menu list should become visible only after shared viewport positioning");
 assert.match(tasksRoutes, /tasksRoutes\.put\("\/tasks\/:taskId\/timer"[\s\S]*taskTimersService\.save/, "Browser API should keep timer start/pause/resume on the existing task timer route");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=69[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/task-dialog\.js\?v=21[\s\S]*js\/tasks\.js\?v=20/, "Tasks host should load the workflow descriptor cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=72[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/task-dialog\.js\?v=21[\s\S]*js\/tasks\.js\?v=20/, "Tasks host should load the workflow descriptor cache key");
 assert.match(regressionSuite, /scripts\/tasks-workflow-action-descriptor-regression\.mjs/, "Regression suite should include the task workflow descriptor regression");
 
 console.log("Tasks workflow action descriptor regression passed.");
@@ -111,4 +111,3 @@ function functionBlock(source, functionName) {
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
-

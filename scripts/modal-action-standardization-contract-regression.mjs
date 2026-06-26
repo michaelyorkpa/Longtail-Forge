@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.11.13";
+const appVersion = "0.33.5.18.12.4";
 const modalStandardVersion = "0.33.5.18.10.8.5";
 
 const packageJson = JSON.parse(readText("package.json"));
@@ -25,8 +25,8 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module metadata should report the modal action contract version");
 assert.match(notesModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Notes module metadata should report the modal action contract version");
 
-assert.match(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.12 are archived/, "Roadmap should archive completed Files browse and preview slices");
-assert.match(roadmap, /#### Version 0\.33\.5\.18\.11\.13 - Files browse\/edit\/preview closeout and 0\.33\.5\.18\.12 handoff/, "Roadmap should report the current Files browse/edit/preview closeout slice");
+assert.match(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.13 are archived/, "Roadmap should archive completed Files browse/edit/preview slices");
+assert.match(roadmap, /#### Version 0\.33\.5\.18\.12\.1 - Upload control shell and progress\/result behavior/, "Roadmap should report the current Files upload-shell slice");
 
 for (const [name, doc] of [
   ["UI surface contract", uiSurfaceContract],

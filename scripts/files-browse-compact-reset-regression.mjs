@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.11.13";
+const appVersion = "0.33.5.18.12.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
@@ -15,8 +15,8 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
-assert.match(filesHtml, /css\/longtail-forge\.css\?v=11/, "Files host should cache-bust the stylesheet for the compact reset");
-assert.match(filesHtml, /js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=10/, "Files host should load the compact-reset adapter after the renderer");
+assert.match(filesHtml, /css\/longtail-forge\.css\?v=12/, "Files host should cache-bust the stylesheet for the compact reset");
+assert.match(filesHtml, /js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=12/, "Files host should load the compact-reset adapter after the renderer");
 
 assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Files descriptor should keep the service-owned attachments read route");
 [
@@ -46,10 +46,10 @@ const loadFiles = functionBlock(filesScript, "loadFiles");
 assert.match(loadFiles, /const attachments = result\.attachments \|\| \[\][\s\S]*renderFiles\(attachments\)[\s\S]*setStatus\(visibleFileCountLabel\(attachments\.length\)\)/, "Files successful browse loads should keep a small visible-count status message above the table");
 
 const visibleFileCountLabel = functionBlock(filesScript, "visibleFileCountLabel");
-assert.match(visibleFileCountLabel, /return `\$\{safeCount\} file\$\{safeCount === 1 \? "" : "s"\} visible`/, "Files visible-count status should stay compact and readable");
+assert.match(visibleFileCountLabel, /return `\$\{safeCount\} file attachment\$\{safeCount === 1 \? "" : "s"\} visible`/, "Files visible-count status should stay compact and attachment-scoped");
 
 const filesTable = functionBlock(filesScript, "createFilesTable");
-assert.match(filesTable, /view\.createDataTable\(\{[\s\S]*className:\s*"files-table-wrap"[\s\S]*tableClassName:\s*"files-table"[\s\S]*emptyMessage:\s*"No files match the current filters\."/,
+assert.match(filesTable, /view\.createDataTable\(\{[\s\S]*className:\s*"files-table-wrap"[\s\S]*tableClassName:\s*"files-table"[\s\S]*emptyMessage:\s*"No file attachments match the current filters\."/,
   "Files browse table should render through the shared data table helper with the existing empty state");
 assert.match(filesTable, /tbody\.dataset\.fileList = ""/, "Files browse table should keep a stable file-list hook after remounting");
 assert.doesNotMatch(filesTable, /rows\.forEach|wireSelectableFileRow|fileSelectableRow|fileSelectedRow/, "Files table should not wire selected-row behavior");

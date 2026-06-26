@@ -34,7 +34,7 @@ try {
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.5.18.11.13");
+  assert.equal(notesModule.version, "0.33.5.18.12.4");
   assert.ok(notesModule.navigation.some((item) => item.href === "notes.html" && item.parent === "projects.html"));
   assert.ok(notesModule.protectedViews.some((view) => view.file === "notes.html" && view.allowDisabledRead === true));
   assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/notes.js"));
@@ -58,9 +58,9 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-builder\.js\?v=11/);
   assert.match(html, /js\/notes\.js\?v=67/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
-  assert.match(html, /js\/shared\/file-attachments\.js\?v=1/);
+  assert.match(html, /js\/shared\/file-attachments\.js\?v=5/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=4/);
-  assert.match(html, /css\/longtail-forge\.css\?v=52/);
+  assert.match(html, /css\/longtail-forge\.css\?v=55/);
   // No static read chrome or dialog markup remains in the host page.
   assert.doesNotMatch(html, /data-note-filter-tags|data-notes-collections-panel|notes-filters-panel|notes-library-tabs/);
   assert.doesNotMatch(html, /data-note-dialog|data-note-collection-dialog|data-note-body|data-note-form/);

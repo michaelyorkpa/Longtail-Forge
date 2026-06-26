@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.11.13";
+const appVersion = "0.33.5.18.12.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
@@ -15,8 +15,8 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
-assert.match(filesHtml, /css\/longtail-forge\.css\?v=11/, "Files host should cache-bust the compact reset stylesheet");
-assert.match(filesHtml, /js\/shared\/icons\.js\?v=5[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=10/, "Files host should load the cache-busted icon helper and Files adapter after the renderer");
+assert.match(filesHtml, /css\/longtail-forge\.css\?v=12/, "Files host should cache-bust the compact reset stylesheet");
+assert.match(filesHtml, /js\/shared\/icons\.js\?v=5[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=12/, "Files host should load the cache-busted icon helper and Files adapter after the renderer");
 
 assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Files descriptor should keep the service-owned attachments read route");
 [
@@ -40,7 +40,7 @@ assert.doesNotMatch(resultsChrome, /summaryMount|detailMount|createFilesSummaryP
 
 const filesTable = functionBlock(filesScript, "createFilesTable");
 assert.match(filesTable, /requireFilesViewHelper\("createDataTable"\)/, "Files browse table should require the shared data table helper");
-assert.match(filesTable, /view\.createDataTable\(\{[\s\S]*className:\s*"files-table-wrap"[\s\S]*tableClassName:\s*"files-table"[\s\S]*columns:\s*filesTableColumns\(\)[\s\S]*emptyMessage:\s*"No files match the current filters\."/,
+assert.match(filesTable, /view\.createDataTable\(\{[\s\S]*className:\s*"files-table-wrap"[\s\S]*tableClassName:\s*"files-table"[\s\S]*columns:\s*filesTableColumns\(\)[\s\S]*emptyMessage:\s*"No file attachments match the current filters\."/,
   "Files browse table should render through the shared data table helper with the existing empty state");
 assert.match(filesTable, /tbody\.dataset\.fileList = ""/, "Files browse table should keep a stable file-list hook after remounting");
 assert.doesNotMatch(filesTable, /wireSelectableFileRow|fileSelectableRow|fileSelectedRow/, "Files browse table should not wire selected-row behavior");
@@ -102,21 +102,21 @@ assert.match(downloadAction, /createIcon\?\.\("download", \{ decorative: true \}
 
 const deleteAction = functionBlock(filesScript, "createDeleteAction");
 assert.match(deleteAction, /view\.createActionButton\(\{[\s\S]*icon:\s*"delete"[\s\S]*iconOnly:\s*true[\s\S]*label:\s*`Delete \$\{row\.fileName\}`[\s\S]*text:\s*""[\s\S]*title:\s*`Delete \$\{row\.fileName\}`[\s\S]*variant:\s*"danger"/, "Delete should be an icon-only shared action button with accessible label/title");
-assert.match(deleteAction, /onClick:\s*\(\) => deleteFile\(row\.fileId, row\.file\)/, "Delete should preserve the Files-owned delete workflow");
+assert.match(deleteAction, /onClick:\s*\(event\) => \{[\s\S]*stopFileRowActionEvent\(event\)[\s\S]*deleteFile\(row\.fileId, row\.file\)/, "Delete should preserve the Files-owned delete workflow while isolating row activation");
 
 assert.match(icons, /download:\s*Object\.freeze/, "Shared icon registry should include the download icon for Files rows");
 assert.match(styles, /\.view-slideout-sidebar-main > \.files-browse-results-region\s*\{[\s\S]*border:\s*0;[\s\S]*padding:\s*0;[\s\S]*background:\s*transparent/, "Files browse results should not add a second frame around the listing");
 assert.match(styles, /\.files-table-wrap\s*\{[\s\S]*overflow-x:\s*auto;[\s\S]*border:\s*1px solid var\(--color-border\)[\s\S]*border-radius:\s*8px/, "Files table wrapper should own the single listing frame");
 assert.match(styles, /\.files-table\s*\{[\s\S]*table-layout:\s*fixed[\s\S]*min-width:\s*0;[\s\S]*font-size:\s*14px/, "Files table should stay compact without forcing horizontal overflow");
 assert.doesNotMatch(styles, /\.files-table\s*\{[\s\S]*min-width:\s*960px/, "Files table should not force a horizontal scrollbar at normal desktop widths");
-assert.match(styles, /\.files-table th:last-child,[\s\S]*\.files-table td:last-child\s*\{[\s\S]*width:\s*164px;[\s\S]*padding-right:\s*6px;[\s\S]*padding-left:\s*6px;[\s\S]*text-align:\s*right/, "Files action column should reserve enough room for icon-only row actions");
+assert.match(styles, /\.files-table th:last-child,[\s\S]*\.files-table td:last-child\s*\{[\s\S]*width:\s*188px;[\s\S]*padding-right:\s*6px;[\s\S]*padding-left:\s*6px;[\s\S]*text-align:\s*right/, "Files action column should reserve enough room for mixed icon/text row actions");
 assert.match(styles, /\.files-file-cell\s*\{[\s\S]*display:\s*flex[\s\S]*min-width:\s*0/, "Files filename cell should stay compact");
 assert.match(styles, /\.files-file-type-icon\s*\{[\s\S]*display:\s*inline-flex[\s\S]*width:\s*34px/, "Files file-type icon should have a stable footprint for extension text");
 assert.match(styles, /\.files-file-type-label\s*\{[\s\S]*font-size:\s*9px[\s\S]*text-transform:\s*uppercase/, "Files file-type icon should visibly show the safe file type text");
 assert.match(styles, /\.files-truncate\s*\{[\s\S]*overflow:\s*hidden[\s\S]*text-overflow:\s*ellipsis[\s\S]*white-space:\s*nowrap/, "Files labels should truncate in table cells");
 assert.doesNotMatch(styles, /\.files-truncate\[data-full-text\]:hover[\s\S]*overflow:\s*visible/, "Files labels should not expand inside the table on hover");
 assert.match(styles, /\.files-floating-tooltip\s*\{[\s\S]*position:\s*fixed[\s\S]*z-index:\s*10000[\s\S]*pointer-events:\s*none/, "Files truncated labels should reveal through one fixed floating tooltip above overflow containers");
-assert.match(styles, /\.files-row-actions\s*\{[\s\S]*display:\s*inline-flex[\s\S]*flex-wrap:\s*nowrap[\s\S]*justify-content:\s*flex-end/, "Files actions should stay compact and right-aligned");
+assert.match(styles, /\.files-row-actions\s*\{[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*wrap[\s\S]*justify-content:\s*flex-end/, "Files actions should stay compact, wrapped, and right-aligned");
 
 assert.match(regressionSuite, /scripts\/files-browse-list-shell-regression\.mjs/, "Regression suite should include the Files browse list shell regression");
 

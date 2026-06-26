@@ -8,8 +8,8 @@ Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and im
 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
 The active roadmap continues with Files and Clients/Projects view conversion work.
-Completed 0.33.5.18.11.1 through 0.33.5.18.11.12 are archived in `ROADMAP-ARCHIVE.md`.
-0.33.5.18.11.13 is the most recently completed Files browse/edit/preview closeout slice. The next live work starts with 0.33.5.18.12.1.
+Completed 0.33.5.18.11.1 through 0.33.5.18.11.13 are archived in `ROADMAP-ARCHIVE.md`.
+0.33.5.18.12.4 is the most recently completed Files visual states and control parity slice. The next live work starts with 0.33.5.18.12.5.
 
 ## Files (0.33.5.18.11 - 0.33.5.18.12)
 
@@ -67,59 +67,6 @@ row actions, route safety, cleanup, and strict guardrails into two broad slices.
 read-only descriptor proof, filter/readable-label cleanup, upload behavior, attachment panels, actions,
 and strict guardrails separately reviewable like the Notes and Tasks conversions.
 
-### Version 0.33.5.18.11 - Files Browse Surface and Read Controls
-
-Corrective note:
-
-The 0.33.5.18.11.4 inline detail/summary/preview anatomy made the Files browse page too dashboard-like.
-The remaining 0.33.5.18.11 slices intentionally reset Files to a compact browse-first listing, then add
-File Context editing and Preview as separate route-backed modal workflows.
-
-#### Version 0.33.5.18.11.13 - Files browse/edit/preview closeout and 0.33.5.18.12 handoff
-
-Intent:
-
-Close the revised Files browse/edit/preview branch and update the next Files upload/action slices so they do not conflict with the new route-backed File Context editor.
-
-- [x] Update `ROADMAP.md` to mark completed 0.33.5.18.11.5 through 0.33.5.18.11.12 slices.
-- [x] Update Files developer docs with the revised Files UX boundary:
-  - [x] Files page is a compact browse/recovery surface.
-  - [x] Filter sidebar owns browse filtering.
-  - [x] Main panel owns listing only.
-  - [x] Row click opens File Context edit modal.
-  - [x] Preview button opens Files Preview modal.
-  - [x] Metadata is read-only inside the edit modal.
-  - [x] Context editing is route-backed and attachment-scoped.
-  - [x] Preview is route-backed and attachment-scoped.
-  - [x] Inspector integration is deferred.
-- [x] Update `docs/view-building-contract.md` with the revised Files page state.
-- [x] Update Files-related decisions/docs to clarify that the 0.33.5.18.11.4 inline detail/summary anatomy was intentionally replaced by modal-based edit/preview behavior.
-- [x] Update `CHANGELOG.md`.
-- [x] Update package/app/module metadata to the implemented version.
-- [x] Adjust the upcoming 0.33.5.18.12 Files upload/action slices so they do not say or imply that route-backed attachment context editing is forbidden.
-  - [x] Continue forbidding rename, file replacement, storage moves, hard purge, permanent delete, raw storage controls, and unsafe direct metadata editing.
-  - [x] Allow the already-shipped File Context editor as the only attachment-context edit surface.
-  - [x] Exclude the already-shipped Preview modal from 0.33.5.18.12 action-wiring scope except for visual parity and guardrail documentation.
-- [x] Confirm existing Files upload and reusable attachment panel behavior still works.
-- [x] Confirm Notes and Tasks Files footer utility dialogs still work.
-- [x] Run:
-  - [x] `npm run check`
-  - [x] Files browse regressions
-  - [x] Files edit modal regressions
-  - [x] Files preview regressions
-  - [x] Files attachment/upload regressions if touched
-  - [x] Notes and Tasks Files utility regressions
-  - [x] `npm run test:permissions` if any route/permission behavior changed
-- [x] Verify `/api/app-info` reports the expected version.
-- [x] Archive completed roadmap sections according to the roadmap bookkeeping rule.
-
-Acceptance criteria:
-
-- Files has returned to a compact browse-first UX.
-- Editing and previewing are modal-based, route-backed, permission-safe, and consistent with Notes/Tasks patterns.
-- The future Inspector remains deferred instead of being half-built inside Files.
-- The next Files upload/attachment-panel conversion can proceed without carrying forward the bad inline detail-page experience.
-
 ### Version 0.33.5.18.12 - File Upload, Attachment Panels, Actions, and Strict Guardrails
 
 Scope note:
@@ -132,66 +79,66 @@ Inspector behavior on the Files browse page.
 
 #### Version 0.33.5.18.12.1 - Upload control shell and progress/result behavior
 
-- [ ] Render the Files upload/dropzone shell, accepted-file hint, upload button, progress/status, and
+- [x] Render the Files upload/dropzone shell, accepted-file hint, upload button, progress/status, and
       per-file result list through shared framework anatomy or descriptor mount regions.
-- [ ] Keep file reading, base64 payload construction, batch upload payloads, accepted categories,
+- [x] Keep file reading, base64 payload construction, batch upload payloads, accepted categories,
       size/type checks, target IDs, visibility, and upload route calls in Files-owned browser/service
       paths.
-- [ ] Preserve multi-file upload and drag/drop behavior in both the Files page and reusable attachment
+- [x] Preserve multi-file upload and drag/drop behavior in both the Files page and reusable attachment
       surfaces where currently supported.
-- [ ] Keep upload UI out of File Context and Preview; those already-shipped modals remain focused on
+- [x] Keep upload UI out of File Context and Preview; those already-shipped modals remain focused on
       attachment context editing and route-backed preview only.
-- [ ] Add regressions proving successful, partial-failure, and rejected upload states remain visible
+- [x] Add regressions proving successful, partial-failure, and rejected upload states remain visible
       without moving scanner/storage rules into framework UI code.
 
 #### Version 0.33.5.18.12.2 - Shared attachment panel shell standardization
 
-- [ ] Convert the shared attachment panel (`public/js/shared/file-attachments.js`) view anatomy to
+- [x] Convert the shared attachment panel (`public/js/shared/file-attachments.js`) view anatomy to
       framework-owned panel, list, empty, status, upload-result, and dense-action shells while keeping
       the helper's upload/list/download/remove/delete/restore logic Files-owned.
-- [ ] Preserve saved-record attachment behavior and unsaved-record save-first messaging for Notes,
+- [x] Preserve saved-record attachment behavior and unsaved-record save-first messaging for Notes,
       Tasks, and future attachable modules.
-- [ ] Keep the attachment helper body compatible with stacked child dialogs opened from converted modal
+- [x] Keep the attachment helper body compatible with stacked child dialogs opened from converted modal
       footer utility buttons.
-- [ ] Do not turn attachment panels into inline File Context, Preview, Metadata, or Inspector surfaces;
+- [x] Do not turn attachment panels into inline File Context, Preview, Metadata, or Inspector surfaces;
       any future edit/preview affordance must call the canonical route-backed Files modal workflow.
-- [ ] Ensure deleted/unavailable/quarantined attachments show gentle recovery-safe states instead of
+- [x] Ensure deleted/unavailable/quarantined attachments show gentle recovery-safe states instead of
       breaking the host modal or hiding history.
-- [ ] Add regressions proving Notes and Tasks Files utilities still open stacked child dialogs and that
+- [x] Add regressions proving Notes and Tasks Files utilities still open stacked child dialogs and that
       attachment helper focus/status behavior is preserved.
 
 #### Version 0.33.5.18.12.3 - Files row and attachment action wiring
 
-- [ ] Express existing shipped actions through declarative route actions or registered Files behaviors:
+- [x] Express existing shipped actions through declarative route actions or registered Files behaviors:
       download, report, quarantine where existing route/permission support permits it, remove attachment,
       delete file, and restore file.
-- [ ] Treat File Context edit and Files Preview as already-shipped 0.33.5.18.11 workflows; this slice
+- [x] Treat File Context edit and Files Preview as already-shipped 0.33.5.18.11 workflows; this slice
       may preserve their placement/visual parity but must not reimplement those routes or modals.
-- [ ] Preserve action isolation: row click/Enter opens File Context, Preview/View opens the Preview
+- [x] Preserve action isolation: row click/Enter opens File Context, Preview/View opens the Preview
       modal, Download downloads, and Delete/Restore/Report/Quarantine remain distinct controls.
-- [ ] Preserve existing confirmations, danger styling, permission-shaped visibility, scan/download
+- [x] Preserve existing confirmations, danger styling, permission-shaped visibility, scan/download
       availability, retention semantics, and post-action refresh behavior.
-- [ ] Keep route calls on the existing Files routes and keep API/service permission checks authoritative.
-- [ ] Do not add rename, move, hard purge, permanent delete, storage moves, file replacement, or direct
+- [x] Keep route calls on the existing Files routes and keep API/service permission checks authoritative.
+- [x] Do not add rename, move, hard purge, permanent delete, storage moves, file replacement, or direct
       file-metadata edit controls in this slice.
-- [ ] Keep unsupported files download-only rather than routing them into a preview/detail panel.
-- [ ] Add regressions proving action buttons use shared dense/action placement, remain accessible, and
+- [x] Keep unsupported files download-only rather than routing them into a preview/detail panel.
+- [x] Add regressions proving action buttons use shared dense/action placement, remain accessible, and
       never bypass the Files routes.
 
 #### Version 0.33.5.18.12.4 - Files visual states and control parity
 
-- [ ] Align Files page and attachment-panel controls with the Notes/Tasks converted control standard:
+- [x] Align Files page and attachment-panel controls with the Notes/Tasks converted control standard:
       icon buttons for dense row actions where appropriate, visible text for ambiguous upload/report
       actions, accessible labels/titles, wrapping action rows, and theme-token surfaces.
-- [ ] Include the already-shipped File Context and Preview controls in visual parity checks without
+- [x] Include the already-shipped File Context and Preview controls in visual parity checks without
       changing their route-backed behavior from 0.33.5.18.11.
-- [ ] Standardize file status chips, scan-status chips, deleted/restored/quarantined messaging,
+- [x] Standardize file status chips, scan-status chips, deleted/restored/quarantined messaging,
       attachment counts, and empty states across Files page and reusable attachment panels.
-- [ ] Preserve the compact listing boundary during visual work: no persistent inline preview, metadata,
+- [x] Preserve the compact listing boundary during visual work: no persistent inline preview, metadata,
       selected-file detail, selected-row state, or nested dashboard-like browse panels.
-- [ ] Ensure normal Files UI uses broad product language such as recovery, available, unavailable,
+- [x] Ensure normal Files UI uses broad product language such as recovery, available, unavailable,
       attachment, upload, download, restore, and review rather than punitive or diagnostic copy.
-- [ ] Add responsive regressions or static guardrails proving action controls do not overlap file names,
+- [x] Add responsive regressions or static guardrails proving action controls do not overlap file names,
       metadata, or attachment panel content on narrow widths.
 
 #### Version 0.33.5.18.12.5 - Files strict guardrail inventory and escape-hatch map

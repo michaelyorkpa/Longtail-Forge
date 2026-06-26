@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.11.13";
+const appVersion = "0.33.5.18.12.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -25,7 +25,7 @@ assert.match(tasksModule, /dataSource:\s*\{[\s\S]*route:\s*"\/api\/tasks"[\s\S]*
 assert.match(tasksModule, /primaryAction:\s*\{[\s\S]*behavior:\s*"tasks\.create"[\s\S]*requiredPermissions:\s*\["tasks\.create"\]/, "Tasks descriptor should keep create permission intent on the header action");
 
 assert.match(tasksView, /<main class="wide-page tasks-page" data-tasks-host><\/main>/, "Tasks protected view should be reduced to a minimal host");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=69/, "Tasks protected view should load the current stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=72/, "Tasks protected view should load the current stylesheet cache key");
 assert.match(tasksView, /js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/task-dialog\.js\?v=21[\s\S]*js\/tasks\.js\?v=20/, "Tasks protected view should load the renderer before the module adapter");
 assertNoProtectedAnatomy(tasksView, "views/protected/tasks.html");
 
@@ -85,4 +85,3 @@ function functionBlock(source, functionName) {
   const nextFunction = source.slice(start + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(start, nextFunction === -1 ? source.length : start + 1 + nextFunction);
 }
-

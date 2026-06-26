@@ -3972,7 +3972,7 @@ dialog .form-actions {
 
 .files-table th:last-child,
 .files-table td:last-child {
-    width: 164px;
+    width: 188px;
     padding-right: 6px;
     padding-left: 6px;
     text-align: right;
@@ -4052,18 +4052,66 @@ dialog .form-actions {
 }
 
 .file-status-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-width: 100%;
+    white-space: normal;
+}
+
+.files-status-chip,
+.file-attachment-meta-chip {
+    min-width: 0;
+    max-width: 100%;
+    padding: 2px 7px;
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.35;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
+.files-status-chip[data-file-status-chip="available"],
+.files-status-chip[data-file-scan-status-chip="passed"],
+.files-status-chip[data-file-scan-status-chip="not-required"],
+.file-attachment-status-available,
+.file-attachment-review-passed,
+.file-attachment-review-not-required {
+    border-color: var(--color-success);
+    background: var(--color-success-bg);
+    color: var(--color-success-text);
+}
+
+.files-status-chip[data-file-status-chip="deleted"],
+.files-status-chip[data-file-status-chip="quarantined"],
+.files-status-chip[data-file-status-chip="pending"],
+.files-status-chip[data-file-scan-status-chip="pending"],
+.files-status-chip[data-file-scan-status-chip="error"],
+.file-attachment-status-deleted,
+.file-attachment-status-quarantined,
+.file-attachment-status-pending,
+.file-attachment-review-pending,
+.file-attachment-review-error {
+    border-color: var(--color-danger-border);
+}
+
 .files-row-actions {
-    display: inline-flex;
-    flex-wrap: nowrap;
+    display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
     gap: 4px;
+    max-width: 100%;
+    row-gap: 4px;
 }
 
 .files-row-action.icon-button {
     flex: 0 0 auto;
+}
+
+.files-row-action-text {
+    min-width: 64px;
+    justify-content: center;
+    white-space: nowrap;
 }
 
 .files-row-preview-unavailable {
@@ -4189,6 +4237,10 @@ dialog .form-actions {
     background: var(--color-surface);
 }
 
+.file-attachments-panel-shell.view-list-shell {
+    gap: 12px;
+}
+
 .file-attachments-header {
     display: flex;
     align-items: baseline;
@@ -4209,16 +4261,56 @@ dialog .form-actions {
     font-size: 14px;
 }
 
+.file-attachments-status.view-list-shell-status {
+    margin: -4px 0 0;
+}
+
 .file-attachments-status.is-error,
 .file-attachments-empty.is-error {
     color: var(--color-danger);
 }
 
+.file-attachments-empty.view-empty-state {
+    gap: 4px;
+    padding: 12px;
+    border-style: dashed;
+    background: var(--color-page-bg);
+}
+
+.file-attachments-empty .view-empty-state-message {
+    margin: 0;
+    color: inherit;
+    font-size: 14px;
+}
+
 .file-attachment-upload {
+    display: block;
+}
+
+.file-attachment-upload-shell {
+    gap: 10px;
+}
+
+.file-attachment-upload-status {
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.file-attachment-upload-status.is-error {
+    color: var(--color-danger);
+}
+
+.file-attachment-upload-hint {
+    margin: -4px 0 0;
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.file-attachment-upload-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
-    align-items: end;
+    align-items: center;
 }
 
 .file-attachment-dropzone {
@@ -4245,8 +4337,11 @@ dialog .form-actions {
 }
 
 .file-attachment-upload-results {
-    flex-basis: 100%;
     display: grid;
+    gap: 4px;
+}
+
+.file-attachment-upload-results.view-list-shell {
     gap: 4px;
 }
 
@@ -4265,11 +4360,17 @@ dialog .form-actions {
     gap: 8px;
 }
 
+.file-attachments-list.view-list-shell {
+    gap: 8px;
+}
+
 .file-attachment-item {
     display: flex;
-    align-items: center;
+    flex-wrap: wrap;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
+    min-width: 0;
     padding: 10px;
     border: 1px solid var(--color-border);
     border-radius: 8px;
@@ -4281,10 +4382,20 @@ dialog .form-actions {
     background: var(--color-page-bg);
 }
 
+.file-attachment-item.is-unavailable:not(.is-deleted) {
+    background: var(--color-page-bg);
+}
+
+.file-attachment-item.is-quarantined {
+    border-color: var(--color-border-strong);
+}
+
 .file-attachment-summary {
     display: grid;
+    flex: 1 1 260px;
     gap: 4px;
     min-width: 0;
+    max-width: 100%;
 }
 
 .file-attachment-summary strong,
@@ -4292,11 +4403,46 @@ dialog .form-actions {
     overflow-wrap: anywhere;
 }
 
+.file-attachment-meta {
+    gap: 4px;
+    max-width: 100%;
+}
+
+.file-attachment-recovery-state {
+    margin: 0;
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
 .file-attachment-actions {
     display: flex;
-    flex: 0 0 auto;
+    flex: 1 1 180px;
+    flex-wrap: wrap;
     gap: 8px;
     align-items: center;
+    justify-content: flex-end;
+    max-width: 100%;
+    min-width: min(100%, 180px);
+}
+
+.file-attachment-action {
+    white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+    .files-table th:last-child,
+    .files-table td:last-child {
+        width: 148px;
+    }
+
+    .files-row-actions,
+    .file-attachment-actions {
+        justify-content: flex-start;
+    }
+
+    .files-row-action-text {
+        min-width: 58px;
+    }
 }
 
 .task-summary-counts strong {

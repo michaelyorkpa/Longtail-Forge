@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.11.13";
+const appVersion = "0.33.5.18.12.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -17,15 +17,13 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 assert.equal(packageJson.version, appVersion, "package.json should report the closeout version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the closeout version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the closeout version");
-assert.match(notesModule, /version:\s*"0\.33\.5\.18\.11\.13"/, "Notes module metadata should track the current app version");
-assert.match(tasksModule, /version:\s*"0\.33\.5\.18\.11\.13"/, "Tasks module metadata should track the current app version");
+assert.match(notesModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Notes module metadata should track the current app version");
+assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module metadata should track the current app version");
 
-assert.match(roadmap, /0\.33\.5\.18\.11\.13 is the most recently completed Files browse\/edit\/preview closeout slice/, "Roadmap should identify the closeout as the most recently completed slice");
+assert.match(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.13 are archived/, "Roadmap should identify the closeout as archived");
+assert.match(roadmap, /0\.33\.5\.18\.12\.4 is the most recently completed Files visual states and control parity slice/, "Roadmap should identify the current Files visual parity slice");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.11\.12 - Files preview modal and browse row preview action/, "Completed 0.33.5.18.11.12 should be archived out of the live roadmap");
-const closeoutSection = sectionBetween(roadmap, "#### Version 0.33.5.18.11.13", "### Version 0.33.5.18.12");
-assert.doesNotMatch(closeoutSection, /- \[ \]/, "0.33.5.18.11.13 checklist should be complete");
-assert.match(closeoutSection, /Files has returned to a compact browse-first UX/, "Closeout acceptance should preserve compact browse");
-assert.match(closeoutSection, /modal-based, route-backed, permission-safe/, "Closeout acceptance should preserve modal route-backed editing and previewing");
+assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.11\.13 - Files browse\/edit\/preview closeout and 0\.33\.5\.18\.12 handoff/, "Completed 0.33.5.18.11.13 should be archived out of the live roadmap");
 
 const uploadActionBranch = sectionBetween(roadmap, "### Version 0.33.5.18.12", "#### Version 0.33.5.18.12.7");
 assert.match(uploadActionBranch, /Treat File Context edit and Files Preview as already-shipped 0\.33\.5\.18\.11 workflows/, "Upcoming action wiring should treat File Context and Preview as shipped workflows");
@@ -69,4 +67,8 @@ function sectionBetween(source, startMarker, endMarker) {
   const end = source.indexOf(endMarker, start + startMarker.length);
   assert.notEqual(end, -1, `${endMarker} should exist after ${startMarker}`);
   return source.slice(start, end);
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

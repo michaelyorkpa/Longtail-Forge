@@ -70,7 +70,7 @@ async function assertStaticBrowserContract() {
   const css = await fs.readFile(path.join(process.cwd(), "public/css/longtail-forge.css"), "utf8");
   const routesSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.routes.js"), "utf8");
 
-  assert.match(notesHtml, /css\/longtail-forge\.css\?v=52/);
+  assert.match(notesHtml, /css\/longtail-forge\.css\?v=55/);
   assert.match(notesHtml, /js\/shared\/icons\.js\?v=4/);
   assert.match(notesHtml, /js\/shared\/notes-editor\.js\?v=4/);
   assert.match(notesHtml, /js\/notes\.js\?v=67/);

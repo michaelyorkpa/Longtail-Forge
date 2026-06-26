@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const appVersion = "0.33.5.18.11.13";
+const appVersion = "0.33.5.18.12.4";
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -56,8 +56,8 @@ const viewContract = read("docs/view-building-contract.md");
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
-assert.match(filesPage, /css\/longtail-forge\.css\?v=11/, "Files page should cache-bust row affordance and modal styling");
-assert.match(filesPage, /js\/files\.js\?v=10/, "Files page should cache-bust the Files adapter");
+assert.match(filesPage, /css\/longtail-forge\.css\?v=12/, "Files page should cache-bust row affordance and modal styling");
+assert.match(filesPage, /js\/files\.js\?v=12/, "Files page should cache-bust the Files adapter");
 assert.match(regressionSuite, /scripts\/files-edit-modal-save-regression\.mjs/, "Regression suite should include the Files edit modal save regression");
 
 const fileRowBlock = functionBlock(filesScript, "fileRow");

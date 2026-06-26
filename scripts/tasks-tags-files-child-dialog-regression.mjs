@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.11.13";
+const appVersion = "0.33.5.18.12.4";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -56,15 +56,15 @@ assert.doesNotMatch(fieldNodes, /data-task-tags-panel|data-task-files-panel|task
 assert.doesNotMatch(taskDialog, /taskOverlayHost|toggleTaskFooterPanel|toggleTaskFooterPanelFallback|taskEditorFooterPanel|data-task-tags-panel|data-task-files-panel/, "Task Tags and Files should no longer use parent-body overlay panel plumbing");
 assert.doesNotMatch(taskDialog, /className: \["task-footer-panel"|"surface-overlay-panel"/, "Task dialog should not mount Tags or Files as overlay panels");
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=69/, "Tasks page should cache-bust the child-dialog stylesheet cleanup");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=72/, "Tasks page should cache-bust the child-dialog stylesheet cleanup");
 assert.match(tasksView, /js\/task-dialog\.js\?v=21/, "Tasks page should cache-bust the Task child-dialog browser wiring");
-assert.match(workbenchView, /css\/longtail-forge\.css\?v=18/, "Workbench should cache-bust the child-dialog stylesheet cleanup");
+assert.match(workbenchView, /css\/longtail-forge\.css\?v=21/, "Workbench should cache-bust the child-dialog stylesheet cleanup");
 assert.match(workbenchView, /js\/task-dialog\.js\?v=21/, "Workbench should cache-bust the Task child-dialog browser wiring");
 
 assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current Task child-dialog version");
 assert.match(tasksDocs, /Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should document the shipped child-dialog behavior");
 assert.match(tasksDocs, /Save the task before adding files\./, "Tasks docs should preserve the Files save-first state");
-assert.match(roadmap, /#### Version 0\.33\.5\.18\.11\.13 - Files browse\/edit\/preview closeout and 0\.33\.5\.18\.12 handoff/, "Roadmap should report the current Files browse/edit/preview closeout slice");
+assert.match(roadmap, /0\.33\.5\.18\.12\.4 is the most recently completed Files visual states and control parity slice/, "Roadmap should report the current Files visual parity slice");
 assert.match(regressionSuite, /scripts\/tasks-tags-files-child-dialog-regression\.mjs/, "Full regression suite should include the Task child-dialog regression");
 
 console.log("Tasks Tags and Files child-dialog regression passed.");

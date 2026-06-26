@@ -5,7 +5,7 @@ const tasksView = readText("views/protected/tasks.html");
 const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = "0.33.5.18.11.13";
+const currentTasksVersion = "0.33.5.18.12.4";
 
 assert.match(taskDialogScript, /className: "surface-modal-heading"/, "Task modal should use the shared compact modal heading row");
 assert.doesNotMatch(taskDialogScript, /task-dialog-heading/, "Task modal should not keep a Task-only heading row class");
@@ -14,7 +14,7 @@ assert.doesNotMatch(taskDialogScript, /task-notification-popover|data-task-notif
 assert.match(taskDialogScript, /function taskEditorMetadataRibbon[\s\S]*className: \["task-metadata-ribbon", "view-detail-badges", "surface-chip-row"\][\s\S]*"data-task-metadata-ribbon"[\s\S]*"aria-label": "Task summary"/, "Task modal should expose a framework detail badge row after the title field");
 assert.doesNotMatch(taskDialogScript, /data-task-completion-field/, "Task modal should not keep a separate Time to Completion block");
 assert.match(tasksView, /<script src="js\/task-dialog\.js\?v=21"><\/script>/, "Task dialog cache bust should advance");
-assert.match(tasksView, /<link rel="stylesheet" href="css\/longtail-forge\.css\?v=69">/, "Shared stylesheet cache bust should advance");
+assert.match(tasksView, /<link rel="stylesheet" href="css\/longtail-forge\.css\?v=72">/, "Shared stylesheet cache bust should advance");
 
 assert.match(taskDialogScript, /notificationToggle: dialog\.querySelector\("\[data-task-notification-toggle\]"\)/, "Task dialog should bind the notification bell toggle");
 assert.match(taskDialogScript, /toggleTaskNotificationFollow/, "Task dialog should follow or unfollow from the bell");
@@ -46,4 +46,3 @@ function readText(path) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-

@@ -122,6 +122,7 @@ async function readPermissionHints(session) {
   const [
     canManageWorkspaceSettings,
     canManageFileSettings,
+    canManageFileQuarantine,
     canManageProjects,
     canManageUsers,
     canViewAuditLogs,
@@ -131,6 +132,10 @@ async function readPermissionHints(session) {
       operation: "read",
     }),
     permissionsService.can(session, "files.manage_workspace_settings", {
+      workspace_id: session.workspace_id,
+      operation: "read",
+    }),
+    permissionsService.can(session, "files.manage_quarantine", {
       workspace_id: session.workspace_id,
       operation: "read",
     }),
@@ -150,6 +155,7 @@ async function readPermissionHints(session) {
 
   return {
     auditLogsView: canViewAuditLogs,
+    filesManageQuarantine: canManageFileQuarantine,
     filesSettingsManage: canManageFileSettings,
     projectsManage: canManageProjects,
     usersManage: canManageUsers,

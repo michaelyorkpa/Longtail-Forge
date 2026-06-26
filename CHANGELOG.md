@@ -1,3 +1,31 @@
+## Version 0.33.5.18.12.4 - 2026-06-26 17:59 -04:00
+
+- Standardized Files visual states and control parity: browse rows now render availability and review-state chips, attachment panels render metadata chips, and attachment counts/empty/loading states use consistent attachment/review/recovery language.
+- Kept dense repeated row controls icon-only where appropriate while preserving visible text for ambiguous Report and Review actions; the Review control still calls the existing quarantine route and keeps Files service permissions, audit/lifecycle behavior, and restore/download gates authoritative.
+- Added responsive/static guardrails for Files and attachment action rows so controls wrap without overlapping filenames, metadata, or attachment content; refreshed Files/view/module docs, added `scripts/files-visual-state-control-parity-regression.mjs`, cache-busted Files/Notes/Tasks/Workbench attachment assets, and advanced package plus current Notes/Tasks module metadata to `0.33.5.18.12.4`.
+- Verification 2026-06-26 18:11 -04:00: targeted Files visual/action/upload/attachment/browse/edit/preview, Notes/Tasks Files utility, clean-clone, personal/family scope, and permission regressions passed; `npm run test:permissions` passed 236 checks; `npm run check` passed 191/191 regression scripts plus ESLint; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.18.12.4 after restarting the local 8001 server.
+
+## Version 0.33.5.18.12.3 - 2026-06-26 16:50 -04:00
+
+- Wired Files browse row actions and shared attachment-panel actions through shared Files action IDs for Preview, Download, Report, Quarantine, Remove Attachment, Delete, and Restore while keeping route calls in Files-owned browser helpers.
+- Added Report and permission-shaped Quarantine controls that call the existing Files routes, preserve confirmations, refresh after mutation, and leave Files service permission checks, report reason validation, quarantine lifecycle behavior, audit, and retention semantics authoritative.
+- Preserved the 0.33.5.18.11 File Context and Preview modal workflows, kept unsupported files download-only, added the `filesManageQuarantine` app-shell permission hint, refreshed Files/view/module docs, added `scripts/files-row-attachment-actions-regression.mjs`, cache-busted Files/Notes/Tasks/Workbench attachment assets, and advanced package plus current Notes/Tasks module metadata to `0.33.5.18.12.3`.
+- Verification 2026-06-26 17:07 -04:00: targeted Files action/upload/attachment/browse/edit/preview, Notes/Tasks Files utility, clean-clone, and permission regressions passed; `npm run test:permissions` passed 236 checks; `npm run check` passed 190/190 regression scripts plus ESLint; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.18.12.3 after restarting the local 8001 server.
+
+## Version 0.33.5.18.12.2 - 2026-06-26 15:49 -04:00
+
+- Moved the reusable Files attachment panel anatomy onto shared view shells: the panel status uses the shared list-shell status slot, attachment lists and upload results use shared list shells, loading/error/empty/save-first states use shared empty-state anatomy, and attachment actions sit in a dense action shell.
+- Preserved Files-owned behavior for attachment reads, upload payloads, download links, remove/delete/restore route calls, delete confirmation, refresh, events, host callbacks, saved-record mounting, and unsaved-record save-first messaging in Notes and Tasks stacked Files dialogs.
+- Added quiet recovery-safe states for deleted, quarantined, pending-scan, scan-error, and otherwise unavailable attachments without adding inline File Context, Preview, Metadata, or Inspector bodies; refreshed Files/view/module docs, added `scripts/files-attachment-panel-shell-regression.mjs`, cache-busted Notes/Tasks/Workbench attachment assets, and advanced package plus current Notes/Tasks module metadata to `0.33.5.18.12.2`.
+- Verification 2026-06-26 15:56 -04:00: targeted Files attachment-panel/upload shell, browse/edit/preview, Notes/Tasks Files utility, clean-clone, surface-token, modal, and view-builder regressions passed; `npm run check` passed 189/189 regression scripts plus ESLint; `git diff --check` reported no whitespace errors; and `/api/app-info` returned 0.33.5.18.12.2 after restarting the local 8001 server.
+
+## Version 0.33.5.18.12.1 - 2026-06-26 15:27 -04:00
+
+- Moved the shared Files attachment upload/dropzone controls onto shared view anatomy: the upload shell now uses the shared list shell/status placement when available, the Upload action uses the shared action button, and per-file upload results keep stable placement/hooks.
+- Added a quiet accepted-file hint and explicit upload status messages while preserving multi-file selection, drag/drop upload, FileReader/base64 conversion, accepted-category mapping, target/context/visibility payloads, `/api/files/batch`, partial-failure rows, upload events, and host refresh callbacks inside the Files-owned helper.
+- Kept upload UI out of the Files browse page, File Context modal, and Files Preview modal; refreshed Files/view/module docs, added `scripts/files-upload-shell-regression.mjs`, cache-busted Notes/Tasks/Workbench attachment assets, archived the completed 0.33.5.18.11.13 roadmap slice, and advanced package plus current Notes/Tasks module metadata to `0.33.5.18.12.1`.
+- Verification 2026-06-26 15:36 -04:00: targeted Files upload shell, browse/edit/preview, Notes/Tasks Files utility, modal, Tasks, Notes, and clean-clone regressions passed; `npm run check` passed 188/188 regression scripts plus ESLint; `git diff --check` reported no whitespace errors; and `/api/app-info` returned 0.33.5.18.12.1 from the local 8001 server.
+
 ## Version 0.33.5.18.11.13 - 2026-06-26 14:34 -04:00
 
 - Completed the Files browse/edit/preview closeout and 0.33.5.18.12 handoff: the Files page remains compact browse/recovery, filters stay in the slide-out sidebar, the main panel stays listing-only, row click opens File Context, and Preview opens the route-backed Files Preview modal.

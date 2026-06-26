@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.11.13";
+const appVersion = "0.33.5.18.12.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -136,4 +136,3 @@ function functionBlock(source, functionName) {
   const nextFunction = source.slice(blockStart + 1).search(/\n(?:async\s+)?function\s+/);
   return source.slice(blockStart, nextFunction === -1 ? source.length : blockStart + 1 + nextFunction);
 }
-

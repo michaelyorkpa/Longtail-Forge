@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const appVersion = "0.33.5.18.11.13";
+const appVersion = "0.33.5.18.12.4";
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -54,8 +54,8 @@ const regressionSuite = read("scripts/regression-suite.mjs");
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
-assert.match(filesPage, /css\/longtail-forge\.css\?v=11/, "Files page should cache-bust modal styling");
-assert.match(filesPage, /js\/files\.js\?v=10/, "Files page should cache-bust the Files adapter");
+assert.match(filesPage, /css\/longtail-forge\.css\?v=12/, "Files page should cache-bust modal styling");
+assert.match(filesPage, /js\/files\.js\?v=12/, "Files page should cache-bust the Files adapter");
 assert.match(regressionSuite, /scripts\/files-edit-modal-shell-regression\.mjs/, "Regression suite should include the Files edit modal shell regression");
 
 const openerBlock = functionBlock(filesScript, "openFileEditor");
@@ -108,7 +108,7 @@ assert.match(buildBlock, /viewParts\.footer\.dataset\.modalFooter = ""/, "File e
   "File type",
   "Size",
   "Status",
-  "Scan state",
+  "Review state",
   "Uploaded",
   "Attached",
   "Uploader",

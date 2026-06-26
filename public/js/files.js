@@ -9,6 +9,8 @@ const TEXT_PREVIEW_MAX_BYTES = 512 * 1024;
 const IMAGE_PREVIEW_EXTENSIONS = new Set(["gif", "jpg", "jpeg", "png"]);
 const MARKDOWN_PREVIEW_EXTENSIONS = new Set(["md"]);
 const TEXT_PREVIEW_EXTENSIONS = new Set(["txt"]);
+const FILE_REPORT_REASON = "security";
+const FILE_QUARANTINE_REASON = "manual_quarantine";
 
 let activeFilesViewDescriptor = null;
 let filesBehaviorRegistered = false;
@@ -254,9 +256,9 @@ function createStatusSelect() {
   select.dataset.fileFilterStatus = "";
   [
     ["available", "Available"],
-    ["deleted", "Deleted"],
-    ["pending", "Pending"],
-    ["quarantined", "Quarantined"],
+    ["deleted", "Unavailable"],
+    ["pending", "Review pending"],
+    ["quarantined", "In review"],
     ["all", "All visible"],
   ].forEach(([value, label]) => {
     const option = document.createElement("option");
@@ -402,7 +404,7 @@ function createOption(value, label) {
 }
 
 async function loadFiles() {
-  setStatus("Loading files...");
+  setStatus("Loading file attachments...");
 
   try {
     const result = await api.getJson(`/api/files/attachments?${readFilters().toString()}`, { cache: "no-store" });
@@ -516,6 +518,8 @@ function fileRow(attachment) {
     downloadable: Boolean(fileId && status === "available" && ["not_required", "passed"].includes(scanStatus)),
     deletable: Boolean(fileId && status !== "deleted"),
     restorable: Boolean(fileId && status === "deleted"),
+    reportable: canReportFileRow(attachment, file, fileId, status),
+    quarantineable: canQuarantineFileRow(attachment, file, fileId, status),
   };
 }
 
@@ -526,7 +530,7 @@ function createFilesTable(rows) {
     tableClassName: "files-table",
     columns: filesTableColumns(),
     rows,
-    emptyMessage: "No files match the current filters.",
+    emptyMessage: "No file attachments match the current filters.",
   });
   const tbody = table.querySelector("tbody");
 
@@ -692,18 +696,54 @@ function positionFilesTooltip() {
 }
 
 function createFileStatusCell(row) {
-  const status = createTruncatedText(row.statusLabel, "file-status-cell");
+  const status = document.createElement("span");
+  const chips = [
+    createFileStatusChip(row.status, row.statusLabel),
+    createFileScanStatusChip(row.scanStatus),
+  ].filter(Boolean);
 
+  status.className = "file-status-cell surface-chip-row";
   if (row.fileSizeLabel) {
     status.dataset.fileSize = row.fileSizeLabel;
   }
+  status.append(...chips);
   return status;
+}
+
+function createFileStatusChip(status, label) {
+  const chip = document.createElement("span");
+  const chipLabel = label || statusLabel(status, "");
+
+  chip.className = "surface-chip files-status-chip files-status-chip-availability";
+  chip.dataset.fileStatusChip = safeFileStateToken(status || "unknown");
+  chip.textContent = chipLabel;
+  chip.title = chipLabel;
+  chip.setAttribute("aria-label", `File status: ${chipLabel}`);
+  return chip;
+}
+
+function createFileScanStatusChip(scanStatus) {
+  const label = scanStatusLabel(scanStatus);
+
+  if (!label) {
+    return null;
+  }
+
+  const chip = document.createElement("span");
+
+  chip.className = "surface-chip files-status-chip files-status-chip-review";
+  chip.dataset.fileScanStatusChip = safeFileStateToken(scanStatus || "unknown");
+  chip.textContent = label;
+  chip.title = label;
+  chip.setAttribute("aria-label", `Review state: ${label}`);
+  return chip;
 }
 
 function createFileActions(row) {
   const actions = document.createElement("div");
 
   actions.className = "files-row-actions surface-dense-actions";
+  actions.dataset.fileActions = "";
   if (row.previewable) {
     actions.appendChild(createPreviewAction(row));
   } else if (row.downloadable) {
@@ -711,6 +751,12 @@ function createFileActions(row) {
   }
   if (row.downloadable) {
     actions.appendChild(createDownloadAction(row));
+  }
+  if (row.reportable) {
+    actions.appendChild(createReportAction(row));
+  }
+  if (row.quarantineable) {
+    actions.appendChild(createQuarantineAction(row));
   }
   if (row.deletable) {
     actions.appendChild(createDeleteAction(row));
@@ -728,11 +774,10 @@ function createPreviewAction(row) {
     label: `Preview ${row.fileName}`,
     text: "",
     title: `Preview ${row.fileName}`,
-    action: "preview-file",
+    action: "files.preview",
     className: "files-row-action",
     onClick: (event) => {
-      event.preventDefault();
-      event.stopPropagation();
+      stopFileRowActionEvent(event);
       openFilePreview(row, { trigger: event.currentTarget });
     },
   });
@@ -748,6 +793,7 @@ function createDownloadOnlyMarker(row) {
 
   marker.className = "action-button icon-button files-row-action files-row-preview-unavailable";
   marker.dataset.fileAction = "preview-unavailable";
+  marker.dataset.surfaceAction = "files.previewUnavailable";
   marker.setAttribute("aria-label", label);
   marker.setAttribute("role", "img");
   marker.title = label;
@@ -770,12 +816,51 @@ function createDownloadAction(row) {
   link.setAttribute("aria-label", label);
   link.title = label;
   link.dataset.fileAction = "download";
+  link.dataset.surfaceAction = "files.download";
+  link.dataset.surfaceActionRole = "secondary";
   if (icon) {
     link.appendChild(icon);
   } else {
     link.textContent = "Download";
   }
   return link;
+}
+
+function createReportAction(row) {
+  const button = view.createActionButton({
+    label: `Report ${row.fileName}`,
+    text: "Report",
+    title: `Report ${row.fileName}`,
+    role: "secondary",
+    action: "files.report",
+    className: "files-row-action files-row-action-text",
+    onClick: (event) => {
+      stopFileRowActionEvent(event);
+      reportFile(row.fileId, row.file, row.attachmentId);
+    },
+  });
+
+  button.dataset.fileAction = "report";
+  return button;
+}
+
+function createQuarantineAction(row) {
+  const button = view.createActionButton({
+    label: `Review ${row.fileName}`,
+    text: "Review",
+    title: `Review ${row.fileName}`,
+    role: "danger",
+    variant: "danger",
+    action: "files.quarantine",
+    className: "files-row-action files-row-action-text",
+    onClick: (event) => {
+      stopFileRowActionEvent(event);
+      quarantineFile(row.fileId, row.file);
+    },
+  });
+
+  button.dataset.fileAction = "quarantine";
+  return button;
 }
 
 function createDeleteAction(row) {
@@ -786,9 +871,12 @@ function createDeleteAction(row) {
     text: "",
     title: `Delete ${row.fileName}`,
     variant: "danger",
-    action: "delete-file",
+    action: "files.delete",
     className: "files-row-action",
-    onClick: () => deleteFile(row.fileId, row.file),
+    onClick: (event) => {
+      stopFileRowActionEvent(event);
+      deleteFile(row.fileId, row.file);
+    },
   });
 
   button.dataset.fileAction = "delete";
@@ -802,13 +890,21 @@ function createRestoreAction(row) {
     label: `Restore ${row.fileName}`,
     text: "",
     title: `Restore ${row.fileName}`,
-    action: "restore-file",
+    action: "files.restore",
     className: "files-row-action",
-    onClick: () => restoreFile(row.fileId),
+    onClick: (event) => {
+      stopFileRowActionEvent(event);
+      restoreFile(row.fileId);
+    },
   });
 
   button.dataset.fileAction = "restore";
   return button;
+}
+
+function stopFileRowActionEvent(event) {
+  event?.preventDefault?.();
+  event?.stopPropagation?.();
 }
 
 function openFilePreview(attachmentOrRow = {}, options = {}) {
@@ -897,7 +993,7 @@ function createPreviewDownloadAction(row) {
   link.setAttribute("aria-label", label);
   link.title = label;
   link.dataset.fileAction = "preview-download";
-  link.dataset.surfaceAction = "download-preview-file";
+  link.dataset.surfaceAction = "files.download";
   link.dataset.surfaceActionRole = "utility";
   if (icon) {
     link.appendChild(icon);
@@ -1073,7 +1169,7 @@ function normalizeFileEditorRow(attachmentOrRow = {}) {
 function buildFileEditorDialog(row, options = {}) {
   let dialog = null;
   const previewButton = view.createActionButton({
-    action: "preview-file-from-context",
+    action: "files.preview",
     className: "surface-modal-footer-action",
     icon: "eye",
     iconOnly: true,
@@ -1167,7 +1263,7 @@ function createFileEditorMetadataList(row) {
     ["File type", row.fileTypeLabel, "file-type"],
     ["Size", row.fileSizeLabel, "size"],
     ["Status", row.statusLabel, "status"],
-    ["Scan state", formatToken(row.scanStatus || ""), "scan-state"],
+    ["Review state", scanStatusLabel(row.scanStatus || ""), "review-state"],
     ["Uploaded", row.uploadedAtLabel, "uploaded"],
     ["Attached", row.attachedAtLabel, "attached"],
   ];
@@ -1716,6 +1812,107 @@ function previewStateMessage(state) {
   return "Preview is not available for this file.";
 }
 
+function canReportFileRow(attachment, file, fileId, status) {
+  const allowed = readActionBooleanFlag([
+    attachment.canReport,
+    attachment.can_report,
+    file.canReport,
+    file.can_report,
+  ], true);
+
+  return Boolean(fileId && status !== "deleted" && status !== "quarantined" && allowed);
+}
+
+function canQuarantineFileRow(attachment, file, fileId, status) {
+  const allowed = readActionBooleanFlag([
+    attachment.canQuarantine,
+    attachment.can_quarantine,
+    file.canQuarantine,
+    file.can_quarantine,
+  ], workspaceHasPermission("files.manage_quarantine"));
+
+  return Boolean(fileId && status !== "deleted" && status !== "quarantined" && allowed);
+}
+
+function readActionBooleanFlag(values, fallback) {
+  const explicit = values.find((value) => typeof value === "boolean");
+  return typeof explicit === "boolean" ? explicit : fallback;
+}
+
+function workspaceHasPermission(permissionId) {
+  const permissions = workspacePermissionSet();
+  if (permissions) {
+    return permissions.has(permissionId);
+  }
+
+  if (permissionId === "files.manage_quarantine") {
+    return window.LongtailForge?.workspaceContext?.permissionHints?.filesManageQuarantine === true;
+  }
+
+  return false;
+}
+
+function workspacePermissionSet() {
+  const rawPermissions = window.LongtailForge?.workspaceContext?.permissionIds ||
+    window.LongtailForge?.workspaceContext?.permissions;
+
+  if (!Array.isArray(rawPermissions)) {
+    return null;
+  }
+
+  const permissionIds = rawPermissions
+    .map((permission) => typeof permission === "string" ? permission : permission?.permissionId || permission?.permission_id || permission?.id)
+    .filter(Boolean);
+  return new Set(permissionIds);
+}
+
+async function reportFile(fileId, file = {}, attachmentId = "") {
+  const confirmed = await window.LongtailForge.modal.confirm({
+    title: "Report file?",
+    message: `Report "${file.displayName || file.originalFilename || "this file"}" for review? Downloads will be paused until a workspace admin reviews it.`,
+    confirmLabel: "Report File",
+    danger: true,
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  setStatus("Reporting file...");
+
+  try {
+    await api.postJson(`/api/files/${encodeURIComponent(fileId)}/report`, {
+      attachmentId,
+      reason: FILE_REPORT_REASON,
+    });
+    await loadFiles();
+  } catch (error) {
+    setStatus(error.message || "File was not reported.", true);
+  }
+}
+
+async function quarantineFile(fileId, file = {}) {
+  const confirmed = await window.LongtailForge.modal.confirm({
+    title: "Move file to review?",
+    message: `Move "${file.displayName || file.originalFilename || "this file"}" to review? Downloads will remain unavailable until the file is restored.`,
+    confirmLabel: "Move to Review",
+    danger: true,
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  setStatus("Moving file to review...");
+
+  try {
+    await api.postJson(`/api/files/${encodeURIComponent(fileId)}/quarantine`, { reason: FILE_QUARANTINE_REASON });
+    await loadFiles();
+  } catch (error) {
+    setStatus(error.message || "File was not moved to review.", true);
+  }
+}
+
 async function deleteFile(fileId, file = {}) {
   const confirmed = await window.LongtailForge.modal.confirm({
     title: "Delete file?",
@@ -1750,23 +1947,46 @@ async function restoreFile(fileId) {
 }
 
 function statusLabel(status, scanStatus) {
+  if (status === "deleted") {
+    return "Unavailable";
+  }
   if (status === "quarantined") {
-    return "Quarantined";
+    return "In review";
   }
   if (status === "pending" || scanStatus === "pending") {
-    return "Pending scan";
+    return "Review pending";
   }
   if (scanStatus === "error") {
-    return "Scan error";
+    return "Review needed";
+  }
+  if (status === "available") {
+    return "Available";
   }
 
   return formatToken(status);
 }
 
+function scanStatusLabel(scanStatus) {
+  if (scanStatus === "not_required") {
+    return "No review needed";
+  }
+  if (scanStatus === "passed") {
+    return "Reviewed";
+  }
+  if (scanStatus === "pending") {
+    return "Review pending";
+  }
+  if (scanStatus === "error") {
+    return "Review needed";
+  }
+
+  return scanStatus ? formatToken(scanStatus) : "";
+}
+
 function visibleFileCountLabel(count) {
   const safeCount = Number(count || 0);
 
-  return `${safeCount} file${safeCount === 1 ? "" : "s"} visible`;
+  return `${safeCount} file attachment${safeCount === 1 ? "" : "s"} visible`;
 }
 
 function readableFileName(file = {}) {
@@ -1801,6 +2021,13 @@ function safeFileTypeToken(value) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "") || "file";
+}
+
+function safeFileStateToken(value) {
+  return String(value || "unknown")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "unknown";
 }
 
 function formatTargetDisplay(targetType, targetLabel) {

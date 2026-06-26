@@ -3,6 +3,8 @@
 (function attachFileAttachments(global) {
   const namespace = global.LongtailForge || {};
   const api = namespace.api;
+  const FILE_REPORT_REASON = "security";
+  const FILE_QUARANTINE_REASON = "manual_quarantine";
 
   function mount(container, options = {}) {
     if (!container) {
@@ -73,56 +75,87 @@
 
   function render(container, state) {
     const { options } = state;
-    const root = document.createElement("section");
+    const view = global.LongtailForge?.view;
     const header = document.createElement("div");
     const title = document.createElement("h3");
-    const status = document.createElement("p");
-    const list = document.createElement("div");
+    const children = [];
 
-    root.className = "file-attachments";
-    root.dataset.fileAttachments = options.moduleId || "";
     header.className = "file-attachments-header";
     title.textContent = options.title || "Files";
-    status.className = state.error ? "file-attachments-status is-error" : "file-attachments-status";
-    status.setAttribute("role", "status");
-    status.setAttribute("aria-live", "polite");
-    status.textContent = statusMessage(state);
-    list.className = "file-attachments-list";
-
-    header.append(title, status);
-    root.append(header);
+    header.append(title);
 
     if (!options.targetId) {
-      root.append(emptyState(options.saveFirstMessage || "Save before adding files."));
+      children.push(createAttachmentEmptyState(options.saveFirstMessage || "Save before adding files.", false, view));
     } else {
-      root.append(uploadControls(container, state), attachmentList(container, state, list));
+      children.push(uploadControls(container, state), attachmentList(container, state, view));
     }
 
-    container.replaceChildren(root);
+    container.replaceChildren(createAttachmentPanelShell(state, view, header, children));
+  }
+
+  function createAttachmentPanelShell(state, view, header, children) {
+    const { options } = state;
+    const attrs = {
+      "data-file-attachments": options.moduleId || "",
+      "data-file-attachment-panel": "",
+    };
+    const statusClassName = state.error ? "file-attachments-status is-error" : "file-attachments-status";
+
+    if (view?.createListShell) {
+      return view.createListShell({
+        tagName: "section",
+        className: "file-attachments file-attachments-panel-shell",
+        attrs,
+        before: header,
+        statusMessage: statusMessage(state),
+        statusClassName,
+        statusAttrs: { "data-file-attachments-status": "" },
+        children,
+      });
+    }
+
+    const root = document.createElement("section");
+    const status = document.createElement("p");
+
+    root.className = "file-attachments file-attachments-panel-shell";
+    root.setAttribute("data-file-attachments", options.moduleId || "");
+    root.setAttribute("data-file-attachment-panel", "");
+    status.className = statusClassName;
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
+    status.setAttribute("data-file-attachments-status", "");
+    status.textContent = statusMessage(state);
+    root.append(header, status, ...children);
+    return root;
   }
 
   function uploadControls(container, state) {
     const { options } = state;
+    const view = global.LongtailForge?.view;
     const form = document.createElement("form");
     const label = document.createElement("label");
     const input = document.createElement("input");
-    const button = document.createElement("button");
+    const controlRow = document.createElement("div");
     const dropZone = document.createElement("div");
+    const hint = document.createElement("p");
+    const uploadButton = createUploadButton(state, view);
+    const results = uploadResultList(state, view);
 
     form.className = "file-attachment-upload";
     form.hidden = options.canUpload === false;
+    form.setAttribute("aria-label", "Upload files");
     dropZone.className = "file-attachment-dropzone";
     dropZone.tabIndex = 0;
     dropZone.textContent = state.isUploading ? "Uploading files..." : "Drop files here";
+    hint.className = "file-attachment-upload-hint";
+    hint.textContent = acceptedFileHint(options.acceptedCategories);
     label.textContent = "Choose Files";
     input.type = "file";
     input.multiple = true;
     input.dataset.fileAttachmentInput = "true";
     input.setAttribute("data-file-attachment-input", "");
     input.accept = acceptedExtensions(options.acceptedCategories).join(",");
-    button.type = "submit";
-    button.textContent = state.isUploading ? "Uploading" : "Upload";
-    button.disabled = state.isUploading || options.canUpload === false;
+    controlRow.className = "file-attachment-upload-actions";
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -151,103 +184,309 @@
     });
 
     label.append(input);
-    form.append(dropZone, label, button, uploadResultList(state));
+    controlRow.append(label, uploadButton);
+    form.append(createUploadShell(state, view, [dropZone, hint, controlRow, results]));
     return form;
   }
 
-  function attachmentList(container, state, list) {
+  function createUploadShell(state, view, children) {
+    if (view?.createListShell) {
+      return view.createListShell({
+        className: "file-attachment-upload-shell",
+        attrs: { "data-file-upload-shell": "" },
+        statusMessage: uploadStatusMessage(state),
+        statusClassName: state.error ? "file-attachment-upload-status is-error" : "file-attachment-upload-status",
+        statusAttrs: { "data-file-upload-status": "" },
+        children,
+      });
+    }
+
+    const shell = document.createElement("div");
+    const status = document.createElement("p");
+
+    shell.className = "file-attachment-upload-shell";
+    shell.dataset.fileUploadShell = "";
+    status.className = state.error ? "file-attachment-upload-status is-error" : "file-attachment-upload-status";
+    status.dataset.fileUploadStatus = "";
+    status.setAttribute("role", "status");
+    status.setAttribute("aria-live", "polite");
+    status.textContent = uploadStatusMessage(state);
+    shell.append(status, ...children);
+    return shell;
+  }
+
+  function createUploadButton(state, view) {
+    if (view?.createActionButton) {
+      return view.createActionButton({
+        action: "files.upload",
+        disabled: state.isUploading,
+        label: state.isUploading ? "Uploading" : "Upload",
+        role: "primary",
+        type: "submit",
+      });
+    }
+
+    const button = document.createElement("button");
+
+    button.type = "submit";
+    button.textContent = state.isUploading ? "Uploading" : "Upload";
+    button.disabled = state.isUploading;
+    return button;
+  }
+
+  function attachmentList(container, state, view) {
+    const children = [];
+
     if (state.isLoading) {
-      list.append(emptyState("Loading files..."));
-      return list;
+      children.push(createAttachmentEmptyState("Loading attachments...", false, view));
+      return createAttachmentListShell(view, children);
     }
 
     if (state.error) {
-      list.append(emptyState(state.error, true));
-      return list;
+      children.push(createAttachmentEmptyState(state.error, true, view));
+      return createAttachmentListShell(view, children);
     }
 
     if (state.attachments.length === 0) {
-      list.append(emptyState("No files attached."));
-      return list;
+      children.push(createAttachmentEmptyState("No attachments yet.", false, view));
+      return createAttachmentListShell(view, children);
     }
 
     state.attachments.forEach((attachment) => {
-      list.append(attachmentItem(container, state, attachment));
+      children.push(attachmentItem(container, state, attachment, view));
     });
+    return createAttachmentListShell(view, children);
+  }
+
+  function createAttachmentListShell(view, children) {
+    if (view?.createListShell) {
+      return view.createListShell({
+        className: "file-attachments-list",
+        attrs: { "data-file-attachments-list": "" },
+        status: false,
+        children,
+      });
+    }
+
+    const list = document.createElement("div");
+
+    list.className = "file-attachments-list";
+    list.setAttribute("data-file-attachments-list", "");
+    list.append(...children);
     return list;
   }
 
-  function attachmentItem(container, state, attachment) {
+  function attachmentItem(container, state, attachment, view) {
     const { options } = state;
     const file = attachment.file || {};
     const item = document.createElement("article");
     const summary = document.createElement("div");
     const name = document.createElement("strong");
-    const meta = document.createElement("span");
-    const actions = document.createElement("div");
-    const download = document.createElement("a");
-    const remove = document.createElement("button");
-    const deleteButton = document.createElement("button");
-    const restore = document.createElement("button");
+    const meta = document.createElement("div");
     const attachmentId = attachment.fileAttachmentId || attachment.file_attachment_id;
-    const fileId = attachment.fileId || attachment.file_id;
     const isDownloadable = file.status === "available" && ["not_required", "passed"].includes(file.scanStatus);
     const isDeleted = file.status === "deleted";
+    const recoveryMessage = attachmentRecoveryMessage(file, isDownloadable, isDeleted);
 
     item.className = "file-attachment-item";
     item.classList.toggle("is-deleted", isDeleted);
+    item.classList.toggle("is-quarantined", file.status === "quarantined");
+    item.classList.toggle("is-unavailable", !isDownloadable && !isDeleted);
     item.dataset.fileAttachmentId = attachmentId;
+    item.setAttribute("data-file-attachment-item", "");
     summary.className = "file-attachment-summary";
     name.textContent = file.displayName || file.originalFilename || "File";
-    meta.className = "file-attachment-meta";
-    meta.textContent = [
-      formatBytes(file.fileSizeBytes),
-      statusLabel(file.status, file.scanStatus),
-      attachment.visibility || "",
-    ].filter(Boolean).join(" | ");
-    actions.className = "file-attachment-actions";
-
-    download.href = `/api/files/${encodeURIComponent(fileId)}/download`;
-    download.textContent = "Download";
-    download.className = "button-link";
-    download.hidden = !isDownloadable;
-    download.setAttribute("download", "");
-
-    remove.type = "button";
-    remove.textContent = "Remove";
-    remove.hidden = options.canRemove === false || isDeleted;
-    remove.addEventListener("click", () => removeAttachment(container, state, attachment));
-
-    deleteButton.type = "button";
-    deleteButton.textContent = "Delete File";
-    deleteButton.hidden = options.canRemove === false || isDeleted;
-    deleteButton.addEventListener("click", () => deleteFile(container, state, attachment));
-
-    restore.type = "button";
-    restore.textContent = "Restore";
-    restore.hidden = options.canRemove === false || !isDeleted;
-    restore.addEventListener("click", () => restoreFile(container, state, attachment));
+    meta.className = "file-attachment-meta surface-chip-row";
+    meta.append(...[
+      createAttachmentMetaChip("Size", formatBytes(file.fileSizeBytes), "file-attachment-size-chip"),
+      createAttachmentMetaChip("Status", statusLabel(file.status, file.scanStatus), `file-attachment-status-chip file-attachment-status-${safeAttachmentStateToken(file.status)}`),
+      createAttachmentMetaChip("Review state", scanStatusLabel(file.scanStatus), `file-attachment-review-chip file-attachment-review-${safeAttachmentStateToken(file.scanStatus)}`),
+      createAttachmentMetaChip("Visibility", formatToken(attachment.visibility || ""), "file-attachment-visibility-chip"),
+    ].filter(Boolean));
 
     summary.append(name, meta);
-    actions.append(download, remove, deleteButton, restore);
-    item.append(summary, actions);
+    if (recoveryMessage) {
+      summary.append(createAttachmentRecoveryState(recoveryMessage));
+    }
+    item.append(summary, createAttachmentActions(container, state, attachment, view, {
+      isDeleted,
+      isDownloadable,
+      options,
+    }));
     return item;
   }
 
-  function uploadResultList(state) {
+  function createAttachmentMetaChip(label, value, className) {
+    const text = String(value || "").trim();
+
+    if (!text) {
+      return null;
+    }
+
+    const chip = document.createElement("span");
+
+    chip.className = ["surface-chip", "file-attachment-meta-chip", className].filter(Boolean).join(" ");
+    chip.textContent = text;
+    chip.title = `${label}: ${text}`;
+    chip.setAttribute("aria-label", `${label}: ${text}`);
+    return chip;
+  }
+
+  function createAttachmentActions(container, state, attachment, view, actionState) {
+    const { isDeleted, isDownloadable, options } = actionState;
+    const file = attachment.file || {};
+    const fileId = attachment.fileId || attachment.file_id;
+    const isReportable = isAttachmentReportable(attachment, file, fileId, isDeleted, options);
+    const isQuarantineable = isAttachmentQuarantineable(attachment, file, fileId, isDeleted, options);
+    const actions = document.createElement("div");
+    const download = createAttachmentDownloadAction(fileId, file, isDownloadable);
+    const remove = createAttachmentActionButton(view, {
+      action: "files.removeAttachment",
+      hidden: options.canRemove === false || isDeleted,
+      label: "Remove",
+      onClick: () => removeAttachment(container, state, attachment),
+      role: "secondary",
+    });
+    const report = createAttachmentActionButton(view, {
+      action: "files.report",
+      hidden: !isReportable,
+      label: "Report",
+      onClick: () => reportFile(container, state, attachment),
+      role: "secondary",
+    });
+    const quarantine = createAttachmentActionButton(view, {
+      action: "files.quarantine",
+      hidden: !isQuarantineable,
+      label: "Review",
+      onClick: () => quarantineFile(container, state, attachment),
+      role: "danger",
+      variant: "danger",
+    });
+    const deleteButton = createAttachmentActionButton(view, {
+      action: "files.delete",
+      hidden: options.canRemove === false || isDeleted,
+      label: "Delete File",
+      onClick: () => deleteFile(container, state, attachment),
+      role: "danger",
+      variant: "danger",
+    });
+    const restore = createAttachmentActionButton(view, {
+      action: "files.restore",
+      hidden: options.canRemove === false || !isDeleted,
+      label: "Restore",
+      onClick: () => restoreFile(container, state, attachment),
+      role: "secondary",
+    });
+
+    actions.className = "file-attachment-actions surface-dense-actions";
+    actions.setAttribute("data-file-attachment-actions", "");
+    actions.append(download, remove, report, quarantine, deleteButton, restore);
+    return actions;
+  }
+
+  function createAttachmentDownloadAction(fileId, file, isDownloadable) {
+    const download = document.createElement("a");
+    const name = file.displayName || file.originalFilename || "file";
+
+    download.href = `/api/files/${encodeURIComponent(fileId)}/download`;
+    download.textContent = "Download";
+    download.className = "button-link action-button view-action-button file-attachment-action";
+    download.hidden = !isDownloadable;
+    download.setAttribute("download", "");
+    download.setAttribute("data-surface-action", "files.download");
+    download.setAttribute("data-surface-action-role", "secondary");
+    download.setAttribute("aria-label", `Download ${name}`);
+    download.title = `Download ${name}`;
+    return download;
+  }
+
+  function createAttachmentActionButton(view, options) {
+    const button = view?.createActionButton
+      ? view.createActionButton({
+        action: options.action,
+        className: "file-attachment-action",
+        label: options.label,
+        onClick: options.onClick,
+        role: options.role,
+        title: options.title || options.label,
+        variant: options.variant,
+      })
+      : document.createElement("button");
+
+    if (!view?.createActionButton) {
+      button.type = "button";
+      button.textContent = options.label;
+      button.title = options.title || options.label;
+      button.className = "file-attachment-action";
+      button.addEventListener("click", options.onClick);
+      button.dataset.surfaceAction = options.action;
+      button.dataset.surfaceActionRole = options.role;
+    }
+
+    button.hidden = Boolean(options.hidden);
+    return button;
+  }
+
+  function createAttachmentRecoveryState(message) {
+    const recoveryState = document.createElement("p");
+
+    recoveryState.className = "file-attachment-recovery-state";
+    recoveryState.textContent = message;
+    return recoveryState;
+  }
+
+  function uploadResultList(state, view) {
+    const items = state.uploadResults.map((result) => createUploadResultItem(result));
+
+    if (view?.createListShell) {
+      return view.createListShell({
+        className: "file-attachment-upload-results",
+        attrs: { "data-file-upload-results": "" },
+        status: false,
+        children: items,
+      });
+    }
+
     const list = document.createElement("div");
 
     list.className = "file-attachment-upload-results";
-    state.uploadResults.forEach((result) => {
-      const item = document.createElement("p");
-
-      item.className = result.ok ? "file-attachment-upload-result" : "file-attachment-upload-result is-error";
-      item.textContent = result.ok
-        ? `${result.originalFilename || result.file?.originalFilename || "File"} uploaded.`
-        : `${result.originalFilename || "File"}: ${result.error || "Upload failed."}`;
-      list.append(item);
-    });
+    list.dataset.fileUploadResults = "";
+    list.append(...items);
     return list;
+  }
+
+  function createUploadResultItem(result) {
+    const item = document.createElement("p");
+
+    item.className = result.ok ? "file-attachment-upload-result" : "file-attachment-upload-result is-error";
+    item.setAttribute("data-file-upload-result", result.ok ? "success" : "error");
+    item.textContent = result.ok
+      ? `${result.originalFilename || result.file?.originalFilename || "File"} uploaded.`
+      : `${result.originalFilename || "File"}: ${result.error || "Upload failed."}`;
+    return item;
+  }
+
+  function uploadStatusMessage(state) {
+    if (state.isUploading) {
+      return "Uploading files...";
+    }
+
+    if (state.error) {
+      return state.error;
+    }
+
+    if (state.uploadResults.length > 0) {
+      const succeeded = state.uploadResults.filter((result) => result.ok).length;
+      const failed = state.uploadResults.length - succeeded;
+
+      if (failed > 0) {
+        return `${succeeded} uploaded, ${failed} failed.`;
+      }
+
+      return `${succeeded} uploaded.`;
+    }
+
+    return "Select files to upload.";
   }
 
   async function uploadFiles(container, state, files) {
@@ -298,6 +537,53 @@
     }
   }
 
+  function isAttachmentReportable(attachment, file, fileId, isDeleted, options) {
+    const allowed = readActionBooleanFlag([
+      options.canReport,
+      attachment.canReport,
+      attachment.can_report,
+      file.canReport,
+      file.can_report,
+    ], true);
+
+    return Boolean(fileId && !isDeleted && file.status !== "quarantined" && allowed);
+  }
+
+  function isAttachmentQuarantineable(attachment, file, fileId, isDeleted, options) {
+    const allowed = readActionBooleanFlag([
+      options.canQuarantine,
+      attachment.canQuarantine,
+      attachment.can_quarantine,
+      file.canQuarantine,
+      file.can_quarantine,
+    ], false);
+
+    return Boolean(fileId && !isDeleted && file.status !== "quarantined" && allowed);
+  }
+
+  function readActionBooleanFlag(values, fallback) {
+    const explicit = values.find((value) => typeof value === "boolean");
+    return typeof explicit === "boolean" ? explicit : fallback;
+  }
+
+  function workspaceHasPermission(permissionId) {
+    const rawPermissions = namespace.workspaceContext?.permissionIds ||
+      namespace.workspaceContext?.permissions;
+
+    if (Array.isArray(rawPermissions)) {
+      return rawPermissions.some((permission) => {
+        const permissionValue = typeof permission === "string" ? permission : permission?.permissionId || permission?.permission_id || permission?.id;
+        return permissionValue === permissionId;
+      });
+    }
+
+    if (permissionId === "files.manage_quarantine") {
+      return namespace.workspaceContext?.permissionHints?.filesManageQuarantine === true;
+    }
+
+    return false;
+  }
+
   async function removeAttachment(container, state, attachment) {
     const attachmentId = attachment.fileAttachmentId || attachment.file_attachment_id;
 
@@ -311,6 +597,68 @@
       await refresh(container, state);
     } catch (error) {
       state.error = error.message || "Attachment was not removed.";
+      render(container, state);
+    }
+  }
+
+  async function reportFile(container, state, attachment) {
+    const fileId = attachment.fileId || attachment.file_id;
+    const file = attachment.file || {};
+    const attachmentId = attachment.fileAttachmentId || attachment.file_attachment_id;
+
+    if (!fileId) {
+      return;
+    }
+
+    const confirmed = await global.LongtailForge.modal.confirm({
+      title: "Report file?",
+      message: `Report "${file.displayName || file.originalFilename || "this file"}" for review? Downloads will be paused until a workspace admin reviews it.`,
+      confirmLabel: "Report File",
+      danger: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await api.postJson(`/api/files/${encodeURIComponent(fileId)}/report`, {
+        attachmentId,
+        reason: FILE_REPORT_REASON,
+      });
+      emit(container, state, "fileReported", { attachment });
+      await refresh(container, state);
+    } catch (error) {
+      state.error = error.message || "File was not reported.";
+      render(container, state);
+    }
+  }
+
+  async function quarantineFile(container, state, attachment) {
+    const fileId = attachment.fileId || attachment.file_id;
+    const file = attachment.file || {};
+
+    if (!fileId) {
+      return;
+    }
+
+    const confirmed = await global.LongtailForge.modal.confirm({
+      title: "Move file to review?",
+      message: `Move "${file.displayName || file.originalFilename || "this file"}" to review? Downloads will remain unavailable until the file is restored.`,
+      confirmLabel: "Move to Review",
+      danger: true,
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await api.postJson(`/api/files/${encodeURIComponent(fileId)}/quarantine`, { reason: FILE_QUARANTINE_REASON });
+      emit(container, state, "fileQuarantined", { attachment });
+      await refresh(container, state);
+    } catch (error) {
+      state.error = error.message || "File was not moved to review.";
       render(container, state);
     }
   }
@@ -380,6 +728,8 @@
     return {
       acceptedCategories: [],
       canRemove: true,
+      canReport: true,
+      canQuarantine: workspaceHasPermission("files.manage_quarantine"),
       canUpload: true,
       clientId: "",
       moduleId: "",
@@ -420,18 +770,22 @@
     return [...categorySet].flatMap((category) => all[category] || []);
   }
 
+  function acceptedFileHint(categories) {
+    return `Accepted: ${acceptedExtensions(categories).join(", ")}`;
+  }
+
   function statusMessage(state) {
     if (state.error) {
       return state.error;
     }
     if (state.isUploading) {
-      return "Uploading file...";
+      return "Uploading attachments...";
     }
     if (state.isLoading) {
-      return "Loading files...";
+      return "Loading attachments...";
     }
 
-    return `${state.attachments.length} attached`;
+    return state.attachments.length === 1 ? "1 attachment" : `${state.attachments.length} attachments`;
   }
 
   function emptyState(message, isError = false) {
@@ -442,18 +796,74 @@
     return element;
   }
 
+  function createAttachmentEmptyState(message, isError = false, view) {
+    if (view?.createEmptyState) {
+      return view.createEmptyState({
+        className: isError ? "file-attachments-empty is-error" : "file-attachments-empty",
+        live: isError ? "assertive" : "polite",
+        message,
+        role: isError ? "alert" : "status",
+      });
+    }
+
+    return emptyState(message, isError);
+  }
+
   function statusLabel(status, scanStatus) {
+    if (status === "deleted") {
+      return "Unavailable";
+    }
     if (status === "quarantined") {
-      return "Quarantined";
+      return "In review";
     }
     if (status === "pending" || scanStatus === "pending") {
-      return "Pending scan";
+      return "Review pending";
     }
     if (scanStatus === "error") {
-      return "Scan error";
+      return "Review needed";
+    }
+    if (status === "available") {
+      return "Available";
     }
 
     return status ? formatToken(status) : "";
+  }
+
+  function scanStatusLabel(scanStatus) {
+    if (scanStatus === "not_required") {
+      return "No review needed";
+    }
+    if (scanStatus === "passed") {
+      return "Reviewed";
+    }
+    if (scanStatus === "pending") {
+      return "Review pending";
+    }
+    if (scanStatus === "error") {
+      return "Review needed";
+    }
+
+    return scanStatus ? formatToken(scanStatus) : "";
+  }
+
+  function attachmentRecoveryMessage(file, isDownloadable, isDeleted) {
+    if (isDeleted) {
+      return "This attachment is unavailable in normal work, but can be restored during the recovery window.";
+    }
+    if (file.status === "quarantined") {
+      return "Downloads are paused while this file is in review.";
+    }
+    if (file.status === "pending" || file.scanStatus === "pending") {
+      return "Download will be available when review completes.";
+    }
+    if (file.scanStatus === "error") {
+      return "Download is unavailable until review is complete.";
+    }
+    if (!isDownloadable) {
+      return "Download is unavailable for this file right now.";
+    }
+
+    return "";
   }
 
   function formatBytes(value) {
@@ -476,6 +886,13 @@
     return String(value || "")
       .replace(/[_-]+/g, " ")
       .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function safeAttachmentStateToken(value) {
+    return String(value || "unknown")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "unknown";
   }
 
   function dashCase(value) {
