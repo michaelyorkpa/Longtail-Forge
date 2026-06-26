@@ -83,10 +83,10 @@ assert.ok(filesPage.includes("js/shared/modal.js"), "Files page should load the 
 assert.ok(
   filesPage.indexOf("js/shared/client-project-options.js") < filesPage.indexOf("js/shared/view-builder.js?v=16") &&
     filesPage.indexOf("js/shared/view-builder.js?v=16") < filesPage.indexOf("js/shared/view-renderer.js?v=12") &&
-    filesPage.indexOf("js/shared/view-renderer.js?v=12") < filesPage.indexOf("js/files.js?v=5"),
+    filesPage.indexOf("js/shared/view-renderer.js?v=12") < filesPage.indexOf("js/files.js?v=7"),
   "Files page should load client/project helpers plus the shared view builder/renderer before the Files adapter.",
 );
-assert.ok(filesPage.includes("js/files.js?v=5"), "Files page should cache-bust the protected Files script.");
+assert.ok(filesPage.includes("js/files.js?v=7"), "Files page should cache-bust the protected Files script.");
 assert.doesNotMatch(filesPage, /\b(data-file-filters|data-file-business-control|data-file-list)\b/, "Files page should not ship browse hooks outside the descriptor host.");
 assert.ok(filesScript.includes("data-file-filters") || filesScript.includes("dataset.fileFilters"), "Files adapter should mount the filter form.");
 assert.ok(filesScript.includes("data-file-business-control") || filesScript.includes("dataset.fileBusinessControl"), "Files adapter should mark business-only client controls.");
@@ -104,6 +104,8 @@ assert.ok(filesScript.includes("status"), "Files surface should filter by status
 assert.ok(filesScript.includes("targetLabel"), "Files surface should render human-readable target labels.");
 assert.ok(filesScript.includes("clientLabel"), "Files surface should render human-readable client labels.");
 assert.ok(filesScript.includes("projectLabel"), "Files surface should render human-readable project labels.");
+assert.ok(filesScript.includes("LongtailForge.filesDialog"), "Files surface should expose the canonical file context dialog namespace.");
+assert.ok(filesScript.includes("openFileEditor"), "Files surface should expose the file context editor opener.");
 assert.ok(filesScript.includes("usesBusinessScope() ? clientFilter?.value : \"\""), "Files surface should not send client filters outside Business workspaces.");
 assert.ok(filesScript.includes('title: "Delete file?"'), "Files surface should warn before deleting files.");
 assert.ok(helper.includes('title: "Delete file?"'), "Attachment helper should warn before deleting files.");
@@ -111,7 +113,9 @@ assert.ok(staticService.includes('"files.html"'), "Files page should be a framew
 assert.ok(appShell.includes('href: "files.html"'), "Files page should appear in app navigation.");
 
 assert.ok(filesRoutes.includes('"/files/attachments/counts"'), "Files routes should expose count endpoint.");
+assert.ok(filesRoutes.includes('"/files/attachable-targets"'), "Files routes should expose attachable target option endpoint.");
 assert.ok(filesService.includes("countAttachmentsForTargets"), "Files service should own attachment count queries.");
+assert.ok(filesService.includes("listAttachableTargetOptions"), "Files service should own attachable target option queries.");
 assert.ok(filesService.includes("normalizeFileStatusFilter"), "Files service should normalize status filters.");
 assert.ok(filesService.includes("filters.filename"), "Files service should filter browse results by filename.");
 assert.ok(filesService.includes("filters.clientId"), "Files service should filter browse results by client.");

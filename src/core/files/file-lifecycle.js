@@ -14,6 +14,7 @@ const FILE_LIFECYCLE_EVENTS = Object.freeze([
   "file.deleted",
   "file.restored",
   "file.attachment.created",
+  "file.attachment.context_updated",
   "file.attachment.removed",
 ]);
 

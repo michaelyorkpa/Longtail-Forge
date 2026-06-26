@@ -572,6 +572,7 @@ function registerFileEventCapture() {
     "file.deleted",
     "file.restored",
     "file.attachment.created",
+    "file.attachment.context_updated",
     "file.attachment.removed",
   ]) {
     internalEventBus.on(eventName, async (event) => {

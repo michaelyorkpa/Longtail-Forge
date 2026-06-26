@@ -207,6 +207,7 @@ const FILE_LIFECYCLE_EVENT_VALUES = new Set([
   "file.reported",
   "file.deleted",
   "file.attachment.created",
+  "file.attachment.context_updated",
   "file.attachment.removed",
 ]);
 const TERMINOLOGY_FIELDS = new Set([

@@ -134,7 +134,7 @@ try {
     const notesScript = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
 
     assert.match(filesPage, /data-files-host/);
-    assert.match(filesPage, /js\/shared\/client-project-options\.js[\s\S]*js\/files\.js\?v=5/);
+    assert.match(filesPage, /js\/shared\/client-project-options\.js[\s\S]*js\/files\.js\?v=7/);
     assert.match(filesScript, /dataset\.fileBusinessControl/);
     assert.match(filesScript, /await window\.LongtailForge\.workspaceContextReady/);
     assert.match(filesScript, /clientId: usesBusinessScope\(\) \? clientFilter\?\.value : ""/);

@@ -1,3 +1,32 @@
+## Version 0.33.5.18.11.8 - 2026-06-26 07:22 -04:00
+
+- Added `LongtailForge.filesDialog.openFileEditor()` as the canonical Files-owned File Context modal opener using shared view modal/form/footer helpers and shared modal-stack focus return.
+- Added read-only File Context metadata rows for filename, file type, size, status, scan state, uploaded timestamp, attached timestamp, and uploader when available, while keeping editable controls limited to Target, Project, and Business-only Client selectors.
+- Loaded File Context target choices from `GET /api/files/attachable-targets`, kept Client hidden/disabled/unnamed outside Business workspaces, left Save non-submitting, and intentionally deferred row-open, context save, preview, rename, replacement, storage, scan/quarantine, hard-delete, purge, and download-only metadata controls.
+- Added `scripts/files-edit-modal-shell-regression.mjs`, updated Files integration/cache-bust checks, refreshed Files docs/decisions, archived the completed 0.33.5.18.11.7 roadmap slice, and advanced package plus current Notes/Tasks module metadata to `0.33.5.18.11.8`.
+- Verification 2026-06-26 07:32 -04:00: targeted Files edit-modal/list/filter/integration regressions passed, `npm run test:permissions` passed 236 checks, `npm run check` passed 182/182 regression scripts plus ESLint, SQLite `PRAGMA integrity_check` returned `ok` for all local DB files under `data`, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.11.8 after restarting the local 8001 server.
+
+## Version 0.33.5.18.11.7 - 2026-06-25 18:38 -04:00
+
+- Added `GET /api/files/attachable-targets` and `filesService.listAttachableTargetOptions()` so the later File Context modal can load permission-shaped registered attachment targets without adding row-open or save UI.
+- Shaped target options with readable target/module/type/context labels, Business-only Client filter payloads, Personal/Family Client stripping, active target filtering, raw-ID display-label fallbacks, and no file storage/scanner/secure-note leakage.
+- Added `scripts/files-attachable-target-options-regression.mjs`, wired it into the file-storage regression bucket, updated the Files integration regression and docs/decisions, archived the completed 0.33.5.18.11.6 roadmap slice, and advanced package plus current Notes/Tasks module metadata to `0.33.5.18.11.7`.
+- Verification 2026-06-25 18:49 -04:00: targeted Files target-option/context/UI regressions passed, `npm run test:permissions` passed 236 checks, `npm run check` passed 181/181 regression scripts plus ESLint, SQLite `PRAGMA integrity_check` returned `ok` for all local DB files under `data`, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.11.7 after restarting the local 8001 server.
+
+## Version 0.33.5.18.11.6 - 2026-06-25 17:20 -04:00
+
+- Added `PATCH /api/files/attachments/:fileAttachmentId/context` and `filesService.updateAttachmentContext()` so Files can update attachment context through the registered attachable-target contract without changing the file binary, storage provider/key, scan state, status, hash, size, or upload metadata.
+- Added safe attachment-context validation, including old-context remove permission, new-target attach permission, workspace target resolution, Client/Project derivation from the selected target, mismatch rejection, duplicate active-context rejection, audit metadata, and `file.attachment.context_updated` lifecycle events for old/new record scopes.
+- Added `scripts/files-attachment-context-route-regression.mjs`, wired it into the file-storage regression bucket, updated lifecycle catalog regressions/manifests/module lifecycle declarations, refreshed Files docs/decisions, archived the completed 0.33.5.18.11.5 roadmap slice, and advanced package plus current Notes/Tasks module metadata to `0.33.5.18.11.6`.
+- Verification 2026-06-25 17:25 -04:00: targeted Files context/lifecycle regressions passed, `npm run test:permissions` passed 236 checks, `npm run check` passed 180/180 regression scripts plus ESLint, SQLite `PRAGMA integrity_check` returned `ok` for all local DB files under `data`, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.11.6 after restarting the local 8001 server.
+
+## Version 0.33.5.18.11.5 - 2026-06-25 16:55 -04:00
+
+- Reset Files browse to the compact listing contract: the results region now renders the shared status/list shell plus table only, with no inline Browse Summary, selected-file header, inline Preview, inline Metadata, or selected-row detail state.
+- Preserved the readable Files row anatomy from the prior list slice, including file-type badges, truncated filename/target/Client/Project values with custom reveal behavior, status, attached timestamp, Business-only Client display, and icon-only Download/Delete/Restore actions.
+- Added `scripts/files-browse-compact-reset-regression.mjs`, updated the Files list-shell/filter/descriptor regressions, refreshed Files view-building/module docs and decisions, bumped Files asset cache keys, and advanced package plus current Notes/Tasks module metadata to `0.33.5.18.11.5`.
+- Verification 2026-06-25 17:03 -04:00: `npm run check` passed 179/179 regression scripts plus ESLint, SQLite `PRAGMA integrity_check` returned `ok` for all local DB files under `data`, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.11.5 after restarting the local 8001 server.
+
 ## Version 0.33.5.18.11.4 - 2026-06-25 14:55 -04:00
 
 - Added the Files browse selected-file read anatomy: summary panel, selectable rows, selected-file detail header, safe metadata rows, preview/availability panel, and selected-row styling through shared view helpers.
@@ -5,6 +34,7 @@
 - Kept download/delete/restore behavior Files-owned while the detail panel uses the existing row-shaped route-backed availability state and existing download route action.
 - Added `scripts/files-detail-summary-regression.mjs`, updated Files cache keys, refreshed Files detail/summary docs/decisions, archived the completed 0.33.5.18.11.3 roadmap slice, and bumped package plus current Notes/Tasks module metadata to `0.33.5.18.11.4`.
 - Verification 2026-06-25 15:16 -04:00: `npm run check` passed 179/179 regression scripts plus ESLint, SQLite `PRAGMA integrity_check` returned `ok` for all local DB files under `data`, `git diff --check` reported no whitespace errors, and `/api/app-info` returned 0.33.5.18.11.4 after restarting the local 8001 server.
+- Planning follow-up 2026-06-25 16:40 -04:00: resliced the corrective Files browse/edit/preview branch into 0.33.5.18.11.5 through 0.33.5.18.11.13 so compact browse reset, attachment context routes, target options, edit modal shell/wiring, preview contract/content/modal, and 0.33.5.18.12 handoff can each ship in one pass without duplicating the later upload/attachment-panel/strict-guardrail work.
 
 ## Version 0.33.5.18.11.3 - 2026-06-25 14:06 -04:00
 

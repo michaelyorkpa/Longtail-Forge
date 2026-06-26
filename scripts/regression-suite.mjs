@@ -46,7 +46,8 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/files-descriptor-host-regression.mjs",
   "scripts/files-filter-sidebar-regression.mjs",
   "scripts/files-browse-list-shell-regression.mjs",
-  "scripts/files-detail-summary-regression.mjs",
+  "scripts/files-browse-compact-reset-regression.mjs",
+  "scripts/files-edit-modal-shell-regression.mjs",
   "scripts/view-index-primitive-regression.mjs",
   "scripts/view-shared-capabilities-regression.mjs",
   "scripts/view-renderer-actions-regression.mjs",
@@ -106,6 +107,8 @@ const DEFAULT_DATABASE_REGRESSIONS = Object.freeze([
 const FILE_STORAGE_REGRESSIONS = Object.freeze([
   "scripts/file-framework-contract-regression.mjs",
   "scripts/file-api-lifecycle-regression.mjs",
+  "scripts/files-attachment-context-route-regression.mjs",
+  "scripts/files-attachable-target-options-regression.mjs",
   "scripts/file-storage-accounting-regression.mjs",
   "scripts/file-settings-regression.mjs",
   "scripts/files-attachment-readmodel-regression.mjs",

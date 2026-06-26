@@ -58,7 +58,8 @@ check("file lifecycle events remain safe canonical framework events", () => {
   const lifecycleSource = read("src/core/files/file-lifecycle.js");
   const fileService = read("src/services/files.service.js");
 
-  assert.ok(FILE_LIFECYCLE_EVENTS.length >= 13, "file lifecycle event catalog should cover the upload/download/report/remove/delete flow");
+  assert.ok(FILE_LIFECYCLE_EVENTS.length >= 14, "file lifecycle event catalog should cover the upload/download/report/remove/delete/context flow");
+  assert.ok(FILE_LIFECYCLE_EVENTS.includes("file.attachment.context_updated"), "file lifecycle should expose attachment context update events");
   assert.ok(lifecycleSource.includes("sanitizeFileLifecyclePayload"), "file lifecycle payloads should be sanitized centrally");
   ["content", "contents", "data", "buffer", "path", "storagePath", "secret", "token"].forEach((blockedKey) => {
     assert.ok(lifecycleSource.includes(`"${blockedKey}"`), `lifecycle sanitizer should block ${blockedKey}`);

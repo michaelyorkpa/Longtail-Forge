@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.11.4";
+const appVersion = "0.33.5.18.11.8";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
@@ -15,7 +15,8 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
-assert.match(filesHtml, /js\/shared\/icons\.js\?v=5[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=5/, "Files host should load the cache-busted icon helper and Files adapter after the renderer");
+assert.match(filesHtml, /css\/longtail-forge\.css\?v=8/, "Files host should cache-bust the compact reset stylesheet");
+assert.match(filesHtml, /js\/shared\/icons\.js\?v=5[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=7/, "Files host should load the cache-busted icon helper and Files adapter after the renderer");
 
 assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Files descriptor should keep the service-owned attachments read route");
 [
@@ -33,18 +34,21 @@ assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Fi
 
 const resultsChrome = functionBlock(filesScript, "createFilesResultsChrome");
 assert.match(resultsChrome, /requireFilesViewHelper\("createListShell"\)/, "Files results should require the shared list shell helper");
-assert.match(resultsChrome, /view\.createListShell\(\{[\s\S]*className:\s*"files-browse-list-shell"[\s\S]*statusAttrs:\s*\{\s*"data-file-status":\s*""\s*\}[\s\S]*children:\s*\[summaryMount, tableMount, detailMount\]/, "Files results should mount status, summary, table, and detail through the shared list shell");
+assert.match(resultsChrome, /view\.createListShell\(\{[\s\S]*className:\s*"files-browse-list-shell"[\s\S]*statusAttrs:\s*\{\s*"data-file-status":\s*""\s*\}[\s\S]*children:\s*tableMount/, "Files results should mount the compact status plus table through the shared list shell");
 assert.match(resultsChrome, /tableMount\.dataset\.fileTableMount = ""/, "Files results should expose a stable table remount target");
+assert.doesNotMatch(resultsChrome, /summaryMount|detailMount|createFilesSummaryPanel|createFilesDetailPanel/, "Files results should not mount inline summary or detail panels");
 
 const filesTable = functionBlock(filesScript, "createFilesTable");
 assert.match(filesTable, /requireFilesViewHelper\("createDataTable"\)/, "Files browse table should require the shared data table helper");
 assert.match(filesTable, /view\.createDataTable\(\{[\s\S]*className:\s*"files-table-wrap"[\s\S]*tableClassName:\s*"files-table"[\s\S]*columns:\s*filesTableColumns\(\)[\s\S]*emptyMessage:\s*"No files match the current filters\."/,
   "Files browse table should render through the shared data table helper with the existing empty state");
 assert.match(filesTable, /tbody\.dataset\.fileList = ""/, "Files browse table should keep a stable file-list hook after remounting");
+assert.doesNotMatch(filesTable, /wireSelectableFileRow|fileSelectableRow|fileSelectedRow/, "Files browse table should not wire selected-row behavior");
 
 const renderFiles = functionBlock(filesScript, "renderFiles");
 assert.match(renderFiles, /attachments\.map\(\(attachment\) => fileRow\(attachment\)\)/, "Files should shape API attachments before rendering rows");
 assert.match(renderFiles, /renderFilesTable\(rows\)/, "Files render should delegate table rendering to the helper-owned table remount path");
+assert.doesNotMatch(renderFiles, /state\.fileRows|reconcileSelectedFile|renderFilesSummary|renderSelectedFileDetail/, "Files render should stay compact without selected-row detail sync");
 const renderFilesTable = functionBlock(filesScript, "renderFilesTable");
 assert.match(renderFilesTable, /fileTableMount\.replaceChildren\(createFilesTable\(rows\)\)/, "Files should remount the helper-owned table instead of manually rebuilding table rows");
 
@@ -54,7 +58,9 @@ assert.match(fileRow, /moduleLabel:\s*formatToken\(attachment\.moduleId \|\| att
 assert.match(fileRow, /targetLabel:\s*formatTargetDisplay\(targetType, targetLabel\)/, "Files should shape readable target labels");
 assert.match(fileRow, /clientLabel,[\s\S]*projectLabel,[\s\S]*statusLabel:[\s\S]*attachedAtLabel:/, "Files should shape client/project/status/timestamp display data");
 assert.match(fileRow, /downloadable:[\s\S]*deletable:[\s\S]*restorable:/, "Files should keep action availability in the Files adapter");
-assert.doesNotMatch(fileRow, /targetId|target_id|clientId|client_id|projectId|project_id/, "Normal Files browse rows should not fall back to raw target/client/project IDs");
+assert.match(fileRow, /targetId:[\s\S]*clientId:[\s\S]*projectId:/, "Files may keep raw context IDs internally for the modal shell");
+assert.doesNotMatch(fileRow, /selectionKey/, "Normal Files browse rows should not expose selection keys");
+assert.doesNotMatch(fileRow, /targetLabel:\s*[^,\n]*(targetId|target_id)|clientLabel:\s*[^,\n]*(clientId|client_id)|projectLabel:\s*[^,\n]*(projectId|project_id)/, "Normal Files browse visible labels should not fall back to raw target/client/project IDs");
 
 assert.doesNotMatch(filesScript, /\b(querySql|runSql|storage_key|file_attachments|search_index|tagsService|tagLinks)\b/, "Files browser adapter should not query storage, search, tags, or attachment tables directly");
 assert.match(filesScript, /api\.getJson\(`\/api\/files\/attachments\?\$\{readFilters\(\)\.toString\(\)\}`/, "Files browse should continue loading through the service-owned attachments route");

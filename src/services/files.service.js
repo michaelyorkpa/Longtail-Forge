@@ -21,6 +21,8 @@ const DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_ALLOWED_VISIBILITY = new Set(["private", "workspace", "client"]);
 const DEFAULT_ATTACHMENT_LIMIT = 50;
 const MAX_ATTACHMENT_LIMIT = 200;
+const DEFAULT_ATTACHABLE_TARGET_LIMIT = 50;
+const MAX_ATTACHABLE_TARGET_LIMIT = 100;
 const ATTACHMENT_SORT_MODES = new Set(["newest", "oldest", "filename", "size", "status"]);
 const FILE_TYPE_POLICY_MODES = new Set(["safe_default", "allowlist", "blocklist"]);
 const ALLOWED_EXTENSIONS = new Map([
@@ -570,6 +572,128 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   });
 
   return { attachment: { ...shapeAttachment(attachment), removedAt: now, removed_at: now } };
+}
+
+async function updateAttachmentContext(session, attachmentId, payload = {}) {
+  const attachment = await readAttachmentById(session.workspace_id, attachmentId);
+
+  if (!attachment || attachment.removed_at) {
+    throw new AppError("Attachment not found.", 404);
+  }
+
+  const previousContext = attachmentContextFromRow(attachment);
+  const previousAttachableType = await resolveAttachableType(
+    session.workspace_id,
+    attachment.module_id,
+    attachment.target_type,
+  );
+  const previousTarget = await readAttachableTarget(session.workspace_id, previousAttachableType, attachment.target_id);
+  await assertCanUseAttachableTarget(session, previousAttachableType, "remove", previousTarget);
+
+  const nextModuleId = normalizeRequiredText(payload.moduleId || payload.module_id, "Module ID is required.");
+  const nextTargetType = normalizeRequiredText(payload.targetType || payload.target_type, "Target type is required.");
+  const nextTargetId = normalizeRequiredText(payload.targetId || payload.target_id, "Target ID is required.");
+  const nextAttachableType = await resolveAttachableType(session.workspace_id, nextModuleId, nextTargetType);
+  const nextTarget = await readAttachableTarget(session.workspace_id, nextAttachableType, nextTargetId);
+
+  assertAttachmentContextPayloadMatchesTarget(nextAttachableType, nextTarget, payload);
+  await assertCanUseAttachableTarget(session, nextAttachableType, "attach", nextTarget);
+  await assertNoDuplicateActiveAttachmentContext(session.workspace_id, attachment, nextAttachableType, nextTarget);
+
+  const nextContextIds = attachmentTargetContextIds(nextAttachableType, nextTarget);
+  const nextContext = {
+    clientId: nextContextIds.clientId,
+    moduleId: nextAttachableType.moduleId,
+    projectId: nextContextIds.projectId,
+    targetId: nextTarget.target_id,
+    targetType: nextAttachableType.targetType,
+  };
+
+  if (attachmentContextsEqual(previousContext, nextContext)) {
+    return { attachment: await shapeAttachmentForRead(session, attachment) };
+  }
+
+  await runSql(`
+UPDATE file_attachments
+SET module_id = ${sqlText(nextContext.moduleId)},
+    target_type = ${sqlText(nextContext.targetType)},
+    target_id = ${sqlText(nextContext.targetId)},
+    client_id = ${sqlNullableText(nextContext.clientId)},
+    project_id = ${sqlNullableText(nextContext.projectId)}
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND file_attachment_id = ${sqlText(attachment.file_attachment_id)};
+`);
+
+  const updatedAttachment = await readAttachmentById(session.workspace_id, attachment.file_attachment_id);
+  await emitAttachmentContextUpdateEvents(session, updatedAttachment, previousContext, nextContext);
+  await recordFileAudit(session, {
+    action: "file.attachment_context_updated",
+    changeType: "update",
+    recordId: attachment.file_attachment_id,
+    recordLabel: attachment.display_name,
+    metadata: {
+      file_id: attachment.file_id,
+      next_context: auditAttachmentContext(nextContext),
+      previous_context: auditAttachmentContext(previousContext),
+    },
+  });
+
+  return { attachment: await shapeAttachmentForRead(session, updatedAttachment) };
+}
+
+async function listAttachableTargetOptions(session, filters = {}) {
+  const normalizedFilters = normalizeAttachableTargetOptionFilters(filters);
+  const workspaceType = await readWorkspaceType(session.workspace_id);
+  const filteredTypes = (await listActiveAttachableTypes(session.workspace_id))
+    .filter((attachableType) => {
+      if (normalizedFilters.moduleId && attachableType.moduleId !== normalizedFilters.moduleId) {
+        return false;
+      }
+      if (normalizedFilters.targetType && attachableType.targetType !== normalizedFilters.targetType) {
+        return false;
+      }
+      return true;
+    });
+  const options = [];
+
+  for (const attachableType of filteredTypes) {
+    const remaining = normalizedFilters.limit - options.length;
+
+    if (remaining <= 0) {
+      break;
+    }
+
+    const rows = await readAttachableTargetOptionRows(
+      session.workspace_id,
+      attachableType,
+      normalizedFilters,
+      workspaceType,
+      Math.min(remaining * 3, MAX_ATTACHABLE_TARGET_LIMIT),
+    );
+
+    for (const row of rows) {
+      if (options.length >= normalizedFilters.limit) {
+        break;
+      }
+
+      const option = await shapePermittedAttachableTargetOption(session, attachableType, row, workspaceType);
+
+      if (option) {
+        options.push(option);
+      }
+    }
+  }
+
+  const decoratedOptions = await decorateAttachableTargetOptions(session.workspace_id, options, workspaceType);
+  decoratedOptions.sort(compareAttachableTargetOptions);
+
+  return {
+    count: decoratedOptions.length,
+    filters: buildAttachableTargetOptionFilters(decoratedOptions, workspaceType),
+    options: decoratedOptions,
+    targetTypes: buildAttachableTargetTypeOptions(decoratedOptions),
+    workspaceType,
+  };
 }
 
 async function deleteFile(session, fileId) {
@@ -1873,6 +1997,341 @@ LIMIT 1;
   };
 }
 
+async function readWorkspaceType(workspaceId) {
+  const rows = await querySql(`
+SELECT workspace_type
+FROM workspaces
+WHERE workspace_id = ${sqlText(workspaceId)}
+LIMIT 1;
+`);
+
+  return normalizeWorkspaceType(rows[0]?.workspace_type);
+}
+
+function normalizeAttachableTargetOptionFilters(filters = {}) {
+  return {
+    clientId: normalizeOptionalText(filters.clientId ?? filters.client_id),
+    limit: clampInteger(filters.limit || filters.pageSize || filters.page_size, DEFAULT_ATTACHABLE_TARGET_LIMIT, 1, MAX_ATTACHABLE_TARGET_LIMIT),
+    moduleId: normalizeOptionalText(filters.moduleId ?? filters.module_id),
+    projectId: normalizeOptionalText(filters.projectId ?? filters.project_id),
+    search: normalizeOptionalText(filters.q ?? filters.search ?? filters.query, { maxLength: 120 }),
+    targetType: normalizeOptionalText(filters.targetType ?? filters.target_type),
+  };
+}
+
+async function readAttachableTargetOptionRows(workspaceId, attachableType, filters, workspaceType, limit) {
+  const tableName = safeSqlIdentifier(attachableType.tableName);
+  const idField = safeSqlIdentifier(attachableType.idField);
+  const labelField = safeSqlIdentifier(attachableType.labelField);
+  const workspaceField = safeSqlIdentifier(attachableType.workspaceField);
+  const clientField = attachableType.clientField ? safeSqlIdentifier(attachableType.clientField) : "";
+  const projectField = attachableType.projectField ? safeSqlIdentifier(attachableType.projectField) : "";
+  const columns = await readTableColumnSet(tableName);
+  const conditions = [
+    `${workspaceField} = ${sqlText(workspaceId)}`,
+    ...attachableTargetActiveConditions(columns),
+    ...attachableTargetFilterConditions(attachableType, filters, workspaceType, { clientField, idField, projectField }),
+  ];
+
+  if (filters.search) {
+    conditions.push(`LOWER(COALESCE(${labelField}, '')) LIKE ${sqlText(sqlLikePattern(filters.search))} ESCAPE ${sqlText("\\")}`);
+  }
+
+  return querySql(`
+SELECT
+  ${idField} AS target_id,
+  ${labelField} AS target_label,
+  ${workspaceField} AS workspace_id
+  ${clientField ? `, ${clientField} AS client_id` : ", NULL AS client_id"}
+  ${projectField ? `, ${projectField} AS project_id` : ", NULL AS project_id"}
+FROM ${tableName}
+WHERE ${conditions.join("\n  AND ")}
+ORDER BY LOWER(COALESCE(${labelField}, '')) ASC, ${idField} ASC
+LIMIT ${sqlInteger(limit)};
+`);
+}
+
+async function shapePermittedAttachableTargetOption(session, attachableType, row, workspaceType) {
+  try {
+    await assertCanUseAttachableTarget(session, attachableType, "read", row);
+    await assertCanUseAttachableTarget(session, attachableType, "attach", row);
+  } catch {
+    return null;
+  }
+
+  const moduleLabel = moduleLabelForAttachableType(attachableType);
+  const targetTypeLabel = safeDisplayLabel(attachableType.label, "Record");
+  const targetLabel = safeDisplayLabel(row.target_label, `Untitled ${targetTypeLabel}`, [
+    row.target_id,
+    row.workspace_id,
+    row.client_id,
+    row.project_id,
+  ]);
+  const contextIds = attachmentTargetContextIds(attachableType, row);
+  const option = {
+    label: targetLabel,
+    moduleId: attachableType.moduleId,
+    moduleLabel,
+    targetId: row.target_id || "",
+    targetType: attachableType.targetType,
+    targetTypeLabel,
+    value: {
+      moduleId: attachableType.moduleId,
+      targetId: row.target_id || "",
+      targetType: attachableType.targetType,
+    },
+  };
+
+  if (workspaceType === "business" && contextIds.clientId) {
+    option.clientId = contextIds.clientId;
+    option.value.clientId = contextIds.clientId;
+  }
+  if (contextIds.projectId) {
+    option.projectId = contextIds.projectId;
+    option.value.projectId = contextIds.projectId;
+  }
+
+  return option;
+}
+
+async function decorateAttachableTargetOptions(workspaceId, options, workspaceType) {
+  const clientIds = workspaceType === "business"
+    ? uniqueNonEmpty(options.map((option) => option.clientId))
+    : [];
+  const projectIds = uniqueNonEmpty(options.map((option) => option.projectId));
+  const [clientLabels, projectLabels] = await Promise.all([
+    readClientLabelMap(workspaceId, clientIds),
+    readProjectLabelMap(workspaceId, projectIds),
+  ]);
+
+  return options.map((option) => {
+    const decorated = { ...option, value: { ...option.value } };
+    const projectLabel = safeDisplayLabel(projectLabels.get(option.projectId), "", [option.projectId]);
+    const contextParts = [];
+
+    if (workspaceType === "business" && option.clientId) {
+      const clientLabel = safeDisplayLabel(clientLabels.get(option.clientId), "", [option.clientId]);
+
+      if (clientLabel) {
+        decorated.clientLabel = clientLabel;
+        contextParts.push(clientLabel);
+      }
+    } else {
+      delete decorated.clientId;
+      delete decorated.value.clientId;
+    }
+
+    if (option.projectId && projectLabel) {
+      decorated.projectLabel = projectLabel;
+      contextParts.push(projectLabel);
+    }
+
+    decorated.contextLabel = contextParts.join(" / ");
+    return decorated;
+  });
+}
+
+function buildAttachableTargetOptionFilters(options, workspaceType) {
+  const filters = {
+    client: workspaceType === "business"
+      ? { options: buildContextFilterOptions(options, "clientId", "clientLabel"), visible: true }
+      : { visible: false },
+    module: {
+      options: uniqueBy(options.map((option) => ({
+        label: option.moduleLabel,
+        value: option.moduleId,
+      })), "value"),
+      visible: true,
+    },
+    project: {
+      options: buildContextFilterOptions(options, "projectId", "projectLabel"),
+      visible: true,
+    },
+    targetType: {
+      options: buildAttachableTargetTypeOptions(options),
+      visible: true,
+    },
+  };
+
+  return filters;
+}
+
+function buildContextFilterOptions(options, idField, labelField) {
+  return uniqueBy(
+    options
+      .filter((option) => option[idField] && option[labelField])
+      .map((option) => ({
+        label: option[labelField],
+        value: option[idField],
+      })),
+    "value",
+  ).sort(compareLabels);
+}
+
+function buildAttachableTargetTypeOptions(options) {
+  return uniqueBy(options.map((option) => ({
+    label: `${option.moduleLabel}: ${option.targetTypeLabel}`,
+    moduleId: option.moduleId,
+    moduleLabel: option.moduleLabel,
+    targetType: option.targetType,
+    targetTypeLabel: option.targetTypeLabel,
+    value: `${option.moduleId}:${option.targetType}`,
+  })), "value").sort(compareLabels);
+}
+
+function compareAttachableTargetOptions(left, right) {
+  return String(left.moduleLabel || "").localeCompare(String(right.moduleLabel || ""), undefined, { sensitivity: "base" }) ||
+    String(left.targetTypeLabel || "").localeCompare(String(right.targetTypeLabel || ""), undefined, { sensitivity: "base" }) ||
+    String(left.label || "").localeCompare(String(right.label || ""), undefined, { sensitivity: "base" });
+}
+
+function compareLabels(left, right) {
+  return String(left.label || "").localeCompare(String(right.label || ""), undefined, { sensitivity: "base" });
+}
+
+async function readClientLabelMap(workspaceId, clientIds) {
+  if (clientIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await querySql(`
+SELECT id, name
+FROM clients
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND id IN (${clientIds.map(sqlText).join(", ")});
+`);
+
+  return new Map(rows.map((row) => [row.id, row.name || ""]));
+}
+
+async function readProjectLabelMap(workspaceId, projectIds) {
+  if (projectIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await querySql(`
+SELECT id, name
+FROM projects
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND id IN (${projectIds.map(sqlText).join(", ")});
+`);
+
+  return new Map(rows.map((row) => [row.id, row.name || ""]));
+}
+
+async function readTableColumnSet(tableName) {
+  const rows = await querySql(`PRAGMA table_info(${safeSqlIdentifier(tableName)});`);
+  return new Set(rows.map((row) => row.name));
+}
+
+function attachableTargetActiveConditions(columns) {
+  const conditions = [];
+
+  if (columns.has("deleted_at")) {
+    conditions.push("deleted_at IS NULL");
+  }
+  if (columns.has("archived_at")) {
+    conditions.push("archived_at IS NULL");
+  }
+  if (columns.has("removed_at")) {
+    conditions.push("removed_at IS NULL");
+  }
+  if (columns.has("status")) {
+    conditions.push("LOWER(status) NOT IN ('archived', 'deleted', 'disabled', 'inactive')");
+  }
+
+  return conditions;
+}
+
+function attachableTargetFilterConditions(attachableType, filters, workspaceType, fields) {
+  const conditions = [];
+  const businessClientId = workspaceType === "business" ? filters.clientId : "";
+
+  if (businessClientId) {
+    if (attachableType.targetType === "client") {
+      conditions.push(`${fields.idField} = ${sqlText(businessClientId)}`);
+    } else if (fields.clientField) {
+      conditions.push(`${fields.clientField} = ${sqlText(businessClientId)}`);
+    } else {
+      conditions.push("1 = 0");
+    }
+  }
+
+  if (filters.projectId) {
+    if (attachableType.targetType === "project") {
+      conditions.push(`${fields.idField} = ${sqlText(filters.projectId)}`);
+    } else if (fields.projectField) {
+      conditions.push(`${fields.projectField} = ${sqlText(filters.projectId)}`);
+    } else {
+      conditions.push("1 = 0");
+    }
+  }
+
+  return conditions;
+}
+
+function moduleLabelForAttachableType(attachableType) {
+  const moduleDefinition = modulesService.getModule(attachableType.moduleId);
+  return safeDisplayLabel(moduleDefinition?.displayName || moduleDefinition?.name, attachableType.moduleId || "Module");
+}
+
+function normalizeWorkspaceType(value) {
+  const workspaceType = String(value || "").trim().toLowerCase();
+  return ["business", "personal", "family"].includes(workspaceType) ? workspaceType : "business";
+}
+
+function sqlLikePattern(value) {
+  return `%${String(value || "").trim().toLowerCase().replace(/[\\%_]/g, (match) => `\\${match}`)}%`;
+}
+
+function safeDisplayLabel(value, fallback = "", hiddenIds = []) {
+  const label = normalizeOptionalText(value, { maxLength: 180 });
+
+  if (!label || looksLikeRawIdentifier(label) || hiddenIds.some((id) => id && String(id).toLowerCase() === label.toLowerCase())) {
+    return normalizeOptionalText(fallback, { maxLength: 180 });
+  }
+
+  return label;
+}
+
+function looksLikeRawIdentifier(value) {
+  const text = String(value || "").trim();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(text) ||
+    /[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}/i.test(text);
+}
+
+function safeSqlIdentifier(value) {
+  const identifier = String(value || "").trim();
+
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(identifier)) {
+    throw new AppError("Attachable target metadata is invalid.", 500);
+  }
+
+  return identifier;
+}
+
+function uniqueNonEmpty(values) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function uniqueBy(items, keyField) {
+  const seen = new Set();
+  const unique = [];
+
+  for (const item of items) {
+    const key = String(item[keyField] || "");
+
+    if (!key || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    unique.push(item);
+  }
+
+  return unique;
+}
+
 function resolvePermissionClientId(attachableType, target) {
   if (attachableType.targetType === "client") {
     return target?.target_id || "";
@@ -1887,6 +2346,108 @@ function resolvePermissionProjectId(attachableType, target) {
   }
 
   return target?.project_id || "";
+}
+
+function attachmentTargetContextIds(attachableType, target = {}) {
+  return {
+    clientId: attachableType.targetType === "client" ? target.target_id || "" : target.client_id || "",
+    projectId: attachableType.targetType === "project" ? target.target_id || "" : target.project_id || "",
+  };
+}
+
+function attachmentContextFromRow(row = {}) {
+  return {
+    clientId: row.client_id || "",
+    moduleId: row.module_id || "",
+    projectId: row.project_id || "",
+    targetId: row.target_id || "",
+    targetType: row.target_type || "",
+  };
+}
+
+function assertAttachmentContextPayloadMatchesTarget(attachableType, target, payload = {}) {
+  const providedClientId = normalizeOptionalText(payload.clientId ?? payload.client_id);
+  const providedProjectId = normalizeOptionalText(payload.projectId ?? payload.project_id);
+  const expected = attachmentTargetContextIds(attachableType, target);
+
+  if (providedClientId && providedClientId !== expected.clientId) {
+    throw new AppError("Selected Client does not match the selected attachment target.", 400);
+  }
+  if (providedProjectId && providedProjectId !== expected.projectId) {
+    throw new AppError("Selected Project does not match the selected attachment target.", 400);
+  }
+}
+
+async function assertNoDuplicateActiveAttachmentContext(workspaceId, attachment, attachableType, target) {
+  const rows = await querySql(`
+SELECT file_attachment_id
+FROM file_attachments
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND file_id = ${sqlText(attachment.file_id)}
+  AND module_id = ${sqlText(attachableType.moduleId)}
+  AND target_type = ${sqlText(attachableType.targetType)}
+  AND target_id = ${sqlText(target.target_id)}
+  AND file_attachment_id <> ${sqlText(attachment.file_attachment_id)}
+  AND removed_at IS NULL
+LIMIT 1;
+`);
+
+  if (rows[0]) {
+    throw new AppError("That file is already attached to the selected target.", 409);
+  }
+}
+
+function attachmentContextsEqual(left, right) {
+  return ["moduleId", "targetType", "targetId", "clientId", "projectId"]
+    .every((key) => String(left?.[key] || "") === String(right?.[key] || ""));
+}
+
+async function emitAttachmentContextUpdateEvents(session, updatedAttachment, previousContext, nextContext) {
+  const sharedMetadata = {
+    context_update: true,
+    next_client_id: nextContext.clientId,
+    next_module_id: nextContext.moduleId,
+    next_project_id: nextContext.projectId,
+    next_target_id: nextContext.targetId,
+    next_target_type: nextContext.targetType,
+    previous_client_id: previousContext.clientId,
+    previous_module_id: previousContext.moduleId,
+    previous_project_id: previousContext.projectId,
+    previous_target_id: previousContext.targetId,
+    previous_target_type: previousContext.targetType,
+  };
+  const events = [{ context: previousContext, scope: "previous" }];
+
+  if (!attachmentContextsEqual(previousContext, nextContext)) {
+    events.push({ context: nextContext, scope: "next" });
+  }
+
+  for (const event of events) {
+    await emitFileLifecycleEvent("file.attachment.context_updated", {
+      session,
+      attachmentId: updatedAttachment.file_attachment_id,
+      fileId: updatedAttachment.file_id,
+      metadata: {
+        ...sharedMetadata,
+        context_scope: event.scope,
+      },
+      moduleId: event.context.moduleId,
+      scanStatus: updatedAttachment.scan_status,
+      status: updatedAttachment.file_status,
+      targetId: event.context.targetId,
+      targetType: event.context.targetType,
+    });
+  }
+}
+
+function auditAttachmentContext(context = {}) {
+  return {
+    client_id: context.clientId || "",
+    module_id: context.moduleId || "",
+    project_id: context.projectId || "",
+    target_id: context.targetId || "",
+    target_type: context.targetType || "",
+  };
 }
 
 function normalizeVisibility(value, attachableType) {
@@ -2270,6 +2831,7 @@ export const filesService = {
   emitFileLifecycleEvent,
   getFileStorageAdapter,
   listActiveAttachableTypes,
+  listAttachableTargetOptions,
   listAttachableTypes,
   listAttachments,
   listFileLifecycleEvents,
@@ -2288,6 +2850,7 @@ export const filesService = {
   restoreFile,
   refreshStorageAccounting,
   saveWorkspaceFileSettings,
+  updateAttachmentContext,
   uploadAndAttach,
   uploadBatchAndAttach,
 };

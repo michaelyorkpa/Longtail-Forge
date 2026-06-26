@@ -3911,58 +3911,6 @@ dialog .form-actions {
     gap: 8px;
 }
 
-.files-summary-panel,
-.files-detail-empty,
-.files-preview-panel,
-.files-metadata-panel,
-.files-selected-detail {
-    display: grid;
-    gap: 10px;
-    padding: 14px;
-}
-
-.files-summary-panel .view-info-list,
-.files-metadata-panel .view-info-list {
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    gap: 6px 12px;
-    margin: 0;
-}
-
-.files-summary-panel .view-info-list dt,
-.files-metadata-panel .view-info-list dt {
-    color: var(--color-text-secondary);
-    font-weight: 700;
-}
-
-.files-summary-panel .view-info-list dd,
-.files-metadata-panel .view-info-list dd {
-    margin: 0;
-    min-width: 0;
-    overflow-wrap: anywhere;
-}
-
-.files-summary-badges {
-    margin-top: 2px;
-}
-
-.files-detail-grid {
-    display: grid;
-    gap: 10px;
-}
-
-.files-selected-detail .view-detail-title {
-    overflow-wrap: anywhere;
-}
-
-.files-preview-panel .view-info-panel-actions {
-    justify-content: flex-start;
-}
-
-.files-availability-hint {
-    max-width: 72ch;
-}
-
 .files-table {
     table-layout: fixed;
     min-width: 960px;
@@ -3975,23 +3923,6 @@ dialog .form-actions {
 
 .files-table td {
     overflow-wrap: normal;
-}
-
-.files-table tbody tr[data-file-selectable-row] {
-    cursor: pointer;
-}
-
-.files-table tbody tr[data-file-selectable-row]:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: -2px;
-}
-
-.files-table tbody tr[data-file-selected-row] {
-    background: var(--color-surface-muted);
-}
-
-.files-table tbody tr[data-file-selected-row] th:first-child {
-    box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
 .files-file-cell {
@@ -4067,6 +3998,56 @@ dialog .form-actions {
 
 .files-row-action.icon-button {
     flex: 0 0 auto;
+}
+
+.files-file-context-form .view-modal-form-fields {
+    gap: 14px;
+}
+
+.files-file-context-metadata-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px 16px;
+    margin: 0;
+}
+
+.files-file-context-metadata-row {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+}
+
+.files-file-context-metadata-row dt {
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.files-file-context-metadata-row dd {
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.files-file-context-controls-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.files-file-context-controls-grid label {
+    min-width: 0;
+}
+
+.files-file-context-controls-grid select {
+    min-width: 0;
+}
+
+.files-file-context-status {
+    min-height: 18px;
+    margin: 0;
+    color: var(--color-muted);
 }
 
 .file-attachments {

@@ -54,6 +54,17 @@ filesRoutes.post("/files/attachments/:fileAttachmentId/remove", asyncRoute(async
   response.status(200).json(result);
 }));
 
+filesRoutes.patch("/files/attachments/:fileAttachmentId/context", asyncRoute(async (request, response) => {
+  const payload = await readJsonBody(request);
+  const result = await filesService.updateAttachmentContext(request.session, request.params.fileAttachmentId, payload);
+  response.status(200).json(result);
+}));
+
+filesRoutes.get("/files/attachable-targets", asyncRoute(async (request, response) => {
+  const result = await filesService.listAttachableTargetOptions(request.session, request.query);
+  response.status(200).json(result);
+}));
+
 filesRoutes.get("/files/:fileId", asyncRoute(async (request, response) => {
   const file = await filesService.readFileForSession(request.session, request.params.fileId);
   response.status(200).json({ file });

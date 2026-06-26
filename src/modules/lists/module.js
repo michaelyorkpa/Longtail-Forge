@@ -613,7 +613,7 @@ const listsModule = {
       requiredRemovePermission: "files.delete",
       allowedFileCategories: ["document", "image", "pdf", "spreadsheet", "presentation", "text", "other"],
       allowedVisibilityValues: ["private", "workspace", "client"],
-      lifecycleEvents: ["file.attachment.created", "file.attachment.removed"],
+      lifecycleEvents: ["file.attachment.created", "file.attachment.context_updated", "file.attachment.removed"],
       requiredModules: ["lists"],
     },
   ],

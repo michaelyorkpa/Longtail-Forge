@@ -1,4 +1,4 @@
-# Longtail Forge Roadmap
+﻿# Longtail Forge Roadmap
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
@@ -8,8 +8,8 @@ Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and im
 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
 The active roadmap continues with Files and Clients/Projects view conversion work.
-Completed 0.33.5.18.11.1 through 0.33.5.18.11.3 are archived in `ROADMAP-ARCHIVE.md`.
-0.33.5.18.11.4 is the most recently completed Files detail/summary read slice. The next live work starts with 0.33.5.18.11.5.
+Completed 0.33.5.18.11.1 through 0.33.5.18.11.7 are archived in `ROADMAP-ARCHIVE.md`.
+0.33.5.18.11.8 is the current Files edit modal shell closeout slice. The next live work starts with 0.33.5.18.11.9.
 
 ## Files (0.33.5.18.11 - 0.33.5.18.12)
 
@@ -69,39 +69,280 @@ and strict guardrails separately reviewable like the Notes and Tasks conversions
 
 ### Version 0.33.5.18.11 - Files Browse Surface and Read Controls
 
-#### Version 0.33.5.18.11.4 - Files detail, preview, and summary read anatomy
+Corrective note:
 
-- [x] Add a framework-owned detail/preview shell for the selected file or selected attachment row.
-- [x] Render metadata through shared badge/detail rows: status, scan status, module/target, client,
-      project, size, uploaded/attached timestamps, uploader when available, and safe delete/quarantine
-      hints.
-- [x] Keep actual preview/download availability Files-owned and route-backed; the descriptor must not
-      infer downloadability from browser-only status checks.
-- [x] Add summary/status panels for current filters, result count, unavailable/deleted states, and
-      permission-safe scan/quarantine messaging.
-- [x] Add regressions proving detail metadata is readable, permission-safe, and does not expose storage
-      paths, scanner internals, or raw protected IDs in normal UI.
+The 0.33.5.18.11.4 inline detail/summary/preview anatomy made the Files browse page too dashboard-like.
+The remaining 0.33.5.18.11 slices intentionally reset Files to a compact browse-first listing, then add
+File Context editing and Preview as separate route-backed modal workflows.
 
-#### Version 0.33.5.18.11.5 - Files read-only browse proof closeout
+#### Version 0.33.5.18.11.8 - Files edit modal shell and read-only metadata
 
-- [ ] Add or update Files browse developer docs if the implementation changes the Files UI boundary.
-- [ ] Confirm no upload, delete, restore, report, quarantine, attachment removal, schema, permission,
-      or storage behavior changed in the read-only browse slices.
-- [ ] Confirm the browse row remains scan-friendly at common desktop widths: file-type icon, truncated
-      filename/target/Client/Project labels with hover/focus reveal, and accessible icon-only
-      Download/Delete controls.
-- [ ] Run `npm run check` with a full timeout.
-- [ ] Verify `/api/app-info` still reports the expected current version unless this slice deliberately
-      completes with a version bump.
+Intent:
+
+Add the Files-owned edit modal shell using the same modal standards as Notes and Tasks, but do not wire row click or save behavior yet.
+
+- [x] Add a canonical Files editor opener, for example `LongtailForge.filesDialog.openFileEditor()` or a clearly named Files-owned equivalent.
+- [x] Build the modal with the shared framework modal/form/footer helpers used by converted Notes and Tasks modals.
+- [x] The modal title should be simple, such as `Edit File` or `File Context`.
+- [x] The modal should show the file name and compact read-only metadata.
+  - [x] File name
+  - [x] file type
+  - [x] size
+  - [x] status
+  - [x] scan state
+  - [x] uploaded timestamp
+  - [x] attached timestamp
+  - [x] uploader when available
+- [x] The only editable controls in the modal are:
+  - [x] Target
+  - [x] Client in Business workspaces only
+  - [x] Project
+- [x] Do not add filename rename.
+- [x] Do not add file replacement.
+- [x] Do not add storage provider controls.
+- [x] Do not add scan/quarantine controls.
+- [x] Do not add hard delete or permanent purge.
+- [x] Do not add download-only metadata editing.
+- [x] In Business workspaces:
+  - [x] Show Client and Project controls.
+  - [x] Client should filter Project and Target choices where possible.
+- [x] In Personal/Family workspaces:
+  - [x] Hide Client controls entirely.
+  - [x] Do not submit Client values.
+  - [x] Show Project where supported.
+- [x] Load target choices through the new target option provider.
+- [x] Keep Save disabled, hidden, or non-submitting until the save wiring slice; do not ship a fake save.
+- [x] Do not add row-click behavior in this slice.
+- [x] Do not add preview behavior in this slice.
+- [x] Add regressions proving:
+  - [x] the canonical opener creates the modal shell.
+  - [x] the modal uses shared modal/form/footer helpers.
+  - [x] read-only metadata is visible but not editable.
+  - [x] only Target, Business Client, and Project are editable controls.
+  - [x] Personal/Family scope hides Client controls.
+  - [x] no filename, binary, storage, scan, quarantine, hard-delete, or purge controls exist.
+  - [x] Cancel/Close returns focus to the opener.
+- [x] Run `npm run check`.
+- [x] Verify `/api/app-info` reports the expected version.
 
 Acceptance criteria:
 
-- Files has a descriptor-backed, permission-safe browse shell.
-- Filters and readable context labels match the Notes/Tasks control standard without changing file
-  service behavior.
-- Browse rows are compact and readable: file-type icon plus truncated filename, target, Client, and
-  Project labels with full-value reveal, and accessible icon-only Download/Delete controls.
-- Upload and mutation actions remain untouched until 0.33.5.18.12.
+- Files has a real shared-helper modal shell for attachment context editing.
+- The modal is not yet opened by table rows and does not submit context changes.
+- Metadata moves out of the browse page and into a modal as read-only context.
+
+#### Version 0.33.5.18.11.9 - Files edit modal row-open and save wiring
+
+Intent:
+
+Wire the compact Files listing to the File Context modal and connect Save to the route-backed context update path.
+
+- [ ] Clicking a file row opens the edit modal.
+- [ ] Pressing Enter on a focused file row opens the edit modal.
+- [ ] Pressing Space on a focused file row opens the edit modal only if that matches the existing table accessibility pattern; otherwise keep Enter only and document the choice.
+- [ ] Row action buttons must not trigger the row-open behavior.
+- [ ] Save calls the new context update route and refreshes the Files list.
+- [ ] Cancel/Close returns focus to the triggering row or action.
+- [ ] Save success should close the modal or keep it open with a clear saved status, matching the closest Notes/Tasks modal behavior.
+- [ ] Save failure should keep the modal open and show a clear inline status.
+- [ ] Add regressions proving:
+  - [ ] row click opens the edit modal
+  - [ ] row keyboard open works
+  - [ ] row Download/Delete/Restore actions do not open the edit modal
+  - [ ] Business scope shows Target/Client/Project controls
+  - [ ] Personal/Family scope hides Client controls
+  - [ ] only context fields are editable
+  - [ ] save calls the route-backed context update path
+  - [ ] save success refreshes the Files list without reopening the bad inline detail panel
+  - [ ] save errors stay inside the modal
+  - [ ] focus returns correctly
+- [ ] Run `npm run check`.
+- [ ] Run `npm run test:permissions` if route/permission behavior changes.
+- [ ] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Clicking a file row opens that modal.
+- The modal matches the Notes/Tasks converted modal standard.
+- The modal edits attachment context only.
+- Row click, Download, Delete, Restore, and future Preview actions remain distinct.
+
+#### Version 0.33.5.18.11.10 - Files preview availability route and contract
+
+Intent:
+
+Add the attachment-scoped preview route contract and availability states before rendering preview content or adding UI.
+
+- [ ] Add route-backed preview support for attachment rows, preferably attachment-scoped, for example:
+  - [ ] `GET /api/files/attachments/:fileAttachmentId/preview`
+  - [ ] or an equivalent pair of descriptor/content routes if streaming images separately is cleaner.
+- [ ] Preview access must be evaluated against the selected attachment context, not just a raw file ID.
+- [ ] Preview must require the same safe availability rules as download:
+  - [ ] file status is available
+  - [ ] scan status is `passed` or `not_required`
+  - [ ] user can read the attachment target
+  - [ ] user has the required Files permission
+- [ ] Return a permission-safe preview descriptor with:
+  - [ ] preview state such as `previewable`, `download_only`, `too_large_for_preview`, `unavailable`, or `unauthorized`
+  - [ ] preview kind such as `image`, `text`, `markdown`, or `unsupported`
+  - [ ] readable filename/file type
+  - [ ] route-backed content URL only when a separate content route is required
+- [ ] Other file types should return a safe `download_only` preview state.
+- [ ] Do not return actual image/text/Markdown content in this slice unless it is required to prove the route contract.
+- [ ] Do not make quarantined, deleted, pending, failed-scan, or unauthorized files previewable.
+- [ ] Decide and document audit/lifecycle policy for preview descriptors:
+  - [ ] If preview descriptors are recorded, use a distinct action such as `file.previewed`.
+  - [ ] If preview descriptors are not recorded yet, document that decision explicitly.
+- [ ] Add regressions proving:
+  - [ ] preview descriptors are attachment-scoped
+  - [ ] unsupported files return download-only
+  - [ ] deleted/quarantined/pending/failed-scan files are not previewable
+  - [ ] unauthorized attachments are not previewable
+  - [ ] no storage keys/paths leak
+- [ ] Run `npm run check`.
+- [ ] Run `npm run test:permissions` if preview introduces new permission behavior.
+- [ ] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Files has a route-backed preview availability contract.
+- The route is attachment-scoped and permission-safe.
+- No browser preview UI or Inspector behavior is introduced yet.
+
+#### Version 0.33.5.18.11.11 - Files preview content handlers
+
+Intent:
+
+Add safe content generation for image, text, and Markdown previews behind the preview route contract.
+
+- [ ] Add preview categories for this slice:
+  - [ ] image: JPG/JPEG/PNG/GIF
+  - [ ] text: TXT
+  - [ ] markdown: MD
+- [ ] Image preview content must be served through authenticated Files routes, not protected storage paths or raw filesystem URLs.
+- [ ] Text previews should be size-capped.
+  - [ ] If the text file exceeds the preview cap, return `download_only` or a clear `too_large_for_preview` state.
+- [ ] Markdown previews must use the existing server-backed Markdown platform.
+  - [ ] Do not add a second browser-only Markdown parser.
+  - [ ] Keep raw HTML disabled.
+  - [ ] Keep unsafe links/images neutralized according to the Markdown platform contract.
+- [ ] Markdown previews should be size-capped before rendering.
+- [ ] Preview content must not expose storage keys, protected storage paths, scanner internals, raw filesystem URLs, or file hashes.
+- [ ] Do not make quarantined, deleted, pending, failed-scan, or unauthorized files previewable.
+- [ ] Add regressions proving:
+  - [ ] images are previewable
+  - [ ] text files are previewable
+  - [ ] Markdown files render through the shared Markdown service
+  - [ ] unsafe Markdown stays safe
+  - [ ] unsupported files return download-only
+  - [ ] deleted/quarantined/pending/failed-scan files are not previewable
+  - [ ] unauthorized attachments are not previewable
+  - [ ] no storage keys/paths leak
+- [ ] Run `npm run check`.
+- [ ] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- Image, text, and Markdown previews work.
+- Unsupported files are clearly download-only.
+- Preview content is produced only through authenticated Files routes/services.
+- No Inspector work is introduced in this slice.
+
+#### Version 0.33.5.18.11.12 - Files preview modal and browse row preview action
+
+Intent:
+
+Add the user-facing View/Preview button to the Files listing and render previews in a dedicated Files preview modal.
+
+- [ ] Add a View/Preview action to the main Files listing.
+- [ ] Use a clear icon and accessible label/title, for example `Preview <filename>`.
+- [ ] Show the Preview action only for previewable files, or show a disabled/download-only marker for non-previewable files.
+- [ ] Non-previewable files should be visibly marked as download-only without adding noisy detail panels.
+- [ ] Clicking Preview opens a dedicated Files Preview modal.
+- [ ] Do not use the future Inspector in this slice.
+- [ ] Do not add a persistent right-side preview pane in this slice.
+- [ ] The preview modal should use the shared modal shell/stack behavior.
+- [ ] The preview modal should render:
+  - [ ] images inside a constrained preview area
+  - [ ] text files in a readable scroll-safe text/code-style region
+  - [ ] Markdown files as safe rendered Markdown
+- [ ] The preview modal should include a Download action when the file remains downloadable.
+- [ ] The preview modal should include a simple Close action.
+- [ ] The preview modal should handle:
+  - [ ] loading state
+  - [ ] preview unavailable
+  - [ ] download-only
+  - [ ] too large for preview
+  - [ ] permission failure
+  - [ ] scan/status unavailable
+- [ ] Preview modal close should return focus to the Preview button that opened it.
+- [ ] The edit modal and preview modal should remain separate:
+  - [ ] row click opens edit
+  - [ ] Preview button opens preview
+  - [ ] Download button downloads
+  - [ ] Delete/Restore buttons mutate lifecycle
+- [ ] Add regressions proving:
+  - [ ] Preview button exists for image/text/Markdown rows
+  - [ ] unsupported files are download-only
+  - [ ] Preview opens the modal
+  - [ ] row click does not open Preview
+  - [ ] Preview button does not open Edit
+  - [ ] modal content renders safely
+  - [ ] focus returns correctly
+  - [ ] narrow widths remain scroll-safe
+- [ ] Run `npm run check`.
+- [ ] Verify `/api/app-info` reports the expected version.
+
+Acceptance criteria:
+
+- The Files listing has a clear Preview/View action.
+- Preview lives in a modal, not in the main browse page and not in the future Inspector.
+- Row click, Preview, Download, and Delete/Restore each have distinct behavior.
+
+#### Version 0.33.5.18.11.13 - Files browse/edit/preview closeout and 0.33.5.18.12 handoff
+
+Intent:
+
+Close the revised Files browse/edit/preview branch and update the next Files upload/action slices so they do not conflict with the new route-backed File Context editor.
+
+- [ ] Update `ROADMAP.md` to mark completed 0.33.5.18.11.5 through 0.33.5.18.11.12 slices.
+- [ ] Update Files developer docs with the revised Files UX boundary:
+  - [ ] Files page is a compact browse/recovery surface.
+  - [ ] Filter sidebar owns browse filtering.
+  - [ ] Main panel owns listing only.
+  - [ ] Row click opens File Context edit modal.
+  - [ ] Preview button opens Files Preview modal.
+  - [ ] Metadata is read-only inside the edit modal.
+  - [ ] Context editing is route-backed and attachment-scoped.
+  - [ ] Preview is route-backed and attachment-scoped.
+  - [ ] Inspector integration is deferred.
+- [ ] Update `docs/view-building-contract.md` with the revised Files page state.
+- [ ] Update Files-related decisions/docs to clarify that the 0.33.5.18.11.4 inline detail/summary anatomy was intentionally replaced by modal-based edit/preview behavior.
+- [ ] Update `CHANGELOG.md`.
+- [ ] Update package/app/module metadata to the implemented version.
+- [ ] Adjust the upcoming 0.33.5.18.12 Files upload/action slices so they do not say or imply that route-backed attachment context editing is forbidden.
+  - [ ] Continue forbidding rename, file replacement, storage moves, hard purge, permanent delete, raw storage controls, and unsafe direct metadata editing.
+  - [ ] Allow the already-shipped File Context editor as the only attachment-context edit surface.
+  - [ ] Exclude the already-shipped Preview modal from 0.33.5.18.12 action-wiring scope except for visual parity and guardrail documentation.
+- [ ] Confirm existing Files upload and reusable attachment panel behavior still works.
+- [ ] Confirm Notes and Tasks Files footer utility dialogs still work.
+- [ ] Run:
+  - [ ] `npm run check`
+  - [ ] Files browse regressions
+  - [ ] Files edit modal regressions
+  - [ ] Files preview regressions
+  - [ ] Files attachment/upload regressions if touched
+  - [ ] Notes and Tasks Files utility regressions
+  - [ ] `npm run test:permissions` if any route/permission behavior changed
+- [ ] Verify `/api/app-info` reports the expected version.
+- [ ] Archive completed roadmap sections according to the roadmap bookkeeping rule.
+
+Acceptance criteria:
+
+- Files has returned to a compact browse-first UX.
+- Editing and previewing are modal-based, route-backed, permission-safe, and consistent with Notes/Tasks patterns.
+- The future Inspector remains deferred instead of being half-built inside Files.
+- The next Files upload/attachment-panel conversion can proceed without carrying forward the bad inline detail-page experience.
 
 ### Version 0.33.5.18.12 - File Upload, Attachment Panels, Actions, and Strict Guardrails
 
@@ -135,11 +376,13 @@ Acceptance criteria:
 
 - [ ] Express existing shipped actions through declarative route actions or registered Files behaviors:
       download, report, quarantine where permitted, remove attachment, delete file, and restore file.
+- [ ] Treat File Context edit and Files Preview as already-shipped 0.33.5.18.11 workflows; this slice
+      may preserve their placement/visual parity but must not reimplement those routes or modals.
 - [ ] Preserve existing confirmations, danger styling, permission-shaped visibility, scan/download
       availability, retention semantics, and post-action refresh behavior.
 - [ ] Keep route calls on the existing Files routes and keep API/service permission checks authoritative.
-- [ ] Do not add rename, move, hard purge, permanent delete, or direct metadata edit controls in this
-      slice.
+- [ ] Do not add rename, move, hard purge, permanent delete, storage moves, file replacement, or direct
+      file-metadata edit controls in this slice.
 - [ ] Add regressions proving action buttons use shared dense/action placement, remain accessible, and
       never bypass the Files routes.
 
@@ -148,6 +391,8 @@ Acceptance criteria:
 - [ ] Align Files page and attachment-panel controls with the Notes/Tasks converted control standard:
       icon buttons for dense row actions where appropriate, visible text for ambiguous upload/report
       actions, accessible labels/titles, wrapping action rows, and theme-token surfaces.
+- [ ] Include the already-shipped File Context and Preview controls in visual parity checks without
+      changing their route-backed behavior from 0.33.5.18.11.
 - [ ] Standardize file status chips, scan-status chips, deleted/restored/quarantined messaging,
       attachment counts, and empty states across Files page and reusable attachment panels.
 - [ ] Ensure normal Files UI uses broad product language such as recovery, available, unavailable,
@@ -186,6 +431,9 @@ Acceptance criteria:
 - [ ] Update `docs/view-building-contract.md`, `docs/declarative-view-surfaces.md`,
       `docs/module-contract.md`, and Files-specific developer docs with the completed Files conversion
       boundary.
+- [ ] Preserve the 0.33.5.18.11 compact browse/edit/preview boundary: File Context and Preview remain
+      route-backed modal workflows, while 0.33.5.18.12 closes upload, shared attachment panel, existing
+      lifecycle actions, visual parity, and strict guardrails.
 - [ ] Update `DECISIONS.md` with the Files UI standardization and strict-surface decision.
 - [ ] Update `CHANGELOG.md` and package metadata to the implemented version.
 - [ ] Archive completed Files roadmap sections according to the roadmap bookkeeping rule.
@@ -249,7 +497,7 @@ billing metadata, Business-only gating, Personal/Family scope, validation, save 
 
 ---
 
-## Version 0.33.5.18.145- Cross-Surface Guardrails, Inventory, Documentation, and Closeout
+## Version 0.33.5.18.15 - Cross-Surface Guardrails, Inventory, Documentation, and Closeout
 
 - [ ] Confirm fail-on-violation declarative guardrails are enforced on all four converted surfaces
       (Notes, Tasks, Files, Clients/Projects pages).
@@ -292,6 +540,791 @@ These apply to every conversion slice above and should be treated as acceptance 
 - Each surface's final cleanup slice must leave its browser file as data bindings plus behaviors with
   no hand-built framework-owned anatomy, and must expand strict guardrails to that surface.
 - Add regressions per slice; wire each new regression into `scripts/regression-suite.mjs`.
+
+## Version 0.33.5.19 - Runtime Configuration and SQLite Small-Office Foundation
+
+Purpose:
+
+Establish Longtail Forge's runtime configuration contract, keep SQLite first-class for self-hosted/small-office installs, and prepare the database layer for future PostgreSQL support without forcing PostgreSQL on self-hosted users.
+
+SQLite support target:
+
+- Single app server.
+- Local or attached storage.
+- Roughly 50 total users.
+- Typical active usage of 5-15 concurrent users.
+- No horizontal app scaling expectation.
+- No external database setup required.
+- Suitable for small offices, solo operators, families, and self-hosted teams.
+
+PostgreSQL support target:
+
+- Hosted SaaS.
+- Multiple app/web instances.
+- Durable workers.
+- Larger multi-workspace datasets.
+- High concurrency.
+- Managed backups and operational monitoring.
+
+Decision:
+
+SQLite remains a first-class supported backend. PostgreSQL is required for hosted SaaS scale, but SQLite must remain viable and pleasant for self-hosted installs.
+
+Do not remove SQLite.
+Do not require PostgreSQL for small-office self-hosting.
+Do not pretend SQLite mode supports horizontal scaling.
+
+### Version 0.33.5.19.1 - Runtime configuration contract and `.env.example`
+
+- [ ] Add `.env.example`.
+- [ ] Ensure `.env` is ignored and never committed.
+- [ ] Add `docs/runtime-configuration.md`.
+- [ ] Define startup/runtime configuration groups:
+  - [ ] App identity and environment.
+  - [ ] Host/port/public URL.
+  - [ ] Data directory.
+  - [ ] Database provider.
+  - [ ] SQLite settings.
+  - [ ] Future PostgreSQL settings.
+  - [ ] Initial super-admin bootstrap.
+  - [ ] Session/cookie settings.
+  - [ ] Secure-note encryption settings.
+  - [ ] File storage provider settings.
+  - [ ] File scanner settings.
+  - [ ] Worker/job settings.
+  - [ ] Logging/diagnostics settings.
+- [ ] Preserve compatibility with existing environment variables where practical:
+  - `HOST`
+  - `PORT`
+  - `LONGTAIL_DATA_DIR`
+  - `LONGTAIL_DATABASE_FILE`
+  - `SQLITE_COMMAND`
+  - `WORKSPACE_INSTALL_MODE`
+  - `WORKSPACE_TYPE_LIMIT`
+  - `SUPER_ADMIN_USERNAME`
+  - `SUPER_ADMIN_PASSWORD`
+- [ ] Add startup validation for required variables.
+- [ ] Add safe startup warnings for optional but recommended variables.
+- [ ] Add tests proving missing required startup settings fail clearly.
+
+Suggested initial `.env.example` groups:
+
+```env
+# App
+LONGTAIL_ENV=development
+LONGTAIL_PUBLIC_URL=http://localhost:8001
+HOST=0.0.0.0
+PORT=8001
+TRUST_PROXY=false
+
+# Data
+LONGTAIL_DATA_DIR=./data
+
+# Database
+LONGTAIL_DATABASE_PROVIDER=sqlite
+
+# SQLite
+LONGTAIL_DATABASE_FILE=./data/longtail-forge.db
+SQLITE_COMMAND=sqlite3
+LONGTAIL_SQLITE_FOREIGN_KEYS=on
+LONGTAIL_SQLITE_JOURNAL_MODE=wal
+LONGTAIL_SQLITE_BUSY_TIMEOUT_MS=5000
+
+# Future PostgreSQL
+# DATABASE_URL=
+# LONGTAIL_DATABASE_POOL_MIN=1
+# LONGTAIL_DATABASE_POOL_MAX=10
+# LONGTAIL_DATABASE_SSL=false
+
+# Initial bootstrap
+SUPER_ADMIN_USERNAME=support@longtailforge.local
+SUPER_ADMIN_PASSWORD=
+
+# Sessions / cookies
+LONGTAIL_SESSION_COOKIE_SECURE=false
+LONGTAIL_SESSION_COOKIE_SAMESITE=Lax
+LONGTAIL_SESSION_TTL_SECONDS=43200
+
+# Secure notes
+# LONGTAIL_SECURE_NOTES_KEY=
+LONGTAIL_SECURE_NOTES_KEY_VERSION=v1
+
+# File storage
+LONGTAIL_STORAGE_PROVIDER=local
+LONGTAIL_LOCAL_STORAGE_ROOT=./data/files
+
+# File scanning
+LONGTAIL_FILE_SCANNER=none
+# LONGTAIL_CLAMD_HOST=127.0.0.1
+# LONGTAIL_CLAMD_PORT=3310
+# LONGTAIL_CLAMSCAN_PATH=
+
+# Jobs / workers
+LONGTAIL_WORKER_MODE=inline
+LONGTAIL_WORKER_ID=default
+LONGTAIL_JOB_POLL_INTERVAL_MS=5000
+LONGTAIL_JOB_LOCK_TTL_SECONDS=300
+
+# Logging
+LONGTAIL_LOG_LEVEL=info
+
+```
+
+This one is important because the current config already reads several values from `process.env`, but there is not yet a formal `.env.example` or startup contract. Current config pulls things like `HOST`, `PORT`, `LONGTAIL_DATA_DIR`, `LONGTAIL_DATABASE_FILE`, `SQLITE_COMMAND`, `WORKSPACE_INSTALL_MODE`, and `WORKSPACE_TYPE_LIMIT`. 
+
+---
+
+### Version 0.33.5.19.2 - SQLite connection hardening
+
+- [ ] Enable SQLite foreign-key enforcement for every SQLite connection/process:
+  - [ ] `PRAGMA foreign_keys = ON`.
+- [ ] Add SQLite startup health checks:
+  - [ ] Foreign keys enabled.
+  - [ ] Journal mode.
+  - [ ] Busy timeout.
+  - [ ] Database file path.
+  - [ ] Database file writable.
+- [ ] Evaluate and enable WAL mode by default for SQLite self-hosted installs unless incompatible:
+  - [ ] `PRAGMA journal_mode = WAL`.
+- [ ] Keep or configure busy timeout behavior.
+- [ ] Add SQLite health output that is safe for admins but does not leak secrets.
+- [ ] Add regression coverage proving:
+  - [ ] Foreign-key enforcement is enabled.
+  - [ ] Invalid orphan records are rejected.
+  - [ ] SQLite startup fails clearly when the database path is invalid.
+  - [ ] SQLite mode remains the default provider when no database provider is set.
+
+Acceptance criteria:
+
+- SQLite mode is safer without changing user-facing behavior.
+- Small-office SQLite installs get stricter data integrity by default.
+
+### Version 0.33.5.19.3 - Provider-neutral database adapter contract v1
+
+- [ ] Create a provider-neutral database module.
+- [ ] Define the v1 database API:
+  - [ ] `db.query(sql, params)`
+  - [ ] `db.get(sql, params)`
+  - [ ] `db.run(sql, params)`
+  - [ ] `db.transaction(callback)`
+  - [ ] `db.close()`
+  - [ ] `db.health()`
+  - [ ] `db.capabilities`
+- [ ] Keep SQLite as the only implemented provider in this slice.
+- [ ] Move SQLite-specific process handling behind the SQLite adapter.
+- [ ] Keep existing repository behavior working.
+- [ ] Preserve `querySql` / `runSql` compatibility temporarily if needed, but mark them as legacy compatibility helpers.
+- [ ] Add a guardrail inventory for direct SQLite imports.
+- [ ] Add documentation explaining:
+  - [ ] SQLite is the default self-hosted backend.
+  - [ ] PostgreSQL will plug into the same adapter later.
+  - [ ] Repositories should not import `src/db/sqlite.js` directly.
+- [ ] Add regressions proving:
+  - [ ] Existing app startup still works on SQLite.
+  - [ ] Existing migrations still run on SQLite.
+  - [ ] Existing modules can query through the provider-neutral database module.
+
+Acceptance criteria:
+
+- The database layer has a real provider-facing boundary.
+- SQLite behavior is preserved.
+- Future PostgreSQL work can target the adapter instead of rewriting every module.
+
+### Version 0.33.5.19.4 - Parameterized query pilot
+
+- [ ] Add parameter binding support to the database adapter.
+- [ ] Convert a small but representative set of repositories to parameterized queries:
+  - [ ] Sessions.
+  - [ ] Workspaces.
+  - [ ] One Tasks read path.
+  - [ ] One Notes read path.
+- [ ] Add docs for query style:
+  - [ ] No new string interpolation for user-supplied values.
+  - [ ] Use parameters for values.
+  - [ ] Keep table/column names static or validated.
+- [ ] Add lint/static guardrails where practical.
+- [ ] Add regression coverage for:
+  - [ ] Quotes in user data.
+  - [ ] Special characters in IDs/titles.
+  - [ ] Attempts to inject SQL-like strings as values.
+
+Acceptance criteria:
+
+- New repository work has a clear safe query style.
+- Existing string-SQL helpers remain only as compatibility escape hatches until broader migration.
+
+### Version 0.33.5.19.5 - Explicit transaction helper
+
+- [ ] Add provider-neutral `db.transaction(callback)` support.
+- [ ] SQLite implementation should:
+  - [ ] Begin transaction.
+  - [ ] Commit on success.
+  - [ ] Roll back on thrown error.
+  - [ ] Prevent nested transaction confusion or document nested behavior.
+- [ ] Convert one or two existing multi-step workflows to the helper:
+  - [ ] Task assignee replacement.
+  - [ ] One file attach/create workflow or one note create/link workflow.
+- [ ] Add regression coverage proving:
+  - [ ] Successful transaction commits all changes.
+  - [ ] Failed transaction rolls back all changes.
+  - [ ] Partial records are not left behind.
+
+Acceptance criteria:
+
+- Multi-step writes have a provider-neutral transaction path.
+- Future outbox/job writes can be committed with the source record atomically.
+
+### Version 0.33.5.19.6 - Migration locking and startup ownership
+
+- [ ] Add migration lock strategy for SQLite.
+- [ ] Document future PostgreSQL migration lock strategy.
+- [ ] Ensure only one app/startup process can run migrations or schema repairs at a time.
+- [ ] Separate normal app startup from one-time maintenance where practical.
+- [ ] Add startup behavior docs:
+  - [ ] Self-hosted single-process mode.
+  - [ ] Future SaaS multi-instance mode.
+  - [ ] Which process runs migrations.
+  - [ ] Which process runs workers.
+- [ ] Add regression coverage proving:
+  - [ ] Migration lock is acquired before migrations.
+  - [ ] A second migration attempt fails or waits clearly.
+  - [ ] Startup failure messages are actionable.
+
+Acceptance criteria:
+
+- SQLite remains simple.
+- Future multi-process deployment is not blocked by unsafe startup migrations.
+
+### Version 0.33.5.19.7 - SQLite small-office closeout
+
+- [ ] Add `docs/sqlite-small-office-mode.md`.
+- [ ] Document supported SQLite deployment assumptions:
+  - [ ] One app process/server.
+  - [ ] Local or attached disk.
+  - [ ] No shared SQLite database across multiple app servers.
+  - [ ] Backup expectations.
+  - [ ] Optional scanner expectations.
+  - [ ] Recommended memory/disk guidance.
+- [ ] Add admin diagnostics:
+  - [ ] Database provider.
+  - [ ] SQLite journal mode.
+  - [ ] Foreign keys enabled.
+  - [ ] Database file location.
+  - [ ] Data directory.
+  - [ ] Storage provider.
+  - [ ] Scanner mode.
+- [ ] Add warning copy for configurations outside SQLite support bounds.
+- [ ] Run full regression suite.
+- [ ] Run SQLite integrity check.
+- [ ] Update changelog and decisions.
+
+Acceptance criteria:
+
+- SQLite is explicitly documented as supported small-office mode.
+- The app can explain its runtime mode to admins.
+
+## Version 0.33.5.20 - Bounded Queries and Small-Office Scale Data
+
+Purpose:
+
+Move high-volume list surfaces away from load-everything-then-filter-in-JavaScript behavior. Preserve the current user experience while making SQLite small-office mode and future PostgreSQL SaaS mode more predictable under larger datasets.
+
+### Version 0.33.5.20.1 - Scale seed framework
+
+- [ ] Add `scripts/seed-scale.mjs`.
+- [ ] Add seed profiles:
+  - [ ] `dev-demo`
+  - [ ] `sqlite-small-office-50`
+  - [ ] `sqlite-heavy-workspace`
+  - [ ] `future-saas-postgres-mixed`
+- [ ] Ensure seed scripts require an explicit database path/provider.
+- [ ] Refuse to run against a database that is not clearly marked as disposable or test-only.
+- [ ] Generate realistic data:
+  - [ ] Workspaces.
+  - [ ] Users.
+  - [ ] Role assignments.
+  - [ ] Clients.
+  - [ ] Projects.
+  - [ ] Tasks.
+  - [ ] Notes.
+  - [ ] Lists/list items.
+  - [ ] Tags.
+  - [ ] Notifications.
+  - [ ] Audit logs.
+  - [ ] File metadata.
+- [ ] Add verification:
+  - [ ] Expected counts.
+  - [ ] Permission sanity.
+  - [ ] Search sanity.
+  - [ ] App startup sanity.
+
+SQLite small-office seed target:
+
+- 1 workspace.
+- 50 users.
+- 25-100 clients.
+- 250-1,000 projects.
+- 10,000-50,000 tasks.
+- 10,000-25,000 notes.
+- 25,000-100,000 time entries.
+- 5,000-20,000 list items.
+- 2,000-10,000 file metadata rows.
+- 100,000+ audit rows.
+
+Acceptance criteria:
+
+- A developer can seed a disposable SQLite database and test realistic small-office load.
+
+### Version 0.33.5.20.2 - Tasks server-side filtering and paging
+
+- [ ] Replace full-workspace task list reads for normal list views with bounded server-side queries.
+- [ ] Move task view filters into SQL where practical:
+  - [ ] My Tasks.
+  - [ ] All.
+  - [ ] Unassigned.
+  - [ ] Overdue.
+  - [ ] Due Today.
+  - [ ] Due This Week.
+  - [ ] Completed.
+  - [ ] Archived.
+- [ ] Add page/cursor support.
+- [ ] Add maximum page size.
+- [ ] Keep permission checks authoritative.
+- [ ] Add list projection separate from full task detail read.
+- [ ] Add regressions proving:
+  - [ ] Task views return correct rows.
+  - [ ] Paging is stable.
+  - [ ] Permissions still apply.
+  - [ ] Large seeded task sets do not require loading the entire workspace task table.
+
+Acceptance criteria:
+
+- Tasks list behavior is unchanged for users.
+- Server no longer loads all workspace tasks for normal list views.
+
+### Version 0.33.5.20.3 - Notes list projection and server-side paging
+
+- [ ] Add a lightweight Notes list endpoint/projection.
+- [ ] Do not return full note body HTML in normal list responses.
+- [ ] Add server-side paging/cursor support.
+- [ ] Add server-side filters for:
+  - [ ] Status.
+  - [ ] Library bucket.
+  - [ ] Collection.
+  - [ ] Owner.
+  - [ ] Visibility.
+  - [ ] Security mode.
+  - [ ] Updated since.
+- [ ] Keep full body rendering on note detail/read endpoints.
+- [ ] Preserve secure-note access behavior.
+- [ ] Add regressions proving:
+  - [ ] Notes list is lightweight.
+  - [ ] Detail read still returns full safe rendered body where allowed.
+  - [ ] Secure notes do not leak body content.
+  - [ ] Paging and collection filters behave correctly.
+
+Acceptance criteria:
+
+- Notes list browsing scales better in SQLite and future PostgreSQL.
+- Note reading/editing UX remains unchanged.
+
+### Version 0.33.5.20.4 - Batched list enrichment
+
+- [ ] Add shared helper/service pattern for batching related list metadata by visible record IDs.
+- [ ] Batch where practical:
+  - [ ] Tags for visible tasks/notes/lists/files.
+  - [ ] File counts.
+  - [ ] Linked-note counts.
+  - [ ] Checklist progress.
+  - [ ] Assignee labels.
+  - [ ] Notification/subscription state.
+- [ ] Avoid one-query-per-row list enrichment.
+- [ ] Add query-count regressions or instrumentation for representative list surfaces.
+- [ ] Preserve module ownership:
+  - [ ] Modules own meaning.
+  - [ ] Framework may own batching helper shape.
+
+Acceptance criteria:
+
+- List pages enrich visible rows with a small, bounded number of queries.
+- Large workspaces do not produce query explosions.
+
+### Version 0.33.5.20.5 - High-volume admin lists
+
+- [ ] Add bounded paging/filtering to high-volume framework/admin surfaces:
+  - [ ] Audit log.
+  - [ ] Notifications.
+  - [ ] Search results.
+  - [ ] Files browse.
+- [ ] Ensure each endpoint has:
+  - [ ] Maximum page size.
+  - [ ] Stable sort.
+  - [ ] Permission filtering.
+  - [ ] Clear empty/loading/error states.
+- [ ] Add regressions using scale seed data.
+
+Acceptance criteria:
+
+- Admin/history surfaces remain usable with large SQLite small-office datasets.
+
+### Version 0.33.5.20.6 - SQLite small-office performance pass
+
+- [ ] Add a repeatable SQLite small-office performance script.
+- [ ] Test representative routes:
+  - [ ] App shell bootstrap.
+  - [ ] Tasks list.
+  - [ ] Task detail.
+  - [ ] Notes list.
+  - [ ] Note detail.
+  - [ ] Files browse.
+  - [ ] Search.
+  - [ ] Notifications.
+  - [ ] Workbench.
+- [ ] Record timing targets for local development hardware.
+- [ ] Add performance notes to SQLite small-office docs.
+- [ ] Document expected limits honestly.
+
+Acceptance criteria:
+
+- SQLite support target is validated with seeded data.
+- Regressions or docs make it clear when behavior exceeds SQLite small-office assumptions.
+
+## Version 0.33.5.21 - Durable Jobs and Outbox Foundation
+
+Purpose:
+
+Add a SQLite-compatible background job/outbox system that works simply in self-hosted mode and can evolve into a separate worker model for hosted SaaS.
+
+Decision:
+
+Jobs are Node-side work stored in database tables. SQL stores job state; Node workers perform the work.
+
+SQLite mode may run jobs inline or through a single local worker.
+PostgreSQL/SaaS mode should run one or more separate worker processes.
+
+### Version 0.33.5.21.1 - Job/outbox schema
+
+- [ ] Add job/outbox tables compatible with SQLite:
+  - [ ] `job_id`
+  - [ ] `workspace_id`
+  - [ ] `job_type`
+  - [ ] `dedupe_key`
+  - [ ] `payload_json`
+  - [ ] `status`
+  - [ ] `priority`
+  - [ ] `available_at`
+  - [ ] `attempt_count`
+  - [ ] `max_attempts`
+  - [ ] `locked_at`
+  - [ ] `locked_by`
+  - [ ] `last_error`
+  - [ ] `created_at`
+  - [ ] `updated_at`
+  - [ ] `completed_at`
+  - [ ] `dead_at`
+- [ ] Add indexes for pending work by status/available time.
+- [ ] Add dedupe behavior where appropriate.
+- [ ] Add docs explaining:
+  - [ ] Pending.
+  - [ ] Running/locked.
+  - [ ] Completed.
+  - [ ] Failed/retry.
+  - [ ] Dead-letter.
+
+Acceptance criteria:
+
+- SQLite can store durable background work.
+- The schema is portable to PostgreSQL later.
+
+### Version 0.33.5.21.2 - Worker runner v1
+
+- [ ] Add a Node worker runner.
+- [ ] Support modes:
+  - [ ] `inline` for simple SQLite self-hosting.
+  - [ ] `separate` for `node worker.js`.
+  - [ ] `disabled` for tests/admin troubleshooting.
+- [ ] Worker should:
+  - [ ] Poll for available jobs.
+  - [ ] Claim one or more jobs.
+  - [ ] Run registered job handlers.
+  - [ ] Mark jobs complete.
+  - [ ] Retry failed jobs with backoff.
+  - [ ] Move exhausted jobs to dead-letter state.
+- [ ] Add worker health/status output.
+- [ ] Add graceful shutdown.
+
+Acceptance criteria:
+
+- SQLite installs can run jobs without extra infrastructure.
+- Future SaaS can run workers separately from web processes.
+
+### Version 0.33.5.21.3 - Job claiming, locking, retry, and dead-letter behavior
+
+- [ ] Implement safe job claiming.
+- [ ] Add lock timeout handling.
+- [ ] Add retry backoff.
+- [ ] Add max-attempt handling.
+- [ ] Add dead-letter state.
+- [ ] Add admin-readable job failure summaries.
+- [ ] Add regression coverage:
+  - [ ] Failed job retries.
+  - [ ] Exhausted job becomes dead.
+  - [ ] Locked job is not claimed twice.
+  - [ ] Expired lock can be reclaimed.
+
+Acceptance criteria:
+
+- A failed notification/indexing/scanning job does not block the system forever.
+
+### Version 0.33.5.21.4 - Move search indexing to jobs
+
+- [ ] Add job type for search indexing.
+- [ ] Queue search-index jobs from create/update/archive/restore flows.
+- [ ] Preserve immediate user-facing save behavior.
+- [ ] Add synchronous fallback for tests or SQLite inline mode if needed.
+- [ ] Remove full app-wide search rebuild from normal web startup or gate it behind explicit maintenance mode.
+- [ ] Add admin/manual search rebuild job.
+- [ ] Add regressions proving:
+  - [ ] Record writes queue search jobs.
+  - [ ] Worker updates search index.
+  - [ ] Failed indexing jobs retry.
+  - [ ] Startup does not launch duplicate full-app rebuilds in normal mode.
+
+Acceptance criteria:
+
+- Search indexing becomes durable background work.
+
+### Version 0.33.5.21.5 - Move notification fan-out to jobs
+
+- [ ] Add job type for notification event processing.
+- [ ] Store notification-producing events in the outbox.
+- [ ] Worker resolves recipients and creates notification records.
+- [ ] Preserve permission checks.
+- [ ] Preserve module-enabled checks.
+- [ ] Add regressions proving:
+  - [ ] Notification jobs are queued.
+  - [ ] Recipients are resolved by worker.
+  - [ ] Disabled modules do not create new notifications.
+  - [ ] Failed fan-out jobs retry safely.
+
+Acceptance criteria:
+
+- Notifications no longer depend only on in-process event handlers.
+
+### Version 0.33.5.21.6 - Move reminders, recurrence, and file scanning to jobs
+
+- [ ] Add job handlers for:
+  - [ ] Task reminders.
+  - [ ] Recurrence generation.
+  - [ ] File scanning.
+  - [ ] Future imports.
+- [ ] Keep SQLite inline mode simple.
+- [ ] Ensure jobs are idempotent where practical.
+- [ ] Add admin docs for worker mode.
+- [ ] Add regressions for each job type.
+
+Acceptance criteria:
+
+- Time-sensitive and slow work has a durable background path.
+
+## Version 0.33.5.22 - Storage Provider and Scanner Runtime
+
+Purpose:
+
+Keep local file storage simple for SQLite/self-hosted mode while making storage provider selection configuration-owned and preparing for S3-compatible SaaS storage.
+
+### Version 0.33.5.22.1 - Storage provider configuration
+
+- [ ] Resolve storage provider from runtime/workspace configuration instead of hardcoding `local`.
+- [ ] Keep `local` as default for SQLite/self-hosted mode.
+- [ ] Add provider health checks.
+- [ ] Add admin diagnostics:
+  - [ ] Provider ID.
+  - [ ] Local root path or safe provider label.
+  - [ ] Availability status.
+- [ ] Add docs for local storage mode.
+- [ ] Add regressions proving:
+  - [ ] Local storage remains default.
+  - [ ] Unknown provider fails clearly.
+  - [ ] File routes do not expose storage keys/paths.
+
+Acceptance criteria:
+
+- Storage provider selection is centralized and configurable.
+
+### Version 0.33.5.22.2 - Streamed local uploads
+
+- [ ] Move file uploads away from JSON-body file payloads where practical.
+- [ ] Add streamed or multipart upload support for local/self-hosted mode.
+- [ ] Preserve existing route compatibility temporarily if needed.
+- [ ] Add upload size enforcement.
+- [ ] Add per-file result reporting.
+- [ ] Add regressions for:
+  - [ ] Successful upload.
+  - [ ] Oversized upload rejection.
+  - [ ] Partial batch failure.
+  - [ ] Upload cancellation/error.
+
+Acceptance criteria:
+
+- Local uploads do not require buffering large file JSON payloads in memory.
+
+### Version 0.33.5.22.3 - Scanner adapter configuration
+
+- [ ] Formalize scanner modes:
+  - [ ] `none`
+  - [ ] `noop`
+  - [ ] `clamd`
+  - [ ] `clamscan`
+- [ ] Keep no-op scanner only for development or explicitly accepted self-hosted mode.
+- [ ] Add scanner health checks.
+- [ ] Add admin warning when scanner is disabled.
+- [ ] Add scanner docs for Windows, Linux, and macOS.
+- [ ] Do not auto-delete suspicious files.
+- [ ] Quarantine suspicious files and require review.
+- [ ] Add regressions proving:
+  - [ ] Scanner disabled state is visible.
+  - [ ] Scanner failure quarantines or blocks according to policy.
+  - [ ] Scanner does not bypass file permissions.
+
+Acceptance criteria:
+
+- Scanner behavior is OS-agnostic at the app level.
+- ClamAV or other scanners are runtime adapters, not hard dependencies.
+
+### Version 0.33.5.22.4 - ClamAV scanner adapter
+
+- [ ] Add `clamd` adapter.
+- [ ] Add `clamscan` executable adapter.
+- [ ] Support configured executable/socket/host/port.
+- [ ] Add timeout and failure behavior.
+- [ ] Add safe scanner metadata.
+- [ ] Add docs:
+  - [ ] Linux service setup.
+  - [ ] Windows executable path setup.
+  - [ ] macOS/Homebrew setup if practical.
+  - [ ] What happens when scanner is unavailable.
+- [ ] Add regressions using mocked scanner responses:
+  - [ ] Clean.
+  - [ ] Infected.
+  - [ ] Scanner unavailable.
+  - [ ] Timeout.
+
+Acceptance criteria:
+
+- Real file scanning is available without making LTF Linux-only.
+
+### Version 0.33.5.22.5 - S3-compatible storage provider proof
+
+- [ ] Add S3-compatible storage adapter behind the provider contract.
+- [ ] Support provider configuration through `.env`/runtime config.
+- [ ] Do not require S3 for SQLite/self-hosted installs.
+- [ ] Add safe provider health checks.
+- [ ] Add direct/presigned upload planning or proof where practical.
+- [ ] Keep all downloads permission-checked through LTF routes or signed URL rules.
+- [ ] Add regressions with mocked S3 provider.
+
+Acceptance criteria:
+
+- Hosted SaaS has a path to object storage.
+- Self-hosted local storage remains unchanged.
+
+## Version 0.33.5.23 - PostgreSQL Adapter and SaaS Runtime Proof
+
+Purpose:
+
+Add the hosted-SaaS database backend behind the provider-neutral database contract while preserving SQLite small-office support.
+
+### Version 0.33.5.23.1 - PostgreSQL adapter skeleton
+
+- [ ] Add PostgreSQL database provider implementation.
+- [ ] Support `DATABASE_URL`.
+- [ ] Support pool configuration.
+- [ ] Support TLS/SSL configuration.
+- [ ] Add health checks.
+- [ ] Add docs for local Postgres development.
+- [ ] Do not change SQLite defaults.
+
+Acceptance criteria:
+
+- App can connect to PostgreSQL behind the same database adapter contract.
+
+### Version 0.33.5.23.2 - SQL portability audit
+
+- [ ] Inventory SQLite-specific SQL:
+  - [ ] `INSERT OR IGNORE`.
+  - [ ] SQLite-specific conflict syntax.
+  - [ ] `COLLATE NOCASE`.
+  - [ ] PRAGMA usage.
+  - [ ] FTS-specific behavior.
+  - [ ] JSON handling assumptions.
+- [ ] Add compatibility helpers where needed.
+- [ ] Document intentional SQLite-only paths.
+- [ ] Add repository tests for SQLite and PostgreSQL where practical.
+
+Acceptance criteria:
+
+- Provider differences are explicit and tested.
+
+### Version 0.33.5.23.3 - PostgreSQL migrations and schema proof
+
+- [ ] Add PostgreSQL migration runner support.
+- [ ] Add migration locking for PostgreSQL.
+- [ ] Create PostgreSQL-compatible schema baseline or migration translation.
+- [ ] Verify schema creation from empty database.
+- [ ] Add checksum validation.
+- [ ] Add docs explaining:
+  - [ ] SQLite self-hosted path.
+  - [ ] PostgreSQL SaaS path.
+  - [ ] Migration ownership.
+  - [ ] Backup expectations.
+
+Acceptance criteria:
+
+- PostgreSQL can initialize cleanly.
+- SQLite migration behavior remains intact.
+
+### Version 0.33.5.23.4 - Dual-backend repository contract tests
+
+- [ ] Add a test runner that can execute repository contract tests against:
+  - [ ] SQLite.
+  - [ ] PostgreSQL, when configured.
+- [ ] Prioritize high-value repositories:
+  - [ ] Sessions.
+  - [ ] Workspaces.
+  - [ ] Permissions.
+  - [ ] Tasks.
+  - [ ] Notes.
+  - [ ] Files metadata.
+  - [ ] Search index.
+  - [ ] Notifications.
+- [ ] Add docs for optional Postgres test setup.
+
+Acceptance criteria:
+
+- Core behavior can be verified against both backends.
+
+### Version 0.33.5.23.5 - SaaS seed and load smoke test
+
+- [ ] Add Postgres seed profile for many workspaces.
+- [ ] Add basic load-smoke scripts.
+- [ ] Test:
+  - [ ] Login/session.
+  - [ ] App shell.
+  - [ ] Tasks list/detail.
+  - [ ] Notes list/detail.
+  - [ ] Files browse.
+  - [ ] Search.
+  - [ ] Notifications.
+  - [ ] Job worker.
+- [ ] Record baseline performance numbers.
+- [ ] Document what is proven and what is not yet proven.
+
+Acceptance criteria:
+
+- The SaaS backend has an evidence-based baseline.
+
+
 
 ## Version 0.33.6 - Reporting Framework and Time Report Contribution
 
@@ -1315,6 +2348,25 @@ Do not expose raw audit records, raw event payloads, private module records, or 
   - [ ] Consider hashing or truncating IP addresses for long-term retention.
   - [ ] Define retention period for login events.
   - [ ] Restrict access to login security logs.
+
+## Version 0.38.x - Security, Sessions, Login Monitoring, and Production Hardening
+
+Add dependency note:
+
+This branch depends on the runtime configuration contract from 0.33.5.19. Security-sensitive settings must be validated through `.env`/runtime config before public hosted SaaS launch.
+
+Additional required hardening before hosted SaaS:
+
+- [ ] Production secure cookies.
+- [ ] Trusted proxy configuration.
+- [ ] Login throttling/rate limiting.
+- [ ] Async password hashing/verification.
+- [ ] Session revocation.
+- [ ] Admin-forced logout.
+- [ ] Password reset.
+- [ ] Security event logging.
+- [ ] Backup/restore testing.
+- [ ] Runtime secret documentation.
 
 ### Version 0.38.4
 

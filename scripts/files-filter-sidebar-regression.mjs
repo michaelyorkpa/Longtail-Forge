@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.11.4";
+const appVersion = "0.33.5.18.11.8";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
@@ -16,7 +16,7 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(filesHtml, /<main class="wide-page files-page" data-files-host><\/main>/, "Files protected view should stay a minimal descriptor host");
-assert.match(filesHtml, /js\/shared\/client-project-options\.js[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=5/, "Files host should load the client/project provider helper and renderer before the Files adapter");
+assert.match(filesHtml, /js\/shared\/client-project-options\.js[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=7/, "Files host should load the client/project provider helper and renderer before the Files adapter");
 assertNoProtectedAnatomy(filesHtml, "views/protected/files.html");
 
 assert.match(frameworkSurfaceSource, /id:\s*"files\.browse"[\s\S]*layout:\s*"slide-out-sidebar"/, "Files descriptor should use the shared slide-out sidebar layout");
@@ -54,7 +54,8 @@ assert.match(bindFilesEvents, /moduleFilter[\s\S]*targetTypeFilter[\s\S]*targetI
 assert.match(filesScript, /api\.getJson\(`\/api\/files\/attachments\?\$\{readFilters\(\)\.toString\(\)\}`/, "Files browse loader should refetch through the Files attachments route");
 
 const fileRow = functionBlock(filesScript, "fileRow");
-assert.doesNotMatch(fileRow, /attachment\.clientId|attachment\.client_id|attachment\.projectId|attachment\.project_id/, "Normal Files rows should not fall back to raw client/project IDs");
+assert.match(fileRow, /clientId:[\s\S]*projectId:/, "Files may keep raw context IDs internally for the modal shell");
+assert.doesNotMatch(fileRow, /clientLabel:\s*[^,\n]*(clientId|client_id)|projectLabel:\s*[^,\n]*(projectId|project_id)/, "Normal Files visible labels should not fall back to raw client/project IDs");
 assert.match(filesScript, /function formatTargetDisplay\(targetType, targetLabel\)/, "Files rows should format target context without normal raw ID fallback");
 
 assert.match(styles, /\.view-slideout-sidebar-drawer \.file-filters,[\s\S]*\.files-advanced-filter-fields\s*\{[\s\S]*grid-template-columns:\s*1fr/, "Files filters should collapse to a stable one-column drawer layout");
