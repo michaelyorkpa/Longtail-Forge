@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.5.18.12.4. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.5.18.12.5. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 

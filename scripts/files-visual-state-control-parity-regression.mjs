@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.4";
+const appVersion = "0.33.5.18.12.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -116,7 +116,7 @@ assert.doesNotMatch(filesScript, /selectedFile|selected-row|createFilesDetailPan
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.4/, "View-building contract should document visual/control parity");
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.4/, "Module contract should document Files visual/control parity");
 assert.match(changelog, /## Version 0\.33\.5\.18\.12\.4[\s\S]*Files visual states and control parity/, "Changelog should document the Files visual parity slice");
-assert.match(roadmap, /0\.33\.5\.18\.12\.4 is the most recently completed Files visual states and control parity slice/, "Roadmap should advance to the completed visual parity slice");
+assert.match(roadmap, /#### Version 0\.33\.5\.18\.12\.4 - Files visual states and control parity[\s\S]*- \[x\] Align Files page and attachment-panel controls/, "Roadmap should retain the completed visual parity checklist");
 assert.match(regressionSuite, /scripts\/files-visual-state-control-parity-regression\.mjs/, "Regression suite should include the Files visual parity regression");
 
 console.log("Files visual state and control parity regression passed.");

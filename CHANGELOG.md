@@ -1,3 +1,10 @@
+## Version 0.33.5.18.12.5 - 2026-06-27 07:03 -04:00
+
+- Added the reporting-only Files strict guardrail inventory in `docs/files-strict-guardrail-inventory.md`, mapping future framework-owned candidates for the Files page/header, filters, list/table shell, attachment panel shell, upload/dropzone shell, empty/status states, dense actions, and modal/overlay placement.
+- Documented the allowed Files-owned escape hatches for file reads, upload payloads, accepted categories, scan/download/preview availability, Files route calls, confirmations, permission-shaped visibility, target metadata, deleted/unavailable/in-review recovery states, host refresh callbacks, and the already-shipped File Context and Preview modal openers/routes.
+- Kept `files.browse` as a reported framework-owned descriptor surface instead of turning on strict Files enforcement early, added `scripts/files-strict-guardrail-inventory-regression.mjs`, refreshed view/module/declarative docs and Decisions, marked the roadmap slice complete, and advanced package plus current Notes/Tasks module metadata to `0.33.5.18.12.5`.
+- Verification 2026-06-27 07:09 -04:00: targeted Files strict-inventory, declarative-surface, clean-clone, Files visual/action/attachment, Tasks Files utility, and JS checks passed; `npm run test:permissions` passed 236 checks; `npm run check` passed 192/192 regression scripts plus ESLint; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.18.12.5 after restarting the local 8001 server.
+
 ## Version 0.33.5.18.12.4 - 2026-06-26 17:59 -04:00
 
 - Standardized Files visual states and control parity: browse rows now render availability and review-state chips, attachment panels render metadata chips, and attachment counts/empty/loading states use consistent attachment/review/recovery language.

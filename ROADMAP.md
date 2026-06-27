@@ -9,7 +9,7 @@ are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
 The active roadmap continues with Files and Clients/Projects view conversion work.
 Completed 0.33.5.18.11.1 through 0.33.5.18.11.13 are archived in `ROADMAP-ARCHIVE.md`.
-0.33.5.18.12.4 is the most recently completed Files visual states and control parity slice. The next live work starts with 0.33.5.18.12.5.
+0.33.5.18.12.5 is the most recently completed Files strict guardrail inventory and escape-hatch map slice. The next live work starts with 0.33.5.18.12.6.
 
 ## Files (0.33.5.18.11 - 0.33.5.18.12)
 
@@ -143,18 +143,18 @@ Inspector behavior on the Files browse page.
 
 #### Version 0.33.5.18.12.5 - Files strict guardrail inventory and escape-hatch map
 
-- [ ] Add `docs/files-strict-guardrail-inventory.md` or an equivalent section in the view-building docs
+- [x] Add `docs/files-strict-guardrail-inventory.md` or an equivalent section in the view-building docs
       before strict enforcement.
-- [ ] Inventory remaining framework-owned candidates in `public/js/files.js` and
+- [x] Inventory remaining framework-owned candidates in `public/js/files.js` and
       `public/js/shared/file-attachments.js`: page header, filters, table/list shell, attachment panel
       shell, upload/dropzone shell, empty/status states, dense actions, and modal/overlay placement.
-- [ ] Document intentional Files-owned escape hatches: file reading, upload payloads, accepted
+- [x] Document intentional Files-owned escape hatches: file reading, upload payloads, accepted
       categories, scan/download availability, route calls, confirmations, permission-aware visibility,
       target metadata, deleted/quarantined recovery states, and host refresh callbacks.
-- [ ] Document the already-shipped File Context and Preview modal openers/routes as allowed Files-owned
+- [x] Document the already-shipped File Context and Preview modal openers/routes as allowed Files-owned
       behavior, while marking inline detail/summary/preview/metadata panels, selected-row state, and
       Inspector-style browse behavior as forbidden.
-- [ ] Add non-failing guardrail inventory coverage, but do not fail strict Files guardrails until the
+- [x] Add non-failing guardrail inventory coverage, but do not fail strict Files guardrails until the
       enforcement slice.
 
 #### Version 0.33.5.18.12.6 - Files strict declarative guardrail enforcement

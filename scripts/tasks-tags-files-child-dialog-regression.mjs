@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.4";
+const appVersion = "0.33.5.18.12.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -64,7 +64,7 @@ assert.match(workbenchView, /js\/task-dialog\.js\?v=21/, "Workbench should cache
 assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current Task child-dialog version");
 assert.match(tasksDocs, /Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should document the shipped child-dialog behavior");
 assert.match(tasksDocs, /Save the task before adding files\./, "Tasks docs should preserve the Files save-first state");
-assert.match(roadmap, /0\.33\.5\.18\.12\.4 is the most recently completed Files visual states and control parity slice/, "Roadmap should report the current Files visual parity slice");
+assert.match(roadmap, /0\.33\.5\.18\.12\.5 is the most recently completed Files strict guardrail inventory and escape-hatch map slice/, "Roadmap should report the current Files strict inventory slice");
 assert.match(regressionSuite, /scripts\/tasks-tags-files-child-dialog-regression\.mjs/, "Full regression suite should include the Task child-dialog regression");
 
 console.log("Tasks Tags and Files child-dialog regression passed.");

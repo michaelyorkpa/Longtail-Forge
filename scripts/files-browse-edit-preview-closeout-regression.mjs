@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.4";
+const appVersion = "0.33.5.18.12.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const roadmap = readText("ROADMAP.md");
@@ -21,7 +21,7 @@ assert.match(notesModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`
 assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module metadata should track the current app version");
 
 assert.match(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.13 are archived/, "Roadmap should identify the closeout as archived");
-assert.match(roadmap, /0\.33\.5\.18\.12\.4 is the most recently completed Files visual states and control parity slice/, "Roadmap should identify the current Files visual parity slice");
+assert.match(roadmap, /0\.33\.5\.18\.12\.5 is the most recently completed Files strict guardrail inventory and escape-hatch map slice/, "Roadmap should identify the current Files strict inventory slice");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.11\.12 - Files preview modal and browse row preview action/, "Completed 0.33.5.18.11.12 should be archived out of the live roadmap");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.11\.13 - Files browse\/edit\/preview closeout and 0\.33\.5\.18\.12 handoff/, "Completed 0.33.5.18.11.13 should be archived out of the live roadmap");
 
