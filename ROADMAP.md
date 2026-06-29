@@ -10,6 +10,7 @@ Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.
 The active roadmap continues with Clients/Projects view conversion work.
 Completed 0.33.5.18.11.1 through 0.33.5.18.11.13 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.12.1 through 0.33.5.18.12.7 are archived in `ROADMAP-ARCHIVE.md`.
+Completed 0.33.5.18.13.1 through 0.33.5.18.13.3 are archived in `ROADMAP-ARCHIVE.md`.
 
 ## Clients/Projects Pages (0.33.5.18.13 - 0.33.5.18.14)
 
@@ -30,78 +31,19 @@ Business-only Client availability, Personal/Family project-only scope, payload c
 permissions, audit/search/event side effects, safe labels, tag assignment semantics, save/refresh
 behavior, and the already-converted Add/Edit Client and Add/Edit Project dialog behavior.
 
-### Version 0.33.5.18.13.1 - Clients/Projects Descriptor Readiness and Guardrail Inventory
+### Version 0.33.5.18.14.1 - Clients/Projects Remaining Action and Dialog Behavior Registration
 
-- [ ] Inventory `clients.html`, `projects.html`, `public/js/clients-projects.js`, the
-      `client-projects` module manifest, `/api/clients`, `/api/projects`, and `/api/client-projects`.
-- [ ] Add `docs/clients-projects-strict-guardrail-inventory.md` before strict enforcement, mapping:
-  - [ ] Framework-owned page/header/filter/sidebar/table/index/bulk/action/status shells.
-  - [ ] Clients/Projects-owned data shaping, hierarchy rules, billing/task-default editors, tag
-        assignment, route calls, query-param openers, permissions, and save payloads.
-- [ ] Add only the descriptor/renderer support needed by both Clients and Projects page reads:
-  - [ ] Display-only hierarchy metadata for flattened tree rows, such as depth/path/parent fields,
-        without adding drag/drop or move semantics.
-  - [ ] Dynamic filter option mounting or option-source hydration for module-owned Client options,
-        without making the framework own Client records.
-  - [ ] Table cell display hooks or documented region escape hatches for module-owned readable labels
-        and Tag chip rendering, without letting the module build table chrome by hand.
-- [ ] Update descriptor validation and renderer regressions for those shared capabilities.
-- [ ] Do not convert the Clients/Projects protected HTML hosts in this slice.
-- [ ] Do not change Clients/Projects routes, write payloads, permissions, schema, or workflow behavior.
-
-### Version 0.33.5.18.13.2 - Clients/Projects Read Descriptors and Minimal Hosts
-
-- [ ] Add separate `viewSurfaces` descriptors for `client-projects.clients` and
-      `client-projects.projects`; do not model them as one combined page surface.
-- [ ] Reduce `views/protected/clients.html` and `views/protected/projects.html` to minimal descriptor
-      hosts that load `view-builder.js`, `view-renderer.js`, and the Clients/Projects adapter in that
-      order.
-- [ ] Bind the Clients descriptor to the canonical `/api/clients` list route with server-owned
-      status/tag filtering, permission pruning, hierarchy ordering, and depth metadata.
-- [ ] Bind the Projects descriptor to the canonical `/api/projects` list route with server-owned
-      status/client/tag filtering, permission pruning, hierarchy ordering, workspace-project handling,
-      and depth metadata.
-- [ ] Keep `/api/client-projects` available for existing dialog and cross-module option workflows; do
-      not make it the new page-list source of truth if `/api/clients` or `/api/projects` can express
-      the page read.
-- [ ] Define descriptor `fieldBindings` for readable names, hierarchy display, status, Client context
-      where visible, billing display fields, and tag display inputs.
-- [ ] Preserve the already-converted Add/Edit Client and Add/Edit Project dialog openers; no dialog
-      body redesign belongs in this slice.
-- [ ] Add regressions proving both protected hosts are minimal, both descriptors are delivered through
-      bootstrap only when the module/view is available, and the read path preserves Business-only
-      Client gating plus Personal/Family project-only behavior.
-
-### Version 0.33.5.18.13.3 - Clients/Projects Framework-Rendered Read Anatomy
-
-- [ ] Move page headers, status placement, filters, empty/loading/error states, list/table wrappers,
-      hierarchy display, and row action placement for both pages into descriptors or shared
-      `LongtailForge.view` renderer paths.
-- [ ] Keep Clients/Projects-owned browser code responsible for selecting safe row labels, tag display
-      values, billing display values, and Project Client labels before they enter framework-owned
-      anatomy.
-- [ ] Keep Business workspaces showing Client-aware surfaces and Client filters; keep Personal and
-      Family workspaces project-only with Client filters/rows hidden or unavailable.
-- [ ] Preserve `?client=`, `?project=`, `?addClient=true`, and `?addProject=true` entry behavior by
-      dispatching to existing module-owned openers after descriptor render.
-- [ ] Keep page Add/Edit buttons as descriptor actions or registered behaviors that call the existing
-      Clients/Projects dialog API.
-- [ ] Add regressions proving hierarchy indentation/order, status/client filters, readable tag display,
-      page actions, and query-param openers still work without protected-page HTML anatomy.
-
-### Version 0.33.5.18.14.1 - Clients/Projects Page Actions and Dialog Behavior Registration
-
-- [ ] Register module-owned behavior handlers for Add Client, Edit Client, Add Project, and Edit
-      Project page actions.
-- [ ] Route descriptor action placement through the framework while keeping the dialog openers,
+- [ ] Normalize any remaining module-owned action/dialog behavior registrations beyond the
+      0.33.5.18.13.3 read-page Add/Edit handlers.
+- [ ] Route any remaining descriptor action placement through the framework while keeping the dialog openers,
       field bodies, validation, save payloads, tag pickers, billing editors, parent selectors, and
       refresh callbacks in `public/js/clients-projects.js` and Clients/Projects services.
 - [ ] Keep the 0.33.5.15.4 converted modal shell/footer standard; do not reintroduce static
       `<dialog>` markup or one-off modal footer/action classes.
 - [ ] Preserve module action host-context callbacks for Workbench/search/module-triggered Add/Edit
       flows.
-- [ ] Add regressions proving descriptor actions call the canonical dialog API and do not duplicate
-      Client/Project forms.
+- [ ] Add regressions proving remaining descriptor/registered actions call the canonical dialog API
+      and do not duplicate Client/Project forms.
 
 ### Version 0.33.5.18.14.2 - Clients/Projects Related Tables and Detail Regions
 

@@ -94,9 +94,11 @@ const VIEW_SIDEBAR_PANEL_FIELDS = new Set([...VIEW_LABEL_FIELDS, "id", "type", "
 const VIEW_SIDEBAR_PANEL_FOOTER_FIELDS = new Set([...VIEW_LABEL_FIELDS, "id", "behavior", "className", "ariaLabel"]);
 const VIEW_CHIP_FIELDS = new Set(["field", "label", "labelKey"]);
 const VIEW_VISIBLE_WHEN_FIELDS = new Set(["field", "equals", "in", "truthy", "falsy"]);
-const VIEW_INDEX_PANEL_FIELDS = new Set([...VIEW_LABEL_FIELDS, "items", "itemTitleField", "itemSubtitleField", "itemMetaFields", "emptyState", "initialSelection", "collapseOnSelect"]);
-const VIEW_TABLE_FIELDS = new Set(["columns", "rowActions", "emptyState", "overflow"]);
-const VIEW_TABLE_COLUMN_FIELDS = new Set(["id", "field", "label", "labelKey", "formatter", "width", "widthHint", "align"]);
+const VIEW_INDEX_PANEL_FIELDS = new Set([...VIEW_LABEL_FIELDS, "items", "itemTitleField", "itemSubtitleField", "itemMetaFields", "itemDepthField", "itemParentField", "itemPathField", "emptyState", "initialSelection", "collapseOnSelect"]);
+const VIEW_TABLE_FIELDS = new Set(["columns", "rowActions", "emptyState", "overflow", "hierarchy"]);
+const VIEW_TABLE_HIERARCHY_FIELDS = new Set(["depthField", "parentField", "pathField"]);
+const VIEW_TABLE_COLUMN_FIELDS = new Set(["id", "field", "label", "labelKey", "formatter", "width", "widthHint", "align", "depthField", "chipsField", "chipLabelField"]);
+const VIEW_TABLE_COLUMN_FORMATTERS = new Set(["text", "hierarchy-label", "chip-list"]);
 const VIEW_DETAIL_FIELDS = new Set([
   "header",
   "badgeRow",
@@ -693,6 +695,9 @@ function validateIndexPanelDescriptor(indexPanel, prefix, errors) {
   optionalString(indexPanel, "itemTitleField", errors, { prefix });
   optionalString(indexPanel, "itemSubtitleField", errors, { prefix });
   optionalStringArray(indexPanel, "itemMetaFields", errors, { prefix });
+  optionalString(indexPanel, "itemDepthField", errors, { prefix });
+  optionalString(indexPanel, "itemParentField", errors, { prefix });
+  optionalString(indexPanel, "itemPathField", errors, { prefix });
   optionalPlainObject(indexPanel, "emptyState", errors, { prefix });
   optionalString(indexPanel, "initialSelection", errors, { prefix });
   if (typeof indexPanel.initialSelection === "string" && !["first", "none"].includes(indexPanel.initialSelection)) {
@@ -710,19 +715,40 @@ function validateTableDescriptor(table, prefix, errors) {
     return;
   }
   validateKnownObjectFields(table, VIEW_TABLE_FIELDS, prefix, errors);
+  validateTableHierarchyDescriptor(table.hierarchy, `${prefix}.hierarchy`, errors);
   optionalArrayOfObjects(table.columns, `${prefix}.columns`, errors, (column, index) => {
     const columnPrefix = `${prefix}.columns[${index}]`;
     validateKnownObjectFields(column, VIEW_TABLE_COLUMN_FIELDS, columnPrefix, errors);
     requireString(column, "field", errors, { prefix: columnPrefix });
     validateLabelDescriptor(column, columnPrefix, errors);
     optionalString(column, "formatter", errors, { prefix: columnPrefix });
+    if (typeof column.formatter === "string" && !VIEW_TABLE_COLUMN_FORMATTERS.has(column.formatter)) {
+      errors.push(`${columnPrefix}.formatter must be text, hierarchy-label, or chip-list.`);
+    }
     optionalString(column, "width", errors, { prefix: columnPrefix });
     optionalString(column, "widthHint", errors, { prefix: columnPrefix });
     optionalString(column, "align", errors, { prefix: columnPrefix });
+    optionalString(column, "depthField", errors, { prefix: columnPrefix });
+    optionalString(column, "chipsField", errors, { prefix: columnPrefix });
+    optionalString(column, "chipLabelField", errors, { prefix: columnPrefix });
   });
   validateActionsDescriptor(table.rowActions, `${prefix}.rowActions`, errors);
   optionalPlainObject(table, "emptyState", errors, { prefix });
   optionalBoolean(table, "overflow", errors, { prefix });
+}
+
+function validateTableHierarchyDescriptor(hierarchy, prefix, errors) {
+  if (hierarchy === undefined) {
+    return;
+  }
+  if (!isPlainObject(hierarchy)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+  validateKnownObjectFields(hierarchy, VIEW_TABLE_HIERARCHY_FIELDS, prefix, errors);
+  optionalString(hierarchy, "depthField", errors, { prefix });
+  optionalString(hierarchy, "parentField", errors, { prefix });
+  optionalString(hierarchy, "pathField", errors, { prefix });
 }
 
 function validateDetailDescriptor(detail, prefix, errors) {

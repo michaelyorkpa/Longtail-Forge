@@ -37,6 +37,7 @@
     --view-action-menu-left: 0px;
     --view-action-menu-max-height: 320px;
     --view-action-menu-top: 0px;
+    --view-hierarchy-depth: 0;
 }
 
 html[data-theme="dark"] {
@@ -965,6 +966,10 @@ details[open] > summary.surface-modal-section-heading::before {
     min-width: 0;
 }
 
+.view-index-list-item--hierarchy .view-index-list-button {
+    padding-left: calc(12px + (var(--view-hierarchy-depth, 0) * 16px));
+}
+
 .view-index-list-button:hover {
     background: var(--color-hover);
 }
@@ -1002,6 +1007,14 @@ details[open] > summary.surface-modal-section-heading::before {
     padding: 8px 0;
 }
 
+.view-data-table .view-hierarchy-label {
+    display: inline-flex;
+    min-width: 0;
+    max-width: 100%;
+    padding-left: calc(var(--view-hierarchy-depth, 0) * 16px);
+    overflow-wrap: anywhere;
+}
+
 .view-table-wrap {
     width: 100%;
     max-width: 100%;
@@ -1029,6 +1042,12 @@ details[open] > summary.surface-modal-section-heading::before {
 .view-data-table-empty {
     color: var(--color-muted);
     text-align: center;
+}
+
+.view-table-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
 }
 
 .view-detail-action-strip,

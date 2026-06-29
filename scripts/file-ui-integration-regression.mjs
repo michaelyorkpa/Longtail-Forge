@@ -82,8 +82,8 @@ assert.ok(filesPage.includes('<main class="wide-page files-page" data-files-host
 assert.ok(filesPage.includes("js/shared/modal.js"), "Files page should load the shared modal helper for in-app warnings.");
 assert.ok(
   filesPage.indexOf("js/shared/client-project-options.js?v=2") < filesPage.indexOf("js/shared/view-builder.js?v=16") &&
-    filesPage.indexOf("js/shared/view-builder.js?v=16") < filesPage.indexOf("js/shared/view-renderer.js?v=12") &&
-    filesPage.indexOf("js/shared/view-renderer.js?v=12") < filesPage.indexOf("js/files.js?v=13"),
+    filesPage.indexOf("js/shared/view-builder.js?v=16") < filesPage.indexOf("js/shared/view-renderer.js?v=13") &&
+    filesPage.indexOf("js/shared/view-renderer.js?v=13") < filesPage.indexOf("js/files.js?v=13"),
   "Files page should load client/project helpers plus the shared view builder/renderer before the Files adapter.",
 );
 assert.ok(filesPage.includes("js/files.js?v=13"), "Files page should cache-bust the protected Files script.");

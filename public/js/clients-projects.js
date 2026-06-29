@@ -1,6 +1,31 @@
 // Clients & Projects is the main editor for client, project, and billing metadata.
 const view = window.LongtailForge?.view;
+const pageMode = document.body.dataset.clientProjectPage || "combined";
+const isClientsPage = pageMode === "clients";
+const isProjectsPage = pageMode === "projects";
 
+let clientProjectData = { clients: [] };
+let workspaceSettings = {
+  defaultBillingRate: "",
+  billingPeriod: { type: "calendarMonth", startDay: 1 },
+  billingRounding: { enabled: false, increment: "nearestQuarterHour" },
+  workspaceType: "business",
+};
+let activeClientProjectsReadDescriptor = null;
+let activeClientProjectsReadSurface = null;
+let clientProjectsViewBehaviorsRegistered = false;
+let openClientId = "";
+let openBillingClientId = "";
+let openClientBillingSettingsId = "";
+let openedAddClientFromQuery = false;
+let openedClientDetailFromQuery = false;
+let openedAddProjectFromQuery = false;
+let openedProjectDetailFromQuery = false;
+let tagOptions = [];
+let newClientTagPicker = { readTagIds: () => [] };
+
+registerClientProjectsViewBehaviors();
+activeClientProjectsReadSurface = renderClientProjectsReadSurface();
 buildClientProjectDialogShells();
 
 const clientList = document.querySelector("[data-client-list]");
@@ -21,9 +46,6 @@ const newProjectBillingRateInput = document.querySelector(
 );
 const newProjectStatusSelect = document.querySelector("[data-new-project-status]");
 const cancelClientButton = document.querySelector("[data-cancel-client]");
-const pageMode = document.body.dataset.clientProjectPage || "combined";
-const isClientsPage = pageMode === "clients";
-const isProjectsPage = pageMode === "projects";
 const clientStatuses = ["Active", "Inactive"];
 const projectStatuses = ["Active", "Inactive", "Completed"];
 const taskDefaultStatuses = ["open", "in_progress", "blocked", "complete", "archived"];
@@ -54,22 +76,128 @@ const billingContactFields = [
   ["zip_code", "Zip Code"],
 ];
 
-let clientProjectData = { clients: [] };
-let workspaceSettings = {
-  defaultBillingRate: "",
-  billingPeriod: { type: "calendarMonth", startDay: 1 },
-  billingRounding: { enabled: false, increment: "nearestQuarterHour" },
-  workspaceType: "business",
-};
-let openClientId = "";
-let openBillingClientId = "";
-let openClientBillingSettingsId = "";
-let openedAddClientFromQuery = false;
-let openedClientDetailFromQuery = false;
-let openedAddProjectFromQuery = false;
-let openedProjectDetailFromQuery = false;
-let tagOptions = [];
-let newClientTagPicker = { readTagIds: () => [] };
+function registerClientProjectsViewBehaviors() {
+  if (clientProjectsViewBehaviorsRegistered || typeof view?.registerBehavior !== "function") {
+    return;
+  }
+
+  clientProjectsViewBehaviorsRegistered = true;
+  view.registerBehavior("client-projects.clients.create", () => openAddClientAction());
+  view.registerBehavior("client-projects.clients.edit", ({ record }) => openEditClientAction(record || {}));
+  view.registerBehavior("client-projects.projects.create", () => openAddProjectAction());
+  view.registerBehavior("client-projects.projects.edit", ({ record }) => openEditProjectAction(record || {}));
+  view.registerBehavior("client-projects.clients.tags", hydrateTagFilterOptions);
+  view.registerBehavior("client-projects.projects.tags", hydrateTagFilterOptions);
+  view.registerBehavior("client-projects.projects.clients", hydrateProjectClientFilterOptions);
+}
+
+function renderClientProjectsReadSurface() {
+  if ((!isClientsPage && !isProjectsPage) || typeof view?.renderSurface !== "function") {
+    return null;
+  }
+
+  const host = document.querySelector("[data-client-projects-host]") || document.querySelector("main");
+  if (!host) {
+    return null;
+  }
+
+  activeClientProjectsReadDescriptor = clientProjectsViewSurfaceDescriptor();
+  if (!activeClientProjectsReadDescriptor) {
+    return null;
+  }
+
+  return view.renderSurface(activeClientProjectsReadDescriptor, host);
+}
+
+function clientProjectsViewSurfaceDescriptor() {
+  const surfaceId = isClientsPage
+    ? "client-projects.clients"
+    : isProjectsPage
+      ? "client-projects.projects"
+      : "";
+  if (!surfaceId) {
+    return null;
+  }
+
+  const surfaces = window.LongtailForge?.workspaceContext?.viewSurfaces || [];
+  const surface = surfaces.find((candidate) => candidate.id === surfaceId && candidate.moduleId === "client-projects") || null;
+  return isProjectsPage ? withInitialProjectClientFilter(surface) : surface;
+}
+
+function withInitialProjectClientFilter(surface) {
+  const clientId = new URLSearchParams(window.location.search).get("client") || "";
+  const contextWorkspaceType = window.LongtailForge?.workspaceContext?.workspaceType || workspaceSettings.workspaceType;
+  if (!surface || !clientId || contextWorkspaceType !== "business") {
+    return surface;
+  }
+
+  return {
+    ...surface,
+    filters: (surface.filters || []).map((filter) => (
+      filter.field === "clientId" ? { ...filter, default: clientId } : filter
+    )),
+  };
+}
+
+async function hydrateTagFilterOptions({ setOptions } = {}) {
+  if (!tagOptions.length) {
+    await loadClientProjectDialogData();
+  }
+
+  setOptions?.([
+    { value: "", label: "All tags", selected: true },
+    ...tagOptions.map((tag) => ({
+      value: tag.tag_id,
+      label: tag.name || tag.slug || "Tag",
+    })),
+  ]);
+}
+
+async function hydrateProjectClientFilterOptions({ control, setOptions } = {}) {
+  if (!clientProjectData.clients.length) {
+    await loadClientProjectDialogData();
+  }
+
+  if (!clientsEnabledForWorkspace()) {
+    hideDescriptorField(control);
+    if (control) {
+      control.value = "All";
+      control.disabled = true;
+    }
+    setOptions?.([{ value: "All", label: "All projects", selected: true }]);
+    return;
+  }
+
+  showDescriptorField(control);
+  setOptions?.([
+    { value: "All", label: "All clients", selected: true },
+    { value: "__workspace_projects__", label: workspaceProjectsLabel() },
+    ...sortClientTree(getActiveRealClients()).map((client) => ({
+      value: client.id,
+      label: `${treeIndent(getClientDepth(client))}${client.name}`,
+    })),
+  ]);
+}
+
+function hideDescriptorField(control) {
+  const field = control?.closest?.("[data-view-field]");
+  if (field) {
+    field.hidden = true;
+    field.setAttribute("hidden", "");
+  }
+}
+
+function showDescriptorField(control) {
+  const field = control?.closest?.("[data-view-field]");
+  if (field) {
+    field.hidden = false;
+    field.removeAttribute("hidden");
+  }
+  if (control) {
+    control.hidden = false;
+    control.disabled = false;
+  }
+}
 
 function buildClientProjectDialogShells() {
   if (document.querySelector("[data-client-modal]")) {
@@ -174,7 +302,9 @@ function createAddClientPageDialogShell() {
   return dialog;
 }
 
-if (clientList && statusMessage) {
+if (activeClientProjectsReadSurface) {
+  loadPageData({ renderPage: false });
+} else if (clientList && statusMessage) {
   loadPageData();
 }
 
@@ -223,7 +353,7 @@ if (clientForm) {
   });
 }
 
-async function loadPageData() {
+async function loadPageData({ renderPage = true } = {}) {
   setStatus("Loading clients and projects...");
 
   try {
@@ -238,7 +368,9 @@ async function loadPageData() {
     tagOptions = loadedTags;
     renderProjectClientFilter();
     applyInitialClientParam();
-    renderClients();
+    if (renderPage && clientList) {
+      renderClients();
+    }
     openAddClientModalFromQuery();
     openClientDetailModalFromQuery();
     openAddProjectModalFromQuery();
@@ -317,6 +449,10 @@ async function openEditClientAction(params = {}, hostContext = null) {
 }
 
 function renderClients() {
+  if (!clientList) {
+    return;
+  }
+
   // Rendering is state-driven; save operations can set open IDs before calling this.
   clientList.innerHTML = "";
 
@@ -2929,6 +3065,8 @@ async function persistClientProjectChange(action, viewState = {}, request) {
     openClientBillingSettingsId = viewState.openClientBillingSettingsId || "";
     if (clientList) {
       renderClients();
+    } else {
+      await refreshActiveClientProjectsReadSurface();
     }
     setStatus("");
     flashSavedButton(viewState.flashSelector);
@@ -2980,6 +3118,12 @@ async function refreshClientProjectData() {
 
   clientProjectData = normalizeData(result);
   renderProjectClientFilter();
+}
+
+async function refreshActiveClientProjectsReadSurface() {
+  if (typeof activeClientProjectsReadSurface?.refresh === "function") {
+    await activeClientProjectsReadSurface.refresh();
+  }
 }
 
 function flashSavedButton(selector) {
@@ -3735,8 +3879,8 @@ window.LongtailForge.pageController.register("clients-projects", {
   }),
   runSmoke: () => {
     const checks = [
-      { name: "client list exists", ok: Boolean(clientList) },
-      { name: "status target exists", ok: Boolean(statusMessage) },
+      { name: "read surface exists", ok: Boolean(clientList || activeClientProjectsReadSurface) },
+      { name: "status target exists", ok: Boolean(statusMessage || activeClientProjectsReadSurface) },
       { name: "client data loaded", ok: Array.isArray(clientProjectData.clients) },
       { name: "page mode known", ok: ["combined", "clients", "projects"].includes(pageMode) },
     ];

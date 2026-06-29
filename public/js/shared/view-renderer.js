@@ -392,9 +392,36 @@
       };
       form.addEventListener("change", applyFilters);
       form.addEventListener("submit", applyFilters);
+      queueFieldOptionSourceMounts(form, filters, state);
     }
 
     return form;
+  }
+
+  function queueFieldOptionSourceMounts(form, fields, state) {
+    for (const field of (Array.isArray(fields) ? fields : [])) {
+      if (!field?.optionsSource) {
+        continue;
+      }
+      const controlId = field.field || field.id;
+      if (!controlId) {
+        continue;
+      }
+      const control = form.querySelector?.(`[data-view-input="${controlId}"]`);
+      if (!control) {
+        continue;
+      }
+      state.pendingMounts.push({
+        control,
+        field,
+        mountType: "fieldOptions",
+        region: {
+          id: field.id || field.field,
+          behavior: field.optionsSource,
+        },
+        selectedValue: state.filterValues?.[controlId] ?? field.default ?? control.value,
+      });
+    }
   }
 
   function collectFilterValues(form, filters, state) {
@@ -643,6 +670,9 @@
       id: record.id || "",
       label: title,
       meta: [subtitle, ...meta].filter(Boolean),
+      depth: readDescriptorValue(record, indexPanel.itemDepthField, 0),
+      parentId: readDescriptorValue(record, indexPanel.itemParentField, ""),
+      path: readDescriptorValue(record, indexPanel.itemPathField, ""),
       selected: recordId(record) === state.selectedRecordId,
       onSelect: () => selectIndexRecord(state, record),
     };
@@ -684,15 +714,82 @@
     const emptyState = table.emptyState || {};
     return view.createDataTable({
       caption: table.title || "",
-      columns: (table.columns || []).map((column) => ({
-        key: column.field || column.id,
-        label: column.label || column.field || column.id || "",
-        align: column.align,
-        header: column.header,
-      })),
+      hierarchy: table.hierarchy,
+      columns: tableColumns(table, view, state),
       rows: state.records || [],
       emptyMessage: emptyState.message || emptyState.description || emptyState.title || "No records found.",
     });
+  }
+
+  function tableColumns(table, view, state) {
+    const columns = (table.columns || []).map((column) => ({
+      key: column.field || column.id,
+      label: column.label || column.field || column.id || "",
+      align: column.align,
+      header: column.header,
+      render: tableColumnRenderer(column, table, view),
+    }));
+    const rowActions = Array.isArray(table.rowActions) ? table.rowActions : [];
+    if (rowActions.length > 0) {
+      columns.push({
+        key: "__view_row_actions",
+        label: "Actions",
+        align: "right",
+        render: (record) => renderActions(rowActions, view, "Row actions", state, record),
+      });
+    }
+    return columns;
+  }
+
+  function tableColumnRenderer(column = {}, table = {}, view) {
+    if (column.formatter === "hierarchy-label") {
+      return (record) => renderHierarchyLabel(column, table, view, record);
+    }
+    if (column.formatter === "chip-list") {
+      return (record) => renderChipList(column, view, record);
+    }
+    return undefined;
+  }
+
+  function renderHierarchyLabel(column, table, view, record) {
+    const value = readDescriptorValue(record, column.field || column.id, "");
+    const depthField = column.depthField || table?.hierarchy?.depthField;
+    const depth = normalizedHierarchyDepth(readDescriptorValue(record, depthField, 0));
+    return view.createElement("span", {
+      className: "view-hierarchy-label",
+      text: value,
+      attrs: depth > 0 ? { style: `--view-hierarchy-depth: ${depth};` } : {},
+      dataset: depth > 0 ? { viewHierarchyDepth: depth } : {},
+    });
+  }
+
+  function renderChipList(column, view, record) {
+    const chips = readDescriptorValue(record, column.chipsField || column.field || column.id, []);
+    const chipList = Array.isArray(chips) ? chips : [chips];
+    return view.createElement("span", {
+      className: ["view-table-chip-list", "surface-chip-row"],
+      children: chipList
+        .filter((chip) => chip !== null && chip !== undefined && chip !== false && chip !== "")
+        .map((chip) => view.createElement("span", {
+          className: "surface-chip",
+          text: chipDisplayLabel(chip, column.chipLabelField),
+        })),
+    });
+  }
+
+  function chipDisplayLabel(chip, labelField) {
+    if (chip && typeof chip === "object") {
+      return String(readDescriptorValue(chip, labelField || "label", chip.name || chip.title || chip.value || chip.id || ""));
+    }
+    return String(chip ?? "");
+  }
+
+  function normalizedHierarchyDepth(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return 0;
+    }
+    return Math.min(Math.floor(parsed), 12);
   }
 
   function renderDetailShell(detail, view, state) {
@@ -752,32 +849,88 @@
     for (const mount of pending) {
       const handler = behaviors.get(mount.region.behavior);
       if (!handler) {
-        mount.container.appendChild(state.view.createElement("p", {
-          className: ["view-region-error", "view-status-message"],
-          text: `Missing view behavior handler: ${mount.region.behavior}`,
-          attrs: { role: "alert" },
-        }));
+        if (mount.mountType === "fieldOptions") {
+          setFieldOptionsError(mount.control, `Missing view behavior handler: ${mount.region.behavior}`);
+        } else {
+          mount.container.appendChild(state.view.createElement("p", {
+            className: ["view-region-error", "view-status-message"],
+            text: `Missing view behavior handler: ${mount.region.behavior}`,
+            attrs: { role: "alert" },
+          }));
+        }
         continue;
       }
       try {
-        handler({
+        const result = handler({
           action: null,
           api: root.api || {},
           container: mount.container,
+          control: mount.control,
+          field: mount.field,
           openModal: (modalId, record = state.selectedRecord) => openDescriptorModal(state, modalId, record),
           record: mount.record,
           refresh: state.surface.refresh,
           region: mount.region,
+          setOptions: (options) => setSelectOptions(mount.control, options, mount.selectedValue),
           workspaceContext: root.workspaceContext || {},
         });
+        if (mount.mountType === "fieldOptions") {
+          Promise.resolve(result)
+            .then((options) => {
+              if (Array.isArray(options)) {
+                setSelectOptions(mount.control, options, mount.selectedValue);
+              }
+            })
+            .catch((error) => setFieldOptionsError(mount.control, error?.message || "Options could not be loaded."));
+        }
       } catch (error) {
-        mount.container.appendChild(state.view.createElement("p", {
-          className: ["view-region-error", "view-status-message"],
-          text: error?.message || "Region could not be mounted.",
-          attrs: { role: "alert" },
-        }));
+        if (mount.mountType === "fieldOptions") {
+          setFieldOptionsError(mount.control, error?.message || "Options could not be loaded.");
+        } else {
+          mount.container.appendChild(state.view.createElement("p", {
+            className: ["view-region-error", "view-status-message"],
+            text: error?.message || "Region could not be mounted.",
+            attrs: { role: "alert" },
+          }));
+        }
       }
     }
+  }
+
+  function setSelectOptions(control, options = [], selectedValue = undefined) {
+    if (!control || control.tagName !== "SELECT") {
+      return;
+    }
+    const selected = selectedValue !== undefined && selectedValue !== null ? String(selectedValue) : control.value;
+    const optionNodes = normalizeSelectOptions(options).map((option) => {
+      const optionElement = document.createElement("option");
+      optionElement.textContent = String(option.label ?? option.value ?? "");
+      optionElement.value = String(option.value ?? "");
+      if (option.selected) {
+        optionElement.selected = true;
+      }
+      return optionElement;
+    });
+    control.replaceChildren(...optionNodes);
+    if (selected && optionNodes.some((option) => option.value === selected)) {
+      control.value = selected;
+    }
+    control.disabled = false;
+    delete control.dataset.viewOptionsError;
+  }
+
+  function setFieldOptionsError(control, message) {
+    if (!control || control.tagName !== "SELECT") {
+      return;
+    }
+    if (!control.options.length) {
+      const optionElement = document.createElement("option");
+      optionElement.textContent = "Options unavailable";
+      optionElement.value = "";
+      control.appendChild(optionElement);
+    }
+    control.disabled = true;
+    control.dataset.viewOptionsError = message || "Options unavailable.";
   }
 
   function renderDetailHeader(header, view, record) {
@@ -922,14 +1075,21 @@
     }));
   }
 
-  function renderActions(actions, view, ariaLabel, state = null) {
+  function renderActions(actions, view, ariaLabel, state = null, recordOverride = undefined) {
     if (!Array.isArray(actions) || actions.length === 0) {
+      return null;
+    }
+
+    const visibleActions = recordOverride === undefined
+      ? actions
+      : actions.filter((action) => evaluateVisibleWhen(action.visibleWhen, recordOverride));
+    if (visibleActions.length === 0) {
       return null;
     }
 
     return view.createDetailActionStrip({
       ariaLabel,
-      actions: actions.map((action) => normalizeAction(action, state)),
+      actions: visibleActions.map((action) => normalizeAction(action, state, recordOverride)),
     });
   }
 
@@ -968,11 +1128,13 @@
       caption: options.caption || tableDescriptor.title || "",
       className: options.className,
       tableClassName: options.tableClassName,
+      hierarchy: tableDescriptor.hierarchy || options.hierarchy,
       columns: (tableDescriptor.columns || options.columns || []).map((column) => ({
         key: column.field || column.id || column.key,
         label: column.label || column.field || column.id || column.key || "",
         align: column.align,
         header: column.header,
+        render: tableColumnRenderer(column, tableDescriptor, view),
       })),
       rows: options.rows || [],
       emptyMessage: options.emptyMessage || tableDescriptor.emptyState?.message || tableDescriptor.emptyState?.description || "No records found.",
@@ -1067,6 +1229,7 @@
           disabled: options.disabled,
           required: field.required,
           "data-view-input": options.controlId,
+          ...(field.optionsSource ? { "data-view-options-source": field.optionsSource } : {}),
         },
       });
       for (const option of normalizeSelectOptions(field.options)) {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.7";
+const appVersion = "0.33.5.18.13.3";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
@@ -16,7 +16,7 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(filesHtml, /css\/longtail-forge\.css\?v=13/, "Files host should cache-bust the compact reset stylesheet");
-assert.match(filesHtml, /js\/shared\/icons\.js\?v=6[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=13/, "Files host should load the cache-busted icon helper and Files adapter after the renderer");
+assert.match(filesHtml, /js\/shared\/icons\.js\?v=6[\s\S]*js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/files\.js\?v=13/, "Files host should load the cache-busted icon helper and Files adapter after the renderer");
 
 assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Files descriptor should keep the service-owned attachments read route");
 [

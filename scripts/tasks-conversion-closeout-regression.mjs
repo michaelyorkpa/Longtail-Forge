@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.7";
+const appVersion = "0.33.5.18.13.3";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -52,8 +52,8 @@ assert.match(declarativeDocs, new RegExp(`viewSurfaces\` authoring contract as o
 assert.match(declarativeDocs, /Strict guardrails currently enforce `files\.browse`, `lists\.workspace`, `notes\.workspace`, and `tasks\.workspace`/, "Declarative view docs should include Tasks in strict guardrails");
 assert.match(declarativeDocs, /The 0\.33\.5\.18\.10\.7 closeout also locks `LongtailForge\.tasksDialog\.openTaskEditor\(\)` as the canonical module-owned Task editor opener/, "Declarative view docs should document the Tasks editor closeout contract");
 assert.match(declarativeDocs, /\| Files \| files \| files\.html \| files\.browse \| strict \|/, "Declarative inventory should report Files through the strict framework descriptor surface");
-assert.match(declarativeDocs, /\| Client Projects \| clients \| clients\.html \| - \| reported \|/, "Declarative inventory should leave Clients reported in this closeout");
-assert.match(declarativeDocs, /\| Client Projects \| projects \| projects\.html \| - \| reported \|/, "Declarative inventory should leave Projects reported in this closeout");
+assert.match(declarativeDocs, /\| Client Projects \| clients \| clients\.html \| client-projects\.clients \| reported \|/, "Declarative inventory should leave Clients reported in this closeout");
+assert.match(declarativeDocs, /\| Client Projects \| projects \| projects\.html \| client-projects\.projects \| reported \|/, "Declarative inventory should leave Projects reported in this closeout");
 
 assert.match(strictInventory, /Current as of 0\.33\.5\.18\.10\.7/, "Tasks strict inventory should report the closeout version");
 assert.match(strictInventory, /`scripts\/tasks-conversion-closeout-regression\.mjs` locks the 0\.33\.5\.18\.10\.7 documentation closeout/, "Tasks strict inventory should name the closeout regression");

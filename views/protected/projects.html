@@ -8,36 +8,7 @@
     <link rel="stylesheet" href="css/longtail-forge.css?v=8">
   </head>
   <body data-page-title="Projects" data-client-project-page="projects">
-    <main class="wide-page">
-      <div class="page-heading">
-        <h1>Projects</h1>
-        <button type="button" data-add-project-top>Add Project</button>
-      </div>
-
-      <div class="project-page-toolbar">
-        <h2>Filter List</h2>
-        <label>
-          Client
-          <select data-project-client-filter>
-            <option value="All" selected>All clients</option>
-          </select>
-        </label>
-
-        <label>
-          Status
-          <select data-client-status-filter>
-            <option value="Active" selected>Active</option>
-            <option value="Inactive">Inactive</option>
-            <option value="Completed">Completed</option>
-            <option value="All">All</option>
-          </select>
-        </label>
-
-      </div>
-
-      <p data-client-project-status role="status" aria-live="polite"></p>
-      <section class="client-list" data-client-list aria-label="Projects"></section>
-    </main>
+    <main class="wide-page client-projects-page projects-page" data-client-projects-host></main>
 
     <script src="js/navigation.js"></script>
     <script src="js/shared/modal.js"></script>
@@ -47,7 +18,8 @@
     <script src="js/shared/icons.js?v=1"></script>
     <script src="js/shared/tags.js"></script>
     <script src="js/shared/view-builder.js?v=4"></script>
-    <script src="js/clients-projects.js?v=11"></script>
+    <script src="js/shared/view-renderer.js?v=13"></script>
+    <script src="js/clients-projects.js?v=13"></script>
     <script src="js/footer.js"></script>
   </body>
 </html>

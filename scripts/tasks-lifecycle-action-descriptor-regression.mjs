@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.7";
+const appVersion = "0.33.5.18.13.3";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -69,7 +69,7 @@ assert.match(postTaskAction, /api\.postJson\(`\/api\/tasks\/\$\{encodeURICompone
 
 assert.doesNotMatch(tasksRoutes, /tasksRoutes\.delete\("\/tasks\/:taskId"\s*,/, "Browser API should not expose a task delete route");
 assert.doesNotMatch(tasksPublicRoutes, /tasksPublicApiRoutes\.delete|\/api\/v1\/tasks\/:taskId\/delete/, "Public API should not expose a task delete route");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=72[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/task-dialog\.js\?v=21[\s\S]*js\/tasks\.js\?v=20/, "Tasks host should load the lifecycle descriptor cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=72[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/task-dialog\.js\?v=21[\s\S]*js\/tasks\.js\?v=20/, "Tasks host should load the lifecycle descriptor cache key");
 assert.match(regressionSuite, /scripts\/tasks-lifecycle-action-descriptor-regression\.mjs/, "Regression suite should include the task lifecycle descriptor regression");
 
 console.log("Tasks lifecycle action descriptor regression passed.");

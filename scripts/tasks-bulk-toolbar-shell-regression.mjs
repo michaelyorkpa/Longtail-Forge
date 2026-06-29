@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.7";
+const appVersion = "0.33.5.18.13.3";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -42,7 +42,7 @@ const filterChrome = functionBlock(tasksScript, "createTaskFilterChrome");
 assert.doesNotMatch(taskViewChrome, /data-task-bulk-toolbar|data-task-bulk-status-control/, "Saved Task Views sidebar panel should not contain the bulk toolbar");
 assert.doesNotMatch(filterChrome, /data-task-bulk-toolbar|data-task-bulk-status-control/, "Sorting and Filters sidebar panel should not contain the bulk toolbar");
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=72[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/tasks\.js\?v=20/, "Tasks host should load the bulk toolbar shell cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=72[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/tasks\.js\?v=20/, "Tasks host should load the bulk toolbar shell cache keys");
 assert.match(styles, /\.view-bulk-action-toolbar-summary\s*\{[\s\S]*display:\s*flex[\s\S]*cursor:\s*pointer/, "Shared CSS should own bulk toolbar summary anatomy");
 assert.match(styles, /\.view-bulk-action-toolbar-summary::before\s*\{[\s\S]*border-left:\s*6px solid var\(--color-text-secondary\)/, "Shared CSS should show a custom disclosure caret for the bulk toolbar");
 assert.match(styles, /\.view-bulk-action-toolbar\[open\] > \.view-bulk-action-toolbar-summary::before\s*\{[\s\S]*transform:\s*rotate\(90deg\)/, "Shared CSS should rotate the bulk toolbar caret when open");

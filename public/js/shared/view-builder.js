@@ -354,19 +354,24 @@
   }
 
   function createIndexListItem(item = {}) {
-    const listItem = createElement("li", { className: "view-index-list-item" });
+    const hierarchy = hierarchyMetadata(item);
+    const listItem = createElement("li", {
+      className: ["view-index-list-item", hierarchy.hasHierarchy ? "view-index-list-item--hierarchy" : ""],
+      dataset: hierarchy.dataset,
+    });
     const selected = Boolean(item.selected);
     const button = createElement("button", {
       className: ["view-index-list-button", selected ? "is-selected" : ""],
       attrs: {
         type: "button",
         "aria-current": selected ? "true" : false,
+        style: hierarchy.style,
       },
       dataset: item.id !== undefined && item.id !== null ? { viewIndexId: String(item.id) } : {},
     });
 
     button.appendChild(createElement("span", {
-      className: "view-index-list-label",
+      className: ["view-index-list-label", hierarchy.hasHierarchy ? "view-hierarchy-label" : ""],
       text: requiredText(item.label, "Index list items require a label."),
     }));
 
@@ -414,6 +419,7 @@
   function createDataTable(options = {}) {
     const columns = Array.isArray(options.columns) ? options.columns : [];
     const rows = Array.isArray(options.rows) ? options.rows : [];
+    const hierarchy = options.hierarchy && typeof options.hierarchy === "object" ? options.hierarchy : null;
     const wrapper = createElement("div", {
       className: ["view-table-wrap", options.className],
     });
@@ -447,7 +453,7 @@
 
     if (rows.length) {
       rows.forEach((row, rowIndex) => {
-        tbody.appendChild(createDataRow(row, rowIndex, columns));
+        tbody.appendChild(createDataRow(row, rowIndex, columns, hierarchy));
       });
     } else {
       const emptyRow = document.createElement("tr");
@@ -465,8 +471,12 @@
     return wrapper;
   }
 
-  function createDataRow(row, rowIndex, columns) {
-    const tr = document.createElement("tr");
+  function createDataRow(row, rowIndex, columns, hierarchy = null) {
+    const metadata = rowHierarchyMetadata(row, hierarchy);
+    const tr = createElement("tr", {
+      className: metadata.hasHierarchy ? "view-data-table-row--hierarchy" : "",
+      dataset: metadata.dataset,
+    });
 
     columns.forEach((column) => {
       const cell = document.createElement(column.header ? "th" : "td");
@@ -1460,6 +1470,56 @@
 
   function columnAlign(column) {
     return typeof column === "string" ? "" : column.align || "";
+  }
+
+  function hierarchyMetadata(item = {}) {
+    const depth = normalizedDepth(item.depth ?? item.hierarchyDepth);
+    const parent = item.parentId ?? item.hierarchyParent;
+    const path = item.path ?? item.hierarchyPath;
+    const dataset = {};
+    if (depth > 0) {
+      dataset.viewHierarchyDepth = depth;
+    }
+    if (parent !== undefined && parent !== null && parent !== "") {
+      dataset.viewHierarchyParent = parent;
+    }
+    if (path !== undefined && path !== null && path !== "") {
+      dataset.viewHierarchyPath = Array.isArray(path) ? path.join("/") : path;
+    }
+    const hasHierarchy = Object.keys(dataset).length > 0;
+    return {
+      dataset,
+      hasHierarchy,
+      style: depth > 0 ? `--view-hierarchy-depth: ${depth};` : "",
+    };
+  }
+
+  function rowHierarchyMetadata(row = {}, hierarchy = null) {
+    if (!hierarchy) {
+      return { dataset: {}, hasHierarchy: false };
+    }
+    return hierarchyMetadata({
+      depth: readRowValue(row, hierarchy.depthField),
+      parentId: readRowValue(row, hierarchy.parentField),
+      path: readRowValue(row, hierarchy.pathField),
+    });
+  }
+
+  function normalizedDepth(value) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return 0;
+    }
+    return Math.min(Math.floor(parsed), 12);
+  }
+
+  function readRowValue(row, fieldName) {
+    if (!fieldName || !row || typeof row !== "object") {
+      return undefined;
+    }
+    return String(fieldName).split(".").reduce((value, key) => (
+      value === undefined || value === null ? undefined : value[key]
+    ), row);
   }
 
   function requiredText(value, message) {

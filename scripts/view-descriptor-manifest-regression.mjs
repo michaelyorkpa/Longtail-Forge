@@ -173,6 +173,75 @@ assert.match(
   "Index panel initial selection should be constrained to framework-known values",
 );
 
+const descriptorReadinessErrors = validateModuleManifest(createModule({
+  viewSurfaces: [
+    {
+      ...validSurface(),
+      indexPanel: {
+        title: "Samples",
+        itemTitleField: "title",
+        itemDepthField: "hierarchy.depth",
+        itemParentField: "parentId",
+        itemPathField: "hierarchy.path",
+      },
+      table: {
+        hierarchy: {
+          depthField: "hierarchy.depth",
+          parentField: "parentId",
+          pathField: "hierarchy.path",
+        },
+        columns: [
+          {
+            field: "title",
+            label: "Title",
+            formatter: "hierarchy-label",
+            depthField: "hierarchy.depth",
+          },
+          {
+            field: "tags",
+            label: "Tags",
+            formatter: "chip-list",
+            chipsField: "tags",
+            chipLabelField: "name",
+          },
+        ],
+      },
+    },
+  ],
+}));
+assert.deepEqual(descriptorReadinessErrors, [], `Shared hierarchy and chip display hooks should pass validation: ${descriptorReadinessErrors.join("; ")}`);
+
+const invalidFormatterErrors = validateModuleManifest(createModule({
+  viewSurfaces: [
+    {
+      ...validSurface(),
+      table: {
+        hierarchy: {
+          depthField: "depth",
+          surprise: true,
+        },
+        columns: [
+          {
+            field: "title",
+            label: "Title",
+            formatter: "raw-html",
+          },
+        ],
+      },
+    },
+  ],
+}));
+assert.match(
+  invalidFormatterErrors.join("\n"),
+  /viewSurfaces\[0\]\.table\.hierarchy\.surprise is not a supported field/,
+  "Table hierarchy descriptors should reject unknown fields",
+);
+assert.match(
+  invalidFormatterErrors.join("\n"),
+  /viewSurfaces\[0\]\.table\.columns\[0\]\.formatter must be text, hierarchy-label, or chip-list/,
+  "Table column formatters should be limited to framework-known display hooks",
+);
+
 const invalidSidebarPanelErrors = validateModuleManifest(createModule({
   viewSurfaces: [
     {

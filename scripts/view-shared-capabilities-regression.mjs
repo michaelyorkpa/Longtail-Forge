@@ -13,6 +13,9 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 assert.match(renderer, /function appendFilterQuery/, "Renderer should build dataSource query params from filters");
 assert.match(renderer, /function renderRegions/, "Renderer should render descriptor mount regions");
 assert.match(renderer, /function flushMounts/, "Renderer should flush region mount behaviors");
+assert.match(renderer, /mountType: "fieldOptions"/, "Renderer should mount descriptor option-source behaviors for select filters");
+assert.match(renderer, /function setSelectOptions/, "Renderer should hydrate descriptor select options through a shared helper");
+assert.match(renderer, /function tableColumnRenderer/, "Renderer should route table display hooks through framework-owned formatters");
 assert.match(renderer, /function renderItemRow/, "Renderer should render rich item rows");
 assert.match(renderer, /function evaluateVisibleWhen/, "Renderer should evaluate row-action visibility predicates");
 assert.match(renderer, /function interpolateRoute/, "Renderer should interpolate row-action route tokens");
@@ -48,9 +51,9 @@ assert.match(badVisibleWhenErrors.join("\n"), /visibleWhen\.field is required/, 
 
 // --- Renderer capability execution via a fake DOM. ---
 const context = createBrowserContext([
-  { records: [{ record_id: "r1", name: "Record One", children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
-  { records: [{ record_id: "r1", name: "Record One", children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
-  { records: [{ record_id: "r1", name: "Record One", children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
+  { records: [{ record_id: "r1", name: "Record One", depth: 1, parent_id: "root", path: "root/r1", tags: [{ name: "Focus" }], children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
+  { records: [{ record_id: "r1", name: "Record One", depth: 1, parent_id: "root", path: "root/r1", tags: [{ name: "Focus" }], children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
+  { records: [{ record_id: "r1", name: "Record One", depth: 1, parent_id: "root", path: "root/r1", tags: [{ name: "Focus" }], children: [{ label: "Item A", qty: "x2", note: "hello", state: "open" }] }] },
 ]);
 vm.runInNewContext(builder, context, { filename: "view-builder.js" });
 vm.runInNewContext(renderer, context, { filename: "view-renderer.js" });
@@ -61,13 +64,26 @@ view.registerBehavior("caps.mount", (ctx) => {
   mountedWith = ctx;
   ctx.container.appendChild(context.document.createElement("p")).textContent = "REGION_MOUNTED";
 });
+let optionMount = null;
+view.registerBehavior("caps.statusOptions", (ctx) => {
+  optionMount = ctx;
+  return [
+    { value: "open", label: "Open" },
+    { value: "closed", label: "Closed" },
+  ];
+});
 
 const host = context.document.createElement("main");
 const surface = view.renderSurface(capabilityDescriptor(), host);
 await surface.refresh();
+await Promise.resolve();
 
 // Capability 1: filter -> refetch query params (default + dynamic).
 assert.equal(context.window.LongtailForge.api.calls[0], "/api/caps?status=open", "Filter defaults should be applied to the dataSource query");
+const statusSelect = surface.querySelector("[data-view-input=\"status\"]");
+assert.equal(optionMount.control, statusSelect, "Option-source behaviors should receive the select control");
+assert.equal(typeof optionMount.setOptions, "function", "Option-source behaviors should receive a shared setOptions helper");
+assert.match(statusSelect.textContent, /OpenClosed/, "Option-source behaviors should hydrate select option labels");
 surface.viewState.filterValues.status = "closed";
 await surface.refresh();
 assert.ok(context.window.LongtailForge.api.calls.includes("/api/caps?status=closed"), "Changing a filter should refetch with new query params");
@@ -75,6 +91,13 @@ assert.ok(context.window.LongtailForge.api.calls.includes("/api/caps?status=clos
 // Capability 2: mount slot/region filled by a registered behavior.
 assert.ok(mountedWith && typeof mountedWith.refresh === "function", "Mount behavior should receive a safe context with refresh");
 assert.match(surface.textContent, /REGION_MOUNTED/, "Registered mount behavior should fill its region container");
+
+// Capability 2b: display-only hierarchy metadata + chip-list table display hooks.
+const hierarchyLabel = surface.querySelectorAll(".view-hierarchy-label")
+  .find((element) => element.dataset.viewHierarchyDepth === "1");
+assert.ok(hierarchyLabel, "Hierarchy display labels should render when requested by a table column formatter");
+assert.equal(hierarchyLabel.dataset.viewHierarchyDepth, "1", "Hierarchy display labels should carry display-only depth metadata");
+assert.match(surface.textContent, /Focus/, "Chip-list table display hooks should render safe chip labels");
 
 // Capability 3: rich item rows + state-gated row actions.
 assert.match(surface.textContent, /Item A/, "Item rows should render the item title");
@@ -121,7 +144,21 @@ function capabilityDescriptor() {
   return {
     id: "caps-sample",
     layout: "single-column",
-    filters: [{ field: "status", type: "select", queryKey: "status", default: "open" }],
+    filters: [{ field: "status", type: "select", queryKey: "status", default: "open", optionsSource: "caps.statusOptions" }],
+    indexPanel: {
+      title: "Caps index",
+      itemTitleField: "title",
+      itemDepthField: "depth",
+      itemParentField: "parentId",
+      itemPathField: "path",
+    },
+    table: {
+      hierarchy: { depthField: "depth", parentField: "parentId", pathField: "path" },
+      columns: [
+        { field: "title", label: "Title", formatter: "hierarchy-label", depthField: "depth" },
+        { field: "tags", label: "Tags", formatter: "chip-list", chipsField: "tags", chipLabelField: "name" },
+      ],
+    },
     regions: [{ id: "side", behavior: "caps.mount", title: "Side" }],
     detail: {
       header: { titleField: "title" },
@@ -138,7 +175,7 @@ function capabilityDescriptor() {
     },
     dataSource: {
       route: "/api/caps",
-      fieldBindings: { id: "record_id", title: "name", items: "children" },
+      fieldBindings: { id: "record_id", title: "name", depth: "depth", parentId: "parent_id", path: "path", tags: "tags", items: "children" },
     },
   };
 }
@@ -164,8 +201,22 @@ function validSurface() {
     moduleId: "sample-module",
     viewId: "sample",
     layout: "single-column",
-    filters: [{ field: "status", type: "select", queryKey: "status", default: "active" }],
+    filters: [{ field: "status", type: "select", queryKey: "status", default: "active", optionsSource: "sample.statusOptions" }],
+    indexPanel: {
+      title: "Samples",
+      itemTitleField: "title",
+      itemDepthField: "depth",
+      itemParentField: "parentId",
+      itemPathField: "path",
+    },
     regions: [{ id: "side", behavior: "sample.mount", title: "Side panel" }],
+    table: {
+      hierarchy: { depthField: "depth", parentField: "parentId", pathField: "path" },
+      columns: [
+        { field: "title", label: "Title", formatter: "hierarchy-label", depthField: "depth" },
+        { field: "tags", label: "Tags", formatter: "chip-list", chipsField: "tags", chipLabelField: "name" },
+      ],
+    },
     detail: {
       header: { titleField: "title" },
       itemRows: {
@@ -190,7 +241,7 @@ function validSurface() {
     },
     dataSource: {
       route: "/api/sample-records",
-      fieldBindings: { id: "record_id", title: "title", items: "children" },
+      fieldBindings: { id: "record_id", title: "title", depth: "depth", parentId: "parent_id", path: "path", tags: "tags", items: "children" },
     },
   };
 }

@@ -230,6 +230,8 @@ function decorateClientShape(client, { depth, includeDepth, path, sortOrder }) {
       display_label: formatIndentedLabel(client.name, depth),
       display_path: path,
       sort_key: formatHierarchySortKey(sortOrder),
+      billing_display: formatBillingDisplay(client),
+      tag_summary: formatTagSummary(client.tags),
     } : {}),
   };
 }
@@ -241,6 +243,8 @@ function decorateProjectShape(project, { depth, includeDepth, path }) {
       depth,
       display_label: formatIndentedLabel(project.name, depth),
       display_path: path,
+      billing_display: formatBillingDisplay(project),
+      tag_summary: formatTagSummary(project.tags),
     } : {}),
   };
 }
@@ -252,6 +256,25 @@ function formatIndentedLabel(label, depth) {
 
 function formatHierarchySortKey(sortOrder) {
   return String(Number(sortOrder) || 0).padStart(6, "0");
+}
+
+function formatBillingDisplay(record) {
+  if (String(record?.billable || "").toLowerCase() === "no") {
+    return "Non-billable";
+  }
+
+  const rate = record?.billing_rate;
+  if (rate !== null && rate !== undefined && String(rate).trim()) {
+    return `Billable: ${rate}`;
+  }
+
+  return "Billable";
+}
+
+function formatTagSummary(tags = []) {
+  return Array.isArray(tags)
+    ? tags.map((tag) => tag?.name || tag?.slug || "").filter(Boolean).join(", ")
+    : "";
 }
 
 function normalizeClientShapeOptions(query = {}) {
