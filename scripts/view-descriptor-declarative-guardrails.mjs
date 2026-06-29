@@ -6,7 +6,7 @@ import {
   listFrameworkViewSurfaces,
 } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const appVersion = "0.33.5.18.14.2";
+const appVersion = "0.33.5.18.14.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
@@ -28,6 +28,10 @@ const filesJs = readText("public/js/files.js");
 const fileAttachmentsJs = readText("public/js/shared/file-attachments.js");
 const filesHtml = readText("views/protected/files.html");
 const filesStrictInventoryDoc = readText("docs/files-strict-guardrail-inventory.md");
+const clientsProjectsJs = readText("public/js/clients-projects.js");
+const clientsHtml = readText("views/protected/clients.html");
+const projectsHtml = readText("views/protected/projects.html");
+const clientsProjectsInventoryDoc = readText("docs/clients-projects-strict-guardrail-inventory.md");
 
 const modules = listModules();
 const protectedViews = [
@@ -61,7 +65,14 @@ for (const surface of surfaces) {
   const key = `${surface.moduleId}:${surface.viewId}`;
   surfacesByView.set(key, [...(surfacesByView.get(key) || []), surface]);
 }
-const strictDeclarativeSurfaceIds = new Set(["files.browse", "lists.workspace", "notes.workspace", "tasks.workspace"]);
+const strictDeclarativeSurfaceIds = new Set([
+  "client-projects.clients",
+  "client-projects.projects",
+  "files.browse",
+  "lists.workspace",
+  "notes.workspace",
+  "tasks.workspace",
+]);
 const inventory = protectedHtmlFiles.map((fileName) => {
   const view = protectedViewsByFile.get(fileName) || {
     id: fileName.replace(/\.html$/, ""),
@@ -85,17 +96,26 @@ assert.match(listsModule, /version:\s*"0\.33\.5\.16\.12"/, "Lists module should 
 
 assert.ok(inventory.length >= 20, "Protected view inventory should cover all protected HTML views");
 assert.deepEqual(
-  inventory.filter((entry) => entry.strict).map((entry) => entry.surfaceIds[0]),
-  ["files.browse", "lists.workspace", "notes.workspace", "tasks.workspace"],
-  "The converted Files, Lists, Notes, and Tasks descriptors should be under strict declarative enforcement",
+  inventory.filter((entry) => entry.strict).map((entry) => entry.surfaceIds[0]).sort(),
+  [
+    "client-projects.clients",
+    "client-projects.projects",
+    "files.browse",
+    "lists.workspace",
+    "notes.workspace",
+    "tasks.workspace",
+  ],
+  "The converted Clients, Projects, Files, Lists, Notes, and Tasks descriptors should be under strict declarative enforcement",
 );
 assert.ok(inventory.some((entry) => entry.moduleId === "tags" && entry.surfaceIds.includes("tags.management") && !entry.strict), "Tags descriptor should be inventoried but not strict yet");
 assert.ok(inventory.some((entry) => entry.moduleId === "developer-example" && entry.surfaceIds.includes("developer-example.surface") && !entry.strict), "Disabled example descriptor should be inventoried but not strict");
 assert.ok(inventory.some((entry) => entry.moduleId === "framework" && entry.surfaceIds.includes("files.browse") && entry.strict), "Files descriptor should be strict-converted");
 assert.ok(inventory.some((entry) => entry.moduleId === "tasks" && entry.surfaceIds.includes("tasks.workspace") && entry.strict), "Tasks descriptor should be strict-converted");
+assert.ok(inventory.some((entry) => entry.moduleId === "client-projects" && entry.surfaceIds.includes("client-projects.clients") && entry.strict), "Clients descriptor should be strict-converted");
+assert.ok(inventory.some((entry) => entry.moduleId === "client-projects" && entry.surfaceIds.includes("client-projects.projects") && entry.strict), "Projects descriptor should be strict-converted");
 
 assert.match(listsHtml, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Strict declarative Lists HTML should stay a minimal host");
-assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=4[\s\S]*js\/shared\/view-renderer\.js\?v=6[\s\S]*js\/lists\.js\?v=13/, "Strict declarative Lists HTML should load the renderer before the module adapter");
+assert.match(listsHtml, /js\/shared\/view-builder\.js\?v=5[\s\S]*js\/shared\/view-renderer\.js\?v=6[\s\S]*js\/lists\.js\?v=13/, "Strict declarative Lists HTML should load the renderer before the module adapter");
 assertNoProtectedAnatomy(listsHtml, "views/protected/lists.html");
 
 for (const forbidden of [
@@ -256,6 +276,60 @@ assert.doesNotMatch(filesJs, /createFilesSummaryPanel|createFilesDetailPanel|cre
 assert.doesNotMatch(filesJs, /storageKey|storagePath|signedUrl|fileHash|scannerInternal|filesystemPath/,
   "Files browser UI should not expose storage keys, protected paths, signed URLs, hashes, scanner internals, or filesystem paths");
 
+const clientsSurface = surfaces.find((surface) => surface.id === "client-projects.clients");
+const projectsSurface = surfaces.find((surface) => surface.id === "client-projects.projects");
+assertClientProjectsStrictDescriptor(clientsSurface, "Clients", "Edit Client");
+assertClientProjectsStrictDescriptor(projectsSurface, "Projects", "Edit Project");
+assert.match(clientsHtml, /<main class="wide-page client-projects-page clients-page" data-client-projects-host><\/main>/, "Strict declarative Clients HTML should stay a minimal host");
+assert.match(projectsHtml, /<main class="wide-page client-projects-page projects-page" data-client-projects-host><\/main>/, "Strict declarative Projects HTML should stay a minimal host");
+assertNoProtectedAnatomy(clientsHtml, "views/protected/clients.html", /\b(data-client-list|data-client-status-filter|data-client-dialog|data-client-table-select|data-client-project-status)\b/, "Clients");
+assertNoProtectedAnatomy(projectsHtml, "views/protected/projects.html", /\b(data-project-client-filter|data-open-project-bulk|data-project-table-select|data-project-bulk-select|data-client-project-status)\b/, "Projects");
+for (const forbidden of [
+  "function renderClients(",
+  "function renderProjectsPage(",
+  "function renderClientsPage(",
+  "function createProjectTable(",
+  "function createClientTable(",
+  "function openProjectBulkEditor(",
+  "document.createElement(\"dialog\")",
+  "document.createElement(\"table\")",
+  "view.createFilterPanel",
+  "view.createPageHeader",
+  "data-client-list",
+  "data-client-status-filter",
+  "data-project-client-filter",
+  "data-open-project-bulk",
+  "data-client-table-select",
+  "data-project-table-select",
+  "list-table-wrap",
+  "project-bulk-dialog",
+  "thead.innerHTML",
+]) {
+  assert.doesNotMatch(clientsProjectsJs, new RegExp(escapeRegExp(forbidden)), `Strict declarative Clients/Projects source should not use ${forbidden}`);
+}
+for (const helper of [
+  "renderSurface",
+  "createBulkActionToolbar",
+  "createListShell",
+  "createDataTable",
+  "createDetailActionStrip",
+  "createModal",
+]) {
+  assert.match(clientsProjectsJs, new RegExp(`view\\.${helper}|requireView\\(\\)\\.${helper}`), `Strict declarative Clients/Projects source should consume ${helper}`);
+}
+assert.match(clientsProjectsJs, /registerClientProjectsModuleActionBehavior\("client-projects\.clients\.create", "clients\.add"\)[\s\S]*registerClientProjectsModuleActionBehavior\("client-projects\.projects\.edit", "projects\.edit"\)/,
+  "Clients/Projects page actions should stay registered behavior handlers");
+assert.match(clientsProjectsJs, /view\.registerBehavior\("client-projects\.clients\.tags", hydrateTagFilterOptions\)[\s\S]*view\.registerBehavior\("client-projects\.projects\.clients", hydrateProjectClientFilterOptions\)/,
+  "Clients/Projects filter options should stay registered module-owned hydration handlers");
+assert.match(clientsProjectsJs, /function createProjectBulkControls\(\)[\s\S]*createBulkClientSelect[\s\S]*applyProjectTableBulkUpdate/,
+  "Project bulk meaning should remain a documented module-owned escape hatch");
+assert.match(clientsProjectsJs, /function createClientBulkControls\(\)[\s\S]*createClientBulkBillableSelect[\s\S]*applyBulkClientUpdate/,
+  "Client bulk meaning should remain a documented module-owned escape hatch");
+assert.doesNotMatch(clientsProjectsJs, /label:\s*"Tags"[\s\S]{0,180}formatter:\s*"chip-list"[\s\S]{0,180}columns/s,
+  "Clients/Projects source should not reintroduce standalone Tags table columns");
+assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.5\.18\.14\.5[\s\S]*strict enforcement is active/,
+  "Clients/Projects strict inventory should document active strict enforcement");
+
 assert.equal(countMatches(fileAttachmentsJs, /document\.createElement/g), 1, "Attachment helper should only use direct DOM in its centralized fallback");
 assert.match(functionBlock(fileAttachmentsJs, "createAttachmentElement"), /document\.createElement\(tagName\)/, "Attachment helper fallback should centralize native element creation");
 for (const helper of [
@@ -300,13 +374,15 @@ assert.match(filesStrictInventoryDoc, /Current as of 0\.33\.5\.18\.12\.7[\s\S]*s
 assert.match(filesStrictInventoryDoc, /Strict Enforcement Coverage In 0\.33\.5\.18\.12\.6/, "Files strict inventory should preserve the enforcement coverage section");
 
 assert.match(declarativeGuide, /# Declarative View Surfaces/, "Developer guide should document declarative view surfaces");
-assert.match(declarativeGuide, /Strict guardrails currently enforce `files\.browse`, `lists\.workspace`, `notes\.workspace`, and `tasks\.workspace`/, "Developer guide should identify current strict enforcement scope");
+assert.match(declarativeGuide, /Strict guardrails currently enforce `client-projects\.clients`, `client-projects\.projects`, `files\.browse`, `lists\.workspace`, `notes\.workspace`, and `tasks\.workspace`/, "Developer guide should identify current strict enforcement scope");
 assert.match(declarativeGuide, /Protected View Inventory/, "Developer guide should include protected view inventory");
 for (const expectedInventoryRow of [
   "| Files | files | files.html | files.browse | strict |",
   "| Lists | lists | lists.html | lists.workspace | strict |",
   "| Notes | notes | notes.html | notes.workspace | strict |",
   "| Tasks | tasks | tasks.html | tasks.workspace | strict |",
+  "| Client Projects | clients | clients.html | client-projects.clients | strict |",
+  "| Client Projects | projects | projects.html | client-projects.projects | strict |",
   "| Tags | tags | tags.html | tags.management | reported |",
   "| Developer Example | developer-example | developer-example.html | developer-example.surface | reported |",
 ]) {
@@ -342,6 +418,28 @@ function assertNoProtectedAnatomy(html, label, hooksRegex = /\b(data-list-filter
   const body = html.slice(html.indexOf("<body"), html.indexOf("</body>"));
   assert.doesNotMatch(body, /<(section|form|table|dialog|details|button|h1|h2|ul|ol)\b/i, `${label} should not ship framework-owned protected view anatomy`);
   assert.doesNotMatch(body, hooksRegex, `${label} should not ship ${surfaceName} workspace hooks outside the descriptor host`);
+}
+
+function assertClientProjectsStrictDescriptor(surface, label, actionLabel) {
+  assert.ok(surface, `${label} descriptor should exist`);
+  assert.equal(surface.filterPlacement, "slide-out-sidebar", `${label} filters should render through the slide-out filter surface`);
+  assert.ok(
+    Array.isArray(surface.sidebarPanels) && surface.sidebarPanels.some((panel) => panel.type === "filters"),
+    `${label} descriptor should declare a filters sidebar panel`,
+  );
+  assert.equal(
+    surface.table.columns.some((column) => column.label === "Tags" || column.id?.endsWith("-tags")),
+    false,
+    `${label} descriptor should not expose Tags as a standalone table column`,
+  );
+  assert.ok(
+    surface.table.secondaryRows.some((row) => row.id?.endsWith("-tags") && row.formatter === "chip-list" && row.startColumn === "name"),
+    `${label} descriptor should render tags through a secondary table row`,
+  );
+  assert.ok(
+    surface.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true && action.label === actionLabel),
+    `${label} row actions should be icon-only descriptor actions with accessible labels`,
+  );
 }
 
 function nodeReport(entries) {

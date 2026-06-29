@@ -22,14 +22,6 @@ let openedClientDetailFromQuery = false;
 let openedAddProjectFromQuery = false;
 let openedProjectDetailFromQuery = false;
 let tagOptions = [];
-let clientProjectsEventsBound = false;
-let clientList = null;
-let addClientButton = null;
-let addProjectTopButton = null;
-let clientStatusFilter = null;
-let projectClientFilter = null;
-let openProjectBulkButton = null;
-let statusMessage = null;
 const clientStatuses = ["Active", "Inactive"];
 const projectStatuses = ["Active", "Inactive", "Completed"];
 const taskDefaultStatuses = ["open", "in_progress", "blocked", "complete", "archived"];
@@ -66,47 +58,15 @@ async function initializeClientProjectsPage() {
   try {
     await window.LongtailForge?.workspaceContextReady;
   } catch {
-    // Navigation falls back to the legacy settings bootstrap; the page will use
-    // the legacy scaffold if a descriptor is not available.
+    // Action APIs can still lazy-load dialog data if descriptor delivery is unavailable.
   }
 
   registerClientProjectsViewBehaviors();
   activeClientProjectsReadSurface = renderClientProjectsReadSurface();
-  refreshClientProjectDomRefs();
-  bindClientProjectsPageEvents();
 
   if (activeClientProjectsReadSurface) {
     loadPageData({ renderPage: false });
-  } else if (clientList && statusMessage) {
-    loadPageData();
   }
-}
-
-function refreshClientProjectDomRefs() {
-  clientList = document.querySelector("[data-client-list]");
-  addClientButton = document.querySelector("[data-add-client]");
-  addProjectTopButton = document.querySelector("[data-add-project-top]");
-  clientStatusFilter = document.querySelector("[data-client-status-filter]");
-  projectClientFilter = document.querySelector("[data-project-client-filter]");
-  openProjectBulkButton = document.querySelector("[data-open-project-bulk]");
-  statusMessage = document.querySelector("[data-client-project-status]");
-}
-
-function bindClientProjectsPageEvents() {
-  if (clientProjectsEventsBound) {
-    return;
-  }
-
-  clientProjectsEventsBound = true;
-  clientStatusFilter?.addEventListener("change", renderClients);
-  projectClientFilter?.addEventListener("change", renderClients);
-  openProjectBulkButton?.addEventListener("click", openProjectBulkEditor);
-  addClientButton?.addEventListener("click", () => {
-    void openClientProjectModuleAction("clients.add").catch(handleClientProjectActionError);
-  });
-  addProjectTopButton?.addEventListener("click", () => {
-    void openClientProjectModuleAction("projects.add").catch(handleClientProjectActionError);
-  });
 }
 
 function registerClientProjectsViewBehaviors() {
@@ -122,6 +82,8 @@ function registerClientProjectsViewBehaviors() {
   view.registerBehavior("client-projects.clients.tags", hydrateTagFilterOptions);
   view.registerBehavior("client-projects.projects.tags", hydrateTagFilterOptions);
   view.registerBehavior("client-projects.projects.clients", hydrateProjectClientFilterOptions);
+  view.registerBehavior("client-projects.clients.bulk", mountClientBulkToolbar);
+  view.registerBehavior("client-projects.projects.bulk", mountProjectBulkToolbar);
 }
 
 function registerClientProjectsModuleActionBehavior(behaviorId, actionId) {
@@ -282,6 +244,75 @@ function showDescriptorField(control) {
   }
 }
 
+function mountClientBulkToolbar(context = {}) {
+  void mountClientBulkToolbarAsync(context).catch(handleClientProjectActionError);
+}
+
+async function mountClientBulkToolbarAsync({ container } = {}) {
+  if (!container) {
+    return;
+  }
+
+  await ensureClientProjectBulkData();
+  if (!container.isConnected) {
+    return;
+  }
+  if (!clientsEnabledForWorkspace()) {
+    container.replaceChildren();
+    return;
+  }
+
+  container.replaceChildren(createClientBulkToolbar());
+  bindDescriptorBulkSelection(container, "client");
+  updateClientTableBulkState();
+}
+
+function mountProjectBulkToolbar(context = {}) {
+  void mountProjectBulkToolbarAsync(context).catch(handleClientProjectActionError);
+}
+
+async function mountProjectBulkToolbarAsync({ container } = {}) {
+  if (!container) {
+    return;
+  }
+
+  await ensureClientProjectBulkData();
+  if (!container.isConnected) {
+    return;
+  }
+  container.replaceChildren(createProjectBulkToolbar());
+  bindDescriptorBulkSelection(container, "project");
+  updateProjectTableBulkState();
+}
+
+async function ensureClientProjectBulkData() {
+  if (clientProjectData.clients.length === 0) {
+    await loadClientProjectDialogData();
+  }
+}
+
+function bindDescriptorBulkSelection(container, recordType) {
+  const surface = container.closest("[data-view-surface-id]");
+  const flag = `clientProjects${recordType === "project" ? "Project" : "Client"}BulkSelectionBound`;
+
+  if (!surface || surface.dataset[flag]) {
+    return;
+  }
+
+  surface.dataset[flag] = "true";
+  surface.addEventListener("change", (event) => {
+    if (!event.target.matches(`[data-view-row-select][data-view-row-select-type="${recordType}"]`)) {
+      return;
+    }
+
+    if (recordType === "project") {
+      updateProjectTableBulkState();
+    } else {
+      updateClientTableBulkState();
+    }
+  });
+}
+
 function requireView() {
   if (!view) {
     throw new Error("Client/Project dialogs require LongtailForge.view.");
@@ -337,7 +368,7 @@ function showDialog(dialog, focusTarget = null) {
   focusTarget?.focus?.();
 }
 
-async function loadPageData({ renderPage = true } = {}) {
+async function loadPageData(_options = {}) {
   setStatus("Loading clients and projects...");
 
   try {
@@ -350,11 +381,7 @@ async function loadPageData({ renderPage = true } = {}) {
     workspaceSettings = normalizeSettings(settingsData);
     clientProjectData = normalizeData(clientsData);
     tagOptions = loadedTags;
-    renderProjectClientFilter();
     applyInitialClientParam();
-    if (renderPage && clientList) {
-      renderClients();
-    }
     openAddClientActionFromQuery();
     openEditClientActionFromQuery();
     openAddProjectActionFromQuery();
@@ -432,120 +459,27 @@ async function openEditClientAction(params = {}, hostContext = null) {
   return openClientDetailDialog(client, { hostContext });
 }
 
-function renderClients() {
-  if (!clientList) {
-    return;
-  }
-
-  // Rendering is state-driven; save operations can set open IDs before calling this.
-  clientList.innerHTML = "";
-
-  if (isClientsPage && !clientsEnabledForWorkspace()) {
-    if (addClientButton) {
-      addClientButton.hidden = true;
-    }
-
-    const emptyMessage = document.createElement("p");
-    emptyMessage.className = "placeholder-copy";
-    emptyMessage.textContent = "Clients are disabled for this workspace type.";
-    clientList.appendChild(emptyMessage);
-    return;
-  }
-
-  if (isClientsPage && addClientButton) {
-    addClientButton.hidden = false;
-  }
-
-  if (isProjectsPage) {
-    renderProjectsPage();
-    return;
-  }
-
-  if (isClientsPage) {
-    renderClientsPage();
-    return;
-  }
-
-  const visibleClients = sortClientTree(clientProjectData.clients).filter((client) =>
-    clientStatusFilter.value === "All" || client.status === clientStatusFilter.value,
-  );
-
-  if (visibleClients.length === 0) {
-    const emptyMessage = document.createElement("p");
-    emptyMessage.className = "placeholder-copy";
-    emptyMessage.textContent = "No clients match this filter.";
-    clientList.appendChild(emptyMessage);
-    return;
-  }
-
-  visibleClients.forEach((client) => {
-    const clientItem = document.createElement("details");
-    clientItem.className = "client-item";
-    clientItem.dataset.clientId = client.id;
-    clientItem.open = client.id === openClientId;
-
-    const summary = document.createElement("summary");
-    summary.textContent = client.name;
-
-    const editor = document.createElement("div");
-    editor.className = "client-editor";
-
-    if (isProjectsPage) {
-      editor.append(
-        createProjectClientActions(client),
-        createProjectCards(client),
-        createAddProjectForm(client),
-      );
-    } else if (isClientsPage) {
-      editor.append(
-        createClientNameEditor(client, { showSaveButton: false }),
-        createBillingContactEditor(client, { showSaveButton: false }),
-        createClientBillingSettingsEditor(client, { showSaveButton: false }),
-        createClientPageActions(client),
-      );
-    } else {
-      editor.append(
-        createClientNameEditor(client),
-        createBillingContactEditor(client),
-        createClientBillingSettingsEditor(client),
-        createProjectList(client),
-        createAddProjectForm(client),
-      );
-    }
-
-    clientItem.append(summary, editor);
-    clientList.appendChild(clientItem);
+function createProjectBulkToolbar() {
+  const controls = createProjectBulkControls();
+  const toolbar = requireView().createBulkActionToolbar({
+    label: "Bulk Changes",
+    selectedCount: getSelectedProjectIds().length,
+    className: "inline-bulk-controls",
+    bodyClassName: "inline-bulk-control-grid",
+    attrs: { "data-client-projects-bulk-toolbar": "project" },
+    body: controls,
   });
+
+  syncClientProjectsBulkToolbar("project", toolbar);
+  return toolbar;
 }
 
-function renderProjectsPage() {
-  const projects = getProjectsForCurrentFilters();
-  clientList.appendChild(createProjectInlineBulkControls());
-
-  if (projects.length === 0) {
-    const emptyMessage = document.createElement("p");
-
-    emptyMessage.className = "placeholder-copy";
-    emptyMessage.textContent = "No projects match this filter.";
-    clientList.appendChild(emptyMessage);
-    return;
-  }
-
-  clientList.appendChild(createProjectTable(projects));
-}
-
-function createProjectInlineBulkControls() {
-  const wrapper = document.createElement("details");
-  const heading = document.createElement("summary");
-  const controls = document.createElement("div");
+function createProjectBulkControls() {
+  const controls = [];
   const bulkStatusSelect = createBulkStatusSelect();
   const bulkClientSelect = createBulkClientSelect();
   const bulkBillableSelect = createBulkBillableSelect();
 
-  wrapper.className = "inline-bulk-controls";
-  heading.textContent = "Bulk Changes";
-  controls.className = "inline-bulk-control-grid";
-  wrapper.appendChild(heading);
   bulkStatusSelect.label.classList.add("inline-bulk-field");
   bulkStatusSelect.select.disabled = true;
   bulkStatusSelect.select.addEventListener("change", async () => {
@@ -561,7 +495,7 @@ function createProjectInlineBulkControls() {
     });
     bulkStatusSelect.select.value = "";
   });
-  controls.appendChild(bulkStatusSelect.label);
+  controls.push(bulkStatusSelect.label);
 
   if (bulkClientSelect) {
     bulkClientSelect.label.classList.add("inline-bulk-field");
@@ -579,7 +513,7 @@ function createProjectInlineBulkControls() {
       });
       bulkClientSelect.select.value = "";
     });
-    controls.appendChild(bulkClientSelect.label);
+    controls.push(bulkClientSelect.label);
   }
 
   if (bulkBillableSelect) {
@@ -598,11 +532,10 @@ function createProjectInlineBulkControls() {
       });
       bulkBillableSelect.select.value = "";
     });
-    controls.appendChild(bulkBillableSelect.label);
+    controls.push(bulkBillableSelect.label);
   }
 
-  wrapper.appendChild(controls);
-  return wrapper;
+  return controls;
 }
 
 async function applyProjectTableBulkUpdate({ status, clientId, shouldChangeClient, billable }) {
@@ -615,74 +548,15 @@ async function applyProjectTableBulkUpdate({ status, clientId, shouldChangeClien
   });
 }
 
-function createProjectTable(projects) {
-  const tableWrap = document.createElement("div");
-  const table = document.createElement("table");
-  const thead = document.createElement("thead");
-  const tbody = document.createElement("tbody");
-
-  tableWrap.className = "list-table-wrap";
-  table.className = "list-table";
-  thead.innerHTML = "<tr><th>Select</th><th>Project</th><th>Edit</th></tr>";
-  sortProjectRows(projects).forEach(({ client, project }) => {
-    const row = document.createElement("tr");
-    const selectCell = document.createElement("td");
-    const nameCell = document.createElement("td");
-    const editCell = document.createElement("td");
-    const checkbox = document.createElement("input");
-    const editButton = createClientProjectActionButton("Edit", "edit");
-    const clientName = shouldShowProjectClientLabel("table") ? getProjectClientLabel(client) : "";
-
-    checkbox.type = "checkbox";
-    checkbox.dataset.projectTableSelect = project.id;
-    checkbox.addEventListener("change", updateProjectTableBulkState);
-    nameCell.textContent = clientName
-      ? `${treeIndent(getProjectDepth(project, client))}${project.name} (${clientName})`
-      : `${treeIndent(getProjectDepth(project, client))}${project.name}`;
-    appendTagChips(nameCell, project.tags);
-    editButton.addEventListener("click", () => openProjectDetailDialog(client, project));
-    selectCell.appendChild(checkbox);
-    editCell.appendChild(editButton);
-    row.append(selectCell, nameCell, editCell);
-    tbody.appendChild(row);
-  });
-
-  table.append(thead, tbody);
-  tableWrap.appendChild(table);
-  return tableWrap;
-}
-
-function sortProjectRows(projects) {
-  return [...projects].sort((left, right) => {
-    const clientCompare = String(left.client.name || "").localeCompare(String(right.client.name || ""), undefined, { sensitivity: "base" });
-
-    if (clientCompare !== 0) {
-      return clientCompare;
-    }
-
-    const projectOrder = getProjectTreeOrder(left.client);
-    return (projectOrder.get(left.project.id) ?? Number.MAX_SAFE_INTEGER)
-      - (projectOrder.get(right.project.id) ?? Number.MAX_SAFE_INTEGER);
-  });
-}
-
 function getSelectedProjectIds() {
-  return [...clientList.querySelectorAll("[data-project-table-select]:checked")]
-    .map((checkbox) => checkbox.dataset.projectTableSelect);
+  return uniqueSelectionIds([
+    ...querySelectionInputs('[data-view-row-select][data-view-row-select-type="project"]:checked')
+      .map((checkbox) => checkbox.dataset.viewRowSelectId || checkbox.value),
+  ]);
 }
 
 function updateProjectTableBulkState() {
-  const hasSelection = getSelectedProjectIds().length > 0;
-
-  clientList.querySelectorAll(".inline-bulk-controls").forEach((bulkControls) => {
-    if (hasSelection && bulkControls.tagName === "DETAILS") {
-      bulkControls.open = true;
-    }
-  });
-
-  clientList.querySelectorAll(".inline-bulk-controls select").forEach((select) => {
-    select.disabled = !hasSelection;
-  });
+  syncClientProjectsBulkToolbar("project");
 }
 
 function openProjectDetailDialog(client, project, options = {}) {
@@ -725,35 +599,25 @@ function openProjectDetailDialog(client, project, options = {}) {
   });
 }
 
-function renderClientsPage() {
-  const visibleClients = getVisibleClientsForClientPage();
+function createClientBulkToolbar() {
+  const toolbar = requireView().createBulkActionToolbar({
+    label: "Bulk Changes",
+    selectedCount: getSelectedClientIds().length,
+    className: "inline-bulk-controls",
+    bodyClassName: "inline-bulk-control-grid",
+    attrs: { "data-client-projects-bulk-toolbar": "client" },
+    body: createClientBulkControls(),
+  });
 
-  clientList.appendChild(createClientInlineBulkControls());
-
-  if (visibleClients.length === 0) {
-    const emptyMessage = document.createElement("p");
-
-    emptyMessage.className = "placeholder-copy";
-    emptyMessage.textContent = "No clients match this filter.";
-    clientList.appendChild(emptyMessage);
-    return;
-  }
-
-  clientList.appendChild(createClientTable(visibleClients));
+  syncClientProjectsBulkToolbar("client", toolbar);
+  return toolbar;
 }
 
-function getVisibleClientsForClientPage() {
-  return sortClientTree(getRealClients()).filter((client) =>
-    clientStatusFilter.value === "All" || client.status === clientStatusFilter.value,
-  );
-}
-
-function createClientInlineBulkControls() {
-  const wrapper = document.createElement("div");
+function createClientBulkControls() {
+  const controls = [];
   const statusField = createClientBulkStatusSelect();
   const billableField = createClientBulkBillableSelect();
 
-  wrapper.className = "inline-bulk-controls";
   statusField.label.classList.add("inline-bulk-field");
   statusField.select.disabled = true;
   statusField.select.addEventListener("change", async () => {
@@ -768,7 +632,7 @@ function createClientInlineBulkControls() {
     });
     statusField.select.value = "";
   });
-  wrapper.appendChild(statusField.label);
+  controls.push(statusField.label);
 
   billableField.label.classList.add("inline-bulk-field");
   billableField.select.disabled = true;
@@ -784,9 +648,9 @@ function createClientInlineBulkControls() {
     });
     billableField.select.value = "";
   });
-  wrapper.appendChild(billableField.label);
+  controls.push(billableField.label);
 
-  return wrapper;
+  return controls;
 }
 
 function createClientBulkStatusSelect() {
@@ -815,40 +679,6 @@ function createClientBulkBillableSelect() {
   );
   label.appendChild(select);
   return { label, select };
-}
-
-function createClientTable(clients) {
-  const tableWrap = document.createElement("div");
-  const table = document.createElement("table");
-  const thead = document.createElement("thead");
-  const tbody = document.createElement("tbody");
-
-  tableWrap.className = "list-table-wrap";
-  table.className = "list-table";
-  thead.innerHTML = "<tr><th>Select</th><th>Client</th><th>Edit</th></tr>";
-  clients.forEach((client) => {
-    const row = document.createElement("tr");
-    const selectCell = document.createElement("td");
-    const nameCell = document.createElement("td");
-    const editCell = document.createElement("td");
-    const checkbox = document.createElement("input");
-    const editButton = createClientProjectActionButton("Edit", "edit");
-
-    checkbox.type = "checkbox";
-    checkbox.dataset.clientTableSelect = client.id;
-    checkbox.addEventListener("change", updateClientTableBulkState);
-    nameCell.textContent = `${treeIndent(getClientDepth(client))}${client.name}`;
-    appendTagChips(nameCell, client.tags);
-    editButton.addEventListener("click", () => openClientDetailDialog(client));
-    selectCell.appendChild(checkbox);
-    editCell.appendChild(editButton);
-    row.append(selectCell, nameCell, editCell);
-    tbody.appendChild(row);
-  });
-
-  table.append(thead, tbody);
-  tableWrap.appendChild(table);
-  return tableWrap;
 }
 
 function appendTagChips(container, tags) {
@@ -909,15 +739,56 @@ function mountTagPicker(container, tags = [], label = "Tags") {
 }
 
 function getSelectedClientIds() {
-  return [...clientList.querySelectorAll("[data-client-table-select]:checked")]
-    .map((checkbox) => checkbox.dataset.clientTableSelect);
+  return uniqueSelectionIds([
+    ...querySelectionInputs('[data-view-row-select][data-view-row-select-type="client"]:checked')
+      .map((checkbox) => checkbox.dataset.viewRowSelectId || checkbox.value),
+  ]);
 }
 
 function updateClientTableBulkState() {
-  const hasSelection = getSelectedClientIds().length > 0;
+  syncClientProjectsBulkToolbar("client");
+}
 
-  clientList.querySelectorAll(".inline-bulk-controls select").forEach((select) => {
-    select.disabled = !hasSelection;
+function uniqueSelectionIds(ids) {
+  return [...new Set(ids.map((id) => String(id || "").trim()).filter(Boolean))];
+}
+
+function querySelectionInputs(selector) {
+  const roots = [activeClientProjectsReadSurface, document].filter(Boolean);
+  const inputs = [];
+  const seen = new Set();
+
+  roots.forEach((rootElement) => {
+    rootElement.querySelectorAll(selector).forEach((input) => {
+      if (seen.has(input)) {
+        return;
+      }
+      seen.add(input);
+      inputs.push(input);
+    });
+  });
+
+  return inputs;
+}
+
+function syncClientProjectsBulkToolbar(recordType, toolbar = null) {
+  const selectedCount = recordType === "project" ? getSelectedProjectIds().length : getSelectedClientIds().length;
+  const toolbars = toolbar ? [toolbar] : [...document.querySelectorAll(`[data-client-projects-bulk-toolbar="${recordType}"]`)];
+
+  toolbars.forEach((bulkToolbar) => {
+    if (selectedCount > 0) {
+      bulkToolbar.open = true;
+    }
+
+    const count = bulkToolbar.viewParts?.count || bulkToolbar.querySelector("[data-view-bulk-selection-count]");
+    if (count) {
+      count.textContent = `${selectedCount} selected`;
+      count.hidden = selectedCount === 0;
+    }
+
+    bulkToolbar.querySelectorAll(".view-bulk-action-toolbar-body select").forEach((select) => {
+      select.disabled = selectedCount === 0;
+    });
   });
 }
 
@@ -990,10 +861,14 @@ async function applyBulkClientUpdate({ selectedClientIds, status, billable }) {
 
   setStatus("Updating selected clients...");
   try {
+    let updatedCount = 0;
+    let failedCount = 0;
+
     for (const clientId of selectedClientIds) {
       const client = getRealClients().find((item) => item.id === clientId);
 
       if (!client) {
+        failedCount += 1;
         continue;
       }
 
@@ -1009,15 +884,22 @@ async function applyBulkClientUpdate({ selectedClientIds, status, billable }) {
         },
       };
 
-      await window.LongtailForge.api.putJson(
-        `/api/clients/${encodeURIComponent(client.id)}`,
-        nextClient,
-      );
+      try {
+        await window.LongtailForge.api.putJson(
+          `/api/clients/${encodeURIComponent(client.id)}`,
+          nextClient,
+        );
+        updatedCount += 1;
+      } catch (error) {
+        failedCount += 1;
+        console.error(error);
+      }
     }
 
-    await refreshClientProjectData();
-    renderClients();
-    setStatus("Updated selected clients.");
+    if (updatedCount > 0) {
+      await refreshClientProjectsAfterBulkUpdate();
+    }
+    setStatus(formatBulkResultMessage("client", updatedCount, failedCount));
   } catch (error) {
     setStatus("Selected clients were not updated.");
     console.error(error);
@@ -1215,200 +1097,12 @@ function openEditProjectActionFromQuery() {
   void openClientProjectModuleAction("projects.edit", { projectId: match.project.id }).catch(handleClientProjectActionError);
 }
 
-function getProjectsForCurrentFilters() {
-  return getAllProjects()
-    .filter(({ project }) => clientStatusFilter.value === "All" || project.status === clientStatusFilter.value)
-    .filter(({ client }) => (
-      !projectClientFilter ||
-      !clientsEnabledForWorkspace() ||
-      projectClientFilter.value === "All" ||
-      client.id === projectClientFilter.value
-    ));
-}
-
-function shouldShowProjectClientLabel(context, filterValue = "") {
-  if (!clientsEnabledForWorkspace()) {
-    return false;
-  }
-
-  const selectedFilter = filterValue || projectClientFilter?.value || "All";
-
-  if (context === "bulk" && selectedFilter !== "All") {
-    return false;
-  }
-
-  return selectedFilter === "All";
-}
-
 function getProjectClientLabel(client) {
   if (!client) {
     return "";
   }
 
   return client.isWorkspaceScope ? workspaceProjectsLabel() : client.name || "";
-}
-
-function openProjectBulkEditor() {
-  const dialog = document.createElement("dialog");
-  const form = document.createElement("form");
-  const title = document.createElement("h2");
-  const projectFilterRow = document.createElement("div");
-  const actionRow = document.createElement("div");
-  const selectAllRow = document.createElement("label");
-  const selectAllCheckbox = document.createElement("input");
-  const projectList = document.createElement("div");
-  const actions = document.createElement("div");
-  const cancelButton = document.createElement("button");
-  const applyButton = document.createElement("button");
-  const modalClientFilter = createBulkClientFilter();
-  const modalStatusFilter = createBulkStatusFilter();
-  const bulkStatusSelect = createBulkStatusSelect();
-  const bulkClientSelect = createBulkClientSelect();
-  const bulkBillableSelect = createBulkBillableSelect();
-
-  dialog.className = "project-bulk-dialog";
-  form.method = "dialog";
-  form.className = "project-bulk-form";
-  title.textContent = "Bulk Edit Projects";
-  projectFilterRow.className = "project-bulk-filter-row";
-  actionRow.className = "project-bulk-action-row";
-  selectAllRow.className = "project-bulk-select-all";
-  projectList.className = "project-bulk-list";
-  actions.className = "form-actions";
-  cancelButton.type = "button";
-  cancelButton.textContent = "Cancel";
-  applyButton.type = "submit";
-  applyButton.textContent = "Apply to Selected";
-  selectAllCheckbox.type = "checkbox";
-  selectAllCheckbox.dataset.projectBulkSelectAll = "";
-  selectAllRow.append(
-    selectAllCheckbox,
-    document.createTextNode("All projects"),
-  );
-
-  if (modalClientFilter) {
-    projectFilterRow.appendChild(modalClientFilter.label);
-  }
-
-  projectFilterRow.appendChild(modalStatusFilter.label);
-
-  actionRow.appendChild(bulkStatusSelect.label);
-
-  if (bulkClientSelect) {
-    actionRow.appendChild(bulkClientSelect.label);
-  }
-
-  if (bulkBillableSelect) {
-    actionRow.appendChild(bulkBillableSelect.label);
-  }
-
-  const renderBulkProjects = () => {
-    renderBulkProjectList(
-      projectList,
-      modalClientFilter?.select?.value || "All",
-      modalStatusFilter.select.value,
-    );
-    updateBulkSelectAllState(projectList, selectAllCheckbox);
-  };
-
-  modalClientFilter?.select?.addEventListener("change", renderBulkProjects);
-  modalStatusFilter.select.addEventListener("change", renderBulkProjects);
-  selectAllCheckbox.addEventListener("change", () => {
-    projectList.querySelectorAll("[data-project-bulk-select]").forEach((checkbox) => {
-      checkbox.checked = selectAllCheckbox.checked;
-    });
-    updateBulkSelectAllState(projectList, selectAllCheckbox);
-  });
-  projectList.addEventListener("change", (event) => {
-    if (event.target.matches("[data-project-bulk-select]")) {
-      updateBulkSelectAllState(projectList, selectAllCheckbox);
-    }
-  });
-  renderBulkProjects();
-
-  cancelButton.addEventListener("click", () => dialog.close());
-  form.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    applyButton.disabled = true;
-
-    try {
-      await applyBulkProjectUpdate({
-        selectedProjectIds: [...projectList.querySelectorAll("[data-project-bulk-select]:checked")]
-          .map((checkbox) => checkbox.dataset.projectBulkSelect),
-        status: bulkStatusSelect.select.value,
-        clientId: bulkClientSelect?.select.selectedIndex > 0
-          ? bulkClientSelect.select.value
-          : "",
-        shouldChangeClient: Boolean(bulkClientSelect && bulkClientSelect.select.selectedIndex > 0),
-        billable: bulkBillableSelect?.select.value || "",
-      });
-      dialog.close();
-    } finally {
-      applyButton.disabled = false;
-    }
-  });
-
-  actions.append(cancelButton, applyButton);
-  form.append(title, projectFilterRow, actionRow, selectAllRow, projectList, actions);
-  dialog.appendChild(form);
-  document.body.appendChild(dialog);
-  dialog.addEventListener("close", () => dialog.remove(), { once: true });
-
-  if (typeof dialog.showModal === "function") {
-    dialog.showModal();
-  } else {
-    dialog.setAttribute("open", "");
-  }
-}
-
-function updateBulkSelectAllState(projectList, selectAllCheckbox) {
-  const checkboxes = [...projectList.querySelectorAll("[data-project-bulk-select]")];
-  const checkedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
-
-  selectAllCheckbox.disabled = checkboxes.length === 0;
-  selectAllCheckbox.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
-  selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
-}
-
-function createBulkStatusFilter() {
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-
-  label.textContent = "Filter by Status";
-  select.append(
-    createOption("All", "All statuses"),
-    createOption("Active", "Active"),
-    createOption("Inactive", "Inactive"),
-    createOption("Completed", "Completed"),
-  );
-  select.value = [...select.options].some((option) => option.value === clientStatusFilter.value)
-    ? clientStatusFilter.value
-    : "All";
-  label.appendChild(select);
-  return { label, select };
-}
-
-function createBulkClientFilter() {
-  if (!clientsEnabledForWorkspace()) {
-    return null;
-  }
-
-  const label = document.createElement("label");
-  const select = document.createElement("select");
-
-  label.textContent = "Filter by Client";
-  select.append(
-    createOption("All", "All projects"),
-    createOption("__workspace_projects__", workspaceProjectsLabel()),
-  );
-  sortClientTree(getActiveRealClients()).forEach((client) => {
-    select.appendChild(createOption(client.id, client.name));
-  });
-  select.value = [...select.options].some((option) => option.value === projectClientFilter?.value)
-    ? projectClientFilter.value
-    : "All";
-  label.appendChild(select);
-  return { label, select };
 }
 
 function createBulkStatusSelect() {
@@ -1464,44 +1158,6 @@ function createBulkBillableSelect() {
   return { label, select };
 }
 
-function renderBulkProjectList(container, clientFilterValue, statusFilterValue) {
-  const projects = getAllProjects()
-    .filter(({ project }) => statusFilterValue === "All" || project.status === statusFilterValue)
-    .filter(({ client }) => (
-      !clientsEnabledForWorkspace() ||
-      clientFilterValue === "All" ||
-      client.id === clientFilterValue
-    ));
-
-  container.replaceChildren();
-
-  if (projects.length === 0) {
-    const emptyMessage = document.createElement("p");
-
-    emptyMessage.className = "placeholder-copy";
-    emptyMessage.textContent = "No projects match this filter.";
-    container.appendChild(emptyMessage);
-    return;
-  }
-
-  sortByName(projects.map(({ project }) => project)).forEach((project) => {
-    const row = document.createElement("label");
-    const checkbox = document.createElement("input");
-    const projectName = document.createElement("span");
-    const projectClient = projects.find((item) => item.project.id === project.id)?.client;
-    const clientName = shouldShowProjectClientLabel("bulk", clientFilterValue)
-      ? getProjectClientLabel(projectClient)
-      : "";
-
-    row.className = "project-bulk-row";
-    checkbox.type = "checkbox";
-    checkbox.dataset.projectBulkSelect = project.id;
-    projectName.textContent = clientName ? `${project.name} (${clientName})` : project.name;
-    row.append(checkbox, projectName);
-    container.appendChild(row);
-  });
-}
-
 async function applyBulkProjectUpdate({
   selectedProjectIds,
   status,
@@ -1509,6 +1165,7 @@ async function applyBulkProjectUpdate({
   shouldChangeClient,
   billable,
 }) {
+  const canChangeClient = clientsEnabledForWorkspace() && shouldChangeClient;
   const nextClientId = clientId === "__workspace__" ? "" : clientId || "";
   const nextBillable = clientsEnabledForWorkspace() ? billable : "no";
 
@@ -1517,77 +1174,80 @@ async function applyBulkProjectUpdate({
     return;
   }
 
-  if (!status && !shouldChangeClient && !billable && clientsEnabledForWorkspace()) {
+  if (!status && !canChangeClient && !billable && clientsEnabledForWorkspace()) {
     setStatus("Choose a bulk change before applying.");
     return;
   }
 
   setStatus("Updating selected projects...");
   try {
+    let updatedCount = 0;
+    let failedCount = 0;
+
     for (const projectId of selectedProjectIds) {
       const project = findProjectById(projectId);
 
       if (!project) {
+        failedCount += 1;
         continue;
       }
 
       const nextProject = {
         ...project,
         status: status || project.status,
-        client_id: shouldChangeClient ? nextClientId : project.client_id,
-        confirm_downstream_update: shouldChangeClient,
+        client_id: canChangeClient ? nextClientId : project.client_id,
+        confirm_downstream_update: canChangeClient,
         billable: nextBillable || project.billable,
         action: {
           action: "projects_bulk_updated",
           project_id: project.id,
           project_name: project.name,
-          client_id: shouldChangeClient ? nextClientId : project.client_id,
-          client_name: shouldChangeClient ? getProjectClientName(nextClientId) : getProjectClientName(project.client_id),
-          details: `bulk_status=${status || "unchanged"};bulk_client=${shouldChangeClient ? nextClientId || "workspace" : "unchanged"};bulk_billable=${nextBillable || "unchanged"}`,
+          client_id: canChangeClient ? nextClientId : project.client_id,
+          client_name: canChangeClient ? getProjectClientName(nextClientId) : getProjectClientName(project.client_id),
+          details: `bulk_status=${status || "unchanged"};bulk_client=${canChangeClient ? nextClientId || "workspace" : "unchanged"};bulk_billable=${nextBillable || "unchanged"}`,
         },
       };
 
-      await window.LongtailForge.api.putJson(
-        `/api/projects/${encodeURIComponent(project.id)}`,
-        nextProject,
-      );
+      try {
+        await window.LongtailForge.api.putJson(
+          `/api/projects/${encodeURIComponent(project.id)}`,
+          nextProject,
+        );
+        updatedCount += 1;
+      } catch (error) {
+        failedCount += 1;
+        console.error(error);
+      }
     }
 
-    await refreshClientProjectData();
-    renderClients();
-    setStatus("Updated selected projects.");
+    if (updatedCount > 0) {
+      await refreshClientProjectsAfterBulkUpdate();
+    }
+    setStatus(formatBulkResultMessage("project", updatedCount, failedCount));
   } catch (error) {
     setStatus("Selected projects were not updated.");
     console.error(error);
   }
 }
 
-function findProjectById(projectId) {
-  return getAllProjects().find(({ project }) => project.id === projectId)?.project || null;
+function formatBulkResultMessage(recordType, updatedCount, failedCount) {
+  const plural = recordType === "client" ? "clients" : "projects";
+  if (updatedCount > 0 && failedCount > 0) {
+    return `Updated ${updatedCount} selected ${plural}; ${failedCount} could not be updated.`;
+  }
+  if (updatedCount > 0) {
+    return `Updated selected ${plural}.`;
+  }
+  return `Selected ${plural} were not updated.`;
 }
 
-function renderProjectClientFilter() {
-  if (!projectClientFilter) {
-    return;
-  }
+async function refreshClientProjectsAfterBulkUpdate() {
+  await refreshClientProjectData();
+  await refreshActiveClientProjectsReadSurface();
+}
 
-  const clientFilterLabel = projectClientFilter.closest("label");
-  const shouldShowClientFilter = clientsEnabledForWorkspace();
-  clientFilterLabel.hidden = !shouldShowClientFilter;
-  projectClientFilter.hidden = !shouldShowClientFilter;
-  projectClientFilter.disabled = !shouldShowClientFilter;
-
-  const previousValue = projectClientFilter.value || "All";
-  projectClientFilter.replaceChildren(createOption("All", "All clients"));
-  projectClientFilter.appendChild(createOption("__workspace_projects__", workspaceProjectsLabel()));
-
-  sortClientTree(getActiveRealClients()).forEach((client) => {
-    projectClientFilter.appendChild(createOption(client.id, `${treeIndent(getClientDepth(client))}${client.name}`));
-  });
-
-  projectClientFilter.value = clientsEnabledForWorkspace() && [...projectClientFilter.options].some((option) => option.value === previousValue)
-    ? previousValue
-    : "All";
+function findProjectById(projectId) {
+  return getAllProjects().find(({ project }) => project.id === projectId)?.project || null;
 }
 
 function getAllProjects() {
@@ -1674,13 +1334,6 @@ function sortProjectsForClient(client) {
   });
 
   return sortedProjects;
-}
-
-function getProjectTreeOrder(client) {
-  return sortProjectsForClient(client).reduce((order, project, index) => {
-    order.set(project.id, index);
-    return order;
-  }, new Map());
 }
 
 function compareProjectsByName(left, right) {
@@ -1868,25 +1521,6 @@ function createClientPageActions(client, options = {}) {
   });
 
   actionTarget.append(saveButton, editProjectsButton);
-  return wrapper;
-}
-
-function createProjectClientActions(client) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "form-actions project-client-actions";
-
-  if (client.isWorkspaceScope) {
-    return wrapper;
-  }
-
-  const editClientButton = document.createElement("button");
-  editClientButton.type = "button";
-  editClientButton.textContent = "Edit Client";
-  editClientButton.addEventListener("click", () => {
-    window.location.href = `clients.html?client=${encodeURIComponent(client.id)}`;
-  });
-
-  wrapper.append(editClientButton);
   return wrapper;
 }
 
@@ -2188,18 +1822,6 @@ async function saveClientSettings(client, container, options = {}) {
     openClientBillingSettingsId: options.openClientBillingSettingsId || "",
     flashSelector: options.flashSelector,
     hostContext: options.hostContext || null,
-  });
-}
-
-function createProjectList(client) {
-  return createRelatedProjectsRegion(client, { editorRows: true });
-}
-
-function createProjectCards(client) {
-  return createRelatedProjectsRegion(client, {
-    collapsible: false,
-    editorRows: true,
-    flat: true,
   });
 }
 
@@ -2867,10 +2489,16 @@ function getDefaultProjectClientId(client) {
     return client.id;
   }
 
-  const filteredClientId = projectClientFilter?.value || "";
+  const filteredClientId = selectedProjectClientFilterValue();
   return getRealClients().some((realClient) => realClient.id === filteredClientId)
     ? filteredClientId
     : "";
+}
+
+function selectedProjectClientFilterValue() {
+  const control = activeClientProjectsReadSurface?.querySelector?.('[name="clientId"]');
+  const value = String(control?.value || "").trim();
+  return value && value !== "All" && value !== "__workspace_projects__" ? value : "";
 }
 
 function getProjectTargetClient(clientId) {
@@ -3152,11 +2780,7 @@ async function persistClientProjectChange(action, viewState = {}, request) {
     openClientId = viewState.openClientId || action.client_id || "";
     openBillingClientId = viewState.openBillingClientId || "";
     openClientBillingSettingsId = viewState.openClientBillingSettingsId || "";
-    if (clientList) {
-      renderClients();
-    } else {
-      await refreshActiveClientProjectsReadSurface();
-    }
+    await refreshActiveClientProjectsReadSurface();
     setStatus("");
     flashSavedButton(viewState.flashSelector);
     signalClientProjectModuleAction(action, viewState.hostContext || null);
@@ -3206,7 +2830,6 @@ async function refreshClientProjectData() {
   });
 
   clientProjectData = normalizeData(result);
-  renderProjectClientFilter();
 }
 
 async function refreshActiveClientProjectsReadSurface() {
@@ -3242,9 +2865,6 @@ function applyInitialClientParam() {
 
   if (clientProjectData.clients.some((client) => client.id === clientId && (client.isWorkspaceScope || isActiveStatus(client.status)))) {
     openClientId = clientId;
-    if (isProjectsPage && projectClientFilter) {
-      projectClientFilter.value = clientId;
-    }
   }
 }
 
@@ -3849,10 +3469,6 @@ function createOption(value, text) {
   return window.LongtailForge.pageController.createOption(value, text);
 }
 
-function sortByName(items) {
-  return window.LongtailForge.pageController.sortByName(items);
-}
-
 function workspaceProjectsLabel() {
   return window.LongtailForge?.getWorkspaceProjectsLabel?.() || "Projects";
 }
@@ -3879,7 +3495,7 @@ function createUuid() {
 }
 
 function setStatus(message, options = {}) {
-  window.LongtailForge.pageController.setStatus(statusMessage, message, options);
+  window.LongtailForge.pageController.setStatus(null, message, options);
 }
 
 const clientProjectDialogApi = {
@@ -3901,8 +3517,7 @@ window.LongtailForge.pageController.register("clients-projects", {
   }),
   runSmoke: () => {
     const checks = [
-      { name: "read surface exists", ok: Boolean(clientList || activeClientProjectsReadSurface) },
-      { name: "status target exists", ok: Boolean(statusMessage || activeClientProjectsReadSurface) },
+      { name: "read surface exists", ok: Boolean(activeClientProjectsReadSurface) },
       { name: "client data loaded", ok: Array.isArray(clientProjectData.clients) },
       { name: "page mode known", ok: ["combined", "clients", "projects"].includes(pageMode) },
     ];

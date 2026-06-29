@@ -419,6 +419,7 @@
   function createDataTable(options = {}) {
     const columns = Array.isArray(options.columns) ? options.columns : [];
     const rows = Array.isArray(options.rows) ? options.rows : [];
+    const secondaryRows = Array.isArray(options.secondaryRows) ? options.secondaryRows : [];
     const hierarchy = options.hierarchy && typeof options.hierarchy === "object" ? options.hierarchy : null;
     const wrapper = createElement("div", {
       className: ["view-table-wrap", options.className],
@@ -454,6 +455,12 @@
     if (rows.length) {
       rows.forEach((row, rowIndex) => {
         tbody.appendChild(createDataRow(row, rowIndex, columns, hierarchy));
+        secondaryRows.forEach((secondaryRow) => {
+          const secondaryElement = createDataSecondaryRow(row, rowIndex, columns, secondaryRow);
+          if (secondaryElement) {
+            tbody.appendChild(secondaryElement);
+          }
+        });
       });
     } else {
       const emptyRow = document.createElement("tr");
@@ -494,6 +501,56 @@
     });
 
     return tr;
+  }
+
+  function createDataSecondaryRow(row, rowIndex, columns, secondaryRow = {}) {
+    const content = typeof secondaryRow.render === "function"
+      ? secondaryRow.render(row, rowIndex)
+      : secondaryRow.content;
+    if ((content === null || content === undefined || content === false || content === "") && secondaryRow.hideWhenEmpty !== false) {
+      return null;
+    }
+
+    const startIndex = normalizedColumnIndex(columns, secondaryRow.startColumn, 0);
+    const endIndex = normalizedColumnIndex(columns, secondaryRow.endBeforeColumn, columns.length);
+    const safeEndIndex = Math.max(startIndex + 1, endIndex);
+    const tr = createElement("tr", {
+      className: ["view-data-table-secondary-row", secondaryRow.className],
+      attrs: {
+        "data-view-table-secondary-row": secondaryRow.id || "",
+      },
+    });
+
+    for (let index = 0; index < startIndex; index += 1) {
+      tr.appendChild(createElement("td", {
+        className: "view-data-table-secondary-spacer",
+        attrs: { "aria-hidden": "true" },
+      }));
+    }
+
+    const cell = createElement("td", {
+      className: "view-data-table-secondary-cell",
+      children: content,
+    });
+    cell.colSpan = Math.max(safeEndIndex - startIndex, 1);
+    tr.appendChild(cell);
+
+    for (let index = safeEndIndex; index < columns.length; index += 1) {
+      tr.appendChild(createElement("td", {
+        className: "view-data-table-secondary-spacer",
+        attrs: { "aria-hidden": "true" },
+      }));
+    }
+
+    return tr;
+  }
+
+  function normalizedColumnIndex(columns, key, fallback) {
+    if (!key) {
+      return fallback;
+    }
+    const index = columns.findIndex((column) => (column.key || column.id) === key);
+    return index >= 0 ? index : fallback;
   }
 
   function createDetailBadgeRow(options = {}) {

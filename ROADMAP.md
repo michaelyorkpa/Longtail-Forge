@@ -13,6 +13,9 @@ Completed 0.33.5.18.12.1 through 0.33.5.18.12.7 are archived in `ROADMAP-ARCHIVE
 Completed 0.33.5.18.13.1 through 0.33.5.18.13.3 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.14.1 is archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.14.2 is archived in `ROADMAP-ARCHIVE.md`.
+Completed 0.33.5.18.14.3 is archived in `ROADMAP-ARCHIVE.md`.
+Completed 0.33.5.18.14.4 is archived in `ROADMAP-ARCHIVE.md`.
+Completed 0.33.5.18.14.5 is archived in `ROADMAP-ARCHIVE.md`.
 
 ## Clients/Projects Pages (0.33.5.18.13 - 0.33.5.18.14)
 
@@ -32,53 +35,6 @@ routes, client/project option data, billing metadata and defaults, task-default 
 Business-only Client availability, Personal/Family project-only scope, payload construction,
 permissions, audit/search/event side effects, safe labels, tag assignment semantics, save/refresh
 behavior, and the already-converted Add/Edit Client and Add/Edit Project dialog behavior.
-
-### Version 0.33.5.18.14.3 - Clients/Projects Bulk Controls and Selection Behavior
-
-- [ ] Move Client and Project bulk-control chrome into the shared bulk-toolbar shell or a descriptor
-      region using that shell.
-- [ ] Keep selected IDs, allowed bulk actions, Project Client reassignment options, billing/status
-      payloads, confirmations, route calls, partial failure messaging, refresh behavior, and audit/search
-      side effects Clients/Projects-owned.
-- [ ] Preserve Business-only Client reassignment; Personal and Family workspaces must not expose Client
-      bulk controls or submit Client IDs.
-- [ ] Reuse existing granular routes unless a future roadmap slice explicitly adds service-owned bulk
-      endpoints with permission, audit, search, and partial-result contracts.
-- [ ] Add regressions proving bulk controls no longer hand-build framework-owned toolbar/table chrome
-      and still preserve workspace gating.
-
-### Version 0.33.5.18.14.4 - Clients/Projects Hierarchy Interactions and Reparent Safety
-
-- [ ] Keep hierarchy mutation rules in Clients/Projects services and existing planner/validation
-      helpers, not in the framework renderer.
-- [ ] Express move/reparent entry points as descriptor actions or registered behaviors that open the
-      existing Client/Project editors or submit existing validated payloads.
-- [ ] Preserve cycle prevention, same-workspace checks, readable parent options, archived-parent
-      behavior, Business-only Client rules, workspace-level Project behavior, and Project Client
-      derivation.
-- [ ] Do not add drag/drop hierarchy editing unless a later roadmap slice explicitly adds it.
-- [ ] Add regressions proving reparent/move behavior remains service-validated and the converted page
-      does not become the hierarchy source of truth.
-
-### Version 0.33.5.18.14.5 - Clients/Projects Strict Guardrails and Cleanup
-
-- [ ] Reduce the page portions of `public/js/clients-projects.js` to descriptor mounting, data
-      bindings, registered behavior handlers, and documented escape hatches.
-- [ ] Expand fail-on-violation declarative guardrails to `client-projects.clients` and
-      `client-projects.projects`.
-- [ ] Guardrails must fail if Clients/Projects reintroduces protected-page anatomy, page/filter/table
-      chrome, bulk-toolbar shell markup, static dialog shells, or one-off framework-owned layout/footer
-      classes outside descriptors/shared helpers.
-- [ ] Guardrails must continue allowing documented module-owned editor field fragments, billing/task
-      default editors, tag picker integration, parent selectors, route calls, payload builders,
-      confirmation wording, refresh hooks, and query-param opener behavior.
-- [ ] Update the Clients/Projects inventory doc to mark strict enforcement active.
-- [ ] Add a focused closeout regression for the converted Clients and Projects pages before the
-      cross-surface 0.33.5.18.15 closeout.
-- [ ] Confirm no database schema, route payload, permission, or workflow changes were introduced by the
-      conversion.
-
----
 
 ## Version 0.33.5.18.15 - Cross-Surface Guardrails, Inventory, Documentation, and Closeout
 

@@ -26,14 +26,14 @@ assert.match(
   "Project settings order must render projects with parent-before-child tree traversal",
 );
 assert.match(
-  clientsProjects,
-  /function sortProjectRows\(projects\)[\s\S]*const projectOrder = getProjectTreeOrder\(left\.client\)/,
-  "Filtered project tables must use the same parent-before-child project order",
+  clientProjectsService,
+  /function buildProjectReadShape\(projects, clients, options = \{\}\)[\s\S]*projectReadGroups\(projects, clients\)[\s\S]*flatMap\(\(groupProjects\) => sortProjectHierarchy\(groupProjects\)\)/,
+  "Canonical project table reads must use service-owned workspace/client grouping with parent-before-child project order",
 );
 assert.match(
-  clientsProjects,
-  /function shouldShowProjectClientLabel\(context,\s*filterValue = ""\)[\s\S]*return selectedFilter === "All";/,
-  "Project list labels must hide parenthesized client names when a specific client filter is selected",
+  clientProjectsService,
+  /function projectReadGroups\(projects, clients\)[\s\S]*const workspaceProjects = \[\][\s\S]*orderedClients\.forEach/,
+  "Canonical project table reads must keep workspace projects before readable Client groups",
 );
 assert.match(
   clientsProjects,
@@ -47,8 +47,8 @@ assert.match(
 );
 assert.match(
   clientsProjects,
-  /shouldShowProjectClientLabel\("bulk",\s*clientFilterValue\)/,
-  "Project bulk labels must also respect the active client filter",
+  /function selectedProjectClientFilterValue\(\)[\s\S]*activeClientProjectsReadSurface\?\.querySelector\?\.\('\[name="clientId"\]'\)[\s\S]*value !== "All" && value !== "__workspace_projects__"/,
+  "Project defaults should read the active descriptor Client filter instead of legacy page filter state",
 );
 assert.doesNotMatch(
   clientsProjects,

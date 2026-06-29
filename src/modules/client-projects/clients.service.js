@@ -126,11 +126,8 @@ function buildClientShape(clients, options = {}) {
 function buildProjectShape(projects, options = {}) {
   const includeDepth = options.includeDepth === true;
   const shape = options.shape === "tree" ? "tree" : "flat";
-  const orderedProjects = sortHierarchy(projects, {
-    idField: "id",
-    parentField: "parent_project_id",
-    labelField: "name",
-  }).map(({ record, depth, path }) => decorateProjectShape(record, { depth, includeDepth, path }));
+  const orderedProjects = sortProjectHierarchy(projects)
+    .map(({ record, depth, path }) => decorateProjectShape(record, { depth, includeDepth, path }));
 
   if (shape === "tree") {
     return buildNestedTree(orderedProjects, {
@@ -141,6 +138,88 @@ function buildProjectShape(projects, options = {}) {
   }
 
   return orderedProjects;
+}
+
+function buildProjectReadShape(projects, clients, options = {}) {
+  const includeDepth = options.includeDepth === true;
+  const shape = options.shape === "tree" ? "tree" : "flat";
+  const orderedProjects = projectReadGroups(projects, clients)
+    .flatMap((groupProjects) => sortProjectHierarchy(groupProjects))
+    .map(({ record, depth, path }) => decorateProjectShape(record, { depth, includeDepth, path }));
+
+  if (shape === "tree") {
+    return buildNestedTree(orderedProjects, {
+      idField: "id",
+      parentField: "parent_project_id",
+      childrenField: "children",
+    });
+  }
+
+  return orderedProjects;
+}
+
+function projectReadGroups(projects, clients) {
+  const workspaceProjects = [];
+  const projectsByClientId = projects.reduce((map, project) => {
+    const clientId = String(project.client_id || "").trim();
+
+    if (!clientId) {
+      workspaceProjects.push(project);
+      return map;
+    }
+
+    if (!map.has(clientId)) {
+      map.set(clientId, []);
+    }
+
+    map.get(clientId).push(project);
+    return map;
+  }, new Map());
+  const orderedClients = sortHierarchy(clients, {
+    idField: "id",
+    parentField: "parent_client_id",
+    labelField: "name",
+  }).map(({ record }) => record);
+  const groupedClientIds = new Set();
+  const groups = [];
+
+  if (workspaceProjects.length > 0) {
+    groups.push(workspaceProjects);
+  }
+
+  orderedClients.forEach((client) => {
+    const clientId = String(client.id || "").trim();
+    const clientProjects = projectsByClientId.get(clientId) || [];
+
+    groupedClientIds.add(clientId);
+    if (clientProjects.length > 0) {
+      groups.push(clientProjects);
+    }
+  });
+
+  [...projectsByClientId.entries()]
+    .filter(([clientId]) => !groupedClientIds.has(clientId))
+    .sort(([, leftProjects], [, rightProjects]) => compareProjectClientGroups(leftProjects, rightProjects))
+    .forEach(([, clientProjects]) => {
+      groups.push(clientProjects);
+    });
+
+  return groups;
+}
+
+function sortProjectHierarchy(projects) {
+  return sortHierarchy(projects, {
+    idField: "id",
+    parentField: "parent_project_id",
+    labelField: "name",
+  });
+}
+
+function compareProjectClientGroups(leftProjects, rightProjects) {
+  const leftProject = leftProjects[0] || {};
+  const rightProject = rightProjects[0] || {};
+  return compareLabels(leftProject.client_name, rightProject.client_name) ||
+    compareLabels(leftProject.client_id, rightProject.client_id);
 }
 
 function sortHierarchy(records, { idField, parentField, labelField }) {
@@ -158,9 +237,7 @@ function sortHierarchy(records, { idField, parentField, labelField }) {
   const visited = new Set();
   const visit = (parentId, depth, path) => {
     const children = [...(byParentId.get(parentId) || [])].sort((left, right) => (
-      String(left[labelField] || "").localeCompare(String(right[labelField] || ""), undefined, {
-        sensitivity: "base",
-      }) || String(left[idField] || "").localeCompare(String(right[idField] || ""))
+      compareLabels(left[labelField], right[labelField]) || compareLabels(left[idField], right[idField])
     ));
 
     children.forEach((record) => {
@@ -187,9 +264,7 @@ function sortHierarchy(records, { idField, parentField, labelField }) {
   records
     .filter((record) => !visited.has(String(record[idField] || "").trim()))
     .sort((left, right) => (
-      String(left[labelField] || "").localeCompare(String(right[labelField] || ""), undefined, {
-        sensitivity: "base",
-      }) || String(left[idField] || "").localeCompare(String(right[idField] || ""))
+      compareLabels(left[labelField], right[labelField]) || compareLabels(left[idField], right[idField])
     ))
     .forEach((record) => {
       const id = String(record[idField] || "").trim();
@@ -201,6 +276,12 @@ function sortHierarchy(records, { idField, parentField, labelField }) {
     });
 
   return sorted;
+}
+
+function compareLabels(left, right) {
+  return String(left || "").localeCompare(String(right || ""), undefined, {
+    sensitivity: "base",
+  });
 }
 
 function buildNestedTree(flatRecords, { idField, parentField, childrenField }) {
@@ -558,8 +639,15 @@ async function archiveClient(clientId, payload, session) {
 }
 
 async function listProjects(session, query = {}) {
+  const clients = await clientsRepository.readAll(session.workspace_id);
   const projects = await projectsRepository.readAll(session.workspace_id);
+  const readableClients = await permissionsService.filterReadableClients(session, clients);
   const readableProjects = await permissionsService.filterReadableProjects(session, projects);
+  const readableClientIds = new Set(readableClients.map((client) => client.id));
+  const readableProjectClientIds = new Set(readableProjects.map((project) => project.client_id).filter(Boolean));
+  const orderingClients = clients.filter((client) => (
+    readableClientIds.has(client.id) || readableProjectClientIds.has(client.id)
+  ));
   const status = normalizeProjectStatusFilter(query.status);
   const clientFilter = normalizeProjectClientFilter(query.client || query.client_id || query.clientId);
   const shapeOptions = normalizeProjectShapeOptions(query);
@@ -575,7 +663,7 @@ async function listProjects(session, query = {}) {
   );
 
   const decoratedProjects = await tagsService.decorateRecordsForTarget(session, "project", filteredProjects);
-  return { projects: buildProjectShape(decoratedProjects, shapeOptions) };
+  return { projects: buildProjectReadShape(decoratedProjects, orderingClients, shapeOptions) };
 }
 
 async function listClientProjects(clientId, session) {

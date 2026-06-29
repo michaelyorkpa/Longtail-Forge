@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.14.2";
+const appVersion = "0.33.5.18.14.5";
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
@@ -39,6 +39,14 @@ const clientsDescriptor = surfaces.get("client-projects.clients");
 const projectsDescriptor = surfaces.get("client-projects.projects");
 assert.ok(clientsDescriptor, "Clients descriptor should be available");
 assert.ok(projectsDescriptor, "Projects descriptor should be available");
+assert.equal(clientsDescriptor.filterPlacement, "slide-out-sidebar", "Clients filters should render through the shared slide-out filter surface");
+assert.equal(projectsDescriptor.filterPlacement, "slide-out-sidebar", "Projects filters should render through the shared slide-out filter surface");
+assert.equal(clientsDescriptor.table.columns.some((column) => column.label === "Tags"), false, "Clients should not expose Tags as a standalone table column");
+assert.equal(projectsDescriptor.table.columns.some((column) => column.label === "Tags"), false, "Projects should not expose Tags as a standalone table column");
+assert.ok(clientsDescriptor.table.secondaryRows.some((row) => row.id === "client-tags" && row.formatter === "chip-list"), "Clients should render tags as a secondary table row");
+assert.ok(projectsDescriptor.table.secondaryRows.some((row) => row.id === "project-tags" && row.formatter === "chip-list"), "Projects should render tags as a secondary table row");
+assert.ok(clientsDescriptor.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true), "Clients repeated row actions should be icon-only");
+assert.ok(projectsDescriptor.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true), "Projects repeated row actions should be icon-only");
 
 const clientsContext = createBrowserContext({
   responses: [{
@@ -70,7 +78,8 @@ assert.ok(clientHierarchyLabels.some((label) => label.dataset.viewHierarchyDepth
 assert.match(clientsSurface.textContent, /Focus/, "Client tag chips should render readable tag names through chip-list display");
 
 await findButtonByText(clientsSurface, "Add Client").click();
-await findButtonByText(clientsSurface, "Edit Client").click();
+assert.equal(findButtonByLabel(clientsSurface, "Edit Client").textContent, "", "Client edit row action should not render repeated text");
+await findButtonByLabel(clientsSurface, "Edit Client").click();
 assert.deepEqual(clientActionCalls, [
   { behavior: "client-projects.clients.create", recordId: "" },
   { behavior: "client-projects.clients.edit", recordId: "client-parent" },
@@ -123,7 +132,8 @@ assert.match(projectsSurface.textContent, /Acme Parent/, "Project Client labels 
 assert.match(projectsSurface.textContent, /Focus/, "Project tag chips should render readable tag names through chip-list display");
 
 await findButtonByText(projectsSurface, "Add Project").click();
-await findButtonByText(projectsSurface, "Edit Project").click();
+assert.equal(findButtonByLabel(projectsSurface, "Edit Project").textContent, "", "Project edit row action should not render repeated text");
+await findButtonByLabel(projectsSurface, "Edit Project").click();
 assert.deepEqual(projectActionCalls, [
   { behavior: "client-projects.projects.create", recordId: "" },
   { behavior: "client-projects.projects.edit", recordId: "project-parent" },
@@ -194,6 +204,12 @@ function findButtonByText(root, text) {
   return button;
 }
 
+function findButtonByLabel(root, label) {
+  const button = root.querySelectorAll("button").find((candidate) => candidate.getAttribute("aria-label") === label || candidate.title === label);
+  assert.ok(button, `Expected button labeled '${label}'`);
+  return button;
+}
+
 function createBrowserContext({ responses, permissions }) {
   const document = new FakeDocument();
   const queue = [...responses];
@@ -218,7 +234,13 @@ function createBrowserContext({ responses, permissions }) {
           const button = document.createElement("button");
           button.type = options.type || "button";
           button.classList.add("action-button");
-          button.textContent = options.text || options.label || "";
+          button.textContent = options.iconOnly ? "" : options.text || options.label || "";
+          if (options.label) {
+            button.setAttribute("aria-label", options.label);
+          }
+          if (options.title) {
+            button.title = options.title;
+          }
           return button;
         },
       },

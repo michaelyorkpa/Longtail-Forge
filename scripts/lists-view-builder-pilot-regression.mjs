@@ -11,12 +11,12 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.18.14.2", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.14.2", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.14.2", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.14.5", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.14.5", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.14.5", "package-lock package entry should report the current app version");
 
 assert.match(html, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists protected view should be a minimal host");
-assert.match(html, /js\/shared\/view-builder\.js\?v=4/, "Lists protected view should load the framework view builder");
+assert.match(html, /js\/shared\/view-builder\.js\?v=5/, "Lists protected view should load the framework view builder");
 assert.match(html, /js\/shared\/view-renderer\.js\?v=6/, "Lists protected view should load the framework view renderer");
 assert.match(html, /js\/lists\.js\?v=13/, "Lists protected view should cache-bust the converted Lists script");
 assert.doesNotMatch(html, /data-list-filter-status|data-lists-list|data-list-detail|data-list-dialog/, "Lists static HTML should not own converted workspace anatomy");

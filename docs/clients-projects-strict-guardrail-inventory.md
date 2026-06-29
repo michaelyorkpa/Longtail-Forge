@@ -1,35 +1,35 @@
 # Clients/Projects Strict Guardrail Inventory
 
-Current as of 0.33.5.18.14.2. Clients and Projects guardrails are reporting-only in this slice. `client-projects.clients` and `client-projects.projects` are active read descriptors with framework-rendered read anatomy and `views/protected/clients.html` plus `views/protected/projects.html` are minimal hosts, but these surfaces are not strict declarative surfaces yet.
+Current as of 0.33.5.18.14.5. Clients and Projects strict enforcement is active for `client-projects.clients` and `client-projects.projects`. These surfaces use minimal protected hosts, framework-rendered page/read anatomy, slide-out filter surfaces, descriptor row-selection checkbox anatomy, secondary-row tag display, icon-only repeated edit controls, shared bulk-toolbar shell regions, service-owned hierarchy ordering, and fail-on-violation guardrails for the converted page path.
 
-This inventory prepares strict enforcement for the Clients and Projects page conversion without changing routes, write payloads, permissions, schema, or workflow behavior.
+This inventory records the active strict boundary for the Clients and Projects page conversion without changing routes, write payloads, permissions, schema, or workflow behavior.
 
 ## Inventoried Surfaces
 
 | Surface | Current Owner | Future Framework-Owned Anatomy | Clients/Projects-Owned Meaning |
 | --- | --- | --- | --- |
-| Clients page host | Minimal `views/protected/clients.html` host plus descriptor render in `public/js/clients-projects.js`. | Page header, status, filters, hierarchy/list/table shell, page action, row action placement, empty/loading/error states. | Business-only Client availability, readable Client labels, Client status/tag filtering, Add/Edit Client opener, save/refresh behavior. |
-| Projects page host | Minimal `views/protected/projects.html` host plus descriptor render in `public/js/clients-projects.js`. | Page header, status, filters, hierarchy/list/table shell, page action, row action placement, empty/loading/error states. | Project hierarchy display data, Personal/Family project-only scope, workspace project behavior, readable Project and Client labels, Add/Edit Project opener, save/refresh behavior. |
-| Shared Clients/Projects browser adapter | `public/js/clients-projects.js` | Descriptor mounting, registered module-action behavior handlers, option-source hydration, related list/table/action shells, and shared table/list/index/bulk/action shell calls where descriptors cannot express the fragment. | Route calls, query-param openers, editor field bodies, related-row shaping, billing defaults, task-default editors, tag assignment, parent selectors, payload construction, validation, refresh/focus callbacks. |
-| Module manifest | `src/modules/client-projects/module.js` | `viewSurfaces` descriptors for `client-projects.clients` and `client-projects.projects`; future strict guardrails once remaining action/bulk/related-table cleanup completes. | Module permissions, workspace capability gates, link/tag/file/search contributions, and module-owned behavior IDs. |
+| Clients page host | Minimal `views/protected/clients.html` host plus descriptor render in `public/js/clients-projects.js`. | Page header, status, filters, hierarchy/list/table shell, row-selection checkbox shell, page action, row action placement, empty/loading/error states. | Business-only Client availability, readable Client labels, Client status/tag filtering, Add/Edit Client opener, save/refresh behavior. |
+| Projects page host | Minimal `views/protected/projects.html` host plus descriptor render in `public/js/clients-projects.js`. | Page header, status, filters, hierarchy/list/table shell, row-selection checkbox shell, page action, row action placement, empty/loading/error states. | Project hierarchy display data, Personal/Family project-only scope, workspace project behavior, readable Project and Client labels, Add/Edit Project opener, save/refresh behavior. |
+| Shared Clients/Projects browser adapter | `public/js/clients-projects.js` | Descriptor mounting, registered module-action behavior handlers, option-source hydration, related list/table/action shells, shared bulk-toolbar shell calls, and shared table/list/index/action shell calls where descriptors cannot express the fragment. | Route calls, selected IDs, allowed bulk action controls, query-param openers, editor field bodies, related-row shaping, billing defaults, task-default editors, tag assignment, parent selectors, payload construction, validation, refresh/focus callbacks. |
+| Module manifest | `src/modules/client-projects/module.js` | `viewSurfaces` descriptors for `client-projects.clients` and `client-projects.projects`; strict guardrails now fail if framework-owned page anatomy, inline top filters, standalone Tags columns, or text repeated row actions return. | Module permissions, workspace capability gates, link/tag/file/search contributions, and module-owned behavior IDs. |
 | Read routes | `/api/clients`, `/api/projects`, `/api/client-projects` | Descriptor `dataSource` calls and option-source mounting only. | Server-owned filtering, hierarchy ordering, permission pruning, readable labels, Business-only Client scope, Personal/Family project scope, option payloads. |
 
 ## Framework-Owned Guardrail Candidates
 
-Future strict enforcement may fail reintroduced hand-built anatomy for:
+Strict enforcement fails reintroduced hand-built anatomy for:
 
 - Protected page hosts and page-header/status shells.
-- Filter panels, filter field grids, sidebar/drawer placement, and filter status/empty states.
-- Hierarchy index/list shells, table wrappers, table headers/cells, and display-only hierarchy indentation.
+- Inline top filter panels, filter field grids, sidebar/drawer placement, and filter status/empty states.
+- Hierarchy index/list shells, table wrappers, table headers/cells, secondary tag rows, and display-only hierarchy indentation.
 - Related table/list shells.
-- Page action placement, dense row action placement, and modal action/footer placement where the shared helper can express the shell.
-- Bulk-toolbar shell, selected-count placement, and framework-owned toolbar status anatomy.
+- Page action placement, dense row action placement, icon-only repeated table edit controls, and modal action/footer placement where the shared helper can express the shell.
+- Bulk-toolbar shell, selected-count placement, row-selection checkbox shell, and framework-owned toolbar status anatomy.
 - Empty/loading/error/status shells.
 - Minimal host script ordering for `view-builder.js`, `view-renderer.js`, and the Clients/Projects adapter.
 
 ## Allowed Clients/Projects Escape Hatches
 
-Future strict enforcement must continue allowing Clients/Projects-owned code for:
+Strict enforcement continues allowing Clients/Projects-owned code for:
 
 - Canonical read/write route calls to `/api/clients`, `/api/projects`, and `/api/client-projects`.
 - Server-owned data shaping, filtering, paging decisions, permission pruning, hierarchy ordering, and readable labels.
@@ -38,6 +38,7 @@ Future strict enforcement must continue allowing Clients/Projects-owned code for
 - Tag assignment and tag picker behavior; descriptors may render chip display but do not own assignment semantics.
 - Query-param openers such as `?client=`, `?project=`, `?addClient=true`, and `?addProject=true`.
 - Business-only Client availability and Personal/Family project-only scope.
+- Bulk selected-ID collection, allowed Client/Project bulk actions, Project Client reassignment options, billing/status payloads, confirmations, granular route calls, partial-failure messaging, refresh behavior, and Business-only Client reassignment gating.
 - Save payload construction, validation, confirmations, refresh/focus callbacks, audit/search/event side effects, and permission implications.
 - Existing Add/Edit Client and Add/Edit Project dialog bodies, provided the already-converted shared modal shell/footer standard stays intact.
 
@@ -75,10 +76,44 @@ This slice moves related Client/Project read context into shared shells without 
 - save, archive, parent/reparent, billing, tags, task defaults, reminders, audit, search, and permission behavior stay on existing Clients/Projects route/service paths.
 - this slice does not add a persistent Inspector-style detail pane, selected-row dashboard, new route, schema change, or bulk-control conversion.
 
+## 0.33.5.18.14.3 Bulk Controls and Selection Behavior
+
+This slice moves Client and Project bulk-control chrome into shared shells without moving bulk workflow meaning into the framework:
+
+- the Clients and Projects descriptors declare table `selection` metadata, and `public/js/shared/view-renderer.js` owns the selectable-row checkbox anatomy plus stable `data-view-row-select` hooks.
+- Clients and Projects mount before-table descriptor regions for bulk controls, and `public/js/clients-projects.js` registers `client-projects.clients.bulk` and `client-projects.projects.bulk` behavior handlers for those regions.
+- bulk toolbars render through `LongtailForge.view.createBulkActionToolbar()` while the Clients/Projects adapter still owns the toolbar body controls.
+- selected Client and Project IDs, allowed status/billing/Client-reassignment choices, confirmations, granular `/api/clients/:id` and `/api/projects/:id` route calls, partial-failure messages, refresh behavior, and audit/search/event side effects remain Clients/Projects-owned.
+- Business workspaces may expose Project Client reassignment. Personal and Family workspaces must not show Client reassignment controls or submit Client IDs from bulk Project updates.
+- this slice does not add bulk endpoints, strict fail-on-violation guardrails, hierarchy move/reparent behavior, route changes, schema changes, or write-payload changes.
+
+## 0.33.5.18.14.4 Hierarchy Ordering and Reparent Safety
+
+This slice keeps hierarchy rules in Clients/Projects service and editor paths while the converted read pages remain descriptor-mounted:
+
+- `/api/projects` uses service-owned Projects read ordering: workspace-level Projects sort first, then Client-backed Projects group by readable Client hierarchy, and Projects sort parent-before-child inside each group with alphabetical secondary ordering.
+- the converted Projects page consumes the ordered `/api/projects?include_depth=true` read model; browser code may render descriptor rows but is not the canonical hierarchy sort source for the page.
+- descriptor row actions and query openers continue to route through registered Add/Edit behavior handlers that open the existing Client/Project editors.
+- existing Client/Project editors remain the reparent entry points, including readable parent selectors, move confirmation, and validated route payloads.
+- Project move planning continues to reject cycles, self-parenting, archived parent Projects, archived Client targets, and cross-Client or cross-workspace parent assignments.
+- Business-only Client behavior, Personal/Family workspace-level Project behavior, workspace Project parent options, and Project Client derivation remain Clients/Projects-owned.
+- this slice does not add drag/drop hierarchy editing, new routes, schema changes, new write payloads, strict fail-on-violation guardrails, filter/sidebar cleanup, secondary-row tag display, or icon-only repeated row actions.
+
+## 0.33.5.18.14.5 Strict Guardrails and Cleanup
+
+This slice promotes Clients and Projects from reporting-only descriptors to strict declarative surfaces without moving business meaning into the framework:
+
+- Clients and Projects filters render through the shared left-side slide-out filter surface instead of the previous inline top Filters panel.
+- `client-projects.clients` and `client-projects.projects` remove the standalone Tags table column and render tag chips through descriptor secondary table rows under the record context columns.
+- repeated Client and Project table edit controls use the shared icon-only edit action with accessible labels and titles; the repeated action-column control no longer renders text.
+- `public/js/clients-projects.js` no longer keeps the legacy page-table, top-filter, or standalone bulk-dialog fallback path for converted Clients/Projects pages.
+- strict guardrails now fail if protected page anatomy, inline top filter panels, standalone Tags columns, text-based repeated table actions, legacy table/list chrome, or static page bulk dialog shells return outside descriptors/shared helpers.
+- framework-owned cleanup remains limited to descriptor mounting, data binding, row-selection anatomy, filter drawer placement, secondary tag-row anatomy, action-column button anatomy, shared bulk-toolbar shell placement, related read shells, and registered behavior dispatch.
+- Clients/Projects continues to own option hydration, selected IDs, allowed bulk controls, route calls, payloads, confirmations, partial-failure messaging, dialog bodies, tag picker behavior, billing/default editors, parent selectors, hierarchy validation, readable labels, query-param openers, refresh hooks, and workspace gating.
+- there are no database schema, route payload, permission, or workflow changes.
+
 ## Not In Scope
 
-- No `client-projects.clients` or `client-projects.projects` strict enforcement yet.
-- 14.3 remains responsible for bulk-control shell conversion.
 - No route, schema, permission, write-payload, workflow, billing, tag-assignment, or hierarchy mutation changes.
 - No persistent Inspector, dashboard-style detail pane, inline editor redesign, or drag/drop hierarchy editing.
 - No framework ownership of Client records, Project records, tag assignment, billing defaults, task defaults, or permission semantics.

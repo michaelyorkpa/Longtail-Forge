@@ -6,7 +6,7 @@ const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const iconsScript = readText("public/js/shared/icons.js");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = "0.33.5.18.14.2";
+const currentTasksVersion = "0.33.5.18.14.5";
 
 assert.match(taskDialogScript, /function taskEditorDetailsSection[\s\S]*className: \["task-details-field", "surface-modal-group"\][\s\S]*"data-task-details-panel": ""[\s\S]*open: true/, "Task Details should be the single collapsible field panel in the page dialog");
 assert.match(taskDialogScript, /Task Details[\s\S]*data-task-form-status[\s\S]*data-task-priority[\s\S]*data-task-parent-task[\s\S]*data-task-due-date[\s\S]*data-task-due-time[\s\S]*data-task-resume-note[\s\S]*data-task-next-action[\s\S]*data-task-client[\s\S]*data-task-project[\s\S]*data-task-description[\s\S]*data-task-assignees[\s\S]*data-task-blocked-reason/, "Task Details should contain status, priority, parent, scheduling, resume/next action, context, description, assignment, and blocked reason");

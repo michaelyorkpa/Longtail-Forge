@@ -30,7 +30,7 @@ const clientProjectsModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.18.14.2",
+  version: "0.33.5.18.14.5",
   enabledByDefault: true,
   canDisable: false,
   historicalReadAccess: true,
@@ -67,6 +67,16 @@ const clientProjectsModule = {
       moduleId: "client-projects",
       viewId: "clients",
       layout: "table-page",
+      filterPlacement: "slide-out-sidebar",
+      sidebarLabel: "Filters",
+      sidebarPanels: [
+        {
+          id: "client-projects-clients-filters",
+          type: "filters",
+          title: "Filters",
+          open: true,
+        },
+      ],
       pageHeader: {
         title: "Clients",
         description: "Review client records, hierarchy, billing defaults, and tags.",
@@ -121,6 +131,12 @@ const clientProjectsModule = {
           parentField: "parentClientId",
           pathField: "displayPath",
         },
+        selection: {
+          enabled: true,
+          label: "Select Client",
+          recordType: "client",
+          labelField: "name",
+        },
         columns: [
           {
             id: "client-name",
@@ -131,13 +147,18 @@ const clientProjectsModule = {
           },
           { id: "client-status", field: "status", label: "Status" },
           { id: "client-billable", field: "billingDisplay", label: "Billing" },
+        ],
+        secondaryRows: [
           {
             id: "client-tags",
-            field: "tags",
             label: "Tags",
+            field: "tags",
             formatter: "chip-list",
             chipsField: "tags",
             chipLabelField: "name",
+            startColumn: "name",
+            endBeforeColumn: "__view_row_actions",
+            hideWhenEmpty: true,
           },
         ],
         rowActions: [
@@ -145,6 +166,9 @@ const clientProjectsModule = {
             id: "edit-client",
             label: "Edit Client",
             role: "utility",
+            icon: "edit",
+            iconOnly: true,
+            title: "Edit Client",
             behavior: "client-projects.clients.edit",
             requiredPermissions: ["clients.manage"],
           },
@@ -153,6 +177,15 @@ const clientProjectsModule = {
           title: "No clients",
         },
       },
+      regions: [
+        {
+          id: "client-projects-clients-bulk",
+          behavior: "client-projects.clients.bulk",
+          placement: "before-table",
+          className: "client-projects-bulk-region",
+          ariaLabel: "Client bulk actions",
+        },
+      ],
       dataSource: {
         route: "/api/clients?include_depth=true",
         method: "GET",
@@ -179,6 +212,16 @@ const clientProjectsModule = {
       moduleId: "client-projects",
       viewId: "projects",
       layout: "table-page",
+      filterPlacement: "slide-out-sidebar",
+      sidebarLabel: "Filters",
+      sidebarPanels: [
+        {
+          id: "client-projects-projects-filters",
+          type: "filters",
+          title: "Filters",
+          open: true,
+        },
+      ],
       pageHeader: {
         title: "Projects",
         description: "Review project records, hierarchy, client context, billing defaults, and tags.",
@@ -244,6 +287,12 @@ const clientProjectsModule = {
           parentField: "parentProjectId",
           pathField: "displayPath",
         },
+        selection: {
+          enabled: true,
+          label: "Select Project",
+          recordType: "project",
+          labelField: "name",
+        },
         columns: [
           {
             id: "project-name",
@@ -255,13 +304,18 @@ const clientProjectsModule = {
           { id: "project-client", field: "clientName", label: "Client" },
           { id: "project-status", field: "status", label: "Status" },
           { id: "project-billable", field: "billingDisplay", label: "Billing" },
+        ],
+        secondaryRows: [
           {
             id: "project-tags",
-            field: "tags",
             label: "Tags",
+            field: "tags",
             formatter: "chip-list",
             chipsField: "tags",
             chipLabelField: "name",
+            startColumn: "name",
+            endBeforeColumn: "__view_row_actions",
+            hideWhenEmpty: true,
           },
         ],
         rowActions: [
@@ -269,6 +323,9 @@ const clientProjectsModule = {
             id: "edit-project",
             label: "Edit Project",
             role: "utility",
+            icon: "edit",
+            iconOnly: true,
+            title: "Edit Project",
             behavior: "client-projects.projects.edit",
             requiredPermissions: ["projects.manage"],
           },
@@ -277,6 +334,15 @@ const clientProjectsModule = {
           title: "No projects",
         },
       },
+      regions: [
+        {
+          id: "client-projects-projects-bulk",
+          behavior: "client-projects.projects.bulk",
+          placement: "before-table",
+          className: "client-projects-bulk-region",
+          ariaLabel: "Project bulk actions",
+        },
+      ],
       dataSource: {
         route: "/api/projects?include_depth=true",
         method: "GET",

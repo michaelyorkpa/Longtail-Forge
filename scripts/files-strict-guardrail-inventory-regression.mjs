@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.14.2";
+const appVersion = "0.33.5.18.14.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -23,7 +23,7 @@ assert.ok(strictSetMatch, "Declarative guardrails should expose the strict surfa
 assert.match(strictSetMatch[1], /files\.browse[\s\S]*lists\.workspace[\s\S]*notes\.workspace[\s\S]*tasks\.workspace/, "Current strict set should keep Files, Lists, Notes, and Tasks");
 assert.match(declarativeGuardrails, /Files descriptor should be strict-converted/, "Declarative guardrails should keep Files under strict enforcement");
 assert.match(declarativeGuide, /\| Files \| files \| files\.html \| files\.browse \| strict \|/, "Declarative guide should mark Files as strict");
-assert.match(declarativeGuide, /Strict guardrails currently enforce `files\.browse`, `lists\.workspace`, `notes\.workspace`, and `tasks\.workspace`/, "Declarative guide should include Files in strict enforcement");
+assert.match(declarativeGuide, /Strict guardrails currently enforce[\s\S]*`files\.browse`[\s\S]*`lists\.workspace`[\s\S]*`notes\.workspace`[\s\S]*`tasks\.workspace`/, "Declarative guide should include Files in strict enforcement");
 
 assert.match(inventoryDoc, /Current as of 0\.33\.5\.18\.12\.7/, "Files inventory should report the current slice");
 assert.match(inventoryDoc, /strict enforcement is active/, "Files inventory should document active strict enforcement");

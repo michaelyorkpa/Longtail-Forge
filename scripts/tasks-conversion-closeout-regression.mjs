@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.14.2";
+const appVersion = "0.33.5.18.14.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -49,11 +49,11 @@ assert.match(moduleContract, /Future Quick Action Center or module-triggered tas
 assert.match(moduleContract, /The Task editor is the first completed workflow example for this pattern/, "Module contract should identify the completed workflow example");
 
 assert.match(declarativeDocs, new RegExp(`viewSurfaces\` authoring contract as of ${escapeRegExp(appVersion)}`), "Declarative view docs should report the current Files descriptor version");
-assert.match(declarativeDocs, /Strict guardrails currently enforce `files\.browse`, `lists\.workspace`, `notes\.workspace`, and `tasks\.workspace`/, "Declarative view docs should include Tasks in strict guardrails");
+assert.match(declarativeDocs, /Strict guardrails currently enforce[\s\S]*`files\.browse`[\s\S]*`lists\.workspace`[\s\S]*`notes\.workspace`[\s\S]*`tasks\.workspace`/, "Declarative view docs should include Tasks in strict guardrails");
 assert.match(declarativeDocs, /The 0\.33\.5\.18\.10\.7 closeout also locks `LongtailForge\.tasksDialog\.openTaskEditor\(\)` as the canonical module-owned Task editor opener/, "Declarative view docs should document the Tasks editor closeout contract");
 assert.match(declarativeDocs, /\| Files \| files \| files\.html \| files\.browse \| strict \|/, "Declarative inventory should report Files through the strict framework descriptor surface");
-assert.match(declarativeDocs, /\| Client Projects \| clients \| clients\.html \| client-projects\.clients \| reported \|/, "Declarative inventory should leave Clients reported in this closeout");
-assert.match(declarativeDocs, /\| Client Projects \| projects \| projects\.html \| client-projects\.projects \| reported \|/, "Declarative inventory should leave Projects reported in this closeout");
+assert.match(declarativeDocs, /\| Client Projects \| clients \| clients\.html \| client-projects\.clients \| strict \|/, "Declarative inventory should report Clients as strict after the Clients/Projects closeout");
+assert.match(declarativeDocs, /\| Client Projects \| projects \| projects\.html \| client-projects\.projects \| strict \|/, "Declarative inventory should report Projects as strict after the Clients/Projects closeout");
 
 assert.match(strictInventory, /Current as of 0\.33\.5\.18\.10\.7/, "Tasks strict inventory should report the closeout version");
 assert.match(strictInventory, /`scripts\/tasks-conversion-closeout-regression\.mjs` locks the 0\.33\.5\.18\.10\.7 documentation closeout/, "Tasks strict inventory should name the closeout regression");

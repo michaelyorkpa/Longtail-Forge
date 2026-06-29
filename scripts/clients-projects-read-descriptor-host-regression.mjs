@@ -10,7 +10,7 @@ import { clientsRepository } from "../src/modules/client-projects/clients.repo.j
 import { projectsRepository } from "../src/modules/client-projects/projects.repo.js";
 import { clientProjectsModule } from "../src/modules/client-projects/module.js";
 
-const appVersion = "0.33.5.18.14.2";
+const appVersion = "0.33.5.18.14.5";
 const businessWorkspaceId = "clients-projects-descriptor-business";
 const personalWorkspaceId = "clients-projects-descriptor-personal";
 const familyWorkspaceId = "clients-projects-descriptor-family";
@@ -42,8 +42,8 @@ assertMinimalHost(projectsHtml, {
   hostClass: "projects-page",
   forbiddenHooks: /\b(data-add-project-top|data-client-list|data-client-status-filter|data-project-client-filter|data-client-project-status|project-page-toolbar|page-heading)\b/,
 });
-assert.match(clientsHtml, /view-builder\.js\?v=4[\s\S]*view-renderer\.js\?v=13[\s\S]*clients-projects\.js\?v=16/, "Clients host should load builder, renderer, then adapter");
-assert.match(projectsHtml, /view-builder\.js\?v=4[\s\S]*view-renderer\.js\?v=13[\s\S]*clients-projects\.js\?v=16/, "Projects host should load builder, renderer, then adapter");
+assert.match(clientsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=15[\s\S]*clients-projects\.js\?v=18/, "Clients host should load builder, renderer, then adapter");
+assert.match(projectsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=15[\s\S]*clients-projects\.js\?v=18/, "Projects host should load builder, renderer, then adapter");
 
 assert.doesNotMatch(clientsProjectsScript, /function ensureClientProjectsPageHost\(\)/, "Adapter should no longer recreate page/filter/status/list anatomy inside minimal hosts");
 assert.match(clientsProjectsScript, /async function initializeClientProjectsPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)/, "Adapter should wait for app-shell viewSurfaces before rendering descriptor pages");
@@ -120,9 +120,10 @@ assert.match(clientsRoutes, /clientsRoutes\.get\("\/client-projects"/, "Combined
 assert.match(clientsRoutes, /clientsRoutes\.get\("\/clients"/, "Clients canonical read route should remain available");
 assert.match(clientsRoutes, /clientsRoutes\.get\("\/projects"/, "Projects canonical read route should remain available");
 assert.match(clientsServiceSource, /async function listClients[\s\S]*assertBusinessWorkspace\(session\)[\s\S]*filterReadableClients[\s\S]*filterRecordsByTags[\s\S]*buildClientShape\(decoratedClients, shapeOptions\)/, "Clients canonical read path should keep Business gating, permission pruning, tag filtering, and hierarchy shaping server-owned");
-assert.match(clientsServiceSource, /async function listProjects[\s\S]*filterReadableProjects[\s\S]*normalizeProjectClientFilter[\s\S]*filterRecordsByTags[\s\S]*buildProjectShape\(decoratedProjects, shapeOptions\)/, "Projects canonical read path should keep permission pruning, client/status/tag filtering, and hierarchy shaping server-owned");
+assert.match(clientsServiceSource, /async function listProjects[\s\S]*filterReadableProjects[\s\S]*normalizeProjectClientFilter[\s\S]*filterRecordsByTags[\s\S]*buildProjectReadShape\(decoratedProjects, orderingClients, shapeOptions\)/, "Projects canonical read path should keep permission pruning, client/status/tag filtering, and hierarchy shaping server-owned");
 assert.match(clientsServiceSource, /function buildClientShape[\s\S]*sortHierarchy[\s\S]*decorateClientShape/, "Clients read shape should preserve hierarchy ordering");
-assert.match(clientsServiceSource, /function buildProjectShape[\s\S]*sortHierarchy[\s\S]*decorateProjectShape/, "Projects read shape should preserve hierarchy ordering");
+assert.match(clientsServiceSource, /function buildProjectShape[\s\S]*sortProjectHierarchy[\s\S]*decorateProjectShape/, "Project option/dialog reads should preserve hierarchy ordering");
+assert.match(clientsServiceSource, /function buildProjectReadShape[\s\S]*projectReadGroups[\s\S]*sortProjectHierarchy[\s\S]*decorateProjectShape/, "Projects page reads should preserve service-owned workspace and Client group hierarchy ordering");
 assert.match(clientsServiceSource, /billing_display: formatBillingDisplay/, "Descriptor reads should expose a server-shaped billing display field");
 assert.match(clientsServiceSource, /tag_summary: formatTagSummary/, "Descriptor reads should expose a server-shaped tag summary field");
 
@@ -190,7 +191,7 @@ function assertDescriptor(surface, { viewId, route, filters, requiredBindings })
   assert.equal(surface.indexPanel.itemDepthField, "depth", `${surface.id} should bind index hierarchy depth`);
   assert.equal(surface.table.hierarchy.depthField, "depth", `${surface.id} should bind table hierarchy depth`);
   assert.ok(surface.table.columns.some((column) => column.formatter === "hierarchy-label"), `${surface.id} should use the hierarchy-label display hook`);
-  assert.ok(surface.table.columns.some((column) => column.formatter === "chip-list"), `${surface.id} should use the chip-list display hook`);
+  assert.ok(surface.table.secondaryRows?.some((row) => row.formatter === "chip-list"), `${surface.id} should use the chip-list display hook in secondary table rows`);
   assert.ok(surface.table.rowActions?.some((action) => action.behavior), `${surface.id} should expose descriptor row action behavior`);
 
   for (const binding of requiredBindings) {

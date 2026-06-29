@@ -48,6 +48,9 @@ async function createFixtures(session) {
     name: "Alpha Child Project",
     parent_project_id: alphaParentProject.id,
   }, session)).project;
+  const alphaChildClientProject = (await clientsService.createProject(alphaChild.id, {
+    name: "Alpha Child Client Project",
+  }, session)).project;
   const betaProject = (await clientsService.createProject(beta.id, {
     name: "Beta Project",
   }, session)).project;
@@ -60,12 +63,17 @@ async function createFixtures(session) {
     status: "Inactive",
   }, session)).project;
   const workspaceProject = (await clientsService.createProject("", {
-    name: "Workspace Project",
+    name: "Workspace Parent Project",
+  }, session)).project;
+  const workspaceChildProject = (await clientsService.createProject("", {
+    name: "Workspace Child Project",
+    parent_project_id: workspaceProject.id,
   }, session)).project;
 
   return {
     alpha,
     alphaChild,
+    alphaChildClientProject,
     alphaChildProject,
     alphaParentProject,
     beta,
@@ -73,6 +81,7 @@ async function createFixtures(session) {
     completedProject,
     inactiveClient,
     inactiveProject,
+    workspaceChildProject,
     workspaceProject,
     zeta,
   };
@@ -126,15 +135,28 @@ async function assertCanonicalProjectLists(session, fixtures) {
 
   assert.deepEqual(
     activeProjects.map((project) => project.name),
-    ["Alpha Parent Project", "Alpha Child Project", "Beta Project", "Workspace Project"],
-    "active project default should return flattened project tree order",
+    [
+      "Workspace Parent Project",
+      "Workspace Child Project",
+      "Alpha Parent Project",
+      "Alpha Child Project",
+      "Alpha Child Client Project",
+      "Beta Project",
+    ],
+    "active project default should return workspace projects first, then client hierarchy groups with project tree order",
   );
   assert.deepEqual(
     activeProjects.map((project) => project.depth),
-    [0, 1, 0, 0],
+    [0, 1, 0, 1, 0, 0],
     "flattened project list should include depth metadata when requested",
   );
-  assert.equal(activeProjects[1].display_label, "  - Alpha Child Project");
+  assert.deepEqual(
+    activeProjects.map((project) => project.client_name || "Workspace"),
+    ["Workspace", "Workspace", "Alpha Client", "Alpha Client", "Alpha Child", "Beta Client"],
+    "active project default should group client-backed projects by readable client hierarchy",
+  );
+  assert.equal(activeProjects[1].display_label, "  - Workspace Child Project");
+  assert.equal(activeProjects[3].display_label, "  - Alpha Child Project");
 
   const betaProjects = (await clientsService.listProjects(session, {
     client: fixtures.beta.id,
@@ -149,7 +171,11 @@ async function assertCanonicalProjectLists(session, fixtures) {
   const workspaceProjects = (await clientsService.listProjects(session, {
     client: "workspace",
   })).projects;
-  assert.deepEqual(workspaceProjects.map((project) => project.id), [fixtures.workspaceProject.id]);
+  assert.deepEqual(
+    workspaceProjects.map((project) => project.id),
+    [fixtures.workspaceProject.id, fixtures.workspaceChildProject.id],
+    "workspace project filter should keep service-owned parent-before-child order",
+  );
 
   const completedProjects = (await clientsService.listProjects(session, {
     status: "Completed",
@@ -200,7 +226,11 @@ async function assertPublicApiUsesCanonicalLists(session) {
     include_depth: "true",
   });
 
-  assert.deepEqual(projects.data.map((project) => project.name), ["Workspace Project"]);
+  assert.deepEqual(
+    projects.data.map((project) => project.name),
+    ["Workspace Parent Project", "Workspace Child Project"],
+    "public project list should preserve service-owned workspace project hierarchy ordering",
+  );
 }
 
 async function createScopedProjectUserSession(workspaceId, projectId) {

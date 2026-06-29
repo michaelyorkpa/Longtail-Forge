@@ -6,6 +6,7 @@ const tags = readText("public/js/tags.js");
 const timeEntries = readText("public/js/time-entries.js");
 const notifications = readText("public/js/notifications.js");
 const clientsProjects = readText("public/js/clients-projects.js");
+const clientProjectsModule = readText("src/modules/client-projects/module.js");
 const css = readText("public/css/longtail-forge.css");
 
 ["up", "down"].forEach((iconName) => {
@@ -27,7 +28,7 @@ assert.match(notifications, /createNotificationActionButton\("Dismiss", "close",
 assert.match(notifications, /const title = notification\.url \? document\.createElement\("a"\) : document\.createElement\("span"\)/, "Notification target opening must remain the existing title link");
 
 assert.match(clientsProjects, /function createClientProjectActionButton\(label, icon, options = \{\}\)/, "Clients\/Projects actions must use a local shared-icon action helper");
-assert.match(clientsProjects, /createClientProjectActionButton\("Edit", "edit"\)/, "Client and project table Edit must use the shared edit icon");
+assert.match(clientProjectsModule, /id:\s*"edit-client"[\s\S]*icon:\s*"edit"[\s\S]*iconOnly:\s*true[\s\S]*id:\s*"edit-project"[\s\S]*icon:\s*"edit"[\s\S]*iconOnly:\s*true/, "Client and project table Edit must use descriptor-owned shared edit icons");
 assert.match(clientsProjects, /createClientProjectActionButton\("Archive", "archive", \{ danger: true \}\)/, "Project Archive must use the shared archive icon with danger styling");
 assert.match(clientsProjects, /createClientProjectActionButton\("Move up", "up"\)/, "Project default sort Move up must use the shared up icon");
 assert.match(clientsProjects, /createClientProjectActionButton\("Move down", "down"\)/, "Project default sort Move down must use the shared down icon");

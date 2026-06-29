@@ -68,12 +68,14 @@ const NOTIFICATION_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 const NOTIFICATION_RECIPIENT_MODES = new Set(["actor", "assignees", "workspace_admins", "explicit_users"]);
 const TERMINOLOGY_WORKSPACE_TYPES = new Set(["default", "business", "personal", "family"]);
 const VIEW_SURFACE_LAYOUTS = new Set(["single-column", "stacked", "sidebar-detail", "slide-out-sidebar", "table-page"]);
+const VIEW_FILTER_PLACEMENTS = new Set(["inline", "slide-out-sidebar"]);
 const VIEW_SIDEBAR_PANEL_TYPES = new Set(["filters", "navigation", "index"]);
 const VIEW_SURFACE_FIELDS = new Set([
   "id",
   "moduleId",
   "viewId",
   "layout",
+  "filterPlacement",
   "pageHeader",
   "sidebarLabel",
   "sidebarPanels",
@@ -95,9 +97,11 @@ const VIEW_SIDEBAR_PANEL_FOOTER_FIELDS = new Set([...VIEW_LABEL_FIELDS, "id", "b
 const VIEW_CHIP_FIELDS = new Set(["field", "label", "labelKey"]);
 const VIEW_VISIBLE_WHEN_FIELDS = new Set(["field", "equals", "in", "truthy", "falsy"]);
 const VIEW_INDEX_PANEL_FIELDS = new Set([...VIEW_LABEL_FIELDS, "items", "itemTitleField", "itemSubtitleField", "itemMetaFields", "itemDepthField", "itemParentField", "itemPathField", "emptyState", "initialSelection", "collapseOnSelect"]);
-const VIEW_TABLE_FIELDS = new Set(["columns", "rowActions", "emptyState", "overflow", "hierarchy"]);
+const VIEW_TABLE_FIELDS = new Set(["columns", "secondaryRows", "rowActions", "emptyState", "overflow", "hierarchy", "selection"]);
 const VIEW_TABLE_HIERARCHY_FIELDS = new Set(["depthField", "parentField", "pathField"]);
+const VIEW_TABLE_SELECTION_FIELDS = new Set(["enabled", "label", "labelKey", "recordType", "labelField"]);
 const VIEW_TABLE_COLUMN_FIELDS = new Set(["id", "field", "label", "labelKey", "formatter", "width", "widthHint", "align", "depthField", "chipsField", "chipLabelField"]);
+const VIEW_TABLE_SECONDARY_ROW_FIELDS = new Set([...VIEW_LABEL_FIELDS, "id", "field", "formatter", "chipsField", "chipLabelField", "startColumn", "endBeforeColumn", "hideWhenEmpty", "className"]);
 const VIEW_TABLE_COLUMN_FORMATTERS = new Set(["text", "hierarchy-label", "chip-list"]);
 const VIEW_DETAIL_FIELDS = new Set([
   "header",
@@ -163,6 +167,9 @@ const VIEW_ACTION_FIELDS = new Set([
   "label",
   "labelKey",
   "role",
+  "icon",
+  "iconOnly",
+  "title",
   "route",
   "method",
   "confirm",
@@ -491,6 +498,10 @@ function validateViewSurfaces(viewSurfaces, errors) {
     if (typeof surface.layout === "string" && !VIEW_SURFACE_LAYOUTS.has(surface.layout)) {
       errors.push(`${prefix}.layout must be single-column, stacked, sidebar-detail, slide-out-sidebar, or table-page.`);
     }
+    optionalString(surface, "filterPlacement", errors, { prefix });
+    if (typeof surface.filterPlacement === "string" && !VIEW_FILTER_PLACEMENTS.has(surface.filterPlacement)) {
+      errors.push(`${prefix}.filterPlacement must be inline or slide-out-sidebar.`);
+    }
     validateDataSourceDescriptor(surface.dataSource, `${prefix}.dataSource`, errors, { required: true });
     validatePageHeaderDescriptor(surface.pageHeader, `${prefix}.pageHeader`, errors);
     optionalString(surface, "sidebarLabel", errors, { prefix });
@@ -716,6 +727,7 @@ function validateTableDescriptor(table, prefix, errors) {
   }
   validateKnownObjectFields(table, VIEW_TABLE_FIELDS, prefix, errors);
   validateTableHierarchyDescriptor(table.hierarchy, `${prefix}.hierarchy`, errors);
+  validateTableSelectionDescriptor(table.selection, `${prefix}.selection`, errors);
   optionalArrayOfObjects(table.columns, `${prefix}.columns`, errors, (column, index) => {
     const columnPrefix = `${prefix}.columns[${index}]`;
     validateKnownObjectFields(column, VIEW_TABLE_COLUMN_FIELDS, columnPrefix, errors);
@@ -732,9 +744,45 @@ function validateTableDescriptor(table, prefix, errors) {
     optionalString(column, "chipsField", errors, { prefix: columnPrefix });
     optionalString(column, "chipLabelField", errors, { prefix: columnPrefix });
   });
+  validateTableSecondaryRowsDescriptor(table.secondaryRows, `${prefix}.secondaryRows`, errors);
   validateActionsDescriptor(table.rowActions, `${prefix}.rowActions`, errors);
   optionalPlainObject(table, "emptyState", errors, { prefix });
   optionalBoolean(table, "overflow", errors, { prefix });
+}
+
+function validateTableSecondaryRowsDescriptor(secondaryRows, prefix, errors) {
+  optionalArrayOfObjects(secondaryRows, prefix, errors, (row, index) => {
+    const rowPrefix = `${prefix}[${index}]`;
+    validateKnownObjectFields(row, VIEW_TABLE_SECONDARY_ROW_FIELDS, rowPrefix, errors);
+    requireString(row, "id", errors, { prefix: rowPrefix });
+    validateLabelDescriptor(row, rowPrefix, errors);
+    optionalString(row, "field", errors, { prefix: rowPrefix });
+    optionalString(row, "formatter", errors, { prefix: rowPrefix });
+    if (typeof row.formatter === "string" && !VIEW_TABLE_COLUMN_FORMATTERS.has(row.formatter)) {
+      errors.push(`${rowPrefix}.formatter must be text, hierarchy-label, or chip-list.`);
+    }
+    optionalString(row, "chipsField", errors, { prefix: rowPrefix });
+    optionalString(row, "chipLabelField", errors, { prefix: rowPrefix });
+    optionalString(row, "startColumn", errors, { prefix: rowPrefix });
+    optionalString(row, "endBeforeColumn", errors, { prefix: rowPrefix });
+    optionalBoolean(row, "hideWhenEmpty", errors, { prefix: rowPrefix });
+    optionalString(row, "className", errors, { prefix: rowPrefix });
+  });
+}
+
+function validateTableSelectionDescriptor(selection, prefix, errors) {
+  if (selection === undefined) {
+    return;
+  }
+  if (!isPlainObject(selection)) {
+    errors.push(`${prefix} must be an object.`);
+    return;
+  }
+  validateKnownObjectFields(selection, VIEW_TABLE_SELECTION_FIELDS, prefix, errors);
+  optionalBoolean(selection, "enabled", errors, { prefix });
+  validateLabelDescriptor(selection, prefix, errors);
+  optionalString(selection, "recordType", errors, { prefix });
+  optionalString(selection, "labelField", errors, { prefix });
 }
 
 function validateTableHierarchyDescriptor(hierarchy, prefix, errors) {
@@ -926,6 +974,9 @@ function validateActionDescriptor(action, prefix, errors) {
   requireString(action, "id", errors, { prefix });
   validateLabelDescriptor(action, prefix, errors);
   optionalString(action, "role", errors, { prefix });
+  optionalString(action, "icon", errors, { prefix });
+  optionalBoolean(action, "iconOnly", errors, { prefix });
+  optionalString(action, "title", errors, { prefix });
   optionalString(action, "route", errors, { prefix });
   optionalString(action, "method", errors, { prefix });
   optionalString(action, "behavior", errors, { prefix });

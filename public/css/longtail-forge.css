@@ -1035,8 +1035,46 @@ details[open] > summary.surface-modal-section-heading::before {
     overflow-wrap: anywhere;
 }
 
+.view-data-table-secondary-row td {
+    padding-top: 0;
+    color: var(--color-text-secondary);
+}
+
+.view-data-table-secondary-cell {
+    min-width: 0;
+}
+
+.view-data-table-secondary-spacer {
+    color: transparent;
+}
+
+.view-table-secondary-row-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 8px;
+    min-width: 0;
+    padding-bottom: 4px;
+}
+
+.view-table-secondary-row-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+}
+
+.view-table-secondary-row-value {
+    min-width: 0;
+}
+
 .view-data-table [data-align="right"] {
     text-align: right;
+}
+
+.view-data-table .view-row-select {
+    width: 16px;
+    height: 16px;
+    margin: 0;
 }
 
 .view-data-table-empty {
@@ -6471,6 +6509,12 @@ summary.view-info-panel-title {
 
 .client-projects-related-region {
     margin-top: 12px;
+}
+
+.client-projects-bulk-region {
+    padding: 0;
+    border: 0;
+    background: transparent;
 }
 
 .client-projects-related-list {
