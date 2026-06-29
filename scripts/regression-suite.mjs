@@ -56,6 +56,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/files-row-attachment-actions-regression.mjs",
   "scripts/files-visual-state-control-parity-regression.mjs",
   "scripts/files-strict-guardrail-inventory-regression.mjs",
+  "scripts/files-conversion-closeout-regression.mjs",
   "scripts/view-index-primitive-regression.mjs",
   "scripts/view-shared-capabilities-regression.mjs",
   "scripts/view-renderer-actions-regression.mjs",

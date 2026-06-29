@@ -61,10 +61,7 @@ function buildFilesViewShell() {
 
   activeFilesViewDescriptor = filesViewSurfaceDescriptor();
 
-  if (!view || typeof view.renderSurface !== "function") {
-    host.replaceChildren(createFilesBrowseChrome());
-    return;
-  }
+  requireFilesViewHelper("renderSurface");
 
   registerFilesViewBehaviors();
   view.renderSurface({ ...activeFilesViewDescriptor, dataSource: null, modals: [] }, host);
@@ -76,9 +73,6 @@ function registerFilesViewBehaviors() {
   }
 
   filesBehaviorRegistered = true;
-  view.registerBehavior("files.browse.legacy", ({ container }) => {
-    container.replaceChildren(createFilesBrowseChrome());
-  });
   view.registerBehavior("files.browse.filters", ({ container }) => {
     container.replaceChildren(createFilesFilterChrome());
   });
@@ -168,39 +162,31 @@ function cacheFilesElements() {
   fileTableMount = document.querySelector("[data-file-table-mount]");
 }
 
-function createFilesBrowseChrome() {
-  const fragment = document.createDocumentFragment();
-
-  fragment.append(createFilesFilterChrome(), createFilesResultsChrome());
-  return fragment;
-}
-
 function createFilesFilterChrome() {
-  const form = document.createElement("form");
-  const submitButton = document.createElement("button");
-
-  form.className = "file-filters";
-  form.dataset.fileFilters = "";
-  form.append(
-    createFilterLabel("Filename", createInput("search", "fileFilterFilename", { autocomplete: "off" })),
-    createFilterLabel("Status", createStatusSelect()),
-    createBusinessFilterLabel("Client", createClientSelect()),
-    createFilterLabel("Project", createProjectSelect()),
-    createAdvancedTargetFilters(),
-  );
-  submitButton.type = "submit";
-  submitButton.textContent = "Apply";
-  form.appendChild(submitButton);
-
-  return form;
+  return createFilesElement("form", {
+    className: "file-filters",
+    dataset: { fileFilters: "" },
+    children: [
+      createFilterLabel("Filename", createInput("search", "fileFilterFilename", { autocomplete: "off" })),
+      createFilterLabel("Status", createStatusSelect()),
+      createBusinessFilterLabel("Client", createClientSelect()),
+      createFilterLabel("Project", createProjectSelect()),
+      createAdvancedTargetFilters(),
+      createFilesElement("button", {
+        attrs: { type: "submit" },
+        text: "Apply",
+      }),
+    ],
+  });
 }
 
 function createFilesResultsChrome() {
   requireFilesViewHelper("createListShell");
-  const tableMount = document.createElement("div");
+  const tableMount = createFilesElement("div", {
+    dataset: { fileTableMount: "" },
+    children: [createFilesTable([])],
+  });
 
-  tableMount.dataset.fileTableMount = "";
-  tableMount.appendChild(createFilesTable([]));
   return view.createListShell({
     className: "files-browse-list-shell",
     attrs: { "data-file-list-shell": "" },
@@ -210,10 +196,9 @@ function createFilesResultsChrome() {
 }
 
 function createFilterLabel(labelText, control) {
-  const label = document.createElement("label");
-
-  label.append(labelText, control);
-  return label;
+  return createFilesElement("label", {
+    children: [labelText, control],
+  });
 }
 
 function createBusinessFilterLabel(labelText, control) {
@@ -224,68 +209,55 @@ function createBusinessFilterLabel(labelText, control) {
 }
 
 function createInput(type, dataKey, attributes = {}) {
-  const input = document.createElement("input");
-
-  input.type = type;
-  input.dataset[dataKey] = "";
-  Object.entries(attributes).forEach(([name, value]) => {
-    input.setAttribute(name, value);
+  return createFilesElement("input", {
+    attrs: { type, ...attributes },
+    dataset: { [dataKey]: "" },
   });
-  return input;
 }
 
 function createClientSelect() {
-  const select = document.createElement("select");
-
-  select.dataset.fileFilterClient = "";
-  select.appendChild(createOption("", "All clients"));
-  return select;
+  return createFilesElement("select", {
+    dataset: { fileFilterClient: "" },
+    children: [createOption("", "All clients")],
+  });
 }
 
 function createProjectSelect() {
-  const select = document.createElement("select");
-
-  select.dataset.fileFilterProject = "";
-  select.appendChild(createOption("", "All projects"));
-  return select;
+  return createFilesElement("select", {
+    dataset: { fileFilterProject: "" },
+    children: [createOption("", "All projects")],
+  });
 }
 
 function createStatusSelect() {
-  const select = document.createElement("select");
-
-  select.dataset.fileFilterStatus = "";
-  [
-    ["available", "Available"],
-    ["deleted", "Unavailable"],
-    ["pending", "Review pending"],
-    ["quarantined", "In review"],
-    ["all", "All visible"],
-  ].forEach(([value, label]) => {
-    const option = document.createElement("option");
-
-    option.value = value;
-    option.textContent = label;
-    select.appendChild(option);
+  return createFilesElement("select", {
+    dataset: { fileFilterStatus: "" },
+    children: [
+      ["available", "Available"],
+      ["deleted", "Unavailable"],
+      ["pending", "Review pending"],
+      ["quarantined", "In review"],
+      ["all", "All visible"],
+    ].map(([value, label]) => createOption(value, label)),
   });
-  return select;
 }
 
 function createAdvancedTargetFilters() {
-  const details = document.createElement("details");
-  const summary = document.createElement("summary");
-  const fields = document.createElement("div");
-
-  details.className = "files-advanced-filters";
-  summary.textContent = "Advanced target filters";
-  fields.className = "files-advanced-filter-fields";
-  fields.append(
-    createFilterLabel("Module", createInput("text", "fileFilterModule", { placeholder: "tasks" })),
-    createFilterLabel("Target Type", createInput("text", "fileFilterTargetType", { placeholder: "task" })),
-    createFilterLabel("Target ID", createInput("text", "fileFilterTargetId", { autocomplete: "off" })),
-    createFilterLabel("Project ID", createInput("text", "fileFilterProjectId", { autocomplete: "off" })),
-  );
-  details.append(summary, fields);
-  return details;
+  return createFilesElement("details", {
+    className: "files-advanced-filters",
+    children: [
+      createFilesElement("summary", { text: "Advanced target filters" }),
+      createFilesElement("div", {
+        className: "files-advanced-filter-fields",
+        children: [
+          createFilterLabel("Module", createInput("text", "fileFilterModule", { placeholder: "tasks" })),
+          createFilterLabel("Target Type", createInput("text", "fileFilterTargetType", { placeholder: "task" })),
+          createFilterLabel("Target ID", createInput("text", "fileFilterTargetId", { autocomplete: "off" })),
+          createFilterLabel("Project ID", createInput("text", "fileFilterProjectId", { autocomplete: "off" })),
+        ],
+      }),
+    ],
+  });
 }
 
 function bindFilesEvents() {
@@ -396,11 +368,10 @@ function populateProjectFilter() {
 }
 
 function createOption(value, label) {
-  const option = document.createElement("option");
-
-  option.value = value;
-  option.textContent = label;
-  return option;
+  return createFilesElement("option", {
+    attrs: { value },
+    text: label,
+  });
 }
 
 async function loadFiles() {
@@ -479,7 +450,14 @@ function fileRow(attachment) {
   const scanStatus = file.scanStatus || file.scan_status || "";
   const extension = file.extension || extensionFromFilename(file.originalFilename || fileName);
   const fileSizeBytes = Number(file.fileSizeBytes || file.file_size_bytes || 0);
-  const preview = previewAvailabilityForRow({ extension, fileSizeBytes, scanStatus, status });
+  const canManageReview = canManageFileReview(attachment, file, fileId);
+  const preview = previewAvailabilityForRow({
+    canPreviewInReview: canManageReview,
+    extension,
+    fileSizeBytes,
+    scanStatus,
+    status,
+  });
   const fileTypeLabel = fileTypeDisplay(extension, file.mimeTypeDetected || file.mime_type_detected);
 
   return {
@@ -518,6 +496,7 @@ function fileRow(attachment) {
     downloadable: Boolean(fileId && status === "available" && ["not_required", "passed"].includes(scanStatus)),
     deletable: Boolean(fileId && status !== "deleted"),
     restorable: Boolean(fileId && status === "deleted"),
+    reviewable: canMarkReviewedFileRow({ canManageReview, fileId, scanStatus, status }),
     reportable: canReportFileRow(attachment, file, fileId, status),
     quarantineable: canQuarantineFileRow(attachment, file, fileId, status),
   };
@@ -602,32 +581,36 @@ function filesTableColumns() {
 }
 
 function createFileCell(row) {
-  const cell = document.createElement("span");
-
-  cell.className = "files-file-cell";
-  cell.append(createFileTypeIcon(row), createTruncatedText(row.fileName, "files-file-name"));
-  return cell;
+  return createFilesElement("span", {
+    className: "files-file-cell",
+    children: [
+      createFileTypeIcon(row),
+      createTruncatedText(row.fileName, "files-file-name"),
+    ],
+  });
 }
 
 function createFileTypeIcon(row) {
-  const iconWrapper = document.createElement("span");
-  const label = document.createElement("span");
-
-  iconWrapper.className = "files-file-type-icon";
-  iconWrapper.setAttribute("aria-label", row.fileTypeLabel);
-  iconWrapper.dataset.fileType = safeFileTypeToken(row.extension || row.fileTypeLabel);
-  label.className = "files-file-type-label";
-  label.textContent = fileTypeBadgeText(row.extension, row.fileTypeLabel);
-  iconWrapper.appendChild(label);
-  return iconWrapper;
+  return createFilesElement("span", {
+    className: "files-file-type-icon",
+    attrs: { "aria-label": row.fileTypeLabel },
+    dataset: { fileType: safeFileTypeToken(row.extension || row.fileTypeLabel) },
+    children: [
+      createFilesElement("span", {
+        className: "files-file-type-label",
+        text: fileTypeBadgeText(row.extension, row.fileTypeLabel),
+      }),
+    ],
+  });
 }
 
 function createTruncatedText(value, className = "") {
   const text = String(value || "").trim();
-  const span = document.createElement("span");
+  const span = createFilesElement("span", {
+    className: ["files-truncate", className].filter(Boolean).join(" "),
+    text,
+  });
 
-  span.className = ["files-truncate", className].filter(Boolean).join(" ");
-  span.textContent = text;
   if (text) {
     span.dataset.fullText = text;
     span.tabIndex = 0;
@@ -648,11 +631,12 @@ function createTruncatedText(value, className = "") {
 function showFilesTooltip(target, text) {
   hideFilesTooltip();
 
-  activeFilesTooltip = document.createElement("div");
+  activeFilesTooltip = createFilesElement("div", {
+    className: "files-floating-tooltip",
+    attrs: { role: "tooltip" },
+    text,
+  });
   activeFilesTooltip.id = `files-floating-tooltip-${Date.now()}`;
-  activeFilesTooltip.className = "files-floating-tooltip";
-  activeFilesTooltip.setAttribute("role", "tooltip");
-  activeFilesTooltip.textContent = text;
   activeFilesTooltipTarget = target;
   target.setAttribute("aria-describedby", activeFilesTooltip.id);
   document.body.appendChild(activeFilesTooltip);
@@ -696,74 +680,85 @@ function positionFilesTooltip() {
 }
 
 function createFileStatusCell(row) {
-  const status = document.createElement("span");
+  const reviewLabel = reviewStateLabel(row.status, row.scanStatus);
   const chips = [
     createFileStatusChip(row.status, row.statusLabel),
-    createFileScanStatusChip(row.scanStatus),
+    createFileScanStatusChip(row.scanStatus, reviewLabel, row.statusLabel),
   ].filter(Boolean);
+  const status = createFilesElement("span", {
+    className: "file-status-cell surface-chip-row",
+    children: chips,
+  });
 
-  status.className = "file-status-cell surface-chip-row";
   if (row.fileSizeLabel) {
     status.dataset.fileSize = row.fileSizeLabel;
   }
-  status.append(...chips);
   return status;
 }
 
 function createFileStatusChip(status, label) {
-  const chip = document.createElement("span");
   const chipLabel = label || statusLabel(status, "");
-
-  chip.className = "surface-chip files-status-chip files-status-chip-availability";
-  chip.dataset.fileStatusChip = safeFileStateToken(status || "unknown");
-  chip.textContent = chipLabel;
-  chip.title = chipLabel;
-  chip.setAttribute("aria-label", `File status: ${chipLabel}`);
-  return chip;
+  return createFilesElement("span", {
+    className: "surface-chip files-status-chip files-status-chip-availability",
+    attrs: {
+      "aria-label": `File status: ${chipLabel}`,
+      title: chipLabel,
+    },
+    dataset: { fileStatusChip: safeFileStateToken(status || "unknown") },
+    text: chipLabel,
+  });
 }
 
-function createFileScanStatusChip(scanStatus) {
-  const label = scanStatusLabel(scanStatus);
+function createFileScanStatusChip(scanStatus, label = scanStatusLabel(scanStatus), statusLabelText = "") {
+  const text = String(label || "").trim();
 
-  if (!label) {
+  if (!text || text === statusLabelText) {
     return null;
   }
 
-  const chip = document.createElement("span");
-
-  chip.className = "surface-chip files-status-chip files-status-chip-review";
-  chip.dataset.fileScanStatusChip = safeFileStateToken(scanStatus || "unknown");
-  chip.textContent = label;
-  chip.title = label;
-  chip.setAttribute("aria-label", `Review state: ${label}`);
-  return chip;
+  return createFilesElement("span", {
+    className: "surface-chip files-status-chip files-status-chip-review",
+    attrs: {
+      "aria-label": `Review state: ${text}`,
+      title: text,
+    },
+    dataset: { fileScanStatusChip: safeFileStateToken(scanStatus || "unknown") },
+    text,
+  });
 }
 
 function createFileActions(row) {
-  const actions = document.createElement("div");
+  requireFilesViewHelper("createDetailActionStrip");
+  const rowActions = [];
 
-  actions.className = "files-row-actions surface-dense-actions";
-  actions.dataset.fileActions = "";
   if (row.previewable) {
-    actions.appendChild(createPreviewAction(row));
+    rowActions.push(createPreviewAction(row));
   } else if (row.downloadable) {
-    actions.appendChild(createDownloadOnlyMarker(row));
+    rowActions.push(createDownloadOnlyMarker(row));
   }
   if (row.downloadable) {
-    actions.appendChild(createDownloadAction(row));
+    rowActions.push(createDownloadAction(row));
   }
   if (row.reportable) {
-    actions.appendChild(createReportAction(row));
+    rowActions.push(createReportAction(row));
   }
   if (row.quarantineable) {
-    actions.appendChild(createQuarantineAction(row));
+    rowActions.push(createQuarantineAction(row));
   }
   if (row.deletable) {
-    actions.appendChild(createDeleteAction(row));
+    rowActions.push(createDeleteAction(row));
   }
   if (row.restorable) {
-    actions.appendChild(createRestoreAction(row));
+    rowActions.push(createRestoreAction(row));
   }
+
+  const actions = view.createDetailActionStrip({
+    className: "files-row-actions",
+    ariaLabel: `File actions for ${row.fileName}`,
+    actions: rowActions,
+  });
+
+  actions.dataset.fileActions = "";
   return actions;
 }
 
@@ -787,16 +782,21 @@ function createPreviewAction(row) {
 }
 
 function createDownloadOnlyMarker(row) {
-  const marker = document.createElement("span");
   const label = previewUnavailableLabel(row);
   const icon = window.LongtailForge.icons?.createIcon?.("eye", { decorative: true });
+  const marker = createFilesElement("span", {
+    className: "action-button icon-button files-row-action files-row-preview-unavailable",
+    attrs: {
+      "aria-label": label,
+      role: "img",
+      title: label,
+    },
+    dataset: {
+      fileAction: "preview-unavailable",
+      surfaceAction: "files.previewUnavailable",
+    },
+  });
 
-  marker.className = "action-button icon-button files-row-action files-row-preview-unavailable";
-  marker.dataset.fileAction = "preview-unavailable";
-  marker.dataset.surfaceAction = "files.previewUnavailable";
-  marker.setAttribute("aria-label", label);
-  marker.setAttribute("role", "img");
-  marker.title = label;
   if (icon) {
     marker.appendChild(icon);
   } else {
@@ -806,18 +806,23 @@ function createDownloadOnlyMarker(row) {
 }
 
 function createDownloadAction(row) {
-  const link = document.createElement("a");
   const label = `Download ${row.fileName}`;
   const icon = window.LongtailForge.icons?.createIcon?.("download", { decorative: true });
+  const link = createFilesElement("a", {
+    className: "button-link action-button view-action-button icon-button files-row-action",
+    attrs: {
+      "aria-label": label,
+      download: true,
+      href: `/api/files/${encodeURIComponent(row.fileId)}/download`,
+      title: label,
+    },
+    dataset: {
+      fileAction: "download",
+      surfaceAction: "files.download",
+      surfaceActionRole: "secondary",
+    },
+  });
 
-  link.href = `/api/files/${encodeURIComponent(row.fileId)}/download`;
-  link.className = "action-button icon-button files-row-action";
-  link.setAttribute("download", "");
-  link.setAttribute("aria-label", label);
-  link.title = label;
-  link.dataset.fileAction = "download";
-  link.dataset.surfaceAction = "files.download";
-  link.dataset.surfaceActionRole = "secondary";
   if (icon) {
     link.appendChild(icon);
   } else {
@@ -828,12 +833,14 @@ function createDownloadAction(row) {
 
 function createReportAction(row) {
   const button = view.createActionButton({
+    icon: "alert",
+    iconOnly: true,
     label: `Report ${row.fileName}`,
-    text: "Report",
+    text: "",
     title: `Report ${row.fileName}`,
     role: "secondary",
     action: "files.report",
-    className: "files-row-action files-row-action-text",
+    className: "files-row-action",
     onClick: (event) => {
       stopFileRowActionEvent(event);
       reportFile(row.fileId, row.file, row.attachmentId);
@@ -846,13 +853,15 @@ function createReportAction(row) {
 
 function createQuarantineAction(row) {
   const button = view.createActionButton({
+    icon: "shield-alert",
+    iconOnly: true,
     label: `Review ${row.fileName}`,
-    text: "Review",
+    text: "",
     title: `Review ${row.fileName}`,
     role: "danger",
     variant: "danger",
     action: "files.quarantine",
-    className: "files-row-action files-row-action-text",
+    className: "files-row-action",
     onClick: (event) => {
       stopFileRowActionEvent(event);
       quarantineFile(row.fileId, row.file);
@@ -983,18 +992,23 @@ function createPreviewDownloadAction(row) {
     return null;
   }
 
-  const link = document.createElement("a");
   const label = `Download ${row.fileName}`;
   const icon = window.LongtailForge.icons?.createIcon?.("download", { decorative: true });
+  const link = createFilesElement("a", {
+    className: "action-button icon-button surface-modal-footer-action files-preview-download",
+    attrs: {
+      "aria-label": label,
+      download: true,
+      href: `/api/files/${encodeURIComponent(row.fileId)}/download`,
+      title: label,
+    },
+    dataset: {
+      fileAction: "preview-download",
+      surfaceAction: "files.download",
+      surfaceActionRole: "utility",
+    },
+  });
 
-  link.href = `/api/files/${encodeURIComponent(row.fileId)}/download`;
-  link.className = "action-button icon-button surface-modal-footer-action files-preview-download";
-  link.setAttribute("download", "");
-  link.setAttribute("aria-label", label);
-  link.title = label;
-  link.dataset.fileAction = "preview-download";
-  link.dataset.surfaceAction = "files.download";
-  link.dataset.surfaceActionRole = "utility";
   if (icon) {
     link.appendChild(icon);
   } else {
@@ -1062,14 +1076,17 @@ function renderFilePreviewContent(dialog, preview, content) {
 }
 
 function renderFilePreviewImage(dialog, preview) {
-  const image = document.createElement("img");
+  const image = createFilesElement("img", {
+    attrs: {
+      alt: preview.filename ? `Preview of ${preview.filename}` : "File preview",
+      src: preview.contentUrl,
+    },
+  });
   const wrapper = view.createElement("div", {
     className: "files-preview-image-frame",
     children: [image],
   });
 
-  image.alt = preview.filename ? `Preview of ${preview.filename}` : "File preview";
-  image.src = preview.contentUrl;
   image.addEventListener("load", () => {
     setFilePreviewBody(dialog, wrapper);
   }, { once: true });
@@ -1080,13 +1097,12 @@ function renderFilePreviewImage(dialog, preview) {
 }
 
 function renderFilePreviewText(dialog, text) {
-  const pre = document.createElement("pre");
-  const code = document.createElement("code");
-
-  pre.className = "files-preview-text";
-  code.textContent = text || "";
-  pre.appendChild(code);
-  setFilePreviewBody(dialog, pre);
+  setFilePreviewBody(dialog, createFilesElement("pre", {
+    className: "files-preview-text",
+    children: [
+      createFilesElement("code", { text: text || "" }),
+    ],
+  }));
 }
 
 function renderFilePreviewMarkdown(dialog, html) {
@@ -1183,6 +1199,21 @@ function buildFileEditorDialog(row, options = {}) {
       openFilePreview(row, { trigger: event.currentTarget });
     },
   });
+  const markReviewedButton = view.createActionButton({
+    action: "files.restore",
+    className: "surface-modal-footer-action",
+    icon: "complete",
+    iconOnly: true,
+    label: `Mark ${row.fileName} reviewed`,
+    role: "secondary",
+    text: "",
+    title: `Mark ${row.fileName} reviewed`,
+    onClick: (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      markFileReviewedFromContext(dialog, row, options);
+    },
+  });
   const closeButton = view.createActionButton({
     action: "close-file-context",
     className: "surface-modal-footer-action",
@@ -1209,6 +1240,9 @@ function buildFileEditorDialog(row, options = {}) {
   previewButton.dataset.fileContextPreview = "";
   previewButton.hidden = !row.previewable;
   previewButton.disabled = !row.previewable;
+  markReviewedButton.dataset.fileContextMarkReviewed = "";
+  markReviewedButton.hidden = !row.reviewable;
+  markReviewedButton.disabled = !row.reviewable;
   closeButton.dataset.fileContextClose = "";
   saveButton.dataset.fileContextSave = "";
   dialog = view.renderDescriptorModalForm(fileEditorModalDescriptor(), {
@@ -1217,7 +1251,8 @@ function buildFileEditorDialog(row, options = {}) {
     formClassName: "files-file-context-form",
     size: "wide",
     fields: [],
-    actions: [previewButton, closeButton, saveButton],
+    utilityActions: [previewButton, markReviewedButton],
+    actions: [closeButton, saveButton],
   });
   dialog.dataset.fileEditorDialog = "";
   dialog.viewParts.form.dataset.fileContextForm = "";
@@ -1263,7 +1298,7 @@ function createFileEditorMetadataList(row) {
     ["File type", row.fileTypeLabel, "file-type"],
     ["Size", row.fileSizeLabel, "size"],
     ["Status", row.statusLabel, "status"],
-    ["Review state", scanStatusLabel(row.scanStatus || ""), "review-state"],
+    ["Review state", reviewStateLabel(row.status, row.scanStatus || ""), "review-state"],
     ["Uploaded", row.uploadedAtLabel, "uploaded"],
     ["Attached", row.attachedAtLabel, "attached"],
   ];
@@ -1331,11 +1366,10 @@ function createFileContextField(label, control) {
 }
 
 function createFileContextSelect(datasetKey, name) {
-  const select = document.createElement("select");
-
-  select.name = name;
-  select.dataset[datasetKey] = "";
-  return select;
+  return createFilesElement("select", {
+    attrs: { name },
+    dataset: { [datasetKey]: "" },
+  });
 }
 
 function createFileEditorStatus() {
@@ -1661,6 +1695,48 @@ async function saveFileEditorContext(dialog, row, options = {}) {
   }
 }
 
+async function markFileReviewedFromContext(dialog, row, options = {}) {
+  if (!row.fileId || !row.reviewable) {
+    setFileEditorStatus(dialog, "This file cannot be marked reviewed from File Context.", true);
+    return;
+  }
+
+  const confirmed = await window.LongtailForge.modal.confirm({
+    title: "Mark file reviewed?",
+    message: `Mark "${row.fileName || "this file"}" reviewed? Downloads will be available again when the file is otherwise allowed.`,
+    confirmLabel: "Mark Reviewed",
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  const markReviewedButton = dialog.querySelector("[data-file-context-mark-reviewed]");
+
+  setFileEditorStatus(dialog, "Marking file reviewed...");
+  setFileEditorControlsDisabled(dialog, true);
+  if (markReviewedButton) {
+    markReviewedButton.disabled = true;
+  }
+
+  try {
+    await api.postJson(`/api/files/${encodeURIComponent(row.fileId)}/restore`, {});
+    setFileEditorStatus(dialog, "File marked reviewed.");
+    view.closeModal(dialog, "reviewed");
+    await loadFiles();
+    focusFileRowByAttachmentId(row.attachmentId);
+    if (typeof options.onSaved === "function") {
+      options.onSaved({ attachmentId: row.attachmentId, fileId: row.fileId, lifecycle: "reviewed" });
+    }
+  } catch (error) {
+    setFileEditorControlsDisabled(dialog, false);
+    if (markReviewedButton) {
+      markReviewedButton.disabled = false;
+    }
+    setFileEditorStatus(dialog, error.message || "File was not marked reviewed.", true);
+  }
+}
+
 function fileEditorContextPayload(dialog) {
   const targetSelect = dialog.querySelector("[data-file-context-target]");
   const selectedTarget = targetSelect?.selectedOptions?.[0] || null;
@@ -1742,11 +1818,15 @@ function previewAvailabilityForRow(row) {
   const kind = previewKindForExtension(row.extension);
   const status = String(row.status || "").trim();
   const scanStatus = String(row.scanStatus || "").trim();
+  const canPreviewInReview = row.canPreviewInReview === true;
+  const reviewPreviewAllowed = status === "quarantined" && canPreviewInReview;
 
-  if (status !== "available" || !["not_required", "passed"].includes(scanStatus)) {
+  if ((status !== "available" && !reviewPreviewAllowed) || !["not_required", "passed"].includes(scanStatus)) {
     return {
       kind,
-      reason: status !== "available" ? `file_${status || "unavailable"}` : `scan_${scanStatus || "unavailable"}`,
+      reason: status !== "available" && !reviewPreviewAllowed
+        ? `file_${status || "unavailable"}`
+        : `scan_${scanStatus || "unavailable"}`,
       state: "unavailable",
     };
   }
@@ -1824,6 +1904,12 @@ function canReportFileRow(attachment, file, fileId, status) {
 }
 
 function canQuarantineFileRow(attachment, file, fileId, status) {
+  const allowed = canManageFileReview(attachment, file, fileId);
+
+  return Boolean(fileId && status !== "deleted" && status !== "quarantined" && allowed);
+}
+
+function canManageFileReview(attachment, file, fileId) {
   const allowed = readActionBooleanFlag([
     attachment.canQuarantine,
     attachment.can_quarantine,
@@ -1831,7 +1917,16 @@ function canQuarantineFileRow(attachment, file, fileId, status) {
     file.can_quarantine,
   ], workspaceHasPermission("files.manage_quarantine"));
 
-  return Boolean(fileId && status !== "deleted" && status !== "quarantined" && allowed);
+  return Boolean(fileId && allowed);
+}
+
+function canMarkReviewedFileRow(row = {}) {
+  return Boolean(
+    row.fileId &&
+    row.status === "quarantined" &&
+    ["not_required", "passed"].includes(row.scanStatus || "") &&
+    row.canManageReview,
+  );
 }
 
 function readActionBooleanFlag(values, fallback) {
@@ -1983,6 +2078,14 @@ function scanStatusLabel(scanStatus) {
   return scanStatus ? formatToken(scanStatus) : "";
 }
 
+function reviewStateLabel(status, scanStatus) {
+  if (status === "quarantined") {
+    return "In review";
+  }
+
+  return scanStatusLabel(scanStatus);
+}
+
 function visibleFileCountLabel(count) {
   const safeCount = Number(count || 0);
 
@@ -2082,6 +2185,11 @@ function setStatus(message, isError = false) {
 
   fileStatus.textContent = message;
   fileStatus.classList.toggle("error-text", isError);
+}
+
+function createFilesElement(tagName, options = {}) {
+  requireFilesViewHelper("createElement");
+  return view.createElement(tagName, options);
 }
 
 function requireFilesViewHelper(name) {

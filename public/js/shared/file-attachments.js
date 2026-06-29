@@ -30,6 +30,42 @@
     return controller;
   }
 
+  function createAttachmentElement(view, tagName, options = {}) {
+    if (view?.createElement) {
+      return view.createElement(tagName, options);
+    }
+
+    const element = document.createElement(tagName);
+
+    if (options.className) {
+      String(options.className).split(/\s+/).filter(Boolean).forEach((className) => element.classList.add(className));
+    }
+    Object.entries(options.attrs || {}).forEach(([name, value]) => {
+      if (value === false || value === null || value === undefined) {
+        return;
+      }
+      element.setAttribute(name, value === true ? "" : String(value));
+    });
+    Object.entries(options.dataset || {}).forEach(([name, value]) => {
+      if (value !== null && value !== undefined) {
+        element.dataset[name] = String(value);
+      }
+    });
+    if (options.text !== undefined && options.text !== null) {
+      element.textContent = String(options.text);
+    }
+    (Array.isArray(options.children) ? options.children : [options.children])
+      .filter((child) => child !== null && child !== undefined && child !== false)
+      .forEach((child) => {
+        if (child && typeof child.nodeType === "number") {
+          element.appendChild(child);
+        } else {
+          element.appendChild(document.createTextNode(String(child)));
+        }
+      });
+    return element;
+  }
+
   async function refresh(container, state) {
     const { options } = state;
 
@@ -76,13 +112,13 @@
   function render(container, state) {
     const { options } = state;
     const view = global.LongtailForge?.view;
-    const header = document.createElement("div");
-    const title = document.createElement("h3");
+    const header = createAttachmentElement(view, "div", {
+      className: "file-attachments-header",
+      children: [
+        createAttachmentElement(view, "h3", { text: options.title || "Files" }),
+      ],
+    });
     const children = [];
-
-    header.className = "file-attachments-header";
-    title.textContent = options.title || "Files";
-    header.append(title);
 
     if (!options.targetId) {
       children.push(createAttachmentEmptyState(options.saveFirstMessage || "Save before adding files.", false, view));
@@ -114,48 +150,62 @@
       });
     }
 
-    const root = document.createElement("section");
-    const status = document.createElement("p");
-
-    root.className = "file-attachments file-attachments-panel-shell";
-    root.setAttribute("data-file-attachments", options.moduleId || "");
-    root.setAttribute("data-file-attachment-panel", "");
-    status.className = statusClassName;
-    status.setAttribute("role", "status");
-    status.setAttribute("aria-live", "polite");
-    status.setAttribute("data-file-attachments-status", "");
-    status.textContent = statusMessage(state);
-    root.append(header, status, ...children);
-    return root;
+    return createAttachmentElement(view, "section", {
+      className: "file-attachments file-attachments-panel-shell",
+      attrs,
+      children: [
+        header,
+        createAttachmentElement(view, "p", {
+          className: statusClassName,
+          attrs: {
+            "aria-live": "polite",
+            "data-file-attachments-status": "",
+            role: "status",
+          },
+          text: statusMessage(state),
+        }),
+        ...children,
+      ],
+    });
   }
 
   function uploadControls(container, state) {
     const { options } = state;
     const view = global.LongtailForge?.view;
-    const form = document.createElement("form");
-    const label = document.createElement("label");
-    const input = document.createElement("input");
-    const controlRow = document.createElement("div");
-    const dropZone = document.createElement("div");
-    const hint = document.createElement("p");
+    const input = createAttachmentElement(view, "input", {
+      attrs: {
+        "data-file-attachment-input": "",
+        accept: acceptedExtensions(options.acceptedCategories).join(","),
+        multiple: true,
+        type: "file",
+      },
+      dataset: { fileAttachmentInput: "true" },
+    });
+    const label = createAttachmentElement(view, "label", {
+      children: ["Choose Files", input],
+    });
+    const dropZone = createAttachmentElement(view, "div", {
+      className: "file-attachment-dropzone",
+      text: state.isUploading ? "Uploading files..." : "Drop files here",
+    });
+    const hint = createAttachmentElement(view, "p", {
+      className: "file-attachment-upload-hint",
+      text: acceptedFileHint(options.acceptedCategories),
+    });
     const uploadButton = createUploadButton(state, view);
+    const controlRow = createAttachmentElement(view, "div", {
+      className: "file-attachment-upload-actions",
+      children: [label, uploadButton],
+    });
+    const form = createAttachmentElement(view, "form", {
+      className: "file-attachment-upload",
+      attrs: { "aria-label": "Upload files" },
+    });
     const results = uploadResultList(state, view);
 
-    form.className = "file-attachment-upload";
     form.hidden = options.canUpload === false;
-    form.setAttribute("aria-label", "Upload files");
-    dropZone.className = "file-attachment-dropzone";
     dropZone.tabIndex = 0;
-    dropZone.textContent = state.isUploading ? "Uploading files..." : "Drop files here";
-    hint.className = "file-attachment-upload-hint";
-    hint.textContent = acceptedFileHint(options.acceptedCategories);
-    label.textContent = "Choose Files";
-    input.type = "file";
     input.multiple = true;
-    input.dataset.fileAttachmentInput = "true";
-    input.setAttribute("data-file-attachment-input", "");
-    input.accept = acceptedExtensions(options.acceptedCategories).join(",");
-    controlRow.className = "file-attachment-upload-actions";
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -183,8 +233,6 @@
       }
     });
 
-    label.append(input);
-    controlRow.append(label, uploadButton);
     form.append(createUploadShell(state, view, [dropZone, hint, controlRow, results]));
     return form;
   }
@@ -201,18 +249,22 @@
       });
     }
 
-    const shell = document.createElement("div");
-    const status = document.createElement("p");
-
-    shell.className = "file-attachment-upload-shell";
-    shell.dataset.fileUploadShell = "";
-    status.className = state.error ? "file-attachment-upload-status is-error" : "file-attachment-upload-status";
-    status.dataset.fileUploadStatus = "";
-    status.setAttribute("role", "status");
-    status.setAttribute("aria-live", "polite");
-    status.textContent = uploadStatusMessage(state);
-    shell.append(status, ...children);
-    return shell;
+    return createAttachmentElement(view, "div", {
+      className: "file-attachment-upload-shell",
+      dataset: { fileUploadShell: "" },
+      children: [
+        createAttachmentElement(view, "p", {
+          className: state.error ? "file-attachment-upload-status is-error" : "file-attachment-upload-status",
+          attrs: {
+            "aria-live": "polite",
+            role: "status",
+          },
+          dataset: { fileUploadStatus: "" },
+          text: uploadStatusMessage(state),
+        }),
+        ...children,
+      ],
+    });
   }
 
   function createUploadButton(state, view) {
@@ -226,10 +278,11 @@
       });
     }
 
-    const button = document.createElement("button");
+    const button = createAttachmentElement(view, "button", {
+      attrs: { type: "submit" },
+      text: state.isUploading ? "Uploading" : "Upload",
+    });
 
-    button.type = "submit";
-    button.textContent = state.isUploading ? "Uploading" : "Upload";
     button.disabled = state.isUploading;
     return button;
   }
@@ -268,68 +321,74 @@
       });
     }
 
-    const list = document.createElement("div");
-
-    list.className = "file-attachments-list";
-    list.setAttribute("data-file-attachments-list", "");
-    list.append(...children);
-    return list;
+    return createAttachmentElement(view, "div", {
+      className: "file-attachments-list",
+      attrs: { "data-file-attachments-list": "" },
+      children,
+    });
   }
 
   function attachmentItem(container, state, attachment, view) {
     const { options } = state;
     const file = attachment.file || {};
-    const item = document.createElement("article");
-    const summary = document.createElement("div");
-    const name = document.createElement("strong");
-    const meta = document.createElement("div");
     const attachmentId = attachment.fileAttachmentId || attachment.file_attachment_id;
     const isDownloadable = file.status === "available" && ["not_required", "passed"].includes(file.scanStatus);
     const isDeleted = file.status === "deleted";
     const recoveryMessage = attachmentRecoveryMessage(file, isDownloadable, isDeleted);
+    const statusText = statusLabel(file.status, file.scanStatus);
+    const reviewText = reviewStateLabel(file.status, file.scanStatus);
+    const meta = createAttachmentElement(view, "div", {
+      className: "file-attachment-meta surface-chip-row",
+      children: [
+        createAttachmentMetaChip(view, "Size", formatBytes(file.fileSizeBytes), "file-attachment-size-chip"),
+        createAttachmentMetaChip(view, "Status", statusText, `file-attachment-status-chip file-attachment-status-${safeAttachmentStateToken(file.status)}`),
+        reviewText === statusText ? null : createAttachmentMetaChip(view, "Review state", reviewText, `file-attachment-review-chip file-attachment-review-${safeAttachmentStateToken(file.scanStatus)}`),
+        createAttachmentMetaChip(view, "Visibility", formatToken(attachment.visibility || ""), "file-attachment-visibility-chip"),
+      ].filter(Boolean),
+    });
+    const summary = createAttachmentElement(view, "div", {
+      className: "file-attachment-summary",
+      children: [
+        createAttachmentElement(view, "strong", { text: file.displayName || file.originalFilename || "File" }),
+        meta,
+        recoveryMessage ? createAttachmentRecoveryState(view, recoveryMessage) : null,
+      ],
+    });
+    const item = createAttachmentElement(view, "article", {
+      className: "file-attachment-item",
+      attrs: { "data-file-attachment-item": "" },
+      dataset: { fileAttachmentId: attachmentId },
+      children: [
+        summary,
+        createAttachmentActions(container, state, attachment, view, {
+          isDeleted,
+          isDownloadable,
+          options,
+        }),
+      ],
+    });
 
-    item.className = "file-attachment-item";
     item.classList.toggle("is-deleted", isDeleted);
     item.classList.toggle("is-quarantined", file.status === "quarantined");
     item.classList.toggle("is-unavailable", !isDownloadable && !isDeleted);
-    item.dataset.fileAttachmentId = attachmentId;
-    item.setAttribute("data-file-attachment-item", "");
-    summary.className = "file-attachment-summary";
-    name.textContent = file.displayName || file.originalFilename || "File";
-    meta.className = "file-attachment-meta surface-chip-row";
-    meta.append(...[
-      createAttachmentMetaChip("Size", formatBytes(file.fileSizeBytes), "file-attachment-size-chip"),
-      createAttachmentMetaChip("Status", statusLabel(file.status, file.scanStatus), `file-attachment-status-chip file-attachment-status-${safeAttachmentStateToken(file.status)}`),
-      createAttachmentMetaChip("Review state", scanStatusLabel(file.scanStatus), `file-attachment-review-chip file-attachment-review-${safeAttachmentStateToken(file.scanStatus)}`),
-      createAttachmentMetaChip("Visibility", formatToken(attachment.visibility || ""), "file-attachment-visibility-chip"),
-    ].filter(Boolean));
-
-    summary.append(name, meta);
-    if (recoveryMessage) {
-      summary.append(createAttachmentRecoveryState(recoveryMessage));
-    }
-    item.append(summary, createAttachmentActions(container, state, attachment, view, {
-      isDeleted,
-      isDownloadable,
-      options,
-    }));
     return item;
   }
 
-  function createAttachmentMetaChip(label, value, className) {
+  function createAttachmentMetaChip(view, label, value, className) {
     const text = String(value || "").trim();
 
     if (!text) {
       return null;
     }
 
-    const chip = document.createElement("span");
-
-    chip.className = ["surface-chip", "file-attachment-meta-chip", className].filter(Boolean).join(" ");
-    chip.textContent = text;
-    chip.title = `${label}: ${text}`;
-    chip.setAttribute("aria-label", `${label}: ${text}`);
-    return chip;
+    return createAttachmentElement(view, "span", {
+      className: ["surface-chip", "file-attachment-meta-chip", className].filter(Boolean).join(" "),
+      attrs: {
+        "aria-label": `${label}: ${text}`,
+        title: `${label}: ${text}`,
+      },
+      text,
+    });
   }
 
   function createAttachmentActions(container, state, attachment, view, actionState) {
@@ -338,8 +397,7 @@
     const fileId = attachment.fileId || attachment.file_id;
     const isReportable = isAttachmentReportable(attachment, file, fileId, isDeleted, options);
     const isQuarantineable = isAttachmentQuarantineable(attachment, file, fileId, isDeleted, options);
-    const actions = document.createElement("div");
-    const download = createAttachmentDownloadAction(fileId, file, isDownloadable);
+    const download = createAttachmentDownloadAction(view, fileId, file, isDownloadable);
     const remove = createAttachmentActionButton(view, {
       action: "files.removeAttachment",
       hidden: options.canRemove === false || isDeleted,
@@ -378,25 +436,38 @@
       role: "secondary",
     });
 
-    actions.className = "file-attachment-actions surface-dense-actions";
+    const actionNodes = [download, remove, report, quarantine, deleteButton, restore];
+    const actions = view?.createDetailActionStrip
+      ? view.createDetailActionStrip({
+        className: "file-attachment-actions",
+        ariaLabel: `File attachment actions for ${file.displayName || file.originalFilename || "file"}`,
+        actions: actionNodes,
+      })
+      : createAttachmentElement(view, "div", {
+        className: "file-attachment-actions surface-dense-actions",
+        children: actionNodes,
+      });
+
     actions.setAttribute("data-file-attachment-actions", "");
-    actions.append(download, remove, report, quarantine, deleteButton, restore);
     return actions;
   }
 
-  function createAttachmentDownloadAction(fileId, file, isDownloadable) {
-    const download = document.createElement("a");
+  function createAttachmentDownloadAction(view, fileId, file, isDownloadable) {
     const name = file.displayName || file.originalFilename || "file";
+    const download = createAttachmentElement(view, "a", {
+      className: "button-link action-button view-action-button file-attachment-action",
+      attrs: {
+        "aria-label": `Download ${name}`,
+        "data-surface-action": "files.download",
+        "data-surface-action-role": "secondary",
+        download: true,
+        href: `/api/files/${encodeURIComponent(fileId)}/download`,
+        title: `Download ${name}`,
+      },
+      text: "Download",
+    });
 
-    download.href = `/api/files/${encodeURIComponent(fileId)}/download`;
-    download.textContent = "Download";
-    download.className = "button-link action-button view-action-button file-attachment-action";
     download.hidden = !isDownloadable;
-    download.setAttribute("download", "");
-    download.setAttribute("data-surface-action", "files.download");
-    download.setAttribute("data-surface-action-role", "secondary");
-    download.setAttribute("aria-label", `Download ${name}`);
-    download.title = `Download ${name}`;
     return download;
   }
 
@@ -411,7 +482,7 @@
         title: options.title || options.label,
         variant: options.variant,
       })
-      : document.createElement("button");
+      : createAttachmentElement(view, "button");
 
     if (!view?.createActionButton) {
       button.type = "button";
@@ -427,16 +498,15 @@
     return button;
   }
 
-  function createAttachmentRecoveryState(message) {
-    const recoveryState = document.createElement("p");
-
-    recoveryState.className = "file-attachment-recovery-state";
-    recoveryState.textContent = message;
-    return recoveryState;
+  function createAttachmentRecoveryState(view, message) {
+    return createAttachmentElement(view, "p", {
+      className: "file-attachment-recovery-state",
+      text: message,
+    });
   }
 
   function uploadResultList(state, view) {
-    const items = state.uploadResults.map((result) => createUploadResultItem(result));
+    const items = state.uploadResults.map((result) => createUploadResultItem(view, result));
 
     if (view?.createListShell) {
       return view.createListShell({
@@ -447,23 +517,21 @@
       });
     }
 
-    const list = document.createElement("div");
-
-    list.className = "file-attachment-upload-results";
-    list.dataset.fileUploadResults = "";
-    list.append(...items);
-    return list;
+    return createAttachmentElement(view, "div", {
+      className: "file-attachment-upload-results",
+      dataset: { fileUploadResults: "" },
+      children: items,
+    });
   }
 
-  function createUploadResultItem(result) {
-    const item = document.createElement("p");
-
-    item.className = result.ok ? "file-attachment-upload-result" : "file-attachment-upload-result is-error";
-    item.setAttribute("data-file-upload-result", result.ok ? "success" : "error");
-    item.textContent = result.ok
-      ? `${result.originalFilename || result.file?.originalFilename || "File"} uploaded.`
-      : `${result.originalFilename || "File"}: ${result.error || "Upload failed."}`;
-    return item;
+  function createUploadResultItem(view, result) {
+    return createAttachmentElement(view, "p", {
+      className: result.ok ? "file-attachment-upload-result" : "file-attachment-upload-result is-error",
+      attrs: { "data-file-upload-result": result.ok ? "success" : "error" },
+      text: result.ok
+        ? `${result.originalFilename || result.file?.originalFilename || "File"} uploaded.`
+        : `${result.originalFilename || "File"}: ${result.error || "Upload failed."}`,
+    });
   }
 
   function uploadStatusMessage(state) {
@@ -789,11 +857,10 @@
   }
 
   function emptyState(message, isError = false) {
-    const element = document.createElement("p");
-
-    element.className = isError ? "file-attachments-empty is-error" : "file-attachments-empty";
-    element.textContent = message;
-    return element;
+    return createAttachmentElement(global.LongtailForge?.view, "p", {
+      className: isError ? "file-attachments-empty is-error" : "file-attachments-empty",
+      text: message,
+    });
   }
 
   function createAttachmentEmptyState(message, isError = false, view) {
@@ -844,6 +911,14 @@
     }
 
     return scanStatus ? formatToken(scanStatus) : "";
+  }
+
+  function reviewStateLabel(status, scanStatus) {
+    if (status === "quarantined") {
+      return "In review";
+    }
+
+    return scanStatusLabel(scanStatus);
   }
 
   function attachmentRecoveryMessage(file, isDownloadable, isDeleted) {

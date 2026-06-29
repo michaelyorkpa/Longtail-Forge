@@ -73,12 +73,21 @@ try {
     filename: "failed-scan-preview.txt",
     mimeType: "text/plain",
   });
+  const reviewUpload = await uploadPreviewFile(api, fixtures, {
+    bytes: Buffer.from("in review preview", "utf8"),
+    filename: "in-review-preview.txt",
+    mimeType: "text/plain",
+  });
   await runSql(`
 UPDATE files
 SET scan_status = 'failed'
 WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
   AND file_id = ${sqlText(failedScanUpload.file.fileId)};
 `);
+  const quarantineReviewUpload = await api.post(`/api/files/${reviewUpload.file.fileId}/quarantine`, { reason: "manual_quarantine" }, {
+    cookie: fixtures.adminSessionId,
+  });
+  assert.equal(quarantineReviewUpload.status, 200);
 
   await checkAsync("preview descriptors expose content URLs only for previewable files", async () => {
     for (const [upload, kind] of [
@@ -151,6 +160,27 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     assert.match(response.body.content.bodyHtml, /markdown-task-list-checkbox/);
     assert.doesNotMatch(response.body.content.bodyHtml, /<script|javascript:|<img|onerror|data:/i);
     assertNoUnsafeStorageLeak([response.body]);
+  });
+
+  await checkAsync("file reviewers can preview in-review files before marking them reviewed", async () => {
+    const descriptor = await api.get(`/api/files/attachments/${reviewUpload.attachment.fileAttachmentId}/preview`, {
+      cookie: fixtures.adminSessionId,
+    });
+
+    assert.equal(descriptor.status, 200);
+    assert.equal(descriptor.body.preview.state, "previewable");
+    assert.equal(descriptor.body.preview.contentAvailable, true);
+    assert.equal(descriptor.body.preview.contentUrl, `/api/files/attachments/${reviewUpload.attachment.fileAttachmentId}/preview/content`);
+
+    const content = await api.get(`/api/files/attachments/${reviewUpload.attachment.fileAttachmentId}/preview/content`, {
+      cookie: fixtures.adminSessionId,
+    });
+
+    assert.equal(content.status, 200);
+    assert.equal(content.body.preview.state, "previewable");
+    assert.equal(content.body.content.kind, "text");
+    assert.equal(content.body.content.text, "in review preview");
+    assertNoUnsafeStorageLeak([descriptor.body, content.body]);
   });
 
   await checkAsync("unsupported too-large unavailable and unauthorized files do not return preview content", async () => {

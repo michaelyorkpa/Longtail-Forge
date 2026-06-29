@@ -3972,7 +3972,7 @@ dialog .form-actions {
 
 .files-table th:last-child,
 .files-table td:last-child {
-    width: 188px;
+    width: 148px;
     padding-right: 6px;
     padding-left: 6px;
     text-align: right;
@@ -4106,12 +4106,6 @@ dialog .form-actions {
 
 .files-row-action.icon-button {
     flex: 0 0 auto;
-}
-
-.files-row-action-text {
-    min-width: 64px;
-    justify-content: center;
-    white-space: nowrap;
 }
 
 .files-row-preview-unavailable {
@@ -4438,10 +4432,6 @@ dialog .form-actions {
     .files-row-actions,
     .file-attachment-actions {
         justify-content: flex-start;
-    }
-
-    .files-row-action-text {
-        min-width: 58px;
     }
 }
 

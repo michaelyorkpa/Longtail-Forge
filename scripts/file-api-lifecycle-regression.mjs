@@ -236,6 +236,21 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
 
     const reports = await querySql(`SELECT COUNT(*) AS count FROM file_reports WHERE file_id = ${sqlText(fixtures.fileId)};`);
     assert.equal(Number(reports[0].count), 1);
+
+    const reviewed = await api.post(`/api/files/${fixtures.fileId}/restore`, {}, {
+      cookie: fixtures.adminSessionId,
+    });
+    assert.equal(reviewed.status, 200);
+    assert.equal(reviewed.body.file.status, "available");
+    assert.ok(capturedFileEvents.some((event) => event.name === "file.restored"));
+
+    const reviewedRows = await querySql(`
+SELECT status, quarantine_reason
+FROM files
+WHERE file_id = ${sqlText(fixtures.fileId)};
+`);
+    assert.equal(reviewedRows[0].status, "available");
+    assert.equal(reviewedRows[0].quarantine_reason, null);
   });
 
   await checkAsync("file delete stages metadata while preserving safe attachment history", async () => {

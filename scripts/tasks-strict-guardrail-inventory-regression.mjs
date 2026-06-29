@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.5";
+const appVersion = "0.33.5.18.12.7";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -44,7 +44,7 @@ const recurrenceFields = functionBlock(taskDialogScript, "taskRecurrenceFieldNod
 const checklistRow = functionBlock(taskDialogScript, "checklistItemRow");
 const timerWriter = functionBlock(taskDialogScript, "writeTaskTimerFields");
 
-assert.match(declarativeGuardrails, /const strictDeclarativeSurfaceIds = new Set\(\["lists\.workspace", "notes\.workspace", "tasks\.workspace"\]\)/, "Tasks should be under strict declarative enforcement");
+assert.match(declarativeGuardrails, /const strictDeclarativeSurfaceIds = new Set\(\["files\.browse", "lists\.workspace", "notes\.workspace", "tasks\.workspace"\]\)/, "Tasks should remain under strict declarative enforcement alongside Files, Lists, and Notes");
 assert.match(declarativeGuardrails, /Tasks descriptor should be strict-converted/, "Declarative guardrails should fail if Tasks leaves strict enforcement");
 assert.match(declarativeGuide, /\| Tasks \| tasks \| tasks\.html \| tasks\.workspace \| strict \|/, "Declarative guide should mark Tasks strict");
 

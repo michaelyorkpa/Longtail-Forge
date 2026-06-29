@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.5";
+const appVersion = "0.33.5.18.12.7";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -14,25 +14,25 @@ const viewContract = readText("docs/view-building-contract.md");
 const moduleContract = readText("docs/module-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, appVersion, "package.json should report the Files strict inventory version");
-assert.equal(packageLock.version, appVersion, "package-lock root should report the Files strict inventory version");
-assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Files strict inventory version");
+assert.equal(packageJson.version, appVersion, "package.json should report the Files strict enforcement version");
+assert.equal(packageLock.version, appVersion, "package-lock root should report the Files strict enforcement version");
+assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Files strict enforcement version");
 
 const strictSetMatch = declarativeGuardrails.match(/const strictDeclarativeSurfaceIds = new Set\(\[([^\]]*)\]\)/);
 assert.ok(strictSetMatch, "Declarative guardrails should expose the strict surface set");
-assert.match(strictSetMatch[1], /lists\.workspace[\s\S]*notes\.workspace[\s\S]*tasks\.workspace/, "Current strict set should keep Lists, Notes, and Tasks");
-assert.doesNotMatch(strictSetMatch[1], /files\.browse/, "Files should not enter strict guardrail enforcement in the inventory slice");
-assert.match(declarativeGuardrails, /Files descriptor should be inventoried as a framework-owned reported surface/, "Declarative guardrails should keep Files inventoried as reported");
-assert.match(declarativeGuide, /\| Files \| files \| files\.html \| files\.browse \| reported \|/, "Declarative guide should mark Files as reported");
-assert.match(declarativeGuide, /Strict guardrails currently enforce `lists\.workspace`, `notes\.workspace`, and `tasks\.workspace`/, "Declarative guide should leave Files outside strict enforcement");
+assert.match(strictSetMatch[1], /files\.browse[\s\S]*lists\.workspace[\s\S]*notes\.workspace[\s\S]*tasks\.workspace/, "Current strict set should keep Files, Lists, Notes, and Tasks");
+assert.match(declarativeGuardrails, /Files descriptor should be strict-converted/, "Declarative guardrails should keep Files under strict enforcement");
+assert.match(declarativeGuide, /\| Files \| files \| files\.html \| files\.browse \| strict \|/, "Declarative guide should mark Files as strict");
+assert.match(declarativeGuide, /Strict guardrails currently enforce `files\.browse`, `lists\.workspace`, `notes\.workspace`, and `tasks\.workspace`/, "Declarative guide should include Files in strict enforcement");
 
-assert.match(inventoryDoc, /Current as of 0\.33\.5\.18\.12\.5/, "Files inventory should report the current slice");
-assert.match(inventoryDoc, /reporting-only inventory before strict enforcement/, "Files inventory should be reporting-only");
-assert.match(inventoryDoc, /does not add Files to the strict declarative surface set/, "Files inventory should defer strict enforcement");
-assert.match(inventoryDoc, /Framework-Owned Candidates To Guard Later[\s\S]*Page host and header[\s\S]*Slide-out sidebar and filters[\s\S]*Results list and table shell[\s\S]*Dense row actions[\s\S]*File Context modal placement[\s\S]*Preview modal placement[\s\S]*Attachment panel shell[\s\S]*Upload and dropzone shell[\s\S]*Empty and status states[\s\S]*Modal and overlay stacking/, "Files inventory should map framework-owned candidates");
+assert.match(inventoryDoc, /Current as of 0\.33\.5\.18\.12\.7/, "Files inventory should report the current slice");
+assert.match(inventoryDoc, /strict enforcement is active/, "Files inventory should document active strict enforcement");
+assert.match(inventoryDoc, /Framework-Owned Anatomy Strictly Guarded[\s\S]*Page host and header[\s\S]*Slide-out sidebar and filters[\s\S]*Results list and table shell[\s\S]*Dense row actions[\s\S]*File Context modal placement[\s\S]*Preview modal placement[\s\S]*Attachment panel shell[\s\S]*Upload and dropzone shell[\s\S]*Empty and status states[\s\S]*Modal and overlay stacking/, "Files inventory should map framework-owned guarded anatomy");
 assert.match(inventoryDoc, /Allowed Files-Owned Escape Hatches[\s\S]*File reading and upload payloads[\s\S]*Attachment reads and host callbacks[\s\S]*Scan, review, download, and preview availability[\s\S]*Files route calls[\s\S]*Confirmations and lifecycle meaning[\s\S]*Permission-aware visibility[\s\S]*Target metadata and readable labels[\s\S]*Deleted, unavailable, and in-review recovery states[\s\S]*File Context modal opener[\s\S]*Preview modal opener/, "Files inventory should document Files-owned escape hatches");
-assert.match(inventoryDoc, /Forbidden In Future Strict Enforcement[\s\S]*Persistent inline Browse Summary panels[\s\S]*Selected-file detail headers[\s\S]*Inline Preview panes[\s\S]*Inline Metadata panels[\s\S]*Inspector-style browse behavior/, "Files inventory should forbid inline browse detail patterns");
-assert.match(inventoryDoc, /remaining direct DOM construction count instead of failing it/, "Files inventory regression should remain non-failing for direct DOM construction");
+assert.match(inventoryDoc, /Forbidden In Strict Enforcement[\s\S]*Persistent inline Browse Summary panels[\s\S]*Selected-file detail headers[\s\S]*Inline Preview panes[\s\S]*Inline Metadata panels[\s\S]*Inspector-style browse behavior/, "Files inventory should forbid inline browse detail patterns");
+assert.match(inventoryDoc, /Files strict enforcement now fails if `public\/js\/files\.js` reintroduces direct DOM construction/, "Files inventory regression should fail direct Files DOM construction");
+assert.match(inventoryDoc, /Closeout Coverage In 0\.33\.5\.18\.12\.7[\s\S]*compact listing-first browse[\s\S]*route-backed Preview[\s\S]*strict `files\.browse` guardrails/,
+  "Files inventory should document the closeout boundary");
 
 const resultsChrome = functionBlock(filesScript, "createFilesResultsChrome");
 const filesTable = functionBlock(filesScript, "createFilesTable");
@@ -44,12 +44,20 @@ const filePreviewDialog = functionBlock(filesScript, "buildFilePreviewDialog");
 const filePreviewLoader = functionBlock(filesScript, "loadFilePreview");
 const previewAvailability = functionBlock(filesScript, "previewAvailabilityForRow");
 
+assert.equal(countMatches(filesScript, /document\.createElement/g), 0, "Files browse should not create DOM nodes directly after strict enforcement");
+assert.equal(countMatches(filesScript, /innerHTML/g), 1, "Files browse should only use innerHTML for route-sanitized Markdown preview content");
+assert.match(functionBlock(filesScript, "renderFilePreviewMarkdown"), /content\.innerHTML = html \|\| ""/,
+  "Markdown preview should keep the documented route-sanitized innerHTML escape hatch");
+assert.equal(countMatches(attachmentHelper, /document\.createElement/g), 1, "Attachment helper should only keep direct DOM creation in the centralized fallback");
+assert.match(functionBlock(attachmentHelper, "createAttachmentElement"), /document\.createElement\(tagName\)/,
+  "Attachment helper should centralize native DOM fallback construction");
+
 assert.match(resultsChrome, /view\.createListShell/, "Files browse results should use the shared list shell");
 assert.match(filesTable, /view\.createDataTable[\s\S]*emptyMessage:\s*"No file attachments match the current filters\."/,
   "Files browse table should use the shared data table helper");
 assert.match(fileStatusCell, /createFileStatusChip[\s\S]*createFileScanStatusChip[\s\S]*surface-chip-row/,
   "Files browse status/review states should use shared chip-row anatomy");
-assert.match(fileActions, /files-row-actions surface-dense-actions[\s\S]*createPreviewAction[\s\S]*createDownloadAction[\s\S]*createReportAction[\s\S]*createQuarantineAction[\s\S]*createDeleteAction[\s\S]*createRestoreAction/,
+assert.match(fileActions, /view\.createDetailActionStrip\(\{[\s\S]*className: "files-row-actions"[\s\S]*actions: rowActions/,
   "Files browse row actions should stay in a shared dense action shell");
 assert.match(functionBlock(filesScript, "createPreviewAction"), /view\.createActionButton[\s\S]*action:\s*"files\.preview"/,
   "Files Preview action should use shared action button anatomy");
@@ -68,7 +76,7 @@ assert.match(filePreviewDialog, /files-preview-body[\s\S]*view\.createModal[\s\S
 assert.match(filePreviewLoader, /\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview[\s\S]*preview\.contentUrl[\s\S]*renderFilePreviewImage[\s\S]*renderFilePreviewContent/,
   "Preview loading should remain route-backed and Files-owned");
 
-assert.match(previewAvailability, /status !== "available"[\s\S]*kind === "unsupported"[\s\S]*too_large_for_preview[\s\S]*state:\s*"previewable"/,
+assert.match(previewAvailability, /reviewPreviewAllowed[\s\S]*status !== "available"[\s\S]*kind === "unsupported"[\s\S]*too_large_for_preview[\s\S]*state:\s*"previewable"/,
   "Files should keep preview/download availability decisions as a documented escape hatch");
 assert.match(functionBlock(filesScript, "reportFile"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/report[\s\S]*FILE_REPORT_REASON/,
   "Files browse Report should keep the existing Files route");
@@ -100,7 +108,7 @@ assert.match(attachmentList, /createAttachmentEmptyState[\s\S]*createAttachmentL
   "Attachment list states should use shared empty/list shell helpers");
 assert.match(attachmentItem, /attachmentRecoveryMessage[\s\S]*file-attachment-meta surface-chip-row[\s\S]*createAttachmentRecoveryState/,
   "Attachment metadata and recovery states should remain visible in shared chip/list anatomy");
-assert.match(attachmentActions, /files\.removeAttachment[\s\S]*files\.report[\s\S]*files\.quarantine[\s\S]*files\.delete[\s\S]*files\.restore[\s\S]*file-attachment-actions surface-dense-actions/,
+assert.match(attachmentActions, /files\.removeAttachment[\s\S]*files\.report[\s\S]*files\.quarantine[\s\S]*files\.delete[\s\S]*files\.restore[\s\S]*view\?\.createDetailActionStrip[\s\S]*className: "file-attachment-actions"/,
   "Attachment actions should stay in a shared dense action shell with Files action IDs");
 assert.match(functionBlock(attachmentHelper, "createAttachmentEmptyState"), /view\?\.createEmptyState/,
   "Attachment empty states should use the shared empty-state helper when available");
@@ -130,14 +138,14 @@ assert.doesNotMatch(filesScript, /createFilesSummaryPanel|createFilesDetailPanel
 assert.doesNotMatch(filesScript, /storageKey|storagePath|signedUrl|fileHash|scannerInternal|filesystemPath/,
   "Files browser UI should not expose storage keys, protected paths, signed URLs, hashes, or scanner internals");
 
-assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.5[\s\S]*reporting-only Files strict guardrail inventory/,
-  "View-building contract should document the Files strict inventory slice");
-assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.5[\s\S]*Files strict guardrail inventory/,
-  "Module contract should document the Files strict inventory boundary");
+assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.6[\s\S]*Files strict declarative guardrail enforcement/,
+  "View-building contract should document the Files strict enforcement slice");
+assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.6[\s\S]*Files strict declarative guardrail enforcement/,
+  "Module contract should document the Files strict enforcement boundary");
 assert.match(regressionSuite, /scripts\/files-strict-guardrail-inventory-regression\.mjs/,
-  "Regression suite should include the Files strict guardrail inventory regression");
+  "Regression suite should include the Files strict guardrail enforcement regression");
 
-console.log(`Files strict guardrail inventory regression passed. Reporting-only direct DOM construction count: files.js=${countMatches(filesScript, /document\.createElement/g)}, file-attachments.js=${countMatches(attachmentHelper, /document\.createElement/g)}.`);
+console.log(`Files strict declarative guardrail enforcement passed. Direct DOM construction: files.js=${countMatches(filesScript, /document\.createElement/g)}, file-attachments.js=${countMatches(attachmentHelper, /document\.createElement/g)} centralized fallback.`);
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");

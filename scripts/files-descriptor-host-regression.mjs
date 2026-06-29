@@ -5,7 +5,7 @@ import { modulesService } from "../src/core/modules/modules.service.js";
 import { appShellService } from "../src/services/app-shell.service.js";
 import { querySql, runSql, sqlText } from "../src/db/sqlite.js";
 
-const appVersion = "0.33.5.18.12.5";
+const appVersion = "0.33.5.18.12.7";
 const workspaceId = "files-descriptor-host-workspace";
 const protectedUserId = "files-descriptor-host-protected-user";
 const deniedUserId = "files-descriptor-host-denied-user";
@@ -25,13 +25,13 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(filesHtml, /<main class="wide-page files-page" data-files-host><\/main>/, "Files protected view should be a minimal descriptor host");
-assert.match(filesHtml, /js\/shared\/client-project-options\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=12/, "Files host should load client/project helpers plus the view builder and renderer before the Files adapter");
+assert.match(filesHtml, /js\/shared\/client-project-options\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=13/, "Files host should load client/project helpers plus the view builder and renderer before the Files adapter");
 assertNoProtectedAnatomy(filesHtml, "views/protected/files.html");
 
 assert.match(filesScript, /view\.renderSurface\(\{ \.\.\.activeFilesViewDescriptor, dataSource: null, modals: \[\] \}, host\)/, "Files adapter should render the descriptor shell without letting the renderer fetch the browse data yet");
 assert.match(filesScript, /files\.browse\.filters/, "Files adapter should register the browse filter behavior");
 assert.match(filesScript, /files\.browse\.results/, "Files adapter should register the browse results behavior");
-assert.match(filesScript, /files\.browse\.legacy/, "Files adapter should preserve the legacy browse fallback behavior");
+assert.doesNotMatch(filesScript, /files\.browse\.legacy|createFilesBrowseChrome/, "Strict Files adapter should not preserve the legacy full-page browse fallback behavior");
 assert.match(filesScript, /fallbackFilesViewSurfaceDescriptor/, "Files adapter should keep a safe fallback descriptor for early bootstrap timing");
 assert.match(filesScript, /\/api\/files\/attachments/, "Files adapter should continue to use the service-owned attachments route");
 

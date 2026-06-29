@@ -86,10 +86,9 @@ try {
     assertNoUnsafeStorageLeak([response.body]);
   });
 
-  await checkAsync("deleted quarantined pending and failed-scan files are unavailable", async () => {
+  await checkAsync("deleted pending and failed-scan files are unavailable", async () => {
     for (const [key, reasonPattern] of [
       ["deleted", /file_deleted/],
-      ["quarantined", /file_quarantined/],
       ["pending", /file_pending/],
       ["failedScan", /scan_failed/],
     ]) {
@@ -103,6 +102,29 @@ try {
       assert.equal(response.body.preview.contentAvailable, false, key);
       assertNoUnsafeStorageLeak([response.body]);
     }
+  });
+
+  await checkAsync("in-review passed files are previewable only for file reviewers", async () => {
+    const adminPreview = await api.get(`/api/files/attachments/${fixtures.attachments.quarantined}/preview`, {
+      cookie: fixtures.adminSessionId,
+    });
+
+    assert.equal(adminPreview.status, 200);
+    assert.equal(adminPreview.body.preview.state, "previewable");
+    assert.equal(adminPreview.body.preview.reason, "");
+    assert.equal(adminPreview.body.preview.contentAvailable, true);
+    assert.equal(adminPreview.body.preview.contentUrl, `/api/files/attachments/${fixtures.attachments.quarantined}/preview/content`);
+    assertNoUnsafeStorageLeak([adminPreview.body]);
+
+    const nonReviewerPreview = await api.get(`/api/files/attachments/${fixtures.attachments.quarantined}/preview`, {
+      cookie: fixtures.scopedSessionId,
+    });
+
+    assert.equal(nonReviewerPreview.status, 200);
+    assert.equal(nonReviewerPreview.body.preview.state, "unavailable");
+    assert.match(nonReviewerPreview.body.preview.reason, /file_quarantined/);
+    assert.equal(nonReviewerPreview.body.preview.contentAvailable, false);
+    assertNoUnsafeStorageLeak([nonReviewerPreview.body]);
   });
 
   await checkAsync("oversized text and markdown files are not marked previewable", async () => {

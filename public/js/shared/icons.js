@@ -3,6 +3,11 @@
   const svgNamespace = "http://www.w3.org/2000/svg";
   const iconRegistry = Object.freeze({
     add: Object.freeze([{ type: "path", attrs: { d: "M5 12h14" } }, { type: "path", attrs: { d: "M12 5v14" } }]),
+    alert: Object.freeze([
+      { type: "path", attrs: { d: "M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" } },
+      { type: "path", attrs: { d: "M12 9v4" } },
+      { type: "path", attrs: { d: "M12 17h.01" } },
+    ]),
     archive: Object.freeze([
       { type: "rect", attrs: { x: "3", y: "4", width: "18", height: "4", rx: "1" } },
       { type: "path", attrs: { d: "M5 8v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8" } },
@@ -104,6 +109,11 @@
       { type: "path", attrs: { d: "M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8A2 2 0 0 1 21 8.8V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" } },
       { type: "path", attrs: { d: "M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" } },
       { type: "path", attrs: { d: "M7 3v4a1 1 0 0 0 1 1h7" } },
+    ]),
+    "shield-alert": Object.freeze([
+      { type: "path", attrs: { d: "M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 .7-.9l7-2.6a1 1 0 0 1 .7 0l7 2.6a1 1 0 0 1 .7.9Z" } },
+      { type: "path", attrs: { d: "M12 8v4" } },
+      { type: "path", attrs: { d: "M12 16h.01" } },
     ]),
     start: Object.freeze([{ type: "polygon", attrs: { points: "6 3 20 12 6 21 6 3" } }]),
     tag: Object.freeze([

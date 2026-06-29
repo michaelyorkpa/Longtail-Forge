@@ -7,259 +7,173 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and implementation slices
 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
-The active roadmap continues with Files and Clients/Projects view conversion work.
+The active roadmap continues with Clients/Projects view conversion work.
 Completed 0.33.5.18.11.1 through 0.33.5.18.11.13 are archived in `ROADMAP-ARCHIVE.md`.
-0.33.5.18.12.5 is the most recently completed Files strict guardrail inventory and escape-hatch map slice. The next live work starts with 0.33.5.18.12.6.
-
-## Files (0.33.5.18.11 - 0.33.5.18.12)
-
-The framework already owns the file service (storage, scanning, lifecycle, downloads). This conversion
-is strictly the browse/attachment UI and must never bypass file permission, scan, storage, or download
-routes.
-
-Decision:
-
-Files should adopt the same standardized framework/module UI boundary established by Notes and Tasks,
-but Files should not become a generic document manager or cross-module record browser. The Files page is
-the workspace file recovery and audit surface. Attachment management remains closest to the record that
-owns the work context, with the shared Files attachment helper providing consistent upload/list/action
-anatomy.
-
-Framework owns:
-
-- Files page shell.
-- Slide-out filter/sidebar shell when the browse surface needs many filters.
-- Filter control placement, status/empty/loading/error states, table/list/card wrappers, detail/preview
-  shell, metadata badge rows, dense row/action placement, attachment panel shell, upload control shell,
-  progress/result placement, modal/child-dialog shell, focus return, and accessible control anatomy.
-
-Files owns:
-
-- File and attachment metadata.
-- Storage keys, scan/quarantine state, retention/delete/restore meaning, download availability, upload
-  acceptance, attachment target validation, allowed file categories, visibility values, per-record
-  placement meaning, permission checks, file lifecycle/audit events, and all file/attachment routes.
-- Human-readable labels for files, attachment targets, clients, projects, scan/status values, and safe
-  unavailable/deleted/quarantined fallbacks.
-- Which actions are visible, route calls, confirmations, save-first states, upload payloads, refresh
-  behavior, and the shared attachment helper body.
-
-Guardrails:
-
-- Do not expose protected storage paths, direct filesystem URLs, scanner internals, signed URLs, or raw
-  storage keys in browser UI, descriptors, events, audit summaries, or regressions.
-- Do not bypass `/api/files`, `/api/files/attachments`, download, delete, restore, report, quarantine,
-  or attachment routes from the converted UI.
-- Do not add rename, move, hard purge, permanent delete, or direct metadata-edit controls unless the
-  Files service first ships explicit routes, permissions, audit behavior, and regressions for them.
-- Do not show Client filters or Client metadata controls outside Business workspaces.
-- Normal Files UI should prefer readable module, target, client, and project labels. Raw IDs may remain
-  internal payload values or advanced troubleshooting filters only when there is no safe readable label.
-- Do not make secure-note files available while secure attachments remain out of scope.
-- Do not let attachment panels render substantial upload/list bodies inline in converted add/edit modal
-  bodies. Notes and Tasks open Files from footer utility actions as stacked child dialogs, and Files
-  should preserve that model for future attachable modules.
-
-Sizing note:
-
-The original generated Files work grouped the browse page, filters, attachment helper, upload/dropzone,
-row actions, route safety, cleanup, and strict guardrails into two broad slices. This split keeps the
-read-only descriptor proof, filter/readable-label cleanup, upload behavior, attachment panels, actions,
-and strict guardrails separately reviewable like the Notes and Tasks conversions.
-
-### Version 0.33.5.18.12 - File Upload, Attachment Panels, Actions, and Strict Guardrails
-
-Scope note:
-
-This branch starts after the 0.33.5.18.11.13 browse/edit/preview closeout. Files is already a compact
-browse/recovery listing with route-backed File Context and Preview modal workflows. These slices may
-standardize upload, attachment-panel, action, visual-state, and strict-guardrail anatomy, but they must
-not reintroduce inline Browse Summary, selected-file detail, Metadata, Preview, selected-row state, or
-Inspector behavior on the Files browse page.
-
-#### Version 0.33.5.18.12.1 - Upload control shell and progress/result behavior
-
-- [x] Render the Files upload/dropzone shell, accepted-file hint, upload button, progress/status, and
-      per-file result list through shared framework anatomy or descriptor mount regions.
-- [x] Keep file reading, base64 payload construction, batch upload payloads, accepted categories,
-      size/type checks, target IDs, visibility, and upload route calls in Files-owned browser/service
-      paths.
-- [x] Preserve multi-file upload and drag/drop behavior in both the Files page and reusable attachment
-      surfaces where currently supported.
-- [x] Keep upload UI out of File Context and Preview; those already-shipped modals remain focused on
-      attachment context editing and route-backed preview only.
-- [x] Add regressions proving successful, partial-failure, and rejected upload states remain visible
-      without moving scanner/storage rules into framework UI code.
-
-#### Version 0.33.5.18.12.2 - Shared attachment panel shell standardization
-
-- [x] Convert the shared attachment panel (`public/js/shared/file-attachments.js`) view anatomy to
-      framework-owned panel, list, empty, status, upload-result, and dense-action shells while keeping
-      the helper's upload/list/download/remove/delete/restore logic Files-owned.
-- [x] Preserve saved-record attachment behavior and unsaved-record save-first messaging for Notes,
-      Tasks, and future attachable modules.
-- [x] Keep the attachment helper body compatible with stacked child dialogs opened from converted modal
-      footer utility buttons.
-- [x] Do not turn attachment panels into inline File Context, Preview, Metadata, or Inspector surfaces;
-      any future edit/preview affordance must call the canonical route-backed Files modal workflow.
-- [x] Ensure deleted/unavailable/quarantined attachments show gentle recovery-safe states instead of
-      breaking the host modal or hiding history.
-- [x] Add regressions proving Notes and Tasks Files utilities still open stacked child dialogs and that
-      attachment helper focus/status behavior is preserved.
-
-#### Version 0.33.5.18.12.3 - Files row and attachment action wiring
-
-- [x] Express existing shipped actions through declarative route actions or registered Files behaviors:
-      download, report, quarantine where existing route/permission support permits it, remove attachment,
-      delete file, and restore file.
-- [x] Treat File Context edit and Files Preview as already-shipped 0.33.5.18.11 workflows; this slice
-      may preserve their placement/visual parity but must not reimplement those routes or modals.
-- [x] Preserve action isolation: row click/Enter opens File Context, Preview/View opens the Preview
-      modal, Download downloads, and Delete/Restore/Report/Quarantine remain distinct controls.
-- [x] Preserve existing confirmations, danger styling, permission-shaped visibility, scan/download
-      availability, retention semantics, and post-action refresh behavior.
-- [x] Keep route calls on the existing Files routes and keep API/service permission checks authoritative.
-- [x] Do not add rename, move, hard purge, permanent delete, storage moves, file replacement, or direct
-      file-metadata edit controls in this slice.
-- [x] Keep unsupported files download-only rather than routing them into a preview/detail panel.
-- [x] Add regressions proving action buttons use shared dense/action placement, remain accessible, and
-      never bypass the Files routes.
-
-#### Version 0.33.5.18.12.4 - Files visual states and control parity
-
-- [x] Align Files page and attachment-panel controls with the Notes/Tasks converted control standard:
-      icon buttons for dense row actions where appropriate, visible text for ambiguous upload/report
-      actions, accessible labels/titles, wrapping action rows, and theme-token surfaces.
-- [x] Include the already-shipped File Context and Preview controls in visual parity checks without
-      changing their route-backed behavior from 0.33.5.18.11.
-- [x] Standardize file status chips, scan-status chips, deleted/restored/quarantined messaging,
-      attachment counts, and empty states across Files page and reusable attachment panels.
-- [x] Preserve the compact listing boundary during visual work: no persistent inline preview, metadata,
-      selected-file detail, selected-row state, or nested dashboard-like browse panels.
-- [x] Ensure normal Files UI uses broad product language such as recovery, available, unavailable,
-      attachment, upload, download, restore, and review rather than punitive or diagnostic copy.
-- [x] Add responsive regressions or static guardrails proving action controls do not overlap file names,
-      metadata, or attachment panel content on narrow widths.
-
-#### Version 0.33.5.18.12.5 - Files strict guardrail inventory and escape-hatch map
-
-- [x] Add `docs/files-strict-guardrail-inventory.md` or an equivalent section in the view-building docs
-      before strict enforcement.
-- [x] Inventory remaining framework-owned candidates in `public/js/files.js` and
-      `public/js/shared/file-attachments.js`: page header, filters, table/list shell, attachment panel
-      shell, upload/dropzone shell, empty/status states, dense actions, and modal/overlay placement.
-- [x] Document intentional Files-owned escape hatches: file reading, upload payloads, accepted
-      categories, scan/download availability, route calls, confirmations, permission-aware visibility,
-      target metadata, deleted/quarantined recovery states, and host refresh callbacks.
-- [x] Document the already-shipped File Context and Preview modal openers/routes as allowed Files-owned
-      behavior, while marking inline detail/summary/preview/metadata panels, selected-row state, and
-      Inspector-style browse behavior as forbidden.
-- [x] Add non-failing guardrail inventory coverage, but do not fail strict Files guardrails until the
-      enforcement slice.
-
-#### Version 0.33.5.18.12.6 - Files strict declarative guardrail enforcement
-
-- [ ] Reduce `public/js/files.js` and framework-owned view portions of
-      `public/js/shared/file-attachments.js` to data bindings, helper mounts, and Files-owned behavior
-      handlers.
-- [ ] Expand fail-on-violation declarative guardrails to the Files surface.
-- [ ] Guard against hand-built framework-owned page/filter/table/panel/upload/action anatomy once a
-      descriptor field or shared helper owns it.
-- [ ] Keep documented Files-owned escape hatches allowed so the guardrail does not outlaw file route,
-      upload, scan, permission, and attachment behavior.
-- [ ] Keep the canonical File Context/Preview modal workflows, row action isolation, readable-label
-      fallbacks, and attachment helper behavior allowed while failing reintroduced inline browse detail,
-      metadata, preview, selected-row, or Inspector anatomy.
-- [ ] Add regressions proving Files no longer creates framework-owned anatomy by hand and never bypasses
-      file routes.
-
-#### Version 0.33.5.18.12.7 - Files docs, changelog, and closeout
-
-- [ ] Update `docs/view-building-contract.md`, `docs/declarative-view-surfaces.md`,
-      `docs/module-contract.md`, and Files-specific developer docs with the completed Files conversion
-      boundary.
-- [ ] Preserve the 0.33.5.18.11 compact browse/edit/preview boundary: File Context and Preview remain
-      route-backed modal workflows, while 0.33.5.18.12 closes upload, shared attachment panel, existing
-      lifecycle actions, visual parity, and strict guardrails.
-- [ ] Update `DECISIONS.md` with the Files UI standardization and strict-surface decision.
-- [ ] Update `CHANGELOG.md` and package metadata to the implemented version.
-- [ ] Archive completed Files roadmap sections according to the roadmap bookkeeping rule.
-- [ ] Run:
-  - [ ] `npm run check`
-  - [ ] Files browse regressions.
-  - [ ] Files edit modal and preview modal preservation regressions if touched by visual/action/guardrail
-        work.
-  - [ ] Files attachment/upload regressions.
-  - [ ] Notes and Tasks Files utility regressions.
-  - [ ] `npm run test:permissions` if file permission, attachment target, workspace gating, or route
-        guard behavior changed.
-- [ ] Verify `/api/app-info` reports the expected version.
-
-Acceptance criteria:
-
-- Files page and reusable attachment panels share the standardized converted control system.
-- File Context and Preview remain the already-shipped route-backed modal workflows, with no inline
-  browse detail/preview/metadata panel or selected-row state returning.
-- File service behavior remains authoritative for storage, scanning, permissions, lifecycle, downloads,
-  uploads, delete/restore, reporting, quarantine, and attachment target validation.
-- Strict guardrails protect Files like Notes and Tasks without outlawing required Files-owned behavior.
-
----
+Completed 0.33.5.18.12.1 through 0.33.5.18.12.7 are archived in `ROADMAP-ARCHIVE.md`.
 
 ## Clients/Projects Pages (0.33.5.18.13 - 0.33.5.18.14)
 
 The Add/Edit Client and Add/Edit Project dialogs were already converted to shared modal/form/footer
-helpers in 0.33.5.15.4. This cluster converts the remaining combined Clients/Projects page anatomy:
-filters, the client/project hierarchy index, related tables, page-level actions, and hierarchy
-interactions. Keep the already-converted dialogs working unchanged.
+helpers in 0.33.5.15.4. This cluster converts the remaining shared Clients/Projects page anatomy
+across `clients.html` and `projects.html`: filters, the client/project hierarchy index, related
+tables, page-level actions, and hierarchy interactions. Keep the already-converted dialogs working
+unchanged.
 
-Framework owns: page shell, filters, hierarchy index/tree, split or table layout, detail shell, related
-tables, action placement, empty/loading/error states. Clients/Projects owns: client/project hierarchy,
-billing metadata, Business-only gating, Personal/Family scope, validation, save payloads, permissions.
+Framework owns: page shell, descriptor schema/renderer capabilities, filters and filter panels,
+hierarchy display/index/table shells, list/table wrappers, detail shells, related-table shells, action
+placement, bulk-toolbar shells, empty/loading/error states, minimal protected hosts, and strict
+guardrail enforcement.
 
-### Version 0.33.5.18.13 - Clients/Projects Declarative Page Surface Proof
+Clients/Projects owns: client/project hierarchy rules, parent/reparent validation, canonical read
+routes, client/project option data, billing metadata and defaults, task-default metadata on projects,
+Business-only Client availability, Personal/Family project-only scope, payload construction,
+permissions, audit/search/event side effects, safe labels, tag assignment semantics, save/refresh
+behavior, and the already-converted Add/Edit Client and Add/Edit Project dialog behavior.
 
-- [ ] Add a `viewSurfaces` descriptor for the combined Clients/Projects page read path.
-- [ ] Reduce the Clients/Projects page HTML to a minimal framework host element.
-- [ ] Move filters, the client/project hierarchy index (using hierarchy/tree index rendering from
-      0.33.5.18.1), the split/table layout, and detail read anatomy into the descriptor.
-- [ ] Define the normalized read endpoint and `fieldBindings`, preserving hierarchy, billing metadata
-      display, Business-only gating, and Personal/Family scope behavior.
-- [ ] Keep the already-converted Add/Edit Client and Add/Edit Project dialogs working; do not regress
-      them.
-- [ ] Preserve all Clients/Projects routes, payloads, permissions, and scope behavior.
-- [ ] Add regressions proving the read-only Clients/Projects page renders from the descriptor with
-      correct hierarchy and Business-only gating.
+### Version 0.33.5.18.13.1 - Clients/Projects Descriptor Readiness and Guardrail Inventory
 
-### Version 0.33.5.18.14 - Clients/Projects Hierarchy Interactions, Related Tables, Actions, and Cleanup
+- [ ] Inventory `clients.html`, `projects.html`, `public/js/clients-projects.js`, the
+      `client-projects` module manifest, `/api/clients`, `/api/projects`, and `/api/client-projects`.
+- [ ] Add `docs/clients-projects-strict-guardrail-inventory.md` before strict enforcement, mapping:
+  - [ ] Framework-owned page/header/filter/sidebar/table/index/bulk/action/status shells.
+  - [ ] Clients/Projects-owned data shaping, hierarchy rules, billing/task-default editors, tag
+        assignment, route calls, query-param openers, permissions, and save payloads.
+- [ ] Add only the descriptor/renderer support needed by both Clients and Projects page reads:
+  - [ ] Display-only hierarchy metadata for flattened tree rows, such as depth/path/parent fields,
+        without adding drag/drop or move semantics.
+  - [ ] Dynamic filter option mounting or option-source hydration for module-owned Client options,
+        without making the framework own Client records.
+  - [ ] Table cell display hooks or documented region escape hatches for module-owned readable labels
+        and Tag chip rendering, without letting the module build table chrome by hand.
+- [ ] Update descriptor validation and renderer regressions for those shared capabilities.
+- [ ] Do not convert the Clients/Projects protected HTML hosts in this slice.
+- [ ] Do not change Clients/Projects routes, write payloads, permissions, schema, or workflow behavior.
 
-- [ ] Express hierarchy interactions (move/reparent), related-project and related-client tables, bulk
-      controls, and page-level actions as declarative route actions or registered behaviors.
-- [ ] Keep client/project hierarchy rules, billing defaults, Business-only gating, and scope checks in
-      `public/js/clients-projects.js`.
-- [ ] Reduce the page portions of `public/js/clients-projects.js` to data bindings and behavior
-      handlers with no hand-built framework-owned anatomy (the dialogs remain as converted in
-      0.33.5.15.4).
-- [ ] Ensure Personal and Family workspaces still cannot reach Business-only client surfaces through
-      the converted page.
-- [ ] Expand fail-on-violation declarative guardrails to the Clients/Projects page surface.
-- [ ] Add regressions proving the Clients/Projects page no longer creates framework-owned anatomy by
-      hand and preserves workspace gating.
+### Version 0.33.5.18.13.2 - Clients/Projects Read Descriptors and Minimal Hosts
+
+- [ ] Add separate `viewSurfaces` descriptors for `client-projects.clients` and
+      `client-projects.projects`; do not model them as one combined page surface.
+- [ ] Reduce `views/protected/clients.html` and `views/protected/projects.html` to minimal descriptor
+      hosts that load `view-builder.js`, `view-renderer.js`, and the Clients/Projects adapter in that
+      order.
+- [ ] Bind the Clients descriptor to the canonical `/api/clients` list route with server-owned
+      status/tag filtering, permission pruning, hierarchy ordering, and depth metadata.
+- [ ] Bind the Projects descriptor to the canonical `/api/projects` list route with server-owned
+      status/client/tag filtering, permission pruning, hierarchy ordering, workspace-project handling,
+      and depth metadata.
+- [ ] Keep `/api/client-projects` available for existing dialog and cross-module option workflows; do
+      not make it the new page-list source of truth if `/api/clients` or `/api/projects` can express
+      the page read.
+- [ ] Define descriptor `fieldBindings` for readable names, hierarchy display, status, Client context
+      where visible, billing display fields, and tag display inputs.
+- [ ] Preserve the already-converted Add/Edit Client and Add/Edit Project dialog openers; no dialog
+      body redesign belongs in this slice.
+- [ ] Add regressions proving both protected hosts are minimal, both descriptors are delivered through
+      bootstrap only when the module/view is available, and the read path preserves Business-only
+      Client gating plus Personal/Family project-only behavior.
+
+### Version 0.33.5.18.13.3 - Clients/Projects Framework-Rendered Read Anatomy
+
+- [ ] Move page headers, status placement, filters, empty/loading/error states, list/table wrappers,
+      hierarchy display, and row action placement for both pages into descriptors or shared
+      `LongtailForge.view` renderer paths.
+- [ ] Keep Clients/Projects-owned browser code responsible for selecting safe row labels, tag display
+      values, billing display values, and Project Client labels before they enter framework-owned
+      anatomy.
+- [ ] Keep Business workspaces showing Client-aware surfaces and Client filters; keep Personal and
+      Family workspaces project-only with Client filters/rows hidden or unavailable.
+- [ ] Preserve `?client=`, `?project=`, `?addClient=true`, and `?addProject=true` entry behavior by
+      dispatching to existing module-owned openers after descriptor render.
+- [ ] Keep page Add/Edit buttons as descriptor actions or registered behaviors that call the existing
+      Clients/Projects dialog API.
+- [ ] Add regressions proving hierarchy indentation/order, status/client filters, readable tag display,
+      page actions, and query-param openers still work without protected-page HTML anatomy.
+
+### Version 0.33.5.18.14.1 - Clients/Projects Page Actions and Dialog Behavior Registration
+
+- [ ] Register module-owned behavior handlers for Add Client, Edit Client, Add Project, and Edit
+      Project page actions.
+- [ ] Route descriptor action placement through the framework while keeping the dialog openers,
+      field bodies, validation, save payloads, tag pickers, billing editors, parent selectors, and
+      refresh callbacks in `public/js/clients-projects.js` and Clients/Projects services.
+- [ ] Keep the 0.33.5.15.4 converted modal shell/footer standard; do not reintroduce static
+      `<dialog>` markup or one-off modal footer/action classes.
+- [ ] Preserve module action host-context callbacks for Workbench/search/module-triggered Add/Edit
+      flows.
+- [ ] Add regressions proving descriptor actions call the canonical dialog API and do not duplicate
+      Client/Project forms.
+
+### Version 0.33.5.18.14.2 - Clients/Projects Related Tables and Detail Regions
+
+- [ ] Move related Project rows on Client reads and related Client/Project context rows on Project
+      reads into framework-owned table/list/region shells.
+- [ ] Keep the Clients/Projects adapter responsible for related-row data shaping, readable labels,
+      Project Client context, billing/task-default summary values, and allowed row actions.
+- [ ] Keep save, archive, parent/reparent, billing, tags, task defaults, reminders, audit, search, and
+      permission behavior on existing module route/service paths.
+- [ ] Do not introduce a persistent Inspector-style detail pane or a new dashboard on either page.
+- [ ] Add regressions proving related tables render through shared anatomy while row actions continue
+      through module-owned behavior handlers.
+
+### Version 0.33.5.18.14.3 - Clients/Projects Bulk Controls and Selection Behavior
+
+- [ ] Move Client and Project bulk-control chrome into the shared bulk-toolbar shell or a descriptor
+      region using that shell.
+- [ ] Keep selected IDs, allowed bulk actions, Project Client reassignment options, billing/status
+      payloads, confirmations, route calls, partial failure messaging, refresh behavior, and audit/search
+      side effects Clients/Projects-owned.
+- [ ] Preserve Business-only Client reassignment; Personal and Family workspaces must not expose Client
+      bulk controls or submit Client IDs.
+- [ ] Reuse existing granular routes unless a future roadmap slice explicitly adds service-owned bulk
+      endpoints with permission, audit, search, and partial-result contracts.
+- [ ] Add regressions proving bulk controls no longer hand-build framework-owned toolbar/table chrome
+      and still preserve workspace gating.
+
+### Version 0.33.5.18.14.4 - Clients/Projects Hierarchy Interactions and Reparent Safety
+
+- [ ] Keep hierarchy mutation rules in Clients/Projects services and existing planner/validation
+      helpers, not in the framework renderer.
+- [ ] Express move/reparent entry points as descriptor actions or registered behaviors that open the
+      existing Client/Project editors or submit existing validated payloads.
+- [ ] Preserve cycle prevention, same-workspace checks, readable parent options, archived-parent
+      behavior, Business-only Client rules, workspace-level Project behavior, and Project Client
+      derivation.
+- [ ] Do not add drag/drop hierarchy editing unless a later roadmap slice explicitly adds it.
+- [ ] Add regressions proving reparent/move behavior remains service-validated and the converted page
+      does not become the hierarchy source of truth.
+
+### Version 0.33.5.18.14.5 - Clients/Projects Strict Guardrails and Cleanup
+
+- [ ] Reduce the page portions of `public/js/clients-projects.js` to descriptor mounting, data
+      bindings, registered behavior handlers, and documented escape hatches.
+- [ ] Expand fail-on-violation declarative guardrails to `client-projects.clients` and
+      `client-projects.projects`.
+- [ ] Guardrails must fail if Clients/Projects reintroduces protected-page anatomy, page/filter/table
+      chrome, bulk-toolbar shell markup, static dialog shells, or one-off framework-owned layout/footer
+      classes outside descriptors/shared helpers.
+- [ ] Guardrails must continue allowing documented module-owned editor field fragments, billing/task
+      default editors, tag picker integration, parent selectors, route calls, payload builders,
+      confirmation wording, refresh hooks, and query-param opener behavior.
+- [ ] Update the Clients/Projects inventory doc to mark strict enforcement active.
+- [ ] Add a focused closeout regression for the converted Clients and Projects pages before the
+      cross-surface 0.33.5.18.15 closeout.
+- [ ] Confirm no database schema, route payload, permission, or workflow changes were introduced by the
+      conversion.
 
 ---
 
 ## Version 0.33.5.18.15 - Cross-Surface Guardrails, Inventory, Documentation, and Closeout
 
-- [ ] Confirm fail-on-violation declarative guardrails are enforced on all four converted surfaces
-      (Notes, Tasks, Files, Clients/Projects pages).
+- [ ] Confirm fail-on-violation declarative guardrails are enforced on all converted page surfaces
+      (Notes, Tasks, Files, Clients, and Projects pages).
 - [ ] A declarative surface must not call `document.createElement` for framework-owned anatomy (page
       header, table, dialog, action strip, filter panel, split layout, index list).
 - [ ] A declarative surface must not ship a non-minimal protected HTML view.
 - [ ] A declarative surface must not introduce one-off layout/footer classes when a descriptor field
       or framework class exists.
-- [ ] Update the `docs/view-building-contract.md` inventory snapshot to mark Notes, Tasks, Files, and
-      Clients/Projects pages as converted, and to note Admin/Settings (deferred), Reporting (0.33.6),
-      and Dashboard/Workbench (0.33.7) as remaining or owned elsewhere.
+- [ ] Update the `docs/view-building-contract.md` inventory snapshot to mark Notes, Tasks, Files,
+      Clients, and Projects pages as converted, and to note Admin/Settings (deferred), Reporting
+      (0.33.6), and Dashboard/Workbench (0.33.7) as remaining or owned elsewhere.
 - [ ] Update `docs/module-contract.md` and `docs/ui-surface-contract.md` with the shared capabilities
       added in 0.33.5.18.1 and the escape-hatch boundary.
 - [ ] Update the developer guide for authoring a declarative surface with the new capabilities.

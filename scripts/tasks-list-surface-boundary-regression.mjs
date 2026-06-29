@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.5";
+const appVersion = "0.33.5.18.12.7";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -52,7 +52,7 @@ assert.doesNotMatch(taskViewChrome, /data-task-filter-details|data-task-list|dat
 assert.doesNotMatch(filterChrome, /data-task-view-selector|data-task-list|data-task-bulk-toolbar|task-density-row/, "Sorting and Filters sidebar panel should not duplicate saved views, rows, or bulk actions");
 assert.doesNotMatch(mainChrome, /data-task-filter-details|data-task-view-selector/, "Main list shell should not duplicate sidebar filter/view controls");
 
-assert.match(declarativeGuardrails, /const strictDeclarativeSurfaceIds = new Set\(\["lists\.workspace", "notes\.workspace", "tasks\.workspace"\]\)/, "Tasks should now be under strict declarative enforcement");
+assert.match(declarativeGuardrails, /const strictDeclarativeSurfaceIds = new Set\(\["files\.browse", "lists\.workspace", "notes\.workspace", "tasks\.workspace"\]\)/, "Tasks should remain under strict declarative enforcement alongside Files, Lists, and Notes");
 assert.match(declarativeGuardrails, /Tasks descriptor should be strict-converted/, "Guardrail inventory should explicitly enforce Tasks strict conversion");
 assert.match(declarativeGuide, /\| Tasks \| tasks \| tasks\.html \| tasks\.workspace \| strict \|/, "Declarative guide should keep Tasks in the strict inventory");
 assert.match(declarativeGuide, /list shell, bulk toolbar, row lifecycle action strip, row workflow action menu, add\/edit modal shell, top detail\/read metadata badge row, recurrence child-modal shell, Checklist section shell, Task Timer section shell, utility footer\/heading placement, and stacked Tags\/Files utility child dialogs use shared framework helpers[\s\S]*Strict Tasks guardrails now fail/, "Declarative guide should document the Tasks framework-helper boundary");

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.5";
+const appVersion = "0.33.5.18.12.7";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
@@ -15,8 +15,8 @@ assert.equal(packageJson.version, appVersion, "package.json should report the cu
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
-assert.match(filesHtml, /css\/longtail-forge\.css\?v=12/, "Files host should cache-bust the compact reset stylesheet");
-assert.match(filesHtml, /js\/shared\/icons\.js\?v=5[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=12/, "Files host should load the cache-busted icon helper and Files adapter after the renderer");
+assert.match(filesHtml, /css\/longtail-forge\.css\?v=13/, "Files host should cache-bust the compact reset stylesheet");
+assert.match(filesHtml, /js\/shared\/icons\.js\?v=6[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=13/, "Files host should load the cache-busted icon helper and Files adapter after the renderer");
 
 assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Files descriptor should keep the service-owned attachments read route");
 [
@@ -35,7 +35,7 @@ assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Fi
 const resultsChrome = functionBlock(filesScript, "createFilesResultsChrome");
 assert.match(resultsChrome, /requireFilesViewHelper\("createListShell"\)/, "Files results should require the shared list shell helper");
 assert.match(resultsChrome, /view\.createListShell\(\{[\s\S]*className:\s*"files-browse-list-shell"[\s\S]*statusAttrs:\s*\{\s*"data-file-status":\s*""\s*\}[\s\S]*children:\s*tableMount/, "Files results should mount the compact status plus table through the shared list shell");
-assert.match(resultsChrome, /tableMount\.dataset\.fileTableMount = ""/, "Files results should expose a stable table remount target");
+assert.match(resultsChrome, /dataset:\s*\{\s*fileTableMount:\s*""\s*\}/, "Files results should expose a stable table remount target");
 assert.doesNotMatch(resultsChrome, /summaryMount|detailMount|createFilesSummaryPanel|createFilesDetailPanel/, "Files results should not mount inline summary or detail panels");
 
 const filesTable = functionBlock(filesScript, "createFilesTable");
@@ -66,12 +66,12 @@ assert.doesNotMatch(filesScript, /\b(querySql|runSql|storage_key|file_attachment
 assert.match(filesScript, /api\.getJson\(`\/api\/files\/attachments\?\$\{readFilters\(\)\.toString\(\)\}`/, "Files browse should continue loading through the service-owned attachments route");
 
 const fileCell = functionBlock(filesScript, "createFileCell");
-assert.match(fileCell, /cell\.className = "files-file-cell"/, "File cell should use the compact file-cell anatomy");
-assert.match(fileCell, /cell\.append\(createFileTypeIcon\(row\), createTruncatedText\(row\.fileName, "files-file-name"\)\)/, "File cell should render the file-type icon before the truncated filename");
+assert.match(fileCell, /createFilesElement\("span"[\s\S]*className: "files-file-cell"/, "File cell should use the compact file-cell anatomy");
+assert.match(fileCell, /children:\s*\[[\s\S]*createFileTypeIcon\(row\)[\s\S]*createTruncatedText\(row\.fileName, "files-file-name"\)/, "File cell should render the file-type icon before the truncated filename");
 
 const fileTypeIcon = functionBlock(filesScript, "createFileTypeIcon");
-assert.match(fileTypeIcon, /label\.className = "files-file-type-label"[\s\S]*label\.textContent = fileTypeBadgeText\(row\.extension, row\.fileTypeLabel\)/, "File type indicator should render safe file-type text inside the icon");
-assert.match(fileTypeIcon, /iconWrapper\.dataset\.fileType = safeFileTypeToken/, "File type indicator should expose only a safe file-type token");
+assert.match(fileTypeIcon, /className: "files-file-type-label"[\s\S]*text: fileTypeBadgeText\(row\.extension, row\.fileTypeLabel\)/, "File type indicator should render safe file-type text inside the icon");
+assert.match(fileTypeIcon, /dataset:\s*\{\s*fileType: safeFileTypeToken/, "File type indicator should expose only a safe file-type token");
 assert.doesNotMatch(fileTypeIcon, /\.title\s*=/, "File type indicator should not use native title tooltips");
 
 const fileTypeBadgeText = functionBlock(filesScript, "fileTypeBadgeText");
@@ -79,7 +79,7 @@ assert.match(fileTypeBadgeText, /replace\(\S*\/\^\\\.\//, "File type badge text 
 assert.match(fileTypeBadgeText, /slice\(0, 4\)\.toUpperCase\(\)/, "File type badge text should fit inside the small icon");
 
 const truncatedText = functionBlock(filesScript, "createTruncatedText");
-assert.match(truncatedText, /span\.className = \["files-truncate", className\]/, "Truncated text should use the shared Files truncation class");
+assert.match(truncatedText, /className: \["files-truncate", className\]\.filter\(Boolean\)\.join\(" "\)/, "Truncated text should use the shared Files truncation class");
 assert.doesNotMatch(truncatedText, /span\.title = text/, "Truncated text should not create a duplicate native title tooltip");
 assert.match(truncatedText, /span\.dataset\.fullText = text[\s\S]*span\.tabIndex = 0[\s\S]*span\.setAttribute\("aria-label", text\)/, "Truncated text should keep full safe value data and accessible labels");
 assert.match(truncatedText, /pointerenter[\s\S]*showFilesTooltip\(span, text\)[\s\S]*pointerleave[\s\S]*hideFilesTooltip[\s\S]*focus[\s\S]*showFilesTooltip\(span, text\)[\s\S]*blur[\s\S]*hideFilesTooltip/, "Truncated text should reveal through the custom floating tooltip on hover and focus");
@@ -92,12 +92,12 @@ const positionFilesTooltip = functionBlock(filesScript, "positionFilesTooltip");
 assert.match(positionFilesTooltip, /getBoundingClientRect\(\)[\s\S]*window\.innerWidth[\s\S]*window\.innerHeight/, "Files tooltip should position against the viewport");
 
 const actions = functionBlock(filesScript, "createFileActions");
-assert.match(actions, /className = "files-row-actions surface-dense-actions"/, "File row actions should use the shared dense action layout");
+assert.match(actions, /view\.createDetailActionStrip\(\{[\s\S]*className: "files-row-actions"[\s\S]*actions: rowActions/, "File row actions should use the shared dense action strip");
 assert.match(actions, /createDownloadAction\(row\)[\s\S]*createDeleteAction\(row\)[\s\S]*createRestoreAction\(row\)/, "Files should keep existing download/delete/restore action availability");
 
 const downloadAction = functionBlock(filesScript, "createDownloadAction");
-assert.match(downloadAction, /className = "action-button icon-button files-row-action"/, "Download should be an icon-only action control");
-assert.match(downloadAction, /setAttribute\("download", ""\)[\s\S]*setAttribute\("aria-label", label\)[\s\S]*link\.title = label/, "Download should keep accessible label/title and browser download semantics");
+assert.match(downloadAction, /className: "button-link action-button view-action-button icon-button files-row-action"/, "Download should be an icon-only bordered action control");
+assert.match(downloadAction, /"aria-label": label[\s\S]*download: true[\s\S]*title: label/, "Download should keep accessible label/title and browser download semantics");
 assert.match(downloadAction, /createIcon\?\.\("download", \{ decorative: true \}\)/, "Download should use the shared download icon");
 
 const deleteAction = functionBlock(filesScript, "createDeleteAction");
@@ -109,7 +109,7 @@ assert.match(styles, /\.view-slideout-sidebar-main > \.files-browse-results-regi
 assert.match(styles, /\.files-table-wrap\s*\{[\s\S]*overflow-x:\s*auto;[\s\S]*border:\s*1px solid var\(--color-border\)[\s\S]*border-radius:\s*8px/, "Files table wrapper should own the single listing frame");
 assert.match(styles, /\.files-table\s*\{[\s\S]*table-layout:\s*fixed[\s\S]*min-width:\s*0;[\s\S]*font-size:\s*14px/, "Files table should stay compact without forcing horizontal overflow");
 assert.doesNotMatch(styles, /\.files-table\s*\{[\s\S]*min-width:\s*960px/, "Files table should not force a horizontal scrollbar at normal desktop widths");
-assert.match(styles, /\.files-table th:last-child,[\s\S]*\.files-table td:last-child\s*\{[\s\S]*width:\s*188px;[\s\S]*padding-right:\s*6px;[\s\S]*padding-left:\s*6px;[\s\S]*text-align:\s*right/, "Files action column should reserve enough room for mixed icon/text row actions");
+assert.match(styles, /\.files-table th:last-child,[\s\S]*\.files-table td:last-child\s*\{[\s\S]*width:\s*148px;[\s\S]*padding-right:\s*6px;[\s\S]*padding-left:\s*6px;[\s\S]*text-align:\s*right/, "Files action column should reserve enough room for compact icon row actions");
 assert.match(styles, /\.files-file-cell\s*\{[\s\S]*display:\s*flex[\s\S]*min-width:\s*0/, "Files filename cell should stay compact");
 assert.match(styles, /\.files-file-type-icon\s*\{[\s\S]*display:\s*inline-flex[\s\S]*width:\s*34px/, "Files file-type icon should have a stable footprint for extension text");
 assert.match(styles, /\.files-file-type-label\s*\{[\s\S]*font-size:\s*9px[\s\S]*text-transform:\s*uppercase/, "Files file-type icon should visibly show the safe file type text");

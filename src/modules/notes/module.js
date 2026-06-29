@@ -182,7 +182,7 @@ const notesModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.18.12.5",
+  version: "0.33.5.18.12.7",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,

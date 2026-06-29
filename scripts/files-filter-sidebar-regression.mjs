@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.5";
+const appVersion = "0.33.5.18.12.7";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
@@ -16,7 +16,7 @@ assert.equal(packageLock.version, appVersion, "package-lock root should report t
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
 
 assert.match(filesHtml, /<main class="wide-page files-page" data-files-host><\/main>/, "Files protected view should stay a minimal descriptor host");
-assert.match(filesHtml, /js\/shared\/client-project-options\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=12/, "Files host should load the client/project provider helper and renderer before the Files adapter");
+assert.match(filesHtml, /js\/shared\/client-project-options\.js\?v=2[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/files\.js\?v=13/, "Files host should load the client/project provider helper and renderer before the Files adapter");
 assertNoProtectedAnatomy(filesHtml, "views/protected/files.html");
 
 assert.match(frameworkSurfaceSource, /id:\s*"files\.browse"[\s\S]*layout:\s*"slide-out-sidebar"/, "Files descriptor should use the shared slide-out sidebar layout");
@@ -35,7 +35,7 @@ assert.match(filterChrome, /createFilterLabel\("Filename"[\s\S]*createFilterLabe
 assert.doesNotMatch(filterChrome, /Client ID|Project ID|Target ID/, "Normal Files filters should not expose raw ID labels");
 
 const advancedFilters = functionBlock(filesScript, "createAdvancedTargetFilters");
-assert.match(advancedFilters, /summary\.textContent = "Advanced target filters"/, "Raw target filters should live behind an explicit advanced disclosure");
+assert.match(advancedFilters, /createFilesElement\("summary", \{ text: "Advanced target filters" \}\)/, "Raw target filters should live behind an explicit advanced disclosure");
 assert.match(advancedFilters, /"Module"[\s\S]*"fileFilterModule"[\s\S]*"Target Type"[\s\S]*"fileFilterTargetType"[\s\S]*"Target ID"[\s\S]*"fileFilterTargetId"[\s\S]*"Project ID"[\s\S]*"fileFilterProjectId"/, "Advanced target filters should preserve module, target type, target ID, and raw project ID meanings");
 
 assert.match(filesScript, /api\.getJson\("\/api\/client-projects", \{ cache: "no-store" \}\)/, "Files filters should reuse the existing client/project option provider");

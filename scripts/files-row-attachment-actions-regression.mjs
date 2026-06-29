@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.5";
+const appVersion = "0.33.5.18.12.7";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -30,25 +30,25 @@ assert.match(fileRow, /reportable: canReportFileRow\(attachment, file, fileId, s
 assert.match(fileRow, /quarantineable: canQuarantineFileRow\(attachment, file, fileId, status\)/, "Files rows should shape quarantine visibility through a permission-aware helper");
 
 const rowActions = functionBlock(filesScript, "createFileActions");
-assert.match(rowActions, /files-row-actions surface-dense-actions/, "Files row actions should use the shared dense action placement");
+assert.match(rowActions, /view\.createDetailActionStrip\(\{[\s\S]*className: "files-row-actions"[\s\S]*actions: rowActions/, "Files row actions should use the shared dense action placement");
 assert.match(rowActions, /actions\.dataset\.fileActions = ""/, "Files row actions should expose a stable dense-action hook");
 assert.match(rowActions, /createPreviewAction\(row\)[\s\S]*createDownloadAction\(row\)[\s\S]*createReportAction\(row\)[\s\S]*createQuarantineAction\(row\)[\s\S]*createDeleteAction\(row\)[\s\S]*createRestoreAction\(row\)/, "Files rows should keep Preview, Download, Report, Quarantine, Delete, and Restore as distinct controls");
 
 assert.match(functionBlock(filesScript, "createPreviewAction"), /action: "files\.preview"[\s\S]*stopFileRowActionEvent\(event\)[\s\S]*openFilePreview\(row/, "Preview should remain a distinct modal action and stop row activation");
-assert.match(functionBlock(filesScript, "createDownloadAction"), /href = `\/api\/files\/\$\{encodeURIComponent\(row\.fileId\)\}\/download`[\s\S]*setAttribute\("download"[\s\S]*dataset\.surfaceAction = "files\.download"/, "Download should remain a Files download route action");
+assert.match(functionBlock(filesScript, "createDownloadAction"), /className: "button-link action-button view-action-button icon-button files-row-action"[\s\S]*download: true[\s\S]*href: `\/api\/files\/\$\{encodeURIComponent\(row\.fileId\)\}\/download`[\s\S]*surfaceAction: "files\.download"/, "Download should remain a shared Files download route action");
 const rowReportAction = functionBlock(filesScript, "createReportAction");
 assert.match(rowReportAction, /action: "files\.report"/, "Report should expose the Files report action ID");
-assert.match(rowReportAction, /text: "Report"[\s\S]*stopFileRowActionEvent\(event\)[\s\S]*reportFile\(row\.fileId, row\.file, row\.attachmentId\)/, "Report should be an accessible, distinct Files action");
+assert.match(rowReportAction, /icon: "alert"[\s\S]*iconOnly: true[\s\S]*text: ""[\s\S]*stopFileRowActionEvent\(event\)[\s\S]*reportFile\(row\.fileId, row\.file, row\.attachmentId\)/, "Report should be an accessible icon-only, distinct Files action");
 const rowQuarantineAction = functionBlock(filesScript, "createQuarantineAction");
 assert.match(rowQuarantineAction, /action: "files\.quarantine"/, "Quarantine should expose the Files quarantine action ID");
-assert.match(rowQuarantineAction, /text: "Review"[\s\S]*variant: "danger"[\s\S]*quarantineFile\(row\.fileId, row\.file\)/, "Quarantine route action should appear as a distinct Review action");
+assert.match(rowQuarantineAction, /icon: "shield-alert"[\s\S]*iconOnly: true[\s\S]*text: ""[\s\S]*variant: "danger"[\s\S]*quarantineFile\(row\.fileId, row\.file\)/, "Quarantine route action should appear as a distinct icon-only Review action");
 const rowDeleteAction = functionBlock(filesScript, "createDeleteAction");
 assert.match(rowDeleteAction, /action: "files\.delete"/, "Delete should expose the Files delete action ID");
 assert.match(rowDeleteAction, /variant: "danger"[\s\S]*deleteFile\(row\.fileId, row\.file\)/, "Delete should keep its danger styling and Files route handler");
 assert.match(functionBlock(filesScript, "createRestoreAction"), /action: "files\.restore"[\s\S]*restoreFile\(row\.fileId\)/, "Restore should keep a distinct Files route handler");
 assert.match(functionBlock(filesScript, "isFileRowActionEvent"), /\[data-file-action\], a, button, input, select, textarea/, "Row click and Enter should ignore action controls");
 
-assert.match(functionBlock(filesScript, "createPreviewDownloadAction"), /dataset\.surfaceAction = "files\.download"/, "Preview modal download should share the Files download action vocabulary");
+assert.match(functionBlock(filesScript, "createPreviewDownloadAction"), /surfaceAction: "files\.download"/, "Preview modal download should share the Files download action vocabulary");
 assert.match(functionBlock(filesScript, "buildFileEditorDialog"), /action: "files\.preview"[\s\S]*openFilePreview\(row/, "File Context may preserve Preview placement without reimplementing Preview");
 assert.match(functionBlock(filesScript, "previewAvailabilityForRow"), /state: "download_only"/, "Unsupported files should remain download-only instead of opening a detail panel");
 
@@ -64,14 +64,15 @@ assert.match(rowQuarantine, /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/q
 assert.match(rowQuarantine, /reason: FILE_QUARANTINE_REASON/, "Quarantine should send the manual quarantine reason");
 assert.match(rowQuarantine, /loadFiles\(\)/, "Quarantine should refresh the Files listing after mutation");
 
-assert.match(functionBlock(filesScript, "canQuarantineFileRow"), /workspaceHasPermission\("files\.manage_quarantine"\)/, "Quarantine row visibility should use explicit permission evidence");
+assert.match(functionBlock(filesScript, "canQuarantineFileRow"), /canManageFileReview\(attachment, file, fileId\)[\s\S]*status !== "quarantined"/, "Quarantine row visibility should use the shared explicit review permission evidence");
+assert.match(functionBlock(filesScript, "canManageFileReview"), /workspaceHasPermission\("files\.manage_quarantine"\)/, "Review visibility should use explicit permission evidence");
 assert.match(functionBlock(filesScript, "workspaceHasPermission"), /permissionHints\?\.filesManageQuarantine === true/, "Files page should honor the app-shell quarantine permission hint");
 
 const helperActions = functionBlock(attachmentHelper, "createAttachmentActions");
-assert.match(helperActions, /file-attachment-actions surface-dense-actions/, "Attachment actions should use shared dense action placement");
+assert.match(helperActions, /view\?\.createDetailActionStrip[\s\S]*className: "file-attachment-actions"/, "Attachment actions should use shared dense action placement");
 assert.match(helperActions, /files\.removeAttachment[\s\S]*files\.report[\s\S]*files\.quarantine[\s\S]*files\.delete[\s\S]*files\.restore/, "Attachment actions should expose Files action IDs for shipped mutations");
-assert.match(helperActions, /actions\.append\(download, remove, report, quarantine, deleteButton, restore\)/, "Attachment controls should remain distinct and ordered as separate controls");
-assert.match(functionBlock(attachmentHelper, "createAttachmentDownloadAction"), /\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/download[\s\S]*data-surface-action", "files\.download"[\s\S]*aria-label/, "Attachment downloads should remain accessible Files route actions");
+assert.match(helperActions, /const actionNodes = \[download, remove, report, quarantine, deleteButton, restore\]/, "Attachment controls should remain distinct and ordered as separate controls");
+assert.match(functionBlock(attachmentHelper, "createAttachmentDownloadAction"), /"aria-label": `Download \$\{name\}`[\s\S]*"data-surface-action": "files\.download"[\s\S]*href: `\/api\/files\/\$\{encodeURIComponent\(fileId\)\}\/download`/, "Attachment downloads should remain accessible Files route actions");
 assert.match(functionBlock(attachmentHelper, "normalizeOptions"), /canReport: true[\s\S]*canQuarantine: workspaceHasPermission\("files\.manage_quarantine"\)/, "Attachment helper should support permission-shaped report and quarantine visibility");
 
 const helperReport = functionBlock(attachmentHelper, "reportFile");
@@ -93,13 +94,14 @@ assert.match(filesRoutes, /post\("\/files\/:fileId\/quarantine"/, "Files quarant
 assert.match(functionBlock(filesService, "reportFile"), /canReadAnyAttachment[\s\S]*normalizeReportReason[\s\S]*status = 'quarantined'/, "Report service should keep read checks, allowed reasons, and quarantine lifecycle behavior");
 assert.match(functionBlock(filesService, "quarantineFile"), /assertCan\(session, "files\.manage_quarantine"[\s\S]*status = 'quarantined'/, "Quarantine service should keep server-side permission authority");
 
-assert.match(filesHtml, /js\/files\.js\?v=12/, "Files page should cache-bust the Files action wiring");
+assert.match(filesHtml, /js\/shared\/icons\.js\?v=6/, "Files page should cache-bust the shared row-action icons");
+assert.match(filesHtml, /js\/files\.js\?v=13/, "Files page should cache-bust the Files action wiring");
 assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=5/, "Notes should cache-bust the shared attachment action helper");
 assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=4/, "Tasks should cache-bust the shared attachment action helper");
 assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=4/, "Workbench should cache-bust the shared attachment action helper");
 
 assert.match(changelog, /## Version 0\.33\.5\.18\.12\.4[\s\S]*Files visual states and control parity/, "Changelog should document the current Files visual parity slice");
-assert.match(roadmap, /0\.33\.5\.18\.12\.5 is the most recently completed Files strict guardrail inventory and escape-hatch map slice/, "Roadmap should advance beyond the completed action wiring slice");
+assert.match(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "Roadmap should archive the completed Files action/guardrail branch");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.4/, "View-building contract should document the current Files visual parity slice");
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.4/, "Module contract should document the current Files visual parity boundary");
 assert.match(declarativeSurfaces, /As of 0\.33\.5\.18\.12\.4/, "Declarative surface contract should document the current Files visual parity boundary");

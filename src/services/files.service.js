@@ -622,9 +622,16 @@ async function readAttachmentPreviewAccess(session, attachmentId) {
     };
   }
 
+  const canPreviewInReview = await permissionsService.can(session, "files.manage_quarantine", {
+    client_id: attachment.client_id,
+    project_id: attachment.project_id,
+    workspace_id: session.workspace_id,
+    operation: "preview_review",
+  });
+
   return {
     attachment,
-    availability: previewAvailabilityForAttachment(attachment),
+    availability: previewAvailabilityForAttachment(attachment, { canPreviewInReview }),
   };
 }
 
@@ -874,8 +881,12 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
 async function restoreFile(session, fileId) {
   const file = await readFileRow(session.workspace_id, fileId);
 
-  if (!file || file.status !== "deleted") {
-    throw new AppError("Deleted file not found.", 404);
+  if (!file || !["deleted", "quarantined"].includes(file.status)) {
+    throw new AppError("Recoverable file not found.", 404);
+  }
+
+  if (file.status === "quarantined") {
+    return markQuarantinedFileReviewed(session, file);
   }
 
   const attachments = await readActiveAttachmentsForFile(session.workspace_id, file.file_id);
@@ -916,6 +927,46 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
     recordId: file.file_id,
     recordLabel: file.display_name,
     metadata: { restored_from_status: file.status },
+  });
+  await refreshStorageAccounting(session.workspace_id);
+
+  return { file: await readFileForAdmin(session, file.file_id) };
+}
+
+async function markQuarantinedFileReviewed(session, file) {
+  await permissionsService.assertCan(session, "files.manage_quarantine", {
+    workspace_id: session.workspace_id,
+    operation: "restore",
+  });
+
+  if (!["not_required", "passed"].includes(file.scan_status)) {
+    throw new AppError("File review cannot be completed until the file scan has passed.", 409);
+  }
+
+  const now = new Date().toISOString();
+
+  await runSql(`
+UPDATE files
+SET status = 'available',
+    quarantine_reason = NULL,
+    updated_at = ${sqlText(now)}
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND file_id = ${sqlText(file.file_id)};
+`);
+
+  await emitFileLifecycleEvent("file.restored", {
+    session,
+    fileId: file.file_id,
+    metadata: { previous_status: file.status, review_action: "mark_reviewed" },
+    status: "available",
+    scanStatus: file.scan_status,
+  });
+  await recordFileAudit(session, {
+    action: "file.restored",
+    changeType: "update",
+    recordId: file.file_id,
+    recordLabel: file.display_name,
+    metadata: { restored_from_status: file.status, review_action: "mark_reviewed" },
   });
   await refreshStorageAccounting(session.workspace_id);
 
@@ -1730,15 +1781,18 @@ async function readPreviewTextContent(stream) {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-function previewAvailabilityForAttachment(attachment) {
+function previewAvailabilityForAttachment(attachment, options = {}) {
   const kind = previewKindForAttachment(attachment);
   const fileStatus = String(attachment.file_status || "").trim();
   const scanStatus = String(attachment.scan_status || "").trim();
+  const reviewPreviewAllowed = fileStatus === "quarantined" && options.canPreviewInReview === true;
 
-  if (fileStatus !== "available" || !["not_required", "passed"].includes(scanStatus)) {
+  if ((fileStatus !== "available" && !reviewPreviewAllowed) || !["not_required", "passed"].includes(scanStatus)) {
     return {
       kind,
-      reason: fileStatus !== "available" ? `file_${fileStatus || "unavailable"}` : `scan_${scanStatus || "unavailable"}`,
+      reason: fileStatus !== "available" && !reviewPreviewAllowed
+        ? `file_${fileStatus || "unavailable"}`
+        : `scan_${scanStatus || "unavailable"}`,
       state: "unavailable",
     };
   }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.5";
+const appVersion = "0.33.5.18.12.7";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -39,17 +39,17 @@ assert.match(panelShell, /tagName: "section"[\s\S]*className: "file-attachments 
 assert.match(panelShell, /"data-file-attachment-panel": ""/, "Attachment panel should expose a stable panel hook");
 assert.match(panelShell, /statusMessage: statusMessage\(state\)/, "Attachment panel status should route through the shared shell status slot");
 assert.match(panelShell, /"data-file-attachments-status": ""/, "Attachment panel status should expose a stable hook");
-assert.match(panelShell, /document\.createElement\("section"\)[\s\S]*data-file-attachment-panel/, "Attachment panel should keep a DOM fallback");
+assert.match(panelShell, /return createAttachmentElement\(view, "section"[\s\S]*attrs,/, "Attachment panel should use the centralized attachment element fallback");
 
 const listShell = functionBlock(helper, "createAttachmentListShell");
 assert.match(listShell, /view\?\.createListShell/, "Attachment list should use the shared list shell when available");
 assert.match(listShell, /className: "file-attachments-list"[\s\S]*"data-file-attachments-list": ""[\s\S]*status: false/, "Attachment list shell should keep a stable list hook without duplicate status chrome");
-assert.match(listShell, /document\.createElement\("div"\)[\s\S]*data-file-attachments-list/, "Attachment list should keep a DOM fallback");
+assert.match(listShell, /return createAttachmentElement\(view, "div"[\s\S]*"data-file-attachments-list": ""/, "Attachment list should use the centralized attachment element fallback");
 
 const emptyShell = functionBlock(helper, "createAttachmentEmptyState");
 assert.match(emptyShell, /view\?\.createEmptyState/, "Loading, error, empty, and save-first states should use the shared empty-state shell when available");
 assert.match(emptyShell, /role: isError \? "alert" : "status"/, "Attachment empty/error states should keep accessible live semantics");
-assert.match(emptyShell, /return emptyState\(message, isError\)/, "Attachment empty states should keep a DOM fallback");
+assert.match(emptyShell, /view\?\.createEmptyState[\s\S]*return emptyState\(message, isError\)/, "Attachment empty states should use the shared empty-state helper with one centralized fallback");
 
 const uploadResults = functionBlock(helper, "uploadResultList");
 assert.match(uploadResults, /view\?\.createListShell/, "Upload result rows should use the shared list shell when available");
@@ -61,20 +61,20 @@ assert.match(uploadResultItem, /data-file-upload-result/, "Upload result rows sh
 assert.match(uploadResultItem, /result\.ok \?[\s\S]*uploaded\.[\s\S]*Upload failed\./, "Upload result rows should keep success and failure copy");
 
 const attachmentItem = functionBlock(helper, "attachmentItem");
-assert.match(attachmentItem, /item\.setAttribute\("data-file-attachment-item", ""\)/, "Attachment rows should expose a stable item hook");
+assert.match(attachmentItem, /attrs:\s*\{\s*"data-file-attachment-item": ""\s*\}/, "Attachment rows should expose a stable item hook");
 assert.match(attachmentItem, /is-deleted[\s\S]*is-quarantined[\s\S]*is-unavailable/, "Attachment rows should classify deleted, quarantined, and unavailable states");
 assert.match(attachmentItem, /attachmentRecoveryMessage\(file, isDownloadable, isDeleted\)/, "Attachment rows should compute gentle recovery-state copy");
 assert.match(attachmentItem, /createAttachmentActions\(container, state, attachment, view/, "Attachment rows should render actions through a dense action shell");
 
 const actions = functionBlock(helper, "createAttachmentActions");
-assert.match(actions, /file-attachment-actions surface-dense-actions/, "Attachment actions should use the shared dense action shell class");
+assert.match(actions, /view\?\.createDetailActionStrip[\s\S]*className: "file-attachment-actions"/, "Attachment actions should use the shared dense action strip when available");
 assert.match(actions, /data-file-attachment-actions/, "Attachment actions should expose a stable dense-action hook");
 assert.match(actions, /createAttachmentDownloadAction/, "Download should stay a Files-owned route action");
 assert.match(actions, /createAttachmentActionButton\(view[\s\S]*files\.removeAttachment[\s\S]*files\.delete[\s\S]*files\.restore/, "Remove, delete, and restore should use shared action buttons while keeping Files actions");
 
 const actionButton = functionBlock(helper, "createAttachmentActionButton");
 assert.match(actionButton, /view\?\.createActionButton/, "Attachment buttons should use shared action buttons when available");
-assert.match(actionButton, /document\.createElement\("button"\)/, "Attachment buttons should keep a native fallback");
+assert.match(actionButton, /createAttachmentElement\(view, "button"\)/, "Attachment buttons should keep a centralized native fallback");
 
 const recovery = functionBlock(helper, "attachmentRecoveryMessage");
 ["recovery window", "in review", "review completes", "review is complete", "unavailable for this file"].forEach((copy) => {
@@ -116,7 +116,7 @@ assert.match(functionBlock(taskDialog, "mountTaskFileAttachments"), /saveFirstMe
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.12\.2/, "View-building contract should document the attachment-panel shell slice");
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.2, the shared Files attachment helper wraps its reusable attachment panel/, "Module contract should document the panel shell boundary");
 assert.match(declarativeSurfaces, /As of 0\.33\.5\.18\.12\.2, the shared Files attachment helper also standardizes its reusable attachment panel/, "Declarative surface contract should mention the panel shell standardization");
-assert.match(roadmap, /0\.33\.5\.18\.12\.5 is the most recently completed Files strict guardrail inventory and escape-hatch map slice/, "Roadmap should advance beyond the completed Files panel shell slice");
+assert.match(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "Roadmap should archive the completed Files panel shell branch");
 assert.match(regressionSuite, /scripts\/files-attachment-panel-shell-regression\.mjs/, "Full regression suite should include the attachment-panel shell regression");
 
 console.log("Files attachment panel shell regression passed.");

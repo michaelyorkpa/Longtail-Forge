@@ -8,9 +8,9 @@ const notesJs = readText("public/js/notes.js");
 const notesServiceJs = readText("src/modules/notes/notes.service.js");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.12.5", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.12.5", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.12.5", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.12.7", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.12.7", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.12.7", "package-lock package entry should report the current app version");
 
 assert.match(notesHtml, /css\/longtail-forge\.css\?v=55/, "Notes should cache-bust the stacked Files modal warning styles");
 assert.match(notesHtml, /js\/notes\.js\?v=67/, "Notes should cache-bust the stacked Tags and Files modal browser wiring");

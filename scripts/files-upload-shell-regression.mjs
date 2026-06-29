@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.5";
+const appVersion = "0.33.5.18.12.7";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const helper = readText("public/js/shared/file-attachments.js");
@@ -19,11 +19,11 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 const uploadControls = functionBlock(helper, "uploadControls");
 assert.match(uploadControls, /const view = global\.LongtailForge\?\.view/, "Attachment helper should lazily read the view helper because host pages load it later");
-assert.match(uploadControls, /form\.setAttribute\("aria-label", "Upload files"\)/, "Upload form should expose an accessible upload label");
-assert.match(uploadControls, /dropZone\.className = "file-attachment-dropzone"[\s\S]*dropZone\.tabIndex = 0/, "Dropzone should remain keyboard-focusable");
-assert.match(uploadControls, /hint\.textContent = acceptedFileHint\(options\.acceptedCategories\)/, "Upload shell should render an accepted-file hint from Files-owned categories");
+assert.match(uploadControls, /createAttachmentElement\(view, "form"[\s\S]*attrs:\s*\{\s*"aria-label": "Upload files"\s*\}/, "Upload form should expose an accessible upload label");
+assert.match(uploadControls, /createAttachmentElement\(view, "div"[\s\S]*className: "file-attachment-dropzone"[\s\S]*dropZone\.tabIndex = 0/, "Dropzone should remain keyboard-focusable");
+assert.match(uploadControls, /text: acceptedFileHint\(options\.acceptedCategories\)/, "Upload shell should render an accepted-file hint from Files-owned categories");
 assert.match(uploadControls, /input\.multiple = true/, "Upload input should preserve multi-file selection");
-assert.match(uploadControls, /input\.accept = acceptedExtensions\(options\.acceptedCategories\)\.join\(","\)/, "Upload input should keep accepted extensions Files-owned");
+assert.match(uploadControls, /accept: acceptedExtensions\(options\.acceptedCategories\)\.join\(","\)/, "Upload input should keep accepted extensions Files-owned");
 assert.match(uploadControls, /await uploadFiles\(container, state, \[\.\.\.input\.files\]\)/, "Submit should keep using the Files-owned upload handler");
 assert.match(uploadControls, /event\.dataTransfer\?\.files[\s\S]*await uploadFiles\(container, state, files\)/, "Drop should preserve drag/drop multi-file upload");
 assert.match(uploadControls, /form\.append\(createUploadShell\(state, view, \[dropZone, hint, controlRow, results\]\)\)/, "Upload controls should render through the shared shell placement");
@@ -34,16 +34,16 @@ assert.match(createUploadShell, /className: "file-attachment-upload-shell"/, "Up
 assert.match(createUploadShell, /"data-file-upload-shell": ""/, "Upload shell should expose a stable data hook");
 assert.match(createUploadShell, /statusMessage: uploadStatusMessage\(state\)/, "Upload shell should route progress/status through shared shell status");
 assert.match(createUploadShell, /"data-file-upload-status": ""/, "Upload status should expose a stable data hook");
-assert.match(createUploadShell, /document\.createElement\("div"\)[\s\S]*shell\.dataset\.fileUploadShell = ""/, "Upload shell should keep a DOM fallback for load-order safety");
+assert.match(createUploadShell, /return createAttachmentElement\(view, "div"[\s\S]*file-attachment-upload-shell[\s\S]*fileUploadShell/, "Upload shell should use the centralized attachment element fallback when the shared list shell is unavailable");
 
 const createUploadButton = functionBlock(helper, "createUploadButton");
 assert.match(createUploadButton, /view\?\.createActionButton/, "Upload button should use the shared action button when available");
 assert.match(createUploadButton, /action: "files\.upload"[\s\S]*role: "primary"[\s\S]*type: "submit"/, "Shared upload button should keep an explicit action id, role, and submit type");
-assert.match(createUploadButton, /button\.type = "submit"[\s\S]*button\.disabled = state\.isUploading/, "Upload button should keep a native fallback button");
+assert.match(createUploadButton, /createAttachmentElement\(view, "button"[\s\S]*type: "submit"[\s\S]*button\.disabled = state\.isUploading/, "Upload button should keep a centralized native fallback button");
 
 const uploadResultList = functionBlock(helper, "uploadResultList");
-assert.match(uploadResultList, /list\.dataset\.fileUploadResults = ""/, "Per-file upload results should expose a stable data hook");
-assert.match(uploadResultList, /state\.uploadResults\.map\(\(result\) => createUploadResultItem\(result\)\)/, "Per-file upload results should remain visible after batch uploads");
+assert.match(uploadResultList, /"data-file-upload-results": ""|fileUploadResults: ""/, "Per-file upload results should expose a stable data hook");
+assert.match(uploadResultList, /state\.uploadResults\.map\(\(result\) => createUploadResultItem\(view, result\)\)/, "Per-file upload results should remain visible after batch uploads");
 assert.match(uploadResultList, /result\.ok \?[\s\S]*uploaded\.[\s\S]*Upload failed\./, "Upload results should show success and failure rows");
 
 const uploadStatusMessage = functionBlock(helper, "uploadStatusMessage");

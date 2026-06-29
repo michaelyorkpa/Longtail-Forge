@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const appVersion = "0.33.5.18.12.5";
+const appVersion = "0.33.5.18.12.7";
 
 function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -54,8 +54,8 @@ const regressionSuite = read("scripts/regression-suite.mjs");
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
-assert.match(filesPage, /css\/longtail-forge\.css\?v=12/, "Files page should cache-bust modal styling");
-assert.match(filesPage, /js\/files\.js\?v=12/, "Files page should cache-bust the Files adapter");
+assert.match(filesPage, /css\/longtail-forge\.css\?v=13/, "Files page should cache-bust modal styling");
+assert.match(filesPage, /js\/files\.js\?v=13/, "Files page should cache-bust the Files adapter");
 assert.match(regressionSuite, /scripts\/files-edit-modal-shell-regression\.mjs/, "Regression suite should include the Files edit modal shell regression");
 
 const openerBlock = functionBlock(filesScript, "openFileEditor");
@@ -99,7 +99,9 @@ assert.match(openerBlock, /loadFileEditorTargetOptions\(dialog,\s*row\)/, "File 
 assert.match(buildBlock, /const previewButton = view\.createActionButton\(\{[\s\S]*icon:\s*"eye"[\s\S]*label:\s*`Preview \$\{row\.fileName\}`[\s\S]*event\.preventDefault\(\)[\s\S]*event\.stopPropagation\(\)[\s\S]*openFilePreview\(row,\s*\{\s*trigger:\s*event\.currentTarget\s*\}\)/, "File editor should expose the same standalone Preview footer action as the Files list");
 assert.doesNotMatch(buildBlock, /openFilePreview\(row,\s*\{\s*parent:\s*dialog/, "File editor Preview should not bind the Preview modal to the edit modal");
 assert.match(buildBlock, /previewButton\.dataset\.fileContextPreview = ""[\s\S]*previewButton\.hidden = !row\.previewable[\s\S]*previewButton\.disabled = !row\.previewable/, "File editor Preview action should have a stable marker and hide for non-previewable rows");
-assert.match(buildBlock, /view\.renderDescriptorModalForm\(fileEditorModalDescriptor\(\),[\s\S]*actions:\s*\[previewButton,\s*closeButton,\s*saveButton\]/, "File editor should use the shared descriptor modal form shell with Preview left of Close and Save");
+assert.match(buildBlock, /const markReviewedButton = view\.createActionButton\(\{[\s\S]*action:\s*"files\.restore"[\s\S]*label:\s*`Mark \$\{row\.fileName\} reviewed`[\s\S]*markFileReviewedFromContext\(dialog,\s*row,\s*options\)/, "File editor should expose Mark Reviewed as a modal-only review recovery action");
+assert.match(buildBlock, /markReviewedButton\.dataset\.fileContextMarkReviewed = ""[\s\S]*markReviewedButton\.hidden = !row\.reviewable[\s\S]*markReviewedButton\.disabled = !row\.reviewable/, "File editor Mark Reviewed action should have a stable marker and hide outside in-review recovery");
+assert.match(buildBlock, /view\.renderDescriptorModalForm\(fileEditorModalDescriptor\(\),[\s\S]*utilityActions:\s*\[previewButton,\s*markReviewedButton\][\s\S]*actions:\s*\[closeButton,\s*saveButton\]/, "File editor should use the shared descriptor modal form shell with Preview and Mark Reviewed left of Close and Save");
 assert.match(buildBlock, /viewParts\.form\.addEventListener\("submit"[\s\S]*event\.preventDefault\(\)[\s\S]*saveFileEditorContext\(dialog,\s*row,\s*options\)/, "File editor form should submit through the Files-owned context save handler");
 assert.match(buildBlock, /viewParts\.footer\.dataset\.modalFooter = ""/, "File editor should mark the shared modal footer");
 

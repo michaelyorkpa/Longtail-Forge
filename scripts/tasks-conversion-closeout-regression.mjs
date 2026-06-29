@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.12.5";
+const appVersion = "0.33.5.18.12.7";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -21,7 +21,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should report the Tasks conversion closeout version");
 
 assert.match(roadmap, /Completed 0\.33\.5\.18\.11\.1 through 0\.33\.5\.18\.11\.13 are archived/, "Roadmap should archive completed Files browse/edit/preview slices");
-assert.match(roadmap, /#### Version 0\.33\.5\.18\.12\.1 - Upload control shell and progress\/result behavior/, "Roadmap should report the current Files upload-shell slice");
+assert.match(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "Roadmap should archive the completed Files upload/action/guardrail branch");
 assert.doesNotMatch(roadmap, /### Version 0\.33\.5\.18\.10\.8 - Cross-Module Modal Action Standardization/, "Live roadmap should archive the completed modal action standardization branch");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.7 - Tasks docs, changelog, and closeout/, "Live roadmap should archive the previous completed Tasks closeout slice");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.10\.6 - Tasks strict declarative guardrail enforcement/, "Live roadmap should archive the previous completed Tasks slice");
@@ -49,9 +49,9 @@ assert.match(moduleContract, /Future Quick Action Center or module-triggered tas
 assert.match(moduleContract, /The Task editor is the first completed workflow example for this pattern/, "Module contract should identify the completed workflow example");
 
 assert.match(declarativeDocs, new RegExp(`viewSurfaces\` authoring contract as of ${escapeRegExp(appVersion)}`), "Declarative view docs should report the current Files descriptor version");
-assert.match(declarativeDocs, /Strict guardrails currently enforce `lists\.workspace`, `notes\.workspace`, and `tasks\.workspace`/, "Declarative view docs should include Tasks in strict guardrails");
+assert.match(declarativeDocs, /Strict guardrails currently enforce `files\.browse`, `lists\.workspace`, `notes\.workspace`, and `tasks\.workspace`/, "Declarative view docs should include Tasks in strict guardrails");
 assert.match(declarativeDocs, /The 0\.33\.5\.18\.10\.7 closeout also locks `LongtailForge\.tasksDialog\.openTaskEditor\(\)` as the canonical module-owned Task editor opener/, "Declarative view docs should document the Tasks editor closeout contract");
-assert.match(declarativeDocs, /\| Files \| files \| files\.html \| files\.browse \| reported \|/, "Declarative inventory should report Files through the framework descriptor surface");
+assert.match(declarativeDocs, /\| Files \| files \| files\.html \| files\.browse \| strict \|/, "Declarative inventory should report Files through the strict framework descriptor surface");
 assert.match(declarativeDocs, /\| Client Projects \| clients \| clients\.html \| - \| reported \|/, "Declarative inventory should leave Clients reported in this closeout");
 assert.match(declarativeDocs, /\| Client Projects \| projects \| projects\.html \| - \| reported \|/, "Declarative inventory should leave Projects reported in this closeout");
 
