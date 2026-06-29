@@ -1,3 +1,10 @@
+## Version 0.33.5.18.14.2 - 2026-06-29 14:08 -04:00
+
+- Moved Clients/Projects related read rows into shared anatomy: Client detail related Projects now use shared collapsible/list/table/action helpers, and Project detail Client/Parent Project context rows use shared list/table/action helpers.
+- Kept Clients/Projects-owned meaning in `public/js/clients-projects.js`: related-row shaping, readable labels, billing summaries, task-default summaries, tag chip content, allowed row actions, save/archive/reparent routes, permissions, and refresh behavior stay module-owned.
+- Added `scripts/clients-projects-related-regions-regression.mjs` and refreshed Clients/Projects contracts/docs to pin the related-region boundary without introducing page-level Inspector/detail/dashboard state.
+- Verification 2026-06-29 14:18 -04:00: targeted Clients/Projects related-region, action-registration, modal-footer, descriptor-host, strict-inventory, and converted-surface guardrail checks passed; `npm run check` passed 198/198 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; `PRAGMA integrity_check` returned `ok`; static host/cache-key checks confirmed Clients, Projects, and Workbench load `clients-projects.js?v=16`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.18.14.2 after restarting the local 8001 server. Authenticated live-browser smoke was not rerun in this pass.
+
 ## Version 0.33.5.18.14.1 - 2026-06-29 13:24 -04:00
 
 - Completed the Clients/Projects remaining action registration cleanup by routing descriptor and query Add/Edit paths through the shared module action registry while keeping dialog bodies, field editors, validation, payloads, save routes, and refresh behavior in Clients/Projects.

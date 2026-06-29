@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.14.1";
+const appVersion = "0.33.5.18.14.2";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -16,9 +16,9 @@ assert.equal(packageJson.version, appVersion, "package.json should report the Cl
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects action registration version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects action registration version");
 
-assert.match(clientsHtml, /clients-projects\.js\?v=15/, "Clients host should load the action-registration adapter cache key");
-assert.match(projectsHtml, /clients-projects\.js\?v=15/, "Projects host should load the action-registration adapter cache key");
-assert.match(workbenchHtml, /clients-projects\.js\?v=15/, "Workbench should load the action-registration adapter cache key for module-triggered actions");
+assert.match(clientsHtml, /clients-projects\.js\?v=16/, "Clients host should load the action-registration adapter cache key");
+assert.match(projectsHtml, /clients-projects\.js\?v=16/, "Projects host should load the action-registration adapter cache key");
+assert.match(workbenchHtml, /clients-projects\.js\?v=16/, "Workbench should load the action-registration adapter cache key for module-triggered actions");
 
 for (const [behaviorId, actionId] of [
   ["client-projects.clients.create", "clients.add"],

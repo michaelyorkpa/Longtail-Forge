@@ -1,6 +1,6 @@
 # Clients/Projects Strict Guardrail Inventory
 
-Current as of 0.33.5.18.14.1. Clients and Projects guardrails are reporting-only in this slice. `client-projects.clients` and `client-projects.projects` are active read descriptors with framework-rendered read anatomy and `views/protected/clients.html` plus `views/protected/projects.html` are minimal hosts, but these surfaces are not strict declarative surfaces yet.
+Current as of 0.33.5.18.14.2. Clients and Projects guardrails are reporting-only in this slice. `client-projects.clients` and `client-projects.projects` are active read descriptors with framework-rendered read anatomy and `views/protected/clients.html` plus `views/protected/projects.html` are minimal hosts, but these surfaces are not strict declarative surfaces yet.
 
 This inventory prepares strict enforcement for the Clients and Projects page conversion without changing routes, write payloads, permissions, schema, or workflow behavior.
 
@@ -10,7 +10,7 @@ This inventory prepares strict enforcement for the Clients and Projects page con
 | --- | --- | --- | --- |
 | Clients page host | Minimal `views/protected/clients.html` host plus descriptor render in `public/js/clients-projects.js`. | Page header, status, filters, hierarchy/list/table shell, page action, row action placement, empty/loading/error states. | Business-only Client availability, readable Client labels, Client status/tag filtering, Add/Edit Client opener, save/refresh behavior. |
 | Projects page host | Minimal `views/protected/projects.html` host plus descriptor render in `public/js/clients-projects.js`. | Page header, status, filters, hierarchy/list/table shell, page action, row action placement, empty/loading/error states. | Project hierarchy display data, Personal/Family project-only scope, workspace project behavior, readable Project and Client labels, Add/Edit Project opener, save/refresh behavior. |
-| Shared Clients/Projects browser adapter | `public/js/clients-projects.js` | Descriptor mounting, registered module-action behavior handlers, option-source hydration, and shared table/list/index/bulk/action shell calls where descriptors cannot express the fragment. | Route calls, query-param openers, editor field bodies, billing defaults, task-default editors, tag assignment, parent selectors, payload construction, validation, refresh/focus callbacks. |
+| Shared Clients/Projects browser adapter | `public/js/clients-projects.js` | Descriptor mounting, registered module-action behavior handlers, option-source hydration, related list/table/action shells, and shared table/list/index/bulk/action shell calls where descriptors cannot express the fragment. | Route calls, query-param openers, editor field bodies, related-row shaping, billing defaults, task-default editors, tag assignment, parent selectors, payload construction, validation, refresh/focus callbacks. |
 | Module manifest | `src/modules/client-projects/module.js` | `viewSurfaces` descriptors for `client-projects.clients` and `client-projects.projects`; future strict guardrails once remaining action/bulk/related-table cleanup completes. | Module permissions, workspace capability gates, link/tag/file/search contributions, and module-owned behavior IDs. |
 | Read routes | `/api/clients`, `/api/projects`, `/api/client-projects` | Descriptor `dataSource` calls and option-source mounting only. | Server-owned filtering, hierarchy ordering, permission pruning, readable labels, Business-only Client scope, Personal/Family project scope, option payloads. |
 
@@ -64,10 +64,20 @@ This slice normalizes the remaining Add/Edit action path without changing the Cl
 - the duplicate page-level Add Client compatibility shell, duplicate Add Client submit path, and adapter-level first-party action registration blocks are removed.
 - dialog bodies, tag pickers, billing and task-default editors, parent selectors, payload construction, validation, save routes, refresh callbacks, and host-context completion remain Clients/Projects-owned.
 
+## 0.33.5.18.14.2 Related Table and Detail Regions
+
+This slice moves related Client/Project read context into shared shells without adding page-level detail state:
+
+- Client detail reads mount a related Projects region through `LongtailForge.view.createCollapsibleIndexPanel()`, `createListShell()`, `createDataTable()`, and `createDetailActionStrip()`.
+- related Project rows preserve display-only hierarchy metadata, readable Project labels, status, billing summary, task-default summary, tag display, and the existing Project editor action.
+- the Project editor's Client and Parent Project context rows render through shared list/table/action helpers while dispatching Edit/Add actions through the canonical module-action bridge.
+- Clients/Projects still owns related-row shaping, readable Client/Project labels, billing/task-default summaries, tag chip content, and allowed row actions.
+- save, archive, parent/reparent, billing, tags, task defaults, reminders, audit, search, and permission behavior stay on existing Clients/Projects route/service paths.
+- this slice does not add a persistent Inspector-style detail pane, selected-row dashboard, new route, schema change, or bulk-control conversion.
+
 ## Not In Scope
 
 - No `client-projects.clients` or `client-projects.projects` strict enforcement yet.
-- 14.2 remains responsible for related table/detail-region conversion.
 - 14.3 remains responsible for bulk-control shell conversion.
 - No route, schema, permission, write-payload, workflow, billing, tag-assignment, or hierarchy mutation changes.
 - No persistent Inspector, dashboard-style detail pane, inline editor redesign, or drag/drop hierarchy editing.

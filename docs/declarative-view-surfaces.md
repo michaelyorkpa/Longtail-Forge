@@ -1,6 +1,6 @@
 # Declarative View Surfaces
 
-This guide describes the current `viewSurfaces` authoring contract as of 0.33.5.18.14.1.
+This guide describes the current `viewSurfaces` authoring contract as of 0.33.5.18.14.2.
 
 Declarative view surfaces are framework-rendered protected surfaces described by module manifest data or by framework-owned descriptor registries for framework-owned pages. They are for common app anatomy: page headers, filters, selector/index panels, split layouts, tables, detail headers, action strips, summary panels, field grids, modal shells, modal footers, item rows, and linked-record panels.
 
@@ -45,7 +45,7 @@ Strict guardrails currently enforce `files.browse`, `lists.workspace`, `notes.wo
 
 As of the 0.33.5.18.12.7 closeout, the Files conversion branch is complete at this boundary. `files.browse` stays strict; upload, attachment-panel, row/attachment action, visual-state, File Context, and Preview anatomy all use descriptors or shared helpers where framework-owned; and File Context plus Preview remain route-backed modal workflows rather than inline browse bodies. The current Files review-flow exception keeps `Mark Reviewed` inside the route-backed File Context modal and uses the existing Files restore route. It does not permit inline browse review panes, raw scan/quarantine metadata controls, storage controls, or general Inspector behavior.
 
-As of 0.33.5.18.14.1, `docs/clients-projects-strict-guardrail-inventory.md` maps the Clients/Projects page conversion boundary before strict enforcement. `client-projects.clients` and `client-projects.projects` are active descriptors with framework-rendered read anatomy while remaining reporting-only; the protected hosts are minimal but not strict. The browser adapter registers descriptor Add/Edit behaviors that route through the shared module-action registry, hydrates tag and Client filter options, preserves query-param openers through the same canonical action IDs, hides Client filters outside Business workspaces, and refreshes the descriptor surface after existing dialog saves. Clients/Projects keeps hierarchy rules, billing/task-default editors, tag assignment, route calls, permissions, save payloads, dialog bodies, and workflow behavior.
+As of 0.33.5.18.14.2, `docs/clients-projects-strict-guardrail-inventory.md` maps the Clients/Projects page conversion boundary before strict enforcement. `client-projects.clients` and `client-projects.projects` are active descriptors with framework-rendered read anatomy while remaining reporting-only; the protected hosts are minimal but not strict. The browser adapter registers descriptor Add/Edit behaviors that route through the shared module-action registry, hydrates tag and Client filter options, preserves query-param openers through the same canonical action IDs, hides Client filters outside Business workspaces, renders related Project and Project-context read rows through shared list/table/action helpers, and refreshes the descriptor surface after existing dialog saves. Clients/Projects keeps hierarchy rules, related-row shaping, billing/task-default editors, tag assignment, route calls, permissions, save payloads, dialog bodies, and workflow behavior.
 
 A strict declarative surface must:
 
@@ -71,7 +71,7 @@ The module adapter decorates descriptor-rendered nodes with compatibility hooks 
 
 ## Protected View Inventory
 
-The inventory below is current for 0.33.5.18.14.1. `strict` means the static guardrail fails on declarative-surface violations. `reported` means the view is known to the inventory but is not strict-converted in this slice. Files is strict as of 0.33.5.18.12.6 after the strict guardrail inventory was promoted to enforcement. Clients/Projects has active reported descriptors with framework-rendered read anatomy and shared module-action dispatch as of 0.33.5.18.14.1, but `client-projects.clients` and `client-projects.projects` are not strict surfaces yet.
+The inventory below is current for 0.33.5.18.14.2. `strict` means the static guardrail fails on declarative-surface violations. `reported` means the view is known to the inventory but is not strict-converted in this slice. Files is strict as of 0.33.5.18.12.6 after the strict guardrail inventory was promoted to enforcement. Clients/Projects has active reported descriptors with framework-rendered read anatomy, shared module-action dispatch, and related-region helper adoption as of 0.33.5.18.14.2, but `client-projects.clients` and `client-projects.projects` are not strict surfaces yet.
 
 | Module | View | File | Descriptor Surface | Guardrail |
 | --- | --- | --- | --- | --- |

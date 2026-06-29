@@ -937,6 +937,7 @@ function openClientDetailDialog(client, options = {}) {
     createClientNameEditor(client, { showSaveButton: false }),
     createBillingContactEditor(client, { showSaveButton: false }),
     createClientBillingSettingsEditor(client, { showSaveButton: false }),
+    createRelatedProjectsRegion(client),
   );
   closeActions.classList.add("form-actions");
   createClientPageActions(client, {
@@ -2191,40 +2192,158 @@ async function saveClientSettings(client, container, options = {}) {
 }
 
 function createProjectList(client) {
-  const details = document.createElement("details");
-  details.className = "project-section";
-
-  const summary = document.createElement("summary");
-  summary.textContent = "Projects";
-
-  const list = document.createElement("div");
-  list.className = "project-list";
-
-  sortProjectsForClient(client).forEach((project) => {
-    list.appendChild(createProjectEditor(client, project));
-  });
-
-  details.append(summary, list);
-  return details;
+  return createRelatedProjectsRegion(client, { editorRows: true });
 }
 
 function createProjectCards(client) {
-  const list = document.createElement("div");
-  list.className = "project-list project-list-flat";
+  return createRelatedProjectsRegion(client, {
+    collapsible: false,
+    editorRows: true,
+    flat: true,
+  });
+}
 
-  if (client.projects.length === 0) {
-    const emptyMessage = document.createElement("p");
-    emptyMessage.className = "placeholder-copy";
-    emptyMessage.textContent = "No projects yet.";
-    list.appendChild(emptyMessage);
+function createRelatedProjectsRegion(client, options = {}) {
+  const relatedProjects = sortProjectsForClient(client);
+  const list = options.editorRows
+    ? createRelatedProjectEditorList(client, relatedProjects, options)
+    : createRelatedProjectTableList(client, relatedProjects, options);
+
+  if (options.collapsible === false) {
     return list;
   }
 
-  sortProjectsForClient(client).forEach((project) => {
-    list.appendChild(createProjectEditor(client, project));
+  return requireView().createCollapsibleIndexPanel({
+    title: "Projects",
+    open: true,
+    className: "project-section client-projects-related-region",
+    ariaLabel: `Projects for ${client.name || "client"}`,
+    body: [list],
   });
+}
 
-  return list;
+function createRelatedProjectEditorList(client, projects, options = {}) {
+  const rows = projects.length
+    ? projects.map((project) => createProjectEditor(client, project))
+    : [createRelatedProjectsEmptyState()];
+
+  return requireView().createListShell({
+    className: [
+      "project-list",
+      options.flat ? "project-list-flat" : "",
+      "client-projects-related-list",
+    ].filter(Boolean).join(" "),
+    status: false,
+    attrs: { "data-client-projects-related-projects": client.id || "" },
+    children: rows,
+  });
+}
+
+function createRelatedProjectTableList(client, projects) {
+  return requireView().createListShell({
+    className: "client-projects-related-list",
+    status: false,
+    attrs: { "data-client-projects-related-projects": client.id || "" },
+    children: [createRelatedProjectsDataTable(client, projects)],
+  });
+}
+
+function createRelatedProjectsDataTable(client, projects) {
+  return requireView().createDataTable({
+    className: "client-projects-related-table-wrap",
+    tableClassName: "client-projects-related-table",
+    hierarchy: {
+      depthField: "depth",
+      parentField: "parentProjectId",
+    },
+    columns: [
+      {
+        key: "name",
+        label: "Project",
+        header: true,
+        render: (row) => createRelatedProjectNameCell(row),
+      },
+      { key: "status", label: "Status" },
+      { key: "billingSummary", label: "Billing" },
+      { key: "taskDefaultsSummary", label: "Task Defaults" },
+      {
+        key: "actions",
+        label: "Actions",
+        align: "right",
+        render: (row) => createRelatedProjectActionStrip(row),
+      },
+    ],
+    rows: projects.map((project) => relatedProjectRow(client, project)),
+    emptyMessage: "No projects yet.",
+  });
+}
+
+function createRelatedProjectNameCell(row) {
+  const wrapper = document.createElement("span");
+  wrapper.className = "client-projects-related-name";
+  wrapper.textContent = row.name;
+  appendTagChips(wrapper, row.project.tags);
+  return wrapper;
+}
+
+function createRelatedProjectActionStrip(row) {
+  return requireView().createDetailActionStrip({
+    ariaLabel: `Project actions for ${row.name}`,
+    className: "client-projects-related-actions",
+    actions: [
+      {
+        label: "Edit",
+        role: "utility",
+        action: "edit-project",
+        onClick: () => {
+          void openClientProjectModuleAction("projects.edit", { projectId: row.project.id })
+            .catch(handleClientProjectActionError);
+        },
+      },
+    ],
+  });
+}
+
+function relatedProjectRow(client, project) {
+  return {
+    id: project.id,
+    name: project.name,
+    status: project.status,
+    depth: getProjectDepth(project, client),
+    parentProjectId: project.parent_project_id || "",
+    billingSummary: formatProjectBillingSummary(client, project),
+    taskDefaultsSummary: formatProjectTaskDefaultsSummary(project),
+    project,
+  };
+}
+
+function createRelatedProjectsEmptyState() {
+  return requireView().createEmptyState({
+    title: "No projects yet.",
+    className: "client-projects-related-empty",
+  });
+}
+
+function formatProjectBillingSummary(client, project) {
+  if (normalizeBillableFlag(project.billable) !== "yes") {
+    return "Non-billable";
+  }
+
+  const rate = project.billing_rate ? `$${project.billing_rate}/hour` : "Billable";
+  return [
+    rate,
+    formatBillingPeriod(getEffectiveProjectBillingPeriod(client, project)),
+    formatBillingRounding(getEffectiveProjectBillingRounding(client, project)),
+  ].filter(Boolean).join(" / ");
+}
+
+function formatProjectTaskDefaultsSummary(project) {
+  const defaults = normalizeProjectTaskDefaults(project.taskDefaults);
+  return [
+    `Status ${formatToken(defaults.status)}`,
+    `Priority ${formatToken(defaults.priority)}`,
+    projectTaskAssigneeModeLabels[defaults.defaultAssigneeMode] || formatToken(defaults.defaultAssigneeMode),
+  ].filter(Boolean).join(" / ");
 }
 
 function createProjectEditor(client, project, options = {}) {
@@ -2623,36 +2742,105 @@ function createAddProjectClientAssignment(client) {
 }
 
 function createProjectClientShortcutActions(project) {
-  const wrapper = document.createElement("div");
-
-  wrapper.className = "project-add-client-actions";
-  wrapper.hidden = !clientsEnabledForWorkspace();
-  const editClientButton = createEditClientShortcutButton(project.client_id);
-
-  if (editClientButton) {
-    wrapper.appendChild(editClientButton);
-  }
-
-  const addClientButton = createAddClientShortcutButton();
-  if (addClientButton) {
-    wrapper.appendChild(addClientButton);
-  }
-  return wrapper;
+  return createProjectClientContextRegion(project);
 }
 
-function createEditClientShortcutButton(clientId) {
-  if (!clientId || !clientsEnabledForWorkspace()) {
-    return null;
+function createProjectClientContextRegion(project) {
+  if (!clientsEnabledForWorkspace()) {
+    return requireView().createElement("div", {
+      className: "client-projects-related-context",
+      hidden: true,
+    });
   }
 
-  const button = document.createElement("button");
-
-  button.type = "button";
-  button.textContent = "Edit Client";
-  button.addEventListener("click", () => {
-    window.location.href = `clients.html?client=${encodeURIComponent(clientId)}`;
+  const rows = createProjectClientContextRows(project);
+  return requireView().createListShell({
+    className: "client-projects-related-context",
+    status: false,
+    attrs: {
+      "aria-label": `Project context for ${project.name || "project"}`,
+      "data-client-projects-related-context": project.id || "",
+    },
+    children: [
+      requireView().createDataTable({
+        className: "client-projects-related-context-table-wrap",
+        tableClassName: "client-projects-related-context-table",
+        columns: [
+          { key: "type", label: "Context", header: true },
+          { key: "label", label: "Record" },
+          {
+            key: "actions",
+            label: "Actions",
+            align: "right",
+            render: (row) => createProjectContextActionStrip(row),
+          },
+        ],
+        rows,
+        emptyMessage: "No related context.",
+      }),
+    ],
   });
-  return button;
+}
+
+function createProjectClientContextRows(project) {
+  const targetClient = getProjectTargetClient(project.client_id);
+  const rows = [
+    {
+      type: "Client",
+      label: getProjectClientLabel(targetClient),
+      actions: [
+        project.client_id ? {
+          label: "Edit",
+          role: "utility",
+          action: "edit-client",
+          onClick: () => {
+            void openClientProjectModuleAction("clients.edit", { clientId: project.client_id })
+              .catch(handleClientProjectActionError);
+          },
+        } : null,
+        {
+          label: "Add Client",
+          role: "secondary",
+          action: "add-client",
+          onClick: () => {
+            void openClientProjectModuleAction("clients.add")
+              .catch(handleClientProjectActionError);
+          },
+        },
+      ].filter(Boolean),
+    },
+  ];
+  const parentProject = project.parent_project_id
+    ? targetClient.projects.find((candidate) => candidate.id === project.parent_project_id)
+    : null;
+
+  rows.push({
+    type: "Parent Project",
+    label: parentProject?.name || "No parent project",
+    actions: parentProject ? [{
+      label: "Edit",
+      role: "utility",
+      action: "edit-project",
+      onClick: () => {
+        void openClientProjectModuleAction("projects.edit", { projectId: parentProject.id })
+          .catch(handleClientProjectActionError);
+      },
+    }] : [],
+  });
+
+  return rows;
+}
+
+function createProjectContextActionStrip(row) {
+  if (!row.actions.length) {
+    return document.createTextNode("");
+  }
+
+  return requireView().createDetailActionStrip({
+    ariaLabel: `${row.type} actions`,
+    className: "client-projects-related-actions",
+    actions: row.actions,
+  });
 }
 
 function createAddClientShortcutButton() {

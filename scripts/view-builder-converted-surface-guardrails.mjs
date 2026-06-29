@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const version = "0.33.5.15.6";
-const appVersion = "0.33.5.18.14.1";
+const appVersion = "0.33.5.18.14.2";
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
@@ -71,7 +71,7 @@ for (const html of [clientsHtml, projectsHtml, workbenchHtml]) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=\d+/, "Client/Project surfaces should load view-renderer");
   assert.ok(
     html.indexOf("js/shared/view-builder.js") < html.indexOf("js/shared/view-renderer.js") &&
-      html.indexOf("js/shared/view-renderer.js") < html.indexOf("clients-projects.js?v=15"),
+      html.indexOf("js/shared/view-renderer.js") < html.indexOf("clients-projects.js?v=16"),
     "Client/Project surfaces should load view-builder and view-renderer before shared Client/Project code",
   );
 }

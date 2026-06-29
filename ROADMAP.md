@@ -12,6 +12,7 @@ Completed 0.33.5.18.11.1 through 0.33.5.18.11.13 are archived in `ROADMAP-ARCHIV
 Completed 0.33.5.18.12.1 through 0.33.5.18.12.7 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.13.1 through 0.33.5.18.13.3 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.14.1 is archived in `ROADMAP-ARCHIVE.md`.
+Completed 0.33.5.18.14.2 is archived in `ROADMAP-ARCHIVE.md`.
 
 ## Clients/Projects Pages (0.33.5.18.13 - 0.33.5.18.14)
 
@@ -31,18 +32,6 @@ routes, client/project option data, billing metadata and defaults, task-default 
 Business-only Client availability, Personal/Family project-only scope, payload construction,
 permissions, audit/search/event side effects, safe labels, tag assignment semantics, save/refresh
 behavior, and the already-converted Add/Edit Client and Add/Edit Project dialog behavior.
-
-### Version 0.33.5.18.14.2 - Clients/Projects Related Tables and Detail Regions
-
-- [ ] Move related Project rows on Client reads and related Client/Project context rows on Project
-      reads into framework-owned table/list/region shells.
-- [ ] Keep the Clients/Projects adapter responsible for related-row data shaping, readable labels,
-      Project Client context, billing/task-default summary values, and allowed row actions.
-- [ ] Keep save, archive, parent/reparent, billing, tags, task defaults, reminders, audit, search, and
-      permission behavior on existing module route/service paths.
-- [ ] Do not introduce a persistent Inspector-style detail pane or a new dashboard on either page.
-- [ ] Add regressions proving related tables render through shared anatomy while row actions continue
-      through module-owned behavior handlers.
 
 ### Version 0.33.5.18.14.3 - Clients/Projects Bulk Controls and Selection Behavior
 
