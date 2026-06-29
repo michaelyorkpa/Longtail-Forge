@@ -121,10 +121,8 @@ check("Client and Project actions use module-owned reusable dialog helpers", () 
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.clientProjectDialog\.openAddClient\(params, hostContext\)/);
   assert.match(moduleActionsSource, /open: \(params, hostContext\) => namespace\.clientProjectDialog\.openEditClient\(params, hostContext\)/);
   assert.match(clientsProjectsScript, /window\.LongtailForge\.clientProjectDialog = clientProjectDialogApi/);
-  assert.match(clientsProjectsScript, /actionId: "projects\.add"/);
-  assert.match(clientsProjectsScript, /actionId: "projects\.edit"/);
-  assert.match(clientsProjectsScript, /actionId: "clients\.add"/);
-  assert.match(clientsProjectsScript, /actionId: "clients\.edit"/);
+  assert.match(clientsProjectsScript, /function openClientProjectModuleAction[\s\S]*moduleActions\.open\(actionId, params/, "Clients/Projects descriptor and query actions should dispatch through the shared module action registry");
+  assert.doesNotMatch(clientsProjectsScript, /window\.LongtailForge\.moduleActions\?\.register/, "Clients/Projects adapter should not duplicate first-party module action metadata");
 });
 
 check("module-owned saves can signal host completion", () => {

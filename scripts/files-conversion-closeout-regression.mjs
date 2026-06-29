@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.13.3";
+const appVersion = "0.33.5.18.14.1";
 const filesCloseoutVersion = "0.33.5.18.12.7";
 
 const packageJson = JSON.parse(readText("package.json"));
@@ -38,7 +38,7 @@ assert.match(viewContract, /File Context and Preview remain route-backed, attach
 
 assert.match(declarativeGuide, new RegExp(`viewSurfaces\` authoring contract as of ${escapeRegExp(appVersion)}`), "Declarative guide should report the Files closeout version");
 assert.match(declarativeGuide, /As of the 0\.33\.5\.18\.12\.7 closeout, the Files conversion branch is complete at this boundary/, "Declarative guide should document the closeout");
-assert.match(declarativeGuide, /Files is strict as of 0\.33\.5\.18\.12\.6[\s\S]*Clients\/Projects has active reported descriptors with framework-rendered read anatomy as of 0\.33\.5\.18\.13\.3/, "Declarative inventory should distinguish strict Files from reported Clients/Projects");
+assert.match(declarativeGuide, /Files is strict as of 0\.33\.5\.18\.12\.6[\s\S]*Clients\/Projects has active reported descriptors with framework-rendered read anatomy and shared module-action dispatch as of 0\.33\.5\.18\.14\.1/, "Declarative inventory should distinguish strict Files from reported Clients/Projects");
 
 assert.match(moduleContract, /As of 0\.33\.5\.18\.12\.7, the Files browse\/edit\/preview\/upload\/action\/strict-guardrail conversion branch is closed/, "Module contract should record the closeout");
 assert.match(moduleContract, /route-backed File Context and Preview modals[\s\S]*shared attachment\/upload\/action shells[\s\S]*strict `files\.browse` guardrails/, "Module contract should summarize the completed Files boundary");

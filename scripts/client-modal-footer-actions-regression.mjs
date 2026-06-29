@@ -40,7 +40,8 @@ assert.match(
   /requireView\(\)\.createModal\(\{\s*title: `Edit Project: \$\{project\.name\}`,\s*className: "project-form-dialog detail-edit-dialog",\s*body: \[projectEditor\],\s*footer: \[closeActions\],/s,
   "Edit Project dialog should use the shared modal helper and footer.",
 );
-assert.match(clientsScript, /function buildClientProjectDialogShells\(\)/, "Client page Add Client shell should be helper-built at source.");
+assert.doesNotMatch(clientsScript, /function buildClientProjectDialogShells\(\)/, "Client page should not rebuild a duplicate Add Client shell.");
+assert.doesNotMatch(clientsScript, /function openAddClientModal\(\)/, "Client page should use the canonical Add Client dialog action instead of a duplicate modal opener.");
 assert.match(clientsScript, /function createModalAction/, "Converted dialogs should use shared modal action creation.");
 assert.match(clientsScript, /surface-modal-footer-action/, "Converted dialog actions should use shared modal footer action classes.");
 for (const functionName of [
@@ -59,9 +60,9 @@ assert.doesNotMatch(clientsHtml, /<dialog data-client-modal>/, "Clients page sho
 assert.match(clientsHtml, /js\/shared\/view-builder\.js\?v=\d+/);
 assert.match(projectsHtml, /js\/shared\/view-builder\.js\?v=\d+/);
 assert.match(workbenchHtml, /js\/shared\/view-builder\.js\?v=\d+/);
-assert.match(clientsHtml, /clients-projects\.js\?v=13/);
-assert.match(projectsHtml, /clients-projects\.js\?v=13/);
-assert.match(workbenchHtml, /clients-projects\.js\?v=13/);
+assert.match(clientsHtml, /clients-projects\.js\?v=15/);
+assert.match(projectsHtml, /clients-projects\.js\?v=15/);
+assert.match(workbenchHtml, /clients-projects\.js\?v=15/);
 
 console.log("Client modal footer actions regression passed.");
 

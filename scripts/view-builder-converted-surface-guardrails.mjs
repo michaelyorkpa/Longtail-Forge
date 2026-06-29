@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const version = "0.33.5.15.6";
-const appVersion = "0.33.5.18.13.3";
+const appVersion = "0.33.5.18.14.1";
 const changelog = readText("CHANGELOG.md");
 const viewContract = readText("docs/view-building-contract.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
@@ -71,7 +71,7 @@ for (const html of [clientsHtml, projectsHtml, workbenchHtml]) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=\d+/, "Client/Project surfaces should load view-renderer");
   assert.ok(
     html.indexOf("js/shared/view-builder.js") < html.indexOf("js/shared/view-renderer.js") &&
-      html.indexOf("js/shared/view-renderer.js") < html.indexOf("clients-projects.js?v=13"),
+      html.indexOf("js/shared/view-renderer.js") < html.indexOf("clients-projects.js?v=15"),
     "Client/Project surfaces should load view-builder and view-renderer before shared Client/Project code",
   );
 }
@@ -81,7 +81,6 @@ assert.match(functionBlock(clientsScript, "createModalCommitGroup"), /surface-mo
 assert.match(functionBlock(clientsScript, "createModalAction"), /surface-modal-footer-action/, "Converted Client/Project actions should keep framework footer action classes");
 
 for (const functionName of [
-  "createAddClientPageDialogShell",
   "openProjectDetailDialog",
   "openClientDetailDialog",
   "openAddProjectDialog",
@@ -93,6 +92,7 @@ for (const functionName of [
   assert.doesNotMatch(block, /\.classList\.add\([^)]*modal-actions/, `${functionName} should not add one-off modal action classes outside helper calls`);
   assertNoHardcodedLightBackgrounds(block, `${functionName} converted dialog source`);
 }
+assert.doesNotMatch(clientsScript, /function createAddClientPageDialogShell/, "Client/Project source should not keep a duplicate page-level Add Client dialog shell");
 
 const viewCss = css.slice(css.indexOf(".view-page-header"), css.indexOf(".site-header"));
 assert(viewCss.length > 0, "Shared view CSS block should be discoverable");

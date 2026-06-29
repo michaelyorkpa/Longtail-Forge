@@ -98,6 +98,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/client-modal-footer-actions-regression.mjs",
   "scripts/clients-projects-read-descriptor-host-regression.mjs",
   "scripts/clients-projects-framework-read-anatomy-regression.mjs",
+  "scripts/clients-projects-action-registration-regression.mjs",
   "scripts/time-entries-screen-regression.mjs",
   "scripts/workbench-task-ordering-regression.mjs",
   "scripts/module-actions-regression.mjs",

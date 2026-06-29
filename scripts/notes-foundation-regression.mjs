@@ -34,7 +34,7 @@ async function assertNotesModuleManifest() {
   const notesModule = modulesService.getModule("notes");
 
   assert.equal(notesModule.id, "notes");
-  assert.equal(notesModule.version, "0.33.5.18.13.3");
+  assert.equal(notesModule.version, "0.33.5.18.14.1");
   assert.equal(notesModule.enabledByDefault, true);
   assert.equal(notesModule.canDisable, true);
   assert.equal(notesModule.historicalReadAccess, true);

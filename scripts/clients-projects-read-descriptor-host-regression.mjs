@@ -10,7 +10,7 @@ import { clientsRepository } from "../src/modules/client-projects/clients.repo.j
 import { projectsRepository } from "../src/modules/client-projects/projects.repo.js";
 import { clientProjectsModule } from "../src/modules/client-projects/module.js";
 
-const appVersion = "0.33.5.18.13.3";
+const appVersion = "0.33.5.18.14.1";
 const businessWorkspaceId = "clients-projects-descriptor-business";
 const personalWorkspaceId = "clients-projects-descriptor-personal";
 const familyWorkspaceId = "clients-projects-descriptor-family";
@@ -42,20 +42,24 @@ assertMinimalHost(projectsHtml, {
   hostClass: "projects-page",
   forbiddenHooks: /\b(data-add-project-top|data-client-list|data-client-status-filter|data-project-client-filter|data-client-project-status|project-page-toolbar|page-heading)\b/,
 });
-assert.match(clientsHtml, /view-builder\.js\?v=4[\s\S]*view-renderer\.js\?v=13[\s\S]*clients-projects\.js\?v=13/, "Clients host should load builder, renderer, then adapter");
-assert.match(projectsHtml, /view-builder\.js\?v=4[\s\S]*view-renderer\.js\?v=13[\s\S]*clients-projects\.js\?v=13/, "Projects host should load builder, renderer, then adapter");
+assert.match(clientsHtml, /view-builder\.js\?v=4[\s\S]*view-renderer\.js\?v=13[\s\S]*clients-projects\.js\?v=15/, "Clients host should load builder, renderer, then adapter");
+assert.match(projectsHtml, /view-builder\.js\?v=4[\s\S]*view-renderer\.js\?v=13[\s\S]*clients-projects\.js\?v=15/, "Projects host should load builder, renderer, then adapter");
 
 assert.doesNotMatch(clientsProjectsScript, /function ensureClientProjectsPageHost\(\)/, "Adapter should no longer recreate page/filter/status/list anatomy inside minimal hosts");
+assert.match(clientsProjectsScript, /async function initializeClientProjectsPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)/, "Adapter should wait for app-shell viewSurfaces before rendering descriptor pages");
 assert.match(clientsProjectsScript, /function renderClientProjectsReadSurface\(\)[\s\S]*view\.renderSurface\(activeClientProjectsReadDescriptor, host\)/, "Adapter should render Clients/Projects pages through the descriptor renderer");
 assert.match(clientsProjectsScript, /loadPageData\(\{ renderPage: false \}\)/, "Descriptor pages should hydrate dialog/query data without invoking the legacy page renderer");
-assert.match(clientsProjectsScript, /view\.registerBehavior\("client-projects\.clients\.create"[\s\S]*openAddClientAction/, "Clients Add action should be a descriptor behavior that calls the canonical dialog API");
-assert.match(clientsProjectsScript, /view\.registerBehavior\("client-projects\.clients\.edit"[\s\S]*openEditClientAction/, "Clients Edit action should be a descriptor behavior that calls the canonical dialog API");
-assert.match(clientsProjectsScript, /view\.registerBehavior\("client-projects\.projects\.create"[\s\S]*openAddProjectAction/, "Projects Add action should be a descriptor behavior that calls the canonical dialog API");
-assert.match(clientsProjectsScript, /view\.registerBehavior\("client-projects\.projects\.edit"[\s\S]*openEditProjectAction/, "Projects Edit action should be a descriptor behavior that calls the canonical dialog API");
+assert.match(clientsProjectsScript, /registerClientProjectsModuleActionBehavior\("client-projects\.clients\.create", "clients\.add"\)/, "Clients Add action should dispatch through the canonical module action");
+assert.match(clientsProjectsScript, /registerClientProjectsModuleActionBehavior\("client-projects\.clients\.edit", "clients\.edit"\)/, "Clients Edit action should dispatch through the canonical module action");
+assert.match(clientsProjectsScript, /registerClientProjectsModuleActionBehavior\("client-projects\.projects\.create", "projects\.add"\)/, "Projects Add action should dispatch through the canonical module action");
+assert.match(clientsProjectsScript, /registerClientProjectsModuleActionBehavior\("client-projects\.projects\.edit", "projects\.edit"\)/, "Projects Edit action should dispatch through the canonical module action");
 assert.match(clientsProjectsScript, /function hydrateProjectClientFilterOptions[\s\S]*!clientsEnabledForWorkspace\(\)[\s\S]*hideDescriptorField/, "Projects Client filter should be hidden/unavailable outside Business workspaces");
 assert.match(clientsProjectsScript, /function withInitialProjectClientFilter[\s\S]*contextWorkspaceType !== "business"/, "URL Client filter seeding should not submit Client IDs in Personal or Family workspaces");
-assert.match(clientsProjectsScript, /function openAddClientModal/, "Add Client dialog opener should remain module-owned");
+assert.match(clientsProjectsScript, /function openClientProjectModuleAction[\s\S]*moduleActions\.open\(actionId, params/, "Descriptor actions should use the shared module action registry");
+assert.match(clientsProjectsScript, /function openAddClientDialog/, "Add Client dialog opener should remain module-owned");
 assert.match(clientsProjectsScript, /function openAddProjectDialog/, "Add Project dialog opener should remain module-owned");
+assert.doesNotMatch(clientsProjectsScript, /function openAddClientModal\(\)/, "Adapter should not keep the duplicate Add Client modal opener");
+assert.doesNotMatch(clientsProjectsScript, /window\.LongtailForge\.moduleActions\?\.register/, "Adapter should not duplicate first-party module action registration");
 assert.match(clientsProjectsScript, /\/api\/client-projects/, "Dialog and option workflows should keep the shared /api/client-projects source");
 
 const surfaces = new Map(clientProjectsModule.viewSurfaces.map((surface) => [surface.id, surface]));

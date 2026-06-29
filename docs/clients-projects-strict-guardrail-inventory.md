@@ -1,6 +1,6 @@
 # Clients/Projects Strict Guardrail Inventory
 
-Current as of 0.33.5.18.13.3. Clients and Projects guardrails are reporting-only in this slice. `client-projects.clients` and `client-projects.projects` are active read descriptors with framework-rendered read anatomy and `views/protected/clients.html` plus `views/protected/projects.html` are minimal hosts, but these surfaces are not strict declarative surfaces yet.
+Current as of 0.33.5.18.14.1. Clients and Projects guardrails are reporting-only in this slice. `client-projects.clients` and `client-projects.projects` are active read descriptors with framework-rendered read anatomy and `views/protected/clients.html` plus `views/protected/projects.html` are minimal hosts, but these surfaces are not strict declarative surfaces yet.
 
 This inventory prepares strict enforcement for the Clients and Projects page conversion without changing routes, write payloads, permissions, schema, or workflow behavior.
 
@@ -10,7 +10,7 @@ This inventory prepares strict enforcement for the Clients and Projects page con
 | --- | --- | --- | --- |
 | Clients page host | Minimal `views/protected/clients.html` host plus descriptor render in `public/js/clients-projects.js`. | Page header, status, filters, hierarchy/list/table shell, page action, row action placement, empty/loading/error states. | Business-only Client availability, readable Client labels, Client status/tag filtering, Add/Edit Client opener, save/refresh behavior. |
 | Projects page host | Minimal `views/protected/projects.html` host plus descriptor render in `public/js/clients-projects.js`. | Page header, status, filters, hierarchy/list/table shell, page action, row action placement, empty/loading/error states. | Project hierarchy display data, Personal/Family project-only scope, workspace project behavior, readable Project and Client labels, Add/Edit Project opener, save/refresh behavior. |
-| Shared Clients/Projects browser adapter | `public/js/clients-projects.js` | Descriptor mounting, registered behavior handlers, option-source hydration, and shared table/list/index/bulk/action shell calls where descriptors cannot express the fragment. | Route calls, query-param openers, editor field bodies, billing defaults, task-default editors, tag assignment, parent selectors, payload construction, validation, refresh/focus callbacks. |
+| Shared Clients/Projects browser adapter | `public/js/clients-projects.js` | Descriptor mounting, registered module-action behavior handlers, option-source hydration, and shared table/list/index/bulk/action shell calls where descriptors cannot express the fragment. | Route calls, query-param openers, editor field bodies, billing defaults, task-default editors, tag assignment, parent selectors, payload construction, validation, refresh/focus callbacks. |
 | Module manifest | `src/modules/client-projects/module.js` | `viewSurfaces` descriptors for `client-projects.clients` and `client-projects.projects`; future strict guardrails once remaining action/bulk/related-table cleanup completes. | Module permissions, workspace capability gates, link/tag/file/search contributions, and module-owned behavior IDs. |
 | Read routes | `/api/clients`, `/api/projects`, `/api/client-projects` | Descriptor `dataSource` calls and option-source mounting only. | Server-owned filtering, hierarchy ordering, permission pruning, readable labels, Business-only Client scope, Personal/Family project scope, option payloads. |
 
@@ -53,10 +53,20 @@ This slice renders the Clients and Projects read pages through `LongtailForge.vi
 - `clients.html` and `projects.html` are minimal hosts that load `view-builder.js`, `view-renderer.js`, and the Clients/Projects adapter in that order.
 - These minimal hosts still leave the canonical list routes, `/api/clients` and `/api/projects`, as the page read sources.
 
+## 0.33.5.18.14.1 Action Registration Cleanup
+
+This slice normalizes the remaining Add/Edit action path without changing the Clients/Projects dialog workflows:
+
+- descriptor page Add/Edit actions and `?client=`, `?project=`, `?addClient=true`, and `?addProject=true` query openers dispatch through `LongtailForge.moduleActions.open(...)`.
+- `public/js/shared/module-actions.js` owns the first-party `clients.add`, `clients.edit`, `projects.add`, and `projects.edit` action metadata.
+- `public/js/clients-projects.js` publishes `LongtailForge.clientProjectDialog` as the module-owned dialog API consumed by the shared module action registry.
+- the adapter keeps a fallback from those action IDs to the existing module-owned `openAddClientAction`, `openEditClientAction`, `openAddProjectAction`, and `openEditProjectAction` implementations for early-load or standalone use.
+- the duplicate page-level Add Client compatibility shell, duplicate Add Client submit path, and adapter-level first-party action registration blocks are removed.
+- dialog bodies, tag pickers, billing and task-default editors, parent selectors, payload construction, validation, save routes, refresh callbacks, and host-context completion remain Clients/Projects-owned.
+
 ## Not In Scope
 
 - No `client-projects.clients` or `client-projects.projects` strict enforcement yet.
-- 14.1 remains responsible for deeper action registration cleanup and dialog behavior registration.
 - 14.2 remains responsible for related table/detail-region conversion.
 - 14.3 remains responsible for bulk-control shell conversion.
 - No route, schema, permission, write-payload, workflow, billing, tag-assignment, or hierarchy mutation changes.

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.13.3";
+const appVersion = "0.33.5.18.14.1";
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
@@ -24,11 +24,12 @@ assert.equal(clientProjectsModule.version, appVersion, "Clients/Projects module 
 assertMinimalHost(clientsHtml, "Clients");
 assertMinimalHost(projectsHtml, "Projects");
 assert.doesNotMatch(clientsProjectsScript, /function ensureClientProjectsPageHost\(\)/, "Read anatomy should not be recreated inside the Clients/Projects adapter");
+assert.match(clientsProjectsScript, /async function initializeClientProjectsPage\(\)[\s\S]*await window\.LongtailForge\?\.workspaceContextReady[\s\S]*activeClientProjectsReadSurface = renderClientProjectsReadSurface\(\)[\s\S]*loadPageData\(\{ renderPage: false \}\)/, "Adapter should wait for app-shell viewSurfaces before rendering descriptor read pages");
 assert.match(clientsProjectsScript, /function renderClientProjectsReadSurface\(\)[\s\S]*view\.renderSurface\(activeClientProjectsReadDescriptor, host\)/, "Adapter should render the descriptor surface into the minimal host");
-assert.match(clientsProjectsScript, /function openAddClientModalFromQuery\(\)[\s\S]*openAddClientModal\(\)/, "Add Client query opener should remain module-owned");
-assert.match(clientsProjectsScript, /function openClientDetailModalFromQuery\(\)[\s\S]*openClientDetailDialog\(client\)/, "Client detail query opener should remain module-owned");
-assert.match(clientsProjectsScript, /function openAddProjectModalFromQuery\(\)[\s\S]*openAddProjectDialog\(getWorkspaceProjectClient\(\)\)/, "Add Project query opener should remain module-owned");
-assert.match(clientsProjectsScript, /function openProjectDetailModalFromQuery\(\)[\s\S]*openProjectDetailDialog\(match\.client, match\.project\)/, "Project detail query opener should remain module-owned");
+assert.match(clientsProjectsScript, /function openAddClientActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("clients\.add"/, "Add Client query opener should dispatch the registered module action");
+assert.match(clientsProjectsScript, /function openEditClientActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("clients\.edit", \{ clientId: client\.id \}/, "Client detail query opener should dispatch the registered module action");
+assert.match(clientsProjectsScript, /function openAddProjectActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("projects\.add"/, "Add Project query opener should dispatch the registered module action");
+assert.match(clientsProjectsScript, /function openEditProjectActionFromQuery\(\)[\s\S]*openClientProjectModuleAction\("projects\.edit", \{ projectId: match\.project\.id \}/, "Project detail query opener should dispatch the registered module action");
 
 assert.match(renderer, /function tableColumns[\s\S]*table\.rowActions[\s\S]*__view_row_actions/, "Renderer should add a framework-owned table action column from descriptor rowActions");
 assert.match(regressionSuite, /scripts\/clients-projects-framework-read-anatomy-regression\.mjs/, "Regression suite should include the Clients/Projects read anatomy regression");

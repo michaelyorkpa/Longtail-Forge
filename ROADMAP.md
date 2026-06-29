@@ -11,6 +11,7 @@ The active roadmap continues with Clients/Projects view conversion work.
 Completed 0.33.5.18.11.1 through 0.33.5.18.11.13 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.12.1 through 0.33.5.18.12.7 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.13.1 through 0.33.5.18.13.3 are archived in `ROADMAP-ARCHIVE.md`.
+Completed 0.33.5.18.14.1 is archived in `ROADMAP-ARCHIVE.md`.
 
 ## Clients/Projects Pages (0.33.5.18.13 - 0.33.5.18.14)
 
@@ -30,20 +31,6 @@ routes, client/project option data, billing metadata and defaults, task-default 
 Business-only Client availability, Personal/Family project-only scope, payload construction,
 permissions, audit/search/event side effects, safe labels, tag assignment semantics, save/refresh
 behavior, and the already-converted Add/Edit Client and Add/Edit Project dialog behavior.
-
-### Version 0.33.5.18.14.1 - Clients/Projects Remaining Action and Dialog Behavior Registration
-
-- [ ] Normalize any remaining module-owned action/dialog behavior registrations beyond the
-      0.33.5.18.13.3 read-page Add/Edit handlers.
-- [ ] Route any remaining descriptor action placement through the framework while keeping the dialog openers,
-      field bodies, validation, save payloads, tag pickers, billing editors, parent selectors, and
-      refresh callbacks in `public/js/clients-projects.js` and Clients/Projects services.
-- [ ] Keep the 0.33.5.15.4 converted modal shell/footer standard; do not reintroduce static
-      `<dialog>` markup or one-off modal footer/action classes.
-- [ ] Preserve module action host-context callbacks for Workbench/search/module-triggered Add/Edit
-      flows.
-- [ ] Add regressions proving remaining descriptor/registered actions call the canonical dialog API
-      and do not duplicate Client/Project forms.
 
 ### Version 0.33.5.18.14.2 - Clients/Projects Related Tables and Detail Regions
 

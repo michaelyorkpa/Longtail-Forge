@@ -22,30 +22,14 @@ let openedClientDetailFromQuery = false;
 let openedAddProjectFromQuery = false;
 let openedProjectDetailFromQuery = false;
 let tagOptions = [];
-let newClientTagPicker = { readTagIds: () => [] };
-
-registerClientProjectsViewBehaviors();
-activeClientProjectsReadSurface = renderClientProjectsReadSurface();
-buildClientProjectDialogShells();
-
-const clientList = document.querySelector("[data-client-list]");
-const addClientButton = document.querySelector("[data-add-client]");
-const addProjectTopButton = document.querySelector("[data-add-project-top]");
-const clientStatusFilter = document.querySelector("[data-client-status-filter]");
-const projectClientFilter = document.querySelector("[data-project-client-filter]");
-const openProjectBulkButton = document.querySelector("[data-open-project-bulk]");
-const statusMessage = document.querySelector("[data-client-project-status]");
-const clientModal = document.querySelector("[data-client-modal]");
-const clientForm = document.querySelector("[data-client-form]");
-const newClientNameInput = document.querySelector("[data-new-client-name]");
-const newParentClientSelect = document.querySelector("[data-new-parent-client]");
-const newClientTagsContainer = document.querySelector("[data-new-client-tags]");
-const newProjectNameInput = document.querySelector("[data-new-project-name]");
-const newProjectBillingRateInput = document.querySelector(
-  "[data-new-project-billing-rate]",
-);
-const newProjectStatusSelect = document.querySelector("[data-new-project-status]");
-const cancelClientButton = document.querySelector("[data-cancel-client]");
+let clientProjectsEventsBound = false;
+let clientList = null;
+let addClientButton = null;
+let addProjectTopButton = null;
+let clientStatusFilter = null;
+let projectClientFilter = null;
+let openProjectBulkButton = null;
+let statusMessage = null;
 const clientStatuses = ["Active", "Inactive"];
 const projectStatuses = ["Active", "Inactive", "Completed"];
 const taskDefaultStatuses = ["open", "in_progress", "blocked", "complete", "archived"];
@@ -76,19 +60,118 @@ const billingContactFields = [
   ["zip_code", "Zip Code"],
 ];
 
+initializeClientProjectsPage();
+
+async function initializeClientProjectsPage() {
+  try {
+    await window.LongtailForge?.workspaceContextReady;
+  } catch {
+    // Navigation falls back to the legacy settings bootstrap; the page will use
+    // the legacy scaffold if a descriptor is not available.
+  }
+
+  registerClientProjectsViewBehaviors();
+  activeClientProjectsReadSurface = renderClientProjectsReadSurface();
+  refreshClientProjectDomRefs();
+  bindClientProjectsPageEvents();
+
+  if (activeClientProjectsReadSurface) {
+    loadPageData({ renderPage: false });
+  } else if (clientList && statusMessage) {
+    loadPageData();
+  }
+}
+
+function refreshClientProjectDomRefs() {
+  clientList = document.querySelector("[data-client-list]");
+  addClientButton = document.querySelector("[data-add-client]");
+  addProjectTopButton = document.querySelector("[data-add-project-top]");
+  clientStatusFilter = document.querySelector("[data-client-status-filter]");
+  projectClientFilter = document.querySelector("[data-project-client-filter]");
+  openProjectBulkButton = document.querySelector("[data-open-project-bulk]");
+  statusMessage = document.querySelector("[data-client-project-status]");
+}
+
+function bindClientProjectsPageEvents() {
+  if (clientProjectsEventsBound) {
+    return;
+  }
+
+  clientProjectsEventsBound = true;
+  clientStatusFilter?.addEventListener("change", renderClients);
+  projectClientFilter?.addEventListener("change", renderClients);
+  openProjectBulkButton?.addEventListener("click", openProjectBulkEditor);
+  addClientButton?.addEventListener("click", () => {
+    void openClientProjectModuleAction("clients.add").catch(handleClientProjectActionError);
+  });
+  addProjectTopButton?.addEventListener("click", () => {
+    void openClientProjectModuleAction("projects.add").catch(handleClientProjectActionError);
+  });
+}
+
 function registerClientProjectsViewBehaviors() {
   if (clientProjectsViewBehaviorsRegistered || typeof view?.registerBehavior !== "function") {
     return;
   }
 
   clientProjectsViewBehaviorsRegistered = true;
-  view.registerBehavior("client-projects.clients.create", () => openAddClientAction());
-  view.registerBehavior("client-projects.clients.edit", ({ record }) => openEditClientAction(record || {}));
-  view.registerBehavior("client-projects.projects.create", () => openAddProjectAction());
-  view.registerBehavior("client-projects.projects.edit", ({ record }) => openEditProjectAction(record || {}));
+  registerClientProjectsModuleActionBehavior("client-projects.clients.create", "clients.add");
+  registerClientProjectsModuleActionBehavior("client-projects.clients.edit", "clients.edit");
+  registerClientProjectsModuleActionBehavior("client-projects.projects.create", "projects.add");
+  registerClientProjectsModuleActionBehavior("client-projects.projects.edit", "projects.edit");
   view.registerBehavior("client-projects.clients.tags", hydrateTagFilterOptions);
   view.registerBehavior("client-projects.projects.tags", hydrateTagFilterOptions);
   view.registerBehavior("client-projects.projects.clients", hydrateProjectClientFilterOptions);
+}
+
+function registerClientProjectsModuleActionBehavior(behaviorId, actionId) {
+  view.registerBehavior(behaviorId, (context = {}) => openClientProjectModuleAction(
+    actionId,
+    clientProjectActionParams(context),
+  ));
+}
+
+function clientProjectActionParams(context = {}) {
+  const record = context.record && typeof context.record === "object" ? context.record : {};
+
+  return {
+    ...record,
+    recordId: record.id || record.recordId || "",
+  };
+}
+
+function openClientProjectModuleAction(actionId, params = {}, options = {}) {
+  const moduleActions = window.LongtailForge?.moduleActions;
+  if (typeof moduleActions?.open === "function") {
+    return moduleActions.open(actionId, params, {
+      refresh: refreshClientProjectData,
+      setStatus,
+      ...options,
+    });
+  }
+
+  return openClientProjectActionFallback(actionId, params, options.hostContext || null);
+}
+
+function openClientProjectActionFallback(actionId, params = {}, hostContext = null) {
+  if (actionId === "clients.add") {
+    return openAddClientAction(params, hostContext);
+  }
+  if (actionId === "clients.edit") {
+    return openEditClientAction(params, hostContext);
+  }
+  if (actionId === "projects.add") {
+    return openAddProjectAction(params, hostContext);
+  }
+  if (actionId === "projects.edit") {
+    return openEditProjectAction(params, hostContext);
+  }
+  return Promise.reject(new Error(`Client/Project action '${actionId}' is not registered.`));
+}
+
+function handleClientProjectActionError(error) {
+  setStatus(error?.message || "Client/Project action could not be opened.", { isError: true });
+  console.error(error);
 }
 
 function renderClientProjectsReadSurface() {
@@ -199,22 +282,6 @@ function showDescriptorField(control) {
   }
 }
 
-function buildClientProjectDialogShells() {
-  if (document.querySelector("[data-client-modal]")) {
-    return;
-  }
-  if (document.body.dataset.clientProjectPage !== "clients") {
-    return;
-  }
-
-  const main = document.querySelector("main");
-  if (!main) {
-    return;
-  }
-
-  main.appendChild(createAddClientPageDialogShell());
-}
-
 function requireView() {
   if (!view) {
     throw new Error("Client/Project dialogs require LongtailForge.view.");
@@ -270,89 +337,6 @@ function showDialog(dialog, focusTarget = null) {
   focusTarget?.focus?.();
 }
 
-function createAddClientPageDialogShell() {
-  const modalView = requireView();
-  const nameLabel = modalView.createElement("label", { text: "Client Name" });
-  const nameInput = modalView.createElement("input", {
-    attrs: { required: true, type: "text" },
-  });
-  const parentLabel = modalView.createElement("label", { text: "Parent Client" });
-  const parentSelect = modalView.createElement("select");
-  const tagContainer = modalView.createElement("div");
-  const cancelButton = createModalAction("Cancel", { role: "secondary" });
-  const saveButton = createModalAction("Save", { role: "primary", type: "submit" });
-
-  nameInput.dataset.newClientName = "";
-  parentSelect.dataset.newParentClient = "";
-  parentSelect.appendChild(createOption("", "No parent client"));
-  tagContainer.dataset.newClientTags = "";
-  cancelButton.dataset.cancelClient = "";
-  nameLabel.appendChild(nameInput);
-  parentLabel.appendChild(parentSelect);
-
-  const dialog = modalView.createModalForm({
-    title: "Add Client",
-    className: "client-detail-dialog",
-    formClassName: "entry-form client-modal-form",
-    fields: [nameLabel, parentLabel, tagContainer],
-    actions: [cancelButton, saveButton],
-  });
-  dialog.dataset.clientModal = "";
-  dialog.viewParts.form.dataset.clientForm = "";
-  return dialog;
-}
-
-if (activeClientProjectsReadSurface) {
-  loadPageData({ renderPage: false });
-} else if (clientList && statusMessage) {
-  loadPageData();
-}
-
-clientStatusFilter?.addEventListener("change", renderClients);
-
-if (projectClientFilter) {
-  projectClientFilter.addEventListener("change", renderClients);
-}
-
-if (openProjectBulkButton) {
-  openProjectBulkButton.addEventListener("click", openProjectBulkEditor);
-}
-
-if (addClientButton) {
-  addClientButton.addEventListener("click", openAddClientModal);
-}
-
-if (addProjectTopButton) {
-  addProjectTopButton.addEventListener("click", () => openAddProjectDialog(getWorkspaceProjectClient()));
-}
-
-if (cancelClientButton) {
-  cancelClientButton.addEventListener("click", async () => {
-    const shouldDiscard = !isAddClientFormDirty() ||
-      await window.LongtailForge.modal.confirm({
-        title: "Discard new client?",
-        message: "Discard this new client?",
-        confirmLabel: "Discard",
-        cancelLabel: "Cancel",
-        danger: true,
-      });
-
-    if (!shouldDiscard) {
-      return;
-    }
-
-    clientForm.reset();
-    clientModal.close();
-  });
-}
-
-if (clientForm) {
-  clientForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    await addClient();
-  });
-}
-
 async function loadPageData({ renderPage = true } = {}) {
   setStatus("Loading clients and projects...");
 
@@ -371,10 +355,10 @@ async function loadPageData({ renderPage = true } = {}) {
     if (renderPage && clientList) {
       renderClients();
     }
-    openAddClientModalFromQuery();
-    openClientDetailModalFromQuery();
-    openAddProjectModalFromQuery();
-    openProjectDetailModalFromQuery();
+    openAddClientActionFromQuery();
+    openEditClientActionFromQuery();
+    openAddProjectActionFromQuery();
+    openEditProjectActionFromQuery();
     setStatus("");
   } catch (error) {
     setStatus("Client and project data could not be loaded.");
@@ -1081,29 +1065,6 @@ function openAddProjectDialog(client, options = {}) {
   });
 }
 
-function openAddClientModal() {
-  if (!clientForm || !clientModal) {
-    return;
-  }
-
-  clientForm.reset();
-  populateParentClientSelect(newParentClientSelect);
-  newClientTagPicker = { readTagIds: () => [] };
-  const mountedPicker = mountTagPicker(newClientTagsContainer, []);
-  if (mountedPicker) {
-    mountedPicker.then((picker) => {
-      newClientTagPicker = picker || newClientTagPicker;
-    });
-  }
-
-  if (newProjectBillingRateInput) {
-    newProjectBillingRateInput.value = workspaceSettings.defaultBillingRate;
-  }
-
-  clientModal.showModal();
-  newClientNameInput?.focus();
-}
-
 function openAddClientDialog({ defaultParentClientId = "", hostContext = null } = {}) {
   const modalView = requireView();
   const nameLabel = modalView.createElement("label", { text: "Client Name" });
@@ -1126,7 +1087,7 @@ function openAddClientDialog({ defaultParentClientId = "", hostContext = null } 
   const mountedPicker = mountTagPicker(tagContainer, [], "Client Tags");
   if (mountedPicker) {
     mountedPicker.then((picker) => {
-    tagPicker = picker || tagPicker;
+      tagPicker = picker || tagPicker;
     });
   }
   const dialog = modalView.createModalForm({
@@ -1193,7 +1154,7 @@ function openAddClientDialog({ defaultParentClientId = "", hostContext = null } 
   });
 }
 
-function openAddClientModalFromQuery() {
+function openAddClientActionFromQuery() {
   if (!isClientsPage || openedAddClientFromQuery || !clientsEnabledForWorkspace()) {
     return;
   }
@@ -1204,10 +1165,10 @@ function openAddClientModalFromQuery() {
   }
 
   openedAddClientFromQuery = true;
-  openAddClientModal();
+  void openClientProjectModuleAction("clients.add").catch(handleClientProjectActionError);
 }
 
-function openClientDetailModalFromQuery() {
+function openEditClientActionFromQuery() {
   if (!isClientsPage || openedClientDetailFromQuery || !clientsEnabledForWorkspace()) {
     return;
   }
@@ -1220,10 +1181,10 @@ function openClientDetailModalFromQuery() {
   }
 
   openedClientDetailFromQuery = true;
-  openClientDetailDialog(client);
+  void openClientProjectModuleAction("clients.edit", { clientId: client.id }).catch(handleClientProjectActionError);
 }
 
-function openAddProjectModalFromQuery() {
+function openAddProjectActionFromQuery() {
   if (!isProjectsPage || openedAddProjectFromQuery) {
     return;
   }
@@ -1234,10 +1195,10 @@ function openAddProjectModalFromQuery() {
   }
 
   openedAddProjectFromQuery = true;
-  openAddProjectDialog(getWorkspaceProjectClient());
+  void openClientProjectModuleAction("projects.add").catch(handleClientProjectActionError);
 }
 
-function openProjectDetailModalFromQuery() {
+function openEditProjectActionFromQuery() {
   if (!isProjectsPage || openedProjectDetailFromQuery) {
     return;
   }
@@ -1250,7 +1211,7 @@ function openProjectDetailModalFromQuery() {
   }
 
   openedProjectDetailFromQuery = true;
-  openProjectDetailDialog(match.client, match.project);
+  void openClientProjectModuleAction("projects.edit", { projectId: match.project.id }).catch(handleClientProjectActionError);
 }
 
 function getProjectsForCurrentFilters() {
@@ -2901,66 +2862,6 @@ function createAddProjectForm(client, {
   return form;
 }
 
-async function addClient() {
-  const clientName = newClientNameInput.value.trim();
-  const projectName = newProjectNameInput?.value.trim() || "";
-
-  if (!clientName) {
-    setStatus("Client name is required.");
-    return;
-  }
-
-  if (!isClientsPage && !projectName) {
-    setStatus("Client name and project name are required.");
-    return;
-  }
-
-  const client = {
-    id: createUuid(),
-    name: clientName,
-    parent_client_id: newParentClientSelect?.value || "",
-    billable: "yes",
-    billing_rate: workspaceSettings.defaultBillingRate,
-    billing_period: null,
-    billing_rounding: null,
-    billing_contact: createEmptyBillingContact(),
-    tagIds: newClientTagPicker?.readTagIds?.() || [],
-    projects: isClientsPage
-      ? []
-      : [
-          {
-            id: createUuid(),
-            client_id: "",
-            name: projectName,
-            billable: "yes",
-            billing_rate: normalizeBillingRate(newProjectBillingRateInput?.value),
-            billing_period: null,
-            billing_rounding: null,
-            status: newProjectStatusSelect?.value || "Active",
-          },
-        ],
-  };
-
-  clientProjectData.clients.push(client);
-
-  const saved = await createClientRecord(client, {
-    action: "client_created",
-    client_id: client.id,
-    client_name: client.name,
-    parent_client_id: client.parent_client_id || "",
-    project_id: client.projects[0]?.id || "",
-    project_name: client.projects[0]?.name || "",
-    details: client.projects[0]
-      ? `initial_project_status=${client.projects[0].status};initial_project_billable=${client.projects[0].billable};initial_project_billing_rate=${client.projects[0].billing_rate}`
-      : "initial_project_created=false",
-  });
-
-  if (saved) {
-    clientForm.reset();
-    clientModal.close();
-  }
-}
-
 async function createClientRecord(client, action, viewState = {}) {
   return persistClientProjectChange(action, viewState, async () => {
     const result = await window.LongtailForge.api.postJson("/api/clients", {
@@ -3789,17 +3690,8 @@ function createUuid() {
   );
 }
 
-function isAddClientFormDirty() {
-  return Boolean(
-      newClientNameInput.value.trim() ||
-      newProjectNameInput?.value.trim() ||
-      newProjectBillingRateInput?.value.trim() ||
-      (newProjectStatusSelect && newProjectStatusSelect.value !== "Active"),
-  );
-}
-
-function setStatus(message) {
-  window.LongtailForge.pageController.setStatus(statusMessage, message);
+function setStatus(message, options = {}) {
+  window.LongtailForge.pageController.setStatus(statusMessage, message, options);
 }
 
 const clientProjectDialogApi = {
@@ -3810,64 +3702,6 @@ const clientProjectDialogApi = {
 };
 
 window.LongtailForge.clientProjectDialog = clientProjectDialogApi;
-
-window.LongtailForge.moduleActions?.register?.({
-  actionId: "projects.add",
-  id: "projects.add",
-  moduleId: "client-projects",
-  label: "Add Project",
-  title: "Add Project",
-  mode: "add",
-  recordType: "project",
-  requiredModules: ["client-projects"],
-  requiredPermissions: ["projects.manage"],
-  requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-  open: openAddProjectAction,
-});
-
-window.LongtailForge.moduleActions?.register?.({
-  actionId: "projects.edit",
-  id: "projects.edit",
-  moduleId: "client-projects",
-  label: "Edit Project",
-  title: "Edit Project",
-  mode: "edit",
-  recordType: "project",
-  requiredModules: ["client-projects"],
-  requiredPermissions: ["projects.manage"],
-  requiredWorkspaceCapabilities: ["projects", "clients_projects"],
-  open: openEditProjectAction,
-});
-
-window.LongtailForge.moduleActions?.register?.({
-  actionId: "clients.add",
-  id: "clients.add",
-  moduleId: "client-projects",
-  label: "Add Client",
-  title: "Add Client",
-  mode: "add",
-  recordType: "client",
-  requiredModules: ["client-projects"],
-  requiredPermissions: ["clients.manage"],
-  requiredWorkspaceCapabilities: ["clients_projects"],
-  workspaceTypes: ["business"],
-  open: openAddClientAction,
-});
-
-window.LongtailForge.moduleActions?.register?.({
-  actionId: "clients.edit",
-  id: "clients.edit",
-  moduleId: "client-projects",
-  label: "Edit Client",
-  title: "Edit Client",
-  mode: "edit",
-  recordType: "client",
-  requiredModules: ["client-projects"],
-  requiredPermissions: ["clients.manage"],
-  requiredWorkspaceCapabilities: ["clients_projects"],
-  workspaceTypes: ["business"],
-  open: openEditClientAction,
-});
 
 window.LongtailForge.pageController.register("clients-projects", {
   snapshot: () => ({

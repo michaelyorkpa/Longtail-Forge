@@ -17,9 +17,9 @@ const changelog = await readText("CHANGELOG.md");
 const contract = await readText("docs/markdown-platform-contract.md");
 const regressionSuite = await readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.18.13.3", "package.json should carry the Markdown renderer slice version");
-assert.equal(packageLock.version, "0.33.5.18.13.3", "package-lock root version should carry the Markdown renderer slice version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.13.3", "package-lock package metadata should carry the Markdown renderer slice version");
+assert.equal(packageJson.version, "0.33.5.18.14.1", "package.json should carry the Markdown renderer slice version");
+assert.equal(packageLock.version, "0.33.5.18.14.1", "package-lock root version should carry the Markdown renderer slice version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.14.1", "package-lock package metadata should carry the Markdown renderer slice version");
 assert.equal(packageJson.dependencies["markdown-it"], "^14.2.0", "markdown-it should be installed as the selected Markdown dependency");
 
 assert.equal(typeof markdownService.renderMarkdownToHtml, "function", "service should expose safe HTML rendering");
