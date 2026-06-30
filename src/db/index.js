@@ -9,7 +9,10 @@ import { appSettingsRepository } from "../repositories/app-settings.repo.js";
 import { runMigrations } from "./migrations.js";
 import {
   closeSqlite,
+  formatSqliteHealth,
+  initializeSqliteRuntime,
   querySql,
+  readSqliteHealth,
   runSql,
   sqlInteger,
   sqlNullableInteger,
@@ -24,11 +27,13 @@ const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = config.bootstrap.superAdminDisplayName;
 const SUPER_ADMIN_PASSWORD_ENV = "SUPER_ADMIN_PASSWORD";
 
 async function initializeDatabase() {
-  await ensureDatabase();
+  return ensureDatabase();
 }
 
 async function ensureDatabase() {
+  const sqliteHealth = await initializeSqliteRuntime();
   await runMigrations();
+  await ensureFrameworkModuleRecord();
   await standardizeStoredTimesToUtc();
   await appSettingsRepository.ensureDefaults();
   await protectFirstUser();
@@ -45,6 +50,35 @@ async function ensureDatabase() {
   await ensureWorkspacePermissionContracts();
   await repairPersonalWorkspaceMemberships();
   await ensureProtectedUserRoles(workspaceId);
+  return sqliteHealth;
+}
+
+async function ensureFrameworkModuleRecord() {
+  if (!(await tableExists("modules"))) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  await runSql(`
+INSERT INTO modules (module_id, name, description, category, status, version, created_at, updated_at)
+VALUES (
+  'framework',
+  'Framework',
+  'Core framework services, Help, Search, Files, settings, and shared runtime behavior.',
+  'framework-service',
+  'active',
+  ${sqlText(config.version)},
+  ${sqlText(now)},
+  ${sqlText(now)}
+)
+ON CONFLICT(module_id) DO UPDATE SET
+  name = excluded.name,
+  description = excluded.description,
+  category = excluded.category,
+  status = excluded.status,
+  version = excluded.version,
+  updated_at = excluded.updated_at;
+`);
 }
 
 async function repairDuplicateWorkspaceUserRows() {
@@ -708,9 +742,12 @@ async function columnsExist(tableName, columnNames) {
 
 export {
   ensureDatabase,
+  formatSqliteHealth,
   initializeDatabase,
+  initializeSqliteRuntime,
   closeSqlite,
   querySql,
+  readSqliteHealth,
   runSql,
   sqlInteger,
   sqlNullableInteger,

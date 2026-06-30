@@ -886,8 +886,8 @@ CREATE TABLE lists (
   deleted_at TEXT,
   metadata_json TEXT,
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id),
-  FOREIGN KEY (client_id) REFERENCES clients(client_id),
-  FOREIGN KEY (project_id) REFERENCES projects(project_id),
+  FOREIGN KEY (workspace_id, client_id) REFERENCES clients(workspace_id, id),
+  FOREIGN KEY (workspace_id, project_id) REFERENCES projects(workspace_id, id),
   FOREIGN KEY (source_list_id) REFERENCES lists(list_id),
   FOREIGN KEY (duplicated_from_list_id) REFERENCES lists(list_id),
   FOREIGN KEY (created_by_user_id) REFERENCES users(user_id),
@@ -983,8 +983,8 @@ CREATE TABLE list_item_catalog (
   archived_at TEXT,
   metadata_json TEXT,
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id),
-  FOREIGN KEY (client_id) REFERENCES clients(client_id),
-  FOREIGN KEY (project_id) REFERENCES projects(project_id),
+  FOREIGN KEY (workspace_id, client_id) REFERENCES clients(workspace_id, id),
+  FOREIGN KEY (workspace_id, project_id) REFERENCES projects(workspace_id, id),
   FOREIGN KEY (created_by_user_id) REFERENCES users(user_id),
   FOREIGN KEY (updated_by_user_id) REFERENCES users(user_id)
 );
@@ -1040,7 +1040,7 @@ CREATE TABLE task_checklist_items (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id),
-  FOREIGN KEY (task_id) REFERENCES tasks(task_id)
+  FOREIGN KEY (workspace_id, task_id) REFERENCES tasks(workspace_id, task_id)
 );
 CREATE INDEX idx_task_checklist_items_task
 ON task_checklist_items (workspace_id, task_id, deleted_at, sort_order);
@@ -1059,8 +1059,8 @@ CREATE TABLE task_relationships (
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id),
-  FOREIGN KEY (parent_task_id) REFERENCES tasks(task_id),
-  FOREIGN KEY (child_task_id) REFERENCES tasks(task_id)
+  FOREIGN KEY (workspace_id, parent_task_id) REFERENCES tasks(workspace_id, task_id),
+  FOREIGN KEY (workspace_id, child_task_id) REFERENCES tasks(workspace_id, task_id)
 );
 CREATE INDEX idx_task_relationships_parent
 ON task_relationships (workspace_id, parent_task_id, removed_at, is_blocking);
@@ -1168,9 +1168,9 @@ CREATE TABLE "notes" (
   original_section TEXT,
   original_page_id TEXT,
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id),
-  FOREIGN KEY (client_id) REFERENCES clients(client_id),
-  FOREIGN KEY (project_id) REFERENCES projects(project_id),
-  FOREIGN KEY (task_id) REFERENCES tasks(task_id),
+  FOREIGN KEY (workspace_id, client_id) REFERENCES clients(workspace_id, id),
+  FOREIGN KEY (workspace_id, project_id) REFERENCES projects(workspace_id, id),
+  FOREIGN KEY (workspace_id, task_id) REFERENCES tasks(workspace_id, task_id),
   FOREIGN KEY (linked_user_id) REFERENCES users(user_id),
   FOREIGN KEY (owner_user_id) REFERENCES users(user_id),
   FOREIGN KEY (created_by_user_id) REFERENCES users(user_id),
@@ -1309,8 +1309,8 @@ CREATE TABLE work_resume_state (
   FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id),
   FOREIGN KEY (user_id) REFERENCES users(user_id),
   FOREIGN KEY (module_id) REFERENCES modules(module_id),
-  FOREIGN KEY (client_id) REFERENCES clients(client_id),
-  FOREIGN KEY (project_id) REFERENCES projects(project_id),
+  FOREIGN KEY (workspace_id, client_id) REFERENCES clients(workspace_id, id),
+  FOREIGN KEY (workspace_id, project_id) REFERENCES projects(workspace_id, id),
   UNIQUE (workspace_id, user_id, module_id, record_type, record_id)
 );
 CREATE INDEX idx_work_resume_state_workspace_user_default

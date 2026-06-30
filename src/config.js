@@ -13,6 +13,9 @@ const DEFAULT_DATA_DIR = path.join(root, "data");
 const DEFAULT_DATABASE_PROVIDER = "sqlite";
 const DEFAULT_DATABASE_FILE_NAME = "longtail-forge.db";
 const DEFAULT_SQLITE_COMMAND = "sqlite3";
+const DEFAULT_SQLITE_FOREIGN_KEYS = true;
+const DEFAULT_SQLITE_JOURNAL_MODE = "wal";
+const DEFAULT_SQLITE_BUSY_TIMEOUT_MS = 5000;
 const DEFAULT_WORKSPACE_INSTALL_MODE = "self_hosted";
 const DEFAULT_SESSION_TTL_SECONDS = 60 * 60 * 12;
 const DEFAULT_SESSION_COOKIE_SAMESITE = "Lax";
@@ -30,6 +33,7 @@ const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = "Super Admin";
 const SESSION_SAMESITE_VALUES = new Set(["Lax", "Strict", "None"]);
 const ENVIRONMENTS = new Set(["development", "test", "production"]);
 const DATABASE_PROVIDERS = new Set(["sqlite"]);
+const SQLITE_JOURNAL_MODES = new Set(["delete", "truncate", "persist", "memory", "wal", "off"]);
 const WORKSPACE_INSTALL_MODES = new Set(["self_hosted", "saas"]);
 const WORKSPACE_TYPE_LIMITS = new Set(["", "business"]);
 
@@ -47,9 +51,14 @@ function createConfig(env = process.env) {
   const databaseFile = resolveRuntimePath(
     readText(env, "LONGTAIL_DATABASE_FILE", path.join(dataDir, DEFAULT_DATABASE_FILE_NAME)),
   );
+  const sqliteForeignKeys = readBoolean(env, "LONGTAIL_SQLITE_FOREIGN_KEYS", DEFAULT_SQLITE_FOREIGN_KEYS);
   const sessionCookieSecure = readBoolean(env, "LONGTAIL_SESSION_COOKIE_SECURE", false);
   const sessionCookieSameSite = readSessionSameSite(env);
   const runtimeWarnings = [];
+
+  if (!sqliteForeignKeys) {
+    throw new Error("LONGTAIL_SQLITE_FOREIGN_KEYS must be on.");
+  }
 
   if (sessionCookieSameSite === "None" && !sessionCookieSecure) {
     throw new Error("LONGTAIL_SESSION_COOKIE_SECURE must be true when LONGTAIL_SESSION_COOKIE_SAMESITE is None.");
@@ -83,6 +92,14 @@ function createConfig(env = process.env) {
     clientProjectFile: path.join(dataDir, "client-project.json"),
     timeEntriesFile: path.join(dataDir, "time-entries.csv"),
     sqliteCommand: readText(env, "SQLITE_COMMAND", DEFAULT_SQLITE_COMMAND),
+    sqlite: {
+      foreignKeys: sqliteForeignKeys,
+      journalMode: readSqliteJournalMode(env),
+      busyTimeoutMs: readInteger(env, "LONGTAIL_SQLITE_BUSY_TIMEOUT_MS", DEFAULT_SQLITE_BUSY_TIMEOUT_MS, {
+        min: 0,
+        max: 60 * 60 * 1000,
+      }),
+    },
     workspaceInstallMode: readEnum(
       env,
       "WORKSPACE_INSTALL_MODE",
@@ -226,6 +243,16 @@ function readSessionSameSite(env) {
   }
 
   return normalized;
+}
+
+function readSqliteJournalMode(env) {
+  const value = readText(env, "LONGTAIL_SQLITE_JOURNAL_MODE", DEFAULT_SQLITE_JOURNAL_MODE).toLowerCase();
+
+  if (!SQLITE_JOURNAL_MODES.has(value)) {
+    throw new Error(`LONGTAIL_SQLITE_JOURNAL_MODE must be ${[...SQLITE_JOURNAL_MODES].join(", ")}.`);
+  }
+
+  return value;
 }
 
 function resolveRuntimePath(value) {

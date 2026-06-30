@@ -11,9 +11,9 @@ const notesEditor = await readText("public/js/shared/notes-editor.js");
 const notesRoutes = await readText("src/modules/notes/notes.routes.js");
 const notesJs = await readText("public/js/notes.js");
 
-assert.equal(packageJson.version, "0.33.5.19.1.2", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.19.1.2", "package-lock root version should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.19.1.2", "package-lock package metadata should report the current app version");
+assert.equal(packageJson.version, "0.33.5.19.2", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.19.2", "package-lock root version should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.19.2", "package-lock package metadata should report the current app version");
 
 assert.match(contract, /Longtail Forge will adopt `markdown-it`/, "contract should record the selected parser");
 assert.match(contract, /CommonMark mode/, "contract should require CommonMark-compatible parsing");

@@ -2,7 +2,7 @@
 
 Longtail Forge reads install and startup configuration from environment variables. At app startup, `server.js` loads a local root `.env` file when present, then `src/config.js` normalizes the resulting environment. A real `.env` file is local runtime state and must not be committed; use `.env.example` as the documented contract.
 
-As of 0.33.5.19.1.2, this contract records both active settings and future reserved settings. Reserved settings are documented so later runtime, jobs, storage, scanner, and PostgreSQL slices can build on stable names. They do not change behavior until the roadmap slice that owns that behavior wires them.
+As of 0.33.5.19.2, this contract records both active settings and future reserved settings. Reserved settings are documented so later runtime, jobs, storage, scanner, and PostgreSQL slices can build on stable names. They do not change behavior until the roadmap slice that owns that behavior wires them.
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
 
@@ -27,7 +27,7 @@ Process environment values win over `.env` values. This lets shells, service man
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `LONGTAIL_DATABASE_PROVIDER` | `sqlite` | SQLite is the only implemented provider in 0.33.5.19.1.2. Unsupported values fail clearly at startup. |
+| `LONGTAIL_DATABASE_PROVIDER` | `sqlite` | SQLite is the only implemented provider in 0.33.5.19.2. Unsupported values fail clearly at startup. |
 
 ### SQLite
 
@@ -35,8 +35,11 @@ Process environment values win over `.env` values. This lets shells, service man
 | --- | --- | --- |
 | `LONGTAIL_DATABASE_FILE` | `./data/longtail-forge.db` | SQLite database file. Relative paths resolve from the app root. |
 | `SQLITE_COMMAND` | `sqlite3` | Command used by the current SQLite helper. |
+| `LONGTAIL_SQLITE_FOREIGN_KEYS` | `on` | Must stay enabled. Startup fails if this is disabled, and each SQLite process runs with foreign-key enforcement on. |
+| `LONGTAIL_SQLITE_JOURNAL_MODE` | `wal` | Journal mode applied during SQLite startup. WAL is the default for small-office installs; set a different valid SQLite mode only when the deployment filesystem requires it. |
+| `LONGTAIL_SQLITE_BUSY_TIMEOUT_MS` | `5000` | SQLite busy timeout in milliseconds. The helper applies it to SQLite processes and verifies `PRAGMA busy_timeout` during startup health checks. |
 
-The following SQLite settings are reserved for the 0.33.5.19.2 hardening slice and are documented in `.env.example`: `LONGTAIL_SQLITE_FOREIGN_KEYS`, `LONGTAIL_SQLITE_JOURNAL_MODE`, and `LONGTAIL_SQLITE_BUSY_TIMEOUT_MS`.
+SQLite startup applies `PRAGMA foreign_keys = ON`, applies the configured `PRAGMA journal_mode`, configures the SQLite busy timeout, verifies the database file path is writable, and emits a safe admin health line with provider, database file path, writable state, foreign-key state, journal mode, and busy timeout. The health output does not include secrets, secure-note key material, storage keys, signed URLs, scanner internals, or protected file paths.
 
 ### Initial Bootstrap
 
@@ -94,6 +97,9 @@ Startup fails clearly when active settings are invalid:
 - `LONGTAIL_ENV` must be `development`, `test`, or `production`.
 - `PORT` must be an integer from 1 through 65535.
 - `LONGTAIL_DATABASE_PROVIDER` must be `sqlite`.
+- `LONGTAIL_SQLITE_FOREIGN_KEYS` must be `on`.
+- `LONGTAIL_SQLITE_JOURNAL_MODE` must be `delete`, `truncate`, `persist`, `memory`, `wal`, or `off`.
+- `LONGTAIL_SQLITE_BUSY_TIMEOUT_MS` must be an integer from 0 through 3600000.
 - `LONGTAIL_SESSION_COOKIE_SAMESITE` must be `Lax`, `Strict`, or `None`.
 - `LONGTAIL_SESSION_COOKIE_SECURE` must be true when SameSite is `None`.
 - `LONGTAIL_SESSION_TTL_SECONDS` must be between 300 seconds and 30 days.
@@ -103,7 +109,7 @@ Startup fails clearly when active settings are invalid:
 
 The local `.env` loader accepts blank lines, full-line comments, `KEY=VALUE` entries, optional `export KEY=VALUE` entries, unquoted values with trailing comments, and basic single- or double-quoted values. Malformed lines fail clearly before app config is created.
 
-Startup may warn without failing when optional but recommended production settings are absent. In 0.33.5.19.1.2, production mode warns when `LONGTAIL_PUBLIC_URL` is missing.
+Startup may warn without failing when optional but recommended production settings are absent. In 0.33.5.19.2, production mode warns when `LONGTAIL_PUBLIC_URL` is missing.
 
 ## Scope Boundary
 
@@ -111,7 +117,6 @@ This slice creates the runtime contract and current-setting validation only. It 
 
 - Change the database provider away from SQLite.
 - Enable PostgreSQL.
-- Enable SQLite WAL or foreign-key enforcement. That is 0.33.5.19.2.
 - Add durable job processing or a separate worker.
 - Replace local file storage with another provider.
 - Enable ClamAV or any other scanner adapter.

@@ -22,7 +22,7 @@ try {
   console.log(`Legacy cleanup regression passed ${checks} checks.`);
 } finally {
   await closeSqlite();
-  await fs.rm(tempDir, { recursive: true, force: true });
+  await removeTempDir(tempDir);
 }
 
 async function assertLegacyTablesRemoved() {
@@ -112,6 +112,7 @@ async function assertActiveSourceHasNoLegacyOrganizationSurface() {
     /(^|[\\/])docs[\\/]storage-rename-plan\.md$/,
     /(^|[\\/])src[\\/]db[\\/]migrations\.js$/,
     /(^|[\\/])scripts[\\/]legacy-cleanup-regression\.mjs$/,
+    /(^|[\\/])scripts[\\/]sqlite-connection-hardening-regression\.mjs$/,
     /(^|[\\/])scripts[\\/]workspace-storage-regression\.mjs$/,
   ];
   const forbidden = [];
@@ -177,4 +178,19 @@ async function listFiles(root, options) {
   }
 
   return files;
+}
+
+async function removeTempDir(dir) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await fs.rm(dir, { recursive: true, force: true });
+      return;
+    } catch (error) {
+      if (error.code !== "EBUSY" || attempt === 4) {
+        throw error;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+    }
+  }
 }

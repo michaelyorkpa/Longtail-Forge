@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { clearTimeout, setTimeout } from "node:timers";
 import { config } from "../config.js";
 
@@ -7,6 +9,7 @@ let currentRequest = null;
 let idleCloseTimer = null;
 let closingIdleProcess = false;
 let requestCounter = 0;
+let lastSqliteHealth = null;
 const requestQueue = [];
 
 function runSql(sql) {
@@ -31,6 +34,55 @@ async function closeSqlite() {
   await new Promise((resolve) => {
     process.once("exit", resolve);
   });
+}
+
+async function initializeSqliteRuntime() {
+  await ensureDatabaseFileWritable();
+  await configureSqliteJournalMode();
+
+  const health = await readSqliteHealth();
+  validateSqliteHealth(health);
+  lastSqliteHealth = health;
+  return health;
+}
+
+async function readSqliteHealth() {
+  const [databaseRows, foreignKeyRows, journalRows, busyTimeoutRows] = await Promise.all([
+    querySql("PRAGMA database_list;"),
+    querySql("PRAGMA foreign_keys;"),
+    querySql("PRAGMA journal_mode;"),
+    querySql("PRAGMA busy_timeout;"),
+  ]);
+  const databaseFile = databaseRows.find((row) => row.name === "main")?.file || config.databaseFile;
+
+  return {
+    provider: "sqlite",
+    databaseFile,
+    databaseFileWritable: await checkDatabaseFileWritable(),
+    foreignKeysEnabled: Number(foreignKeyRows[0]?.foreign_keys) === 1,
+    journalMode: String(journalRows[0]?.journal_mode || "").toLowerCase(),
+    busyTimeoutMs: Number.parseInt(String(busyTimeoutRows[0]?.timeout ?? ""), 10),
+  };
+}
+
+function getLastSqliteHealth() {
+  return lastSqliteHealth;
+}
+
+function formatSqliteHealth(health = lastSqliteHealth) {
+  if (!health) {
+    return "[sqlite-health] unavailable";
+  }
+
+  return [
+    "[sqlite-health]",
+    `provider=${health.provider}`,
+    `databaseFile=${health.databaseFile}`,
+    `writable=${health.databaseFileWritable ? "yes" : "no"}`,
+    `foreign_keys=${health.foreignKeysEnabled ? "on" : "off"}`,
+    `journal_mode=${health.journalMode}`,
+    `busy_timeout_ms=${health.busyTimeoutMs}`,
+  ].join(" ");
 }
 
 function enqueueSql(sql, options) {
@@ -76,7 +128,8 @@ function getSqliteProcess() {
     { windowsHide: true },
   );
   sqliteProcess.stdin.write(".bail on\n");
-  sqliteProcess.stdin.write(".timeout 5000\n");
+  sqliteProcess.stdin.write(`.timeout ${config.sqlite.busyTimeoutMs}\n`);
+  sqliteProcess.stdin.write(`PRAGMA foreign_keys = ${config.sqlite.foreignKeys ? "ON" : "OFF"};\n`);
   sqliteProcess.stdout.on("data", handleStdout);
   sqliteProcess.stderr.on("data", handleStderr);
   sqliteProcess.on("error", handleProcessError);
@@ -194,6 +247,97 @@ function rejectCurrentAndQueued(error) {
   }
 }
 
+async function configureSqliteJournalMode() {
+  await runSqliteStartupScript(`
+PRAGMA foreign_keys = ${config.sqlite.foreignKeys ? "ON" : "OFF"};
+PRAGMA journal_mode = ${config.sqlite.journalMode};
+`);
+}
+
+async function ensureDatabaseFileWritable() {
+  try {
+    await fs.mkdir(path.dirname(config.databaseFile), { recursive: true });
+    await checkDatabaseFileWritable();
+  } catch (error) {
+    throw new Error(`SQLite database file is not writable at ${config.databaseFile}: ${error.message || error}`);
+  }
+}
+
+async function checkDatabaseFileWritable() {
+  const handle = await fs.open(config.databaseFile, "a");
+  await handle.close();
+  return true;
+}
+
+function validateSqliteHealth(health) {
+  if (!health.databaseFileWritable) {
+    throw new Error(`SQLite database file is not writable at ${config.databaseFile}.`);
+  }
+
+  if (!health.foreignKeysEnabled) {
+    throw new Error("SQLite foreign-key enforcement is disabled; LONGTAIL_SQLITE_FOREIGN_KEYS must be on.");
+  }
+
+  if (health.journalMode !== config.sqlite.journalMode) {
+    throw new Error(`SQLite journal_mode is ${health.journalMode || "unknown"}; expected ${config.sqlite.journalMode}.`);
+  }
+
+  if (!Number.isInteger(health.busyTimeoutMs) || health.busyTimeoutMs !== config.sqlite.busyTimeoutMs) {
+    throw new Error(`SQLite busy_timeout is ${health.busyTimeoutMs}; expected ${config.sqlite.busyTimeoutMs}.`);
+  }
+}
+
+function runSqliteStartupScript(sql) {
+  return new Promise((resolve, reject) => {
+    const process = spawn(
+      config.sqliteCommand,
+      ["-json", config.databaseFile],
+      { windowsHide: true },
+    );
+    let stdout = "";
+    let stderr = "";
+    let settled = false;
+
+    function settle(error, value = "") {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      if (error) {
+        reject(error);
+      } else {
+        resolve(value);
+      }
+    }
+
+    process.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    process.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    process.on("error", (error) => {
+      settle(new Error(`SQLite startup configuration failed: ${error.message || error}`));
+    });
+    process.on("exit", (code, signal) => {
+      const cleanStderr = stderr.trim();
+
+      if (code !== 0 || cleanStderr) {
+        settle(new Error(`SQLite startup configuration failed: ${cleanStderr || `sqlite3 exited unexpectedly (${signal || code || "unknown"})`}`));
+        return;
+      }
+
+      settle(null, stdout.trim());
+    });
+    process.stdin.end(`
+.bail on
+.timeout ${config.sqlite.busyTimeoutMs}
+${sql.trim()}
+`);
+  });
+}
+
 function markerToken(id) {
   return `__ltf_sqlite_done_${id}__`;
 }
@@ -226,6 +370,10 @@ export {
   querySql,
   runSql,
   closeSqlite,
+  formatSqliteHealth,
+  getLastSqliteHealth,
+  initializeSqliteRuntime,
+  readSqliteHealth,
   sqlInteger,
   sqlNullableInteger,
   sqlNullableText,

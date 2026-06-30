@@ -63,14 +63,6 @@ async function assertUnavailableContextReadModel(session) {
     library_bucket: "reference",
   }, session);
 
-  await runSql(`
-UPDATE notes
-SET client_id = ${sqlText(ids.client)},
-    project_id = ${sqlText(ids.project)}
-WHERE workspace_id = ${sqlText(session.workspace_id)}
-  AND note_id = ${sqlText(created.note.note_id)};
-`);
-
   await insertLink(session, created.note.note_id, "client-projects", "client", ids.client);
   await insertLink(session, created.note.note_id, "client-projects", "project", ids.project);
   await insertLink(session, created.note.note_id, "tasks", "task", ids.task);
@@ -79,15 +71,6 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   await insertLink(session, created.note.note_id, "legacy", "legacy-ticket", ids.legacy);
 
   const read = await notesService.read(created.note.note_id, session);
-
-  assert.equal(read.note.linked_context.client.label, "Unavailable client");
-  assert.equal(read.note.linked_context.client.displayLabel, "Unavailable client");
-  assert.equal(read.note.linked_context.client.isAvailable, false);
-  assert.equal(read.note.linked_context.project.label, "Unavailable project");
-  assert.equal(read.note.linked_context.project.displayLabel, "Unavailable project");
-  assert.equal(read.note.linked_context.project.isAvailable, false);
-  assertSafeLabelSet(read.note.linked_context.client, ids.client);
-  assertSafeLabelSet(read.note.linked_context.project, ids.project);
 
   const expectedLabels = new Map([
     ["client", "Unavailable client"],

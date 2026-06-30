@@ -5,7 +5,7 @@ import { modulesService } from "../src/core/modules/modules.service.js";
 import { appShellService } from "../src/services/app-shell.service.js";
 import { querySql, runSql, sqlText } from "../src/db/sqlite.js";
 
-const appVersion = "0.33.5.19.1.2";
+const appVersion = "0.33.5.19.2";
 const workspaceId = "files-descriptor-host-workspace";
 const protectedUserId = "files-descriptor-host-protected-user";
 const deniedUserId = "files-descriptor-host-denied-user";

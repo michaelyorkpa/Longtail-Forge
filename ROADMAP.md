@@ -209,24 +209,24 @@ Slice boundary:
 
 ### Version 0.33.5.19.2 - SQLite connection hardening
 
-- [ ] Enable SQLite foreign-key enforcement for every SQLite connection/process:
-  - [ ] `PRAGMA foreign_keys = ON`.
-- [ ] Add SQLite startup health checks:
-  - [ ] Foreign keys enabled.
-  - [ ] Journal mode.
-  - [ ] Busy timeout.
-  - [ ] Database file path.
-  - [ ] Database file writable.
-- [ ] Evaluate and enable WAL mode by default for SQLite self-hosted installs unless incompatible:
-  - [ ] `PRAGMA journal_mode = WAL`.
-- [ ] Keep or configure busy timeout behavior.
-- [ ] Read SQLite defaults from the runtime configuration contract introduced in 0.33.5.19.1.
-- [ ] Add SQLite health output that is safe for admins but does not leak secrets.
-- [ ] Add regression coverage proving:
-  - [ ] Foreign-key enforcement is enabled.
-  - [ ] Invalid orphan records are rejected.
-  - [ ] SQLite startup fails clearly when the database path is invalid.
-  - [ ] SQLite mode remains the default provider when no database provider is set.
+- [x] Enable SQLite foreign-key enforcement for every SQLite connection/process:
+  - [x] `PRAGMA foreign_keys = ON`.
+- [x] Add SQLite startup health checks:
+  - [x] Foreign keys enabled.
+  - [x] Journal mode.
+  - [x] Busy timeout.
+  - [x] Database file path.
+  - [x] Database file writable.
+- [x] Evaluate and enable WAL mode by default for SQLite self-hosted installs unless incompatible:
+  - [x] `PRAGMA journal_mode = WAL`.
+- [x] Keep or configure busy timeout behavior.
+- [x] Read SQLite defaults from the runtime configuration contract introduced in 0.33.5.19.1.
+- [x] Add SQLite health output that is safe for admins but does not leak secrets.
+- [x] Add regression coverage proving:
+  - [x] Foreign-key enforcement is enabled.
+  - [x] Invalid orphan records are rejected.
+  - [x] SQLite startup fails clearly when the database path is invalid.
+  - [x] SQLite mode remains the default provider when no database provider is set.
 
 Acceptance criteria:
 

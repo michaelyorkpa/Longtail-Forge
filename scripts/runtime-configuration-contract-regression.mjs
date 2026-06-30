@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.19.1.2";
+const appVersion = "0.33.5.19.2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
@@ -48,6 +48,9 @@ for (const key of [
   "LONGTAIL_DATABASE_PROVIDER=sqlite",
   "LONGTAIL_DATABASE_FILE=./data/longtail-forge.db",
   "SQLITE_COMMAND=sqlite3",
+  "LONGTAIL_SQLITE_FOREIGN_KEYS=on",
+  "LONGTAIL_SQLITE_JOURNAL_MODE=wal",
+  "LONGTAIL_SQLITE_BUSY_TIMEOUT_MS=5000",
   "LONGTAIL_INITIAL_WORKSPACE_NAME=Longtail Forge Workspace",
   "SUPER_ADMIN_USERNAME=support@longtailforge.local",
   "SUPER_ADMIN_DISPLAY_NAME=Super Admin",
@@ -85,13 +88,19 @@ for (const futureKey of [
 assert.match(gitignore, /^\.env$/m, "real .env files should remain ignored");
 assert.match(runtimeDocs, /Current Active Settings/, "runtime docs should separate active settings");
 assert.match(runtimeDocs, /Reserved Settings/, "runtime docs should document future-only settings");
-assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.1/, "runtime docs should keep SQLite as the only implemented provider");
+assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.2/, "runtime docs should keep SQLite as the only implemented provider");
+assert.match(runtimeDocs, /`LONGTAIL_SQLITE_FOREIGN_KEYS`[\s\S]*Must stay enabled/, "runtime docs should document SQLite foreign-key enforcement");
+assert.match(runtimeDocs, /`LONGTAIL_SQLITE_JOURNAL_MODE`[\s\S]*WAL is the default/, "runtime docs should document SQLite WAL mode");
+assert.match(runtimeDocs, /`LONGTAIL_SQLITE_BUSY_TIMEOUT_MS`[\s\S]*busy timeout/, "runtime docs should document SQLite busy timeout");
 assert.match(runtimeDocs, /Reserved settings may appear in `config` for readout consistency[\s\S]*does not implement PostgreSQL/, "runtime docs should keep future settings dormant");
 assert.match(runtimeDocs, /Startup fails clearly when active settings are invalid/, "runtime docs should document validation");
 assert.match(roadmap, /### Version 0\.33\.5\.19\.1 - Runtime configuration inventory, contract, and `.env\.example`/, "roadmap should keep the active slice heading");
 
 assert.match(configSource, /function createConfig\(env = process\.env\)/, "config should expose a testable runtime config builder");
 assert.match(configSource, /LONGTAIL_DATABASE_PROVIDER[\s\S]*DATABASE_PROVIDERS/, "config should validate the database provider");
+assert.match(configSource, /LONGTAIL_SQLITE_FOREIGN_KEYS/, "config should read the SQLite foreign-key setting");
+assert.match(configSource, /LONGTAIL_SQLITE_JOURNAL_MODE/, "config should read the SQLite journal mode setting");
+assert.match(configSource, /LONGTAIL_SQLITE_BUSY_TIMEOUT_MS/, "config should read the SQLite busy-timeout setting");
 assert.match(configSource, /SUPER_ADMIN_PASSWORD is required when LONGTAIL_ENV=production/, "config should fail clearly when production bootstrap password is missing");
 assert.match(configSource, /LONGTAIL_INITIAL_WORKSPACE_NAME/, "config should read the initial workspace name from runtime config");
 assert.match(configSource, /SUPER_ADMIN_DISPLAY_NAME/, "config should read the initial super-admin display name from runtime config");
@@ -106,6 +115,9 @@ assert.match(localStorageAdapter, /const LOCAL_FILE_STORAGE_ROOT = config\.stora
 const defaults = readConfig();
 assert.equal(defaults.environment, "development");
 assert.equal(defaults.databaseProvider, "sqlite");
+assert.equal(defaults.sqliteForeignKeys, true);
+assert.equal(defaults.sqliteJournalMode, "wal");
+assert.equal(defaults.sqliteBusyTimeoutMs, 5000);
 assert.equal(defaults.port, 8001);
 assert.equal(defaults.cookieSecure, false);
 assert.equal(defaults.cookieSameSite, "Lax");
@@ -126,6 +138,8 @@ const custom = readConfig({
   LONGTAIL_DATA_DIR: "./custom-data",
   LONGTAIL_DATABASE_FILE: "./custom-data/custom.db",
   LONGTAIL_DATABASE_PROVIDER: "sqlite",
+  LONGTAIL_SQLITE_JOURNAL_MODE: "delete",
+  LONGTAIL_SQLITE_BUSY_TIMEOUT_MS: "2500",
   LONGTAIL_SESSION_COOKIE_SECURE: "true",
   LONGTAIL_SESSION_COOKIE_SAMESITE: "None",
   LONGTAIL_SESSION_TTL_SECONDS: "600",
@@ -141,6 +155,9 @@ const custom = readConfig({
 });
 assert.equal(custom.host, "127.0.0.1");
 assert.equal(custom.port, 8015);
+assert.equal(custom.sqliteForeignKeys, true);
+assert.equal(custom.sqliteJournalMode, "delete");
+assert.equal(custom.sqliteBusyTimeoutMs, 2500);
 assert.equal(custom.cookieSecure, true);
 assert.equal(custom.cookieSameSite, "None");
 assert.equal(custom.cookieTtl, 600);
@@ -162,6 +179,9 @@ assert.deepEqual(production.runtimeWarnings, ["LONGTAIL_PUBLIC_URL should be set
 assertConfigFails({ PORT: "not-a-number" }, /PORT must be an integer/);
 assertConfigFails({ PORT: "70000" }, /PORT must be at most 65535/);
 assertConfigFails({ LONGTAIL_DATABASE_PROVIDER: "postgres" }, /LONGTAIL_DATABASE_PROVIDER must be sqlite/);
+assertConfigFails({ LONGTAIL_SQLITE_FOREIGN_KEYS: "false" }, /LONGTAIL_SQLITE_FOREIGN_KEYS must be on/);
+assertConfigFails({ LONGTAIL_SQLITE_JOURNAL_MODE: "invalid" }, /LONGTAIL_SQLITE_JOURNAL_MODE must be/);
+assertConfigFails({ LONGTAIL_SQLITE_BUSY_TIMEOUT_MS: "invalid" }, /LONGTAIL_SQLITE_BUSY_TIMEOUT_MS must be an integer/);
 assertConfigFails({ LONGTAIL_ENV: "production" }, /SUPER_ADMIN_PASSWORD is required when LONGTAIL_ENV=production/);
 assertConfigFails({
   LONGTAIL_SESSION_COOKIE_SAMESITE: "None",
@@ -189,6 +209,9 @@ function readConfig(overrides = {}) {
       runtimeWarnings: config.runtimeWarnings,
       scannerMode: config.scanner.mode,
       secureNotesKeyVersion: config.secureNotes.keyVersion,
+      sqliteBusyTimeoutMs: config.sqlite.busyTimeoutMs,
+      sqliteForeignKeys: config.sqlite.foreignKeys,
+      sqliteJournalMode: config.sqlite.journalMode,
       storageProvider: config.storage.provider,
       superAdminDisplayName: config.bootstrap.superAdminDisplayName,
       cookieSameSite: config.cookies.sameSite,

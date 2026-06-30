@@ -1,3 +1,11 @@
+## Version 0.33.5.19.2 - 2026-06-30 10:39 -04:00
+
+- Hardened SQLite startup inside the existing SQLite helper boundary by applying foreign-key enforcement to SQLite processes, configuring the runtime busy timeout, applying the configured journal mode with WAL as the default, and verifying database file writability before migrations run.
+- Added safe SQLite startup health output for provider, database file path, writable state, foreign-key state, journal mode, and busy timeout without exposing secrets, storage keys, scanner internals, or secure-note key material.
+- Promoted `LONGTAIL_SQLITE_FOREIGN_KEYS`, `LONGTAIL_SQLITE_JOURNAL_MODE`, and `LONGTAIL_SQLITE_BUSY_TIMEOUT_MS` from reserved names into active runtime configuration with validation and documentation.
+- Added `scripts/sqlite-connection-hardening-regression.mjs`, wired it into `npm run check`, refreshed runtime/database docs and decisions, advanced package and current module metadata to 0.33.5.19.2, and marked the 0.33.5.19.2 roadmap checklist complete.
+- Verification 2026-06-30 11:56 -04:00: `scripts/sqlite-connection-hardening-regression.mjs`, runtime configuration contract, local `.env` materialization, fresh database, baseline adoption, legacy cleanup, Clients/Projects descriptor host, Notes notification follow, search rebuild, linked-context fallback, notes search/help, and check-js targeted checks passed; `npm run check` passed 206/206 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.19.2 after restarting the local 8001 server.
+
 ## Version 0.33.5.19.1.2 - 2026-06-30 09:41 -04:00
 
 - Created a local ignored `.env` for this checkout so the app now has machine-local runtime config materialized separately from the committed `.env.example` template.

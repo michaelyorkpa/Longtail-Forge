@@ -11,6 +11,104 @@ const BASELINE_VERSION = "0.33.5.18.6.5.4";
 const BASELINE_MODULE_ID = "core";
 const BASELINE_NAME = "current_fresh_start_database";
 const CURRENT_SCHEMA_FILE = path.join(config.root, "src", "db", "schema", "current.sql");
+const LEGACY_SQLITE_HARDENING_BASELINE_CHECKSUMS = new Set([
+  "b7d790032a9d8cd5505ba02fb34478798ae0c28e79ad720f8961de49ef10ae73",
+]);
+const WORKSPACE_SCOPED_FOREIGN_KEY_REPAIRS = [
+  {
+    tableName: "lists",
+    legacyPatterns: [
+      /\bFOREIGN KEY\s*\(\s*client_id\s*\)\s+REFERENCES\s+clients\s*\(\s*client_id\s*\)/i,
+      /\bFOREIGN KEY\s*\(\s*project_id\s*\)\s+REFERENCES\s+projects\s*\(\s*project_id\s*\)/i,
+    ],
+    copyConditions: [
+      createWorkspaceParentCondition("client_id", "clients", "id"),
+      createWorkspaceParentCondition("project_id", "projects", "id"),
+    ],
+  },
+  {
+    tableName: "list_item_catalog",
+    legacyPatterns: [
+      /\bFOREIGN KEY\s*\(\s*client_id\s*\)\s+REFERENCES\s+clients\s*\(\s*client_id\s*\)/i,
+      /\bFOREIGN KEY\s*\(\s*project_id\s*\)\s+REFERENCES\s+projects\s*\(\s*project_id\s*\)/i,
+    ],
+    copyConditions: [
+      createWorkspaceParentCondition("client_id", "clients", "id"),
+      createWorkspaceParentCondition("project_id", "projects", "id"),
+    ],
+  },
+  {
+    tableName: "task_checklist_items",
+    legacyPatterns: [
+      /\bFOREIGN KEY\s*\(\s*task_id\s*\)\s+REFERENCES\s+tasks\s*\(\s*task_id\s*\)/i,
+    ],
+    copyConditions: [
+      createWorkspaceParentCondition("task_id", "tasks", "task_id"),
+    ],
+  },
+  {
+    tableName: "task_relationships",
+    legacyPatterns: [
+      /\bFOREIGN KEY\s*\(\s*parent_task_id\s*\)\s+REFERENCES\s+tasks\s*\(\s*task_id\s*\)/i,
+      /\bFOREIGN KEY\s*\(\s*child_task_id\s*\)\s+REFERENCES\s+tasks\s*\(\s*task_id\s*\)/i,
+    ],
+    copyConditions: [
+      createWorkspaceParentCondition("parent_task_id", "tasks", "task_id"),
+      createWorkspaceParentCondition("child_task_id", "tasks", "task_id"),
+    ],
+  },
+  {
+    tableName: "notes",
+    legacyPatterns: [
+      /\bFOREIGN KEY\s*\(\s*client_id\s*\)\s+REFERENCES\s+clients\s*\(\s*client_id\s*\)/i,
+      /\bFOREIGN KEY\s*\(\s*project_id\s*\)\s+REFERENCES\s+projects\s*\(\s*project_id\s*\)/i,
+      /\bFOREIGN KEY\s*\(\s*task_id\s*\)\s+REFERENCES\s+tasks\s*\(\s*task_id\s*\)/i,
+    ],
+    copyConditions: [
+      createWorkspaceParentCondition("client_id", "clients", "id"),
+      createWorkspaceParentCondition("project_id", "projects", "id"),
+      createWorkspaceParentCondition("task_id", "tasks", "task_id"),
+    ],
+  },
+  {
+    tableName: "work_resume_state",
+    legacyPatterns: [
+      /\bFOREIGN KEY\s*\(\s*client_id\s*\)\s+REFERENCES\s+clients\s*\(\s*client_id\s*\)/i,
+      /\bFOREIGN KEY\s*\(\s*project_id\s*\)\s+REFERENCES\s+projects\s*\(\s*project_id\s*\)/i,
+    ],
+    copyConditions: [
+      createWorkspaceParentCondition("client_id", "clients", "id"),
+      createWorkspaceParentCondition("project_id", "projects", "id"),
+    ],
+  },
+];
+const LEGACY_RENAMED_PARENT_REFERENCE_REPAIRS = [
+  {
+    tableName: "list_items",
+    legacyPatterns: [/\bREFERENCES\s+"?lists_legacy_sqlite_hardening_fk"?\b/i],
+    copyConditions: [],
+  },
+  {
+    tableName: "list_links",
+    legacyPatterns: [/\bREFERENCES\s+"?lists_legacy_sqlite_hardening_fk"?\b/i],
+    copyConditions: [],
+  },
+  {
+    tableName: "note_links",
+    legacyPatterns: [/\bREFERENCES\s+"?notes_legacy_sqlite_hardening_fk"?\b/i],
+    copyConditions: [],
+  },
+  {
+    tableName: "note_revisions",
+    legacyPatterns: [/\bREFERENCES\s+"?notes_legacy_sqlite_hardening_fk"?\b/i],
+    copyConditions: [],
+  },
+  {
+    tableName: "note_wiki_links",
+    legacyPatterns: [/\bREFERENCES\s+"?notes_legacy_sqlite_hardening_fk"?\b/i],
+    copyConditions: [],
+  },
+];
 
 async function runMigrations() {
   await fs.mkdir(config.dataDir, { recursive: true });
@@ -21,6 +119,10 @@ async function runMigrations() {
   }
 
   await ensureMigrationsTable();
+  await repairLegacyUserWorkspacesForeignKey();
+  await repairLegacyWorkspaceScopedForeignKeys();
+  await repairLegacyRenamedParentReferences();
+  await refreshBaselineChecksumAfterSqliteHardeningRepairs();
 
   if (!(await hasBaselineMarker()) && (await hasExistingApplicationSchema())) {
     if (await canAdoptExistingDatabaseAsBaseline()) {
@@ -48,6 +150,218 @@ async function runMigrations() {
     await applyMigration(migration);
     appliedVersions.add(migration.version);
   }
+}
+
+async function repairLegacyUserWorkspacesForeignKey() {
+  const rows = await querySql(`
+SELECT sql
+FROM sqlite_master
+WHERE type = 'table'
+  AND name = 'user_workspaces'
+LIMIT 1;
+`);
+  const createSql = rows[0]?.sql || "";
+
+  if (!/\bREFERENCES\s+organizations\b/i.test(createSql)) {
+    return;
+  }
+
+  await runSql(`
+PRAGMA foreign_keys = OFF;
+BEGIN TRANSACTION;
+
+ALTER TABLE user_workspaces RENAME TO user_workspaces_legacy_organization_fk;
+
+CREATE TABLE user_workspaces (
+  user_workspace_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  UNIQUE (user_id, workspace_id),
+  FOREIGN KEY (user_id) REFERENCES users(user_id),
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(workspace_id)
+);
+
+INSERT OR IGNORE INTO user_workspaces (
+  user_workspace_id,
+  user_id,
+  workspace_id,
+  status,
+  created_at,
+  updated_at
+)
+SELECT
+  user_workspace_id,
+  user_id,
+  workspace_id,
+  status,
+  created_at,
+  updated_at
+FROM user_workspaces_legacy_organization_fk
+WHERE EXISTS (
+    SELECT 1
+    FROM users
+    WHERE users.user_id = user_workspaces_legacy_organization_fk.user_id
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM workspaces
+    WHERE workspaces.workspace_id = user_workspaces_legacy_organization_fk.workspace_id
+  );
+
+DROP TABLE user_workspaces_legacy_organization_fk;
+
+CREATE INDEX IF NOT EXISTS idx_user_workspaces_user_status
+ON user_workspaces (user_id, status);
+CREATE INDEX IF NOT EXISTS idx_user_workspaces_workspace_status
+ON user_workspaces (workspace_id, status);
+CREATE INDEX IF NOT EXISTS idx_user_workspaces_user_workspace
+ON user_workspaces (user_id, workspace_id);
+
+COMMIT;
+PRAGMA foreign_keys = ON;
+`);
+}
+
+async function repairLegacyWorkspaceScopedForeignKeys() {
+  const schemaSql = await fs.readFile(CURRENT_SCHEMA_FILE, "utf8");
+
+  for (const repair of WORKSPACE_SCOPED_FOREIGN_KEY_REPAIRS) {
+    if (!(await tableNeedsForeignKeyRepair(repair))) {
+      continue;
+    }
+
+    await rebuildTableFromCurrentSchema(schemaSql, repair);
+  }
+}
+
+async function repairLegacyRenamedParentReferences() {
+  const schemaSql = await fs.readFile(CURRENT_SCHEMA_FILE, "utf8");
+
+  for (const repair of LEGACY_RENAMED_PARENT_REFERENCE_REPAIRS) {
+    if (!(await tableNeedsForeignKeyRepair(repair))) {
+      continue;
+    }
+
+    await rebuildTableFromCurrentSchema(schemaSql, repair);
+  }
+}
+
+async function tableNeedsForeignKeyRepair(repair) {
+  if (!(await tableExists(repair.tableName))) {
+    return false;
+  }
+
+  const rows = await querySql(`
+SELECT sql
+FROM sqlite_master
+WHERE type = 'table'
+  AND name = ${sqlText(repair.tableName)}
+LIMIT 1;
+`);
+  const createSql = rows[0]?.sql || "";
+  return repair.legacyPatterns.some((pattern) => pattern.test(createSql));
+}
+
+async function rebuildTableFromCurrentSchema(schemaSql, repair) {
+  const legacyTableName = `${repair.tableName}_legacy_sqlite_hardening_fk`;
+  const createTableSql = extractCreateTableStatement(schemaSql, repair.tableName);
+  const indexSql = extractTableIndexStatements(schemaSql, repair.tableName).join("\n");
+  const currentColumns = extractCreateTableColumnNames(createTableSql);
+  const oldColumns = await querySql(`PRAGMA table_info(${quoteIdentifier(repair.tableName)});`);
+  const oldColumnNames = new Set(oldColumns.map((column) => column.name));
+  const copyColumns = currentColumns.filter((columnName) => oldColumnNames.has(columnName));
+
+  if (copyColumns.length === 0) {
+    throw new Error(`Cannot rebuild ${repair.tableName}: no matching columns found.`);
+  }
+
+  const insertColumnSql = copyColumns.map(quoteIdentifier).join(",\n  ");
+  const selectColumnSql = copyColumns.map((columnName) => `legacy.${quoteIdentifier(columnName)}`).join(",\n  ");
+  const whereSql = repair.copyConditions.length > 0
+    ? `WHERE ${repair.copyConditions.join("\n  AND ")}`
+    : "";
+
+  await runSql(`
+PRAGMA foreign_keys = OFF;
+PRAGMA legacy_alter_table = ON;
+BEGIN TRANSACTION;
+
+ALTER TABLE ${quoteIdentifier(repair.tableName)}
+RENAME TO ${quoteIdentifier(legacyTableName)};
+
+${createTableSql}
+
+INSERT OR IGNORE INTO ${quoteIdentifier(repair.tableName)} (
+  ${insertColumnSql}
+)
+SELECT
+  ${selectColumnSql}
+FROM ${quoteIdentifier(legacyTableName)} AS legacy
+${whereSql};
+
+DROP TABLE ${quoteIdentifier(legacyTableName)};
+
+${indexSql}
+
+COMMIT;
+PRAGMA legacy_alter_table = OFF;
+PRAGMA foreign_keys = ON;
+`);
+}
+
+async function refreshBaselineChecksumAfterSqliteHardeningRepairs() {
+  const baseline = await readBaselineSchema();
+  const rows = await querySql(`
+SELECT checksum
+FROM ${MIGRATIONS_TABLE}
+WHERE version = ${sqlText(BASELINE_VERSION)}
+LIMIT 1;
+`);
+
+  const appliedChecksum = rows[0]?.checksum;
+  if (!appliedChecksum || appliedChecksum === baseline.checksum) {
+    return;
+  }
+
+  if (!LEGACY_SQLITE_HARDENING_BASELINE_CHECKSUMS.has(appliedChecksum)) {
+    return;
+  }
+
+  if (!(await sqliteHardeningForeignKeySchemaIsCurrent())) {
+    return;
+  }
+
+  await runSql(`
+UPDATE ${MIGRATIONS_TABLE}
+SET checksum = ${sqlText(baseline.checksum)},
+    module_id = ${sqlText(BASELINE_MODULE_ID)},
+    name = ${sqlText(BASELINE_NAME)}
+WHERE version = ${sqlText(BASELINE_VERSION)};
+`);
+}
+
+async function sqliteHardeningForeignKeySchemaIsCurrent() {
+  for (const repair of [
+    ...WORKSPACE_SCOPED_FOREIGN_KEY_REPAIRS,
+    ...LEGACY_RENAMED_PARENT_REFERENCE_REPAIRS,
+  ]) {
+    if (await tableNeedsForeignKeyRepair(repair)) {
+      return false;
+    }
+  }
+
+  const userWorkspaceRows = await querySql(`
+SELECT sql
+FROM sqlite_master
+WHERE type = 'table'
+  AND name = 'user_workspaces'
+LIMIT 1;
+`);
+
+  return !/\bREFERENCES\s+organizations\b/i.test(userWorkspaceRows[0]?.sql || "");
 }
 
 async function maybeCopyRegressionBaseline() {
@@ -390,6 +704,79 @@ async function columnsExist(tableName, columnNames) {
   const existingColumnNames = new Set(columns.map((column) => column.name));
 
   return columnNames.every((columnName) => existingColumnNames.has(columnName));
+}
+
+function createWorkspaceParentCondition(childColumn, parentTable, parentColumn) {
+  return [
+    "(",
+    `legacy.${quoteIdentifier(childColumn)} IS NULL`,
+    `OR legacy.${quoteIdentifier(childColumn)} = ''`,
+    "OR EXISTS (",
+    "  SELECT 1",
+    `  FROM ${quoteIdentifier(parentTable)}`,
+    `  WHERE ${quoteIdentifier(parentTable)}.${quoteIdentifier("workspace_id")} = legacy.${quoteIdentifier("workspace_id")}`,
+    `    AND ${quoteIdentifier(parentTable)}.${quoteIdentifier(parentColumn)} = legacy.${quoteIdentifier(childColumn)}`,
+    ")",
+    ")",
+  ].join("\n    ");
+}
+
+function extractCreateTableStatement(schemaSql, tableName) {
+  const tablePattern = escapeRegExp(tableName);
+  const pattern = new RegExp(`CREATE\\s+TABLE\\s+(?:"${tablePattern}"|${tablePattern})\\s*\\(`, "i");
+  const match = pattern.exec(schemaSql);
+
+  if (!match) {
+    throw new Error(`Could not find CREATE TABLE statement for ${tableName}.`);
+  }
+
+  return extractSqlStatementAt(schemaSql, match.index);
+}
+
+function extractTableIndexStatements(schemaSql, tableName) {
+  const tablePattern = escapeRegExp(tableName);
+  const onTablePattern = new RegExp(`\\bON\\s+(?:"${tablePattern}"|${tablePattern})\\s*\\(`, "i");
+  const indexStatements = schemaSql.match(/CREATE\s+(?:UNIQUE\s+)?INDEX[\s\S]*?;/gi) || [];
+
+  return indexStatements
+    .filter((statement) => onTablePattern.test(statement))
+    .map((statement) => statement.trim());
+}
+
+function extractSqlStatementAt(sql, startIndex) {
+  const endIndex = sql.indexOf(";", startIndex);
+  if (endIndex === -1) {
+    throw new Error("Could not find SQL statement terminator.");
+  }
+
+  return sql.slice(startIndex, endIndex + 1).trim();
+}
+
+function extractCreateTableColumnNames(createTableSql) {
+  const bodyStart = createTableSql.indexOf("(");
+  const bodyEnd = createTableSql.lastIndexOf(")");
+  const body = createTableSql.slice(bodyStart + 1, bodyEnd);
+
+  return body
+    .split(/\r?\n/)
+    .map((line) => line.trim().replace(/,$/, ""))
+    .filter(Boolean)
+    .filter((line) => !/^(PRIMARY|FOREIGN|UNIQUE|CHECK|CONSTRAINT)\b/i.test(line))
+    .map(extractLeadingIdentifier)
+    .filter(Boolean);
+}
+
+function extractLeadingIdentifier(line) {
+  const match = /^"([^"]+)"|^`([^`]+)`|^\[([^\]]+)\]|^([A-Za-z_][A-Za-z0-9_]*)/.exec(line);
+  return match?.[1] || match?.[2] || match?.[3] || match?.[4] || "";
+}
+
+function quoteIdentifier(value) {
+  return `"${String(value).replaceAll("\"", "\"\"")}"`;
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export { runMigrations };

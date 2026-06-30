@@ -20,7 +20,7 @@ const { notificationsService } = await import("../src/services/notifications.ser
 const { searchService } = await import("../src/services/search.service.js");
 const { tagsService } = await import("../src/services/tags.service.js");
 const { createSession } = await import("../src/security/sessions.js");
-const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
+const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 let server;
 
@@ -59,7 +59,7 @@ async function assertNotesManifestContributions() {
   assert.equal(searchableType.indexer, "notes.records");
   assert.equal(searchableType.sourceLabel, "Notes");
   assert.equal(hasSearchIndexer("notes.records"), true);
-  assert.equal(notesModule.version, "0.33.5.19.1.2");
+  assert.equal(notesModule.version, "0.33.5.19.2");
   assert.ok(notesModule.help.articles.length >= 11, "Notes should contribute current-state Help articles");
   assert.ok(notesModule.notificationEvents.some((event) => event.id === "note.updated"));
 }
@@ -204,6 +204,8 @@ async function assertNotesHelpContribution() {
 
 async function assertNotesNotificationContribution(session) {
   const noteId = "notification-note";
+  await ensureNotificationActorUser(session);
+
   const event = {
     name: "note.updated",
     workspace_id: session.workspace_id,
@@ -228,6 +230,43 @@ async function assertNotesNotificationContribution(session) {
   assert.equal(result.notifications[0].recipient_user_id, session.user_id);
   assert.equal(result.notifications[0].event_type, "note.updated");
   assert.doesNotMatch(result.notifications[0].body, /Hidden secure search body|Needle body/);
+}
+
+async function ensureNotificationActorUser(session) {
+  await runSql(`
+INSERT INTO users (
+  user_id,
+  home_workspace_id,
+  username,
+  display_name,
+  alt_email,
+  timezone,
+  password,
+  theme_mode,
+  user_status,
+  protected_user,
+  active_workspace_id
+)
+VALUES (
+  'another-user',
+  ${sqlText(session.workspace_id)},
+  'another-user@example.test',
+  'Another User',
+  NULL,
+  'America/New_York',
+  'fixture-password',
+  'light',
+  'active',
+  'no',
+  ${sqlText(session.workspace_id)}
+)
+ON CONFLICT(user_id) DO UPDATE SET
+  home_workspace_id = excluded.home_workspace_id,
+  username = excluded.username,
+  display_name = excluded.display_name,
+  active_workspace_id = excluded.active_workspace_id,
+  user_status = excluded.user_status;
+`);
 }
 
 async function readWorkspace() {
