@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.14.5";
+const appVersion = "0.33.5.18.15";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -27,8 +27,8 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   clientProjectsModule,
-  /version:\s*"0\.33\.5\.18\.14\.5"/,
-  "Clients/Projects module should report the hierarchy/reparent slice version",
+  /version:\s*"0\.33\.5\.18\.15"/,
+  "Clients/Projects module should report the current app version",
 );
 assert.match(
   clientProjectsModule,
@@ -132,7 +132,7 @@ assert.match(
 
 assert.match(
   inventoryDoc,
-  /Current as of 0\.33\.5\.18\.14\.5[\s\S]*0\.33\.5\.18\.14\.4 Hierarchy Ordering and Reparent Safety[\s\S]*service-owned Projects read ordering[\s\S]*existing Client\/Project editors/,
+  /Current as of 0\.33\.5\.18\.15[\s\S]*0\.33\.5\.18\.14\.4 Hierarchy Ordering and Reparent Safety[\s\S]*service-owned Projects read ordering[\s\S]*existing Client\/Project editors/,
   "Clients/Projects inventory should document the hierarchy ordering and reparent safety boundary",
 );
 assert.match(

@@ -599,9 +599,11 @@ async function runTaskMutationTests(api, fixtures) {
       assert.equal(response.body.createdTask.recurrence_instance_date, localDateOffset(1));
     });
   });
+  const calendarRangeStart = localDateOffset(0);
+  const calendarRangeEnd = localDateOffset(2);
   await expectStatus(
     "task calendar API returns scoped due-date tasks",
-    api.get("/api/tasks/calendar?start=2026-06-01&end=2026-06-30", { cookie: fixtures.sessions.projectUser }),
+    api.get(`/api/tasks/calendar?start=${calendarRangeStart}&end=${calendarRangeEnd}`, { cookie: fixtures.sessions.projectUser }),
     200,
   ).then((response) => {
     check("task calendar payload is calendar-ready and scope filtered", () => {

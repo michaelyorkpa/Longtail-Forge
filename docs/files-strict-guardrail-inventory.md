@@ -1,10 +1,12 @@
 # Files Strict Guardrail Inventory
 
-Current as of 0.33.5.18.12.7. Files strict enforcement is active and the Files conversion branch is closed.
+Current as of 0.33.5.18.12.7. Files strict enforcement is active and the Files conversion branch is closed. The 0.33.5.18.15 branch closeout preserves this Files boundary as one strict surface in the final converted-surface set alongside Lists, Notes, Tasks, Clients, and Projects.
 
 `files.browse` is now a framework-owned strict descriptor surface. The guardrails fail when the protected Files page, `public/js/files.js`, or framework-owned view portions of `public/js/shared/file-attachments.js` reintroduce hand-built page/filter/table/panel/upload/action anatomy that the descriptor renderer or shared view helpers already own.
 
 `public/js/files.js` now creates browse fragments through shared view helpers instead of direct DOM construction. The shared attachment helper keeps a single centralized native fallback in `createAttachmentElement()` for old/no-view-helper contexts while using shared list, empty-state, action, and button helpers when available. The route-sanitized Markdown preview body is the only allowed `innerHTML` use in Files browser code.
+
+The 0.33.5.18.15 closeout does not reopen Files scope. Inline browse detail panels, inline preview/metadata panels, Inspector behavior, rename/replacement/storage controls, hard purge, permanent delete, raw storage controls, route changes, schema changes, permission changes, payload changes, and workflow changes remain deferred unless a later roadmap slice explicitly adds them.
 
 ## Framework-Owned Anatomy Strictly Guarded
 

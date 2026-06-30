@@ -1,6 +1,6 @@
 # Declarative View Surfaces
 
-This guide describes the current `viewSurfaces` authoring contract as of 0.33.5.18.14.5.
+This guide describes the current `viewSurfaces` authoring contract as of 0.33.5.18.15.
 
 Declarative view surfaces are framework-rendered protected surfaces described by module manifest data or by framework-owned descriptor registries for framework-owned pages. They are for common app anatomy: page headers, filters, selector/index panels, split layouts, tables, detail headers, action strips, summary panels, field grids, modal shells, modal footers, item rows, and linked-record panels.
 
@@ -29,7 +29,7 @@ Supported `layout` values: `single-column`, `stacked`, `sidebar-detail`, `slide-
 The 0.33.5.18 conversions use shared capabilities added during the conversion backlog:
 
 - Filter-to-refetch: add `filters[]` with a `queryKey` (defaults to `field`). The framework appends non-empty filter values to the `dataSource` route, seeds the first load from `default`, and refetches when a filter changes. Authors do not write fetch or query-string code.
-- Dynamic select options: select filters may declare `optionsSource` with a registered behavior ID. The framework renders the select and calls the behavior with the control plus a `setOptions(options)` helper; the owning module supplies Client/Project/tag/etc. option data and keeps record ownership.
+- Dynamic field options: select and search filters may declare `optionsSource` with a registered behavior ID. The framework renders the control, hydrates select choices or a body-level search suggestion popover, and calls the behavior with the control plus `setOptions(options)` / `mountSearchOptions(options, config)` helpers. The owning module supplies Client/Project/tag/etc. option data and keeps record ownership, query semantics, and whether typed search text, a selected label, or a canonical ID is submitted.
 - Mount regions: add `regions[]` (or `detail.regions[]`) entries shaped `{ id, behavior, title }`. The framework renders the region container and calls the registered behavior with `{ container, record, api, refresh, openModal, workspaceContext }`. Use this to host module-owned widgets (tag pickers, file panels, Markdown preview, timers, checklists) instead of hand-building them in the page. A missing behavior renders a recoverable error.
 - Rich item rows: `detail.itemRows` supports `itemTitleField`, `itemSubtitleField`, `chips`, `metaFields`, and `rowActions`. Gate row actions with `visibleWhen` (`equals` / `in` / `truthy` / `falsy`) against the row record; route actions interpolate `{token}` placeholders from that record.
 - Display-only hierarchy metadata: `indexPanel.itemDepthField`, `indexPanel.itemParentField`, `indexPanel.itemPathField`, and `table.hierarchy.{depthField,parentField,pathField}` let flattened tree reads carry depth/parent/path values for safe display. The framework may indent or expose metadata; hierarchy mutation, validation, drag/drop, and save behavior stay module-owned.
@@ -55,6 +55,8 @@ As of 0.33.5.18.14.4, the Projects read page still binds to `/api/projects?inclu
 
 As of 0.33.5.18.14.5, `client-projects.clients` and `client-projects.projects` strict enforcement is active. The framework owns the converted page/read anatomy: minimal hosts, page headers, status/empty/loading/error shells, table-page slide-out filter surface, selector/table wrappers, row-selection checkbox shell, secondary tag rows, icon-only repeated edit controls, related read shells, bulk toolbar shell placement, and descriptor behavior dispatch. Clients/Projects owns tag and Client filter option hydration, selected IDs, allowed bulk controls, route calls, payloads, confirmations, partial-failure messages, dialog bodies, tag pickers, billing/default editors, parent selectors, hierarchy validation, readable labels, query-param openers, refresh hooks, and workspace gating. Strict guardrails fail if inline top filters, standalone Tags table columns, text repeated table actions, protected page anatomy, legacy page table chrome, or static page bulk-dialog shells return. This slice does not change database schema, route payloads, permissions, or workflow behavior.
 
+As of 0.33.5.18.15, the 0.33.5.18 view-conversion branch is closed. Strict fail-on-violation guardrails cover `lists.workspace`, `notes.workspace`, `tasks.workspace`, `files.browse`, `client-projects.clients`, and `client-projects.projects`. Tags management and Developer Example descriptors remain reported descriptor proofs, while Admin/Settings, Reporting, Dashboard, Workbench, pagination/server-side paging, Inspector behavior, and other non-view concerns are deferred to later roadmap lines. The closeout does not add database schema, write payload, permission, public API, or new workflow changes.
+
 A strict declarative surface must:
 
 - Keep protected HTML to a minimal host.
@@ -79,7 +81,7 @@ The module adapter decorates descriptor-rendered nodes with compatibility hooks 
 
 ## Protected View Inventory
 
-The inventory below is current for 0.33.5.18.14.5. `strict` means the static guardrail fails on declarative-surface violations. `reported` means the view is known to the inventory but is not strict-converted in this slice. Files is strict as of 0.33.5.18.12.6 after the strict guardrail inventory was promoted to enforcement. Clients/Projects strict enforcement is active as of 0.33.5.18.14.5 after the filter drawer, secondary tag-row, icon-only table action, and legacy page chrome cleanup.
+The inventory below is current for 0.33.5.18.15. `strict` means the static guardrail fails on declarative-surface violations. `reported` means the view is known to the inventory but is not strict-converted in this branch closeout. Files is strict as of 0.33.5.18.12.6 after the strict guardrail inventory was promoted to enforcement. Clients/Projects strict enforcement is active as of 0.33.5.18.14.5 after the filter drawer, secondary tag-row, icon-only table action, and legacy page chrome cleanup, and the 0.33.5.18.15 closeout locks the strict/deferred surface inventory.
 
 | Module | View | File | Descriptor Surface | Guardrail |
 | --- | --- | --- | --- | --- |

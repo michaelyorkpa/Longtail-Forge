@@ -570,6 +570,59 @@ details[open] > summary.surface-modal-section-heading::before {
     align-self: flex-end;
 }
 
+.view-search-options {
+    position: fixed;
+    display: grid;
+    gap: 4px;
+    max-height: 260px;
+    overflow: auto;
+    padding: 6px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-card);
+    z-index: 120;
+}
+
+.view-search-options[hidden] {
+    display: none !important;
+}
+
+.view-search-option {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+    min-height: 36px;
+    padding: 4px 6px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.view-search-option:hover,
+.view-search-option:focus-visible {
+    background: var(--color-hover);
+}
+
+.view-search-option-swatch {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+}
+
+.view-search-option-empty {
+    padding: 8px 6px;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+
 .view-linked-context-picker {
     display: grid;
     gap: 10px;

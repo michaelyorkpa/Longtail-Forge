@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.14.5";
+const appVersion = "0.33.5.18.15";
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
@@ -43,6 +43,8 @@ assert.equal(clientsDescriptor.filterPlacement, "slide-out-sidebar", "Clients fi
 assert.equal(projectsDescriptor.filterPlacement, "slide-out-sidebar", "Projects filters should render through the shared slide-out filter surface");
 assert.equal(clientsDescriptor.table.columns.some((column) => column.label === "Tags"), false, "Clients should not expose Tags as a standalone table column");
 assert.equal(projectsDescriptor.table.columns.some((column) => column.label === "Tags"), false, "Projects should not expose Tags as a standalone table column");
+assert.equal(clientsDescriptor.filters.find((filter) => filter.field === "tagIds")?.type, "search", "Clients tag filter should use searchable suggestions instead of a long select");
+assert.equal(projectsDescriptor.filters.find((filter) => filter.field === "tagIds")?.type, "search", "Projects tag filter should use searchable suggestions instead of a long select");
 assert.ok(clientsDescriptor.table.secondaryRows.some((row) => row.id === "client-tags" && row.formatter === "chip-list"), "Clients should render tags as a secondary table row");
 assert.ok(projectsDescriptor.table.secondaryRows.some((row) => row.id === "project-tags" && row.formatter === "chip-list"), "Projects should render tags as a secondary table row");
 assert.ok(clientsDescriptor.table.rowActions.every((action) => action.icon === "edit" && action.iconOnly === true), "Clients repeated row actions should be icon-only");
@@ -62,7 +64,7 @@ vm.runInNewContext(renderer, clientsContext, { filename: "view-renderer.js" });
 
 const clientActionCalls = [];
 const clientsView = clientsContext.window.LongtailForge.view;
-clientsView.registerBehavior("client-projects.clients.tags", () => [{ value: "tag-focus", label: "Focus" }]);
+clientsView.registerBehavior("client-projects.clients.tags", (ctx) => ctx.mountSearchOptions([{ value: "tag-focus", label: "Focus" }], { submitMode: "option-or-input" }));
 clientsView.registerBehavior("client-projects.clients.create", (context) => clientActionCalls.push({ behavior: context.action.behavior, recordId: context.record?.id || "" }));
 clientsView.registerBehavior("client-projects.clients.edit", (context) => clientActionCalls.push({ behavior: context.action.behavior, recordId: context.record?.id || "" }));
 
@@ -72,6 +74,7 @@ await clientsSurface.refresh();
 await Promise.resolve();
 
 assert.equal(clientsContext.window.LongtailForge.api.calls[0], "/api/clients?include_depth=true&status=Active", "Clients descriptor filters should build the canonical status query");
+assert.equal(findFieldControl(clientsSurface, "tagIds")?.tagName, "INPUT", "Clients tag filter should render as a search input");
 assertTextOrder(clientsSurface.textContent, ["Acme Parent", "Acme Child"]);
 const clientHierarchyLabels = clientsSurface.querySelectorAll(".view-hierarchy-label");
 assert.ok(clientHierarchyLabels.some((label) => label.dataset.viewHierarchyDepth === "1" && /Acme Child/.test(label.textContent)), "Client hierarchy labels should carry child indentation metadata");
@@ -99,7 +102,7 @@ vm.runInNewContext(renderer, projectsContext, { filename: "view-renderer.js" });
 
 const projectActionCalls = [];
 const projectsView = projectsContext.window.LongtailForge.view;
-projectsView.registerBehavior("client-projects.projects.tags", () => [{ value: "tag-focus", label: "Focus" }]);
+projectsView.registerBehavior("client-projects.projects.tags", (ctx) => ctx.mountSearchOptions([{ value: "tag-focus", label: "Focus" }], { submitMode: "option-or-input" }));
 projectsView.registerBehavior("client-projects.projects.clients", () => [{ value: "client-parent", label: "Acme Parent" }]);
 projectsView.registerBehavior("client-projects.projects.create", (context) => projectActionCalls.push({ behavior: context.action.behavior, recordId: context.record?.id || "" }));
 projectsView.registerBehavior("client-projects.projects.edit", (context) => projectActionCalls.push({ behavior: context.action.behavior, recordId: context.record?.id || "" }));
@@ -126,6 +129,7 @@ assert.equal(
   "/api/projects?include_depth=true&clientId=client-parent&status=Active&tagIds=tag-focus",
   "Projects descriptor filters should build canonical Client/status/tag queries",
 );
+assert.equal(findFieldControl(projectsSurface, "tagIds")?.tagName, "INPUT", "Projects tag filter should render as a search input");
 assertTextOrder(projectsSurface.textContent, ["Buildout", "Launch"]);
 assert.ok(projectsSurface.querySelectorAll(".view-hierarchy-label").some((label) => label.dataset.viewHierarchyDepth === "1" && /Launch/.test(label.textContent)), "Project hierarchy labels should carry child indentation metadata");
 assert.match(projectsSurface.textContent, /Acme Parent/, "Project Client labels should render from module-shaped readable labels");
@@ -208,6 +212,12 @@ function findButtonByLabel(root, label) {
   const button = root.querySelectorAll("button").find((candidate) => candidate.getAttribute("aria-label") === label || candidate.title === label);
   assert.ok(button, `Expected button labeled '${label}'`);
   return button;
+}
+
+function findFieldControl(root, fieldName) {
+  return root.querySelectorAll("input")
+    .concat(root.querySelectorAll("select"))
+    .find((candidate) => candidate.getAttribute("data-view-input") === fieldName);
 }
 
 function createBrowserContext({ responses, permissions }) {

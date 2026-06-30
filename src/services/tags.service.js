@@ -751,6 +751,44 @@ async function filterRecordsByTags(session, targetType, records, tagIds, options
   }));
 }
 
+async function resolveTagFilterValues(session, value, options = {}) {
+  const filters = normalizeOptionalTagIds(value);
+  if (filters.length === 0) {
+    return [];
+  }
+  if (!(await tagsModuleReadable(session))) {
+    return filters;
+  }
+
+  const resolved = [];
+  for (const filter of filters) {
+    const tagFilter = String(filter || "").trim();
+    if (!tagFilter || isTagFilterSentinel(tagFilter)) {
+      resolved.push(tagFilter);
+      continue;
+    }
+
+    const exactTag = await tagsRepository.readTagsByIds(session.workspace_id, [tagFilter]);
+    if (exactTag.length > 0) {
+      resolved.push(exactTag[0].tag_id);
+      continue;
+    }
+
+    const matches = await tagsRepository.listTags(session.workspace_id, {
+      search: tagFilter,
+      status: options.status || "active",
+    });
+    if (matches.length > 0) {
+      resolved.push(...matches.map((tag) => tag.tag_id));
+      continue;
+    }
+
+    resolved.push(tagFilter);
+  }
+
+  return [...new Set(resolved)];
+}
+
 function shapeAssignmentReadModel(assignments = []) {
   const activeAssignments = (Array.isArray(assignments) ? assignments : [])
     .filter((assignment) => assignment?.tag?.status === "active")
@@ -1221,12 +1259,11 @@ function normalizeTagFilterIntent(value) {
   const tagIds = [];
 
   filters.forEach((filter) => {
-    const normalized = String(filter || "").trim().toLowerCase();
-    if (["__no_tags__", "__no_effective_tags__", "no_tags", "none"].includes(normalized)) {
+    if (isEffectiveNoTagsFilter(filter)) {
       noTagsMode = "effective";
       return;
     }
-    if (["__no_direct_tags__", "no_direct_tags"].includes(normalized)) {
+    if (isDirectNoTagsFilter(filter)) {
       noTagsMode = "direct";
       return;
     }
@@ -1237,6 +1274,20 @@ function normalizeTagFilterIntent(value) {
     noTagsMode,
     tagIds: [...new Set(tagIds)],
   };
+}
+
+function isTagFilterSentinel(value) {
+  return isEffectiveNoTagsFilter(value) || isDirectNoTagsFilter(value);
+}
+
+function isEffectiveNoTagsFilter(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "_");
+  return ["__no_tags__", "__no_effective_tags__", "no_tags", "none"].includes(normalized);
+}
+
+function isDirectNoTagsFilter(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/\s+/g, "_");
+  return ["__no_direct_tags__", "no_direct_tags"].includes(normalized);
 }
 
 function normalizeBulkTargetIds(value) {
@@ -1443,6 +1494,7 @@ export const tagsService = {
   repairTagPropagation,
   replaceAssignments,
   replaceManualAssignments,
+  resolveTagFilterValues,
   normalizeTagFilterIntent,
   refreshPropagatedAssignmentsForTarget,
   refreshPropagatedAssignmentsForWorkspace,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.14.5";
+const appVersion = "0.33.5.18.15";
 const filesCloseoutVersion = "0.33.5.18.12.7";
 
 const packageJson = JSON.parse(readText("package.json"));
@@ -23,7 +23,7 @@ assert.match(notesModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`
 assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module metadata should track the current app version");
 
 assert.match(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "Roadmap should archive the completed Files 0.33.5.18.12 branch");
-assert.match(roadmap, /The active roadmap continues with Clients\/Projects view conversion work\./, "Roadmap should advance to Clients/Projects after Files closeout");
+assert.match(roadmap, /Completed 0\.33\.5\.18\.15 is archived/, "Roadmap should archive the completed view-conversion branch closeout");
 assert.doesNotMatch(roadmap, /## Files \(0\.33\.5\.18\.11 - 0\.33\.5\.18\.12\)/, "Live roadmap should not keep the completed Files branch open");
 assert.doesNotMatch(roadmap, /#### Version 0\.33\.5\.18\.12\.7 - Files docs, changelog, and closeout/, "Completed Files closeout slice should be archived out of the live roadmap");
 

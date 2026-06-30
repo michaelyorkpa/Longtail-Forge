@@ -1,6 +1,7 @@
 (function attachViewRenderer(global) {
   const root = global.LongtailForge || {};
   const behaviors = new Map();
+  let searchOptionsCounter = 0;
 
   function registerBehavior(id, handler) {
     const behaviorId = String(id || "").trim();
@@ -515,9 +516,28 @@
       }
       const control = form.querySelector?.(`[data-view-input="${key}"]`);
       if (control) {
-        state.filterValues[key] = control.type === "checkbox" ? Boolean(control.checked) : control.value;
+        state.filterValues[key] = filterControlValue(control);
       }
     }
+  }
+
+  function filterControlValue(control) {
+    if (control.type === "checkbox") {
+      return Boolean(control.checked);
+    }
+    if (control.dataset?.viewSearchOptions === "true") {
+      const submitMode = control.dataset.viewSearchSubmitMode || "input";
+      const selectedLabel = control.dataset.viewSearchOptionLabel || "";
+      const selectedValue = control.dataset.viewSearchOptionValue || "";
+      const hasSelectedOption = Boolean(selectedValue) && control.value === selectedLabel;
+      if (submitMode === "option-value") {
+        return hasSelectedOption ? selectedValue : "";
+      }
+      if (submitMode === "option-or-input") {
+        return hasSelectedOption ? selectedValue : control.value;
+      }
+    }
+    return control.value;
   }
 
   function initialFilterValues(descriptor) {
@@ -1026,14 +1046,18 @@
           record: mount.record,
           refresh: state.surface.refresh,
           region: mount.region,
-          setOptions: (options) => setSelectOptions(mount.control, options, mount.selectedValue),
+          mountSearchOptions: (options, optionsConfig = {}) => mountSearchOptions(mount.control, options, {
+            ...optionsConfig,
+            selectedValue: mount.selectedValue,
+          }),
+          setOptions: (options, optionsConfig = {}) => setFieldOptions(mount.control, options, mount.selectedValue, optionsConfig),
           workspaceContext: root.workspaceContext || {},
         });
         if (mount.mountType === "fieldOptions") {
           Promise.resolve(result)
             .then((options) => {
               if (Array.isArray(options)) {
-                setSelectOptions(mount.control, options, mount.selectedValue);
+                setFieldOptions(mount.control, options, mount.selectedValue);
               }
             })
             .catch((error) => setFieldOptionsError(mount.control, error?.message || "Options could not be loaded."));
@@ -1050,6 +1074,17 @@
         }
       }
     }
+  }
+
+  function setFieldOptions(control, options = [], selectedValue = undefined, optionsConfig = {}) {
+    if (control?.tagName === "SELECT") {
+      setSelectOptions(control, options, selectedValue);
+      return;
+    }
+    mountSearchOptions(control, options, {
+      ...optionsConfig,
+      selectedValue,
+    });
   }
 
   function setSelectOptions(control, options = [], selectedValue = undefined) {
@@ -1074,8 +1109,238 @@
     delete control.dataset.viewOptionsError;
   }
 
+  function mountSearchOptions(control, options = [], config = {}) {
+    if (!control || control.tagName !== "INPUT") {
+      return;
+    }
+
+    const normalizedOptions = normalizeSelectOptions(options)
+      .filter((option) => option && (option.label !== "" || option.value !== ""));
+    const submitMode = config.submitMode || "input";
+    const minChars = Number.isFinite(config.minChars) ? config.minChars : 1;
+    const maxResults = Number.isInteger(config.maxResults) ? config.maxResults : 8;
+    const emptyMessage = config.emptyMessage || "No matching options.";
+
+    if (typeof control._viewSearchOptionsCleanup === "function") {
+      control._viewSearchOptionsCleanup();
+    }
+
+    const popup = document.createElement("div");
+    const popupId = `view-search-options-${++searchOptionsCounter}`;
+    popup.id = popupId;
+    popup.className = "view-search-options";
+    popup.hidden = true;
+    popup.setAttribute("role", "listbox");
+
+    if (document.body?.appendChild) {
+      document.body.appendChild(popup);
+    }
+
+    control.autocomplete = "off";
+    control.dataset.viewSearchOptions = "true";
+    control.dataset.viewSearchSubmitMode = submitMode;
+    control.setAttribute("aria-autocomplete", "list");
+    control.setAttribute("aria-controls", popupId);
+    control.setAttribute("aria-expanded", "false");
+    control.removeAttribute("aria-invalid");
+    delete control.dataset.viewOptionsError;
+
+    const selectedValue = config.selectedValue !== undefined && config.selectedValue !== null
+      ? String(config.selectedValue)
+      : "";
+    if (selectedValue) {
+      const selectedOption = normalizedOptions.find((option) => String(option.value ?? "") === selectedValue);
+      if (selectedOption) {
+        selectSearchOption(control, selectedOption, { notify: false });
+      }
+    }
+
+    const renderOptions = () => {
+      const query = String(control.value || "").trim().toLowerCase();
+      if (query.length < minChars) {
+        hideSearchOptions(control, popup);
+        return;
+      }
+
+      const matches = normalizedOptions
+        .filter((option) => searchOptionText(option).includes(query))
+        .slice(0, maxResults);
+
+      if (matches.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "view-search-option-empty";
+        empty.textContent = emptyMessage;
+        popup.replaceChildren(empty);
+      } else {
+        popup.replaceChildren(...matches.map((option) => createSearchOptionButton(control, popup, option)));
+      }
+
+      showSearchOptions(control, popup);
+    };
+
+    const handleInput = () => {
+      const selectedLabel = control.dataset.viewSearchOptionLabel || "";
+      const hadSelectedValue = Boolean(control.dataset.viewSearchOptionValue);
+      if (hadSelectedValue && control.value !== selectedLabel) {
+        delete control.dataset.viewSearchOptionValue;
+        delete control.dataset.viewSearchOptionLabel;
+        if (!control.value) {
+          dispatchFieldEvent(control, "change");
+        }
+      }
+      renderOptions();
+    };
+    const handleFocus = () => renderOptions();
+    const handleBlur = () => {
+      global.setTimeout?.(() => hideSearchOptions(control, popup), 120);
+    };
+    const handleKeydown = (event) => {
+      if (event.key === "Escape") {
+        hideSearchOptions(control, popup);
+        return;
+      }
+      if (event.key !== "Enter" || popup.hidden) {
+        return;
+      }
+      const firstOption = popup.querySelector?.(".view-search-option");
+      if (!firstOption) {
+        return;
+      }
+      event.preventDefault?.();
+      firstOption.click?.();
+    };
+    const reposition = () => positionSearchOptions(control, popup);
+
+    control.addEventListener("input", handleInput);
+    control.addEventListener("focus", handleFocus);
+    control.addEventListener("blur", handleBlur);
+    control.addEventListener("keydown", handleKeydown);
+    if (typeof global.addEventListener === "function") {
+      global.addEventListener("resize", reposition);
+      global.addEventListener("scroll", reposition, true);
+    }
+
+    control._viewSearchOptionsCleanup = () => {
+      if (typeof global.removeEventListener === "function") {
+        global.removeEventListener("resize", reposition);
+        global.removeEventListener("scroll", reposition, true);
+      }
+      if (popup.parentNode?.removeChild) {
+        popup.parentNode.removeChild(popup);
+      }
+      delete control._viewSearchOptionsCleanup;
+    };
+  }
+
+  function createSearchOptionButton(control, popup, option) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "view-search-option";
+    button.setAttribute("role", "option");
+    button.dataset.viewSearchOptionValue = String(option.value ?? "");
+    if (option.color) {
+      const swatch = document.createElement("span");
+      swatch.className = "view-search-option-swatch";
+      swatch.style.background = String(option.color);
+      button.appendChild(swatch);
+    }
+    const label = document.createElement("span");
+    label.textContent = String(option.label ?? option.value ?? "");
+    button.appendChild(label);
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    button.addEventListener("click", () => {
+      selectSearchOption(control, option);
+      hideSearchOptions(control, popup);
+    });
+    return button;
+  }
+
+  function selectSearchOption(control, option, { notify = true } = {}) {
+    const label = String(option.label ?? option.value ?? "");
+    const value = String(option.value ?? "");
+    control.value = label;
+    control.dataset.viewSearchOptionValue = value;
+    control.dataset.viewSearchOptionLabel = label;
+    if (notify) {
+      dispatchFieldEvent(control, "input");
+      dispatchFieldEvent(control, "change");
+      global.setTimeout?.(() => cleanupDetachedSearchOptions(control), 0);
+    }
+  }
+
+  function cleanupDetachedSearchOptions(control) {
+    if (typeof document.body?.contains !== "function" || document.body.contains(control)) {
+      return;
+    }
+    control._viewSearchOptionsCleanup?.();
+  }
+
+  function showSearchOptions(control, popup) {
+    popup.hidden = false;
+    control.setAttribute("aria-expanded", "true");
+    positionSearchOptions(control, popup);
+  }
+
+  function hideSearchOptions(control, popup) {
+    popup.hidden = true;
+    control.setAttribute("aria-expanded", "false");
+  }
+
+  function positionSearchOptions(control, popup) {
+    if (popup.hidden || typeof control.getBoundingClientRect !== "function") {
+      return;
+    }
+    const rect = control.getBoundingClientRect();
+    const viewportWidth = global.innerWidth || document.documentElement?.clientWidth || rect.right || 320;
+    const viewportHeight = global.innerHeight || document.documentElement?.clientHeight || rect.bottom || 480;
+    const spacing = 6;
+    const width = Math.max(rect.width || 0, 180);
+    const below = viewportHeight - rect.bottom - spacing;
+    const above = rect.top - spacing;
+    const openAbove = below < 140 && above > below;
+    const availableHeight = Math.max(96, Math.min(260, openAbove ? above - spacing : below - spacing));
+    const left = Math.min(
+      Math.max(8, rect.left || 8),
+      Math.max(8, viewportWidth - width - 8),
+    );
+    if (!popup.style) {
+      popup.style = {};
+    }
+    popup.style.left = `${left}px`;
+    popup.style.top = `${openAbove ? Math.max(8, rect.top - availableHeight - spacing) : rect.bottom + spacing}px`;
+    popup.style.width = `${width}px`;
+    popup.style.maxHeight = `${availableHeight}px`;
+  }
+
+  function searchOptionText(option) {
+    const keywords = Array.isArray(option.keywords)
+      ? option.keywords
+      : String(option.keywords || "").split(/\s+/);
+    return [
+      option.label,
+      option.value,
+      ...keywords,
+    ].filter(Boolean).join(" ").toLowerCase();
+  }
+
+  function dispatchFieldEvent(control, eventName) {
+    if (typeof control.dispatchEvent !== "function") {
+      return;
+    }
+    if (typeof global.Event === "function") {
+      control.dispatchEvent(new global.Event(eventName, { bubbles: true }));
+      return;
+    }
+    control.dispatchEvent({ type: eventName, bubbles: true });
+  }
+
   function setFieldOptionsError(control, message) {
-    if (!control || control.tagName !== "SELECT") {
+    if (!control) {
+      return;
+    }
+    if (control.tagName !== "SELECT") {
+      control.dataset.viewOptionsError = message || "Options unavailable.";
+      control.setAttribute("aria-invalid", "true");
       return;
     }
     if (!control.options.length) {
@@ -1419,6 +1684,7 @@
         value: options.value ?? field.default,
         placeholder: field.placeholder,
         "data-view-input": options.controlId,
+        ...(field.optionsSource ? { "data-view-options-source": field.optionsSource } : {}),
       },
     });
     if (field.type === "checkbox") {
@@ -1444,6 +1710,7 @@
       if (option && typeof option === "object") {
         const value = option.value ?? option.id ?? "";
         return {
+          ...option,
           value,
           label: option.label ?? option.text ?? value,
           selected: Boolean(option.selected || option.default),

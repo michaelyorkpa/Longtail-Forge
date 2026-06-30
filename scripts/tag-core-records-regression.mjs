@@ -50,6 +50,9 @@ try {
 
   assert.equal((await clientsService.listClients(session, { tagIds: [tag.tag_id] })).clients.length, 1);
   assert.equal((await clientsService.listProjects(session, { tagIds: [tag.tag_id] })).projects.length, 1);
+  assert.equal((await clientsService.listClients(session, { tagIds: "Urgent" })).clients.length, 1);
+  assert.equal((await clientsService.listProjects(session, { tagIds: "urgent-client" })).projects.length, 1);
+  assert.equal((await clientsService.listClients(session, { tagIds: "missing tag" })).clients.length, 0);
   assert.equal((await tasksService.list(session, { tagIds: [tag.tag_id] })).tasks.length, 1);
   assert.equal((await timeEntriesService.list(session, { tagIds: [tag.tag_id] })).entries.length, 1);
 

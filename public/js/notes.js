@@ -268,6 +268,7 @@ function registerNotesViewBehaviors() {
   view.registerBehavior("notes.sidebar.notes-list-footer", ({ container }) => {
     container.replaceChildren(createNotesListSortControl(), createNotesPagination());
   });
+  view.registerBehavior("notes.filters.tags", hydrateNoteTagFilterOptions);
   Object.keys(NOTE_WORKFLOW_HANDLERS).forEach((behaviorId) => {
     view.registerBehavior(behaviorId, ({ record }) => runNoteWorkflow(behaviorId, record || state.selectedNote));
   });
@@ -416,7 +417,7 @@ function fallbackNotesViewSurfaceDescriptor() {
       notesDescriptorSelect("noteType", "Note Kind", [["all", "All kinds", true], ...Object.entries(NOTE_KIND_LABELS).filter(([value]) => !LEGACY_NOTE_KINDS.has(value)).map(([value, label]) => [value, label])]),
       { id: "context-filter", field: "context", type: "search", label: "Context" },
       { id: "owner-filter", field: "owner", type: "search", label: "Owner" },
-      { id: "tags-filter", field: "tags", type: "search", label: "Tags" },
+      { id: "tags-filter", field: "tags", type: "search", label: "Tags", optionsSource: "notes.filters.tags" },
       { id: "updated-filter", field: "updatedSince", type: "date", label: "Updated Since" },
     ],
     indexPanel: {
@@ -528,6 +529,41 @@ function decorateNotesFilter(surface, fieldName, datasetName) {
   if (control) {
     control.dataset[datasetName] = "";
   }
+}
+
+async function hydrateNoteTagFilterOptions({ mountSearchOptions, setOptions } = {}) {
+  if (!state.availableTags.length) {
+    await loadTags();
+  }
+
+  const noTagsValue = window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__";
+  const options = [
+    { value: noTagsValue, label: "No tags", keywords: ["none", "untagged"] },
+    ...state.availableTags.map((tag) => ({
+      value: tag.name || tag.slug || tag.tag_id || "",
+      label: tag.name || tag.slug || "Tag",
+      keywords: [tag.slug, tag.description].filter(Boolean),
+      color: tag.color,
+    })),
+  ];
+
+  if (typeof mountSearchOptions === "function") {
+    mountSearchOptions(options, {
+      submitMode: "option-or-input",
+      minChars: 1,
+      maxResults: 10,
+      emptyMessage: "No matching tags.",
+    });
+    return undefined;
+  }
+
+  setOptions?.(options, {
+    submitMode: "option-or-input",
+    minChars: 1,
+    maxResults: 10,
+    emptyMessage: "No matching tags.",
+  });
+  return undefined;
 }
 
 function createNotesLibraryChrome() {

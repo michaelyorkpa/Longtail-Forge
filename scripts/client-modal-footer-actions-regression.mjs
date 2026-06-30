@@ -60,9 +60,9 @@ assert.doesNotMatch(clientsHtml, /<dialog data-client-modal>/, "Clients page sho
 assert.match(clientsHtml, /js\/shared\/view-builder\.js\?v=\d+/);
 assert.match(projectsHtml, /js\/shared\/view-builder\.js\?v=\d+/);
 assert.match(workbenchHtml, /js\/shared\/view-builder\.js\?v=\d+/);
-assert.match(clientsHtml, /clients-projects\.js\?v=18/);
-assert.match(projectsHtml, /clients-projects\.js\?v=18/);
-assert.match(workbenchHtml, /clients-projects\.js\?v=18/);
+assert.match(clientsHtml, /clients-projects\.js\?v=20/);
+assert.match(projectsHtml, /clients-projects\.js\?v=20/);
+assert.match(workbenchHtml, /clients-projects\.js\?v=20/);
 
 console.log("Client modal footer actions regression passed.");
 

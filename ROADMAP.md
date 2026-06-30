@@ -4,10 +4,10 @@ This file is the detailed per-version changelog and forward plan for Longtail Fo
 
 ## Version 0.33.5.18 - View Conversion Backlog (Framework-Owned Views, Module-Owned Data)
 
-Completed 0.33.5.17 Markdown platform work and earlier 0.33.5.18 planning and implementation slices
-are archived in `ROADMAP-ARCHIVE.md`.
+Completed 0.33.5.17 Markdown platform work and the completed 0.33.5.18 view-conversion planning,
+implementation, Clients/Projects cleanup, and 0.33.5.18.15 branch closeout slices are archived in
+`ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
-The active roadmap continues with Clients/Projects view conversion work.
 Completed 0.33.5.18.11.1 through 0.33.5.18.11.13 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.12.1 through 0.33.5.18.12.7 are archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.13.1 through 0.33.5.18.13.3 are archived in `ROADMAP-ARCHIVE.md`.
@@ -16,69 +16,8 @@ Completed 0.33.5.18.14.2 is archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.14.3 is archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.14.4 is archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.14.5 is archived in `ROADMAP-ARCHIVE.md`.
-
-## Clients/Projects Pages (0.33.5.18.13 - 0.33.5.18.14)
-
-The Add/Edit Client and Add/Edit Project dialogs were already converted to shared modal/form/footer
-helpers in 0.33.5.15.4. This cluster converts the remaining shared Clients/Projects page anatomy
-across `clients.html` and `projects.html`: filters, the client/project hierarchy index, related
-tables, page-level actions, and hierarchy interactions. Keep the already-converted dialogs working
-unchanged.
-
-Framework owns: page shell, descriptor schema/renderer capabilities, filters and filter panels,
-hierarchy display/index/table shells, list/table wrappers, detail shells, related-table shells, action
-placement, bulk-toolbar shells, empty/loading/error states, minimal protected hosts, and strict
-guardrail enforcement.
-
-Clients/Projects owns: client/project hierarchy rules, parent/reparent validation, canonical read
-routes, client/project option data, billing metadata and defaults, task-default metadata on projects,
-Business-only Client availability, Personal/Family project-only scope, payload construction,
-permissions, audit/search/event side effects, safe labels, tag assignment semantics, save/refresh
-behavior, and the already-converted Add/Edit Client and Add/Edit Project dialog behavior.
-
-## Version 0.33.5.18.15 - Cross-Surface Guardrails, Inventory, Documentation, and Closeout
-
-- [ ] Confirm fail-on-violation declarative guardrails are enforced on all converted page surfaces
-      (Notes, Tasks, Files, Clients, and Projects pages).
-- [ ] A declarative surface must not call `document.createElement` for framework-owned anatomy (page
-      header, table, dialog, action strip, filter panel, split layout, index list).
-- [ ] A declarative surface must not ship a non-minimal protected HTML view.
-- [ ] A declarative surface must not introduce one-off layout/footer classes when a descriptor field
-      or framework class exists.
-- [ ] Update the `docs/view-building-contract.md` inventory snapshot to mark Notes, Tasks, Files,
-      Clients, and Projects pages as converted, and to note Admin/Settings (deferred), Reporting
-      (0.33.6), and Dashboard/Workbench (0.33.7) as remaining or owned elsewhere.
-- [ ] Update `docs/module-contract.md` and `docs/ui-surface-contract.md` with the shared capabilities
-      added in 0.33.5.18.1 and the escape-hatch boundary.
-- [ ] Update the developer guide for authoring a declarative surface with the new capabilities.
-- [ ] Confirm no database schema, module API payload, permission, or workflow changes were introduced
-      by the conversions.
-- [ ] Update DECISIONS.md with the view-conversion-backlog decisions and the converted-surface list.
-- [ ] Update CHANGELOG.md.
-- [ ] Update package metadata to the implemented version.
-- [ ] Run `npm run check`.
-- [ ] Run `npm run test:permissions`.
-- [ ] Verify `/api/app-info` reports the expected version.
-- [ ] Defer Admin/Settings view conversion and any non-view concerns to their own later roadmap lines.
-
----
-
-## Per-Slice Standing Constraints
-
-These apply to every conversion slice above and should be treated as acceptance criteria:
-
-- Behavior-preserving: no route, payload, permission, schema, or workflow changes.
-- Modules own data loading, normalized read endpoints, `fieldBindings`, validation, save payloads,
-  permissions, record labels, and workflow behavior; the framework owns layout anatomy.
-- Use descriptors first; use imperative `LongtailForge.view` helpers only as the documented escape
-  hatch for fragments a descriptor cannot express, never to hand-build covered anatomy.
-- Reuse the per-workspace terminology system for all descriptor labels rather than hard-coded strings.
-- Keep legacy module CSS classes as compatibility aliases during conversion; do not add new one-off
-  classes for framework-owned anatomy; defer alias removal to a later cleanup pass.
-- Preserve Business client/project behavior and Personal/Family workspace scope on every surface.
-- Each surface's final cleanup slice must leave its browser file as data bindings plus behaviors with
-  no hand-built framework-owned anatomy, and must expand strict guardrails to that surface.
-- Add regressions per slice; wire each new regression into `scripts/regression-suite.mjs`.
+Completed 0.33.5.18.15 is archived in `ROADMAP-ARCHIVE.md`.
+The active roadmap continues with runtime configuration and SQLite small-office foundation work.
 
 ## Version 0.33.5.19 - Runtime Configuration and SQLite Small-Office Foundation
 

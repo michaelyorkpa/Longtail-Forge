@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.14.5";
+const appVersion = "0.33.5.18.15";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -29,11 +29,11 @@ assert.equal(packageJson.version, appVersion, "package.json should report the Cl
 assert.equal(packageLock.version, appVersion, "package-lock root should report the Clients/Projects readiness version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Clients/Projects readiness version");
 
-assert.match(inventoryDoc, /Current as of 0\.33\.5\.18\.14\.5/, "Clients/Projects inventory should report this slice");
+assert.match(inventoryDoc, /Current as of 0\.33\.5\.18\.15/, "Clients/Projects inventory should report the branch closeout state");
 assert.match(inventoryDoc, /strict enforcement is active/, "Inventory should mark Clients/Projects guardrails as active");
 assert.match(inventoryDoc, /Framework-Owned Guardrail Candidates[\s\S]*page-header\/status shells[\s\S]*Inline top filter panels[\s\S]*Hierarchy index\/list shells[\s\S]*Related table\/list shells[\s\S]*Bulk-toolbar shell[\s\S]*row-selection checkbox shell[\s\S]*Empty\/loading\/error\/status shells/, "Inventory should map framework-owned anatomy");
 assert.match(inventoryDoc, /Allowed Clients\/Projects Escape Hatches[\s\S]*\/api\/clients[\s\S]*\/api\/projects[\s\S]*\/api\/client-projects[\s\S]*hierarchy rules[\s\S]*Billing metadata\/default editors[\s\S]*Tag assignment[\s\S]*Query-param openers[\s\S]*Business-only Client availability[\s\S]*Bulk selected-ID collection[\s\S]*Save payload construction/, "Inventory should map Clients/Projects-owned escape hatches");
-assert.match(inventoryDoc, /0\.33\.5\.18\.13\.3 Framework-Rendered Read Anatomy[\s\S]*page headers[\s\S]*filters[\s\S]*row action placement[\s\S]*query-param openers/, "Inventory should document the framework-rendered read anatomy boundary");
+assert.match(inventoryDoc, /0\.33\.5\.18\.13\.3 Framework-Rendered Read Anatomy[\s\S]*page headers[\s\S]*filter controls[\s\S]*row action placement[\s\S]*query-param openers/, "Inventory should document the framework-rendered read anatomy boundary");
 assert.match(inventoryDoc, /0\.33\.5\.18\.14\.1 Action Registration Cleanup[\s\S]*LongtailForge\.moduleActions\.open[\s\S]*LongtailForge\.clientProjectDialog[\s\S]*duplicate page-level Add Client compatibility shell/, "Inventory should document the completed action registration cleanup");
 assert.match(inventoryDoc, /0\.33\.5\.18\.14\.2 Related Table and Detail Regions[\s\S]*createDataTable[\s\S]*Project editor's Client and Parent Project context rows[\s\S]*does not add a persistent Inspector-style detail pane/, "Inventory should document the completed related-region cleanup");
 assert.match(inventoryDoc, /0\.33\.5\.18\.14\.3 Bulk Controls and Selection Behavior[\s\S]*table `selection` metadata[\s\S]*LongtailForge\.view\.createBulkActionToolbar\(\)[\s\S]*Business workspaces may expose Project Client reassignment/, "Inventory should document the completed bulk-control cleanup");
@@ -52,8 +52,9 @@ assert.match(viewBuilder, /function hierarchyMetadata[\s\S]*viewHierarchyDepth[\
 assert.match(viewBuilder, /view-index-list-item--hierarchy/, "Index primitive should expose hierarchy display styling");
 assert.match(viewBuilder, /view-data-table-row--hierarchy/, "Data-table primitive should expose hierarchy row metadata");
 assert.match(viewBuilder, /function createDataSecondaryRow[\s\S]*view-data-table-secondary-row[\s\S]*normalizedColumnIndex/, "Data-table primitive should support secondary row rendering");
-assert.match(viewRenderer, /mountType: "fieldOptions"[\s\S]*optionsSource/, "Renderer should mount option-source hydration for select filters");
-assert.match(viewRenderer, /setOptions: \(options\) => setSelectOptions/, "Renderer should expose setOptions to module-owned option behaviors");
+assert.match(viewRenderer, /mountType: "fieldOptions"[\s\S]*optionsSource/, "Renderer should mount option-source hydration for filter fields");
+assert.match(viewRenderer, /setOptions: \(options, optionsConfig = \{\}\) => setFieldOptions/, "Renderer should expose setOptions to module-owned option behaviors");
+assert.match(viewRenderer, /mountSearchOptions: \(options, optionsConfig = \{\}\) => mountSearchOptions/, "Renderer should expose search suggestion mounting to module-owned option behaviors");
 assert.match(viewRenderer, /function renderTablePageSlideOutLayout[\s\S]*Open filters[\s\S]*renderSidebarPanels/, "Renderer should move table-page filters into the shared slide-out surface");
 assert.match(viewRenderer, /function renderHierarchyLabel[\s\S]*view-hierarchy-label/, "Renderer should expose the hierarchy-label display hook");
 assert.match(viewRenderer, /function renderChipList[\s\S]*view-table-chip-list/, "Renderer should expose the chip-list display hook");
@@ -71,8 +72,8 @@ assert.match(clientProjectsModule, /filterPlacement:\s*"slide-out-sidebar"[\s\S]
 assert.match(clientProjectsModule, /filterPlacement:\s*"slide-out-sidebar"[\s\S]*id:\s*"client-projects-projects-filters"[\s\S]*secondaryRows:[\s\S]*id:\s*"project-tags"[\s\S]*iconOnly:\s*true/, "Projects descriptor should use drawer filters, secondary tags, and icon-only edit action");
 assert.match(clientsHtml, /<main class="wide-page client-projects-page clients-page" data-client-projects-host><\/main>/, "Clients host should be a minimal descriptor host");
 assert.match(projectsHtml, /<main class="wide-page client-projects-page projects-page" data-client-projects-host><\/main>/, "Projects host should be a minimal descriptor host");
-assert.match(clientsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=15[\s\S]*clients-projects\.js\?v=18/, "Clients host should load builder, renderer, then adapter");
-assert.match(projectsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=15[\s\S]*clients-projects\.js\?v=18/, "Projects host should load builder, renderer, then adapter");
+assert.match(clientsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Clients host should load builder, renderer, then adapter");
+assert.match(projectsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Projects host should load builder, renderer, then adapter");
 
 assert.doesNotMatch(clientsProjectsScript, /function ensureClientProjectsPageHost\(\)/, "Clients/Projects adapter should not bridge page/filter/status/list anatomy after 13.3");
 assert.doesNotMatch(clientsProjectsScript, /function renderClients\(|function createProjectTable\(|function createClientTable\(|function openProjectBulkEditor\(|data-client-status-filter|data-project-client-filter|list-table-wrap|project-bulk-dialog/, "Clients/Projects adapter should not keep legacy page filter/table/bulk-dialog chrome after strict cleanup");
@@ -102,6 +103,7 @@ assert.match(clientsService, /async function listClients[\s\S]*assertBusinessWor
 assert.match(clientsService, /async function listProjects[\s\S]*filterReadableProjects/, "Projects service should keep service-owned Project reads");
 
 assert.match(declarativeGuide, /0\.33\.5\.18\.14\.5[\s\S]*client-projects\.clients[\s\S]*client-projects\.projects[\s\S]*strict enforcement is active[\s\S]*slide-out filter surface[\s\S]*secondary tag rows[\s\S]*icon-only repeated edit controls/, "Declarative guide should document the Clients/Projects strict cleanup boundary");
+assert.match(inventoryDoc, /searchable tag suggestions[\s\S]*searchable tag suggestion mounting/, "Clients/Projects inventory should document searchable tag filter ownership");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.13\.3[\s\S]*Clients\/Projects framework-rendered read anatomy/, "View-building contract should document the read anatomy boundary");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.14\.1[\s\S]*LongtailForge\.moduleActions\.open[\s\S]*LongtailForge\.clientProjectDialog[\s\S]*duplicate page-level Add Client compatibility shell/, "View-building contract should document the action registration boundary");
 assert.match(viewContract, /Implementation Notes For 0\.33\.5\.18\.14\.2[\s\S]*createDataTable[\s\S]*Client and Parent Project context rows[\s\S]*does not convert bulk controls/, "View-building contract should document the related-region boundary");

@@ -11,14 +11,14 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.18.14.5", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.18.14.5", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.18.14.5", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.18.15", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.18.15", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.18.15", "package-lock package entry should report the current app version");
 
 // Protected view is now a minimal framework host; as of .18.4 the dialogs are framework-built too.
 assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Notes view should be a minimal framework host");
-assert.match(html, /css\/longtail-forge\.css\?v=55/, "Notes host should load the refreshed stylesheet");
-assert.match(html, /js\/shared\/icons\.js\?v=4[\s\S]*js\/shared\/view-builder\.js\?v=11[\s\S]*js\/shared\/view-renderer\.js\?v=11[\s\S]*js\/notes\.js\?v=67/, "Notes host should load the icon helper, view builder, and renderer before the module adapter");
+assert.match(html, /css\/longtail-forge\.css\?v=56/, "Notes host should load the refreshed stylesheet");
+assert.match(html, /js\/shared\/icons\.js\?v=4[\s\S]*js\/shared\/view-builder\.js\?v=11[\s\S]*js\/shared\/view-renderer\.js\?v=12[\s\S]*js\/notes\.js\?v=68/, "Notes host should load the icon helper, view builder, and renderer before the module adapter");
 assert.doesNotMatch(html, /data-notes-list|data-notes-collections-panel|data-note-filter-status|class="notes-filters-panel"/, "Notes static HTML should not own the converted read workspace anatomy");
 assert.doesNotMatch(html, /data-note-dialog/, "Editor dialog is framework-built as of .18.4, not static HTML");
 assert.doesNotMatch(html, /data-note-collection-dialog/, "Collection dialog is framework-built as of .18.4, not static HTML");
@@ -32,6 +32,7 @@ assert.match(notesModule, /id:\s*"notes\.workspace"/, "Notes descriptor should u
 assert.match(notesModule, /layout:\s*"slide-out-sidebar"/, "Notes descriptor should use the slide-out sidebar layout");
 assert.doesNotMatch(notesModule, /layout:\s*"sidebar-detail"/, "Notes descriptor should no longer use the persistent sidebar-detail layout");
 assert.match(notesModule, /sidebarPanels:\s*\[[\s\S]*id:\s*"notes-filters"[\s\S]*type:\s*"filters"[\s\S]*open:\s*false[\s\S]*id:\s*"notes-library"[\s\S]*type:\s*"navigation"[\s\S]*behavior:\s*"notes\.sidebar\.library"[\s\S]*open:\s*true[\s\S]*id:\s*"notes-list"[\s\S]*type:\s*"index"[\s\S]*title:\s*"Notes List"[\s\S]*behavior:\s*"notes\.sidebar\.notes-list-footer"/, "Notes descriptor should declare ordered Filters, Library, and Notes List sidebar panels for the drawer");
+assert.match(notesModule, /id:\s*"tags-filter"[\s\S]*field:\s*"tags"[\s\S]*type:\s*"search"[\s\S]*optionsSource:\s*"notes\.filters\.tags"/, "Notes descriptor should declare tag filter search suggestions through the framework option-source hook");
 assert.match(notesModule, /route:\s*"\/api\/notes"/, "Notes descriptor should keep the canonical notes read route");
 
 // Browser adapter wiring: framework renders the shell, notes.js mounts the chrome and read content.
@@ -44,6 +45,8 @@ assert.match(notesJs, /layout:\s*"slide-out-sidebar"/, "Notes fallback descripto
 assert.match(notesJs, /decorateNotesDeclarativeSurface/, "notes.js should decorate the framework shell with legacy hooks");
 assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.library"[\s\S]*container\.replaceChildren\(createNotesLibraryChrome\(\)\)/, "Notes module should mount Library chrome through a sidebar panel behavior");
 assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.notes-list-footer"[\s\S]*container\.replaceChildren\(createNotesListSortControl\(\), createNotesPagination\(\)\)/, "Notes module should mount Notes List footer controls through a sidebar panel behavior");
+assert.match(notesJs, /view\.registerBehavior\("notes\.filters\.tags", hydrateNoteTagFilterOptions\)/, "Notes module should hydrate tag filter suggestions through a module-owned behavior");
+assert.match(notesJs, /hydrateNoteTagFilterOptions\(\{ mountSearchOptions, setOptions \}[\s\S]*submitMode:\s*"option-or-input"/, "Notes tag filter suggestions should preserve free-text search with selected no-tags support");
 assert.match(notesJs, /surface\.querySelector\('\[data-view-sidebar-panel="notes-list"\]'\)/, "Notes module should target the framework Notes List sidebar panel");
 assert.match(notesJs, /surface\.querySelector\("\.view-slideout-sidebar-main"\)[\s\S]*surface\.querySelector\("\.view-sidebar-detail-primary"\)/, "Notes detail should prefer the slide-out sidebar primary region and keep compatibility fallbacks");
 assert.match(notesJs, /summaryTitle\.textContent = "Notes List"/, "The descriptor index panel should be labelled Notes List");
@@ -88,6 +91,7 @@ assert.match(notesJs, /view-collapsible-index--unscrolled/, "Notes Library panel
 assert.doesNotMatch(stylesheet, /\.view-stacked[^,{]*\.notes-/, "Framework stacked rules should not reference Notes module classes");
 assert.match(stylesheet, /\.view-stacked\s*\{[\s\S]*gap:\s*0;/, "Framework stacked panels should not leave white space between navigation and detail panels");
 assert.match(stylesheet, /\.view-filter-panel-title\s*\{[\s\S]*font-weight:\s*700;/, "The Filters heading should match the bold Library/Notes List headings");
+assert.match(stylesheet, /\.view-search-options\s*\{[\s\S]*position:\s*fixed;[\s\S]*z-index:\s*120;/, "Search filter suggestions should render outside drawer panel clipping");
 assert.match(stylesheet, /\.notes-collection-picker-row\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\);/, "Library and Collection controls should stack into full drawer rows");
 assert.match(stylesheet, /\.notes-collection-control-row\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\) auto;/, "Collection select and actions should share a row with a narrow action button");
 assert.match(stylesheet, /\.notes-collection-actions-modal-body\s*\{[\s\S]*display:\s*grid;[\s\S]*gap:\s*8px;/, "Collection actions should render in a modal action list");

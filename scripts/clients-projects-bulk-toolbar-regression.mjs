@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.14.5";
+const appVersion = "0.33.5.18.15";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -58,9 +58,9 @@ assert.match(readFunctionBody(clientsProjectsScript, "refreshClientProjectsAfter
 
 assert.match(css, /\.client-projects-bulk-region\s*\{[\s\S]*background:\s*transparent/, "Bulk descriptor region should stay visually neutral around the shared toolbar");
 assert.match(css, /\.view-data-table \.view-row-select\s*\{[\s\S]*width:\s*16px[\s\S]*height:\s*16px/, "Shared table selection checkboxes should have stable dimensions");
-assert.match(clientsHtml, /css\/longtail-forge\.css\?v=10[\s\S]*view-renderer\.js\?v=15[\s\S]*clients-projects\.js\?v=18/, "Clients host should cache-bust CSS, renderer, and adapter for bulk toolbar conversion");
-assert.match(projectsHtml, /css\/longtail-forge\.css\?v=10[\s\S]*view-renderer\.js\?v=15[\s\S]*clients-projects\.js\?v=18/, "Projects host should cache-bust CSS, renderer, and adapter for bulk toolbar conversion");
-assert.match(workbenchHtml, /clients-projects\.js\?v=18/, "Workbench should load the updated Clients/Projects adapter for module-triggered actions");
+assert.match(clientsHtml, /css\/longtail-forge\.css\?v=11[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Clients host should cache-bust CSS, renderer, and adapter for bulk toolbar conversion");
+assert.match(projectsHtml, /css\/longtail-forge\.css\?v=11[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Projects host should cache-bust CSS, renderer, and adapter for bulk toolbar conversion");
+assert.match(workbenchHtml, /clients-projects\.js\?v=20/, "Workbench should load the updated Clients/Projects adapter for module-triggered actions");
 assert.match(regressionSuite, /scripts\/clients-projects-bulk-toolbar-regression\.mjs/, "Regression suite should include the Clients/Projects bulk toolbar regression");
 
 console.log("Clients/Projects bulk toolbar regression passed.");

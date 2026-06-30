@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.14.5";
+const appVersion = "0.33.5.18.15";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -102,7 +102,7 @@ assert.match(styles, /\.file-attachment-item\.is-unavailable:not\(\.is-deleted\)
 assert.match(styles, /\.file-attachment-recovery-state\s*\{[\s\S]*color:\s*var\(--color-muted\)/, "Recovery-state copy should stay quiet");
 assert.match(styles, /\.file-attachment-actions\s*\{[\s\S]*flex-wrap:\s*wrap/, "Attachment action shell should wrap safely in stacked dialogs");
 
-assert.match(notesHtml, /css\/longtail-forge\.css\?v=55/, "Notes should cache-bust the shared stylesheet for attachment panel shell changes");
+assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust the shared stylesheet for attachment panel shell changes");
 assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=5/, "Notes should cache-bust the attachment helper for panel shell changes");
 assert.match(tasksHtml, /css\/longtail-forge\.css\?v=72/, "Tasks should cache-bust the shared stylesheet for attachment panel shell changes");
 assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=4/, "Tasks should cache-bust the attachment helper for panel shell changes");

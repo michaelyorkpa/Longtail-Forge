@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.14.5";
+const appVersion = "0.33.5.18.15";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const helper = readText("public/js/shared/file-attachments.js");
@@ -82,7 +82,7 @@ assert.match(styles, /\.file-attachment-upload-hint\s*\{[\s\S]*color:\s*var\(--c
 assert.match(styles, /\.file-attachment-upload-actions\s*\{[\s\S]*display:\s*flex[\s\S]*flex-wrap:\s*wrap/, "Upload action row should wrap safely on narrow widths");
 assert.match(styles, /\.file-attachment-upload-results\s*\{[\s\S]*display:\s*grid/, "Upload result rows should remain grouped and readable");
 
-assert.match(notesHtml, /css\/longtail-forge\.css\?v=55/, "Notes should cache-bust the shared stylesheet for upload shell changes");
+assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust the shared stylesheet for upload shell changes");
 assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=5/, "Notes should cache-bust the attachment helper");
 assert.match(tasksHtml, /css\/longtail-forge\.css\?v=72/, "Tasks should cache-bust the shared stylesheet for upload shell changes");
 assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=4/, "Tasks should cache-bust the attachment helper");

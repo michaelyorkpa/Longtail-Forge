@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.14.5";
+const appVersion = "0.33.5.18.15";
 
 await import("../src/core/modules/modules.service.js");
 const { clientProjectsModule } = await import("../src/modules/client-projects/module.js");
@@ -40,8 +40,8 @@ assertStrictSurface(surfaces.get("client-projects.projects"), {
 
 assertMinimalStrictHost(clientsHtml, "Clients");
 assertMinimalStrictHost(projectsHtml, "Projects");
-assert.match(clientsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=15[\s\S]*clients-projects\.js\?v=18/, "Clients should load the updated shared renderer stack");
-assert.match(projectsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=15[\s\S]*clients-projects\.js\?v=18/, "Projects should load the updated shared renderer stack");
+assert.match(clientsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Clients should load the updated shared renderer stack");
+assert.match(projectsHtml, /view-builder\.js\?v=5[\s\S]*view-renderer\.js\?v=16[\s\S]*clients-projects\.js\?v=20/, "Projects should load the updated shared renderer stack");
 
 assert.match(manifestContract, /VIEW_FILTER_PLACEMENTS[\s\S]*slide-out-sidebar/, "Manifest contract should allow shared filter placement");
 assert.match(manifestContract, /VIEW_TABLE_SECONDARY_ROW_FIELDS[\s\S]*startColumn[\s\S]*endBeforeColumn/, "Manifest contract should allow table secondary rows");
@@ -74,7 +74,7 @@ assert.match(clientsProjectsScript, /\/api\/client-projects/, "Dialog and bulk d
 assert.match(clientsProjectsScript, /\/api\/clients/, "Client saves should keep existing Client route calls");
 assert.match(clientsProjectsScript, /\/api\/projects/, "Project saves should keep existing Project route calls");
 
-assert.match(inventoryDoc, /Current as of 0\.33\.5\.18\.14\.5[\s\S]*strict enforcement is active/, "Inventory should mark Clients/Projects strict guardrails active");
+assert.match(inventoryDoc, /Current as of 0\.33\.5\.18\.15[\s\S]*strict enforcement is active/, "Inventory should mark Clients/Projects strict guardrails active at branch closeout");
 assert.match(changelog, /Version 0\.33\.5\.18\.14\.5[\s\S]*no database schema, route payload, permission, or workflow changes/, "Changelog should record the no-contract-change boundary");
 assert.match(roadmap, /Completed 0\.33\.5\.18\.14\.5 is archived/, "Roadmap should archive the completed strict cleanup slice");
 assert.match(regressionSuite, /scripts\/clients-projects-strict-closeout-regression\.mjs/, "Regression suite should include the strict cleanup closeout regression");

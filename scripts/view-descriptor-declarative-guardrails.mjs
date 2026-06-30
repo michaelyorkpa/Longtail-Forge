@@ -6,7 +6,7 @@ import {
   listFrameworkViewSurfaces,
 } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const appVersion = "0.33.5.18.14.5";
+const appVersion = "0.33.5.18.15";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
@@ -321,14 +321,16 @@ assert.match(clientsProjectsJs, /registerClientProjectsModuleActionBehavior\("cl
   "Clients/Projects page actions should stay registered behavior handlers");
 assert.match(clientsProjectsJs, /view\.registerBehavior\("client-projects\.clients\.tags", hydrateTagFilterOptions\)[\s\S]*view\.registerBehavior\("client-projects\.projects\.clients", hydrateProjectClientFilterOptions\)/,
   "Clients/Projects filter options should stay registered module-owned hydration handlers");
+assert.match(clientsProjectsJs, /hydrateTagFilterOptions\(\{ mountSearchOptions, setOptions \}[\s\S]*submitMode:\s*"option-or-input"/,
+  "Clients/Projects tag filters should hydrate Notes-style searchable suggestions while preserving canonical tag id submission for selected suggestions");
 assert.match(clientsProjectsJs, /function createProjectBulkControls\(\)[\s\S]*createBulkClientSelect[\s\S]*applyProjectTableBulkUpdate/,
   "Project bulk meaning should remain a documented module-owned escape hatch");
 assert.match(clientsProjectsJs, /function createClientBulkControls\(\)[\s\S]*createClientBulkBillableSelect[\s\S]*applyBulkClientUpdate/,
   "Client bulk meaning should remain a documented module-owned escape hatch");
 assert.doesNotMatch(clientsProjectsJs, /label:\s*"Tags"[\s\S]{0,180}formatter:\s*"chip-list"[\s\S]{0,180}columns/s,
   "Clients/Projects source should not reintroduce standalone Tags table columns");
-assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.5\.18\.14\.5[\s\S]*strict enforcement is active/,
-  "Clients/Projects strict inventory should document active strict enforcement");
+assert.match(clientsProjectsInventoryDoc, /Current as of 0\.33\.5\.18\.15[\s\S]*strict enforcement is active/,
+  "Clients/Projects strict inventory should document active strict enforcement at branch closeout");
 
 assert.equal(countMatches(fileAttachmentsJs, /document\.createElement/g), 1, "Attachment helper should only use direct DOM in its centralized fallback");
 assert.match(functionBlock(fileAttachmentsJs, "createAttachmentElement"), /document\.createElement\(tagName\)/, "Attachment helper fallback should centralize native element creation");
@@ -374,7 +376,7 @@ assert.match(filesStrictInventoryDoc, /Current as of 0\.33\.5\.18\.12\.7[\s\S]*s
 assert.match(filesStrictInventoryDoc, /Strict Enforcement Coverage In 0\.33\.5\.18\.12\.6/, "Files strict inventory should preserve the enforcement coverage section");
 
 assert.match(declarativeGuide, /# Declarative View Surfaces/, "Developer guide should document declarative view surfaces");
-assert.match(declarativeGuide, /Strict guardrails currently enforce `client-projects\.clients`, `client-projects\.projects`, `files\.browse`, `lists\.workspace`, `notes\.workspace`, and `tasks\.workspace`/, "Developer guide should identify current strict enforcement scope");
+assert.match(declarativeGuide, /Strict fail-on-violation guardrails cover `lists\.workspace`, `notes\.workspace`, `tasks\.workspace`, `files\.browse`, `client-projects\.clients`, and `client-projects\.projects`/, "Developer guide should identify current strict enforcement scope");
 assert.match(declarativeGuide, /Protected View Inventory/, "Developer guide should include protected view inventory");
 for (const expectedInventoryRow of [
   "| Files | files | files.html | files.browse | strict |",

@@ -1,6 +1,6 @@
 # Clients/Projects Strict Guardrail Inventory
 
-Current as of 0.33.5.18.14.5. Clients and Projects strict enforcement is active for `client-projects.clients` and `client-projects.projects`. These surfaces use minimal protected hosts, framework-rendered page/read anatomy, slide-out filter surfaces, descriptor row-selection checkbox anatomy, secondary-row tag display, icon-only repeated edit controls, shared bulk-toolbar shell regions, service-owned hierarchy ordering, and fail-on-violation guardrails for the converted page path.
+Current as of 0.33.5.18.15. Clients and Projects strict enforcement is active for `client-projects.clients` and `client-projects.projects`. These surfaces use minimal protected hosts, framework-rendered page/read anatomy, slide-out filter surfaces with searchable tag suggestions, descriptor row-selection checkbox anatomy, secondary-row tag display, icon-only repeated edit controls, shared bulk-toolbar shell regions, service-owned hierarchy ordering, and fail-on-violation guardrails for the converted page path.
 
 This inventory records the active strict boundary for the Clients and Projects page conversion without changing routes, write payloads, permissions, schema, or workflow behavior.
 
@@ -10,7 +10,7 @@ This inventory records the active strict boundary for the Clients and Projects p
 | --- | --- | --- | --- |
 | Clients page host | Minimal `views/protected/clients.html` host plus descriptor render in `public/js/clients-projects.js`. | Page header, status, filters, hierarchy/list/table shell, row-selection checkbox shell, page action, row action placement, empty/loading/error states. | Business-only Client availability, readable Client labels, Client status/tag filtering, Add/Edit Client opener, save/refresh behavior. |
 | Projects page host | Minimal `views/protected/projects.html` host plus descriptor render in `public/js/clients-projects.js`. | Page header, status, filters, hierarchy/list/table shell, row-selection checkbox shell, page action, row action placement, empty/loading/error states. | Project hierarchy display data, Personal/Family project-only scope, workspace project behavior, readable Project and Client labels, Add/Edit Project opener, save/refresh behavior. |
-| Shared Clients/Projects browser adapter | `public/js/clients-projects.js` | Descriptor mounting, registered module-action behavior handlers, option-source hydration, related list/table/action shells, shared bulk-toolbar shell calls, and shared table/list/index/action shell calls where descriptors cannot express the fragment. | Route calls, selected IDs, allowed bulk action controls, query-param openers, editor field bodies, related-row shaping, billing defaults, task-default editors, tag assignment, parent selectors, payload construction, validation, refresh/focus callbacks. |
+| Shared Clients/Projects browser adapter | `public/js/clients-projects.js` | Descriptor mounting, registered module-action behavior handlers, option-source hydration, Notes-style searchable tag suggestion mounting, related list/table/action shells, shared bulk-toolbar shell calls, and shared table/list/index/action shell calls where descriptors cannot express the fragment. | Route calls, tag search text resolution to canonical tag IDs, selected IDs, allowed bulk action controls, query-param openers, editor field bodies, related-row shaping, billing defaults, task-default editors, tag assignment, parent selectors, payload construction, validation, refresh/focus callbacks. |
 | Module manifest | `src/modules/client-projects/module.js` | `viewSurfaces` descriptors for `client-projects.clients` and `client-projects.projects`; strict guardrails now fail if framework-owned page anatomy, inline top filters, standalone Tags columns, or text repeated row actions return. | Module permissions, workspace capability gates, link/tag/file/search contributions, and module-owned behavior IDs. |
 | Read routes | `/api/clients`, `/api/projects`, `/api/client-projects` | Descriptor `dataSource` calls and option-source mounting only. | Server-owned filtering, hierarchy ordering, permission pruning, readable labels, Business-only Client scope, Personal/Family project scope, option payloads. |
 
@@ -48,8 +48,8 @@ This slice renders the Clients and Projects read pages through `LongtailForge.vi
 
 - `client-projects.clients` binds to `/api/clients?include_depth=true` and declares status/tag filters, hierarchy metadata, billing display fields, and tag display inputs.
 - `client-projects.projects` binds to `/api/projects?include_depth=true` and declares Client/status/tag filters, hierarchy metadata, readable Client context, billing display fields, task-default bindings, and tag display inputs.
-- page headers, loading/error/empty/status placement, select filters, hierarchy display, table wrappers, chip display, page Add actions, and row action placement are descriptor/framework-rendered.
-- Clients/Projects-owned browser behaviors hydrate tag and Client filter options, hide/disable Client filters outside Business workspaces, call the existing Add/Edit dialog API, preserve query-param openers after descriptor render, and refresh the descriptor surface after saves.
+- page headers, loading/error/empty/status placement, filter controls, hierarchy display, table wrappers, chip display, page Add actions, and row action placement are descriptor/framework-rendered.
+- Clients/Projects-owned browser behaviors hydrate Notes-style tag suggestions and Client filter options, hide/disable Client filters outside Business workspaces, call the existing Add/Edit dialog API, preserve query-param openers after descriptor render, and refresh the descriptor surface after saves. Typed tag filter text resolves to matching active tag IDs in the service before the canonical tag filter runs.
 - The `/api/client-projects` route remains available for existing dialog and cross-module option workflows; it is not the new page read source of truth.
 - `clients.html` and `projects.html` are minimal hosts that load `view-builder.js`, `view-renderer.js`, and the Clients/Projects adapter in that order.
 - These minimal hosts still leave the canonical list routes, `/api/clients` and `/api/projects`, as the page read sources.
@@ -111,6 +111,12 @@ This slice promotes Clients and Projects from reporting-only descriptors to stri
 - framework-owned cleanup remains limited to descriptor mounting, data binding, row-selection anatomy, filter drawer placement, secondary tag-row anatomy, action-column button anatomy, shared bulk-toolbar shell placement, related read shells, and registered behavior dispatch.
 - Clients/Projects continues to own option hydration, selected IDs, allowed bulk controls, route calls, payloads, confirmations, partial-failure messaging, dialog bodies, tag picker behavior, billing/default editors, parent selectors, hierarchy validation, readable labels, query-param openers, refresh hooks, and workspace gating.
 - there are no database schema, route payload, permission, or workflow changes.
+
+## 0.33.5.18.15 Cross-Surface Closeout
+
+The 0.33.5.18 closeout keeps this inventory as the Clients/Projects-specific developer map for the completed view-conversion branch. The shipped Clients/Projects boundary is strict descriptor-mounted read pages, slide-out filters, secondary tag rows, icon-only repeated edit actions, shared related/bulk shells, service-owned Project ordering, Notes-style searchable tag filters with service-side tag text resolution, and module-owned dialogs/routes/payloads/permissions.
+
+Future Clients/Projects work should update this inventory before changing that boundary. Admin/Settings, Reporting, Dashboard, Workbench, pagination/server-side paging, Inspector behavior, drag/drop hierarchy editing, new payloads, and new workflow semantics remain out of this closeout unless a later roadmap slice explicitly adds them.
 
 ## Not In Scope
 

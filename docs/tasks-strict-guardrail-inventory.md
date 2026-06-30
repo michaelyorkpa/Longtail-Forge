@@ -1,8 +1,10 @@
 # Tasks Strict Guardrail Inventory
 
-Current as of 0.33.5.18.10.7. This is the strict guardrail contract for the converted Tasks workspace surface.
+Current as of 0.33.5.18.10.7. This is the strict guardrail contract for the converted Tasks workspace surface. The 0.33.5.18.15 branch closeout preserves this Tasks boundary as one strict surface in the final converted-surface set alongside Lists, Notes, Files, Clients, and Projects.
 
 `tasks.workspace` is now a strict declarative surface alongside `lists.workspace` and `notes.workspace`. Tasks may still own task-specific behavior and record fragments, but framework-owned shells must come from the descriptor renderer or shared `LongtailForge.view` helpers.
+
+The 0.33.5.18.15 closeout does not reopen Tasks scope. Task row behavior, lifecycle/workflow actions, recurrence, checklist, timer behavior, relationship behavior, bulk semantics, payloads, validation, dialogs, route calls, permissions, and workflow meaning remain Tasks-owned. Admin/Settings conversion, Dashboard/Workbench conversion, Reporting conversion, pagination/server-side paging, Inspector behavior, and non-view workflow changes remain deferred to later roadmap lines.
 
 ## Fail-On-Violation Tasks Guardrails
 

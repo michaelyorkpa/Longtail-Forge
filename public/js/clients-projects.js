@@ -184,18 +184,35 @@ function withInitialProjectClientFilter(surface) {
   };
 }
 
-async function hydrateTagFilterOptions({ setOptions } = {}) {
+async function hydrateTagFilterOptions({ mountSearchOptions, setOptions } = {}) {
   if (!tagOptions.length) {
     await loadClientProjectDialogData();
   }
 
-  setOptions?.([
-    { value: "", label: "All tags", selected: true },
-    ...tagOptions.map((tag) => ({
-      value: tag.tag_id,
-      label: tag.name || tag.slug || "Tag",
-    })),
-  ]);
+  const options = tagOptions.map((tag) => ({
+    value: tag.tag_id,
+    label: tag.name || tag.slug || "Tag",
+    keywords: [tag.slug, tag.description].filter(Boolean),
+    color: tag.color,
+  }));
+
+  if (typeof mountSearchOptions === "function") {
+    mountSearchOptions(options, {
+      submitMode: "option-or-input",
+      minChars: 1,
+      maxResults: 10,
+      emptyMessage: "No matching tags.",
+    });
+    return undefined;
+  }
+
+  setOptions?.(options, {
+    submitMode: "option-or-input",
+    minChars: 1,
+    maxResults: 10,
+    emptyMessage: "No matching tags.",
+  });
+  return undefined;
 }
 
 async function hydrateProjectClientFilterOptions({ control, setOptions } = {}) {

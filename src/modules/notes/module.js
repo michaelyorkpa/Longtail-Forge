@@ -182,7 +182,7 @@ const notesModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.18.14.5",
+  version: "0.33.5.18.15",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -297,7 +297,7 @@ const notesModule = {
         },
         { id: "context-filter", field: "context", type: "search", label: "Context" },
         { id: "owner-filter", field: "owner", type: "search", label: "Owner" },
-        { id: "tags-filter", field: "tags", type: "search", label: "Tags" },
+        { id: "tags-filter", field: "tags", type: "search", label: "Tags", optionsSource: "notes.filters.tags" },
         { id: "updated-filter", field: "updatedSince", type: "date", label: "Updated Since" },
       ],
       indexPanel: {

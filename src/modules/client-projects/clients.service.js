@@ -460,11 +460,15 @@ async function listClients(session, query = {}) {
   const scopedClients = shapeOptions.scope === "top_level"
     ? statusFilteredClients.filter((client) => !client.parent_client_id)
     : statusFilteredClients;
+  const tagFilters = await tagsService.resolveTagFilterValues(
+    session,
+    query.tagIds || query.tag_ids || query.tags,
+  );
   const filteredClients = await tagsService.filterRecordsByTags(
     session,
     "client",
     scopedClients,
-    query.tagIds || query.tag_ids || query.tags,
+    tagFilters,
   );
 
   const decoratedClients = await tagsService.decorateRecordsForTarget(session, "client", filteredClients);
@@ -655,11 +659,15 @@ async function listProjects(session, query = {}) {
     ? readableProjects
     : readableProjects.filter((project) => project.status === status);
   const clientFilteredProjects = filterProjectsByClient(statusFilteredProjects, clientFilter);
+  const tagFilters = await tagsService.resolveTagFilterValues(
+    session,
+    query.tagIds || query.tag_ids || query.tags,
+  );
   const filteredProjects = await tagsService.filterRecordsByTags(
     session,
     "project",
     clientFilteredProjects,
-    query.tagIds || query.tag_ids || query.tags,
+    tagFilters,
   );
 
   const decoratedProjects = await tagsService.decorateRecordsForTarget(session, "project", filteredProjects);
