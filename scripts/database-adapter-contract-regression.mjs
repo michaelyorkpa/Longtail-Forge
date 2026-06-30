@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.19.4";
+const appVersion = "0.33.5.19.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-adapter-contract-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-adapter-contract.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Adapter-Test-123!";
@@ -51,7 +51,8 @@ try {
   assert.match(sqliteAdapterSource, /health: readSqliteHealth/, "SQLite adapter should expose db.health()");
   assert.match(sqliteAdapterSource, /capabilities: SQLITE_CAPABILITIES/, "SQLite adapter should expose db.capabilities");
   assert.doesNotMatch(sqliteAdapterSource, /parameter binding is reserved/, "adapter should not reject bound parameters after the parameterized query pilot");
-  assert.match(sqliteAdapterSource, /transactionApi: "reserved-for-0\.33\.5\.19\.5"/, "adapter capabilities should reserve transactions for the later slice");
+  assert.match(sqliteAdapterSource, /transactionApi: "callback"/, "adapter capabilities should document callback transactions");
+  assert.match(sqliteAdapterSource, /transaction\(callback\)/, "SQLite adapter should expose db.transaction(callback)");
   assert.match(coreDatabaseSource, /from "\.\.\/db\/provider\.js"/, "core database module should be the app-facing provider-neutral import path");
   assert.match(dbIndexSource, /from "\.\/provider\.js"/, "database startup module should consume the provider-neutral facade");
   assert.match(migrationsSource, /from "\.\/provider\.js"/, "migrations should run through the provider-neutral facade");
@@ -64,13 +65,13 @@ try {
   assert.equal(typeof db.run, "function");
   assert.equal(typeof db.close, "function");
   assert.equal(typeof db.health, "function");
-  assert.equal(db.transaction, undefined, "db.transaction should stay reserved for 0.33.5.19.5");
+  assert.equal(typeof db.transaction, "function", "db.transaction should be available after the transaction helper slice");
   assert.equal(db.capabilities.provider, "sqlite");
   assert.equal(db.capabilities.stringSql, true);
   assert.equal(db.capabilities.parameterizedQueries, true);
   assert.equal(db.capabilities.parameterStyle, "named");
-  assert.equal(db.capabilities.transactions, false);
-  assert.equal(db.capabilities.transactionApi, "reserved-for-0.33.5.19.5");
+  assert.equal(db.capabilities.transactions, true);
+  assert.equal(db.capabilities.transactionApi, "callback");
 
   const paramRow = await db.get("SELECT :value AS value;", { value: "adapter-contract-bound-value" });
   assert.equal(paramRow.value, "adapter-contract-bound-value", "adapter should execute named bound parameters");
@@ -97,9 +98,9 @@ try {
   assertDirectSqliteImportInventory();
   assertUnsupportedProviderFailsClearly();
 
-  assert.match(databaseDocs, /As of version 0\.33\.5\.19\.4[\s\S]*provider-neutral database adapter/, "database docs should describe the adapter contract");
+  assert.match(databaseDocs, /As of version 0\.33\.5\.19\.5[\s\S]*provider-neutral database adapter/, "database docs should describe the adapter contract");
   assert.match(databaseDocs, /Repositories and module services should not import `src\/db\/sqlite\.js` directly/, "database docs should document the direct SQLite import guardrail");
-  assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.4/, "runtime docs should keep SQLite as the only implemented provider");
+  assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.5/, "runtime docs should keep SQLite as the only implemented provider");
   assert.match(roadmap, /### Version 0\.33\.5\.19\.3 - Provider-neutral database adapter contract v1[\s\S]*- \[x\] Create a provider-neutral database module/, "roadmap should mark the adapter contract slice complete");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the adapter contract slice");
 

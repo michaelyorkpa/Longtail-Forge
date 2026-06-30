@@ -143,6 +143,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/sqlite-connection-hardening-regression.mjs",
   "scripts/database-adapter-contract-regression.mjs",
   "scripts/database-parameterized-query-pilot-regression.mjs",
+  "scripts/database-transaction-helper-regression.mjs",
   "scripts/baseline-adoption-regression.mjs",
   "scripts/performance-regression.mjs",
   "scripts/notification-regression.mjs",

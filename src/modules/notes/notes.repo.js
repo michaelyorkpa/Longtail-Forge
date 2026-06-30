@@ -80,6 +80,10 @@ const COLLECTION_COLUMNS = [
   "metadata_json",
 ];
 
+const defaultDatabaseClient = Object.freeze({
+  run: runSql,
+});
+
 async function list(workspaceId, filters = {}) {
   const clauses = [`workspace_id = ${sqlText(workspaceId)}`];
 
@@ -135,7 +139,30 @@ async function create(workspaceId, note) {
   const noteId = note.note_id || randomUUID();
   const now = note.created_at || new Date().toISOString();
 
-  await runSql(`
+  await insertNote(defaultDatabaseClient, workspaceId, note, noteId, now);
+  return readById(workspaceId, noteId);
+}
+
+async function createWithLinks(workspaceId, note, links = []) {
+  const noteId = note.note_id || randomUUID();
+  const now = note.created_at || new Date().toISOString();
+
+  await db.transaction(async (transaction) => {
+    await insertNote(transaction, workspaceId, note, noteId, now);
+
+    for (const link of links) {
+      await insertNoteLink(transaction, workspaceId, {
+        ...link,
+        note_id: noteId,
+      }, link.note_link_id || randomUUID(), link.created_at || now);
+    }
+  });
+
+  return readById(workspaceId, noteId);
+}
+
+async function insertNote(databaseClient, workspaceId, note, noteId, now) {
+  await databaseClient.run(`
 INSERT INTO notes (
   note_id,
   workspace_id,
@@ -235,8 +262,6 @@ VALUES (
   ${sqlNullableText(note.original_page_id)}
 );
 `);
-
-  return readById(workspaceId, noteId);
 }
 
 async function update(workspaceId, note) {
@@ -420,7 +445,12 @@ async function createLink(workspaceId, link) {
   const linkId = link.note_link_id || randomUUID();
   const now = link.created_at || new Date().toISOString();
 
-  await runSql(`
+  await insertNoteLink(defaultDatabaseClient, workspaceId, link, linkId, now);
+  return readLinkById(workspaceId, link.note_id, linkId);
+}
+
+async function insertNoteLink(databaseClient, workspaceId, link, linkId, now) {
+  await databaseClient.run(`
 INSERT INTO note_links (
   note_link_id,
   workspace_id,
@@ -450,8 +480,6 @@ VALUES (
   ${sqlNullableText(link.metadata_json)}
 );
 `);
-
-  return readLinkById(workspaceId, link.note_id, linkId);
 }
 
 async function listLinks(workspaceId, noteId) {
@@ -769,6 +797,7 @@ export const notesRepository = {
   createCollection,
   createLink,
   createRevision,
+  createWithLinks,
   countPlaintextSecurePlaceholders,
   countChildCollections,
   countNotesInCollection,

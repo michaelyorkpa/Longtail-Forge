@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.19.4";
+const appVersion = "0.33.5.19.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-params-pilot-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-params-pilot.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Params-Test-123!";
@@ -89,7 +89,7 @@ LIMIT 1;
   assert.match(databaseDocs, /Parameterized Query Style/, "database docs should include the parameterized query style");
   assert.match(databaseDocs, /Use named parameters for values/, "database docs should tell new code to use parameters for values");
   assert.match(databaseDocs, /Table and column names must stay static or come from validated allowlists/, "database docs should keep identifiers out of value params");
-  assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.4/, "runtime docs should keep SQLite as the only implemented provider");
+  assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.5/, "runtime docs should keep SQLite as the only implemented provider");
   assert.match(roadmap, /### Version 0\.33\.5\.19\.4 - Parameterized query pilot[\s\S]*- \[x\] Promote database-adapter parameter binding/, "roadmap should mark the parameterized query pilot complete");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the parameterized query pilot");
   assert.match(regressionSuite, /scripts\/database-parameterized-query-pilot-regression\.mjs/, "regression suite should include parameterized query pilot coverage");
@@ -110,7 +110,7 @@ function assertPilotSourceShape() {
 
   assert.match(workspacesSource, /db\.query\(`[\s\S]*user_workspaces\.user_id = :userId/, "workspace list reads should use named params");
   assert.match(workspacesSource, /db\.get\(`[\s\S]*workspace_id = :workspaceId/, "workspace single reads should use named params");
-  assert.match(workspacesSource, /createWorkspace[\s\S]*BEGIN TRANSACTION/, "workspace creation should remain on compatibility helpers until the transaction slice");
+  assert.match(workspacesSource, /createWorkspace[\s\S]*BEGIN TRANSACTION/, "workspace creation should remain on compatibility helpers because it is not a transaction pilot path");
 
   assert.match(tasksSource, /db\.query\(taskSelectSql\(`[\s\S]*tasks\.workspace_id = :workspaceId[\s\S]*tasks\.task_id = :taskId/, "Tasks readById should use named params");
   assert.match(notesSource, /db\.get\(`[\s\S]*workspace_id = :workspaceId[\s\S]*note_id = :noteId/, "Notes readById should use named params");

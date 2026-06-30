@@ -1,3 +1,10 @@
+## Version 0.33.5.19.5 - 2026-06-30 17:42 -04:00
+
+- Added provider-neutral `db.transaction(callback)` support with SQLite `BEGIN`, success `COMMIT`, thrown-error `ROLLBACK`, adapter-level serialization around transaction callbacks, and clear nested-transaction failures.
+- Converted the selected transaction pilots: Task assignee replacement now runs through the transaction helper, and Notes create-with-staged-links now persists the note plus `note_links` atomically while keeping validation, audit, events, tags, and search behavior outside the transaction.
+- Added `scripts/database-transaction-helper-regression.mjs`, documented the transaction style and nested-transaction boundary, and marked the 0.33.5.19.5 roadmap checklist complete.
+- Verification 2026-06-30 18:30 -04:00: database transaction helper, database adapter contract, parameterized query pilot, Notes API service, Task canonical query, SQLite connection hardening, runtime configuration contract, and check-js targeted checks passed; `npm run check` passed 209/209 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.19.5 after restarting the local 8001 server.
+
 ## Version 0.33.5.19.4 - 2026-06-30 16:56 -04:00
 
 - Promoted database adapter parameter binding from API shape to exercised SQLite implementation with named parameters, adapter capability metadata, and validation for parameter names and supported scalar values.

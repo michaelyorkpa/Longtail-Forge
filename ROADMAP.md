@@ -295,20 +295,20 @@ Acceptance criteria:
 
 ### Version 0.33.5.19.5 - Explicit transaction helper
 
-- [ ] Add provider-neutral `db.transaction(callback)` support.
-- [ ] SQLite implementation should:
-  - [ ] Begin transaction.
-  - [ ] Commit on success.
-  - [ ] Roll back on thrown error.
-  - [ ] Prevent nested transaction confusion or document nested behavior.
-- [ ] Convert one or two existing multi-step workflows to the helper:
-  - [ ] Task assignee replacement.
-  - [ ] One file attach/create workflow or one note create/link workflow.
-- [ ] Remove raw `BEGIN` / `COMMIT` / `ROLLBACK` strings only from the selected pilot workflows.
-- [ ] Add regression coverage proving:
-  - [ ] Successful transaction commits all changes.
-  - [ ] Failed transaction rolls back all changes.
-  - [ ] Partial records are not left behind.
+- [x] Add provider-neutral `db.transaction(callback)` support.
+- [x] SQLite implementation should:
+  - [x] Begin transaction.
+  - [x] Commit on success.
+  - [x] Roll back on thrown error.
+  - [x] Prevent nested transaction confusion or document nested behavior.
+- [x] Convert one or two existing multi-step workflows to the helper:
+  - [x] Task assignee replacement.
+  - [x] One file attach/create workflow or one note create/link workflow.
+- [x] Remove raw `BEGIN` / `COMMIT` / `ROLLBACK` strings only from the selected pilot workflows.
+- [x] Add regression coverage proving:
+  - [x] Successful transaction commits all changes.
+  - [x] Failed transaction rolls back all changes.
+  - [x] Partial records are not left behind.
 
 Acceptance criteria:
 

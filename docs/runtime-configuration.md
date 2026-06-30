@@ -2,7 +2,7 @@
 
 Longtail Forge reads install and startup configuration from environment variables. At app startup, `server.js` loads a local root `.env` file when present, then `src/config.js` normalizes the resulting environment. A real `.env` file is local runtime state and must not be committed; use `.env.example` as the documented contract.
 
-As of 0.33.5.19.4, this contract records both active settings and future reserved settings. Reserved settings are documented so later runtime, jobs, storage, scanner, and PostgreSQL slices can build on stable names. They do not change behavior until the roadmap slice that owns that behavior wires them.
+As of 0.33.5.19.5, this contract records both active settings and future reserved settings. Reserved settings are documented so later runtime, jobs, storage, scanner, and PostgreSQL slices can build on stable names. They do not change behavior until the roadmap slice that owns that behavior wires them.
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
 
@@ -27,7 +27,7 @@ Process environment values win over `.env` values. This lets shells, service man
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `LONGTAIL_DATABASE_PROVIDER` | `sqlite` | SQLite is the only implemented provider in 0.33.5.19.4. Unsupported values fail clearly at startup. |
+| `LONGTAIL_DATABASE_PROVIDER` | `sqlite` | SQLite is the only implemented provider in 0.33.5.19.5. Unsupported values fail clearly at startup. |
 
 ### SQLite
 
@@ -109,7 +109,7 @@ Startup fails clearly when active settings are invalid:
 
 The local `.env` loader accepts blank lines, full-line comments, `KEY=VALUE` entries, optional `export KEY=VALUE` entries, unquoted values with trailing comments, and basic single- or double-quoted values. Malformed lines fail clearly before app config is created.
 
-Startup may warn without failing when optional but recommended production settings are absent. In 0.33.5.19.4, production mode warns when `LONGTAIL_PUBLIC_URL` is missing.
+Startup may warn without failing when optional but recommended production settings are absent. In 0.33.5.19.5, production mode warns when `LONGTAIL_PUBLIC_URL` is missing.
 
 ## Scope Boundary
 

@@ -6,11 +6,11 @@ As of version 0.31.24.2, the active SQLite helper keeps one queued sqlite proces
 
 As of version 0.32.6.3, framework search metadata lives in the canonical `search_index` table. FTS virtual tables are lookup engines only and are not the source of truth for workspace scope, module scope, permissions, visibility, or record lifecycle state.
 
-As of version 0.33.5.19.4, runtime database configuration is documented in [runtime-configuration.md](runtime-configuration.md). SQLite remains the only implemented provider, `LONGTAIL_DATABASE_PROVIDER` must be `sqlite`, and PostgreSQL settings are reserved for future adapter work rather than active behavior.
+As of version 0.33.5.19.5, runtime database configuration is documented in [runtime-configuration.md](runtime-configuration.md). SQLite remains the only implemented provider, `LONGTAIL_DATABASE_PROVIDER` must be `sqlite`, and PostgreSQL settings are reserved for future adapter work rather than active behavior.
 
 As of version 0.33.5.19.2, SQLite startup hardens the existing helper boundary before migrations run. Longtail Forge applies foreign-key enforcement to every SQLite process, enables `PRAGMA journal_mode = WAL` by default, configures the SQLite busy timeout from runtime config, verifies the database file path is writable, and reports safe startup health for the provider, database file path, writable state, foreign-key state, journal mode, and busy timeout.
 
-As of version 0.33.5.19.4, `src/db/provider.js` owns the provider-neutral database adapter boundary and `src/core/database.js` is the preferred app-facing import path for repositories, modules, and framework services that need database access. The v1 adapter API is `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, `db.close()`, `db.health()`, and `db.capabilities`. SQLite is still the only implemented provider, and the SQLite process helper stays behind `src/db/adapters/sqlite-adapter.js`. `querySql` and `runSql` remain temporary legacy compatibility helpers while repository code moves toward the adapter. Parameter binding is active for pilot repository paths, and `db.transaction(callback)` is reserved for 0.33.5.19.5.
+As of version 0.33.5.19.5, `src/db/provider.js` owns the provider-neutral database adapter boundary and `src/core/database.js` is the preferred app-facing import path for repositories, modules, and framework services that need database access. The v1 adapter API is `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, `db.transaction(callback)`, `db.close()`, `db.health()`, and `db.capabilities`. SQLite is still the only implemented provider, and the SQLite process helper stays behind `src/db/adapters/sqlite-adapter.js`. `querySql` and `runSql` remain temporary legacy compatibility helpers while repository code moves toward the adapter. Parameter binding is active for pilot repository paths, and the transaction helper is active for selected multi-step write pilots.
 
 Repositories and module services should not import `src/db/sqlite.js` directly. New app code should import database access from `src/core/database.js`; database startup and regression fixtures may import from `src/db/index.js`; only the SQLite adapter should import the raw SQLite helper. Future PostgreSQL work should plug into the same provider-neutral adapter instead of forcing every module repository to learn a second database API.
 
@@ -32,6 +32,25 @@ LIMIT 1;
 Do not interpolate user-supplied values into SQL strings. Table and column names must stay static or come from validated allowlists before building SQL. Bound parameters are for values only; they do not parameterize identifiers, sort clauses, operators, or SQL fragments.
 
 The legacy `sqlText`, `sqlInteger`, `sqlNullableText`, and `sqlNullableInteger` helpers remain available as compatibility escape hatches for unconverted code and multi-statement paths until later portability slices. New or touched single-statement repository queries should prefer named parameters unless a slice explicitly keeps the code on the compatibility path.
+
+## Transaction Style
+
+Multi-step writes that need atomic behavior should use `db.transaction(callback)` from `src/core/database.js`. The callback receives a transaction client with the same `query`, `get`, and `run` methods:
+
+```js
+await db.transaction(async (transaction) => {
+  await transaction.run("UPDATE records SET status = :status WHERE record_id = :recordId;", {
+    recordId,
+    status: "archived",
+  });
+  await transaction.run("INSERT INTO record_events (event_id, record_id) VALUES (:eventId, :recordId);", {
+    eventId,
+    recordId,
+  });
+});
+```
+
+The SQLite adapter begins a transaction before the callback, commits when the callback completes, and rolls back when the callback throws. Nested transactions are not supported; keep a transaction callback focused on the database writes that must commit together. As of 0.33.5.19.5, the transaction pilot covers Task assignee replacement and Notes create-with-staged-links. Broader transaction conversion remains future portability work.
 
 ## Fresh Baseline
 

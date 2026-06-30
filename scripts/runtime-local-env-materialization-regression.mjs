@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.19.4";
+const appVersion = "0.33.5.19.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");

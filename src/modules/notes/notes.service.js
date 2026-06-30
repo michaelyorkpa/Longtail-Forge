@@ -145,8 +145,13 @@ async function create(payload, session) {
   await assertNoteCollectionAccess(session, normalized);
   await assertCanAccess(session, normalized, "create");
 
-  const note = await notesRepository.create(session.workspace_id, normalized);
-  await createLinksFromPayload(session, note.note_id, payload);
+  const noteId = normalized.note_id || randomUUID();
+  const noteForCreate = {
+    ...normalized,
+    note_id: noteId,
+  };
+  const stagedLinks = await prepareCreateLinksFromPayload(session, noteForCreate, payload);
+  const note = await notesRepository.createWithLinks(session.workspace_id, noteForCreate, stagedLinks);
   await saveTargetTags(session, note.note_id, payload);
   await requestTagPropagationRefresh(session, "note", note.note_id, "note.created_with_context");
   const noteWithLinks = await attachNoteIntegrations(session, await decryptSecureNoteForRead(session, note));
@@ -794,12 +799,23 @@ async function normalizeNotePayload(payload = {}, session, previousNote = null) 
   };
 }
 
-async function createLinksFromPayload(session, noteId, payload = {}) {
+async function prepareCreateLinksFromPayload(session, note, payload = {}) {
   const links = normalizeLinkPayloads(payload);
 
-  for (const link of links) {
-    await createLink(noteId, link, session);
+  if (links.length === 0) {
+    return [];
   }
+
+  await assertCanAccess(session, note, "manage_links");
+
+  const normalizedLinks = [];
+  for (const link of links) {
+    const normalizedLink = normalizeLinkPayload(link, note.note_id, session);
+    await assertTargetAccess(session, normalizedLink);
+    normalizedLinks.push(normalizedLink);
+  }
+
+  return normalizedLinks;
 }
 
 async function saveTargetTags(session, noteId, payload = {}) {

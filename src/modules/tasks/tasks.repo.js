@@ -160,7 +160,18 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 async function replaceAssignees(workspaceId, taskId, assigneeIds, assignedByUserId) {
   const now = new Date().toISOString();
   const uniqueAssigneeIds = [...new Set((assigneeIds || []).map((id) => String(id || "").trim()).filter(Boolean))];
-  const inserts = uniqueAssigneeIds.map((userId) => `
+
+  await db.transaction(async (transaction) => {
+    await transaction.run(`
+UPDATE task_assignees
+SET removed_at = :removedAt
+WHERE workspace_id = :workspaceId
+  AND task_id = :taskId
+  AND removed_at IS NULL;
+`, { removedAt: now, taskId, workspaceId });
+
+    for (const userId of uniqueAssigneeIds) {
+      await transaction.run(`
 INSERT INTO task_assignees (
   task_assignee_id,
   workspace_id,
@@ -173,28 +184,26 @@ INSERT INTO task_assignees (
   removed_at
 )
 VALUES (
-  ${sqlText(randomUUID())},
-  ${sqlText(workspaceId)},
-  ${sqlText(taskId)},
+  :taskAssigneeId,
+  :workspaceId,
+  :taskId,
   'user',
-  ${sqlText(userId)},
+  :userId,
   NULL,
-  ${sqlNullableText(assignedByUserId)},
-  ${sqlText(now)},
+  :assignedByUserId,
+  :assignedAt,
   NULL
 );
-`).join("\n");
-
-  await runSql(`
-BEGIN TRANSACTION;
-UPDATE task_assignees
-SET removed_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND task_id = ${sqlText(taskId)}
-  AND removed_at IS NULL;
-${inserts}
-COMMIT;
-`);
+`, {
+        assignedAt: now,
+        assignedByUserId,
+        taskAssigneeId: randomUUID(),
+        taskId,
+        userId,
+        workspaceId,
+      });
+    }
+  });
 }
 
 async function readAssigneesForWorkspace(workspaceId) {

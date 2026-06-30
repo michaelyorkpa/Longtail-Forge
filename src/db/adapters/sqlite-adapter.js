@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import {
   closeSqlite,
   formatSqliteHealth,
@@ -15,24 +16,93 @@ const SQLITE_CAPABILITIES = Object.freeze({
   stringSql: true,
   parameterizedQueries: true,
   parameterStyle: "named",
-  transactions: false,
-  transactionApi: "reserved-for-0.33.5.19.5",
+  transactions: true,
+  transactionApi: "callback",
   migrationLocking: false,
   health: true,
 });
 
 function createSqliteAdapter() {
-  async function query(sql, params = []) {
+  const transactionContext = new AsyncLocalStorage();
+  let operationChain = Promise.resolve();
+
+  function enqueueAdapterOperation(operation) {
+    const runAfter = operationChain.catch(() => {});
+    const result = runAfter.then(operation);
+    operationChain = result.catch(() => {});
+    return result;
+  }
+
+  function assertNotInsideTransactionContext(operationName) {
+    if (transactionContext.getStore()?.active) {
+      throw new Error(`Use the transaction client passed to db.transaction() for ${operationName} inside a transaction.`);
+    }
+  }
+
+  async function executeQuery(sql, params = []) {
     return querySql(expandSqlParameters(sql, params));
   }
 
-  async function get(sql, params = []) {
-    const rows = await query(sql, params);
+  async function executeGet(sql, params = []) {
+    const rows = await executeQuery(sql, params);
     return rows[0] || null;
   }
 
-  async function run(sql, params = []) {
+  async function executeRun(sql, params = []) {
     return runSql(expandSqlParameters(sql, params));
+  }
+
+  async function query(sql, params = []) {
+    assertNotInsideTransactionContext("queries");
+    return enqueueAdapterOperation(() => executeQuery(sql, params));
+  }
+
+  async function get(sql, params = []) {
+    assertNotInsideTransactionContext("reads");
+    return enqueueAdapterOperation(() => executeGet(sql, params));
+  }
+
+  async function run(sql, params = []) {
+    assertNotInsideTransactionContext("writes");
+    return enqueueAdapterOperation(() => executeRun(sql, params));
+  }
+
+  async function transaction(callback) {
+    if (typeof callback !== "function") {
+      throw new Error("Database transaction requires a callback.");
+    }
+
+    if (transactionContext.getStore()?.active) {
+      throw new Error("Nested database transactions are not supported.");
+    }
+
+    return enqueueAdapterOperation(() => transactionContext.run({ active: true }, async () => {
+      const transactionClient = Object.freeze({
+        capabilities: SQLITE_CAPABILITIES,
+        get: executeGet,
+        query: executeQuery,
+        run: executeRun,
+        transaction() {
+          throw new Error("Nested database transactions are not supported.");
+        },
+      });
+
+      await executeRun("BEGIN TRANSACTION;");
+
+      try {
+        const result = await callback(transactionClient);
+        await executeRun("COMMIT;");
+        return result;
+      } catch (error) {
+        try {
+          await executeRun("ROLLBACK;");
+        } catch (rollbackError) {
+          error.rollbackError = rollbackError;
+        }
+
+        throw error;
+      }
+    }));
   }
 
   return Object.freeze({
@@ -46,6 +116,7 @@ function createSqliteAdapter() {
     initializeRuntime: initializeSqliteRuntime,
     query,
     run,
+    transaction,
   });
 }
 

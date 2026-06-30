@@ -61,7 +61,7 @@ const tasksModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.19.4",
+  version: "0.33.5.19.5",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
