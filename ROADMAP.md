@@ -318,20 +318,20 @@ Acceptance criteria:
 
 ### Version 0.33.5.19.6 - Migration locking and startup ownership
 
-- [ ] Add migration lock strategy for SQLite.
-- [ ] Document future PostgreSQL migration lock strategy.
-- [ ] Ensure only one app/startup process can run migrations or schema repairs at a time.
-- [ ] Separate normal app startup from one-time maintenance where practical.
-- [ ] Add startup behavior docs:
-  - [ ] Self-hosted single-process mode.
-  - [ ] Future SaaS multi-instance mode.
-  - [ ] Which process runs migrations.
-  - [ ] Which process runs workers.
-- [ ] Keep this slice focused on migration/startup ownership; do not implement the 0.33.5.21 worker runner or move search indexing to jobs yet.
-- [ ] Add regression coverage proving:
-  - [ ] Migration lock is acquired before migrations.
-  - [ ] A second migration attempt fails or waits clearly.
-  - [ ] Startup failure messages are actionable.
+- [x] Add migration lock strategy for SQLite.
+- [x] Document future PostgreSQL migration lock strategy.
+- [x] Ensure only one app/startup process can run migrations or schema repairs at a time.
+- [x] Separate normal app startup from one-time maintenance where practical.
+- [x] Add startup behavior docs:
+  - [x] Self-hosted single-process mode.
+  - [x] Future SaaS multi-instance mode.
+  - [x] Which process runs migrations.
+  - [x] Which process runs workers.
+- [x] Keep this slice focused on migration/startup ownership; do not implement the 0.33.5.21 worker runner or move search indexing to jobs yet.
+- [x] Add regression coverage proving:
+  - [x] Migration lock is acquired before migrations.
+  - [x] A second migration attempt fails or waits clearly.
+  - [x] Startup failure messages are actionable.
 
 Acceptance criteria:
 

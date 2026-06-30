@@ -35,7 +35,16 @@ async function initializeDatabase() {
 
 async function ensureDatabase() {
   const databaseHealth = await initializeDatabaseRuntime();
+  await runSchemaStartupMaintenance();
+  await runAppStartupMaintenance();
+  return databaseHealth;
+}
+
+async function runSchemaStartupMaintenance() {
   await runMigrations();
+}
+
+async function runAppStartupMaintenance() {
   await ensureFrameworkModuleRecord();
   await standardizeStoredTimesToUtc();
   await appSettingsRepository.ensureDefaults();
@@ -53,7 +62,6 @@ async function ensureDatabase() {
   await ensureWorkspacePermissionContracts();
   await repairPersonalWorkspaceMemberships();
   await ensureProtectedUserRoles(workspaceId);
-  return databaseHealth;
 }
 
 async function ensureFrameworkModuleRecord() {

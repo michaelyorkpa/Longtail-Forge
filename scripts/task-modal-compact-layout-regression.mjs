@@ -5,7 +5,7 @@ const tasksView = readText("views/protected/tasks.html");
 const taskDialogScript = readText("public/js/task-dialog.js");
 const stylesheet = readText("public/css/longtail-forge.css");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = "0.33.5.19.5";
+const currentTasksVersion = "0.33.5.19.6";
 
 assert.match(taskDialogScript, /className: "surface-modal-heading"/, "Task modal should use the shared compact modal heading row");
 assert.doesNotMatch(taskDialogScript, /task-dialog-heading/, "Task modal should not keep a Task-only heading row class");

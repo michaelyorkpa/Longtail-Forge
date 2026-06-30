@@ -10,7 +10,7 @@ import { clientsRepository } from "../src/modules/client-projects/clients.repo.j
 import { projectsRepository } from "../src/modules/client-projects/projects.repo.js";
 import { clientProjectsModule } from "../src/modules/client-projects/module.js";
 
-const appVersion = "0.33.5.19.5";
+const appVersion = "0.33.5.19.6";
 const businessWorkspaceId = "clients-projects-descriptor-business";
 const personalWorkspaceId = "clients-projects-descriptor-personal";
 const familyWorkspaceId = "clients-projects-descriptor-family";

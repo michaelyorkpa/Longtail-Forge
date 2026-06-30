@@ -1,3 +1,11 @@
+## Version 0.33.5.19.6 - 2026-06-30 18:42 -04:00
+
+- Added SQLite migration locking with a process-owned `.longtail-forge-migrations.lock` file beside the configured database file, acquired before fresh-baseline adoption, schema repairs, checksum validation, and future migration files.
+- Separated schema startup maintenance from normal app startup defaults, keeping framework/module/default record repair outside the migration lock while preserving single-process SQLite startup behavior.
+- Documented startup ownership for self-hosted SQLite and the future SaaS/PostgreSQL migration owner strategy, including PostgreSQL advisory-lock or migration-lock-table expectations without implementing workers or job/outbox behavior.
+- Added `scripts/database-migration-locking-regression.mjs`, wired it into `npm run check`, advanced package/current module metadata to 0.33.5.19.6, and marked the 0.33.5.19.6 roadmap checklist complete.
+- Verification 2026-06-30 18:52 -04:00: database migration locking, database adapter contract, transaction helper, parameterized query pilot, SQLite connection hardening, runtime configuration contract, and check-js targeted checks passed; `npm run check` passed 210/210 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.19.6 after restarting the local 8001 server.
+
 ## Version 0.33.5.19.5 - 2026-06-30 17:42 -04:00
 
 - Added provider-neutral `db.transaction(callback)` support with SQLite `BEGIN`, success `COMMIT`, thrown-error `ROLLBACK`, adapter-level serialization around transaction callbacks, and clear nested-transaction failures.

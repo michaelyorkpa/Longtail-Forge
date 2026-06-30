@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.19.5";
+const appVersion = "0.33.5.19.6";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-transaction-helper-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-transaction-helper.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Transaction-Test-123!";
@@ -60,7 +60,7 @@ try {
 
   assert.match(databaseDocs, /As of version 0\.33\.5\.19\.5[\s\S]*`db\.transaction\(callback\)`/, "database docs should describe the transaction helper");
   assert.match(databaseDocs, /Nested transactions are not supported/, "database docs should document nested transaction behavior");
-  assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.5/, "runtime docs should keep SQLite as the only implemented provider");
+  assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.6/, "runtime docs should keep SQLite as the only implemented provider");
   assert.match(roadmap, /### Version 0\.33\.5\.19\.5 - Explicit transaction helper[\s\S]*- \[x\] Add provider-neutral `db\.transaction\(callback\)` support/, "roadmap should mark the transaction helper slice complete");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the transaction helper slice");
   assert.match(regressionSuite, /scripts\/database-transaction-helper-regression\.mjs/, "regression suite should include transaction helper coverage");

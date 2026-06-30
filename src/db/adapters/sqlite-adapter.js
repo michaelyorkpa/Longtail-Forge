@@ -18,7 +18,8 @@ const SQLITE_CAPABILITIES = Object.freeze({
   parameterStyle: "named",
   transactions: true,
   transactionApi: "callback",
-  migrationLocking: false,
+  migrationLocking: true,
+  migrationLockStrategy: "lock-file",
   health: true,
 });
 

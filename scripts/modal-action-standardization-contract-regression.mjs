@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.19.5";
+const appVersion = "0.33.5.19.6";
 const modalStandardVersion = "0.33.5.18.10.8.5";
 
 const packageJson = JSON.parse(readText("package.json"));

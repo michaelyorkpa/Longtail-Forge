@@ -6,11 +6,13 @@ As of version 0.31.24.2, the active SQLite helper keeps one queued sqlite proces
 
 As of version 0.32.6.3, framework search metadata lives in the canonical `search_index` table. FTS virtual tables are lookup engines only and are not the source of truth for workspace scope, module scope, permissions, visibility, or record lifecycle state.
 
-As of version 0.33.5.19.5, runtime database configuration is documented in [runtime-configuration.md](runtime-configuration.md). SQLite remains the only implemented provider, `LONGTAIL_DATABASE_PROVIDER` must be `sqlite`, and PostgreSQL settings are reserved for future adapter work rather than active behavior.
+As of version 0.33.5.19.6, runtime database configuration is documented in [runtime-configuration.md](runtime-configuration.md). SQLite remains the only implemented provider, `LONGTAIL_DATABASE_PROVIDER` must be `sqlite`, and PostgreSQL settings are reserved for future adapter work rather than active behavior.
 
 As of version 0.33.5.19.2, SQLite startup hardens the existing helper boundary before migrations run. Longtail Forge applies foreign-key enforcement to every SQLite process, enables `PRAGMA journal_mode = WAL` by default, configures the SQLite busy timeout from runtime config, verifies the database file path is writable, and reports safe startup health for the provider, database file path, writable state, foreign-key state, journal mode, and busy timeout.
 
 As of version 0.33.5.19.5, `src/db/provider.js` owns the provider-neutral database adapter boundary and `src/core/database.js` is the preferred app-facing import path for repositories, modules, and framework services that need database access. The v1 adapter API is `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, `db.transaction(callback)`, `db.close()`, `db.health()`, and `db.capabilities`. SQLite is still the only implemented provider, and the SQLite process helper stays behind `src/db/adapters/sqlite-adapter.js`. `querySql` and `runSql` remain temporary legacy compatibility helpers while repository code moves toward the adapter. Parameter binding is active for pilot repository paths, and the transaction helper is active for selected multi-step write pilots.
+
+As of version 0.33.5.19.6, SQLite migrations and schema repairs run under a migration lock before normal app startup defaults are applied. The lock is a process-owned file beside the configured SQLite database file. If a second startup process reaches migrations while the lock is held, startup fails with an actionable message that names the lock file and stale-lock recovery path.
 
 Repositories and module services should not import `src/db/sqlite.js` directly. New app code should import database access from `src/core/database.js`; database startup and regression fixtures may import from `src/db/index.js`; only the SQLite adapter should import the raw SQLite helper. Future PostgreSQL work should plug into the same provider-neutral adapter instead of forcing every module repository to learn a second database API.
 
@@ -51,6 +53,16 @@ await db.transaction(async (transaction) => {
 ```
 
 The SQLite adapter begins a transaction before the callback, commits when the callback completes, and rolls back when the callback throws. Nested transactions are not supported; keep a transaction callback focused on the database writes that must commit together. As of 0.33.5.19.5, the transaction pilot covers Task assignee replacement and Notes create-with-staged-links. Broader transaction conversion remains future portability work.
+
+## Migration Locking and Startup Ownership
+
+Self-hosted SQLite mode keeps startup simple: one app process runs startup migrations and schema repairs before the app applies module/default records and starts serving requests. SQLite is still the only active provider in this branch, and this lock does not add horizontal SQLite app-server support.
+
+The SQLite migration lock file is `.longtail-forge-migrations.lock` in the same directory as `LONGTAIL_DATABASE_FILE`. `runMigrations()` acquires that lock before fresh-baseline adoption, legacy schema repairs, checksum validation, and future migration files. The lock is released after migration work succeeds or fails. If startup finds an existing lock, the app reports that another Longtail Forge startup or maintenance process is running migrations or schema repairs, then tells the operator to wait or remove the stale lock file after confirming the other process crashed.
+
+Normal app startup work runs after schema startup maintenance. Framework module rows, default app settings, default workspace/bootstrap records, module registry sync, stored-time normalization, and role/permission repairs are app-startup defaults, not migration files. The current search-index startup rebuild and inline worker mode are still post-startup app work; 0.33.5.19.6 does not implement the 0.33.5.21 job/outbox runner or move search indexing to jobs.
+
+Future SaaS/PostgreSQL mode should not let every web or worker instance run migrations independently. A deploy or maintenance process should own migrations, acquire a PostgreSQL advisory lock or a provider-backed migration lock table in the same database, run migrations once, then start web and worker processes against the current schema. Web and worker processes should verify schema readiness and fail clearly if the maintenance owner has not completed migration work.
 
 ## Fresh Baseline
 
