@@ -1,6 +1,6 @@
 import express from "express";
 import cookieParser from "cookie-parser";
-import { config } from "../config.js";
+import { config, logRuntimeConfigWarnings } from "../config.js";
 import { initializeDatabase } from "../db/index.js";
 import { errorHandler } from "../middleware/error-handler.js";
 import { requireAuth } from "../middleware/require-auth.js";
@@ -86,6 +86,7 @@ function createApp() {
 
 async function startServer() {
   try {
+    logRuntimeConfigWarnings();
     await initializeDatabase();
     scheduleStartupSearchIndexRebuild();
     const app = createApp();

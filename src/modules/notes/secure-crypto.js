@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { config, readRuntimeSecret } from "../../config.js";
 import { AppError } from "../../core/errors.js";
 
 const BODY_ALGORITHM = "aes-256-gcm";
@@ -130,7 +131,7 @@ function unwrapDataKey(note, masterKey) {
 }
 
 function readMasterKey() {
-  const raw = process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY || process.env.SECURE_NOTES_MASTER_KEY || "";
+  const raw = readRuntimeSecret("LONGTAIL_SECURE_NOTES_MASTER_KEY") || readRuntimeSecret("SECURE_NOTES_MASTER_KEY");
   const value = raw.trim();
 
   if (!value) {
@@ -156,7 +157,7 @@ function readMasterKey() {
 }
 
 function currentSecureNotesKeyVersion() {
-  return process.env.LONGTAIL_SECURE_NOTES_KEY_VERSION || DEFAULT_KEY_VERSION;
+  return config.secureNotes.keyVersion || DEFAULT_KEY_VERSION;
 }
 
 export {

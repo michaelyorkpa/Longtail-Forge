@@ -1,3 +1,28 @@
+## Version 0.33.5.19.1.2 - 2026-06-30 09:41 -04:00
+
+- Created a local ignored `.env` for this checkout so the app now has machine-local runtime config materialized separately from the committed `.env.example` template.
+- Promoted fresh-start bootstrap labels into runtime config: `LONGTAIL_INITIAL_WORKSPACE_NAME` now controls the first workspace name and `SUPER_ADMIN_DISPLAY_NAME` controls the initial super-admin display name.
+- Removed this checkout's workspace name from database bootstrap and settings fallback code while keeping generic code fallbacks and documenting that existing workspaces/users are not renamed by these settings.
+- Added `scripts/runtime-local-env-materialization-regression.mjs`, expanded the runtime configuration contract regression, wired the new regression into `npm run check`, advanced package and current module metadata to 0.33.5.19.1.2, and marked the 0.33.5.19.1.2 roadmap checklist complete.
+- Verification 2026-06-30 09:49 -04:00: targeted local `.env` materialization, runtime `.env` loading, runtime configuration contract, and check-js checks passed; `npm run check` passed 205/205 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `.env` is ignored while `.env.example` remains the committed template; local `.env` loading returned this checkout's initial workspace name and 0.33.5.19.1.2 config version; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.19.1.2 after restarting the local 8001 server.
+
+## Version 0.33.5.19.1.1 - 2026-06-30 09:05 -04:00
+
+- Added startup-local `.env` loading before app config creation, with missing `.env` files treated as a no-op and existing process environment values taking precedence.
+- Added a small server-side `.env` parser for comments, blank lines, `KEY=VALUE`, optional `export`, unquoted values with trailing comments, and basic quoted values without adding a runtime dependency or exposing config through browser code.
+- Updated runtime configuration docs and decisions to describe `.env` loading, precedence, and malformed-line failures while keeping `.env.example` as the committed template.
+- Added `scripts/runtime-env-loading-regression.mjs`, wired it into `npm run check`, advanced package and current module metadata to 0.33.5.19.1.1, and marked the 0.33.5.19.1.1 roadmap checklist complete.
+- Verification 2026-06-30 09:08 -04:00: targeted runtime `.env` loading, runtime configuration contract, and check-js checks passed; `npm run check` passed 204/204 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.19.1.1 after restarting the local 8001 server.
+
+## Version 0.33.5.19.1 - 2026-06-30 08:24 -04:00
+
+- Added the runtime configuration contract for install/startup values, including `.env.example` and `docs/runtime-configuration.md` with active settings separated from reserved future PostgreSQL, storage, scanner, worker, proxy, and logging settings.
+- Centralized current runtime normalization in `src/config.js` for app environment, host/port, data paths, SQLite provider selection, super-admin bootstrap values, session cookie/TTL settings, workspace creation overrides, local file storage root, and safe runtime warnings while keeping SQLite as the only implemented database provider.
+- Added clear startup validation for invalid active settings, including unsupported database providers, invalid ports, unsafe SameSite=None cookie configuration, invalid workspace creation env values, and missing production `SUPER_ADMIN_PASSWORD`.
+- Preserved secure-note compatibility for `LONGTAIL_SECURE_NOTES_MASTER_KEY`, `SECURE_NOTES_MASTER_KEY`, and `LONGTAIL_SECURE_NOTES_KEY_VERSION`, and kept future PostgreSQL/storage/scanner/job keys documented without wiring those future behaviors.
+- Added `scripts/runtime-configuration-contract-regression.mjs`, wired it into `npm run check`, advanced package and current module metadata to 0.33.5.19.1, and marked the 0.33.5.19.1 roadmap checklist complete.
+- Verification 2026-06-30 08:31 -04:00: targeted runtime configuration, view-conversion closeout, Files closeout, Tasks/Files child-dialog, Markdown closeout, Notes foundation, check-js, and module-sanity checks passed; `npm run check` passed 203/203 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.19.1 after restarting the local 8001 server.
+
 ## Version 0.33.5.18.15 - 2026-06-30 01:05 -04:00
 
 - Closed the 0.33.5.18 view-conversion branch at the final strict/deferred surface boundary. Strict declarative guardrails now close on `lists.workspace`, `notes.workspace`, `tasks.workspace`, `files.browse`, `client-projects.clients`, and `client-projects.projects`.

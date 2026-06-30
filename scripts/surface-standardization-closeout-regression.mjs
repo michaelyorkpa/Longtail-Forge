@@ -11,7 +11,7 @@ const uiLayoutGuide = readText("docs/ui-layout-guide.md");
 const tasksDocs = readText("docs/tasks-module.md");
 const tasksHelp = readText("help/framework/tasks-basics.md");
 const tasksModule = readText("src/modules/tasks/module.js");
-const currentTasksVersion = "0.33.5.18.15";
+const currentTasksVersion = "0.33.5.19.1.2";
 
 assert.match(tasksModule, new RegExp(`version: "${escapeRegExp(currentTasksVersion)}"`), "Tasks module metadata should report the current Tasks version");
 

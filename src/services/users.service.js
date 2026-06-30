@@ -841,8 +841,8 @@ async function readAssignableWorkspaces(session) {
 async function readWorkspaceCreationOptions(session) {
   const appSettings = await appSettingsRepository.readAll();
   const userCreationPermission = await appSettingsRepository.readWorkspaceCreationPermission(session.user_id);
-  const configuredInstallMode = process.env.WORKSPACE_INSTALL_MODE || appSettings.workspace_install_mode || config.workspaceInstallMode;
-  const configuredTypeLimit = process.env.WORKSPACE_TYPE_LIMIT || appSettings.workspace_type_limit || config.workspaceTypeLimit;
+  const configuredInstallMode = config.envOverrides.workspaceInstallMode || appSettings.workspace_install_mode || config.workspaceInstallMode;
+  const configuredTypeLimit = config.envOverrides.workspaceTypeLimit || appSettings.workspace_type_limit || config.workspaceTypeLimit;
   const workspaceCreationEnabled = appSettings.workspace_creation_enabled !== "false";
   const installMode = configuredInstallMode === "saas" ? "saas" : "self_hosted";
   const typeLimit = String(configuredTypeLimit || "").trim().toLowerCase();

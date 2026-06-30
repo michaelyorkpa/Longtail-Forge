@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.15";
+const appVersion = "0.33.5.19.1.2";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -27,7 +27,7 @@ assert.equal(packageLock.packages[""].version, appVersion, "package-lock package
 
 assert.match(
   clientProjectsModule,
-  /version:\s*"0\.33\.5\.18\.15"/,
+  new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`),
   "Clients/Projects module should report the current app version",
 );
 assert.match(
@@ -180,4 +180,8 @@ console.log("Clients/Projects hierarchy reparent regression passed.");
 
 function readText(path) {
   return readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

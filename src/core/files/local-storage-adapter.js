@@ -2,10 +2,10 @@ import fs from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { config } from "../../config.js";
 import { AppError } from "../../utils/app-error.js";
+import { config } from "../../config.js";
 
-const LOCAL_FILE_STORAGE_ROOT = path.join(config.dataDir, "files");
+const LOCAL_FILE_STORAGE_ROOT = config.storage.localRoot;
 
 function createLocalFileStorageAdapter(options = {}) {
   const rootDir = path.resolve(options.rootDir || LOCAL_FILE_STORAGE_ROOT);

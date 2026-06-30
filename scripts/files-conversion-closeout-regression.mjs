@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.15";
+const appVersion = "0.33.5.19.1.2";
 const filesCloseoutVersion = "0.33.5.18.12.7";
+const viewConversionCloseoutVersion = "0.33.5.18.15";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -31,12 +32,12 @@ assert.match(changelog, new RegExp(`## Version ${escapeRegExp(filesCloseoutVersi
 assert.match(changelog, /Closed the Files browse\/edit\/preview\/upload\/action\/strict-guardrail conversion branch/, "Changelog should describe the completed Files conversion branch");
 assert.match(changelog, /scripts\/files-conversion-closeout-regression\.mjs/, "Changelog should name the closeout regression");
 
-assert.match(viewContract, new RegExp(`Updated through ${escapeRegExp(appVersion)}, it also records`), "View-building contract should report the Files closeout version");
+assert.match(viewContract, new RegExp(`Updated through ${escapeRegExp(viewConversionCloseoutVersion)}, it also records`), "View-building contract should report the view-conversion closeout version");
 assert.match(viewContract, /## Implementation Notes For 0\.33\.5\.18\.12\.7/, "View-building contract should include closeout implementation notes");
 assert.match(viewContract, /The Files conversion branch is closed at the compact listing-first boundary/, "View-building contract should describe the closeout boundary");
 assert.match(viewContract, /File Context and Preview remain route-backed, attachment-scoped modal workflows/, "View-building contract should preserve route-backed File Context and Preview");
 
-assert.match(declarativeGuide, new RegExp(`viewSurfaces\` authoring contract as of ${escapeRegExp(appVersion)}`), "Declarative guide should report the Files closeout version");
+assert.match(declarativeGuide, new RegExp(`viewSurfaces\` authoring contract as of ${escapeRegExp(viewConversionCloseoutVersion)}`), "Declarative guide should report the view-conversion closeout version");
 assert.match(declarativeGuide, /As of the 0\.33\.5\.18\.12\.7 closeout, the Files conversion branch is complete at this boundary/, "Declarative guide should document the closeout");
 assert.match(declarativeGuide, /Files is strict as of 0\.33\.5\.18\.12\.6[\s\S]*Clients\/Projects strict enforcement is active as of 0\.33\.5\.18\.14\.5[\s\S]*filter drawer, secondary tag-row, icon-only table action, and legacy page chrome cleanup/, "Declarative inventory should distinguish strict Files and current strict Clients/Projects");
 

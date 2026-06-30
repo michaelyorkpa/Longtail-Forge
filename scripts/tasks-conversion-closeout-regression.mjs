@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.18.15";
+const appVersion = "0.33.5.19.1.2";
+const viewConversionCloseoutVersion = "0.33.5.18.15";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -37,7 +38,7 @@ assert.match(tasksDocs, /new surfaces should call `openTaskEditor\(\)` or the re
 assert.match(tasksDocs, /The protected Tasks page is `tasks\.html` under the Projects menu/, "Tasks docs should preserve the shipped Tasks page location");
 assert.match(tasksDocs, /The main panel remains the task list surface/, "Tasks docs should preserve task-list-first behavior");
 
-assert.match(viewContract, new RegExp(`Updated through ${escapeRegExp(appVersion)}, it also records the current helper and descriptor implementation`), "View-building contract should report the Tasks closeout version");
+assert.match(viewContract, new RegExp(`Updated through ${escapeRegExp(viewConversionCloseoutVersion)}, it also records the current helper and descriptor implementation`), "View-building contract should report the view conversion closeout version");
 assert.match(viewContract, /## Implementation Notes For 0\.33\.5\.18\.10\.7/, "View-building contract should include Tasks closeout notes");
 assert.match(viewContract, /Tasks is now a completed `slide-out-sidebar` adopter and a template for future list-first workflow conversions/, "View-building contract should document Tasks as a slide-out-sidebar adopter");
 assert.match(viewContract, /Unlike Notes, Tasks keeps the task list as the primary main-panel surface/, "View-building contract should preserve the task-list-first direction");
@@ -48,7 +49,7 @@ assert.match(moduleContract, /As of 0\.33\.5\.18\.10\.7, the canonical Task edit
 assert.match(moduleContract, /Future Quick Action Center or module-triggered task creation flows should dispatch the registered Task module action or call the opener/, "Module contract should document future callers");
 assert.match(moduleContract, /The Task editor is the first completed workflow example for this pattern/, "Module contract should identify the completed workflow example");
 
-assert.match(declarativeDocs, new RegExp(`viewSurfaces\` authoring contract as of ${escapeRegExp(appVersion)}`), "Declarative view docs should report the current Files descriptor version");
+assert.match(declarativeDocs, new RegExp(`viewSurfaces\` authoring contract as of ${escapeRegExp(viewConversionCloseoutVersion)}`), "Declarative view docs should report the view conversion closeout version");
 assert.match(declarativeDocs, /Strict guardrails currently enforce[\s\S]*`files\.browse`[\s\S]*`lists\.workspace`[\s\S]*`notes\.workspace`[\s\S]*`tasks\.workspace`/, "Declarative view docs should include Tasks in strict guardrails");
 assert.match(declarativeDocs, /The 0\.33\.5\.18\.10\.7 closeout also locks `LongtailForge\.tasksDialog\.openTaskEditor\(\)` as the canonical module-owned Task editor opener/, "Declarative view docs should document the Tasks editor closeout contract");
 assert.match(declarativeDocs, /\| Files \| files \| files\.html \| files\.browse \| strict \|/, "Declarative inventory should report Files through the strict framework descriptor surface");

@@ -6,6 +6,8 @@ As of version 0.31.24.2, the active SQLite helper keeps one queued sqlite proces
 
 As of version 0.32.6.3, framework search metadata lives in the canonical `search_index` table. FTS virtual tables are lookup engines only and are not the source of truth for workspace scope, module scope, permissions, visibility, or record lifecycle state.
 
+As of version 0.33.5.19.1.2, runtime database configuration is documented in [runtime-configuration.md](runtime-configuration.md). SQLite remains the only implemented provider, `LONGTAIL_DATABASE_PROVIDER` must be `sqlite`, and PostgreSQL settings are reserved for future adapter work rather than active behavior.
+
 ## Fresh Baseline
 
 The active schema lives in:

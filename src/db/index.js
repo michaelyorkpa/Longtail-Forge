@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { config } from "../config.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 import { DEFAULT_TIMEZONE, normalizeUtcIso } from "../utils/timezones.js";
 import { DEFAULT_WORKSPACE_TYPE } from "../utils/workspaces.js";
@@ -16,10 +17,10 @@ import {
   sqlText,
 } from "./sqlite.js";
 
-const DEFAULT_WORKSPACE_NAME = "Raymond Tec";
+const DEFAULT_WORKSPACE_NAME = config.bootstrap.initialWorkspaceName;
 const REDACTED_SEED_USERNAME = "[REDACTED]";
-const DEFAULT_SUPER_ADMIN_USERNAME = process.env.SUPER_ADMIN_USERNAME || "support@longtailforge.local";
-const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = "Super Admin";
+const DEFAULT_SUPER_ADMIN_USERNAME = config.bootstrap.superAdminUsername;
+const DEFAULT_SUPER_ADMIN_DISPLAY_NAME = config.bootstrap.superAdminDisplayName;
 const SUPER_ADMIN_PASSWORD_ENV = "SUPER_ADMIN_PASSWORD";
 
 async function initializeDatabase() {
@@ -669,7 +670,7 @@ VALUES (
 }
 
 function getSuperAdminPassword() {
-  const configuredPassword = process.env[SUPER_ADMIN_PASSWORD_ENV];
+  const configuredPassword = config.bootstrap.superAdminPassword;
   const password = configuredPassword || createGeneratedPassword();
   const validation = validatePassword(password, DEFAULT_SUPER_ADMIN_USERNAME);
 

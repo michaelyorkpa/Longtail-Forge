@@ -3,11 +3,9 @@ import { config } from "../config.js";
 import { sessionsRepository } from "../repositories/sessions.repo.js";
 import { normalizeThemeMode, normalizeTimezone } from "../utils/normalizers.js";
 
-const SESSION_MAX_AGE_SECONDS = 60 * 60 * 12;
-
 async function createSession(user) {
   const sessionId = randomBytes(32).toString("base64url");
-  const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000);
+  const expiresAt = new Date(Date.now() + config.cookies.maxAgeSeconds * 1000);
 
   await sessionsRepository.removeExpired();
   await sessionsRepository.create({
@@ -24,7 +22,7 @@ async function createSession(user) {
 
   return {
     sessionId,
-    maxAgeSeconds: SESSION_MAX_AGE_SECONDS,
+    maxAgeSeconds: config.cookies.maxAgeSeconds,
   };
 }
 
@@ -107,6 +105,7 @@ function buildSessionCookie(sessionId, maxAgeSeconds) {
     httpOnly: config.cookies.httpOnly,
     maxAgeSeconds,
     sameSite: config.cookies.sameSite,
+    secure: config.cookies.secure,
   });
 }
 
@@ -115,13 +114,15 @@ function buildExpiredSessionCookie() {
     httpOnly: config.cookies.httpOnly,
     maxAgeSeconds: 0,
     sameSite: config.cookies.sameSite,
+    secure: config.cookies.secure,
   });
 }
 
 function buildThemeCookie(themeMode) {
   return buildCookie(config.cookies.themeName, normalizeThemeMode(themeMode), {
-    maxAgeSeconds: SESSION_MAX_AGE_SECONDS,
+    maxAgeSeconds: config.cookies.maxAgeSeconds,
     sameSite: config.cookies.sameSite,
+    secure: config.cookies.secure,
   });
 }
 
@@ -129,6 +130,7 @@ function buildExpiredThemeCookie() {
   return buildCookie(config.cookies.themeName, "", {
     maxAgeSeconds: 0,
     sameSite: config.cookies.sameSite,
+    secure: config.cookies.secure,
   });
 }
 
@@ -145,6 +147,10 @@ function buildCookie(name, value, options = {}) {
 
   if (options.sameSite) {
     segments.push(`SameSite=${options.sameSite}`);
+  }
+
+  if (options.secure) {
+    segments.push("Secure");
   }
 
   return segments.join("; ");

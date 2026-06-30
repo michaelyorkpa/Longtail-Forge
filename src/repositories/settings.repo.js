@@ -1,8 +1,9 @@
+import { config } from "../config.js";
 import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/index.js";
 import { AppError } from "../utils/app-error.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 
-const DEFAULT_WORKSPACE_NAME = "Raymond Tec";
+const DEFAULT_WORKSPACE_NAME = config.bootstrap.initialWorkspaceName;
 
 async function readWorkspaceSettings(workspaceId) {
   const rows = await querySql(`
