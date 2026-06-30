@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  db,
   querySql,
   runSql,
   sqlInteger,
@@ -119,15 +120,15 @@ ORDER BY updated_at DESC, title COLLATE NOCASE ASC;
 }
 
 async function readById(workspaceId, noteId) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT ${NOTE_COLUMNS.join(", ")}
 FROM notes
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND note_id = ${sqlText(noteId)}
+WHERE workspace_id = :workspaceId
+  AND note_id = :noteId
 LIMIT 1;
-`);
+`, { noteId, workspaceId });
 
-  return rows[0] ? noteRowToAppValue(rows[0]) : null;
+  return row ? noteRowToAppValue(row) : null;
 }
 
 async function create(workspaceId, note) {

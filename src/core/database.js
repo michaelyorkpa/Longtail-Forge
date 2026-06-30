@@ -1,8 +1,10 @@
 export {
+  db,
   querySql,
+  getSql,
   runSql,
   sqlInteger,
   sqlNullableInteger,
   sqlNullableText,
   sqlText,
-} from "../db/sqlite.js";
+} from "../db/provider.js";

@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.19.2";
+const appVersion = "0.33.5.19.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-sqlite-hardening-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-sqlite-hardening.db");
 process.env.LONGTAIL_SQLITE_BUSY_TIMEOUT_MS = "2500";
@@ -60,7 +60,7 @@ try {
   assert.match(migrationsSource, /repairLegacyWorkspaceScopedForeignKeys/, "migrations should repair legacy workspace-scoped foreign keys");
   assert.match(migrationsSource, /repairLegacyRenamedParentReferences/, "migrations should repair child tables rewritten to temporary legacy parent names");
   assert.match(migrationsSource, /PRAGMA legacy_alter_table = ON/, "table rebuilds should not rewrite child-table foreign keys to temporary table names");
-  assert.match(appSource, /formatSqliteHealth\(sqliteHealth\)/, "server startup should log safe SQLite health output");
+  assert.match(appSource, /formatDatabaseHealth\(databaseHealth\)/, "server startup should log safe SQLite health output through the provider-neutral formatter");
 
   assert.equal(readDefaultProvider(), "sqlite", "SQLite should remain the default database provider");
   assertConfigFails({ LONGTAIL_SQLITE_FOREIGN_KEYS: "false" }, /LONGTAIL_SQLITE_FOREIGN_KEYS must be on/);

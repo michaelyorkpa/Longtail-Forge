@@ -1,4 +1,4 @@
-import { querySql, sqlText } from "../db/sqlite.js";
+import { querySql, sqlText } from "../core/database.js";
 
 const resolvers = new Map();
 

@@ -8,17 +8,20 @@ import { modulesService } from "../core/modules/modules.service.js";
 import { appSettingsRepository } from "../repositories/app-settings.repo.js";
 import { runMigrations } from "./migrations.js";
 import {
-  closeSqlite,
-  formatSqliteHealth,
-  initializeSqliteRuntime,
+  closeDatabase,
+  db,
+  formatDatabaseHealth,
+  getLastDatabaseHealth,
+  getSql,
+  initializeDatabaseRuntime,
   querySql,
-  readSqliteHealth,
+  readDatabaseHealth,
   runSql,
   sqlInteger,
   sqlNullableInteger,
   sqlNullableText,
   sqlText,
-} from "./sqlite.js";
+} from "./provider.js";
 
 const DEFAULT_WORKSPACE_NAME = config.bootstrap.initialWorkspaceName;
 const REDACTED_SEED_USERNAME = "[REDACTED]";
@@ -31,7 +34,7 @@ async function initializeDatabase() {
 }
 
 async function ensureDatabase() {
-  const sqliteHealth = await initializeSqliteRuntime();
+  const databaseHealth = await initializeDatabaseRuntime();
   await runMigrations();
   await ensureFrameworkModuleRecord();
   await standardizeStoredTimesToUtc();
@@ -50,7 +53,7 @@ async function ensureDatabase() {
   await ensureWorkspacePermissionContracts();
   await repairPersonalWorkspaceMemberships();
   await ensureProtectedUserRoles(workspaceId);
-  return sqliteHealth;
+  return databaseHealth;
 }
 
 async function ensureFrameworkModuleRecord() {
@@ -741,13 +744,21 @@ async function columnsExist(tableName, columnNames) {
 }
 
 export {
+  closeDatabase,
   ensureDatabase,
-  formatSqliteHealth,
+  formatDatabaseHealth,
+  getLastDatabaseHealth,
+  getSql,
   initializeDatabase,
-  initializeSqliteRuntime,
-  closeSqlite,
+  initializeDatabaseRuntime,
+  closeDatabase as closeSqlite,
+  db,
+  formatDatabaseHealth as formatSqliteHealth,
+  getLastDatabaseHealth as getLastSqliteHealth,
+  initializeDatabaseRuntime as initializeSqliteRuntime,
   querySql,
-  readSqliteHealth,
+  readDatabaseHealth,
+  readDatabaseHealth as readSqliteHealth,
   runSql,
   sqlInteger,
   sqlNullableInteger,

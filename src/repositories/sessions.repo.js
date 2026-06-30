@@ -1,9 +1,9 @@
-import { querySql, runSql, sqlNullableText, sqlText } from "../db/index.js";
+import { db } from "../core/database.js";
 
 async function create(session) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 INSERT INTO sessions (
   session_id,
   home_workspace_id,
@@ -17,22 +17,33 @@ INSERT INTO sessions (
   updated_at
 )
 VALUES (
-  ${sqlText(session.session_id)},
-  ${sqlText(session.home_workspace_id || session.workspace_id)},
-  ${sqlText(session.active_workspace_id || session.workspace_id || session.home_workspace_id)},
-  ${sqlText(session.user_id)},
-  ${sqlText(session.username)},
-  ${sqlText(session.timezone)},
-  ${sqlNullableText(session.ip_address)},
-  ${sqlText(session.expires_at)},
-  ${sqlText(now)},
-  ${sqlText(now)}
+  :sessionId,
+  :homeWorkspaceId,
+  :activeWorkspaceId,
+  :userId,
+  :username,
+  :timezone,
+  :ipAddress,
+  :expiresAt,
+  :createdAt,
+  :updatedAt
 );
-`);
+`, {
+    activeWorkspaceId: session.active_workspace_id || session.workspace_id || session.home_workspace_id,
+    createdAt: now,
+    expiresAt: session.expires_at,
+    homeWorkspaceId: session.home_workspace_id || session.workspace_id,
+    ipAddress: session.ip_address || null,
+    sessionId: session.session_id,
+    timezone: session.timezone,
+    updatedAt: now,
+    userId: session.user_id,
+    username: session.username,
+  });
 }
 
 async function readById(sessionId) {
-  const rows = await querySql(`
+  return db.get(`
 SELECT
   session_id,
   home_workspace_id,
@@ -43,67 +54,65 @@ SELECT
   ip_address,
   expires_at
 FROM sessions
-WHERE session_id = ${sqlText(sessionId)}
+WHERE session_id = :sessionId
 LIMIT 1;
-`);
-
-  return rows[0] || null;
+`, { sessionId });
 }
 
 async function remove(sessionId) {
-  await runSql(`
+  await db.run(`
 DELETE FROM sessions
-WHERE session_id = ${sqlText(sessionId)};
-`);
+WHERE session_id = :sessionId;
+`, { sessionId });
 }
 
 async function removeExpired(now = new Date()) {
-  await runSql(`
+  await db.run(`
 DELETE FROM sessions
-WHERE expires_at <= ${sqlText(now.toISOString())};
-`);
+WHERE expires_at <= :now;
+`, { now: now.toISOString() });
 }
 
 async function updateUsernameForUser(workspaceId, userId, username) {
-  await runSql(`
+  await db.run(`
 UPDATE sessions
-SET username = ${sqlText(username)}
-WHERE user_id = ${sqlText(userId)}
+SET username = :username
+WHERE user_id = :userId
   AND (
-    home_workspace_id = ${sqlText(workspaceId)}
-    OR active_workspace_id = ${sqlText(workspaceId)}
+    home_workspace_id = :workspaceId
+    OR active_workspace_id = :workspaceId
   );
-`);
+`, { userId, username, workspaceId });
 }
 
 async function updateTimezoneForUser(workspaceId, userId, timezone) {
-  await runSql(`
+  await db.run(`
 UPDATE sessions
-SET timezone = ${sqlText(timezone)}
-WHERE user_id = ${sqlText(userId)}
+SET timezone = :timezone
+WHERE user_id = :userId
   AND (
-    home_workspace_id = ${sqlText(workspaceId)}
-    OR active_workspace_id = ${sqlText(workspaceId)}
+    home_workspace_id = :workspaceId
+    OR active_workspace_id = :workspaceId
   );
-`);
+`, { timezone, userId, workspaceId });
 }
 
 async function updateActiveWorkspace(sessionId, workspaceId) {
-  await runSql(`
+  await db.run(`
 UPDATE sessions
-SET active_workspace_id = ${sqlText(workspaceId)},
-    updated_at = ${sqlText(new Date().toISOString())}
-WHERE session_id = ${sqlText(sessionId)};
-`);
+SET active_workspace_id = :workspaceId,
+    updated_at = :updatedAt
+WHERE session_id = :sessionId;
+`, { sessionId, updatedAt: new Date().toISOString(), workspaceId });
 }
 
 async function updateActiveWorkspaceForUser(userId, workspaceId) {
-  await runSql(`
+  await db.run(`
 UPDATE sessions
-SET active_workspace_id = ${sqlText(workspaceId)},
-    updated_at = ${sqlText(new Date().toISOString())}
-WHERE user_id = ${sqlText(userId)};
-`);
+SET active_workspace_id = :workspaceId,
+    updated_at = :updatedAt
+WHERE user_id = :userId;
+`, { updatedAt: new Date().toISOString(), userId, workspaceId });
 }
 
 export const sessionsRepository = {

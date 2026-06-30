@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { modulesService } from "../core/modules/modules.service.js";
-import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/sqlite.js";
+import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../core/database.js";
 import { AppError } from "../utils/app-error.js";
 import { readResumeStateReadResolver } from "./work-resume-state-read-checks.js";
 

@@ -236,30 +236,30 @@ Acceptance criteria:
 
 ### Version 0.33.5.19.3 - Provider-neutral database adapter contract v1
 
-- [ ] Create a provider-neutral database module or adapter layer that becomes the preferred import path for app code.
-- [ ] Keep SQLite as the only implemented provider in this slice.
-- [ ] Define the v1 database API for current string-SQL compatibility:
-  - [ ] `db.query(sql, params)`
-  - [ ] `db.get(sql, params)`
-  - [ ] `db.run(sql, params)`
-  - [ ] `db.close()`
-  - [ ] `db.health()`
-  - [ ] `db.capabilities`
-- [ ] Reserve `db.transaction(callback)` for 0.33.5.19.5 and expose transaction capability metadata without converting workflows here.
-- [ ] Parameter arguments may be accepted by the API shape in this slice, but 0.33.5.19.4 is the slice that proves repository use of bound parameters.
-- [ ] Move SQLite-specific process handling behind the SQLite adapter.
-- [ ] Keep existing repository behavior working.
-- [ ] Preserve `querySql` / `runSql` compatibility temporarily if needed, but mark them as legacy compatibility helpers.
-- [ ] Add a guardrail inventory for direct SQLite imports.
-- [ ] Add documentation explaining:
-  - [ ] SQLite is the default self-hosted backend.
-  - [ ] PostgreSQL will plug into the same adapter later.
-  - [ ] Repositories should not import `src/db/sqlite.js` directly.
-- [ ] Add regressions proving:
-  - [ ] Existing app startup still works on SQLite.
-  - [ ] Existing migrations still run on SQLite.
-  - [ ] Existing modules can query through the provider-neutral database module.
-  - [ ] Unsupported `LONGTAIL_DATABASE_PROVIDER` values fail clearly.
+- [x] Create a provider-neutral database module or adapter layer that becomes the preferred import path for app code.
+- [x] Keep SQLite as the only implemented provider in this slice.
+- [x] Define the v1 database API for current string-SQL compatibility:
+  - [x] `db.query(sql, params)`
+  - [x] `db.get(sql, params)`
+  - [x] `db.run(sql, params)`
+  - [x] `db.close()`
+  - [x] `db.health()`
+  - [x] `db.capabilities`
+- [x] Reserve `db.transaction(callback)` for 0.33.5.19.5 and expose transaction capability metadata without converting workflows here.
+- [x] Parameter arguments may be accepted by the API shape in this slice, but 0.33.5.19.4 is the slice that proves repository use of bound parameters.
+- [x] Move SQLite-specific process handling behind the SQLite adapter.
+- [x] Keep existing repository behavior working.
+- [x] Preserve `querySql` / `runSql` compatibility temporarily if needed, but mark them as legacy compatibility helpers.
+- [x] Add a guardrail inventory for direct SQLite imports.
+- [x] Add documentation explaining:
+  - [x] SQLite is the default self-hosted backend.
+  - [x] PostgreSQL will plug into the same adapter later.
+  - [x] Repositories should not import `src/db/sqlite.js` directly.
+- [x] Add regressions proving:
+  - [x] Existing app startup still works on SQLite.
+  - [x] Existing migrations still run on SQLite.
+  - [x] Existing modules can query through the provider-neutral database module.
+  - [x] Unsupported `LONGTAIL_DATABASE_PROVIDER` values fail clearly.
 
 Acceptance criteria:
 
@@ -270,22 +270,22 @@ Acceptance criteria:
 
 ### Version 0.33.5.19.4 - Parameterized query pilot
 
-- [ ] Promote database-adapter parameter binding from API shape to exercised implementation.
-- [ ] Convert a small but representative set of repositories to parameterized queries:
-  - [ ] Sessions.
-  - [ ] Workspaces.
-  - [ ] One Tasks read path.
-  - [ ] One Notes read path.
-- [ ] Keep legacy `sqlText` / `sqlInteger` style helpers available for unconverted code until broader portability work.
-- [ ] Add docs for query style:
-  - [ ] No new string interpolation for user-supplied values.
-  - [ ] Use parameters for values.
-  - [ ] Keep table/column names static or validated.
-- [ ] Add lint/static guardrails where practical.
-- [ ] Add regression coverage for:
-  - [ ] Quotes in user data.
-  - [ ] Special characters in IDs/titles.
-  - [ ] Attempts to inject SQL-like strings as values.
+- [x] Promote database-adapter parameter binding from API shape to exercised implementation.
+- [x] Convert a small but representative set of repositories to parameterized queries:
+  - [x] Sessions.
+  - [x] Workspaces.
+  - [x] One Tasks read path.
+  - [x] One Notes read path.
+- [x] Keep legacy `sqlText` / `sqlInteger` style helpers available for unconverted code until broader portability work.
+- [x] Add docs for query style:
+  - [x] No new string interpolation for user-supplied values.
+  - [x] Use parameters for values.
+  - [x] Keep table/column names static or validated.
+- [x] Add lint/static guardrails where practical.
+- [x] Add regression coverage for:
+  - [x] Quotes in user data.
+  - [x] Special characters in IDs/titles.
+  - [x] Attempts to inject SQL-like strings as values.
 
 Acceptance criteria:
 

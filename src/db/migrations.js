@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config } from "../config.js";
 import { listModuleMigrationSources } from "../core/modules/registry.js";
-import { querySql, runSql, sqlText } from "./sqlite.js";
+import { querySql, runSql, sqlText } from "./provider.js";
 
 const MIGRATIONS_TABLE = "schema_migrations";
 const BASELINE_VERSION = "0.33.5.18.6.5.4";

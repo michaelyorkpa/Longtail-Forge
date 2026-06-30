@@ -1,7 +1,7 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import { config, logRuntimeConfigWarnings } from "../config.js";
-import { formatSqliteHealth, initializeDatabase } from "../db/index.js";
+import { formatDatabaseHealth, initializeDatabase } from "../db/index.js";
 import { errorHandler } from "../middleware/error-handler.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { appInfoRoutes } from "../routes/app-info.routes.js";
@@ -87,8 +87,8 @@ function createApp() {
 async function startServer() {
   try {
     logRuntimeConfigWarnings();
-    const sqliteHealth = await initializeDatabase();
-    console.log(formatSqliteHealth(sqliteHealth));
+    const databaseHealth = await initializeDatabase();
+    console.log(formatDatabaseHealth(databaseHealth));
     scheduleStartupSearchIndexRebuild();
     const app = createApp();
 

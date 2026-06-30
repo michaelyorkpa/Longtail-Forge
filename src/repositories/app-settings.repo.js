@@ -1,4 +1,4 @@
-import { querySql, runSql, sqlText } from "../db/sqlite.js";
+import { querySql, runSql, sqlText } from "../core/database.js";
 
 const DEFAULT_APP_SETTINGS = {
   workspace_creation_enabled: "true",

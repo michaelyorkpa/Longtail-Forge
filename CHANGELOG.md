@@ -1,3 +1,16 @@
+## Version 0.33.5.19.4 - 2026-06-30 16:56 -04:00
+
+- Promoted database adapter parameter binding from API shape to exercised SQLite implementation with named parameters, adapter capability metadata, and validation for parameter names and supported scalar values.
+- Converted the pilot repository paths to named parameters: Sessions, Workspaces read/update paths, Tasks `readById` plus its assignee read, and Notes `readById`, while keeping legacy SQL literal helpers available for unconverted and multi-statement compatibility paths.
+- Added `scripts/database-parameterized-query-pilot-regression.mjs`, documented the safe query style, and marked the 0.33.5.19.4 roadmap checklist complete.
+- Verification 2026-06-30 17:03 -04:00: database parameterized query pilot, database adapter contract, SQLite connection hardening, runtime configuration contract, local `.env` materialization, fresh database, baseline adoption, legacy cleanup, search rebuild, and check-js targeted checks passed; `npm run check` passed 208/208 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.19.4 after restarting the local 8001 server.
+
+## Version 0.33.5.19.3 - 2026-06-30 15:51 -04:00
+
+- Added the provider-neutral database adapter contract with `db.query`, `db.get`, `db.run`, `db.close`, `db.health`, and `db.capabilities`, while keeping SQLite as the only implemented provider and reserving bound parameters and transactions for the next slices.
+- Moved remaining app-facing direct SQLite imports behind `src/core/database.js` / `src/db/provider.js`, kept `querySql` / `runSql` as temporary compatibility helpers, documented the direct-import guardrail, and added `scripts/database-adapter-contract-regression.mjs` to lock the boundary.
+- Verification 2026-06-30 16:31 -04:00: database adapter contract, SQLite connection hardening, runtime configuration contract, local `.env` materialization, fresh database, baseline adoption, legacy cleanup, search rebuild, and check-js targeted checks passed; `npm run check` passed 207/207 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.19.3 after restarting the local 8001 server.
+
 ## Version 0.33.5.19.2 - 2026-06-30 10:39 -04:00
 
 - Hardened SQLite startup inside the existing SQLite helper boundary by applying foreign-key enforcement to SQLite processes, configuring the runtime busy timeout, applying the configured journal mode with WAL as the default, and verifying database file writability before migrations run.

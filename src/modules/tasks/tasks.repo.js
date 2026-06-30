@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  db,
   querySql,
   runSql,
   sqlInteger,
@@ -24,11 +25,11 @@ ORDER BY
 }
 
 async function readById(workspaceId, taskId) {
-  const rows = await querySql(taskSelectSql(`
-WHERE tasks.workspace_id = ${sqlText(workspaceId)}
-  AND tasks.task_id = ${sqlText(taskId)}
+  const rows = await db.query(taskSelectSql(`
+WHERE tasks.workspace_id = :workspaceId
+  AND tasks.task_id = :taskId
 LIMIT 1;
-`));
+`), { taskId, workspaceId });
 
   if (!rows[0]) {
     return null;
@@ -241,12 +242,12 @@ ORDER BY
 }
 
 async function readAssigneesForTask(workspaceId, taskId) {
-  return querySql(assigneeSelectSql(`
-WHERE task_assignees.workspace_id = ${sqlText(workspaceId)}
-  AND task_assignees.task_id = ${sqlText(taskId)}
+  return db.query(assigneeSelectSql(`
+WHERE task_assignees.workspace_id = :workspaceId
+  AND task_assignees.task_id = :taskId
   AND task_assignees.removed_at IS NULL
 ORDER BY users.username;
-`));
+`), { taskId, workspaceId });
 }
 
 async function markWorkedAt(workspaceId, taskId, workedAt, userId = "") {

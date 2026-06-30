@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 
 import { modulesService } from "../src/core/modules/modules.service.js";
 import { appShellService } from "../src/services/app-shell.service.js";
-import { querySql, runSql, sqlText } from "../src/db/sqlite.js";
+import { querySql, runSql, sqlText } from "../src/db/index.js";
 
-const appVersion = "0.33.5.19.2";
+const appVersion = "0.33.5.19.4";
 const workspaceId = "files-descriptor-host-workspace";
 const protectedUserId = "files-descriptor-host-protected-user";
 const deniedUserId = "files-descriptor-host-denied-user";

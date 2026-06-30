@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { modulesService } from "../core/modules/modules.service.js";
-import { querySql, runSql, sqlInteger, sqlText } from "../db/index.js";
+import { db, runSql, sqlInteger, sqlText } from "../core/database.js";
 import { normalizeSettings } from "../utils/normalizers.js";
 import { normalizeWorkspaceType } from "../utils/workspaces.js";
 
 async function readForUser(userId) {
-  return querySql(`
+  return db.query(`
 SELECT
   workspaces.workspace_id,
   workspaces.name AS workspace_name,
@@ -13,53 +13,51 @@ SELECT
   user_workspaces.status
 FROM user_workspaces
 INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
-WHERE user_workspaces.user_id = ${sqlText(userId)}
+WHERE user_workspaces.user_id = :userId
 ORDER BY workspaces.name;
-`);
+`, { userId });
 }
 
 async function countUserWorkspacesByType(userId, workspaceType) {
-  const rows = await querySql(`
+  const row = await db.get(`
 SELECT COUNT(1) AS count
 FROM user_workspaces
 INNER JOIN workspaces ON workspaces.workspace_id = user_workspaces.workspace_id
-WHERE user_workspaces.user_id = ${sqlText(userId)}
+WHERE user_workspaces.user_id = :userId
   AND user_workspaces.status = 'active'
-  AND workspaces.workspace_type = ${sqlText(normalizeWorkspaceType(workspaceType))};
-`);
+  AND workspaces.workspace_type = :workspaceType;
+`, { userId, workspaceType: normalizeWorkspaceType(workspaceType) });
 
-  return Number(rows[0]?.count) || 0;
+  return Number(row?.count) || 0;
 }
 
 async function readOwnedForUser(userId) {
-  return querySql(`
+  return db.query(`
 SELECT
   workspace_id,
   name AS workspace_name,
   workspace_type
 FROM workspaces
-WHERE owner_user_id = ${sqlText(userId)}
+WHERE owner_user_id = :userId
 ORDER BY name;
-`);
+`, { userId });
 }
 
 async function readById(workspaceId) {
-  const rows = await querySql(`
+  return db.get(`
 SELECT
   workspace_id,
   name AS workspace_name,
   workspace_type,
   owner_user_id
 FROM workspaces
-WHERE workspace_id = ${sqlText(workspaceId)}
+WHERE workspace_id = :workspaceId
 LIMIT 1;
-`);
-
-  return rows[0] || null;
+`, { workspaceId });
 }
 
 async function readOwnerTransferCandidate(workspaceId, previousOwnerUserId) {
-  const rows = await querySql(`
+  return db.get(`
 SELECT
   users.user_id,
   users.username,
@@ -76,29 +74,27 @@ INNER JOIN user_role_assignments
   ON user_role_assignments.user_id = user_workspaces.user_id
   AND user_role_assignments.workspace_id = user_workspaces.workspace_id
   AND user_role_assignments.role_id = 'workspace_admin'
-WHERE user_workspaces.workspace_id = ${sqlText(workspaceId)}
+WHERE user_workspaces.workspace_id = :workspaceId
   AND user_workspaces.status = 'active'
   AND users.user_status = 'active'
-  AND user_workspaces.user_id <> ${sqlText(previousOwnerUserId)}
+  AND user_workspaces.user_id <> :previousOwnerUserId
 ORDER BY
   COALESCE(user_workspaces.created_at, '9999-12-31T23:59:59.999Z'),
   users.rowid,
   lower(users.username)
 LIMIT 1;
-`);
-
-  return rows[0] || null;
+`, { previousOwnerUserId, workspaceId });
 }
 
 async function updateOwner(workspaceId, ownerUserId) {
   const now = new Date().toISOString();
 
-  await runSql(`
+  await db.run(`
 UPDATE workspaces
-SET owner_user_id = ${sqlText(ownerUserId)},
-    updated_at = ${sqlText(now)}
-WHERE workspace_id = ${sqlText(workspaceId)};
-`);
+SET owner_user_id = :ownerUserId,
+    updated_at = :updatedAt
+WHERE workspace_id = :workspaceId;
+`, { ownerUserId, updatedAt: now, workspaceId });
 }
 
 async function createWorkspace({ ownerUser, workspaceName, workspaceType }) {

@@ -3,6 +3,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { clearTimeout, setTimeout } from "node:timers";
 import { config } from "../config.js";
+import {
+  sqlInteger,
+  sqlNullableInteger,
+  sqlNullableText,
+  sqlText,
+} from "./sql-literals.js";
 
 let sqliteProcess = null;
 let currentRequest = null;
@@ -37,6 +43,7 @@ async function closeSqlite() {
 }
 
 async function initializeSqliteRuntime() {
+  await closeSqlite();
   await ensureDatabaseFileWritable();
   await configureSqliteJournalMode();
 
@@ -340,30 +347,6 @@ ${sql.trim()}
 
 function markerToken(id) {
   return `__ltf_sqlite_done_${id}__`;
-}
-
-function sqlText(value) {
-  return `'${String(value ?? "").replaceAll("'", "''")}'`;
-}
-
-function sqlNullableText(value) {
-  return value === null || value === undefined || String(value).trim() === ""
-    ? "NULL"
-    : sqlText(value);
-}
-
-function sqlInteger(value) {
-  const numberValue = Number.parseInt(value, 10);
-  return Number.isFinite(numberValue) ? String(numberValue) : "0";
-}
-
-function sqlNullableInteger(value) {
-  if (value === null || value === undefined || value === "") {
-    return "NULL";
-  }
-
-  const numberValue = Number.parseInt(value, 10);
-  return Number.isFinite(numberValue) ? String(numberValue) : "NULL";
 }
 
 export {

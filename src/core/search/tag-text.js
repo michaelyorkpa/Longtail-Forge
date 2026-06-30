@@ -1,4 +1,4 @@
-import { querySql, sqlText } from "../../db/sqlite.js";
+import { querySql, sqlText } from "../database.js";
 
 async function readSearchTagsText({ workspaceId, targetType, targetId }) {
   const normalizedWorkspaceId = String(workspaceId || "").trim();

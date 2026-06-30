@@ -1,4 +1,4 @@
-import { querySql, runSql, sqlText } from "../../../db/sqlite.js";
+import { querySql, runSql, sqlText } from "../../database.js";
 
 const SQLITE_SEARCH_ADAPTER_ID = "sqlite";
 const SQLITE_SEARCH_FTS_TABLE = "search_index_fts";

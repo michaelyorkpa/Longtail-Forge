@@ -37,7 +37,7 @@ import {
   listFrameworkProtectedViews,
   listFrameworkViewSurfaces,
 } from "../view-surfaces/framework-view-surfaces.js";
-import { querySql, runSql, sqlText } from "../../db/sqlite.js";
+import { querySql, runSql, sqlText } from "../database.js";
 import { permissionsRepository } from "../../repositories/permissions.repo.js";
 import { AppError } from "../../utils/app-error.js";
 import { getWorkspaceCapabilities } from "../../utils/workspaces.js";

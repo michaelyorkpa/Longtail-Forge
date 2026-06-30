@@ -4,13 +4,13 @@ import { randomUUID } from "node:crypto";
 
 import { modulesService } from "../src/core/modules/modules.service.js";
 import { appShellService } from "../src/services/app-shell.service.js";
-import { querySql, runSql, sqlText } from "../src/db/sqlite.js";
+import { querySql, runSql, sqlText } from "../src/db/index.js";
 import { clientsService } from "../src/modules/client-projects/clients.service.js";
 import { clientsRepository } from "../src/modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../src/modules/client-projects/projects.repo.js";
 import { clientProjectsModule } from "../src/modules/client-projects/module.js";
 
-const appVersion = "0.33.5.19.2";
+const appVersion = "0.33.5.19.4";
 const businessWorkspaceId = "clients-projects-descriptor-business";
 const personalWorkspaceId = "clients-projects-descriptor-personal";
 const familyWorkspaceId = "clients-projects-descriptor-family";

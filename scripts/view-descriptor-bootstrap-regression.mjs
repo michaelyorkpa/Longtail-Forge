@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { modulesService } from "../src/core/modules/modules.service.js";
 import { appShellService } from "../src/services/app-shell.service.js";
-import { querySql, runSql, sqlText } from "../src/db/sqlite.js";
+import { querySql, runSql, sqlText } from "../src/db/index.js";
 import { readFileSync } from "node:fs";
 
 const workspaceId = "view-descriptor-bootstrap-workspace";
@@ -17,9 +17,9 @@ const appShellServiceSource = readText("src/services/app-shell.service.js");
 const modulesServiceSource = readText("src/core/modules/modules.service.js");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.19.2", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.19.2", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.19.2", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.19.4", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.19.4", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.19.4", "package-lock package entry should report the current app version");
 
 assert.match(appShellServiceSource, /modulesService\.listActiveViewSurfaces\(session\.workspace_id, session\)/, "App shell should deliver view descriptors through the existing bootstrap path");
 assert.doesNotMatch(appShellServiceSource, /view-surfaces|viewSurfaces\/bootstrap|descriptor\/bootstrap/, "Descriptors should not get a separate bootstrap transport");
