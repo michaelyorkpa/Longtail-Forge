@@ -11,9 +11,9 @@ const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.19.8", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.19.8", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.19.8", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.19.9", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.19.9", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.19.9", "package-lock package entry should report the current app version");
 
 assert.doesNotMatch(renderer, /\bfetch\b|XMLHttpRequest|localStorage|sessionStorage/, "view renderer shell must not own data loading or browser storage");
 assert.doesNotMatch(renderer, /\binnerHTML\b|\binsertAdjacentHTML\b/, "view renderer must not inject HTML strings");

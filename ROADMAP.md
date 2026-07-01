@@ -1,4 +1,4 @@
-﻿# Longtail Forge Roadmap
+# Longtail Forge Roadmap
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
@@ -17,402 +17,16 @@ Completed 0.33.5.18.14.3 is archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.14.4 is archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.14.5 is archived in `ROADMAP-ARCHIVE.md`.
 Completed 0.33.5.18.15 is archived in `ROADMAP-ARCHIVE.md`.
-The active roadmap continues with runtime configuration and SQLite small-office foundation work.
-
-## Version 0.33.5.19 - Runtime Configuration and SQLite Small-Office Foundation
-
-Purpose:
-
-Establish Longtail Forge's runtime configuration contract, keep SQLite first-class for self-hosted/small-office installs, and prepare the database layer for future PostgreSQL support without forcing PostgreSQL on self-hosted users.
-
-SQLite support target:
-
-- Single app server.
-- Local or attached storage.
-- Roughly 50 total users.
-- Typical active usage of 5-15 concurrent users.
-- No horizontal app scaling expectation.
-- No external database setup required.
-- Suitable for small offices, solo operators, families, and self-hosted teams.
-
-PostgreSQL support target:
-
-- Hosted SaaS.
-- Multiple app/web instances.
-- Durable workers.
-- Larger multi-workspace datasets.
-- High concurrency.
-- Managed backups and operational monitoring.
-
-Decision:
-
-SQLite remains a first-class supported backend. PostgreSQL is required for hosted SaaS scale, but SQLite must remain viable and pleasant for self-hosted installs.
-
-Do not remove SQLite.
-Do not require PostgreSQL for small-office self-hosting.
-Do not pretend SQLite mode supports horizontal scaling.
-
-Branch boundaries and future handoffs:
-
-- [ ] Keep this branch infrastructure-only. User-facing workflow behavior should not change except for clearer startup failures, safe admin diagnostics, and documentation.
-- [ ] Keep SQLite as the default and only implemented database provider in this branch.
-- [ ] Do not implement PostgreSQL, bounded list/query rewrites, durable jobs/outbox processing, storage-provider swaps, scanner adapters, or hosted-SaaS deployment behavior in 0.33.5.19.
-- [ ] Leave explicit handoff notes for the next branches:
-  - [ ] 0.33.5.20 bounded queries should consume database health/capability information and any safe query-diagnostic hooks without depending on PostgreSQL.
-  - [ ] 0.33.5.21 jobs/outbox should consume the transaction helper and worker runtime config names without requiring a separate worker in SQLite mode.
-  - [ ] 0.33.5.22 storage/scanner work should consume documented storage/scanner config keys without this branch changing Files storage behavior.
-  - [ ] 0.33.5.23 PostgreSQL work should consume the database provider config, adapter contract, health/capability shape, and documented migration-lock strategy.
-- [ ] Avoid whole-repo database rewrites. Adapter, parameter, and transaction slices should use explicit pilots and guardrail inventories, then defer broad conversion to later portability work.
-
-### Version 0.33.5.19.1 - Runtime configuration inventory, contract, and `.env.example`
-
-- [x] Inventory current `process.env` usage before changing runtime behavior.
-- [x] Add `.env.example`.
-- [x] Ensure `.env` is ignored and never committed.
-- [x] Add `docs/runtime-configuration.md`.
-- [x] Define startup/runtime configuration groups:
-  - [x] App identity and environment.
-  - [x] Host/port/public URL.
-  - [x] Data directory.
-  - [x] Database provider.
-  - [x] SQLite settings.
-  - [x] Future PostgreSQL settings.
-  - [x] Initial super-admin bootstrap.
-  - [x] Session/cookie settings.
-  - [x] Secure-note encryption settings.
-  - [x] File storage provider settings.
-  - [x] File scanner settings.
-  - [x] Worker/job settings.
-  - [x] Logging/diagnostics settings.
-- [x] Preserve compatibility with existing environment variables where practical:
-  - `HOST`
-  - `PORT`
-  - `LONGTAIL_DATA_DIR`
-  - `LONGTAIL_DATABASE_FILE`
-  - `SQLITE_COMMAND`
-  - `WORKSPACE_INSTALL_MODE`
-  - `WORKSPACE_TYPE_LIMIT`
-  - `SUPER_ADMIN_USERNAME`
-  - `SUPER_ADMIN_PASSWORD`
-  - `LONGTAIL_SECURE_NOTES_MASTER_KEY`
-  - `SECURE_NOTES_MASTER_KEY`
-  - `LONGTAIL_SECURE_NOTES_KEY_VERSION`
-- [x] Add config normalization for currently consumed runtime values only.
-- [x] Add startup validation for required variables that the current app actively consumes.
-- [x] Add safe startup warnings for optional but recommended variables.
-- [x] Add tests proving missing or invalid current startup settings fail clearly.
-- [x] Document future-only keys without wiring future PostgreSQL, storage, scanner, or worker behavior yet.
-
-Suggested initial `.env.example` groups:
-
-```env
-# App
-LONGTAIL_ENV=development
-LONGTAIL_PUBLIC_URL=http://localhost:8001
-HOST=0.0.0.0
-PORT=8001
-TRUST_PROXY=false
-
-# Data
-LONGTAIL_DATA_DIR=./data
-
-# Database
-LONGTAIL_DATABASE_PROVIDER=sqlite
-
-# SQLite
-LONGTAIL_DATABASE_FILE=./data/longtail-forge.db
-SQLITE_COMMAND=sqlite3
-LONGTAIL_SQLITE_FOREIGN_KEYS=on
-LONGTAIL_SQLITE_JOURNAL_MODE=wal
-LONGTAIL_SQLITE_BUSY_TIMEOUT_MS=5000
-
-# Future PostgreSQL
-# DATABASE_URL=
-# LONGTAIL_DATABASE_POOL_MIN=1
-# LONGTAIL_DATABASE_POOL_MAX=10
-# LONGTAIL_DATABASE_SSL=false
-
-# Initial bootstrap
-SUPER_ADMIN_USERNAME=support@longtailforge.local
-SUPER_ADMIN_PASSWORD=
-
-# Sessions / cookies
-LONGTAIL_SESSION_COOKIE_SECURE=false
-LONGTAIL_SESSION_COOKIE_SAMESITE=Lax
-LONGTAIL_SESSION_TTL_SECONDS=43200
-
-# Secure notes
-# LONGTAIL_SECURE_NOTES_MASTER_KEY=
-# SECURE_NOTES_MASTER_KEY=
-LONGTAIL_SECURE_NOTES_KEY_VERSION=v1
-
-# File storage
-LONGTAIL_STORAGE_PROVIDER=local
-LONGTAIL_LOCAL_STORAGE_ROOT=./data/files
-
-# File scanning
-LONGTAIL_FILE_SCANNER=none
-# LONGTAIL_CLAMD_HOST=127.0.0.1
-# LONGTAIL_CLAMD_PORT=3310
-# LONGTAIL_CLAMSCAN_PATH=
-
-# Jobs / workers
-LONGTAIL_WORKER_MODE=inline
-LONGTAIL_WORKER_ID=default
-LONGTAIL_JOB_POLL_INTERVAL_MS=5000
-LONGTAIL_JOB_LOCK_TTL_SECONDS=300
-
-# Logging
-LONGTAIL_LOG_LEVEL=info
-
-```
-
-This one is important because the current config already reads several values from `process.env`, but there is not yet a formal `.env.example` or startup contract. Current config pulls things like `HOST`, `PORT`, `LONGTAIL_DATA_DIR`, `LONGTAIL_DATABASE_FILE`, `SQLITE_COMMAND`, `WORKSPACE_INSTALL_MODE`, and `WORKSPACE_TYPE_LIMIT`. 
-
-Slice boundary:
-
-- [x] This slice may centralize and validate current runtime config.
-- [x] This slice must not change database provider behavior beyond documenting and normalizing provider selection.
-- [x] This slice must not change Files storage, scanner behavior, job execution, or PostgreSQL behavior.
-
----
-
-### Version 0.33.5.19.1.1 - Local `.env` loading and environment precedence
-
-- [x] Load a local `.env` file during app startup when present.
-- [x] Keep real `.env` ignored and never committed.
-- [x] Preserve OS/process environment precedence over `.env` values.
-- [x] Keep `.env.example` as the documented template only.
-- [x] Do not require `.env` for development startup.
-- [x] Do not load `.env` from browser code or expose config values.
-- [x] Add regression coverage proving:
-  - [x] Missing `.env` does not fail startup.
-  - [x] `.env` values are consumed before `src/config.js` is created.
-  - [x] Existing process env values win over `.env`.
-  - [x] Comments/blank lines/basic quoted values parse safely.
-
----
-
-### Version 0.33.5.19.1.2 - Local `.env` materialization and remaining config hardcode audit
-
-- [x] Create a local ignored `.env` for this checkout from `.env.example`.
-- [x] Keep `.env` untracked and document that it is machine-local runtime state.
-- [x] Verify the app reads the local `.env` on startup.
-- [x] Audit remaining install/runtime defaults that still live in app code.
-- [x] Move true install-specific fresh-start defaults into runtime config:
-  - [x] Initial workspace name.
-  - [x] Super-admin display name.
-- [x] Keep app-owned constants in code when they are not install configuration.
-- [x] Add regression/docs coverage for newly promoted config values.
-
----
-
-### Version 0.33.5.19.2 - SQLite connection hardening
-
-- [x] Enable SQLite foreign-key enforcement for every SQLite connection/process:
-  - [x] `PRAGMA foreign_keys = ON`.
-- [x] Add SQLite startup health checks:
-  - [x] Foreign keys enabled.
-  - [x] Journal mode.
-  - [x] Busy timeout.
-  - [x] Database file path.
-  - [x] Database file writable.
-- [x] Evaluate and enable WAL mode by default for SQLite self-hosted installs unless incompatible:
-  - [x] `PRAGMA journal_mode = WAL`.
-- [x] Keep or configure busy timeout behavior.
-- [x] Read SQLite defaults from the runtime configuration contract introduced in 0.33.5.19.1.
-- [x] Add SQLite health output that is safe for admins but does not leak secrets.
-- [x] Add regression coverage proving:
-  - [x] Foreign-key enforcement is enabled.
-  - [x] Invalid orphan records are rejected.
-  - [x] SQLite startup fails clearly when the database path is invalid.
-  - [x] SQLite mode remains the default provider when no database provider is set.
-
-Acceptance criteria:
-
-- SQLite mode is safer without changing user-facing behavior.
-- Small-office SQLite installs get stricter data integrity by default.
-- SQLite hardening stays inside the existing SQLite provider/helper boundary until the adapter slice.
-
-### Version 0.33.5.19.3 - Provider-neutral database adapter contract v1
-
-- [x] Create a provider-neutral database module or adapter layer that becomes the preferred import path for app code.
-- [x] Keep SQLite as the only implemented provider in this slice.
-- [x] Define the v1 database API for current string-SQL compatibility:
-  - [x] `db.query(sql, params)`
-  - [x] `db.get(sql, params)`
-  - [x] `db.run(sql, params)`
-  - [x] `db.close()`
-  - [x] `db.health()`
-  - [x] `db.capabilities`
-- [x] Reserve `db.transaction(callback)` for 0.33.5.19.5 and expose transaction capability metadata without converting workflows here.
-- [x] Parameter arguments may be accepted by the API shape in this slice, but 0.33.5.19.4 is the slice that proves repository use of bound parameters.
-- [x] Move SQLite-specific process handling behind the SQLite adapter.
-- [x] Keep existing repository behavior working.
-- [x] Preserve `querySql` / `runSql` compatibility temporarily if needed, but mark them as legacy compatibility helpers.
-- [x] Add a guardrail inventory for direct SQLite imports.
-- [x] Add documentation explaining:
-  - [x] SQLite is the default self-hosted backend.
-  - [x] PostgreSQL will plug into the same adapter later.
-  - [x] Repositories should not import `src/db/sqlite.js` directly.
-- [x] Add regressions proving:
-  - [x] Existing app startup still works on SQLite.
-  - [x] Existing migrations still run on SQLite.
-  - [x] Existing modules can query through the provider-neutral database module.
-  - [x] Unsupported `LONGTAIL_DATABASE_PROVIDER` values fail clearly.
-
-Acceptance criteria:
-
-- The database layer has a real provider-facing boundary.
-- SQLite behavior is preserved.
-- Future PostgreSQL work can target the adapter instead of rewriting every module.
-- This slice does not convert every repository; it creates the boundary and inventories the remaining direct imports.
-
-### Version 0.33.5.19.4 - Parameterized query pilot
-
-- [x] Promote database-adapter parameter binding from API shape to exercised implementation.
-- [x] Convert a small but representative set of repositories to parameterized queries:
-  - [x] Sessions.
-  - [x] Workspaces.
-  - [x] One Tasks read path.
-  - [x] One Notes read path.
-- [x] Keep legacy `sqlText` / `sqlInteger` style helpers available for unconverted code until broader portability work.
-- [x] Add docs for query style:
-  - [x] No new string interpolation for user-supplied values.
-  - [x] Use parameters for values.
-  - [x] Keep table/column names static or validated.
-- [x] Add lint/static guardrails where practical.
-- [x] Add regression coverage for:
-  - [x] Quotes in user data.
-  - [x] Special characters in IDs/titles.
-  - [x] Attempts to inject SQL-like strings as values.
-
-Acceptance criteria:
-
-- New repository work has a clear safe query style.
-- Existing string-SQL helpers remain only as compatibility escape hatches until broader migration.
-- Broad repository conversion is deferred to future query/portability slices.
-
-### Version 0.33.5.19.5 - Explicit transaction helper
-
-- [x] Add provider-neutral `db.transaction(callback)` support.
-- [x] SQLite implementation should:
-  - [x] Begin transaction.
-  - [x] Commit on success.
-  - [x] Roll back on thrown error.
-  - [x] Prevent nested transaction confusion or document nested behavior.
-- [x] Convert one or two existing multi-step workflows to the helper:
-  - [x] Task assignee replacement.
-  - [x] One file attach/create workflow or one note create/link workflow.
-- [x] Remove raw `BEGIN` / `COMMIT` / `ROLLBACK` strings only from the selected pilot workflows.
-- [x] Add regression coverage proving:
-  - [x] Successful transaction commits all changes.
-  - [x] Failed transaction rolls back all changes.
-  - [x] Partial records are not left behind.
-
-Acceptance criteria:
-
-- Multi-step writes have a provider-neutral transaction path.
-- Future outbox/job writes can be committed with the source record atomically.
-- The slice proves the transaction contract without attempting to rewrite every existing raw transaction.
-
-### Version 0.33.5.19.6 - Migration locking and startup ownership
-
-- [x] Add migration lock strategy for SQLite.
-- [x] Document future PostgreSQL migration lock strategy.
-- [x] Ensure only one app/startup process can run migrations or schema repairs at a time.
-- [x] Separate normal app startup from one-time maintenance where practical.
-- [x] Add startup behavior docs:
-  - [x] Self-hosted single-process mode.
-  - [x] Future SaaS multi-instance mode.
-  - [x] Which process runs migrations.
-  - [x] Which process runs workers.
-- [x] Keep this slice focused on migration/startup ownership; do not implement the 0.33.5.21 worker runner or move search indexing to jobs yet.
-- [x] Add regression coverage proving:
-  - [x] Migration lock is acquired before migrations.
-  - [x] A second migration attempt fails or waits clearly.
-  - [x] Startup failure messages are actionable.
-
-Acceptance criteria:
-
-- SQLite remains simple.
-- Future multi-process deployment is not blocked by unsafe startup migrations.
-
-### Version 0.33.5.19.7 - Runtime diagnostics service and protected admin route
-
-- [x] Add a safe runtime diagnostics read model.
-- [x] Add a protected admin/browser route for diagnostics, requiring `workspace_settings.manage`.
-- [x] Include safe diagnostics:
-  - [x] App version.
-  - [x] Runtime environment.
-  - [x] Database provider.
-  - [x] Database health status.
-  - [x] SQLite journal mode.
-  - [x] SQLite foreign-key status.
-  - [x] SQLite busy timeout.
-  - [x] Safe database file location, redacted or data-root-relative where needed.
-  - [x] Safe data directory location, redacted or app-root-relative where needed.
-  - [x] Storage provider.
-  - [x] Scanner mode.
-  - [x] Worker mode.
-  - [x] Configuration warnings.
-- [x] Do not expose secrets, storage keys, signed URLs, protected file paths, scanner internals, or raw secure-note key material.
-- [x] Add regression coverage for permission checks and safe redaction.
-
-Acceptance criteria:
-
-- Admins can inspect the app's runtime mode through a permission-checked route.
-- Runtime diagnostics reuse the config and database health contracts created earlier in this branch.
-
-### Version 0.33.5.19.8 - SQLite small-office documentation and admin readout
-
-- [x] Add `docs/sqlite-small-office-mode.md`.
-- [x] Document supported SQLite deployment assumptions:
-  - [x] One app process/server.
-  - [x] Local or attached disk.
-  - [x] No shared SQLite database across multiple app servers.
-  - [x] Backup expectations.
-  - [x] Optional scanner expectations.
-  - [x] Recommended memory/disk guidance.
-- [x] Add a compact admin-readable diagnostics readout using the route from 0.33.5.19.7 on the existing Workspace Settings or admin settings surface rather than a new dashboard.
-- [x] Include:
-  - [x] Database provider.
-  - [x] SQLite journal mode.
-  - [x] Foreign keys enabled.
-  - [x] Safe database file location, redacted or data-root-relative where needed.
-  - [x] Safe data directory location, redacted or app-root-relative where needed.
-  - [x] Storage provider.
-  - [x] Scanner mode.
-- [x] Add warning copy for configurations outside SQLite support bounds.
-
-Acceptance criteria:
-
-- SQLite is explicitly documented as supported small-office mode.
-- The app can explain its runtime mode to admins.
-- The readout remains diagnostic only; it does not add runtime configuration editing.
-
-### Version 0.33.5.19.9 - Runtime/database foundation closeout and future handoff
-
-- [ ] Update `CHANGELOG.md`.
-- [ ] Update `DECISIONS.md` with the final runtime/database boundary.
-- [ ] Update `docs/database.md` and `docs/architecture.md` only for behavior that actually shipped.
-- [ ] Confirm 0.33.5.20, 0.33.5.21, 0.33.5.22, and 0.33.5.23 still have the expected handoffs from this branch.
-- [ ] Bump `package.json` and `package-lock.json`.
-- [ ] Archive completed roadmap sections according to the roadmap bookkeeping rule.
-- [ ] Run full regression suite.
-- [ ] Run SQLite integrity check.
-- [ ] Verify `/api/app-info` reports the expected version after restart.
-
-Acceptance criteria:
-
-- Runtime configuration, SQLite hardening, database adapter, parameter pilot, transaction pilot, migration locking, and diagnostics are documented and verified together.
-- Future bounded-query, jobs/outbox, storage/scanner, and PostgreSQL branches have clear entry contracts.
+Completed 0.33.5.19 runtime configuration and SQLite small-office foundation work is archived in `ROADMAP-ARCHIVE.md`.
+The active roadmap continues with bounded queries and small-office scale data work.
 
 ## Version 0.33.5.20 - Bounded Queries and Small-Office Scale Data
 
 Purpose:
 
 Move high-volume list surfaces away from load-everything-then-filter-in-JavaScript behavior. Preserve the current user experience while making SQLite small-office mode and future PostgreSQL SaaS mode more predictable under larger datasets.
+
+Entry contract from 0.33.5.19: consume provider-neutral database health/capability information and any safe query-diagnostic hooks from the runtime/database foundation without requiring PostgreSQL.
 
 ### Version 0.33.5.20.1 - Scale seed framework
 
@@ -587,6 +201,8 @@ Jobs are Node-side work stored in database tables. SQL stores job state; Node wo
 SQLite mode may run jobs inline or through a single local worker.
 PostgreSQL/SaaS mode should run one or more separate worker processes.
 
+Entry contract from 0.33.5.19: use the provider-neutral transaction helper for atomic job/outbox writes and consume the reserved worker runtime config names without requiring a separate worker in SQLite mode.
+
 ### Version 0.33.5.21.1 - Job/outbox schema
 
 - [ ] Add job/outbox tables compatible with SQLite:
@@ -718,6 +334,8 @@ Purpose:
 
 Keep local file storage simple for SQLite/self-hosted mode while making storage provider selection configuration-owned and preparing for S3-compatible SaaS storage.
 
+Entry contract from 0.33.5.19: consume the documented storage and scanner runtime config keys without changing existing Files storage semantics until this branch owns the behavior.
+
 ### Version 0.33.5.22.1 - Storage provider configuration
 
 - [ ] Resolve storage provider from runtime/workspace configuration instead of hardcoding `local`.
@@ -819,6 +437,8 @@ Acceptance criteria:
 Purpose:
 
 Add the hosted-SaaS database backend behind the provider-neutral database contract while preserving SQLite small-office support.
+
+Entry contract from 0.33.5.19: consume the database provider config, `src/core/database.js` adapter boundary, health/capability shape, parameterized query and transaction conventions, and documented migration-lock strategy while keeping SQLite defaults intact.
 
 ### Version 0.33.5.23.1 - PostgreSQL adapter skeleton
 

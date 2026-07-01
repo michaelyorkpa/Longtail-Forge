@@ -1,3 +1,11 @@
+## Version 0.33.5.19.9 - 2026-07-01 01:14 -04:00
+
+- Closed the runtime/database foundation branch by documenting the final `.env`/runtime configuration, SQLite small-office, provider-neutral adapter, parameterized query, transaction, migration-lock, and diagnostics/readout boundary together.
+- Added explicit future handoffs for 0.33.5.20 bounded queries, 0.33.5.21 jobs/outbox, 0.33.5.22 storage/scanner runtime, and 0.33.5.23 PostgreSQL adapter work.
+- Added `scripts/runtime-database-foundation-closeout-regression.mjs`, made the existing 0.33.5.19 regressions archive-safe, archived the completed 0.33.5.19 roadmap branch, and advanced package/current module metadata to 0.33.5.19.9.
+- Runtime configuration, SQLite hardening, database adapter, parameter pilot, transaction pilot, migration locking, diagnostics, and small-office readout are verified together by the runtime/database closeout regression.
+- Verification 2026-07-01 01:18 -04:00: runtime/database foundation closeout, clean-clone contract, runtime configuration contract, local `.env` loading, local `.env` materialization, SQLite connection hardening, database adapter contract, parameterized query pilot, transaction helper, migration locking, runtime diagnostics route, SQLite small-office readout, view-conversion branch closeout, and check-js targeted checks passed; `npm run check` passed 213/213 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.19.9 after restarting the local 8001 server.
+
 ## Version 0.33.5.19.8 - 2026-07-01 00:21 -04:00
 
 - Added `docs/sqlite-small-office-mode.md`, documenting the supported self-hosted SQLite shape, unsupported multi-server/shared-file shapes, backup expectations, optional scanner expectations, and memory/disk guidance.

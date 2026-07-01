@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.19.8";
+const appVersion = "0.33.5.19.9";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
@@ -26,7 +26,7 @@ assert.match(envExample, /^LONGTAIL_INITIAL_WORKSPACE_NAME=Longtail Forge Worksp
 assert.match(envExample, /^SUPER_ADMIN_DISPLAY_NAME=Super Admin$/m, ".env.example should document the initial super-admin display name");
 assert.match(runtimeDocs, /`LONGTAIL_INITIAL_WORKSPACE_NAME`[\s\S]*first fresh-start workspace/, "runtime docs should describe the initial workspace name");
 assert.match(runtimeDocs, /`SUPER_ADMIN_DISPLAY_NAME`[\s\S]*initial protected super-admin account/, "runtime docs should describe the super-admin display name");
-assert.match(roadmap, /### Version 0\.33\.5\.19\.1\.2 - Local `.env` materialization and remaining config hardcode audit/, "roadmap should include the local .env materialization slice");
+assert.match(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "roadmap should archive the completed local .env materialization branch");
 assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the local .env materialization slice");
 
 assert.match(configSource, /DEFAULT_INITIAL_WORKSPACE_NAME = "Longtail Forge Workspace"/, "config should keep only a generic fallback for first workspace name");

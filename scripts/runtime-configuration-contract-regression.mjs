@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.19.8";
+const appVersion = "0.33.5.19.9";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
@@ -88,13 +88,13 @@ for (const futureKey of [
 assert.match(gitignore, /^\.env$/m, "real .env files should remain ignored");
 assert.match(runtimeDocs, /Current Active Settings/, "runtime docs should separate active settings");
 assert.match(runtimeDocs, /Reserved Settings/, "runtime docs should document future-only settings");
-assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.8/, "runtime docs should keep SQLite as the only implemented provider");
+assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.9/, "runtime docs should keep SQLite as the only implemented provider");
 assert.match(runtimeDocs, /`LONGTAIL_SQLITE_FOREIGN_KEYS`[\s\S]*Must stay enabled/, "runtime docs should document SQLite foreign-key enforcement");
 assert.match(runtimeDocs, /`LONGTAIL_SQLITE_JOURNAL_MODE`[\s\S]*WAL is the default/, "runtime docs should document SQLite WAL mode");
 assert.match(runtimeDocs, /`LONGTAIL_SQLITE_BUSY_TIMEOUT_MS`[\s\S]*busy timeout/, "runtime docs should document SQLite busy timeout");
 assert.match(runtimeDocs, /Reserved settings may appear in `config` for readout consistency[\s\S]*does not implement PostgreSQL/, "runtime docs should keep future settings dormant");
 assert.match(runtimeDocs, /Startup fails clearly when active settings are invalid/, "runtime docs should document validation");
-assert.match(roadmap, /### Version 0\.33\.5\.19\.1 - Runtime configuration inventory, contract, and `.env\.example`/, "roadmap should keep the active slice heading");
+assert.match(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "roadmap should archive the completed runtime configuration foundation branch");
 
 assert.match(configSource, /function createConfig\(env = process\.env\)/, "config should expose a testable runtime config builder");
 assert.match(configSource, /LONGTAIL_DATABASE_PROVIDER[\s\S]*DATABASE_PROVIDERS/, "config should validate the database provider");

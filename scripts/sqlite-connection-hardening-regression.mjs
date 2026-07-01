@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.19.8";
+const appVersion = "0.33.5.19.9";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-sqlite-hardening-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-sqlite-hardening.db");
 process.env.LONGTAIL_SQLITE_BUSY_TIMEOUT_MS = "2500";
@@ -42,7 +42,7 @@ try {
   assert.match(runtimeDocs, /`LONGTAIL_SQLITE_JOURNAL_MODE`[\s\S]*`wal`[\s\S]*WAL/, "runtime docs should document WAL mode");
   assert.match(runtimeDocs, /`LONGTAIL_SQLITE_BUSY_TIMEOUT_MS`[\s\S]*`5000`[\s\S]*busy timeout/, "runtime docs should document the busy timeout");
   assert.match(databaseDocs, /As of version 0\.33\.5\.19\.2[\s\S]*foreign-key enforcement[\s\S]*WAL/, "database docs should describe SQLite hardening");
-  assert.match(roadmap, /### Version 0\.33\.5\.19\.2 - SQLite connection hardening[\s\S]*- \[x\] Enable SQLite foreign-key enforcement/, "roadmap should mark SQLite hardening complete");
+  assert.match(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "roadmap should archive the completed SQLite hardening branch");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the SQLite hardening slice");
   assert.match(regressionSuite, /scripts\/sqlite-connection-hardening-regression\.mjs/, "regression suite should include SQLite hardening coverage");
 
