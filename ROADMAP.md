@@ -36,6 +36,25 @@ PostgreSQL/SaaS mode should run one or more separate worker processes.
 
 Entry contract from 0.33.5.19: use the provider-neutral transaction helper for atomic job/outbox writes and consume the reserved worker runtime config names without requiring a separate worker in SQLite mode.
 
+### Version 0.33.5.21.0 - In-process SQLite driver (better-sqlite3)
+
+Decision (recorded in `DECISIONS.md`): replace the `sqlite3` CLI shell-out with the in-process `better-sqlite3` driver behind the existing `src/db/provider.js` adapter before durable jobs, streamed uploads, and the PostgreSQL adapter build on it. `better-sqlite3` was chosen over `node:sqlite` for its stable API, bundled/consistent SQLite version across installs (guaranteed FTS5 and `RETURNING`), and no experimental-flag or Node-floor requirement, accepting a native/compiled dependency as the tradeoff. Revisit `node:sqlite` once it is no longer experimental.
+
+- [ ] Add `better-sqlite3` and implement it inside `src/db/adapters/sqlite-adapter.js` behind the existing `db.query/get/run/transaction/health/capabilities` contract, so repositories and module services do not change.
+- [ ] Bind named parameters through the driver instead of inlining literals via `expandSqlParameters`; keep `sqlText`/`sqlInteger` working as a compatibility path for unconverted multi-statement code.
+- [ ] Route multi-statement scripts (baselines, migrations, repairs) through the driver's `exec` path and single parameterized statements through `prepare`.
+- [ ] Retire the CLI process lifecycle (`src/db/sqlite.js` spawn/marker/idle-close) and the global `operationChain` serial queue now that calls are synchronous and in-process.
+- [ ] Apply startup PRAGMAs through the driver (foreign keys on, configured journal mode/WAL, busy timeout) and preserve the existing health/capability readout shape and the migration lock + checksum validation.
+- [ ] Confirm whether a separate worker process is supported in SQLite mode at all, or whether SQLite mode is inline-worker-only (reconcile with `docs/sqlite-small-office-mode.md` "Unsupported Shapes" and the "one app process/server" rule in `DECISIONS.md`).
+- [ ] Update `.env.example`/`docs/runtime-configuration.md`/`docs/database.md`: mark `SQLITE_COMMAND` legacy and describe the in-process driver.
+- [ ] Run `npm run check`, `npm run test:permissions`, and `PRAGMA integrity_check` after the swap.
+- [ ] Do not start 0.33.5.21.2 worker runner work until this driver swap is complete.
+
+Acceptance criteria:
+
+- All database access runs through the in-process `better-sqlite3` driver behind the existing adapter contract, with no `sqlite3` CLI shell-out in normal operation.
+- Bound parameters are real driver parameters; existing regressions and permission checks pass unchanged.
+
 ### Version 0.33.5.21.1 - Job/outbox schema
 
 - [ ] Add job/outbox tables compatible with SQLite:
@@ -64,6 +83,7 @@ Entry contract from 0.33.5.19: use the provider-neutral transaction helper for a
   - [ ] Completed.
   - [ ] Failed/retry.
   - [ ] Dead-letter.
+- [ ] Ship job/outbox tables as a new versioned core migration under `src/db/migrations/` (checksum-validated), not as an edit to the frozen `current.sql` baseline.
 
 Acceptance criteria:
 
@@ -86,6 +106,10 @@ Acceptance criteria:
   - [ ] Move exhausted jobs to dead-letter state.
 - [ ] Add worker health/status output.
 - [ ] Add graceful shutdown.
+- [ ] Define exactly what triggers `inline` mode execution (in-process poll timer vs post-response drain) and document that in-process polling shares the SQLite serial queue with request handling.
+- [ ] Define how time-scheduled jobs (`available_at` in the future) are woken in inline mode, since SQLite mode has no always-on external scheduler.
+- [ ] Define migration/startup ownership for worker processes: a `separate` worker must verify schema readiness and must not independently run migrations or contend for the migration lock.
+- [ ] Reconcile `separate` worker mode with the "one app process/server" SQLite assumption in `DECISIONS.md` and `docs/sqlite-small-office-mode.md`.
 
 Acceptance criteria:
 
@@ -95,11 +119,14 @@ Acceptance criteria:
 ### Version 0.33.5.21.3 - Job claiming, locking, retry, and dead-letter behavior
 
 - [ ] Implement safe job claiming.
+  - [ ] Define the SQLite-safe claim strategy explicitly: SQLite has no `FOR UPDATE SKIP LOCKED`, so claiming is an atomic conditional `UPDATE ... WHERE job_id = (SELECT ... LIMIT n)` run inside `db.transaction(...)`, then a read-back of claimed rows.
+  - [ ] Decide `RETURNING` vs claim-then-reselect and confirm the bundled sqlite3 build supports the chosen path (no `RETURNING` clause exists in the codebase today).
 - [ ] Add lock timeout handling.
 - [ ] Add retry backoff.
 - [ ] Add max-attempt handling.
 - [ ] Add dead-letter state.
 - [ ] Add admin-readable job failure summaries.
+- [ ] Add a minimal permission-checked admin readout for pending/running/dead-letter job counts and recent failures, reusing the bounded-pagination envelope from 0.33.5.20.5. A dead-letter state with no visibility is not acceptable.
 - [ ] Add regression coverage:
   - [ ] Failed job retries.
   - [ ] Exhausted job becomes dead.
@@ -118,6 +145,7 @@ Acceptance criteria:
 - [ ] Add synchronous fallback for tests or SQLite inline mode if needed.
 - [ ] Remove full app-wide search rebuild from normal web startup or gate it behind explicit maintenance mode.
 - [ ] Add admin/manual search rebuild job.
+- [ ] Define the empty-index transition: fresh installs and restored databases currently rely on the startup rebuild (`src/core/app.js` `scheduleStartupSearchIndexRebuild`); once it is removed, provide an explicit rebuild-on-empty or documented post-restore rebuild path so search is not silently empty.
 - [ ] Add regressions proving:
   - [ ] Record writes queue search jobs.
   - [ ] Worker updates search index.
@@ -154,6 +182,8 @@ Acceptance criteria:
   - [ ] Future imports.
 - [ ] Keep SQLite inline mode simple.
 - [ ] Ensure jobs are idempotent where practical.
+- [ ] Note that task reminders have no delivery mechanism today (only offset policy + read-time computation in `src/modules/tasks/task-reminders.service.js`); this slice introduces scheduled reminder firing, not a migration of existing background work.
+- [ ] Preserve per-user/workspace timezone correctness for fired reminders and account for web/worker clock skew when reminders run in a separate worker.
 - [ ] Add admin docs for worker mode.
 - [ ] Add regressions for each job type.
 
@@ -172,6 +202,7 @@ Entry contract from 0.33.5.19: consume the documented storage and scanner runtim
 ### Version 0.33.5.22.1 - Storage provider configuration
 
 - [ ] Resolve storage provider from runtime/workspace configuration instead of hardcoding `local`.
+- [ ] Route the upload write path through the configured provider: replace the hardcoded `getFileStorageAdapter("local")` and `storageProvider: "local"` in `src/services/files.service.js` with `config.storage.provider`, keeping the stored `files.storage_provider` per-row so existing local files still read back correctly.
 - [ ] Keep `local` as default for SQLite/self-hosted mode.
 - [ ] Add provider health checks.
 - [ ] Add admin diagnostics:
@@ -191,8 +222,10 @@ Acceptance criteria:
 ### Version 0.33.5.22.2 - Streamed local uploads
 
 - [ ] Move file uploads away from JSON-body file payloads where practical.
+- [ ] Decide the multipart mechanism explicitly: no multipart parser exists today (uploads are base64-in-JSON via the hand-rolled `readJsonBody` in `src/utils/http.js`, capped at 8 MB JSON / 5 MB decoded file), so this slice adds either a streaming multipart dependency or a hand-rolled parser. Record the dependency decision in `DECISIONS.md`.
 - [ ] Add streamed or multipart upload support for local/self-hosted mode.
 - [ ] Preserve existing route compatibility temporarily if needed.
+- [ ] Define the transition window: how long the base64 JSON route (`POST /api/files`) and the new streamed route coexist, and when the shared attachment helper's base64 path is retired.
 - [ ] Add upload size enforcement.
 - [ ] Add per-file result reporting.
 - [ ] Add regressions for:
@@ -212,6 +245,9 @@ Acceptance criteria:
   - [ ] `noop`
   - [ ] `clamd`
   - [ ] `clamscan`
+- [ ] Define the `none` vs `noop` distinction precisely (e.g. `none` = do not scan / mark available; `noop` = pass-through adapter for tests), since only `noop` exists today (`src/core/files/scanner-adapter.js`) while config defaults to `none`.
+- [ ] Cross-reference 0.33.5.21.6: decide whether scanning stays inline in this slice or is invoked as a durable job, and sequence the two slices so the upload -> scan -> available/quarantine state machine has a single owner. Scanning is inline/blocking during upload today (`src/services/files.service.js`).
+- [ ] Reuse the existing quarantine/review lifecycle (`files.manage_quarantine`, the `Mark Reviewed` restore path) rather than introducing new scan states.
 - [ ] Keep no-op scanner only for development or explicitly accepted self-hosted mode.
 - [ ] Add scanner health checks.
 - [ ] Add admin warning when scanner is disabled.
@@ -257,6 +293,7 @@ Acceptance criteria:
 - [ ] Do not require S3 for SQLite/self-hosted installs.
 - [ ] Add safe provider health checks.
 - [ ] Add direct/presigned upload planning or proof where practical.
+- [ ] Treat any presigned upload/download URL as a deliberate, documented exception to the standing "no signed URLs unless designed for that route" guardrail, with per-object permission checks and expiry recorded in `DECISIONS.md`.
 - [ ] Keep all downloads permission-checked through LTF routes or signed URL rules.
 - [ ] Add regressions with mocked S3 provider.
 
@@ -289,13 +326,20 @@ Acceptance criteria:
 
 ### Version 0.33.5.23.2 - SQL portability audit
 
+- [ ] Make parameter binding the headline audit item: ~94% of queries interpolate values via `sqlText()/sqlInteger()/sqlNullableText()` (~1,763 calls / ~314 call sites) vs ~19 bound-parameter sites. Quantify per-repository and convert value interpolation to real bound parameters, since PostgreSQL (`pg`) requires positional `$1` binding and rejects inlined literals as the contract.
+- [ ] Add a named-to-positional (`:name` to `$n`) parameter translation layer in the adapter so the app-facing `db.query(sql, params)` contract stays stable across providers.
 - [ ] Inventory SQLite-specific SQL:
   - [ ] `INSERT OR IGNORE`.
   - [ ] SQLite-specific conflict syntax.
-  - [ ] `COLLATE NOCASE`.
+  - [ ] `COLLATE NOCASE` (~21 sites) vs `citext`/`ILIKE`/nondeterministic collation.
   - [ ] PRAGMA usage.
-  - [ ] FTS-specific behavior.
+  - [ ] FTS-specific behavior; treat FTS5 (`MATCH`/`bm25()`) as a PostgreSQL `tsvector`/`tsquery` reimplementation, not a compatibility helper.
   - [ ] JSON handling assumptions.
+  - [ ] Boolean storage (`0/1` + `CHECK (col IN (0,1))`) vs PostgreSQL `boolean`.
+  - [ ] `julianday(...)` / date arithmetic (timer elapsed seconds) vs PostgreSQL interval math.
+  - [ ] `rowid` reliance in dedup/repair code vs PostgreSQL (no implicit rowid).
+- [ ] Inventory read-modify-write sequences that currently rely on the SQLite adapter's global operation serialization for correctness (counters, read-then-write upserts, claim/allocate patterns) and wrap them in `db.transaction(...)` before enabling a pooled/concurrent backend. Only two `db.transaction(...)` call sites exist today.
+- [ ] Record the confirmed non-issues for scope clarity: no `RETURNING`, no SQLite JSON functions, and no `LIMIT`/`OFFSET` inside `UPDATE`/`DELETE` exist today.
 - [ ] Add compatibility helpers where needed.
 - [ ] Document intentional SQLite-only paths.
 - [ ] Add repository tests for SQLite and PostgreSQL where practical.
@@ -307,8 +351,10 @@ Acceptance criteria:
 ### Version 0.33.5.23.3 - PostgreSQL migrations and schema proof
 
 - [ ] Add PostgreSQL migration runner support.
+- [ ] Gate the SQLite-only migration/repair routines (`sqlite_master`, `PRAGMA table_info`, `PRAGMA legacy_alter_table`, `ALTER TABLE ... RENAME`, `INSERT OR IGNORE`, and the FK-repair passes in `src/db/migrations.js`) behind the SQLite provider so they never run against PostgreSQL.
 - [ ] Add migration locking for PostgreSQL.
 - [ ] Create PostgreSQL-compatible schema baseline or migration translation.
+- [ ] Make the migration runner select DDL/introspection per provider rather than assuming SQLite (the baseline `src/db/schema/current.sql` is SQLite DDL today).
 - [ ] Verify schema creation from empty database.
 - [ ] Add checksum validation.
 - [ ] Add docs explaining:
@@ -337,6 +383,8 @@ Acceptance criteria:
   - [ ] Search index.
   - [ ] Notifications.
 - [ ] Add docs for optional Postgres test setup.
+- [ ] Specify how Postgres contract tests run locally/CI (Docker or local Postgres, opt-in via `DATABASE_URL`) so the dual-backend suite is actually exercised, not skipped by default.
+- [ ] Add a contract test proving `db.transaction(...)` pins one connection for the whole callback on PostgreSQL and that no code path uses the top-level `db.*` inside a transaction (the SQLite adapter already enforces this via `assertNotInsideTransactionContext`).
 
 Acceptance criteria:
 
@@ -1395,6 +1443,7 @@ Additional required hardening before hosted SaaS:
 
 - [ ] Production secure cookies.
 - [ ] Trusted proxy configuration.
+  - [ ] Wire the already-reserved `TRUST_PROXY` env var into `src/config.js` and `app.set('trust proxy', ...)`; it is documented in `.env.example`/`docs/runtime-configuration.md` but currently unread.
 - [ ] Login throttling/rate limiting.
 - [ ] Async password hashing/verification.
 - [ ] Session revocation.
