@@ -1,23 +1,23 @@
-# Longtail Forge Roadmap
+﻿# Longtail Forge Roadmap
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
-## Version 0.33.5.18 - View Conversion Backlog (Framework-Owned Views, Module-Owned Data)
+## Archived Roadmap History
 
-Completed 0.33.5.17 Markdown platform work and the completed 0.33.5.18 view-conversion planning,
-implementation, Clients/Projects cleanup, and 0.33.5.18.15 branch closeout slices are archived in
-`ROADMAP-ARCHIVE.md`.
-Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived in `ROADMAP-ARCHIVE.md`.
-Completed 0.33.5.18.11.1 through 0.33.5.18.11.13 are archived in `ROADMAP-ARCHIVE.md`.
-Completed 0.33.5.18.12.1 through 0.33.5.18.12.7 are archived in `ROADMAP-ARCHIVE.md`.
-Completed 0.33.5.18.13.1 through 0.33.5.18.13.3 are archived in `ROADMAP-ARCHIVE.md`.
-Completed 0.33.5.18.14.1 is archived in `ROADMAP-ARCHIVE.md`.
-Completed 0.33.5.18.14.2 is archived in `ROADMAP-ARCHIVE.md`.
-Completed 0.33.5.18.14.3 is archived in `ROADMAP-ARCHIVE.md`.
-Completed 0.33.5.18.14.4 is archived in `ROADMAP-ARCHIVE.md`.
-Completed 0.33.5.18.14.5 is archived in `ROADMAP-ARCHIVE.md`.
-Completed 0.33.5.18.15 is archived in `ROADMAP-ARCHIVE.md`.
+Completed 0.33.5.17, 0.33.5.18, and 0.33.5.19 work is archived in `ROADMAP-ARCHIVE.md`.
+
+Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived.
+Completed 0.33.5.18.11.1 through 0.33.5.18.11.13 are archived.
+Completed 0.33.5.18.12.1 through 0.33.5.18.12.7 are archived.
+Completed 0.33.5.18.13.1 through 0.33.5.18.13.3 are archived.
+Completed 0.33.5.18.14.1 is archived.
+Completed 0.33.5.18.14.2 is archived.
+Completed 0.33.5.18.14.3 is archived.
+Completed 0.33.5.18.14.4 is archived.
+Completed 0.33.5.18.14.5 is archived.
+Completed 0.33.5.18.15 is archived.
 Completed 0.33.5.19 runtime configuration and SQLite small-office foundation work is archived in `ROADMAP-ARCHIVE.md`.
+
 The active roadmap continues with bounded queries and small-office scale data work.
 
 ## Version 0.33.5.20 - Bounded Queries and Small-Office Scale Data
@@ -30,32 +30,32 @@ Entry contract from 0.33.5.19: consume provider-neutral database health/capabili
 
 ### Version 0.33.5.20.1 - Scale seed framework
 
-- [ ] Add `scripts/seed-scale.mjs`.
-- [ ] Add seed profiles:
-  - [ ] `dev-demo`
-  - [ ] `sqlite-small-office-50`
-  - [ ] `sqlite-heavy-workspace`
-  - [ ] `future-saas-postgres-mixed`
-- [ ] Ensure seed scripts require an explicit database path/provider.
-- [ ] Refuse to run against a database that is not clearly marked as disposable or test-only.
-- [ ] Generate realistic data:
-  - [ ] Workspaces.
-  - [ ] Users.
-  - [ ] Role assignments.
-  - [ ] Clients.
-  - [ ] Projects.
-  - [ ] Tasks.
-  - [ ] Notes.
-  - [ ] Lists/list items.
-  - [ ] Tags.
-  - [ ] Notifications.
-  - [ ] Audit logs.
-  - [ ] File metadata.
-- [ ] Add verification:
-  - [ ] Expected counts.
-  - [ ] Permission sanity.
-  - [ ] Search sanity.
-  - [ ] App startup sanity.
+- [x] Add `scripts/seed-scale.mjs`.
+- [x] Add seed profiles:
+  - [x] `dev-demo`
+  - [x] `sqlite-small-office-50`
+  - [x] `sqlite-heavy-workspace`
+  - [x] `future-saas-postgres-mixed`
+- [x] Ensure seed scripts require an explicit database path/provider.
+- [x] Refuse to run against a database that is not clearly marked as disposable or test-only.
+- [x] Generate realistic data:
+  - [x] Workspaces.
+  - [x] Users.
+  - [x] Role assignments.
+  - [x] Clients.
+  - [x] Projects.
+  - [x] Tasks.
+  - [x] Notes.
+  - [x] Lists/list items.
+  - [x] Tags.
+  - [x] Notifications.
+  - [x] Audit logs.
+  - [x] File metadata.
+- [x] Add verification:
+  - [x] Expected counts.
+  - [x] Permission sanity.
+  - [x] Search sanity.
+  - [x] App startup sanity.
 
 SQLite small-office seed target:
 

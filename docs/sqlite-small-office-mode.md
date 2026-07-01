@@ -14,6 +14,25 @@ Longtail Forge supports SQLite as the self-hosted small-office database mode. Th
 
 SQLite small-office mode targets roughly 50 total users, with typical active use around 5-15 concurrent users. If the install needs multiple app servers, separate web and worker fleets, very high write concurrency, or hosted multi-tenant isolation, move that deployment toward the future PostgreSQL provider instead of stretching SQLite.
 
+## Scale Seed Databases
+
+As of 0.33.5.20.1, developers can create disposable SQLite load databases with:
+
+```sh
+node scripts/seed-scale.mjs --profile sqlite-small-office-50 --provider sqlite --database ./data/scale-seed-small-office.disposable.db
+```
+
+The seed script requires explicit provider and database arguments. It refuses normal app database paths unless the path is clearly marked disposable, test, temp, seed, scale, or demo, and it refuses to seed a database that already contains application data or a previous scale seed run.
+
+Available profiles:
+
+- `dev-demo` is a small fast profile for local script verification.
+- `sqlite-small-office-50` seeds the minimum realistic 50-user SQLite small-office shape.
+- `sqlite-heavy-workspace` seeds the upper end of the current SQLite small-office target.
+- `future-saas-postgres-mixed` reserves a future mixed SaaS comparison shape; it still uses SQLite until the PostgreSQL provider exists.
+
+Each successful run verifies expected counts, permission sanity, search sanity, and app startup sanity. The script writes realistic workspace, user, role-assignment, client, project, task, note, list/item, tag, notification, audit-log, file metadata, time-entry, attachment, and search-index rows. It is for disposable development and performance testing only; do not run it against production or real local data.
+
 ## Unsupported Shapes
 
 Do not run SQLite small-office mode with:

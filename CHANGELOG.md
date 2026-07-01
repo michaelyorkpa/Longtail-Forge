@@ -1,3 +1,11 @@
+## Version 0.33.5.20.1 - 2026-07-01 02:32 -04:00
+
+- Added `scripts/seed-scale.mjs`, a disposable SQLite scale seed tool with explicit `--profile`, `--provider sqlite`, and `--database` inputs plus path and existing-data safety checks.
+- Added the `dev-demo`, `sqlite-small-office-50`, `sqlite-heavy-workspace`, and `future-saas-postgres-mixed` seed profiles, with realistic workspace, user, role-assignment, client, project, task, note, list/item, tag, notification, audit-log, file metadata, attachment, time-entry, and search-index rows.
+- Added expected-count, permission-sanity, search-sanity, and app-startup sanity verification to the seed run, including a `scale_seed_runs` marker to prevent accidental repeated seeding into the same database.
+- Added `scripts/scale-seed-framework-regression.mjs`, wired it into `npm run check`, documented disposable scale seed usage in SQLite/database docs, refreshed the current scale-data decision boundary, advanced package/current module metadata to 0.33.5.20.1, and marked the 0.33.5.20.1 roadmap checklist complete.
+- Verification 2026-07-01 02:37 -04:00: scale seed framework, runtime/database closeout, linked-context archive guard, Clients/Projects archive guard, Files conversion closeout, view-conversion closeout, clean-clone contract, and check-js targeted checks passed; `npm run check` passed 214/214 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.20.1 after restarting the local 8001 server.
+
 ## Version 0.33.5.19.9 - 2026-07-01 01:14 -04:00
 
 - Closed the runtime/database foundation branch by documenting the final `.env`/runtime configuration, SQLite small-office, provider-neutral adapter, parameterized query, transaction, migration-lock, and diagnostics/readout boundary together.
