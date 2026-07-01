@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.20.1";
+const appVersion = "0.33.5.20.2";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -26,7 +26,7 @@ assert.match(filesHtml, /css\/longtail-forge\.css\?v=13/, "Files page should cac
 assert.match(filesHtml, /js\/shared\/icons\.js\?v=6/, "Files page should cache-bust the shared action icons");
 assert.match(filesHtml, /js\/files\.js\?v=13/, "Files page should cache-bust the visual parity adapter");
 assert.match(notesHtml, /css\/longtail-forge\.css\?v=56[\s\S]*js\/shared\/file-attachments\.js\?v=5/, "Notes should cache-bust shared attachment visuals");
-assert.match(tasksHtml, /css\/longtail-forge\.css\?v=72[\s\S]*js\/shared\/file-attachments\.js\?v=4/, "Tasks should cache-bust shared attachment visuals");
+assert.match(tasksHtml, /css\/longtail-forge\.css\?v=73[\s\S]*js\/shared\/file-attachments\.js\?v=4/, "Tasks should cache-bust shared attachment visuals");
 assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=21[\s\S]*js\/shared\/file-attachments\.js\?v=4/, "Workbench should cache-bust shared attachment visuals");
 
 const filesTable = functionBlock(filesScript, "createFilesTable");

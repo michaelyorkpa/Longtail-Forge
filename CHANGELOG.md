@@ -1,3 +1,11 @@
+## Version 0.33.5.20.2 - 2026-07-01 03:03 -04:00
+
+- Reworked the protected Tasks list read path to use a bounded repository query for SQL-side task view, status, due, context, assignee, and stable sort filters instead of loading the full workspace task table for normal list views.
+- Added capped cursor paging to the Tasks browser route and a compact `Load More` control that appends additional server pages while preserving the existing saved task view and advanced filter behavior.
+- Split normal task list rows onto list-projection hydration for reminder metadata, checklist progress, relationship summaries, completion metrics, and resume context, while leaving full checklist rows, recurrence detail, and editor-only reads on task detail/editor routes.
+- Kept `tasks.view` permission pruning authoritative in the Tasks service, preserved the public API's existing offset/total response through an internal unpaged service path, added `scripts/tasks-server-side-list-paging-regression.mjs`, documented the new Tasks bounded-list contract, advanced package/current module metadata to 0.33.5.20.2, and marked the 0.33.5.20.2 roadmap checklist complete.
+- Verification 2026-07-01 03:10 -04:00: Tasks server-side list paging, task options payload, canonical task query, task view selector query contract, task list canonical UI, and check-js targeted checks passed; `npm run check` passed 215/215 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.20.2 after restarting the local 8001 server.
+
 ## Version 0.33.5.20.1 - 2026-07-01 02:32 -04:00
 
 - Added `scripts/seed-scale.mjs`, a disposable SQLite scale seed tool with explicit `--profile`, `--provider sqlite`, and `--database` inputs plus path and existing-data safety checks.

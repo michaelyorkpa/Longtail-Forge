@@ -76,25 +76,25 @@ Acceptance criteria:
 
 ### Version 0.33.5.20.2 - Tasks server-side filtering and paging
 
-- [ ] Replace full-workspace task list reads for normal list views with bounded server-side queries.
-- [ ] Move task view filters into SQL where practical:
-  - [ ] My Tasks.
-  - [ ] All.
-  - [ ] Unassigned.
-  - [ ] Overdue.
-  - [ ] Due Today.
-  - [ ] Due This Week.
-  - [ ] Completed.
-  - [ ] Archived.
-- [ ] Add page/cursor support.
-- [ ] Add maximum page size.
-- [ ] Keep permission checks authoritative.
-- [ ] Add list projection separate from full task detail read.
-- [ ] Add regressions proving:
-  - [ ] Task views return correct rows.
-  - [ ] Paging is stable.
-  - [ ] Permissions still apply.
-  - [ ] Large seeded task sets do not require loading the entire workspace task table.
+- [x] Replace full-workspace task list reads for normal list views with bounded server-side queries.
+- [x] Move task view filters into SQL where practical:
+  - [x] My Tasks.
+  - [x] All.
+  - [x] Unassigned.
+  - [x] Overdue.
+  - [x] Due Today.
+  - [x] Due This Week.
+  - [x] Completed.
+  - [x] Archived.
+- [x] Add page/cursor support.
+- [x] Add maximum page size.
+- [x] Keep permission checks authoritative.
+- [x] Add list projection separate from full task detail read.
+- [x] Add regressions proving:
+  - [x] Task views return correct rows.
+  - [x] Paging is stable.
+  - [x] Permissions still apply.
+  - [x] Large seeded task sets do not require loading the entire workspace task table.
 
 Acceptance criteria:
 

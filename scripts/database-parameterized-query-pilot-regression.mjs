@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.20.1";
+const appVersion = "0.33.5.20.2";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-params-pilot-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-params-pilot.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Params-Test-123!";

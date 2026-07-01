@@ -3845,6 +3845,20 @@ button.danger-button {
     text-align: left;
 }
 
+.tasks-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    min-height: 36px;
+    color: var(--color-muted);
+    font-size: 0.9rem;
+}
+
+.tasks-pagination[hidden] {
+    display: none;
+}
+
 .task-density-row td {
     padding-top: 10px;
     padding-bottom: 10px;

@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.5.20.1. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.5.20.2. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -15,6 +15,8 @@ The current task list mounts through the descriptor `tasks-main-list` detail reg
 The sidebar starts with a non-collapsible `Saved Task Views` dropdown. Options are `My Tasks`, `All`, `Unassigned`, `Overdue`, `Due Today`, `Due This Week`, `Completed`, and `Archived`; `My Tasks` is the default when there is no saved explicit selection. The dropdown does not repeat a second visible label inside the panel. `Sorting and Filters` appears below the dropdown as a collapsed section containing the existing sort, status, assignee, client, project, and tag filters. Client controls remain Business-workspace-only.
 
 The selected saved task view is sent to the Tasks service as `task_view`; the framework does not interpret task status, assignment, or due-date semantics. `My Tasks`, `All`, `Unassigned`, `Overdue`, `Due Today`, and `Due This Week` are active-task views. `My Tasks` is active tasks assigned to the current user, `All` is active tasks regardless of assignee, `Unassigned` is active tasks with no assignee, `Overdue` is active tasks with a due date before the current user/workspace-local date, `Due Today` is active tasks due on the current local date, and `Due This Week` is active tasks due from today through the current week end. `Completed` and `Archived` are intentionally selected history views and do not leak into normal active views.
+
+As of 0.33.5.20.2, the protected Tasks list route returns bounded server-side pages. The browser sends `task_view`, advanced filters, sort, a page `limit`, and an opaque `cursor` for additional pages; it renders the first page and exposes `Load More` only when the server returns a next cursor. The repository-owned list query applies workspace scope, task-view filters, status filters, due filters, context filters, assignee filters, stable sorting, `LIMIT`, and `OFFSET` in SQL where practical. The Tasks service still performs the authoritative `tasks.view` permission check before shaping the response, then applies the canonical safety filter after tag/timer composition. Normal list rows use list projection hydration for reminder metadata, checklist progress, relationship summaries, completion metrics, and resume context; full checklist rows, recurrence details, relationship reads, and editor-only fields stay on task detail/editor reads.
 
 Sorting and Filters controls narrow the selected saved task view instead of replacing it. Changing the saved task view preserves compatible advanced filters, clears incompatible assignee filters for `My Tasks` and `Unassigned`, and resets incompatible status filters to the selected view's default. The `Reset Filters` action resets sort, status, assignee, client, project, and tag controls without changing the selected saved task view.
 
@@ -145,6 +147,7 @@ Core regression coverage for the current Tasks QoL line includes:
 - `scripts/tasks-timer-utility-escape-hatch-regression.mjs`
 - `scripts/tasks-canonical-editor-opener-regression.mjs`
 - `scripts/tasks-view-selector-query-contract-regression.mjs`
+- `scripts/tasks-server-side-list-paging-regression.mjs`
 - `scripts/task-qol-closeout-regression.mjs`
 - `scripts/task-bulk-due-tags-regression.mjs`
 - `scripts/task-modal-compact-layout-regression.mjs`

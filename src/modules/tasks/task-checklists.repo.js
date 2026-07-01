@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  db,
   querySql,
   runSql,
   sqlInteger,
@@ -32,6 +33,55 @@ ORDER BY sort_order, created_at;
 `);
 
   return rows.map(checklistRowToAppValue);
+}
+
+async function readProgressForTasks(workspaceId, taskIds) {
+  const uniqueTaskIds = [...new Set((taskIds || []).map((taskId) => String(taskId || "").trim()).filter(Boolean))];
+
+  if (uniqueTaskIds.length === 0) {
+    return new Map();
+  }
+
+  const params = { workspaceId };
+  const placeholders = uniqueTaskIds.map((taskId, index) => {
+    const key = `taskId${index}`;
+    params[key] = taskId;
+    return `:${key}`;
+  });
+  const rows = await db.query(`
+SELECT
+  task_checklist_items.task_id,
+  COUNT(*) AS total_count,
+  SUM(CASE WHEN task_checklist_items.is_checked = 1 THEN 1 ELSE 0 END) AS completed_count,
+  (
+    SELECT next_items.label
+    FROM task_checklist_items AS next_items
+    WHERE next_items.workspace_id = task_checklist_items.workspace_id
+      AND next_items.task_id = task_checklist_items.task_id
+      AND next_items.deleted_at IS NULL
+      AND next_items.is_checked != 1
+    ORDER BY next_items.sort_order, next_items.created_at
+    LIMIT 1
+  ) AS next_incomplete_item_label
+FROM task_checklist_items
+WHERE task_checklist_items.workspace_id = :workspaceId
+  AND task_checklist_items.task_id IN (${placeholders.join(", ")})
+  AND task_checklist_items.deleted_at IS NULL
+GROUP BY task_checklist_items.task_id;
+`, params);
+
+  return rows.reduce((map, row) => {
+    const total = Number(row.total_count) || 0;
+    const completed = Number(row.completed_count) || 0;
+    map.set(row.task_id, {
+      total_count: total,
+      completed_count: completed,
+      open_count: total - completed,
+      next_incomplete_item_label: row.next_incomplete_item_label || "",
+      percent_complete: total > 0 ? Math.round((completed / total) * 100) : 0,
+    });
+    return map;
+  }, new Map());
 }
 
 async function readById(workspaceId, itemId) {
@@ -200,6 +250,7 @@ export const taskChecklistsRepository = {
   create,
   readById,
   readForTask,
+  readProgressForTasks,
   reorder,
   softDelete,
   update,

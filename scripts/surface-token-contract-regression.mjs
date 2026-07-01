@@ -99,7 +99,7 @@ for (const { className, pattern } of [
   assert.match(taskDialogScript, pattern, `Tasks modal converted area should include ${className}`);
 }
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=72/, "Tasks view must load the surface-token stylesheet cache key");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=73/, "Tasks view must load the surface-token stylesheet cache key");
 
 console.log("Surface token contract regression passed.");
 

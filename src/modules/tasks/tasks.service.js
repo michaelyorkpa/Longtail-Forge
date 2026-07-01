@@ -24,22 +24,118 @@ const TASKS_MODULE_ID = "tasks";
 const STATUSES = new Set(["open", "in_progress", "blocked", "complete", "archived"]);
 const PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 const TASK_VIEW_FILTERS = new Set(["my", "all", "unassigned", "overdue", "today", "week", "completed", "archived"]);
+const TASK_LIST_DEFAULT_PAGE_SIZE = 100;
+const TASK_LIST_MAX_PAGE_SIZE = 200;
+const TASK_LIST_BATCH_MULTIPLIER = 5;
+const TASK_LIST_MAX_CANDIDATE_SCAN = 1000;
+const TASK_OPTION_MAX_ITEMS = 200;
 
 async function list(session, query = {}) {
-  const { tasks } = await queryTasks(session, query);
+  const { options, pagination, tasks } = await queryTasks(session, query, { paginate: true });
 
   return {
     tasks,
     currentUserId: session.user_id,
-    options: await readOptions(session),
+    options,
+    pagination,
   };
 }
 
-async function queryTasks(session, query = {}) {
-  const tasks = await tasksRepository.readAll(session.workspace_id);
+async function listAll(session, query = {}) {
+  const { options, tasks } = await queryTasks(session, query);
+
+  return {
+    tasks,
+    currentUserId: session.user_id,
+    options,
+  };
+}
+
+async function queryTasks(session, query = {}, options = {}) {
+  const timers = await taskTimersService.list(session);
+  const timerByTaskId = new Map((timers.timers || []).map((timer) => [timer.task_id, timer]));
+  const pagination = normalizeTaskPagination(query, options);
+  const repositoryQuery = taskListRepositoryQuery(session, query);
+  const tasks = [];
+  let offset = pagination?.offset || 0;
+  let hasMoreCandidates = false;
+  let nextCursor = "";
+  let scannedCandidates = 0;
+
+  do {
+    const batchLimit = pagination
+      ? Math.min(
+          TASK_LIST_MAX_CANDIDATE_SCAN - scannedCandidates,
+          Math.max(pagination.pageSize * TASK_LIST_BATCH_MULTIPLIER, pagination.pageSize + 1),
+        )
+      : 0;
+    const result = await tasksRepository.queryList(session.workspace_id, {
+      ...repositoryQuery,
+      limit: batchLimit,
+      offset,
+    });
+    const candidates = result.tasks || [];
+
+    if (candidates.length === 0) {
+      hasMoreCandidates = false;
+      break;
+    }
+
+    const filteredTasks = await filterAndShapeTaskListCandidates({
+      candidates,
+      offset,
+      query,
+      session,
+      timerByTaskId,
+    });
+
+    for (const task of filteredTasks) {
+      const rawCandidateOffset = Number(task.__candidateOffset);
+      const candidateOffset = Number.isInteger(rawCandidateOffset) && rawCandidateOffset >= 0
+        ? rawCandidateOffset
+        : offset;
+      tasks.push(stripTaskListCandidateMetadata(task));
+
+      if (pagination && tasks.length >= pagination.pageSize) {
+        const moreCandidatesInBatch = candidateOffset < offset + candidates.length - 1;
+        hasMoreCandidates = moreCandidatesInBatch || Boolean(result.hasMore);
+        nextCursor = hasMoreCandidates ? encodeTaskCursor(candidateOffset + 1) : "";
+        return queryTasksResult({
+          pagination,
+          query,
+          session,
+          tasks,
+          timers: timers.timers || [],
+          nextCursor,
+        });
+      }
+    }
+
+    scannedCandidates += candidates.length;
+    offset = result.nextOffset;
+    hasMoreCandidates = Boolean(result.hasMore) && (!pagination || scannedCandidates < TASK_LIST_MAX_CANDIDATE_SCAN);
+  } while (pagination && hasMoreCandidates && tasks.length < pagination.pageSize);
+
+  nextCursor = pagination && hasMoreCandidates ? encodeTaskCursor(offset) : "";
+  return queryTasksResult({
+    pagination,
+    query,
+    session,
+    tasks,
+    timers: timers.timers || [],
+    nextCursor,
+  });
+}
+
+async function filterAndShapeTaskListCandidates({ candidates, offset, query, session, timerByTaskId }) {
   const readableTasks = [];
 
-  for (const task of tasks) {
+  for (let index = 0; index < candidates.length; index += 1) {
+    const task = {
+      ...candidates[index],
+      __candidateOffset: offset + index,
+    };
+
     if (await canReadTask(session, task)) {
       readableTasks.push(task);
     }
@@ -50,17 +146,100 @@ async function queryTasks(session, query = {}) {
     "task",
     await tagsService.filterRecordsByTags(session, "task", readableTasks, query.tagIds || query.tag_ids || query.tags),
   );
-  const tasksWithDetails = await attachReminderDetails(taggedTasks);
-  const timers = await taskTimersService.list(session);
-  const timerByTaskId = new Map((timers.timers || []).map((timer) => [timer.task_id, timer]));
-  const filteredTasks = tasksWithDetails.filter((task) => taskMatchesCanonicalQuery(task, query, session, timerByTaskId));
+  const tasksWithDetails = await attachTaskListProjectionDetails(taggedTasks);
 
+  return tasksWithDetails.filter((task) => taskMatchesCanonicalQuery(task, query, session, timerByTaskId));
+}
+
+async function queryTasksResult({ pagination, query, session, tasks, timers, nextCursor = "" }) {
   return {
-    tasks: sortCanonicalTasks(filteredTasks, query),
+    tasks: sortCanonicalTasks(tasks, query),
     currentUserId: session.user_id,
     options: await readOptions(session),
-    timers: timers.timers || [],
+    pagination: pagination ? {
+      hasMore: Boolean(nextCursor),
+      limit: pagination.pageSize,
+      nextCursor,
+      pageSize: pagination.pageSize,
+    } : null,
+    timers,
   };
+}
+
+function taskListRepositoryQuery(session, query = {}) {
+  const now = new Date();
+  const today = localDateKey(now, session.timezone);
+  const taskView = normalizedTaskView(query.taskView || query.task_view || query.view);
+  const quickFilter = normalizedTaskFilter(query.quickFilter || query.quick_filter || (!taskView ? query.assigneeFilter || query.assignee_filter : ""));
+
+  return {
+    assigneeFilter: normalizedTaskFilter(query.assignee || query.assignee_scope || query.assignee_filter_value),
+    assigneeId: String(query.assigneeId || query.assignee_id || "").trim(),
+    clientId: String(query.clientId || query.client_id || "").trim(),
+    currentUserId: session.user_id,
+    currentWeekEnd: currentWeekEndKey(today),
+    dueFilter: normalizedTaskFilter(query.due || query.due_filter) || quickDueFilter(quickFilter),
+    dueSoonCutoff: addDaysKey(today, 7),
+    hasClientFilter: hasQueryFilter(query, ["clientId", "client_id"]),
+    hasProjectFilter: hasQueryFilter(query, ["projectId", "project_id"]),
+    nowIso: now.toISOString(),
+    projectId: String(query.projectId || query.project_id || "").trim(),
+    quickFilter,
+    sort: normalizedTaskSort(query.sort || query.sort_by || query.order),
+    statusFilter: normalizedTaskFilter(query.status || query.status_filter || query.filter),
+    taskView,
+    today,
+  };
+}
+
+function normalizeTaskPagination(query = {}, options = {}) {
+  if (!options.paginate) {
+    return null;
+  }
+
+  const requestedPageSize = Number.parseInt(query.limit || query.page_size || query.pageSize || "", 10);
+  const pageSize = Math.min(
+    TASK_LIST_MAX_PAGE_SIZE,
+    Math.max(1, Number.isInteger(requestedPageSize) && requestedPageSize > 0
+      ? requestedPageSize
+      : TASK_LIST_DEFAULT_PAGE_SIZE),
+  );
+  const cursorOffset = query.cursor ? decodeTaskCursor(query.cursor) : 0;
+  const offset = cursorOffset || normalizeOffset(query.offset);
+
+  return {
+    offset,
+    pageSize,
+  };
+}
+
+function normalizeOffset(value) {
+  const offset = Number.parseInt(value || "", 10);
+  return Number.isInteger(offset) && offset > 0 ? offset : 0;
+}
+
+function encodeTaskCursor(offset) {
+  return Buffer.from(JSON.stringify({ offset: Math.max(0, Number(offset) || 0) })).toString("base64url");
+}
+
+function decodeTaskCursor(cursor) {
+  try {
+    const parsed = JSON.parse(Buffer.from(String(cursor || ""), "base64url").toString("utf8"));
+    const offset = Number.parseInt(parsed?.offset, 10);
+
+    if (Number.isInteger(offset) && offset >= 0) {
+      return offset;
+    }
+  } catch {
+    // Fall through to the canonical 400 below.
+  }
+
+  throw new AppError("Task list cursor is invalid.", 400);
+}
+
+function stripTaskListCandidateMetadata(task) {
+  const { __candidateOffset, ...publicTask } = task;
+  return publicTask;
 }
 
 async function summary(session) {
@@ -819,10 +998,18 @@ async function readTaskOptionPayload(session, query = {}) {
     : includeCompleted
       ? "history"
       : "active";
-  const tasks = await tasksRepository.readAll(session.workspace_id);
+  const repositoryQuery = taskListRepositoryQuery(session, {
+    sort: "context",
+    status,
+  });
+  const result = await tasksRepository.queryList(session.workspace_id, {
+    ...repositoryQuery,
+    limit: TASK_OPTION_MAX_ITEMS,
+    offset: 0,
+  });
   const readable = [];
 
-  for (const task of tasks) {
+  for (const task of result.tasks || []) {
     if (await canReadTask(session, task) && matchesStatusFilter(task, status)) {
       readable.push(task);
     }
@@ -1601,10 +1788,6 @@ async function finalizeChecklistMutation({ session, task, action, eventName, pre
   };
 }
 
-async function attachReminderDetails(tasks) {
-  return Promise.all(tasks.map(attachTaskDetails));
-}
-
 async function attachReminderDetailsToTask(task) {
   if (!task) {
     return null;
@@ -1614,6 +1797,35 @@ async function attachReminderDetailsToTask(task) {
     ...task,
     reminderDetails: await taskRemindersService.readTaskReminderDetails(task),
   };
+}
+
+async function attachTaskListProjectionDetails(tasks) {
+  if (!Array.isArray(tasks) || tasks.length === 0) {
+    return [];
+  }
+
+  const taskIds = tasks.map((task) => task.task_id).filter(Boolean);
+  const [checklistProgressByTaskId, relationshipSummaryByTaskId] = await Promise.all([
+    taskChecklistsRepository.readProgressForTasks(tasks[0].workspace_id, taskIds),
+    taskRelationshipsRepository.relationshipSummariesForTasks(tasks[0].workspace_id, taskIds),
+  ]);
+
+  return Promise.all(tasks.map(async (task) => {
+    const checklistProgress = checklistProgressByTaskId.get(task.task_id) || emptyChecklistProgress();
+    const relationshipSummary = relationshipSummaryByTaskId.get(task.task_id) || emptyRelationshipSummary();
+    const taskWithListDetails = {
+      ...task,
+      checklistProgress,
+      relationshipSummary,
+      completionMetrics: taskCompletionMetrics(task),
+      reminderDetails: await taskRemindersService.readTaskReminderDetails(task),
+    };
+
+    return {
+      ...taskWithListDetails,
+      resumeContext: taskResumeContext(taskWithListDetails),
+    };
+  }));
 }
 
 async function attachTaskDetails(task) {
@@ -2517,6 +2729,7 @@ export const tasksService = {
   create,
   deleteChecklistItem,
   list,
+  listAll,
   listChecklistItems,
   listWorkItems,
   listRelationships,

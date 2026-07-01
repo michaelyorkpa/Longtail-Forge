@@ -220,6 +220,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/files-time-tracking-qol-closeout-regression.mjs",
   "scripts/task-canonical-query-regression.mjs",
   "scripts/tasks-view-selector-query-contract-regression.mjs",
+  "scripts/tasks-server-side-list-paging-regression.mjs",
   "scripts/task-options-payload-regression.mjs",
   "scripts/project-default-assignee-regression.mjs",
 ]);

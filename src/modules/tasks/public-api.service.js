@@ -1,7 +1,7 @@
 import { tasksService } from "./tasks.service.js";
 
 async function listTasks(context, query = {}) {
-  const result = await tasksService.list(context);
+  const result = await tasksService.listAll(context);
   return paged(result.tasks.map((task) => withWorkspaceAlias(task, context)), query);
 }
 

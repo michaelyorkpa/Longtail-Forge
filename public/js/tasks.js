@@ -1,5 +1,6 @@
 const TASK_FILTER_STORAGE_KEY = "lf_tasks_filters_v1";
 const DEFAULT_TASK_VIEW = "my";
+const TASK_LIST_PAGE_SIZE = 100;
 const QUICK_FILTERS = new Set(["my", "unassigned", "overdue", "today", "week", "complete", "archived"]);
 const TASK_VIEW_VALUES = new Set(["all", ...QUICK_FILTERS]);
 const view = window.LongtailForge?.view;
@@ -38,6 +39,11 @@ let state = {
   selectedTaskIds: new Set(),
   attachmentCounts: {},
   noteCounts: {},
+  pagination: {
+    hasMore: false,
+    nextCursor: "",
+    pageSize: TASK_LIST_PAGE_SIZE,
+  },
   taskTimers: [],
   tagOptions: [],
 };
@@ -61,6 +67,9 @@ const tagFilterControl = document.querySelector("[data-task-tag-filter-control]"
 const tagFilter = document.querySelector("[data-task-tag-filter]");
 const resetTaskFiltersButton = document.querySelector("[data-task-reset-filters]");
 const selectAllInput = document.querySelector("[data-task-select-all]");
+const loadMoreTasksButton = document.querySelector("[data-task-load-more]");
+const taskPagination = document.querySelector("[data-task-pagination]");
+const taskPageSummary = document.querySelector("[data-task-page-summary]");
 const bulkToolbar = document.querySelector("[data-task-bulk-toolbar]");
 const bulkStatusControl = document.querySelector("[data-task-bulk-status-control]");
 const bulkStatusInput = document.querySelector("[data-task-bulk-status]");
@@ -105,6 +114,7 @@ bulkTagsInput?.addEventListener("change", updateBulkControls);
 bulkLifecycleInput?.addEventListener("change", updateBulkControls);
 bulkApplyButton?.addEventListener("click", applyBulkAction);
 selectAllInput?.addEventListener("change", toggleVisibleSelection);
+loadMoreTasksButton?.addEventListener("click", loadMoreTasks);
 [sortInput, statusFilter, assigneeFilter, clientFilter, projectFilter, tagFilter].forEach((input) => {
   input?.addEventListener("change", async () => {
     saveFilterState();
@@ -365,6 +375,25 @@ function createTaskMainListChrome() {
     attrs: { "data-task-list-surface": "" },
     children: table,
   });
+  const pagination = view.createElement("div", {
+    className: "tasks-pagination",
+    attrs: {
+      "data-task-pagination": "",
+      hidden: "",
+    },
+    children: [
+      view.createElement("span", {
+        attrs: { "data-task-page-summary": "" },
+      }),
+      view.createElement("button", {
+        attrs: {
+          type: "button",
+          "data-task-load-more": "",
+        },
+        text: "Load More",
+      }),
+    ],
+  });
 
   return view.createListShell({
     className: "tasks-main-list-surface",
@@ -372,6 +401,7 @@ function createTaskMainListChrome() {
     toolbar: createTaskBulkToolbarChrome(),
     statusAttrs: { "data-task-status": "" },
     children: list,
+    after: pagination,
   });
 }
 
@@ -531,6 +561,7 @@ async function loadTasks() {
       options: result.options || state.options,
       attachmentCounts,
       noteCounts,
+      pagination: normalizeTaskPagination(result.pagination),
       tagOptions,
     };
     populateFilters();
@@ -566,6 +597,7 @@ async function reloadTaskList() {
       options: result.options || state.options,
       attachmentCounts,
       noteCounts,
+      pagination: normalizeTaskPagination(result.pagination),
     };
     populateFilters();
     configureTaskDialog();
@@ -576,12 +608,69 @@ async function reloadTaskList() {
   }
 }
 
-async function loadCanonicalTasks() {
-  const query = buildTaskQuery();
+async function loadMoreTasks() {
+  const cursor = state.pagination?.nextCursor || "";
+
+  if (!cursor) {
+    return;
+  }
+
+  setStatus("Loading more tasks...");
+
+  try {
+    const result = await loadCanonicalTasks(cursor);
+    const timersResult = await loadTaskTimers();
+    const tasks = mergeTasksById(state.tasks, result.tasks || []);
+    const [attachmentCounts, noteCounts] = await Promise.all([
+      loadAttachmentCounts(tasks),
+      loadNoteCounts(tasks),
+    ]);
+
+    state = {
+      ...state,
+      tasks,
+      taskTimers: timersResult.timers || [],
+      currentUserId: result.currentUserId || state.currentUserId,
+      options: result.options || state.options,
+      attachmentCounts,
+      noteCounts,
+      pagination: normalizeTaskPagination(result.pagination),
+    };
+    populateFilters();
+    configureTaskDialog();
+    renderTasks();
+    setStatus("");
+  } catch (error) {
+    setStatus(error.message || "More tasks could not be loaded.", { isError: true });
+  }
+}
+
+function mergeTasksById(existingTasks, incomingTasks) {
+  const taskById = new Map();
+
+  [...(existingTasks || []), ...(incomingTasks || [])].forEach((task) => {
+    if (task?.task_id) {
+      taskById.set(task.task_id, task);
+    }
+  });
+
+  return [...taskById.values()];
+}
+
+function normalizeTaskPagination(pagination = {}) {
+  return {
+    hasMore: Boolean(pagination?.hasMore && pagination?.nextCursor),
+    nextCursor: pagination?.nextCursor || "",
+    pageSize: Number(pagination?.pageSize || pagination?.limit) || TASK_LIST_PAGE_SIZE,
+  };
+}
+
+async function loadCanonicalTasks(cursor = "") {
+  const query = buildTaskQuery(cursor);
   return api.getJson(query ? `/api/tasks?${query}` : "/api/tasks", { cache: "no-store" });
 }
 
-function buildTaskQuery() {
+function buildTaskQuery(cursor = "") {
   const params = new URLSearchParams();
   const taskView = selectedTaskView();
   const statusValue = statusFilter?.value || "active";
@@ -593,6 +682,7 @@ function buildTaskQuery() {
   params.set("task_view", canonicalTaskViewValue(taskView));
   params.set("status", canonicalStatusValue(statusValue));
   params.set("sort", canonicalSortValue(sortInput?.value || "due_asc"));
+  params.set("limit", String(TASK_LIST_PAGE_SIZE));
 
   if (assigneeValue === "me") {
     params.set("assignee", "me");
@@ -612,6 +702,10 @@ function buildTaskQuery() {
 
   if (tagValue !== "all") {
     params.set("tags", tagValue);
+  }
+
+  if (cursor) {
+    params.set("cursor", cursor);
   }
 
   return params.toString();
@@ -780,11 +874,30 @@ function renderTasks() {
       }),
     }));
     updateSelectionControls(tasks);
+    renderTaskPagination();
     return;
   }
 
   tasks.forEach((task) => taskList.append(...createTaskRow(task)));
   updateSelectionControls(tasks);
+  renderTaskPagination();
+}
+
+function renderTaskPagination() {
+  const hasMore = Boolean(state.pagination?.hasMore && state.pagination?.nextCursor);
+
+  if (taskPagination) {
+    taskPagination.hidden = !hasMore;
+  }
+
+  if (taskPageSummary) {
+    taskPageSummary.textContent = hasMore ? `${state.tasks.length} shown` : "";
+  }
+
+  if (loadMoreTasksButton) {
+    loadMoreTasksButton.hidden = !hasMore;
+    loadMoreTasksButton.disabled = !hasMore;
+  }
 }
 
 function emptyTaskMessage() {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.20.1";
+const appVersion = "0.33.5.20.2";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -104,7 +104,7 @@ assert.match(styles, /\.file-attachment-actions\s*\{[\s\S]*flex-wrap:\s*wrap/, "
 
 assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust the shared stylesheet for attachment panel shell changes");
 assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=5/, "Notes should cache-bust the attachment helper for panel shell changes");
-assert.match(tasksHtml, /css\/longtail-forge\.css\?v=72/, "Tasks should cache-bust the shared stylesheet for attachment panel shell changes");
+assert.match(tasksHtml, /css\/longtail-forge\.css\?v=73/, "Tasks should cache-bust the shared stylesheet for attachment panel shell changes");
 assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=4/, "Tasks should cache-bust the attachment helper for panel shell changes");
 assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=21/, "Workbench should cache-bust the shared stylesheet for attachment panel shell changes");
 assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=4/, "Workbench should cache-bust the attachment helper for panel shell changes");

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.20.1";
+const appVersion = "0.33.5.20.2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -59,7 +59,7 @@ assert.match(declarativeGuide, /list shell, bulk toolbar, row lifecycle action s
 assert.match(viewContract, /list-shell boundary shipped in 0\.33\.5\.18\.8\.4/, "View-building contract should document the Tasks list-shell boundary");
 assert.match(tasksDocs, /As of 0\.33\.5\.18\.8\.4[\s\S]*framework list shell owns the main list wrapper, status mount, and table overflow wrapper/, "Tasks docs should document the list-shell boundary");
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=72[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/tasks\.js\?v=20/, "Tasks host should load the list-shell cache keys");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=73[\s\S]*js\/shared\/view-builder\.js\?v=16[\s\S]*js\/shared\/view-renderer\.js\?v=13[\s\S]*js\/tasks\.js\?v=21/, "Tasks host should load the list-shell cache keys");
 assert.match(regressionSuite, /scripts\/tasks-list-surface-boundary-regression\.mjs/, "Regression suite should include the Tasks list-surface boundary regression");
 
 console.log("Tasks list surface boundary regression passed.");

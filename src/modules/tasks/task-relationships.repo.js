@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  db,
   querySql,
   runSql,
   sqlInteger,
@@ -201,6 +202,62 @@ WHERE task_relationships.workspace_id = ${sqlText(workspaceId)}
   };
 }
 
+async function relationshipSummariesForTasks(workspaceId, taskIds) {
+  const uniqueTaskIds = [...new Set((taskIds || []).map((taskId) => String(taskId || "").trim()).filter(Boolean))];
+
+  if (uniqueTaskIds.length === 0) {
+    return new Map();
+  }
+
+  const params = { workspaceId };
+  const placeholders = uniqueTaskIds.map((taskId, index) => {
+    const key = `taskId${index}`;
+    params[key] = taskId;
+    return `:${key}`;
+  });
+  const rows = await db.query(`
+SELECT
+  task_relationships.parent_task_id AS task_id,
+  COUNT(*) AS child_count,
+  SUM(CASE WHEN task_relationships.is_blocking = 1 THEN 1 ELSE 0 END) AS blocking_child_count,
+  SUM(CASE WHEN task_relationships.is_blocking = 1 AND child_tasks.status NOT IN ('complete', 'archived') THEN 1 ELSE 0 END) AS incomplete_blocking_child_count,
+  0 AS parent_count,
+  0 AS blocking_parent_count
+FROM task_relationships
+LEFT JOIN tasks AS child_tasks
+  ON child_tasks.workspace_id = task_relationships.workspace_id
+  AND child_tasks.task_id = task_relationships.child_task_id
+WHERE task_relationships.workspace_id = :workspaceId
+  AND task_relationships.removed_at IS NULL
+  AND task_relationships.parent_task_id IN (${placeholders.join(", ")})
+GROUP BY task_relationships.parent_task_id
+UNION ALL
+SELECT
+  task_relationships.child_task_id AS task_id,
+  0 AS child_count,
+  0 AS blocking_child_count,
+  0 AS incomplete_blocking_child_count,
+  COUNT(*) AS parent_count,
+  SUM(CASE WHEN task_relationships.is_blocking = 1 THEN 1 ELSE 0 END) AS blocking_parent_count
+FROM task_relationships
+WHERE task_relationships.workspace_id = :workspaceId
+  AND task_relationships.removed_at IS NULL
+  AND task_relationships.child_task_id IN (${placeholders.join(", ")})
+GROUP BY task_relationships.child_task_id;
+`, params);
+
+  return rows.reduce((map, row) => {
+    const summary = map.get(row.task_id) || emptyRelationshipSummary();
+    summary.child_count += Number(row.child_count) || 0;
+    summary.blocking_child_count += Number(row.blocking_child_count) || 0;
+    summary.incomplete_blocking_child_count += Number(row.incomplete_blocking_child_count) || 0;
+    summary.parent_count += Number(row.parent_count) || 0;
+    summary.blocking_parent_count += Number(row.blocking_parent_count) || 0;
+    map.set(row.task_id, summary);
+    return map;
+  }, new Map());
+}
+
 function relationshipSelectSql(whereSql) {
   return `
 SELECT
@@ -257,6 +314,16 @@ function relationshipRowToAppValue(row) {
   };
 }
 
+function emptyRelationshipSummary() {
+  return {
+    child_count: 0,
+    blocking_child_count: 0,
+    incomplete_blocking_child_count: 0,
+    parent_count: 0,
+    blocking_parent_count: 0,
+  };
+}
+
 export const taskRelationshipsRepository = {
   create,
   hasPath,
@@ -266,6 +333,7 @@ export const taskRelationshipsRepository = {
   readChildren,
   readForTask,
   readParents,
+  relationshipSummariesForTasks,
   relationshipSummary,
   remove,
   update,

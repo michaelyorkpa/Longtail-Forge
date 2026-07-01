@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.20.1";
+const appVersion = "0.33.5.20.2";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -68,7 +68,7 @@ assert.match(stylesheet, /\.task-details-grid > label \{[\s\S]*min-width: 0;/, "
 assert.ok(
   tasksView.indexOf("js/shared/view-builder.js?v=16") < tasksView.indexOf("js/shared/view-renderer.js?v=13")
     && tasksView.indexOf("js/shared/view-renderer.js?v=13") < tasksView.indexOf("js/task-dialog.js?v=21")
-    && tasksView.indexOf("js/task-dialog.js?v=21") < tasksView.indexOf("js/tasks.js?v=20"),
+    && tasksView.indexOf("js/task-dialog.js?v=21") < tasksView.indexOf("js/tasks.js?v=21"),
   "Tasks host should load framework view helpers before the Task dialog and page controller",
 );
 assert.ok(

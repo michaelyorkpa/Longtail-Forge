@@ -8,6 +8,44 @@ import {
   sqlText,
 } from "../../core/database.js";
 
+async function queryList(workspaceId, options = {}) {
+  const normalizedLimit = normalizePositiveInteger(options.limit, 0);
+  const normalizedOffset = normalizePositiveInteger(options.offset, 0);
+  const params = {
+    currentUserId: options.currentUserId || "",
+    currentWeekEnd: options.currentWeekEnd || "",
+    dueSoonCutoff: options.dueSoonCutoff || "",
+    nowIso: options.nowIso || new Date().toISOString(),
+    offset: normalizedOffset,
+    today: options.today || "",
+    workspaceId,
+  };
+  const whereSql = taskListWhereSql(options, params);
+  const orderSql = taskListOrderSql(options.sort);
+  const limitSql = normalizedLimit > 0 ? "\nLIMIT :limit OFFSET :offset" : "";
+
+  if (normalizedLimit > 0) {
+    params.limit = normalizedLimit + 1;
+  }
+
+  const rows = await db.query(taskSelectSql(`
+${whereSql}
+${orderSql}${limitSql};
+`), params);
+  const hasMore = normalizedLimit > 0 && rows.length > normalizedLimit;
+  const taskRows = hasMore ? rows.slice(0, normalizedLimit) : rows;
+  const assignees = await readAssigneesForTasks(
+    workspaceId,
+    taskRows.map((task) => task.task_id),
+  );
+
+  return {
+    hasMore,
+    nextOffset: normalizedOffset + taskRows.length,
+    tasks: attachAssignees(taskRows.map(taskRowToAppValue), assignees),
+  };
+}
+
 async function readAll(workspaceId) {
   const [tasks, assignees] = await Promise.all([
     querySql(taskSelectSql(`
@@ -214,6 +252,28 @@ ORDER BY users.username;
 `));
 }
 
+async function readAssigneesForTasks(workspaceId, taskIds) {
+  const uniqueTaskIds = [...new Set((taskIds || []).map((taskId) => String(taskId || "").trim()).filter(Boolean))];
+
+  if (uniqueTaskIds.length === 0) {
+    return [];
+  }
+
+  const params = { workspaceId };
+  const placeholders = uniqueTaskIds.map((taskId, index) => {
+    const key = `taskId${index}`;
+    params[key] = taskId;
+    return `:${key}`;
+  });
+
+  return db.query(assigneeSelectSql(`
+WHERE task_assignees.workspace_id = :workspaceId
+  AND task_assignees.task_id IN (${placeholders.join(", ")})
+  AND task_assignees.removed_at IS NULL
+ORDER BY users.username;
+`), params);
+}
+
 async function readByRecurrenceInstance(workspaceId, templateId, instanceDate) {
   const rows = await querySql(taskSelectSql(`
 WHERE tasks.workspace_id = ${sqlText(workspaceId)}
@@ -319,6 +379,271 @@ LEFT JOIN projects
 ${whereSql}`;
 }
 
+function taskListWhereSql(options, params) {
+  const conditions = ["tasks.workspace_id = :workspaceId"];
+
+  applyTaskViewFilter(conditions, options);
+  applyStatusFilter(conditions, options, params);
+  applyQuickFilter(conditions, options, params);
+  applyDueFilter(conditions, options);
+  applyContextFilters(conditions, options, params);
+  applyAssigneeFilters(conditions, options, params);
+
+  return `WHERE ${conditions.join("\n  AND ")}`;
+}
+
+function applyTaskViewFilter(conditions, options) {
+  const taskView = normalizedFilter(options.taskView);
+
+  if (taskView === "my") {
+    conditions.push(activeTaskSql());
+    conditions.push(assigneeExistsSql("currentUserId"));
+    return;
+  }
+
+  if (taskView === "all") {
+    conditions.push(activeTaskSql());
+    return;
+  }
+
+  if (taskView === "unassigned") {
+    conditions.push(activeTaskSql());
+    conditions.push(`NOT ${anyAssigneeExistsSql()}`);
+    return;
+  }
+
+  if (taskView === "overdue") {
+    conditions.push(activeTaskSql());
+    conditions.push("tasks.due_date IS NOT NULL");
+    conditions.push("tasks.due_date < :today");
+    return;
+  }
+
+  if (taskView === "today") {
+    conditions.push(activeTaskSql());
+    conditions.push("tasks.due_date = :today");
+    return;
+  }
+
+  if (taskView === "week") {
+    conditions.push(activeTaskSql());
+    conditions.push("tasks.due_date IS NOT NULL");
+    conditions.push("tasks.due_date >= :today");
+    conditions.push("tasks.due_date <= :currentWeekEnd");
+    return;
+  }
+
+  if (taskView === "completed") {
+    conditions.push("tasks.status = 'complete'");
+    return;
+  }
+
+  if (taskView === "archived") {
+    conditions.push("tasks.status = 'archived'");
+  }
+}
+
+function applyStatusFilter(conditions, options, params) {
+  const statusFilter = normalizedFilter(options.statusFilter);
+
+  if (!statusFilter || statusFilter === "all") {
+    return;
+  }
+
+  if (statusFilter === "active") {
+    conditions.push(activeTaskSql());
+    return;
+  }
+
+  if (statusFilter === "history") {
+    conditions.push("tasks.status IN ('complete', 'archived')");
+    return;
+  }
+
+  conditions.push("tasks.status = :statusFilter");
+  params.statusFilter = statusFilter;
+}
+
+function applyQuickFilter(conditions, options, params) {
+  const quickFilter = normalizedFilter(options.quickFilter);
+
+  if (!quickFilter || quickFilter === "all" || options.taskView) {
+    return;
+  }
+
+  if (["my", "assigned_to_me", "assigned"].includes(quickFilter)) {
+    conditions.push(assigneeExistsSql("currentUserId"));
+    return;
+  }
+
+  if (quickFilter === "unassigned") {
+    conditions.push(`NOT ${anyAssigneeExistsSql()}`);
+    return;
+  }
+
+  if (["in_progress", "blocked"].includes(quickFilter)) {
+    conditions.push("tasks.status = :quickStatus");
+    params.quickStatus = quickFilter;
+  }
+}
+
+function applyDueFilter(conditions, options) {
+  const dueFilter = normalizedFilter(options.dueFilter);
+
+  if (!dueFilter || dueFilter === "all") {
+    return;
+  }
+
+  if (dueFilter === "overdue") {
+    conditions.push(activeTaskSql());
+    conditions.push("tasks.due_date IS NOT NULL");
+    conditions.push(`(
+    (tasks.due_time IS NOT NULL AND tasks.due_at_utc IS NOT NULL AND tasks.due_at_utc < :nowIso)
+    OR ((tasks.due_time IS NULL OR tasks.due_at_utc IS NULL) AND tasks.due_date < :today)
+  )`);
+    return;
+  }
+
+  if (dueFilter === "today") {
+    conditions.push(activeTaskSql());
+    conditions.push("tasks.due_date = :today");
+    conditions.push(`NOT (
+    tasks.due_time IS NOT NULL
+    AND tasks.due_at_utc IS NOT NULL
+    AND tasks.due_at_utc < :nowIso
+  )`);
+    return;
+  }
+
+  if (dueFilter === "week") {
+    conditions.push(activeTaskSql());
+    conditions.push("tasks.due_date IS NOT NULL");
+    conditions.push("tasks.due_date >= :today");
+    conditions.push("tasks.due_date <= :dueSoonCutoff");
+    conditions.push(`NOT (
+    tasks.due_time IS NOT NULL
+    AND tasks.due_at_utc IS NOT NULL
+    AND tasks.due_at_utc < :nowIso
+  )`);
+    return;
+  }
+
+  if (dueFilter === "next_due") {
+    conditions.push(activeTaskSql());
+    conditions.push("tasks.due_date IS NOT NULL");
+  }
+}
+
+function applyContextFilters(conditions, options, params) {
+  if (options.hasProjectFilter && options.projectId !== "all") {
+    if (!options.projectId) {
+      conditions.push("(tasks.project_id IS NULL OR tasks.project_id = '')");
+    } else {
+      conditions.push("tasks.project_id = :projectId");
+      params.projectId = options.projectId;
+    }
+  }
+
+  if (options.hasClientFilter && options.clientId !== "all") {
+    if (!options.clientId) {
+      conditions.push("(tasks.client_id IS NULL OR tasks.client_id = '')");
+    } else {
+      conditions.push("tasks.client_id = :clientId");
+      params.clientId = options.clientId;
+    }
+  }
+}
+
+function applyAssigneeFilters(conditions, options, params) {
+  const assigneeFilter = normalizedFilter(options.assigneeFilter);
+
+  if (assigneeFilter === "me" || assigneeFilter === "assigned_to_me") {
+    conditions.push(assigneeExistsSql("currentUserId"));
+    return;
+  }
+
+  if (assigneeFilter === "unassigned") {
+    conditions.push(`NOT ${anyAssigneeExistsSql()}`);
+    return;
+  }
+
+  if (options.assigneeId) {
+    conditions.push(assigneeExistsSql("assigneeId"));
+    params.assigneeId = options.assigneeId;
+  }
+}
+
+function taskListOrderSql(sort) {
+  const dueSort = "COALESCE(tasks.due_at_utc, COALESCE(tasks.due_date, '9999-12-31') || 'T' || COALESCE(tasks.due_time, '23:59') || ':00')";
+  const stableTitle = "tasks.title ASC, tasks.created_at ASC, tasks.task_id ASC";
+  const priorityRank = "CASE tasks.priority WHEN 'urgent' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 WHEN 'low' THEN 1 ELSE 0 END";
+  const statusRank = "CASE tasks.status WHEN 'blocked' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'open' THEN 3 WHEN 'complete' THEN 4 WHEN 'archived' THEN 5 ELSE 99 END";
+
+  if (sort === "priority") {
+    return `ORDER BY ${priorityRank} DESC, ${dueSort} ASC, ${stableTitle}`;
+  }
+
+  if (sort === "status") {
+    return `ORDER BY ${statusRank} ASC, ${dueSort} ASC, ${stableTitle}`;
+  }
+
+  if (sort === "last_worked") {
+    return `ORDER BY COALESCE(tasks.last_worked_at, '') DESC, ${dueSort} ASC, ${stableTitle}`;
+  }
+
+  if (sort === "updated") {
+    return `ORDER BY COALESCE(tasks.updated_at, '') DESC, ${dueSort} ASC, ${stableTitle}`;
+  }
+
+  if (sort === "context") {
+    return `ORDER BY COALESCE(clients.name, '') ASC, COALESCE(projects.name, '') ASC, ${dueSort} ASC, ${stableTitle}`;
+  }
+
+  if (sort === "created") {
+    return `ORDER BY COALESCE(tasks.created_at, '') DESC, ${stableTitle}`;
+  }
+
+  if (sort === "created_asc") {
+    return `ORDER BY COALESCE(tasks.created_at, '') ASC, ${stableTitle}`;
+  }
+
+  return `ORDER BY ${dueSort} ASC, ${priorityRank} DESC, ${stableTitle}`;
+}
+
+function activeTaskSql() {
+  return "tasks.status NOT IN ('complete', 'archived')";
+}
+
+function assigneeExistsSql(userParam) {
+  return `EXISTS (
+    SELECT 1
+    FROM task_assignees
+    WHERE task_assignees.workspace_id = tasks.workspace_id
+      AND task_assignees.task_id = tasks.task_id
+      AND task_assignees.user_id = :${userParam}
+      AND task_assignees.removed_at IS NULL
+  )`;
+}
+
+function anyAssigneeExistsSql() {
+  return `EXISTS (
+    SELECT 1
+    FROM task_assignees
+    WHERE task_assignees.workspace_id = tasks.workspace_id
+      AND task_assignees.task_id = tasks.task_id
+      AND task_assignees.removed_at IS NULL
+  )`;
+}
+
+function normalizePositiveInteger(value, fallback) {
+  const number = Number.parseInt(value, 10);
+  return Number.isInteger(number) && number > 0 ? number : fallback;
+}
+
+function normalizedFilter(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 function assigneeSelectSql(whereSql) {
   return `
 SELECT
@@ -399,6 +724,7 @@ function assigneeRowToAppValue(row) {
 
 export const tasksRepository = {
   create,
+  queryList,
   readAll,
   readById,
   readByRecurrenceInstance,
