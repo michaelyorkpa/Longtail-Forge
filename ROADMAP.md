@@ -129,19 +129,19 @@ Acceptance criteria:
 
 ### Version 0.33.5.20.4 - Batched list enrichment
 
-- [ ] Add shared helper/service pattern for batching related list metadata by visible record IDs.
-- [ ] Batch where practical:
-  - [ ] Tags for visible tasks/notes/lists/files.
-  - [ ] File counts.
-  - [ ] Linked-note counts.
-  - [ ] Checklist progress.
-  - [ ] Assignee labels.
-  - [ ] Notification/subscription state.
-- [ ] Avoid one-query-per-row list enrichment.
-- [ ] Add query-count regressions or instrumentation for representative list surfaces.
-- [ ] Preserve module ownership:
-  - [ ] Modules own meaning.
-  - [ ] Framework may own batching helper shape.
+- [x] Add shared helper/service pattern for batching related list metadata by visible record IDs.
+- [x] Batch where practical:
+  - [x] Tags for visible tasks/notes/lists through the existing multi-record tag service path; Files tags remain deferred because Files is not a taggable record type.
+  - [x] File counts stay out of this slice until a visible list-row file-count field exists.
+  - [x] Linked-note/linked-record counts and rows use existing Tasks/Notes batching and new Lists linked-record batching where visible.
+  - [x] Checklist/list progress uses existing Tasks checklist batching and new Lists item-progress batching.
+  - [x] Assignee labels remain batched through the Tasks repository list read.
+  - [x] Notification/subscription state remains on shipped module/modal surfaces; no new list-row field was introduced.
+- [x] Avoid one-query-per-row list enrichment.
+- [x] Add query-count regressions or instrumentation for representative list surfaces.
+- [x] Preserve module ownership:
+  - [x] Modules own meaning.
+  - [x] Framework may own batching helper shape.
 
 Acceptance criteria:
 

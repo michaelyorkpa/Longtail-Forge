@@ -23,6 +23,11 @@ import {
 import { modulesService } from "../../core/modules/modules.service.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
+import {
+  createVisibleRecordBatch,
+  groupRowsByRecordId,
+  mapVisibleRecordBatch,
+} from "../../core/list-enrichment.js";
 import { permissionsService } from "../../core/permissions.js";
 import { AppError } from "../../core/errors.js";
 import { settingsRepository } from "../../repositories/settings.repo.js";
@@ -45,14 +50,15 @@ async function list(session, query = {}) {
 
   for (const listRecord of lists) {
     if (await canReadList(session, listRecord)) {
-      readableLists.push(await shapeListForBrowser(session, listRecord));
+      readableLists.push(listRecord);
     }
   }
 
+  const shapedLists = await shapeListsForBrowser(session, readableLists);
   const taggedLists = await tagsService.decorateRecordsForTarget(
     session,
     "list",
-    await tagsService.filterRecordsByTags(session, "list", readableLists, normalizedQuery.tagIds, { idField: "list_id" }),
+    await tagsService.filterRecordsByTags(session, "list", shapedLists, normalizedQuery.tagIds, { idField: "list_id" }),
     { idField: "list_id" },
   );
   const filteredLists = taggedLists.filter((listRecord) => listMatchesCanonicalQuery(listRecord, normalizedQuery, session));
@@ -683,15 +689,35 @@ async function readCatalogItemOrThrow(session, catalogItemId) {
 }
 
 async function readPermissionSafeLinks(session, listRecord) {
-  const links = await listsRepository.listLinks(session.workspace_id, listRecord.list_id);
-  const visible = [];
+  const linksByListId = await readPermissionSafeLinksForLists(session, [listRecord]);
+  return linksByListId.get(listRecord.list_id) || [];
+}
 
-  for (const link of links) {
-    const target = await readLinkedTargetSummary(session, link, { requireAccess: false });
-    visible.push(shapeLinkForBrowser(link, target));
+async function readPermissionSafeLinksForLists(session, listRecords = []) {
+  const batch = createVisibleRecordBatch(listRecords, { idField: "list_id" });
+  const linksByListId = mapVisibleRecordBatch(batch, () => []);
+
+  if (batch.isEmpty) {
+    return linksByListId;
   }
 
-  return visible;
+  const links = await listsRepository.listLinksForLists(session.workspace_id, batch.ids);
+  const targetSummaries = await readLinkedTargetSummariesForLinks(session, links);
+
+  for (const link of links) {
+    const target = normalizeTarget(link);
+    const key = linkedTargetKey(target);
+    const listId = String(link.list_id || "").trim();
+    const shaped = shapeLinkForBrowser(link, targetSummaries.get(key) || null);
+
+    if (!linksByListId.has(listId)) {
+      linksByListId.set(listId, []);
+    }
+
+    linksByListId.get(listId).push(shaped);
+  }
+
+  return linksByListId;
 }
 
 async function readLinkedTargetSummary(session, link, options = {}) {
@@ -706,101 +732,159 @@ async function readLinkedTargetSummary(session, link, options = {}) {
 }
 
 async function readLinkedTargetRecord(session, target) {
-  if (target.target_type === "client") {
-    const client = await clientsRepository.readById(session.workspace_id, target.target_id);
-    if (!client || !(await permissionsService.can(session, "clients.manage", {
-      client_id: client.id,
-      operation: "read",
-      workspace_id: session.workspace_id,
-    }))) {
-      return null;
+  const summaries = await readLinkedTargetRecordsByType(session, target.target_type, [target.target_id]);
+  return summaries.get(target.target_id) || null;
+}
+
+async function readLinkedTargetSummariesForLinks(session, links = []) {
+  const targetIdsByType = new Map();
+
+  for (const link of links) {
+    const target = normalizeTarget(link);
+    if (!target.target_type || !target.target_id) {
+      continue;
     }
 
-    return {
-      label: client.name,
-      module_id: "client-projects",
-      target_id: client.id,
-      target_type: "client",
-      url: `clients-projects.html?client=${encodeURIComponent(client.id)}`,
-    };
+    if (!targetIdsByType.has(target.target_type)) {
+      targetIdsByType.set(target.target_type, new Set());
+    }
+
+    targetIdsByType.get(target.target_type).add(target.target_id);
   }
 
-  if (target.target_type === "project") {
-    const project = await projectsRepository.readById(session.workspace_id, target.target_id);
-    if (!project || !(await permissionsService.can(session, "projects.manage", {
-      client_id: project.client_id,
-      operation: "read",
-      project_id: project.id,
-      workspace_id: session.workspace_id,
-    }))) {
-      return null;
-    }
+  const summaryEntries = await Promise.all([...targetIdsByType.entries()].map(async ([targetType, ids]) => {
+    const summaries = await readLinkedTargetRecordsByType(session, targetType, [...ids]);
+    return [...summaries.entries()].map(([targetId, summary]) => [linkedTargetKey({ target_type: targetType, target_id: targetId }), summary]);
+  }));
 
-    return {
-      label: project.name,
-      module_id: "client-projects",
-      target_id: project.id,
-      target_type: "project",
-      url: `clients-projects.html?project=${encodeURIComponent(project.id)}`,
-    };
+  return new Map(summaryEntries.flat());
+}
+
+async function readLinkedTargetRecordsByType(session, targetType, targetIds = []) {
+  const ids = [...new Set((Array.isArray(targetIds) ? targetIds : [])
+    .map((targetId) => String(targetId || "").trim())
+    .filter(Boolean))];
+  const summaries = new Map();
+
+  if (ids.length === 0) {
+    return summaries;
   }
 
-  if (target.target_type === "task") {
-    const task = await tasksRepository.readById(session.workspace_id, target.target_id);
-    if (!task || !(await permissionsService.can(session, "tasks.view", {
-      client_id: task.client_id,
-      operation: "read",
-      project_id: task.project_id,
-      task_id: task.task_id,
-      workspace_id: session.workspace_id,
-    }))) {
-      return null;
+  if (targetType === "client") {
+    const clients = await clientsRepository.readByIds(session.workspace_id, ids);
+    for (const client of clients) {
+      if (!client || !(await permissionsService.can(session, "clients.manage", {
+        client_id: client.id,
+        operation: "read",
+        workspace_id: session.workspace_id,
+      }))) {
+        continue;
+      }
+
+      summaries.set(client.id, {
+        label: client.name,
+        module_id: "client-projects",
+        target_id: client.id,
+        target_type: "client",
+        url: `clients-projects.html?client=${encodeURIComponent(client.id)}`,
+      });
     }
 
-    return {
-      label: task.title,
-      module_id: "tasks",
-      target_id: task.task_id,
-      target_type: "task",
-      url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
-    };
+    return summaries;
   }
 
-  if (target.target_type === "note") {
-    const note = await notesRepository.readById(session.workspace_id, target.target_id);
-    if (!note || note.status === "deleted" || note.deleted_at) {
-      return null;
-    }
-    if (note.visibility === "private" && note.owner_user_id !== session.user_id) {
-      return null;
-    }
-    if (note.security_mode === "secure" && note.owner_user_id !== session.user_id && !(await permissionsService.can(session, "notes.secure.view_all", {
-      note_id: note.note_id,
-      operation: "read",
-      workspace_id: session.workspace_id,
-    }))) {
-      return null;
-    }
-    if (!(await permissionsService.can(session, "notes.view", {
-      client_id: note.client_id,
-      note_id: note.note_id,
-      operation: "read",
-      project_id: note.project_id,
-      workspace_id: session.workspace_id,
-    }))) {
-      return null;
+  if (targetType === "project") {
+    const projects = await projectsRepository.readByIds(session.workspace_id, ids);
+    for (const project of projects) {
+      if (!project || !(await permissionsService.can(session, "projects.manage", {
+        client_id: project.client_id,
+        operation: "read",
+        project_id: project.id,
+        workspace_id: session.workspace_id,
+      }))) {
+        continue;
+      }
+
+      summaries.set(project.id, {
+        label: project.name,
+        module_id: "client-projects",
+        target_id: project.id,
+        target_type: "project",
+        url: `clients-projects.html?project=${encodeURIComponent(project.id)}`,
+      });
     }
 
-    return {
-      label: note.title,
-      module_id: "notes",
-      target_id: note.note_id,
-      target_type: "note",
-      url: `notes.html?note=${encodeURIComponent(note.note_id)}`,
-    };
+    return summaries;
   }
 
-  return null;
+  if (targetType === "task") {
+    const tasks = await tasksRepository.readByIds(session.workspace_id, ids);
+    for (const task of tasks) {
+      if (!task || !(await permissionsService.can(session, "tasks.view", {
+        client_id: task.client_id,
+        operation: "read",
+        project_id: task.project_id,
+        task_id: task.task_id,
+        workspace_id: session.workspace_id,
+      }))) {
+        continue;
+      }
+
+      summaries.set(task.task_id, {
+        label: task.title,
+        module_id: "tasks",
+        target_id: task.task_id,
+        target_type: "task",
+        url: `tasks.html?task=${encodeURIComponent(task.task_id)}`,
+      });
+    }
+
+    return summaries;
+  }
+
+  if (targetType === "note") {
+    const notes = await notesRepository.readByIds(session.workspace_id, ids);
+    for (const note of notes) {
+      if (!note || note.status === "deleted" || note.deleted_at) {
+        continue;
+      }
+      if (note.visibility === "private" && note.owner_user_id !== session.user_id) {
+        continue;
+      }
+      if (note.security_mode === "secure" && note.owner_user_id !== session.user_id && !(await permissionsService.can(session, "notes.secure.view_all", {
+        note_id: note.note_id,
+        operation: "read",
+        workspace_id: session.workspace_id,
+      }))) {
+        continue;
+      }
+      if (!(await permissionsService.can(session, "notes.view", {
+        client_id: note.client_id,
+        note_id: note.note_id,
+        operation: "read",
+        project_id: note.project_id,
+        workspace_id: session.workspace_id,
+      }))) {
+        continue;
+      }
+
+      summaries.set(note.note_id, {
+        label: note.title,
+        module_id: "notes",
+        target_id: note.note_id,
+        target_type: "note",
+        url: `notes.html?note=${encodeURIComponent(note.note_id)}`,
+      });
+    }
+
+    return summaries;
+  }
+
+  return summaries;
+}
+
+function linkedTargetKey(target = {}) {
+  return `${target.target_type || ""}:${target.target_id || ""}`;
 }
 
 async function normalizeListPayload(payload = {}, session, fallback = {}) {
@@ -1444,28 +1528,66 @@ function normalizeMetadata(value) {
 }
 
 async function shapeListForBrowser(session, listRecord = {}) {
-  const [progress, linkedRecords, sourceContext] = await Promise.all([
-    readListProgressSummary(session, listRecord),
-    readPermissionSafeLinks(session, listRecord),
-    readSourceContext(session, listRecord),
-  ]);
-
-  return {
+  const shapedLists = await shapeListsForBrowser(session, [listRecord]);
+  return shapedLists[0] || {
     ...listRecord,
     id: listRecord.list_id,
     isBillOfMaterials: listRecord.list_type === LIST_TYPES.BILL_OF_MATERIALS,
     isReusable: Boolean(listRecord.is_reusable),
-    links: linkedRecords,
-    progress,
-    resumeContext: buildListResumeContext(listRecord, progress, linkedRecords),
-    sourceContext,
+    links: [],
+    progress: listProgressSummaryFromItems(listRecord, []),
+    resumeContext: buildListResumeContext(listRecord, listProgressSummaryFromItems(listRecord, []), []),
+    sourceContext: { duplicatedFrom: null, sourceList: null },
   };
+}
+
+async function shapeListsForBrowser(session, listRecords = []) {
+  const batch = createVisibleRecordBatch(listRecords, { idField: "list_id" });
+  const [progressByListId, linksByListId, sourceContextByListId] = await Promise.all([
+    readListProgressSummaries(session, batch),
+    readPermissionSafeLinksForLists(session, listRecords),
+    readSourceContextsForLists(session, batch),
+  ]);
+
+  return listRecords.map((listRecord) => {
+    const progress = progressByListId.get(listRecord.list_id) || listProgressSummaryFromItems(listRecord, []);
+    const linkedRecords = linksByListId.get(listRecord.list_id) || [];
+    return {
+      ...listRecord,
+      id: listRecord.list_id,
+      isBillOfMaterials: listRecord.list_type === LIST_TYPES.BILL_OF_MATERIALS,
+      isReusable: Boolean(listRecord.is_reusable),
+      links: linkedRecords,
+      progress,
+      resumeContext: buildListResumeContext(listRecord, progress, linkedRecords),
+      sourceContext: sourceContextByListId.get(listRecord.list_id) || { duplicatedFrom: null, sourceList: null },
+    };
+  });
 }
 
 async function readListProgressSummary(session, listRecord = {}) {
   const items = listRecord.list_id
     ? await listsRepository.listItems(session.workspace_id, listRecord.list_id, { includeDeleted: false })
     : [];
+  return listProgressSummaryFromItems(listRecord, items);
+}
+
+async function readListProgressSummaries(session, batch) {
+  const progressByListId = mapVisibleRecordBatch(batch, (listRecord) => listProgressSummaryFromItems(listRecord, []));
+
+  if (batch.isEmpty) {
+    return progressByListId;
+  }
+
+  const items = await listsRepository.listItemsForLists(session.workspace_id, batch.ids, { includeDeleted: false });
+  const itemsByListId = groupRowsByRecordId(items, { idField: "list_id" });
+
+  return mapVisibleRecordBatch(batch, (listRecord) => (
+    listProgressSummaryFromItems(listRecord, itemsByListId.get(listRecord.list_id) || [])
+  ));
+}
+
+function listProgressSummaryFromItems(listRecord = {}, items = []) {
   const nextUncheckedItem = items
     .slice()
     .sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))
@@ -1523,30 +1645,33 @@ function buildListResumeContext(listRecord = {}, progress = {}, links = []) {
   };
 }
 
-async function readSourceContext(session, listRecord = {}) {
-  const [duplicatedFrom, sourceList] = await Promise.all([
-    readSourceSummary(session, listRecord.duplicated_from_list_id),
-    readSourceSummary(session, listRecord.source_list_id),
-  ]);
+async function readSourceContextsForLists(session, batch) {
+  const contexts = mapVisibleRecordBatch(batch, () => ({ duplicatedFrom: null, sourceList: null }));
+  const sourceIds = [...new Set((batch.records || [])
+    .flatMap((listRecord) => [listRecord.duplicated_from_list_id, listRecord.source_list_id])
+    .map((id) => String(id || "").trim())
+    .filter(Boolean))];
 
-  return {
-    duplicatedFrom,
-    sourceList,
-  };
+  if (sourceIds.length === 0) {
+    return contexts;
+  }
+
+  const sourceRecords = await listsRepository.readByIds(session.workspace_id, sourceIds);
+  const readableSourceSummaries = new Map();
+
+  for (const sourceRecord of sourceRecords) {
+    if (await canReadList(session, sourceRecord)) {
+      readableSourceSummaries.set(sourceRecord.list_id, shapeSourceSummary(sourceRecord));
+    }
+  }
+
+  return mapVisibleRecordBatch(batch, (listRecord) => ({
+    duplicatedFrom: readableSourceSummaries.get(listRecord.duplicated_from_list_id) || null,
+    sourceList: readableSourceSummaries.get(listRecord.source_list_id) || null,
+  }));
 }
 
-async function readSourceSummary(session, listId) {
-  const normalizedId = normalizeOptionalText(listId);
-
-  if (!normalizedId) {
-    return null;
-  }
-
-  const sourceList = await listsRepository.readById(session.workspace_id, normalizedId);
-  if (!sourceList || !(await canReadList(session, sourceList))) {
-    return null;
-  }
-
+function shapeSourceSummary(sourceList = {}) {
   return {
     finalized_at: sourceList.finalized_at || null,
     is_reusable: Boolean(sourceList.is_reusable),

@@ -144,6 +144,24 @@ LIMIT 1;
   return rows[0] ? listRowToAppValue(rows[0]) : null;
 }
 
+async function readByIds(workspaceId, listIds = []) {
+  const ids = normalizeIdList(listIds);
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const rows = await querySql(`
+SELECT ${LIST_COLUMNS.join(", ")}
+FROM lists
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND list_id IN (${ids.map(sqlText).join(", ")})
+ORDER BY updated_at DESC, title COLLATE NOCASE ASC;
+`);
+
+  return rows.map(listRowToAppValue);
+}
+
 async function create(workspaceId, listPayload) {
   const listId = listPayload.list_id || randomUUID();
   const now = listPayload.created_at || new Date().toISOString();
@@ -249,6 +267,36 @@ SELECT ${ITEM_COLUMNS.join(", ")}
 FROM list_items
 WHERE ${clauses.join("\n  AND ")}
 ORDER BY sort_order ASC, created_at ASC;
+`);
+
+  return rows.map(itemRowToAppValue);
+}
+
+async function listItemsForLists(workspaceId, listIds = [], filters = {}) {
+  const ids = normalizeIdList(listIds);
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const clauses = [
+    `workspace_id = ${sqlText(workspaceId)}`,
+    `list_id IN (${ids.map(sqlText).join(", ")})`,
+  ];
+
+  if (!filters.includeDeleted) {
+    clauses.push("deleted_at IS NULL");
+  }
+
+  if (filters.purchaseStatus) {
+    clauses.push(`purchase_status = ${sqlText(filters.purchaseStatus)}`);
+  }
+
+  const rows = await querySql(`
+SELECT ${ITEM_COLUMNS.join(", ")}
+FROM list_items
+WHERE ${clauses.join("\n  AND ")}
+ORDER BY list_id ASC, sort_order ASC, created_at ASC;
 `);
 
   return rows.map(itemRowToAppValue);
@@ -604,6 +652,25 @@ ORDER BY created_at ASC;
   return rows.map(linkRowToAppValue);
 }
 
+async function listLinksForLists(workspaceId, listIds = []) {
+  const ids = normalizeIdList(listIds);
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const rows = await querySql(`
+SELECT ${LINK_COLUMNS.join(", ")}
+FROM list_links
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND list_id IN (${ids.map(sqlText).join(", ")})
+  AND removed_at IS NULL
+ORDER BY list_id ASC, created_at ASC;
+`);
+
+  return rows.map(linkRowToAppValue);
+}
+
 async function readLinkById(workspaceId, listId, linkId) {
   const rows = await querySql(`
 SELECT ${LINK_COLUMNS.join(", ")}
@@ -651,6 +718,12 @@ function numberOrNullSql(value) {
 
   const number = Number(value);
   return Number.isFinite(number) ? String(number) : "NULL";
+}
+
+function normalizeIdList(ids = []) {
+  return [...new Set((Array.isArray(ids) ? ids : [])
+    .map((id) => String(id || "").trim())
+    .filter(Boolean))];
 }
 
 function listRowToAppValue(row = {}) {
@@ -709,9 +782,12 @@ const listsRepository = {
   list,
   listCatalogSuggestions,
   listItems,
+  listItemsForLists,
   listLinks,
+  listLinksForLists,
   readCatalogItemById,
   readById,
+  readByIds,
   readItemById,
   readLinkById,
   removeLink,

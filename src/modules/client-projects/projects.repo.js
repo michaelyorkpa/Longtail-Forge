@@ -38,6 +38,27 @@ LIMIT 1;
   return rows[0] ? projectRowToAppProject(rows[0]) : null;
 }
 
+async function readByIds(workspaceId, projectIds = []) {
+  const ids = [...new Set((Array.isArray(projectIds) ? projectIds : [])
+    .map((projectId) => String(projectId || "").trim())
+    .filter(Boolean))];
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const rows = await querySql(`
+SELECT
+  ${projectSelectColumnsSql()}
+FROM ${projectSelectFromSql()}
+WHERE projects.workspace_id = ${sqlText(workspaceId)}
+  AND projects.id IN (${ids.map(sqlText).join(", ")})
+ORDER BY projects.name;
+`);
+
+  return rows.map(projectRowToAppProject);
+}
+
 async function readByClientId(workspaceId, clientId) {
   const rows = await querySql(`
 SELECT
@@ -250,6 +271,7 @@ export const projectsRepository = {
   readAll,
   readByClientId,
   readById,
+  readByIds,
   readByNameInScope,
   update,
 };

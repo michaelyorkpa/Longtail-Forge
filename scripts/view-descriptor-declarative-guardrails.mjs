@@ -6,7 +6,7 @@ import {
   listFrameworkViewSurfaces,
 } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const appVersion = "0.33.5.20.3";
+const appVersion = "0.33.5.20.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
@@ -92,7 +92,7 @@ const inventory = protectedHtmlFiles.map((fileName) => {
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
-assert.match(listsModule, /version:\s*"0\.33\.5\.16\.12"/, "Lists module should report the current declarative closeout version");
+assert.match(listsModule, /version:\s*"0\.33\.5\.20\.4"/, "Lists module should report the current batched enrichment version");
 
 assert.ok(inventory.length >= 20, "Protected view inventory should cover all protected HTML views");
 assert.deepEqual(

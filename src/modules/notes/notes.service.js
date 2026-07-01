@@ -44,6 +44,7 @@ import { listsRepository } from "../lists/lists.repo.js";
 import { tasksRepository } from "../tasks/tasks.repo.js";
 import { modulesService } from "../../core/modules/modules.service.js";
 import { auditService } from "../../core/audit.js";
+import { createVisibleRecordBatch, groupRowsByRecordId } from "../../core/list-enrichment.js";
 import { permissionsService } from "../../core/permissions.js";
 import { AppError } from "../../core/errors.js";
 import { tagsService } from "../../services/tags.service.js";
@@ -1009,8 +1010,9 @@ function isNoTagsQuery(value) {
 async function filterAccessibleNotes(session, notes) {
   const permissionSet = await readNotePermissionSet(session);
   const moduleState = await readNotesModuleState(session);
-  const links = await notesRepository.listLinksForNotes(session.workspace_id, notes.map((note) => note.note_id));
-  const linksByNoteId = groupLinksByNoteId(links);
+  const batch = createVisibleRecordBatch(notes, { idField: "note_id" });
+  const links = await notesRepository.listLinksForNotes(session.workspace_id, batch.ids);
+  const linksByNoteId = groupRowsByRecordId(links, { idField: "note_id" });
   const readable = [];
 
   for (const note of notes) {
@@ -3497,17 +3499,6 @@ function renderNoteBodyHtml(note = {}) {
   } catch {
     return "";
   }
-}
-
-function groupLinksByNoteId(links = []) {
-  return links.reduce((groups, link) => {
-    if (!groups.has(link.note_id)) {
-      groups.set(link.note_id, []);
-    }
-
-    groups.get(link.note_id).push(link);
-    return groups;
-  }, new Map());
 }
 
 function noteAccessMessage(reason) {

@@ -14,6 +14,7 @@ import { modulesService } from "../../core/modules/modules.service.js";
 import { usersRepository } from "../../repositories/users.repo.js";
 import { assertModuleWriteEnabled } from "../../core/modules/module-access.js";
 import { auditService } from "../../core/audit.js";
+import { createVisibleRecordBatch } from "../../core/list-enrichment.js";
 import { tagsService } from "../../services/tags.service.js";
 import { searchIndexSyncService } from "../../services/search-index-sync.service.js";
 import { AppError } from "../../core/errors.js";
@@ -1804,10 +1805,10 @@ async function attachTaskListProjectionDetails(tasks) {
     return [];
   }
 
-  const taskIds = tasks.map((task) => task.task_id).filter(Boolean);
+  const batch = createVisibleRecordBatch(tasks, { idField: "task_id" });
   const [checklistProgressByTaskId, relationshipSummaryByTaskId] = await Promise.all([
-    taskChecklistsRepository.readProgressForTasks(tasks[0].workspace_id, taskIds),
-    taskRelationshipsRepository.relationshipSummariesForTasks(tasks[0].workspace_id, taskIds),
+    taskChecklistsRepository.readProgressForTasks(tasks[0].workspace_id, batch.ids),
+    taskRelationshipsRepository.relationshipSummariesForTasks(tasks[0].workspace_id, batch.ids),
   ]);
 
   return Promise.all(tasks.map(async (task) => {

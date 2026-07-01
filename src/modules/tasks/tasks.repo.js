@@ -77,6 +77,31 @@ LIMIT 1;
   return attachAssignees([taskRowToAppValue(rows[0])], assignees)[0];
 }
 
+async function readByIds(workspaceId, taskIds = []) {
+  const ids = [...new Set((Array.isArray(taskIds) ? taskIds : [])
+    .map((taskId) => String(taskId || "").trim())
+    .filter(Boolean))];
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const params = { workspaceId };
+  const placeholders = ids.map((taskId, index) => {
+    const key = `taskId${index}`;
+    params[key] = taskId;
+    return `:${key}`;
+  });
+  const rows = await db.query(taskSelectSql(`
+WHERE tasks.workspace_id = :workspaceId
+  AND tasks.task_id IN (${placeholders.join(", ")})
+ORDER BY tasks.updated_at DESC, tasks.title COLLATE NOCASE ASC;
+`), params);
+  const assignees = await readAssigneesForTasks(workspaceId, rows.map((row) => row.task_id));
+
+  return attachAssignees(rows.map(taskRowToAppValue), assignees);
+}
+
 async function create(workspaceId, task) {
   const now = new Date().toISOString();
   const taskId = task.task_id || randomUUID();
@@ -727,6 +752,7 @@ export const tasksRepository = {
   queryList,
   readAll,
   readById,
+  readByIds,
   readByRecurrenceInstance,
   readDueBetween,
   markWorkedAt,

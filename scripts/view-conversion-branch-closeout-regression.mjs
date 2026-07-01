@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { listModules } from "../src/core/modules/registry.js";
 import { listFrameworkViewSurfaces } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const appVersion = "0.33.5.20.3";
+const appVersion = "0.33.5.20.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const listsModule = readText("src/modules/lists/module.js");
@@ -43,7 +43,7 @@ const strictSurfaceIdsInCloseoutOrder = [
 assert.equal(packageJson.version, appVersion, "package.json should report the branch closeout version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the branch closeout version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the branch closeout version");
-assert.match(listsModule, /version:\s*"0\.33\.5\.16\.12"/, "Lists module should keep its existing declarative closeout version");
+assert.match(listsModule, /version:\s*"0\.33\.5\.20\.4"/, "Lists module should report the current batched enrichment version");
 assert.match(notesModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Notes module should track the current app version");
 assert.match(tasksModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Tasks module should track the current app version");
 assert.match(clientProjectsModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Clients/Projects module should track the current app version");

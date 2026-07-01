@@ -199,6 +199,32 @@ LIMIT 1;
   return row ? noteRowToAppValue(row) : null;
 }
 
+async function readByIds(workspaceId, noteIds = []) {
+  const ids = [...new Set((Array.isArray(noteIds) ? noteIds : [])
+    .map((noteId) => String(noteId || "").trim())
+    .filter(Boolean))];
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const params = { workspaceId };
+  const placeholders = ids.map((noteId, index) => {
+    const key = `noteId${index}`;
+    params[key] = noteId;
+    return `:${key}`;
+  });
+  const rows = await db.query(`
+SELECT ${NOTE_COLUMNS.join(", ")}
+FROM notes
+WHERE workspace_id = :workspaceId
+  AND note_id IN (${placeholders.join(", ")})
+ORDER BY updated_at DESC, title COLLATE NOCASE ASC, note_id ASC;
+`, params);
+
+  return rows.map(noteRowToAppValue);
+}
+
 async function create(workspaceId, note) {
   const noteId = note.note_id || randomUUID();
   const now = note.created_at || new Date().toISOString();
@@ -1060,6 +1086,7 @@ export const notesRepository = {
   nextRevisionNumber,
   queryList,
   readById,
+  readByIds,
   readCollectionById,
   readLinkById,
   readRevisionById,

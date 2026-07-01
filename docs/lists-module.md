@@ -1,6 +1,6 @@
 # Lists Module Developer Guide
 
-This document describes the current Lists implementation as of 0.33.5.16.12. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
+This document describes the current Lists implementation as of 0.33.5.20.4. It is a developer handoff for the first-party `lists` module, not a product Help page and not a future Workbench or Knowledge Base design.
 
 ## Module Boundaries
 
@@ -76,6 +76,8 @@ The Lists service owns index filtering, sorting, progress summaries, linked-reco
 The default Lists index is active, non-reusable working lists. Explicit service-owned filters support list status, list type, reusable lists, business client/project context, assigned list items, needed-by dates, linked records, and Tags/No Tags through the framework tag service.
 
 Deterministic sorts are service-owned. Supported ordering includes recent activity, needed-by date, incomplete/progress count, title, type, status, finalized date, and reusable/source context ordering. Permission checks happen before labels, links, tags, source context, progress summaries, or catalog suggestions are returned.
+
+As of 0.33.5.20.4, Lists index rows use the shared visible-record batch helper for enrichment. After readable rows are selected, the service batches list item progress, linked-record rows, linked target summaries, source-list context, and framework tag decoration by visible `list_id` values instead of reading those relationships once per row. Lists still owns the meaning of progress, source context, linked-record availability, and resume context; the framework helper only standardizes visible-ID batching and row grouping.
 
 ## Linked Records
 

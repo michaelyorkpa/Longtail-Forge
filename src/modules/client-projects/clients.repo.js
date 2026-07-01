@@ -85,6 +85,50 @@ LIMIT 1;
   return rows[0] ? clientRowToAppClient(rows[0]) : null;
 }
 
+async function readByIds(workspaceId, clientIds = []) {
+  const ids = [...new Set((Array.isArray(clientIds) ? clientIds : [])
+    .map((clientId) => String(clientId || "").trim())
+    .filter(Boolean))];
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  const rows = await querySql(`
+SELECT
+  id,
+  workspace_id,
+  parent_client_id,
+  name,
+  status,
+  billable,
+  billing_rate,
+  billing_period_type,
+  billing_period_start_day,
+  billing_rounding_enabled,
+  billing_rounding_increment,
+  billing_contact_name,
+  billing_contact_email,
+  billing_contact_alternate_name,
+  billing_contact_alternate_email,
+  billing_contact_phone_number,
+  billing_contact_alternate_phone_number,
+  billing_contact_street_address_1,
+  billing_contact_street_address_2,
+  billing_contact_city,
+  billing_contact_state,
+  billing_contact_zip_code,
+  created_at,
+  updated_at
+FROM clients
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND id IN (${ids.map(sqlText).join(", ")})
+ORDER BY name;
+`);
+
+  return rows.map(clientRowToAppClient);
+}
+
 async function create(workspaceId, client) {
   const now = new Date().toISOString();
   await runSql(createClientInsertSql(workspaceId, client, now));
@@ -276,6 +320,7 @@ export const clientsRepository = {
   create,
   readAll,
   readById,
+  readByIds,
   replaceAll,
   update,
 };

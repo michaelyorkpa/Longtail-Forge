@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.20.3";
+const appVersion = "0.33.5.20.4";
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-server-side-paging-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-server-side-paging.db");
@@ -83,7 +83,7 @@ function assertStaticContract() {
   assert.match(notesScript, /function renderNotes\(\)[\s\S]*const pageNotes = state\.notes \|\| \[\]/, "Notes browser should render the server-shaped page directly");
   assert.match(linkedPanelScript, /\/api\/notes\?\$\{params\.toString\(\)\}/, "Linked note picker should use the bounded Notes list query");
   assert.match(notesView, /css\/longtail-forge\.css\?v=56[\s\S]*js\/notes\.js\?v=69/, "Notes host should cache-bust list paging assets");
-  assert.match(notesDocs, /current Notes implementation as of 0\.33\.5\.20\.3/, "Notes docs should report the server-side list version");
+  assert.match(notesDocs, /current Notes implementation as of 0\.33\.5\.20\.4/, "Notes docs should report the server-side list version");
   assert.match(regressionSuite, /scripts\/notes-server-side-list-paging-regression\.mjs/, "Regression suite should include Notes server-side paging coverage");
 }
 

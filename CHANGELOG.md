@@ -1,3 +1,11 @@
+## Version 0.33.5.20.4 - 2026-07-01 05:57 -04:00
+
+- Added `src/core/list-enrichment.js` as the shared visible-record batching helper for list enrichment, with reusable ID batching, row grouping, and batch-map shaping.
+- Converted Lists index row enrichment to batch visible list item progress, linked-record rows, linked target summaries, and source-list context instead of reading those relationships once per row.
+- Threaded the shared batching helper through Tasks and Notes list enrichment while preserving their existing module-owned meaning for assignees, checklist progress, relationship summaries, linked-context visibility, secure-note shaping, and tags.
+- Added batch repository reads for Lists, linked Clients/Projects/Tasks/Notes targets, and `scripts/batched-list-enrichment-regression.mjs` query-call instrumentation, advanced package/current module metadata to 0.33.5.20.4, documented the batching boundary, and marked the 0.33.5.20.4 roadmap checklist complete.
+- Verification 2026-07-01 06:06 -04:00: passed focused batched-list/clean-clone/Lists/Tasks/Notes regression scripts, `node scripts/check-js.mjs`, `npm run check` (217/217 regression scripts plus ESLint), `npm run test:permissions` (236 checks), SQLite `PRAGMA integrity_check`, `git diff --check`, and refreshed `/api/app-info` on port 8001 returning 0.33.5.20.4.
+
 ## Version 0.33.5.20.3 - 2026-07-01 05:04 -04:00
 
 - Reworked the protected Notes list read path to use a lightweight repository projection with bounded SQL-side filters, stable sorting, maximum page size, and opaque cursor paging instead of returning full note body data for normal browsing.
