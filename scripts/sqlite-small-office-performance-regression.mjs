@@ -50,7 +50,7 @@ function assertStaticContract() {
   assert.match(sqliteDocs, /not a hosted SaaS load test/, "SQLite small-office docs should document the expected limits honestly");
   assert.match(sqliteDocs, /Workbench bootstrap is a special canary/, "SQLite small-office docs should call out Workbench bootstrap limits");
   assert.match(databaseDocs, /As of version 0\.33\.5\.20\.6/, "Database docs should mention the performance pass");
-  assert.match(roadmap, /0\.33\.5\.20\.6 - SQLite small-office performance pass[\s\S]*- \[x\] Add a repeatable SQLite small-office performance script[\s\S]*- \[x\] Workbench/, "Roadmap should mark the SQLite small-office performance route coverage complete");
+  assert.match(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "Roadmap should point the completed 0.33.5.20 branch to the archive");
   assert.match(changelog, /Version 0\.33\.5\.20\.6/, "Changelog should include the SQLite small-office performance release");
   assert.match(regressionSuite, /scripts\/sqlite-small-office-performance-regression\.mjs/, "Regression suite should include SQLite small-office performance coverage");
 }

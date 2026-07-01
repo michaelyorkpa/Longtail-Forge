@@ -77,7 +77,8 @@ assertHostScripts("views/protected/projects.html", [/view-builder\.js\?v=5/, /vi
 
 assert.match(roadmap, /Completed 0\.33\.5\.18\.15 is archived/, "Roadmap should mark the branch closeout complete");
 assert.match(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "Roadmap should archive the completed runtime/database branch");
-assert.match(roadmap, /The active roadmap continues with bounded queries and small-office scale data work\./, "Roadmap should hand off to the next branch");
+assert.match(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "Roadmap should archive the completed bounded-query branch");
+assert.match(roadmap, /The active roadmap continues with durable jobs and outbox foundation work\./, "Roadmap should hand off to the active jobs/outbox branch");
 assert.doesNotMatch(roadmap, /## Clients\/Projects Pages \(0\.33\.5\.18\.13 - 0\.33\.5\.18\.14\)/, "Live roadmap should not keep the completed Clients/Projects branch open");
 assert.doesNotMatch(roadmap, /## Version 0\.33\.5\.18\.15 - Cross-Surface Guardrails/, "Live roadmap should not keep the completed branch closeout checklist open");
 

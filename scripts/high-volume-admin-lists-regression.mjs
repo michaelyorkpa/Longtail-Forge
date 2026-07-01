@@ -96,7 +96,7 @@ function assertStaticContract() {
   assert.match(filesScript, /FILES_PAGE_SIZE = 50/, "Files browser should request bounded pages");
   assert.match(filesScript, /data-file-load-more/, "Files browser should expose a load-more control for additional pages");
 
-  assert.match(roadmap, /0\.33\.5\.20\.5 - High-volume admin lists[\s\S]*- \[x\] Audit log[\s\S]*- \[x\] Notifications[\s\S]*- \[x\] Search results[\s\S]*- \[x\] Files browse/, "Roadmap should mark high-volume admin list surfaces complete");
+  assert.match(roadmap, /Completed 0\.33\.5\.20 bounded queries and small-office scale data work is archived/, "Roadmap should point the completed 0.33.5.20 branch to the archive");
   assert.match(changelog, /Version 0\.33\.5\.20\.5/, "Changelog should include the high-volume admin lists release");
   assert.match(regressionSuite, /scripts\/high-volume-admin-lists-regression\.mjs/, "Regression suite should include high-volume admin list coverage");
 }

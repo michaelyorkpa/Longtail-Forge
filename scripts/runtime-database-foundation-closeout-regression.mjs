@@ -32,8 +32,13 @@ assert.doesNotMatch(
 );
 assert.match(
   roadmap,
-  /## Version 0\.33\.5\.20 - Bounded Queries and Small-Office Scale Data[\s\S]*Entry contract from 0\.33\.5\.19:[\s\S]*database health\/capability information[\s\S]*without requiring PostgreSQL/,
-  "0.33.5.20 should inherit the database health and capability boundary",
+  new RegExp(`Completed 0\\.33\\.5\\.20 bounded queries and small-office scale data work is archived in \`${archiveFileNamePattern}\``),
+  "roadmap should point the completed bounded-query branch to the archive",
+);
+assert.doesNotMatch(
+  roadmap,
+  /^## Version 0\.33\.5\.20 - Bounded Queries and Small-Office Scale Data/m,
+  "live roadmap should not keep the completed bounded-query branch open",
 );
 assert.match(
   roadmap,

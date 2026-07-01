@@ -1,10 +1,10 @@
-# Longtail Forge Roadmap
+﻿# Longtail Forge Roadmap
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
 ## Archived Roadmap History
 
-Completed 0.33.5.17, 0.33.5.18, and 0.33.5.19 work is archived in `ROADMAP-ARCHIVE.md`.
+Completed 0.33.5.17, 0.33.5.18, 0.33.5.19, and 0.33.5.20 work is archived in `ROADMAP-ARCHIVE.md`.
 
 Completed 0.33.5.18.6.1 through 0.33.5.18.6.11 are archived.
 Completed 0.33.5.18.11.1 through 0.33.5.18.11.13 are archived.
@@ -17,176 +17,9 @@ Completed 0.33.5.18.14.4 is archived.
 Completed 0.33.5.18.14.5 is archived.
 Completed 0.33.5.18.15 is archived.
 Completed 0.33.5.19 runtime configuration and SQLite small-office foundation work is archived in `ROADMAP-ARCHIVE.md`.
+Completed 0.33.5.20 bounded queries and small-office scale data work is archived in `ROADMAP-ARCHIVE.md`.
 
-The active roadmap continues with bounded queries and small-office scale data work.
-
-## Version 0.33.5.20 - Bounded Queries and Small-Office Scale Data
-
-Purpose:
-
-Move high-volume list surfaces away from load-everything-then-filter-in-JavaScript behavior. Preserve the current user experience while making SQLite small-office mode and future PostgreSQL SaaS mode more predictable under larger datasets.
-
-Entry contract from 0.33.5.19: consume provider-neutral database health/capability information and any safe query-diagnostic hooks from the runtime/database foundation without requiring PostgreSQL.
-
-### Version 0.33.5.20.1 - Scale seed framework
-
-- [x] Add `scripts/seed-scale.mjs`.
-- [x] Add seed profiles:
-  - [x] `dev-demo`
-  - [x] `sqlite-small-office-50`
-  - [x] `sqlite-heavy-workspace`
-  - [x] `future-saas-postgres-mixed`
-- [x] Ensure seed scripts require an explicit database path/provider.
-- [x] Refuse to run against a database that is not clearly marked as disposable or test-only.
-- [x] Generate realistic data:
-  - [x] Workspaces.
-  - [x] Users.
-  - [x] Role assignments.
-  - [x] Clients.
-  - [x] Projects.
-  - [x] Tasks.
-  - [x] Notes.
-  - [x] Lists/list items.
-  - [x] Tags.
-  - [x] Notifications.
-  - [x] Audit logs.
-  - [x] File metadata.
-- [x] Add verification:
-  - [x] Expected counts.
-  - [x] Permission sanity.
-  - [x] Search sanity.
-  - [x] App startup sanity.
-
-SQLite small-office seed target:
-
-- 1 workspace.
-- 50 users.
-- 25-100 clients.
-- 250-1,000 projects.
-- 10,000-50,000 tasks.
-- 10,000-25,000 notes.
-- 25,000-100,000 time entries.
-- 5,000-20,000 list items.
-- 2,000-10,000 file metadata rows.
-- 100,000+ audit rows.
-
-Acceptance criteria:
-
-- A developer can seed a disposable SQLite database and test realistic small-office load.
-
-### Version 0.33.5.20.2 - Tasks server-side filtering and paging
-
-- [x] Replace full-workspace task list reads for normal list views with bounded server-side queries.
-- [x] Move task view filters into SQL where practical:
-  - [x] My Tasks.
-  - [x] All.
-  - [x] Unassigned.
-  - [x] Overdue.
-  - [x] Due Today.
-  - [x] Due This Week.
-  - [x] Completed.
-  - [x] Archived.
-- [x] Add page/cursor support.
-- [x] Add maximum page size.
-- [x] Keep permission checks authoritative.
-- [x] Add list projection separate from full task detail read.
-- [x] Add regressions proving:
-  - [x] Task views return correct rows.
-  - [x] Paging is stable.
-  - [x] Permissions still apply.
-  - [x] Large seeded task sets do not require loading the entire workspace task table.
-
-Acceptance criteria:
-
-- Tasks list behavior is unchanged for users.
-- Server no longer loads all workspace tasks for normal list views.
-
-### Version 0.33.5.20.3 - Notes list projection and server-side paging
-
-- [x] Add a lightweight Notes list endpoint/projection.
-- [x] Do not return full note body HTML in normal list responses.
-- [x] Add server-side paging/cursor support.
-- [x] Add server-side filters for:
-  - [x] Status.
-  - [x] Library bucket.
-  - [x] Collection.
-  - [x] Owner.
-  - [x] Visibility.
-  - [x] Security mode.
-  - [x] Updated since.
-- [x] Keep full body rendering on note detail/read endpoints.
-- [x] Preserve secure-note access behavior.
-- [x] Add regressions proving:
-  - [x] Notes list is lightweight.
-  - [x] Detail read still returns full safe rendered body where allowed.
-  - [x] Secure notes do not leak body content.
-  - [x] Paging and collection filters behave correctly.
-
-Acceptance criteria:
-
-- Notes list browsing scales better in SQLite and future PostgreSQL.
-- Note reading/editing UX remains unchanged.
-
-### Version 0.33.5.20.4 - Batched list enrichment
-
-- [x] Add shared helper/service pattern for batching related list metadata by visible record IDs.
-- [x] Batch where practical:
-  - [x] Tags for visible tasks/notes/lists through the existing multi-record tag service path; Files tags remain deferred because Files is not a taggable record type.
-  - [x] File counts stay out of this slice until a visible list-row file-count field exists.
-  - [x] Linked-note/linked-record counts and rows use existing Tasks/Notes batching and new Lists linked-record batching where visible.
-  - [x] Checklist/list progress uses existing Tasks checklist batching and new Lists item-progress batching.
-  - [x] Assignee labels remain batched through the Tasks repository list read.
-  - [x] Notification/subscription state remains on shipped module/modal surfaces; no new list-row field was introduced.
-- [x] Avoid one-query-per-row list enrichment.
-- [x] Add query-count regressions or instrumentation for representative list surfaces.
-- [x] Preserve module ownership:
-  - [x] Modules own meaning.
-  - [x] Framework may own batching helper shape.
-
-Acceptance criteria:
-
-- List pages enrich visible rows with a small, bounded number of queries.
-- Large workspaces do not produce query explosions.
-
-### Version 0.33.5.20.5 - High-volume admin lists
-
-- [x] Add bounded paging/filtering to high-volume framework/admin surfaces:
-  - [x] Audit log.
-  - [x] Notifications.
-  - [x] Search results.
-  - [x] Files browse.
-- [x] Ensure each endpoint has:
-  - [x] Maximum page size.
-  - [x] Stable sort.
-  - [x] Permission filtering.
-  - [x] Clear empty/loading/error states.
-- [x] Add regressions using scale seed data.
-
-Acceptance criteria:
-
-- Admin/history surfaces remain usable with large SQLite small-office datasets.
-
-### Version 0.33.5.20.6 - SQLite small-office performance pass
-
-- [x] Add a repeatable SQLite small-office performance script.
-- [x] Test representative routes:
-  - [x] App shell bootstrap.
-  - [x] Tasks list.
-  - [x] Task detail.
-  - [x] Notes list.
-  - [x] Note detail.
-  - [x] Files browse.
-  - [x] Search.
-  - [x] Notifications.
-  - [x] Workbench.
-- [x] Record timing targets for local development hardware.
-- [x] Add performance notes to SQLite small-office docs.
-- [x] Document expected limits honestly.
-
-Acceptance criteria:
-
-- SQLite support target is validated with seeded data.
-- Regressions or docs make it clear when behavior exceeds SQLite small-office assumptions.
+The active roadmap continues with durable jobs and outbox foundation work.
 
 ## Version 0.33.5.21 - Durable Jobs and Outbox Foundation
 
@@ -528,8 +361,6 @@ Acceptance criteria:
 Acceptance criteria:
 
 - The SaaS backend has an evidence-based baseline.
-
-
 
 ## Version 0.33.6 - Reporting Framework and Time Report Contribution
 
