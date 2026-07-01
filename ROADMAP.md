@@ -168,20 +168,20 @@ Acceptance criteria:
 
 ### Version 0.33.5.20.6 - SQLite small-office performance pass
 
-- [ ] Add a repeatable SQLite small-office performance script.
-- [ ] Test representative routes:
-  - [ ] App shell bootstrap.
-  - [ ] Tasks list.
-  - [ ] Task detail.
-  - [ ] Notes list.
-  - [ ] Note detail.
-  - [ ] Files browse.
-  - [ ] Search.
-  - [ ] Notifications.
-  - [ ] Workbench.
-- [ ] Record timing targets for local development hardware.
-- [ ] Add performance notes to SQLite small-office docs.
-- [ ] Document expected limits honestly.
+- [x] Add a repeatable SQLite small-office performance script.
+- [x] Test representative routes:
+  - [x] App shell bootstrap.
+  - [x] Tasks list.
+  - [x] Task detail.
+  - [x] Notes list.
+  - [x] Note detail.
+  - [x] Files browse.
+  - [x] Search.
+  - [x] Notifications.
+  - [x] Workbench.
+- [x] Record timing targets for local development hardware.
+- [x] Add performance notes to SQLite small-office docs.
+- [x] Document expected limits honestly.
 
 Acceptance criteria:
 

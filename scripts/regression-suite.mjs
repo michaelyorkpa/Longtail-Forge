@@ -72,6 +72,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/lists-workflow-linked-layout-regression.mjs",
   "scripts/batched-list-enrichment-regression.mjs",
   "scripts/high-volume-admin-lists-regression.mjs",
+  "scripts/sqlite-small-office-performance-regression.mjs",
   "scripts/notes-declarative-readonly-surface-regression.mjs",
   "scripts/notes-slideout-closeout-regression.mjs",
   "scripts/notes-server-side-list-paging-regression.mjs",

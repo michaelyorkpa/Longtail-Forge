@@ -33,6 +33,34 @@ Available profiles:
 
 Each successful run verifies expected counts, permission sanity, search sanity, and app startup sanity. The script writes realistic workspace, user, role-assignment, client, project, task, note, list/item, tag, notification, audit-log, file metadata, time-entry, attachment, and search-index rows. Seeded workspaces keep audit logging enabled with 365-day retention so the audit-log fixture remains available for route and performance checks. It is for disposable development and performance testing only; do not run it against production or real local data.
 
+## Performance Checks
+
+As of 0.33.5.20.6, developers can run a repeatable SQLite small-office route pass with:
+
+```sh
+node scripts/sqlite-small-office-performance.mjs --profile sqlite-small-office-50 --provider sqlite
+```
+
+The script creates a disposable scale seed database, starts the app on a local ephemeral port, signs in seeded users, warms each route once, then records repeated GET timings for App shell bootstrap, Tasks list, Task detail, Notes list, Note detail, Files browse, Search, Notifications, and Workbench bootstrap. Use `--json` for machine-readable output, `--iterations` and `--warmups` to tune the sample count, `--profile dev-demo` for a fast smoke run, and `--fail-on-warn` when a local gate should fail if a route exceeds its warning threshold.
+
+Local development hardware sanity targets:
+
+| Route | Target | Warning |
+| --- | ---: | ---: |
+| App shell bootstrap | 750ms | 1500ms |
+| Tasks list | 900ms | 1800ms |
+| Task detail | 450ms | 900ms |
+| Notes list | 900ms | 1800ms |
+| Note detail | 450ms | 900ms |
+| Files browse | 1200ms | 2400ms |
+| Search | 1200ms | 2400ms |
+| Notifications | 750ms | 1500ms |
+| Workbench bootstrap | 1000ms | 2000ms |
+
+These targets are local development sanity checks, not a hosted SaaS load test, not a concurrency benchmark, and not an SLA. Hardware, antivirus, synced-folder behavior, and other local I/O noise can move individual timings. Treat repeated warning-threshold misses on the `sqlite-small-office-50` profile as a signal to inspect query shape, missing indexes, unbounded reads, or whether the deployment has outgrown SQLite small-office assumptions.
+
+Workbench bootstrap is a special canary because it is a live start/resume surface, not a bulk task browser. Repeated Workbench warning misses usually mean the workspace is trying to push too many active work items through one bootstrap payload. Do not treat that as proof SQLite small-office mode supports loading every active task into Workbench; use the Tasks list for broad review, or add a bounded Workbench fetch/filter workflow before supporting that shape.
+
 ## Unsupported Shapes
 
 Do not run SQLite small-office mode with:

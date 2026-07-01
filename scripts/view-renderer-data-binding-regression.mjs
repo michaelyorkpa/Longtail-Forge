@@ -9,9 +9,9 @@ const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.20.5", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.20.5", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.20.5", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.20.6", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.20.6", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.20.6", "package-lock package entry should report the current app version");
 
 assert.match(renderer, /api\.getJson\(route, \{ cache: "no-store" \}\)/, "Renderer should fetch dataSource routes through shared api-client");
 assert.match(renderer, /appendFilterQuery\(descriptor\.dataSource\.route/, "Renderer should derive the fetch route from the descriptor dataSource route");

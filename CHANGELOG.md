@@ -1,3 +1,10 @@
+## Version 0.33.5.20.6 - 2026-07-01 09:12 -04:00
+
+- Added `scripts/sqlite-small-office-performance.mjs`, a repeatable seeded SQLite route timing harness for App shell bootstrap, Tasks list/detail, Notes list/detail, Files browse, Search, Notifications, and Workbench bootstrap.
+- Recorded local development hardware sanity targets for the `sqlite-small-office-50` profile, kept `dev-demo` available for fast smoke checks, and documented that the script is not a hosted SaaS load test, concurrency benchmark, or SLA.
+- Added `scripts/sqlite-small-office-performance-regression.mjs` to smoke the seeded route coverage and guard the performance-docs contract, refreshed decisions/docs/current module metadata, and marked the 0.33.5.20.6 roadmap checklist complete.
+- Verification 2026-07-01 09:20 -04:00: SQLite small-office performance regression, dev-demo performance smoke, one-sample `sqlite-small-office-50` performance run, high-volume admin lists, batched list enrichment, Tasks/Notes server-side paging, clean-clone, and check-js targeted checks passed; the 50-user run returned HTTP 200 for all representative routes, with Workbench documented as the current warning-threshold canary; `npm run check` passed 219/219 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after LF/CRLF warnings; and `/api/app-info` returned 0.33.5.20.6 after restarting the local 8001 server.
+
 ## Version 0.33.5.20.5 - 2026-07-01 08:13 -04:00
 
 - Added `src/core/bounded-pagination.js` as the shared framework helper for max-page clamping, opaque offset cursors, and consistent pagination envelopes on high-volume framework/admin reads.
