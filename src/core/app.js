@@ -15,6 +15,7 @@ import { publicApiRoutes } from "../routes/public-api.routes.js";
 import { notificationsRoutes } from "../routes/notifications.routes.js";
 import { permissionsRoutes } from "../routes/permissions.routes.js";
 import { reportingRoutes } from "../routes/reporting.routes.js";
+import { runtimeDiagnosticsRoutes } from "../routes/runtime-diagnostics.routes.js";
 import { searchIndexRoutes } from "../routes/search-index.routes.js";
 import { searchRoutes } from "../routes/search.routes.js";
 import { settingsRoutes } from "../routes/settings.routes.js";
@@ -50,6 +51,7 @@ function createApp() {
   app.use("/api", notificationsRoutes);
   app.use("/api", permissionsRoutes);
   app.use("/api", reportingRoutes);
+  app.use("/api", runtimeDiagnosticsRoutes);
   app.use("/api", searchIndexRoutes);
   app.use("/api", searchRoutes);
   app.use("/api", settingsRoutes);

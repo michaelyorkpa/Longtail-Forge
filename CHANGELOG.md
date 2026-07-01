@@ -1,3 +1,10 @@
+## Version 0.33.5.19.7 - 2026-06-30 19:14 -04:00
+
+- Added a framework-owned runtime diagnostics service that returns a safe read-only model for app version, runtime environment, database provider/health, SQLite status, redacted path locations, storage provider, scanner mode, worker mode, and configuration warnings.
+- Added protected `GET /api/runtime-diagnostics`, requiring `workspace_settings.manage` and returning `Cache-Control: no-store` without exposing raw environment variables, storage roots/keys, scanner internals, signed URLs, protected paths, or secure-note key material.
+- Added `scripts/runtime-diagnostics-route-regression.mjs`, wired it into `npm run check`, documented the diagnostics route and safety boundary, advanced package/current module metadata to 0.33.5.19.7, and marked the 0.33.5.19.7 roadmap checklist complete.
+- Verification 2026-06-30 19:21 -04:00: runtime diagnostics route, clean-clone contract, runtime configuration contract, database adapter contract, parameterized query pilot, transaction helper, migration locking, and check-js targeted checks passed; `npm run check` passed 211/211 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.19.7 after restarting the local 8001 server.
+
 ## Version 0.33.5.19.6 - 2026-06-30 18:42 -04:00
 
 - Added SQLite migration locking with a process-owned `.longtail-forge-migrations.lock` file beside the configured database file, acquired before fresh-baseline adoption, schema repairs, checksum validation, and future migration files.

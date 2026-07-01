@@ -340,24 +340,24 @@ Acceptance criteria:
 
 ### Version 0.33.5.19.7 - Runtime diagnostics service and protected admin route
 
-- [ ] Add a safe runtime diagnostics read model.
-- [ ] Add a protected admin/browser route for diagnostics, requiring `workspace_settings.manage`.
-- [ ] Include safe diagnostics:
-  - [ ] App version.
-  - [ ] Runtime environment.
-  - [ ] Database provider.
-  - [ ] Database health status.
-  - [ ] SQLite journal mode.
-  - [ ] SQLite foreign-key status.
-  - [ ] SQLite busy timeout.
-  - [ ] Safe database file location, redacted or data-root-relative where needed.
-  - [ ] Safe data directory location, redacted or app-root-relative where needed.
-  - [ ] Storage provider.
-  - [ ] Scanner mode.
-  - [ ] Worker mode.
-  - [ ] Configuration warnings.
-- [ ] Do not expose secrets, storage keys, signed URLs, protected file paths, scanner internals, or raw secure-note key material.
-- [ ] Add regression coverage for permission checks and safe redaction.
+- [x] Add a safe runtime diagnostics read model.
+- [x] Add a protected admin/browser route for diagnostics, requiring `workspace_settings.manage`.
+- [x] Include safe diagnostics:
+  - [x] App version.
+  - [x] Runtime environment.
+  - [x] Database provider.
+  - [x] Database health status.
+  - [x] SQLite journal mode.
+  - [x] SQLite foreign-key status.
+  - [x] SQLite busy timeout.
+  - [x] Safe database file location, redacted or data-root-relative where needed.
+  - [x] Safe data directory location, redacted or app-root-relative where needed.
+  - [x] Storage provider.
+  - [x] Scanner mode.
+  - [x] Worker mode.
+  - [x] Configuration warnings.
+- [x] Do not expose secrets, storage keys, signed URLs, protected file paths, scanner internals, or raw secure-note key material.
+- [x] Add regression coverage for permission checks and safe redaction.
 
 Acceptance criteria:
 

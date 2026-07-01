@@ -11,9 +11,9 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.19.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.19.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.19.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.19.7", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.19.7", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.19.7", "package-lock package entry should report the current app version");
 
 // Protected view is now a minimal framework host; as of .18.4 the dialogs are framework-built too.
 assert.match(html, /<main class="wide-page notes-page" data-notes-host><\/main>/, "Notes view should be a minimal framework host");

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.19.6";
+const appVersion = "0.33.5.19.7";
 
 const builder = readText("public/js/shared/view-builder.js");
 const renderer = readText("public/js/shared/view-renderer.js");
