@@ -889,7 +889,7 @@ async function runTimeEntryMutationTests(api, fixtures) {
   });
   const reporting = await expectStatus(
     "reporting reflects workspace admin time entry correction",
-    api.get(`/api/reporting/project-summary?scopeId=${encodeURIComponent(fixtures.clients.alpha.id)}&projectIds=${encodeURIComponent(fixtures.projects.alpha.id)}`, { cookie: fixtures.sessions.workspaceAdmin }),
+    api.get(`/api/reporting/project-summary?period=custom&scopeId=${encodeURIComponent(fixtures.clients.alpha.id)}&projectIds=${encodeURIComponent(fixtures.projects.alpha.id)}&startDate=2026-06-01&endDate=2026-06-30`, { cookie: fixtures.sessions.workspaceAdmin }),
     200,
   );
   check("reporting summary includes corrected raw duration", () => {

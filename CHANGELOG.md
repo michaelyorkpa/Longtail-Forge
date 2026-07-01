@@ -1,3 +1,10 @@
+## Version 0.33.5.19.8 - 2026-07-01 00:21 -04:00
+
+- Added `docs/sqlite-small-office-mode.md`, documenting the supported self-hosted SQLite shape, unsupported multi-server/shared-file shapes, backup expectations, optional scanner expectations, and memory/disk guidance.
+- Added a compact read-only Runtime Diagnostics panel to Workspace Settings that consumes `GET /api/runtime-diagnostics` and shows the safe database provider, SQLite journal mode, foreign-key status, database file location, data directory location, storage provider, scanner mode, and support-warning copy.
+- Added `scripts/sqlite-small-office-readout-regression.mjs`, wired it into `npm run check`, documented the readout handoff, advanced package/current module metadata to 0.33.5.19.8, and marked the 0.33.5.19.8 roadmap checklist complete.
+- Verification 2026-07-01 00:27 -04:00: SQLite small-office readout, runtime diagnostics route, runtime configuration contract, database adapter contract, parameterized query pilot, transaction helper, migration locking, SQLite connection hardening, UI contract, and check-js targeted checks passed; `npm run check` passed 212/212 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks after pinning the permission regression reporting fixture to a custom date window; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.19.8 after restarting the local 8001 server.
+
 ## Version 0.33.5.19.7 - 2026-06-30 19:14 -04:00
 
 - Added a framework-owned runtime diagnostics service that returns a safe read-only model for app version, runtime environment, database provider/health, SQLite status, redacted path locations, storage provider, scanner mode, worker mode, and configuration warnings.

@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.19.7";
+const appVersion = "0.33.5.19.8";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
@@ -88,7 +88,7 @@ for (const futureKey of [
 assert.match(gitignore, /^\.env$/m, "real .env files should remain ignored");
 assert.match(runtimeDocs, /Current Active Settings/, "runtime docs should separate active settings");
 assert.match(runtimeDocs, /Reserved Settings/, "runtime docs should document future-only settings");
-assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.7/, "runtime docs should keep SQLite as the only implemented provider");
+assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.8/, "runtime docs should keep SQLite as the only implemented provider");
 assert.match(runtimeDocs, /`LONGTAIL_SQLITE_FOREIGN_KEYS`[\s\S]*Must stay enabled/, "runtime docs should document SQLite foreign-key enforcement");
 assert.match(runtimeDocs, /`LONGTAIL_SQLITE_JOURNAL_MODE`[\s\S]*WAL is the default/, "runtime docs should document SQLite WAL mode");
 assert.match(runtimeDocs, /`LONGTAIL_SQLITE_BUSY_TIMEOUT_MS`[\s\S]*busy timeout/, "runtime docs should document SQLite busy timeout");

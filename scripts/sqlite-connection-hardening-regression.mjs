@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.19.7";
+const appVersion = "0.33.5.19.8";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-sqlite-hardening-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-sqlite-hardening.db");
 process.env.LONGTAIL_SQLITE_BUSY_TIMEOUT_MS = "2500";

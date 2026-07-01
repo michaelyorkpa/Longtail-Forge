@@ -2973,6 +2973,43 @@ a.search-result-title:hover {
     font-size: 13px;
 }
 
+.runtime-diagnostics-readout {
+    align-self: start;
+}
+
+.runtime-diagnostics-grid {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.runtime-diagnostics-item strong {
+    overflow-wrap: anywhere;
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+.runtime-diagnostics-warnings {
+    display: grid;
+    gap: 8px;
+}
+
+.runtime-diagnostics-warning,
+.runtime-diagnostics-note {
+    margin: 0;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-page-bg);
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.runtime-diagnostics-warning {
+    border-color: var(--color-border-strong);
+    background: var(--color-surface-inset);
+    color: var(--color-text);
+}
+
 .workspace-create-module-settings {
     display: grid;
     gap: 12px;

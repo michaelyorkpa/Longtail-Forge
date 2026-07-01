@@ -2,7 +2,7 @@
 
 Longtail Forge reads install and startup configuration from environment variables. At app startup, `server.js` loads a local root `.env` file when present, then `src/config.js` normalizes the resulting environment. A real `.env` file is local runtime state and must not be committed; use `.env.example` as the documented contract.
 
-As of 0.33.5.19.7, this contract records both active settings and future reserved settings. Reserved settings are documented so later runtime, jobs, storage, scanner, and PostgreSQL slices can build on stable names. They do not change behavior until the roadmap slice that owns that behavior wires them.
+As of 0.33.5.19.8, this contract records both active settings and future reserved settings. Reserved settings are documented so later runtime, jobs, storage, scanner, and PostgreSQL slices can build on stable names. They do not change behavior until the roadmap slice that owns that behavior wires them.
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
 
@@ -27,7 +27,7 @@ Process environment values win over `.env` values. This lets shells, service man
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `LONGTAIL_DATABASE_PROVIDER` | `sqlite` | SQLite is the only implemented provider in 0.33.5.19.7. Unsupported values fail clearly at startup. |
+| `LONGTAIL_DATABASE_PROVIDER` | `sqlite` | SQLite is the only implemented provider in 0.33.5.19.8. Unsupported values fail clearly at startup. |
 
 ### SQLite
 
@@ -111,13 +111,15 @@ Startup fails clearly when active settings are invalid:
 
 The local `.env` loader accepts blank lines, full-line comments, `KEY=VALUE` entries, optional `export KEY=VALUE` entries, unquoted values with trailing comments, and basic single- or double-quoted values. Malformed lines fail clearly before app config is created.
 
-Startup may warn without failing when optional but recommended production settings are absent. In 0.33.5.19.7, production mode warns when `LONGTAIL_PUBLIC_URL` is missing.
+Startup may warn without failing when optional but recommended production settings are absent. In 0.33.5.19.8, production mode warns when `LONGTAIL_PUBLIC_URL` is missing.
 
 ## Runtime Diagnostics
 
 `GET /api/runtime-diagnostics` returns the safe runtime diagnostics read model for authenticated users with `workspace_settings.manage` in the active workspace. The route is diagnostic only; it does not edit runtime configuration or expose raw environment variables.
 
 The response includes app version, runtime environment, database provider, database health status, SQLite journal mode, SQLite foreign-key status, SQLite busy timeout, safe database file location, safe data directory location, storage provider, scanner mode, worker mode, and configuration warnings. Paths are app-root or data-root relative when possible; locations outside the app root are redacted to a basename.
+
+Workspace Settings includes a compact read-only Runtime Diagnostics panel that consumes this route for admins. SQLite small-office deployment assumptions are documented in [sqlite-small-office-mode.md](sqlite-small-office-mode.md).
 
 Runtime diagnostics must not include secrets, storage keys, signed URLs, protected paths, scanner internals, secure-note key material, raw `.env` contents, `DATABASE_URL`, secure-note master keys, scanner host/path settings, or local storage roots.
 

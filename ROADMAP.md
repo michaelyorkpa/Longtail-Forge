@@ -366,24 +366,24 @@ Acceptance criteria:
 
 ### Version 0.33.5.19.8 - SQLite small-office documentation and admin readout
 
-- [ ] Add `docs/sqlite-small-office-mode.md`.
-- [ ] Document supported SQLite deployment assumptions:
-  - [ ] One app process/server.
-  - [ ] Local or attached disk.
-  - [ ] No shared SQLite database across multiple app servers.
-  - [ ] Backup expectations.
-  - [ ] Optional scanner expectations.
-  - [ ] Recommended memory/disk guidance.
-- [ ] Add a compact admin-readable diagnostics readout using the route from 0.33.5.19.7 on the existing Workspace Settings or admin settings surface rather than a new dashboard.
-- [ ] Include:
-  - [ ] Database provider.
-  - [ ] SQLite journal mode.
-  - [ ] Foreign keys enabled.
-  - [ ] Safe database file location, redacted or data-root-relative where needed.
-  - [ ] Safe data directory location, redacted or app-root-relative where needed.
-  - [ ] Storage provider.
-  - [ ] Scanner mode.
-- [ ] Add warning copy for configurations outside SQLite support bounds.
+- [x] Add `docs/sqlite-small-office-mode.md`.
+- [x] Document supported SQLite deployment assumptions:
+  - [x] One app process/server.
+  - [x] Local or attached disk.
+  - [x] No shared SQLite database across multiple app servers.
+  - [x] Backup expectations.
+  - [x] Optional scanner expectations.
+  - [x] Recommended memory/disk guidance.
+- [x] Add a compact admin-readable diagnostics readout using the route from 0.33.5.19.7 on the existing Workspace Settings or admin settings surface rather than a new dashboard.
+- [x] Include:
+  - [x] Database provider.
+  - [x] SQLite journal mode.
+  - [x] Foreign keys enabled.
+  - [x] Safe database file location, redacted or data-root-relative where needed.
+  - [x] Safe data directory location, redacted or app-root-relative where needed.
+  - [x] Storage provider.
+  - [x] Scanner mode.
+- [x] Add warning copy for configurations outside SQLite support bounds.
 
 Acceptance criteria:
 

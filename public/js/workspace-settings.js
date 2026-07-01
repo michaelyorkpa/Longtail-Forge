@@ -28,6 +28,8 @@ const workspaceUsersList = document.querySelector("[data-workspace-users-list]")
 const closeWorkspaceUsersButton = document.querySelector("[data-close-workspace-users]");
 const workspaceSettingsStatus = document.querySelector("[data-workspace-settings-status]");
 const saveSettingsButton = document.querySelector("[data-save-settings]");
+const runtimeDiagnosticsSummary = document.querySelector("[data-runtime-diagnostics-summary]");
+const runtimeDiagnosticsWarnings = document.querySelector("[data-runtime-diagnostics-warnings]");
 let activeWorkspaceId = "";
 let currentTaskReminderDefaults = normalizeReminderPolicy();
 
@@ -35,6 +37,7 @@ populateFiscalYearStartMonths();
 populateFiscalYearStartDays();
 populateBillingPeriodStartDays();
 loadSettingsForm();
+loadRuntimeDiagnostics();
 
 fiscalYearStartMonthSelect.addEventListener("change", () => {
   populateFiscalYearStartDays(fiscalYearStartDaySelect.value);
@@ -77,6 +80,21 @@ async function loadSettingsForm() {
   } catch (error) {
     handleApiError(error, "Workspace settings could not be loaded.");
     console.error(error);
+  }
+}
+
+async function loadRuntimeDiagnostics() {
+  if (!runtimeDiagnosticsSummary) {
+    return;
+  }
+
+  renderRuntimeDiagnosticsLoading();
+
+  try {
+    const result = await window.LongtailForge.api.getJson("/api/runtime-diagnostics", { cache: "no-store" });
+    renderRuntimeDiagnostics(result.diagnostics || {});
+  } catch (error) {
+    renderRuntimeDiagnosticsError(error);
   }
 }
 
@@ -176,6 +194,133 @@ function renderModuleSettings(settings) {
     settings.moduleSettings || [],
     { emptyText: "No configurable modules are available for this workspace.", settings },
   );
+}
+
+function renderRuntimeDiagnosticsLoading() {
+  runtimeDiagnosticsSummary.replaceChildren(createRuntimeDiagnosticItem("Runtime", "Loading..."));
+  renderRuntimeDiagnosticWarnings([]);
+}
+
+function renderRuntimeDiagnosticsError(error) {
+  runtimeDiagnosticsSummary.replaceChildren(createRuntimeDiagnosticItem("Runtime", "Unavailable"));
+
+  const message = error?.status === 403
+    ? "Runtime diagnostics require workspace settings access."
+    : error?.message || "Runtime diagnostics could not be loaded.";
+  renderRuntimeDiagnosticWarnings([message]);
+}
+
+function renderRuntimeDiagnostics(diagnostics) {
+  const database = diagnostics.database || {};
+  const sqlite = database.sqlite || {};
+  const data = diagnostics.data || {};
+  const storage = diagnostics.storage || {};
+  const scanner = diagnostics.scanner || {};
+
+  runtimeDiagnosticsSummary.replaceChildren(
+    createRuntimeDiagnosticItem("Database Provider", formatRuntimeValue(database.provider)),
+    createRuntimeDiagnosticItem("SQLite Journal", formatRuntimeValue(sqlite.journalMode)),
+    createRuntimeDiagnosticItem("Foreign Keys", sqlite.foreignKeysEnabled ? "Enabled" : "Disabled"),
+    createRuntimeDiagnosticItem("Database File", formatRuntimeLocation(database.fileLocation)),
+    createRuntimeDiagnosticItem("Data Directory", formatRuntimeLocation(data.directoryLocation)),
+    createRuntimeDiagnosticItem("Storage Provider", formatRuntimeValue(storage.provider)),
+    createRuntimeDiagnosticItem("Scanner Mode", formatRuntimeValue(scanner.mode)),
+  );
+  renderRuntimeDiagnosticWarnings(readRuntimeDiagnosticWarnings(diagnostics));
+}
+
+function createRuntimeDiagnosticItem(label, value) {
+  const item = document.createElement("div");
+  const labelElement = document.createElement("span");
+  const valueElement = document.createElement("strong");
+
+  item.className = "settings-summary-item runtime-diagnostics-item";
+  labelElement.textContent = label;
+  valueElement.textContent = value || "Unavailable";
+  item.append(labelElement, valueElement);
+  return item;
+}
+
+function readRuntimeDiagnosticWarnings(diagnostics) {
+  const warnings = [];
+  const database = diagnostics.database || {};
+  const storage = diagnostics.storage || {};
+  const scanner = diagnostics.scanner || {};
+  const worker = diagnostics.worker || {};
+  const runtimeWarnings = Array.isArray(diagnostics.runtime?.configurationWarnings)
+    ? diagnostics.runtime.configurationWarnings
+    : [];
+
+  if (database.provider && database.provider !== "sqlite") {
+    warnings.push("This database provider is outside SQLite small-office mode.");
+  }
+
+  if (storage.provider && storage.provider !== "local") {
+    warnings.push("Review this storage provider before relying on SQLite small-office mode.");
+  }
+
+  if (scanner.mode && !["none", "local"].includes(scanner.mode)) {
+    warnings.push("Review this scanner mode before relying on SQLite small-office mode.");
+  }
+
+  if (worker.mode && !["inline", "local"].includes(worker.mode)) {
+    warnings.push("Review this worker mode before relying on SQLite small-office mode.");
+  }
+
+  if (database.fileLocation?.relativeTo === "outside-app-root" || diagnostics.data?.directoryLocation?.relativeTo === "outside-app-root") {
+    warnings.push("Confirm redacted runtime paths are on local or attached storage.");
+  }
+
+  return [...runtimeWarnings, ...warnings];
+}
+
+function renderRuntimeDiagnosticWarnings(warnings) {
+  if (!runtimeDiagnosticsWarnings) {
+    return;
+  }
+
+  runtimeDiagnosticsWarnings.replaceChildren();
+
+  if (warnings.length === 0) {
+    const message = document.createElement("p");
+    message.className = "runtime-diagnostics-note";
+    message.textContent = "No runtime support warnings.";
+    runtimeDiagnosticsWarnings.appendChild(message);
+    return;
+  }
+
+  for (const warning of warnings) {
+    const message = document.createElement("p");
+    message.className = "runtime-diagnostics-warning";
+    message.textContent = warning;
+    runtimeDiagnosticsWarnings.appendChild(message);
+  }
+}
+
+function formatRuntimeLocation(location) {
+  return String(location?.display || "").trim() || "Unavailable";
+}
+
+function formatRuntimeValue(value) {
+  const normalized = String(value || "").trim();
+
+  if (!normalized) {
+    return "Unavailable";
+  }
+
+  if (normalized.toLowerCase() === "sqlite") {
+    return "SQLite";
+  }
+
+  if (normalized.toLowerCase() === "wal") {
+    return "WAL";
+  }
+
+  return normalized
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function normalizeModuleSettings(moduleSettings, settings) {
