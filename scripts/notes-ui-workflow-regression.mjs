@@ -34,7 +34,7 @@ try {
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.5.20.2");
+  assert.equal(notesModule.version, "0.33.5.20.3");
   assert.ok(notesModule.navigation.some((item) => item.href === "notes.html" && item.parent === "projects.html"));
   assert.ok(notesModule.protectedViews.some((view) => view.file === "notes.html" && view.allowDisabledRead === true));
   assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/notes.js"));
@@ -56,7 +56,7 @@ async function assertProtectedView(session) {
   assert.match(html, /js\/shared\/view-renderer\.js\?v=12/);
   assert.match(html, /js\/shared\/icons\.js\?v=4/);
   assert.match(html, /js\/shared\/view-builder\.js\?v=11/);
-  assert.match(html, /js\/notes\.js\?v=68/);
+  assert.match(html, /js\/notes\.js\?v=69/);
   assert.match(html, /js\/shared\/tags\.js\?v=1/);
   assert.match(html, /js\/shared\/file-attachments\.js\?v=5/);
   assert.match(html, /js\/shared\/notes-editor\.js\?v=4/);
@@ -68,6 +68,7 @@ async function assertProtectedView(session) {
   assert.doesNotMatch(html, /Client ID|Project ID|Task ID|User ID/);
 
   const notesJs = await fs.readFile(path.join(process.cwd(), "public/js/notes.js"), "utf8");
+  const notesServiceJs = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.service.js"), "utf8");
   const notesModuleSource = await fs.readFile(path.join(process.cwd(), "src/modules/notes/module.js"), "utf8");
   assert.match(notesJs, /createCollectionActionsDialogShell/);
   assert.match(notesJs, /notes-collection-actions-modal-body/);
@@ -103,7 +104,8 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /openEditorForLinkedTarget/);
   assert.match(notesJs, /noteHasLink/);
   assert.doesNotMatch(notesJs, /loadLibrary/);
-  assert.match(notesJs, /collectionFilterIds/);
+  assert.doesNotMatch(notesJs, /collectionFilterIds/, "Collection descendant expansion should stay in the server-side list read model");
+  assert.match(notesServiceJs, /async function resolveCollectionListFilter/, "Notes service should own collection list filter expansion");
   assert.match(notesJs, /Original/);
   // 0.33.5.18.3 declarative read shell conversion markers.
   assert.match(notesJs, /buildNotesViewShell/);
@@ -233,7 +235,6 @@ async function assertProtectedView(session) {
   assert.match(notesCss, /\.notes-files-panel \.file-attachments\s*\{[\s\S]*border:\s*0;/, "The embedded file-attachments component should drop its own box inside the Files panel (single outer box)");
   assert.match(notesCss, /\.notes-files-panel \.file-attachments-header h3\s*\{[\s\S]*display:\s*none;/, "The embedded file-attachments heading should be hidden (the panel summary already labels it)");
   assert.match(notesCss, /\[data-note-links-panel\] \+ \.notes-files-panel,\s*\.notes-files-panel \+ \.notes-revisions-panel\s*\{[\s\S]*margin-top:\s*0;/, "Adjacent note detail utility panels should not add extra vertical spacing");
-  const notesServiceJs = await fs.readFile(path.join(process.cwd(), "src/modules/notes/notes.service.js"), "utf8");
   assert.match(notesServiceJs, /owner_display_name: await resolveNoteOwnerLabel\(session, note\)/, "The note read payload should resolve the owner display name");
 
   // 0.33.5.18.6.4.1 Add/Edit Linked Context visual model with non-removable Primary Context row.
@@ -283,26 +284,16 @@ async function assertProtectedView(session) {
   assert.match(notesJs, /const NOTES_LIST_SORT_OPTIONS = \[[\s\S]*\["title_asc", "Alphabetical \(A-Z\)"\][\s\S]*\["title_desc", "Alphabetical \(Z-A\)"\][\s\S]*\["created_desc", "Date Created \(Newest First\)"\][\s\S]*\["created_asc", "Date Created \(Oldest First\)"\][\s\S]*\["updated_desc", "Date Updated \(Newest First\)", true\][\s\S]*\["updated_asc", "Date Updated \(Oldest First\)"\][\s\S]*\["library_collection_updated_desc", "Library \/ Collection, then Date Updated"\][\s\S]*\["note_kind_updated_desc", "Note Kind, then Date Updated"\][\s\S]*\["primary_context_updated_desc", "Primary Context, then Date Updated"\]/, "Notes List sort options should match the required labels and default");
   assert.match(notesJs, /view\.registerBehavior\("notes\.sidebar\.notes-list-footer"[\s\S]*container\.replaceChildren\(createNotesListSortControl\(\), createNotesPagination\(\)\)/, "Notes List sort should live in the footer before pagination");
   assert.match(notesJs, /function createNotesListSortControl\(\)[\s\S]*className: "notes-list-sort"[\s\S]*select\.dataset\.noteSort = ""[\s\S]*select\.value = DEFAULT_NOTE_SORT/, "Notes List footer should render the sort dropdown");
-  assert.match(notesJs, /sortSelect\?\.addEventListener\("change", \(\) => \{\s*state\.page = 1;\s*renderNotes\(\);\s*\}\)/, "Changing Notes List sort should reset to page 1 and rerender");
+  assert.match(notesJs, /sortSelect\?\.addEventListener\("change", \(\) => \{\s*state\.page = 1;\s*void reloadNotesFromStart\(\);\s*\}\)/, "Changing Notes List sort should reset to page 1 and reload the server-shaped list");
   assert.doesNotMatch(notesJs, /notesDescriptorSelect\("sort"/, "Sort should no longer be a Filters field in the browser fallback descriptor");
   assert.doesNotMatch(notesModuleSource, /field:\s*"sort"/, "Sort should no longer be a Filters field in the Notes module descriptor");
-  const sortedNotesSource = notesJs.slice(
-    notesJs.indexOf("function sortedNotes(notes)"),
-    notesJs.indexOf("function noteListItem(note)"),
-  );
-  assert.match(sortedNotesSource, /const sortValue = sortSelect\?\.value \|\| DEFAULT_NOTE_SORT/, "Notes List sort should use the footer default when no control is available");
-  assert.match(sortedNotesSource, /sortValue === "title_asc"[\s\S]*compareText\(left\.title, right\.title\) \|\| compareNoteId\(left, right\)/, "Alphabetical A-Z should sort visible notes by title with a stable tie-break");
-  assert.match(sortedNotesSource, /sortValue === "title_desc"[\s\S]*compareText\(right\.title, left\.title\) \|\| compareNoteId\(left, right\)/, "Alphabetical Z-A should sort visible notes by title with a stable tie-break");
-  assert.match(sortedNotesSource, /sortValue === "created_desc"[\s\S]*compareText\(right\.created_at, left\.created_at\) \|\| compareNoteTitleThenId\(left, right\)/, "Created newest first should sort visible notes by created_at with stable tie-breaks");
-  assert.match(sortedNotesSource, /sortValue === "created_asc"[\s\S]*compareText\(left\.created_at, right\.created_at\) \|\| compareNoteTitleThenId\(left, right\)/, "Created oldest first should sort visible notes by created_at with stable tie-breaks");
-  assert.match(sortedNotesSource, /sortValue === "updated_asc"[\s\S]*compareText\(left\.updated_at, right\.updated_at\) \|\| compareNoteTitleThenId\(left, right\)/, "Updated oldest first should sort visible notes by updated_at with stable tie-breaks");
-  assert.match(sortedNotesSource, /sortValue === "library_collection_updated_desc"[\s\S]*bucketSortValue\(left\.library_bucket\)[\s\S]*collectionLabel\(left\.note_collection_id\)[\s\S]*compareNoteUpdatedDesc\(left, right\)/, "Library\/Collection should sort visible notes by bucket, collection, then updated newest first");
-  assert.match(sortedNotesSource, /sortValue === "note_kind_updated_desc"[\s\S]*noteKindLabel\(left\.note_type\)[\s\S]*compareNoteUpdatedDesc\(left, right\)/, "Note Kind should sort visible notes by kind, then updated newest first");
-  assert.match(sortedNotesSource, /sortValue === "primary_context_updated_desc"[\s\S]*primaryContextSortKey\(left\)[\s\S]*compareNoteUpdatedDesc\(left, right\)/, "Primary Context should sort visible notes by context, then updated newest first");
-  assert.match(sortedNotesSource, /return compareNoteUpdatedDesc\(left, right\)/, "Updated newest first should remain the default visible-note order");
-  assert.match(notesJs, /function compareNoteUpdatedDesc\(left = \{\}, right = \{\}\)[\s\S]*compareText\(right\.updated_at, left\.updated_at\) \|\| compareNoteTitleThenId\(left, right\)/, "Updated newest-first helper should use stable tie-breaks");
-  assert.match(notesJs, /function primaryContextSortKey\(note = \{\}\)[\s\S]*context\.client\?\.label[\s\S]*context\.project\?\.label[\s\S]*\|\| "zz"/, "Primary Context sort should prefer readable linked-context labels with an empty-context fallback");
-  assert.match(notesJs, /function renderNotes\(\)[\s\S]*const notes = sortedNotes\(filteredNotes\(\)\)/, "Sorting should apply only after Library\/Collection\/filter\/search scoping");
+  assert.match(notesJs, /function buildNotesListQuery\(cursor = ""\)[\s\S]*params\.set\("sort", sortSelect\?\.value \|\| DEFAULT_NOTE_SORT\)/, "Notes List sort should be sent to the service-owned list query");
+  assert.match(notesJs, /appendNotesQueryParam\(params, "libraryBucket", activeLibraryBucketFilter\(\)\)/, "Library filters should be sent to the service-owned list query");
+  assert.match(notesJs, /appendNotesQueryParam\(params, "status", activeStatusFilter\(\)\)/, "Status filters should be sent to the service-owned list query");
+  assert.match(notesJs, /appendNotesQueryParam\(params, "collection", state\.selectedCollectionId \|\| collectionFilter\?\.value \|\| ""\)/, "Collection filters should be sent to the service-owned list query");
+  assert.match(notesJs, /appendNotesQueryParam\(params, "updatedSince", updatedFilter\?\.value \|\| ""\)/, "Updated-since filters should be sent to the service-owned list query");
+  assert.doesNotMatch(notesJs, /function filteredNotes\(|function sortedNotes\(/, "Notes browser should not keep canonical list filtering or sorting after server-side paging");
+  assert.match(notesJs, /function renderNotes\(\)[\s\S]*const pageNotes = state\.notes \|\| \[\][\s\S]*notesList\.replaceChildren\(\.\.\.pageNotes\.map\(noteListItem\)\)/, "Notes List rendering should consume the server-shaped page directly");
   assert.match(notesCss, /\.notes-list-panel-footer\s*\{[\s\S]*justify-content:\s*space-between;/, "Notes List footer should keep sort left and pagination right");
   assert.match(notesCss, /\.notes-list-panel-footer \.view-sidebar-panel-footer-region\s*\{[\s\S]*justify-content:\s*space-between;/, "Notes List footer mount region should keep sort left and pagination right");
   assert.match(notesCss, /\.notes-list-sort select\s*\{[\s\S]*min-width:\s*220px;/, "Notes List sort dropdown should have a stable footer width");

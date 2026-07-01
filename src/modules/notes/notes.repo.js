@@ -58,6 +58,36 @@ const NOTE_COLUMNS = [
   "original_page_id",
 ];
 
+const NOTE_LIST_COLUMNS = [
+  "note_id",
+  "workspace_id",
+  "title",
+  "slug",
+  "body_excerpt",
+  "note_type",
+  "library_bucket",
+  "library_bucket_source",
+  "status",
+  "visibility",
+  "security_mode",
+  "client_id",
+  "project_id",
+  "task_id",
+  "ticket_id",
+  "linked_user_id",
+  "note_collection_id",
+  "owner_user_id",
+  "created_by_user_id",
+  "updated_by_user_id",
+  "created_at",
+  "updated_at",
+  "archived_at",
+  "deleted_at",
+  "import_source",
+  "import_source_id",
+  "imported_at",
+];
+
 const COLLECTION_COLUMNS = [
   "note_library_collection_id",
   "workspace_id",
@@ -121,6 +151,40 @@ ORDER BY updated_at DESC, title COLLATE NOCASE ASC;
 `);
 
   return rows.map(noteRowToAppValue);
+}
+
+async function queryList(workspaceId, options = {}) {
+  const normalizedLimit = normalizePositiveInteger(options.limit, 0);
+  const normalizedOffset = normalizePositiveInteger(options.offset, 0);
+  const params = {
+    offset: normalizedOffset,
+    workspaceId,
+  };
+  const whereSql = noteListWhereSql(options, params);
+  const orderSql = noteListOrderSql(options.sort);
+  const limitSql = normalizedLimit > 0 ? "\nLIMIT :limit OFFSET :offset" : "";
+
+  if (normalizedLimit > 0) {
+    params.limit = normalizedLimit + 1;
+  }
+
+  const rows = await db.query(`
+SELECT ${NOTE_LIST_COLUMNS.map((column) => `notes.${column}`).join(", ")}
+FROM notes
+LEFT JOIN note_library_collections
+  ON note_library_collections.workspace_id = notes.workspace_id
+  AND note_library_collections.note_library_collection_id = notes.note_collection_id
+${whereSql}
+${orderSql}${limitSql};
+`, params);
+  const hasMore = normalizedLimit > 0 && rows.length > normalizedLimit;
+  const noteRows = hasMore ? rows.slice(0, normalizedLimit) : rows;
+
+  return {
+    hasMore,
+    nextOffset: normalizedOffset + noteRows.length,
+    notes: noteRows.map(noteRowToAppValue),
+  };
 }
 
 async function readById(workspaceId, noteId) {
@@ -792,6 +856,192 @@ function parseJson(value, fallback) {
   }
 }
 
+function noteListWhereSql(options, params) {
+  const conditions = ["notes.workspace_id = :workspaceId"];
+
+  applyNoteStatusFilter(conditions, options, params);
+  applyNoteExactFilter(conditions, options, params, "libraryBucket", "library_bucket");
+  applyNoteExactFilter(conditions, options, params, "noteType", "note_type");
+  applyNoteExactFilter(conditions, options, params, "visibility", "visibility");
+  applyNoteExactFilter(conditions, options, params, "securityMode", "security_mode");
+  applyNoteExactFilter(conditions, options, params, "clientId", "client_id");
+  applyNoteExactFilter(conditions, options, params, "projectId", "project_id");
+  applyNoteExactFilter(conditions, options, params, "taskId", "task_id");
+  applyNoteExactFilter(conditions, options, params, "ticketId", "ticket_id");
+  applyNoteExactFilter(conditions, options, params, "linkedUserId", "linked_user_id");
+  applyNoteCollectionFilter(conditions, options, params);
+  applyNoteOwnerFilter(conditions, options, params);
+  applyNoteUpdatedSinceFilter(conditions, options, params);
+  applyNoteContextSearchFilter(conditions, options, params);
+  applyNoteSearchFilter(conditions, options, params);
+
+  return `WHERE ${conditions.join("\n  AND ")}`;
+}
+
+function applyNoteStatusFilter(conditions, options, params) {
+  const status = normalizedFilter(options.status);
+
+  if (!options.includeDeleted) {
+    conditions.push("notes.status != 'deleted'");
+  }
+
+  if (!status || status === "all") {
+    return;
+  }
+
+  if (status === "active") {
+    conditions.push("notes.status NOT IN ('archived', 'deleted')");
+    return;
+  }
+
+  conditions.push("notes.status = :status");
+  params.status = status;
+}
+
+function applyNoteExactFilter(conditions, options, params, optionName, columnName) {
+  const value = normalizedText(options[optionName]);
+
+  if (!value || value === "all") {
+    return;
+  }
+
+  conditions.push(`notes.${columnName} = :${optionName}`);
+  params[optionName] = value;
+}
+
+function applyNoteCollectionFilter(conditions, options, params) {
+  if (options.uncategorizedCollection) {
+    conditions.push("(notes.note_collection_id IS NULL OR notes.note_collection_id = '')");
+    return;
+  }
+
+  const collectionIds = Array.isArray(options.noteCollectionIds)
+    ? options.noteCollectionIds.map(normalizedText).filter(Boolean)
+    : [];
+
+  if (collectionIds.length > 0) {
+    const placeholders = collectionIds.map((collectionId, index) => {
+      const paramName = `noteCollectionId${index}`;
+      params[paramName] = collectionId;
+      return `:${paramName}`;
+    });
+    conditions.push(`notes.note_collection_id IN (${placeholders.join(", ")})`);
+    return;
+  }
+
+  applyNoteExactFilter(conditions, options, params, "noteCollectionId", "note_collection_id");
+}
+
+function applyNoteOwnerFilter(conditions, options, params) {
+  const ownerUserId = normalizedText(options.ownerUserId);
+  if (ownerUserId) {
+    conditions.push("notes.owner_user_id = :ownerUserId");
+    params.ownerUserId = ownerUserId;
+    return;
+  }
+
+  const ownerSearch = normalizedText(options.ownerSearch).toLowerCase();
+  if (ownerSearch) {
+    conditions.push("LOWER(COALESCE(notes.owner_user_id, '')) LIKE :ownerSearch");
+    params.ownerSearch = `%${ownerSearch}%`;
+  }
+}
+
+function applyNoteUpdatedSinceFilter(conditions, options, params) {
+  const updatedSince = normalizedText(options.updatedSince);
+
+  if (!updatedSince) {
+    return;
+  }
+
+  conditions.push("notes.updated_at >= :updatedSince");
+  params.updatedSince = updatedSince;
+}
+
+function applyNoteContextSearchFilter(conditions, options, params) {
+  const contextSearch = normalizedText(options.contextSearch).toLowerCase();
+
+  if (!contextSearch) {
+    return;
+  }
+
+  conditions.push(`LOWER(
+    COALESCE(notes.client_id, '') || ' ' ||
+    COALESCE(notes.project_id, '') || ' ' ||
+    COALESCE(notes.task_id, '') || ' ' ||
+    COALESCE(notes.ticket_id, '') || ' ' ||
+    COALESCE(notes.linked_user_id, '')
+  ) LIKE :contextSearch`);
+  params.contextSearch = `%${contextSearch}%`;
+}
+
+function applyNoteSearchFilter(conditions, options, params) {
+  const searchQuery = normalizedText(options.searchQuery).toLowerCase();
+
+  if (!searchQuery) {
+    return;
+  }
+
+  conditions.push(`LOWER(
+    COALESCE(notes.title, '') || ' ' ||
+    COALESCE(notes.body_excerpt, '')
+  ) LIKE :searchQuery`);
+  params.searchQuery = `%${searchQuery}%`;
+}
+
+function noteListOrderSql(sort) {
+  const stableTitle = "notes.title COLLATE NOCASE ASC, notes.created_at ASC, notes.note_id ASC";
+  const updatedDesc = `COALESCE(notes.updated_at, '') DESC, ${stableTitle}`;
+  const bucketRank = "CASE notes.library_bucket WHEN 'active_work' THEN 1 WHEN 'ongoing_area' THEN 2 WHEN 'reference' THEN 3 ELSE 99 END";
+
+  if (sort === "title_asc") {
+    return `ORDER BY ${stableTitle}`;
+  }
+
+  if (sort === "title_desc") {
+    return "ORDER BY notes.title COLLATE NOCASE DESC, notes.created_at ASC, notes.note_id ASC";
+  }
+
+  if (sort === "created_desc") {
+    return `ORDER BY COALESCE(notes.created_at, '') DESC, ${stableTitle}`;
+  }
+
+  if (sort === "created_asc") {
+    return `ORDER BY COALESCE(notes.created_at, '') ASC, ${stableTitle}`;
+  }
+
+  if (sort === "updated_asc") {
+    return `ORDER BY COALESCE(notes.updated_at, '') ASC, ${stableTitle}`;
+  }
+
+  if (sort === "library_collection_updated_desc") {
+    return `ORDER BY ${bucketRank} ASC, COALESCE(note_library_collections.path_cache, '') COLLATE NOCASE ASC, ${updatedDesc}`;
+  }
+
+  if (sort === "note_kind_updated_desc") {
+    return `ORDER BY notes.note_type COLLATE NOCASE ASC, ${updatedDesc}`;
+  }
+
+  if (sort === "primary_context_updated_desc") {
+    return `ORDER BY COALESCE(notes.client_id, '') COLLATE NOCASE ASC, COALESCE(notes.project_id, '') COLLATE NOCASE ASC, ${updatedDesc}`;
+  }
+
+  return `ORDER BY ${updatedDesc}`;
+}
+
+function normalizedText(value) {
+  return String(value || "").trim();
+}
+
+function normalizedFilter(value) {
+  return normalizedText(value).toLowerCase();
+}
+
+function normalizePositiveInteger(value, fallback) {
+  const number = Number.parseInt(value, 10);
+  return Number.isInteger(number) && number > 0 ? number : fallback;
+}
+
 export const notesRepository = {
   create,
   createCollection,
@@ -808,6 +1058,7 @@ export const notesRepository = {
   listLinksForNotes,
   listRevisions,
   nextRevisionNumber,
+  queryList,
   readById,
   readCollectionById,
   readLinkById,

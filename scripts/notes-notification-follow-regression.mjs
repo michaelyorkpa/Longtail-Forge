@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-const appVersion = "0.33.5.20.2";
+const appVersion = "0.33.5.20.3";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-notification-follow-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-notification-follow.db");
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Notification-Follow-Test-123!";
@@ -66,7 +66,7 @@ async function assertStaticContracts() {
   assert.equal(packageJson.version, appVersion, "package.json should report the Notes follow-bell slice version");
   assert.equal(packageLock.version, appVersion, "package-lock root should report the Notes follow-bell slice version");
   assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the Notes follow-bell slice version");
-  assert.match(notesView, /js\/shared\/notification-subscriptions\.js\?v=1[\s\S]*js\/notes\.js\?v=68/, "Notes view should load notification subscriptions before Notes browser code");
+  assert.match(notesView, /js\/shared\/notification-subscriptions\.js\?v=1[\s\S]*js\/notes\.js\?v=69/, "Notes view should load notification subscriptions before Notes browser code");
   assert.match(notesView, /css\/longtail-forge\.css\?v=56/, "Notes view should cache-bust the follow-bell stylesheet");
   assert.match(notificationSubscriptions, /function noteTarget\(noteId\)[\s\S]*moduleId: "notes"[\s\S]*targetType: "note"[\s\S]*noteTarget/, "Shared notification helper should expose a Notes target helper");
 

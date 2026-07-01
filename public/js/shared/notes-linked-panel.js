@@ -252,7 +252,15 @@
     select.replaceChildren(new global.Option("Loading notes...", ""));
 
     try {
-      const result = await api.getJson("/api/notes", { cache: "no-store" });
+      const params = new global.URLSearchParams({
+        limit: "50",
+        status: "active",
+        sort: "updated_desc",
+      });
+      if (String(search || "").trim()) {
+        params.set("q", String(search || "").trim());
+      }
+      const result = await api.getJson(`/api/notes?${params.toString()}`, { cache: "no-store" });
       const linkedIds = new Set(state.notes.map((note) => note.id));
       const needle = String(search || "").trim().toLowerCase();
       const notes = (result.notes || [])

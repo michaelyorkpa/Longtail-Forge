@@ -2,7 +2,7 @@ import { AppError } from "../../core/errors.js";
 import { notesService } from "./notes.service.js";
 
 async function listNotes(context, query = {}) {
-  const result = await notesService.list(context, query);
+  const result = await notesService.listAll(context, query);
   const notes = result.notes
     .filter((note) => note.security_mode !== "secure")
     .map((note) => withWorkspaceAlias(shapePublicNote(note), context));

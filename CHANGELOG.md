@@ -1,3 +1,11 @@
+## Version 0.33.5.20.3 - 2026-07-01 05:04 -04:00
+
+- Reworked the protected Notes list read path to use a lightweight repository projection with bounded SQL-side filters, stable sorting, maximum page size, and opaque cursor paging instead of returning full note body data for normal browsing.
+- Moved Notes list controls onto server-shaped query parameters for Library, Collection, Status, Visibility, Security mode, Note Kind, owner text, context text, tag text, updated-since date, sort, and cursor pages while preserving the selected-note detail-first workspace behavior.
+- Kept note detail/read endpoints as the full-body surface: detail reads still return editable Markdown and safe rendered `body_html`, while normal list rows omit `body_markdown`, `body_html`, plaintext body index text, metadata JSON, secure envelope fields, and decrypted secure-note bodies.
+- Preserved secure-note access behavior, kept public API offset/total list compatibility through an internal unpaged Notes path, added `scripts/notes-server-side-list-paging-regression.mjs`, documented the Notes list projection contract, advanced package/current module metadata to 0.33.5.20.3, and marked the 0.33.5.20.3 roadmap checklist complete.
+- Verification 2026-07-01 05:20 -04:00: Notes server-side list paging, Notes API service, secure Notes, Notes UI workflow, Notes lists/tags API scope, Notes linked panel, Markdown soft-break rendering, tag usability UI, Tasks server-side list paging, and check-js targeted checks passed; `npm run check` passed 216/216 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal CRLF warnings; and `/api/app-info` returned 0.33.5.20.3 after restarting the local 8001 server.
+
 ## Version 0.33.5.20.2 - 2026-07-01 03:03 -04:00
 
 - Reworked the protected Tasks list read path to use a bounded repository query for SQL-side task view, status, due, context, assignee, and stable sort filters instead of loading the full workspace task table for normal list views.

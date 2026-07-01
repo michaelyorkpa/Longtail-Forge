@@ -63,8 +63,23 @@ const NOTE_SECURITY_MODE_VALUES = new Set(Object.values(NOTE_SECURITY_MODES));
 const NOTE_PERMISSION_VALUES = Object.values(NOTE_PERMISSIONS);
 const COLLECTION_SOURCE_VALUES = new Set(["manual", "imported"]);
 const LINKED_NOTE_SORT_MODES = new Set(["pinned", "recent", "updated", "title"]);
+const NOTE_LIST_SORT_MODES = new Set([
+  "title_asc",
+  "title_desc",
+  "created_desc",
+  "created_asc",
+  "updated_desc",
+  "updated_asc",
+  "library_collection_updated_desc",
+  "note_kind_updated_desc",
+  "primary_context_updated_desc",
+]);
 const SECURE_NOTE_TITLE_WARNING = "Secure note titles are visible to users who can view note metadata. Do not put secrets in the title.";
 const TASK_TARGET_TITLE_MAX_LENGTH = 20;
+const NOTE_LIST_DEFAULT_PAGE_SIZE = 50;
+const NOTE_LIST_MAX_PAGE_SIZE = 200;
+const NOTE_LIST_BATCH_MULTIPLIER = 5;
+const NOTE_LIST_MAX_CANDIDATE_SCAN = 1000;
 const LIST_TARGET_TYPE_LABELS = Object.freeze({
   bill_of_materials: "Bill of Materials",
   checklist: "Checklist",
@@ -89,10 +104,70 @@ const SECURE_STORAGE_FIELDS = Object.freeze([
 ]);
 
 async function list(session, query = {}) {
-  const filters = normalizeListFilters(query);
-  const notes = await notesRepository.list(session.workspace_id, filters);
-  const decorated = await decorateAndFilterNotesByTags(session, await filterAccessibleNotes(session, notes), filters);
-  return { notes: decorated.map((note) => shapeNoteForBrowser(note, { includeBodyHtml: true })) };
+  return queryNotesList(session, query, { paginate: true });
+}
+
+async function listAll(session, query = {}) {
+  return queryNotesList(session, query);
+}
+
+async function queryNotesList(session, query = {}, options = {}) {
+  const filters = await normalizeNoteListQuery(session, query);
+  const pagination = normalizeNoteListPagination(query, options);
+  const notes = [];
+  let offset = pagination?.offset || 0;
+  let hasMoreCandidates = false;
+  let nextCursor = "";
+  let scannedCandidates = 0;
+
+  do {
+    const batchLimit = pagination
+      ? Math.min(
+          NOTE_LIST_MAX_CANDIDATE_SCAN - scannedCandidates,
+          Math.max(pagination.pageSize * NOTE_LIST_BATCH_MULTIPLIER, pagination.pageSize + 1),
+        )
+      : 0;
+    const result = await notesRepository.queryList(session.workspace_id, {
+      ...filters,
+      limit: batchLimit,
+      offset,
+    });
+    const candidates = result.notes || [];
+
+    if (candidates.length === 0) {
+      hasMoreCandidates = false;
+      break;
+    }
+
+    const filteredNotes = await filterAndShapeNoteListCandidates({
+      candidates,
+      filters,
+      offset,
+      session,
+    });
+
+    for (const note of filteredNotes) {
+      const rawCandidateOffset = Number(note.__candidateOffset);
+      const candidateOffset = Number.isInteger(rawCandidateOffset) && rawCandidateOffset >= 0
+        ? rawCandidateOffset
+        : offset;
+      notes.push(stripNoteListCandidateMetadata(note));
+
+      if (pagination && notes.length >= pagination.pageSize) {
+        const moreCandidatesInBatch = candidateOffset < offset + candidates.length - 1;
+        hasMoreCandidates = moreCandidatesInBatch || Boolean(result.hasMore);
+        nextCursor = hasMoreCandidates ? encodeNoteListCursor(candidateOffset + 1) : "";
+        return noteListResult(notes, pagination, nextCursor);
+      }
+    }
+
+    scannedCandidates += candidates.length;
+    offset = result.nextOffset;
+    hasMoreCandidates = Boolean(result.hasMore) && (!pagination || scannedCandidates < NOTE_LIST_MAX_CANDIDATE_SCAN);
+  } while (pagination && hasMoreCandidates && notes.length < pagination.pageSize);
+
+  nextCursor = pagination && hasMoreCandidates ? encodeNoteListCursor(offset) : "";
+  return noteListResult(notes, pagination, nextCursor);
 }
 
 async function secureHealth(session) {
@@ -851,11 +926,84 @@ function noteContextChanged(previousNote = {}, nextNote = {}) {
 
 async function decorateAndFilterNotesByTags(session, notes, filters = {}) {
   const taggedNotes = await tagsService.decorateRecordsWithEffectiveTags(session, "note", notes, { idField: "note_id" });
-
-  return tagsService.filterRecordsByTags(session, "note", taggedNotes, filters.tagIds, {
+  const filteredNotes = tagsService.filterRecordsByTags(session, "note", taggedNotes, filters.tagIds, {
     idField: "note_id",
     match: filters.tagMatch || "any",
   });
+
+  return filterNotesByTagQuery(filteredNotes, filters.tagQuery);
+}
+
+async function filterAndShapeNoteListCandidates({ candidates, filters, offset, session }) {
+  const notesWithOffsets = candidates.map((note, index) => ({
+    ...note,
+    __candidateOffset: offset + index,
+  }));
+  const accessible = await filterAccessibleNotes(session, notesWithOffsets);
+  const tagged = await decorateAndFilterNotesByTags(session, accessible, filters);
+
+  return tagged.map((note) => ({
+    ...shapeNoteListProjection(note),
+    __candidateOffset: note.__candidateOffset,
+  }));
+}
+
+function noteListResult(notes, pagination, nextCursor = "") {
+  return {
+    notes,
+    pagination: pagination ? {
+      hasMore: Boolean(nextCursor),
+      limit: pagination.pageSize,
+      nextCursor,
+      pageSize: pagination.pageSize,
+    } : null,
+  };
+}
+
+function shapeNoteListProjection(note = {}) {
+  const shaped = shapeNoteForBrowser(note, { includeBodyHtml: false });
+
+  delete shaped.body_markdown;
+  delete shaped.body_plaintext_index;
+  delete shaped.body_html;
+  delete shaped.metadata_json;
+  delete shaped.metadata;
+  delete shaped.searchDocument;
+
+  if (shaped.security_mode === NOTE_SECURITY_MODES.SECURE) {
+    shaped.body_excerpt = null;
+  }
+
+  return shaped;
+}
+
+function stripNoteListCandidateMetadata(note = {}) {
+  const { __candidateOffset, ...safeNote } = note;
+  return safeNote;
+}
+
+function filterNotesByTagQuery(notes = [], tagQuery = "") {
+  const query = normalizeOptionalText(tagQuery).toLowerCase();
+
+  if (!query) {
+    return notes;
+  }
+
+  if (isNoTagsQuery(query)) {
+    return notes.filter((note) => (note.tags || []).length === 0);
+  }
+
+  return notes.filter((note) => (note.tags || []).some((tag) => [
+    tag.name,
+    tag.slug,
+    tag.description,
+    tag.tag_id,
+  ].filter(Boolean).join(" ").toLowerCase().includes(query)));
+}
+
+function isNoTagsQuery(value) {
+  const normalized = normalizeOptionalText(value).toLowerCase().replace(/\s+/g, "_");
+  return ["__no_tags__", "__no_effective_tags__", "no_tags", "none"].includes(normalized);
 }
 
 async function filterAccessibleNotes(session, notes) {
@@ -2506,20 +2654,116 @@ async function assertNotesWriteEnabled(session) {
   throw new AppError("This module is disabled for this workspace.", 403);
 }
 
+async function normalizeNoteListQuery(session, query = {}) {
+  const filters = normalizeListFilters(query);
+  const collectionFilter = await resolveCollectionListFilter(session, filters);
+
+  return {
+    ...filters,
+    ...collectionFilter,
+  };
+}
+
 function normalizeListFilters(query = {}) {
   return {
-    libraryBucket: normalizeOptionalEnum(query.libraryBucket || query.library_bucket, LIBRARY_BUCKET_VALUES, "Library bucket"),
-    status: normalizeOptionalEnum(query.status, NOTE_STATUS_VALUES, "Note status"),
+    libraryBucket: normalizeOptionalListEnum(query.libraryBucket || query.library_bucket || query.library, LIBRARY_BUCKET_VALUES, "Library bucket"),
+    status: normalizeOptionalListEnum(query.status, NOTE_STATUS_VALUES, "Note status"),
     includeDeleted: query.includeDeleted === "true" || query.include_deleted === "true",
     clientId: normalizeOptionalText(query.clientId || query.client_id),
     projectId: normalizeOptionalText(query.projectId || query.project_id),
     taskId: normalizeOptionalText(query.taskId || query.task_id),
     ticketId: normalizeOptionalText(query.ticketId || query.ticket_id),
     linkedUserId: normalizeOptionalText(query.userId || query.user_id || query.linkedUserId || query.linked_user_id),
+    noteCollectionId: normalizeOptionalText(query.noteCollectionId || query.note_collection_id || query.collectionId || query.collection_id || query.collection),
+    noteType: normalizeOptionalListEnum(query.noteType || query.note_type, NOTE_TYPE_VALUES, "Note Kind"),
     ownerUserId: normalizeOptionalText(query.ownerUserId || query.owner_user_id),
+    ownerSearch: normalizeOptionalText(query.owner || query.ownerSearch || query.owner_search),
+    visibility: normalizeOptionalListEnum(query.visibility, NOTE_VISIBILITY_VALUES, "Note visibility"),
+    securityMode: normalizeOptionalListEnum(query.securityMode || query.security_mode || query.security, NOTE_SECURITY_MODE_VALUES, "Note security mode"),
+    updatedSince: normalizeOptionalText(query.updatedSince || query.updated_since),
+    contextSearch: normalizeOptionalText(query.context || query.contextSearch || query.context_search),
+    searchQuery: normalizeOptionalText(query.q || query.query || query.search),
     tagIds: normalizeIdList(query.tagIds || query.tag_ids || query.tagId || query.tag_id),
     tagMatch: normalizeOptionalText(query.tagMatch || query.tag_match) === "all" ? "all" : "any",
+    tagQuery: normalizeOptionalText(query.tags || query.tagQuery || query.tag_query),
+    sort: normalizeNoteListSort(query.sort || query.sort_by || query.order),
   };
+}
+
+async function resolveCollectionListFilter(session, filters = {}) {
+  const collectionId = filters.noteCollectionId;
+
+  if (!collectionId) {
+    return {};
+  }
+
+  if (collectionId === "__uncategorized") {
+    return { uncategorizedCollection: true };
+  }
+
+  const collections = await notesRepository.listCollections(session.workspace_id, {
+    includeArchived: true,
+    includeDeleted: false,
+    libraryBucket: filters.libraryBucket,
+  });
+  const collectionIds = collectionDescendants(
+    collections.find((collection) => collection.note_library_collection_id === collectionId),
+    collections,
+  ).map((collection) => collection.note_library_collection_id);
+
+  return {
+    noteCollectionIds: [collectionId, ...collectionIds],
+  };
+}
+
+function normalizeNoteListPagination(query = {}, options = {}) {
+  if (!options.paginate) {
+    return null;
+  }
+
+  const requestedPageSize = Number.parseInt(query.limit || query.page_size || query.pageSize || "", 10);
+  const pageSize = Math.min(
+    NOTE_LIST_MAX_PAGE_SIZE,
+    Math.max(1, Number.isInteger(requestedPageSize) && requestedPageSize > 0
+      ? requestedPageSize
+      : NOTE_LIST_DEFAULT_PAGE_SIZE),
+  );
+  const cursorOffset = query.cursor ? decodeNoteListCursor(query.cursor) : 0;
+  const offset = cursorOffset || normalizeOffset(query.offset);
+
+  return {
+    offset,
+    pageSize,
+  };
+}
+
+function normalizeOffset(value) {
+  const offset = Number.parseInt(value || "", 10);
+  return Number.isInteger(offset) && offset > 0 ? offset : 0;
+}
+
+function encodeNoteListCursor(offset) {
+  return Buffer.from(JSON.stringify({ offset: Math.max(0, Number(offset) || 0) })).toString("base64url");
+}
+
+function decodeNoteListCursor(cursor) {
+  try {
+    const parsed = JSON.parse(Buffer.from(String(cursor || ""), "base64url").toString("utf8"));
+    const offset = Number.parseInt(parsed?.offset, 10);
+
+    if (Number.isInteger(offset) && offset >= 0) {
+      return offset;
+    }
+  } catch {
+    // Fall through to the canonical 400 below.
+  }
+
+  throw new AppError("Notes list cursor is invalid.", 400);
+}
+
+function normalizeNoteListSort(value) {
+  const sort = normalizeOptionalText(value);
+  return NOTE_LIST_SORT_MODES.has(sort) ? sort : "updated_desc";
 }
 
 function normalizeResumeContextOptions(query = {}) {
@@ -2583,6 +2827,16 @@ function normalizeOptionalEnum(value, allowedValues, label) {
   const text = normalizeOptionalText(value);
 
   if (!text) {
+    return "";
+  }
+
+  return normalizeEnum(text, allowedValues, label);
+}
+
+function normalizeOptionalListEnum(value, allowedValues, label) {
+  const text = normalizeOptionalText(value);
+
+  if (!text || text === "all") {
     return "";
   }
 
@@ -3285,6 +3539,7 @@ export const notesService = {
   deriveLibrarySuggestion,
   ensureCollectionsForImportPath,
   list,
+  listAll,
   listArchived,
   listByLibraryBucket,
   listCollections,

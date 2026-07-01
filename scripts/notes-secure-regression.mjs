@@ -57,7 +57,7 @@ async function assertManifestAndSchema() {
   const notesModule = modulesService.getModule("notes");
   const permissionIds = new Set(notesModule.permissions.map((permission) => permission.id));
 
-  assert.equal(notesModule.version, "0.33.5.20.2");
+  assert.equal(notesModule.version, "0.33.5.20.3");
   for (const permission of [
     NOTE_PERMISSIONS.SECURE_CREATE,
     NOTE_PERMISSIONS.SECURE_VIEW,
@@ -153,8 +153,9 @@ WHERE note_id = ${sqlText(noteId)};
   const listResult = await notesService.list(session, {});
   const listedSecureNote = listResult.notes.find((note) => note.note_id === noteId);
   assert.ok(listedSecureNote);
-  assert.equal(listedSecureNote.body_markdown, "");
+  assert.equal(Object.hasOwn(listedSecureNote, "body_markdown"), false);
   assert.equal(listedSecureNote.body_excerpt, null);
+  assert.equal(Object.hasOwn(listedSecureNote, "body_html"), false);
   assertNoBrowserSecureStorageFields(listedSecureNote);
 
   const updated = await notesService.update(noteId, {

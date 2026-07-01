@@ -103,24 +103,24 @@ Acceptance criteria:
 
 ### Version 0.33.5.20.3 - Notes list projection and server-side paging
 
-- [ ] Add a lightweight Notes list endpoint/projection.
-- [ ] Do not return full note body HTML in normal list responses.
-- [ ] Add server-side paging/cursor support.
-- [ ] Add server-side filters for:
-  - [ ] Status.
-  - [ ] Library bucket.
-  - [ ] Collection.
-  - [ ] Owner.
-  - [ ] Visibility.
-  - [ ] Security mode.
-  - [ ] Updated since.
-- [ ] Keep full body rendering on note detail/read endpoints.
-- [ ] Preserve secure-note access behavior.
-- [ ] Add regressions proving:
-  - [ ] Notes list is lightweight.
-  - [ ] Detail read still returns full safe rendered body where allowed.
-  - [ ] Secure notes do not leak body content.
-  - [ ] Paging and collection filters behave correctly.
+- [x] Add a lightweight Notes list endpoint/projection.
+- [x] Do not return full note body HTML in normal list responses.
+- [x] Add server-side paging/cursor support.
+- [x] Add server-side filters for:
+  - [x] Status.
+  - [x] Library bucket.
+  - [x] Collection.
+  - [x] Owner.
+  - [x] Visibility.
+  - [x] Security mode.
+  - [x] Updated since.
+- [x] Keep full body rendering on note detail/read endpoints.
+- [x] Preserve secure-note access behavior.
+- [x] Add regressions proving:
+  - [x] Notes list is lightweight.
+  - [x] Detail read still returns full safe rendered body where allowed.
+  - [x] Secure notes do not leak body content.
+  - [x] Paging and collection filters behave correctly.
 
 Acceptance criteria:
 

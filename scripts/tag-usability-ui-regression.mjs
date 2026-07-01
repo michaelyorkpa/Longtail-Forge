@@ -11,6 +11,7 @@ const reportingPage = readText("public/js/reporting.js");
 const searchPage = readText("public/js/search.js");
 const timeEntriesPage = readText("public/js/time-entries.js");
 const notesPage = readText("public/js/notes.js");
+const notesService = readText("src/modules/notes/notes.service.js");
 const css = readText("public/css/longtail-forge.css");
 
 assert.match(repo, /direct_usage_count/, "Tag list query should return direct usage counts");
@@ -40,7 +41,8 @@ assert.match(reportingPage, /tagFilterNoTagsOption/, "Reporting filter should in
 assert.match(searchPage, /tagFilterNoTagsOption/, "Search filter should include shared No Tags support");
 assert.match(timeEntriesPage, /tagFilterNoTagsOption/, "Time Entries filter should include shared No Tags support");
 assert.match(timeEntriesPage, /entry\.tags \|\| \[\]\)\.length === 0/, "Time Entries No Tags filter should match records without effective tags");
-assert.match(notesPage, /isNoTagsFilterValue/, "Notes tag filter should recognize no-tags intent");
+assert.match(notesPage, /appendNotesQueryParam\(params, "tags", normalizeText\(tagFilter\?\.value\)\)/, "Notes tag filter should send tag text to the server-shaped list query");
+assert.match(notesService, /function isNoTagsQuery\(value\)[\s\S]*__no_tags__[\s\S]*__no_effective_tags__[\s\S]*no_tags[\s\S]*none/, "Notes service should recognize no-tags intent for server-side list filtering");
 assert.match(css, /\.tag-chip-inherited/, "Inherited tag chips should be styled");
 assert.match(css, /\.tag-picker-suppress/, "Suppression control should be styled");
 

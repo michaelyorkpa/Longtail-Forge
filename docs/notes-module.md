@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.5.20.2. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.20.3. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -52,9 +52,13 @@ Collections are classification metadata only. They do not grant access, override
 
 Archived collections remain attached to notes but are hidden from normal collection tree data unless archived collections are explicitly requested. Deleting a collection is soft-delete only and is allowed only when it has no non-deleted notes and no active child collections.
 
-## Notes List Sorting
+## Notes List Read Model
 
-The protected Notes workspace sorts the currently visible Notes List after applying workspace scope, Library, Collection, filters, search fields, and archive status. Sorting is a browser read-surface concern only; it does not mutate note rows, collection membership, timestamps, or saved metadata.
+As of 0.33.5.20.3, the protected Notes workspace uses a lightweight server-shaped list read. The browser sends Library, Collection, Status, Visibility, Security mode, Note Kind, owner text, context text, tag text, updated-since date, sort, page `limit`, and opaque `cursor` values to `/api/notes`; the Notes repository applies workspace scope, SQL-friendly filters, stable sorting, `LIMIT`, and `OFFSET`, while the Notes service keeps permission pruning, tag filtering, secure-note shaping, and cursor response metadata authoritative. Collection filters include descendant collections and support Uncategorized.
+
+Normal Notes list responses are projections for browsing. They include safe metadata such as title, Library bucket, collection id, status, visibility, security mode, safe excerpt, owner id, context ids, tags, and timestamps. They do not include `body_markdown`, rendered `body_html`, plaintext body index text, secure envelope fields, metadata JSON, or decrypted secure-note body content. Secure notes can appear as readable metadata when the session has secure-note access, but their list rows keep body excerpt and body fields closed.
+
+Full note Markdown and rendered safe HTML remain detail/read concerns. `GET /api/notes/:noteId` still decorates the note with readable context, tags, links, files, revision panel data hooks, owner display label, editable Markdown, and `body_html` where the current session can read the note.
 
 The active sort control lives in the Notes List panel footer, below the scrollable list body. It is bottom-left in the footer while pagination remains bottom-right, and it is hidden automatically when the Notes List disclosure is collapsed. The default sort is `Date Updated (Newest First)`.
 

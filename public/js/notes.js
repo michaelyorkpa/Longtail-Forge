@@ -81,6 +81,10 @@ let state = {
   linkTargetSearchTimer: null,
   linkTargets: [],
   notes: [],
+  notesCursorStack: [],
+  notesCurrentCursor: "",
+  notesNextCursor: "",
+  notesPagination: null,
   page: 1,
   primaryContextClients: [],
   primaryContextProjects: [],
@@ -184,23 +188,21 @@ filtersForm?.addEventListener("change", () => {
   state.selectedCollectionId = collectionFilter?.value || "";
   updateCollectionPanelSelection();
   updateUrlCollection();
-  renderNotes();
+  void reloadNotesFromStart();
 });
 sortSelect?.addEventListener("change", () => {
   state.page = 1;
-  renderNotes();
+  void reloadNotesFromStart();
 });
 prevButton?.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
-  state.page = Math.max(1, state.page - 1);
-  renderNotes();
+  void loadPreviousNotesPage();
 });
 nextButton?.addEventListener("click", (event) => {
   event.preventDefault();
   event.stopPropagation();
-  state.page += 1;
-  renderNotes();
+  void loadNextNotesPage();
 });
 form?.addEventListener("submit", saveNote);
 notificationToggle?.addEventListener("click", toggleNoteNotificationFollow);
@@ -1068,14 +1070,117 @@ function applyWorkspaceContext() {
   updatePrimaryContextVisibility();
 }
 
-async function loadNotes() {
-  const url = state.activeBucket === "archive"
-    ? "/api/notes/archive"
-    : state.activeBucket === "all"
-      ? "/api/notes"
-      : `/api/notes/library/${encodeURIComponent(state.activeBucket)}`;
-  const result = await api.getJson(url, { cache: "no-store" });
+async function loadNotes(cursor = state.notesCurrentCursor || "") {
+  const query = buildNotesListQuery(cursor);
+  const result = await api.getJson(`/api/notes?${query.toString()}`, { cache: "no-store" });
   state.notes = result.notes || [];
+  state.notesPagination = result.pagination || null;
+  state.notesCurrentCursor = cursor || "";
+  state.notesNextCursor = result.pagination?.nextCursor || "";
+}
+
+async function reloadNotesFromStart() {
+  state.page = 1;
+  state.notesCursorStack = [];
+  state.notesCurrentCursor = "";
+  state.notesNextCursor = "";
+  setStatus("Loading notes...");
+
+  try {
+    await loadNotes("");
+    renderNotes();
+    setStatus("");
+  } catch (error) {
+    renderEmptyList(error.message || "Notes could not be loaded.");
+    setStatus(error.message || "Notes could not be loaded.", true);
+  }
+}
+
+async function loadNextNotesPage() {
+  if (!state.notesNextCursor) {
+    return;
+  }
+
+  const nextCursor = state.notesNextCursor;
+  state.notesCursorStack.push(state.notesCurrentCursor || "");
+  state.page += 1;
+  setStatus("Loading notes...");
+
+  try {
+    await loadNotes(nextCursor);
+    renderNotes();
+    setStatus("");
+  } catch (error) {
+    state.page = Math.max(1, state.page - 1);
+    state.notesCursorStack.pop();
+    setStatus(error.message || "Notes could not be loaded.", true);
+  }
+}
+
+async function loadPreviousNotesPage() {
+  if (state.notesCursorStack.length === 0) {
+    return;
+  }
+
+  const previousCursor = state.notesCursorStack.pop() || "";
+  state.page = Math.max(1, state.page - 1);
+  setStatus("Loading notes...");
+
+  try {
+    await loadNotes(previousCursor);
+    renderNotes();
+    setStatus("");
+  } catch (error) {
+    state.page += 1;
+    state.notesCursorStack.push(previousCursor);
+    setStatus(error.message || "Notes could not be loaded.", true);
+  }
+}
+
+function buildNotesListQuery(cursor = "") {
+  const params = new URLSearchParams();
+
+  params.set("limit", String(PAGE_SIZE));
+  params.set("sort", sortSelect?.value || DEFAULT_NOTE_SORT);
+  if (cursor) {
+    params.set("cursor", cursor);
+  }
+  appendNotesQueryParam(params, "libraryBucket", activeLibraryBucketFilter());
+  appendNotesQueryParam(params, "status", activeStatusFilter());
+  appendNotesQueryParam(params, "visibility", visibilityFilter?.value, "all");
+  appendNotesQueryParam(params, "security", securityFilter?.value, "all");
+  appendNotesQueryParam(params, "noteType", typeFilter?.value, "all");
+  appendNotesQueryParam(params, "context", normalizeText(contextFilter?.value));
+  appendNotesQueryParam(params, "owner", normalizeText(ownerFilter?.value));
+  appendNotesQueryParam(params, "tags", normalizeText(tagFilter?.value));
+  appendNotesQueryParam(params, "updatedSince", updatedFilter?.value || "");
+  appendNotesQueryParam(params, "collection", state.selectedCollectionId || collectionFilter?.value || "");
+
+  return params;
+}
+
+function appendNotesQueryParam(params, key, value, ignoredValue = "") {
+  const text = normalizeText(value);
+
+  if (!text || text === ignoredValue) {
+    return;
+  }
+
+  params.set(key, text);
+}
+
+function activeLibraryBucketFilter() {
+  return ["active_work", "ongoing_area", "reference"].includes(state.activeBucket)
+    ? state.activeBucket
+    : "";
+}
+
+function activeStatusFilter() {
+  if (state.activeBucket === "archive") {
+    return "archived";
+  }
+
+  return statusFilter?.value || "active";
 }
 
 async function loadCollections() {
@@ -1109,6 +1214,9 @@ async function loadTags() {
 async function selectBucket(bucket) {
   state.activeBucket = bucket || "all";
   state.page = 1;
+  state.notesCursorStack = [];
+  state.notesCurrentCursor = "";
+  state.notesNextCursor = "";
   state.selectedNote = null;
   state.selectedCollectionId = "";
   setStatus("Loading notes...");
@@ -1127,16 +1235,11 @@ async function selectBucket(bucket) {
 }
 
 function renderNotes() {
-  const notes = sortedNotes(filteredNotes());
-  const totalPages = Math.max(1, Math.ceil(notes.length / PAGE_SIZE));
+  const pageNotes = state.notes || [];
 
-  state.page = Math.min(state.page, totalPages);
-  const pageStart = (state.page - 1) * PAGE_SIZE;
-  const pageNotes = notes.slice(pageStart, pageStart + PAGE_SIZE);
-
-  pageLabel.textContent = `Page ${state.page} of ${totalPages}`;
-  prevButton.disabled = state.page <= 1;
-  nextButton.disabled = state.page >= totalPages;
+  pageLabel.textContent = `Page ${state.page}`;
+  prevButton.disabled = state.notesCursorStack.length === 0;
+  nextButton.disabled = !state.notesNextCursor;
 
   if (pageNotes.length === 0) {
     renderEmptyList("No notes match the current filters.");
@@ -1244,7 +1347,7 @@ function selectCollection(collectionId) {
   }
   updateCollectionPanelSelection();
   updateUrlCollection();
-  renderNotes();
+  void reloadNotesFromStart();
 }
 
 function updateCollectionPanelSelection() {
@@ -1266,86 +1369,6 @@ function populateCollectionFilter() {
     : "";
   state.selectedCollectionId = collectionFilter.value;
   updateCollectionPanelSelection();
-}
-
-function filteredNotes() {
-  const statusValue = statusFilter?.value || "active";
-  const visibilityValue = visibilityFilter?.value || "all";
-  const securityValue = securityFilter?.value || "all";
-  const typeValue = typeFilter?.value || "all";
-  const contextValue = normalizeText(contextFilter?.value).toLowerCase();
-  const ownerValue = normalizeText(ownerFilter?.value).toLowerCase();
-  const tagValue = normalizeText(tagFilter?.value).toLowerCase();
-  const updatedValue = updatedFilter?.value || "";
-  const collectionValue = state.selectedCollectionId || collectionFilter?.value || "";
-  const collectionIds = collectionFilterIds(collectionValue);
-
-  return state.notes.filter((note) => {
-    const statusMatch = statusValue === "all" ||
-      (statusValue === "active" ? !["archived", "deleted"].includes(note.status) : note.status === statusValue);
-    const visibilityMatch = visibilityValue === "all" || note.visibility === visibilityValue;
-    const securityMatch = securityValue === "all" || note.security_mode === securityValue;
-    const typeMatch = typeValue === "all" || note.note_type === typeValue;
-    const contextText = [note.client_id, note.project_id, note.task_id, note.ticket_id, note.linked_user_id]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    const contextMatch = !contextValue || contextText.includes(contextValue);
-    const ownerMatch = !ownerValue || normalizeText(note.owner_user_id).toLowerCase().includes(ownerValue);
-    const tagMatch = !tagValue ||
-      (isNoTagsFilterValue(tagValue)
-        ? (note.tags || []).length === 0
-        : (note.tags || []).some((tag) => [
-            tag.name,
-            tag.slug,
-            tag.description,
-          ].filter(Boolean).join(" ").toLowerCase().includes(tagValue)));
-    const updatedMatch = !updatedValue || String(note.updated_at || "").slice(0, 10) >= updatedValue;
-    const collectionMatch = !collectionValue ||
-      (collectionValue === "__uncategorized" ? !note.note_collection_id : collectionIds.has(note.note_collection_id));
-
-    return statusMatch && visibilityMatch && securityMatch && typeMatch && contextMatch && ownerMatch && tagMatch && updatedMatch && collectionMatch;
-  });
-}
-
-function sortedNotes(notes) {
-  const sortValue = sortSelect?.value || DEFAULT_NOTE_SORT;
-  const sorted = [...notes];
-
-  sorted.sort((left, right) => {
-    if (sortValue === "title_asc") {
-      return compareText(left.title, right.title) || compareNoteId(left, right);
-    }
-    if (sortValue === "title_desc") {
-      return compareText(right.title, left.title) || compareNoteId(left, right);
-    }
-    if (sortValue === "created_desc") {
-      return compareText(right.created_at, left.created_at) || compareNoteTitleThenId(left, right);
-    }
-    if (sortValue === "created_asc") {
-      return compareText(left.created_at, right.created_at) || compareNoteTitleThenId(left, right);
-    }
-    if (sortValue === "updated_asc") {
-      return compareText(left.updated_at, right.updated_at) || compareNoteTitleThenId(left, right);
-    }
-    if (sortValue === "library_collection_updated_desc") {
-      return compareNumber(bucketSortValue(left.library_bucket), bucketSortValue(right.library_bucket)) ||
-        compareText(collectionLabel(left.note_collection_id), collectionLabel(right.note_collection_id)) ||
-        compareNoteUpdatedDesc(left, right);
-    }
-    if (sortValue === "note_kind_updated_desc") {
-      return compareText(noteKindLabel(left.note_type), noteKindLabel(right.note_type)) ||
-        compareNoteUpdatedDesc(left, right);
-    }
-    if (sortValue === "primary_context_updated_desc") {
-      return compareText(primaryContextSortKey(left), primaryContextSortKey(right)) ||
-        compareNoteUpdatedDesc(left, right);
-    }
-
-    return compareNoteUpdatedDesc(left, right);
-  });
-
-  return sorted;
 }
 
 function noteListItem(note) {
@@ -3351,24 +3374,6 @@ function bucketSortValue(bucket) {
   return index === -1 ? COLLECTION_BUCKET_ORDER.length : index;
 }
 
-function collectionFilterIds(collectionId) {
-  if (!collectionId || collectionId === "__uncategorized") {
-    return new Set();
-  }
-
-  const byParent = groupCollectionsByParent(collectionsForActiveBucket());
-  const ids = new Set([collectionId]);
-  const stack = [...(byParent.get(collectionId) || [])];
-
-  while (stack.length > 0) {
-    const collection = stack.shift();
-    ids.add(collection.note_library_collection_id);
-    stack.push(...(byParent.get(collection.note_library_collection_id) || []));
-  }
-
-  return ids;
-}
-
 function collectionLabel(collectionId) {
   if (!collectionId) {
     return "";
@@ -3552,16 +3557,6 @@ function tagChips(tags = [], options = {}) {
   return wrapper;
 }
 
-function isNoTagsFilterValue(value) {
-  const normalized = normalizeText(value).toLowerCase().replace(/\s+/g, "_");
-  return [
-    window.LongtailForge?.tags?.NO_TAGS_FILTER_VALUE || "__no_tags__",
-    "__no_effective_tags__",
-    "no_tags",
-    "none",
-  ].includes(normalized);
-}
-
 function emptyPreviewNode() {
   const empty = document.createElement("p");
   empty.textContent = "No preview.";
@@ -3624,30 +3619,6 @@ function safeNoteErrorMessage(error = {}, fallback = "Note action failed.") {
 
 function compareText(left, right) {
   return String(left || "").localeCompare(String(right || ""));
-}
-
-function compareNumber(left, right) {
-  return Number(left || 0) - Number(right || 0);
-}
-
-function compareNoteUpdatedDesc(left = {}, right = {}) {
-  return compareText(right.updated_at, left.updated_at) || compareNoteTitleThenId(left, right);
-}
-
-function compareNoteTitleThenId(left = {}, right = {}) {
-  return compareText(left.title, right.title) || compareNoteId(left, right);
-}
-
-function compareNoteId(left = {}, right = {}) {
-  return compareText(left.note_id, right.note_id);
-}
-
-function primaryContextSortKey(note = {}) {
-  const context = note.linked_context || {};
-  const clientLabel = context.client?.label || note.client_name || note.client_id || "";
-  const projectLabel = context.project?.label || note.project_name || note.project_id || "";
-
-  return [clientLabel, projectLabel].filter(Boolean).join(" / ") || "zz";
 }
 
 function createOption(value, label) {
