@@ -22,6 +22,11 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 - Need a "Complete" button (checkmark) that saves from the edit modal
 
+## Notes - Files
+
+- There's no preview button on the main view of the notes for files
+- All of the buttons in files are words not icons
+
 ## Notes - Suggested Library
 
 - Revisit this once the app is built more (not quite medium term, but not today 2026/06/18)

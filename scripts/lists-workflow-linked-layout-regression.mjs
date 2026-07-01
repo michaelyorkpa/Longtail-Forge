@@ -10,11 +10,11 @@ const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.20.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.20.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.20.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.21.0.1", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.21.0.1", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.21.0.1", "package-lock package entry should report the current app version");
 
-assert.match(listsModule, /version:\s*"0\.33\.5\.20\.6"/, "Lists module should report the current app version");
+assert.match(listsModule, /version:\s*"0\.33\.5\.21\.0\.1"/, "Lists module should report the current app version");
 assert.match(listsModule, /actionStrip:\s*\{[\s\S]*id:\s*"duplicate-list"[\s\S]*behavior:\s*"lists\.workflow\.duplicate"[\s\S]*id:\s*"edit-list"[\s\S]*id:\s*"complete-list"[\s\S]*id:\s*"finalize-list"[\s\S]*id:\s*"reopen-list"[\s\S]*id:\s*"mark-reusable-list"[\s\S]*id:\s*"unmark-reusable-list"[\s\S]*id:\s*"archive-list"[\s\S]*id:\s*"delete-list"[\s\S]*id:\s*"restore-list"/, "Lists descriptor should declare workflow actions and behavior IDs");
 assert.match(listsModule, /linkedRecords:\s*\{[\s\S]*recordsField:\s*"links"[\s\S]*targetTypeField:\s*"target_type"[\s\S]*targetLabelField:\s*"target\.label"[\s\S]*field:\s*"task_search"[\s\S]*field:\s*"task_picker"[\s\S]*field:\s*"target_id"[\s\S]*id:\s*"add-link"[\s\S]*id:\s*"remove-link"/, "Lists descriptor should declare linked-record picker fields and row metadata");
 assert.match(listsModule, /LIST_PERMISSIONS\.MANAGE_LINKS/, "Linked-record descriptor actions should use the Lists link permission metadata");

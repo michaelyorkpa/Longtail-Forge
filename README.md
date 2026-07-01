@@ -73,9 +73,10 @@ Longtail Forge keeps different kinds of work in distinct but connected places:
 
 ### Requirements
 
-- Node.js 20 or newer
+- Node.js 20.x or a newer runtime supported by the selected `better-sqlite3` release
 - npm
-- SQLite command-line tool available as `sqlite3`, or set `SQLITE_COMMAND`
+- SQLite command-line tool available as `sqlite3`, or set `SQLITE_COMMAND` until the 0.33.5.21.0 driver swap is complete
+- Python and a C++ toolchain, such as Visual Studio Build Tools on Windows, only if npm cannot use a prebuilt `better-sqlite3` binary
 
 ### Setup
 

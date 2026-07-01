@@ -10,9 +10,9 @@ const regressionSuite = readText("scripts/regression-suite.mjs");
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 
-assert.equal(packageJson.version, "0.33.5.20.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.20.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.20.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.21.0.1", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.21.0.1", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.21.0.1", "package-lock package entry should report the current app version");
 
 assert.match(html, /<main class="wide-page lists-page" data-lists-host><\/main>/, "Lists protected view should remain a minimal host");
 assert.match(html, /js\/shared\/view-builder\.js\?v=5[\s\S]*js\/shared\/view-renderer\.js\?v=6[\s\S]*js\/lists\.js\?v=13/, "Lists should load the renderer between the view builder and module script");

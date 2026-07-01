@@ -40,20 +40,105 @@ Entry contract from 0.33.5.19: use the provider-neutral transaction helper for a
 
 Decision (recorded in `DECISIONS.md`): replace the `sqlite3` CLI shell-out with the in-process `better-sqlite3` driver behind the existing `src/db/provider.js` adapter before durable jobs, streamed uploads, and the PostgreSQL adapter build on it. `better-sqlite3` was chosen over `node:sqlite` for its stable API, bundled/consistent SQLite version across installs (guaranteed FTS5 and `RETURNING`), and no experimental-flag or Node-floor requirement, accepting a native/compiled dependency as the tradeoff. Revisit `node:sqlite` once it is no longer experimental.
 
-- [ ] Add `better-sqlite3` and implement it inside `src/db/adapters/sqlite-adapter.js` behind the existing `db.query/get/run/transaction/health/capabilities` contract, so repositories and module services do not change.
-- [ ] Bind named parameters through the driver instead of inlining literals via `expandSqlParameters`; keep `sqlText`/`sqlInteger` working as a compatibility path for unconverted multi-statement code.
-- [ ] Route multi-statement scripts (baselines, migrations, repairs) through the driver's `exec` path and single parameterized statements through `prepare`.
-- [ ] Retire the CLI process lifecycle (`src/db/sqlite.js` spawn/marker/idle-close) and the global `operationChain` serial queue now that calls are synchronous and in-process.
-- [ ] Apply startup PRAGMAs through the driver (foreign keys on, configured journal mode/WAL, busy timeout) and preserve the existing health/capability readout shape and the migration lock + checksum validation.
-- [ ] Confirm whether a separate worker process is supported in SQLite mode at all, or whether SQLite mode is inline-worker-only (reconcile with `docs/sqlite-small-office-mode.md` "Unsupported Shapes" and the "one app process/server" rule in `DECISIONS.md`).
-- [ ] Update `.env.example`/`docs/runtime-configuration.md`/`docs/database.md`: mark `SQLITE_COMMAND` legacy and describe the in-process driver.
-- [ ] Run `npm run check`, `npm run test:permissions`, and `PRAGMA integrity_check` after the swap.
-- [ ] Do not start 0.33.5.21.2 worker runner work until this driver swap is complete.
+Scope note: the only code that touches the `sqlite3` CLI today is `src/db/sqlite.js` (`spawn(config.sqliteCommand, ...)`), so the swap is contained but not small. The in-scope database-mechanism files are `src/db/sqlite.js`, `src/db/adapters/sqlite-adapter.js`, `src/db/provider.js`, `src/db/index.js`, and `src/db/migrations.js`. Repositories and module services should not change, because the `db.query/get/run/transaction/health/capabilities` contract stays stable.
+
+Reslice evaluation: as originally written, 0.33.5.21.0 bundled dependency/native install risk, a database driver swap, parameter semantics, transaction behavior, migration script routing, diagnostics, docs, and full verification into one oversized slice. Split it into the sub-slices below so each pass has one main blast radius and can be closed independently before durable job schema/worker work begins.
+
+#### Version 0.33.5.21.0.1 - better-sqlite3 dependency and install readiness
+
+- [x] Add `better-sqlite3` to `package.json` and update `package-lock.json`.
+- [x] Verify the selected release installs on the current Windows development Node runtime and record the minimum supported Node version implied by that release.
+- [x] Add a small install/runtime smoke check that opens a disposable database and proves the bundled SQLite has FTS5 and `RETURNING`.
+- [x] Document the native dependency fallback for developers/operators who compile from source, including Python plus a C++ toolchain / Visual Studio Build Tools on Windows.
+
+Acceptance criteria:
+
+- [x] `npm install` has captured the native dependency in the lockfile.
+- [x] A disposable smoke check proves `better-sqlite3` can load and expose the SQLite features the app depends on.
+- [x] No application database behavior changes yet; the `sqlite3` CLI helper may still be active until 0.33.5.21.0.2.
+
+#### Version 0.33.5.21.0.2 - In-process SQLite helper core
+
+- [ ] Replace the `src/db/sqlite.js` spawn/marker/idle-close implementation with one long-lived `better-sqlite3` connection to `config.databaseFile`.
+- [ ] Keep the existing exported helper names (`querySql`, `runSql`, `closeSqlite`, `initializeSqliteRuntime`, health helpers, and SQL literal exports) so `src/db/adapters/sqlite-adapter.js`, `src/db/provider.js`, and `src/db/index.js` continue to load without caller changes.
+- [ ] Route already-interpolated string SQL through the driver with `prepare().all()` for single read statements and `exec()` for multi-statement scripts.
+- [ ] Apply startup PRAGMAs through the driver: foreign keys on, configured journal mode/WAL, and busy timeout.
+- [ ] Preserve database-file writability checks, last-health caching, and `formatSqliteHealth()` output shape.
+
+Acceptance criteria:
+
+- Normal app startup, fresh database creation, baseline adoption, and existing string-SQL regressions run through `better-sqlite3` without shelling out to the `sqlite3` CLI.
+- `sqlText`/`sqlInteger`/`sqlNullableText`/`sqlNullableInteger` remain the compatibility path for existing interpolated statements.
+- Health output still reports provider, database file, writable state, foreign-key state, journal mode, and busy timeout.
+
+#### Version 0.33.5.21.0.3 - Driver-native parameter binding and value coercion
+
+- [ ] Move adapter parameter handling away from `expandSqlParameters()` literal inlining and bind named parameters through `better-sqlite3`.
+- [ ] Preserve the async app-facing adapter API for `db.query`, `db.get`, and `db.run` so `src/core/database.js` and callers do not change.
+- [ ] Normalize driver-bound values to match the old literal path where needed: booleans to `0/1`, `Date` values to ISO strings, and `undefined` to `null`.
+- [ ] Reject missing, unknown, or invalid named parameters clearly.
+- [ ] Keep no-parameter and multi-statement compatibility paths for the unconverted SQL that already uses `sqlText` and related helpers.
+
+Acceptance criteria:
+
+- Parameterized single-statement adapter calls use real driver bindings instead of interpolated SQL literals.
+- Existing pilot parameterized repositories and existing compatibility string-SQL callers both pass.
+- Focused regression coverage proves boolean, `Date`, `undefined`/`null`, missing-parameter, and unknown-parameter behavior.
+
+#### Version 0.33.5.21.0.4 - Transaction and migration fidelity
+
+- [ ] Preserve `db.transaction(callback)` semantics, including the transaction client shape and the existing "use the transaction client inside a transaction" guard.
+- [ ] Retire the global adapter `operationChain` only after the in-process synchronous call path is stable.
+- [ ] Ensure migration, baseline, and repair scripts that already embed `BEGIN ... COMMIT` are routed through the multi-statement `exec()` path instead of being wrapped in a second transaction.
+- [ ] Preserve the migration lock, baseline checksum validation, future migration checksum validation, and schema-repair flows.
+- [ ] Verify rollback behavior and nested-transaction rejection through the existing transaction helper regression.
+
+Acceptance criteria:
+
+- Fresh baseline, existing database adoption, legacy repair paths, future migration application, and transaction helper regressions keep their current behavior.
+- No nested transaction is opened around migration scripts that already contain their own transaction block.
+- `db.transaction(callback)` remains available and provider-neutral for job/outbox work.
+
+#### Version 0.33.5.21.0.5 - Result fidelity, diagnostics, and SQLite-mode worker decision
+
+- [ ] Verify returned row shapes and column/alias keys match current expectations with native driver result rows.
+- [ ] Confirm value types remain safe for current callers, especially booleans stored as `0/1`, `null`, `Buffer`, and large integers; decide and document whether `safeIntegers` is unnecessary for the current TEXT-key schema.
+- [ ] Update the SQLite capability label from `adapter: "sqlite-process"` to `adapter: "better-sqlite3"` while preserving the rest of the capability shape.
+- [ ] Preserve `/api/runtime-diagnostics` database health fields and redaction behavior.
+- [ ] Resolve the SQLite worker-mode boundary before 0.33.5.21.2: document whether SQLite small-office mode supports inline only or one app process plus one local worker process, and keep the "no multiple app servers / no worker fleet" rule explicit.
+
+Acceptance criteria:
+
+- Adapter contract and runtime diagnostics regressions pass with the new `better-sqlite3` capability label.
+- FTS5 search still works through `MATCH`/`bm25()`.
+- The SQLite worker-mode boundary is reconciled across `DECISIONS.md`, `docs/sqlite-small-office-mode.md`, and the future worker slices.
+
+#### Version 0.33.5.21.0.6 - CLI retirement docs and driver-swap closeout
+
+- [ ] Remove or mark `SQLITE_COMMAND` as legacy/ignored in active runtime configuration now that normal operation no longer shells out to `sqlite3`.
+- [ ] Update `.env.example`, `docs/runtime-configuration.md`, `docs/database.md`, and any self-hosting/setup docs that still instruct operators to install the `sqlite3` CLI.
+- [ ] Update `CHANGELOG.md`, version metadata, and roadmap bookkeeping for the completed driver swap.
+- [ ] Run `npm run check`, `npm run test:permissions`, `PRAGMA integrity_check`, and a targeted FTS5 search spot-check after the full swap.
+- [ ] Restart the local app server if needed and verify `/api/app-info` reports the expected version.
 
 Acceptance criteria:
 
 - All database access runs through the in-process `better-sqlite3` driver behind the existing adapter contract, with no `sqlite3` CLI shell-out in normal operation.
-- Bound parameters are real driver parameters; existing regressions and permission checks pass unchanged.
+- Docs and runtime configuration no longer present the CLI as an active dependency.
+- Full verification passes and the branch is safe to use as the entry point for 0.33.5.21.1 job/outbox schema and 0.33.5.21.2 worker runner work.
+
+Notes for the implementer (already checked, no re-investigation needed):
+
+- The `sqlite3` CLI is only used in `src/db/sqlite.js`; no `scripts/*` shell out to it, so nothing outside the database layer needs changing for the CLI removal.
+- No repository or service inspects database error text (stderr strings such as "UNIQUE constraint"), so moving to `better-sqlite3` `SqliteError` objects does not silently break error handling. Add `SqliteError.code` handling only where a typed error branch is deliberately wanted.
+
+Acceptance criteria:
+
+- All database access runs through the in-process `better-sqlite3` driver behind the existing adapter contract, with no `sqlite3` CLI shell-out in normal operation.
+- Bound parameters are real driver parameters; `sqlText`-interpolated statements continue to work unchanged.
+- Result value types, FTS5 search, migrations/checksum validation, health/diagnostics, and permission checks are unchanged; existing regressions pass.
+
+Gate: do not start 0.33.5.21.2 worker runner work until this driver swap is complete.
 
 ### Version 0.33.5.21.1 - Job/outbox schema
 

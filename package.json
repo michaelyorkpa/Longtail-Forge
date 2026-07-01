@@ -1,15 +1,17 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.5.20.6",
+  "version": "0.33.5.21.0.1",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node server.js",
     "check": "node scripts/run-regressions.mjs && eslint .",
     "test:permissions": "node scripts/permission-regression.mjs",
+    "test:sqlite-driver": "node scripts/better-sqlite3-install-smoke.mjs",
     "lint": "eslint ."
   },
   "dependencies": {
+    "better-sqlite3": "^12.11.1",
     "cookie-parser": "^1.4.7",
     "express": "^4.19.2",
     "markdown-it": "^14.2.0"

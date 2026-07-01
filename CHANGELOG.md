@@ -1,3 +1,11 @@
+## Version 0.33.5.21.0.1 - 2026-07-01 16:48 -04:00
+
+- Added `better-sqlite3@12.11.1` as the selected in-process SQLite driver dependency for the 0.33.5.21.0 driver swap while leaving the current `sqlite3` CLI helper active until the next slice.
+- Added `scripts/better-sqlite3-install-smoke.mjs` and `npm run test:sqlite-driver` to open a disposable database and verify the bundled SQLite supports FTS5, `bm25()`, and `RETURNING`.
+- Documented the selected release's Node engine range, the Windows development runtime verification on Node `v20.13.1`, and the native build fallback requiring Python plus a C++ toolchain such as Visual Studio Build Tools when prebuilt binaries are unavailable.
+- Refreshed package/current module metadata and regression version pins for 0.33.5.21.0.1.
+- Verification 2026-07-01 16:52 -04:00: better-sqlite3 install smoke, runtime/database closeout, SQLite small-office performance, clean-clone, and check-js targeted checks passed; `npm run check` passed 220/220 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; production `npm audit --omit=dev` found 0 vulnerabilities; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.0.1 after restarting the local 8001 server.
+
 ## Version 0.33.5.20.6 - 2026-07-01 09:12 -04:00
 
 - Added `scripts/sqlite-small-office-performance.mjs`, a repeatable seeded SQLite route timing harness for App shell bootstrap, Tasks list/detail, Notes list/detail, Files browse, Search, Notifications, and Workbench bootstrap.
