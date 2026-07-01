@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.20.4";
+const appVersion = "0.33.5.20.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
@@ -35,7 +35,7 @@ const resultsChrome = functionBlock(filesScript, "createFilesResultsChrome");
 assert.match(resultsChrome, /requireFilesViewHelper\("createListShell"\)/, "Files results should still use the shared list shell");
 assert.match(resultsChrome, /dataset:\s*\{\s*fileTableMount:\s*""\s*\}[\s\S]*children:\s*\[createFilesTable\(\[\]\)\]/, "Files results should expose one table remount target");
 assert.match(resultsChrome, /statusAttrs:\s*\{\s*"data-file-status":\s*""\s*\}/, "Files results should keep the small status/live region");
-assert.match(resultsChrome, /children:\s*tableMount/, "Files results should mount only the compact table body inside the list shell");
+assert.match(resultsChrome, /children:\s*\[[\s\S]*tableMount,[\s\S]*createFilesPaginationChrome\(\)[\s\S]*\]/, "Files results should mount only the compact table and bounded pagination controls inside the list shell");
 assert.doesNotMatch(resultsChrome, /summaryMount|detailMount|createFilesSummaryPanel|createFilesDetailPanel/, "Files results should not mount inline summary or detail panels");
 
 const renderFiles = functionBlock(filesScript, "renderFiles");
@@ -43,10 +43,10 @@ assert.match(renderFiles, /attachments\.map\(\(attachment\) => fileRow\(attachme
 assert.doesNotMatch(renderFiles, /state\.fileRows|reconcileSelectedFile|renderFilesSummary|renderSelectedFileDetail/, "Files render should not keep selected-row state or inline detail panels in sync");
 
 const loadFiles = functionBlock(filesScript, "loadFiles");
-assert.match(loadFiles, /const attachments = result\.attachments \|\| \[\][\s\S]*renderFiles\(attachments\)[\s\S]*setStatus\(visibleFileCountLabel\(attachments\.length\)\)/, "Files successful browse loads should keep a small visible-count status message above the table");
+assert.match(loadFiles, /params\.set\("limit", String\(FILES_PAGE_SIZE\)\)[\s\S]*const attachments = result\.attachments \|\| \[\][\s\S]*state\.attachments = options\.append \? \[\.\.\.state\.attachments, \.\.\.attachments\] : attachments[\s\S]*renderFiles\(state\.attachments\)[\s\S]*setStatus\(visibleFileCountLabel\(state\.attachments\.length, state\.pagination\)\)/, "Files successful browse loads should keep a bounded page size and compact visible-count status above the table");
 
 const visibleFileCountLabel = functionBlock(filesScript, "visibleFileCountLabel");
-assert.match(visibleFileCountLabel, /return `\$\{safeCount\} file attachment\$\{safeCount === 1 \? "" : "s"\} visible`/, "Files visible-count status should stay compact and attachment-scoped");
+assert.match(visibleFileCountLabel, /const label = `\$\{safeCount\} file attachment\$\{safeCount === 1 \? "" : "s"\} visible`[\s\S]*return pagination\.hasMore \? `\$\{label\}\. More available\.` : label/, "Files visible-count status should stay compact and attachment-scoped while hinting at additional pages");
 
 const filesTable = functionBlock(filesScript, "createFilesTable");
 assert.match(filesTable, /view\.createDataTable\(\{[\s\S]*className:\s*"files-table-wrap"[\s\S]*tableClassName:\s*"files-table"[\s\S]*emptyMessage:\s*"No file attachments match the current filters\."/,

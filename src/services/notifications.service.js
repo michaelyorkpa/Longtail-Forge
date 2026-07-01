@@ -5,6 +5,7 @@ import {
   taskUpdatedLabel,
 } from "../core/events/event-summaries.js";
 import { modulesService } from "../core/modules/modules.service.js";
+import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
 import { notificationsRepository } from "../repositories/notifications.repo.js";
 import { usersRepository } from "../repositories/users.repo.js";
 import { AppError } from "../utils/app-error.js";
@@ -12,6 +13,8 @@ import { auditService } from "./audit.service.js";
 import { permissionsService } from "./permissions.service.js";
 
 const FRAMEWORK_NOTIFICATION_MODULE_ID = "framework";
+const NOTIFICATION_DEFAULT_PAGE_SIZE = 25;
+const NOTIFICATION_MAX_PAGE_SIZE = 100;
 let notificationEventUnsubscribers = [];
 let notificationEventHandlersRegistered = false;
 
@@ -50,8 +53,32 @@ async function createMany(payloads, session = null) {
 async function list(session, query = {}) {
   await permissionsService.assertCanInAnyScope(session, "notifications.view_own");
 
-  const notifications = await notificationsRepository.listForRecipient(session.workspace_id, session.user_id, query);
-  return { notifications: await Promise.all(notifications.map((notification) => decorateForSession(notification, session))) };
+  const pagination = normalizeBoundedPagination(query, {
+    defaultLimit: NOTIFICATION_DEFAULT_PAGE_SIZE,
+    maxLimit: NOTIFICATION_MAX_PAGE_SIZE,
+  });
+  const filters = normalizeNotificationListFilters(query);
+  const repositoryQuery = {
+    ...filters,
+    limit: pagination.limit,
+    offset: pagination.offset,
+  };
+  const [notifications, total, filterOptions] = await Promise.all([
+    notificationsRepository.listForRecipient(session.workspace_id, session.user_id, repositoryQuery),
+    notificationsRepository.countForRecipient(session.workspace_id, session.user_id, repositoryQuery),
+    notificationsRepository.readFilterOptionsForRecipient(session.workspace_id, session.user_id, filters),
+  ]);
+
+  return {
+    filterOptions,
+    notifications: await Promise.all(notifications.map((notification) => decorateForSession(notification, session))),
+    pagination: boundedPaginationEnvelope({
+      ...pagination,
+      hasMore: pagination.offset + notifications.length < total,
+      returned: notifications.length,
+      total,
+    }),
+  };
 }
 
 async function unreadCount(session) {
@@ -780,6 +807,29 @@ function notificationUpdateTypeLabel(notification, options = {}) {
   }
 
   return eventDeclarationLabel(notification) || fallbackEventLabel(eventType);
+}
+
+function normalizeNotificationListFilters(query = {}) {
+  return {
+    eventType: normalizeOptionalFilter(query.eventType || query.event_type),
+    moduleId: normalizeOptionalFilter(query.moduleId || query.module_id || query.module),
+    priority: normalizeNotificationPriorityFilter(query.priority),
+    status: normalizeNotificationStatus(query.status),
+  };
+}
+
+function normalizeNotificationStatus(value) {
+  const status = String(value || "").trim();
+  return ["active", "unread", "read", "dismissed", "archived"].includes(status) ? status : "";
+}
+
+function normalizeOptionalFilter(value) {
+  return String(value || "").trim().slice(0, 120);
+}
+
+function normalizeNotificationPriorityFilter(value) {
+  const priority = String(value || "").trim();
+  return ["low", "normal", "high", "urgent"].includes(priority) ? priority : "";
 }
 
 function eventDeclarationLabel(notification) {

@@ -6,7 +6,7 @@ import {
   listFrameworkViewSurfaces,
 } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const appVersion = "0.33.5.20.4";
+const appVersion = "0.33.5.20.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");
@@ -92,7 +92,7 @@ const inventory = protectedHtmlFiles.map((fileName) => {
 assert.equal(packageJson.version, appVersion, "package.json should report the current app version");
 assert.equal(packageLock.version, appVersion, "package-lock root should report the current app version");
 assert.equal(packageLock.packages[""].version, appVersion, "package-lock package entry should report the current app version");
-assert.match(listsModule, /version:\s*"0\.33\.5\.20\.4"/, "Lists module should report the current batched enrichment version");
+assert.match(listsModule, new RegExp(`version:\\s*"${escapeRegExp(appVersion)}"`), "Lists module should track the current app version");
 
 assert.ok(inventory.length >= 20, "Protected view inventory should cover all protected HTML views");
 assert.deepEqual(
@@ -253,7 +253,7 @@ assert.match(functionBlock(filesJs, "buildFileEditorDialog"), /view\.renderDescr
 assert.match(functionBlock(filesJs, "buildFilePreviewDialog"), /files-preview-body[\s\S]*view\.createModal[\s\S]*files-preview-dialog/,
   "Preview should use the shared modal shell");
 for (const routeCheck of [
-  [functionBlock(filesJs, "loadFiles"), /\/api\/files\/attachments\?\$\{readFilters\(\)\.toString\(\)\}/, "Files browse reads should stay behind the attachment route"],
+  [functionBlock(filesJs, "loadFiles"), /params\.set\("limit", String\(FILES_PAGE_SIZE\)\)[\s\S]*\/api\/files\/attachments\?\$\{params\.toString\(\)\}/, "Files browse reads should stay behind the attachment route"],
   [functionBlock(filesJs, "createDownloadAction"), /\/api\/files\/\$\{encodeURIComponent\(row\.fileId\)\}\/download/, "Files browse downloads should stay behind the Files download route"],
   [functionBlock(filesJs, "loadFilePreview"), /\/api\/files\/attachments\/\$\{encodeURIComponent\(row\.attachmentId\)\}\/preview[\s\S]*api\.getJson\(preview\.contentUrl/, "Files Preview should stay descriptor/content route-backed"],
   [functionBlock(filesJs, "loadFileEditorTargetOptions"), /\/api\/files\/attachable-targets\?\$\{params\.toString\(\)\}/, "File Context target choices should stay provider-backed"],

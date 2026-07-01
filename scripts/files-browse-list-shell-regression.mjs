@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.20.4";
+const appVersion = "0.33.5.20.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
@@ -34,7 +34,7 @@ assert.match(frameworkSurfaceSource, /route:\s*"\/api\/files\/attachments"/, "Fi
 
 const resultsChrome = functionBlock(filesScript, "createFilesResultsChrome");
 assert.match(resultsChrome, /requireFilesViewHelper\("createListShell"\)/, "Files results should require the shared list shell helper");
-assert.match(resultsChrome, /view\.createListShell\(\{[\s\S]*className:\s*"files-browse-list-shell"[\s\S]*statusAttrs:\s*\{\s*"data-file-status":\s*""\s*\}[\s\S]*children:\s*tableMount/, "Files results should mount the compact status plus table through the shared list shell");
+assert.match(resultsChrome, /view\.createListShell\(\{[\s\S]*className:\s*"files-browse-list-shell"[\s\S]*statusAttrs:\s*\{\s*"data-file-status":\s*""\s*\}[\s\S]*children:\s*\[[\s\S]*tableMount,[\s\S]*createFilesPaginationChrome\(\)[\s\S]*\]/, "Files results should mount the compact status, table, and bounded pagination through the shared list shell");
 assert.match(resultsChrome, /dataset:\s*\{\s*fileTableMount:\s*""\s*\}/, "Files results should expose a stable table remount target");
 assert.doesNotMatch(resultsChrome, /summaryMount|detailMount|createFilesSummaryPanel|createFilesDetailPanel/, "Files results should not mount inline summary or detail panels");
 
@@ -63,7 +63,7 @@ assert.doesNotMatch(fileRow, /selectionKey/, "Normal Files browse rows should no
 assert.doesNotMatch(fileRow, /targetLabel:\s*[^,\n]*(targetId|target_id)|clientLabel:\s*[^,\n]*(clientId|client_id)|projectLabel:\s*[^,\n]*(projectId|project_id)/, "Normal Files browse visible labels should not fall back to raw target/client/project IDs");
 
 assert.doesNotMatch(filesScript, /\b(querySql|runSql|storage_key|file_attachments|search_index|tagsService|tagLinks)\b/, "Files browser adapter should not query storage, search, tags, or attachment tables directly");
-assert.match(filesScript, /api\.getJson\(`\/api\/files\/attachments\?\$\{readFilters\(\)\.toString\(\)\}`/, "Files browse should continue loading through the service-owned attachments route");
+assert.match(filesScript, /api\.getJson\(`\/api\/files\/attachments\?\$\{params\.toString\(\)\}`/, "Files browse should continue loading through the service-owned attachments route");
 
 const fileCell = functionBlock(filesScript, "createFileCell");
 assert.match(fileCell, /createFilesElement\("span"[\s\S]*className: "files-file-cell"/, "File cell should use the compact file-cell anatomy");

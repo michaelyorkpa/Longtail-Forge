@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.20.4";
+const appVersion = "0.33.5.20.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -63,14 +63,15 @@ assert.match(runtimeDocs, /`GET \/api\/runtime-diagnostics`[\s\S]*workspace_sett
 
 assert.match(databaseDocs, /As of version 0\.33\.5\.19\.9/, "database docs should report the closeout database version");
 assert.match(databaseDocs, /The completed 0\.33\.5\.19 foundation covers runtime config[\s\S]*SQLite startup hardening[\s\S]*provider-neutral adapter boundary[\s\S]*parameterized-query and transaction pilots[\s\S]*SQLite migration locking[\s\S]*runtime diagnostics\/admin readout/, "database docs should summarize shipped runtime/database foundation behavior");
-assert.match(databaseDocs, /does not implement PostgreSQL[\s\S]*durable jobs\/outbox processing[\s\S]*storage-provider switching[\s\S]*scanner adapters[\s\S]*bounded query rewrites/, "database docs should keep future branches out of the closeout scope");
+assert.match(databaseDocs, /does not implement PostgreSQL[\s\S]*durable jobs\/outbox processing[\s\S]*storage-provider switching[\s\S]*scanner adapters/, "database docs should keep future branches out of the closeout scope");
+assert.match(databaseDocs, /As of version 0\.33\.5\.20\.5[\s\S]*bounded-query branch covers[\s\S]*Audit Log[\s\S]*Notifications[\s\S]*Search results[\s\S]*Files browse/, "database docs should record the shipped bounded-query branch");
 assert.match(databaseDocs, /Parameterized Query Style/, "database docs should keep the parameterized query style");
 assert.match(databaseDocs, /Transaction Style/, "database docs should keep the transaction style");
 assert.match(databaseDocs, /Migration Locking and Startup Ownership/, "database docs should keep migration locking guidance");
 
 assert.match(architectureDocs, /As of 0\.33\.5\.19\.9[\s\S]*SQLite is still the only implemented provider/, "architecture docs should summarize the active provider boundary");
 assert.match(architectureDocs, /src\/core\/database\.js[\s\S]*health\/capability reporting[\s\S]*named-parameter support[\s\S]*callback transactions[\s\S]*SQLite migration locking/, "architecture docs should document the shipped adapter foundation");
-assert.match(architectureDocs, /Future bounded-query, jobs\/outbox, storage\/scanner, and PostgreSQL work should consume that foundation/, "architecture docs should hand off future branches");
+assert.match(architectureDocs, /0\.33\.5\.20 bounded-query branch consumes that foundation[\s\S]*future jobs\/outbox, storage\/scanner, and PostgreSQL work should do the same/, "architecture docs should hand off future branches");
 
 assert.match(sqliteDocs, /one Longtail Forge app process\/server/i, "SQLite small-office docs should keep the one-server boundary");
 assert.match(sqliteDocs, /roughly 50 total users[\s\S]*5-15 concurrent users/i, "SQLite small-office docs should keep the support target");

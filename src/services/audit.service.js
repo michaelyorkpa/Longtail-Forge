@@ -5,9 +5,14 @@ import { settingsRepository } from "../repositories/settings.repo.js";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { modulesService } from "../core/modules/modules.service.js";
+import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
 import { permissionsService } from "./permissions.service.js";
 import { AppError } from "../utils/app-error.js";
 import { localDateBoundToUtcIso, normalizeUtcIso } from "../utils/timezones.js";
+
+const AUDIT_DEFAULT_PAGE_SIZE = 50;
+const AUDIT_MAX_PAGE_SIZE = 500;
+const AUDIT_EXPORT_MAX_PAGE_SIZE = 1000;
 
 const CHANGE_TYPES = new Set([
   "create",
@@ -97,7 +102,7 @@ function listAuditChangeTypes() {
   return [...CHANGE_TYPES].sort();
 }
 
-async function list(session, filters = {}) {
+async function list(session, filters = {}, options = {}) {
   const workspaceScope = await resolveAuditWorkspaceScope(session, filters.workspaceId || filters.workspace_id);
   await Promise.all(workspaceScope.workspaceIds.map(async (workspaceId) => {
     const settings = await readAuditSettings(workspaceId);
@@ -107,17 +112,24 @@ async function list(session, filters = {}) {
     ...filters,
     timezone: session.timezone,
   });
+  const pagination = normalizeBoundedPagination(normalizedFilters, {
+    defaultLimit: AUDIT_DEFAULT_PAGE_SIZE,
+    maxLimit: options.maxPageSize || AUDIT_MAX_PAGE_SIZE,
+  });
+  const repositoryFilters = {
+    ...normalizedFilters,
+    limit: pagination.limit,
+    offset: pagination.offset,
+  };
   const canFilterWorkspaces = await permissionsService.isSuperAdmin(session);
   const [auditLogs, total, filterOptions, workspaceOptions, projectOptions, clientOptions] = await Promise.all([
-    auditLogsRepository.searchForScope(workspaceScope, normalizedFilters),
-    auditLogsRepository.countSearchForScope(workspaceScope, normalizedFilters),
+    auditLogsRepository.searchForScope(workspaceScope, repositoryFilters),
+    auditLogsRepository.countSearchForScope(workspaceScope, repositoryFilters),
     auditLogsRepository.readFilterOptionsForScope(workspaceScope),
     canFilterWorkspaces ? readAuditWorkspaceOptions() : Promise.resolve([]),
     readProjectOptionsForScope(workspaceScope),
     readClientOptionsForScope(workspaceScope),
   ]);
-  const limit = normalizeLimit(normalizedFilters.limit);
-  const offset = normalizeOffset(normalizedFilters.offset);
 
   return {
     auditLogs,
@@ -127,11 +139,12 @@ async function list(session, filters = {}) {
       projects: projectOptions,
       workspaces: workspaceOptions,
     },
-    pagination: {
-      limit,
-      offset,
+    pagination: boundedPaginationEnvelope({
+      ...pagination,
+      hasMore: pagination.offset + auditLogs.length < total,
+      returned: auditLogs.length,
       total,
-    },
+    }),
     workspaceId: workspaceScope.selectedWorkspaceId,
   };
 }
@@ -140,6 +153,8 @@ async function exportCsv(session, filters = {}) {
   const result = await list(session, {
     ...filters,
     limit: 1000,
+  }, {
+    maxPageSize: AUDIT_EXPORT_MAX_PAGE_SIZE,
   });
   const headers = [
     "created_at",
@@ -205,6 +220,7 @@ function normalizeFilters(filters) {
     dateTo: normalizeDateBound(filters.dateTo, filters.timezone, "end"),
     limit: filters.limit,
     offset: filters.offset,
+    cursor: filters.cursor,
     clientId: nullableString(filters.clientId || filters.client_id),
     projectId: nullableString(filters.projectId || filters.project_id),
     recordType: nullableString(filters.recordType),
@@ -260,14 +276,6 @@ async function readProjectOptions(workspaceId) {
 
 function isArchivedOption(record) {
   return ["inactive", "archived", "completed"].includes(String(record?.status || "").trim().toLowerCase());
-}
-
-function normalizeLimit(value) {
-  return Math.max(1, Math.min(1000, Number.parseInt(value, 10) || 500));
-}
-
-function normalizeOffset(value) {
-  return Math.max(0, Number.parseInt(value, 10) || 0);
 }
 
 function normalizeDateBound(value, timezone, edge) {

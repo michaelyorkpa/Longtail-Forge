@@ -31,7 +31,7 @@ Available profiles:
 - `sqlite-heavy-workspace` seeds the upper end of the current SQLite small-office target.
 - `future-saas-postgres-mixed` reserves a future mixed SaaS comparison shape; it still uses SQLite until the PostgreSQL provider exists.
 
-Each successful run verifies expected counts, permission sanity, search sanity, and app startup sanity. The script writes realistic workspace, user, role-assignment, client, project, task, note, list/item, tag, notification, audit-log, file metadata, time-entry, attachment, and search-index rows. It is for disposable development and performance testing only; do not run it against production or real local data.
+Each successful run verifies expected counts, permission sanity, search sanity, and app startup sanity. The script writes realistic workspace, user, role-assignment, client, project, task, note, list/item, tag, notification, audit-log, file metadata, time-entry, attachment, and search-index rows. Seeded workspaces keep audit logging enabled with 365-day retention so the audit-log fixture remains available for route and performance checks. It is for disposable development and performance testing only; do not run it against production or real local data.
 
 ## Unsupported Shapes
 

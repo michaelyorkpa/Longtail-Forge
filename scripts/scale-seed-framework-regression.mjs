@@ -114,6 +114,14 @@ LIMIT 1;
   assert.equal(marker.profile, "dev-demo", "seeded database should include the scale seed marker");
   assert.deepEqual(JSON.parse(marker.expected_counts_json), seedResult.expectedCounts);
 
+  const workspaceSettings = await db.getSql(`
+SELECT audit_logging_enabled, audit_retention_days
+FROM workspace_settings
+LIMIT 1;
+`);
+  assert.equal(Number(workspaceSettings.audit_logging_enabled), 1, "scale seed should keep audit logging enabled");
+  assert.equal(Number(workspaceSettings.audit_retention_days), 365, "scale seed should keep seeded audit rows inside retention");
+
   const foreignKeyRows = await db.querySql("PRAGMA foreign_key_check;");
   assert.deepEqual(foreignKeyRows, [], "seeded database should pass SQLite foreign-key checks");
 

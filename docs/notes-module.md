@@ -1,6 +1,6 @@
 # Notes Module Developer Guide
 
-This document describes the current Notes implementation as of 0.33.5.20.4. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
+This document describes the current Notes implementation as of 0.33.5.20.5. It is a developer handoff for the first-party `notes` module, not a product Help page and not a Knowledge Base design.
 
 ## Module Boundaries
 
@@ -54,7 +54,7 @@ Archived collections remain attached to notes but are hidden from normal collect
 
 ## Notes List Read Model
 
-As of 0.33.5.20.4, the protected Notes workspace uses a lightweight server-shaped list read. The browser sends Library, Collection, Status, Visibility, Security mode, Note Kind, owner text, context text, tag text, updated-since date, sort, page `limit`, and opaque `cursor` values to `/api/notes`; the Notes repository applies workspace scope, SQL-friendly filters, stable sorting, `LIMIT`, and `OFFSET`, while the Notes service keeps permission pruning, tag filtering, secure-note shaping, and cursor response metadata authoritative. Collection filters include descendant collections and support Uncategorized.
+As of 0.33.5.20.3, the protected Notes workspace uses a lightweight server-shaped list read. The browser sends Library, Collection, Status, Visibility, Security mode, Note Kind, owner text, context text, tag text, updated-since date, sort, page `limit`, and opaque `cursor` values to `/api/notes`; the Notes repository applies workspace scope, SQL-friendly filters, stable sorting, `LIMIT`, and `OFFSET`, while the Notes service keeps permission pruning, tag filtering, secure-note shaping, and cursor response metadata authoritative. Collection filters include descendant collections and support Uncategorized.
 
 Normal Notes list responses are projections for browsing. They include safe metadata such as title, Library bucket, collection id, status, visibility, security mode, safe excerpt, owner id, context ids, tags, and timestamps. They do not include `body_markdown`, rendered `body_html`, plaintext body index text, secure envelope fields, metadata JSON, or decrypted secure-note body content. Secure notes can appear as readable metadata when the session has secure-note access, but their list rows keep body excerpt and body fields closed.
 

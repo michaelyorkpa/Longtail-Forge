@@ -523,7 +523,7 @@ FROM ${SQLITE_SEARCH_FTS_TABLE} fts
 JOIN search_index si ON si.search_index_id = fts.search_index_id
 WHERE ${SQLITE_SEARCH_FTS_TABLE} MATCH ${sqlText(ftsQuery)}
 ${where ? `  AND ${where}` : ""}
-ORDER BY bm25(${SQLITE_SEARCH_FTS_TABLE}), si.indexed_at DESC
+ORDER BY bm25(${SQLITE_SEARCH_FTS_TABLE}), si.indexed_at DESC, si.search_index_id ASC
 LIMIT ${sqlLimit(request?.limit)}
 OFFSET ${sqlOffset(request?.offset)};
 `);
@@ -575,7 +575,7 @@ SELECT
   'sqlite-like' AS search_backend
 FROM search_index si
 ${whereParts.length > 0 ? `WHERE ${whereParts.join("\n  AND ")}` : ""}
-ORDER BY si.indexed_at DESC, si.title ASC
+ORDER BY si.indexed_at DESC, si.title ASC, si.search_index_id ASC
 LIMIT ${sqlLimit(request?.limit)}
 OFFSET ${sqlOffset(request?.offset)};
 `);

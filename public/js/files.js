@@ -2,7 +2,12 @@ const api = window.LongtailForge.api;
 const view = window.LongtailForge?.view;
 const state = {
   workspaceType: "business",
+  attachments: [],
   clients: [],
+  pagination: {
+    hasMore: false,
+    nextCursor: "",
+  },
   projects: [],
 };
 const TEXT_PREVIEW_MAX_BYTES = 512 * 1024;
@@ -11,6 +16,7 @@ const MARKDOWN_PREVIEW_EXTENSIONS = new Set(["md"]);
 const TEXT_PREVIEW_EXTENSIONS = new Set(["txt"]);
 const FILE_REPORT_REASON = "security";
 const FILE_QUARANTINE_REASON = "manual_quarantine";
+const FILES_PAGE_SIZE = 50;
 
 let activeFilesViewDescriptor = null;
 let filesBehaviorRegistered = false;
@@ -26,7 +32,9 @@ let filenameFilter = null;
 let statusFilter = null;
 let fileStatus = null;
 let fileList = null;
+let filePagination = null;
 let fileTableMount = null;
+let loadMoreFilesButton = null;
 let activeFilesTooltip = null;
 let activeFilesTooltipTarget = null;
 let activeFileEditorDialog = null;
@@ -159,7 +167,9 @@ function cacheFilesElements() {
   statusFilter = document.querySelector("[data-file-filter-status]");
   fileStatus = document.querySelector("[data-file-status]");
   fileList = document.querySelector("[data-file-list]");
+  filePagination = document.querySelector("[data-file-pagination]");
   fileTableMount = document.querySelector("[data-file-table-mount]");
+  loadMoreFilesButton = document.querySelector("[data-file-load-more]");
 }
 
 function createFilesFilterChrome() {
@@ -191,7 +201,25 @@ function createFilesResultsChrome() {
     className: "files-browse-list-shell",
     attrs: { "data-file-list-shell": "" },
     statusAttrs: { "data-file-status": "" },
-    children: tableMount,
+    children: [
+      tableMount,
+      createFilesPaginationChrome(),
+    ],
+  });
+}
+
+function createFilesPaginationChrome() {
+  return createFilesElement("div", {
+    attrs: { hidden: "" },
+    className: "files-pagination",
+    dataset: { filePagination: "" },
+    children: [
+      createFilesElement("button", {
+        attrs: { type: "button" },
+        dataset: { fileLoadMore: "" },
+        text: "Load More",
+      }),
+    ],
   });
 }
 
@@ -287,6 +315,13 @@ function bindFilesEvents() {
       loadFiles();
     });
   });
+  loadMoreFilesButton?.addEventListener("click", () => {
+    if (!state.pagination.nextCursor) {
+      return;
+    }
+
+    loadFiles({ append: true, cursor: state.pagination.nextCursor });
+  });
 }
 
 async function loadFilterOptions() {
@@ -374,24 +409,58 @@ function createOption(value, label) {
   });
 }
 
-async function loadFiles() {
+async function loadFiles(options = {}) {
   setStatus("Loading file attachments...");
+  updateFilesPagination({ loading: true });
 
   try {
-    const result = await api.getJson(`/api/files/attachments?${readFilters().toString()}`, { cache: "no-store" });
-    const attachments = result.attachments || [];
+    const params = readFilters();
 
-    renderFiles(attachments);
-    setStatus(visibleFileCountLabel(attachments.length));
+    params.set("limit", String(FILES_PAGE_SIZE));
+    if (options.cursor) {
+      params.set("cursor", options.cursor);
+    }
+
+    const result = await api.getJson(`/api/files/attachments?${params.toString()}`, { cache: "no-store" });
+    const attachments = result.attachments || [];
+    state.attachments = options.append ? [...state.attachments, ...attachments] : attachments;
+    state.pagination = normalizeFilesPagination(result.pagination);
+
+    renderFiles(state.attachments);
+    updateFilesPagination();
+    setStatus(visibleFileCountLabel(state.attachments.length, state.pagination));
   } catch (error) {
     if (error.status === 401) {
       window.location.replace("/login.html");
       return;
     }
 
+    state.attachments = [];
+    state.pagination = { hasMore: false, nextCursor: "" };
     renderFiles([]);
+    updateFilesPagination();
     setStatus(error.message || "Files could not be loaded.", true);
   }
+}
+
+function normalizeFilesPagination(pagination = {}) {
+  const nextCursor = String(pagination.nextCursor || pagination.next_cursor || "").trim();
+
+  return {
+    hasMore: pagination.hasMore === true && Boolean(nextCursor),
+    nextCursor,
+  };
+}
+
+function updateFilesPagination(options = {}) {
+  if (!filePagination || !loadMoreFilesButton) {
+    return;
+  }
+
+  const hasMore = state.pagination.hasMore === true && Boolean(state.pagination.nextCursor);
+
+  filePagination.hidden = !hasMore;
+  loadMoreFilesButton.disabled = options.loading === true || !hasMore;
 }
 
 function readFilters() {
@@ -2086,10 +2155,11 @@ function reviewStateLabel(status, scanStatus) {
   return scanStatusLabel(scanStatus);
 }
 
-function visibleFileCountLabel(count) {
+function visibleFileCountLabel(count, pagination = {}) {
   const safeCount = Number(count || 0);
+  const label = `${safeCount} file attachment${safeCount === 1 ? "" : "s"} visible`;
 
-  return `${safeCount} file attachment${safeCount === 1 ? "" : "s"} visible`;
+  return pagination.hasMore ? `${label}. More available.` : label;
 }
 
 function readableFileName(file = {}) {

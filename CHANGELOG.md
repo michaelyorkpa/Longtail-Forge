@@ -1,3 +1,11 @@
+## Version 0.33.5.20.5 - 2026-07-01 08:13 -04:00
+
+- Added `src/core/bounded-pagination.js` as the shared framework helper for max-page clamping, opaque offset cursors, and consistent pagination envelopes on high-volume framework/admin reads.
+- Hardened Audit Log, Notifications, Search results, and Files browse reads with explicit maximum page sizes, stable ordering, permission-shaped rows, and next-cursor metadata while preserving existing filters and page workflows.
+- Moved Notifications module filtering to the endpoint, batched Search result Client/Project context enrichment, and changed normal Files browse to scan bounded candidate windows before shaping visible attachments instead of reading every matching attachment up front.
+- Added `scripts/high-volume-admin-lists-regression.mjs` with dev-demo scale seed coverage for Audit, Notifications, Search, and Files browse endpoints, kept scale-seeded Audit Log rows inside the supported retention window, refreshed docs/decisions/version metadata, and marked the 0.33.5.20.5 roadmap checklist complete.
+- Verification 2026-07-01 08:29 -04:00: high-volume admin lists, scale seed framework, Audit, Notifications, Search, Files, Tasks/Notes server-side paging, clean-clone, and check-js targeted checks passed; `npm run check` passed 218/218 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after LF/CRLF warnings; and `/api/app-info` returned 0.33.5.20.5 after restarting the local 8001 server.
+
 ## Version 0.33.5.20.4 - 2026-07-01 05:57 -04:00
 
 - Added `src/core/list-enrichment.js` as the shared visible-record batching helper for list enrichment, with reusable ID batching, row grouping, and batch-map shaping.

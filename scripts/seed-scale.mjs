@@ -426,6 +426,17 @@ WHERE workspace_id = :workspaceId;
     now,
     workspaceId,
   });
+
+  await db.run(`
+UPDATE workspace_settings
+SET audit_logging_enabled = 1,
+    audit_retention_days = 365,
+    updated_at = :now
+WHERE workspace_id = :workspaceId;
+`, {
+    now,
+    workspaceId,
+  });
 }
 
 async function seedUsers({ transaction, hashPassword, profile, seedContext }) {

@@ -1,4 +1,4 @@
-﻿# Longtail Forge Roadmap
+# Longtail Forge Roadmap
 
 This file is the detailed per-version changelog and forward plan for Longtail Forge. README.md should stay cursory and point here for version-level detail.
 
@@ -150,17 +150,17 @@ Acceptance criteria:
 
 ### Version 0.33.5.20.5 - High-volume admin lists
 
-- [ ] Add bounded paging/filtering to high-volume framework/admin surfaces:
-  - [ ] Audit log.
-  - [ ] Notifications.
-  - [ ] Search results.
-  - [ ] Files browse.
-- [ ] Ensure each endpoint has:
-  - [ ] Maximum page size.
-  - [ ] Stable sort.
-  - [ ] Permission filtering.
-  - [ ] Clear empty/loading/error states.
-- [ ] Add regressions using scale seed data.
+- [x] Add bounded paging/filtering to high-volume framework/admin surfaces:
+  - [x] Audit log.
+  - [x] Notifications.
+  - [x] Search results.
+  - [x] Files browse.
+- [x] Ensure each endpoint has:
+  - [x] Maximum page size.
+  - [x] Stable sort.
+  - [x] Permission filtering.
+  - [x] Clear empty/loading/error states.
+- [x] Add regressions using scale seed data.
 
 Acceptance criteria:
 
@@ -1994,4 +1994,3 @@ The Creator studio tool can be much richer if it pushes content out to these pla
   - [ ] Launch website
 
 - [ ] Launch Social Media
-

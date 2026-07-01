@@ -2,6 +2,7 @@ import { Router } from "express";
 import { clientsRepository } from "../modules/client-projects/clients.repo.js";
 import { projectsRepository } from "../modules/client-projects/projects.repo.js";
 import { tagsRepository } from "../repositories/tags.repo.js";
+import { boundedPaginationEnvelope, decodeOffsetCursor } from "../core/bounded-pagination.js";
 import { helpService, HELP_SEARCH_RECORD_TYPE } from "../services/help.service.js";
 import { permissionsService } from "../services/permissions.service.js";
 import { searchService } from "../services/search.service.js";
@@ -39,11 +40,14 @@ searchRoutes.get("/search", asyncRoute(async (request, response) => {
   response.status(200).json({
     query: parsed.publicQuery,
     pagination: {
+      ...boundedPaginationEnvelope({
+        hasMore: shaped.hasMore,
+        limit: parsed.pagination.limit,
+        maxPageSize: MAX_LIMIT,
+        offset: parsed.pagination.offset,
+        returned: shaped.results.length,
+      }),
       page: parsed.pagination.page,
-      limit: parsed.pagination.limit,
-      offset: parsed.pagination.offset,
-      returned: shaped.results.length,
-      hasMore: shaped.hasMore,
     },
     backend: shaped.backend,
     fallbackMode: shaped.fallbackMode,
@@ -180,7 +184,9 @@ function parseSearchQuery(query = {}) {
     defaultValue: DEFAULT_LIMIT,
     max: MAX_LIMIT,
   });
-  const offset = (page - 1) * limit;
+  const cursorOffset = decodeOffsetCursor(firstString(query.cursor, query.nextCursor, query.next_cursor));
+  const offset = cursorOffset ?? (page - 1) * limit;
+  const responsePage = cursorOffset === null ? page : Math.floor(offset / limit) + 1;
 
   for (const [field, values] of Object.entries({ module: moduleIds, recordType: recordTypes, tag: tagIds })) {
     if (values.some((value) => !isSafeFilterValue(value))) {
@@ -216,7 +222,7 @@ function parseSearchQuery(query = {}) {
       visibility,
     },
     pagination: {
-      page,
+      page: responsePage,
       limit,
       offset,
     },
@@ -323,31 +329,27 @@ async function readResultContext(workspaceId, results) {
   const projectIds = new Set(results.map((result) => result.projectId).filter(Boolean));
   const clients = new Map();
   const projects = new Map();
+  const [clientRecords, projectRecords] = await Promise.all([
+    clientIds.size > 0 ? clientsRepository.readByIds(workspaceId, [...clientIds]) : Promise.resolve([]),
+    projectIds.size > 0 ? projectsRepository.readByIds(workspaceId, [...projectIds]) : Promise.resolve([]),
+  ]);
 
-  for (const clientId of clientIds) {
-    const client = await clientsRepository.readById(workspaceId, clientId);
-
-    if (client) {
-      clients.set(clientId, {
-        id: client.id,
-        name: client.name,
-        status: client.status,
-      });
-    }
+  for (const client of clientRecords) {
+    clients.set(client.id, {
+      id: client.id,
+      name: client.name,
+      status: client.status,
+    });
   }
 
-  for (const projectId of projectIds) {
-    const project = await projectsRepository.readById(workspaceId, projectId);
-
-    if (project) {
-      projects.set(projectId, {
-        id: project.id,
-        name: project.name,
-        status: project.status,
-        clientId: project.client_id || "",
-        clientName: project.client_name || "",
-      });
-    }
+  for (const project of projectRecords) {
+    projects.set(project.id, {
+      id: project.id,
+      name: project.name,
+      status: project.status,
+      clientId: project.client_id || project.clientId || "",
+      clientName: project.client_name || project.clientName || "",
+    });
   }
 
   return { clients, projects };

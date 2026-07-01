@@ -274,7 +274,7 @@ The Files adapter still owns query construction, service-route calls, row shapin
 
 ## Implementation Notes For 0.33.5.18.11.3
 
-The Files browse results behavior now uses `LongtailForge.view.createListShell()` for the status mount and `LongtailForge.view.createDataTable()` for the attachment table wrapper, header, empty state, and row cells. The framework-owned descriptor still points at `/api/files/attachments`; this slice does not add a parallel read endpoint or move Files reads into the generic renderer.
+The Files browse results behavior now uses `LongtailForge.view.createListShell()` for the status mount and `LongtailForge.view.createDataTable()` for the attachment table wrapper, header, empty state, and row cells. The framework-owned descriptor still points at `/api/files/attachments`; this slice does not add a parallel read endpoint or move Files reads into the generic renderer. As of 0.33.5.20.5, the results behavior requests bounded pages and shows a compact Load More control only when the service returns next-cursor metadata.
 
 Files continues to own each attachment row object before it reaches the shared table helper. The adapter shapes the safe display filename, module label, target label, Client label, Project label, status/scan label, attached timestamp, file size display value, and download/delete/restore availability. Normal rows do not fall back to raw target/client/project IDs when a readable label is unavailable.
 
@@ -479,4 +479,3 @@ The helper is intentionally layout-only. Providers and consuming modules still o
 Converted modal surfaces should open and close through `LongtailForge.view.showModal(dialog, options)` and `LongtailForge.view.closeModal(dialog, value)` instead of calling `dialog.showModal()` / `dialog.close()` directly when stacked secondary dialogs are possible. The helper records parent/child dialog relationships, tracks the top dialog, prevents non-top dialogs from reacting to Escape or backdrop-style clicks, and closes child dialogs when the parent editor closes.
 
 The stack helper owns only dialog lifecycle guardrails and focus return. Modules still own the dialog body, staged form state, save payloads, validation, permissions, target lookups, and whether a secondary utility opens as a modal, overlay, or inline panel for the current roadmap slice.
-

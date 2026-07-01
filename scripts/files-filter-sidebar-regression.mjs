@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.20.4";
+const appVersion = "0.33.5.20.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const filesHtml = readText("views/protected/files.html");
@@ -51,7 +51,7 @@ const bindFilesEvents = functionBlock(filesScript, "bindFilesEvents");
 assert.match(bindFilesEvents, /filterForm\?\.addEventListener\("submit"[\s\S]*loadFiles\(\)/, "Apply should refetch Files through the browse loader");
 assert.match(bindFilesEvents, /clientFilter\?\.addEventListener\("change"[\s\S]*populateProjectFilter\(\)[\s\S]*loadFiles\(\)/, "Client changes should refresh project options and refetch Files");
 assert.match(bindFilesEvents, /moduleFilter[\s\S]*targetTypeFilter[\s\S]*targetIdFilter[\s\S]*projectFilter[\s\S]*advancedProjectFilter[\s\S]*filenameFilter[\s\S]*statusFilter[\s\S]*addEventListener\("change"[\s\S]*loadFiles\(\)/, "Filter value changes should refetch Files through the Files route");
-assert.match(filesScript, /api\.getJson\(`\/api\/files\/attachments\?\$\{readFilters\(\)\.toString\(\)\}`/, "Files browse loader should refetch through the Files attachments route");
+assert.match(filesScript, /const params = readFilters\(\);[\s\S]*params\.set\("limit", String\(FILES_PAGE_SIZE\)\)[\s\S]*api\.getJson\(`\/api\/files\/attachments\?\$\{params\.toString\(\)\}`/, "Files browse loader should refetch bounded pages through the Files attachments route");
 
 const fileRow = functionBlock(filesScript, "fileRow");
 assert.match(fileRow, /clientId:[\s\S]*projectId:/, "Files may keep raw context IDs internally for the modal shell");

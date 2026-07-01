@@ -70,25 +70,60 @@ VALUES (
 }
 
 async function listForRecipient(workspaceId, recipientUserId, options = {}) {
-  const status = normalizeStatusFilter(options.status);
-  const statusClause = status === "active"
-    ? "AND status IN ('unread', 'read')"
-    : status ? `AND status = ${sqlText(status)}` : "";
   const limit = clampLimit(options.limit);
   const offset = clampOffset(options.offset);
+  const clauses = notificationListWhereClauses(workspaceId, recipientUserId, options);
   const rows = await querySql(`
 SELECT
 ${NOTIFICATION_COLUMNS}
 FROM notifications
-WHERE workspace_id = ${sqlText(workspaceId)}
-  AND recipient_user_id = ${sqlText(recipientUserId)}
-  ${statusClause}
+WHERE ${clauses.join("\n  AND ")}
 ORDER BY created_at DESC, notification_id DESC
 LIMIT ${sqlInteger(limit)}
 OFFSET ${sqlInteger(offset)};
 `);
 
   return rows.map(notificationRowToAppValue);
+}
+
+async function countForRecipient(workspaceId, recipientUserId, options = {}) {
+  const clauses = notificationListWhereClauses(workspaceId, recipientUserId, options);
+  const rows = await querySql(`
+SELECT COUNT(*) AS total
+FROM notifications
+WHERE ${clauses.join("\n  AND ")};
+`);
+
+  return Number(rows[0]?.total || 0);
+}
+
+async function readFilterOptionsForRecipient(workspaceId, recipientUserId, options = {}) {
+  const clauses = notificationListWhereClauses(workspaceId, recipientUserId, {
+    status: options.status,
+  });
+  const [modules, events] = await Promise.all([
+    querySql(`
+SELECT DISTINCT module_id
+FROM notifications
+WHERE ${clauses.join("\n  AND ")}
+  AND module_id IS NOT NULL
+  AND module_id != ''
+ORDER BY module_id COLLATE NOCASE;
+`),
+    querySql(`
+SELECT DISTINCT event_type
+FROM notifications
+WHERE ${clauses.join("\n  AND ")}
+  AND event_type IS NOT NULL
+  AND event_type != ''
+ORDER BY event_type COLLATE NOCASE;
+`),
+  ]);
+
+  return {
+    events: events.map((row) => row.event_type).filter(Boolean),
+    modules: modules.map((row) => row.module_id).filter(Boolean),
+  };
 }
 
 async function countUnreadForRecipient(workspaceId, recipientUserId) {
@@ -485,6 +520,43 @@ function normalizeStatusFilter(status) {
   return ["active", "unread", "read", "dismissed", "archived"].includes(normalizedStatus) ? normalizedStatus : "";
 }
 
+function notificationListWhereClauses(workspaceId, recipientUserId, options = {}) {
+  const status = normalizeStatusFilter(options.status);
+  const moduleId = normalizeTextFilter(options.moduleId || options.module_id || options.module);
+  const eventType = normalizeTextFilter(options.eventType || options.event_type);
+  const priority = normalizePriorityFilter(options.priority);
+  const clauses = [
+    `workspace_id = ${sqlText(workspaceId)}`,
+    `recipient_user_id = ${sqlText(recipientUserId)}`,
+  ];
+
+  if (status === "active") {
+    clauses.push("status IN ('unread', 'read')");
+  } else if (status) {
+    clauses.push(`status = ${sqlText(status)}`);
+  }
+  if (moduleId) {
+    clauses.push(`module_id = ${sqlText(moduleId)}`);
+  }
+  if (eventType) {
+    clauses.push(`event_type = ${sqlText(eventType)}`);
+  }
+  if (priority) {
+    clauses.push(`priority = ${sqlText(priority)}`);
+  }
+
+  return clauses;
+}
+
+function normalizeTextFilter(value) {
+  return String(value || "").trim().slice(0, 120);
+}
+
+function normalizePriorityFilter(value) {
+  const priority = String(value || "").trim();
+  return ["low", "normal", "high", "urgent"].includes(priority) ? priority : "";
+}
+
 function clampLimit(limit) {
   const numericLimit = Number.parseInt(limit, 10);
   if (!Number.isFinite(numericLimit)) {
@@ -501,6 +573,7 @@ function clampOffset(offset) {
 
 export const notificationsRepository = {
   archiveOlderThan,
+  countForRecipient,
   countUnreadForRecipient,
   create,
   dismiss,
@@ -511,6 +584,7 @@ export const notificationsRepository = {
   readBellSummaryForRecipient,
   readById,
   readByIdForRecipient,
+  readFilterOptionsForRecipient,
   readUserDisplayPreferences,
   readUserPreferences,
   readSubscription,

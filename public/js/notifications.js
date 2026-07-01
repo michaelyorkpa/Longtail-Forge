@@ -12,6 +12,10 @@ const state = {
   notifications: [],
   page: 0,
   pageSize: 25,
+  pagination: {
+    hasMore: false,
+    total: 0,
+  },
   groupingPreferences: { groupingMode: "client_project" },
   preferences: [],
 };
@@ -25,7 +29,10 @@ filterButtons.forEach((button) => {
   });
 });
 
-moduleFilter?.addEventListener("change", renderNotifications);
+moduleFilter?.addEventListener("change", () => {
+  state.page = 0;
+  loadNotifications();
+});
 markAllReadButton?.addEventListener("click", markAllRead);
 preferenceForm?.addEventListener("submit", savePreferences);
 
@@ -47,6 +54,9 @@ async function loadNotifications() {
     if (state.filter && state.filter !== "all") {
       params.set("status", state.filter);
     }
+    if (moduleFilter?.value) {
+      params.set("moduleId", moduleFilter.value);
+    }
     const response = await fetch(`/api/notifications?${params}`, { cache: "no-store" });
     if (!response.ok) {
       throw new Error("Notifications unavailable.");
@@ -54,11 +64,13 @@ async function loadNotifications() {
 
     const body = await response.json();
     state.notifications = Array.isArray(body.notifications) ? body.notifications : [];
-    populateModuleFilter();
+    state.pagination = normalizeNotificationPagination(body.pagination);
+    populateModuleFilter(body.filterOptions);
     renderNotifications();
     setStatus("");
   } catch {
     state.notifications = [];
+    state.pagination = { hasMore: false, total: 0 };
     renderNotifications();
     setStatus("Notifications unavailable.", true);
   }
@@ -85,13 +97,17 @@ async function loadPreferences() {
   }
 }
 
-function populateModuleFilter() {
+function populateModuleFilter(filterOptions = {}) {
   if (!moduleFilter) {
     return;
   }
 
   const previousValue = moduleFilter.value;
-  const moduleIds = [...new Set(state.notifications.map((notification) => notification.module_id).filter(Boolean))].sort();
+  const moduleIds = [...new Set([
+    ...(Array.isArray(filterOptions.modules) ? filterOptions.modules : []),
+    previousValue,
+  ].filter(Boolean))].sort();
+
   moduleFilter.replaceChildren(
     optionElement("", "All"),
     ...moduleIds.map((moduleId) => optionElement(moduleId, moduleId)),
@@ -112,7 +128,7 @@ function renderNotifications() {
   notificationList.replaceChildren(...(filteredNotifications.length > 0
     ? groupNotificationsForDisplay(filteredNotifications).map(createNotificationGroup)
     : [emptyElement("No notifications")]));
-  renderPagination(filteredNotifications.length);
+  renderPagination();
 }
 
 function groupNotificationsForDisplay(notifications) {
@@ -188,7 +204,7 @@ function notificationGroupKey(notification, groupingMode) {
   };
 }
 
-function renderPagination(rowCount) {
+function renderPagination() {
   const existing = document.querySelector("[data-notification-pagination]");
   existing?.remove();
 
@@ -214,7 +230,7 @@ function renderPagination(rowCount) {
 
   next.type = "button";
   next.textContent = "Next";
-  next.disabled = rowCount < state.pageSize;
+  next.disabled = state.pagination.hasMore !== true;
   next.addEventListener("click", () => {
     state.page += 1;
     loadNotifications();
@@ -223,6 +239,13 @@ function renderPagination(rowCount) {
   label.textContent = `Page ${state.page + 1}`;
   controls.append(previous, label, next);
   notificationList.after(controls);
+}
+
+function normalizeNotificationPagination(pagination = {}) {
+  return {
+    hasMore: pagination.hasMore === true,
+    total: Number.parseInt(pagination.total, 10) || 0,
+  };
 }
 
 function createNotificationRow(notification) {

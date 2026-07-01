@@ -8,6 +8,7 @@ import {
   isFileLifecycleEvent,
   sanitizeFileLifecyclePayload,
 } from "../core/files/file-lifecycle.js";
+import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
 import { createLocalFileStorageAdapter } from "../core/files/local-storage-adapter.js";
 import { createNoopFileScannerAdapter } from "../core/files/scanner-adapter.js";
 import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/index.js";
@@ -22,6 +23,7 @@ const DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const DEFAULT_ALLOWED_VISIBILITY = new Set(["private", "workspace", "client"]);
 const DEFAULT_ATTACHMENT_LIMIT = 50;
 const MAX_ATTACHMENT_LIMIT = 200;
+const ATTACHMENT_SCAN_BATCH_MULTIPLIER = 4;
 const DEFAULT_ATTACHABLE_TARGET_LIMIT = 50;
 const MAX_ATTACHABLE_TARGET_LIMIT = 100;
 const MAX_TEXT_PREVIEW_BYTES = 512 * 1024;
@@ -386,6 +388,22 @@ async function listAttachments(session, filters = {}) {
     }
   }
 
+  if (listOptions.paginate) {
+    const visiblePage = await readVisibleAttachmentPage(session, conditions, listOptions);
+    const knownTotal = visiblePage.hasMore ? null : listOptions.offset + visiblePage.attachments.length;
+
+    return {
+      attachments: visiblePage.attachments,
+      pagination: boundedPaginationEnvelope({
+        ...listOptions,
+        hasMore: visiblePage.hasMore,
+        returned: visiblePage.attachments.length,
+        total: knownTotal,
+      }),
+      sort: listOptions.sort,
+    };
+  }
+
   const rows = await querySql(`
 SELECT ${attachmentSelectColumns()}
 FROM file_attachments
@@ -393,7 +411,7 @@ INNER JOIN files
   ON files.workspace_id = file_attachments.workspace_id
   AND files.file_id = file_attachments.file_id
 WHERE ${conditions.join("\n  AND ")}
-ORDER BY file_attachments.created_at DESC, file_attachments.file_attachment_id;
+ORDER BY ${attachmentOrderByClause(listOptions.sort)};
 `);
   const visible = [];
 
@@ -408,15 +426,92 @@ ORDER BY file_attachments.created_at DESC, file_attachments.file_attachment_id;
 
   return {
     attachments: paged,
-    pagination: {
+    pagination: boundedPaginationEnvelope({
       hasMore: listOptions.offset + paged.length < sorted.length,
       limit: listOptions.limit,
+      maxPageSize: listOptions.maxPageSize,
       offset: listOptions.offset,
       returned: paged.length,
       total: sorted.length,
-    },
+    }),
     sort: listOptions.sort,
   };
+}
+
+async function readVisibleAttachmentPage(session, conditions, listOptions) {
+  const targetVisibleCount = listOptions.offset + listOptions.limit + 1;
+  const batchLimit = Math.min(
+    Math.max(listOptions.limit + 1, listOptions.limit * ATTACHMENT_SCAN_BATCH_MULTIPLIER),
+    MAX_ATTACHMENT_LIMIT,
+  );
+  const maxRawRowsToScan = Math.min(
+    Math.max(500, listOptions.offset + (listOptions.limit + 1) * 10),
+    Math.max(500, listOptions.offset + MAX_ATTACHMENT_LIMIT * ATTACHMENT_SCAN_BATCH_MULTIPLIER),
+  );
+  const visible = [];
+  let visibleSeen = 0;
+  let rawOffset = 0;
+  let scanned = 0;
+  let exhaustedCandidates = false;
+
+  while (visibleSeen < targetVisibleCount && scanned < maxRawRowsToScan) {
+    const rows = await readAttachmentCandidateRows(conditions, listOptions, {
+      limit: batchLimit,
+      offset: rawOffset,
+    });
+
+    if (rows.length === 0) {
+      exhaustedCandidates = true;
+      break;
+    }
+
+    for (const row of rows) {
+      scanned += 1;
+
+      if (!(await canReadAttachment(session, row))) {
+        continue;
+      }
+
+      if (visibleSeen >= listOptions.offset) {
+        visible.push(await shapeAttachmentForRead(session, row));
+
+        if (visible.length > listOptions.limit) {
+          return {
+            attachments: visible.slice(0, listOptions.limit),
+            hasMore: true,
+          };
+        }
+      }
+
+      visibleSeen += 1;
+    }
+
+    rawOffset += rows.length;
+
+    if (rows.length < batchLimit) {
+      exhaustedCandidates = true;
+      break;
+    }
+  }
+
+  return {
+    attachments: visible,
+    hasMore: !exhaustedCandidates && visible.length > 0,
+  };
+}
+
+async function readAttachmentCandidateRows(conditions, listOptions, page) {
+  return querySql(`
+SELECT ${attachmentSelectColumns()}
+FROM file_attachments
+INNER JOIN files
+  ON files.workspace_id = file_attachments.workspace_id
+  AND files.file_id = file_attachments.file_id
+WHERE ${conditions.join("\n  AND ")}
+ORDER BY ${attachmentOrderByClause(listOptions.sort)}
+LIMIT ${sqlInteger(page.limit)}
+OFFSET ${sqlInteger(page.offset)};
+`);
 }
 
 async function countAttachmentsForTargets(session, filters = {}) {
@@ -2798,16 +2893,34 @@ function assertExtensionAllowedByWorkspacePolicy(extension, settings) {
 
 function normalizeAttachmentListOptions(filters = {}) {
   const paginate = filters.allPages !== true && filters.all_pages !== "true";
-  const limit = clampInteger(filters.limit || filters.pageSize || filters.page_size, DEFAULT_ATTACHMENT_LIMIT, 1, MAX_ATTACHMENT_LIMIT);
-  const offset = clampInteger(filters.offset, 0, 0, Number.MAX_SAFE_INTEGER);
+  const pagination = normalizeBoundedPagination(filters, {
+    defaultLimit: DEFAULT_ATTACHMENT_LIMIT,
+    maxLimit: MAX_ATTACHMENT_LIMIT,
+  });
   const sort = normalizeOptionalText(filters.sort || filters.sortMode || filters.sort_mode) || "newest";
 
   return {
-    limit,
-    offset,
+    ...pagination,
     paginate,
     sort: ATTACHMENT_SORT_MODES.has(sort) ? sort : "newest",
   };
+}
+
+function attachmentOrderByClause(sortMode = "newest") {
+  if (sortMode === "oldest") {
+    return "file_attachments.created_at ASC, file_attachments.file_attachment_id ASC";
+  }
+  if (sortMode === "filename") {
+    return "LOWER(COALESCE(files.display_name, files.original_filename, '')) ASC, file_attachments.created_at DESC, file_attachments.file_attachment_id ASC";
+  }
+  if (sortMode === "size") {
+    return "files.file_size_bytes DESC, file_attachments.created_at DESC, file_attachments.file_attachment_id ASC";
+  }
+  if (sortMode === "status") {
+    return "files.status COLLATE NOCASE ASC, file_attachments.created_at DESC, file_attachments.file_attachment_id ASC";
+  }
+
+  return "file_attachments.created_at DESC, file_attachments.file_attachment_id ASC";
 }
 
 function sortAttachmentsForReadModel(attachments = [], sortMode = "newest") {
