@@ -9,6 +9,46 @@ function taskNotificationTitle({ event }) {
   return event.new_value?.title || event.previous_value?.title || event.record_id || "Task";
 }
 
+function taskDueSoonNotificationTitle({ event }) {
+  const offsetLabel = taskReminderOffsetLabel(event.metadata?.offset_minutes);
+  const title = taskNotificationTitle({ event });
+
+  return offsetLabel ? `Due in ${offsetLabel}: ${title}` : title;
+}
+
+function taskDueSoonNotificationBody({ event }) {
+  const offsetLabel = taskReminderOffsetLabel(event.metadata?.offset_minutes);
+  const title = taskNotificationTitle({ event });
+
+  return offsetLabel
+    ? `Task "${title}" is due in ${offsetLabel}.`
+    : `Task "${title}" is due soon.`;
+}
+
+function taskReminderOffsetLabel(offsetMinutes) {
+  const minutes = Number(offsetMinutes);
+
+  if (!Number.isFinite(minutes)) {
+    return "";
+  }
+
+  if (minutes <= 0) {
+    return "now";
+  }
+
+  if (minutes % 1440 === 0) {
+    const days = minutes / 1440;
+    return `${days} ${days === 1 ? "day" : "days"}`;
+  }
+
+  if (minutes % 60 === 0) {
+    const hours = minutes / 60;
+    return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  }
+
+  return `${minutes} ${minutes === 1 ? "minute" : "minutes"}`;
+}
+
 async function markTaskActivityFromEvent(event, reason) {
   const taskId = taskIdFromActivityEvent(event);
   const workspaceId = event.workspace_id || event.session?.workspace_id || "";
@@ -61,7 +101,7 @@ const tasksModule = {
     },
   },
   category: "core-workflow",
-  version: "0.33.5.21.7.8",
+  version: "0.33.5.21.8",
   enabledByDefault: true,
   canDisable: true,
   historicalReadAccess: true,
@@ -535,7 +575,7 @@ const tasksModule = {
       event: "task.due_soon",
       moduleId: "tasks",
       label: "Task Due Soon",
-      description: "Reserved notification event for future task due-soon checks.",
+      description: "Emitted by task reminder jobs when a task is due soon.",
       recordType: "task",
     },
     {
@@ -704,8 +744,8 @@ const tasksModule = {
       event: "task.due_soon",
       moduleId: "tasks",
       notification: {
-        title: taskNotificationTitle,
-        body: ({ event }) => `Task "${event.new_value?.title || event.record_id || "Task"}" is due soon.`,
+        title: taskDueSoonNotificationTitle,
+        body: taskDueSoonNotificationBody,
         url: ({ event }) => `tasks.html?task=${encodeURIComponent(event.record_id || "")}`,
         recipientHints: ["assignees"],
       },
@@ -861,7 +901,7 @@ const tasksModule = {
       id: "task.due_soon",
       moduleId: "tasks",
       label: "Task Due Soon",
-      description: "Notifies task assignees when a task is due soon.",
+      description: "Notifies responsible task users when a task reminder is due.",
       defaultEnabled: true,
       defaultPriority: "high",
       recipientMode: "assignees",

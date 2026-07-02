@@ -1,3 +1,10 @@
+## Version 0.33.5.21.8 - 2026-07-02
+
+- Delivered task due reminders to the in-app notification surface by passing explicit responsible recipients from the reminder job: assignees for assigned tasks and the task creator for unassigned tasks, with task followers still delivered through existing notification subscriptions.
+- Updated `task.due_soon` notification copy so reminder notifications show the task, the due-soon offset, the task link, and the declared high priority while preserving stable delivery keys, user notification preferences, and module-enabled checks.
+- Added `scripts/task-reminder-notification-delivery-regression.mjs` to prove assigned, unassigned/self-owned, followed, and muted-recipient reminder delivery through the real `task.reminder` -> `notification.event` worker path, and refreshed durable-job docs, Help, roadmap/archive bookkeeping, package/module versions, and regression version metadata.
+- Verification 2026-07-02 14:10 -04:00: task reminder notification delivery, reminder scheduling horizon, notification jobs, job idempotency, background-work jobs, view-conversion branch closeout, and clients/projects hierarchy reparent targeted checks passed; `npm run check` passed 238/238 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.8 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.7.8 - 2026-07-02
 
 - Converted Task editor checklist add/save/move/remove controls to shared icon-only action buttons with accessible labels, hover titles, preserved checklist hooks, disabled up/down edges, and danger styling for Remove.

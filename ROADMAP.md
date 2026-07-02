@@ -17,41 +17,7 @@ PostgreSQL/SaaS mode should run one or more separate worker processes and may sc
 
 Entry contract from 0.33.5.19: use the provider-neutral transaction helper for atomic job/outbox writes and consume the reserved worker runtime config names without requiring a separate worker in SQLite mode.
 
-Foundation and hardening slices 0.33.5.21.0 through 0.33.5.21.7.8 are complete. Remaining slices in this branch:
-
-### Version 0.33.5.21.8 - Deliver task due reminders to the notification surface
-
-Purpose:
-
-Task due reminders must produce in-app notifications through the existing notification surface, on the reminder schedule set for the task. This has never worked for the user. With 0.33.5.21.6 firing, 0.33.5.21.5 notification jobs, and 0.33.5.21.7.2/0.33.5.21.7.3 covering when reminders enqueue and how retries stay idempotent, the remaining gap is recipient delivery: who a fired reminder actually notifies. Email and calendar delivery remain future work; this slice is the in-app notification surface only.
-
-Root cause (confirmed):
-
-- Reminder firing (`handleTaskReminderJob` emitting `task.due_soon`) only arrived in 0.33.5.21.6; before it, `src/modules/tasks/module.js` described `task.due_soon` as a "Reserved notification event," so no shipped version ever fired a reminder.
-- The `task.due_soon` notification event uses `recipientMode: "assignees"` (`src/modules/tasks/module.js`), and `resolveRecipients` (`src/services/notifications.service.js`) only adds assignee user IDs for that mode. A task with no assignee (or not assigned to the current user) resolves to zero recipients and produces no notification. The reminder job runs as a system actor (empty `actor_user_id`), so actor suppression is not the cause.
-
-- [ ] Confirm the end-to-end reminder delivery path (0.33.5.21.6 firing + 0.33.5.21.5 notification jobs):
-  - [ ] A task with a due date and reminder offsets enqueues `task.reminder` jobs at each `reminder_at_utc`.
-  - [ ] The reminder job fires at its scheduled time and emits `task.due_soon`.
-  - [ ] Notification fan-out creates an in-app notification record that appears in the notifications surface and unread count.
-- [ ] Fix reminder recipient scope so reminders reach the responsible user.
-  - [ ] Deliver task due reminders to the task's assignee(s) and to the task owner/creator when there is no assignee, so solo/personal/family-workspace tasks notify the user who set the schedule.
-  - [ ] Prefer passing explicit reminder recipients from the reminder job (which already reads the full task) instead of relying only on the `assignees` recipient hint.
-  - [ ] Preserve existing assignee and task-follower delivery and existing system-actor handling.
-  - [ ] Respect per-user notification preferences (`task.due_soon` is `defaultEnabled: true`, `high` priority) and workspace module-enabled checks.
-  - [ ] Do not notify for archived or completed tasks (already guarded when the job fires).
-- [ ] Make the reminder notification useful.
-  - [ ] Title/body should reference the task and how soon it is due (from the offset), link to the task, and use the declared `high` priority.
-- [ ] Verification.
-  - [ ] Add an end-to-end regression: near-future due date + reminder offsets -> reminder job -> `task.due_soon` -> notification record visible to the right user; cover assigned, unassigned/self-owned, and followed tasks.
-  - [ ] Manually verify against a real reminder schedule: set reminders on a task and confirm a notification appears at the scheduled time in the notifications surface.
-- [ ] Cross-reference: 0.33.5.21.7.2 covers when reminder jobs enqueue and 0.33.5.21.7.3 covers safe retries; this slice covers who a fired reminder notifies and that it reaches the notification surface.
-
-Acceptance criteria:
-
-- Setting a reminder schedule on a task reliably produces an in-app notification at each scheduled reminder time for the assignee(s) and, when unassigned, the task owner/creator.
-- Reminder notifications appear in the existing notification surface and unread count, respect notification preferences and module-enabled checks, and link to the task.
-- Regression coverage proves reminder-to-notification delivery for assigned, unassigned/self-owned, and followed tasks.
+Foundation and hardening slices 0.33.5.21.0 through 0.33.5.21.8 are complete. Remaining slices in this branch:
 
 ### Version 0.33.5.21.9 - User-facing UI fixes (markdown links, task complete, notes files, theme switch)
 
@@ -354,13 +320,173 @@ Acceptance criteria:
 
 - The SaaS backend has an evidence-based baseline.
 
-## Version 0.33.6 - Reporting Framework and Time Report Contribution
+## Version 0.33.6 - Dashboard and Workbench Formalization as Project hub and work center
+
+### Version 0.33.6.1 - Dashboard and Workbench Surface Contracts
+
+- [ ] Define Dashboard as the workspace overview/orientation surface.
+- [ ] Define Workbench as the active work/resumption/focus surface.
+- [ ] Keep Dashboard and Workbench separate.
+- [ ] Add framework-owned contribution contracts for:
+  - [ ] Dashboard panels.
+  - [ ] Workbench cards.
+  - [ ] Focus modes.
+  - [ ] Work item sources.
+  - [ ] Next action candidates.
+  - [ ] Resume state/context snippets.
+- [ ] Remove remaining hardcoded Task/Time assumptions from Dashboard and Workbench where a module contribution can own the behavior.
+- [ ] Preserve permission checks, module enabled/disabled checks, and workspace boundaries for every contribution.
+
+### Version 0.33.6.2 - Workbench Focus Modes
+
+- [ ] Add Workbench focus selector.
+- [ ] Initial modes:
+  - [ ] Pick up where I left off.
+  - [ ] Today.
+  - [ ] Next due.
+  - [ ] This week.
+  - [ ] Blocked.
+  - [ ] In progress.
+  - [ ] Project focus.
+  - [ ] Client focus for Business workspaces.
+- [ ] Each focus mode should resolve to a normalized focus context passed to module work item providers.
+- [ ] Focus modes should be user-friendly labels over deterministic filters, not separate hardcoded pages.
+
+### Version 0.33.6.3 - Next Action Candidates
+
+- [ ] Add normalized next action candidate shape.
+- [ ] Tasks should provide first next action candidates.
+- [ ] Time Tracking should provide running/paused timer candidates.
+- [ ] Lists should provide active/incomplete/needed-soon list candidates when Lists integrations are ready.
+- [ ] Notes should provide resume/supporting-context candidates for Active Work notes when Notes integrations are ready.
+- [ ] Future Tickets should provide waiting/urgent/assigned ticket candidates.
+- [ ] Add deterministic ranking:
+  - [ ] Running timers.
+  - [ ] Paused timers.
+  - [ ] Overdue assigned work.
+  - [ ] Due today.
+  - [ ] Blocked/stale work.
+  - [ ] Recently touched work.
+  - [ ] Due this week.
+- [ ] Every candidate should provide a reason string, primary action, safe context label, and source URL.
+
+### Version 0.33.6.4 - Resume State Consumption / Where I Left Off UI
+
+- [ ] Consume the framework-owned resume state service introduced in 0.33.5.9.
+- [ ] Workbench "Pick up where I left off" should use `/api/work-resume` first.
+- [ ] Fall back to recent activity only when no active resume rows exist.
+- [ ] Show one recommended resume candidate first.
+- [ ] Keep secondary candidates available but visually subordinate.
+- [ ] Allow users to dismiss stale resume candidates.
+- [ ] Preserve permission checks, disabled-module behavior, deleted-record handling, and private/secure content boundaries.
+
+### Version 0.33.6.5 - Guided Workbench UI
+
+- [ ] Add question-led Workbench entry:
+  - [ ] "Pick up where I left off"
+  - [ ] "Start with what's due"
+  - [ ] "Work this week"
+  - [ ] "Review blocked work"
+  - [ ] "Focus on a project"
+- [ ] Show one recommended next action before showing longer lists.
+- [ ] Keep secondary lists available but visually subordinate.
+- [ ] Avoid turning Workbench into another full module index.
+- [ ] Add empty states that suggest a useful next step instead of dead ends.
+
+### Version 0.33.6.6 - Quick Action Capture Utility Rail
+
+Decision:
+
+Quick Action Capture (QAC) is app-shell utility behavior, not a Workbench focus mode. It should provide low-distraction access to common capture and recovery tools without navigating away from the user's current work surface. QAC should keep the user on the existing screen and simply open modals (where available). The basic concept is to:
+
+- Reduce the likelihood of focus/workflow being interrupted
+- Keep productivity focused
+- Allow easy idea/concept/thought expungement without derailing the entire work train
+
+- [ ] Add a compact right-side Utility Rail on protected app pages.
+  - [ ] Should be icons + small text on wide screens, can be narrowed to strictly icons on narrow screens
+  - [ ] Should be available on ALL protected screens (not just the workbench)
+  - [ ] A single, drawer-style Quick Action Capture button should float on mobile
+    - [ ] The QAC menu drawer button should be an icon that indicates what it is, rather than words that would steal valuable screen real estate
+      - Action or Capture should be the main icon driver; Perhaps a fast moving runner? Is there an icon for that?
+
+- [ ] Rail actions should be contributed by enabled modules or mapped from registered module actions.
+  - Since we don't know if the user has an idea/thought to contribute to an existing, task, list, or note we should offer an initial modal that allows for finding of the item or creating a new one.
+  - [ ] Timer (Should open a modal capable of 2 timers, eventually; for now take you to time-tracker.html)
+    - [ ] Add documentation for 0.33.6.7 for creating the timer modal funcationality with a limit of 2 timers
+      - Within this documentation include instructions to redirect the QAC timer button to this new modal timer.
+  - [ ] Task (Should open a picker to find a task with a button to Add Task, then open the appropriate modal)
+  - [ ] Note (Should open a picker to find a note with a button to Add Note, then direct to the appropriate modal)
+  - [ ] List (Should open a picker to add an item to a list or add a list, then open the appropriate modal)
+  - [ ] Reporting (Should open a report creation modal, eventually; for now take you to reporting.html)
+    - [ ] Add documentation for 0.37.5 for creating the reporting modal
+  - [ ] File (Should open the Add file modal)
+  - [ ] Search (Should open an advanced search modal, eventually; for now take you to search.html)
+    - [ ] Add documentation for 0.33.6.8 for creating the advanced search modal functionality with a search result display modal
+      - Add documentation in 0.33.6.9 to update all search results to display in this modal, even searches from the main menu ribbon. Yes, this might be a complete overhaul of the search system (or at least a major extension of it) if this needs to go into its own ROADMAP version in 0.33.9, that's also fine. Evaluate at the time of building the documentation, please
+  - If a modal action does not exist yet, the QAC action may be hidden, disabled with a clear tooltip, or temporarily link to the existing module page as an explicitly temporary fallback.
+  - Temporary navigation fallbacks must be removed once the modal action exists.
+
+- [ ] Actions should open modals without changing the current page.
+- [ ] Actions should receive safe current-page context when available.
+- [ ] Actions must return focus to the triggering control when closed.
+- [ ] The rail must stay visually quiet unless opened by the user.
+- [ ] Do not use badges, alerts, or recommendation behavior in the rail; notifications and Workbench own those concerns.
+
+## Version 0.33.7 - Task Calendar Views (lean, read-only)
+
+Purpose:
+
+Give the Dashboard/Workbench work a calendar companion as soon as it lands: a read-only calendar that visualizes existing task due dates and the reminder schedule shipped in 0.33.5.21.8. This is intentionally lean. User-created calendar events, iCal/shared-calendar display, and external Google/Outlook sync stay at 0.36.0 (Calendars and Calendar Views) and the 0.70.x integrations work; this slice must not build them.
+
+Scope decision:
+
+- Read-only. No calendar event record type, no event creation, no iCal, and no external calendar sync in this slice.
+- Framework-owned Calendar host built on the finalized 0.33.5.18 view baseline and the bounded-query pattern from 0.33.5.20, not a bespoke Calendar-only layout.
+- Data comes from the existing task calendar-window path (`GET /api/tasks/calendar` -> `tasksService.calendarWindow` -> `tasksRepository.readDueBetween`), which is already workspace- and permission-aware and date-range bounded (`canReadTask` filtering, `taskCalendarRow` shape). Extend it only where needed; do not replace it with a load-everything query.
+
+### Version 0.33.7.1 - Task calendar data contract
+
+- [ ] Confirm/extend `tasksService.calendarWindow` (`src/modules/tasks/tasks.service.js`) to return everything a month/week/day render needs: task id, title, due date, due time/`due_at_utc`, status, priority, client/project context, assignee summary, and a task URL/link.
+- [ ] Include reminder markers from the 0.33.5.21 reminder schedule (the `reminder_at_utc` occurrences from `taskRemindersService`) so the calendar can show when reminders fire, not only the due date.
+- [ ] Keep the range bounded (reuse the existing start/end window and the 0.33.5.20 bounded-query pattern via `readDueBetween`); clamp or reject overly wide ranges instead of loading all tasks.
+- [ ] Keep results permission- and workspace-aware (already enforced by `canReadTask` in `calendarWindow`); archived/complete and disabled-module handling must match the rest of Tasks.
+
+### Version 0.33.7.2 - Framework Calendar host and month/week/day views
+
+- [ ] Add a framework-owned Calendar surface (protected page + browser behavior) built on `LongtailForge.view` primitives and the 0.33.5.18 anatomy, not hand-built layout/CSS.
+- [ ] Render read-only month, week, and day views of task due dates (year view can defer to 0.36.0).
+- [ ] Show each task as a calendar entry with its title and a priority/status affordance, plus a reminder indicator on days a reminder fires; clicking an entry opens the existing task editor/detail (reuse the task modal) rather than an inline editor.
+- [ ] Handle empty/loading/error states through the framework view states, not ad-hoc DOM.
+
+### Version 0.33.7.3 - Filters, navigation, and Workbench hook
+
+- [ ] Add client (business workspace only) and project filters, mirroring the filter behavior used by Tasks and the Reporting host.
+- [ ] Add period navigation (previous/next/today) and view switching (month/week/day) that re-query the bounded window.
+- [ ] Add framework navigation for the Calendar surface, permission- and module-aware.
+- [ ] Provide a lightweight entry point from Workbench/Dashboard (e.g. a "this week" affordance or link) so the calendar reinforces the "what's due next / work this week" focus modes; keep Workbench framework-owned and do not duplicate calendar logic there.
+
+### Version 0.33.7.4 - Guardrails, docs, and closeout
+
+- [ ] Do not introduce a calendar event record type, iCal parsing, or external calendar sync in this slice; cross-reference 0.36.0 as the owner of events/iCal and the 0.70.x work as the owner of Google/Outlook sync.
+- [ ] Add guardrails so the Calendar host does not hand-build framework-owned page/header/filter/status anatomy when a view primitive already covers it.
+- [ ] Add focused regressions: bounded-range enforcement, permission/workspace scoping (no cross-workspace or unreadable tasks leak), reminder-marker correctness, and disabled-module behavior.
+- [ ] Update `docs/declarative-view-surfaces.md` and the view/module contract docs with the Calendar host status.
+- [ ] Update the changelog and verify `/api/app-info` after restart.
+
+Acceptance criteria:
+
+- A read-only task calendar (month/week/day) shows task due dates and reminder markers, filtered by client/project, consuming the existing bounded, permission-aware task calendar-window path.
+- Calendar entries link back to their task; the surface reuses framework view anatomy and adds no event/iCal/external-sync behavior (those remain at 0.36.0 / 0.70.x).
+- The calendar is reachable from Workbench/Dashboard and reinforces the "what's due / this week" focus without duplicating calendar logic.
+
+## Version 0.33.8 - Reporting Framework and Time Report Contribution
 
 Decision:
 
 Reporting is framework-owned report infrastructure, not a normal disable-able first-party workflow module. The framework owns the Reporting page, report catalog, contribution filtering, report execution dispatch, shared filter host, loading/error/empty states, and future saved/export/export scheduling behavior. Individual modules own the actual report definitions, report runners, data queries, domain calculations, result shapes, and record-level permission checks.
 
-The first 0.33.6 report should remain intentionally small: Time Tracking contributes one Project Time & Billing report. Do not build a custom report builder, report designer, analytics dashboard, or saved report system in this pass.
+The first 0.33.8 report should remain intentionally small: Time Tracking contributes one Project Time & Billing report. Do not build a custom report builder, report designer, analytics dashboard, or saved report system in this pass.
 
 ### Dependencies and Framework Baseline
 
@@ -378,12 +504,12 @@ reintroduce a hard-coded Reporting page:
   instead of creating Reporting-only anatomy for filters, tables, status messages, or host layout.
 
 Reporting is a framework-owned surface, so it should not create a fake disable-able
-`src/modules/reporting` workflow module just to fit module-owned `viewSurfaces`. 0.33.6 must decide
+`src/modules/reporting` workflow module just to fit module-owned `viewSurfaces`. 0.33.8 must decide
 and document the framework-owned equivalent: either a framework-owned descriptor/config source that
 the same renderer can consume, or a narrow framework host adapter built directly on
 `LongtailForge.view` primitives where the descriptor contract cannot yet model report execution.
 
-### Version 0.33.6.1 - Reporting Architecture and Framework View Baseline
+### Version 0.33.8.1 - Reporting Architecture and Framework View Baseline
 
 - [ ] Review the completed 0.33.5.18 renderer/primitive capabilities before implementing Reporting.
 - [ ] Decide whether the Reporting host should use:
@@ -407,7 +533,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
   - [ ] Record-level permission checks.
 - [ ] Update the implementation plan only; do not change runtime behavior in this slice.
 
-### Version 0.33.6.2 - Reporting Contribution Contract
+### Version 0.33.8.2 - Reporting Contribution Contract
 
 - [ ] Keep this roadmap section named "Reporting Framework and Time Report Contribution."
 - [ ] Keep `reporting.html` framework-owned.
@@ -429,7 +555,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Keep report contribution filtering separate from report execution so the catalog can be permission-safe without running report code.
 - [ ] Update `docs/module-contract.md` with the finalized reporting contribution shape.
 
-### Version 0.33.6.3 - Reporting Framework Catalog Route
+### Version 0.33.8.3 - Reporting Framework Catalog Route
 
 - [ ] Add framework-owned report catalog route:
   - [ ] `GET /api/reporting/catalog`
@@ -439,7 +565,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Ensure reports from historically readable disabled modules are only visible when explicitly allowed by contribution and module policy.
 - [ ] Add focused catalog regressions for disabled modules, missing permissions, workspace capability filtering, and required-module filtering.
 
-### Version 0.33.6.4 - Reporting Runner Registry and Execution Route
+### Version 0.33.8.4 - Reporting Runner Registry and Execution Route
 
 - [ ] Add framework-owned report execution route:
   - [ ] `GET /api/reporting/reports/:moduleId/:reportId/run`
@@ -450,7 +576,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Normalize execution errors into framework-owned report status/error payloads without exposing implementation details.
 - [ ] Add focused execution regressions for unknown report IDs, missing runners, denied permissions, disabled modules, and invalid filter shape.
 
-### Version 0.33.6.5 - Time Tracking Project Time & Billing Contribution
+### Version 0.33.8.5 - Time Tracking Project Time & Billing Contribution
 
 - [ ] Move Project Time & Billing report logic out of the framework Reporting service and into Time Tracking-owned report/service code.
 - [ ] Time Tracking should contribute the initial report:
@@ -474,7 +600,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Preserve existing task-linked time entry reporting behavior where already supported.
 - [ ] Add focused Time Tracking report runner regressions before the page-host rewrite depends on it.
 
-### Version 0.33.6.6 - Correct Project and Client Rollup Billing Math
+### Version 0.33.8.6 - Correct Project and Client Rollup Billing Math
 
 - [ ] Fix descendant rollup calculation so each project/subproject computes its own direct time first.
 - [ ] Apply that project's effective billing rate, billing period, and rounding rules to that project's direct time.
@@ -489,7 +615,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Preserve display-only expandable child project rows without double-counting totals.
 - [ ] Add fixture coverage for parent projects, child projects, deeper descendants, parent clients, child clients, mixed rates, and mixed billing periods.
 
-### Version 0.33.6.7 - Framework Reporting Host Shell
+### Version 0.33.8.7 - Framework Reporting Host Shell
 
 - [ ] Keep one framework-owned `reporting.html` page.
 - [ ] Reduce `views/protected/reporting.html` to a minimal framework host that loads shared view assets,
@@ -500,7 +626,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Keep the first host simple: one selected report, one filter area, one status area, and one results area.
 - [ ] Add a focused static regression proving the Reporting page is a minimal framework host.
 
-### Version 0.33.6.8 - Reporting Filter Host and Report Selection
+### Version 0.33.8.8 - Reporting Filter Host and Report Selection
 
 - [ ] Load report definitions from `GET /api/reporting/catalog`.
 - [ ] Select the first available report by default when no valid report is requested.
@@ -516,7 +642,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Ensure filter changes call the framework execution route and refresh the current result without rebuilding the host layout by hand.
 - [ ] Add focused browser/static regressions for report selection, custom date visibility, empty catalog state, and filter refresh behavior.
 
-### Version 0.33.6.9 - Project Time & Billing Result Renderer
+### Version 0.33.8.9 - Project Time & Billing Result Renderer
 
 - [ ] Add a registered report result renderer for `time-project-billing-table`.
 - [ ] The first renderer may remain specific to Project Time & Billing, but it should use framework table/action primitives where they fit.
@@ -528,7 +654,7 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Keep the framework responsible for result-host placement, overflow wrappers, loading/error/empty states, and renderer dispatch.
 - [ ] Add focused regressions for expandable child rows, totals, no-results state, and renderer-not-found recovery.
 
-### Version 0.33.6.10 - Permissions, Navigation, Guardrails, and Closeout
+### Version 0.33.8.10 - Permissions, Navigation, Guardrails, and Closeout
 
 - [ ] Decide whether `reporting.view` should become a framework-owned permission instead of being contributed by Time Tracking.
 - [ ] Keep report-specific visibility dependent on both `reporting.view` and the owning module's required permissions.
@@ -552,119 +678,6 @@ the same renderer can consume, or a narrow framework host adapter built directly
 - [ ] Run `npm run check`.
 - [ ] Run `npm run test:permissions`.
 - [ ] Verify `/api/app-info` reports the expected version after implementation.
-
-## Version 0.33.7 - Dashboard and Workbench Formalization as Project hub and work center
-
-### Version 0.33.7.1 - Dashboard and Workbench Surface Contracts
-
-- [ ] Define Dashboard as the workspace overview/orientation surface.
-- [ ] Define Workbench as the active work/resumption/focus surface.
-- [ ] Keep Dashboard and Workbench separate.
-- [ ] Add framework-owned contribution contracts for:
-  - [ ] Dashboard panels.
-  - [ ] Workbench cards.
-  - [ ] Focus modes.
-  - [ ] Work item sources.
-  - [ ] Next action candidates.
-  - [ ] Resume state/context snippets.
-- [ ] Remove remaining hardcoded Task/Time assumptions from Dashboard and Workbench where a module contribution can own the behavior.
-- [ ] Preserve permission checks, module enabled/disabled checks, and workspace boundaries for every contribution.
-
-### Version 0.33.7.2 - Workbench Focus Modes
-
-- [ ] Add Workbench focus selector.
-- [ ] Initial modes:
-  - [ ] Pick up where I left off.
-  - [ ] Today.
-  - [ ] Next due.
-  - [ ] This week.
-  - [ ] Blocked.
-  - [ ] In progress.
-  - [ ] Project focus.
-  - [ ] Client focus for Business workspaces.
-- [ ] Each focus mode should resolve to a normalized focus context passed to module work item providers.
-- [ ] Focus modes should be user-friendly labels over deterministic filters, not separate hardcoded pages.
-
-### Version 0.33.7.3 - Next Action Candidates
-
-- [ ] Add normalized next action candidate shape.
-- [ ] Tasks should provide first next action candidates.
-- [ ] Time Tracking should provide running/paused timer candidates.
-- [ ] Lists should provide active/incomplete/needed-soon list candidates when Lists integrations are ready.
-- [ ] Notes should provide resume/supporting-context candidates for Active Work notes when Notes integrations are ready.
-- [ ] Future Tickets should provide waiting/urgent/assigned ticket candidates.
-- [ ] Add deterministic ranking:
-  - [ ] Running timers.
-  - [ ] Paused timers.
-  - [ ] Overdue assigned work.
-  - [ ] Due today.
-  - [ ] Blocked/stale work.
-  - [ ] Recently touched work.
-  - [ ] Due this week.
-- [ ] Every candidate should provide a reason string, primary action, safe context label, and source URL.
-
-### Version 0.33.7.4 - Resume State Consumption / Where I Left Off UI
-
-- [ ] Consume the framework-owned resume state service introduced in 0.33.5.9.
-- [ ] Workbench "Pick up where I left off" should use `/api/work-resume` first.
-- [ ] Fall back to recent activity only when no active resume rows exist.
-- [ ] Show one recommended resume candidate first.
-- [ ] Keep secondary candidates available but visually subordinate.
-- [ ] Allow users to dismiss stale resume candidates.
-- [ ] Preserve permission checks, disabled-module behavior, deleted-record handling, and private/secure content boundaries.
-
-### Version 0.33.7.5 - Guided Workbench UI
-
-- [ ] Add question-led Workbench entry:
-  - [ ] "Pick up where I left off"
-  - [ ] "Start with what's due"
-  - [ ] "Work this week"
-  - [ ] "Review blocked work"
-  - [ ] "Focus on a project"
-- [ ] Show one recommended next action before showing longer lists.
-- [ ] Keep secondary lists available but visually subordinate.
-- [ ] Avoid turning Workbench into another full module index.
-- [ ] Add empty states that suggest a useful next step instead of dead ends.
-
-### Version 0.33.7.6 - Quick Action Capture Utility Rail
-
-Decision:
-
-Quick Action Capture (QAC) is app-shell utility behavior, not a Workbench focus mode. It should provide low-distraction access to common capture and recovery tools without navigating away from the user's current work surface. QAC should keep the user on the existing screen and simply open modals (where available). The basic concept is to:
-
-- Reduce the likelihood of focus/workflow being interrupted
-- Keep productivity focused
-- Allow easy idea/concept/thought expungement without derailing the entire work train
-
-- [ ] Add a compact right-side Utility Rail on protected app pages.
-  - [ ] Should be icons + small text on wide screens, can be narrowed to strictly icons on narrow screens
-  - [ ] Should be available on ALL protected screens (not just the workbench)
-  - [ ] A single, drawer-style Quick Action Capture button should float on mobile
-    - [ ] The QAC menu drawer button should be an icon that indicates what it is, rather than words that would steal valuable screen real estate
-      - Action or Capture should be the main icon driver; Perhaps a fast moving runner? Is there an icon for that?
-
-- [ ] Rail actions should be contributed by enabled modules or mapped from registered module actions.
-  - Since we don't know if the user has an idea/thought to contribute to an existing, task, list, or note we should offer an initial modal that allows for finding of the item or creating a new one.
-  - [ ] Timer (Should open a modal capable of 2 timers, eventually; for now take you to time-tracker.html)
-    - [ ] Add documentation for 0.33.7.7 for creating the timer modal funcationality with a limit of 2 timers
-      - Within this documentation include instructions to redirect the QAC timer button to this new modal timer.
-  - [ ] Task (Should open a picker to find a task with a button to Add Task, then open the appropriate modal)
-  - [ ] Note (Should open a picker to find a note with a button to Add Note, then direct to the appropriate modal)
-  - [ ] List (Should open a picker to add an item to a list or add a list, then open the appropriate modal)
-  - [ ] Reporting (Should open a report creation modal, eventually; for now take you to reporting.html)
-    - [ ] Add documentation for 0.37.5 for creating the reporting modal
-  - [ ] File (Should open the Add file modal)
-  - [ ] Search (Should open an advanced search modal, eventually; for now take you to search.html)
-    - [ ] Add documentation for 0.33.7.8 for creating the advanced search modal functionality with a search result display modal
-      - Add documentation in 0.33.7.9 to update all search results to display in this modal, even searches from the main menu ribbon. Yes, this might be a complete overhaul of the search system (or at least a major extension of it) if this needs to go into its own ROADMAP version in 0.33.8, that's also fine. Evaluate at the time of building the documentation, please
-  - If a modal action does not exist yet, the QAC action may be hidden, disabled with a clear tooltip, or temporarily link to the existing module page as an explicitly temporary fallback.
-  - Temporary navigation fallbacks must be removed once the modal action exists.
-
-- [ ] Actions should open modals without changing the current page.
-- [ ] Actions should receive safe current-page context when available.
-- [ ] Actions must return focus to the triggering control when closed.
-- [ ] The rail must stay visually quiet unless opened by the user.
-- [ ] Do not use badges, alerts, or recommendation behavior in the rail; notifications and Workbench own those concerns.
 
 ## Version 0.34 - Knowledge Base Module
 
@@ -1263,6 +1276,10 @@ Knowledge Base is the reviewed, read-only knowledge layer generated from Notes f
   * [ ] Run ticket-specific regression scripts.
 
 ## Version 0.36.0 - Calendars and Calendar Views
+
+A lean, read-only task calendar shipped earlier in 0.33.7 (task due dates + reminder markers). This
+section owns the fuller Calendar module: user-created calendar events, iCal/shared-calendar display,
+and richer views beyond the 0.33.7 task read-out. External Google/Outlook sync remains later integrations work.
 
 - [ ] Calendars
   - [ ] Year view

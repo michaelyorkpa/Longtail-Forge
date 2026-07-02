@@ -8,7 +8,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { clearTimeout, setTimeout } from "node:timers";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.7.8";
+const appVersion = "0.33.5.21.8";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-separate-worker-e2e-"));
 const dataDir = path.join(tempDir, "data");
 const databaseFile = path.join(dataDir, "longtail-forge-separate-worker-e2e.db");
@@ -85,7 +85,7 @@ function assertStaticContract() {
   assert.match(appSource, /config\.worker\.mode === "separate"[\s\S]*state=external/, "app separate mode should leave processing to node worker.js");
   assert.match(appSource, /config\.worker\.mode === "disabled"[\s\S]*state=disabled/, "app disabled mode should report that jobs will not process");
   assert.match(regressionSuite, /scripts\/separate-worker-end-to-end-regression\.mjs/, "regression suite should include separate-worker end-to-end coverage");
-  assert.match(roadmap, /Version 0\.33\.5\.21\.7\.6 - Separate-worker end-to-end validation[\s\S]*\[x\] Add a regression that runs the `separate` worker/, "roadmap should mark separate-worker validation complete");
+  assert.match(roadmap, /0\.33\.5\.21\.0 through 0\.33\.5\.21\.8 are complete/, "roadmap should summarize completed durable-jobs slices");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the separate-worker end-to-end slice");
   assert.match(architectureDocs, /0\.33\.5\.21\.7\.6[\s\S]*separate worker/i, "architecture docs should document separate-worker validation");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.6[\s\S]*separate worker/i, "database docs should document separate-worker validation");

@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.7.8";
+const appVersion = "0.33.5.21.8";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-admin-job-observability-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-admin-job-observability.db");
@@ -89,7 +89,7 @@ function assertStaticContract() {
   assert.doesNotMatch(runtimeDiagnosticsSource, /payload_json|dedupe_key|process\.env|localRoot|clamdHost|clamscanPath|masterKey/i, "runtime diagnostics must not expose sensitive internals");
 
   assert.match(regressionSuite, /scripts\/admin-job-observability-regression\.mjs/, "regression suite should include admin job observability coverage");
-  assert.match(roadmap, /Version 0\.33\.5\.21\.7\.5 - Admin job observability[\s\S]*\[x\] Ensure pending\/running\/failed\/dead-letter counts/, "roadmap should mark the admin job observability slice complete");
+  assert.match(roadmap, /0\.33\.5\.21\.0 through 0\.33\.5\.21\.8 are complete/, "roadmap should summarize completed durable-jobs slices");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the admin job observability slice");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.7\.5[\s\S]*admin job observability/, "database docs should document admin job observability");
   assert.match(runtimeDocs, /Jobs Admin Readout[\s\S]*Workspace Settings[\s\S]*recent failures/, "runtime docs should document the admin jobs readout placement");

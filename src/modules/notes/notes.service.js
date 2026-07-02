@@ -715,7 +715,7 @@ async function listResumeContext(session, query = {}) {
     source: "notes",
     deferredFramework: {
       resumeStateStorage: "0.33.5.9",
-      workbenchFeed: "0.33.7",
+      workbenchFeed: "0.33.6",
       ranking: "0.33.5.9",
       dismissal: "0.33.5.9",
     },

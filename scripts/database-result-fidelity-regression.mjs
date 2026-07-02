@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.7.8";
+const appVersion = "0.33.5.21.8";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-result-fidelity-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-result-fidelity.db");
@@ -61,7 +61,7 @@ try {
   assert.match(runtimeDocs, /LONGTAIL_WORKER_MODE[\s\S]*inline[\s\S]*at most one local worker process/i, "runtime docs should document the SQLite worker-mode boundary");
   assert.match(sqliteDocs, /one Longtail Forge app process\/server[\s\S]*at most one local worker process/i, "SQLite small-office docs should allow at most one local worker");
   assert.match(sqliteDocs, /No worker fleet/, "SQLite small-office docs should keep the no-worker-fleet rule explicit");
-  assert.match(roadmap, /Version 0\.33\.5\.21\.0\.5 - Result fidelity[\s\S]*\[x\] Verify returned row shapes/, "roadmap should mark the result-fidelity slice complete");
+  assert.match(roadmap, /0\.33\.5\.21\.0 through 0\.33\.5\.21\.8 are complete/, "roadmap should summarize completed durable-jobs slices");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the result-fidelity slice");
 
   const integrityRows = await querySql("PRAGMA integrity_check;");

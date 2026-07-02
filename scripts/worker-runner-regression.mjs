@@ -6,7 +6,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.7.8";
+const appVersion = "0.33.5.21.8";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-worker-runner-"));
 const dataDir = path.join(tempDir, "data");
 process.env.LONGTAIL_DATA_DIR = dataDir;
@@ -81,7 +81,7 @@ try {
   assert.match(runtimeDocs, /`LONGTAIL_WORKER_MODE`[\s\S]*`inline`[\s\S]*`separate`[\s\S]*`disabled`/, "runtime docs should document worker modes as active settings");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.2[\s\S]*Worker runner v1/, "database docs should document the worker runner");
   assert.match(sqliteDocs, /As of 0\.33\.5\.21\.2[\s\S]*at most one local worker process/, "SQLite docs should document the one-worker boundary");
-  assert.match(roadmap, /Version 0\.33\.5\.21\.2 - Worker runner v1[\s\S]*\[x\] Add a Node worker runner[\s\S]*\[x\] Implement the 0\.33\.5\.21\.0\.5 SQLite boundary/, "roadmap should mark the worker runner slice complete");
+  assert.match(roadmap, /0\.33\.5\.21\.0 through 0\.33\.5\.21\.8 are complete/, "roadmap should summarize completed durable-jobs slices");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the worker runner slice");
 
   assertWorkerConfigModes();

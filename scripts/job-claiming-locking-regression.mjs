@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.7.8";
+const appVersion = "0.33.5.21.8";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-job-claiming-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-job-claiming.db");
@@ -65,7 +65,7 @@ try {
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.3[\s\S]*expired running locks/, "database docs should document expired lock reclaim");
   assert.match(runtimeDocs, /`LONGTAIL_JOB_LOCK_TTL_SECONDS`[\s\S]*expired running job locks/, "runtime docs should document the active lock TTL behavior");
   assert.match(sqliteDocs, /`GET \/api\/jobs\/status`[\s\S]*pending[\s\S]*running[\s\S]*dead/, "SQLite docs should document the protected jobs readout");
-  assert.match(roadmap, /Version 0\.33\.5\.21\.3 - Job claiming, locking, retry, and dead-letter behavior[\s\S]*\[x\] Expired lock can be reclaimed/, "roadmap should mark the job claiming slice complete");
+  assert.match(roadmap, /0\.33\.5\.21\.0 through 0\.33\.5\.21\.8 are complete/, "roadmap should summarize completed durable-jobs slices");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the job claiming slice");
 
   await initializeDatabase();

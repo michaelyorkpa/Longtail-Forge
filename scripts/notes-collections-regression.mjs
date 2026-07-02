@@ -36,7 +36,7 @@ try {
 
 async function assertManifestAndSchema() {
   const notesModule = modulesService.getModule("notes");
-  assert.equal(notesModule.version, "0.33.5.21.7.8");
+  assert.equal(notesModule.version, "0.33.5.21.8");
 
   await assertColumns("note_library_collections", [
     "path_cache",

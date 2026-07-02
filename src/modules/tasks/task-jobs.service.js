@@ -381,6 +381,7 @@ async function handleTaskReminderFireJob({ payload = {} }) {
       due_kind: matchedOccurrence.due_kind,
       offset_minutes: matchedOccurrence.offset_minutes,
       notification_delivery_key: taskReminderDedupeKey(task, matchedOccurrence),
+      recipient_user_ids: taskReminderRecipientIds(task),
       reminder_at_utc: matchedOccurrence.reminder_at_utc,
       reminder_delivery_key: taskReminderDedupeKey(task, matchedOccurrence),
       source: "task_reminder_job",
@@ -513,6 +514,19 @@ function taskReminderDedupeKey(task, occurrence) {
     occurrence.reminder_at_utc,
     occurrence.offset_minutes,
   ].map(normalizeText).join(":");
+}
+
+function taskReminderRecipientIds(task = {}) {
+  const assigneeIds = Array.isArray(task.assignee_ids)
+    ? task.assignee_ids.map(normalizeText).filter(Boolean)
+    : [];
+
+  if (assigneeIds.length > 0) {
+    return [...new Set(assigneeIds)];
+  }
+
+  const creatorId = normalizeText(task.created_by_user_id);
+  return creatorId ? [creatorId] : [];
 }
 
 function taskReminderSweepDedupeKey(workspaceId, availableAt = new Date()) {

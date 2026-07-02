@@ -273,7 +273,7 @@ WHERE workspace_id = ${sqlText(adminSession.workspace_id)}
 
   assert.equal(resume.moduleId, "notes");
   assert.equal(resume.deferredFramework.resumeStateStorage, "0.33.5.9");
-  assert.equal(resume.deferredFramework.workbenchFeed, "0.33.7");
+  assert.equal(resume.deferredFramework.workbenchFeed, "0.33.6");
   assert.ok(linkedCandidate, "Active Work notes linked to project context should be resume supporting context candidates");
   assert.ok(recentCandidate, "Recently edited Active Work notes should be pickup candidates");
   assert.equal(linkedCandidate.supportingContext, true);
