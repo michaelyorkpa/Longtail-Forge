@@ -381,15 +381,41 @@ Purpose:
 
 Make the asynchronous recurrence contract fully absorbed by service, API, and browser consumers before the durable-jobs branch closes.
 
-- [ ] Verify all consumers of `tasks.service.complete()` handle `createdTask` now being `null` because the next recurring instance is created asynchronously by the worker.
-- [ ] Check browser completion flows, public API completion responses, audit/event/search side effects, and tests for assumptions that a next recurring instance exists synchronously.
-- [ ] Decide whether to surface a small "next instance queued" affordance, and document the decision in the Tasks contract if behavior changes.
-- [ ] Complete the durable-jobs branch closeout only after the 0.33.5.21.7 child slices are done: docs, changelog, roadmap/archive bookkeeping, version pins, targeted regressions, full `npm run check`, permission checks if touched, SQLite integrity check if database behavior changed, and `/api/app-info` verification after restart.
+- [x] Verify all consumers of `tasks.service.complete()` handle `createdTask` now being `null` because the next recurring instance is created asynchronously by the worker.
+- [x] Check browser completion flows, public API completion responses, audit/event/search side effects, and tests for assumptions that a next recurring instance exists synchronously.
+- [x] Decide whether to surface a small "next instance queued" affordance, and document the decision in the Tasks contract if behavior changes.
+- [x] Complete the durable-jobs branch closeout only after the 0.33.5.21.7 child slices are done: docs, changelog, roadmap/archive bookkeeping, version pins, targeted regressions, full `npm run check`, permission checks if touched, SQLite integrity check if database behavior changed, and `/api/app-info` verification after restart.
 
 Acceptance criteria:
 
 - Recurring-task completion responses and UI behavior match the asynchronous worker contract.
 - The 0.33.5.21 durable-jobs branch closes with no new job type introduced and with file scanning, reminder coverage, job-table growth, retry idempotency, admin observability, and separate-worker operation validated.
+
+### Version 0.33.5.21.7.8 - Task checklist UI: "+" add button (and checklist-item display regression guard)
+
+Purpose:
+
+Small Tasks-editor checklist refinements, grouped with the durable-jobs follow-ups only for convenience. Convert the checklist "Add" button to a `+` icon and lock in the checklist-item display regression that was just fixed so it cannot silently return.
+
+- [ ] Convert the checklist "Add" button to a `+` icon:
+  - [ ] The button is built by `taskEditorButton(view, "Add", { "data-task-checklist-add": "" })` in `public/js/task-dialog.js` (the checklist add row, ~line 2134). Render it as an icon button using the app-wide icon system (`public/js/shared/icons.js` `createIconButton`, or the `view.createActionButton` `icon`/`iconOnly` bridge), matching how the Files/Notes action buttons are iconized.
+  - [ ] Use a `plus`/`add` glyph; if the icon registry (`public/js/shared/icons.js`) does not already contain one, add a Lucide-style `plus` entry (see existing entries like `complete`, `close`, `save`).
+  - [ ] Keep an accessible label (title/`aria-label` "Add checklist item") since the button becomes icon-only, and preserve the existing `data-task-checklist-add` hook and disabled/enabled behavior (`fields.checklistAdd.disabled = !canUseChecklist`).
+  - [ ] Confirm the input + icon button still line up in the `task-checklist-add-row` layout (`public/css/longtail-forge.css`).
+- [ ] Convert the per-item checklist action buttons (Save / Up / Down / Remove) to icon buttons:
+  - [ ] These are built by `checklistActionButton(action, text, label)` in `public/js/task-dialog.js` (~line 1717), called for `save`/`up`/`down`/`delete` in `checklistItemRow` (~line 1706-1709). Render each as an icon button via the app-wide icon system (`public/js/shared/icons.js`), preserving the existing `data-task-checklist-action` values and the up/down `disabled` edge logic (`up.disabled = index === 0`, `down.disabled = index >= totalItems - 1`).
+  - [ ] Icon mapping: Save -> a disk/save glyph (existing `save` in the registry); Up -> an up arrow or upward caret (`chevron-up`); Down -> a downward caret (`chevron-down`); Remove -> a trash can (existing `delete`). Add any missing Lucide-style glyphs (`chevron-up`/`chevron-down`) to the registry.
+  - [ ] Make the Remove (trash) icon red, using a destructive/danger button variant/class (do not hardcode a hex; reuse the existing danger token used elsewhere for destructive actions).
+  - [ ] Give every icon button a hover tooltip and accessible name: a `title` attribute plus `aria-label` (reuse the descriptive labels already passed to `checklistActionButton`, e.g. "Save checklist item", "Move checklist item up", "Move checklist item down", "Remove checklist item"). This applies to every icon-only button in this slice, including the `+` add button.
+  - [ ] Confirm row layout/alignment still holds with icon buttons (`.task-checklist-item` in `public/css/longtail-forge.css`), including disabled-state styling for Up/Down.
+- [ ] Regression guard for checklist-item display (fixed in this pass): the task editor renders item rows from `task.checklistItems`, but the tasks **list** row serializer (`taskSummaryRow`, `src/modules/tasks/tasks.service.js`) only carries `checklistProgress`, not the item array. When the editor was opened from a list row, no task detail was fetched, so items never rendered even though the "N/M complete" summary did. The fix ensures the single-task detail (`GET /api/tasks/:taskId` -> `attachTaskDetails`, which includes `checklistItems`) is fetched and preferred over the passed list row in `openTaskEditor` (`public/js/task-dialog.js`).
+  - [ ] Add a regression proving that opening the task editor for a task with checklist items renders all item rows (not just the progress summary), covering the open-from-list-row path specifically.
+
+Acceptance criteria:
+
+- The checklist add control is a `+` icon button with an accessible label, consistent with the app's icon system, and still adds items.
+- The per-item Save / Up / Down / Remove controls are icon buttons (disk / up caret / down caret / trash), with the trash rendered in the destructive/danger color, each carrying a hover tooltip and accessible name, and the Up/Down disabled edges preserved.
+- Opening the task editor for a task that has checklist items always displays those item rows, guarded by a regression.
 
 ### Version 0.33.5.21.8 - Deliver task due reminders to the notification surface
 

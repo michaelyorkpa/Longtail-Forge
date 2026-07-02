@@ -49,9 +49,17 @@
     if (request.needsStandaloneContext) {
       const prepared = await prepareStandaloneContext({ hostContext, params: request.defaults, taskId: request.taskId });
       configure(prepared);
-      request.task = request.task || prepared.task || null;
+      // Prefer the freshly fetched task detail (which includes checklistItems and
+      // other detail-only fields) over any list-row object passed in by the caller.
+      request.task = prepared.task || request.task || null;
     } else {
       configure({ hostContext: hostContext || context?.hostContext || null });
+      if (request.taskId && request.mode === "edit") {
+        // The caller may have handed us a list-row payload (checklistProgress but no
+        // checklistItems). Refresh the single task detail so the editor renders items.
+        const detail = await api.getJson(`/api/tasks/${encodeURIComponent(request.taskId)}`, { cache: "no-store" });
+        request.task = detail?.task || request.task;
+      }
     }
 
     return open({

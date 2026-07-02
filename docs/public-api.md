@@ -195,6 +195,8 @@ Task API requests run through the same service contract as browser task workflow
 
 Task payloads may include `title`, `description`, `status`, `priority`, `client_id`, `project_id`, `assignee_ids`, `due_date`, `due_time`, reminder policy fields, and recurrence fields used by the browser workflow. Project-linked tasks inherit the project's client context server-side. Personal and Family workspaces may create workspace-only and project-linked tasks, but direct client task scopes are Business-only.
 
+As of 0.33.5.21.7.7, completing a recurring task through `POST /api/v1/tasks/:taskId/complete` follows the asynchronous recurrence contract. The response includes the completed task, `createdTask` is `null`, and `recurrenceJob.queued` is a safe boolean hint that the next recurring instance has been queued for worker creation. Public API responses do not expose job IDs, dedupe keys, payload JSON, or worker internals.
+
 Task timers remain browser-only in 0.31.6. Integrations can read task-linked time through Time Tracking and Reporting once timer-created entries have `task_id` populated.
 
 ## Workspace Context

@@ -2,7 +2,7 @@
 
 Longtail Forge reads install and startup configuration from environment variables. At app startup, `server.js` loads a local root `.env` file when present, then `src/config.js` normalizes the resulting environment. A real `.env` file is local runtime state and must not be committed; use `.env.example` as the documented contract.
 
-As of 0.33.5.21.7.6, this contract records active runtime settings plus future reserved settings. Worker settings and job retention settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
+As of 0.33.5.21.7.7, this contract records active runtime settings plus future reserved settings. Worker settings and job retention settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
 
@@ -103,6 +103,8 @@ As of 0.33.5.21.7.6, the proved separate worker behavior covers the real `node w
 
 Job retention pruning is framework-owned maintenance, not a route delete or module-owned loop. App startup and separate-worker startup delete only `completed` rows older than `LONGTAIL_JOB_COMPLETED_RETENTION_DAYS` and `dead` rows older than `LONGTAIL_JOB_DEAD_RETENTION_DAYS`. `pending`, `running`, and `failed` rows stay intact regardless of age so retryable or claimed work is not lost.
 
+As of 0.33.5.21.7.7, recurring task completion responses are closed around the asynchronous worker model: completion returns `createdTask: null` with a safe `recurrenceJob.queued` hint, and the worker creates the next instance later.
+
 ## Reserved Settings
 
 These names are documented now and intentionally left mostly dormant until their roadmap slices wire behavior.
@@ -169,7 +171,7 @@ Admins can inspect queue health through the Workspace Settings Jobs panel, Runti
 
 ## Scope Boundary
 
-The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active, 0.33.5.21.3 makes lock TTL reclaim active with a minimal admin job readout, 0.33.5.21.4 moves search indexing onto jobs, 0.33.5.21.5 moves notification fan-out onto jobs, 0.33.5.21.6 adds durable handlers/producers for task reminders, recurrence generation, file scanning, and reserved future imports, 0.33.5.21.7.1 removes inline upload scanning so `file.scan` owns the scan state transition, 0.33.5.21.7.2 bounds reminder scheduling with a 30-day horizon plus a 12-hour sweep, 0.33.5.21.7.3 hardens reminder notification idempotency for at-least-once worker retries, 0.33.5.21.7.4 adds configurable completed/dead-letter job retention pruning, 0.33.5.21.7.5 adds safe Workspace Settings job observability, and 0.33.5.21.7.6 proves separate-worker end-to-end processing for the current durable handlers. This branch still does not:
+The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active, 0.33.5.21.3 makes lock TTL reclaim active with a minimal admin job readout, 0.33.5.21.4 moves search indexing onto jobs, 0.33.5.21.5 moves notification fan-out onto jobs, 0.33.5.21.6 adds durable handlers/producers for task reminders, recurrence generation, file scanning, and reserved future imports, 0.33.5.21.7.1 removes inline upload scanning so `file.scan` owns the scan state transition, 0.33.5.21.7.2 bounds reminder scheduling with a 30-day horizon plus a 12-hour sweep, 0.33.5.21.7.3 hardens reminder notification idempotency for at-least-once worker retries, 0.33.5.21.7.4 adds configurable completed/dead-letter job retention pruning, 0.33.5.21.7.5 adds safe Workspace Settings job observability, 0.33.5.21.7.6 proves separate-worker end-to-end processing for the current durable handlers, and 0.33.5.21.7.7 closes the recurring-task completion response contract around queued worker handoff. This branch still does not:
 
 - Change the database provider away from SQLite.
 - Enable PostgreSQL.

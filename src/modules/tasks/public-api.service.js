@@ -25,6 +25,7 @@ async function completeTask(context, taskId) {
   return withWorkspaceAlias({
     task: result.task,
     createdTask: result.createdTask || null,
+    recurrenceJob: publicRecurrenceJob(result.recurrenceJob),
   }, context);
 }
 
@@ -68,6 +69,12 @@ function paged(items, query) {
       total: items.length,
       has_more: offset + limit < items.length,
     },
+  };
+}
+
+function publicRecurrenceJob(recurrenceJob = {}) {
+  return {
+    queued: recurrenceJob.queued === true,
   };
 }
 

@@ -9,9 +9,9 @@ const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.21.7.6", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.21.7.6", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.21.7.6", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.21.7.7", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.21.7.7", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.21.7.7", "package-lock package entry should report the current app version");
 
 assert.match(renderer, /function registerBehavior\(id, handler\)/, "Renderer should expose behavior registration");
 assert.match(renderer, /runRouteAction\(action, state, record\)/, "Renderer should route declarative route actions");

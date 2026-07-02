@@ -1,3 +1,10 @@
+## Version 0.33.5.21.7.7 - 2026-07-02
+
+- Closed the async recurrence response contract: recurring task completion now returns `createdTask: null` with a `recurrenceJob.queued` handoff while the worker creates the next task instance.
+- Added a small Tasks page status affordance for queued recurrence work and exposed a safe public API `recurrenceJob.queued` boolean without job IDs, dedupe keys, payload JSON, or worker internals.
+- Added `scripts/async-recurrence-response-closeout-regression.mjs`, refreshed Tasks/public API/runtime/database docs and decisions, marked the roadmap slice complete, and advanced package/module/regression version metadata to 0.33.5.21.7.7.
+- Verification 2026-07-02 12:39 -04:00: async recurrence response closeout, task recurrence frequency, background-work jobs, separate-worker end-to-end, and public API client/project targeted checks passed; `npm run check` passed 236/236 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.7.7 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.7.6 - 2026-07-02
 
 - Added `scripts/separate-worker-end-to-end-regression.mjs`, which runs the real `node worker.js` separate worker against queued search indexing, notification fan-out, task reminder, task recurrence, and file scan jobs.

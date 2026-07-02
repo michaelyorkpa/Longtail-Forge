@@ -1773,12 +1773,15 @@ async function postTaskAction(task, action) {
   try {
     const result = await api.postJson(`/api/tasks/${encodeURIComponent(task.task_id)}/${action}`, {});
     upsertTask(result.task);
+    const recurrenceQueued = result.recurrenceJob?.queued === true;
     if (result.createdTask) {
       upsertTask(result.createdTask);
       setStatus(`Created next recurring task: ${result.createdTask.title}`);
+    } else if (action === "complete" && recurrenceQueued) {
+      setStatus("Next recurring task queued.");
     }
     await reloadTaskList();
-    if (!result.createdTask) {
+    if (!result.createdTask && !recurrenceQueued) {
       setStatus("");
     }
   } catch (error) {

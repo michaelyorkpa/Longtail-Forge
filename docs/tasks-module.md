@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.5.21.7.6. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.5.21.7.7. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -121,6 +121,8 @@ The browser may display compact blocking-child relationship summaries in the tas
 ## Recurrence
 
 Task recurrence supports Daily, Weekdays, Weekends, Weekly, and Monthly frequencies. Weekdays are Monday through Friday; Weekends are Saturday and Sunday; Daily remains every day. Recurrence generation is owned by the Tasks module and emits normal task records for follow-up instances.
+
+As of 0.33.5.21.7.7, completing a recurring task queues `task.recurrence` work and does not create the next instance in the completion request. `tasks.service.complete()` and the protected completion route return the completed task, `createdTask` is `null`, and `recurrenceJob.queued` indicates whether recurrence work was queued; the worker creates the next recurring task asynchronously. The Tasks page shows a small "Next recurring task queued." status when that happens, while Workbench keeps the generic completion confirmation. Public API completion responses expose only the safe `recurrenceJob.queued` hint and do not expose job IDs, dedupe keys, payload JSON, or other job internals.
 
 ## Events And Search
 
