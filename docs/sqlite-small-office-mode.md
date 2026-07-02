@@ -10,11 +10,13 @@ Longtail Forge supports SQLite as the self-hosted small-office database mode. Th
 - Keep uploaded files and local runtime data on local or attached storage.
 - Keep SQLite foreign keys enabled.
 - Use WAL journal mode unless the deployment filesystem requires another supported SQLite journal mode.
-- Keep background work inline, or on at most one local worker process when later job/outbox slices add that option.
+- Keep background work inline, or on at most one local worker process through `node worker.js`.
 
 SQLite small-office mode targets roughly 50 total users, with typical active use around 5-15 concurrent users. If the install needs multiple app servers, separate web and worker fleets, very high write concurrency, or hosted multi-tenant isolation, move that deployment toward the future PostgreSQL provider instead of stretching SQLite.
 
-As of 0.33.5.21.0.5, the SQLite worker-mode boundary for future durable jobs is one app process/server plus, at most, one local worker process attached to the same install. No worker fleet is supported for SQLite mode. A future `separate` worker in SQLite mode must verify schema readiness, avoid independently running migrations, and share the same local database/file-locking assumptions as the app process.
+As of 0.33.5.21.2, the SQLite worker-mode boundary for durable jobs is one app process/server plus at most one local worker process attached to the same install. `LONGTAIL_WORKER_MODE=inline` starts an in-process poll timer after the app server begins listening. `LONGTAIL_WORKER_MODE=separate node worker.js` runs the worker outside the app server, verifies schema readiness, avoids independently running migrations, and takes `.longtail-forge-worker.lock` beside the SQLite database to prevent a second local worker. `LONGTAIL_WORKER_MODE=disabled` starts no worker for tests or troubleshooting. No worker fleet is supported for SQLite mode.
+
+The inline poll timer wakes jobs whose `available_at` is in the future on the next `LONGTAIL_JOB_POLL_INTERVAL_MS` tick. It is not a post-response drain, and it shares the same Node process and SQLite adapter path as request handling.
 
 ## Scale Seed Databases
 
@@ -91,6 +93,6 @@ SQLite small-office mode is designed to stay simple. If the install starts needi
 
 ## Admin Readout
 
-Workspace Settings includes a read-only Runtime Diagnostics panel for users with `workspace_settings.manage`. The panel consumes `GET /api/runtime-diagnostics` and shows database provider, SQLite journal mode, foreign-key status, safe database file location, safe data directory location, storage provider, and scanner mode.
+Workspace Settings includes a read-only Runtime Diagnostics panel for users with `workspace_settings.manage`. The panel consumes `GET /api/runtime-diagnostics` and shows database provider, SQLite journal mode, foreign-key status, safe database file location, safe data directory location, storage provider, scanner mode, worker mode, and worker state. The API response also includes safe worker status counters for diagnostics; pending/running/dead-letter queue counts and recent failure summaries remain later admin-readout work.
 
 The readout is diagnostic only. It does not edit runtime configuration, write `.env` values, reveal raw environment variables, expose local storage roots, reveal protected paths, expose scanner internals, or show secure-note key material.

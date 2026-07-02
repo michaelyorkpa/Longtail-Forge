@@ -1,7 +1,7 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import { config, logRuntimeConfigWarnings } from "../config.js";
-import { formatDatabaseHealth, initializeDatabase } from "../db/index.js";
+import { closeDatabase, formatDatabaseHealth, initializeDatabase } from "../db/index.js";
 import { errorHandler } from "../middleware/error-handler.js";
 import { requireAuth } from "../middleware/require-auth.js";
 import { appInfoRoutes } from "../routes/app-info.routes.js";
@@ -22,6 +22,7 @@ import { settingsRoutes } from "../routes/settings.routes.js";
 import { staticRoutes } from "../routes/static.routes.js";
 import { workResumeRoutes } from "../routes/work-resume.routes.js";
 import { workbenchRoutes } from "../routes/workbench.routes.js";
+import { formatJobWorkerStatus, startJobWorker, stopJobWorker } from "./jobs/index.js";
 import { requireModuleBrowserWritesEnabledForRouter } from "./modules/module-access.js";
 import { modulesService } from "./modules/modules.service.js";
 import { notificationsService } from "../services/notifications.service.js";
@@ -94,16 +95,67 @@ async function startServer() {
     scheduleStartupSearchIndexRebuild();
     const app = createApp();
 
-    app.listen(config.port, config.host, () => {
+    const server = app.listen(config.port, config.host, () => {
       console.log(
         `Longtail Forge running at http://${config.host}:${config.port}/index.html`,
       );
+      startConfiguredInlineWorker();
     });
+    registerGracefulShutdown(server);
   } catch (error) {
     console.error("The local database could not be initialized.");
     console.error(error.message || error);
     process.exitCode = 1;
   }
+}
+
+function startConfiguredInlineWorker() {
+  if (config.worker.mode === "separate") {
+    console.log("[job-worker] mode=separate state=external");
+    return;
+  }
+
+  if (config.worker.mode === "disabled") {
+    console.log("[job-worker] mode=disabled state=disabled");
+    return;
+  }
+
+  void startJobWorker({
+    mode: "inline",
+    workerId: config.worker.id,
+  }).then((status) => {
+    console.log(formatJobWorkerStatus(status));
+  }).catch((error) => {
+    console.warn("[job-worker] Inline worker failed to start.");
+    console.warn(error.message || error);
+  });
+}
+
+function registerGracefulShutdown(server) {
+  let shuttingDown = false;
+  const shutdown = (signal) => {
+    if (shuttingDown) {
+      return;
+    }
+
+    shuttingDown = true;
+    void (async () => {
+      console.log(`[app-shutdown] ${signal} received; stopping.`);
+      await stopJobWorker();
+      await new Promise((resolve) => {
+        server.close(resolve);
+      });
+      await closeDatabase();
+      process.exitCode = 0;
+    })().catch((error) => {
+      console.error("[app-shutdown] Graceful shutdown failed.");
+      console.error(error.message || error);
+      process.exitCode = 1;
+    });
+  };
+
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
 }
 
 function scheduleStartupSearchIndexRebuild() {

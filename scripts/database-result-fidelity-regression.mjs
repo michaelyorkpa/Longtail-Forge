@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.0.6";
+const appVersion = "0.33.5.21.2";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-result-fidelity-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-result-fidelity.db");
@@ -58,7 +58,7 @@ try {
   await assertFtsMatchAndBm25();
 
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.0\.5[\s\S]*adapter:\s*"better-sqlite3"[\s\S]*safeIntegers[\s\S]*TEXT-key schema/, "database docs should describe the result-fidelity and safeIntegers decision");
-  assert.match(runtimeDocs, /worker mode[\s\S]*inline[\s\S]*single local worker/i, "runtime docs should document the SQLite worker-mode boundary");
+  assert.match(runtimeDocs, /LONGTAIL_WORKER_MODE[\s\S]*inline[\s\S]*at most one local worker process/i, "runtime docs should document the SQLite worker-mode boundary");
   assert.match(sqliteDocs, /one Longtail Forge app process\/server[\s\S]*at most one local worker process/i, "SQLite small-office docs should allow at most one local worker");
   assert.match(sqliteDocs, /No worker fleet/, "SQLite small-office docs should keep the no-worker-fleet rule explicit");
   assert.match(roadmap, /Version 0\.33\.5\.21\.0\.5 - Result fidelity[\s\S]*\[x\] Verify returned row shapes/, "roadmap should mark the result-fidelity slice complete");

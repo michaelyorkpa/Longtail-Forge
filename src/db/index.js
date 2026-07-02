@@ -64,6 +64,59 @@ async function runAppStartupMaintenance() {
   await ensureProtectedUserRoles(workspaceId);
 }
 
+async function initializeWorkerDatabase() {
+  const databaseHealth = await initializeDatabaseRuntime();
+  await verifyWorkerSchemaReady();
+  return databaseHealth;
+}
+
+async function verifyWorkerSchemaReady() {
+  if (!(await tableExists("schema_migrations"))) {
+    throw new Error("Worker schema is not ready: schema_migrations is missing. Start the app or run migration maintenance before starting node worker.js.");
+  }
+
+  const migrationRows = await querySql(`
+SELECT version
+FROM schema_migrations
+WHERE version = '065'
+LIMIT 1;
+`);
+
+  if (migrationRows.length === 0) {
+    throw new Error("Worker schema is not ready: migration 065_job_outbox_schema has not been applied. Start the app or run migration maintenance before starting node worker.js.");
+  }
+
+  if (!(await tableExists("jobs"))) {
+    throw new Error("Worker schema is not ready: jobs table is missing.");
+  }
+
+  const requiredColumns = [
+    "job_id",
+    "workspace_id",
+    "job_type",
+    "dedupe_key",
+    "payload_json",
+    "status",
+    "priority",
+    "available_at",
+    "attempt_count",
+    "max_attempts",
+    "locked_at",
+    "locked_by",
+    "last_error",
+    "created_at",
+    "updated_at",
+    "completed_at",
+    "dead_at",
+  ];
+
+  if (!(await columnsExist("jobs", requiredColumns))) {
+    throw new Error("Worker schema is not ready: jobs table is missing required columns.");
+  }
+
+  return true;
+}
+
 async function ensureFrameworkModuleRecord() {
   if (!(await tableExists("modules"))) {
     return;
@@ -759,6 +812,7 @@ export {
   getSql,
   initializeDatabase,
   initializeDatabaseRuntime,
+  initializeWorkerDatabase,
   closeDatabase as closeSqlite,
   db,
   formatDatabaseHealth as formatSqliteHealth,

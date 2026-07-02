@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.0.6";
+const appVersion = "0.33.5.21.2";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -49,6 +49,8 @@ assert.match(workspaceSettingsScript, /Database File/, "readout should render sa
 assert.match(workspaceSettingsScript, /Data Directory/, "readout should render safe data directory location");
 assert.match(workspaceSettingsScript, /Storage Provider/, "readout should render storage provider");
 assert.match(workspaceSettingsScript, /Scanner Mode/, "readout should render scanner mode");
+assert.match(workspaceSettingsScript, /Worker Mode/, "readout should render worker mode");
+assert.match(workspaceSettingsScript, /Worker State/, "readout should render worker state");
 assert.match(workspaceSettingsScript, /Confirm redacted runtime paths are on local or attached storage/, "readout should warn when paths need operator review");
 assert.doesNotMatch(workspaceSettingsScript, /DATABASE_URL|process\.env|localRoot|storageKey|signedUrl|masterKey|SECURE_NOTES|CLAMD|CLAMSCAN/i, "Workspace Settings readout must not expose raw env, storage, scanner, or key internals");
 

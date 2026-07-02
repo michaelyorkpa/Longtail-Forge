@@ -25,6 +25,8 @@ try {
 
 async function simulateCurrentSchemaWithHistoricalMigrationRows() {
   await runSql(`
+DROP TABLE IF EXISTS jobs;
+
 INSERT INTO users (
   user_id,
   home_workspace_id,
@@ -69,11 +71,18 @@ FROM schema_migrations
 ORDER BY version;
 `);
 
-  assert.deepEqual(rows, [{
-    version: "0.33.5.18.6.5.4",
-    module_id: "core",
-    name: "current_fresh_start_database",
-  }]);
+  assert.deepEqual(rows, [
+    {
+      version: "0.33.5.18.6.5.4",
+      module_id: "core",
+      name: "current_fresh_start_database",
+    },
+    {
+      version: "065",
+      module_id: "core",
+      name: "job_outbox_schema",
+    },
+  ]);
 }
 
 async function assertExistingUserPreserved() {

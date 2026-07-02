@@ -136,64 +136,64 @@ Gate: do not start 0.33.5.21.2 worker runner work until this driver swap is comp
 
 ### Version 0.33.5.21.1 - Job/outbox schema
 
-- [ ] Add job/outbox tables compatible with SQLite:
-  - [ ] `job_id`
-  - [ ] `workspace_id`
-  - [ ] `job_type`
-  - [ ] `dedupe_key`
-  - [ ] `payload_json`
-  - [ ] `status`
-  - [ ] `priority`
-  - [ ] `available_at`
-  - [ ] `attempt_count`
-  - [ ] `max_attempts`
-  - [ ] `locked_at`
-  - [ ] `locked_by`
-  - [ ] `last_error`
-  - [ ] `created_at`
-  - [ ] `updated_at`
-  - [ ] `completed_at`
-  - [ ] `dead_at`
-- [ ] Add indexes for pending work by status/available time.
-- [ ] Add dedupe behavior where appropriate.
-- [ ] Add docs explaining:
-  - [ ] Pending.
-  - [ ] Running/locked.
-  - [ ] Completed.
-  - [ ] Failed/retry.
-  - [ ] Dead-letter.
-- [ ] Ship job/outbox tables as a new versioned core migration under `src/db/migrations/` (checksum-validated), not as an edit to the frozen `current.sql` baseline.
+- [x] Add job/outbox tables compatible with SQLite:
+  - [x] `job_id`
+  - [x] `workspace_id`
+  - [x] `job_type`
+  - [x] `dedupe_key`
+  - [x] `payload_json`
+  - [x] `status`
+  - [x] `priority`
+  - [x] `available_at`
+  - [x] `attempt_count`
+  - [x] `max_attempts`
+  - [x] `locked_at`
+  - [x] `locked_by`
+  - [x] `last_error`
+  - [x] `created_at`
+  - [x] `updated_at`
+  - [x] `completed_at`
+  - [x] `dead_at`
+- [x] Add indexes for pending work by status/available time.
+- [x] Add dedupe behavior where appropriate.
+- [x] Add docs explaining:
+  - [x] Pending.
+  - [x] Running/locked.
+  - [x] Completed.
+  - [x] Failed/retry.
+  - [x] Dead-letter.
+- [x] Ship job/outbox tables as a new versioned core migration under `src/db/migrations/` (checksum-validated), not as an edit to the frozen `current.sql` baseline.
 
 Acceptance criteria:
 
-- SQLite can store durable background work.
-- The schema is portable to PostgreSQL later.
+- [x] SQLite can store durable background work.
+- [x] The schema is portable to PostgreSQL later.
 
 ### Version 0.33.5.21.2 - Worker runner v1
 
-- [ ] Add a Node worker runner.
-- [ ] Support modes:
-  - [ ] `inline` for simple SQLite self-hosting.
-  - [ ] `separate` for `node worker.js`.
-  - [ ] `disabled` for tests/admin troubleshooting.
-- [ ] Worker should:
-  - [ ] Poll for available jobs.
-  - [ ] Claim one or more jobs.
-  - [ ] Run registered job handlers.
-  - [ ] Mark jobs complete.
-  - [ ] Retry failed jobs with backoff.
-  - [ ] Move exhausted jobs to dead-letter state.
-- [ ] Add worker health/status output.
-- [ ] Add graceful shutdown.
-- [ ] Define exactly what triggers `inline` mode execution (in-process poll timer vs post-response drain) and document that in-process polling shares the SQLite serial queue with request handling.
-- [ ] Define how time-scheduled jobs (`available_at` in the future) are woken in inline mode, since SQLite mode has no always-on external scheduler.
-- [ ] Define migration/startup ownership for worker processes: a `separate` worker must verify schema readiness and must not independently run migrations or contend for the migration lock.
-- [ ] Implement the 0.33.5.21.0.5 SQLite boundary for `separate` worker mode: at most one local worker process attached to the same SQLite install, no extra app server, no worker fleet, and no independent migration ownership.
+- [x] Add a Node worker runner.
+- [x] Support modes:
+  - [x] `inline` for simple SQLite self-hosting.
+  - [x] `separate` for `node worker.js`.
+  - [x] `disabled` for tests/admin troubleshooting.
+- [x] Worker should:
+  - [x] Poll for available jobs.
+  - [x] Claim one or more jobs.
+  - [x] Run registered job handlers.
+  - [x] Mark jobs complete.
+  - [x] Retry failed jobs with backoff.
+  - [x] Move exhausted jobs to dead-letter state.
+- [x] Add worker health/status output.
+- [x] Add graceful shutdown.
+- [x] Define exactly what triggers `inline` mode execution (in-process poll timer vs post-response drain) and document that in-process polling shares the SQLite serial queue with request handling.
+- [x] Define how time-scheduled jobs (`available_at` in the future) are woken in inline mode, since SQLite mode has no always-on external scheduler.
+- [x] Define migration/startup ownership for worker processes: a `separate` worker must verify schema readiness and must not independently run migrations or contend for the migration lock.
+- [x] Implement the 0.33.5.21.0.5 SQLite boundary for `separate` worker mode: at most one local worker process attached to the same SQLite install, no extra app server, no worker fleet, and no independent migration ownership.
 
 Acceptance criteria:
 
-- SQLite installs can run jobs without extra infrastructure.
-- Future SaaS can run workers separately from web processes.
+- [x] SQLite installs can run jobs without extra infrastructure.
+- [x] Future SaaS can run workers separately from web processes.
 
 ### Version 0.33.5.21.3 - Job claiming, locking, retry, and dead-letter behavior
 

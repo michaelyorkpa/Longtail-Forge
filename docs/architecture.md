@@ -913,6 +913,8 @@ The event system should start small.
 
 Do not refactor every service into events at once.
 
+As of 0.33.5.21.2, durable background work has the framework-owned `jobs` table from `src/db/migrations/065_job_outbox_schema.sql` plus the v1 worker runner in `src/core/jobs/`. Job rows store workspace-scoped work with a type, payload JSON, optional active dedupe key, lifecycle status, priority, availability time, retry counters, lock fields, error summary, and lifecycle timestamps. The v1 runner polls by timer, claims due work transactionally, runs registered handlers, completes successful jobs, retries failures with bounded backoff, and moves exhausted jobs to `dead`. Event producers, expired-lock reclaim behavior, richer admin readouts, and module-specific job types remain later roadmap work.
+
 ---
 
 ## Notifications Framework
@@ -1409,7 +1411,7 @@ SQLite can remain the lightweight local/self-hosted database.
 
 PostgreSQL should eventually become the preferred production database.
 
-Current runtime database behavior is documented in [database.md](database.md) and [runtime-configuration.md](runtime-configuration.md). As of 0.33.5.19.9, SQLite is still the only implemented provider, small-office SQLite mode is supported for one app process/server, `src/core/database.js` is the preferred app-facing database import, and the provider-neutral adapter exposes health/capability reporting, named-parameter support, callback transactions, and SQLite migration locking. The 0.33.5.20 bounded-query branch consumes that foundation for scale-seeded list reads; future jobs/outbox, storage/scanner, and PostgreSQL work should do the same instead of adding parallel database startup or configuration paths.
+Current runtime database behavior is documented in [database.md](database.md) and [runtime-configuration.md](runtime-configuration.md). As of 0.33.5.19.9, SQLite is still the only implemented provider, small-office SQLite mode is supported for one app process/server, `src/core/database.js` is the preferred app-facing database import, and the provider-neutral adapter exposes health/capability reporting, named-parameter support, callback transactions, and SQLite migration locking. The 0.33.5.20 bounded-query branch consumes that foundation for scale-seeded list reads, 0.33.5.21.1 adds the first checksum-tracked durable job/outbox schema migration, and 0.33.5.21.2 adds the v1 inline/separate worker runner without changing migration ownership. Storage/scanner and PostgreSQL work should keep consuming the same startup, migration, worker, and adapter boundaries instead of adding parallel database paths.
 
 ---
 

@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.0.6";
+const appVersion = "0.33.5.21.2";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
@@ -103,6 +103,7 @@ assert.match(configSource, /LONGTAIL_DATABASE_PROVIDER[\s\S]*DATABASE_PROVIDERS/
 assert.match(configSource, /LONGTAIL_SQLITE_FOREIGN_KEYS/, "config should read the SQLite foreign-key setting");
 assert.match(configSource, /LONGTAIL_SQLITE_JOURNAL_MODE/, "config should read the SQLite journal mode setting");
 assert.match(configSource, /LONGTAIL_SQLITE_BUSY_TIMEOUT_MS/, "config should read the SQLite busy-timeout setting");
+assert.match(configSource, /LONGTAIL_WORKER_MODE[\s\S]*WORKER_MODES/, "config should validate active worker modes");
 assert.doesNotMatch(configSource, /DEFAULT_SQLITE_COMMAND|sqliteCommand|SQLITE_COMMAND/, "config should ignore the retired SQLITE_COMMAND setting");
 assert.match(configSource, /SUPER_ADMIN_PASSWORD is required when LONGTAIL_ENV=production/, "config should fail clearly when production bootstrap password is missing");
 assert.match(configSource, /LONGTAIL_INITIAL_WORKSPACE_NAME/, "config should read the initial workspace name from runtime config");
@@ -133,6 +134,9 @@ assert.equal(defaults.secureNotesKeyVersion, "v1");
 assert.equal(defaults.storageProvider, "local");
 assert.equal(defaults.scannerMode, "none");
 assert.equal(defaults.workerMode, "inline");
+assert.equal(defaults.workerId, "default");
+assert.equal(defaults.workerPollIntervalMs, 5000);
+assert.equal(defaults.workerLockTtlSeconds, 300);
 assert.deepEqual(defaults.runtimeWarnings, []);
 
 const custom = readConfig({
@@ -152,7 +156,10 @@ const custom = readConfig({
   LONGTAIL_STORAGE_PROVIDER: "local",
   LONGTAIL_LOCAL_STORAGE_ROOT: "./custom-data/files",
   LONGTAIL_FILE_SCANNER: "none",
-  LONGTAIL_WORKER_MODE: "inline",
+  LONGTAIL_WORKER_ID: "custom-worker",
+  LONGTAIL_WORKER_MODE: "separate",
+  LONGTAIL_JOB_POLL_INTERVAL_MS: "2500",
+  LONGTAIL_JOB_LOCK_TTL_SECONDS: "600",
   LONGTAIL_INITIAL_WORKSPACE_NAME: "Custom Workspace",
   SUPER_ADMIN_DISPLAY_NAME: "Custom Admin",
 });
@@ -169,6 +176,10 @@ assert.equal(custom.superAdminDisplayName, "Custom Admin");
 assert.equal(custom.workspaceInstallMode, "saas");
 assert.equal(custom.workspaceTypeLimit, "business");
 assert.equal(custom.secureNotesKeyVersion, "v9");
+assert.equal(custom.workerMode, "separate");
+assert.equal(custom.workerId, "custom-worker");
+assert.equal(custom.workerPollIntervalMs, 2500);
+assert.equal(custom.workerLockTtlSeconds, 600);
 assert.ok(custom.dataDir.endsWith(`${path.sep}custom-data`), "relative data dir should resolve from the app root");
 assert.ok(custom.databaseFile.endsWith(`${path.sep}custom-data${path.sep}custom.db`), "relative database file should resolve from the app root");
 assert.ok(custom.localStorageRoot.endsWith(`${path.sep}custom-data${path.sep}files`), "relative local storage root should resolve from the app root");
@@ -191,6 +202,9 @@ assertConfigFails({ LONGTAIL_DATABASE_PROVIDER: "postgres" }, /LONGTAIL_DATABASE
 assertConfigFails({ LONGTAIL_SQLITE_FOREIGN_KEYS: "false" }, /LONGTAIL_SQLITE_FOREIGN_KEYS must be on/);
 assertConfigFails({ LONGTAIL_SQLITE_JOURNAL_MODE: "invalid" }, /LONGTAIL_SQLITE_JOURNAL_MODE must be/);
 assertConfigFails({ LONGTAIL_SQLITE_BUSY_TIMEOUT_MS: "invalid" }, /LONGTAIL_SQLITE_BUSY_TIMEOUT_MS must be an integer/);
+assertConfigFails({ LONGTAIL_WORKER_MODE: "fleet" }, /LONGTAIL_WORKER_MODE must be inline or separate or disabled/);
+assertConfigFails({ LONGTAIL_JOB_POLL_INTERVAL_MS: "999" }, /LONGTAIL_JOB_POLL_INTERVAL_MS must be at least 1000/);
+assertConfigFails({ LONGTAIL_JOB_LOCK_TTL_SECONDS: "29" }, /LONGTAIL_JOB_LOCK_TTL_SECONDS must be at least 30/);
 assertConfigFails({ LONGTAIL_ENV: "production" }, /SUPER_ADMIN_PASSWORD is required when LONGTAIL_ENV=production/);
 assertConfigFails({
   LONGTAIL_SESSION_COOKIE_SAMESITE: "None",
@@ -227,6 +241,9 @@ function readConfig(overrides = {}) {
       cookieSecure: config.cookies.secure,
       cookieTtl: config.cookies.maxAgeSeconds,
       workerMode: config.worker.mode,
+      workerId: config.worker.id,
+      workerLockTtlSeconds: config.worker.lockTtlSeconds,
+      workerPollIntervalMs: config.worker.pollIntervalMs,
       workspaceInstallMode: config.workspaceInstallMode,
       workspaceTypeLimit: config.workspaceTypeLimit
     }));

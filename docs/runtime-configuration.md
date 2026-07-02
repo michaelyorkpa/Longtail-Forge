@@ -2,7 +2,7 @@
 
 Longtail Forge reads install and startup configuration from environment variables. At app startup, `server.js` loads a local root `.env` file when present, then `src/config.js` normalizes the resulting environment. A real `.env` file is local runtime state and must not be committed; use `.env.example` as the documented contract.
 
-As of 0.33.5.19.9, this contract records both active settings and future reserved settings. Reserved settings are documented so later runtime, jobs, storage, scanner, and PostgreSQL slices can build on stable names. They do not change behavior until the roadmap slice that owns that behavior wires them.
+As of 0.33.5.21.2, this contract records active runtime settings plus future reserved settings. Worker settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
 
@@ -78,6 +78,25 @@ Secure-note keys are runtime secrets. They must not be committed, logged, or exp
 | `WORKSPACE_INSTALL_MODE` | `self_hosted` | Must be `self_hosted` or `saas`. Environment values override app settings for workspace-creation options. |
 | `WORKSPACE_TYPE_LIMIT` | empty | Empty means business, personal, and family workspace types are available where allowed. `business` limits creation to business workspaces. |
 
+### Jobs And Workers
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `LONGTAIL_WORKER_MODE` | `inline` | Must be `inline`, `separate`, or `disabled`. `inline` starts an in-process poll timer with the app server. `separate` leaves the app server out of job execution and expects `node worker.js` with the same database. `disabled` starts no worker for tests or troubleshooting. |
+| `LONGTAIL_WORKER_ID` | `default` | Label recorded in `jobs.locked_by` when a worker claims a job. It is operational metadata, not an authentication secret. |
+| `LONGTAIL_JOB_POLL_INTERVAL_MS` | `5000` | Poll interval for inline and separate worker timers. This timer is also how future `available_at` jobs wake in SQLite mode. Must be an integer from 1000 through 3600000. |
+| `LONGTAIL_JOB_LOCK_TTL_SECONDS` | `300` | Reserved by the active worker config for the next lock-timeout slice. The 0.33.5.21.2 runner records locks but does not reclaim expired locks yet. Must be an integer from 30 through 86400. |
+
+In `inline` mode, worker execution begins after app startup and `app.listen(...)` succeeds. It is not triggered by individual HTTP responses. The poll timer shares the same Node process and SQLite adapter path as request handling, so job writes and request writes use the same local SQLite connection and transaction queue.
+
+In `separate` mode, start the worker with:
+
+```sh
+LONGTAIL_WORKER_MODE=separate node worker.js
+```
+
+The separate worker loads the same local `.env` file as `server.js`, verifies that the schema and `065_job_outbox_schema` migration are already applied, and does not run migrations or app startup maintenance. In SQLite mode, `node worker.js` also takes a local `.longtail-forge-worker.lock` beside the SQLite database so at most one local worker process attaches to the same install. A stale worker lock should be removed only after confirming no worker process is running.
+
 ## Reserved Settings
 
 These names are documented now and intentionally left mostly dormant until their roadmap slices wire behavior.
@@ -87,13 +106,10 @@ These names are documented now and intentionally left mostly dormant until their
 | PostgreSQL | `DATABASE_URL`, `LONGTAIL_DATABASE_POOL_MIN`, `LONGTAIL_DATABASE_POOL_MAX`, `LONGTAIL_DATABASE_SSL` | 0.33.5.23 PostgreSQL adapter and SaaS runtime proof. |
 | File storage | `LONGTAIL_STORAGE_PROVIDER`, `LONGTAIL_LOCAL_STORAGE_ROOT` | 0.33.5.22 storage provider runtime. `LONGTAIL_LOCAL_STORAGE_ROOT` is already used as the local storage default root. |
 | File scanning | `LONGTAIL_FILE_SCANNER`, `LONGTAIL_CLAMD_HOST`, `LONGTAIL_CLAMD_PORT`, `LONGTAIL_CLAMSCAN_PATH` | 0.33.5.22 scanner runtime. |
-| Jobs/workers | `LONGTAIL_WORKER_MODE`, `LONGTAIL_WORKER_ID`, `LONGTAIL_JOB_POLL_INTERVAL_MS`, `LONGTAIL_JOB_LOCK_TTL_SECONDS` | 0.33.5.21 durable jobs and outbox. |
 | Logging | `LONGTAIL_LOG_LEVEL` | Later diagnostics and runtime readout work. |
 | Proxy trust | `TRUST_PROXY` | Later hosted deployment/security hardening. |
 
-Reserved settings may appear in `config` for readout consistency, but this slice does not implement PostgreSQL, background workers, scanner adapters, storage-provider switching, hosted proxy behavior, or runtime settings editing.
-
-As of 0.33.5.21.0.5, the reserved worker mode boundary for SQLite small-office installs is inline by default, with support for at most one single local worker process once the future job/outbox runner exists. SQLite mode does not support multiple app servers or a worker fleet sharing one SQLite file; PostgreSQL/SaaS mode owns that later scaling shape.
+Reserved settings may appear in `config` for readout consistency, but this slice does not implement PostgreSQL, scanner adapters, storage-provider switching, hosted proxy behavior, or runtime settings editing.
 
 ## Startup Validation
 
@@ -105,6 +121,9 @@ Startup fails clearly when active settings are invalid:
 - `LONGTAIL_SQLITE_FOREIGN_KEYS` must be `on`.
 - `LONGTAIL_SQLITE_JOURNAL_MODE` must be `delete`, `truncate`, `persist`, `memory`, `wal`, or `off`.
 - `LONGTAIL_SQLITE_BUSY_TIMEOUT_MS` must be an integer from 0 through 3600000.
+- `LONGTAIL_WORKER_MODE` must be `inline`, `separate`, or `disabled`.
+- `LONGTAIL_JOB_POLL_INTERVAL_MS` must be an integer from 1000 through 3600000.
+- `LONGTAIL_JOB_LOCK_TTL_SECONDS` must be an integer from 30 through 86400.
 - `LONGTAIL_SESSION_COOKIE_SAMESITE` must be `Lax`, `Strict`, or `None`.
 - `LONGTAIL_SESSION_COOKIE_SECURE` must be true when SameSite is `None`.
 - `LONGTAIL_SESSION_TTL_SECONDS` must be between 300 seconds and 30 days.
@@ -120,7 +139,7 @@ Startup may warn without failing when optional but recommended production settin
 
 `GET /api/runtime-diagnostics` returns the safe runtime diagnostics read model for authenticated users with `workspace_settings.manage` in the active workspace. The route is diagnostic only; it does not edit runtime configuration or expose raw environment variables.
 
-The response includes app version, runtime environment, database provider, database health status, SQLite journal mode, SQLite foreign-key status, SQLite busy timeout, safe database file location, safe data directory location, storage provider, scanner mode, worker mode, and configuration warnings. Paths are app-root or data-root relative when possible; locations outside the app root are redacted to a basename.
+The response includes app version, runtime environment, database provider, database health status, SQLite journal mode, SQLite foreign-key status, SQLite busy timeout, safe database file location, safe data directory location, storage provider, scanner mode, worker mode, safe worker status counters, and configuration warnings. Paths are app-root or data-root relative when possible; locations outside the app root are redacted to a basename.
 
 Workspace Settings includes a compact read-only Runtime Diagnostics panel that consumes this route for admins. SQLite small-office deployment assumptions are documented in [sqlite-small-office-mode.md](sqlite-small-office-mode.md).
 
@@ -128,11 +147,11 @@ Runtime diagnostics must not include secrets, storage keys, signed URLs, protect
 
 ## Scope Boundary
 
-The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later jobs, storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. It does not:
+The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active. This branch still does not:
 
 - Change the database provider away from SQLite.
 - Enable PostgreSQL.
-- Add durable job processing or a separate worker.
+- Add module job producers, lock-timeout recovery, or the admin failure readout owned by later durable-job slices.
 - Replace local file storage with another provider.
 - Enable ClamAV or any other scanner adapter.
 - Add a runtime settings editor.

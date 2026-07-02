@@ -26,13 +26,17 @@ As of version 0.33.5.21.0.5, SQLite adapter capabilities report `adapter: "bette
 
 As of version 0.33.5.21.0.6, the in-process SQLite driver swap is complete. Normal database access no longer shells out to the `sqlite3` CLI, `SQLITE_COMMAND` is ignored as legacy configuration, and setup docs no longer require operators to install the `sqlite3` executable. The supported SQLite runtime path is the native `better-sqlite3` dependency behind the existing adapter contract; keep the npm/native-build prerequisites in the Native SQLite Driver Dependency section as the install readiness boundary.
 
+As of version 0.33.5.21.1, the first post-baseline core migration, `src/db/migrations/065_job_outbox_schema.sql`, creates the workspace-scoped `jobs` table used as the durable job/outbox store. The table stores `job_id`, `workspace_id`, `job_type`, optional `dedupe_key`, `payload_json`, lifecycle `status`, integer `priority`, scheduling through `available_at`, retry counters through `attempt_count` and `max_attempts`, lock fields `locked_at` and `locked_by`, `last_error`, and lifecycle timestamps. Active dedupe is enforced by a partial unique index on `(workspace_id, job_type, dedupe_key)` for pending, running, and failed jobs only, so completed and dead-letter history does not block a later replacement job.
+
+As of version 0.33.5.21.2, Worker runner v1 lives in `src/core/jobs/` with a handler registry, timer-driven polling, SQLite-safe transactional claiming, success completion, basic retry backoff, exhausted-job dead-letter transitions, safe status output, and graceful shutdown. `inline` mode starts after the app server begins listening and wakes future `available_at` jobs through the poll interval. `separate` mode runs through `node worker.js`, verifies schema readiness without running migrations, and uses a local worker lock so SQLite mode has at most one local worker process attached to the install. Lock-timeout recovery, richer admin failure summaries, and module job producers remain later durable-job slices.
+
 As of version 0.33.5.19.2, SQLite startup hardens the existing helper boundary before migrations run. Longtail Forge applies foreign-key enforcement to every SQLite process, enables `PRAGMA journal_mode = WAL` by default, configures the SQLite busy timeout from runtime config, verifies the database file path is writable, and reports safe startup health for the provider, database file path, writable state, foreign-key state, journal mode, and busy timeout.
 
 As of version 0.33.5.19.5, `src/db/provider.js` owns the provider-neutral database adapter boundary and `src/core/database.js` is the preferred app-facing import path for repositories, modules, and framework services that need database access. The v1 adapter API is `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, `db.transaction(callback)`, `db.close()`, `db.health()`, and `db.capabilities`. SQLite is still the only implemented provider, and the SQLite helper stays behind `src/db/adapters/sqlite-adapter.js`. `querySql` and `runSql` remain temporary legacy compatibility helpers while repository code moves toward the adapter. Parameter binding is active for pilot repository paths, and the transaction helper is active for selected multi-step write pilots.
 
 As of version 0.33.5.19.6, SQLite migrations and schema repairs run under a migration lock before normal app startup defaults are applied. The lock is a process-owned file beside the configured SQLite database file. If a second startup process reaches migrations while the lock is held, startup fails with an actionable message that names the lock file and stale-lock recovery path.
 
-The completed 0.33.5.19 foundation covers runtime config, SQLite startup hardening, the provider-neutral adapter boundary, parameterized-query and transaction pilots, SQLite migration locking, and safe runtime diagnostics/admin readout. It does not implement PostgreSQL, durable jobs/outbox processing, storage-provider switching, or scanner adapters; those branches should consume this boundary rather than bypass it.
+The completed 0.33.5.19 foundation covers runtime config, SQLite startup hardening, the provider-neutral adapter boundary, parameterized-query and transaction pilots, SQLite migration locking, and safe runtime diagnostics/admin readout. Later durable-job work consumes this boundary through the 0.33.5.21 `jobs` schema and v1 worker runner. PostgreSQL, storage-provider switching, and scanner adapters remain future branches that should consume the same boundary rather than bypass it.
 
 Repositories and module services should not import `src/db/sqlite.js` directly. New app code should import database access from `src/core/database.js`; database startup and regression fixtures may import from `src/db/index.js`; only the SQLite adapter should import the raw SQLite helper. Future PostgreSQL work should plug into the same provider-neutral adapter instead of forcing every module repository to learn a second database API.
 
@@ -96,11 +100,35 @@ Self-hosted SQLite mode keeps startup simple: one app process runs startup migra
 
 The SQLite migration lock file is `.longtail-forge-migrations.lock` in the same directory as `LONGTAIL_DATABASE_FILE`. `runMigrations()` acquires that lock before fresh-baseline adoption, legacy schema repairs, checksum validation, and future migration files. The lock is released after migration work succeeds or fails. If startup finds an existing lock, the app reports that another Longtail Forge startup or maintenance process is running migrations or schema repairs, then tells the operator to wait or remove the stale lock file after confirming the other process crashed.
 
-Normal app startup work runs after schema startup maintenance. Framework module rows, default app settings, default workspace/bootstrap records, module registry sync, stored-time normalization, and role/permission repairs are app-startup defaults, not migration files. The current search-index startup rebuild and inline worker mode are still post-startup app work; 0.33.5.19.6 does not implement the 0.33.5.21 job/outbox runner or move search indexing to jobs.
+Normal app startup work runs after schema startup maintenance. Framework module rows, default app settings, default workspace/bootstrap records, module registry sync, stored-time normalization, and role/permission repairs are app-startup defaults, not migration files. The current search-index startup rebuild and inline worker mode are post-startup app work, not migration work.
 
-As of 0.33.5.21.0.5, the SQLite small-office worker boundary is explicit for the upcoming durable-jobs slices: SQLite mode may run jobs inline inside the single app process, or through at most one local worker process attached to the same local install once a separate runner exists. SQLite mode does not support multiple app servers, multiple web nodes, or a worker fleet sharing one SQLite file.
+As of 0.33.5.21.2, the SQLite small-office worker boundary is implemented for the v1 durable-job runner: SQLite mode may run jobs inline inside the single app process, or through at most one local worker process attached to the same local install through `node worker.js`. SQLite mode does not support multiple app servers, multiple web nodes, or a worker fleet sharing one SQLite file.
 
 Future SaaS/PostgreSQL mode should not let every web or worker instance run migrations independently. A deploy or maintenance process should own migrations, acquire a PostgreSQL advisory lock or a provider-backed migration lock table in the same database, run migrations once, then start web and worker processes against the current schema. Web and worker processes should verify schema readiness and fail clearly if the maintenance owner has not completed migration work.
+
+## Durable Job/Outbox Schema
+
+The `jobs` table is framework-owned infrastructure for durable background work and outbox-style handoff. The table shipped as schema only in 0.33.5.21.1, and the v1 worker runner shipped in 0.33.5.21.2. Lock-timeout recovery, richer admin readouts, and module-specific job producers are owned by later roadmap slices.
+
+Job states:
+
+- `pending`: work is stored durably and can be claimed once `available_at` is due. Pending rows should have no active lock.
+- `running`: a worker has claimed the row and records `locked_at` plus `locked_by`. Later claiming work owns lock expiration and recovery.
+- `completed`: work finished successfully and records `completed_at`; completed rows are retained as history and no longer participate in active dedupe.
+- `failed`: work failed but has retry capacity left. `last_error` stores a safe failure summary, `attempt_count` tracks tries, and `available_at` can schedule the next retry.
+- `dead`: retry capacity is exhausted or the job is otherwise dead-lettered. Dead rows record `dead_at`, keep `last_error` for admin-readable summaries, and no longer participate in active dedupe.
+
+The pending-work index covers retryable work by `status`, `available_at`, `priority`, `created_at`, and `job_id`. A separate running-lock index supports future lock-timeout scans. Workspace/status and job-type/status indexes support future admin readouts and handler-specific work without requiring browser code to scan or classify jobs.
+
+## Durable Job Runner V1
+
+Worker handlers register through `src/core/jobs/index.js`. The runner claims available `pending` or due `failed` rows with an atomic `UPDATE ... RETURNING` inside `db.transaction(...)`, sets `status = 'running'`, records `locked_at` and `locked_by`, and increments `attempt_count` before invoking the registered handler. Successful handlers mark the row `completed` and clear lock/error fields.
+
+Handler failures keep the row in `failed` when retry capacity remains, clear the lock, store a bounded error summary, and move `available_at` forward with exponential backoff starting at one second and capped at sixty seconds. When `attempt_count` reaches `max_attempts`, the runner moves the row to `dead` and records `dead_at`. The 0.33.5.21.3 slice owns expired-lock reclaim behavior and the minimal admin readout for pending/running/dead-letter counts and recent failures.
+
+In `inline` mode, the app server starts the worker after `app.listen(...)` succeeds. The in-process poll timer, not HTTP responses, triggers work. Future `available_at` jobs wake on the next poll interval; SQLite mode does not have a separate scheduler. Inline worker work shares the same Node process, database adapter, and SQLite connection path as request handling.
+
+In `separate` mode, `node worker.js` is the worker process. It loads the local `.env` file, requires `LONGTAIL_WORKER_MODE=separate`, verifies that the schema and migration `065_job_outbox_schema` are already present, and does not run migrations or app startup maintenance. In SQLite mode it creates `.longtail-forge-worker.lock` beside the configured database file, enforcing the one-local-worker boundary for the install.
 
 ## Fresh Baseline
 
@@ -132,10 +160,10 @@ Checksum validation remains active for the current baseline and for any future m
 
 ## Future Migrations
 
-New schema changes after 0.33.5.18.6.5.4 should be added as normal SQL migration files with versions newer than the baseline, such as:
+New schema changes after 0.33.5.18.6.5.4 should be added as normal SQL migration files with versions newer than the baseline. The first future migration is `065_job_outbox_schema.sql`; later migrations should keep advancing the migration number, such as:
 
 ```text
-src/db/migrations/065_add_example.sql
+src/db/migrations/066_add_example.sql
 ```
 
 Future migrations are applied after the baseline and still receive checksum validation. Do not edit an applied future migration in place.

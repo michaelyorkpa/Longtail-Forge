@@ -29,12 +29,18 @@ FROM schema_migrations
 ORDER BY version;
 `);
 
-  assert.equal(migrations.length, 1, "fresh database should record only the current consolidated baseline");
-  assert.deepEqual(migrations[0], {
-    version: "0.33.5.18.6.5.4",
-    module_id: "core",
-    name: "current_fresh_start_database",
-  });
+  assert.deepEqual(migrations, [
+    {
+      version: "0.33.5.18.6.5.4",
+      module_id: "core",
+      name: "current_fresh_start_database",
+    },
+    {
+      version: "065",
+      module_id: "core",
+      name: "job_outbox_schema",
+    },
+  ], "fresh database should record the consolidated baseline and checksum-tracked future migrations");
 }
 
 async function assertCurrentTableSet() {
@@ -58,6 +64,7 @@ ORDER BY name;
     "file_storage_accounting",
     "file_workspace_settings",
     "files",
+    "jobs",
     "list_item_catalog",
     "list_items",
     "list_links",
@@ -128,6 +135,11 @@ WHERE type = 'index'
     'idx_files_workspace_file',
     'idx_files_workspace_hash',
     'idx_files_workspace_status',
+    'idx_jobs_active_dedupe',
+    'idx_jobs_pending_available',
+    'idx_jobs_running_locked',
+    'idx_jobs_type_status_available',
+    'idx_jobs_workspace_status_updated',
     'idx_list_item_catalog_workspace_context',
     'idx_list_item_catalog_workspace_name',
     'idx_list_item_catalog_workspace_type',
@@ -265,6 +277,11 @@ ORDER BY name;
     "idx_files_workspace_file",
     "idx_files_workspace_hash",
     "idx_files_workspace_status",
+    "idx_jobs_active_dedupe",
+    "idx_jobs_pending_available",
+    "idx_jobs_running_locked",
+    "idx_jobs_type_status_available",
+    "idx_jobs_workspace_status_updated",
     "idx_list_item_catalog_workspace_context",
     "idx_list_item_catalog_workspace_name",
     "idx_list_item_catalog_workspace_type",

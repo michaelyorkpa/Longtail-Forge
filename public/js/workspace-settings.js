@@ -216,6 +216,8 @@ function renderRuntimeDiagnostics(diagnostics) {
   const data = diagnostics.data || {};
   const storage = diagnostics.storage || {};
   const scanner = diagnostics.scanner || {};
+  const worker = diagnostics.worker || {};
+  const workerStatus = worker.status || {};
 
   runtimeDiagnosticsSummary.replaceChildren(
     createRuntimeDiagnosticItem("Database Provider", formatRuntimeValue(database.provider)),
@@ -225,6 +227,8 @@ function renderRuntimeDiagnostics(diagnostics) {
     createRuntimeDiagnosticItem("Data Directory", formatRuntimeLocation(data.directoryLocation)),
     createRuntimeDiagnosticItem("Storage Provider", formatRuntimeValue(storage.provider)),
     createRuntimeDiagnosticItem("Scanner Mode", formatRuntimeValue(scanner.mode)),
+    createRuntimeDiagnosticItem("Worker Mode", formatRuntimeValue(worker.mode)),
+    createRuntimeDiagnosticItem("Worker State", formatRuntimeValue(workerStatus.state)),
   );
   renderRuntimeDiagnosticWarnings(readRuntimeDiagnosticWarnings(diagnostics));
 }
@@ -263,7 +267,9 @@ function readRuntimeDiagnosticWarnings(diagnostics) {
     warnings.push("Review this scanner mode before relying on SQLite small-office mode.");
   }
 
-  if (worker.mode && !["inline", "local"].includes(worker.mode)) {
+  if (worker.mode === "disabled") {
+    warnings.push("Worker mode is disabled; background jobs will not run.");
+  } else if (worker.mode && !["inline", "separate"].includes(worker.mode)) {
     warnings.push("Review this worker mode before relying on SQLite small-office mode.");
   }
 

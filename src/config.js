@@ -35,6 +35,7 @@ const DATABASE_PROVIDERS = new Set(["sqlite"]);
 const SQLITE_JOURNAL_MODES = new Set(["delete", "truncate", "persist", "memory", "wal", "off"]);
 const WORKSPACE_INSTALL_MODES = new Set(["self_hosted", "saas"]);
 const WORKSPACE_TYPE_LIMITS = new Set(["", "business"]);
+const WORKER_MODES = new Set(["inline", "separate", "disabled"]);
 
 function toDisplayName(packageName) {
   return String(packageName)
@@ -137,7 +138,7 @@ function createConfig(env = process.env) {
       clamscanPath: readText(env, "LONGTAIL_CLAMSCAN_PATH", ""),
     },
     worker: {
-      mode: readText(env, "LONGTAIL_WORKER_MODE", DEFAULT_WORKER_MODE),
+      mode: readEnum(env, "LONGTAIL_WORKER_MODE", DEFAULT_WORKER_MODE, WORKER_MODES),
       id: readText(env, "LONGTAIL_WORKER_ID", DEFAULT_WORKER_ID),
       pollIntervalMs: readInteger(env, "LONGTAIL_JOB_POLL_INTERVAL_MS", DEFAULT_JOB_POLL_INTERVAL_MS, {
         min: 1000,

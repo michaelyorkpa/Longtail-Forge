@@ -1,5 +1,6 @@
 import path from "node:path";
 import { config } from "../config.js";
+import { getJobWorkerStatus } from "../core/jobs/index.js";
 import { readDatabaseHealth } from "../db/index.js";
 import { permissionsService } from "./permissions.service.js";
 
@@ -12,6 +13,7 @@ async function read(session) {
   });
 
   const databaseHealth = await readSafeDatabaseHealth();
+  const workerStatus = getJobWorkerStatus();
 
   return {
     app: {
@@ -46,6 +48,23 @@ async function read(session) {
     },
     worker: {
       mode: config.worker.mode,
+      status: {
+        claimedCount: workerStatus.claimedCount,
+        completedCount: workerStatus.completedCount,
+        deadCount: workerStatus.deadCount,
+        failedCount: workerStatus.failedCount,
+        lastClaimedCount: workerStatus.lastClaimedCount,
+        lastErrorAt: workerStatus.lastErrorAt,
+        lastPollAt: workerStatus.lastPollAt,
+        pollIntervalMs: workerStatus.pollIntervalMs,
+        registeredJobTypes: workerStatus.registeredJobTypes,
+        running: workerStatus.running,
+        startedAt: workerStatus.startedAt,
+        state: workerStatus.state,
+        stoppedAt: workerStatus.stoppedAt,
+        timerActive: workerStatus.timerActive,
+        workerId: workerStatus.workerId,
+      },
     },
   };
 }

@@ -1,3 +1,19 @@
+## Version 0.33.5.21.2 - 2026-07-01
+
+- Added the framework-owned v1 job worker runner with timer polling, registered handlers, transactional claiming, completion, basic retry backoff, dead-letter transitions, safe status output, and graceful shutdown.
+- Wired `inline`, `separate`, and `disabled` worker modes: inline starts after the app server listens, `node worker.js` runs the separate worker after schema-readiness verification, and disabled mode starts no worker.
+- Enforced the SQLite small-office separate-worker boundary with a local worker lock, documented scheduled-job wakeups by poll interval, and kept migration ownership with app startup instead of the worker process.
+- Added `scripts/worker-runner-regression.mjs`, extended runtime diagnostics with safe worker status counters, and advanced package/module/regression version metadata to 0.33.5.21.2.
+- Verification 2026-07-01 22:23 -04:00: worker runner, runtime configuration, runtime diagnostics, SQLite small-office readout, job/outbox schema, runtime/database closeout, and database result-fidelity targeted checks passed; `npm run check` passed 225/225 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.2 after restarting the local 8001 server.
+
+## Version 0.33.5.21.1 - 2026-07-01
+
+- Added the first post-baseline core migration, `src/db/migrations/065_job_outbox_schema.sql`, creating the workspace-scoped `jobs` table for durable job/outbox storage.
+- Added pending/running/failed/completed/dead job state fields, scheduling and retry metadata, worker lock fields, lifecycle timestamps, pending-work indexes, running-lock indexes, workspace/status lookup indexes, and active dedupe for pending/running/failed jobs.
+- Documented the schema-only boundary for job states and kept worker polling, claiming, retry backoff, dead-letter transitions, admin readouts, and module job producers in later 0.33.5.21 slices.
+- Added `scripts/job-outbox-schema-regression.mjs`, refreshed fresh/adoption database expectations for the first checksum-tracked future migration, and advanced package/module/regression version metadata to 0.33.5.21.1.
+- Verification 2026-07-01 21:29 -04:00: job/outbox schema, fresh database, baseline adoption, database migration locking, better-sqlite3 driver closeout, runtime/database closeout, clean-clone, and check-js targeted checks passed; `npm run check` passed 224/224 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.1 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.0.6 - 2026-07-01
 
 - Retired `SQLITE_COMMAND` from active runtime configuration now that SQLite access runs through the in-process `better-sqlite3` driver.
