@@ -1,3 +1,11 @@
+## Version 0.33.5.21.0.6 - 2026-07-01
+
+- Retired `SQLITE_COMMAND` from active runtime configuration now that SQLite access runs through the in-process `better-sqlite3` driver.
+- Removed the `sqlite3` CLI from install/setup requirements and documented `SQLITE_COMMAND` as ignored legacy configuration.
+- Added a driver-swap closeout regression that starts a disposable SQLite database with a bogus `SQLITE_COMMAND`, verifies the `better-sqlite3` adapter capability shape, and spot-checks FTS5 `MATCH` / `bm25()`.
+- Refreshed current package, module, docs, and regression version metadata for 0.33.5.21.0.6.
+- Verification 2026-07-01 21:07 -04:00: better-sqlite3 driver closeout, runtime configuration contract, helper core, database result fidelity, runtime diagnostics, clean-clone, and check-js targeted checks passed; `npm run check` passed 223/223 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; a targeted FTS5 `MATCH` / `bm25()` spot-check returned the expected row; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.0.6 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.0.5 - 2026-07-01
 
 - Updated the SQLite adapter capability label from `sqlite-process` to `better-sqlite3` while preserving the rest of the provider-neutral capability shape.

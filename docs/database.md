@@ -24,6 +24,8 @@ As of version 0.33.5.21.0.4, the SQLite adapter has retired the former global op
 
 As of version 0.33.5.21.0.5, SQLite adapter capabilities report `adapter: "better-sqlite3"` while preserving the rest of the provider-neutral capability shape. Native driver result rows remain plain objects keyed by selected column names and aliases. Current value semantics stay compatible for app callers: boolean values are stored as `0` / `1`, SQL `NULL` reads as `null`, BLOB values round-trip as Node `Buffer` instances when bound through parameters, and normal counters/counts remain JavaScript numbers. The helper does not enable `safeIntegers` because the current TEXT-key schema uses TEXT keys for identifiers and current numeric values are expected to stay within JavaScript's safe-integer range; any future 64-bit INTEGER identifier or exact large-integer workflow must revisit that decision before shipping.
 
+As of version 0.33.5.21.0.6, the in-process SQLite driver swap is complete. Normal database access no longer shells out to the `sqlite3` CLI, `SQLITE_COMMAND` is ignored as legacy configuration, and setup docs no longer require operators to install the `sqlite3` executable. The supported SQLite runtime path is the native `better-sqlite3` dependency behind the existing adapter contract; keep the npm/native-build prerequisites in the Native SQLite Driver Dependency section as the install readiness boundary.
+
 As of version 0.33.5.19.2, SQLite startup hardens the existing helper boundary before migrations run. Longtail Forge applies foreign-key enforcement to every SQLite process, enables `PRAGMA journal_mode = WAL` by default, configures the SQLite busy timeout from runtime config, verifies the database file path is writable, and reports safe startup health for the provider, database file path, writable state, foreign-key state, journal mode, and busy timeout.
 
 As of version 0.33.5.19.5, `src/db/provider.js` owns the provider-neutral database adapter boundary and `src/core/database.js` is the preferred app-facing import path for repositories, modules, and framework services that need database access. The v1 adapter API is `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, `db.transaction(callback)`, `db.close()`, `db.health()`, and `db.capabilities`. SQLite is still the only implemented provider, and the SQLite helper stays behind `src/db/adapters/sqlite-adapter.js`. `querySql` and `runSql` remain temporary legacy compatibility helpers while repository code moves toward the adapter. Parameter binding is active for pilot repository paths, and the transaction helper is active for selected multi-step write pilots.
@@ -77,6 +79,8 @@ As of 0.33.5.21.0.4, adapter transactions no longer rely on a global all-operati
 ## Native SQLite Driver Dependency
 
 `better-sqlite3` is a native dependency. Normal installs should download a prebuilt binary for supported Node/runtime/platform combinations. If no prebuilt binary is available, npm falls back to building from source through `node-gyp`; on Windows that requires Python plus a C++ toolchain such as Visual Studio Build Tools with the Desktop development workload. Keep the Node runtime within the selected release's engine range before troubleshooting native build failures.
+
+The `sqlite3` command-line executable is not required for normal Longtail Forge operation.
 
 The dependency-readiness smoke can be run directly with:
 

@@ -75,7 +75,6 @@ Longtail Forge keeps different kinds of work in distinct but connected places:
 
 - Node.js 20.x or a newer runtime supported by the selected `better-sqlite3` release
 - npm
-- SQLite command-line tool available as `sqlite3`, or set `SQLITE_COMMAND` until the 0.33.5.21.0 driver swap is complete
 - Python and a C++ toolchain, such as Visual Studio Build Tools on Windows, only if npm cannot use a prebuilt `better-sqlite3` binary
 
 ### Setup
@@ -90,9 +89,10 @@ The app stores local runtime data in `data/`, including the SQLite database at `
 
 ### Optional Environment Variables
 
-- `HOST`: server host, defaults to `127.0.0.1`
+- `HOST`: server host, defaults to `0.0.0.0`
 - `PORT`: server port, defaults to `8001`
-- `SQLITE_COMMAND`: SQLite executable, defaults to `sqlite3`
+- `LONGTAIL_DATA_DIR`: local runtime data root, defaults to `./data`
+- `LONGTAIL_DATABASE_FILE`: SQLite database path, defaults to `./data/longtail-forge.db`
 - `WORKSPACE_INSTALL_MODE`: workspace creation mode, defaults to `self_hosted`; use `saas` for account-type creation limits
 - `WORKSPACE_TYPE_LIMIT`: optional workspace type limit; use `business` for business-only installs
 

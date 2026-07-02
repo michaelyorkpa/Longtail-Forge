@@ -40,7 +40,7 @@ Entry contract from 0.33.5.19: use the provider-neutral transaction helper for a
 
 Decision (recorded in `DECISIONS.md`): replace the `sqlite3` CLI shell-out with the in-process `better-sqlite3` driver behind the existing `src/db/provider.js` adapter before durable jobs, streamed uploads, and the PostgreSQL adapter build on it. `better-sqlite3` was chosen over `node:sqlite` for its stable API, bundled/consistent SQLite version across installs (guaranteed FTS5 and `RETURNING`), and no experimental-flag or Node-floor requirement, accepting a native/compiled dependency as the tradeoff. Revisit `node:sqlite` once it is no longer experimental.
 
-Scope note: the only code that touches the `sqlite3` CLI today is `src/db/sqlite.js` (`spawn(config.sqliteCommand, ...)`), so the swap is contained but not small. The in-scope database-mechanism files are `src/db/sqlite.js`, `src/db/adapters/sqlite-adapter.js`, `src/db/provider.js`, `src/db/index.js`, and `src/db/migrations.js`. Repositories and module services should not change, because the `db.query/get/run/transaction/health/capabilities` contract stays stable.
+Historical scope note: before 0.33.5.21.0.2, the only code that touched the `sqlite3` CLI was `src/db/sqlite.js` (`spawn(config.sqliteCommand, ...)`), so the swap was contained but not small. The in-scope database-mechanism files are `src/db/sqlite.js`, `src/db/adapters/sqlite-adapter.js`, `src/db/provider.js`, `src/db/index.js`, and `src/db/migrations.js`. Repositories and module services should not change, because the `db.query/get/run/transaction/health/capabilities` contract stays stable.
 
 Reslice evaluation: as originally written, 0.33.5.21.0 bundled dependency/native install risk, a database driver swap, parameter semantics, transaction behavior, migration script routing, diagnostics, docs, and full verification into one oversized slice. Split it into the sub-slices below so each pass has one main blast radius and can be closed independently before durable job schema/worker work begins.
 
@@ -115,11 +115,11 @@ Acceptance criteria:
 
 #### Version 0.33.5.21.0.6 - CLI retirement docs and driver-swap closeout
 
-- [ ] Remove or mark `SQLITE_COMMAND` as legacy/ignored in active runtime configuration now that normal operation no longer shells out to `sqlite3`.
-- [ ] Update `.env.example`, `docs/runtime-configuration.md`, `docs/database.md`, and any self-hosting/setup docs that still instruct operators to install the `sqlite3` CLI.
-- [ ] Update `CHANGELOG.md`, version metadata, and roadmap bookkeeping for the completed driver swap.
-- [ ] Run `npm run check`, `npm run test:permissions`, `PRAGMA integrity_check`, and a targeted FTS5 search spot-check after the full swap.
-- [ ] Restart the local app server if needed and verify `/api/app-info` reports the expected version.
+- [x] Remove or mark `SQLITE_COMMAND` as legacy/ignored in active runtime configuration now that normal operation no longer shells out to `sqlite3`.
+- [x] Update `.env.example`, `docs/runtime-configuration.md`, `docs/database.md`, and any self-hosting/setup docs that still instruct operators to install the `sqlite3` CLI.
+- [x] Update `CHANGELOG.md`, version metadata, and roadmap bookkeeping for the completed driver swap.
+- [x] Run `npm run check`, `npm run test:permissions`, `PRAGMA integrity_check`, and a targeted FTS5 search spot-check after the full swap.
+- [x] Restart the local app server if needed and verify `/api/app-info` reports the expected version.
 
 Acceptance criteria:
 
@@ -131,12 +131,6 @@ Notes for the implementer (already checked, no re-investigation needed):
 
 - The `sqlite3` CLI is only used in `src/db/sqlite.js`; no `scripts/*` shell out to it, so nothing outside the database layer needs changing for the CLI removal.
 - No repository or service inspects database error text (stderr strings such as "UNIQUE constraint"), so moving to `better-sqlite3` `SqliteError` objects does not silently break error handling. Add `SqliteError.code` handling only where a typed error branch is deliberately wanted.
-
-Acceptance criteria:
-
-- All database access runs through the in-process `better-sqlite3` driver behind the existing adapter contract, with no `sqlite3` CLI shell-out in normal operation.
-- Bound parameters are real driver parameters; `sqlText`-interpolated statements continue to work unchanged.
-- Result value types, FTS5 search, migrations/checksum validation, health/diagnostics, and permission checks are unchanged; existing regressions pass.
 
 Gate: do not start 0.33.5.21.2 worker runner work until this driver swap is complete.
 
@@ -205,7 +199,7 @@ Acceptance criteria:
 
 - [ ] Implement safe job claiming.
   - [ ] Define the SQLite-safe claim strategy explicitly: SQLite has no `FOR UPDATE SKIP LOCKED`, so claiming is an atomic conditional `UPDATE ... WHERE job_id = (SELECT ... LIMIT n)` run inside `db.transaction(...)`, then a read-back of claimed rows.
-  - [ ] Decide `RETURNING` vs claim-then-reselect and confirm the bundled sqlite3 build supports the chosen path (no `RETURNING` clause exists in the codebase today).
+  - [ ] Use `RETURNING` for the claim read-back: the bundled `better-sqlite3` SQLite supports it (verified by the 0.33.5.21.0.1 install smoke check), so no claim-then-reselect fallback is required; `RETURNING` is simply new to this codebase and needs coverage.
 - [ ] Add lock timeout handling.
 - [ ] Add retry backoff.
 - [ ] Add max-attempt handling.

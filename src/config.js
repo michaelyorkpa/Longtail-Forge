@@ -12,7 +12,6 @@ const DEFAULT_PORT = 8001;
 const DEFAULT_DATA_DIR = path.join(root, "data");
 const DEFAULT_DATABASE_PROVIDER = "sqlite";
 const DEFAULT_DATABASE_FILE_NAME = "longtail-forge.db";
-const DEFAULT_SQLITE_COMMAND = "sqlite3";
 const DEFAULT_SQLITE_FOREIGN_KEYS = true;
 const DEFAULT_SQLITE_JOURNAL_MODE = "wal";
 const DEFAULT_SQLITE_BUSY_TIMEOUT_MS = 5000;
@@ -91,7 +90,6 @@ function createConfig(env = process.env) {
     settingsFile: path.join(dataDir, "settings.json"),
     clientProjectFile: path.join(dataDir, "client-project.json"),
     timeEntriesFile: path.join(dataDir, "time-entries.csv"),
-    sqliteCommand: readText(env, "SQLITE_COMMAND", DEFAULT_SQLITE_COMMAND),
     sqlite: {
       foreignKeys: sqliteForeignKeys,
       journalMode: readSqliteJournalMode(env),

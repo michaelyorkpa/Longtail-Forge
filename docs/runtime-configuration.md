@@ -33,15 +33,16 @@ Process environment values win over `.env` values. This lets shells, service man
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `LONGTAIL_DATABASE_FILE` | `./data/longtail-forge.db` | SQLite database file. Relative paths resolve from the app root. |
-| `SQLITE_COMMAND` | `sqlite3` | Command used by the current SQLite helper. |
+| `LONGTAIL_DATABASE_FILE` | `./data/longtail-forge.db` | SQLite database file opened through the in-process `better-sqlite3` driver. Relative paths resolve from the app root. |
 | `LONGTAIL_SQLITE_FOREIGN_KEYS` | `on` | Must stay enabled. Startup fails if this is disabled, and each SQLite process runs with foreign-key enforcement on. |
 | `LONGTAIL_SQLITE_JOURNAL_MODE` | `wal` | Journal mode applied during SQLite startup. WAL is the default for small-office installs; set a different valid SQLite mode only when the deployment filesystem requires it. |
-| `LONGTAIL_SQLITE_BUSY_TIMEOUT_MS` | `5000` | SQLite busy timeout in milliseconds. The helper applies it to SQLite processes and verifies `PRAGMA busy_timeout` during startup health checks. |
+| `LONGTAIL_SQLITE_BUSY_TIMEOUT_MS` | `5000` | SQLite busy timeout in milliseconds. The helper applies it to the active SQLite connection and verifies `PRAGMA busy_timeout` during startup health checks. |
 
 SQLite startup applies `PRAGMA foreign_keys = ON`, applies the configured `PRAGMA journal_mode`, configures the SQLite busy timeout, verifies the database file path is writable, and emits a safe admin health line with provider, database file path, writable state, foreign-key state, journal mode, and busy timeout. The health output does not include secrets, secure-note key material, storage keys, signed URLs, scanner internals, or protected file paths.
 
 SQLite migrations and schema repairs use a local lock file beside `LONGTAIL_DATABASE_FILE` so only one startup or maintenance process owns migration work at a time. This is startup behavior, not a runtime-editable setting.
+
+As of 0.33.5.21.0.6, `SQLITE_COMMAND` is a legacy ignored setting. Normal database access no longer shells out to the `sqlite3` CLI; Longtail Forge uses the in-process `better-sqlite3` dependency and does not require the `sqlite3` executable for normal operation.
 
 ### Initial Bootstrap
 
@@ -127,7 +128,7 @@ Runtime diagnostics must not include secrets, storage keys, signed URLs, protect
 
 ## Scope Boundary
 
-The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later jobs, storage, scanner, and PostgreSQL work. It does not:
+The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later jobs, storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. It does not:
 
 - Change the database provider away from SQLite.
 - Enable PostgreSQL.

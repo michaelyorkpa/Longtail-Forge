@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.0.5";
+const appVersion = "0.33.5.21.0.6";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
@@ -47,7 +47,6 @@ for (const key of [
   "LONGTAIL_DATA_DIR=./data",
   "LONGTAIL_DATABASE_PROVIDER=sqlite",
   "LONGTAIL_DATABASE_FILE=./data/longtail-forge.db",
-  "SQLITE_COMMAND=sqlite3",
   "LONGTAIL_SQLITE_FOREIGN_KEYS=on",
   "LONGTAIL_SQLITE_JOURNAL_MODE=wal",
   "LONGTAIL_SQLITE_BUSY_TIMEOUT_MS=5000",
@@ -92,6 +91,9 @@ assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.
 assert.match(runtimeDocs, /`LONGTAIL_SQLITE_FOREIGN_KEYS`[\s\S]*Must stay enabled/, "runtime docs should document SQLite foreign-key enforcement");
 assert.match(runtimeDocs, /`LONGTAIL_SQLITE_JOURNAL_MODE`[\s\S]*WAL is the default/, "runtime docs should document SQLite WAL mode");
 assert.match(runtimeDocs, /`LONGTAIL_SQLITE_BUSY_TIMEOUT_MS`[\s\S]*busy timeout/, "runtime docs should document SQLite busy timeout");
+assert.doesNotMatch(envExample, /^SQLITE_COMMAND=/m, ".env.example should not present SQLITE_COMMAND as active configuration");
+assert.doesNotMatch(runtimeDocs, /\|\s*`SQLITE_COMMAND`\s*\|/, "runtime docs should not list SQLITE_COMMAND as an active setting");
+assert.match(runtimeDocs, /`SQLITE_COMMAND` is a legacy ignored setting[\s\S]*`better-sqlite3`/, "runtime docs should mark SQLITE_COMMAND as legacy/ignored");
 assert.match(runtimeDocs, /Reserved settings may appear in `config` for readout consistency[\s\S]*does not implement PostgreSQL/, "runtime docs should keep future settings dormant");
 assert.match(runtimeDocs, /Startup fails clearly when active settings are invalid/, "runtime docs should document validation");
 assert.match(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "roadmap should archive the completed runtime configuration foundation branch");
@@ -101,6 +103,7 @@ assert.match(configSource, /LONGTAIL_DATABASE_PROVIDER[\s\S]*DATABASE_PROVIDERS/
 assert.match(configSource, /LONGTAIL_SQLITE_FOREIGN_KEYS/, "config should read the SQLite foreign-key setting");
 assert.match(configSource, /LONGTAIL_SQLITE_JOURNAL_MODE/, "config should read the SQLite journal mode setting");
 assert.match(configSource, /LONGTAIL_SQLITE_BUSY_TIMEOUT_MS/, "config should read the SQLite busy-timeout setting");
+assert.doesNotMatch(configSource, /DEFAULT_SQLITE_COMMAND|sqliteCommand|SQLITE_COMMAND/, "config should ignore the retired SQLITE_COMMAND setting");
 assert.match(configSource, /SUPER_ADMIN_PASSWORD is required when LONGTAIL_ENV=production/, "config should fail clearly when production bootstrap password is missing");
 assert.match(configSource, /LONGTAIL_INITIAL_WORKSPACE_NAME/, "config should read the initial workspace name from runtime config");
 assert.match(configSource, /SUPER_ADMIN_DISPLAY_NAME/, "config should read the initial super-admin display name from runtime config");
@@ -175,6 +178,12 @@ const production = readConfig({
   SUPER_ADMIN_PASSWORD: "Production-Test-Password-123!",
 });
 assert.deepEqual(production.runtimeWarnings, ["LONGTAIL_PUBLIC_URL should be set when LONGTAIL_ENV=production."]);
+
+const legacySqliteCommand = readConfig({
+  SQLITE_COMMAND: "sqlite3-command-should-be-ignored",
+});
+assert.equal(legacySqliteCommand.databaseProvider, "sqlite", "legacy SQLITE_COMMAND should not affect config creation");
+assert.equal(legacySqliteCommand.sqliteJournalMode, "wal", "legacy SQLITE_COMMAND should not affect SQLite runtime settings");
 
 assertConfigFails({ PORT: "not-a-number" }, /PORT must be an integer/);
 assertConfigFails({ PORT: "70000" }, /PORT must be at most 65535/);
