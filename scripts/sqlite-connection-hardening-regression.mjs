@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.0.1";
+const appVersion = "0.33.5.21.0.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-sqlite-hardening-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-sqlite-hardening.db");
 process.env.LONGTAIL_SQLITE_BUSY_TIMEOUT_MS = "2500";
@@ -49,8 +49,8 @@ try {
   assert.match(configSource, /LONGTAIL_SQLITE_FOREIGN_KEYS/, "config should read the SQLite foreign-key setting");
   assert.match(configSource, /LONGTAIL_SQLITE_JOURNAL_MODE/, "config should read the SQLite journal mode setting");
   assert.match(configSource, /LONGTAIL_SQLITE_BUSY_TIMEOUT_MS/, "config should read the SQLite busy-timeout setting");
-  assert.match(sqliteSource, /PRAGMA foreign_keys = /, "SQLite helper should enable foreign keys for sqlite processes");
-  assert.match(sqliteSource, /PRAGMA journal_mode = /, "SQLite helper should configure journal mode during startup");
+  assert.match(sqliteSource, /foreign_keys = /, "SQLite helper should enable foreign keys for SQLite connections");
+  assert.match(sqliteSource, /journal_mode = /, "SQLite helper should configure journal mode during startup");
   assert.match(sqliteSource, /PRAGMA busy_timeout;/, "SQLite helper should report busy timeout during health checks");
   assert.match(dbIndexSource, /ensureFrameworkModuleRecord/, "database startup should seed framework as a real module row for hardened module foreign keys");
   assert.doesNotMatch(schemaSource, /REFERENCES\s+(?:clients|projects|tasks)\s*\(\s*(?:client_id|project_id|task_id)\s*\)/, "fresh schema should not use invalid legacy client/project/task foreign keys");

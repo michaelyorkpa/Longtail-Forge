@@ -157,7 +157,6 @@ async function queryList(workspaceId, options = {}) {
   const normalizedLimit = normalizePositiveInteger(options.limit, 0);
   const normalizedOffset = normalizePositiveInteger(options.offset, 0);
   const params = {
-    offset: normalizedOffset,
     workspaceId,
   };
   const whereSql = noteListWhereSql(options, params);
@@ -166,6 +165,7 @@ async function queryList(workspaceId, options = {}) {
 
   if (normalizedLimit > 0) {
     params.limit = normalizedLimit + 1;
+    params.offset = normalizedOffset;
   }
 
   const rows = await db.query(`

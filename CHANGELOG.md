@@ -1,3 +1,27 @@
+## Version 0.33.5.21.0.4 - 2026-07-01
+
+- Retired the SQLite adapter's global operation queue now that `better-sqlite3` provides an in-process synchronous call path, while preserving the async app-facing adapter API.
+- Kept `db.transaction(callback)` semantics intact, including explicit `BEGIN` / `COMMIT` / `ROLLBACK`, the transaction client shape, nested-transaction rejection, and clear errors for direct `db.*` calls inside a transaction callback.
+- Added a transaction-only tail so outside adapter calls wait while an async transaction callback is open without serializing every normal SQLite read/write behind a global chain.
+- Expanded transaction and migration-locking regressions to prove rollback behavior, nested rejection, open-transaction isolation, migration lock/checksum ordering, and no nested transaction wrapper around migration scripts that already embed `BEGIN ... COMMIT`.
+- Verification 2026-07-01 19:57 -04:00: database transaction helper, migration locking, fresh database, baseline adoption, legacy cleanup, database adapter contract, parameterized-query pilot, better-sqlite3 helper core, Lists descriptor stale-pin repairs, Notes/Tasks server-side paging, and check-js targeted checks passed; `npm run check` passed 221/221 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.0.4 after restarting the local 8001 server.
+
+## Version 0.33.5.21.0.3 - 2026-07-01 17:36 -04:00
+
+- Moved SQLite adapter parameterized calls off SQL literal expansion and onto real `better-sqlite3` driver bindings while preserving the async `db.query`, `db.get`, and `db.run` app-facing API.
+- Added helper-level parameter validation and normalization for driver-bound values, including boolean `0`/`1`, `Date` ISO strings, `undefined` to `null`, and clear missing, unknown, and invalid named-parameter errors.
+- Kept no-parameter multi-statement compatibility SQL on the existing `exec()` path for unconverted statements that already use `sqlText` and related literal helpers.
+- Expanded the parameterized-query regression to cover driver binding, value coercion, validation failures, positional compatibility, and no-parameter multi-statement compatibility.
+- Verification 2026-07-01 17:42 -04:00: better-sqlite3 helper core, parameterized-query pilot, adapter contract, transaction helper, SQLite hardening, fresh database, baseline adoption, Tasks list query, Notes list query, SQLite small-office performance, Notes/Lists tag API scope, and check-js targeted checks passed; `npm run check` passed 221/221 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.0.3 after restarting the local 8001 server.
+
+## Version 0.33.5.21.0.2 - 2026-07-01
+
+- Replaced the `src/db/sqlite.js` child-process/marker queue with one long-lived `better-sqlite3` connection to the configured SQLite database file while preserving the existing helper exports used by the SQLite adapter and database startup facade.
+- Routed already-interpolated compatibility SQL through the in-process driver: single read statements use `prepare().all()`, multi-statement scripts use `exec()`, and existing `sqlText`/`sqlInteger`/nullable literal helpers remain the compatibility path until the parameter-binding slice.
+- Moved SQLite startup PRAGMAs for foreign keys, configured journal mode/WAL, and busy timeout onto the driver connection while preserving database-file writability checks, last-health caching, and the existing `formatSqliteHealth()` output shape.
+- Added `scripts/better-sqlite3-helper-core-regression.mjs` to prove the helper no longer shells out to the `sqlite3` CLI for normal string-SQL execution.
+- Verification 2026-07-01 17:12 -04:00: better-sqlite3 helper core, install smoke, SQLite hardening, fresh database, baseline adoption, adapter contract, parameterized-query pilot, transaction helper, migration locking, runtime/database closeout, and check-js targeted checks passed; `npm run check` passed 221/221 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.0.2 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.0.1 - 2026-07-01 16:48 -04:00
 
 - Added `better-sqlite3@12.11.1` as the selected in-process SQLite driver dependency for the 0.33.5.21.0 driver swap while leaving the current `sqlite3` CLI helper active until the next slice.

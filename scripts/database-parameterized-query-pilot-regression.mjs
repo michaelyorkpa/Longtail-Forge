@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.0.1";
+const appVersion = "0.33.5.21.0.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-params-pilot-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-params-pilot.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Params-Test-123!";
@@ -45,9 +45,12 @@ try {
   assert.equal(db.capabilities.parameterizedQueries, true, "SQLite adapter should report parameterized query support");
   assert.equal(db.capabilities.parameterStyle, "named", "SQLite adapter should document named parameter style");
   assert.doesNotMatch(sqliteSource, /\.parameter set/, "raw SQLite process helper should stay unaware of app-level parameter binding");
-  assert.match(sqliteAdapterSource, /expandSqlParameters/, "SQLite adapter should expand request parameters before sending SQL to the process helper");
-  assert.match(sqliteAdapterSource, /addNamedBinding/, "SQLite adapter should validate named parameter keys");
-  assert.match(sqliteAdapterSource, /sqliteParameterLiteral/, "SQLite adapter should centralize parameter literal escaping");
+  assert.doesNotMatch(sqliteAdapterSource, /expandSqlParameters|sqliteParameterLiteral|addNamedBinding/, "SQLite adapter should no longer inline parameters into SQL literals");
+  assert.match(sqliteAdapterSource, /querySql\(sql, params\)/, "SQLite adapter should pass query parameters through to the helper");
+  assert.match(sqliteAdapterSource, /runSql\(sql, params\)/, "SQLite adapter should pass run parameters through to the helper");
+  assert.match(sqliteSource, /normalizeSqliteParameterValue/, "SQLite helper should normalize parameter values before driver binding");
+  assert.match(sqliteSource, /statement\.all\(bindings\)/, "SQLite helper should execute bound reads through the driver");
+  assert.match(sqliteSource, /statement\.run\(bindings\)/, "SQLite helper should execute bound writes through the driver");
   assert.doesNotMatch(sqliteAdapterSource, /parameter binding is reserved/, "SQLite adapter should no longer reject bound params");
   assert.match(sqliteAdapterSource, /parameterizedQueries: true/, "SQLite adapter capabilities should expose parameterized query support");
 
@@ -67,6 +70,8 @@ try {
     hostile_value: hostileValue,
     null_value: null,
   }, "adapter should return bound values without interpreting SQL-like text");
+
+  await assertDriverBindingCoercionAndValidation();
 
   await initializeDatabase();
   const workspace = await db.get("SELECT workspace_id FROM workspaces ORDER BY created_at LIMIT 1;");
@@ -147,6 +152,84 @@ async function assertSessionRepositoryParams(workspaceId, user) {
 
   const sessionsTable = await db.get("SELECT COUNT(1) AS count FROM sessions;");
   assert.ok(Number(sessionsTable.count) >= 0, "sessions table should survive SQL-like bound values");
+}
+
+async function assertDriverBindingCoercionAndValidation() {
+  const timestamp = new Date("2026-07-01T20:03:04.005Z");
+  const row = await db.get(`
+SELECT
+  :trueValue AS true_value,
+  :falseValue AS false_value,
+  :timestamp AS timestamp_value,
+  :undefinedValue AS undefined_value,
+  :nullValue AS null_value,
+  :textValue AS text_value;
+`, {
+    falseValue: false,
+    nullValue: null,
+    textValue: "safe '; DROP TABLE sessions; -- text",
+    timestamp,
+    trueValue: true,
+    undefinedValue: undefined,
+  });
+
+  assert.deepEqual(row, {
+    false_value: 0,
+    null_value: null,
+    text_value: "safe '; DROP TABLE sessions; -- text",
+    timestamp_value: timestamp.toISOString(),
+    true_value: 1,
+    undefined_value: null,
+  }, "driver-bound params should preserve the old literal-path coercions");
+
+  const positionalRow = await db.get("SELECT ? AS first_value, ? AS second_value;", ["first", "second"]);
+  assert.deepEqual(positionalRow, {
+    first_value: "first",
+    second_value: "second",
+  }, "adapter positional params should remain available for existing callers");
+
+  await db.run(`
+CREATE TABLE compatibility_multi_statement (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL
+);
+INSERT INTO compatibility_multi_statement (id, label)
+VALUES ('literal-path', 'multi statement compatibility');
+`);
+  const compatibilityRow = await db.get("SELECT label FROM compatibility_multi_statement WHERE id = :id;", {
+    id: "literal-path",
+  });
+  assert.equal(compatibilityRow.label, "multi statement compatibility", "no-parameter multi-statement compatibility SQL should still execute");
+
+  await assert.rejects(
+    () => db.get("SELECT :missingValue AS value;", {}),
+    /Missing database query parameter: :missingValue/,
+    "missing named parameters should fail clearly",
+  );
+
+  await assert.rejects(
+    () => db.get("SELECT :value AS value;", { extra: "unused", value: "present" }),
+    /Unknown database query parameter: extra/,
+    "unknown named parameters should fail clearly",
+  );
+
+  await assert.rejects(
+    () => db.get("SELECT :value AS value;", { "invalid-name": "bad", value: "present" }),
+    /Invalid database query parameter name: invalid-name/,
+    "invalid named parameter keys should fail clearly",
+  );
+
+  await assert.rejects(
+    () => db.run(`
+CREATE TABLE parameterized_multi_statement (
+  id TEXT PRIMARY KEY
+);
+INSERT INTO parameterized_multi_statement (id)
+VALUES (:id);
+`, { id: "blocked" }),
+    /Parameterized SQLite statements must be single statements/,
+    "parameterized multi-statement SQL should fail clearly instead of partially binding",
+  );
 }
 
 async function assertWorkspaceRepositoryParams(workspaceId) {

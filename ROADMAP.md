@@ -59,11 +59,11 @@ Acceptance criteria:
 
 #### Version 0.33.5.21.0.2 - In-process SQLite helper core
 
-- [ ] Replace the `src/db/sqlite.js` spawn/marker/idle-close implementation with one long-lived `better-sqlite3` connection to `config.databaseFile`.
-- [ ] Keep the existing exported helper names (`querySql`, `runSql`, `closeSqlite`, `initializeSqliteRuntime`, health helpers, and SQL literal exports) so `src/db/adapters/sqlite-adapter.js`, `src/db/provider.js`, and `src/db/index.js` continue to load without caller changes.
-- [ ] Route already-interpolated string SQL through the driver with `prepare().all()` for single read statements and `exec()` for multi-statement scripts.
-- [ ] Apply startup PRAGMAs through the driver: foreign keys on, configured journal mode/WAL, and busy timeout.
-- [ ] Preserve database-file writability checks, last-health caching, and `formatSqliteHealth()` output shape.
+- [x] Replace the `src/db/sqlite.js` spawn/marker/idle-close implementation with one long-lived `better-sqlite3` connection to `config.databaseFile`.
+- [x] Keep the existing exported helper names (`querySql`, `runSql`, `closeSqlite`, `initializeSqliteRuntime`, health helpers, and SQL literal exports) so `src/db/adapters/sqlite-adapter.js`, `src/db/provider.js`, and `src/db/index.js` continue to load without caller changes.
+- [x] Route already-interpolated string SQL through the driver with `prepare().all()` for single read statements and `exec()` for multi-statement scripts.
+- [x] Apply startup PRAGMAs through the driver: foreign keys on, configured journal mode/WAL, and busy timeout.
+- [x] Preserve database-file writability checks, last-health caching, and `formatSqliteHealth()` output shape.
 
 Acceptance criteria:
 
@@ -73,11 +73,11 @@ Acceptance criteria:
 
 #### Version 0.33.5.21.0.3 - Driver-native parameter binding and value coercion
 
-- [ ] Move adapter parameter handling away from `expandSqlParameters()` literal inlining and bind named parameters through `better-sqlite3`.
-- [ ] Preserve the async app-facing adapter API for `db.query`, `db.get`, and `db.run` so `src/core/database.js` and callers do not change.
-- [ ] Normalize driver-bound values to match the old literal path where needed: booleans to `0/1`, `Date` values to ISO strings, and `undefined` to `null`.
-- [ ] Reject missing, unknown, or invalid named parameters clearly.
-- [ ] Keep no-parameter and multi-statement compatibility paths for the unconverted SQL that already uses `sqlText` and related helpers.
+- [x] Move adapter parameter handling away from `expandSqlParameters()` literal inlining and bind named parameters through `better-sqlite3`.
+- [x] Preserve the async app-facing adapter API for `db.query`, `db.get`, and `db.run` so `src/core/database.js` and callers do not change.
+- [x] Normalize driver-bound values to match the old literal path where needed: booleans to `0/1`, `Date` values to ISO strings, and `undefined` to `null`.
+- [x] Reject missing, unknown, or invalid named parameters clearly.
+- [x] Keep no-parameter and multi-statement compatibility paths for the unconverted SQL that already uses `sqlText` and related helpers.
 
 Acceptance criteria:
 
@@ -87,11 +87,11 @@ Acceptance criteria:
 
 #### Version 0.33.5.21.0.4 - Transaction and migration fidelity
 
-- [ ] Preserve `db.transaction(callback)` semantics, including the transaction client shape and the existing "use the transaction client inside a transaction" guard.
-- [ ] Retire the global adapter `operationChain` only after the in-process synchronous call path is stable.
-- [ ] Ensure migration, baseline, and repair scripts that already embed `BEGIN ... COMMIT` are routed through the multi-statement `exec()` path instead of being wrapped in a second transaction.
-- [ ] Preserve the migration lock, baseline checksum validation, future migration checksum validation, and schema-repair flows.
-- [ ] Verify rollback behavior and nested-transaction rejection through the existing transaction helper regression.
+- [x] Preserve `db.transaction(callback)` semantics, including the transaction client shape and the existing "use the transaction client inside a transaction" guard.
+- [x] Retire the global adapter `operationChain` only after the in-process synchronous call path is stable.
+- [x] Ensure migration, baseline, and repair scripts that already embed `BEGIN ... COMMIT` are routed through the multi-statement `exec()` path instead of being wrapped in a second transaction.
+- [x] Preserve the migration lock, baseline checksum validation, future migration checksum validation, and schema-repair flows.
+- [x] Verify rollback behavior and nested-transaction rejection through the existing transaction helper regression.
 
 Acceptance criteria:
 

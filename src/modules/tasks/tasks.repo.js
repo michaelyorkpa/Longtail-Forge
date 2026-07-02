@@ -12,12 +12,6 @@ async function queryList(workspaceId, options = {}) {
   const normalizedLimit = normalizePositiveInteger(options.limit, 0);
   const normalizedOffset = normalizePositiveInteger(options.offset, 0);
   const params = {
-    currentUserId: options.currentUserId || "",
-    currentWeekEnd: options.currentWeekEnd || "",
-    dueSoonCutoff: options.dueSoonCutoff || "",
-    nowIso: options.nowIso || new Date().toISOString(),
-    offset: normalizedOffset,
-    today: options.today || "",
     workspaceId,
   };
   const whereSql = taskListWhereSql(options, params);
@@ -26,6 +20,7 @@ async function queryList(workspaceId, options = {}) {
 
   if (normalizedLimit > 0) {
     params.limit = normalizedLimit + 1;
+    params.offset = normalizedOffset;
   }
 
   const rows = await db.query(taskSelectSql(`
@@ -407,22 +402,23 @@ ${whereSql}`;
 function taskListWhereSql(options, params) {
   const conditions = ["tasks.workspace_id = :workspaceId"];
 
-  applyTaskViewFilter(conditions, options);
+  applyTaskViewFilter(conditions, options, params);
   applyStatusFilter(conditions, options, params);
   applyQuickFilter(conditions, options, params);
-  applyDueFilter(conditions, options);
+  applyDueFilter(conditions, options, params);
   applyContextFilters(conditions, options, params);
   applyAssigneeFilters(conditions, options, params);
 
   return `WHERE ${conditions.join("\n  AND ")}`;
 }
 
-function applyTaskViewFilter(conditions, options) {
+function applyTaskViewFilter(conditions, options, params) {
   const taskView = normalizedFilter(options.taskView);
 
   if (taskView === "my") {
     conditions.push(activeTaskSql());
     conditions.push(assigneeExistsSql("currentUserId"));
+    params.currentUserId = options.currentUserId || "";
     return;
   }
 
@@ -441,12 +437,14 @@ function applyTaskViewFilter(conditions, options) {
     conditions.push(activeTaskSql());
     conditions.push("tasks.due_date IS NOT NULL");
     conditions.push("tasks.due_date < :today");
+    params.today = options.today || "";
     return;
   }
 
   if (taskView === "today") {
     conditions.push(activeTaskSql());
     conditions.push("tasks.due_date = :today");
+    params.today = options.today || "";
     return;
   }
 
@@ -455,6 +453,8 @@ function applyTaskViewFilter(conditions, options) {
     conditions.push("tasks.due_date IS NOT NULL");
     conditions.push("tasks.due_date >= :today");
     conditions.push("tasks.due_date <= :currentWeekEnd");
+    params.currentWeekEnd = options.currentWeekEnd || "";
+    params.today = options.today || "";
     return;
   }
 
@@ -498,6 +498,7 @@ function applyQuickFilter(conditions, options, params) {
 
   if (["my", "assigned_to_me", "assigned"].includes(quickFilter)) {
     conditions.push(assigneeExistsSql("currentUserId"));
+    params.currentUserId = options.currentUserId || "";
     return;
   }
 
@@ -512,7 +513,7 @@ function applyQuickFilter(conditions, options, params) {
   }
 }
 
-function applyDueFilter(conditions, options) {
+function applyDueFilter(conditions, options, params) {
   const dueFilter = normalizedFilter(options.dueFilter);
 
   if (!dueFilter || dueFilter === "all") {
@@ -526,6 +527,8 @@ function applyDueFilter(conditions, options) {
     (tasks.due_time IS NOT NULL AND tasks.due_at_utc IS NOT NULL AND tasks.due_at_utc < :nowIso)
     OR ((tasks.due_time IS NULL OR tasks.due_at_utc IS NULL) AND tasks.due_date < :today)
   )`);
+    params.nowIso = options.nowIso || new Date().toISOString();
+    params.today = options.today || "";
     return;
   }
 
@@ -537,6 +540,8 @@ function applyDueFilter(conditions, options) {
     AND tasks.due_at_utc IS NOT NULL
     AND tasks.due_at_utc < :nowIso
   )`);
+    params.nowIso = options.nowIso || new Date().toISOString();
+    params.today = options.today || "";
     return;
   }
 
@@ -550,6 +555,9 @@ function applyDueFilter(conditions, options) {
     AND tasks.due_at_utc IS NOT NULL
     AND tasks.due_at_utc < :nowIso
   )`);
+    params.dueSoonCutoff = options.dueSoonCutoff || "";
+    params.nowIso = options.nowIso || new Date().toISOString();
+    params.today = options.today || "";
     return;
   }
 
@@ -584,6 +592,7 @@ function applyAssigneeFilters(conditions, options, params) {
 
   if (assigneeFilter === "me" || assigneeFilter === "assigned_to_me") {
     conditions.push(assigneeExistsSql("currentUserId"));
+    params.currentUserId = options.currentUserId || "";
     return;
   }
 

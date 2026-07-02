@@ -4,9 +4,10 @@ import { readFileSync } from "node:fs";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.0.1";
+const appVersion = "0.33.5.21.0.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-transaction-helper-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-transaction-helper.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Transaction-Test-123!";
@@ -45,6 +46,8 @@ try {
   assert.match(sqliteAdapterSource, /COMMIT/, "SQLite adapter should commit successful transactions");
   assert.match(sqliteAdapterSource, /ROLLBACK/, "SQLite adapter should roll back failed transactions");
   assert.match(sqliteAdapterSource, /Nested database transactions are not supported/, "SQLite adapter should document nested transaction behavior in code");
+  assert.doesNotMatch(sqliteAdapterSource, /operationChain|enqueueAdapterOperation/, "SQLite adapter should retire the global operation queue after the synchronous driver swap");
+  assert.match(sqliteAdapterSource, /transactionTail/, "SQLite adapter should keep a transaction-only tail so outside calls do not interleave with open transactions");
 
   assertTaskAssigneePilotSource();
   assertNoteCreateLinkPilotSource();
@@ -53,6 +56,7 @@ try {
   const session = await readProtectedSession();
 
   await assertAdapterTransactionCommitAndRollback();
+  await assertOutsideOperationsWaitForOpenTransaction();
   await assertNestedTransactionFailsClearly();
   await assertTaskAssigneeReplacementCommits(session);
   await assertNoteCreateWithLinksCommits(session);
@@ -60,6 +64,7 @@ try {
 
   assert.match(databaseDocs, /As of version 0\.33\.5\.19\.5[\s\S]*`db\.transaction\(callback\)`/, "database docs should describe the transaction helper");
   assert.match(databaseDocs, /Nested transactions are not supported/, "database docs should document nested transaction behavior");
+  assert.match(databaseDocs, /As of version 0\.33\.5\.21\.0\.4[\s\S]*transaction-only tail[\s\S]*migration scripts/, "database docs should describe the transaction and migration fidelity slice");
   assert.match(runtimeDocs, /SQLite is the only implemented provider in 0\.33\.5\.19\.9/, "runtime docs should keep SQLite as the only implemented provider");
   assert.match(roadmap, /Completed 0\.33\.5\.19 runtime configuration and SQLite small-office foundation work is archived/, "roadmap should archive the completed transaction helper branch");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the transaction helper slice");
@@ -136,6 +141,52 @@ CREATE TABLE transaction_probe (
     /transaction client/,
     "db.run inside a transaction callback should fail clearly instead of deadlocking",
   );
+}
+
+async function assertOutsideOperationsWaitForOpenTransaction() {
+  await db.run(`
+CREATE TABLE transaction_wait_probe (
+  id TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+`);
+
+  let releaseTransaction;
+  let markTransactionStarted;
+  const releasePromise = new Promise((resolve) => {
+    releaseTransaction = resolve;
+  });
+  const transactionStarted = new Promise((resolve) => {
+    markTransactionStarted = resolve;
+  });
+
+  const transactionPromise = db.transaction(async (transaction) => {
+    await transaction.run("INSERT INTO transaction_wait_probe (id, value) VALUES (:id, :value);", {
+      id: "inside-start",
+      value: "inside transaction before release",
+    });
+    markTransactionStarted();
+    await releasePromise;
+    await transaction.run("INSERT INTO transaction_wait_probe (id, value) VALUES (:id, :value);", {
+      id: "inside-finish",
+      value: "inside transaction after release",
+    });
+  });
+
+  await transactionStarted;
+
+  const outsideReadPromise = db.get("SELECT COUNT(1) AS count FROM transaction_wait_probe;");
+  const resolvedBeforeRelease = await Promise.race([
+    outsideReadPromise.then(() => true),
+    delay(75).then(() => false),
+  ]);
+  assert.equal(resolvedBeforeRelease, false, "outside database calls should wait while a transaction callback is open");
+
+  releaseTransaction();
+  await transactionPromise;
+
+  const outsideRead = await outsideReadPromise;
+  assert.equal(Number(outsideRead.count), 2, "outside database calls should run after the open transaction commits");
 }
 
 async function assertNestedTransactionFailsClearly() {

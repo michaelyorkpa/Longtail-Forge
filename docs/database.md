@@ -2,7 +2,7 @@
 
 As of version 0.33.5.18.6.5.4, new Longtail Forge installs use a consolidated fresh-start database baseline instead of replaying the historical 0.22.x-0.33.5.18.6.5.3 migration chain.
 
-As of version 0.31.24.2, the active SQLite helper keeps one queued sqlite process alive briefly between calls instead of spawning a new process for every query. The public database helper API remains `querySql`, `runSql`, `sqlText`, `sqlNullableText`, `sqlInteger`, and `sqlNullableInteger`; callers should continue to use those helpers rather than shelling out directly.
+From version 0.31.24.2 through 0.33.5.21.0.1, the SQLite helper kept one queued sqlite process alive briefly between calls instead of spawning a new process for every query. The public database helper API remains `querySql`, `runSql`, `sqlText`, `sqlNullableText`, `sqlInteger`, and `sqlNullableInteger`; callers should continue to use those helpers rather than shelling out directly.
 
 As of version 0.32.6.3, framework search metadata lives in the canonical `search_index` table. FTS virtual tables are lookup engines only and are not the source of truth for workspace scope, module scope, permissions, visibility, or record lifecycle state.
 
@@ -14,11 +14,17 @@ As of version 0.33.5.20.5, the bounded-query branch covers normal Tasks list rea
 
 As of version 0.33.5.20.6, `scripts/sqlite-small-office-performance.mjs` provides a repeatable seeded SQLite route timing pass for App shell bootstrap, Tasks list/detail, Notes list/detail, Files browse, Search, Notifications, and Workbench bootstrap. The script records local development hardware sanity targets for the `sqlite-small-office-50` scale profile and can smoke `dev-demo`, but it is not a hosted SaaS load test, concurrency benchmark, SLA, or replacement for service-owned bounded query contracts.
 
-As of version 0.33.5.21.0.1, `better-sqlite3@12.11.1` is installed as the selected in-process SQLite driver dependency for the 0.33.5.21.0 driver swap. The selected release declares support for Node `20.x || 22.x || 23.x || 24.x || 25.x || 26.x`; the dependency was verified on the Windows development runtime `v20.13.1`. `scripts/better-sqlite3-install-smoke.mjs` opens a disposable database and verifies that the bundled SQLite supports FTS5, `bm25()`, and `RETURNING`. The running app still uses the existing `sqlite3` CLI helper until 0.33.5.21.0.2 replaces the helper implementation.
+As of version 0.33.5.21.0.1, `better-sqlite3@12.11.1` is installed as the selected in-process SQLite driver dependency for the 0.33.5.21.0 driver swap. The selected release declares support for Node `20.x || 22.x || 23.x || 24.x || 25.x || 26.x`; the dependency was verified on the Windows development runtime `v20.13.1`. `scripts/better-sqlite3-install-smoke.mjs` opens a disposable database and verifies that the bundled SQLite supports FTS5, `bm25()`, and `RETURNING`.
+
+As of version 0.33.5.21.0.2, `src/db/sqlite.js` opens one long-lived `better-sqlite3` connection to the configured SQLite database file instead of shelling out to the `sqlite3` CLI. The existing helper exports stay stable for `querySql`, `runSql`, `closeSqlite`, `initializeSqliteRuntime`, health helpers, and the SQL literal helpers. Already-interpolated compatibility SQL still uses `sqlText`, `sqlInteger`, `sqlNullableText`, and `sqlNullableInteger`; single read statements route through driver `prepare().all()`, while multi-statement scripts route through driver `exec()`.
+
+As of version 0.33.5.21.0.3, SQLite adapter parameterized calls bind values through `better-sqlite3` instead of expanding parameters into SQL text. The app-facing `db.query(sql, params)`, `db.get(sql, params)`, and `db.run(sql, params)` APIs stay async-compatible, while the helper normalizes booleans to `0`/`1`, `Date` values to ISO strings, and `undefined` to `null` before driver binding. Parameterized SQL must be a single statement and missing, unknown, or invalid named parameters fail before execution. No-parameter multi-statement compatibility SQL remains available for existing `sqlText` / `sqlInteger` literal paths.
+
+As of version 0.33.5.21.0.4, the SQLite adapter has retired the former global operation queue now that normal calls use the in-process synchronous driver path. `db.transaction(callback)` still owns explicit `BEGIN TRANSACTION`, `COMMIT`, and `ROLLBACK` behavior, still passes a transaction client with `query`, `get`, `run`, `capabilities`, and nested-transaction rejection, and still rejects direct `db.query` / `db.get` / `db.run` use inside the callback. Open transactions are protected by a transaction-only tail so outside adapter calls wait until the callback commits or rolls back. Migration, baseline, and schema-repair scripts that already embed `BEGIN ... COMMIT` remain no-parameter multi-statement `runSql()` calls that route through the `exec()` compatibility path; do not wrap those migration scripts in `db.transaction(callback)`.
 
 As of version 0.33.5.19.2, SQLite startup hardens the existing helper boundary before migrations run. Longtail Forge applies foreign-key enforcement to every SQLite process, enables `PRAGMA journal_mode = WAL` by default, configures the SQLite busy timeout from runtime config, verifies the database file path is writable, and reports safe startup health for the provider, database file path, writable state, foreign-key state, journal mode, and busy timeout.
 
-As of version 0.33.5.19.5, `src/db/provider.js` owns the provider-neutral database adapter boundary and `src/core/database.js` is the preferred app-facing import path for repositories, modules, and framework services that need database access. The v1 adapter API is `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, `db.transaction(callback)`, `db.close()`, `db.health()`, and `db.capabilities`. SQLite is still the only implemented provider, and the SQLite process helper stays behind `src/db/adapters/sqlite-adapter.js`. `querySql` and `runSql` remain temporary legacy compatibility helpers while repository code moves toward the adapter. Parameter binding is active for pilot repository paths, and the transaction helper is active for selected multi-step write pilots.
+As of version 0.33.5.19.5, `src/db/provider.js` owns the provider-neutral database adapter boundary and `src/core/database.js` is the preferred app-facing import path for repositories, modules, and framework services that need database access. The v1 adapter API is `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, `db.transaction(callback)`, `db.close()`, `db.health()`, and `db.capabilities`. SQLite is still the only implemented provider, and the SQLite helper stays behind `src/db/adapters/sqlite-adapter.js`. `querySql` and `runSql` remain temporary legacy compatibility helpers while repository code moves toward the adapter. Parameter binding is active for pilot repository paths, and the transaction helper is active for selected multi-step write pilots.
 
 As of version 0.33.5.19.6, SQLite migrations and schema repairs run under a migration lock before normal app startup defaults are applied. The lock is a process-owned file beside the configured SQLite database file. If a second startup process reaches migrations while the lock is held, startup fails with an actionable message that names the lock file and stale-lock recovery path.
 
@@ -43,7 +49,7 @@ LIMIT 1;
 
 Do not interpolate user-supplied values into SQL strings. Table and column names must stay static or come from validated allowlists before building SQL. Bound parameters are for values only; they do not parameterize identifiers, sort clauses, operators, or SQL fragments.
 
-The legacy `sqlText`, `sqlInteger`, `sqlNullableText`, and `sqlNullableInteger` helpers remain available as compatibility escape hatches for unconverted code and multi-statement paths until later portability slices. New or touched single-statement repository queries should prefer named parameters unless a slice explicitly keeps the code on the compatibility path.
+As of 0.33.5.21.0.3, named parameters are bound by the SQLite driver instead of being converted to SQL literals by the adapter. The legacy `sqlText`, `sqlInteger`, `sqlNullableText`, and `sqlNullableInteger` helpers remain available as compatibility escape hatches for unconverted code and no-parameter multi-statement paths until later portability slices. New or touched single-statement repository queries should prefer named parameters unless a slice explicitly keeps the code on the compatibility path.
 
 ## Transaction Style
 
@@ -64,6 +70,8 @@ await db.transaction(async (transaction) => {
 
 The SQLite adapter begins a transaction before the callback, commits when the callback completes, and rolls back when the callback throws. Nested transactions are not supported; keep a transaction callback focused on the database writes that must commit together. As of 0.33.5.19.5, the transaction pilot covers Task assignee replacement and Notes create-with-staged-links. Broader transaction conversion remains future portability work.
 
+As of 0.33.5.21.0.4, adapter transactions no longer rely on a global all-operation queue. Normal outside reads and writes use the synchronous driver path, while calls that arrive during an open transaction wait behind the transaction-only tail until the transaction completes.
+
 ## Native SQLite Driver Dependency
 
 `better-sqlite3` is a native dependency. Normal installs should download a prebuilt binary for supported Node/runtime/platform combinations. If no prebuilt binary is available, npm falls back to building from source through `node-gyp`; on Windows that requires Python plus a C++ toolchain such as Visual Studio Build Tools with the Desktop development workload. Keep the Node runtime within the selected release's engine range before troubleshooting native build failures.
@@ -74,7 +82,7 @@ The dependency-readiness smoke can be run directly with:
 npm run test:sqlite-driver
 ```
 
-This smoke check uses a disposable temp database only. It does not change the app database, run migrations, or switch normal app database access away from the current CLI helper.
+This smoke check uses a disposable temp database only. It does not change the app database or run migrations. The in-process helper core is covered separately by `scripts/better-sqlite3-helper-core-regression.mjs`.
 
 ## Migration Locking and Startup Ownership
 

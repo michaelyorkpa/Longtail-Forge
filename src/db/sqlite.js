@@ -1,7 +1,6 @@
-import { spawn } from "node:child_process";
+import Database from "better-sqlite3";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { clearTimeout, setTimeout } from "node:timers";
 import { config } from "../config.js";
 import {
   sqlInteger,
@@ -10,42 +9,34 @@ import {
   sqlText,
 } from "./sql-literals.js";
 
-let sqliteProcess = null;
-let currentRequest = null;
-let idleCloseTimer = null;
-let closingIdleProcess = false;
-let requestCounter = 0;
+let sqliteDatabase = null;
 let lastSqliteHealth = null;
-const requestQueue = [];
 
-function runSql(sql) {
-  return enqueueSql(sql, { json: false });
+async function runSql(sql, params = undefined) {
+  executeRunSql(sql, normalizeSqliteParameters(params));
+  return "";
 }
 
-function querySql(sql) {
-  return enqueueSql(sql, { json: true });
+async function querySql(sql, params = undefined) {
+  return executeQuerySql(sql, normalizeSqliteParameters(params));
 }
 
 async function closeSqlite() {
-  clearIdleCloseTimer();
-
-  if (!sqliteProcess) {
+  if (!sqliteDatabase) {
     return;
   }
 
-  const process = sqliteProcess;
-  closingIdleProcess = true;
-  sqliteProcess = null;
-  process.stdin.end(".quit\n");
-  await new Promise((resolve) => {
-    process.once("exit", resolve);
-  });
+  const database = sqliteDatabase;
+  sqliteDatabase = null;
+  database.close();
 }
 
 async function initializeSqliteRuntime() {
   await closeSqlite();
   await ensureDatabaseFileWritable();
-  await configureSqliteJournalMode();
+
+  const database = getSqliteDatabase();
+  applyStartupPragmas(database);
 
   const health = await readSqliteHealth();
   validateSqliteHealth(health);
@@ -92,173 +83,563 @@ function formatSqliteHealth(health = lastSqliteHealth) {
   ].join(" ");
 }
 
-function enqueueSql(sql, options) {
-  return new Promise((resolve, reject) => {
-    requestQueue.push({
-      id: String(++requestCounter),
-      options,
-      reject,
-      resolve,
-      sql: String(sql || ""),
-      stdout: "",
-      stderr: "",
-    });
-    processQueue();
-  });
+function getSqliteDatabase() {
+  if (sqliteDatabase?.open) {
+    return sqliteDatabase;
+  }
+
+  sqliteDatabase = new Database(config.databaseFile);
+  applyConnectionPragmas(sqliteDatabase);
+  return sqliteDatabase;
 }
 
-function processQueue() {
-  if (currentRequest || requestQueue.length === 0) {
+function applyConnectionPragmas(database) {
+  database.pragma(`busy_timeout = ${config.sqlite.busyTimeoutMs}`);
+  database.pragma(`foreign_keys = ${config.sqlite.foreignKeys ? "ON" : "OFF"}`);
+}
+
+function applyStartupPragmas(database) {
+  applyConnectionPragmas(database);
+  database.pragma(`journal_mode = ${config.sqlite.journalMode}`);
+}
+
+function executeRunSql(sql, parameters) {
+  const text = String(sql || "").trim();
+
+  if (!text) {
     return;
   }
 
-  clearIdleCloseTimer();
-  currentRequest = requestQueue.shift();
-  const process = getSqliteProcess();
-  const marker = markerToken(currentRequest.id);
-  const mode = currentRequest.options.json ? ".mode json" : ".mode list";
+  const statementCount = countSqlStatements(text);
 
-  process.stdin.write(`${mode}\n`);
-  process.stdin.write(`${currentRequest.sql.trim()}\n`);
-  process.stdin.write(`.mode json\nSELECT ${sqlText(marker)} AS __ltf_marker;\n`);
-}
-
-function getSqliteProcess() {
-  if (sqliteProcess && !sqliteProcess.killed) {
-    return sqliteProcess;
-  }
-
-  closingIdleProcess = false;
-  sqliteProcess = spawn(
-    config.sqliteCommand,
-    ["-json", config.databaseFile],
-    { windowsHide: true },
-  );
-  sqliteProcess.stdin.write(".bail on\n");
-  sqliteProcess.stdin.write(`.timeout ${config.sqlite.busyTimeoutMs}\n`);
-  sqliteProcess.stdin.write(`PRAGMA foreign_keys = ${config.sqlite.foreignKeys ? "ON" : "OFF"};\n`);
-  sqliteProcess.stdout.on("data", handleStdout);
-  sqliteProcess.stderr.on("data", handleStderr);
-  sqliteProcess.on("error", handleProcessError);
-  sqliteProcess.on("exit", handleProcessExit);
-  return sqliteProcess;
-}
-
-function handleStdout(chunk) {
-  if (!currentRequest) {
+  if (statementCount === 0) {
     return;
   }
 
-  currentRequest.stdout += chunk.toString();
-  finishIfMarkerReceived();
-}
+  const bindings = resolveStatementBindings(text, parameters);
 
-function handleStderr(chunk) {
-  if (!currentRequest) {
-    return;
-  }
-
-  currentRequest.stderr += chunk.toString();
-}
-
-function finishIfMarkerReceived() {
-  if (!currentRequest) {
-    return;
-  }
-
-  const marker = markerToken(currentRequest.id);
-  const markerText = JSON.stringify([{ __ltf_marker: marker }]);
-  const markerIndex = currentRequest.stdout.indexOf(markerText);
-
-  if (markerIndex === -1) {
-    return;
-  }
-
-  const stdout = currentRequest.stdout.slice(0, markerIndex).trim();
-  const stderr = currentRequest.stderr.trim();
-  const request = currentRequest;
-
-  currentRequest = null;
-
-  if (stderr) {
-    request.reject(new Error(stderr));
-  } else if (request.options.json) {
-    resolveJsonRequest(request, stdout);
-  } else {
-    request.resolve(stdout);
-  }
-
-  processQueue();
-  scheduleIdleClose();
-}
-
-function resolveJsonRequest(request, stdout) {
-  try {
-    request.resolve(stdout ? JSON.parse(stdout) : []);
-  } catch (error) {
-    request.reject(error);
-  }
-}
-
-function handleProcessError(error) {
-  rejectCurrentAndQueued(error);
-}
-
-function handleProcessExit(code, signal) {
-  if (closingIdleProcess) {
-    closingIdleProcess = false;
-    sqliteProcess = null;
-    return;
-  }
-
-  const stderr = currentRequest?.stderr?.trim();
-  const error = new Error(stderr || `sqlite3 exited unexpectedly (${signal || code || "unknown"}).`);
-  sqliteProcess = null;
-  rejectCurrentAndQueued(error);
-}
-
-function scheduleIdleClose() {
-  if (currentRequest || requestQueue.length > 0 || !sqliteProcess) {
-    return;
-  }
-
-  idleCloseTimer = setTimeout(() => {
-    if (currentRequest || requestQueue.length > 0 || !sqliteProcess) {
-      return;
+  if (bindings.hasBindings) {
+    if (statementCount > 1) {
+      throw new Error("Parameterized SQLite statements must be single statements.");
     }
 
-    const process = sqliteProcess;
-    closingIdleProcess = true;
-    sqliteProcess = null;
-    process.stdin.end(".quit\n");
-  }, 250);
-}
-
-function clearIdleCloseTimer() {
-  if (!idleCloseTimer) {
+    executePreparedRun(text, bindings.values);
     return;
   }
 
-  clearTimeout(idleCloseTimer);
-  idleCloseTimer = null;
+  getSqliteDatabase().exec(text);
 }
 
-function rejectCurrentAndQueued(error) {
-  if (currentRequest) {
-    currentRequest.reject(error);
-    currentRequest = null;
+function executeQuerySql(sql, parameters) {
+  const text = String(sql || "").trim();
+
+  if (!text) {
+    return [];
   }
 
-  while (requestQueue.length > 0) {
-    requestQueue.shift().reject(error);
+  const statementCount = countSqlStatements(text);
+
+  if (statementCount === 0) {
+    return [];
+  }
+
+  const bindings = resolveStatementBindings(text, parameters);
+
+  if (bindings.hasBindings) {
+    if (statementCount > 1) {
+      throw new Error("Parameterized SQLite statements must be single statements.");
+    }
+
+    return executePreparedQuery(text, bindings.values);
+  }
+
+  if (statementCount > 1) {
+    getSqliteDatabase().exec(text);
+    return [];
+  }
+
+  return executePreparedQuery(text);
+}
+
+function executePreparedRun(sql, bindings = undefined) {
+  const statement = getSqliteDatabase().prepare(sql);
+
+  if (statement.reader) {
+    allStatement(statement, bindings);
+    return;
+  }
+
+  runStatement(statement, bindings);
+}
+
+function executePreparedQuery(sql, bindings = undefined) {
+  const statement = getSqliteDatabase().prepare(sql);
+
+  if (!statement.reader) {
+    runStatement(statement, bindings);
+    return [];
+  }
+
+  return allStatement(statement, bindings);
+}
+
+function runStatement(statement, bindings) {
+  if (bindings === undefined) {
+    return statement.run();
+  }
+
+  return statement.run(bindings);
+}
+
+function allStatement(statement, bindings) {
+  if (bindings === undefined) {
+    return statement.all();
+  }
+
+  return statement.all(bindings);
+}
+
+function normalizeSqliteParameters(params) {
+  if (params === undefined || params === null) {
+    return {
+      kind: "none",
+      values: null,
+    };
+  }
+
+  if (Array.isArray(params)) {
+    return {
+      kind: "array",
+      values: params.map(normalizeSqliteParameterValue),
+    };
+  }
+
+  if (typeof params !== "object") {
+    throw new Error("Database query parameters must be an array or object.");
+  }
+
+  const values = new Map();
+
+  for (const [name, value] of Object.entries(params)) {
+    values.set(normalizeSqliteParameterName(name), normalizeSqliteParameterValue(value));
+  }
+
+  return {
+    kind: "object",
+    values,
+  };
+}
+
+function resolveStatementBindings(sql, parameters) {
+  const expected = collectSqlParameters(sql);
+
+  if (expected.named.size > 0 && expected.positionalCount > 0) {
+    throw new Error("SQLite statements cannot mix named and positional parameters.");
+  }
+
+  if (expected.named.size > 0) {
+    return resolveNamedStatementBindings(expected.named, parameters);
+  }
+
+  if (expected.positionalCount > 0) {
+    return resolvePositionalStatementBindings(expected.positionalCount, parameters);
+  }
+
+  assertNoProvidedParameters(parameters);
+  return {
+    hasBindings: false,
+    values: undefined,
+  };
+}
+
+function resolveNamedStatementBindings(expectedNames, parameters) {
+  const firstName = [...expectedNames][0];
+
+  if (parameters.kind !== "object") {
+    throw new Error(`Missing database query parameter: :${firstName}.`);
+  }
+
+  for (const name of expectedNames) {
+    if (!parameters.values.has(name)) {
+      throw new Error(`Missing database query parameter: :${name}.`);
+    }
+  }
+
+  for (const name of parameters.values.keys()) {
+    if (!expectedNames.has(name)) {
+      throw new Error(`Unknown database query parameter: ${name}.`);
+    }
+  }
+
+  return {
+    hasBindings: true,
+    values: Object.fromEntries([...expectedNames].map((name) => [name, parameters.values.get(name)])),
+  };
+}
+
+function resolvePositionalStatementBindings(expectedCount, parameters) {
+  if (parameters.kind !== "array") {
+    throw new Error("SQLite positional parameters require an array.");
+  }
+
+  if (parameters.values.length < expectedCount) {
+    throw new Error(`Missing database query parameter: ?${parameters.values.length + 1}.`);
+  }
+
+  if (parameters.values.length > expectedCount) {
+    throw new Error(`Unknown database query parameter: ?${expectedCount + 1}.`);
+  }
+
+  return {
+    hasBindings: true,
+    values: parameters.values,
+  };
+}
+
+function assertNoProvidedParameters(parameters) {
+  if (parameters.kind === "object" && parameters.values.size > 0) {
+    throw new Error(`Unknown database query parameter: ${parameters.values.keys().next().value}.`);
+  }
+
+  if (parameters.kind === "array" && parameters.values.length > 0) {
+    throw new Error("Unknown database query parameter: ?1.");
   }
 }
 
-async function configureSqliteJournalMode() {
-  await runSqliteStartupScript(`
-PRAGMA foreign_keys = ${config.sqlite.foreignKeys ? "ON" : "OFF"};
-PRAGMA journal_mode = ${config.sqlite.journalMode};
-`);
+function normalizeSqliteParameterName(name) {
+  const text = String(name || "").trim();
+  const bareName = text.match(/^[:@$]?([A-Za-z_][A-Za-z0-9_]*)$/)?.[1];
+
+  if (!bareName) {
+    throw new Error(`Invalid database query parameter name: ${text || "(empty)"}.`);
+  }
+
+  return bareName;
+}
+
+function normalizeSqliteParameterValue(value) {
+  if (value === undefined || value === null) {
+    return null;
+  }
+
+  if (typeof value === "boolean") {
+    return value ? 1 : 0;
+  }
+
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error("Database query number parameters must be finite.");
+    }
+
+    return value;
+  }
+
+  if (typeof value === "bigint") {
+    return value;
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  throw new Error("Database query parameters must be strings, numbers, booleans, dates, null, or undefined.");
+}
+
+function collectSqlParameters(sql) {
+  const named = new Set();
+  let anonymousIndex = 0;
+  let positionalCount = 0;
+  let index = 0;
+  let state = "sql";
+
+  while (index < sql.length) {
+    const char = sql[index];
+    const next = sql[index + 1] || "";
+
+    if (state === "line-comment") {
+      if (char === "\n") {
+        state = "sql";
+      }
+      index += 1;
+      continue;
+    }
+
+    if (state === "block-comment") {
+      if (char === "*" && next === "/") {
+        state = "sql";
+        index += 2;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === "single-quote") {
+      if (char === "'" && next === "'") {
+        index += 2;
+      } else if (char === "'") {
+        state = "sql";
+        index += 1;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === "double-quote") {
+      if (char === "\"" && next === "\"") {
+        index += 2;
+      } else if (char === "\"") {
+        state = "sql";
+        index += 1;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === "backtick") {
+      if (char === "`" && next === "`") {
+        index += 2;
+      } else if (char === "`") {
+        state = "sql";
+        index += 1;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === "bracket") {
+      if (char === "]") {
+        state = "sql";
+      }
+      index += 1;
+      continue;
+    }
+
+    if (char === "-" && next === "-") {
+      state = "line-comment";
+      index += 2;
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      state = "block-comment";
+      index += 2;
+      continue;
+    }
+
+    if (char === "'") {
+      state = "single-quote";
+      index += 1;
+      continue;
+    }
+
+    if (char === "\"") {
+      state = "double-quote";
+      index += 1;
+      continue;
+    }
+
+    if (char === "`") {
+      state = "backtick";
+      index += 1;
+      continue;
+    }
+
+    if (char === "[") {
+      state = "bracket";
+      index += 1;
+      continue;
+    }
+
+    if ([":", "@", "$"].includes(char) && /[A-Za-z_]/.test(next)) {
+      const parameter = readNamedParameter(sql, index);
+      named.add(parameter.name);
+      index = parameter.end;
+      continue;
+    }
+
+    if (char === "?") {
+      const parameter = readQuestionParameter(sql, index, ++anonymousIndex);
+      positionalCount = Math.max(positionalCount, parameter.position);
+      index = parameter.end;
+      continue;
+    }
+
+    index += 1;
+  }
+
+  return {
+    named,
+    positionalCount,
+  };
+}
+
+function readNamedParameter(sql, start) {
+  let end = start + 2;
+
+  while (end < sql.length && /[A-Za-z0-9_]/.test(sql[end])) {
+    end += 1;
+  }
+
+  return {
+    end,
+    name: sql.slice(start + 1, end),
+  };
+}
+
+function readQuestionParameter(sql, start, fallbackPosition) {
+  let end = start + 1;
+
+  while (end < sql.length && /\d/.test(sql[end])) {
+    end += 1;
+  }
+
+  return {
+    end,
+    position: end === start + 1 ? fallbackPosition : Number.parseInt(sql.slice(start + 1, end), 10),
+  };
+}
+
+function countSqlStatements(sql) {
+  let count = 0;
+  let hasStatementText = false;
+  let index = 0;
+  let state = "sql";
+
+  while (index < sql.length) {
+    const char = sql[index];
+    const next = sql[index + 1] || "";
+
+    if (state === "line-comment") {
+      if (char === "\n") {
+        state = "sql";
+      }
+      index += 1;
+      continue;
+    }
+
+    if (state === "block-comment") {
+      if (char === "*" && next === "/") {
+        state = "sql";
+        index += 2;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === "single-quote") {
+      if (char === "'" && next === "'") {
+        index += 2;
+      } else if (char === "'") {
+        state = "sql";
+        index += 1;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === "double-quote") {
+      if (char === "\"" && next === "\"") {
+        index += 2;
+      } else if (char === "\"") {
+        state = "sql";
+        index += 1;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === "backtick") {
+      if (char === "`" && next === "`") {
+        index += 2;
+      } else if (char === "`") {
+        state = "sql";
+        index += 1;
+      } else {
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === "bracket") {
+      if (char === "]") {
+        state = "sql";
+      }
+      index += 1;
+      continue;
+    }
+
+    if (char === "-" && next === "-") {
+      state = "line-comment";
+      index += 2;
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      state = "block-comment";
+      index += 2;
+      continue;
+    }
+
+    if (char === "'") {
+      hasStatementText = true;
+      state = "single-quote";
+      index += 1;
+      continue;
+    }
+
+    if (char === "\"") {
+      hasStatementText = true;
+      state = "double-quote";
+      index += 1;
+      continue;
+    }
+
+    if (char === "`") {
+      hasStatementText = true;
+      state = "backtick";
+      index += 1;
+      continue;
+    }
+
+    if (char === "[") {
+      hasStatementText = true;
+      state = "bracket";
+      index += 1;
+      continue;
+    }
+
+    if (char === ";") {
+      if (hasStatementText) {
+        count += 1;
+        hasStatementText = false;
+      }
+      index += 1;
+      continue;
+    }
+
+    if (!/\s/.test(char)) {
+      hasStatementText = true;
+    }
+
+    index += 1;
+  }
+
+  if (hasStatementText) {
+    count += 1;
+  }
+
+  return count;
 }
 
 async function ensureDatabaseFileWritable() {
@@ -292,61 +673,6 @@ function validateSqliteHealth(health) {
   if (!Number.isInteger(health.busyTimeoutMs) || health.busyTimeoutMs !== config.sqlite.busyTimeoutMs) {
     throw new Error(`SQLite busy_timeout is ${health.busyTimeoutMs}; expected ${config.sqlite.busyTimeoutMs}.`);
   }
-}
-
-function runSqliteStartupScript(sql) {
-  return new Promise((resolve, reject) => {
-    const process = spawn(
-      config.sqliteCommand,
-      ["-json", config.databaseFile],
-      { windowsHide: true },
-    );
-    let stdout = "";
-    let stderr = "";
-    let settled = false;
-
-    function settle(error, value = "") {
-      if (settled) {
-        return;
-      }
-
-      settled = true;
-      if (error) {
-        reject(error);
-      } else {
-        resolve(value);
-      }
-    }
-
-    process.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
-    });
-    process.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    process.on("error", (error) => {
-      settle(new Error(`SQLite startup configuration failed: ${error.message || error}`));
-    });
-    process.on("exit", (code, signal) => {
-      const cleanStderr = stderr.trim();
-
-      if (code !== 0 || cleanStderr) {
-        settle(new Error(`SQLite startup configuration failed: ${cleanStderr || `sqlite3 exited unexpectedly (${signal || code || "unknown"})`}`));
-        return;
-      }
-
-      settle(null, stdout.trim());
-    });
-    process.stdin.end(`
-.bail on
-.timeout ${config.sqlite.busyTimeoutMs}
-${sql.trim()}
-`);
-  });
-}
-
-function markerToken(id) {
-  return `__ltf_sqlite_done_${id}__`;
 }
 
 export {
