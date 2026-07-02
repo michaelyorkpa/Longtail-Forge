@@ -34,7 +34,7 @@ try {
 async function assertManifest() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.5.21.0.4");
+  assert.equal(notesModule.version, "0.33.5.21.0.5");
   assert.ok(notesModule.navigation.some((item) => item.href === "notes.html" && item.parent === "projects.html"));
   assert.ok(notesModule.protectedViews.some((view) => view.file === "notes.html" && view.allowDisabledRead === true));
   assert.ok(notesModule.browserAssets.some((asset) => asset.path === "/js/notes.js"));

@@ -154,6 +154,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/database-parameterized-query-pilot-regression.mjs",
   "scripts/database-transaction-helper-regression.mjs",
   "scripts/database-migration-locking-regression.mjs",
+  "scripts/database-result-fidelity-regression.mjs",
   "scripts/scale-seed-framework-regression.mjs",
   "scripts/baseline-adoption-regression.mjs",
   "scripts/performance-regression.mjs",

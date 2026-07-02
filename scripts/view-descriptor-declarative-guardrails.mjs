@@ -6,7 +6,7 @@ import {
   listFrameworkViewSurfaces,
 } from "../src/core/view-surfaces/framework-view-surfaces.js";
 
-const appVersion = "0.33.5.21.0.4";
+const appVersion = "0.33.5.21.0.5";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const changelog = readText("CHANGELOG.md");

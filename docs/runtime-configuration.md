@@ -92,6 +92,8 @@ These names are documented now and intentionally left mostly dormant until their
 
 Reserved settings may appear in `config` for readout consistency, but this slice does not implement PostgreSQL, background workers, scanner adapters, storage-provider switching, hosted proxy behavior, or runtime settings editing.
 
+As of 0.33.5.21.0.5, the reserved worker mode boundary for SQLite small-office installs is inline by default, with support for at most one single local worker process once the future job/outbox runner exists. SQLite mode does not support multiple app servers or a worker fleet sharing one SQLite file; PostgreSQL/SaaS mode owns that later scaling shape.
+
 ## Startup Validation
 
 Startup fails clearly when active settings are invalid:

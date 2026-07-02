@@ -10,9 +10,11 @@ Longtail Forge supports SQLite as the self-hosted small-office database mode. Th
 - Keep uploaded files and local runtime data on local or attached storage.
 - Keep SQLite foreign keys enabled.
 - Use WAL journal mode unless the deployment filesystem requires another supported SQLite journal mode.
-- Keep background work inline or on one local worker when later job/outbox slices add that option.
+- Keep background work inline, or on at most one local worker process when later job/outbox slices add that option.
 
 SQLite small-office mode targets roughly 50 total users, with typical active use around 5-15 concurrent users. If the install needs multiple app servers, separate web and worker fleets, very high write concurrency, or hosted multi-tenant isolation, move that deployment toward the future PostgreSQL provider instead of stretching SQLite.
+
+As of 0.33.5.21.0.5, the SQLite worker-mode boundary for future durable jobs is one app process/server plus, at most, one local worker process attached to the same install. No worker fleet is supported for SQLite mode. A future `separate` worker in SQLite mode must verify schema readiness, avoid independently running migrations, and share the same local database/file-locking assumptions as the app process.
 
 ## Scale Seed Databases
 
@@ -68,7 +70,7 @@ Do not run SQLite small-office mode with:
 - Multiple Longtail Forge app servers sharing the same SQLite file.
 - A SQLite file on object storage, synced folders, or network storage that cannot guarantee SQLite locking semantics.
 - A shared SQLite database accessed by separate web nodes in different machines or containers.
-- A background worker fleet that bypasses the future job/outbox ownership contract.
+- More than one local worker process, or any background worker fleet that bypasses the future job/outbox ownership contract.
 - Direct static file downloads or storage paths exposed outside permission-checked routes.
 
 ## Backups

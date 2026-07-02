@@ -94,9 +94,9 @@ try {
 }
 
 function assertStaticContracts() {
-  assert.equal(packageJson.version, "0.33.5.21.0.4", "package.json should report the current app version");
-  assert.equal(packageLock.version, "0.33.5.21.0.4", "package-lock root should report the current app version");
-  assert.equal(packageLock.packages[""].version, "0.33.5.21.0.4", "package-lock package entry should report the current app version");
+  assert.equal(packageJson.version, "0.33.5.21.0.5", "package.json should report the current app version");
+  assert.equal(packageLock.version, "0.33.5.21.0.5", "package-lock root should report the current app version");
+  assert.equal(packageLock.packages[""].version, "0.33.5.21.0.5", "package-lock package entry should report the current app version");
 
   assert.match(listEnrichment, /function createVisibleRecordBatch/, "Framework should expose a visible-record batch helper");
   assert.match(listEnrichment, /function groupRowsByRecordId/, "Framework should expose shared record-id grouping");

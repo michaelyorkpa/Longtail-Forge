@@ -1,3 +1,11 @@
+## Version 0.33.5.21.0.5 - 2026-07-01
+
+- Updated the SQLite adapter capability label from `sqlite-process` to `better-sqlite3` while preserving the rest of the provider-neutral capability shape.
+- Verified native driver result fidelity for row alias keys, boolean `0`/`1` storage, SQL `NULL`, BLOB/`Buffer` round-trips, safe numeric counters, and TEXT-key large identifiers; documented why `safeIntegers` is not enabled for the current schema.
+- Added result-fidelity regression coverage for direct `better-sqlite3` rows and FTS5 `MATCH` / `bm25()` behavior.
+- Preserved runtime diagnostics health/redaction behavior and reconciled the SQLite worker-mode boundary as inline or at most one local worker process, with no multiple app servers or worker fleet.
+- Verification 2026-07-01 20:14 -04:00: database result fidelity, adapter contract, runtime diagnostics, search contract, parameterized-query pilot, better-sqlite3 helper core, runtime/database closeout, and check-js targeted checks passed; `npm run check` passed 222/222 regression scripts plus ESLint; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.0.5 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.0.4 - 2026-07-01
 
 - Retired the SQLite adapter's global operation queue now that `better-sqlite3` provides an in-process synchronous call path, while preserving the async app-facing adapter API.

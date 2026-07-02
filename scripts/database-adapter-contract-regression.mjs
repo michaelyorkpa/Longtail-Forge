@@ -7,7 +7,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.0.4";
+const appVersion = "0.33.5.21.0.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-adapter-contract-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-adapter-contract.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Adapter-Test-123!";
@@ -50,6 +50,7 @@ try {
   assert.match(sqliteAdapterSource, /close: closeSqlite/, "SQLite adapter should expose db.close()");
   assert.match(sqliteAdapterSource, /health: readSqliteHealth/, "SQLite adapter should expose db.health()");
   assert.match(sqliteAdapterSource, /capabilities: SQLITE_CAPABILITIES/, "SQLite adapter should expose db.capabilities");
+  assert.match(sqliteAdapterSource, /adapter:\s*"better-sqlite3"/, "SQLite capabilities should report the native driver adapter label");
   assert.doesNotMatch(sqliteAdapterSource, /parameter binding is reserved/, "adapter should not reject bound parameters after the parameterized query pilot");
   assert.match(sqliteAdapterSource, /transactionApi: "callback"/, "adapter capabilities should document callback transactions");
   assert.match(sqliteAdapterSource, /transaction\(callback\)/, "SQLite adapter should expose db.transaction(callback)");
@@ -67,6 +68,7 @@ try {
   assert.equal(typeof db.health, "function");
   assert.equal(typeof db.transaction, "function", "db.transaction should be available after the transaction helper slice");
   assert.equal(db.capabilities.provider, "sqlite");
+  assert.equal(db.capabilities.adapter, "better-sqlite3", "SQLite adapter should report the better-sqlite3 capability label");
   assert.equal(db.capabilities.stringSql, true);
   assert.equal(db.capabilities.parameterizedQueries, true);
   assert.equal(db.capabilities.parameterStyle, "named");

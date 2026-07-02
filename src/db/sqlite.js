@@ -322,6 +322,10 @@ function normalizeSqliteParameterValue(value) {
     return null;
   }
 
+  if (Buffer.isBuffer(value)) {
+    return value;
+  }
+
   if (typeof value === "boolean") {
     return value ? 1 : 0;
   }
@@ -346,7 +350,7 @@ function normalizeSqliteParameterValue(value) {
     return value;
   }
 
-  throw new Error("Database query parameters must be strings, numbers, booleans, dates, null, or undefined.");
+  throw new Error("Database query parameters must be strings, numbers, booleans, buffers, dates, null, or undefined.");
 }
 
 function collectSqlParameters(sql) {

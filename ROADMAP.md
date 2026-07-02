@@ -31,8 +31,8 @@ Decision:
 
 Jobs are Node-side work stored in database tables. SQL stores job state; Node workers perform the work.
 
-SQLite mode may run jobs inline or through a single local worker.
-PostgreSQL/SaaS mode should run one or more separate worker processes.
+SQLite mode may run jobs inline or through at most one local worker process attached to the same local install.
+PostgreSQL/SaaS mode should run one or more separate worker processes and may scale into a worker fleet.
 
 Entry contract from 0.33.5.19: use the provider-neutral transaction helper for atomic job/outbox writes and consume the reserved worker runtime config names without requiring a separate worker in SQLite mode.
 
@@ -101,11 +101,11 @@ Acceptance criteria:
 
 #### Version 0.33.5.21.0.5 - Result fidelity, diagnostics, and SQLite-mode worker decision
 
-- [ ] Verify returned row shapes and column/alias keys match current expectations with native driver result rows.
-- [ ] Confirm value types remain safe for current callers, especially booleans stored as `0/1`, `null`, `Buffer`, and large integers; decide and document whether `safeIntegers` is unnecessary for the current TEXT-key schema.
-- [ ] Update the SQLite capability label from `adapter: "sqlite-process"` to `adapter: "better-sqlite3"` while preserving the rest of the capability shape.
-- [ ] Preserve `/api/runtime-diagnostics` database health fields and redaction behavior.
-- [ ] Resolve the SQLite worker-mode boundary before 0.33.5.21.2: document whether SQLite small-office mode supports inline only or one app process plus one local worker process, and keep the "no multiple app servers / no worker fleet" rule explicit.
+- [x] Verify returned row shapes and column/alias keys match current expectations with native driver result rows.
+- [x] Confirm value types remain safe for current callers, especially booleans stored as `0/1`, `null`, `Buffer`, and large integers; decide and document whether `safeIntegers` is unnecessary for the current TEXT-key schema.
+- [x] Update the SQLite capability label from `adapter: "sqlite-process"` to `adapter: "better-sqlite3"` while preserving the rest of the capability shape.
+- [x] Preserve `/api/runtime-diagnostics` database health fields and redaction behavior.
+- [x] Resolve the SQLite worker-mode boundary before 0.33.5.21.2: document whether SQLite small-office mode supports inline only or one app process plus one local worker process, and keep the "no multiple app servers / no worker fleet" rule explicit.
 
 Acceptance criteria:
 
@@ -194,7 +194,7 @@ Acceptance criteria:
 - [ ] Define exactly what triggers `inline` mode execution (in-process poll timer vs post-response drain) and document that in-process polling shares the SQLite serial queue with request handling.
 - [ ] Define how time-scheduled jobs (`available_at` in the future) are woken in inline mode, since SQLite mode has no always-on external scheduler.
 - [ ] Define migration/startup ownership for worker processes: a `separate` worker must verify schema readiness and must not independently run migrations or contend for the migration lock.
-- [ ] Reconcile `separate` worker mode with the "one app process/server" SQLite assumption in `DECISIONS.md` and `docs/sqlite-small-office-mode.md`.
+- [ ] Implement the 0.33.5.21.0.5 SQLite boundary for `separate` worker mode: at most one local worker process attached to the same SQLite install, no extra app server, no worker fleet, and no independent migration ownership.
 
 Acceptance criteria:
 

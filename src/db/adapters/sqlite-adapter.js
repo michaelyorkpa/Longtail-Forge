@@ -11,7 +11,7 @@ import {
 
 const SQLITE_CAPABILITIES = Object.freeze({
   provider: "sqlite",
-  adapter: "sqlite-process",
+  adapter: "better-sqlite3",
   stringSql: true,
   parameterizedQueries: true,
   parameterStyle: "named",
