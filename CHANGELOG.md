@@ -2,7 +2,7 @@
 
 - Converted Task editor checklist add/save/move/remove controls to shared icon-only action buttons with accessible labels, hover titles, preserved checklist hooks, disabled up/down edges, and danger styling for Remove.
 - Added `scripts/task-checklist-editor-display-regression.mjs` to guard the list-row-to-detail-read checklist rendering path and refreshed Tasks docs, cache keys, roadmap status, package/module versions, and regression version metadata.
-- Verification pending.
+- Verification 2026-07-02 13:16 -04:00: checklist editor display, checklist escape-hatch, checklist lifecycle, task modal shell/layout, async recurrence closeout, Files/Workbench cache-key, and Tasks strict-guardrail targeted checks passed; `npm run check` passed 237/237 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after the normal LF/CRLF warning; and `/api/app-info` returned 0.33.5.21.7.8 after restarting the local 8001 server.
 
 ## Version 0.33.5.21.7.7 - 2026-07-02
 
