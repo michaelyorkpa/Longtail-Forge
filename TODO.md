@@ -13,19 +13,12 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 
 # Short Term
 
-## Markdown rendering
+## Markdown rendering / Tasks / Notes - Files / Theme — promoted to ROADMAP
 
-- I want external links (non-wiki) to open a new tab
-  - This setting should be configurable in User Settings -> Markdown Rendering
-
-## Tasks
-
-- Need a "Complete" button (checkmark) that saves from the edit modal
-
-## Notes - Files
-
-- There's no preview button on the main view of the notes for files
-- All of the buttons in files are words not icons
+Promoted into `ROADMAP.md` as **0.33.5.21.9.1 – 0.33.5.21.9.4**: configurable new-tab external
+markdown links, a Complete (checkmark) button in the task edit modal, a preview button plus icon
+buttons for the Notes files panel, and a three-position (light / auto / dark) theme switch with an
+OS/sunrise-sunset auto source. (The `## Theme` section further down has been folded into 0.33.5.21.9.4.)
 
 ## Notes - Suggested Library
 
@@ -41,7 +34,7 @@ The versioned implementation plan lives in `ROADMAP.md`. Once an item is assigne
 ## Dashboard/Workbench
 
 - Need to further flesh out the "Inspector" concept
-- Need to solidify the QAC Slide out concept
+- Need to solidify the Quick Action Center Slide out concept
 
 ## Misc
 
@@ -120,20 +113,15 @@ Deferred (kept here, not yet sliced):
     - On desktop, make the collections box and notes list right aligned and put the content viewpane on the left
     - On mobile, hide the content viewpane unless content is loaded
 
-## Views/Lists/Queries/etc.
-
-- Audit the code sometime before the start of the Knowledge Base to ensure all front end/UI/views and lists/queries are owned by the proper modules and not hard-coded anywhere; I want total seperation of duties
-
 ## Administration/Settings
 
 - Many modules aren't exposing admin/settings properly
   - Perform an audit and figure out what settings are missing and how to get them where they need to be
 
-## Theme
+## Theme — promoted to ROADMAP
 
-- Make dark mode prettier (manual color adjustments)
-
-- Create dark mode automation based on timezone and sunrise/sunset
+Promoted into `ROADMAP.md` as **0.33.5.21.9.4** (three-position light / auto / dark switch with an
+OS-match / sunrise-sunset auto source).
 
 ## Client/Projects Fixes/Tweaks
 

@@ -3010,6 +3010,65 @@ a.search-result-title:hover {
     color: var(--color-text);
 }
 
+.job-observability-readout {
+    align-self: start;
+}
+
+.job-observability-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.job-observability-failures {
+    display: grid;
+    gap: 10px;
+}
+
+.job-observability-list {
+    display: grid;
+    gap: 8px;
+}
+
+.job-observability-row,
+.job-observability-note {
+    margin: 0;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-page-bg);
+}
+
+.job-observability-row {
+    display: grid;
+    gap: 8px;
+}
+
+.job-observability-row-header,
+.job-observability-row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.job-observability-row-header span,
+.job-observability-row-meta {
+    color: var(--color-muted);
+    font-size: 13px;
+}
+
+.job-observability-message {
+    margin: 0;
+    color: var(--color-text-secondary);
+    font-size: 14px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.job-observability-more {
+    justify-self: start;
+}
+
 .workspace-create-module-settings {
     display: grid;
     gap: 12px;

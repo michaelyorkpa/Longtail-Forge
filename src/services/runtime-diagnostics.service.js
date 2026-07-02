@@ -56,6 +56,8 @@ async function read(session) {
         lastClaimedCount: workerStatus.lastClaimedCount,
         lastErrorAt: workerStatus.lastErrorAt,
         lastPollAt: workerStatus.lastPollAt,
+        lastRunAt: workerStatus.lastRunAt,
+        lastSuccessAt: workerStatus.lastSuccessAt,
         lockTtlSeconds: workerStatus.lockTtlSeconds,
         pollIntervalMs: workerStatus.pollIntervalMs,
         registeredJobTypes: workerStatus.registeredJobTypes,

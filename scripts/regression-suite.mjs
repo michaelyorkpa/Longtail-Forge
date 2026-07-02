@@ -169,6 +169,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/task-reminder-scheduling-horizon-regression.mjs",
   "scripts/job-idempotency-at-least-once-regression.mjs",
   "scripts/job-retention-pruning-regression.mjs",
+  "scripts/admin-job-observability-regression.mjs",
   "scripts/notification-regression.mjs",
   "scripts/search-api-regression.mjs",
   "scripts/search-shell-regression.mjs",

@@ -62,7 +62,7 @@ async function assertNotesManifestContributions() {
   assert.equal(searchableType.indexer, "notes.records");
   assert.equal(searchableType.sourceLabel, "Notes");
   assert.equal(hasSearchIndexer("notes.records"), true);
-  assert.equal(notesModule.version, "0.33.5.21.7.4");
+  assert.equal(notesModule.version, "0.33.5.21.7.5");
   assert.ok(notesModule.help.articles.length >= 11, "Notes should contribute current-state Help articles");
   assert.ok(notesModule.notificationEvents.some((event) => event.id === "note.updated"));
 }

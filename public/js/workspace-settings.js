@@ -30,14 +30,21 @@ const workspaceSettingsStatus = document.querySelector("[data-workspace-settings
 const saveSettingsButton = document.querySelector("[data-save-settings]");
 const runtimeDiagnosticsSummary = document.querySelector("[data-runtime-diagnostics-summary]");
 const runtimeDiagnosticsWarnings = document.querySelector("[data-runtime-diagnostics-warnings]");
+const jobObservabilitySummary = document.querySelector("[data-job-observability-summary]");
+const jobObservabilityFailures = document.querySelector("[data-job-observability-failures]");
+const jobObservabilityMoreButton = document.querySelector("[data-job-observability-more]");
+const JOB_FAILURE_PAGE_SIZE = 5;
 let activeWorkspaceId = "";
 let currentTaskReminderDefaults = normalizeReminderPolicy();
+let jobObservabilityFailureItems = [];
+let jobObservabilityNextCursor = "";
 
 populateFiscalYearStartMonths();
 populateFiscalYearStartDays();
 populateBillingPeriodStartDays();
 loadSettingsForm();
 loadRuntimeDiagnostics();
+loadJobObservability();
 
 fiscalYearStartMonthSelect.addEventListener("change", () => {
   populateFiscalYearStartDays(fiscalYearStartDaySelect.value);
@@ -47,6 +54,11 @@ billingRoundingEnabledInput.addEventListener("change", updateBillingRoundingStat
 workspaceTypeSelect?.addEventListener("change", updateWorkspaceTypeDependentControls);
 openWorkspaceUsersButton?.addEventListener("click", openWorkspaceUsersDialog);
 closeWorkspaceUsersButton?.addEventListener("click", () => workspaceUsersDialog?.close());
+jobObservabilityMoreButton?.addEventListener("click", () => {
+  if (jobObservabilityNextCursor) {
+    loadJobObservability({ append: true, cursor: jobObservabilityNextCursor });
+  }
+});
 
 settingsForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -229,8 +241,145 @@ function renderRuntimeDiagnostics(diagnostics) {
     createRuntimeDiagnosticItem("Scanner Mode", formatRuntimeValue(scanner.mode)),
     createRuntimeDiagnosticItem("Worker Mode", formatRuntimeValue(worker.mode)),
     createRuntimeDiagnosticItem("Worker State", formatRuntimeValue(workerStatus.state)),
+    createRuntimeDiagnosticItem("Worker Timer", workerStatus.timerActive ? "Active" : "Inactive"),
+    createRuntimeDiagnosticItem("Worker Last Poll", formatRuntimeDate(workerStatus.lastPollAt)),
+    createRuntimeDiagnosticItem("Worker Last Run", formatRuntimeDate(workerStatus.lastRunAt)),
+    createRuntimeDiagnosticItem("Worker Last Success", formatRuntimeDate(workerStatus.lastSuccessAt)),
+    createRuntimeDiagnosticItem("Worker Completed", formatRuntimeNumber(workerStatus.completedCount)),
+    createRuntimeDiagnosticItem("Worker Failed", formatRuntimeNumber(workerStatus.failedCount)),
+    createRuntimeDiagnosticItem("Worker Dead-letter", formatRuntimeNumber(workerStatus.deadCount)),
+    createRuntimeDiagnosticItem("Registered Job Types", formatRuntimeList(workerStatus.registeredJobTypes)),
   );
   renderRuntimeDiagnosticWarnings(readRuntimeDiagnosticWarnings(diagnostics));
+}
+
+async function loadJobObservability(options = {}) {
+  if (!jobObservabilitySummary || !jobObservabilityFailures) {
+    return;
+  }
+
+  if (!options.append) {
+    renderJobObservabilityLoading();
+  }
+
+  if (jobObservabilityMoreButton) {
+    jobObservabilityMoreButton.disabled = true;
+  }
+
+  try {
+    const params = new URLSearchParams({
+      limit: String(JOB_FAILURE_PAGE_SIZE),
+    });
+
+    if (options.cursor) {
+      params.set("cursor", options.cursor);
+    }
+
+    const result = await window.LongtailForge.api.getJson(`/api/jobs/status?${params.toString()}`, { cache: "no-store" });
+    renderJobObservability(result.jobs || {}, { append: Boolean(options.append) });
+  } catch (error) {
+    renderJobObservabilityError(error);
+  }
+}
+
+function renderJobObservabilityLoading() {
+  jobObservabilityFailureItems = [];
+  jobObservabilityNextCursor = "";
+  jobObservabilitySummary.replaceChildren(createRuntimeDiagnosticItem("Jobs", "Loading..."));
+  jobObservabilityFailures.replaceChildren();
+  updateJobObservabilityMoreButton(false);
+}
+
+function renderJobObservabilityError(error) {
+  jobObservabilitySummary.replaceChildren(createRuntimeDiagnosticItem("Jobs", "Unavailable"));
+
+  const message = error?.status === 403
+    ? "Job observability requires workspace settings access."
+    : error?.message || "Job observability could not be loaded.";
+  const note = document.createElement("p");
+  note.className = "job-observability-note";
+  note.textContent = message;
+  jobObservabilityFailures.replaceChildren(note);
+  updateJobObservabilityMoreButton(false);
+}
+
+function renderJobObservability(jobs, options = {}) {
+  const counts = jobs.counts || {};
+  const recentFailures = jobs.recentFailures || {};
+  const pagination = recentFailures.pagination || {};
+  const incomingItems = Array.isArray(recentFailures.items) ? recentFailures.items : [];
+
+  jobObservabilityFailureItems = options.append
+    ? [...jobObservabilityFailureItems, ...incomingItems]
+    : incomingItems;
+  jobObservabilityNextCursor = String(pagination.nextCursor || "").trim();
+
+  jobObservabilitySummary.replaceChildren(
+    createRuntimeDiagnosticItem("Pending", formatRuntimeNumber(counts.pending)),
+    createRuntimeDiagnosticItem("Running", formatRuntimeNumber(counts.running)),
+    createRuntimeDiagnosticItem("Failed", formatRuntimeNumber(counts.failed)),
+    createRuntimeDiagnosticItem("Dead-letter", formatRuntimeNumber(counts.dead)),
+    createRuntimeDiagnosticItem("Failures Shown", `${jobObservabilityFailureItems.length} of ${formatRuntimeNumber(pagination.total)}`),
+  );
+
+  renderJobFailureItems(jobObservabilityFailureItems);
+  updateJobObservabilityMoreButton(Boolean(pagination.hasMore && jobObservabilityNextCursor));
+}
+
+function renderJobFailureItems(items) {
+  jobObservabilityFailures.replaceChildren();
+
+  if (items.length === 0) {
+    const note = document.createElement("p");
+    note.className = "job-observability-note";
+    note.textContent = "No recent failed or dead-letter jobs.";
+    jobObservabilityFailures.appendChild(note);
+    return;
+  }
+
+  const list = document.createElement("div");
+  list.className = "job-observability-list";
+
+  for (const item of items) {
+    list.appendChild(createJobFailureRow(item));
+  }
+
+  jobObservabilityFailures.appendChild(list);
+}
+
+function createJobFailureRow(item) {
+  const row = document.createElement("article");
+  const header = document.createElement("div");
+  const title = document.createElement("strong");
+  const status = document.createElement("span");
+  const meta = document.createElement("div");
+  const attempts = document.createElement("span");
+  const updated = document.createElement("span");
+  const message = document.createElement("p");
+
+  row.className = "job-observability-row";
+  header.className = "job-observability-row-header";
+  title.textContent = formatRuntimeValue(item.jobType);
+  status.textContent = formatJobStatus(item.status);
+  meta.className = "job-observability-row-meta";
+  attempts.textContent = `Attempts ${formatRuntimeNumber(item.attemptCount)}/${formatRuntimeNumber(item.maxAttempts)}`;
+  updated.textContent = `Updated ${formatRuntimeDate(item.updatedAt)}`;
+  message.className = "job-observability-message";
+  message.textContent = String(item.lastError || "").trim() || "No failure summary.";
+
+  header.append(title, status);
+  meta.append(attempts, updated);
+  row.append(header, meta, message);
+  return row;
+}
+
+function updateJobObservabilityMoreButton(show) {
+  if (!jobObservabilityMoreButton) {
+    return;
+  }
+
+  jobObservabilityMoreButton.hidden = !show;
+  jobObservabilityMoreButton.disabled = !show;
 }
 
 function createRuntimeDiagnosticItem(label, value) {
@@ -307,6 +456,48 @@ function formatRuntimeLocation(location) {
   return String(location?.display || "").trim() || "Unavailable";
 }
 
+function formatRuntimeNumber(value) {
+  const number = Number(value);
+
+  return Number.isFinite(number) ? String(number) : "0";
+}
+
+function formatRuntimeDate(value) {
+  const text = String(value || "").trim();
+
+  if (!text) {
+    return "Never";
+  }
+
+  const date = new Date(text);
+
+  if (Number.isNaN(date.getTime())) {
+    return "Unavailable";
+  }
+
+  return date.toLocaleString([], {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatRuntimeList(values) {
+  const items = Array.isArray(values)
+    ? values.map((value) => String(value || "").trim()).filter(Boolean)
+    : [];
+
+  return items.length > 0 ? items.join(", ") : "None";
+}
+
+function formatJobStatus(value) {
+  const normalized = String(value || "").trim();
+
+  return normalized === "dead" ? "Dead-letter" : formatRuntimeValue(normalized);
+}
+
 function formatRuntimeValue(value) {
   const normalized = String(value || "").trim();
 
@@ -323,7 +514,7 @@ function formatRuntimeValue(value) {
   }
 
   return normalized
-    .split(/[-_\s]+/)
+    .split(/[._\s-]+/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");

@@ -349,10 +349,10 @@ Purpose:
 
 Move durable-job health from route-only diagnostics into the admin experience.
 
-- [ ] Ensure pending/running/failed/dead-letter counts and recent failures are visible in an admin surface, not only the `/api/jobs/status` route, reusing the bounded-pagination envelope from 0.33.5.20.5.
-- [ ] Include worker health/status in Runtime Diagnostics without exposing job payload JSON, dedupe keys, scanner internals, storage paths, or raw environment values.
-- [ ] Preserve `workspace_settings.manage` authorization and the existing safe diagnostics redaction contract.
-- [ ] Add focused browser/service regressions for the admin readout, authorization, pagination envelope, and sensitive-field redaction.
+- [x] Ensure pending/running/failed/dead-letter counts and recent failures are visible in an admin surface, not only the `/api/jobs/status` route, reusing the bounded-pagination envelope from 0.33.5.20.5.
+- [x] Include worker health/status in Runtime Diagnostics without exposing job payload JSON, dedupe keys, scanner internals, storage paths, or raw environment values.
+- [x] Preserve `workspace_settings.manage` authorization and the existing safe diagnostics redaction contract.
+- [x] Add focused browser/service regressions for the admin readout, authorization, pagination envelope, and sensitive-field redaction.
 
 Acceptance criteria:
 
@@ -424,6 +424,88 @@ Acceptance criteria:
 - Setting a reminder schedule on a task reliably produces an in-app notification at each scheduled reminder time for the assignee(s) and, when unassigned, the task owner/creator.
 - Reminder notifications appear in the existing notification surface and unread count, respect notification preferences and module-enabled checks, and link to the task.
 - Regression coverage proves reminder-to-notification delivery for assigned, unassigned/self-owned, and followed tasks.
+
+### Version 0.33.5.21.9 - User-facing UI fixes (markdown links, task complete, notes files, theme switch)
+
+Purpose:
+
+A batch of user-facing fixes promoted from `TODO.md`'s Short Term section. These are independent of the durable-jobs work in this branch and share no runtime surface with jobs; they are grouped here only as a convenience grab-bag. Each sub-slice can land and be closed independently. Where a change adds a user preference, follow the existing per-user settings pattern (schema column + migration, repo `USER_SELECT_COLUMNS` + writer, normalizer + `userRowToAppValue` mapping, `users.service.js` `readSettings`/`saveSettings`, `views/protected/user-settings.html` fieldset, `public/js/user-settings.js` load/save handlers).
+
+#### Version 0.33.5.21.9.1 - External markdown links open in a new tab (configurable)
+
+Context: markdown is rendered server-side with markdown-it and the resulting HTML is cached on the record (`note.body_html`) and shared across all users, so a per-user preference must NOT be baked into the server-rendered HTML — that would fragment the cache and leak one user's preference into another user's view. Wiki links already render as `span.note-wiki-link[data-note-title]` (not anchors) in `src/modules/notes/markdown.js:79`; only real external anchors (`a[href^="http"]`) are in scope. External anchors are emitted by the `link_open` rule in `src/core/markdown/markdown.service.js:85-99` and currently carry no `target`, so they open in the same tab.
+
+- [ ] Add a user-level boolean preference "Open external links in a new tab" (default off) using the standard settings pattern above:
+  - [ ] Schema column on `users` + migration (model on `theme_mode` at `src/db/schema/current.sql:28`).
+  - [ ] `USER_SELECT_COLUMNS` + a `updateOpenLinksNewTab()` writer in `src/repositories/users.repo.js` (model on `updateThemeMode` at 189-195).
+  - [ ] Boolean normalizer in `src/utils/normalizers.js` (model on `normalizeThemeMode` 96-98) and mapping in `userRowToAppValue` (100-111).
+  - [ ] Return it from `readSettings` and handle it in `saveSettings` in `src/services/users.service.js` (model on the `themeMode` block ~588-596).
+- [ ] Add a new "Markdown Rendering" fieldset to `views/protected/user-settings.html` (model on the Appearance fieldset 15-26) with a toggle, wired in `public/js/user-settings.js` (load + `save…()` PUT handler).
+- [ ] Apply the preference client-side so the shared cached HTML is not user-specific: after the browser injects rendered markdown (`public/js/notes.js:1464` `body.innerHTML = note.body_html`, and the live preview at `:2531`), post-process `a[href]` anchors whose href is an absolute `http(s)` URL, adding `target="_blank"` and `rel="noopener noreferrer"` only when the preference is on. Do not touch `.note-wiki-link` spans or relative/`mailto:` links.
+- [ ] Verification:
+  - [ ] With the preference on, external links in a rendered note open in a new tab and carry `rel="noopener noreferrer"`; with it off they open in the same tab.
+  - [ ] Wiki links and internal navigation are unaffected in both states.
+  - [ ] The cached `body_html` is byte-identical regardless of which user viewed it (no per-user server-render fragmentation).
+
+Acceptance criteria:
+
+- Users can opt into external markdown links opening in a new tab from User Settings → Markdown Rendering, applied without changing the shared server-rendered/cached HTML.
+
+#### Version 0.33.5.21.9.2 - "Complete" button in the task edit modal
+
+Context: the task edit modal (`public/js/task-dialog.js`) has only Cancel + Save in its footer (`footerActions` at 1959-1962). Completing a task from the modal today requires changing the Status select to "Complete" and saving, which goes through `PUT /api/tasks/:id` (`tasksService.update`) and — unlike the dedicated `POST /api/tasks/:id/complete` route (`tasks.service.js:521-560`) — skips the active-timer guard and does not queue recurrence generation. The list view already exposes a proper checkmark Complete action (`public/js/tasks.js:1243-1251` → `postTaskAction(record, "complete")`).
+
+- [ ] Add a "Complete" (checkmark) button to the task editor modal footer:
+  - [ ] Add a `{ id: "complete", label: "Complete", icon: "complete", role: "primary" }` entry to `taskEditorModalDescriptor().footerActions` (`task-dialog.js:1959-1962`) and render/wire it in `taskEditorCommitActions()` (1992-2010), using the shared `complete` icon.
+  - [ ] Bind a click handler (near the submit binding at `task-dialog.js:357`) that first persists edits via the existing `saveTask` flow, then calls the dedicated `POST /api/tasks/:id/complete` route — the same endpoint the list view uses — so the active-timer guard, `task_completed` audit/event, and recurrence generation all run.
+- [ ] Gate the button: require the `tasks.complete` permission and a current status of `open`/`in_progress`/`blocked` (mirror the list action's `requiredPermissions`/`visibleStatuses`), and only show it for an already-saved task (needs a `task_id`); hide it when creating a new task.
+- [ ] Handle the recurrence result: `complete` may return a `createdTask` (next recurring instance); surface/refresh it the same way the list-view complete flow does.
+- [ ] Verification:
+  - [ ] Clicking Complete in the modal saves pending edits and completes the task via the dedicated route (recurrence fires; active-timer block is respected).
+  - [ ] The button is hidden without `tasks.complete`, for terminal statuses, and for the new-task form.
+
+Acceptance criteria:
+
+- A task can be saved-and-completed in one action from the edit modal, with the same side effects as the list-view Complete action.
+
+#### Version 0.33.5.21.9.3 - Notes file panel: preview button and icon buttons
+
+Context: the Notes "Files" surfaces mount the shared attachment component (`public/js/shared/file-attachments.js`), whose row actions (Download/Remove/Report/Review/Delete/Restore, `:394-499`) are rendered as plain text labels with no `icon`, and which has no preview action at all. The standalone Files module already solves both: it renders these same actions as icon buttons (`public/js/files.js:799-981`, e.g. `icon:"eye"` preview, `icon:"download"`) and owns a reusable preview modal (`openFilePreview`/`buildFilePreviewDialog`/`loadFilePreview` at `files.js:988-1211`, eligibility at `1886-1961`). The icon infrastructure (`public/js/shared/icons.js`, and `view.createActionButton`'s `icon`/`iconOnly` bridge at `view-builder.js:1397-1415`) is already app-wide; the needed glyphs (`eye`, `download`, `delete`, `restore`, `alert`, `shield-alert`) already exist in the registry.
+
+- [ ] Extract the file preview flow out of `public/js/files.js` into a shared module (or expose it on `window.LongtailForge`) so both the Files module and the Notes attachment panel call one implementation. Move `openFilePreview`, `buildFilePreviewDialog`, `loadFilePreview`, the image/text/markdown/unavailable renderers, and `previewAvailabilityForRow`/`previewKindForExtension`/`previewUnavailableLabel`. Keep `files.js` behavior identical after extraction.
+- [ ] Add a preview action to the shared attachment rows in `public/js/shared/file-attachments.js` (`createAttachmentActions` 394-453), gated on the shared preview-eligibility check, calling the extracted preview modal — so the note detail files panel (`notes.js` `renderFilesPanel`/`mountFilesPanel` 2814-2849) and the note editor Files dialog both get preview.
+- [ ] Convert the shared attachment component's text-label buttons to icon buttons matching the Files module: pass `icon` (and `iconOnly` where the Files module does) to the existing `createActionButton`/`createAttachmentActionButton` calls — Download→`download`, Remove/Delete→`delete`, Report→`alert`, Review→`shield-alert`, Restore→`restore`, Preview→`eye`. Keep accessible labels (title/aria-label) even when icon-only.
+- [ ] Verification:
+  - [ ] A file attached to a note shows a working Preview button in the note detail files panel and the editor Files dialog, using the same preview modal as the Files module.
+  - [ ] Attachment row actions render as icons consistent with the Files module, with accessible labels preserved.
+  - [ ] The Files module page still previews and acts on files unchanged after the preview extraction.
+
+Acceptance criteria:
+
+- The Notes files view has a preview button and icon-based action buttons, sharing one preview implementation and the app-wide icon system with the Files module.
+
+#### Version 0.33.5.21.9.4 - Three-position theme switch (light / auto / dark)
+
+Context: theme is a binary light/dark preference everywhere — stored as `users.theme_mode` (`src/db/schema/current.sql:28`, values only `"light"`/`"dark"`), normalized by `normalizeThemeMode` (`src/utils/normalizers.js:96-98`, the single source of truth the backend imports), applied to `html[data-theme]` in three browser spots (`public/js/theme-init.js:12-25`, `public/js/navigation.js:846-853`, `public/js/user-settings.js:154-163`), and toggled by a two-position slider checkbox (`views/protected/user-settings.html:19-24`, CSS `public/css/longtail-forge.css:3077-3123`). There is no "auto" mode and no `prefers-color-scheme` detection anywhere. User timezone is already stored (`users.timezone`, `src/db/schema/current.sql:26`; client accessor `public/js/shared/timezones.js`).
+
+- [ ] Add `"auto"` as a valid stored `theme_mode` value: extend `normalizeThemeMode` (`normalizers.js:96-98`) to allow `light`/`auto`/`dark` (keep default light). No schema type change needed (already `TEXT`); confirm the default stays `light`.
+- [ ] Replace the two-position checkbox with a three-position control (light / auto / dark, "Auto" in the middle) in `views/protected/user-settings.html:19-24` — e.g. a radio/segmented control — and update the CSS (`longtail-forge.css:3077-3123`) from a binary slider knob to a 3-position/segmented style.
+- [ ] Update the browser theme logic to resolve `auto` to an effective `light`/`dark` for the `data-theme` attribute:
+  - [ ] `resolveThemeMode` in `public/js/theme-init.js` (currently a pass-through, 23-25) and `applyThemeMode` in `public/js/navigation.js:846-853` and `public/js/user-settings.js:154-163`.
+  - [ ] `getSelectedThemeMode`/change listener in `public/js/user-settings.js` (39-43, 480-482) to read the 3-way control.
+- [ ] Add a secondary two-position "auto source" control, only active/visible when the mode is `auto`, choosing how auto resolves:
+  - [ ] "Match operating system" — resolve via `window.matchMedia("(prefers-color-scheme: dark)")`, re-resolving on the media-query `change` event (net-new; no `prefers-color-scheme` usage exists today). This is the recommended default auto source.
+  - [ ] "Follow sunrise/sunset" — light after sunrise, dark after sunset, using the stored user timezone. NOTE the data gap: accurate sunrise/sunset needs a location (lat/long), and only an IANA timezone is stored today; scope this option as either (a) a timezone→approximate-location lookup, or (b) defer the sunrise/sunset source to a follow-up and ship only OS-match under `auto` first. Record the decision in `DECISIONS.md`.
+  - [ ] Persist the auto-source choice as a second user preference using the standard settings pattern (schema column + migration, repo, normalizer/mapping, service read/save, settings UI). It only takes effect while mode is `auto`.
+- [ ] Keep the pre-render flash guard working: `theme-init.js` must resolve `auto` before first paint (read the auto-source preference from the existing cookie/localStorage path, not an async fetch).
+- [ ] Verification:
+  - [ ] The switch offers light / auto / dark; auto with "match OS" flips the applied theme when the OS scheme changes, with no flash on load.
+  - [ ] Existing stored `light`/`dark` preferences continue to resolve unchanged.
+  - [ ] If sunrise/sunset ships, light/dark aligns to the user's timezone-based day boundaries; if deferred, `auto` cleanly falls back to OS match.
+
+Acceptance criteria:
+
+- Theme can be set to light, dark, or auto (three-position switch), and in auto mode resolves via OS color scheme (and, if in scope, sunrise/sunset by the user's timezone) without a load flash and without breaking existing light/dark preferences.
 
 ## Version 0.33.5.22 - Storage Provider and Scanner Runtime
 

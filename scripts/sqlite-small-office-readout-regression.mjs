@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.7.4";
+const appVersion = "0.33.5.21.7.5";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -37,11 +37,13 @@ assert.match(databaseDocs, /sqlite-small-office-mode\.md/, "database docs should
 assert.match(workspaceSettingsView, /data-runtime-diagnostics-fieldset/, "Workspace Settings should include a runtime diagnostics fieldset");
 assert.match(workspaceSettingsView, /data-runtime-diagnostics-summary/, "Workspace Settings should include the diagnostics summary target");
 assert.match(workspaceSettingsView, /data-runtime-diagnostics-warnings/, "Workspace Settings should include diagnostics warning copy target");
-assert.match(workspaceSettingsView, /js\/workspace-settings\.js\?v=4/, "Workspace Settings should load the diagnostics readout script cache key");
+assert.match(workspaceSettingsView, /data-job-observability-fieldset/, "Workspace Settings should include a Jobs readout fieldset");
+assert.match(workspaceSettingsView, /js\/workspace-settings\.js\?v=5/, "Workspace Settings should load the diagnostics readout script cache key");
 assert.equal(existsSync(path.join(root, "views/protected/runtime-diagnostics.html")), false, "runtime diagnostics should not add a new dashboard page");
 
 assert.match(workspaceSettingsScript, /loadRuntimeDiagnostics\(\)/, "Workspace Settings should load runtime diagnostics separately from editable settings");
 assert.match(workspaceSettingsScript, /getJson\("\/api\/runtime-diagnostics", \{ cache: "no-store" \}\)/, "Workspace Settings should consume the protected diagnostics route");
+assert.match(workspaceSettingsScript, /\/api\/jobs\/status/, "Workspace Settings should consume the protected jobs readout route");
 assert.match(workspaceSettingsScript, /Database Provider/, "readout should render database provider");
 assert.match(workspaceSettingsScript, /SQLite Journal/, "readout should render SQLite journal mode");
 assert.match(workspaceSettingsScript, /Foreign Keys/, "readout should render foreign-key status");
@@ -51,6 +53,8 @@ assert.match(workspaceSettingsScript, /Storage Provider/, "readout should render
 assert.match(workspaceSettingsScript, /Scanner Mode/, "readout should render scanner mode");
 assert.match(workspaceSettingsScript, /Worker Mode/, "readout should render worker mode");
 assert.match(workspaceSettingsScript, /Worker State/, "readout should render worker state");
+assert.match(workspaceSettingsScript, /Pending/, "readout should render pending job count");
+assert.match(workspaceSettingsScript, /Dead-letter/, "readout should render dead-letter job count");
 assert.match(workspaceSettingsScript, /Confirm redacted runtime paths are on local or attached storage/, "readout should warn when paths need operator review");
 assert.doesNotMatch(workspaceSettingsScript, /DATABASE_URL|process\.env|localRoot|storageKey|signedUrl|masterKey|SECURE_NOTES|CLAMD|CLAMSCAN/i, "Workspace Settings readout must not expose raw env, storage, scanner, or key internals");
 

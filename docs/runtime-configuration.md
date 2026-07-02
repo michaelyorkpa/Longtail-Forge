@@ -2,7 +2,7 @@
 
 Longtail Forge reads install and startup configuration from environment variables. At app startup, `server.js` loads a local root `.env` file when present, then `src/config.js` normalizes the resulting environment. A real `.env` file is local runtime state and must not be committed; use `.env.example` as the documented contract.
 
-As of 0.33.5.21.7.4, this contract records active runtime settings plus future reserved settings. Worker settings and job retention settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
+As of 0.33.5.21.7.5, this contract records active runtime settings plus future reserved settings. Worker settings and job retention settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
 
@@ -145,15 +145,15 @@ Startup may warn without failing when optional but recommended production settin
 
 `GET /api/runtime-diagnostics` returns the safe runtime diagnostics read model for authenticated users with `workspace_settings.manage` in the active workspace. The route is diagnostic only; it does not edit runtime configuration or expose raw environment variables.
 
-The response includes app version, runtime environment, database provider, database health status, SQLite journal mode, SQLite foreign-key status, SQLite busy timeout, safe database file location, safe data directory location, storage provider, scanner mode, worker mode, lock TTL, safe worker status counters, and configuration warnings. Paths are app-root or data-root relative when possible; locations outside the app root are redacted to a basename.
+The response includes app version, runtime environment, database provider, database health status, SQLite journal mode, SQLite foreign-key status, SQLite busy timeout, safe database file location, safe data directory location, storage provider, scanner mode, worker mode, lock TTL, safe worker status counters, last poll/run/success timestamps, registered job types, and configuration warnings. Paths are app-root or data-root relative when possible; locations outside the app root are redacted to a basename.
 
-Workspace Settings includes a compact read-only Runtime Diagnostics panel that consumes this route for admins. SQLite small-office deployment assumptions are documented in [sqlite-small-office-mode.md](sqlite-small-office-mode.md).
+Workspace Settings includes a compact read-only Runtime Diagnostics panel that consumes this route for admins. The panel shows worker mode, state, timer activity, last poll/run/success timestamps, completed/failed/dead counters, and registered job types without exposing job payloads or runtime secrets. SQLite small-office deployment assumptions are documented in [sqlite-small-office-mode.md](sqlite-small-office-mode.md).
 
 Runtime diagnostics must not include secrets, storage keys, signed URLs, protected paths, scanner internals, secure-note key material, raw `.env` contents, `DATABASE_URL`, secure-note master keys, scanner host/path settings, or local storage roots.
 
 ## Jobs Admin Readout
 
-`GET /api/jobs/status` returns the minimal durable-job status readout for authenticated users with `workspace_settings.manage` in the active workspace. The response includes pending/running/failed/dead counts and recent failed/dead summaries using the shared bounded-pagination envelope. It is read-only and does not expose job payload JSON, dedupe keys, storage paths, scanner internals, or raw environment values.
+`GET /api/jobs/status` returns the minimal durable-job status readout for authenticated users with `workspace_settings.manage` in the active workspace. The response includes pending/running/failed/dead counts and recent failed/dead summaries using the shared bounded-pagination envelope. Workspace Settings consumes this route for its read-only Jobs panel, including a bounded recent failures list and a load-more control when the route returns `nextCursor`. It is read-only and does not expose job payload JSON, dedupe keys, storage paths, scanner internals, or raw environment values.
 
 ## Worker Mode For Background Work
 
@@ -163,11 +163,11 @@ As of 0.33.5.21.7.4, `LONGTAIL_WORKER_MODE` controls search indexing, notificati
 - `separate` is for `node worker.js`; it requires the app schema to be initialized already and, in SQLite mode, acquires the one-local-worker lock beside the database file.
 - `disabled` keeps jobs in the database but does not process them until a worker mode is re-enabled. Use it only for troubleshooting; pending scan uploads remain unavailable while processing is disabled.
 
-Admins can inspect queue health through Runtime Diagnostics and `GET /api/jobs/status`. The worker does not expose job payloads, dedupe keys, scanner internals, file paths, storage keys, or secrets in those readouts.
+Admins can inspect queue health through the Workspace Settings Jobs panel, Runtime Diagnostics, and `GET /api/jobs/status`. The worker and jobs readouts do not expose job payloads, dedupe keys, scanner internals, file paths, storage keys, or secrets.
 
 ## Scope Boundary
 
-The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active, 0.33.5.21.3 makes lock TTL reclaim active with a minimal admin job readout, 0.33.5.21.4 moves search indexing onto jobs, 0.33.5.21.5 moves notification fan-out onto jobs, 0.33.5.21.6 adds durable handlers/producers for task reminders, recurrence generation, file scanning, and reserved future imports, 0.33.5.21.7.1 removes inline upload scanning so `file.scan` owns the scan state transition, 0.33.5.21.7.2 bounds reminder scheduling with a 30-day horizon plus a 12-hour sweep, 0.33.5.21.7.3 hardens reminder notification idempotency for at-least-once worker retries, and 0.33.5.21.7.4 adds configurable completed/dead-letter job retention pruning. This branch still does not:
+The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active, 0.33.5.21.3 makes lock TTL reclaim active with a minimal admin job readout, 0.33.5.21.4 moves search indexing onto jobs, 0.33.5.21.5 moves notification fan-out onto jobs, 0.33.5.21.6 adds durable handlers/producers for task reminders, recurrence generation, file scanning, and reserved future imports, 0.33.5.21.7.1 removes inline upload scanning so `file.scan` owns the scan state transition, 0.33.5.21.7.2 bounds reminder scheduling with a 30-day horizon plus a 12-hour sweep, 0.33.5.21.7.3 hardens reminder notification idempotency for at-least-once worker retries, 0.33.5.21.7.4 adds configurable completed/dead-letter job retention pruning, and 0.33.5.21.7.5 adds safe Workspace Settings job observability. This branch still does not:
 
 - Change the database provider away from SQLite.
 - Enable PostgreSQL.

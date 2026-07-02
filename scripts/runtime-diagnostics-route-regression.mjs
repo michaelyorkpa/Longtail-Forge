@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.7.4";
+const appVersion = "0.33.5.21.7.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-runtime-diagnostics-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-runtime-diagnostics.db");
@@ -106,6 +106,8 @@ function assertRuntimeDiagnostics(diagnostics) {
   assert.equal(diagnostics.worker.status.timerActive, false);
   assert.equal(diagnostics.worker.status.pollIntervalMs, 5000);
   assert.equal(diagnostics.worker.status.workerId, "default");
+  assert.equal(diagnostics.worker.status.lastRunAt, null);
+  assert.equal(diagnostics.worker.status.lastSuccessAt, null);
   assert.equal(diagnostics.worker.status.claimedCount, 0);
   assert.deepEqual(diagnostics.worker.status.registeredJobTypes, [
     "file.scan",

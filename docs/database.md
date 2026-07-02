@@ -44,6 +44,8 @@ As of version 0.33.5.21.7.3, the reminder model keeps the 30-day scheduling hori
 
 As of version 0.33.5.21.7.4, durable job history is bounded by framework-owned retention pruning. App startup and `node worker.js` startup prune only old `completed` and `dead` rows according to `LONGTAIL_JOB_COMPLETED_RETENTION_DAYS` and `LONGTAIL_JOB_DEAD_RETENTION_DAYS`; active `pending`, `running`, and `failed` rows are preserved regardless of age. Completed and dead-letter history still does not participate in active dedupe, so replacement jobs with the same dedupe key remain allowed before or after pruning.
 
+As of version 0.33.5.21.7.5, admin job observability is available from Workspace Settings as a read-only Jobs panel. The panel consumes the protected `GET /api/jobs/status` route for pending/running/failed/dead counts and paged recent failed/dead summaries, and Runtime Diagnostics renders safe worker health fields such as state, timer activity, last poll/run/success timestamps, counters, and registered job types. These readouts do not expose job payload JSON, dedupe keys, scanner internals, storage paths, raw environment values, or secrets.
+
 As of version 0.33.5.19.2, SQLite startup hardens the existing helper boundary before migrations run. Longtail Forge applies foreign-key enforcement to every SQLite process, enables `PRAGMA journal_mode = WAL` by default, configures the SQLite busy timeout from runtime config, verifies the database file path is writable, and reports safe startup health for the provider, database file path, writable state, foreign-key state, journal mode, and busy timeout.
 
 As of version 0.33.5.19.5, `src/db/provider.js` owns the provider-neutral database adapter boundary and `src/core/database.js` is the preferred app-facing import path for repositories, modules, and framework services that need database access. The v1 adapter API is `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, `db.transaction(callback)`, `db.close()`, `db.health()`, and `db.capabilities`. SQLite is still the only implemented provider, and the SQLite helper stays behind `src/db/adapters/sqlite-adapter.js`. `querySql` and `runSql` remain temporary legacy compatibility helpers while repository code moves toward the adapter. Parameter binding is active for pilot repository paths, and the transaction helper is active for selected multi-step write pilots.
@@ -122,7 +124,7 @@ Future SaaS/PostgreSQL mode should not let every web or worker instance run migr
 
 ## Durable Job/Outbox Schema
 
-The `jobs` table is framework-owned infrastructure for durable background work and outbox-style handoff. The table shipped as schema only in 0.33.5.21.1, the v1 worker runner shipped in 0.33.5.21.2, lock-timeout recovery plus the minimal admin readout shipped in 0.33.5.21.3, the first job producers shipped across 0.33.5.21.4 through 0.33.5.21.6, and completed/dead-letter retention pruning shipped in 0.33.5.21.7.4.
+The `jobs` table is framework-owned infrastructure for durable background work and outbox-style handoff. The table shipped as schema only in 0.33.5.21.1, the v1 worker runner shipped in 0.33.5.21.2, lock-timeout recovery plus the minimal admin readout shipped in 0.33.5.21.3, the first job producers shipped across 0.33.5.21.4 through 0.33.5.21.6, completed/dead-letter retention pruning shipped in 0.33.5.21.7.4, and safe Workspace Settings job observability shipped in 0.33.5.21.7.5.
 
 Job states:
 
@@ -142,7 +144,7 @@ Worker handlers register through `src/core/jobs/index.js`. The runner claims ava
 
 Handler failures keep the row in `failed` when retry capacity remains, clear the lock, store a bounded error summary, and move `available_at` forward with exponential backoff starting at one second and capped at sixty seconds. When `attempt_count` reaches `max_attempts`, the runner moves the row to `dead` and records `dead_at`.
 
-`GET /api/jobs/status` returns a minimal admin readout for authenticated users with `workspace_settings.manage` in the active workspace. The readout includes pending/running/failed/dead counts and recent failed/dead summaries with the shared bounded-pagination envelope. It does not expose job payload JSON or dedupe keys.
+`GET /api/jobs/status` returns a minimal admin readout for authenticated users with `workspace_settings.manage` in the active workspace. The readout includes pending/running/failed/dead counts and recent failed/dead summaries with the shared bounded-pagination envelope. Workspace Settings uses that same route for the read-only Jobs panel. It does not expose job payload JSON or dedupe keys.
 
 In `inline` mode, the app server starts the worker after `app.listen(...)` succeeds. The in-process poll timer, not HTTP responses, triggers work. Future `available_at` jobs wake on the next poll interval; SQLite mode does not have a separate scheduler. Inline worker work shares the same Node process, database adapter, and SQLite connection path as request handling.
 

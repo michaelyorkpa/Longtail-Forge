@@ -1,3 +1,10 @@
+## Version 0.33.5.21.7.5 - 2026-07-02
+
+- Added a read-only Jobs panel to Workspace Settings for `workspace_settings.manage` users, showing pending/running/failed/dead-letter counts and bounded recent failure pages from `GET /api/jobs/status`.
+- Expanded Runtime Diagnostics worker health in the admin UI with safe timer, last poll/run/success, completion/failure/dead-letter counters, and registered job type fields.
+- Added `scripts/admin-job-observability-regression.mjs`, refreshed durable-job/runtime/database docs and decisions, and advanced package/module/regression version metadata to 0.33.5.21.7.5.
+- Verification 2026-07-02 11:17 -04:00: admin job observability, SQLite small-office readout, runtime diagnostics route, job retention pruning, job claiming/locking, runtime configuration, and background work jobs targeted checks passed; `npm run check` passed 234/234 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.7.5 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.7.4 - 2026-07-02
 
 - Added framework-owned job retention pruning for old `completed` and `dead` durable job history, preserving all active `pending`, `running`, and `failed` rows regardless of age.

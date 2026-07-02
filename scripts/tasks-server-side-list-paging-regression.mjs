@@ -6,7 +6,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.5.21.7.4";
+const appVersion = "0.33.5.21.7.5";
 const root = process.cwd();
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-tasks-server-side-paging-"));
 const disposableDb = path.join(tempDir, "longtail-forge-tasks-server-side-paging-demo.db");
@@ -77,7 +77,7 @@ function assertStaticContract() {
   assert.match(tasksScript, /params\.set\("cursor", cursor\)/, "Tasks browser should request subsequent pages by cursor");
   assert.match(tasksScript, /data-task-load-more/, "Tasks browser should expose a load-more control for additional pages");
   assert.match(tasksView, /css\/longtail-forge\.css\?v=73[\s\S]*js\/tasks\.js\?v=21/, "Tasks host should cache-bust list paging assets");
-  assert.match(tasksDocs, /current Tasks module behavior as of 0\.33\.5\.21\.7\.4/, "Tasks docs should report the current implementation version");
+  assert.match(tasksDocs, /current Tasks module behavior as of 0\.33\.5\.21\.7\.5/, "Tasks docs should report the current implementation version");
   assert.match(tasksDocs, /As of 0\.33\.5\.20\.2, the protected Tasks list route returns bounded server-side pages/, "Tasks docs should keep the server-side paging version on the shipped list contract");
   assert.match(regressionSuite, /scripts\/tasks-server-side-list-paging-regression\.mjs/, "Regression suite should include Tasks server-side paging coverage");
 }
