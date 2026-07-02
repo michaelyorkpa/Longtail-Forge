@@ -2,7 +2,7 @@
 
 Longtail Forge reads install and startup configuration from environment variables. At app startup, `server.js` loads a local root `.env` file when present, then `src/config.js` normalizes the resulting environment. A real `.env` file is local runtime state and must not be committed; use `.env.example` as the documented contract.
 
-As of 0.33.5.21.7.3, this contract records active runtime settings plus future reserved settings. Worker settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
+As of 0.33.5.21.7.4, this contract records active runtime settings plus future reserved settings. Worker settings and job retention settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
 
@@ -86,6 +86,8 @@ Secure-note keys are runtime secrets. They must not be committed, logged, or exp
 | `LONGTAIL_WORKER_ID` | `default` | Label recorded in `jobs.locked_by` when a worker claims a job. It is operational metadata, not an authentication secret. |
 | `LONGTAIL_JOB_POLL_INTERVAL_MS` | `5000` | Poll interval for inline and separate worker timers. This timer is also how future `available_at` jobs wake in SQLite mode. Must be an integer from 1000 through 3600000. |
 | `LONGTAIL_JOB_LOCK_TTL_SECONDS` | `300` | Controls when expired running job locks become reclaimable by the next worker poll. Must be an integer from 30 through 86400. |
+| `LONGTAIL_JOB_COMPLETED_RETENTION_DAYS` | `30` | Number of days to keep completed job history before framework startup pruning may delete it. Must be an integer from 1 through 3650. Active rows are never pruned by this setting. |
+| `LONGTAIL_JOB_DEAD_RETENTION_DAYS` | `90` | Number of days to keep dead-letter job history before framework startup pruning may delete it. Must be an integer from 1 through 3650. Active rows are never pruned by this setting. |
 
 In `inline` mode, worker execution begins after app startup and `app.listen(...)` succeeds. It is not triggered by individual HTTP responses. The poll timer shares the same Node process and SQLite adapter path as request handling, so job writes and request writes use the same local SQLite connection and transaction queue.
 
@@ -95,7 +97,9 @@ In `separate` mode, start the worker with:
 LONGTAIL_WORKER_MODE=separate node worker.js
 ```
 
-The separate worker loads the same local `.env` file as `server.js`, verifies that the schema and `065_job_outbox_schema` migration are already applied, and does not run migrations or app startup maintenance. In SQLite mode, `node worker.js` also takes a local `.longtail-forge-worker.lock` beside the SQLite database so at most one local worker process attaches to the same install. A stale worker lock should be removed only after confirming no worker process is running.
+The separate worker loads the same local `.env` file as `server.js`, verifies that the schema and `065_job_outbox_schema` migration are already applied, and does not run migrations or app startup defaults such as module, user, role, or workspace repair. In SQLite mode, `node worker.js` also takes a local `.longtail-forge-worker.lock` beside the SQLite database so at most one local worker process attaches to the same install. A stale worker lock should be removed only after confirming no worker process is running.
+
+Job retention pruning is framework-owned maintenance, not a route delete or module-owned loop. App startup and separate-worker startup delete only `completed` rows older than `LONGTAIL_JOB_COMPLETED_RETENTION_DAYS` and `dead` rows older than `LONGTAIL_JOB_DEAD_RETENTION_DAYS`. `pending`, `running`, and `failed` rows stay intact regardless of age so retryable or claimed work is not lost.
 
 ## Reserved Settings
 
@@ -124,6 +128,8 @@ Startup fails clearly when active settings are invalid:
 - `LONGTAIL_WORKER_MODE` must be `inline`, `separate`, or `disabled`.
 - `LONGTAIL_JOB_POLL_INTERVAL_MS` must be an integer from 1000 through 3600000.
 - `LONGTAIL_JOB_LOCK_TTL_SECONDS` must be an integer from 30 through 86400.
+- `LONGTAIL_JOB_COMPLETED_RETENTION_DAYS` must be an integer from 1 through 3650.
+- `LONGTAIL_JOB_DEAD_RETENTION_DAYS` must be an integer from 1 through 3650.
 - `LONGTAIL_SESSION_COOKIE_SAMESITE` must be `Lax`, `Strict`, or `None`.
 - `LONGTAIL_SESSION_COOKIE_SECURE` must be true when SameSite is `None`.
 - `LONGTAIL_SESSION_TTL_SECONDS` must be between 300 seconds and 30 days.
@@ -151,7 +157,7 @@ Runtime diagnostics must not include secrets, storage keys, signed URLs, protect
 
 ## Worker Mode For Background Work
 
-As of 0.33.5.21.7.3, `LONGTAIL_WORKER_MODE` controls search indexing, notification fan-out, task reminder firing, recurring task generation, file-scan jobs, and the reserved future-import job type. Task reminders use a documented 30-day scheduling horizon plus a durable 12-hour top-up sweep, and uploaded files stay pending and unavailable until an inline or separate worker completes their queued `file.scan` job. Reminder notification delivery is idempotent under normal at-least-once worker retries through stable delivery keys and deterministic notification rows.
+As of 0.33.5.21.7.4, `LONGTAIL_WORKER_MODE` controls search indexing, notification fan-out, task reminder firing, recurring task generation, file-scan jobs, and the reserved future-import job type. Task reminders use a documented 30-day scheduling horizon plus a durable 12-hour top-up sweep, uploaded files stay pending and unavailable until an inline or separate worker completes their queued `file.scan` job, and job retention pruning bounds completed/dead-letter history without touching active rows. Reminder notification delivery is idempotent under normal at-least-once worker retries through stable delivery keys and deterministic notification rows.
 
 - `inline` starts one poll timer inside the app process after the server is listening. This is the default SQLite/small-office mode.
 - `separate` is for `node worker.js`; it requires the app schema to be initialized already and, in SQLite mode, acquires the one-local-worker lock beside the database file.
@@ -161,7 +167,7 @@ Admins can inspect queue health through Runtime Diagnostics and `GET /api/jobs/s
 
 ## Scope Boundary
 
-The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active, 0.33.5.21.3 makes lock TTL reclaim active with a minimal admin job readout, 0.33.5.21.4 moves search indexing onto jobs, 0.33.5.21.5 moves notification fan-out onto jobs, 0.33.5.21.6 adds durable handlers/producers for task reminders, recurrence generation, file scanning, and reserved future imports, 0.33.5.21.7.1 removes inline upload scanning so `file.scan` owns the scan state transition, 0.33.5.21.7.2 bounds reminder scheduling with a 30-day horizon plus a 12-hour sweep, and 0.33.5.21.7.3 hardens reminder notification idempotency for at-least-once worker retries. This branch still does not:
+The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active, 0.33.5.21.3 makes lock TTL reclaim active with a minimal admin job readout, 0.33.5.21.4 moves search indexing onto jobs, 0.33.5.21.5 moves notification fan-out onto jobs, 0.33.5.21.6 adds durable handlers/producers for task reminders, recurrence generation, file scanning, and reserved future imports, 0.33.5.21.7.1 removes inline upload scanning so `file.scan` owns the scan state transition, 0.33.5.21.7.2 bounds reminder scheduling with a 30-day horizon plus a 12-hour sweep, 0.33.5.21.7.3 hardens reminder notification idempotency for at-least-once worker retries, and 0.33.5.21.7.4 adds configurable completed/dead-letter job retention pruning. This branch still does not:
 
 - Change the database provider away from SQLite.
 - Enable PostgreSQL.

@@ -1,3 +1,11 @@
+## Version 0.33.5.21.7.4 - 2026-07-02
+
+- Added framework-owned job retention pruning for old `completed` and `dead` durable job history, preserving all active `pending`, `running`, and `failed` rows regardless of age.
+- Added validated runtime settings `LONGTAIL_JOB_COMPLETED_RETENTION_DAYS` and `LONGTAIL_JOB_DEAD_RETENTION_DAYS` with safe defaults of 30 and 90 days.
+- Wired retention pruning into app startup and separate-worker startup, keeping it repeatable and out of ad hoc route deletes while preserving active dedupe replacement semantics.
+- Added `scripts/job-retention-pruning-regression.mjs`, refreshed durable-job/runtime/docs decisions, and advanced package/module/regression version metadata to 0.33.5.21.7.4.
+- Verification 2026-07-02 10:43 -04:00: job retention pruning, runtime configuration, worker runner, job claiming, job idempotency, background work jobs, reminder scheduling horizon, notification jobs, search-index jobs, file-scan handoff, runtime/database closeout, and server-side list version-pin targeted checks passed; `npm run check` passed 233/233 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.7.4 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.7.3 - 2026-07-02
 
 - Hardened durable job idempotency for normal at-least-once worker behavior: reminder fire jobs now carry stable notification delivery keys, notification fan-out dedupes active delivery-key jobs, and recipient notifications use deterministic IDs so reminder/job retries do not double-notify.

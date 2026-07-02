@@ -155,6 +155,8 @@ Long-running, time-sensitive, or retryable side effects should use the framework
 
 As of 0.33.5.21.7.3, job handlers must be safe for normal at-least-once worker behavior. A handler should re-read current state before side effects, skip stale work, use active dedupe keys for replaceable pending/running/failed work, and make irreversible side effects idempotent when a retry can repeat them. Current examples are `search.index` canonical upsert/delete work, `notification.event` deterministic recipient notification IDs for delivery-keyed fan-out, `task.reminder` stable reminder delivery keys, `task.recurrence` existing-instance checks, `file.scan` pending-row checks, and the reserved no-op `import.future` handler.
 
+As of 0.33.5.21.7.4, completed and dead-letter job rows are bounded history, not durable module state. Framework startup maintenance prunes old `completed` and `dead` rows according to runtime retention windows while preserving active `pending`, `running`, and `failed` work. Module producers should keep dedupe and idempotency decisions in active jobs or owner records rather than requiring completed/dead history to exist forever.
+
 Job handlers should stay close to the owner of the business meaning. A module service may queue work after a successful mutation, but the handler should re-read current state, skip stale work, and rely on durable runner retries for transient failures. Do not create module-specific worker loops, direct notification writes, direct search table writes, or scanner/import flows that bypass the `jobs` table.
 
 Notification summaries should use safe event summary helpers rather than raw event or audit JSON.

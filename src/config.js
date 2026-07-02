@@ -25,6 +25,8 @@ const DEFAULT_WORKER_MODE = "inline";
 const DEFAULT_WORKER_ID = "default";
 const DEFAULT_JOB_POLL_INTERVAL_MS = 5000;
 const DEFAULT_JOB_LOCK_TTL_SECONDS = 300;
+const DEFAULT_JOB_COMPLETED_RETENTION_DAYS = 30;
+const DEFAULT_JOB_DEAD_RETENTION_DAYS = 90;
 const DEFAULT_LOG_LEVEL = "info";
 const DEFAULT_INITIAL_WORKSPACE_NAME = "Longtail Forge Workspace";
 const DEFAULT_SUPER_ADMIN_USERNAME = "support@longtailforge.local";
@@ -148,6 +150,24 @@ function createConfig(env = process.env) {
         min: 30,
         max: 60 * 60 * 24,
       }),
+      completedRetentionDays: readInteger(
+        env,
+        "LONGTAIL_JOB_COMPLETED_RETENTION_DAYS",
+        DEFAULT_JOB_COMPLETED_RETENTION_DAYS,
+        {
+          min: 1,
+          max: 3650,
+        },
+      ),
+      deadRetentionDays: readInteger(
+        env,
+        "LONGTAIL_JOB_DEAD_RETENTION_DAYS",
+        DEFAULT_JOB_DEAD_RETENTION_DAYS,
+        {
+          min: 1,
+          max: 3650,
+        },
+      ),
     },
     logLevel: readText(env, "LONGTAIL_LOG_LEVEL", DEFAULT_LOG_LEVEL),
     runtimeWarnings,

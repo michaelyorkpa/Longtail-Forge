@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.7.3";
+const appVersion = "0.33.5.21.7.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-better-sqlite3-helper-core-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-helper-core.db");
 process.env.LONGTAIL_SQLITE_BUSY_TIMEOUT_MS = "3210";

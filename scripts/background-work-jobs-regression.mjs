@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.7.3";
+const appVersion = "0.33.5.21.7.4";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-background-work-jobs-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-background-work-jobs.db");
@@ -61,7 +61,7 @@ try {
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the background work jobs slice");
   assert.match(architectureDocs, /As of 0\.33\.5\.21\.6[\s\S]*task\.reminder[\s\S]*task\.recurrence[\s\S]*file\.scan[\s\S]*import\.future/, "architecture docs should document background work jobs");
   assert.match(databaseDocs, /As of version 0\.33\.5\.21\.6[\s\S]*task\.reminder[\s\S]*task\.recurrence[\s\S]*file\.scan[\s\S]*import\.future/, "database docs should document background work jobs");
-  assert.match(runtimeDocs, /As of 0\.33\.5\.21\.7\.3[\s\S]*LONGTAIL_WORKER_MODE/, "runtime docs should document worker mode for background work jobs");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.21\.7\.4[\s\S]*LONGTAIL_WORKER_MODE/, "runtime docs should document worker mode for background work jobs");
 
   await initializeDatabase();
   registerSearchIndexJobHandlers({ replace: true });

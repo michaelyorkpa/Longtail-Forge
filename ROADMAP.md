@@ -332,11 +332,11 @@ Purpose:
 
 Prevent the framework-owned `jobs` table from growing without bound on long-running installs.
 
-- [ ] Add a retention/pruning policy for old `completed` and `dead` jobs so history remains bounded while active pending/running/failed work is preserved.
-- [ ] Make the retention window configurable through runtime configuration with safe defaults and validation.
-- [ ] Prune through framework-owned maintenance behavior, such as a maintenance job or startup sweep, not ad hoc route deletes.
-- [ ] Keep active dedupe semantics intact: completed and dead-letter history must not block replacement jobs, and pruning must not remove active rows.
-- [ ] Update docs and regressions for retention defaults, configured windows, active-row preservation, and long-running-install safety.
+- [x] Add a retention/pruning policy for old `completed` and `dead` jobs so history remains bounded while active pending/running/failed work is preserved.
+- [x] Make the retention window configurable through runtime configuration with safe defaults and validation.
+- [x] Prune through framework-owned maintenance behavior, such as a maintenance job or startup sweep, not ad hoc route deletes.
+- [x] Keep active dedupe semantics intact: completed and dead-letter history must not block replacement jobs, and pruning must not remove active rows.
+- [x] Update docs and regressions for retention defaults, configured windows, active-row preservation, and long-running-install safety.
 
 Acceptance criteria:
 

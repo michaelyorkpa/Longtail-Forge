@@ -29,6 +29,7 @@ import { modulesService } from "./modules/modules.service.js";
 import { notificationsService } from "../services/notifications.service.js";
 import { filesService } from "../services/files.service.js";
 import { registerFutureImportJobHandlers } from "../services/import-jobs.service.js";
+import { jobsService } from "../services/jobs.service.js";
 import {
   queueSearchIndexRebuildIfEmpty,
   registerSearchIndexJobHandlers,
@@ -104,6 +105,7 @@ async function startServer() {
     logRuntimeConfigWarnings();
     const databaseHealth = await initializeDatabase();
     console.log(formatDatabaseHealth(databaseHealth));
+    queueStartupJobRetentionPrune();
     queueStartupSearchIndexRebuildIfEmpty();
     queueStartupTaskReminderSweep();
     const app = createApp();
@@ -169,6 +171,19 @@ function registerGracefulShutdown(server) {
 
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
+}
+
+function queueStartupJobRetentionPrune() {
+  setTimeout(async () => {
+    try {
+      const result = await jobsService.pruneOldJobs();
+
+      console.log(`[job-retention] prune=complete completed_deleted=${result.completed.deleted} dead_deleted=${result.dead.deleted}`);
+    } catch (error) {
+      console.warn("[job-retention] Job history pruning failed.");
+      console.warn(error.message || error);
+    }
+  }, 0);
 }
 
 function queueStartupTaskReminderSweep() {

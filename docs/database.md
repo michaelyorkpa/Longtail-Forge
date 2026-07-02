@@ -42,6 +42,8 @@ As of version 0.33.5.21.7.2, task reminder scheduling uses a documented 30-day s
 
 As of version 0.33.5.21.7.3, the reminder model keeps the 30-day scheduling horizon and 12-hour sweep while registered durable job handlers are reviewed for normal at-least-once worker behavior. Task reminder firing carries a stable `notification_delivery_key`; notification event jobs dedupe that key while active, and notification fan-out uses deterministic recipient notification IDs so reclaimed reminder jobs and retried notification jobs cannot double-notify the same user for the same reminder firing. Search indexing remains canonical upsert/delete work, recurrence generation keeps its existing-instance guard, file scanning skips rows that are no longer pending scan work, and `import.future` remains a safe no-op.
 
+As of version 0.33.5.21.7.4, durable job history is bounded by framework-owned retention pruning. App startup and `node worker.js` startup prune only old `completed` and `dead` rows according to `LONGTAIL_JOB_COMPLETED_RETENTION_DAYS` and `LONGTAIL_JOB_DEAD_RETENTION_DAYS`; active `pending`, `running`, and `failed` rows are preserved regardless of age. Completed and dead-letter history still does not participate in active dedupe, so replacement jobs with the same dedupe key remain allowed before or after pruning.
+
 As of version 0.33.5.19.2, SQLite startup hardens the existing helper boundary before migrations run. Longtail Forge applies foreign-key enforcement to every SQLite process, enables `PRAGMA journal_mode = WAL` by default, configures the SQLite busy timeout from runtime config, verifies the database file path is writable, and reports safe startup health for the provider, database file path, writable state, foreign-key state, journal mode, and busy timeout.
 
 As of version 0.33.5.19.5, `src/db/provider.js` owns the provider-neutral database adapter boundary and `src/core/database.js` is the preferred app-facing import path for repositories, modules, and framework services that need database access. The v1 adapter API is `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, `db.transaction(callback)`, `db.close()`, `db.health()`, and `db.capabilities`. SQLite is still the only implemented provider, and the SQLite helper stays behind `src/db/adapters/sqlite-adapter.js`. `querySql` and `runSql` remain temporary legacy compatibility helpers while repository code moves toward the adapter. Parameter binding is active for pilot repository paths, and the transaction helper is active for selected multi-step write pilots.
@@ -120,17 +122,19 @@ Future SaaS/PostgreSQL mode should not let every web or worker instance run migr
 
 ## Durable Job/Outbox Schema
 
-The `jobs` table is framework-owned infrastructure for durable background work and outbox-style handoff. The table shipped as schema only in 0.33.5.21.1, the v1 worker runner shipped in 0.33.5.21.2, lock-timeout recovery plus the minimal admin readout shipped in 0.33.5.21.3, and the first job producers shipped across 0.33.5.21.4 through 0.33.5.21.6.
+The `jobs` table is framework-owned infrastructure for durable background work and outbox-style handoff. The table shipped as schema only in 0.33.5.21.1, the v1 worker runner shipped in 0.33.5.21.2, lock-timeout recovery plus the minimal admin readout shipped in 0.33.5.21.3, the first job producers shipped across 0.33.5.21.4 through 0.33.5.21.6, and completed/dead-letter retention pruning shipped in 0.33.5.21.7.4.
 
 Job states:
 
 - `pending`: work is stored durably and can be claimed once `available_at` is due. Pending rows should have no active lock.
 - `running`: a worker has claimed the row and records `locked_at` plus `locked_by`. If `locked_at` is older than `LONGTAIL_JOB_LOCK_TTL_SECONDS`, a later poll can reclaim the row and record another attempt.
-- `completed`: work finished successfully and records `completed_at`; completed rows are retained as history and no longer participate in active dedupe.
+- `completed`: work finished successfully and records `completed_at`; completed rows are retained as short-term history, pruned after the configured completed-job retention window, and no longer participate in active dedupe.
 - `failed`: work failed but has retry capacity left. `last_error` stores a safe failure summary, `attempt_count` tracks tries, and `available_at` can schedule the next retry.
-- `dead`: retry capacity is exhausted or the job is otherwise dead-lettered. Dead rows record `dead_at`, keep `last_error` for admin-readable summaries, and no longer participate in active dedupe.
+- `dead`: retry capacity is exhausted or the job is otherwise dead-lettered. Dead rows record `dead_at`, keep `last_error` for admin-readable summaries, are pruned after the configured dead-letter retention window, and no longer participate in active dedupe.
 
 The pending-work index covers retryable work by `status`, `available_at`, `priority`, `created_at`, and `job_id`. A separate running-lock index supports future lock-timeout scans. Workspace/status and job-type/status indexes support future admin readouts and handler-specific work without requiring browser code to scan or classify jobs.
+
+Job retention pruning runs through `jobsService.pruneOldJobs()` as framework maintenance, not through ad hoc route deletes. It deletes in bounded batches, uses `completed_at` or `dead_at` cutoffs with stored timestamp fallbacks for malformed historical rows, and restricts deletion by exact status so active rows survive even if their timestamps are old.
 
 ## Durable Job Runner V1
 
@@ -142,7 +146,7 @@ Handler failures keep the row in `failed` when retry capacity remains, clear the
 
 In `inline` mode, the app server starts the worker after `app.listen(...)` succeeds. The in-process poll timer, not HTTP responses, triggers work. Future `available_at` jobs wake on the next poll interval; SQLite mode does not have a separate scheduler. Inline worker work shares the same Node process, database adapter, and SQLite connection path as request handling.
 
-In `separate` mode, `node worker.js` is the worker process. It loads the local `.env` file, requires `LONGTAIL_WORKER_MODE=separate`, verifies that the schema and migration `065_job_outbox_schema` are already present, and does not run migrations or app startup maintenance. In SQLite mode it creates `.longtail-forge-worker.lock` beside the configured database file, enforcing the one-local-worker boundary for the install.
+In `separate` mode, `node worker.js` is the worker process. It loads the local `.env` file, requires `LONGTAIL_WORKER_MODE=separate`, verifies that the schema and migration `065_job_outbox_schema` are already present, and does not run migrations or app startup defaults such as module, user, role, or workspace repair. In SQLite mode it creates `.longtail-forge-worker.lock` beside the configured database file, enforcing the one-local-worker boundary for the install.
 
 ## Durable Search Index Jobs
 

@@ -13,6 +13,7 @@ import {
 import { acquireWorkerProcessLock } from "./worker-process-lock.js";
 import { filesService } from "../../services/files.service.js";
 import { registerFutureImportJobHandlers } from "../../services/import-jobs.service.js";
+import { jobsService } from "../../services/jobs.service.js";
 import { notificationsService } from "../../services/notifications.service.js";
 import { registerSearchIndexJobHandlers } from "../../services/search-index-jobs.service.js";
 import { queueTaskReminderSweepJobs, registerTaskJobHandlers } from "../../modules/tasks/task-jobs.service.js";
@@ -38,6 +39,8 @@ async function startWorkerProcess(options = {}) {
 
   const databaseHealth = await initializeWorkerDatabase();
   logger.log(formatDatabaseHealth(databaseHealth));
+  const retentionPrune = await jobsService.pruneOldJobs();
+  logger.log(`[job-retention] prune=complete completed_deleted=${retentionPrune.completed.deleted} dead_deleted=${retentionPrune.dead.deleted}`);
   registerSearchIndexJobHandlers();
   registerTaskJobHandlers();
   filesService.registerFileScanJobHandlers();

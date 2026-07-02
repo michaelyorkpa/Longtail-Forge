@@ -1,10 +1,13 @@
 import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
+import { config } from "../config.js";
 import { db } from "../core/database.js";
 import { permissionsService } from "./permissions.service.js";
 
 const REQUIRED_PERMISSION = "workspace_settings.manage";
 const RECENT_FAILURE_DEFAULT_PAGE_SIZE = 10;
 const RECENT_FAILURE_MAX_PAGE_SIZE = 50;
+const DEFAULT_PRUNE_BATCH_SIZE = 500;
+const MAX_PRUNE_BATCH_SIZE = 5000;
 
 async function readAdminReadout(session, query = {}) {
   await permissionsService.assertCan(session, REQUIRED_PERMISSION, {
@@ -35,6 +38,78 @@ async function readAdminReadout(session, query = {}) {
       }),
     },
   };
+}
+
+async function pruneOldJobs(options = {}) {
+  const now = normalizeDate(options.now ?? new Date());
+  const completedRetentionDays = normalizeRetentionDays(
+    options.completedRetentionDays ?? config.worker.completedRetentionDays,
+    "completed job retention",
+  );
+  const deadRetentionDays = normalizeRetentionDays(
+    options.deadRetentionDays ?? config.worker.deadRetentionDays,
+    "dead job retention",
+  );
+  const batchSize = normalizeBatchSize(options.batchSize ?? DEFAULT_PRUNE_BATCH_SIZE);
+  const completedCutoff = subtractDays(now, completedRetentionDays);
+  const deadCutoff = subtractDays(now, deadRetentionDays);
+
+  const completedDeleted = await pruneStatus({
+    batchSize,
+    cutoff: completedCutoff,
+    status: "completed",
+    timestampColumn: "completed_at",
+  });
+  const deadDeleted = await pruneStatus({
+    batchSize,
+    cutoff: deadCutoff,
+    status: "dead",
+    timestampColumn: "dead_at",
+  });
+
+  return {
+    batchSize,
+    completed: {
+      cutoff: completedCutoff,
+      deleted: completedDeleted,
+      retentionDays: completedRetentionDays,
+    },
+    dead: {
+      cutoff: deadCutoff,
+      deleted: deadDeleted,
+      retentionDays: deadRetentionDays,
+    },
+    deleted: completedDeleted + deadDeleted,
+  };
+}
+
+async function pruneStatus(options) {
+  let deleted = 0;
+
+  while (true) {
+    const rows = await db.transaction(async (transaction) => transaction.query(`
+DELETE FROM jobs
+WHERE job_id IN (
+  SELECT job_id
+  FROM jobs
+  WHERE status = :status
+    AND COALESCE(${options.timestampColumn}, updated_at, created_at) < :cutoff
+  ORDER BY COALESCE(${options.timestampColumn}, updated_at, created_at) ASC, job_id ASC
+  LIMIT :batchSize
+)
+RETURNING job_id;
+`, {
+      batchSize: options.batchSize,
+      cutoff: options.cutoff,
+      status: options.status,
+    }));
+
+    deleted += rows.length;
+
+    if (rows.length < options.batchSize) {
+      return deleted;
+    }
+  }
 }
 
 function readStatusCounts(workspaceId) {
@@ -127,6 +202,41 @@ function safeText(value) {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
+function normalizeDate(value) {
+  const date = value instanceof Date ? value : new Date(String(value || ""));
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Job retention prune time must be a valid date.");
+  }
+
+  return date;
+}
+
+function normalizeRetentionDays(value, label) {
+  const days = Number(value);
+
+  if (!Number.isInteger(days) || days < 1 || days > 3650) {
+    throw new Error(`${label} must be an integer from 1 through 3650 days.`);
+  }
+
+  return days;
+}
+
+function normalizeBatchSize(value) {
+  const size = Number(value);
+
+  if (!Number.isInteger(size) || size < 1) {
+    return DEFAULT_PRUNE_BATCH_SIZE;
+  }
+
+  return Math.min(size, MAX_PRUNE_BATCH_SIZE);
+}
+
+function subtractDays(date, days) {
+  return new Date(date.getTime() - (days * 24 * 60 * 60 * 1000)).toISOString();
+}
+
 export const jobsService = {
+  pruneOldJobs,
   readAdminReadout,
 };

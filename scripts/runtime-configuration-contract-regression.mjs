@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.7.3";
+const appVersion = "0.33.5.21.7.4";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const envExample = readText(".env.example");
@@ -67,6 +67,8 @@ for (const key of [
   "LONGTAIL_WORKER_ID=default",
   "LONGTAIL_JOB_POLL_INTERVAL_MS=5000",
   "LONGTAIL_JOB_LOCK_TTL_SECONDS=300",
+  "LONGTAIL_JOB_COMPLETED_RETENTION_DAYS=30",
+  "LONGTAIL_JOB_DEAD_RETENTION_DAYS=90",
   "LONGTAIL_LOG_LEVEL=info",
 ]) {
   assert.match(envExample, new RegExp(`^${escapeRegExp(key)}$`, "m"), `.env.example should document ${key}`);
@@ -137,6 +139,8 @@ assert.equal(defaults.workerMode, "inline");
 assert.equal(defaults.workerId, "default");
 assert.equal(defaults.workerPollIntervalMs, 5000);
 assert.equal(defaults.workerLockTtlSeconds, 300);
+assert.equal(defaults.workerCompletedRetentionDays, 30);
+assert.equal(defaults.workerDeadRetentionDays, 90);
 assert.deepEqual(defaults.runtimeWarnings, []);
 
 const custom = readConfig({
@@ -160,6 +164,8 @@ const custom = readConfig({
   LONGTAIL_WORKER_MODE: "separate",
   LONGTAIL_JOB_POLL_INTERVAL_MS: "2500",
   LONGTAIL_JOB_LOCK_TTL_SECONDS: "600",
+  LONGTAIL_JOB_COMPLETED_RETENTION_DAYS: "14",
+  LONGTAIL_JOB_DEAD_RETENTION_DAYS: "180",
   LONGTAIL_INITIAL_WORKSPACE_NAME: "Custom Workspace",
   SUPER_ADMIN_DISPLAY_NAME: "Custom Admin",
 });
@@ -180,6 +186,8 @@ assert.equal(custom.workerMode, "separate");
 assert.equal(custom.workerId, "custom-worker");
 assert.equal(custom.workerPollIntervalMs, 2500);
 assert.equal(custom.workerLockTtlSeconds, 600);
+assert.equal(custom.workerCompletedRetentionDays, 14);
+assert.equal(custom.workerDeadRetentionDays, 180);
 assert.ok(custom.dataDir.endsWith(`${path.sep}custom-data`), "relative data dir should resolve from the app root");
 assert.ok(custom.databaseFile.endsWith(`${path.sep}custom-data${path.sep}custom.db`), "relative database file should resolve from the app root");
 assert.ok(custom.localStorageRoot.endsWith(`${path.sep}custom-data${path.sep}files`), "relative local storage root should resolve from the app root");
@@ -205,6 +213,8 @@ assertConfigFails({ LONGTAIL_SQLITE_BUSY_TIMEOUT_MS: "invalid" }, /LONGTAIL_SQLI
 assertConfigFails({ LONGTAIL_WORKER_MODE: "fleet" }, /LONGTAIL_WORKER_MODE must be inline or separate or disabled/);
 assertConfigFails({ LONGTAIL_JOB_POLL_INTERVAL_MS: "999" }, /LONGTAIL_JOB_POLL_INTERVAL_MS must be at least 1000/);
 assertConfigFails({ LONGTAIL_JOB_LOCK_TTL_SECONDS: "29" }, /LONGTAIL_JOB_LOCK_TTL_SECONDS must be at least 30/);
+assertConfigFails({ LONGTAIL_JOB_COMPLETED_RETENTION_DAYS: "0" }, /LONGTAIL_JOB_COMPLETED_RETENTION_DAYS must be at least 1/);
+assertConfigFails({ LONGTAIL_JOB_DEAD_RETENTION_DAYS: "3651" }, /LONGTAIL_JOB_DEAD_RETENTION_DAYS must be at most 3650/);
 assertConfigFails({ LONGTAIL_ENV: "production" }, /SUPER_ADMIN_PASSWORD is required when LONGTAIL_ENV=production/);
 assertConfigFails({
   LONGTAIL_SESSION_COOKIE_SAMESITE: "None",
@@ -242,6 +252,8 @@ function readConfig(overrides = {}) {
       cookieTtl: config.cookies.maxAgeSeconds,
       workerMode: config.worker.mode,
       workerId: config.worker.id,
+      workerCompletedRetentionDays: config.worker.completedRetentionDays,
+      workerDeadRetentionDays: config.worker.deadRetentionDays,
       workerLockTtlSeconds: config.worker.lockTtlSeconds,
       workerPollIntervalMs: config.worker.pollIntervalMs,
       workspaceInstallMode: config.workspaceInstallMode,

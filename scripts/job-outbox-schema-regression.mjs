@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.7.3";
+const appVersion = "0.33.5.21.7.4";
 const migrationVersion = "065";
 const migrationFile = "src/db/migrations/065_job_outbox_schema.sql";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-job-outbox-schema-"));
