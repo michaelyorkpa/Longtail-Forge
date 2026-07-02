@@ -9,6 +9,8 @@ import {
   sanitizeFileLifecyclePayload,
 } from "../core/files/file-lifecycle.js";
 import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
+import { enqueueJob } from "../core/jobs/job-queue.js";
+import { getJobHandler, registerJobHandler } from "../core/jobs/index.js";
 import { createLocalFileStorageAdapter } from "../core/files/local-storage-adapter.js";
 import { createNoopFileScannerAdapter } from "../core/files/scanner-adapter.js";
 import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/index.js";
@@ -88,6 +90,9 @@ const storageAdapters = new Map([
   ["local", createLocalFileStorageAdapter()],
 ]);
 let scannerAdapter = createNoopFileScannerAdapter();
+const FILE_SCAN_JOB_TYPE = "file.scan";
+const FILE_SCAN_JOB_PRIORITY = 10;
+let fileScanJobHandlersRegistered = false;
 
 function listFileStatuses() {
   return [...FILE_STATUS_SET];
@@ -189,7 +194,9 @@ async function uploadAndAttach(session, payload = {}) {
       storageKey: storage.storageKey,
       storedFilename: storage.storedFilename,
     });
-    const scanResult = await scanFile(session, file);
+    await queueFileScanJob(session, file, {
+      source: "file_upload",
+    });
     const attachment = await attachFile(session, {
       attachmentRole: payload.attachmentRole,
       caption: payload.caption,
@@ -210,8 +217,8 @@ async function uploadAndAttach(session, payload = {}) {
       moduleId: attachableType.moduleId,
       targetId: target.target_id,
       targetType: attachableType.targetType,
-      status: scanResult.status,
-      scanStatus: scanResult.scanStatus,
+      status: file.status,
+      scanStatus: file.scan_status,
     });
 
     return {
@@ -354,8 +361,10 @@ async function listAttachments(session, filters = {}) {
     conditions.push("files.status IN ('available', 'deleted')");
     conditions.push("files.scan_status IN ('not_required', 'passed')");
   } else if (targetScopedRead && !(filters.status || filters.fileStatus || filters.file_status)) {
-    conditions.push("files.status IN ('available', 'deleted')");
-    conditions.push("files.scan_status IN ('not_required', 'passed')");
+    conditions.push(`(
+      (files.status IN ('available', 'deleted') AND files.scan_status IN ('not_required', 'passed'))
+      OR (files.status = 'pending' AND files.scan_status = 'pending')
+    )`);
   } else {
     conditions.push("files.status = 'available'");
     conditions.push("files.scan_status IN ('not_required', 'passed')");
@@ -1552,6 +1561,95 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   AND status IN ('pending', 'available', 'quarantined', 'deleted')
 GROUP BY workspace_id, COALESCE(uploaded_by_user_id, ''), COALESCE(storage_provider, 'local'), COALESCE(status, '');
 `);
+}
+
+function registerFileScanJobHandlers(options = {}) {
+  if (fileScanJobHandlersRegistered && !options.replace && getJobHandler(FILE_SCAN_JOB_TYPE)) {
+    return;
+  }
+
+  registerJobHandler(FILE_SCAN_JOB_TYPE, handleFileScanJob, {
+    replace: true,
+  });
+  fileScanJobHandlersRegistered = true;
+}
+
+async function queueFileScanJob(session, file, options = {}) {
+  const workspaceId = normalizeRequiredText(file?.workspace_id || session?.workspace_id || options.workspaceId || options.workspace_id, "File scan job requires a workspace.");
+  const fileId = normalizeRequiredText(file?.file_id || options.fileId || options.file_id, "File scan job requires a file.");
+  const enqueued = await enqueueJob({
+    availableAt: options.availableAt || options.available_at || new Date().toISOString(),
+    dedupeKey: `file:scan:${workspaceId}:${fileId}`,
+    jobType: FILE_SCAN_JOB_TYPE,
+    maxAttempts: options.maxAttempts || options.max_attempts || 3,
+    priority: options.priority ?? FILE_SCAN_JOB_PRIORITY,
+    workspaceId,
+    payload: {
+      fileId,
+      operation: "scan_file",
+      requestedByUserId: normalizeOptionalText(session?.user_id || options.requestedByUserId || options.requested_by_user_id),
+      source: normalizeOptionalText(options.source) || "files-service",
+      workspaceId,
+    },
+  });
+
+  return {
+    ok: true,
+    operation: "queue_file_scan",
+    queued: enqueued?.action === "inserted" || enqueued?.action === "updated",
+    deduped: enqueued?.action === "deduped_running",
+    queueAction: enqueued?.action || "",
+    job: enqueued?.job || null,
+    jobId: enqueued?.job?.jobId || "",
+    fileId,
+    workspaceId,
+  };
+}
+
+async function handleFileScanJob({ payload = {} }) {
+  const operation = normalizeOptionalText(payload.operation || "scan_file");
+
+  if (operation !== "scan_file") {
+    throw new Error(`Unknown file scan job operation "${operation}".`);
+  }
+
+  const workspaceId = normalizeRequiredText(payload.workspaceId || payload.workspace_id, "File scan job requires a workspace.");
+  const fileId = normalizeRequiredText(payload.fileId || payload.file_id, "File scan job requires a file.");
+  const file = await readFileRow(workspaceId, fileId);
+
+  if (!file) {
+    return {
+      scanned: false,
+      skipped: true,
+      reason: "file_not_found",
+      fileId,
+      workspaceId,
+    };
+  }
+
+  if (file.status !== "pending" || file.scan_status !== "pending") {
+    return {
+      scanned: false,
+      skipped: true,
+      reason: "file_not_pending_scan",
+      fileId,
+      scanStatus: file.scan_status,
+      status: file.status,
+      workspaceId,
+    };
+  }
+
+  const result = await scanFile(fileJobSession({
+    userId: payload.requestedByUserId || payload.requested_by_user_id,
+    workspaceId,
+  }), file);
+
+  return {
+    ...result,
+    fileId,
+    scanned: true,
+    workspaceId,
+  };
 }
 
 async function scanFile(session, file) {
@@ -3036,6 +3134,15 @@ function normalizeOptionalText(value, options = {}) {
   return options.maxLength ? text.slice(0, options.maxLength) : text;
 }
 
+function fileJobSession({ userId = "", workspaceId = "" } = {}) {
+  return {
+    role: "system",
+    user_id: normalizeOptionalText(userId),
+    username: "Job Worker",
+    workspace_id: normalizeOptionalText(workspaceId),
+  };
+}
+
 function normalizeReportReason(value) {
   const reason = normalizeOptionalText(value, { maxLength: 80 });
   const allowedReasons = new Set(["illegal", "abusive", "inappropriate", "security", "other"]);
@@ -3259,6 +3366,7 @@ export const filesService = {
   listFileLifecycleEvents,
   listFileStatuses,
   listScanStatuses,
+  queueFileScanJob,
   quarantineFile,
   readAttachmentPreviewContent,
   readAttachmentPreviewDescriptor,
@@ -3266,6 +3374,7 @@ export const filesService = {
   readWorkspaceFileSettings,
   readStorageAccounting,
   recordExternalStorageAccounting,
+  registerFileScanJobHandlers,
   registerFileScannerAdapter,
   registerFileStorageAdapter,
   removeAttachment,
@@ -3277,4 +3386,11 @@ export const filesService = {
   updateAttachmentContext,
   uploadAndAttach,
   uploadBatchAndAttach,
+};
+
+export {
+  FILE_SCAN_JOB_TYPE,
+  handleFileScanJob,
+  queueFileScanJob,
+  registerFileScanJobHandlers,
 };

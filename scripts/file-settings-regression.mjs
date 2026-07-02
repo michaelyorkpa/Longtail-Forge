@@ -97,7 +97,8 @@ async function assertSavedPolicy(session, taskId) {
     originalFilename: "allowed.txt",
     text: "allowed text",
   }));
-  assert.equal(upload.file.status, "available");
+  assert.equal(upload.file.status, "pending");
+  assert.equal(upload.file.scanStatus, "pending");
 }
 
 async function createTask(session, title) {

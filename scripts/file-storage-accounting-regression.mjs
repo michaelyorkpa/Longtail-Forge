@@ -8,7 +8,7 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-accoun
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-file-storage-accounting.db");
 process.env.SUPER_ADMIN_PASSWORD = "File-Storage-Accounting-Test-123!";
 
-const { filesService } = await import("../src/services/files.service.js");
+const { filesService, handleFileScanJob } = await import("../src/services/files.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 try {
@@ -61,8 +61,19 @@ async function assertInternalAccounting(session, taskId) {
   assert.equal(accounting.totals.internalBytes, Buffer.byteLength("internal bytes for accounting"));
   assert.equal(accounting.totals.externalReportedBytes, 0);
   assert.equal(accounting.totals.internalFileCount, 1);
+  assert.equal(accounting.entries.some((entry) => entry.storageKind === "internal" && entry.availabilityStatus === "pending"), true);
   assert.equal(JSON.stringify(accounting).includes("storage-accounting.txt"), false, "accounting must not expose file labels");
   assert.equal(JSON.stringify(accounting).includes("storage_key"), false, "accounting must not expose storage keys");
+
+  await handleFileScanJob({
+    payload: {
+      fileId: upload.file.fileId,
+      requestedByUserId: session.user_id,
+      workspaceId: session.workspace_id,
+    },
+  });
+  accounting = await filesService.readStorageAccounting(session);
+  assert.equal(accounting.entries.some((entry) => entry.storageKind === "internal" && entry.availabilityStatus === "available"), true);
 
   await filesService.deleteFile(session, upload.file.fileId);
   accounting = await filesService.readStorageAccounting(session);

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   buildEventChangedContext,
   readChangedFields,
@@ -371,6 +372,7 @@ async function queueNotificationEvent(event, declaration = null, options = {}) {
   const enqueued = await enqueueJob({
     workspaceId: normalizedEvent.workspace_id,
     jobType: NOTIFICATION_EVENT_JOB_TYPE,
+    dedupeKey: notificationEventJobDedupeKey(normalizedEvent),
     priority: options.priority ?? NOTIFICATION_EVENT_JOB_PRIORITY,
     maxAttempts: options.maxAttempts || options.max_attempts || 3,
     payload: {
@@ -393,7 +395,7 @@ async function queueNotificationEvent(event, declaration = null, options = {}) {
   };
 }
 
-async function handleNotificationEventJob({ payload = {} }) {
+async function handleNotificationEventJob({ payload = {}, job = {} }) {
   const operation = String(payload.operation || NOTIFICATION_EVENT_JOB_OPERATION).trim();
 
   if (operation !== NOTIFICATION_EVENT_JOB_OPERATION) {
@@ -413,7 +415,7 @@ async function handleNotificationEventJob({ payload = {} }) {
     };
   }
 
-  return createFromEvent(event, declaration);
+  return createFromEvent(event, declaration, { job });
 }
 
 function resetEventHandlersForTests() {
@@ -425,7 +427,7 @@ function resetEventHandlersForTests() {
   notificationEventHandlersRegistered = false;
 }
 
-async function createFromEvent(event, declaration = null) {
+async function createFromEvent(event, declaration = null, options = {}) {
   const notificationDeclaration = declaration || modulesService.listNotificationEvents()
     .find((candidate) => candidate.id === event.name);
 
@@ -457,12 +459,14 @@ async function createFromEvent(event, declaration = null) {
     ? suppressActorRecipients(rawSubscribedRecipients, event)
     : rawSubscribedRecipients;
   const metadata = buildNotificationEventMetadata(event, notificationDeclaration);
+  const deliveryKey = notificationDeliveryKey(event, options);
   const defaultRecipients = shouldPreserveActorRecipient(event, notificationDeclaration)
     ? enabledRecipients
     : suppressActorRecipients(enabledRecipients, event);
   const finalRecipients = [...new Set([...defaultRecipients, ...subscribedRecipients])];
 
   const payloads = finalRecipients.map((recipientUserId) => ({
+    ...(deliveryKey ? { notification_id: notificationIdForDeliveryKey(workspaceId, notificationDeclaration.id, recipientUserId, deliveryKey) } : {}),
     workspace_id: workspaceId,
     module_id: moduleId,
     event_type: event.name,
@@ -474,7 +478,10 @@ async function createFromEvent(event, declaration = null) {
     body: notificationBodyWithChangedContext(template?.body || summary.body, metadata),
     url: template?.url || summary.url,
     priority: workspaceDefault.priority || notificationDeclaration.defaultPriority || "normal",
-    metadata,
+    metadata: deliveryKey ? {
+      ...metadata,
+      notification_delivery_key: deliveryKey,
+    } : metadata,
   }));
 
   return createMany(payloads, event.session || null);
@@ -682,6 +689,7 @@ async function normalizeCreatePayload(payload = {}, session = null) {
   }
 
   return {
+    notification_id: normalizeJobText(payload.notification_id || payload.notificationId),
     workspace_id: workspaceId,
     module_id: moduleId,
     event_type: eventType,
@@ -918,6 +926,54 @@ function buildNotificationEventMetadata(event, declaration) {
     ...metadata,
     update_type_label: updateTypeLabel,
   };
+}
+
+function notificationEventJobDedupeKey(event = {}) {
+  const key = explicitNotificationDeliveryKey(event);
+
+  if (!key || !event.workspace_id || !event.name) {
+    return null;
+  }
+
+  return [
+    "notification",
+    "event",
+    event.workspace_id,
+    event.name,
+    stableHash(key),
+  ].join(":");
+}
+
+function notificationDeliveryKey(event = {}, options = {}) {
+  return explicitNotificationDeliveryKey(event) ||
+    normalizeJobText(options.job?.dedupeKey || options.job?.dedupe_key) ||
+    normalizeJobText(options.job?.jobId || options.job?.id);
+}
+
+function explicitNotificationDeliveryKey(event = {}) {
+  const metadata = normalizeMetadata(event.metadata);
+
+  return normalizeJobText(
+    metadata.notification_delivery_key ||
+    metadata.notificationDeliveryKey ||
+    metadata.idempotency_key ||
+    metadata.idempotencyKey ||
+    metadata.reminder_delivery_key ||
+    metadata.reminderDeliveryKey,
+  );
+}
+
+function notificationIdForDeliveryKey(workspaceId, eventType, recipientUserId, deliveryKey) {
+  return `notification:${stableHash([
+    workspaceId,
+    eventType,
+    recipientUserId,
+    deliveryKey,
+  ].map(normalizeJobText).join("|"))}`;
+}
+
+function stableHash(value) {
+  return createHash("sha256").update(String(value || "")).digest("hex").slice(0, 48);
 }
 
 function notificationBodyWithChangedContext(body, metadata = {}) {

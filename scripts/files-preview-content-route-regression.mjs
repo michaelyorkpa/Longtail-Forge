@@ -30,6 +30,7 @@ const MARKDOWN_PREVIEW = [
 ].join("\n");
 
 const { createApp } = await import("../src/core/app.js");
+const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
 
@@ -78,6 +79,7 @@ try {
     filename: "in-review-preview.txt",
     mimeType: "text/plain",
   });
+  await processQueuedJobs();
   await runSql(`
 UPDATE files
 SET scan_status = 'failed'
@@ -223,6 +225,7 @@ WHERE action LIKE 'file.preview%';
   if (server) {
     await closeServer(server);
   }
+  await stopJobWorker().catch(() => {});
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
@@ -297,6 +300,14 @@ async function uploadPreviewFile(api, fixtures, options = {}) {
   assert.ok(response.body.file.fileId, "upload should return a file id");
   assert.ok(response.body.attachment.fileAttachmentId, "upload should return an attachment id");
   return response.body;
+}
+
+async function processQueuedJobs() {
+  await runJobWorkerOnce({
+    claimLimit: 20,
+    mode: "inline",
+    workerId: "files-preview-content-route-regression",
+  });
 }
 
 function insertTaskSql(workspaceId, taskId, title, userId, now) {

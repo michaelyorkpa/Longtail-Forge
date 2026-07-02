@@ -27,15 +27,21 @@ import { formatJobWorkerStatus, startJobWorker, stopJobWorker } from "./jobs/ind
 import { requireModuleBrowserWritesEnabledForRouter } from "./modules/module-access.js";
 import { modulesService } from "./modules/modules.service.js";
 import { notificationsService } from "../services/notifications.service.js";
+import { filesService } from "../services/files.service.js";
+import { registerFutureImportJobHandlers } from "../services/import-jobs.service.js";
 import {
   queueSearchIndexRebuildIfEmpty,
   registerSearchIndexJobHandlers,
 } from "../services/search-index-jobs.service.js";
+import { queueTaskReminderSweepJobs, registerTaskJobHandlers } from "../modules/tasks/task-jobs.service.js";
 import { registerInitialResumeStateProducerEventHandlers } from "../services/work-resume-state-initial-producers.js";
 
 function createApp() {
   const app = express();
   registerSearchIndexJobHandlers();
+  registerTaskJobHandlers();
+  filesService.registerFileScanJobHandlers();
+  registerFutureImportJobHandlers();
   notificationsService.registerEventHandlers();
   registerInitialResumeStateProducerEventHandlers();
 
@@ -99,6 +105,7 @@ async function startServer() {
     const databaseHealth = await initializeDatabase();
     console.log(formatDatabaseHealth(databaseHealth));
     queueStartupSearchIndexRebuildIfEmpty();
+    queueStartupTaskReminderSweep();
     const app = createApp();
 
     const server = app.listen(config.port, config.host, () => {
@@ -162,6 +169,21 @@ function registerGracefulShutdown(server) {
 
   process.once("SIGINT", shutdown);
   process.once("SIGTERM", shutdown);
+}
+
+function queueStartupTaskReminderSweep() {
+  setTimeout(async () => {
+    try {
+      const result = await queueTaskReminderSweepJobs({
+        source: "startup-reminder-sweep",
+      });
+
+      console.log(`[task-reminder-startup] sweep_queue=${result.queued ? "queued" : "skipped"} workspaces=${result.workspaceCount}`);
+    } catch (error) {
+      console.warn("[task-reminder-startup] Reminder sweep queue failed.");
+      console.warn(error.message || error);
+    }
+  }, 0);
 }
 
 function queueStartupSearchIndexRebuildIfEmpty() {

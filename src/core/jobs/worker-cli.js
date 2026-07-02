@@ -11,8 +11,11 @@ import {
   stopJobWorker,
 } from "./job-runner.js";
 import { acquireWorkerProcessLock } from "./worker-process-lock.js";
+import { filesService } from "../../services/files.service.js";
+import { registerFutureImportJobHandlers } from "../../services/import-jobs.service.js";
 import { notificationsService } from "../../services/notifications.service.js";
 import { registerSearchIndexJobHandlers } from "../../services/search-index-jobs.service.js";
+import { queueTaskReminderSweepJobs, registerTaskJobHandlers } from "../../modules/tasks/task-jobs.service.js";
 
 let workerLock = null;
 let shuttingDown = false;
@@ -36,7 +39,14 @@ async function startWorkerProcess(options = {}) {
   const databaseHealth = await initializeWorkerDatabase();
   logger.log(formatDatabaseHealth(databaseHealth));
   registerSearchIndexJobHandlers();
+  registerTaskJobHandlers();
+  filesService.registerFileScanJobHandlers();
+  registerFutureImportJobHandlers();
   notificationsService.registerNotificationJobHandlers();
+  const reminderSweep = await queueTaskReminderSweepJobs({
+    source: "worker-startup-reminder-sweep",
+  });
+  logger.log(`[task-reminder-startup] sweep_queue=${reminderSweep.queued ? "queued" : "skipped"} workspaces=${reminderSweep.workspaceCount}`);
 
   await startJobWorker({
     logger,

@@ -9,7 +9,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-files-at
 process.env.SUPER_ADMIN_PASSWORD = "Files-Attachment-Readmodel-Test-123!";
 
 const { internalEventBus } = await import("../src/core/events/event-bus.js");
-const { filesService } = await import("../src/services/files.service.js");
+const { filesService, handleFileScanJob } = await import("../src/services/files.service.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { NOTE_VISIBILITIES } = await import("../src/modules/notes/library.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
@@ -42,6 +42,8 @@ async function assertAttachmentListSortingAndPagination(session, taskId) {
     originalFilename: "alpha-evidence.txt",
     text: "alpha evidence with a bit more content",
   }));
+  await completeFileScan(session, beta.file.fileId);
+  await completeFileScan(session, alpha.file.fileId);
 
   await runSql(`
 UPDATE file_attachments
@@ -90,6 +92,16 @@ WHERE workspace_id = ${sqlText(session.workspace_id)}
   });
   assert.equal(counts.counts[taskId], 2);
   assert.equal(counts.meta.readableTargets, 1);
+}
+
+async function completeFileScan(session, fileId) {
+  await handleFileScanJob({
+    payload: {
+      fileId,
+      requestedByUserId: session.user_id,
+      workspaceId: session.workspace_id,
+    },
+  });
 }
 
 async function assertTargetAccessBeforeListOrCount(adminSession, limitedSession) {

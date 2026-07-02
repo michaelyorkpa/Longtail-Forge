@@ -17,6 +17,7 @@ await initializeDatabase();
 let checks = 0;
 
 const taskService = readText("src/modules/tasks/tasks.service.js");
+const taskJobsService = readText("src/modules/tasks/task-jobs.service.js");
 const timeEntryService = readText("src/modules/time-tracking/time-entries.service.js");
 const clientProjectService = readText("src/modules/client-projects/clients.service.js");
 const timeEntryRepository = readText("src/modules/time-tracking/time-entries.repo.js");
@@ -37,12 +38,14 @@ check("task create update archive and restore flows re-index canonical task rows
     "task.reopened",
     "task.archived",
     "task.restored",
-    "task.recurrence_instance_created",
   ]) {
     assert.ok(taskService.includes(reason), `${reason} should be wired to task search sync`);
   }
+  assert.ok(taskJobsService.includes("task.recurrence_instance_created"), "task.recurrence_instance_created should be wired to task search sync");
   assert.match(taskService, /moduleId:\s*TASKS_MODULE_ID/);
   assert.match(taskService, /recordType:\s*"task"/);
+  assert.match(taskJobsService, /moduleId:\s*TASKS_MODULE_ID/);
+  assert.match(taskJobsService, /recordType:\s*"task"/);
 });
 
 check("time entry create update and hard delete flows update canonical search rows", () => {

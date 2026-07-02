@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.5";
+const appVersion = "0.33.5.21.7.3";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notification-jobs-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notification-jobs.db");
@@ -41,7 +41,7 @@ try {
   assert.match(notificationsSource, /NOTIFICATION_EVENT_JOB_TYPE = "notification\.event"/, "notifications should declare one durable event job type");
   assert.match(notificationsSource, /registerJobHandler\(NOTIFICATION_EVENT_JOB_TYPE/, "notifications should register a worker handler");
   assert.match(notificationsSource, /queueNotificationEvent\(event, declaration\)/, "notification event handlers should queue jobs");
-  assert.match(notificationsSource, /return createFromEvent\(event, declaration\)/, "notification jobs should reuse the fan-out path");
+  assert.match(notificationsSource, /return createFromEvent\(event, declaration, \{ job \}\)/, "notification jobs should reuse the fan-out path with job retry context");
   assert.match(workerCliSource, /registerNotificationJobHandlers/, "separate worker startup should register notification job handlers");
   assert.match(regressionSuite, /scripts\/notification-jobs-regression\.mjs/, "regression suite should include notification job coverage");
   assert.match(roadmap, /Version 0\.33\.5\.21\.5 - Move notification fan-out to jobs[\s\S]*\[x\] Failed fan-out jobs retry safely/, "roadmap should mark notification fan-out jobs complete");

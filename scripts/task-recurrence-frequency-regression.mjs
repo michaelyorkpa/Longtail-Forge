@@ -7,12 +7,17 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-task-recurrence-fre
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-task-recurrence-frequency.db");
 process.env.SUPER_ADMIN_PASSWORD = "Task-Recurrence-Frequency-Test-Password-123!";
 
-const { closeSqlite, initializeDatabase, querySql } = await import("../src/db/index.js");
+const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
+const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index.js");
+const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
+const { registerTaskJobHandlers } = await import("../src/modules/tasks/task-jobs.service.js");
 const { taskRecurrenceService } = await import("../src/modules/tasks/task-recurrence.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 
 try {
   await initializeDatabase();
+  registerSearchIndexJobHandlers({ replace: true });
+  registerTaskJobHandlers({ replace: true });
   const session = await readSeedSession();
 
   await assertWeekdayRecurrenceSkipsWeekends(session);
@@ -23,6 +28,7 @@ try {
 
   console.log("Task recurrence frequency regression passed.");
 } finally {
+  await stopJobWorker().catch(() => {});
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
 }
@@ -43,9 +49,9 @@ async function assertWeekdayRecurrenceSkipsWeekends(session) {
   assert.match(task.recurrenceDetails.rrule, /FREQ=DAILY/);
   assert.match(task.recurrenceDetails.rrule, /BYDAY=MO,TU,WE,TH,FR/);
 
-  const completed = await tasksService.complete(task.task_id, session);
-  assert.equal(completed.createdTask.due_date, "2026-06-15");
-  assert.equal(completed.createdTask.recurrence_instance_date, "2026-06-15");
+  const createdTask = await completeAndRunRecurrence(task, session, "2026-06-15");
+  assert.equal(createdTask.due_date, "2026-06-15");
+  assert.equal(createdTask.recurrence_instance_date, "2026-06-15");
 }
 
 async function assertWeekendRecurrenceSkipsWeekdays(session) {
@@ -78,9 +84,9 @@ async function assertWeekendRecurrenceSkipsWeekdays(session) {
   const read = (await tasksService.read(task.task_id, session)).task;
   assert.equal(read.recurrenceDetails.frequency, "WEEKENDS");
 
-  const completed = await tasksService.complete(task.task_id, session);
-  assert.equal(completed.createdTask.due_date, "2026-06-20");
-  assert.equal(completed.createdTask.recurrence_instance_date, "2026-06-20");
+  const createdTask = await completeAndRunRecurrence(task, session, "2026-06-20");
+  assert.equal(createdTask.due_date, "2026-06-20");
+  assert.equal(createdTask.recurrence_instance_date, "2026-06-20");
 }
 
 async function assertDailyRecurrenceRemainsSevenDays(session) {
@@ -98,9 +104,9 @@ async function assertDailyRecurrenceRemainsSevenDays(session) {
   assert.equal(task.recurrenceDetails.frequency, "DAILY");
   assert.equal(taskRecurrenceService.parseRRule(task.recurrenceDetails.rrule).frequency, "DAILY");
 
-  const completed = await tasksService.complete(task.task_id, session);
-  assert.equal(completed.createdTask.due_date, "2026-06-13");
-  assert.equal(completed.createdTask.recurrence_instance_date, "2026-06-13");
+  const createdTask = await completeAndRunRecurrence(task, session, "2026-06-13");
+  assert.equal(createdTask.due_date, "2026-06-13");
+  assert.equal(createdTask.recurrence_instance_date, "2026-06-13");
 }
 
 async function assertFutureEditDoesNotPersistInstanceStatus(session) {
@@ -138,8 +144,8 @@ async function assertFutureEditDoesNotPersistInstanceStatus(session) {
     "All-future recurrence edits should not persist the current instance status to the series template.",
   );
 
-  const completed = await tasksService.complete(task.task_id, session);
-  assert.equal(completed.createdTask.status, "open", "Next recurring task instances should be created open.");
+  const createdTask = await completeAndRunRecurrence(task, session, "2026-06-17");
+  assert.equal(createdTask.status, "open", "Next recurring task instances should be created open.");
 }
 
 async function assertTaskViewDialogIncludesFrequencyOptions() {
@@ -180,4 +186,30 @@ LIMIT 1;
 `);
 
   return rows[0]?.status || "";
+}
+
+async function completeAndRunRecurrence(task, session, instanceDate) {
+  const completed = await tasksService.complete(task.task_id, session);
+  assert.equal(completed.createdTask, null, "recurrence generation should be queued instead of inline");
+  assert.equal(completed.recurrenceJob.queued, true, "completing a recurring task should queue recurrence generation");
+
+  const summary = await runJobWorkerOnce({
+    claimLimit: 20,
+    mode: "inline",
+    workerId: "task-recurrence-frequency-regression",
+  });
+  assert.ok(summary.completed >= 1, "worker should process queued recurrence work");
+
+  const rows = await querySql(`
+SELECT task_id
+FROM tasks
+WHERE workspace_id = ${sqlText(session.workspace_id)}
+  AND recurrence_template_id = ${sqlText(task.recurrence_template_id)}
+  AND recurrence_instance_date = ${sqlText(instanceDate)}
+  AND task_id <> ${sqlText(task.task_id)}
+LIMIT 1;
+`);
+  assert.ok(rows[0]?.task_id, `expected recurrence instance for ${instanceDate}`);
+
+  return (await tasksService.read(rows[0].task_id, session)).task;
 }

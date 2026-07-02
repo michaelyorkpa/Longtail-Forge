@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.21.5";
+const appVersion = "0.33.5.21.7.3";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -96,9 +96,9 @@ assert.match(functionBlock(filesService, "quarantineFile"), /assertCan\(session,
 
 assert.match(filesHtml, /js\/shared\/icons\.js\?v=6/, "Files page should cache-bust the shared row-action icons");
 assert.match(filesHtml, /js\/files\.js\?v=13/, "Files page should cache-bust the Files action wiring");
-assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=5/, "Notes should cache-bust the shared attachment action helper");
-assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=4/, "Tasks should cache-bust the shared attachment action helper");
-assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=4/, "Workbench should cache-bust the shared attachment action helper");
+assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=6/, "Notes should cache-bust the shared attachment action helper");
+assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=6/, "Tasks should cache-bust the shared attachment action helper");
+assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=6/, "Workbench should cache-bust the shared attachment action helper");
 
 assert.match(changelog, /## Version 0\.33\.5\.18\.12\.4[\s\S]*Files visual states and control parity/, "Changelog should document the current Files visual parity slice");
 assert.match(roadmap, /Completed 0\.33\.5\.18\.12\.1 through 0\.33\.5\.18\.12\.7 are archived/, "Roadmap should archive the completed Files action/guardrail branch");

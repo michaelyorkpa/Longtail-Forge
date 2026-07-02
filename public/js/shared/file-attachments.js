@@ -525,12 +525,24 @@
   }
 
   function createUploadResultItem(view, result) {
+    const pendingReview = result.ok && (
+      result.file?.status === "pending" ||
+      result.file?.scanStatus === "pending" ||
+      result.file?.scan_status === "pending"
+    );
+    const filename = result.originalFilename || result.file?.originalFilename || "File";
+    let text = `${filename}: ${result.error || "Upload failed."}`;
+
+    if (pendingReview) {
+      text = `${filename} uploaded; review pending.`;
+    } else if (result.ok) {
+      text = `${filename} uploaded.`;
+    }
+
     return createAttachmentElement(view, "p", {
       className: result.ok ? "file-attachment-upload-result" : "file-attachment-upload-result is-error",
       attrs: { "data-file-upload-result": result.ok ? "success" : "error" },
-      text: result.ok
-        ? `${result.originalFilename || result.file?.originalFilename || "File"} uploaded.`
-        : `${result.originalFilename || "File"}: ${result.error || "Upload failed."}`,
+      text,
     });
   }
 

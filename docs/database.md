@@ -36,6 +36,12 @@ As of version 0.33.5.21.4, Search indexing uses the durable job runner. Normal r
 
 As of version 0.33.5.21.5, Notification fan-out uses the durable job runner. Internal notification event hooks queue `notification.event` rows in `jobs`; the worker resolves recipients and creates notification records through the notification service, preserving workspace defaults, user preferences, subscriptions, permission checks, and module-enabled checks.
 
+As of version 0.33.5.21.7.1, Files upload requests no longer run scanner work inline after queueing `file.scan`. Uploads create and attach a pending file row, leave download and preview unavailable, and rely on the inline or separate worker to complete the queued scan before the file becomes available or quarantined. Target-scoped attachment reads may include safe pending-scan rows so the owning record can show review-pending recovery copy while the worker is delayed or disabled.
+
+As of version 0.33.5.21.7.2, task reminder scheduling uses a documented 30-day scheduling horizon plus a durable 12-hour sweep. Eligible task create/update/reopen/restore flows pre-enqueue only reminder occurrences whose `reminder_at_utc` falls inside that horizon. App startup and separate-worker startup queue a `task.reminder` sweep operation per active workspace; the sweep reads existing active due-dated tasks, tops up newly in-horizon reminder jobs, and reschedules the next sweep through the jobs table. This gives existing tasks reminder coverage without creating unbounded far-future queued rows.
+
+As of version 0.33.5.21.7.3, the reminder model keeps the 30-day scheduling horizon and 12-hour sweep while registered durable job handlers are reviewed for normal at-least-once worker behavior. Task reminder firing carries a stable `notification_delivery_key`; notification event jobs dedupe that key while active, and notification fan-out uses deterministic recipient notification IDs so reclaimed reminder jobs and retried notification jobs cannot double-notify the same user for the same reminder firing. Search indexing remains canonical upsert/delete work, recurrence generation keeps its existing-instance guard, file scanning skips rows that are no longer pending scan work, and `import.future` remains a safe no-op.
+
 As of version 0.33.5.19.2, SQLite startup hardens the existing helper boundary before migrations run. Longtail Forge applies foreign-key enforcement to every SQLite process, enables `PRAGMA journal_mode = WAL` by default, configures the SQLite busy timeout from runtime config, verifies the database file path is writable, and reports safe startup health for the provider, database file path, writable state, foreign-key state, journal mode, and busy timeout.
 
 As of version 0.33.5.19.5, `src/db/provider.js` owns the provider-neutral database adapter boundary and `src/core/database.js` is the preferred app-facing import path for repositories, modules, and framework services that need database access. The v1 adapter API is `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, `db.transaction(callback)`, `db.close()`, `db.health()`, and `db.capabilities`. SQLite is still the only implemented provider, and the SQLite helper stays behind `src/db/adapters/sqlite-adapter.js`. `querySql` and `runSql` remain temporary legacy compatibility helpers while repository code moves toward the adapter. Parameter binding is active for pilot repository paths, and the transaction helper is active for selected multi-step write pilots.
@@ -114,7 +120,7 @@ Future SaaS/PostgreSQL mode should not let every web or worker instance run migr
 
 ## Durable Job/Outbox Schema
 
-The `jobs` table is framework-owned infrastructure for durable background work and outbox-style handoff. The table shipped as schema only in 0.33.5.21.1, the v1 worker runner shipped in 0.33.5.21.2, and lock-timeout recovery plus the minimal admin readout shipped in 0.33.5.21.3. Module-specific job producers are owned by later roadmap slices.
+The `jobs` table is framework-owned infrastructure for durable background work and outbox-style handoff. The table shipped as schema only in 0.33.5.21.1, the v1 worker runner shipped in 0.33.5.21.2, lock-timeout recovery plus the minimal admin readout shipped in 0.33.5.21.3, and the first job producers shipped across 0.33.5.21.4 through 0.33.5.21.6.
 
 Job states:
 
@@ -156,7 +162,18 @@ The protected browser rebuild route queues a workspace/module rebuild job for th
 
 The notification worker handler resolves recipients and creates notification records through `notificationsService.createFromEvent()`. That path still owns workspace defaults, user preferences, follow subscriptions, actor suppression, safe notification metadata, target access checks, and disabled-module checks. Direct `notificationsService.create()` and `createMany()` remain available for explicit framework calls and focused tests, but normal module event fan-out should go through the queued event path.
 
-Failed fan-out jobs use the durable runner's normal retry behavior. A retryable failure remains in `failed` with a bounded `last_error` and a future `available_at`; exhausted jobs move to `dead` for the admin job readout without blocking the app.
+Failed fan-out jobs use the durable runner's normal retry behavior. A retryable failure remains in `failed` with a bounded `last_error` and a future `available_at`; exhausted jobs move to `dead` for the admin job readout without blocking the app. As of 0.33.5.21.7.3, notification events with a stable delivery key dedupe active fan-out jobs and use deterministic recipient notification IDs, so retried or reclaimed jobs do not create duplicate notification rows.
+
+## Durable Background Work Jobs
+
+As of version 0.33.5.21.6, time-sensitive and slow workflow work has durable job handlers:
+
+- `task.reminder`: queued when eligible tasks are created, updated, reopened, restored, or found by the reminder sweep. As of 0.33.5.21.7.2, reminder scheduling is bounded to a 30-day horizon and topped up by a durable 12-hour sweep so existing tasks can receive reminders without queuing unbounded far-future rows. As of 0.33.5.21.7.3, the fire operation includes a stable `notification_delivery_key` so the downstream notification path is idempotent under at-least-once retries. The worker recomputes the effective reminder policy before firing, skips stale/completed/archived tasks, accounts for a small web/worker clock-skew window, and emits `task.due_soon` with the task's timezone-derived due context.
+- `task.recurrence`: queued when a recurring task is completed. The worker creates the next recurrence instance through the Tasks recurrence service, records the same audit/event/search side effects as the old inline path, and relies on the recurrence service's existing "find existing instance first" behavior for idempotence.
+- `file.scan`: queued when a file record is created. As of 0.33.5.21.7.1, upload requests do not scan inline after queueing; the worker handler owns the pending -> available/quarantined transition and safely skips files that are no longer pending.
+- `import.future`: reserved for future import producers. The registered handler completes as a safe no-op until a concrete import workflow is promoted into the roadmap.
+
+SQLite inline mode remains intentionally simple: the app's inline worker poll timer or the one local `node worker.js` process claims these rows using the same `jobs` table and retry/dead-letter behavior. Scanner adapter configuration remains future storage/scanner work; the durable file-scan execution path keeps pending files unavailable until a worker completes the scan, without enabling ClamAV or exposing scanner internals.
 
 ## Fresh Baseline
 

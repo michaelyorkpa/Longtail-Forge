@@ -5,6 +5,10 @@ import { taskRecurrenceService } from "./task-recurrence.service.js";
 import { taskRelationshipsRepository } from "./task-relationships.repo.js";
 import { taskRemindersService } from "./task-reminders.service.js";
 import { taskTimersService } from "./task-timers.service.js";
+import {
+  queueTaskRecurrenceGeneration,
+  queueTaskReminderJobsForTask,
+} from "./task-jobs.service.js";
 import { clientsService } from "../client-projects/clients.service.js";
 import { clientsRepository } from "../client-projects/clients.repo.js";
 import { projectsRepository } from "../client-projects/projects.repo.js";
@@ -385,6 +389,10 @@ async function create(payload, session) {
     newValue: taskWithDetails,
   });
   await syncTaskSearchIndex(session.workspace_id, taskWithDetails.task_id, "task.created");
+  await queueTaskReminderJobsForTask(taskWithDetails, {
+    reason: "task.created",
+    session,
+  });
 
   if (recurrence.enabled) {
     await recordRecurrenceAudit({
@@ -488,6 +496,10 @@ async function update(taskId, payload, session) {
     newValue: taskWithDetails,
   });
   await syncTaskSearchIndex(session.workspace_id, taskWithDetails.task_id, "task.updated");
+  await queueTaskReminderJobsForTask(taskWithDetails, {
+    reason: "task.updated",
+    session,
+  });
   if (previousTask.status !== taskWithDetails.status) {
     if (isIncompleteBlockingChild(taskWithDetails)) {
       await blockParentsForIncompleteChild(session, taskWithDetails);
@@ -539,49 +551,12 @@ async function complete(taskId, session) {
   await syncTaskSearchIndex(session.workspace_id, task.task_id, "task.completed");
   await recoverParentsAfterChildStatusChange(session, task);
 
-  const recurrenceResult = await taskRecurrenceService.createNextInstance({
+  const recurrenceQueueResult = await queueTaskRecurrenceGeneration({
     session,
     completedTask: task,
-    createTask: {
-      findExisting: async (templateId, instanceDate) =>
-        attachTaskDetails(await tasksRepository.readByRecurrenceInstance(session.workspace_id, templateId, instanceDate)),
-      create: async (nextTask) => {
-        const created = await tasksRepository.create(session.workspace_id, {
-          ...nextTask,
-          created_by_user_id: previousTask.created_by_user_id || session.user_id,
-          updated_by_user_id: session.user_id,
-          completed_at: "",
-          completed_by_user_id: "",
-          archived_at: "",
-          archived_by_user_id: "",
-        });
-        return attachTaskDetails(created);
-      },
-    },
   });
-  const createdTask = recurrenceResult?.task || null;
 
-  if (createdTask && recurrenceResult.wasCreated) {
-    await recordTaskAudit({
-      session,
-      action: "task_recurrence_instance_created",
-      changeType: "create",
-      previousValue: null,
-      newValue: createdTask,
-    });
-    await emitTaskEvent("task.created", {
-      session,
-      previousValue: null,
-      newValue: createdTask,
-      metadata: {
-        recurrence_template_id: createdTask.recurrence_template_id || "",
-        source_task_id: task.task_id,
-      },
-    });
-    await syncTaskSearchIndex(session.workspace_id, createdTask.task_id, "task.recurrence_instance_created");
-  }
-
-  return { task, createdTask };
+  return { task, createdTask: null, recurrenceJob: recurrenceQueueResult };
 }
 
 async function reopen(taskId, session) {
@@ -614,6 +589,10 @@ async function reopen(taskId, session) {
     },
   });
   await syncTaskSearchIndex(session.workspace_id, task.task_id, "task.reopened");
+  await queueTaskReminderJobsForTask(task, {
+    reason: "task.reopened",
+    session,
+  });
   await blockParentsForIncompleteChild(session, task);
 
   return { task };
@@ -680,6 +659,10 @@ async function restore(taskId, session) {
     newValue: task,
   });
   await syncTaskSearchIndex(session.workspace_id, task.task_id, "task.restored");
+  await queueTaskReminderJobsForTask(task, {
+    reason: "task.restored",
+    session,
+  });
   if (task.status === "complete") {
     await recoverParentsAfterChildStatusChange(session, task);
   } else {

@@ -13,6 +13,7 @@ process.env.SUPER_ADMIN_PASSWORD = "File-Api-Lifecycle-Test-123!";
 
 const { internalEventBus } = await import("../src/core/events/event-bus.js");
 const { createApp } = await import("../src/core/app.js");
+const { runJobWorkerOnce, stopJobWorker } = await import("../src/core/jobs/index.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const { createSession } = await import("../src/security/sessions.js");
 
@@ -34,13 +35,13 @@ try {
     assert.equal(response.status, 401);
   });
 
-  await checkAsync("POST /api/files uploads, scans, stores, and attaches a text file", async () => {
+  await checkAsync("POST /api/files uploads, queues scan, stores, and attaches a pending text file", async () => {
     const response = await api.post("/api/files", uploadPayload(fixtures.taskId), { cookie: fixtures.adminSessionId });
 
     assert.equal(response.status, 201);
     assert.equal(response.body.file.originalFilename, "evidence.txt");
-    assert.equal(response.body.file.status, "available");
-    assert.equal(response.body.file.scanStatus, "passed");
+    assert.equal(response.body.file.status, "pending");
+    assert.equal(response.body.file.scanStatus, "pending");
     assert.equal(response.body.attachment.targetType, "task");
     fixtures.fileId = response.body.file.fileId;
     fixtures.attachmentId = response.body.attachment.fileAttachmentId;
@@ -51,13 +52,40 @@ FROM files
 WHERE file_id = ${sqlText(fixtures.fileId)};
 `);
     assert.equal(rows[0].original_filename, "evidence.txt");
+    assert.equal(rows[0].status, "pending");
+    assert.equal(rows[0].scan_status, "pending");
+    assert.ok(!rows[0].storage_key.includes("evidence.txt"));
+    const scanJobs = await querySql(`
+SELECT status, attempt_count
+FROM jobs
+WHERE job_type = 'file.scan'
+  AND payload_json LIKE ${sqlText(`%"fileId":"${fixtures.fileId}"%`)};
+`);
+    assert.equal(scanJobs.length, 1);
+    assert.equal(scanJobs[0].status, "pending");
+    assert.equal(Number(scanJobs[0].attempt_count), 0);
+    assert.ok(capturedFileEvents.some((event) => event.name === "file.upload.requested"));
+    assert.ok(capturedFileEvents.some((event) => event.name === "file.attachment.created"));
+  });
+
+  await checkAsync("GET /api/files/:fileId/download blocks pending scan files", async () => {
+    const response = await api.get(`/api/files/${fixtures.fileId}/download`, { cookie: fixtures.adminSessionId });
+
+    assert.equal(response.status, 403);
+  });
+
+  await checkAsync("file.scan worker makes the uploaded file available", async () => {
+    await processQueuedJobs();
+    const rows = await querySql(`
+SELECT status, scan_status
+FROM files
+WHERE file_id = ${sqlText(fixtures.fileId)};
+`);
+
     assert.equal(rows[0].status, "available");
     assert.equal(rows[0].scan_status, "passed");
-    assert.ok(!rows[0].storage_key.includes("evidence.txt"));
-    assert.ok(capturedFileEvents.some((event) => event.name === "file.upload.requested"));
     assert.ok(capturedFileEvents.some((event) => event.name === "file.scan.passed"));
     assert.ok(capturedFileEvents.some((event) => event.name === "file.available"));
-    assert.ok(capturedFileEvents.some((event) => event.name === "file.attachment.created"));
   });
 
   await checkAsync("GET /api/files/:fileId/download returns routed content with safe headers", async () => {
@@ -204,6 +232,7 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
       text: "remove attachment only",
     }), { cookie: fixtures.adminSessionId });
     assert.equal(upload.status, 201);
+    await processQueuedJobs();
 
     const remove = await api.post(`/api/files/attachments/${upload.body.attachment.fileAttachmentId}/remove`, {}, {
       cookie: fixtures.adminSessionId,
@@ -259,6 +288,7 @@ WHERE file_id = ${sqlText(fixtures.fileId)};
       text: "delete file",
     }), { cookie: fixtures.adminSessionId });
     assert.equal(upload.status, 201);
+    await processQueuedJobs();
 
     const deleted = await api.post(`/api/files/${upload.body.file.fileId}/delete`, {}, {
       cookie: fixtures.adminSessionId,
@@ -302,6 +332,7 @@ WHERE files.file_id = ${sqlText(upload.body.file.fileId)};
   if (server) {
     await closeServer(server);
   }
+  await stopJobWorker().catch(() => {});
   internalEventBus.reset();
   await closeSqlite();
   await fs.rm(tempDir, { recursive: true, force: true });
@@ -647,6 +678,14 @@ async function assertIntegrity() {
 async function checkAsync(name, assertion) {
   await assertion();
   results.push(name);
+}
+
+async function processQueuedJobs() {
+  await runJobWorkerOnce({
+    claimLimit: 10,
+    mode: "inline",
+    workerId: "file-api-lifecycle-regression",
+  });
 }
 
 function listen(app) {

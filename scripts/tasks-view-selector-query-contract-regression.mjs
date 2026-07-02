@@ -5,7 +5,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-const appVersion = "0.33.5.21.5";
+const appVersion = "0.33.5.21.7.3";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksScript = readText("public/js/tasks.js");

@@ -330,6 +330,29 @@ ORDER BY
   return attachAssignees(tasks.map(taskRowToAppValue), assignees);
 }
 
+async function readReminderSchedulingCandidates(workspaceId, options = {}) {
+  const normalizedLimit = normalizePositiveInteger(options.limit, 500);
+  const normalizedOffset = normalizePositiveInteger(options.offset, 0);
+  const rows = await db.query(taskSelectSql(`
+WHERE tasks.workspace_id = :workspaceId
+  AND tasks.due_date IS NOT NULL
+  AND tasks.status NOT IN ('complete', 'archived')
+ORDER BY
+  tasks.due_date,
+  COALESCE(tasks.due_time, '23:59'),
+  tasks.updated_at ASC,
+  tasks.task_id ASC
+LIMIT :limit OFFSET :offset;
+`), {
+    limit: normalizedLimit,
+    offset: normalizedOffset,
+    workspaceId,
+  });
+  const assignees = await readAssigneesForTasks(workspaceId, rows.map((row) => row.task_id));
+
+  return attachAssignees(rows.map(taskRowToAppValue), assignees);
+}
+
 async function readAssigneesForTask(workspaceId, taskId) {
   return db.query(assigneeSelectSql(`
 WHERE task_assignees.workspace_id = :workspaceId
@@ -764,6 +787,7 @@ export const tasksRepository = {
   readByIds,
   readByRecurrenceInstance,
   readDueBetween,
+  readReminderSchedulingCandidates,
   markWorkedAt,
   update,
 };

@@ -585,19 +585,33 @@ async function runTaskMutationTests(api, fixtures) {
     api.post(`/api/tasks/${encodeURIComponent(recurringTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
     200,
   );
+  await drainQueuedSearchJobs();
+  const nextRecurringTask = await readRecurrenceInstance(
+    fixtures.workspaceId,
+    recurringTask.body.task.recurrence_template_id,
+    localDateOffset(1),
+  );
   check("recurring completion creates next dated task", () => {
     assert.equal(completedRecurringTask.body.task.status, "complete");
-    assert.equal(completedRecurringTask.body.createdTask.due_date, localDateOffset(1));
-    assert.equal(completedRecurringTask.body.createdTask.recurrence_template_id, recurringTask.body.task.recurrence_template_id);
+    assert.equal(completedRecurringTask.body.createdTask, null);
+    assert.equal(completedRecurringTask.body.recurrenceJob.queued, true);
+    assert.equal(nextRecurringTask.due_date, localDateOffset(1));
+    assert.equal(nextRecurringTask.recurrence_template_id, recurringTask.body.task.recurrence_template_id);
   });
   await expectStatus(
     "recurring completion retry reuses existing next instance",
     api.post(`/api/tasks/${encodeURIComponent(recurringTask.body.task.task_id)}/complete`, {}, { cookie: fixtures.sessions.projectUser }),
     200,
   ).then((response) => {
+    return drainQueuedSearchJobs().then(async () => ({ response, nextCount: await countRecurrenceInstances(
+      fixtures.workspaceId,
+      recurringTask.body.task.recurrence_template_id,
+      localDateOffset(1),
+    ) }));
+  }).then(({ response, nextCount }) => {
     check("recurring retry does not duplicate next instance", () => {
-      assert.equal(response.body.createdTask.task_id, completedRecurringTask.body.createdTask.task_id);
-      assert.equal(response.body.createdTask.recurrence_instance_date, localDateOffset(1));
+      assert.equal(response.body.createdTask, null);
+      assert.equal(nextCount, 1);
     });
   });
   const calendarRangeStart = localDateOffset(0);
@@ -610,7 +624,7 @@ async function runTaskMutationTests(api, fixtures) {
     check("task calendar payload is calendar-ready and scope filtered", () => {
       const taskIds = response.body.tasks.map((task) => task.task_id);
       assert.ok(taskIds.includes(recurringTask.body.task.task_id));
-      assert.ok(taskIds.includes(completedRecurringTask.body.createdTask.task_id));
+      assert.ok(taskIds.includes(nextRecurringTask.task_id));
       assert.ok(!taskIds.includes(workspaceTask.body.task.task_id));
       assert.equal(response.body.tasks.find((task) => task.task_id === recurringTask.body.task.task_id).source.type, "task");
       assert.equal(response.body.tasks.find((task) => task.task_id === recurringTask.body.task.task_id).url.startsWith("tasks.html?task="), true);
@@ -623,7 +637,7 @@ async function runTaskMutationTests(api, fixtures) {
   ).then((response) => {
     check("dashboard task summary respects task scope and exposes task URLs", () => {
       const dueSoonIds = response.body.tasks.summary.dueSoon.map((task) => task.task_id);
-      assert.ok(dueSoonIds.includes(completedRecurringTask.body.createdTask.task_id));
+      assert.ok(dueSoonIds.includes(nextRecurringTask.task_id));
       assert.ok(!dueSoonIds.includes(workspaceTask.body.task.task_id));
       assert.equal(response.body.tasks.summary.dueSoon[0].url.startsWith("tasks.html?task="), true);
       assert.ok(response.body.extensionPoints.dashboardPanels.some((panel) => panel.id === "task-summary" && panel.renderer === "task-summary"));
@@ -2165,6 +2179,32 @@ VALUES (
 );`);
 
   return sessionId;
+}
+
+async function readRecurrenceInstance(workspaceId, templateId, instanceDate) {
+  const rows = await querySql(`
+SELECT task_id, due_date, recurrence_template_id, recurrence_instance_date
+FROM tasks
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND recurrence_template_id = ${sqlText(templateId)}
+  AND recurrence_instance_date = ${sqlText(instanceDate)}
+LIMIT 1;
+`);
+
+  assert.ok(rows[0], `expected recurrence instance for ${instanceDate}`);
+  return rows[0];
+}
+
+async function countRecurrenceInstances(workspaceId, templateId, instanceDate) {
+  const rows = await querySql(`
+SELECT COUNT(*) AS count
+FROM tasks
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND recurrence_template_id = ${sqlText(templateId)}
+  AND recurrence_instance_date = ${sqlText(instanceDate)};
+`);
+
+  return Number(rows[0]?.count || 0);
 }
 
 function localPastMinuteDue(timeZone = "America/New_York") {

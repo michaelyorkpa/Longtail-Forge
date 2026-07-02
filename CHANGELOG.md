@@ -1,3 +1,32 @@
+## Version 0.33.5.21.7.3 - 2026-07-02
+
+- Hardened durable job idempotency for normal at-least-once worker behavior: reminder fire jobs now carry stable notification delivery keys, notification fan-out dedupes active delivery-key jobs, and recipient notifications use deterministic IDs so reminder/job retries do not double-notify.
+- Reviewed the current durable handler set for retry and stale-payload behavior: search indexing remains canonical upsert/delete work, recurrence generation keeps existing-instance guards, file scanning skips non-pending rows, and `import.future` remains a reserved no-op.
+- Added `scripts/job-idempotency-at-least-once-regression.mjs`, refreshed durable-job idempotency docs and decisions, and advanced package/module/regression version metadata to 0.33.5.21.7.3.
+- Verification 2026-07-02 09:41 -04:00: job idempotency, notification jobs, background work jobs, reminder scheduling horizon, job claiming, search-index jobs, file-scan handoff, worker runner, runtime configuration, runtime/database closeout, and server-side list version-pin targeted checks passed; `npm run check` passed 232/232 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.7.3 after restarting the local 8001 server.
+
+## Version 0.33.5.21.7.2 - 2026-07-02
+
+- Bounded task reminder pre-enqueueing to a documented 30-day scheduling horizon so create/update/reopen/restore flows no longer create far-future reminder jobs.
+- Added a durable `task.reminder` `sweep_reminders` operation queued at app and separate-worker startup; the sweep backfills existing active due-dated tasks, skips completed/archived tasks, suppresses duplicate reminder jobs, and re-enqueues its next 12-hour top-up through the jobs table.
+- Added `scripts/task-reminder-scheduling-horizon-regression.mjs`, refreshed durable-job reminder docs and decisions, and advanced package/module/regression version metadata to 0.33.5.21.7.2.
+- Verification 2026-07-02 09:07 -04:00: reminder scheduling horizon, background work jobs, worker runner, task recurrence frequency, runtime configuration, server-side list version pins, and runtime/database closeout targeted checks passed; `npm run check` passed 231/231 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.7.2 after restarting the local 8001 server.
+
+## Version 0.33.5.21.7.1 - 2026-07-02
+
+- Moved Files upload scanning fully off the request path: uploads now create a pending attachment, queue `file.scan`, and remain unavailable until the worker completes the scan job.
+- Kept pending-scan files safe and visible in target-scoped attachment panels with review-pending copy, while download and preview routes continue to block unavailable content.
+- Added `scripts/file-scan-job-handoff-regression.mjs`, updated Files lifecycle/accounting/read-model regressions for queued scan completion, refreshed durable-job/Files docs and decisions, and advanced package/module/regression version metadata to 0.33.5.21.7.1.
+- Verification 2026-07-02 08:33 -04:00: file scan handoff, file lifecycle/accounting/settings/read-model/preview, cache-bust attachment shell, background work jobs, and server-side list version-pin targeted checks passed; `npm run check` passed 230/230 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.7.1 after restarting the local 8001 server.
+
+## Version 0.33.5.21.6 - 2026-07-02
+
+- Added durable `task.reminder`, `task.recurrence`, `file.scan`, and reserved `import.future` job handlers registered by both app startup and `node worker.js`.
+- Moved recurring task next-instance generation out of `tasksService.complete()` and into the worker while preserving recurrence idempotence, audit/event/search side effects, and reminder scheduling for generated tasks.
+- Added scheduled task reminder firing through queued jobs that recompute reminder policy at execution time, preserve due-time timezone calculations, and tolerate normal web/worker clock skew before emitting `task.due_soon`.
+- Added a durable file-scan worker path while preserving current default no-op scanner upload availability, and reserved the future import job type as a safe completed no-op until an import producer ships.
+- Added `scripts/background-work-jobs-regression.mjs`, updated recurrence regressions for queued generation, refreshed durable-job/runtime/database docs and decisions, and advanced package/module/regression version metadata to 0.33.5.21.6.
+
 ## Version 0.33.5.21.5 - 2026-07-02
 
 - Moved notification-producing internal events onto durable `notification.event` jobs so the event hook stores fan-out work in the outbox and the worker resolves recipients before creating notification records.

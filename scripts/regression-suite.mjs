@@ -137,6 +137,7 @@ const DEFAULT_DATABASE_REGRESSIONS = Object.freeze([
 const FILE_STORAGE_REGRESSIONS = Object.freeze([
   "scripts/file-framework-contract-regression.mjs",
   "scripts/file-api-lifecycle-regression.mjs",
+  "scripts/file-scan-job-handoff-regression.mjs",
   "scripts/files-attachment-context-route-regression.mjs",
   "scripts/files-attachable-target-options-regression.mjs",
   "scripts/files-preview-availability-route-regression.mjs",
@@ -164,6 +165,9 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/baseline-adoption-regression.mjs",
   "scripts/performance-regression.mjs",
   "scripts/notification-jobs-regression.mjs",
+  "scripts/background-work-jobs-regression.mjs",
+  "scripts/task-reminder-scheduling-horizon-regression.mjs",
+  "scripts/job-idempotency-at-least-once-regression.mjs",
   "scripts/notification-regression.mjs",
   "scripts/search-api-regression.mjs",
   "scripts/search-shell-regression.mjs",

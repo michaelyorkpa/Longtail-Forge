@@ -25,7 +25,15 @@ async function create(notification) {
   const notificationId = notification.notification_id || randomUUID();
   const now = notification.created_at || new Date().toISOString();
 
-  await runSql(`
+  if (notification.notification_id) {
+    const existing = await readById(notification.workspace_id, notificationId);
+    if (existing) {
+      return existing;
+    }
+  }
+
+  try {
+    await runSql(`
 INSERT INTO notifications (
   notification_id,
   workspace_id,
@@ -65,6 +73,15 @@ VALUES (
   ${sqlText(notification.metadata_json || "{}")}
 );
 `);
+  } catch (error) {
+    if (notification.notification_id && isDuplicateNotificationIdError(error)) {
+      const existing = await readById(notification.workspace_id, notificationId);
+      if (existing) {
+        return existing;
+      }
+    }
+    throw error;
+  }
 
   return readById(notification.workspace_id, notificationId);
 }
@@ -513,6 +530,12 @@ function parseMetadata(metadataJson) {
   } catch {
     return {};
   }
+}
+
+function isDuplicateNotificationIdError(error) {
+  const message = String(error?.message || error || "");
+  return message.includes("UNIQUE constraint failed: notifications.notification_id") ||
+    message.includes("PRIMARY KEY");
 }
 
 function normalizeStatusFilter(status) {

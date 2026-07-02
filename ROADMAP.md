@@ -254,21 +254,176 @@ Acceptance criteria:
 
 ### Version 0.33.5.21.6 - Move reminders, recurrence, and file scanning to jobs
 
-- [ ] Add job handlers for:
-  - [ ] Task reminders.
-  - [ ] Recurrence generation.
-  - [ ] File scanning.
-  - [ ] Future imports.
-- [ ] Keep SQLite inline mode simple.
-- [ ] Ensure jobs are idempotent where practical.
-- [ ] Note that task reminders have no delivery mechanism today (only offset policy + read-time computation in `src/modules/tasks/task-reminders.service.js`); this slice introduces scheduled reminder firing, not a migration of existing background work.
-- [ ] Preserve per-user/workspace timezone correctness for fired reminders and account for web/worker clock skew when reminders run in a separate worker.
-- [ ] Add admin docs for worker mode.
-- [ ] Add regressions for each job type.
+- [x] Add job handlers for:
+  - [x] Task reminders.
+  - [x] Recurrence generation.
+  - [x] File scanning.
+  - [x] Future imports.
+- [x] Keep SQLite inline mode simple.
+- [x] Ensure jobs are idempotent where practical.
+- [x] Note that task reminders have no delivery mechanism today (only offset policy + read-time computation in `src/modules/tasks/task-reminders.service.js`); this slice introduces scheduled reminder firing, not a migration of existing background work.
+- [x] Preserve per-user/workspace timezone correctness for fired reminders and account for web/worker clock skew when reminders run in a separate worker.
+- [x] Add admin docs for worker mode.
+- [x] Add regressions for each job type.
 
 Acceptance criteria:
 
-- Time-sensitive and slow work has a durable background path.
+- [x] Time-sensitive and slow work has a durable background path.
+
+### Version 0.33.5.21.7 - Durable jobs hardening and follow-ups
+
+Purpose:
+
+Close the residual gaps surfaced while landing 0.33.5.21.1 through 0.33.5.21.6 so the durable jobs foundation is safe for real scanners, larger reminder volumes, long-running installs, and separate-worker operation. This branch is hardening and follow-through; it does not add new job types.
+
+### Version 0.33.5.21.7.1 - File scan request-path handoff
+
+Purpose:
+
+Make `file.scan` the real scanning execution path before scanner adapters ship.
+
+- [x] Remove the unconditional inline `scanFile(session, file)` in the upload path (`src/services/files.service.js`) so scanning runs through the enqueued `file.scan` job. As written, the inline scan moves the file off `pending`, so `handleFileScanJob` always short-circuits on `file_not_pending_scan` and the durable path is never exercised.
+- [x] Keep uploaded files in a clear `pending`/unavailable state until the scan job completes; if immediate availability is wanted for SQLite inline mode, run the scan job synchronously through the job handler path rather than scanning unconditionally in the web request.
+- [x] Ensure `separate` worker mode owns scanning: the web process must not scan inline when a worker is configured.
+- [x] Add/clarify Files UI handling for pending-scan files (uploaded, not yet available) and a fallback when the worker is delayed or down.
+- [x] Update Files/job docs and add focused regressions proving uploads enqueue scan work, pending files stay unavailable, the worker completes scanning, and scanner internals/storage paths remain hidden.
+
+Acceptance criteria:
+
+- [x] File scanning runs through the durable job path and no longer blocks the upload request, so real scanner adapters in 0.33.5.22 can be slow or hang without failing uploads.
+- [x] The browser and API expose a safe pending-scan state without adding file rename, replacement, hard-purge, storage-key, scanner-internal, or inline preview behavior.
+
+### Version 0.33.5.21.7.2 - Reminder scheduling backfill and horizon
+
+Purpose:
+
+Make reminder coverage explicit for existing and future tasks without accumulating unbounded far-future queued rows.
+
+- [x] Document the reminder scheduling model: reminder jobs are pre-enqueued with a future `available_at` when a task is created, updated, reopened, or restored.
+- [x] Add a backfill or periodic "enqueue due reminders" sweep so existing due-dated tasks are covered even if they have not been touched since the durable reminder producer shipped.
+- [x] Add a bounded scheduling horizon so only reminders due within the configured or documented window are queued, then topped up by the sweep.
+- [x] Preserve per-user/workspace timezone correctness and the existing web/worker clock-skew tolerance.
+- [x] Add focused regressions for pre-existing tasks, horizon top-up behavior, disabled/archived/completed task skips, and duplicate enqueue suppression.
+
+Acceptance criteria:
+
+- [x] Existing eligible tasks can receive reminders without manual edits.
+- [x] Far-future or many-offset tasks do not create an unbounded number of long-lived queued rows.
+
+### Version 0.33.5.21.7.3 - Job idempotency and at-least-once audit
+
+Purpose:
+
+Confirm every registered handler is safe under retry, lock reclaim, and at-least-once delivery.
+
+- [x] Harden reminder firing so a job retry does not re-emit `task.due_soon` and double-notify; record fired state with completion or verify durable notification dedupe covers the retry path.
+- [x] Review search index, notification fan-out, task reminder, task recurrence, file scan, and `import.future` handlers for stale payload, duplicate delivery, and retry behavior.
+- [x] Add or tighten regressions for the highest-risk duplicate paths, especially reminder retries and reclaimed running jobs.
+- [x] Capture the idempotency contract in developer docs so future job handlers know to re-read current state and skip stale work.
+
+Acceptance criteria:
+
+- Registered durable job handlers are documented and tested as safe for normal at-least-once worker behavior.
+- Reminder retry paths cannot double-notify a user for the same reminder firing.
+
+### Version 0.33.5.21.7.4 - Job retention and pruning
+
+Purpose:
+
+Prevent the framework-owned `jobs` table from growing without bound on long-running installs.
+
+- [ ] Add a retention/pruning policy for old `completed` and `dead` jobs so history remains bounded while active pending/running/failed work is preserved.
+- [ ] Make the retention window configurable through runtime configuration with safe defaults and validation.
+- [ ] Prune through framework-owned maintenance behavior, such as a maintenance job or startup sweep, not ad hoc route deletes.
+- [ ] Keep active dedupe semantics intact: completed and dead-letter history must not block replacement jobs, and pruning must not remove active rows.
+- [ ] Update docs and regressions for retention defaults, configured windows, active-row preservation, and long-running-install safety.
+
+Acceptance criteria:
+
+- Completed and dead-letter job history is bounded by a clear retention policy.
+- Pruning is framework-owned, repeatable, and safe for SQLite inline or one-local-worker mode.
+
+### Version 0.33.5.21.7.5 - Admin job observability
+
+Purpose:
+
+Move durable-job health from route-only diagnostics into the admin experience.
+
+- [ ] Ensure pending/running/failed/dead-letter counts and recent failures are visible in an admin surface, not only the `/api/jobs/status` route, reusing the bounded-pagination envelope from 0.33.5.20.5.
+- [ ] Include worker health/status in Runtime Diagnostics without exposing job payload JSON, dedupe keys, scanner internals, storage paths, or raw environment values.
+- [ ] Preserve `workspace_settings.manage` authorization and the existing safe diagnostics redaction contract.
+- [ ] Add focused browser/service regressions for the admin readout, authorization, pagination envelope, and sensitive-field redaction.
+
+Acceptance criteria:
+
+- Admins can inspect queue health and recent failures from the app UI.
+- Job observability remains read-only and safe to expose to workspace settings managers.
+
+### Version 0.33.5.21.7.6 - Separate-worker end-to-end validation
+
+Purpose:
+
+Prove the shipped worker CLI can process the durable-job foundation outside the web process.
+
+- [ ] Add a regression that runs the `separate` worker (`src/core/jobs/worker-cli.js`) against queued jobs end to end, proving it registers all handlers and processes reminder, recurrence, file-scan, notification, and search-index jobs.
+- [ ] Verify the 0.33.5.21.0.5 SQLite boundary: one local worker, schema-readiness check, no independent migration ownership, and no worker fleet sharing one SQLite file.
+- [ ] Confirm `disabled`, `inline`, and `separate` modes leave understandable diagnostics and do not process jobs from the wrong process.
+- [ ] Update worker docs only for behavior proved by the regression.
+
+Acceptance criteria:
+
+- Separate-worker mode has a repeatable end-to-end regression covering all current durable job handlers.
+- SQLite mode continues to allow at most one local worker and keeps migration ownership with app startup or maintenance, not the worker.
+
+### Version 0.33.5.21.7.7 - Async recurrence response closeout
+
+Purpose:
+
+Make the asynchronous recurrence contract fully absorbed by service, API, and browser consumers before the durable-jobs branch closes.
+
+- [ ] Verify all consumers of `tasks.service.complete()` handle `createdTask` now being `null` because the next recurring instance is created asynchronously by the worker.
+- [ ] Check browser completion flows, public API completion responses, audit/event/search side effects, and tests for assumptions that a next recurring instance exists synchronously.
+- [ ] Decide whether to surface a small "next instance queued" affordance, and document the decision in the Tasks contract if behavior changes.
+- [ ] Complete the durable-jobs branch closeout only after the 0.33.5.21.7 child slices are done: docs, changelog, roadmap/archive bookkeeping, version pins, targeted regressions, full `npm run check`, permission checks if touched, SQLite integrity check if database behavior changed, and `/api/app-info` verification after restart.
+
+Acceptance criteria:
+
+- Recurring-task completion responses and UI behavior match the asynchronous worker contract.
+- The 0.33.5.21 durable-jobs branch closes with no new job type introduced and with file scanning, reminder coverage, job-table growth, retry idempotency, admin observability, and separate-worker operation validated.
+
+### Version 0.33.5.21.8 - Deliver task due reminders to the notification surface
+
+Purpose:
+
+Task due reminders must produce in-app notifications through the existing notification surface, on the reminder schedule set for the task. This has never worked for the user. With 0.33.5.21.6 firing, 0.33.5.21.5 notification jobs, and 0.33.5.21.7.2/0.33.5.21.7.3 covering when reminders enqueue and how retries stay idempotent, the remaining gap is recipient delivery: who a fired reminder actually notifies. Email and calendar delivery remain future work; this slice is the in-app notification surface only.
+
+Root cause (confirmed):
+
+- Reminder firing (`handleTaskReminderJob` emitting `task.due_soon`) only arrived in 0.33.5.21.6; before it, `src/modules/tasks/module.js` described `task.due_soon` as a "Reserved notification event," so no shipped version ever fired a reminder.
+- The `task.due_soon` notification event uses `recipientMode: "assignees"` (`src/modules/tasks/module.js`), and `resolveRecipients` (`src/services/notifications.service.js`) only adds assignee user IDs for that mode. A task with no assignee (or not assigned to the current user) resolves to zero recipients and produces no notification. The reminder job runs as a system actor (empty `actor_user_id`), so actor suppression is not the cause.
+
+- [ ] Confirm the end-to-end reminder delivery path (0.33.5.21.6 firing + 0.33.5.21.5 notification jobs):
+  - [ ] A task with a due date and reminder offsets enqueues `task.reminder` jobs at each `reminder_at_utc`.
+  - [ ] The reminder job fires at its scheduled time and emits `task.due_soon`.
+  - [ ] Notification fan-out creates an in-app notification record that appears in the notifications surface and unread count.
+- [ ] Fix reminder recipient scope so reminders reach the responsible user.
+  - [ ] Deliver task due reminders to the task's assignee(s) and to the task owner/creator when there is no assignee, so solo/personal/family-workspace tasks notify the user who set the schedule.
+  - [ ] Prefer passing explicit reminder recipients from the reminder job (which already reads the full task) instead of relying only on the `assignees` recipient hint.
+  - [ ] Preserve existing assignee and task-follower delivery and existing system-actor handling.
+  - [ ] Respect per-user notification preferences (`task.due_soon` is `defaultEnabled: true`, `high` priority) and workspace module-enabled checks.
+  - [ ] Do not notify for archived or completed tasks (already guarded when the job fires).
+- [ ] Make the reminder notification useful.
+  - [ ] Title/body should reference the task and how soon it is due (from the offset), link to the task, and use the declared `high` priority.
+- [ ] Verification.
+  - [ ] Add an end-to-end regression: near-future due date + reminder offsets -> reminder job -> `task.due_soon` -> notification record visible to the right user; cover assigned, unassigned/self-owned, and followed tasks.
+  - [ ] Manually verify against a real reminder schedule: set reminders on a task and confirm a notification appears at the scheduled time in the notifications surface.
+- [ ] Cross-reference: 0.33.5.21.7.2 covers when reminder jobs enqueue and 0.33.5.21.7.3 covers safe retries; this slice covers who a fired reminder notifies and that it reaches the notification surface.
+
+Acceptance criteria:
+
+- Setting a reminder schedule on a task reliably produces an in-app notification at each scheduled reminder time for the assignee(s) and, when unassigned, the task owner/creator.
+- Reminder notifications appear in the existing notification surface and unread count, respect notification preferences and module-enabled checks, and link to the task.
+- Regression coverage proves reminder-to-notification delivery for assigned, unassigned/self-owned, and followed tasks.
 
 ## Version 0.33.5.22 - Storage Provider and Scanner Runtime
 
@@ -325,7 +480,7 @@ Acceptance criteria:
   - [ ] `clamd`
   - [ ] `clamscan`
 - [ ] Define the `none` vs `noop` distinction precisely (e.g. `none` = do not scan / mark available; `noop` = pass-through adapter for tests), since only `noop` exists today (`src/core/files/scanner-adapter.js`) while config defaults to `none`.
-- [ ] Cross-reference 0.33.5.21.6: decide whether scanning stays inline in this slice or is invoked as a durable job, and sequence the two slices so the upload -> scan -> available/quarantine state machine has a single owner. Scanning is inline/blocking during upload today (`src/services/files.service.js`).
+- [ ] Cross-reference 0.33.5.21.7.1: `file.scan` now owns upload scan execution, uploaded files stay pending/unavailable until the worker completes the job, and this slice should make scanner adapter configuration the single owner of any future pending scan -> available/quarantine transition changes.
 - [ ] Reuse the existing quarantine/review lifecycle (`files.manage_quarantine`, the `Mark Reviewed` restore path) rather than introducing new scan states.
 - [ ] Keep no-op scanner only for development or explicitly accepted self-hosted mode.
 - [ ] Add scanner health checks.
