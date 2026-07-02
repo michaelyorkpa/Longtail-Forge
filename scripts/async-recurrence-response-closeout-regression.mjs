@@ -5,7 +5,8 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.7.7";
+const appVersion = "0.33.5.21.7.8";
+const asyncRecurrenceVersion = "0.33.5.21.7.7";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-async-recurrence-response-"));
 process.env.LONGTAIL_DATA_DIR = tempDir;
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-async-recurrence-response.db");
@@ -46,7 +47,7 @@ try {
   assert.doesNotMatch(workbenchSource, /createdTask/, "Workbench completion should not assume a synchronous recurring task response");
   assert.match(tasksDocs, /As of 0\.33\.5\.21\.7\.7[\s\S]*createdTask` is `null`[\s\S]*recurrenceJob\.queued/, "Tasks docs should describe the async recurrence response contract");
   assert.match(publicApiDocs, /As of 0\.33\.5\.21\.7\.7[\s\S]*createdTask` is `null`[\s\S]*recurrenceJob\.queued/, "public API docs should describe the safe recurrence queued hint");
-  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the async recurrence closeout slice");
+  assert.match(changelog, new RegExp(`## Version ${escapeRegExp(asyncRecurrenceVersion)} - `), "changelog should include the async recurrence closeout slice");
   assert.match(roadmap, /Version 0\.33\.5\.21\.7\.7 - Async recurrence response closeout[\s\S]*\[x\] Verify all consumers of `tasks\.service\.complete\(\)`[\s\S]*\[x\] Complete the durable-jobs branch closeout/, "roadmap should mark the async recurrence response closeout complete");
   assert.match(roadmap, /Version 0\.33\.5\.21\.8 - Deliver task due reminders to the notification surface/, "roadmap should leave the next reminder-delivery slice live");
   assert.match(regressionSuite, /scripts\/async-recurrence-response-closeout-regression\.mjs/, "regression suite should include async recurrence response closeout coverage");

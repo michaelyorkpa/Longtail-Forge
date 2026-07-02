@@ -11,9 +11,9 @@ const renderer = readText("public/js/shared/view-renderer.js");
 const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.21.7.7", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.21.7.7", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.21.7.7", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.21.7.8", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.21.7.8", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.21.7.8", "package-lock package entry should report the current app version");
 
 assert.match(listsModule, new RegExp(`version:\\s*"${escapeRegExp(packageJson.version)}"`), "Lists module should report the current app version");
 assert.match(listsModule, /itemForm:\s*\{[\s\S]*field:\s*"item_name"[\s\S]*behavior:\s*"lists\.catalog-suggestions"[\s\S]*field:\s*"save_to_catalog"/, "Lists descriptor should declare item entry fields and catalog behavior hook");

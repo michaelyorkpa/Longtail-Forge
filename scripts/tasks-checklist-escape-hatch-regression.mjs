@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.21.7.7";
+const appVersion = "0.33.5.21.7.8";
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
 const tasksModule = readText("src/modules/tasks/module.js");
@@ -23,7 +23,7 @@ assert.match(
 );
 assert.match(
   taskDialogScript,
-  /function taskEditorChecklistSection\(view\)[\s\S]*className: \["task-checklist-field", "surface-modal-group"\][\s\S]*"data-task-checklist-field"[\s\S]*taskEditorSectionHeading\(view, "summary", "Checklist"\)[\s\S]*"data-task-checklist-status"[\s\S]*className: \["task-checklist-add-row", "surface-modal-section-body"\][\s\S]*"data-task-checklist-input"[\s\S]*"data-task-checklist-add"[\s\S]*"data-task-checklist-list"/,
+  /function taskEditorChecklistSection\(view\)[\s\S]*className: \["task-checklist-field", "surface-modal-group"\][\s\S]*"data-task-checklist-field"[\s\S]*taskEditorSectionHeading\(view, "summary", "Checklist"\)[\s\S]*"data-task-checklist-status"[\s\S]*className: \["task-checklist-add-row", "surface-modal-section-body"\][\s\S]*"data-task-checklist-input"[\s\S]*taskEditorChecklistAddButton\(view\)[\s\S]*"data-task-checklist-list"[\s\S]*function taskEditorChecklistAddButton\(view\)[\s\S]*button\.dataset\.taskChecklistAdd = ""/,
   "Checklist should use the framework modal section shell while keeping task-owned controls inside it.",
 );
 assert.doesNotMatch(

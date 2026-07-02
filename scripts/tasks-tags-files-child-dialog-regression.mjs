@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.21.7.7";
+const appVersion = "0.33.5.21.7.8";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -56,10 +56,10 @@ assert.doesNotMatch(fieldNodes, /data-task-tags-panel|data-task-files-panel|task
 assert.doesNotMatch(taskDialog, /taskOverlayHost|toggleTaskFooterPanel|toggleTaskFooterPanelFallback|taskEditorFooterPanel|data-task-tags-panel|data-task-files-panel/, "Task Tags and Files should no longer use parent-body overlay panel plumbing");
 assert.doesNotMatch(taskDialog, /className: \["task-footer-panel"|"surface-overlay-panel"/, "Task dialog should not mount Tags or Files as overlay panels");
 
-assert.match(tasksView, /css\/longtail-forge\.css\?v=73/, "Tasks page should cache-bust the child-dialog stylesheet cleanup");
-assert.match(tasksView, /js\/task-dialog\.js\?v=21/, "Tasks page should cache-bust the Task child-dialog browser wiring");
-assert.match(workbenchView, /css\/longtail-forge\.css\?v=21/, "Workbench should cache-bust the child-dialog stylesheet cleanup");
-assert.match(workbenchView, /js\/task-dialog\.js\?v=21/, "Workbench should cache-bust the Task child-dialog browser wiring");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=74/, "Tasks page should cache-bust the child-dialog stylesheet cleanup");
+assert.match(tasksView, /js\/task-dialog\.js\?v=22/, "Tasks page should cache-bust the Task child-dialog browser wiring");
+assert.match(workbenchView, /css\/longtail-forge\.css\?v=22/, "Workbench should cache-bust the child-dialog stylesheet cleanup");
+assert.match(workbenchView, /js\/task-dialog\.js\?v=22/, "Workbench should cache-bust the Task child-dialog browser wiring");
 
 assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current Task child-dialog version");
 assert.match(tasksDocs, /Tags and Files footer utilities open stacked child dialogs/, "Tasks docs should document the shipped child-dialog behavior");

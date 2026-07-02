@@ -1703,10 +1703,10 @@
     label.dataset.taskChecklistLabel = "true";
     label.setAttribute("aria-label", "Checklist item label");
 
-    const save = checklistActionButton("save", "Save", "Save checklist item");
-    const up = checklistActionButton("up", "Up", "Move checklist item up");
-    const down = checklistActionButton("down", "Down", "Move checklist item down");
-    const remove = checklistActionButton("delete", "Remove", "Remove checklist item");
+    const save = checklistActionButton("save", "Save checklist item");
+    const up = checklistActionButton("up", "Move checklist item up");
+    const down = checklistActionButton("down", "Move checklist item down");
+    const remove = checklistActionButton("delete", "Remove checklist item");
     up.disabled = index === 0;
     down.disabled = index >= totalItems - 1;
 
@@ -1714,13 +1714,32 @@
     return row;
   }
 
-  function checklistActionButton(action, text, label) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = text;
+  function checklistActionButton(action, label) {
+    if (!namespace.icons?.createIconButton) {
+      throw new Error("Task checklist actions require LongtailForge.icons.createIconButton.");
+    }
+
+    const button = namespace.icons.createIconButton({
+      icon: checklistActionIcon(action),
+      iconOnly: true,
+      label,
+      text: "",
+      title: label,
+      type: "button",
+      variant: action === "delete" ? "danger" : "",
+    });
+    button.classList.add("task-checklist-action");
     button.dataset.taskChecklistAction = action;
-    button.setAttribute("aria-label", label);
     return button;
+  }
+
+  function checklistActionIcon(action) {
+    return {
+      delete: "delete",
+      down: "down",
+      save: "save",
+      up: "up",
+    }[action] || "more";
   }
 
   function formatChecklistProgress(progress) {
@@ -2139,7 +2158,7 @@
               "aria-label": "Checklist item",
               placeholder: "Add checklist item",
             }),
-            taskEditorButton(view, "Add", { "data-task-checklist-add": "" }),
+            taskEditorChecklistAddButton(view),
           ],
         }),
         view.createElement("div", {
@@ -2148,6 +2167,20 @@
         }),
       ],
     });
+  }
+
+  function taskEditorChecklistAddButton(view) {
+    const button = view.createActionButton({
+      className: "task-checklist-add-button",
+      icon: "add",
+      iconOnly: true,
+      label: "Add checklist item",
+      text: "",
+      title: "Add checklist item",
+      type: "button",
+    });
+    button.dataset.taskChecklistAdd = "";
+    return button;
   }
 
   function taskEditorRecurrenceSection(view) {

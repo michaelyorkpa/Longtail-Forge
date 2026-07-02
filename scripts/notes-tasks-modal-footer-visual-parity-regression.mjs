@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.21.7.7";
+const appVersion = "0.33.5.21.7.8";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -44,8 +44,8 @@ assert.match(taskDecorateControls, /icons\.decorateButton\(fields\.tagToggle, \{
 assert.match(taskDecorateControls, /icons\.decorateButton\(fields\.cancel, \{ icon: "close", label: "Cancel", text: "", title: "Cancel", iconOnly: true \}\)[\s\S]*icons\.decorateButton\(fields\.save, \{ icon: "save", label: "Save task", text: "", title: "Save task", iconOnly: true \}\)/, "Tasks commit controls should remain compact icon buttons");
 
 assert.match(notesView, /js\/notes\.js\?v=69/, "Notes view should cache-bust follow-bell browser wiring");
-assert.match(tasksView, /js\/task-dialog\.js\?v=21/, "Tasks view should cache-bust footer visual parity browser wiring");
-assert.match(workbenchView, /js\/task-dialog\.js\?v=21/, "Workbench should cache-bust the shared Task dialog browser wiring");
+assert.match(tasksView, /js\/task-dialog\.js\?v=22/, "Tasks view should cache-bust footer visual parity browser wiring");
+assert.match(workbenchView, /js\/task-dialog\.js\?v=22/, "Workbench should cache-bust the shared Task dialog browser wiring");
 assert.match(notesDocs, new RegExp(`current Notes implementation as of ${escapeRegExp(appVersion)}`), "Notes docs should report the current module handoff version");
 assert.match(notesDocs, /Tags, Files, and Copy Link footer utilities use icon plus text/, "Notes docs should document footer utility visual parity");
 assert.match(tasksDocs, new RegExp(`current Tasks module behavior as of ${escapeRegExp(appVersion)}`), "Tasks docs should report the current module handoff version");

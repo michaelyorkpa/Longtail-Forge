@@ -30,8 +30,8 @@ assert.match(surfaceContract, /\.surface-overlay-panel--bottom-sheet/, "surface 
 assert.match(uiGuide, /overlay host owns placement, close behavior, focus handling, Escape, click-away, responsive sizing, and one-open-overlay behavior/, "UI guide should document overlay host ownership");
 
 assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1/, "Tasks view should load the shared overlay host before task-dialog");
-assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=21/, "Tasks view should keep loading the shared overlay host before task dialog code for any remaining non-modal overlay users");
-assert.match(tasksView, /css\/longtail-forge\.css\?v=73/, "Tasks view should load the overlay-host stylesheet cache key");
+assert.match(tasksView, /js\/shared\/overlay-host\.js\?v=1[\s\S]*js\/task-dialog\.js\?v=22/, "Tasks view should keep loading the shared overlay host before task dialog code for any remaining non-modal overlay users");
+assert.match(tasksView, /css\/longtail-forge\.css\?v=74/, "Tasks view should load the overlay-host stylesheet cache key");
 
 console.log("Overlay host contract regression passed.");
 

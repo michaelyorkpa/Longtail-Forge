@@ -1,6 +1,6 @@
 # Tasks Module
 
-This document captures the current Tasks module behavior as of 0.33.5.21.7.7. It is a developer handoff for shipped behavior, not a roadmap promise.
+This document captures the current Tasks module behavior as of 0.33.5.21.7.8. It is a developer handoff for shipped behavior, not a roadmap promise.
 
 Tasks are a first-party workflow module for commitments and outcomes. The module owns task storage, recurrence records, lightweight checklist items, parent/child task relationships, task reminder settings, task timer source routes, task browser routes, public task API routes, task search indexing, task audit payloads, and task lifecycle events.
 
@@ -52,6 +52,8 @@ As of 0.33.5.18.9.3, the Task editor uses one framework-owned `Task Details` sec
 As of 0.33.5.18.9.4, the Task editor and recurrence child editor open and close through `LongtailForge.view.showModal()` / `LongtailForge.view.closeModal()`. The recurrence child editor shell is built with `LongtailForge.view.createModalForm()` so the framework owns the child dialog shell, footer, placement, stack metadata, and focus return. Tasks still owns recurrence draft hydration, frequency/interval/end-date fields, recurrence summary text, save payload shape, and service rules.
 
 As of 0.33.5.18.9.5, the Checklist section keeps the shared `.surface-modal-group` shell while checklist rows and behavior remain Tasks-owned. Checklist add, label save, check, uncheck, reorder, and delete controls call the Tasks checklist routes directly, refresh task-owned row state/progress through the existing task editor callback path, and avoid generic descriptor rows because the workflow needs inline editing, ordering buttons, checkbox state, and delete confirmation.
+
+As of 0.33.5.21.7.8, the checklist add control and per-item Save, Move up, Move down, and Remove controls are icon-only action buttons backed by the shared icon system. They keep title and `aria-label` text, preserve the existing checklist data hooks and disabled edge behavior, and keep Remove on the shared danger styling. Opening the editor for an existing task fetches the single-task detail read before rendering so list-row payloads that only include `checklistProgress` still display the full `checklistItems` rows.
 
 As of 0.33.5.18.9.6, the Task Timer section keeps the shared `.surface-modal-group` shell and shared dense action placement while timer state and actions remain Tasks-owned. Start, pause, save time, and reset continue through the Tasks timer routes and service, preserving timer eligibility, Time Tracking gates, sourced active-timer state, open-to-in-progress transition behavior, reset/finalize side effects, audit entries, last-worked updates, and search reindexing. Tags and Files stay in framework-placed footer utility actions while using the Tags-owned picker and Files-owned attachment helper, the linked Notes panel stays mounted through the Notes-owned helper, Copy Link remains Tasks-owned URL/clipboard behavior, and notification follow/unfollow remains the heading bell backed by notification subscription helpers.
 

@@ -1,3 +1,9 @@
+## Version 0.33.5.21.7.8 - 2026-07-02
+
+- Converted Task editor checklist add/save/move/remove controls to shared icon-only action buttons with accessible labels, hover titles, preserved checklist hooks, disabled up/down edges, and danger styling for Remove.
+- Added `scripts/task-checklist-editor-display-regression.mjs` to guard the list-row-to-detail-read checklist rendering path and refreshed Tasks docs, cache keys, roadmap status, package/module versions, and regression version metadata.
+- Verification pending.
+
 ## Version 0.33.5.21.7.7 - 2026-07-02
 
 - Closed the async recurrence response contract: recurring task completion now returns `createdTask: null` with a `recurrenceJob.queued` handoff while the worker creates the next task instance.

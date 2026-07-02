@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.21.7.7";
+const appVersion = "0.33.5.21.7.8";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -67,13 +67,13 @@ assert.match(stylesheet, /\.task-details-grid > label \{[\s\S]*min-width: 0;/, "
 
 assert.ok(
   tasksView.indexOf("js/shared/view-builder.js?v=16") < tasksView.indexOf("js/shared/view-renderer.js?v=13")
-    && tasksView.indexOf("js/shared/view-renderer.js?v=13") < tasksView.indexOf("js/task-dialog.js?v=21")
-    && tasksView.indexOf("js/task-dialog.js?v=21") < tasksView.indexOf("js/tasks.js?v=21"),
+    && tasksView.indexOf("js/shared/view-renderer.js?v=13") < tasksView.indexOf("js/task-dialog.js?v=22")
+    && tasksView.indexOf("js/task-dialog.js?v=22") < tasksView.indexOf("js/tasks.js?v=21"),
   "Tasks host should load framework view helpers before the Task dialog and page controller",
 );
 assert.ok(
   workbenchView.indexOf("js/shared/view-builder.js?v=16") < workbenchView.indexOf("js/shared/view-renderer.js?v=13")
-    && workbenchView.indexOf("js/shared/view-renderer.js?v=13") < workbenchView.indexOf("js/task-dialog.js?v=21"),
+    && workbenchView.indexOf("js/shared/view-renderer.js?v=13") < workbenchView.indexOf("js/task-dialog.js?v=22"),
   "Workbench host should load framework view helpers before the shared Task dialog",
 );
 assert.match(regressionSuite, /scripts\/tasks-modal-shell-regression\.mjs/, "Task modal shell regression should be included in the regression suite");

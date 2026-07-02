@@ -5122,6 +5122,11 @@ dialog .form-actions {
     grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
 }
 
+.task-checklist-add-row input,
+.task-checklist-item input[type="text"] {
+    min-width: 0;
+}
+
 .task-checklist-list {
     display: grid;
     gap: 8px;

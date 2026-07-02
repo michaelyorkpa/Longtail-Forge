@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const appVersion = "0.33.5.21.7.7";
+const appVersion = "0.33.5.21.7.8";
 
 const packageJson = JSON.parse(readText("package.json"));
 const packageLock = JSON.parse(readText("package-lock.json"));
@@ -104,9 +104,9 @@ assert.match(styles, /\.file-attachment-actions\s*\{[\s\S]*flex-wrap:\s*wrap/, "
 
 assert.match(notesHtml, /css\/longtail-forge\.css\?v=56/, "Notes should cache-bust the shared stylesheet for attachment panel shell changes");
 assert.match(notesHtml, /js\/shared\/file-attachments\.js\?v=6/, "Notes should cache-bust the attachment helper for panel shell changes");
-assert.match(tasksHtml, /css\/longtail-forge\.css\?v=73/, "Tasks should cache-bust the shared stylesheet for attachment panel shell changes");
+assert.match(tasksHtml, /css\/longtail-forge\.css\?v=74/, "Tasks should cache-bust the shared stylesheet for attachment panel shell changes");
 assert.match(tasksHtml, /js\/shared\/file-attachments\.js\?v=6/, "Tasks should cache-bust the attachment helper for panel shell changes");
-assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=21/, "Workbench should cache-bust the shared stylesheet for attachment panel shell changes");
+assert.match(workbenchHtml, /css\/longtail-forge\.css\?v=22/, "Workbench should cache-bust the shared stylesheet for attachment panel shell changes");
 assert.match(workbenchHtml, /js\/shared\/file-attachments\.js\?v=6/, "Workbench should cache-bust the attachment helper for panel shell changes");
 
 assert.match(functionBlock(notesJs, "openFilesDialog"), /view\.showModal\(filesDialog, \{ parent: dialog, trigger: filesToggle \}\)[\s\S]*data-file-attachment-input[\s\S]*focusTarget\?\.focus\(\)/, "Notes Files utility should still open as a stacked child dialog and focus the helper input when available");

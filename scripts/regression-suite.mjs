@@ -100,6 +100,7 @@ const STATIC_REGRESSIONS = Object.freeze([
   "scripts/tasks-modal-shell-regression.mjs",
   "scripts/tasks-recurrence-reminder-escape-hatch-regression.mjs",
   "scripts/tasks-checklist-escape-hatch-regression.mjs",
+  "scripts/task-checklist-editor-display-regression.mjs",
   "scripts/tasks-timer-utility-escape-hatch-regression.mjs",
   "scripts/tasks-canonical-editor-opener-regression.mjs",
   "scripts/tasks-modal-context-sections-regression.mjs",
