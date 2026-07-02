@@ -1,3 +1,11 @@
+## Version 0.33.5.21.3 - 2026-07-01
+
+- Hardened durable job claiming with SQLite-safe atomic `UPDATE ... WHERE job_id = (SELECT ... LIMIT 1) RETURNING ...` claims inside `db.transaction(...)`, repeated up to the claim limit without relying on unsupported `FOR UPDATE SKIP LOCKED`.
+- Made `LONGTAIL_JOB_LOCK_TTL_SECONDS` active by reclaiming expired running locks on later worker polls while preserving retry backoff, max-attempt handling, and dead-letter transitions.
+- Added the protected `GET /api/jobs/status` admin readout for pending/running/failed/dead counts and bounded recent failure summaries without exposing job payloads or dedupe keys.
+- Added `scripts/job-claiming-locking-regression.mjs`, refreshed durable-job/runtime docs and decisions, and advanced package/module/regression version metadata to 0.33.5.21.3.
+- Verification 2026-07-01 22:52 -04:00: job claiming/locking, worker runner, job/outbox schema, runtime configuration, runtime diagnostics, SQLite small-office readout, runtime/database closeout, database result-fidelity, and better-sqlite3 driver closeout targeted checks passed; `npm run check` passed 226/226 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.3 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.2 - 2026-07-01
 
 - Added the framework-owned v1 job worker runner with timer polling, registered handlers, transactional claiming, completion, basic retry backoff, dead-letter transitions, safe status output, and graceful shutdown.

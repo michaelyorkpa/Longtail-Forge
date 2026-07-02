@@ -31,6 +31,7 @@ function createInitialStatus() {
     lastSuccessAt: null,
     lastErrorAt: null,
     lastClaimedCount: 0,
+    lockTtlSeconds: config.worker.lockTtlSeconds,
     claimedCount: 0,
     completedCount: 0,
     failedCount: 0,
@@ -52,6 +53,7 @@ async function startJobWorker(options = {}) {
       timerActive: false,
       pollIntervalMs: normalizePollInterval(options.pollIntervalMs ?? config.worker.pollIntervalMs),
       workerId: normalizeWorkerId(options.workerId ?? config.worker.id),
+      lockTtlSeconds: normalizeLockTtlSeconds(options.lockTtlSeconds ?? config.worker.lockTtlSeconds),
       stoppedAt: new Date().toISOString(),
     };
     return getJobWorkerStatus();
@@ -64,6 +66,7 @@ async function startJobWorker(options = {}) {
   const workerId = normalizeWorkerId(options.workerId ?? config.worker.id);
   const pollIntervalMs = normalizePollInterval(options.pollIntervalMs ?? config.worker.pollIntervalMs);
   const claimLimit = normalizeClaimLimit(options.claimLimit ?? DEFAULT_CLAIM_LIMIT);
+  const lockTtlSeconds = normalizeLockTtlSeconds(options.lockTtlSeconds ?? config.worker.lockTtlSeconds);
   const startedAt = new Date().toISOString();
   shutdownRequested = false;
   workerStatus = {
@@ -74,16 +77,17 @@ async function startJobWorker(options = {}) {
     running: false,
     timerActive: true,
     pollIntervalMs,
+    lockTtlSeconds,
     startedAt,
     stoppedAt: null,
     lastClaimedCount: 0,
   };
 
   pollTimer = setInterval(() => {
-    scheduleWorkerPoll({ claimLimit, logger, mode, workerId });
+    scheduleWorkerPoll({ claimLimit, lockTtlSeconds, logger, mode, workerId });
   }, pollIntervalMs);
 
-  scheduleWorkerPoll({ claimLimit, logger, mode, workerId });
+  scheduleWorkerPoll({ claimLimit, lockTtlSeconds, logger, mode, workerId });
   return getJobWorkerStatus();
 }
 
@@ -159,6 +163,7 @@ async function runJobWorkerOnce(options = {}) {
 
   const workerId = normalizeWorkerId(options.workerId ?? workerStatus.workerId ?? config.worker.id);
   const claimLimit = normalizeClaimLimit(options.claimLimit ?? DEFAULT_CLAIM_LIMIT);
+  const lockTtlSeconds = normalizeLockTtlSeconds(options.lockTtlSeconds ?? workerStatus.lockTtlSeconds ?? config.worker.lockTtlSeconds);
   const pollStartedAt = new Date().toISOString();
   workerStatus = {
     ...workerStatus,
@@ -169,10 +174,12 @@ async function runJobWorkerOnce(options = {}) {
     timerActive: Boolean(pollTimer),
     lastPollAt: pollStartedAt,
     lastRunAt: pollStartedAt,
+    lockTtlSeconds,
   };
 
   const claimedJobs = await claimAvailableJobs({
     limit: claimLimit,
+    lockTtlSeconds,
     now: pollStartedAt,
     workerId,
   });
@@ -221,9 +228,15 @@ async function runJobWorkerOnce(options = {}) {
 async function claimAvailableJobs(options = {}) {
   const workerId = normalizeWorkerId(options.workerId ?? config.worker.id);
   const limit = normalizeClaimLimit(options.limit ?? DEFAULT_CLAIM_LIMIT);
+  const lockTtlSeconds = normalizeLockTtlSeconds(options.lockTtlSeconds ?? config.worker.lockTtlSeconds);
   const now = normalizeIso(options.now ?? new Date());
+  const expiredBefore = subtractSeconds(now, lockTtlSeconds);
 
-  return db.transaction(async (transaction) => transaction.query(`
+  return db.transaction(async (transaction) => {
+    const claimedJobs = [];
+
+    for (let index = 0; index < limit; index += 1) {
+      const claimedRows = await transaction.query(`
 UPDATE jobs
 SET
   status = 'running',
@@ -231,13 +244,25 @@ SET
   locked_by = :workerId,
   attempt_count = attempt_count + 1,
   updated_at = :now
-WHERE job_id IN (
+WHERE job_id = (
   SELECT job_id
   FROM jobs
-  WHERE status IN ('pending', 'failed')
-    AND available_at <= :now
-  ORDER BY priority DESC, available_at ASC, created_at ASC, job_id ASC
-  LIMIT :limit
+  WHERE (
+      status IN ('pending', 'failed')
+      AND available_at <= :now
+    )
+    OR (
+      status = 'running'
+      AND locked_at IS NOT NULL
+      AND locked_at <= :expiredBefore
+    )
+  ORDER BY
+    CASE WHEN status = 'running' THEN 0 ELSE 1 END,
+    priority DESC,
+    available_at ASC,
+    created_at ASC,
+    job_id ASC
+  LIMIT 1
 )
 RETURNING
   job_id,
@@ -258,10 +283,20 @@ RETURNING
   completed_at,
   dead_at;
 `, {
-    limit,
-    now,
-    workerId,
-  }));
+        expiredBefore,
+        now,
+        workerId,
+      });
+
+      if (claimedRows.length === 0) {
+        break;
+      }
+
+      claimedJobs.push(claimedRows[0]);
+    }
+
+    return claimedJobs;
+  });
 }
 
 async function runClaimedJob(job) {
@@ -369,6 +404,7 @@ function formatJobWorkerStatus(status = getJobWorkerStatus()) {
     `worker_id=${status.workerId}`,
     `timer=${status.timerActive ? "on" : "off"}`,
     `poll_interval_ms=${status.pollIntervalMs}`,
+    `lock_ttl_seconds=${status.lockTtlSeconds}`,
     `last_claimed=${status.lastClaimedCount}`,
     `completed=${status.completedCount}`,
     `failed=${status.failedCount}`,
@@ -439,6 +475,16 @@ function normalizeClaimLimit(value) {
   return Math.min(limit, MAX_CLAIM_LIMIT);
 }
 
+function normalizeLockTtlSeconds(value) {
+  const seconds = Number(value);
+
+  if (!Number.isInteger(seconds) || seconds < 1) {
+    return config.worker.lockTtlSeconds;
+  }
+
+  return seconds;
+}
+
 function normalizeIso(value) {
   if (value instanceof Date) {
     return value.toISOString();
@@ -446,6 +492,13 @@ function normalizeIso(value) {
 
   const text = String(value || "").trim();
   return text || new Date().toISOString();
+}
+
+function subtractSeconds(isoValue, seconds) {
+  const timestamp = Date.parse(isoValue);
+  const baseTimestamp = Number.isFinite(timestamp) ? timestamp : Date.now();
+
+  return new Date(baseTimestamp - (seconds * 1000)).toISOString();
 }
 
 export {

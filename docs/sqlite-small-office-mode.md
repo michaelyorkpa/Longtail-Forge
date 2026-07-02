@@ -16,7 +16,7 @@ SQLite small-office mode targets roughly 50 total users, with typical active use
 
 As of 0.33.5.21.2, the SQLite worker-mode boundary for durable jobs is one app process/server plus at most one local worker process attached to the same install. `LONGTAIL_WORKER_MODE=inline` starts an in-process poll timer after the app server begins listening. `LONGTAIL_WORKER_MODE=separate node worker.js` runs the worker outside the app server, verifies schema readiness, avoids independently running migrations, and takes `.longtail-forge-worker.lock` beside the SQLite database to prevent a second local worker. `LONGTAIL_WORKER_MODE=disabled` starts no worker for tests or troubleshooting. No worker fleet is supported for SQLite mode.
 
-The inline poll timer wakes jobs whose `available_at` is in the future on the next `LONGTAIL_JOB_POLL_INTERVAL_MS` tick. It is not a post-response drain, and it shares the same Node process and SQLite adapter path as request handling.
+The inline poll timer wakes jobs whose `available_at` is in the future on the next `LONGTAIL_JOB_POLL_INTERVAL_MS` tick. It is not a post-response drain, and it shares the same Node process and SQLite adapter path as request handling. As of 0.33.5.21.3, `LONGTAIL_JOB_LOCK_TTL_SECONDS` makes expired running job locks reclaimable by a later poll. `GET /api/jobs/status` is the protected admin readout for pending, running, failed, and dead job counts plus paged recent failure summaries.
 
 ## Scale Seed Databases
 

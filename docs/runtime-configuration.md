@@ -2,7 +2,7 @@
 
 Longtail Forge reads install and startup configuration from environment variables. At app startup, `server.js` loads a local root `.env` file when present, then `src/config.js` normalizes the resulting environment. A real `.env` file is local runtime state and must not be committed; use `.env.example` as the documented contract.
 
-As of 0.33.5.21.2, this contract records active runtime settings plus future reserved settings. Worker settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
+As of 0.33.5.21.3, this contract records active runtime settings plus future reserved settings. Worker settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
 
@@ -85,7 +85,7 @@ Secure-note keys are runtime secrets. They must not be committed, logged, or exp
 | `LONGTAIL_WORKER_MODE` | `inline` | Must be `inline`, `separate`, or `disabled`. `inline` starts an in-process poll timer with the app server. `separate` leaves the app server out of job execution and expects `node worker.js` with the same database. `disabled` starts no worker for tests or troubleshooting. |
 | `LONGTAIL_WORKER_ID` | `default` | Label recorded in `jobs.locked_by` when a worker claims a job. It is operational metadata, not an authentication secret. |
 | `LONGTAIL_JOB_POLL_INTERVAL_MS` | `5000` | Poll interval for inline and separate worker timers. This timer is also how future `available_at` jobs wake in SQLite mode. Must be an integer from 1000 through 3600000. |
-| `LONGTAIL_JOB_LOCK_TTL_SECONDS` | `300` | Reserved by the active worker config for the next lock-timeout slice. The 0.33.5.21.2 runner records locks but does not reclaim expired locks yet. Must be an integer from 30 through 86400. |
+| `LONGTAIL_JOB_LOCK_TTL_SECONDS` | `300` | Controls when expired running job locks become reclaimable by the next worker poll. Must be an integer from 30 through 86400. |
 
 In `inline` mode, worker execution begins after app startup and `app.listen(...)` succeeds. It is not triggered by individual HTTP responses. The poll timer shares the same Node process and SQLite adapter path as request handling, so job writes and request writes use the same local SQLite connection and transaction queue.
 
@@ -139,19 +139,23 @@ Startup may warn without failing when optional but recommended production settin
 
 `GET /api/runtime-diagnostics` returns the safe runtime diagnostics read model for authenticated users with `workspace_settings.manage` in the active workspace. The route is diagnostic only; it does not edit runtime configuration or expose raw environment variables.
 
-The response includes app version, runtime environment, database provider, database health status, SQLite journal mode, SQLite foreign-key status, SQLite busy timeout, safe database file location, safe data directory location, storage provider, scanner mode, worker mode, safe worker status counters, and configuration warnings. Paths are app-root or data-root relative when possible; locations outside the app root are redacted to a basename.
+The response includes app version, runtime environment, database provider, database health status, SQLite journal mode, SQLite foreign-key status, SQLite busy timeout, safe database file location, safe data directory location, storage provider, scanner mode, worker mode, lock TTL, safe worker status counters, and configuration warnings. Paths are app-root or data-root relative when possible; locations outside the app root are redacted to a basename.
 
 Workspace Settings includes a compact read-only Runtime Diagnostics panel that consumes this route for admins. SQLite small-office deployment assumptions are documented in [sqlite-small-office-mode.md](sqlite-small-office-mode.md).
 
 Runtime diagnostics must not include secrets, storage keys, signed URLs, protected paths, scanner internals, secure-note key material, raw `.env` contents, `DATABASE_URL`, secure-note master keys, scanner host/path settings, or local storage roots.
 
+## Jobs Admin Readout
+
+`GET /api/jobs/status` returns the minimal durable-job status readout for authenticated users with `workspace_settings.manage` in the active workspace. The response includes pending/running/failed/dead counts and recent failed/dead summaries using the shared bounded-pagination envelope. It is read-only and does not expose job payload JSON, dedupe keys, storage paths, scanner internals, or raw environment values.
+
 ## Scope Boundary
 
-The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active. This branch still does not:
+The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active, and 0.33.5.21.3 makes lock TTL reclaim active with a minimal admin job readout. This branch still does not:
 
 - Change the database provider away from SQLite.
 - Enable PostgreSQL.
-- Add module job producers, lock-timeout recovery, or the admin failure readout owned by later durable-job slices.
+- Add module job producers owned by later durable-job slices.
 - Replace local file storage with another provider.
 - Enable ClamAV or any other scanner adapter.
 - Add a runtime settings editor.

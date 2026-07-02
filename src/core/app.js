@@ -11,6 +11,7 @@ import { auditRoutes } from "../routes/audit.routes.js";
 import { authRoutes } from "../routes/auth.routes.js";
 import { filesRoutes } from "../routes/files.routes.js";
 import { helpRoutes } from "../routes/help.routes.js";
+import { jobsRoutes } from "../routes/jobs.routes.js";
 import { publicApiRoutes } from "../routes/public-api.routes.js";
 import { notificationsRoutes } from "../routes/notifications.routes.js";
 import { permissionsRoutes } from "../routes/permissions.routes.js";
@@ -49,6 +50,7 @@ function createApp() {
   app.use("/api", auditRoutes);
   app.use("/api", filesRoutes);
   app.use("/api", helpRoutes);
+  app.use("/api", jobsRoutes);
   app.use("/api", notificationsRoutes);
   app.use("/api", permissionsRoutes);
   app.use("/api", reportingRoutes);

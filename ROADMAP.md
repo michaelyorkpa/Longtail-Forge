@@ -197,24 +197,24 @@ Acceptance criteria:
 
 ### Version 0.33.5.21.3 - Job claiming, locking, retry, and dead-letter behavior
 
-- [ ] Implement safe job claiming.
-  - [ ] Define the SQLite-safe claim strategy explicitly: SQLite has no `FOR UPDATE SKIP LOCKED`, so claiming is an atomic conditional `UPDATE ... WHERE job_id = (SELECT ... LIMIT n)` run inside `db.transaction(...)`, then a read-back of claimed rows.
-  - [ ] Use `RETURNING` for the claim read-back: the bundled `better-sqlite3` SQLite supports it (verified by the 0.33.5.21.0.1 install smoke check), so no claim-then-reselect fallback is required; `RETURNING` is simply new to this codebase and needs coverage.
-- [ ] Add lock timeout handling.
-- [ ] Add retry backoff.
-- [ ] Add max-attempt handling.
-- [ ] Add dead-letter state.
-- [ ] Add admin-readable job failure summaries.
-- [ ] Add a minimal permission-checked admin readout for pending/running/dead-letter job counts and recent failures, reusing the bounded-pagination envelope from 0.33.5.20.5. A dead-letter state with no visibility is not acceptable.
-- [ ] Add regression coverage:
-  - [ ] Failed job retries.
-  - [ ] Exhausted job becomes dead.
-  - [ ] Locked job is not claimed twice.
-  - [ ] Expired lock can be reclaimed.
+- [x] Implement safe job claiming.
+  - [x] Define the SQLite-safe claim strategy explicitly: SQLite has no `FOR UPDATE SKIP LOCKED`, so claiming is an atomic conditional `UPDATE ... WHERE job_id = (SELECT ... LIMIT n)` run inside `db.transaction(...)`, then a read-back of claimed rows.
+  - [x] Use `RETURNING` for the claim read-back: the bundled `better-sqlite3` SQLite supports it (verified by the 0.33.5.21.0.1 install smoke check), so no claim-then-reselect fallback is required; `RETURNING` is simply new to this codebase and needs coverage.
+- [x] Add lock timeout handling.
+- [x] Add retry backoff.
+- [x] Add max-attempt handling.
+- [x] Add dead-letter state.
+- [x] Add admin-readable job failure summaries.
+- [x] Add a minimal permission-checked admin readout for pending/running/dead-letter job counts and recent failures, reusing the bounded-pagination envelope from 0.33.5.20.5. A dead-letter state with no visibility is not acceptable.
+- [x] Add regression coverage:
+  - [x] Failed job retries.
+  - [x] Exhausted job becomes dead.
+  - [x] Locked job is not claimed twice.
+  - [x] Expired lock can be reclaimed.
 
 Acceptance criteria:
 
-- A failed notification/indexing/scanning job does not block the system forever.
+- [x] A failed notification/indexing/scanning job does not block the system forever.
 
 ### Version 0.33.5.21.4 - Move search indexing to jobs
 
