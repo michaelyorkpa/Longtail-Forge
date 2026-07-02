@@ -7,7 +7,7 @@ import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.4";
+const appVersion = "0.33.5.21.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-db-transaction-helper-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-transaction-helper.db");
 process.env.SUPER_ADMIN_PASSWORD = "Database-Transaction-Test-123!";

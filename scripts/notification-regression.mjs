@@ -15,6 +15,7 @@ const { createApp } = await import("../src/core/app.js");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { notificationsService } = await import("../src/services/notifications.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
+const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
 
 const results = [];
 let server;
@@ -102,6 +103,7 @@ async function runNotificationApiTests(api, fixtures) {
   check("task creation used for notification regression succeeds", () => {
     assert.equal(task.status, 201, JSON.stringify(task.body));
   });
+  await drainQueuedJobs();
 
   const recipientList = await api.get("/api/notifications", { cookie: fixtures.sessions.projectUser });
   check("recipient sees task-created notification", () => {
@@ -592,6 +594,7 @@ LIMIT 1;
     },
     workspaceId: fixtures.workspaceId,
   });
+  await drainQueuedJobs();
   const afterMutedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
   check("muted notification type does not create a user notification", () => {
     assert.equal(afterMutedRows, beforeMutedRows);
@@ -605,6 +608,7 @@ LIMIT 1;
   check("followed notification regression task can be created", () => {
     assert.equal(followedTask.status, 201, JSON.stringify(followedTask.body));
   });
+  await drainQueuedJobs();
 
   const followedTarget = await api.post("/api/notifications/subscriptions", {
     moduleId: "tasks",
@@ -634,6 +638,7 @@ LIMIT 1;
     },
     workspaceId: fixtures.workspaceId,
   });
+  await drainQueuedJobs();
   const afterFollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
   const afterOtherFollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.otherProjectUser.userId, "task.updated");
   check("followed task notification overrides user event mute for that target", () => {
@@ -668,6 +673,7 @@ LIMIT 1;
     },
     workspaceId: fixtures.workspaceId,
   });
+  await drainQueuedJobs();
   const afterUnfollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.updated");
   check("unfollow removes the per-target override without changing broader muted preference", () => {
     assert.equal(afterUnfollowedRows, beforeUnfollowedRows);
@@ -681,6 +687,7 @@ LIMIT 1;
   check("actor followed notification task can be created", () => {
     assert.equal(actorFollowedTask.status, 201, JSON.stringify(actorFollowedTask.body));
   });
+  await drainQueuedJobs();
 
   const actorFollowedTarget = await api.post("/api/notifications/subscriptions", {
     moduleId: "tasks",
@@ -709,6 +716,7 @@ LIMIT 1;
     },
     workspaceId: fixtures.workspaceId,
   });
+  await drainQueuedJobs();
   const afterActorFollowedRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.updated");
   check("followed task notification is not suppressed for the actor", () => {
     assert.equal(afterActorFollowedRows, beforeActorFollowedRows + 1);
@@ -755,6 +763,7 @@ LIMIT 1;
     },
     workspaceId: fixtures.workspaceId,
   });
+  await drainQueuedJobs();
   const afterDefaultRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.projectUser.userId, "task.overdue");
   check("disabled workspace default blocks event-created notifications", () => {
     assert.equal(afterDefaultRows, beforeDefaultRows);
@@ -784,6 +793,7 @@ WHERE event_type = 'task.assigned';
     },
     workspaceId: fixtures.workspaceId,
   });
+  await drainQueuedJobs();
 
   const afterRows = await querySql(`
 SELECT COUNT(*) AS count
@@ -819,6 +829,7 @@ WHERE event_type = 'task.assigned';
     },
     workspaceId: fixtures.workspaceId,
   });
+  await drainQueuedJobs();
   const afterActorCreateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.created");
   const afterOtherCreateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.otherProjectUser.userId, "task.created");
   check("task creators do not receive their own created notifications", () => {
@@ -859,6 +870,7 @@ WHERE event_type = 'task.assigned';
     },
     workspaceId: fixtures.workspaceId,
   });
+  await drainQueuedJobs();
   const afterActorUpdateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.updated");
   const afterOtherUpdateRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.otherProjectUser.userId, "task.updated");
   const labelList = await notificationsService.list({
@@ -915,6 +927,7 @@ WHERE event_type = 'task.assigned';
     },
     workspaceId: fixtures.workspaceId,
   });
+  await drainQueuedJobs();
   const afterActorReminderRows = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "task.due_soon");
   check("task due reminders are not suppressed for actor assignees", () => {
     assert.equal(afterActorReminderRows, beforeActorReminderRows + 1);
@@ -965,6 +978,7 @@ WHERE workspace_id = ${sqlText(fixtures.workspaceId)}
     },
     workspaceId: fixtures.workspaceId,
   });
+  await drainQueuedJobs();
 
   const afterRows = await querySql(`
 SELECT COUNT(*) AS count
@@ -1038,6 +1052,28 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 
   return Number(rows[0]?.count || 0);
+}
+
+async function drainQueuedJobs() {
+  resetJobWorkerStatusForTests();
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const summary = await runJobWorkerOnce({
+      claimLimit: 25,
+      mode: "inline",
+      workerId: "notification-regression",
+    });
+
+    if (summary.failed || summary.dead) {
+      throw new Error(`Notification regression queued work failed: ${JSON.stringify(summary)}`);
+    }
+
+    if (summary.claimed === 0) {
+      return;
+    }
+  }
+
+  throw new Error("Notification regression queued work did not drain.");
 }
 
 function readProjectFile(relativePath) {

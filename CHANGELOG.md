@@ -1,3 +1,11 @@
+## Version 0.33.5.21.5 - 2026-07-02
+
+- Moved notification-producing internal events onto durable `notification.event` jobs so the event hook stores fan-out work in the outbox and the worker resolves recipients before creating notification records.
+- Registered notification job handlers for both app startup and `node worker.js`, while preserving the existing direct notification create APIs for explicit service calls, focused tests, and maintenance use.
+- Kept notification fan-out on the existing `createFromEvent` path so workspace defaults, user preferences, subscriptions, permission checks, actor suppression, and module-enabled checks stay centralized.
+- Added `scripts/notification-jobs-regression.mjs`, updated notification regressions to drain queued work, refreshed durable-job/runtime/module docs and decisions, and advanced package/module/regression version metadata to 0.33.5.21.5.
+- Verification 2026-07-02 00:25 -04:00: notification jobs, notification follow, notification API/preferences/events, search index jobs, worker runner, job claiming/locking, runtime diagnostics, and full regression coverage passed; `npm run check` passed 228/228 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.5 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.4 - 2026-07-01
 
 - Moved normal search indexing side effects onto durable `search.index` jobs so module create/update/archive/restore/delete flows preserve immediate save behavior while the worker performs canonical `search_index` and SQLite FTS writes.

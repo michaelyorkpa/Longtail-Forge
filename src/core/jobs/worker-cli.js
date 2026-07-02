@@ -11,6 +11,7 @@ import {
   stopJobWorker,
 } from "./job-runner.js";
 import { acquireWorkerProcessLock } from "./worker-process-lock.js";
+import { notificationsService } from "../../services/notifications.service.js";
 import { registerSearchIndexJobHandlers } from "../../services/search-index-jobs.service.js";
 
 let workerLock = null;
@@ -35,6 +36,7 @@ async function startWorkerProcess(options = {}) {
   const databaseHealth = await initializeWorkerDatabase();
   logger.log(formatDatabaseHealth(databaseHealth));
   registerSearchIndexJobHandlers();
+  notificationsService.registerNotificationJobHandlers();
 
   await startJobWorker({
     logger,

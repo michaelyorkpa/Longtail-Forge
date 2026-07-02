@@ -237,20 +237,20 @@ Acceptance criteria:
 
 ### Version 0.33.5.21.5 - Move notification fan-out to jobs
 
-- [ ] Add job type for notification event processing.
-- [ ] Store notification-producing events in the outbox.
-- [ ] Worker resolves recipients and creates notification records.
-- [ ] Preserve permission checks.
-- [ ] Preserve module-enabled checks.
-- [ ] Add regressions proving:
-  - [ ] Notification jobs are queued.
-  - [ ] Recipients are resolved by worker.
-  - [ ] Disabled modules do not create new notifications.
-  - [ ] Failed fan-out jobs retry safely.
+- [x] Add job type for notification event processing.
+- [x] Store notification-producing events in the outbox.
+- [x] Worker resolves recipients and creates notification records.
+- [x] Preserve permission checks.
+- [x] Preserve module-enabled checks.
+- [x] Add regressions proving:
+  - [x] Notification jobs are queued.
+  - [x] Recipients are resolved by worker.
+  - [x] Disabled modules do not create new notifications.
+  - [x] Failed fan-out jobs retry safely.
 
 Acceptance criteria:
 
-- Notifications no longer depend only on in-process event handlers.
+- [x] Notifications no longer depend only on in-process event handlers.
 
 ### Version 0.33.5.21.6 - Move reminders, recurrence, and file scanning to jobs
 

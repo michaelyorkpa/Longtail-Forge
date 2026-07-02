@@ -919,6 +919,8 @@ As of 0.33.5.21.3, the runner also reclaims expired `running` locks through `LON
 
 As of 0.33.5.21.4, search indexing is the first durable job producer. Module mutation services still call the framework search sync helper, but the helper queues `search.index` jobs for single-record reindex/remove work instead of writing `search_index` during the request. The search job handler performs reindex, remove, and rebuild operations through the existing search service/rebuild service. The protected rebuild route queues a workspace/module rebuild job and returns `202`, and normal web startup only queues one deduped app rebuild job when the canonical index is empty.
 
+As of 0.33.5.21.5, notification fan-out is also durable background work. Framework notification event hooks queue `notification.event` jobs for notification-producing internal events, and the worker resolves recipients before creating notification records through the existing notification service. That keeps workspace defaults, user preferences, subscriptions, actor suppression, permission checks, and module-enabled checks centralized while removing the dependency on in-process event-handler fan-out.
+
 ---
 
 ## Notifications Framework
@@ -940,6 +942,8 @@ The framework should own:
 * Notification cleanup/retention
 * Notification delivery adapter contracts
 * Event-to-notification hooks
+
+Notification-producing internal events queue durable `notification.event` jobs. The event hook stores the event context in `jobs`; the worker owns recipient resolution and notification record creation through the same service path used by direct framework notification creation. Disabled modules and inaccessible targets must still fail or skip at the service boundary, not in browser code.
 
 Modules should declare notification events/templates where appropriate.
 
@@ -1415,7 +1419,7 @@ SQLite can remain the lightweight local/self-hosted database.
 
 PostgreSQL should eventually become the preferred production database.
 
-Current runtime database behavior is documented in [database.md](database.md) and [runtime-configuration.md](runtime-configuration.md). As of 0.33.5.19.9, SQLite is still the only implemented provider, small-office SQLite mode is supported for one app process/server, `src/core/database.js` is the preferred app-facing database import, and the provider-neutral adapter exposes health/capability reporting, named-parameter support, callback transactions, and SQLite migration locking. The 0.33.5.20 bounded-query branch consumes that foundation for scale-seeded list reads, 0.33.5.21.1 adds the first checksum-tracked durable job/outbox schema migration, 0.33.5.21.2 adds the v1 inline/separate worker runner without changing migration ownership, 0.33.5.21.3 adds expired-lock reclaim plus the minimal admin job readout, and 0.33.5.21.4 moves search indexing/rebuild work onto `search.index` jobs. Storage/scanner and PostgreSQL work should keep consuming the same startup, migration, worker, and adapter boundaries instead of adding parallel database paths.
+Current runtime database behavior is documented in [database.md](database.md) and [runtime-configuration.md](runtime-configuration.md). As of 0.33.5.19.9, SQLite is still the only implemented provider, small-office SQLite mode is supported for one app process/server, `src/core/database.js` is the preferred app-facing database import, and the provider-neutral adapter exposes health/capability reporting, named-parameter support, callback transactions, and SQLite migration locking. The 0.33.5.20 bounded-query branch consumes that foundation for scale-seeded list reads, 0.33.5.21.1 adds the first checksum-tracked durable job/outbox schema migration, 0.33.5.21.2 adds the v1 inline/separate worker runner without changing migration ownership, 0.33.5.21.3 adds expired-lock reclaim plus the minimal admin job readout, 0.33.5.21.4 moves search indexing/rebuild work onto `search.index` jobs, and 0.33.5.21.5 moves notification fan-out onto `notification.event` jobs. Storage/scanner and PostgreSQL work should keep consuming the same startup, migration, worker, and adapter boundaries instead of adding parallel database paths.
 
 ---
 

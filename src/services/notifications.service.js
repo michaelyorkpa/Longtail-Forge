@@ -4,6 +4,8 @@ import {
   summarizeNotificationEvent,
   taskUpdatedLabel,
 } from "../core/events/event-summaries.js";
+import { enqueueJob } from "../core/jobs/job-queue.js";
+import { getJobHandler, registerJobHandler } from "../core/jobs/index.js";
 import { modulesService } from "../core/modules/modules.service.js";
 import { boundedPaginationEnvelope, normalizeBoundedPagination } from "../core/bounded-pagination.js";
 import { notificationsRepository } from "../repositories/notifications.repo.js";
@@ -15,8 +17,12 @@ import { permissionsService } from "./permissions.service.js";
 const FRAMEWORK_NOTIFICATION_MODULE_ID = "framework";
 const NOTIFICATION_DEFAULT_PAGE_SIZE = 25;
 const NOTIFICATION_MAX_PAGE_SIZE = 100;
+const NOTIFICATION_EVENT_JOB_TYPE = "notification.event";
+const NOTIFICATION_EVENT_JOB_PRIORITY = 20;
+const NOTIFICATION_EVENT_JOB_OPERATION = "process_event";
 let notificationEventUnsubscribers = [];
 let notificationEventHandlersRegistered = false;
+let notificationJobHandlersRegistered = false;
 
 async function create(payload, session = null) {
   const normalized = await normalizeCreatePayload(payload, session);
@@ -317,6 +323,8 @@ async function readTargetMetadata(notification, session) {
 }
 
 function registerEventHandlers() {
+  registerNotificationJobHandlers();
+
   if (notificationEventHandlersRegistered) {
     return;
   }
@@ -324,12 +332,88 @@ function registerEventHandlers() {
   notificationEventHandlersRegistered = true;
   notificationEventUnsubscribers = modulesService.listNotificationEvents().map((declaration) => (
     modulesService.onInternalEvent(declaration.id, async (event) => {
-      await createFromEvent(event, declaration);
+      await queueNotificationEvent(event, declaration);
     }, {
       id: `notifications:${declaration.id}`,
       moduleId: FRAMEWORK_NOTIFICATION_MODULE_ID,
     })
   ));
+}
+
+function registerNotificationJobHandlers(options = {}) {
+  if (notificationJobHandlersRegistered && !options.replace && getJobHandler(NOTIFICATION_EVENT_JOB_TYPE)) {
+    return;
+  }
+
+  registerJobHandler(NOTIFICATION_EVENT_JOB_TYPE, handleNotificationEventJob, {
+    replace: true,
+  });
+  notificationJobHandlersRegistered = true;
+}
+
+async function queueNotificationEvent(event, declaration = null, options = {}) {
+  const normalizedEvent = normalizeNotificationEventForJob(event);
+  const notificationDeclaration = declaration || modulesService.listNotificationEvents()
+    .find((candidate) => candidate.id === normalizedEvent.name);
+
+  if (!notificationDeclaration?.defaultEnabled) {
+    return shapeNotificationQueueSkip(normalizedEvent, "event_not_enabled_by_default");
+  }
+
+  if (!normalizedEvent.workspace_id) {
+    return shapeNotificationQueueSkip(normalizedEvent, "missing_workspace");
+  }
+
+  if (isNotificationSuppressed(normalizedEvent)) {
+    return shapeNotificationQueueSkip(normalizedEvent, "suppressed");
+  }
+
+  const enqueued = await enqueueJob({
+    workspaceId: normalizedEvent.workspace_id,
+    jobType: NOTIFICATION_EVENT_JOB_TYPE,
+    priority: options.priority ?? NOTIFICATION_EVENT_JOB_PRIORITY,
+    maxAttempts: options.maxAttempts || options.max_attempts || 3,
+    payload: {
+      declarationId: notificationDeclaration.id,
+      event: normalizedEvent,
+      operation: NOTIFICATION_EVENT_JOB_OPERATION,
+    },
+  });
+
+  return {
+    ok: true,
+    operation: "queue_notification_event",
+    queued: enqueued?.action === "inserted" || enqueued?.action === "updated",
+    queueAction: enqueued?.action || "",
+    eventName: normalizedEvent.name,
+    job: enqueued?.job || null,
+    jobId: enqueued?.job?.jobId || "",
+    workspaceId: normalizedEvent.workspace_id,
+    errors: [],
+  };
+}
+
+async function handleNotificationEventJob({ payload = {} }) {
+  const operation = String(payload.operation || NOTIFICATION_EVENT_JOB_OPERATION).trim();
+
+  if (operation !== NOTIFICATION_EVENT_JOB_OPERATION) {
+    throw new Error(`Unknown notification job operation "${operation}".`);
+  }
+
+  const event = normalizeNotificationEventForJob(payload.event || payload);
+  const declarationId = String(payload.declarationId || payload.declaration_id || event.name || "").trim();
+  const declaration = modulesService.listNotificationEvents()
+    .find((candidate) => candidate.id === declarationId);
+
+  if (!declaration) {
+    return {
+      notifications: [],
+      skipped: true,
+      reason: "notification_event_not_registered",
+    };
+  }
+
+  return createFromEvent(event, declaration);
 }
 
 function resetEventHandlersForTests() {
@@ -495,6 +579,64 @@ function isNotificationSuppressed(event) {
   return metadata.suppress_notifications === true ||
     metadata.suppressNotifications === true ||
     Boolean(String(metadata.notification_suppression_reason || "").trim());
+}
+
+function normalizeNotificationEventForJob(event = {}) {
+  const metadata = normalizeMetadata(event.metadata);
+  return {
+    actor_user_id: normalizeJobText(event.actor_user_id || event.actorUserId),
+    emitted_at: normalizeJobText(event.emitted_at || event.emittedAt) || new Date().toISOString(),
+    metadata,
+    module_id: normalizeJobText(event.module_id || event.moduleId),
+    name: normalizeJobText(event.name || event.event_type || event.eventType),
+    new_value: normalizeJobPlainValue(event.new_value || event.newValue),
+    previous_value: normalizeJobPlainValue(event.previous_value || event.previousValue),
+    record_id: normalizeJobText(event.record_id || event.recordId),
+    record_type: normalizeJobText(event.record_type || event.recordType),
+    session: normalizeJobSession(event.session),
+    source: normalizeJobText(event.source || metadata.source) || "internal-event",
+    workspace_id: normalizeJobText(event.workspace_id || event.workspaceId),
+  };
+}
+
+function normalizeJobPlainValue(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return value;
+}
+
+function normalizeJobSession(session = null) {
+  if (!session || typeof session !== "object" || Array.isArray(session)) {
+    return null;
+  }
+
+  return {
+    role: normalizeJobText(session.role),
+    user_id: normalizeJobText(session.user_id || session.userId),
+    username: normalizeJobText(session.username),
+    workspace_id: normalizeJobText(session.workspace_id || session.workspaceId),
+  };
+}
+
+function shapeNotificationQueueSkip(event, reason) {
+  return {
+    ok: true,
+    operation: "queue_notification_event",
+    queued: false,
+    skipped: true,
+    reason,
+    eventName: event.name || "",
+    job: null,
+    jobId: "",
+    workspaceId: event.workspace_id || "",
+    errors: [],
+  };
+}
+
+function normalizeJobText(value) {
+  return String(value || "").trim();
 }
 
 function shouldPreserveActorRecipient(event, declaration) {
@@ -933,10 +1075,19 @@ export const notificationsService = {
   preferences,
   readTargetMetadata,
   registerEventHandlers,
+  registerNotificationJobHandlers,
   resetEventHandlersForTests,
   savePreferences,
   saveWorkspaceDefaults,
   subscriptionStatus,
   unfollowTarget,
+  queueNotificationEvent,
   unreadCount,
+};
+
+export {
+  NOTIFICATION_EVENT_JOB_TYPE,
+  handleNotificationEventJob,
+  queueNotificationEvent,
+  registerNotificationJobHandlers,
 };

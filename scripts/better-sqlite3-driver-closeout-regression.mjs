@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.21.4";
+const appVersion = "0.33.5.21.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-better-sqlite3-closeout-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;

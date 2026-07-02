@@ -7,12 +7,13 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-const appVersion = "0.33.5.21.4";
+const appVersion = "0.33.5.21.5";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-notification-follow-"));
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-notification-follow.db");
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Notification-Follow-Test-123!";
 
 const { createApp } = await import("../src/core/app.js");
+const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { notificationsService } = await import("../src/services/notifications.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
@@ -126,6 +127,7 @@ async function assertNoteNotificationFollowFlow(api, fixtures) {
     bodyMarkdown: "Updated by admin",
     title: "Followable notification note updated",
   });
+  await drainQueuedJobs();
   assert.equal(await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "note.updated"), 1);
 
   const notificationList = await api.get("/api/notifications?status=unread", { cookie: fixtures.sessions.workspaceAdmin });
@@ -139,6 +141,7 @@ async function assertNoteNotificationFollowFlow(api, fixtures) {
     bodyMarkdown: "Updated by follower actor",
     title: "Followable notification note follower update",
   });
+  await drainQueuedJobs();
   assert.equal(
     await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "note.updated"),
     1,
@@ -150,20 +153,24 @@ async function assertNoteNotificationFollowFlow(api, fixtures) {
     targetType: "workspace",
   }, { cookie: fixtures.sessions.superAdmin });
   assert.equal(linked.status, 201, JSON.stringify(linked.body));
+  await drainQueuedJobs();
   assert.equal(await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "note.linked"), 1);
 
   const removed = await api.post(`/api/notes/${encodeURIComponent(noteId)}/links/${encodeURIComponent(linked.body.link.note_link_id)}/remove`, {}, {
     cookie: fixtures.sessions.superAdmin,
   });
   assert.equal(removed.status, 200, JSON.stringify(removed.body));
+  await drainQueuedJobs();
   assert.equal(await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "note.unlinked"), 1);
 
   const archived = await api.post(`/api/notes/${encodeURIComponent(noteId)}/archive`, {}, { cookie: fixtures.sessions.superAdmin });
   assert.equal(archived.status, 200, JSON.stringify(archived.body));
+  await drainQueuedJobs();
   assert.equal(await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "note.archived"), 1);
 
   const restored = await api.post(`/api/notes/${encodeURIComponent(noteId)}/restore`, {}, { cookie: fixtures.sessions.superAdmin });
   assert.equal(restored.status, 200, JSON.stringify(restored.body));
+  await drainQueuedJobs();
   assert.equal(await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "note.restored"), 1);
 
   const beforeSuppressed = await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "note.updated");
@@ -188,6 +195,7 @@ async function assertNoteNotificationFollowFlow(api, fixtures) {
     },
     workspaceId: fixtures.workspaceId,
   });
+  await drainQueuedJobs();
   assert.equal(
     await notificationCountFor(fixtures.workspaceId, fixtures.users.workspaceAdmin.userId, "note.updated"),
     beforeSuppressed,
@@ -305,6 +313,28 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 
   return Number(rows[0]?.count || 0);
+}
+
+async function drainQueuedJobs() {
+  resetJobWorkerStatusForTests();
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const summary = await runJobWorkerOnce({
+      claimLimit: 25,
+      mode: "inline",
+      workerId: "notes-notification-follow-regression",
+    });
+
+    if (summary.failed || summary.dead) {
+      throw new Error(`Notes notification follow queued work failed: ${JSON.stringify(summary)}`);
+    }
+
+    if (summary.claimed === 0) {
+      return;
+    }
+  }
+
+  throw new Error("Notes notification follow queued work did not drain.");
 }
 
 async function readProjectFile(relativePath) {

@@ -33,7 +33,7 @@ try {
 async function assertManifest() {
   const listsModule = modulesService.getModule("lists");
 
-  assert.equal(listsModule.version, "0.33.5.21.4");
+  assert.equal(listsModule.version, "0.33.5.21.5");
   assert.ok(listsModule.navigation.some((item) => item.href === "lists.html" && item.parent === "projects.html"));
   assert.ok(listsModule.protectedViews.some((view) => view.file === "lists.html" && view.allowDisabledRead === true));
   assert.ok(listsModule.browserAssets.some((asset) => asset.path === "/js/lists.js"));

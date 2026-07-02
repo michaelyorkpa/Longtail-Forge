@@ -34,6 +34,8 @@ As of version 0.33.5.21.3, the runner reclaims expired running locks by comparin
 
 As of version 0.33.5.21.4, Search indexing uses the durable job runner. Normal record mutation helpers queue `search.index` jobs for reindex/remove work, the worker performs canonical `search_index` and SQLite FTS writes, and `POST /api/search-index/rebuild` queues a workspace/module rebuild job instead of rebuilding inside the HTTP request. Normal web startup no longer runs a full app-wide rebuild; if `search_index` is empty, startup queues one deduped app rebuild job so fresh or restored databases have an explicit recovery path.
 
+As of version 0.33.5.21.5, Notification fan-out uses the durable job runner. Internal notification event hooks queue `notification.event` rows in `jobs`; the worker resolves recipients and creates notification records through the notification service, preserving workspace defaults, user preferences, subscriptions, permission checks, and module-enabled checks.
+
 As of version 0.33.5.19.2, SQLite startup hardens the existing helper boundary before migrations run. Longtail Forge applies foreign-key enforcement to every SQLite process, enables `PRAGMA journal_mode = WAL` by default, configures the SQLite busy timeout from runtime config, verifies the database file path is writable, and reports safe startup health for the provider, database file path, writable state, foreign-key state, journal mode, and busy timeout.
 
 As of version 0.33.5.19.5, `src/db/provider.js` owns the provider-neutral database adapter boundary and `src/core/database.js` is the preferred app-facing import path for repositories, modules, and framework services that need database access. The v1 adapter API is `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, `db.transaction(callback)`, `db.close()`, `db.health()`, and `db.capabilities`. SQLite is still the only implemented provider, and the SQLite helper stays behind `src/db/adapters/sqlite-adapter.js`. `querySql` and `runSql` remain temporary legacy compatibility helpers while repository code moves toward the adapter. Parameter binding is active for pilot repository paths, and the transaction helper is active for selected multi-step write pilots.
@@ -147,6 +149,14 @@ In `separate` mode, `node worker.js` is the worker process. It loads the local `
 Module mutation services call `searchIndexSyncService` after successful create/update/archive/restore/delete flows. That helper queues jobs and logs queue failures without throwing, preserving the previous user-facing save behavior where search indexing errors do not fail the saved record. Worker failures are retried by the durable runner and become visible through the jobs admin readout.
 
 The protected browser rebuild route queues a workspace/module rebuild job for the active workspace and returns `202`. Direct `searchService` and `searchIndexRebuildService` calls remain available to focused regressions and local maintenance scripts, including `scripts/search-index-rebuild.mjs`, but normal web startup no longer calls `rebuildApp()`. Startup only checks whether `search_index` is empty; when it is empty, it queues a deduped app rebuild job with source `startup-empty-index`.
+
+## Durable Notification Fan-out Jobs
+
+`notification.event` is the second framework-owned job producer. Framework notification event hooks enqueue one job per notification-producing internal event with the event name, workspace/module context, actor, record reference, before/after values, metadata, emitted timestamp, and minimal session context.
+
+The notification worker handler resolves recipients and creates notification records through `notificationsService.createFromEvent()`. That path still owns workspace defaults, user preferences, follow subscriptions, actor suppression, safe notification metadata, target access checks, and disabled-module checks. Direct `notificationsService.create()` and `createMany()` remain available for explicit framework calls and focused tests, but normal module event fan-out should go through the queued event path.
+
+Failed fan-out jobs use the durable runner's normal retry behavior. A retryable failure remains in `failed` with a bounded `last_error` and a future `available_at`; exhausted jobs move to `dead` for the admin job readout without blocking the app.
 
 ## Fresh Baseline
 

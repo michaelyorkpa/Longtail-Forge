@@ -163,6 +163,7 @@ const ISOLATED_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/scale-seed-framework-regression.mjs",
   "scripts/baseline-adoption-regression.mjs",
   "scripts/performance-regression.mjs",
+  "scripts/notification-jobs-regression.mjs",
   "scripts/notification-regression.mjs",
   "scripts/search-api-regression.mjs",
   "scripts/search-shell-regression.mjs",
