@@ -32,6 +32,8 @@ As of version 0.33.5.21.2, Worker runner v1 lives in `src/core/jobs/` with a han
 
 As of version 0.33.5.21.3, the runner reclaims expired running locks by comparing `locked_at` to `LONGTAIL_JOB_LOCK_TTL_SECONDS`, claims through atomic SQLite `UPDATE ... WHERE job_id = (SELECT ... LIMIT 1) RETURNING ...` statements inside `db.transaction(...)`, and exposes the protected `GET /api/jobs/status` readout for pending/running/failed/dead counts plus paged recent failure summaries.
 
+As of version 0.33.5.21.4, Search indexing uses the durable job runner. Normal record mutation helpers queue `search.index` jobs for reindex/remove work, the worker performs canonical `search_index` and SQLite FTS writes, and `POST /api/search-index/rebuild` queues a workspace/module rebuild job instead of rebuilding inside the HTTP request. Normal web startup no longer runs a full app-wide rebuild; if `search_index` is empty, startup queues one deduped app rebuild job so fresh or restored databases have an explicit recovery path.
+
 As of version 0.33.5.19.2, SQLite startup hardens the existing helper boundary before migrations run. Longtail Forge applies foreign-key enforcement to every SQLite process, enables `PRAGMA journal_mode = WAL` by default, configures the SQLite busy timeout from runtime config, verifies the database file path is writable, and reports safe startup health for the provider, database file path, writable state, foreign-key state, journal mode, and busy timeout.
 
 As of version 0.33.5.19.5, `src/db/provider.js` owns the provider-neutral database adapter boundary and `src/core/database.js` is the preferred app-facing import path for repositories, modules, and framework services that need database access. The v1 adapter API is `db.query(sql, params)`, `db.get(sql, params)`, `db.run(sql, params)`, `db.transaction(callback)`, `db.close()`, `db.health()`, and `db.capabilities`. SQLite is still the only implemented provider, and the SQLite helper stays behind `src/db/adapters/sqlite-adapter.js`. `querySql` and `runSql` remain temporary legacy compatibility helpers while repository code moves toward the adapter. Parameter binding is active for pilot repository paths, and the transaction helper is active for selected multi-step write pilots.
@@ -102,7 +104,7 @@ Self-hosted SQLite mode keeps startup simple: one app process runs startup migra
 
 The SQLite migration lock file is `.longtail-forge-migrations.lock` in the same directory as `LONGTAIL_DATABASE_FILE`. `runMigrations()` acquires that lock before fresh-baseline adoption, legacy schema repairs, checksum validation, and future migration files. The lock is released after migration work succeeds or fails. If startup finds an existing lock, the app reports that another Longtail Forge startup or maintenance process is running migrations or schema repairs, then tells the operator to wait or remove the stale lock file after confirming the other process crashed.
 
-Normal app startup work runs after schema startup maintenance. Framework module rows, default app settings, default workspace/bootstrap records, module registry sync, stored-time normalization, and role/permission repairs are app-startup defaults, not migration files. The current search-index startup rebuild and inline worker mode are post-startup app work, not migration work.
+Normal app startup work runs after schema startup maintenance. Framework module rows, default app settings, default workspace/bootstrap records, module registry sync, stored-time normalization, and role/permission repairs are app-startup defaults, not migration files. Inline worker startup and the empty-index search rebuild job queue check are post-startup app work, not migration work.
 
 As of 0.33.5.21.2, the SQLite small-office worker boundary is implemented for the v1 durable-job runner: SQLite mode may run jobs inline inside the single app process, or through at most one local worker process attached to the same local install through `node worker.js`. SQLite mode does not support multiple app servers, multiple web nodes, or a worker fleet sharing one SQLite file.
 
@@ -133,6 +135,18 @@ Handler failures keep the row in `failed` when retry capacity remains, clear the
 In `inline` mode, the app server starts the worker after `app.listen(...)` succeeds. The in-process poll timer, not HTTP responses, triggers work. Future `available_at` jobs wake on the next poll interval; SQLite mode does not have a separate scheduler. Inline worker work shares the same Node process, database adapter, and SQLite connection path as request handling.
 
 In `separate` mode, `node worker.js` is the worker process. It loads the local `.env` file, requires `LONGTAIL_WORKER_MODE=separate`, verifies that the schema and migration `065_job_outbox_schema` are already present, and does not run migrations or app startup maintenance. In SQLite mode it creates `.longtail-forge-worker.lock` beside the configured database file, enforcing the one-local-worker boundary for the install.
+
+## Durable Search Index Jobs
+
+`search.index` is the first framework-owned job producer. The payload operation is one of:
+
+- `reindex`: call the registered module/framework indexer for one record and upsert the canonical `search_index` row.
+- `remove`: remove one canonical search row and its backend search storage row.
+- `rebuild`: rebuild a workspace/module scope, or an app scope for local maintenance/startup recovery.
+
+Module mutation services call `searchIndexSyncService` after successful create/update/archive/restore/delete flows. That helper queues jobs and logs queue failures without throwing, preserving the previous user-facing save behavior where search indexing errors do not fail the saved record. Worker failures are retried by the durable runner and become visible through the jobs admin readout.
+
+The protected browser rebuild route queues a workspace/module rebuild job for the active workspace and returns `202`. Direct `searchService` and `searchIndexRebuildService` calls remain available to focused regressions and local maintenance scripts, including `scripts/search-index-rebuild.mjs`, but normal web startup no longer calls `rebuildApp()`. Startup only checks whether `search_index` is empty; when it is empty, it queues a deduped app rebuild job with source `startup-empty-index`.
 
 ## Fresh Baseline
 

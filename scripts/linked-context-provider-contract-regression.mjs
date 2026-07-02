@@ -17,9 +17,9 @@ const workflowContract = await fs.readFile(path.join(root, "docs", "workflow-con
 const pickerContract = await fs.readFile(path.join(root, "docs", "linked-context-picker-contract.md"), "utf8");
 const moduleContract = await fs.readFile(path.join(root, "docs", "module-contract.md"), "utf8");
 
-assert.equal(packageJson.version, "0.33.5.21.3", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.21.3", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.21.3", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.21.4", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.21.4", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.21.4", "package-lock package entry should report the current app version");
 
 assert.deepEqual(LINKED_CONTEXT_TARGET_RESPONSE_FIELDS, [
   "moduleId",

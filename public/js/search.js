@@ -97,7 +97,7 @@ async function rebuildSearchIndex() {
   }
 
   rebuildIndexButton.disabled = true;
-  setRebuildStatus("Rebuilding search index...");
+  setRebuildStatus("Queueing search index rebuild...");
 
   try {
     const response = await fetch("/api/search-index/rebuild", {
@@ -112,14 +112,8 @@ async function rebuildSearchIndex() {
       throw new Error(errorMessage(body) || "Search index rebuild failed.");
     }
 
-    const indexed = Number(body?.counts?.indexed) || 0;
-    const removed = Number(body?.counts?.removed) || 0;
-    const repaired = Number(body?.counts?.repaired) || 0;
-    setRebuildStatus(`Index rebuilt. ${indexed} indexed, ${removed} removed, ${repaired} repaired.`);
-
-    if (hasSearchCriteria(state.filters)) {
-      await loadResults();
-    }
+    const jobId = body?.jobId || body?.job?.jobId || "";
+    setRebuildStatus(jobId ? `Index rebuild queued. Job ${jobId}.` : "Index rebuild queued.");
   } catch (error) {
     setRebuildStatus(error.message || "Search index rebuild failed.", true);
   } finally {

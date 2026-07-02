@@ -1,3 +1,12 @@
+## Version 0.33.5.21.4 - 2026-07-01
+
+- Moved normal search indexing side effects onto durable `search.index` jobs so module create/update/archive/restore/delete flows preserve immediate save behavior while the worker performs canonical `search_index` and SQLite FTS writes.
+- Added the search indexing job handler for single-record reindex/remove work and workspace/module/app rebuild jobs, with failed indexing work flowing through the existing retry and dead-letter runner behavior.
+- Changed the protected `POST /api/search-index/rebuild` route and browser maintenance control to queue a rebuild job with `202 Accepted` instead of rebuilding during the HTTP request.
+- Replaced the normal startup full app-wide search rebuild with an empty-index transition that queues one deduped app rebuild job for fresh or restored databases.
+- Added `scripts/search-index-jobs-regression.mjs`, refreshed search/runtime/database docs and decisions, and advanced package/module/regression version metadata to 0.33.5.21.4.
+- Verification 2026-07-01 23:24 -04:00: search index jobs/sync/rebuild/shell/workflow/lifecycle/FTS/API, worker runner, job claiming/locking, runtime configuration/diagnostics/database, Notes search/collections/secure/integration, and tag propagation targeted checks passed; `npm run check` passed 227/227 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.4 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.3 - 2026-07-01
 
 - Hardened durable job claiming with SQLite-safe atomic `UPDATE ... WHERE job_id = (SELECT ... LIMIT 1) RETURNING ...` claims inside `db.transaction(...)`, repeated up to the claim limit without relying on unsupported `FOR UPDATE SKIP LOCKED`.

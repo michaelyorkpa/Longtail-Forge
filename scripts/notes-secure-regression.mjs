@@ -12,11 +12,14 @@ process.env.LONGTAIL_SECURE_NOTES_KEY_VERSION = "test-v2";
 
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { internalEventBus } = await import("../src/core/events/event-bus.js");
+const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
 const { filesService } = await import("../src/services/files.service.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { NOTE_PERMISSIONS } = await import("../src/modules/notes/access-policy.js");
 const { NOTE_SECURITY_MODES } = await import("../src/modules/notes/library.js");
 const { indexNoteRecord } = await import("../src/modules/notes/search-indexers.js");
+const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
+const { searchService } = await import("../src/services/search.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 const capturedSecureNoteEvents = [];
 const unsubscribeSecureNoteEvents = [
@@ -32,6 +35,8 @@ const unsubscribeSecureNoteEvents = [
 
 try {
   await initializeDatabase();
+  registerSearchIndexJobHandlers({ replace: true });
+  await searchService.ensureSearchBackendStorage({ refresh: true });
   const workspace = await readWorkspace();
   const adminSession = await readProtectedSession(workspace.workspace_id);
   const limitedSession = await createClientUserSession(workspace.workspace_id);
@@ -57,7 +62,7 @@ async function assertManifestAndSchema() {
   const notesModule = modulesService.getModule("notes");
   const permissionIds = new Set(notesModule.permissions.map((permission) => permission.id));
 
-  assert.equal(notesModule.version, "0.33.5.21.3");
+  assert.equal(notesModule.version, "0.33.5.21.4");
   for (const permission of [
     NOTE_PERMISSIONS.SECURE_CREATE,
     NOTE_PERMISSIONS.SECURE_VIEW,
@@ -490,6 +495,8 @@ function assertNoBrowserSecureStorageFields(value) {
 }
 
 async function assertSecureBodyNotPersistedInIntegrationTables(workspaceId, needles) {
+  await drainQueuedSearchJobs();
+
   const needlePattern = new RegExp(needles.map(escapeRegExp).join("|"));
   const searchRows = await querySql(`
 SELECT title, summary, body
@@ -536,4 +543,25 @@ function escapeRegExp(value) {
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.deepEqual(rows, [{ integrity_check: "ok" }]);
+}
+
+async function drainQueuedSearchJobs() {
+  resetJobWorkerStatusForTests();
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const summary = await runJobWorkerOnce({
+      claimLimit: 25,
+      mode: "inline",
+      workerId: "notes-secure-regression",
+    });
+
+    if (summary.claimed === 0) {
+      return;
+    }
+
+    assert.equal(summary.failed, 0, "queued secure-note search jobs should not fail");
+    assert.equal(summary.dead, 0, "queued secure-note search jobs should not dead-letter");
+  }
+
+  throw new Error("Queued secure-note search jobs did not drain.");
 }

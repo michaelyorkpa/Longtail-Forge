@@ -7,14 +7,17 @@ const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-notes-collections-"
 process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-collections.db");
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Collections-Test-123!";
 
+const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { NOTE_LIBRARY_BUCKETS } = await import("../src/modules/notes/library.js");
+const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
 const { searchService } = await import("../src/services/search.service.js");
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
 
 try {
   await initializeDatabase();
+  registerSearchIndexJobHandlers({ replace: true });
   await searchService.ensureSearchBackendStorage({ refresh: true });
   const workspace = await readWorkspace();
   const session = await readProtectedSession(workspace.workspace_id);
@@ -33,7 +36,7 @@ try {
 
 async function assertManifestAndSchema() {
   const notesModule = modulesService.getModule("notes");
-  assert.equal(notesModule.version, "0.33.5.21.3");
+  assert.equal(notesModule.version, "0.33.5.21.4");
 
   await assertColumns("note_library_collections", [
     "path_cache",
@@ -211,6 +214,8 @@ async function assertSearchFiltering(session) {
     body_markdown: "Needle collection body.",
     library_bucket: NOTE_LIBRARY_BUCKETS.REFERENCE,
   }, session);
+  await drainQueuedSearchJobs();
+
   const request = await searchService.composePermissionSafeSearchRequest({
     session,
     filters: {
@@ -287,4 +292,25 @@ async function assertRejectsWithMessage(fn, pattern) {
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.deepEqual(rows, [{ integrity_check: "ok" }]);
+}
+
+async function drainQueuedSearchJobs() {
+  resetJobWorkerStatusForTests();
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const summary = await runJobWorkerOnce({
+      claimLimit: 25,
+      mode: "inline",
+      workerId: "notes-collections-regression",
+    });
+
+    if (summary.claimed === 0) {
+      return;
+    }
+
+    assert.equal(summary.failed, 0, "queued collection search indexing jobs should not fail");
+    assert.equal(summary.dead, 0, "queued collection search indexing jobs should not dead-letter");
+  }
+
+  throw new Error("Queued collection search indexing jobs did not drain.");
 }

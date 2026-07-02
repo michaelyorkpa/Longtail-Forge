@@ -27,11 +27,15 @@ import { formatJobWorkerStatus, startJobWorker, stopJobWorker } from "./jobs/ind
 import { requireModuleBrowserWritesEnabledForRouter } from "./modules/module-access.js";
 import { modulesService } from "./modules/modules.service.js";
 import { notificationsService } from "../services/notifications.service.js";
-import { searchIndexRebuildService } from "../services/search-index-rebuild.service.js";
+import {
+  queueSearchIndexRebuildIfEmpty,
+  registerSearchIndexJobHandlers,
+} from "../services/search-index-jobs.service.js";
 import { registerInitialResumeStateProducerEventHandlers } from "../services/work-resume-state-initial-producers.js";
 
 function createApp() {
   const app = express();
+  registerSearchIndexJobHandlers();
   notificationsService.registerEventHandlers();
   registerInitialResumeStateProducerEventHandlers();
 
@@ -94,7 +98,7 @@ async function startServer() {
     logRuntimeConfigWarnings();
     const databaseHealth = await initializeDatabase();
     console.log(formatDatabaseHealth(databaseHealth));
-    scheduleStartupSearchIndexRebuild();
+    queueStartupSearchIndexRebuildIfEmpty();
     const app = createApp();
 
     const server = app.listen(config.port, config.host, () => {
@@ -160,19 +164,21 @@ function registerGracefulShutdown(server) {
   process.once("SIGTERM", shutdown);
 }
 
-function scheduleStartupSearchIndexRebuild() {
+function queueStartupSearchIndexRebuildIfEmpty() {
   setTimeout(async () => {
     try {
-      const summary = await searchIndexRebuildService.rebuildApp({
-        audit: false,
-        source: "startup",
+      const result = await queueSearchIndexRebuildIfEmpty({
+        source: "startup-empty-index",
       });
 
-      console.log(
-        `[search-index-startup] indexed=${summary.counts.indexed} removed=${summary.counts.removed} repaired=${summary.counts.repaired} failed=${summary.counts.failed}`,
-      );
+      if (result.skipped) {
+        console.log(`[search-index-startup] rebuild_queue=skipped reason=${result.reason}`);
+        return;
+      }
+
+      console.log(`[search-index-startup] rebuild_queue=${result.queueAction} job_id=${result.jobId}`);
     } catch (error) {
-      console.warn("[search-index-startup] Search index rebuild failed.");
+      console.warn("[search-index-startup] Search index rebuild queue failed.");
       console.warn(error.message || error);
     }
   }, 0);

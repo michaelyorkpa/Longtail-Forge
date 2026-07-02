@@ -218,22 +218,22 @@ Acceptance criteria:
 
 ### Version 0.33.5.21.4 - Move search indexing to jobs
 
-- [ ] Add job type for search indexing.
-- [ ] Queue search-index jobs from create/update/archive/restore flows.
-- [ ] Preserve immediate user-facing save behavior.
-- [ ] Add synchronous fallback for tests or SQLite inline mode if needed.
-- [ ] Remove full app-wide search rebuild from normal web startup or gate it behind explicit maintenance mode.
-- [ ] Add admin/manual search rebuild job.
-- [ ] Define the empty-index transition: fresh installs and restored databases currently rely on the startup rebuild (`src/core/app.js` `scheduleStartupSearchIndexRebuild`); once it is removed, provide an explicit rebuild-on-empty or documented post-restore rebuild path so search is not silently empty.
-- [ ] Add regressions proving:
-  - [ ] Record writes queue search jobs.
-  - [ ] Worker updates search index.
-  - [ ] Failed indexing jobs retry.
-  - [ ] Startup does not launch duplicate full-app rebuilds in normal mode.
+- [x] Add job type for search indexing.
+- [x] Queue search-index jobs from create/update/archive/restore flows.
+- [x] Preserve immediate user-facing save behavior.
+- [x] Add synchronous fallback for tests or SQLite inline mode if needed.
+- [x] Remove full app-wide search rebuild from normal web startup or gate it behind explicit maintenance mode.
+- [x] Add admin/manual search rebuild job.
+- [x] Define the empty-index transition: fresh installs and restored databases currently rely on the startup rebuild (`src/core/app.js` `scheduleStartupSearchIndexRebuild`); once it is removed, provide an explicit rebuild-on-empty or documented post-restore rebuild path so search is not silently empty.
+- [x] Add regressions proving:
+  - [x] Record writes queue search jobs.
+  - [x] Worker updates search index.
+  - [x] Failed indexing jobs retry.
+  - [x] Startup does not launch duplicate full-app rebuilds in normal mode.
 
 Acceptance criteria:
 
-- Search indexing becomes durable background work.
+- [x] Search indexing becomes durable background work.
 
 ### Version 0.33.5.21.5 - Move notification fan-out to jobs
 

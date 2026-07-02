@@ -2,7 +2,7 @@
 
 Longtail Forge reads install and startup configuration from environment variables. At app startup, `server.js` loads a local root `.env` file when present, then `src/config.js` normalizes the resulting environment. A real `.env` file is local runtime state and must not be committed; use `.env.example` as the documented contract.
 
-As of 0.33.5.21.3, this contract records active runtime settings plus future reserved settings. Worker settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
+As of 0.33.5.21.4, this contract records active runtime settings plus future reserved settings. Worker settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
 
@@ -151,7 +151,7 @@ Runtime diagnostics must not include secrets, storage keys, signed URLs, protect
 
 ## Scope Boundary
 
-The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active, and 0.33.5.21.3 makes lock TTL reclaim active with a minimal admin job readout. This branch still does not:
+The completed 0.33.5.19 runtime/database foundation creates the runtime contract and current-setting validation, loads local `.env` files at startup, keeps SQLite as the only active database provider, hardens SQLite startup, exposes safe diagnostics, and reserves stable names for later storage, scanner, and PostgreSQL work. The completed 0.33.5.21.0 driver swap keeps that contract on the in-process `better-sqlite3` path and retires the former `sqlite3` CLI setting. The 0.33.5.21.2 worker runner makes worker settings active, 0.33.5.21.3 makes lock TTL reclaim active with a minimal admin job readout, and 0.33.5.21.4 moves search indexing onto jobs. This branch still does not:
 
 - Change the database provider away from SQLite.
 - Enable PostgreSQL.

@@ -11,6 +11,8 @@ const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await imp
 const { clientsService } = await import("../src/modules/client-projects/clients.service.js");
 const { tasksService } = await import("../src/modules/tasks/tasks.service.js");
 const { timeEntriesService } = await import("../src/modules/time-tracking/time-entries.service.js");
+const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
+const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
 const { searchService } = await import("../src/services/search.service.js");
 const { reportingService } = await import("../src/services/reporting.service.js");
 const { tagsRepository } = await import("../src/repositories/tags.repo.js");
@@ -18,6 +20,7 @@ const { tagsService } = await import("../src/services/tags.service.js");
 
 try {
   await initializeDatabase();
+  registerSearchIndexJobHandlers({ replace: true });
   const session = await readProtectedSession();
   await enableAuditLogging(session.workspace_id);
 
@@ -215,6 +218,8 @@ async function assertTimeEntrySnapshotsSearchAndReporting(session, fixtures) {
     "manual/project time entry should snapshot effective project tags",
   );
 
+  await drainQueuedSearchJobs();
+
   const searchRequest = await searchService.composePermissionSafeSearchRequest({
     filters: {
       recordTypes: ["task"],
@@ -295,4 +300,25 @@ WHERE workspace_id = ${sqlText(workspaceId)};
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.equal(rows[0]?.integrity_check, "ok");
+}
+
+async function drainQueuedSearchJobs() {
+  resetJobWorkerStatusForTests();
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const summary = await runJobWorkerOnce({
+      claimLimit: 25,
+      mode: "inline",
+      workerId: "tag-propagation-paths-regression",
+    });
+
+    if (summary.claimed === 0) {
+      return;
+    }
+
+    assert.equal(summary.failed, 0, "queued search indexing jobs should not fail during tag propagation coverage");
+    assert.equal(summary.dead, 0, "queued search indexing jobs should not dead-letter during tag propagation coverage");
+  }
+
+  throw new Error("Queued search indexing jobs did not drain for tag propagation coverage.");
 }

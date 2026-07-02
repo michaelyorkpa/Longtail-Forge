@@ -10,6 +10,7 @@ process.env.SUPER_ADMIN_PASSWORD = "Notes-Search-Help-Test-123!";
 process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "notes-search-help-secure-note-test-key";
 
 const { createApp } = await import("../src/core/app.js");
+const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { hasSearchIndexer } = await import("../src/core/search/indexer-registry.js");
 const { summarizeNotificationEvent } = await import("../src/core/events/event-summaries.js");
@@ -17,6 +18,7 @@ const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { NOTE_LIBRARY_BUCKETS, NOTE_SECURITY_MODES, NOTE_STATUSES, NOTE_VISIBILITIES } = await import("../src/modules/notes/library.js");
 const { indexNoteRecord } = await import("../src/modules/notes/search-indexers.js");
 const { notificationsService } = await import("../src/services/notifications.service.js");
+const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
 const { searchService } = await import("../src/services/search.service.js");
 const { tagsService } = await import("../src/services/tags.service.js");
 const { createSession } = await import("../src/security/sessions.js");
@@ -26,6 +28,7 @@ let server;
 
 try {
   await initializeDatabase();
+  registerSearchIndexJobHandlers({ replace: true });
   await searchService.ensureSearchBackendStorage({ refresh: true });
 
   const workspace = await readWorkspace();
@@ -59,7 +62,7 @@ async function assertNotesManifestContributions() {
   assert.equal(searchableType.indexer, "notes.records");
   assert.equal(searchableType.sourceLabel, "Notes");
   assert.equal(hasSearchIndexer("notes.records"), true);
-  assert.equal(notesModule.version, "0.33.5.21.3");
+  assert.equal(notesModule.version, "0.33.5.21.4");
   assert.ok(notesModule.help.articles.length >= 11, "Notes should contribute current-state Help articles");
   assert.ok(notesModule.notificationEvents.some((event) => event.id === "note.updated"));
 }
@@ -117,6 +120,8 @@ async function assertNotesSearchIndexing(session, browserContext) {
     recordId: activeWork.note.note_id,
   });
   assert.equal(archivedDocument.search_status, NOTE_STATUSES.ARCHIVED);
+
+  await drainQueuedSearchJobs();
 
   const request = await searchService.composePermissionSafeSearchRequest({
     session,
@@ -319,4 +324,25 @@ function listen(app) {
     const nextServer = app.listen(0, "127.0.0.1", () => resolve(nextServer));
     nextServer.on("error", reject);
   });
+}
+
+async function drainQueuedSearchJobs() {
+  resetJobWorkerStatusForTests();
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const summary = await runJobWorkerOnce({
+      claimLimit: 25,
+      mode: "inline",
+      workerId: "notes-search-help-regression",
+    });
+
+    if (summary.claimed === 0) {
+      return;
+    }
+
+    assert.equal(summary.failed, 0, "queued note search indexing jobs should not fail");
+    assert.equal(summary.dead, 0, "queued note search indexing jobs should not dead-letter");
+  }
+
+  throw new Error("Queued note search indexing jobs did not drain.");
 }

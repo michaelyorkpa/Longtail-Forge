@@ -9,14 +9,17 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-notes-in
 process.env.SUPER_ADMIN_PASSWORD = "Notes-Integration-Closeout-Test-123!";
 process.env.LONGTAIL_SECURE_NOTES_MASTER_KEY = "notes-integration-closeout-secure-note-test-key";
 
+const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
 const { modulesService } = await import("../src/core/modules/modules.service.js");
 const { notesService } = await import("../src/modules/notes/notes.service.js");
 const { NOTE_LIBRARY_BUCKETS, NOTE_SECURITY_MODES, NOTE_VISIBILITIES } = await import("../src/modules/notes/library.js");
+const { registerSearchIndexJobHandlers } = await import("../src/services/search-index-jobs.service.js");
 const { searchService } = await import("../src/services/search.service.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 try {
   await initializeDatabase();
+  registerSearchIndexJobHandlers({ replace: true });
   await searchService.ensureSearchBackendStorage({ refresh: true });
 
   const workspace = await readWorkspace();
@@ -39,7 +42,7 @@ try {
 async function assertManifestIntegrationContract() {
   const notesModule = modulesService.getModule("notes");
 
-  assert.equal(notesModule.version, "0.33.5.21.3");
+  assert.equal(notesModule.version, "0.33.5.21.4");
   assert.equal(notesModule.publicApiRoutes.length, 1, "Notes should expose only the read-only public API router");
   assert.deepEqual(notesModule.apiScopes.map((scope) => scope.id), ["notes:read"]);
   assert.deepEqual(
@@ -88,6 +91,7 @@ async function assertArchiveCollectionAndSearchBehavior(session) {
   const archived = await notesService.read(note.note.note_id, session);
   assert.equal(archived.note.library_bucket, NOTE_LIBRARY_BUCKETS.REFERENCE);
   assert.equal(archived.note.note_collection_id, collection.collection.note_library_collection_id);
+  await drainQueuedSearchJobs();
 
   const searchRows = await querySql(`
 SELECT record_status, library_bucket, note_collection_id
@@ -313,4 +317,25 @@ async function assertRejectsWithMessage(fn, pattern) {
 async function assertIntegrity() {
   const rows = await querySql("PRAGMA integrity_check;");
   assert.deepEqual(rows, [{ integrity_check: "ok" }]);
+}
+
+async function drainQueuedSearchJobs() {
+  resetJobWorkerStatusForTests();
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const summary = await runJobWorkerOnce({
+      claimLimit: 25,
+      mode: "inline",
+      workerId: "notes-integration-closeout-regression",
+    });
+
+    if (summary.claimed === 0) {
+      return;
+    }
+
+    assert.equal(summary.failed, 0, "queued integration search jobs should not fail");
+    assert.equal(summary.dead, 0, "queued integration search jobs should not dead-letter");
+  }
+
+  throw new Error("Queued integration search jobs did not drain.");
 }

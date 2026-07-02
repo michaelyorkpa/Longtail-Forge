@@ -3,7 +3,14 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { clearSearchIndexersForTests, registerSearchIndexer } from "../src/core/search/indexer-registry.js";
 import { initializeDatabase, querySql, runSql, sqlText } from "../src/db/index.js";
+import {
+  registerSearchIndexJobHandlers,
+} from "../src/services/search-index-jobs.service.js";
 import { searchIndexSyncService } from "../src/services/search-index-sync.service.js";
+import {
+  resetJobWorkerStatusForTests,
+  runJobWorkerOnce,
+} from "../src/core/jobs/index.js";
 
 await initializeDatabase();
 
@@ -67,9 +74,13 @@ check("client project mutations re-index affected client project and downstream 
 check("search sync helper logs failed indexing without throwing", () => {
   assert.match(syncService, /logger\.error/);
   assert.doesNotMatch(syncService, /throw result|throw error/);
+  assert.match(syncService, /queueSearchIndexRecord/);
+  assert.match(syncService, /queueSearchIndexRemoval/);
 });
 
-await checkAsync("search sync helper re-indexes removes and reports failed indexer calls", async () => {
+await checkAsync("search sync helper queues jobs and the worker re-indexes removes and retries failures", async () => {
+  resetJobWorkerStatusForTests();
+  registerSearchIndexJobHandlers({ replace: true });
   clearSearchIndexersForTests();
   const workspaceId = "search-index-sync-workspace";
   const now = "2026-06-08T15:00:00.000Z";
@@ -108,6 +119,24 @@ VALUES (${sqlText(workspaceId)}, 'Search Index Sync Workspace', 'Active', 'busin
     recordId: "sync-record-1",
     reason: "regression.reindex",
   });
+  const queuedRows = await querySql(`
+SELECT job_type, status, dedupe_key
+FROM jobs
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND job_type = 'search.index'
+  AND status = 'pending';
+`);
+
+  assert.equal(reindexResult.ok, true);
+  assert.equal(reindexResult.operation, "queue_reindex");
+  assert.equal(queuedRows.length, 1);
+  assert.match(queuedRows[0].dedupe_key, /search:reindex/);
+
+  const reindexSummary = await runJobWorkerOnce({
+    claimLimit: 1,
+    mode: "inline",
+    workerId: "search-index-sync-regression",
+  });
   const indexedRows = await querySql(`
 SELECT title
 FROM search_index
@@ -117,7 +146,7 @@ WHERE workspace_id = ${sqlText(workspaceId)}
   AND record_id = 'sync-record-1';
 `);
 
-  assert.equal(reindexResult.ok, true);
+  assert.equal(reindexSummary.completed, 1);
   assert.deepEqual(indexedRows, [{ title: "Synced event record" }]);
   unregisterIndexer();
 
@@ -127,6 +156,11 @@ WHERE workspace_id = ${sqlText(workspaceId)}
     recordType: "example_record",
     recordId: "sync-record-1",
     reason: "regression.remove",
+  });
+  const removeSummary = await runJobWorkerOnce({
+    claimLimit: 1,
+    mode: "inline",
+    workerId: "search-index-sync-regression",
   });
   const removedRows = await querySql(`
 SELECT search_index_id
@@ -138,9 +172,27 @@ WHERE workspace_id = ${sqlText(workspaceId)}
 `);
 
   assert.equal(removeResult.ok, true);
+  assert.equal(removeResult.operation, "queue_remove");
+  assert.equal(removeSummary.completed, 1);
   assert.deepEqual(removedRows, []);
 
   const loggedMessages = [];
+  const missingContextResult = await searchIndexSyncService.reindexRecord({
+    moduleId: "developer-example",
+    recordType: "example_record",
+    recordId: "sync-record-missing-workspace",
+    reason: "regression.queue_failure",
+  }, {
+    logger: {
+      error(message) {
+        loggedMessages.push(message);
+      },
+    },
+  });
+
+  assert.equal(missingContextResult.ok, false);
+  assert.match(loggedMessages.join("\n"), /regression\.queue_failure failed for developer-example\/example_record\/sync-record-missing-workspace/);
+
   const failingUnregister = registerSearchIndexer("developer-example.records", async () => {
     throw new Error("synthetic indexing failure");
   });
@@ -151,17 +203,28 @@ WHERE workspace_id = ${sqlText(workspaceId)}
     recordType: "example_record",
     recordId: "sync-record-fail",
     reason: "regression.failure",
-  }, {
-    logger: {
-      error(message) {
-        loggedMessages.push(message);
-      },
-    },
   });
+  const beforeFailureRun = Date.now();
+  const failedSummary = await runJobWorkerOnce({
+    claimLimit: 1,
+    mode: "inline",
+    workerId: "search-index-sync-regression",
+  });
+  const failedJob = (await querySql(`
+SELECT status, attempt_count, last_error, available_at
+FROM jobs
+WHERE workspace_id = ${sqlText(workspaceId)}
+  AND job_type = 'search.index'
+  AND dedupe_key LIKE '%sync-record-fail'
+LIMIT 1;
+`))[0];
 
-  assert.equal(failedResult.ok, false);
-  assert.match(loggedMessages.join("\n"), /regression\.failure failed for developer-example\/example_record\/sync-record-fail/);
-  assert.match(loggedMessages.join("\n"), /synthetic indexing failure/);
+  assert.equal(failedResult.ok, true);
+  assert.equal(failedSummary.failed, 1);
+  assert.equal(failedJob.status, "failed");
+  assert.equal(failedJob.attempt_count, 1);
+  assert.match(failedJob.last_error, /synthetic indexing failure/);
+  assert.ok(Date.parse(failedJob.available_at) > beforeFailureRun, "failed search jobs should be scheduled for retry");
   failingUnregister();
   clearSearchIndexersForTests();
 });

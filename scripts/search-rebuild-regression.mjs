@@ -140,8 +140,10 @@ check("protected rebuild route is permission-gated and active-workspace scoped",
   const routeText = readFileSync("src/routes/search-index.routes.js", "utf8");
 
   assert.match(routeText, /workspace_settings\.manage/);
+  assert.match(routeText, /queueSearchIndexRebuild/);
   assert.match(routeText, /workspaceId:\s*request\.session\.workspace_id/);
-  assert.doesNotMatch(routeText, /all-workspaces|rebuildApp|payload\.workspaceId/);
+  assert.match(routeText, /response\.status\(202\)/);
+  assert.doesNotMatch(routeText, /all-workspaces|rebuildApp|rebuildWorkspace|rebuildModule|payload\.workspaceId/);
 });
 
 console.log(`Search rebuild regression passed ${checks} checks.`);

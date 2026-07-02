@@ -12,6 +12,7 @@ process.env.LONGTAIL_DATABASE_FILE = path.join(tempDir, "longtail-forge-permissi
 process.env.SUPER_ADMIN_PASSWORD = "Permission-Test-Password-123!";
 
 const { createApp } = await import("../src/core/app.js");
+const { resetJobWorkerStatusForTests, runJobWorkerOnce } = await import("../src/core/jobs/index.js");
 const { closeSqlite, initializeDatabase, querySql, runSql, sqlText } = await import("../src/db/index.js");
 
 const results = [];
@@ -913,6 +914,7 @@ LIMIT 1;
     assert.equal(metadata.corrected_user_id, fixtures.users.projectUser.userId);
     assert.ok((metadata.sensitive_fields_changed || []).includes("billable"));
   });
+  await drainQueuedSearchJobs();
   const searchRows = await querySql(`
 SELECT title, body, tags_text
 FROM search_index
@@ -2201,6 +2203,27 @@ function listen(app) {
     const nextServer = http.createServer(app);
     nextServer.listen(0, "127.0.0.1", () => resolve(nextServer));
   });
+}
+
+async function drainQueuedSearchJobs() {
+  resetJobWorkerStatusForTests();
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const summary = await runJobWorkerOnce({
+      claimLimit: 25,
+      mode: "inline",
+      workerId: "permission-regression",
+    });
+
+    if (summary.claimed === 0) {
+      return;
+    }
+
+    assert.equal(summary.failed, 0, "queued permission-regression search jobs should not fail");
+    assert.equal(summary.dead, 0, "queued permission-regression search jobs should not dead-letter");
+  }
+
+  throw new Error("Queued permission-regression search jobs did not drain.");
 }
 
 function closeServer(nextServer) {

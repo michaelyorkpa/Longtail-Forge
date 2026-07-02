@@ -129,6 +129,7 @@ const DEFAULT_DATABASE_REGRESSIONS = Object.freeze([
   "scripts/search-contract-regression.mjs",
   "scripts/search-index-sync-regression.mjs",
   "scripts/search-rebuild-regression.mjs",
+  "scripts/search-index-jobs-regression.mjs",
   "scripts/search-fts-repair-regression.mjs",
   "scripts/search-lifecycle-regression.mjs",
 ]);

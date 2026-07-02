@@ -59,9 +59,11 @@ try {
   assert.match(searchPage, /data-search-rebuild-index/);
   assert.match(searchScript, /workspaceContext\?\.permissionHints\?\.workspaceSettingsManage/);
   assert.match(searchScript, /fetch\("\/api\/search-index\/rebuild"/);
+  assert.match(searchScript, /Index rebuild queued/);
   assert.match(styles, /\.search-index-maintenance/);
-  assert.match(appCore, /scheduleStartupSearchIndexRebuild/);
-  assert.match(appCore, /searchIndexRebuildService\.rebuildApp\(\{[\s\S]*source:\s*"startup"/);
+  assert.match(appCore, /queueStartupSearchIndexRebuildIfEmpty/);
+  assert.match(appCore, /queueSearchIndexRebuildIfEmpty\(\{[\s\S]*source:\s*"startup-empty-index"/);
+  assert.doesNotMatch(appCore, /searchIndexRebuildService\.rebuildApp|scheduleStartupSearchIndexRebuild/);
 
   console.log("Search shell regression passed.");
 } finally {
