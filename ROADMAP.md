@@ -365,10 +365,10 @@ Purpose:
 
 Prove the shipped worker CLI can process the durable-job foundation outside the web process.
 
-- [ ] Add a regression that runs the `separate` worker (`src/core/jobs/worker-cli.js`) against queued jobs end to end, proving it registers all handlers and processes reminder, recurrence, file-scan, notification, and search-index jobs.
-- [ ] Verify the 0.33.5.21.0.5 SQLite boundary: one local worker, schema-readiness check, no independent migration ownership, and no worker fleet sharing one SQLite file.
-- [ ] Confirm `disabled`, `inline`, and `separate` modes leave understandable diagnostics and do not process jobs from the wrong process.
-- [ ] Update worker docs only for behavior proved by the regression.
+- [x] Add a regression that runs the `separate` worker (`src/core/jobs/worker-cli.js`) against queued jobs end to end, proving it registers all handlers and processes reminder, recurrence, file-scan, notification, and search-index jobs.
+- [x] Verify the 0.33.5.21.0.5 SQLite boundary: one local worker, schema-readiness check, no independent migration ownership, and no worker fleet sharing one SQLite file.
+- [x] Confirm `disabled`, `inline`, and `separate` modes leave understandable diagnostics and do not process jobs from the wrong process.
+- [x] Update worker docs only for behavior proved by the regression.
 
 Acceptance criteria:
 

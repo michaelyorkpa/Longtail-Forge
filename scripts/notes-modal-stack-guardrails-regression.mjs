@@ -10,9 +10,9 @@ const viewBuilderJs = readText("public/js/shared/view-builder.js");
 const viewRendererJs = readText("public/js/shared/view-renderer.js");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
-assert.equal(packageJson.version, "0.33.5.21.7.5", "package.json should report the current app version");
-assert.equal(packageLock.version, "0.33.5.21.7.5", "package-lock root should report the current app version");
-assert.equal(packageLock.packages[""].version, "0.33.5.21.7.5", "package-lock package entry should report the current app version");
+assert.equal(packageJson.version, "0.33.5.21.7.6", "package.json should report the current app version");
+assert.equal(packageLock.version, "0.33.5.21.7.6", "package-lock root should report the current app version");
+assert.equal(packageLock.packages[""].version, "0.33.5.21.7.6", "package-lock package entry should report the current app version");
 
 assert.match(notesHtml, /js\/shared\/view-builder\.js\?v=11/, "Notes should cache-bust the shared view builder stack helper");
 assert.match(notesHtml, /js\/shared\/view-renderer\.js\?v=12/, "Notes should cache-bust the shared view renderer modal opener");

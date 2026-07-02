@@ -1,3 +1,10 @@
+## Version 0.33.5.21.7.6 - 2026-07-02
+
+- Added `scripts/separate-worker-end-to-end-regression.mjs`, which runs the real `node worker.js` separate worker against queued search indexing, notification fan-out, task reminder, task recurrence, and file scan jobs.
+- Proved the SQLite separate-worker boundary end to end: schema readiness is required, migrations/app startup defaults stay outside the worker, the local worker lock rejects a second worker, and disabled/invalid inline worker invocations do not drain queued work.
+- Refreshed worker/runtime/database docs and decisions, marked the roadmap slice complete, and advanced package/module/regression version metadata to 0.33.5.21.7.6.
+- Verification 2026-07-02 12:00 -04:00: separate-worker end-to-end, worker runner, background-work jobs, notification jobs, search-index jobs, file-scan handoff, reminder scheduling horizon, runtime configuration, runtime diagnostics, SQLite small-office readout, and job claiming/locking targeted checks passed; `npm run check` passed 235/235 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; `git diff --check` reported no whitespace errors after normal LF/CRLF warnings; and `/api/app-info` returned 0.33.5.21.7.6 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.7.5 - 2026-07-02
 
 - Added a read-only Jobs panel to Workspace Settings for `workspace_settings.manage` users, showing pending/running/failed/dead-letter counts and bounded recent failure pages from `GET /api/jobs/status`.
