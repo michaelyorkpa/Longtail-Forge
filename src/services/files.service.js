@@ -1921,11 +1921,20 @@ async function prepareStreamedUpload(session, payload = {}, attachableType = {},
 
   const storageProvider = resolveConfiguredFileStorageProvider();
   const tracker = createStreamUploadTracker(policy.maxSize);
+  tracker.stream.on("error", () => {});
   fileStream.on("error", (error) => {
     tracker.stream.destroy(error);
   });
   const guardedStream = fileStream.pipe(tracker.stream);
-  const storage = await storageProvider.adapter.saveStream(guardedStream, { workspaceId: session.workspace_id });
+  let storage;
+  try {
+    storage = await storageProvider.adapter.saveStream(guardedStream, { workspaceId: session.workspace_id });
+  } catch (error) {
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError("Uploaded file could not be stored.", 500);
+  }
   const streamed = tracker.result();
 
   if (streamed.fileSizeBytes < 1) {

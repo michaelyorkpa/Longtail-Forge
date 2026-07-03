@@ -169,19 +169,39 @@ function readMultipartUpload(request) {
     }
 
     const fields = new Map();
+    const activeFileStreams = new Set();
     let fileSeen = false;
     let uploadError = null;
     let uploadPromise = null;
     let uploadResult = null;
     let settled = false;
 
-    const fail = (error) => {
+    const cleanupRequestListeners = () => {
+      request.off("aborted", handleRequestAborted);
+      request.off("error", handleRequestError);
+    };
+    const fail = (error, options = {}) => {
       if (settled) {
         return;
       }
       settled = true;
-      reject(error instanceof AppError ? error : new AppError("Multipart upload could not be parsed.", 400));
+      const normalizedError = normalizeMultipartUploadError(error);
+      cleanupRequestListeners();
+      destroyMultipartFileStreams(activeFileStreams, normalizedError);
+      if (options.destroyParser !== false) {
+        destroyMultipartParser(parser, normalizedError);
+      }
+      reject(normalizedError);
     };
+    const handleRequestAborted = () => {
+      fail(new AppError("Multipart upload was cancelled before it finished.", 400));
+    };
+    const handleRequestError = () => {
+      fail(new AppError("Multipart upload could not be read.", 400));
+    };
+
+    request.on("aborted", handleRequestAborted);
+    request.on("error", handleRequestError);
 
     parser.on("field", (name, value, info = {}) => {
       if (settled) {
@@ -199,6 +219,7 @@ function readMultipartUpload(request) {
         file.resume();
         return;
       }
+      trackMultipartFileStream(file, activeFileStreams);
       if (fieldName !== "file") {
         file.resume();
         fail(new AppError("Multipart upload expects one file field named 'file'.", 400));
@@ -238,7 +259,7 @@ function readMultipartUpload(request) {
       fail(new AppError("Multipart upload accepts one file.", 400));
     });
     parser.on("error", () => {
-      fail(new AppError("Multipart upload could not be parsed.", 400));
+      fail(new AppError("Multipart upload could not be parsed.", 400), { destroyParser: false });
     });
     parser.on("finish", async () => {
       if (settled) {
@@ -251,11 +272,12 @@ function readMultipartUpload(request) {
 
       await uploadPromise;
       if (uploadError) {
-        fail(uploadError);
+        fail(uploadError, { destroyParser: false });
         return;
       }
 
       settled = true;
+      cleanupRequestListeners();
       resolve(uploadResult);
     });
 
@@ -288,17 +310,37 @@ function readMultipartBatchUpload(request) {
     }
 
     const fields = new Map();
+    const activeFileStreams = new Set();
     const uploadPromises = [];
     let settled = false;
     let uploadCount = 0;
 
-    const fail = (error) => {
+    const cleanupRequestListeners = () => {
+      request.off("aborted", handleRequestAborted);
+      request.off("error", handleRequestError);
+    };
+    const fail = (error, options = {}) => {
       if (settled) {
         return;
       }
       settled = true;
-      reject(error instanceof AppError ? error : new AppError("Multipart upload could not be parsed.", 400));
+      const normalizedError = normalizeMultipartUploadError(error);
+      cleanupRequestListeners();
+      destroyMultipartFileStreams(activeFileStreams, normalizedError);
+      if (options.destroyParser !== false) {
+        destroyMultipartParser(parser, normalizedError);
+      }
+      reject(normalizedError);
     };
+    const handleRequestAborted = () => {
+      fail(new AppError("Multipart upload was cancelled before it finished.", 400));
+    };
+    const handleRequestError = () => {
+      fail(new AppError("Multipart upload could not be read.", 400));
+    };
+
+    request.on("aborted", handleRequestAborted);
+    request.on("error", handleRequestError);
 
     parser.on("field", (name, value, info = {}) => {
       if (settled) {
@@ -316,6 +358,7 @@ function readMultipartBatchUpload(request) {
         file.resume();
         return;
       }
+      trackMultipartFileStream(file, activeFileStreams);
       if (!["file", "files"].includes(fieldName)) {
         file.resume();
         fail(new AppError("Multipart batch upload expects file fields named 'files'.", 400));
@@ -363,7 +406,7 @@ function readMultipartBatchUpload(request) {
       fail(new AppError("Multipart batch upload accepts up to 50 files.", 400));
     });
     parser.on("error", () => {
-      fail(new AppError("Multipart upload could not be parsed.", 400));
+      fail(new AppError("Multipart upload could not be parsed.", 400), { destroyParser: false });
     });
     parser.on("finish", async () => {
       if (settled) {
@@ -379,6 +422,7 @@ function readMultipartBatchUpload(request) {
       const failed = results.length - succeeded;
 
       settled = true;
+      cleanupRequestListeners();
       resolve({
         failed,
         ok: failed === 0,
@@ -390,6 +434,39 @@ function readMultipartBatchUpload(request) {
 
     request.pipe(parser);
   });
+}
+
+function trackMultipartFileStream(file, activeFileStreams) {
+  activeFileStreams.add(file);
+  const untrack = () => {
+    activeFileStreams.delete(file);
+  };
+
+  file.once("close", untrack);
+  file.once("end", untrack);
+  file.once("error", untrack);
+}
+
+function destroyMultipartFileStreams(activeFileStreams, error) {
+  for (const file of activeFileStreams) {
+    if (typeof file.destroy === "function" && !file.destroyed) {
+      file.destroy(error);
+    }
+  }
+  activeFileStreams.clear();
+}
+
+function destroyMultipartParser(parser, error) {
+  if (parser && typeof parser.destroy === "function" && !parser.destroyed) {
+    parser.destroy(error);
+  }
+}
+
+function normalizeMultipartUploadError(error) {
+  if (error instanceof AppError) {
+    return error;
+  }
+  return new AppError("Multipart upload could not be parsed.", 400);
 }
 
 function buildMultipartUploadPayload(fields, fileStream, info = {}, batchIndex = null) {

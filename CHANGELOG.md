@@ -1,3 +1,11 @@
+## Version 0.33.5.22.6 - 2026-07-03
+
+- Defined the Files upload transition window: JSON/base64 routes (`POST /api/files` and `POST /api/files/batch`) remain compatibility routes through the 0.33.5.22 storage/scanner branch and are retired no earlier than 0.33.5.23.0 by a later explicit roadmap slice.
+- Hardened streamed multipart upload failure handling for client aborts, request read errors, fatal parser errors, oversized payloads, and unexpected storage stream failures so active streams are stopped and partial local writes are cleaned up where practical before any upload lifecycle is accepted.
+- Preserved the normal streamed upload lifecycle, legacy JSON compatibility, and existing scan/download/preview availability rules, including unsupported files staying download-only.
+- Added `scripts/file-upload-compatibility-error-hardening-regression.mjs`, wired it into the file-storage regression bucket, refreshed Files/module/runtime docs and decisions, marked the roadmap slice complete, and advanced package/regression version metadata to 0.33.5.22.6.
+- Verification 2026-07-03 12:32 -04:00: `scripts/file-upload-compatibility-error-hardening-regression.mjs`, `scripts/file-multipart-upload-route-regression.mjs`, `scripts/file-multipart-batch-upload-helper-regression.mjs`, `scripts/files-preview-availability-route-regression.mjs`, `scripts/file-storage-streaming-contract-regression.mjs`, `scripts/file-storage-provider-configuration-regression.mjs`, `scripts/file-storage-diagnostics-regression.mjs`, `scripts/regression-clean-clone-contract.mjs`, and `scripts/check-js.mjs` targeted checks passed; `npm run check` passed 248/248 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.6 after restarting the local 8001 server.
+
 ## Version 0.33.5.22.5 - 2026-07-03
 
 - Added `POST /api/files/upload/batch` as the streamed multipart batch upload route with ordered per-file results and HTTP 207 partial-failure responses.

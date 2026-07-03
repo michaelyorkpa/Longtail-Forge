@@ -208,13 +208,13 @@ Acceptance criteria:
 
 ### Version 0.33.5.22.6 - Upload compatibility and error hardening
 
-- [ ] Define the transition window: how long the base64 JSON route (`POST /api/files` / `POST /api/files/batch`) and the new streamed routes coexist, and when the shared attachment helper's base64 path is retired.
-- [ ] Harden cancellation/error behavior for streamed uploads: aborted client requests, parser errors, storage stream errors, and oversized payloads should not leave active file records, attachments, or usable partial files.
-- [ ] Keep unsupported files download-only and preserve all scan/download/preview availability rules.
-- [ ] Add regressions for:
-  - [ ] Upload cancellation/error cleanup.
-  - [ ] Legacy base64 route compatibility while the route remains supported.
-  - [ ] Size-limit copy and failure response shape stay useful.
+- [x] Define the transition window: how long the base64 JSON route (`POST /api/files` / `POST /api/files/batch`) and the new streamed routes coexist, and when the shared attachment helper's base64 path is retired.
+- [x] Harden cancellation/error behavior for streamed uploads: aborted client requests, parser errors, storage stream errors, and oversized payloads should not leave active file records, attachments, or usable partial files.
+- [x] Keep unsupported files download-only and preserve all scan/download/preview availability rules.
+- [x] Add regressions for:
+  - [x] Upload cancellation/error cleanup.
+  - [x] Legacy base64 route compatibility while the route remains supported.
+  - [x] Size-limit copy and failure response shape stay useful.
 
 Acceptance criteria:
 
