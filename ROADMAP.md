@@ -112,46 +112,115 @@ Keep local file storage simple for SQLite/self-hosted mode while making storage 
 
 Entry contract from 0.33.5.19: consume the documented storage and scanner runtime config keys without changing existing Files storage semantics until this branch owns the behavior.
 
-### Version 0.33.5.22.1 - Storage provider configuration
+Current wiring (grounding for this branch):
 
-- [ ] Resolve storage provider from runtime/workspace configuration instead of hardcoding `local`.
-- [ ] Route the upload write path through the configured provider: replace the hardcoded `getFileStorageAdapter("local")` and `storageProvider: "local"` in `src/services/files.service.js` with `config.storage.provider`, keeping the stored `files.storage_provider` per-row so existing local files still read back correctly.
-- [ ] Keep `local` as default for SQLite/self-hosted mode.
-- [ ] Add provider health checks.
-- [ ] Add admin diagnostics:
+- The config keys already exist but are inert: `config.storage.provider` (default `local`) and `config.scanner.mode` (default `none`) are defined in `src/config.js:133-142` and only *echoed* by `src/services/runtime-diagnostics.service.js:43-48` — nothing consumes them to select an adapter yet.
+- The upload write path hardcodes storage: `getFileStorageAdapter("local")` / `storageProvider: "local"` in `src/services/files.service.js:189-193`. Reads are already per-row (`getFileStorageAdapter(file.storage_provider)` at `:609`/`:660`), so existing local rows keep resolving.
+- The scanner is hardcoded the same way: `let scannerAdapter = createNoopFileScannerAdapter()` at `src/services/files.service.js:92`, invoked at `:1663` inside `scanFile`. `config.scanner.mode = "none"` is never read, so the effective behavior today is always noop regardless of config.
+- Admin diagnostics already exist end-to-end: `GET /api/runtime-diagnostics` (`runtimeDiagnosticsService.read`) → `public/js/workspace-settings.js:225-250` renders "Storage Provider" and "Scanner Mode" rows. This branch should *extend* that existing surface, not build a new one.
+- Adapter contracts: `registerFileStorageAdapter` requires `save/read/metadata/delete/health` (`files.service.js:116`) and the local adapter satisfies `health()` (`local-storage-adapter.js:20-23`); `registerFileScannerAdapter` requires only `scan()` (`files.service.js:127`) and the noop scanner has **no** `health()`/availability method. The scanner health work below must therefore grow the scanner adapter contract, not just reuse the storage one.
+
+Sizing rule for this branch:
+
+- Each sub-slice below should have one primary blast radius and should be completable in a single focused implementation session.
+- Each implementation sub-slice still follows the normal release ceremony for the version it lands: focused regressions, relevant docs, `CHANGELOG.md`, package metadata when the version changes, and verification.
+- Do not combine adjacent slices just because the same helper file is already open.
+
+### Version 0.33.5.22.1 - Storage provider resolver and local write path
+
+- [x] Add a service-owned configured storage provider resolver that reads `config.storage.provider`.
+- [x] Route the upload write path through the configured provider: replace the hardcoded `getFileStorageAdapter("local")` and `storageProvider: "local"` in `src/services/files.service.js` with the resolved provider ID, keeping the stored `files.storage_provider` per-row so existing local files still read back correctly.
+- [x] Fail fast on an unknown configured provider at resolution time (reuse the existing `getFileStorageAdapter` "provider is not configured" 500 path at `files.service.js:139-141`) rather than silently falling back to `local`.
+- [x] Keep `local` as default for SQLite/self-hosted mode.
+- [x] Do not change download, preview, File Context, attachment-panel, scanner, diagnostics UI, S3, or streaming-upload behavior in this slice.
+- [x] Add regressions proving:
+  - [x] Local storage remains default.
+  - [x] A configured `local` provider is stored on new upload rows.
+  - [x] Unknown provider fails clearly (surfaced as an error, not a silent local fallback).
+  - [x] Existing local rows still read through their stored `files.storage_provider`.
+
+Acceptance criteria:
+
+- Storage provider selection is centralized for new writes, existing local files still read through per-row provider metadata, and unknown configured providers fail loudly.
+
+### Version 0.33.5.22.2 - Storage diagnostics and local storage docs
+
+- [ ] Add provider health checks: call the adapter `health()` method (already implemented for local at `local-storage-adapter.js:20-23`) from the diagnostics path and normalize the result into a safe availability status without leaking the absolute root path.
+- [ ] Extend the existing admin diagnostics (do not add a new surface): the `storage` block returned by `runtimeDiagnosticsService.read` (`runtime-diagnostics.service.js:43-45`) and its "Storage Provider" row in `public/js/workspace-settings.js:240` should expose:
   - [ ] Provider ID.
-  - [ ] Local root path or safe provider label.
-  - [ ] Availability status.
-- [ ] Add docs for local storage mode.
+  - [ ] Availability status from the provider `health()` check.
+  - [ ] Local root path as a safe/redacted label, reusing the existing `safeDataDirectoryLocation`/redaction helpers in `runtime-diagnostics.service.js:121-141` so the raw filesystem path is not exposed.
+- [ ] Add local storage docs and update runtime-configuration docs so `LONGTAIL_STORAGE_PROVIDER=local` and `LONGTAIL_LOCAL_STORAGE_ROOT` are marked live rather than merely reserved.
 - [ ] Add regressions proving:
-  - [ ] Local storage remains default.
-  - [ ] Unknown provider fails clearly.
-  - [ ] File routes do not expose storage keys/paths.
+  - [ ] Runtime diagnostics reports safe storage provider health.
+  - [ ] The Workspace Settings readout renders provider status without a new admin surface.
+  - [ ] File routes and diagnostics do not expose storage keys, protected paths, raw local roots, or signed URLs.
 
 Acceptance criteria:
 
-- Storage provider selection is centralized and configurable.
+- Admin diagnostics can show the configured local storage provider and safe availability status without exposing filesystem internals.
 
-### Version 0.33.5.22.2 - Streamed local uploads
+### Version 0.33.5.22.3 - Streaming write contract and multipart decision
 
-- [ ] Move file uploads away from JSON-body file payloads where practical.
+- [ ] Prepare file uploads to move away from JSON-body file payloads by settling the transport and storage-write contracts first.
 - [ ] Decide the multipart mechanism explicitly: no multipart parser exists today (uploads are base64-in-JSON via the hand-rolled `readJsonBody` in `src/utils/http.js`, capped at 8 MB JSON / 5 MB decoded file), so this slice adds either a streaming multipart dependency or a hand-rolled parser. Record the dependency decision in `DECISIONS.md`.
-- [ ] Add streamed or multipart upload support for local/self-hosted mode.
-- [ ] Preserve existing route compatibility temporarily if needed.
-- [ ] Define the transition window: how long the base64 JSON route (`POST /api/files`) and the new streamed route coexist, and when the shared attachment helper's base64 path is retired.
-- [ ] Add upload size enforcement.
-- [ ] Add per-file result reporting.
-- [ ] Add regressions for:
-  - [ ] Successful upload.
-  - [ ] Oversized upload rejection.
-  - [ ] Partial batch failure.
-  - [ ] Upload cancellation/error.
+- [ ] Extend the storage adapter write contract for streaming: `save()` takes a fully-buffered `Buffer` today (`local-storage-adapter.js:41-48`), so a streamed HTTP body still buffers end-to-end unless `save()` gains a stream/`pipeline`-based path. Add a streaming save variant (or accept a `Readable`) so local writes go body → disk without a full in-memory buffer, and keep the buffered signature working for existing callers.
+- [ ] Keep the existing base64 JSON routes and browser helper unchanged in this slice.
+- [ ] Add focused adapter-level regressions proving:
+  - [ ] Buffered `save()` callers still work.
+  - [ ] A streamed local save writes through the same storage-key safety rules.
+  - [ ] Stream errors clean up partial local writes where practical.
 
 Acceptance criteria:
 
-- Local uploads do not require buffering large file JSON payloads in memory.
+- The storage adapter contract can accept streamed bytes without breaking existing upload callers.
 
-### Version 0.33.5.22.3 - Scanner adapter configuration
+### Version 0.33.5.22.4 - Multipart upload route and Files lifecycle
+
+- [ ] Add the first streamed/multipart upload route for local/self-hosted mode without removing `POST /api/files`.
+- [ ] Parse one uploaded file plus attachment metadata through the selected multipart mechanism from 0.33.5.22.3.
+- [ ] Add upload size enforcement at the streamed route boundary.
+- [ ] Keep the post-write pipeline identical for the streamed route: it must still create the file record, `queueFileScanJob` (`files.service.js:197`), and `attachFile` so uploaded files land `pending`/scan-`pending` exactly as the base64 path does (per 0.33.5.21.7.1). Streaming changes only how bytes reach the storage adapter, not the lifecycle.
+- [ ] Preserve permission checks, target validation, audit/lifecycle behavior, scan/download/preview availability gates, and per-row `files.storage_provider`.
+- [ ] Add regressions proving:
+  - [ ] Successful streamed upload creates and attaches a pending file.
+  - [ ] Oversized streamed upload is rejected before storing a usable file.
+  - [ ] Failed parsing/storage does not leave an attached orphan.
+
+Acceptance criteria:
+
+- A single streamed upload can land through the normal Files lifecycle without changing the existing JSON upload contract.
+
+### Version 0.33.5.22.5 - Streamed batch upload and attachment helper migration
+
+- [ ] Add streamed/multipart batch upload support with per-file result reporting.
+- [ ] Update the shared attachment helper to prefer the streamed batch route while preserving the current upload UI, dropzone, save-first behavior, host refresh callbacks, and upload-result messages.
+- [ ] Preserve existing route compatibility for the base64 JSON route during the transition window.
+- [ ] Add regressions for:
+  - [ ] Successful multi-file upload.
+  - [ ] Partial batch failure.
+  - [ ] Browser helper result rendering for pending-review uploads.
+  - [ ] Host refresh/event callbacks after streamed batch completion.
+
+Acceptance criteria:
+
+- Attachment-panel uploads no longer require base64 JSON for the normal browser path, and partial failures remain visible and recoverable.
+
+### Version 0.33.5.22.6 - Upload compatibility and error hardening
+
+- [ ] Define the transition window: how long the base64 JSON route (`POST /api/files` / `POST /api/files/batch`) and the new streamed routes coexist, and when the shared attachment helper's base64 path is retired.
+- [ ] Harden cancellation/error behavior for streamed uploads: aborted client requests, parser errors, storage stream errors, and oversized payloads should not leave active file records, attachments, or usable partial files.
+- [ ] Keep unsupported files download-only and preserve all scan/download/preview availability rules.
+- [ ] Add regressions for:
+  - [ ] Upload cancellation/error cleanup.
+  - [ ] Legacy base64 route compatibility while the route remains supported.
+  - [ ] Size-limit copy and failure response shape stay useful.
+
+Acceptance criteria:
+
+- Streamed upload failure modes are bounded, legacy compatibility is explicit, and the base64 route has a documented retirement path.
+
+### Version 0.33.5.22.7 - Scanner mode resolver and none/noop policy
 
 - [ ] Formalize scanner modes:
   - [ ] `none`
@@ -159,37 +228,47 @@ Acceptance criteria:
   - [ ] `clamd`
   - [ ] `clamscan`
 - [ ] Define the `none` vs `noop` distinction precisely (e.g. `none` = do not scan / mark available; `noop` = pass-through adapter for tests), since only `noop` exists today (`src/core/files/scanner-adapter.js`) while config defaults to `none`.
+- [ ] Resolve the scanner adapter from `config.scanner.mode` instead of hardcoding: replace the module-level `let scannerAdapter = createNoopFileScannerAdapter()` (`src/services/files.service.js:92`) with a config-driven selection so `none`/`noop`/`clamd`/`clamscan` map to the right adapter.
+- [ ] Keep `scanFile` as the service-owned scanner call site; if adapters need file bytes, pass a service-owned safe scan context instead of exposing storage paths, keys, or scanner internals outside the service boundary.
 - [ ] Cross-reference 0.33.5.21.7.1: `file.scan` now owns upload scan execution, uploaded files stay pending/unavailable until the worker completes the job, and this slice should make scanner adapter configuration the single owner of any future pending scan -> available/quarantine transition changes.
 - [ ] Reuse the existing quarantine/review lifecycle (`files.manage_quarantine`, the `Mark Reviewed` restore path) rather than introducing new scan states.
+- [ ] Decide the `none`-mode disposition for pending files explicitly: since `file.scan` leaves files `pending`/unavailable until a result lands, `none` must still drive files to a terminal available state (e.g. resolve to `scan_status = not_required`/`available`) so uploads are not stuck unavailable forever when scanning is off. Keep this transition owned here, per the cross-reference above.
 - [ ] Keep no-op scanner only for development or explicitly accepted self-hosted mode.
-- [ ] Add scanner health checks.
-- [ ] Add admin warning when scanner is disabled.
-- [ ] Add scanner docs for Windows, Linux, and macOS.
-- [ ] Do not auto-delete suspicious files.
-- [ ] Quarantine suspicious files and require review.
 - [ ] Add regressions proving:
-  - [ ] Scanner disabled state is visible.
-  - [ ] Scanner failure quarantines or blocks according to policy.
-  - [ ] Scanner does not bypass file permissions.
+  - [ ] `none` mode does not leave uploaded files stuck pending forever.
+  - [ ] `noop` mode remains an explicit pass-through mode.
+  - [ ] Unknown scanner modes fail clearly instead of silently falling back.
+  - [ ] Scanner execution does not bypass Files permissions, download gates, or preview gates.
 
 Acceptance criteria:
 
-- Scanner behavior is OS-agnostic at the app level.
-- ClamAV or other scanners are runtime adapters, not hard dependencies.
+- Scanner mode selection is configuration-owned, disabled scanning has a deliberate terminal disposition, and `noop` is no longer the hidden default.
 
-### Version 0.33.5.22.4 - ClamAV scanner adapter
+### Version 0.33.5.22.8 - Scanner health diagnostics and disabled warning
 
-- [ ] Add `clamd` adapter.
+- [ ] Grow the scanner adapter contract to support health/availability: `registerFileScannerAdapter` requires only `scan()` today (`files.service.js:127`) and the noop adapter exposes no `health()`. Add an optional `health()`/availability method to the contract and give each built-in adapter one, so diagnostics has something safe to call.
+- [ ] Add scanner health checks by calling the adapter `health()` from the diagnostics path.
+- [ ] Add admin warning when scanner is disabled by extending the existing diagnostics surface: the `scanner` block in `runtimeDiagnosticsService.read` (`runtime-diagnostics.service.js:46-48`) and its "Scanner Mode" row (`public/js/workspace-settings.js:241`) should surface mode + availability and a visible warning when mode is `none`/`noop`, alongside the existing `configurationWarnings` channel.
+- [ ] Do not expose scanner internals, executable paths, hostnames, ports, sockets, raw environment values, storage keys, protected paths, or signed URLs.
+- [ ] Add regressions proving:
+  - [ ] Scanner disabled state is visible in runtime diagnostics and Workspace Settings.
+  - [ ] Scanner availability status is safe and redacted.
+  - [ ] Existing runtime diagnostics redaction checks still cover scanner-sensitive values.
+
+Acceptance criteria:
+
+- Admin diagnostics clearly show scanner mode and safe availability without leaking scanner configuration internals.
+
+### Version 0.33.5.22.9 - `clamscan` executable scanner adapter
+
 - [ ] Add `clamscan` executable adapter.
-- [ ] Support configured executable/socket/host/port.
-- [ ] Add timeout and failure behavior.
+- [ ] Support the configured executable path from `config.scanner.clamscanPath` (`src/config.js:141`) while keeping the path out of diagnostics/UI payloads.
+- [ ] Implement the adapter `health()` method added to the scanner contract in 0.33.5.22.8 by probing `clamscan --version`.
+- [ ] Add timeout and failure behavior for the executable path.
 - [ ] Add safe scanner metadata.
-- [ ] Add docs:
-  - [ ] Linux service setup.
-  - [ ] Windows executable path setup.
-  - [ ] macOS/Homebrew setup if practical.
-  - [ ] What happens when scanner is unavailable.
-- [ ] Add regressions using mocked scanner responses:
+- [ ] Do not auto-delete suspicious files.
+- [ ] Quarantine suspicious files and require review.
+- [ ] Add regressions using mocked executable responses:
   - [ ] Clean.
   - [ ] Infected.
   - [ ] Scanner unavailable.
@@ -197,23 +276,104 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Real file scanning is available without making LTF Linux-only.
+- `clamscan` is available as an optional executable scanner adapter without making ClamAV a hard dependency.
 
-### Version 0.33.5.22.5 - S3-compatible storage provider proof
+### Version 0.33.5.22.10 - `clamd` scanner adapter
 
-- [ ] Add S3-compatible storage adapter behind the provider contract.
-- [ ] Support provider configuration through `.env`/runtime config.
-- [ ] Do not require S3 for SQLite/self-hosted installs.
-- [ ] Add safe provider health checks.
-- [ ] Add direct/presigned upload planning or proof where practical.
-- [ ] Treat any presigned upload/download URL as a deliberate, documented exception to the standing "no signed URLs unless designed for that route" guardrail, with per-object permission checks and expiry recorded in `DECISIONS.md`.
-- [ ] Keep all downloads permission-checked through LTF routes or signed URL rules.
-- [ ] Add regressions with mocked S3 provider.
+- [ ] Add `clamd` adapter.
+- [ ] Support configured host/port from `config.scanner.clamdHost` and `config.scanner.clamdPort` (`src/config.js:139-140`).
+- [ ] Decide socket support for this branch: config currently exposes **no** unix-socket key; add a `LONGTAIL_CLAMD_SOCKET` config key with documented host/port precedence if socket support is in scope, otherwise explicitly defer socket support.
+- [ ] Implement the adapter `health()` method added to the scanner contract in 0.33.5.22.8 by probing clamd `PING`/socket reachability.
+- [ ] Add stream scanning, timeout behavior, and scanner-unavailable failure behavior through the service-owned scanner context.
+- [ ] Add safe scanner metadata.
+- [ ] Do not auto-delete suspicious files.
+- [ ] Quarantine suspicious files and require review.
+- [ ] Add regressions using mocked clamd responses:
+  - [ ] Clean.
+  - [ ] Infected.
+  - [ ] Scanner unavailable.
+  - [ ] Timeout.
 
 Acceptance criteria:
 
-- Hosted SaaS has a path to object storage.
-- Self-hosted local storage remains unchanged.
+- `clamd` is available as an optional runtime scanner adapter for service deployments without requiring Linux-only assumptions.
+
+### Version 0.33.5.22.11 - Scanner setup docs and ClamAV closeout
+
+- [ ] Add docs:
+  - [ ] Linux service setup.
+  - [ ] Windows executable path setup.
+  - [ ] macOS/Homebrew setup if practical.
+  - [ ] What happens when scanner is unavailable.
+- [ ] Update runtime-configuration docs so `LONGTAIL_FILE_SCANNER`, `LONGTAIL_CLAMD_HOST`, `LONGTAIL_CLAMD_PORT`, `LONGTAIL_CLAMSCAN_PATH`, and any new socket key are marked live vs. deferred accurately.
+- [ ] Record scanner decisions in `DECISIONS.md`: `none` vs `noop`, `none`-mode pending-file disposition, scanner-unavailable behavior, and no automatic deletion of suspicious files.
+- [ ] Run the scanner-focused regressions from 0.33.5.22.7 through 0.33.5.22.10 and add them to the suite.
+
+Acceptance criteria:
+
+- Scanner behavior is OS-agnostic at the app level, ClamAV setup is documented, and scanner decisions are recorded.
+
+### Version 0.33.5.22.12 - S3 configuration and provider registration
+
+- [ ] Add S3-compatible provider config keys (bucket/region/endpoint/credentials) to `config.storage` in `src/config.js` and `.env.example`.
+- [ ] Keep secrets out of diagnostics, browser payloads, docs examples, and committed files.
+- [ ] Register the S3 provider under a new key via `registerFileStorageAdapter` (do not overload `local`).
+- [ ] Support provider configuration through `.env`/runtime config.
+- [ ] Do not require S3 for SQLite/self-hosted installs.
+- [ ] Decide and record the S3 dependency/client strategy before implementing object operations.
+- [ ] If object operations are not implemented in this slice, the registered provider must fail with safe "not implemented/configured" errors rather than partial writes.
+- [ ] Add regressions proving:
+  - [ ] Local storage remains the default when S3 config is absent.
+  - [ ] S3 can be selected only through the explicit provider key.
+  - [ ] Missing required S3 config fails clearly when the provider is selected.
+
+Acceptance criteria:
+
+- The S3 provider can be selected explicitly through runtime configuration, while self-hosted local storage remains unchanged.
+
+### Version 0.33.5.22.13 - S3 object operation proof
+
+- [ ] Add S3-compatible storage adapter behind the provider contract: implement the same `save/read/metadata/delete/health` methods `registerFileStorageAdapter` enforces (`files.service.js:116`), returning a `Readable` from `read()` so the existing download/preview stream paths (`files.service.js:609`/`:660`) work unchanged, and adopting the streaming `save()` path from 0.33.5.22.3 if it has landed.
+- [ ] Add safe provider health checks.
+- [ ] Keep uploads, downloads, previews, deletes, and metadata reads behind the existing Files service permission/lifecycle boundaries.
+- [ ] Add regressions with mocked S3 provider/client calls proving:
+  - [ ] Save records a storage key without exposing provider internals.
+  - [ ] Read returns a `Readable` for existing download/preview paths.
+  - [ ] Metadata and delete work through the provider contract.
+  - [ ] Health failures surface safely.
+
+Acceptance criteria:
+
+- Hosted SaaS has a mocked, contract-tested path to object storage without changing self-hosted local storage behavior.
+
+### Version 0.33.5.22.14 - S3 diagnostics and signed-URL boundary
+
+- [ ] Extend runtime diagnostics for the S3 provider with safe availability only; do not expose bucket names, credentials, raw endpoints when sensitive, storage keys, signed URLs, or provider internals.
+- [ ] Write the direct/presigned upload/download plan; keep implementation out of scope unless a single permission-checked proof route is explicitly chosen and covered by regressions in this slice.
+- [ ] Treat any presigned upload/download URL as a deliberate, documented exception to the standing "no signed URLs unless designed for that route" guardrail, with per-object permission checks and expiry recorded in `DECISIONS.md`.
+- [ ] Keep all downloads permission-checked through LTF routes or signed URL rules.
+- [ ] Update storage docs with optional S3 config, local-vs-S3 deployment guidance, and the signed-URL boundary.
+- [ ] Add regressions proving:
+  - [ ] S3 diagnostics stay redacted.
+  - [ ] Normal Files payloads do not expose signed URLs.
+  - [ ] Any signed URL proof is route-designed, permission-checked, and expiring.
+
+Acceptance criteria:
+
+- S3 diagnostics and any signed-URL exception are explicit, safe, and documented.
+
+### Version 0.33.5.22.15 - Branch docs, regression wiring, and closeout
+
+- [ ] Confirm the branch decisions in `DECISIONS.md`: storage-provider selection ownership, the multipart/streaming dependency choice from 0.33.5.22.3, the `none` vs `noop` scanner distinction and `none`-mode pending-file disposition from 0.33.5.22.7, scanner-unavailable behavior from 0.33.5.22.11, and the presigned-URL exception from 0.33.5.22.14.
+- [ ] Add/collect the storage and scanner docs the sub-slices produce (local storage mode, streamed upload transition, per-OS scanner setup, "scanner unavailable" behavior, optional S3 config) into the docs set, and note in the runtime-configuration docs which `LONGTAIL_STORAGE_*`/`LONGTAIL_*SCAN*`/`LONGTAIL_CLAMD_*` keys are now live vs. still inert.
+- [ ] Confirm the standing per-slice version ceremony was followed for each landed slice: `package.json` + `package-lock.json` (root + `packages[""]`), version-pinned regression scripts where applicable, and dated `CHANGELOG.md` entries.
+- [ ] Run `npm run check` and `npm run test:permissions` (re-running any transiently-flaky isolated-DB regressions standalone to confirm), and add the storage/scanner regressions from 0.33.5.22.1-0.33.5.22.14 to the suite.
+- [ ] Verify `/api/runtime-diagnostics` reports the configured storage provider + scanner mode/availability and `/api/app-info` reports the expected version after restart.
+- [ ] Archive or hand off the completed 0.33.5.22 branch according to the current roadmap bookkeeping rule.
+
+Acceptance criteria:
+
+- Storage/scanner behavior, decisions, and docs are recorded, the regression suite covers the new provider/scanner paths, diagnostics reflect the live configuration, and the roadmap is ready to move to 0.33.5.23.
 
 ## Version 0.33.5.23 - PostgreSQL Adapter and SaaS Runtime Proof
 
@@ -221,107 +381,181 @@ Purpose:
 
 Add the hosted-SaaS database backend behind the provider-neutral database contract while preserving SQLite small-office support.
 
-Entry contract from 0.33.5.19: consume the database provider config, `src/core/database.js` adapter boundary, health/capability shape, parameterized query and transaction conventions, and documented migration-lock strategy while keeping SQLite defaults intact.
+Entry contract from 0.33.5.19: consume the database provider config, the `src/db/provider.js` adapter boundary, health/capability shape, parameterized query and transaction conventions, and documented migration-lock strategy while keeping SQLite defaults intact.
 
-### Version 0.33.5.23.1 - PostgreSQL adapter skeleton
+Current wiring (grounding for this branch):
 
-- [ ] Add PostgreSQL database provider implementation.
-- [ ] Support `DATABASE_URL`.
-- [ ] Support pool configuration.
-- [ ] Support TLS/SSL configuration.
-- [ ] Add health checks.
+- The real adapter seam is `createDatabaseAdapter(provider)` in `src/db/provider.js:12-18`, which currently `throw`s for anything but `"sqlite"` and returns `createSqliteAdapter()` from `src/db/adapters/sqlite-adapter.js`. `src/core/database.js` is only a re-export of `provider.js`, so PostgreSQL plugs in as a new `src/db/adapters/postgres-adapter.js` plus a branch in the factory, not by editing `core/database.js`.
+- Adapter contract shape (from `sqlite-adapter.js`): `provider`, a `capabilities` object (`SQLITE_CAPABILITIES` with `transactions: true`, `transactionApi: "callback"`), `query/get/run(sql, params = [])`, `transaction(callback)`, `health`, and `initializeRuntime`. The app-facing helpers `querySql/getSql/runSql` (`provider.js:20-30`) already forward a `params` argument to `db.query`, but ~94% of app SQL interpolates values via `sqlText()/sqlInteger()/sqlNullableText()` from `src/db/sql-literals.js` instead of using that channel. "Parameter binding" work is therefore migrating interpolation onto the existing-but-unused `params` channel, not inventing a new API.
+- `assertNotInsideTransactionContext` (AsyncLocalStorage, `sqlite-adapter.js:29-33`) already guards `query/get/run` from being called on the top-level `db.*` inside a transaction, and nested `transaction()` throws. There are **5** `db.transaction(...)` call sites today — `src/services/jobs.service.js:90`, `src/core/jobs/job-queue.js:18`, `src/core/jobs/job-runner.js:235`, `src/modules/notes/notes.repo.js:240`, `src/modules/tasks/tasks.repo.js:222` — not two; the 0.33.5.21 jobs work added several. Treat the count as "few and enumerated," and re-verify it at implementation time.
+- SQLite-only introspection/repair lives in **two** places, not just migrations: `src/db/migrations.js` (~17 `sqlite_master`/`PRAGMA`/`INSERT OR IGNORE` constructs) **and** `src/db/index.js` startup maintenance (~16 constructs — `tableExists` via `sqlite_master`, `columnsExist` via `PRAGMA table_info`, `INSERT OR IGNORE`, `ON CONFLICT`, and `rowid`-based dedup/repair). Both must be provider-gated. Overall there are ~86 SQLite-specific constructs across ~19 files.
+- The migration lock is file-based (`src/db/migration-lock.js`, `fs.open(path, "wx")`) and single-host; PostgreSQL needs an advisory-lock equivalent.
+- Search is already behind a search adapter (`src/core/search/adapters/sqlite-search-adapter.js`, FTS5 `MATCH`/`bm25()`); a PostgreSQL backend needs a parallel search adapter, not an inline port of FTS SQL.
+
+Sizing rule for this branch:
+
+- Each sub-slice below should have one primary blast radius and should be completable in a single focused implementation session.
+- Each implementation sub-slice still follows the normal release ceremony for the version it lands: focused regressions, relevant docs, `CHANGELOG.md`, package metadata when the version changes, and verification.
+- Do not combine adjacent slices just because the same helper file is already open. In particular, the parameter-binding conversion is intentionally split from the translation-layer foundation it depends on, and the SQLite-only routine gating is split from the PostgreSQL migration runner.
+
+### Version 0.33.5.23.1 - PostgreSQL adapter skeleton and factory wiring
+
+- [ ] Add a `src/db/adapters/postgres-adapter.js` implementation and register it through the `createDatabaseAdapter(provider)` factory in `src/db/provider.js:12-18` (replace the current unconditional throw for `"postgres"`).
+- [ ] Match the existing adapter contract exactly: `provider`, a `capabilities` object (mirror `SQLITE_CAPABILITIES` shape, `transactionApi: "callback"`), `query/get/run(sql, params)`, `transaction(callback)`, `health`, and `initializeRuntime`.
+- [ ] Support `DATABASE_URL`, pool configuration, and TLS/SSL configuration through runtime config.
+- [ ] Add health checks that return the same health/capability shape the diagnostics path already consumes.
 - [ ] Add docs for local Postgres development.
-- [ ] Do not change SQLite defaults.
+- [ ] Do not change SQLite defaults, and do not convert app SQL in this slice (connection + contract only).
 
 Acceptance criteria:
 
-- App can connect to PostgreSQL behind the same database adapter contract.
+- App can connect to PostgreSQL behind the same database adapter contract, with SQLite remaining the default.
 
-### Version 0.33.5.23.2 - SQL portability audit
+### Version 0.33.5.23.2 - SQL portability audit (inventory and plan only)
 
-- [ ] Make parameter binding the headline audit item: ~94% of queries interpolate values via `sqlText()/sqlInteger()/sqlNullableText()` (~1,763 calls / ~314 call sites) vs ~19 bound-parameter sites. Quantify per-repository and convert value interpolation to real bound parameters, since PostgreSQL (`pg`) requires positional `$1` binding and rejects inlined literals as the contract.
-- [ ] Add a named-to-positional (`:name` to `$n`) parameter translation layer in the adapter so the app-facing `db.query(sql, params)` contract stays stable across providers.
-- [ ] Inventory SQLite-specific SQL:
-  - [ ] `INSERT OR IGNORE`.
-  - [ ] SQLite-specific conflict syntax.
+- [ ] Produce a documented, plan-only audit; do not change runtime behavior in this slice.
+- [ ] Quantify parameter binding per repository: how many values are interpolated via `sqlText()/sqlInteger()/sqlNullableText()` (~1,763 calls / ~314 call sites today) vs. bound `params`, since PostgreSQL (`pg`) requires positional `$1` binding and rejects inlined literals.
+- [ ] Inventory SQLite-specific SQL with call sites:
+  - [ ] `INSERT OR IGNORE` and SQLite-specific `ON CONFLICT` usage.
   - [ ] `COLLATE NOCASE` (~21 sites) vs `citext`/`ILIKE`/nondeterministic collation.
   - [ ] PRAGMA usage.
-  - [ ] FTS-specific behavior; treat FTS5 (`MATCH`/`bm25()`) as a PostgreSQL `tsvector`/`tsquery` reimplementation, not a compatibility helper.
+  - [ ] FTS5 (`MATCH`/`bm25()`) behavior — flag it as a PostgreSQL `tsvector`/`tsquery` reimplementation behind the search adapter, not a compatibility helper.
   - [ ] JSON handling assumptions.
   - [ ] Boolean storage (`0/1` + `CHECK (col IN (0,1))`) vs PostgreSQL `boolean`.
   - [ ] `julianday(...)` / date arithmetic (timer elapsed seconds) vs PostgreSQL interval math.
   - [ ] `rowid` reliance in dedup/repair code vs PostgreSQL (no implicit rowid).
-- [ ] Inventory read-modify-write sequences that currently rely on the SQLite adapter's global operation serialization for correctness (counters, read-then-write upserts, claim/allocate patterns) and wrap them in `db.transaction(...)` before enabling a pooled/concurrent backend. Only two `db.transaction(...)` call sites exist today.
-- [ ] Record the confirmed non-issues for scope clarity: no `RETURNING`, no SQLite JSON functions, and no `LIMIT`/`OFFSET` inside `UPDATE`/`DELETE` exist today.
-- [ ] Add compatibility helpers where needed.
-- [ ] Document intentional SQLite-only paths.
-- [ ] Add repository tests for SQLite and PostgreSQL where practical.
+- [ ] Inventory read-modify-write sequences that currently rely on the SQLite adapter's global operation serialization for correctness (counters, read-then-write upserts, claim/allocate patterns), and re-verify the current `db.transaction(...)` call-site count (5 today) so the hardening slice has a concrete list.
+- [ ] Record the confirmed non-issues for scope clarity: no `RETURNING`, no SQLite JSON functions, and no `LIMIT`/`OFFSET` inside `UPDATE`/`DELETE` exist today (re-verify at audit time).
+- [ ] Output: a portability plan doc plus the intentional SQLite-only paths list that later slices (0.33.5.23.3-0.33.5.23.9) consume.
 
 Acceptance criteria:
 
-- Provider differences are explicit and tested.
+- The parameter-binding, dialect, and transaction-safety work is quantified and grouped into a documented plan without any runtime change.
 
-### Version 0.33.5.23.3 - PostgreSQL migrations and schema proof
+### Version 0.33.5.23.3 - Named/positional parameter binding layer
 
-- [ ] Add PostgreSQL migration runner support.
-- [ ] Gate the SQLite-only migration/repair routines (`sqlite_master`, `PRAGMA table_info`, `PRAGMA legacy_alter_table`, `ALTER TABLE ... RENAME`, `INSERT OR IGNORE`, and the FK-repair passes in `src/db/migrations.js`) behind the SQLite provider so they never run against PostgreSQL.
-- [ ] Add migration locking for PostgreSQL.
-- [ ] Create PostgreSQL-compatible schema baseline or migration translation.
-- [ ] Make the migration runner select DDL/introspection per provider rather than assuming SQLite (the baseline `src/db/schema/current.sql` is SQLite DDL today).
-- [ ] Verify schema creation from empty database.
-- [ ] Add checksum validation.
-- [ ] Add docs explaining:
-  - [ ] SQLite self-hosted path.
-  - [ ] PostgreSQL SaaS path.
-  - [ ] Migration ownership.
-  - [ ] Backup expectations.
+- [ ] Add a named-to-positional (`:name` -> `$n`) parameter translation layer at the adapter boundary so the app-facing `db.query(sql, params)` contract stays stable across providers.
+- [ ] Keep SQLite working through the same layer (SQLite already accepts `params` on `query/get/run`), so both providers consume one binding path.
+- [ ] Decide and document the migration path for the `sqlText()/sqlInteger()/sqlNullableText()` interpolation helpers (`src/db/sql-literals.js`): whether they become param-emitting shims, are deprecated in favor of `params`, or are gated per provider. Record the decision in `DECISIONS.md`.
+- [ ] Do not mass-convert call sites in this slice; land only the layer plus a small proof conversion.
+- [ ] Add focused regressions proving named params translate correctly, escaping/edge cases are safe, and SQLite behavior is unchanged.
 
 Acceptance criteria:
 
-- PostgreSQL can initialize cleanly.
-- SQLite migration behavior remains intact.
+- One binding layer supports both providers and keeps `db.query(sql, params)` stable, ready for staged call-site conversion.
 
-### Version 0.33.5.23.4 - Dual-backend repository contract tests
+### Version 0.33.5.23.4 - Parameter-binding conversion waves
 
-- [ ] Add a test runner that can execute repository contract tests against:
-  - [ ] SQLite.
-  - [ ] PostgreSQL, when configured.
-- [ ] Prioritize high-value repositories:
-  - [ ] Sessions.
-  - [ ] Workspaces.
-  - [ ] Permissions.
-  - [ ] Tasks.
-  - [ ] Notes.
-  - [ ] Files metadata.
-  - [ ] Search index.
-  - [ ] Notifications.
-- [ ] Add docs for optional Postgres test setup.
-- [ ] Specify how Postgres contract tests run locally/CI (Docker or local Postgres, opt-in via `DATABASE_URL`) so the dual-backend suite is actually exercised, not skipped by default.
-- [ ] Add a contract test proving `db.transaction(...)` pins one connection for the whole callback on PostgreSQL and that no code path uses the top-level `db.*` inside a transaction (the SQLite adapter already enforces this via `assertNotInsideTransactionContext`).
+- [ ] Convert interpolated SQL to bound `params` in prioritized per-repository/per-module waves, each wave sized to a single session (do not attempt all ~314 sites at once).
+- [ ] Order waves by the audit's per-repository counts and risk (start with the highest-traffic repositories: sessions, workspaces, permissions, tasks, notes, files metadata, notifications).
+- [ ] For each wave, keep behavior identical on SQLite and add/extend regressions before moving on.
+- [ ] Track remaining interpolation sites so the conversion has a visible burndown and no silent "mostly done" gaps.
 
 Acceptance criteria:
 
-- Core behavior can be verified against both backends.
+- Value interpolation is replaced by bound parameters in prioritized waves, each independently verified on SQLite and PostgreSQL-ready.
 
-### Version 0.33.5.23.5 - SaaS seed and load smoke test
+### Version 0.33.5.23.5 - SQLite dialect compatibility helpers
 
-- [ ] Add Postgres seed profile for many workspaces.
+- [ ] Add provider-aware helpers/translations for the non-FTS dialect items from the audit: `INSERT OR IGNORE`/`ON CONFLICT`, `COLLATE NOCASE` vs `ILIKE`/`citext`, boolean `0/1` + `CHECK` vs `boolean`, `julianday(...)`/date arithmetic vs interval math, and `rowid` reliance.
+- [ ] Keep SQLite output identical; route PostgreSQL to the compatible form behind the same helper call.
+- [ ] Document any intentional SQLite-only path that will not be translated.
+- [ ] Add regressions covering each translated construct on SQLite (and PostgreSQL where the dual-backend harness from 0.33.5.23.11 can run).
+
+Acceptance criteria:
+
+- Dialect differences other than FTS are handled by shared provider-aware helpers with SQLite behavior preserved.
+
+### Version 0.33.5.23.6 - Full-text search portability
+
+- [ ] Add a PostgreSQL search adapter behind the existing search-adapter seam (parallel to `src/core/search/adapters/sqlite-search-adapter.js`), mapping FTS5 `MATCH`/`bm25()` ranking to `tsvector`/`tsquery` (and a ranking function) rather than porting FTS SQL inline.
+- [ ] Keep the SQLite FTS5 adapter and its behavior unchanged as the self-hosted default.
+- [ ] Preserve the existing search result/permission-scoping contract on both adapters.
+- [ ] Add regressions proving indexing, query, and ranking parity within documented limits.
+
+Acceptance criteria:
+
+- Search works on PostgreSQL through its own adapter without changing SQLite FTS behavior.
+
+### Version 0.33.5.23.7 - Read-modify-write transaction hardening
+
+- [ ] Wrap the read-modify-write sequences identified in the audit (counters, read-then-write upserts, claim/allocate patterns) in `db.transaction(...)` so they stay correct on a pooled/concurrent backend that no longer has SQLite's global operation serialization.
+- [ ] Reuse the existing callback-transaction contract and the `assertNotInsideTransactionContext` guard; do not introduce nested transactions.
+- [ ] Keep the existing 5 transaction sites working and extend coverage to the newly identified sequences.
+- [ ] Add regressions proving each hardened sequence remains atomic and that top-level `db.*` inside a transaction still throws.
+
+Acceptance criteria:
+
+- Concurrency-sensitive sequences are transaction-wrapped and safe for a pooled PostgreSQL backend without regressing SQLite.
+
+### Version 0.33.5.23.8 - Provider-gate SQLite-only introspection and repair
+
+- [ ] Gate the SQLite-only introspection/repair routines behind the SQLite provider so they never run against PostgreSQL, covering **both** `src/db/index.js` startup maintenance (`tableExists`/`sqlite_master`, `columnsExist`/`PRAGMA table_info`, `INSERT OR IGNORE`, `ON CONFLICT`, `rowid` dedup/repair) **and** `src/db/migrations.js` (`sqlite_master`, `PRAGMA table_info`, `PRAGMA legacy_alter_table`, `ALTER TABLE ... RENAME`, `INSERT OR IGNORE`, FK-repair passes).
+- [ ] Provide provider-appropriate equivalents (or explicit no-ops) for the startup maintenance steps PostgreSQL still needs, so a PostgreSQL boot does not silently skip required repairs.
+- [ ] Do not change SQLite startup/migration behavior.
+- [ ] Add regressions proving SQLite startup maintenance is unchanged and that the SQLite-only routines are skipped under a non-SQLite provider.
+
+Acceptance criteria:
+
+- SQLite-only introspection/repair is fenced to the SQLite provider in both maintenance surfaces, with SQLite behavior intact.
+
+### Version 0.33.5.23.9 - PostgreSQL migration runner and advisory locking
+
+- [ ] Add PostgreSQL migration runner support that selects DDL/introspection per provider rather than assuming SQLite.
+- [ ] Add PostgreSQL migration locking as an advisory-lock equivalent of the file-based `src/db/migration-lock.js` (which stays SQLite/single-host).
+- [ ] Keep the runner's app-facing entry (`runMigrations`) stable so `src/db/index.js` startup wiring does not need provider-specific branches beyond provider selection.
+- [ ] Add regressions proving the runner applies migrations under PostgreSQL locking and that SQLite migration locking/behavior is unchanged.
+
+Acceptance criteria:
+
+- Migrations run under PostgreSQL with safe locking while SQLite migration behavior remains intact.
+
+### Version 0.33.5.23.10 - PostgreSQL schema baseline and checksum
+
+- [ ] Create a PostgreSQL-compatible schema baseline or migration translation (the baseline `src/db/schema/current.sql` is SQLite DDL today).
+- [ ] Verify schema creation from an empty PostgreSQL database.
+- [ ] Add checksum validation for the PostgreSQL baseline/migration set.
+- [ ] Add docs explaining the SQLite self-hosted path, the PostgreSQL SaaS path, migration ownership, and backup expectations.
+
+Acceptance criteria:
+
+- PostgreSQL can initialize cleanly from empty with checksum-validated schema, and SQLite initialization is unchanged.
+
+### Version 0.33.5.23.11 - Dual-backend repository contract tests
+
+- [ ] Add a test runner that can execute repository contract tests against SQLite and against PostgreSQL when configured.
+- [ ] Prioritize high-value repositories: sessions, workspaces, permissions, tasks, notes, files metadata, search index, notifications.
+- [ ] Specify how Postgres contract tests run locally/CI (Docker or local Postgres, opt-in via `DATABASE_URL`) so the dual-backend suite is actually exercised, not skipped by default; add docs for optional Postgres test setup.
+- [ ] Add a contract test proving `db.transaction(...)` pins one connection for the whole callback on PostgreSQL and that no code path uses the top-level `db.*` inside a transaction (SQLite already enforces this via `assertNotInsideTransactionContext`).
+
+Acceptance criteria:
+
+- Core repository behavior can be verified against both backends, with the PostgreSQL path actually runnable rather than skipped by default.
+
+### Version 0.33.5.23.12 - SaaS seed and load smoke test
+
+- [ ] Add a Postgres seed profile for many workspaces.
 - [ ] Add basic load-smoke scripts.
-- [ ] Test:
-  - [ ] Login/session.
-  - [ ] App shell.
-  - [ ] Tasks list/detail.
-  - [ ] Notes list/detail.
-  - [ ] Files browse.
-  - [ ] Search.
-  - [ ] Notifications.
-  - [ ] Job worker.
+- [ ] Test: login/session, app shell, tasks list/detail, notes list/detail, files browse, search, notifications, and the job worker.
 - [ ] Record baseline performance numbers.
 - [ ] Document what is proven and what is not yet proven.
 
 Acceptance criteria:
 
 - The SaaS backend has an evidence-based baseline.
+
+### Version 0.33.5.23.13 - Branch docs, decisions, regression wiring, and closeout
+
+- [ ] Confirm the branch decisions in `DECISIONS.md`: the parameter-binding/interpolation-helper migration from 0.33.5.23.3, intentional SQLite-only paths, the PostgreSQL advisory-lock strategy from 0.33.5.23.9, and the FTS `tsvector` reimplementation boundary from 0.33.5.23.6.
+- [ ] Collect the database docs the sub-slices produce (local Postgres development, SQLite vs PostgreSQL paths, migration ownership, backups, optional Postgres test setup) and update runtime-configuration docs so `LONGTAIL_DATABASE_PROVIDER`/`DATABASE_URL`/pool/TLS keys are marked live vs. reserved accurately.
+- [ ] Confirm the standing per-slice version ceremony was followed for each landed slice: `package.json` + `package-lock.json` (root + `packages[""]`), version-pinned regression scripts where applicable, and dated `CHANGELOG.md` entries.
+- [ ] Run `npm run check` and `npm run test:permissions` (re-running any transiently-flaky isolated-DB regressions standalone to confirm), and add the dual-backend/portability regressions from 0.33.5.23.1-0.33.5.23.12 to the suite.
+- [ ] Verify `/api/runtime-diagnostics` reports the configured database provider/health and `/api/app-info` reports the expected version after restart, on both SQLite and (where available) PostgreSQL.
+- [ ] Archive or hand off the completed 0.33.5.23 branch according to the current roadmap bookkeeping rule.
+
+Acceptance criteria:
+
+- PostgreSQL support, portability decisions, and docs are recorded, the regression suite covers both backends, diagnostics reflect the live provider, and the roadmap is ready to move on with SQLite defaults intact.
 
 ## Version 0.33.6 - Dashboard and Workbench Formalization as Project hub and work center
 

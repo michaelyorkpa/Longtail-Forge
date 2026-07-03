@@ -2,7 +2,7 @@
 
 Longtail Forge reads install and startup configuration from environment variables. At app startup, `server.js` loads a local root `.env` file when present, then `src/config.js` normalizes the resulting environment. A real `.env` file is local runtime state and must not be committed; use `.env.example` as the documented contract.
 
-As of 0.33.5.21.9.4, this contract records active runtime settings plus future reserved settings. Worker settings and job retention settings are now active for the durable job runner; PostgreSQL, scanner adapter, hosted proxy, and most storage-provider settings remain reserved until their roadmap slices wire behavior.
+As of 0.33.5.22.1, this contract records active runtime settings plus future reserved settings. Worker settings, job retention settings, and local Files upload storage-provider selection are now active; PostgreSQL, scanner adapter, hosted proxy, and alternate storage-provider settings remain reserved until their roadmap slices wire behavior.
 
 Process environment values win over `.env` values. This lets shells, service managers, containers, and hosted runtimes override local defaults without editing the local file. Missing `.env` files do not fail startup.
 
@@ -109,15 +109,17 @@ As of 0.33.5.21.7.7, recurring task completion responses are closed around the a
 
 These names are documented now and intentionally left mostly dormant until their roadmap slices wire behavior.
 
+As of 0.33.5.22.1, `LONGTAIL_STORAGE_PROVIDER` is consumed by Files upload writes. The only built-in provider is still `local`; unknown providers fail clearly instead of falling back to local. Existing files continue to read through their stored `files.storage_provider` value, so the setting affects new writes only. Storage diagnostics, S3-compatible providers, streamed upload routes, and scanner adapter selection remain later 0.33.5.22 slices.
+
 | Group | Variables | Future owner |
 | --- | --- | --- |
 | PostgreSQL | `DATABASE_URL`, `LONGTAIL_DATABASE_POOL_MIN`, `LONGTAIL_DATABASE_POOL_MAX`, `LONGTAIL_DATABASE_SSL` | 0.33.5.23 PostgreSQL adapter and SaaS runtime proof. |
-| File storage | `LONGTAIL_STORAGE_PROVIDER`, `LONGTAIL_LOCAL_STORAGE_ROOT` | 0.33.5.22 storage provider runtime. `LONGTAIL_LOCAL_STORAGE_ROOT` is already used as the local storage default root. |
+| File storage | `LONGTAIL_STORAGE_PROVIDER`, `LONGTAIL_LOCAL_STORAGE_ROOT` | 0.33.5.22 storage provider runtime. `LONGTAIL_STORAGE_PROVIDER=local` is now consumed for new Files upload writes, and `LONGTAIL_LOCAL_STORAGE_ROOT` is already used as the local storage default root. Alternate providers remain later slices. |
 | File scanning | `LONGTAIL_FILE_SCANNER`, `LONGTAIL_CLAMD_HOST`, `LONGTAIL_CLAMD_PORT`, `LONGTAIL_CLAMSCAN_PATH` | 0.33.5.22 scanner runtime. |
 | Logging | `LONGTAIL_LOG_LEVEL` | Later diagnostics and runtime readout work. |
 | Proxy trust | `TRUST_PROXY` | Later hosted deployment/security hardening. |
 
-Reserved settings may appear in `config` for readout consistency, but this slice does not implement PostgreSQL, scanner adapters, storage-provider switching, hosted proxy behavior, or runtime settings editing.
+Reserved settings may appear in `config` for readout consistency, but this slice does not implement PostgreSQL, scanner adapters, alternate storage providers beyond the registered local provider, hosted proxy behavior, or runtime settings editing.
 
 ## Startup Validation
 

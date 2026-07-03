@@ -142,6 +142,7 @@ const DEFAULT_DATABASE_REGRESSIONS = Object.freeze([
 const FILE_STORAGE_REGRESSIONS = Object.freeze([
   "scripts/file-framework-contract-regression.mjs",
   "scripts/file-api-lifecycle-regression.mjs",
+  "scripts/file-storage-provider-configuration-regression.mjs",
   "scripts/file-scan-job-handoff-regression.mjs",
   "scripts/files-attachment-context-route-regression.mjs",
   "scripts/files-attachable-target-options-regression.mjs",

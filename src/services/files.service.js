@@ -13,6 +13,7 @@ import { enqueueJob } from "../core/jobs/job-queue.js";
 import { getJobHandler, registerJobHandler } from "../core/jobs/index.js";
 import { createLocalFileStorageAdapter } from "../core/files/local-storage-adapter.js";
 import { createNoopFileScannerAdapter } from "../core/files/scanner-adapter.js";
+import { config } from "../config.js";
 import { querySql, runSql, sqlInteger, sqlNullableText, sqlText } from "../db/index.js";
 import { permissionsService } from "./permissions.service.js";
 import { auditService } from "./audit.service.js";
@@ -143,6 +144,15 @@ function getFileStorageAdapter(providerId = "local") {
   return adapter;
 }
 
+function resolveConfiguredFileStorageProvider() {
+  const providerId = String(config.storage?.provider || "local").trim() || "local";
+
+  return {
+    adapter: getFileStorageAdapter(providerId),
+    providerId,
+  };
+}
+
 function listAttachableTypes() {
   return modulesService.listAttachableTypes();
 }
@@ -186,11 +196,11 @@ async function uploadAndAttach(session, payload = {}) {
 
     const fileSettings = await readWorkspaceFileSettingsForWorkspace(session.workspace_id);
     const prepared = prepareUpload(payload, attachableType, fileSettings);
-    const storageAdapter = getFileStorageAdapter("local");
-    const storage = await storageAdapter.save(prepared.buffer, { workspaceId: session.workspace_id });
+    const storageProvider = resolveConfiguredFileStorageProvider();
+    const storage = await storageProvider.adapter.save(prepared.buffer, { workspaceId: session.workspace_id });
     const file = await createFileRecord(session, {
       ...prepared,
-      storageProvider: "local",
+      storageProvider: storageProvider.providerId,
       storageKey: storage.storageKey,
       storedFilename: storage.storedFilename,
     });
@@ -3379,6 +3389,7 @@ export const filesService = {
   registerFileStorageAdapter,
   removeAttachment,
   reportFile,
+  resolveConfiguredFileStorageProvider,
   resolveAttachableType,
   restoreFile,
   refreshStorageAccounting,

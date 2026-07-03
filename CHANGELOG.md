@@ -1,3 +1,11 @@
+## Version 0.33.5.22.1 - 2026-07-03
+
+- Routed Files upload writes through a service-owned configured storage provider resolver instead of hardcoding `local`, while keeping `local` as the default and only built-in provider for this slice.
+- New upload rows now persist the resolved provider from `config.storage.provider`; unknown configured providers fail clearly instead of silently falling back to local.
+- Preserved existing stored-row reads for download and preview paths, plus the current Files lifecycle, attachment panels, diagnostics, scanner behavior, S3 planning, and JSON/base64 upload route.
+- Added `scripts/file-storage-provider-configuration-regression.mjs`, wired it into the file-storage regression bucket, refreshed runtime docs/decisions, marked the roadmap slice complete, and advanced package/regression version metadata to 0.33.5.22.1.
+- Verification 2026-07-03 01:33 -04:00: `scripts/file-storage-provider-configuration-regression.mjs`, `scripts/file-api-lifecycle-regression.mjs`, `scripts/file-scan-job-handoff-regression.mjs`, `scripts/runtime-configuration-contract-regression.mjs`, and `scripts/regression-clean-clone-contract.mjs` targeted checks passed; `npm run check` passed 243/243 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.1 after restarting the local 8001 server.
+
 ## Version 0.33.5.21.9.4 - 2026-07-02
 
 - Added `auto` as a stored per-user theme mode alongside `light` and `dark`, preserving `light` as the default for existing and new users.
