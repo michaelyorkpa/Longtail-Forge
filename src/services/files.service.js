@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import path from "node:path";
+import { Transform } from "node:stream";
 import { modulesService } from "../core/modules/modules.service.js";
 import {
   FILE_LIFECYCLE_EVENTS,
@@ -190,74 +191,113 @@ async function uploadAndAttach(session, payload = {}) {
   });
 
   try {
-    const attachableType = await resolveAttachableType(session.workspace_id, payload.moduleId, payload.targetType);
-    const target = await readAttachableTarget(session.workspace_id, attachableType, payload.targetId);
-    await assertCanUseAttachableTarget(session, attachableType, "upload", target);
+    const { attachableType, fileSettings, target } = await resolveUploadTarget(session, payload);
 
-    const fileSettings = await readWorkspaceFileSettingsForWorkspace(session.workspace_id);
     const prepared = prepareUpload(payload, attachableType, fileSettings);
     const storageProvider = resolveConfiguredFileStorageProvider();
     const storage = await storageProvider.adapter.save(prepared.buffer, { workspaceId: session.workspace_id });
-    const file = await createFileRecord(session, {
+
+    return finishUploadedFileAttachment(session, payload, attachableType, target, {
       ...prepared,
       storageProvider: storageProvider.providerId,
       storageKey: storage.storageKey,
       storedFilename: storage.storedFilename,
     });
-    await queueFileScanJob(session, file, {
-      source: "file_upload",
-    });
-    const attachment = await attachFile(session, {
-      attachmentRole: payload.attachmentRole,
-      caption: payload.caption,
-      fileId: file.file_id,
-      metadata: payload.attachmentMetadata,
-      moduleId: attachableType.moduleId,
-      sortOrder: payload.sortOrder,
-      targetId: target.target_id,
-      targetRecord: target,
-      targetType: attachableType.targetType,
-      visibility: payload.visibility,
-    }, { attachableType });
-
-    await emitFileLifecycleEvent("file.upload.accepted", {
-      session,
-      attachmentId: attachment.file_attachment_id,
-      fileId: file.file_id,
-      moduleId: attachableType.moduleId,
-      targetId: target.target_id,
-      targetType: attachableType.targetType,
-      status: file.status,
-      scanStatus: file.scan_status,
-    });
-
-    return {
-      attachment,
-      file: await readFileForSession(session, file.file_id),
-    };
   } catch (error) {
-    await emitFileLifecycleEvent("file.upload.rejected", {
-      session,
-      moduleId: payload.moduleId,
-      targetType: payload.targetType,
-      targetId: payload.targetId,
-      status: "deleted",
-      scanStatus: "error",
-      reason: error?.message || String(error),
-    });
-    await recordFileAudit(session, {
-      action: "file.upload_rejected",
-      changeType: "create",
-      recordId: "",
-      recordLabel: payload.originalFilename || payload.displayName || "File upload",
-      metadata: {
-        reason: error?.message || String(error),
-        target_id: payload.targetId || "",
-        target_type: payload.targetType || "",
-      },
-    });
+    await recordUploadRejected(session, payload, error);
     throw error;
   }
+}
+
+async function uploadStreamAndAttach(session, payload = {}) {
+  await emitFileLifecycleEvent("file.upload.requested", {
+    session,
+    moduleId: payload.moduleId,
+    targetType: payload.targetType,
+    targetId: payload.targetId,
+    status: "pending",
+    scanStatus: "pending",
+  });
+
+  try {
+    const { attachableType, fileSettings, target } = await resolveUploadTarget(session, payload);
+    const prepared = await prepareStreamedUpload(session, payload, attachableType, fileSettings);
+
+    return finishUploadedFileAttachment(session, payload, attachableType, target, prepared);
+  } catch (error) {
+    await recordUploadRejected(session, payload, error);
+    throw error;
+  }
+}
+
+async function resolveUploadTarget(session, payload = {}) {
+  const attachableType = await resolveAttachableType(session.workspace_id, payload.moduleId, payload.targetType);
+  const target = await readAttachableTarget(session.workspace_id, attachableType, payload.targetId);
+  await assertCanUseAttachableTarget(session, attachableType, "upload", target);
+
+  return {
+    attachableType,
+    fileSettings: await readWorkspaceFileSettingsForWorkspace(session.workspace_id),
+    target,
+  };
+}
+
+async function finishUploadedFileAttachment(session, payload, attachableType, target, prepared) {
+  const file = await createFileRecord(session, prepared);
+  await queueFileScanJob(session, file, {
+    source: "file_upload",
+  });
+  const attachment = await attachFile(session, {
+    attachmentRole: payload.attachmentRole,
+    caption: payload.caption,
+    fileId: file.file_id,
+    metadata: payload.attachmentMetadata,
+    moduleId: attachableType.moduleId,
+    sortOrder: payload.sortOrder,
+    targetId: target.target_id,
+    targetRecord: target,
+    targetType: attachableType.targetType,
+    visibility: payload.visibility,
+  }, { attachableType });
+
+  await emitFileLifecycleEvent("file.upload.accepted", {
+    session,
+    attachmentId: attachment.file_attachment_id,
+    fileId: file.file_id,
+    moduleId: attachableType.moduleId,
+    targetId: target.target_id,
+    targetType: attachableType.targetType,
+    status: file.status,
+    scanStatus: file.scan_status,
+  });
+
+  return {
+    attachment,
+    file: await readFileForSession(session, file.file_id),
+  };
+}
+
+async function recordUploadRejected(session, payload = {}, error) {
+  await emitFileLifecycleEvent("file.upload.rejected", {
+    session,
+    moduleId: payload.moduleId,
+    targetType: payload.targetType,
+    targetId: payload.targetId,
+    status: "deleted",
+    scanStatus: "error",
+    reason: error?.message || String(error),
+  });
+  await recordFileAudit(session, {
+    action: "file.upload_rejected",
+    changeType: "create",
+    recordId: "",
+    recordLabel: payload.originalFilename || payload.displayName || "File upload",
+    metadata: {
+      reason: error?.message || String(error),
+      target_id: payload.targetId || "",
+      target_type: payload.targetType || "",
+    },
+  });
 }
 
 async function uploadBatchAndAttach(session, payload = {}) {
@@ -1843,6 +1883,78 @@ LIMIT 1;
 }
 
 function prepareUpload(payload = {}, attachableType = {}, fileSettings = defaultWorkspaceFileSettings("")) {
+  const policy = prepareUploadPolicy(payload, attachableType, fileSettings);
+  const buffer = decodeBase64(payload.contentBase64 || payload.content || "");
+
+  if (buffer.length < 1) {
+    throw new AppError("Uploaded file content is required.", 400);
+  }
+  if (buffer.length > policy.maxSize) {
+    throw new AppError("Uploaded file exceeds the allowed size.", 413);
+  }
+
+  const detected = detectFileType(buffer, policy.extension, policy.extensionRule);
+  if (!detected.ok) {
+    throw new AppError("Uploaded file content does not match the allowed file type.", 400);
+  }
+
+  return {
+    buffer,
+    displayName: policy.displayName,
+    extension: policy.extension,
+    fileSizeBytes: buffer.length,
+    mimeTypeClaimed: policy.mimeTypeClaimed,
+    mimeTypeDetected: detected.mimeType,
+    metadata: policy.metadata,
+    originalFilename: policy.originalFilename,
+    sha256Hash: createHash("sha256").update(buffer).digest("hex"),
+  };
+}
+
+async function prepareStreamedUpload(session, payload = {}, attachableType = {}, fileSettings = defaultWorkspaceFileSettings("")) {
+  const policy = prepareUploadPolicy(payload, attachableType, fileSettings);
+  const fileStream = payload.fileStream;
+
+  if (!fileStream || typeof fileStream.pipe !== "function") {
+    throw new AppError("Uploaded file stream is required.", 400);
+  }
+
+  const storageProvider = resolveConfiguredFileStorageProvider();
+  const tracker = createStreamUploadTracker(policy.maxSize);
+  fileStream.on("error", (error) => {
+    tracker.stream.destroy(error);
+  });
+  const guardedStream = fileStream.pipe(tracker.stream);
+  const storage = await storageProvider.adapter.saveStream(guardedStream, { workspaceId: session.workspace_id });
+  const streamed = tracker.result();
+
+  if (streamed.fileSizeBytes < 1) {
+    await storageProvider.adapter.delete(storage.storageKey).catch(() => {});
+    throw new AppError("Uploaded file content is required.", 400);
+  }
+
+  const detected = detectFileType(streamed.sampleBuffer, policy.extension, policy.extensionRule);
+  if (!detected.ok) {
+    await storageProvider.adapter.delete(storage.storageKey).catch(() => {});
+    throw new AppError("Uploaded file content does not match the allowed file type.", 400);
+  }
+
+  return {
+    displayName: policy.displayName,
+    extension: policy.extension,
+    fileSizeBytes: streamed.fileSizeBytes,
+    mimeTypeClaimed: policy.mimeTypeClaimed,
+    mimeTypeDetected: detected.mimeType,
+    metadata: policy.metadata,
+    originalFilename: policy.originalFilename,
+    sha256Hash: streamed.sha256Hash,
+    storageKey: storage.storageKey,
+    storageProvider: storageProvider.providerId,
+    storedFilename: storage.storedFilename,
+  };
+}
+
+function prepareUploadPolicy(payload = {}, attachableType = {}, fileSettings = defaultWorkspaceFileSettings("")) {
   const originalFilename = sanitizeFilename(payload.originalFilename || payload.filename || "");
   const extension = path.extname(originalFilename).toLowerCase();
   const extensionRule = ALLOWED_EXTENSIONS.get(extension);
@@ -1855,37 +1967,63 @@ function prepareUpload(payload = {}, attachableType = {}, fileSettings = default
     throw new AppError("That file category is not allowed for this record type.", 400);
   }
 
-  const buffer = decodeBase64(payload.contentBase64 || payload.content || "");
-  const maxSize = Math.min(
-    Number.parseInt(attachableType.maxFileSizeBytes, 10) || DEFAULT_MAX_FILE_SIZE_BYTES,
-    DEFAULT_MAX_FILE_SIZE_BYTES,
-  );
-
-  if (buffer.length < 1) {
-    throw new AppError("Uploaded file content is required.", 400);
-  }
-  if (buffer.length > maxSize) {
-    throw new AppError("Uploaded file exceeds the allowed size.", 413);
-  }
-
-  const detected = detectFileType(buffer, extension, extensionRule);
-  if (!detected.ok) {
-    throw new AppError("Uploaded file content does not match the allowed file type.", 400);
-  }
-
   return {
-    buffer,
     displayName: normalizeOptionalText(payload.displayName, { maxLength: 180 }) || originalFilename,
     extension,
-    fileSizeBytes: buffer.length,
-    mimeTypeClaimed: normalizeOptionalText(payload.mimeType, { maxLength: 200 }) || "",
-    mimeTypeDetected: detected.mimeType,
+    extensionRule,
+    maxSize: Math.min(
+      Number.parseInt(attachableType.maxFileSizeBytes, 10) || DEFAULT_MAX_FILE_SIZE_BYTES,
+      DEFAULT_MAX_FILE_SIZE_BYTES,
+    ),
     metadata: {
       category: extensionRule.category,
       risky_extension: extensionRule.risky,
     },
+    mimeTypeClaimed: normalizeOptionalText(payload.mimeType, { maxLength: 200 }) || "",
     originalFilename,
-    sha256Hash: createHash("sha256").update(buffer).digest("hex"),
+  };
+}
+
+function createStreamUploadTracker(maxSize) {
+  const hash = createHash("sha256");
+  const sampleChunks = [];
+  const sampleLimit = 1024;
+  let fileSizeBytes = 0;
+  let sampleBytes = 0;
+
+  const stream = new Transform({
+    transform(chunk, encoding, callback) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, encoding);
+      const nextSize = fileSizeBytes + buffer.length;
+
+      if (nextSize > maxSize) {
+        callback(new AppError("Uploaded file exceeds the allowed size.", 413));
+        return;
+      }
+
+      fileSizeBytes = nextSize;
+      hash.update(buffer);
+
+      if (sampleBytes < sampleLimit) {
+        const remaining = sampleLimit - sampleBytes;
+        const sample = buffer.subarray(0, Math.min(buffer.length, remaining));
+        sampleChunks.push(sample);
+        sampleBytes += sample.length;
+      }
+
+      callback(null, buffer);
+    },
+  });
+
+  return {
+    result() {
+      return {
+        fileSizeBytes,
+        sampleBuffer: Buffer.concat(sampleChunks),
+        sha256Hash: hash.digest("hex"),
+      };
+    },
+    stream,
   };
 }
 
@@ -3397,6 +3535,7 @@ export const filesService = {
   updateAttachmentContext,
   uploadAndAttach,
   uploadBatchAndAttach,
+  uploadStreamAndAttach,
 };
 
 export {

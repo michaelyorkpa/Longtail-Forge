@@ -1,3 +1,11 @@
+## Version 0.33.5.22.4 - 2026-07-03
+
+- Added `POST /api/files/upload` as the first single-file Busboy multipart upload route for local/self-hosted mode while preserving the existing `POST /api/files` JSON/base64 upload contract.
+- Added streamed upload preparation in `filesService.uploadStreamAndAttach`, including metadata policy validation, streaming size enforcement, SHA-256 calculation, type sniffing from the streamed sample, and local partial-file cleanup through the storage adapter contract.
+- Kept the normal Files lifecycle for streamed uploads: pending file row creation with the resolved `files.storage_provider`, `file.scan` job queueing, `attachFile`, lifecycle/audit events, and the existing scan/download/preview gates.
+- Added `scripts/file-multipart-upload-route-regression.mjs`, wired it into the file-storage regression bucket, refreshed runtime/module docs and decisions, marked the roadmap slice complete, and advanced package/regression version metadata to 0.33.5.22.4.
+- Verification 2026-07-03 08:56 -04:00: `scripts/file-multipart-upload-route-regression.mjs`, `scripts/file-storage-streaming-contract-regression.mjs`, `scripts/file-storage-diagnostics-regression.mjs`, `scripts/file-api-lifecycle-regression.mjs`, `scripts/file-storage-provider-configuration-regression.mjs`, `scripts/runtime-configuration-contract-regression.mjs`, `scripts/runtime-diagnostics-route-regression.mjs`, `scripts/sqlite-small-office-readout-regression.mjs`, `scripts/runtime-database-foundation-closeout-regression.mjs`, `scripts/regression-clean-clone-contract.mjs`, and `scripts/check-js.mjs` targeted checks passed; `npm run check` passed 246/246 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.4 after restarting the local 8001 server.
+
 ## Version 0.33.5.22.3 - 2026-07-03
 
 - Added Busboy as the chosen streaming multipart parser dependency for the upcoming multipart upload route instead of hand-rolling multipart parsing.

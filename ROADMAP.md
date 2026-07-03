@@ -177,15 +177,15 @@ Acceptance criteria:
 
 ### Version 0.33.5.22.4 - Multipart upload route and Files lifecycle
 
-- [ ] Add the first streamed/multipart upload route for local/self-hosted mode without removing `POST /api/files`.
-- [ ] Parse one uploaded file plus attachment metadata through the selected multipart mechanism from 0.33.5.22.3.
-- [ ] Add upload size enforcement at the streamed route boundary.
-- [ ] Keep the post-write pipeline identical for the streamed route: it must still create the file record, `queueFileScanJob` (`files.service.js:197`), and `attachFile` so uploaded files land `pending`/scan-`pending` exactly as the base64 path does (per 0.33.5.21.7.1). Streaming changes only how bytes reach the storage adapter, not the lifecycle.
-- [ ] Preserve permission checks, target validation, audit/lifecycle behavior, scan/download/preview availability gates, and per-row `files.storage_provider`.
-- [ ] Add regressions proving:
-  - [ ] Successful streamed upload creates and attaches a pending file.
-  - [ ] Oversized streamed upload is rejected before storing a usable file.
-  - [ ] Failed parsing/storage does not leave an attached orphan.
+- [x] Add the first streamed/multipart upload route for local/self-hosted mode without removing `POST /api/files`.
+- [x] Parse one uploaded file plus attachment metadata through the selected multipart mechanism from 0.33.5.22.3.
+- [x] Add upload size enforcement at the streamed route boundary.
+- [x] Keep the post-write pipeline identical for the streamed route: it must still create the file record, `queueFileScanJob` (`files.service.js:197`), and `attachFile` so uploaded files land `pending`/scan-`pending` exactly as the base64 path does (per 0.33.5.21.7.1). Streaming changes only how bytes reach the storage adapter, not the lifecycle.
+- [x] Preserve permission checks, target validation, audit/lifecycle behavior, scan/download/preview availability gates, and per-row `files.storage_provider`.
+- [x] Add regressions proving:
+  - [x] Successful streamed upload creates and attaches a pending file.
+  - [x] Oversized streamed upload is rejected before storing a usable file.
+  - [x] Failed parsing/storage does not leave an attached orphan.
 
 Acceptance criteria:
 
