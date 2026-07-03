@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 
 const root = process.cwd();
-const appVersion = "0.33.5.22.2";
+const appVersion = "0.33.5.22.3";
 const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "ltf-file-storage-diagnostics-"));
 
 process.env.LONGTAIL_DATA_DIR = tempDir;
@@ -86,7 +86,7 @@ function assertStaticContracts() {
   assert.doesNotMatch(workspaceSettingsScript, /process\.env|localRoot|storageKey|signedUrl|protectedPath|DATABASE_URL|CLAMD|CLAMSCAN|masterKey/i, "Workspace Settings storage diagnostics must not expose raw runtime or storage internals");
   assert.equal(existsSync(path.join(root, "views/protected/runtime-diagnostics.html")), false, "storage diagnostics should not add a new admin diagnostics surface");
 
-  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.2[\s\S]*storage provider diagnostics are active/, "runtime docs should mark storage diagnostics active");
+  assert.match(runtimeDocs, /As of 0\.33\.5\.22\.3[\s\S]*storage provider diagnostics are active/, "runtime docs should mark storage diagnostics active");
   assert.match(sqliteDocs, /safe local storage root label/i, "SQLite small-office docs should mention the safe storage root label");
   assert.match(changelog, new RegExp(`## Version ${escapeRegExp(appVersion)} - `), "changelog should include the storage diagnostics slice");
   assert.match(roadmap, /### Version 0\.33\.5\.22\.2 - Storage diagnostics and local storage docs[\s\S]*- \[x\] Add provider health checks/, "roadmap should mark the storage diagnostics slice complete");

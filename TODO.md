@@ -31,10 +31,13 @@ OS/sunrise-sunset auto source. (The `## Theme` section further down has been fol
 - Billable flag needs to be deprecated everywhere from the front end
   - It can remain in the database as long as it can never be used on Personal or Family workspaces
 
-## Dashboard/Workbench
+## Dashboard/Workbench — promoted to ROADMAP
 
-- Need to further flesh out the "Inspector" concept
-- Need to solidify the Quick Action Center Slide out concept
+Promoted into `ROADMAP.md` as **0.33.6** (Dashboard and Workbench Formalization): the Inspector panel
+(0.33.6.11), the floating Quick Action Capture drawer (0.33.6.10), the shared work-candidate model
+and focus modes (0.33.6.2–0.33.6.4), Dashboard host conversion (0.33.6.8–0.33.6.9), and the "What do
+you want to do right now?" guided focus modes (0.33.6.6). Deferred future-modal follow-ups (2-timer
+modal, advanced-search modal, report-creation modal) are tracked in 0.33.6.12.
 
 ## Misc
 
@@ -78,16 +81,6 @@ This section is to define a series of human testing goals for different sections
     - Keywords pulled from titles/descriptions/note bodies
   - Should be similar to context around displaying notes within workspace
   - Maybe just displays headings/titles?
-
-### Workbench Enhancements: Inspector
-
-- Anchor QAC near the bottom-right edge.
-- Make QAC a floating drawer/tray, not a permanent rail.
-- On 1920px desktop Workbench layouts, shift the main surface left by default.
-- Keep the Inspector visible on the Workbench all the time on wide screens.
-- Let the Inspector show related record titles when idle.
-- Let clicking a related title open a read-only preview inside the Inspector.
-- Keep non-Workbench screens centered unless they opt into Inspector behavior.
 
 ## Notes / Lists / Modals refinement — promoted to ROADMAP
 
@@ -176,21 +169,6 @@ OS-match / sunrise-sunset auto source).
     - Create a list of environment details
     - Include relevant log files
   - Should also have a "Support" option for paid private hosting
-
-## "What are you trying to do right now?"
-
-- Dashboard opens with all of the overview stuff has the QAC utility rail, and, somewhere, presents the question:
-  "What do you want to do right now?"
-  Which is answered with one of the following work/focus modes in Workbench:
-
-  - Focus modes:
-    - Start my day
-    - Pick up where I left off
-    - Show what's due next
-    - Work this week
-    - Review blocked work
-    - Focus on a project
-    - Focus on a client
 
 ## Project Updates
 

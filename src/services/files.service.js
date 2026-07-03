@@ -114,7 +114,7 @@ function registerFileStorageAdapter(providerId, adapter) {
     throw new TypeError("File storage provider ID is required.");
   }
 
-  for (const methodName of ["save", "read", "metadata", "delete", "health"]) {
+  for (const methodName of ["save", "saveStream", "read", "metadata", "delete", "health"]) {
     if (typeof adapter?.[methodName] !== "function") {
       throw new TypeError(`File storage adapter '${normalizedProviderId}' must implement ${methodName}().`);
     }

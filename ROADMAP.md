@@ -162,14 +162,14 @@ Acceptance criteria:
 
 ### Version 0.33.5.22.3 - Streaming write contract and multipart decision
 
-- [ ] Prepare file uploads to move away from JSON-body file payloads by settling the transport and storage-write contracts first.
-- [ ] Decide the multipart mechanism explicitly: no multipart parser exists today (uploads are base64-in-JSON via the hand-rolled `readJsonBody` in `src/utils/http.js`, capped at 8 MB JSON / 5 MB decoded file), so this slice adds either a streaming multipart dependency or a hand-rolled parser. Record the dependency decision in `DECISIONS.md`.
-- [ ] Extend the storage adapter write contract for streaming: `save()` takes a fully-buffered `Buffer` today (`local-storage-adapter.js:41-48`), so a streamed HTTP body still buffers end-to-end unless `save()` gains a stream/`pipeline`-based path. Add a streaming save variant (or accept a `Readable`) so local writes go body → disk without a full in-memory buffer, and keep the buffered signature working for existing callers.
-- [ ] Keep the existing base64 JSON routes and browser helper unchanged in this slice.
-- [ ] Add focused adapter-level regressions proving:
-  - [ ] Buffered `save()` callers still work.
-  - [ ] A streamed local save writes through the same storage-key safety rules.
-  - [ ] Stream errors clean up partial local writes where practical.
+- [x] Prepare file uploads to move away from JSON-body file payloads by settling the transport and storage-write contracts first.
+- [x] Decide the multipart mechanism explicitly: no multipart parser exists today (uploads are base64-in-JSON via the hand-rolled `readJsonBody` in `src/utils/http.js`, capped at 8 MB JSON / 5 MB decoded file), so this slice adds either a streaming multipart dependency or a hand-rolled parser. Record the dependency decision in `DECISIONS.md`.
+- [x] Extend the storage adapter write contract for streaming: `save()` takes a fully-buffered `Buffer` today (`local-storage-adapter.js:41-48`), so a streamed HTTP body still buffers end-to-end unless `save()` gains a stream/`pipeline`-based path. Add a streaming save variant (or accept a `Readable`) so local writes go body → disk without a full in-memory buffer, and keep the buffered signature working for existing callers.
+- [x] Keep the existing base64 JSON routes and browser helper unchanged in this slice.
+- [x] Add focused adapter-level regressions proving:
+  - [x] Buffered `save()` callers still work.
+  - [x] A streamed local save writes through the same storage-key safety rules.
+  - [x] Stream errors clean up partial local writes where practical.
 
 Acceptance criteria:
 
@@ -333,7 +333,7 @@ Acceptance criteria:
 
 ### Version 0.33.5.22.13 - S3 object operation proof
 
-- [ ] Add S3-compatible storage adapter behind the provider contract: implement the same `save/read/metadata/delete/health` methods `registerFileStorageAdapter` enforces (`files.service.js:116`), returning a `Readable` from `read()` so the existing download/preview stream paths (`files.service.js:609`/`:660`) work unchanged, and adopting the streaming `save()` path from 0.33.5.22.3 if it has landed.
+- [ ] Add S3-compatible storage adapter behind the provider contract: implement the same `save/saveStream/read/metadata/delete/health` methods `registerFileStorageAdapter` enforces (`files.service.js:116`), returning a `Readable` from `read()` so the existing download/preview stream paths (`files.service.js:609`/`:660`) work unchanged, and adopting the streaming `saveStream()` path from 0.33.5.22.3 if it has landed.
 - [ ] Add safe provider health checks.
 - [ ] Keep uploads, downloads, previews, deletes, and metadata reads behind the existing Files service permission/lifecycle boundaries.
 - [ ] Add regressions with mocked S3 provider/client calls proving:

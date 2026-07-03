@@ -1,3 +1,11 @@
+## Version 0.33.5.22.3 - 2026-07-03
+
+- Added Busboy as the chosen streaming multipart parser dependency for the upcoming multipart upload route instead of hand-rolling multipart parsing.
+- Extended the Files storage adapter contract with `saveStream(readable, options)` while keeping the existing buffered `save(buffer, options)` path working for current JSON/base64 uploads.
+- Updated the local storage provider to stream writes through `pipeline()` into the configured storage root, reuse the existing storage-key containment rules, and remove partial local files after stream errors where practical.
+- Added `scripts/file-storage-streaming-contract-regression.mjs`, wired it into the file-storage regression bucket, refreshed runtime docs/decisions, marked the roadmap slice complete, and advanced package/regression version metadata to 0.33.5.22.3.
+- Verification 2026-07-03 08:16 -04:00: `scripts/file-storage-streaming-contract-regression.mjs`, `scripts/file-storage-provider-configuration-regression.mjs`, `scripts/file-storage-diagnostics-regression.mjs`, `scripts/file-api-lifecycle-regression.mjs`, `scripts/runtime-configuration-contract-regression.mjs`, `scripts/runtime-diagnostics-route-regression.mjs`, `scripts/sqlite-small-office-readout-regression.mjs`, and `scripts/regression-clean-clone-contract.mjs` targeted checks passed; `npm run check` passed 245/245 regression scripts plus ESLint; `npm run test:permissions` passed 236 checks; SQLite `PRAGMA integrity_check` returned `ok`; and `/api/app-info` returned 0.33.5.22.3 after restarting the local 8001 server.
+
 ## Version 0.33.5.22.2 - 2026-07-03
 
 - Added safe Files storage provider health to runtime diagnostics, including provider ID, availability, and a data-root/app-root relative or redacted local storage root label.

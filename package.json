@@ -1,6 +1,6 @@
 {
   "name": "longtail-forge",
-  "version": "0.33.5.22.2",
+  "version": "0.33.5.22.3",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "better-sqlite3": "^12.11.1",
+    "busboy": "^1.6.0",
     "cookie-parser": "^1.4.7",
     "express": "^4.19.2",
     "markdown-it": "^14.2.0"
