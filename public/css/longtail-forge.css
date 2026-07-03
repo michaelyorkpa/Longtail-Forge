@@ -1681,8 +1681,8 @@ details[open] > summary.surface-modal-section-heading::before {
 .nav-links a:hover,
 .nav-links a[aria-current="page"],
 .nav-menu summary:hover,
-.nav-menu[open] summary,
-.nav-menu:has(a[aria-current="page"]) summary,
+.nav-menu[open] > summary,
+.nav-menu:has(a[aria-current="page"]) > summary,
 .nav-logout:hover {
     background: var(--color-hover);
     color: var(--color-text);
