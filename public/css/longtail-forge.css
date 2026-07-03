@@ -73,6 +73,41 @@ html[data-theme="dark"] {
     --color-surface-alt: var(--color-surface-muted);
 }
 
+@media (prefers-color-scheme: dark) {
+    html[data-theme-mode="auto"][data-theme-auto-source="system"] {
+        color-scheme: dark;
+        --color-page-bg: #000000;
+        --color-surface: #2b2b2b;
+        --color-surface-raised: #333333;
+        --color-surface-muted: #1d1d1d;
+        --color-surface-inset: #151515;
+        --color-surface-overlay: #2b2b2b;
+        --color-text: #dfdfdf;
+        --color-text-secondary: #cfcfcf;
+        --color-muted: #ae9f87;
+        --color-text-muted: var(--color-muted);
+        --color-border: #a2a2a2;
+        --color-border-subtle: #19140c;
+        --color-border-strong: #655842;
+        --color-hover: #161107;
+        --color-accent: #a2a2a2;
+        --color-success: #50df8b;
+        --color-success-bg: #1f5837;
+        --color-success-text: #35dd81;
+        --color-danger: #eb504d;
+        --color-danger-border: #46b5b7;
+        --color-danger-bg: #021314;
+        --shadow-card: 0 16px 40px rgba(0, 0, 0, 0.45);
+        --shadow-modal: 0 24px 70px rgba(0, 0, 0, 0.65);
+        --shadow-control: 0 1px 3px rgba(0, 0, 0, 0.45);
+        --color-overlay: rgba(0, 0, 0, 0.68);
+        --surface-focus-ring: 0 0 0 3px rgba(162, 162, 162, 0.32);
+        --color-background: var(--color-surface);
+        --color-page: var(--color-page-bg);
+        --color-surface-alt: var(--color-surface-muted);
+    }
+}
+
 /* Base page shell */
 body {
     min-height: 100vh;

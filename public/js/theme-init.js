@@ -7,8 +7,10 @@
   const cookieThemeAutoSource = readCookie(THEME_AUTO_SOURCE_STORAGE_KEY);
   const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY) || "";
   const storedThemeAutoSource = window.localStorage.getItem(THEME_AUTO_SOURCE_STORAGE_KEY) || "";
-  const themeMode = normalizeThemeMode(cookieTheme || storedTheme);
-  const themeAutoSource = normalizeThemeAutoSource(cookieThemeAutoSource || storedThemeAutoSource);
+  const documentThemeMode = document.documentElement.dataset.themeMode || document.documentElement.dataset.theme || "";
+  const documentThemeAutoSource = document.documentElement.dataset.themeAutoSource || "";
+  const themeMode = normalizeThemeMode(cookieTheme || storedTheme || documentThemeMode);
+  const themeAutoSource = normalizeThemeAutoSource(cookieThemeAutoSource || storedThemeAutoSource || documentThemeAutoSource);
   const theme = resolveThemeMode(themeMode, themeAutoSource);
 
   document.documentElement.dataset.themeMode = themeMode;

@@ -9,6 +9,7 @@ staticRoutes.get("*", asyncRoute(async (request, response) => {
 
   response.writeHead(result.statusCode, {
     "Content-Type": result.contentType,
+    ...(result.headers || {}),
   });
   response.end(result.contents);
 }));

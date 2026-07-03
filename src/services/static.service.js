@@ -2,6 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "../config.js";
 import { modulesService } from "../core/modules/modules.service.js";
+import { usersRepository } from "../repositories/users.repo.js";
+import { normalizeThemeAutoSource, normalizeThemeMode } from "../utils/normalizers.js";
 
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
@@ -40,13 +42,18 @@ async function read(requestUrl, session = null) {
   }
 
   try {
-    const contents = await fs.readFile(resolved.filePath);
+    let contents = await fs.readFile(resolved.filePath);
     const extension = path.extname(resolved.filePath).toLowerCase();
+
+    if (extension === ".html") {
+      contents = await decorateHtml(contents.toString("utf8"), resolved, session);
+    }
 
     return {
       statusCode: 200,
       contents,
       contentType: contentTypes[extension] || "application/octet-stream",
+      headers: resolved.headers || {},
     };
   } catch (error) {
     if (error.code === "ENOENT") {
@@ -84,7 +91,7 @@ async function resolveRequestPath(requestPath, session) {
   }
 
   if (frameworkProtectedViews.has(pageName)) {
-    return resolveViewPath("protected", frameworkProtectedViews.get(pageName).file);
+    return resolveViewPath("protected", frameworkProtectedViews.get(pageName).file, { protectedHtml: true });
   }
 
   const moduleView = await modulesService.resolveProtectedModuleView(session.workspace_id, session, requestPath);
@@ -103,15 +110,17 @@ async function resolveRequestPath(requestPath, session) {
     };
   }
 
-  return resolveViewPath("protected", moduleView.view.file);
+  return resolveViewPath("protected", moduleView.view.file, { protectedHtml: true });
 }
 
-function resolveViewPath(viewGroup, fileName) {
+function resolveViewPath(viewGroup, fileName, options = {}) {
   const filePath = path.resolve(config.viewsDir, viewGroup, fileName);
   const viewRoot = path.resolve(config.viewsDir, viewGroup);
 
   return {
     filePath: filePath.startsWith(`${viewRoot}${path.sep}`) ? filePath : null,
+    headers: options.protectedHtml ? { "Cache-Control": "no-store" } : {},
+    protectedHtml: options.protectedHtml === true,
   };
 }
 
@@ -121,6 +130,61 @@ function resolvePublicAssetPath(requestPath) {
   const publicRoot = path.resolve(config.publicDir);
 
   return filePath.startsWith(`${publicRoot}${path.sep}`) ? filePath : null;
+}
+
+async function decorateHtml(contents, resolved, session) {
+  if (!resolved.protectedHtml || !session?.user_id) {
+    return contents;
+  }
+
+  const theme = await readInitialTheme(session);
+  return injectCriticalThemeStyle(injectThemeAttributes(contents, theme));
+}
+
+async function readInitialTheme(session) {
+  const user = await usersRepository.readById(session.home_workspace_id || session.workspace_id, session.user_id);
+  const themeMode = normalizeThemeMode(user?.theme_mode);
+  const themeAutoSource = normalizeThemeAutoSource(user?.theme_auto_source);
+
+  return {
+    theme: themeMode === "dark" ? "dark" : "light",
+    themeAutoSource,
+    themeMode,
+  };
+}
+
+function injectThemeAttributes(contents, theme) {
+  return contents.replace(/<html\b([^>]*)>/i, (match, attributes) => {
+    if (/\sdata-theme=/.test(attributes)) {
+      return match;
+    }
+
+    return `<html${attributes} data-theme-mode="${escapeHtmlAttribute(theme.themeMode)}" data-theme-auto-source="${escapeHtmlAttribute(theme.themeAutoSource)}" data-theme="${escapeHtmlAttribute(theme.theme)}">`;
+  });
+}
+
+function injectCriticalThemeStyle(contents) {
+  if (contents.includes("data-theme-critical")) {
+    return contents;
+  }
+
+  const criticalStyle = [
+    "<style data-theme-critical>",
+    'html[data-theme="dark"] { color-scheme: dark; background: #000000; }',
+    'html[data-theme="light"] { color-scheme: light; background: #f5f7fb; }',
+    '@media (prefers-color-scheme: dark) { html[data-theme-mode="auto"][data-theme-auto-source="system"] { color-scheme: dark; background: #000000; } }',
+    "</style>",
+  ].join("");
+
+  return contents.replace(/(<head\b[^>]*>)/i, `$1\n    ${criticalStyle}`);
+}
+
+function escapeHtmlAttribute(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 export const staticService = {

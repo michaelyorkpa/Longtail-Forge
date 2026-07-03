@@ -22,6 +22,8 @@ const sessionsSource = readText("src/security/sessions.js");
 const authRoutes = readText("src/routes/auth.routes.js");
 const usersRoutes = readText("src/routes/users.routes.js");
 const configSource = readText("src/config.js");
+const staticServiceSource = readText("src/services/static.service.js");
+const staticRoutesSource = readText("src/routes/static.routes.js");
 const themeInitScript = readText("public/js/theme-init.js");
 const navigationScript = readText("public/js/navigation.js");
 const loginScript = readText("public/js/login.js");
@@ -34,6 +36,7 @@ const changelog = readText("CHANGELOG.md");
 const regressionSuite = readText("scripts/regression-suite.mjs");
 
 const { closeSqlite, initializeDatabase, querySql, sqlText } = await import("../src/db/index.js");
+const { staticService } = await import("../src/services/static.service.js");
 const { usersService } = await import("../src/services/users.service.js");
 
 try {
@@ -45,6 +48,7 @@ try {
 
   await assertMigrationAndColumn();
   await assertSettingsDefaultAndSave(session);
+  await assertProtectedHtmlInitialTheme(session);
   await assertIntegrity();
 
   console.log("User theme auto mode regression passed.");
@@ -77,10 +81,17 @@ function assertStaticContract() {
   assert.match(authRoutes, /buildThemeAutoSourceCookie\(result\.themeAutoSource\)/, "login should set the theme auto-source cookie");
   assert.match(authRoutes, /buildExpiredThemeAutoSourceCookie\(\)/, "logout should expire the theme auto-source cookie");
   assert.match(usersRoutes, /buildThemeAutoSourceCookie\(result\.themeAutoSource\)/, "user settings reads/writes should refresh the theme auto-source cookie");
+  assert.match(staticServiceSource, /usersRepository\.readById\(session\.home_workspace_id \|\| session\.workspace_id, session\.user_id\)/, "protected HTML should read the user theme before first paint");
+  assert.match(staticServiceSource, /data-theme-critical/, "protected HTML should inject critical theme CSS before external assets");
+  assert.match(staticServiceSource, /data-theme-mode="\$\{escapeHtmlAttribute\(theme\.themeMode\)\}"/, "protected HTML should carry the stored theme mode");
+  assert.match(staticServiceSource, /"Cache-Control": "no-store"/, "protected HTML should not be served from stale browser cache");
+  assert.match(staticRoutesSource, /\.\.\.\(result\.headers \|\| \{\}\)/, "static routes should forward protected HTML cache headers");
 
   assert.match(themeInitScript, /const THEME_AUTO_SOURCE_STORAGE_KEY = "lf_theme_auto_source"/, "first-paint theme init should read the auto-source storage key");
   assert.match(themeInitScript, /readCookie\(THEME_AUTO_SOURCE_STORAGE_KEY\)/, "first-paint theme init should read the auto-source cookie");
   assert.match(themeInitScript, /window\.localStorage\.getItem\(THEME_AUTO_SOURCE_STORAGE_KEY\)/, "first-paint theme init should read cached auto source");
+  assert.match(themeInitScript, /document\.documentElement\.dataset\.themeMode/, "first-paint theme init should preserve server-provided theme mode when cookies/storage are absent");
+  assert.match(themeInitScript, /document\.documentElement\.dataset\.themeAutoSource/, "first-paint theme init should preserve server-provided auto source when cookies/storage are absent");
   assert.match(themeInitScript, /document\.documentElement\.dataset\.themeAutoSource = themeAutoSource/, "first-paint theme init should expose theme auto source");
   assert.match(themeInitScript, /window\.matchMedia\(SYSTEM_THEME_QUERY\)\.matches \? "dark" : "light"/, "first-paint auto mode should resolve from prefers-color-scheme");
 
@@ -97,13 +108,16 @@ function assertStaticContract() {
   assert.match(userSettingsView, /data-theme-auto-source-controls/, "User Settings should expose auto-source controls");
   assert.match(userSettingsView, /name="themeAutoSource" value="system" data-theme-auto-source/, "User Settings should expose OS-match auto source");
   assert.doesNotMatch(userSettingsView, /data-theme-mode-toggle|theme-mode-switch|theme-switch-track/, "User Settings should not keep the old binary slider");
-  assert.match(userSettingsView, /js\/user-settings\.js\?v=4/, "User Settings script cache key should advance");
+  assert.match(userSettingsView, /css\/longtail-forge\.css\?v=10/, "User Settings CSS cache key should advance with the segmented theme controls");
+  assert.match(userSettingsView, /js\/user-settings\.js\?v=6/, "User Settings script cache key should advance with the scoped three-way settings hydrator");
+  assert.match(userSettingsScript, /^\(function attachUserSettingsPage\(\) \{[\s\S]*\}\)\(\);\s*$/, "User Settings should be scoped so theme helper names cannot collide with navigation.js");
   assert.match(userSettingsScript, /putJson\("\/api\/user\/settings", \{ themeMode, themeAutoSource \}\)/, "User Settings should save mode and source together");
   assert.match(userSettingsScript, /themeAutoSourceControls\.hidden = normalizedThemeMode !== "auto"/, "auto-source controls should only show for auto mode");
   assert.match(userSettingsScript, /input\.disabled = normalizedThemeMode !== "auto"/, "auto-source inputs should only be active for auto mode");
   assert.match(userSettingsScript, /query\.addEventListener\("change", listener\)/, "User Settings should re-resolve auto mode when OS scheme changes");
   assert.match(css, /\.theme-mode-control,[\s\S]*\.theme-auto-source-options/, "CSS should style the segmented theme controls");
   assert.match(css, /\.settings-segmented-option input:checked \+ span/, "CSS should show the selected segmented option");
+  assert.match(css, /html\[data-theme-mode="auto"\]\[data-theme-auto-source="system"\]/, "CSS should resolve auto mode before theme-init finishes");
 
   assert.match(moduleContract, /The only shipped auto source is `system`/, "tracked docs should record the OS-match auto source");
   assert.match(moduleContract, /Sunrise\/sunset theme automation is deferred/, "tracked docs should record the sunrise/sunset deferral");
@@ -153,6 +167,25 @@ async function assertSettingsDefaultAndSave(session) {
     theme_mode: "light",
     theme_auto_source: "system",
   });
+}
+
+async function assertProtectedHtmlInitialTheme(session) {
+  await usersService.saveSettings({ themeMode: "dark", themeAutoSource: "system" }, session);
+  const darkResult = await staticService.read("/user-settings.html", session);
+  const darkHtml = String(darkResult.contents);
+
+  assert.equal(darkResult.statusCode, 200);
+  assert.equal(darkResult.headers["Cache-Control"], "no-store", "protected User Settings HTML should not be cached stale");
+  assert.match(darkHtml, /<html lang="en" data-theme-mode="dark" data-theme-auto-source="system" data-theme="dark">/, "protected HTML should carry dark theme attributes before scripts");
+  assert.match(darkHtml, /<style data-theme-critical>/, "protected HTML should include critical theme CSS");
+  assert.match(darkHtml, /html\[data-theme="dark"\] \{ color-scheme: dark; background: #000000; \}/, "critical CSS should avoid white background before dark CSS loads");
+
+  await usersService.saveSettings({ themeMode: "auto", themeAutoSource: "system" }, session);
+  const autoResult = await staticService.read("/user-settings.html", session);
+  const autoHtml = String(autoResult.contents);
+
+  assert.match(autoHtml, /<html lang="en" data-theme-mode="auto" data-theme-auto-source="system" data-theme="light">/, "auto mode protected HTML should carry stored auto mode and a light default");
+  assert.match(autoHtml, /@media \(prefers-color-scheme: dark\) \{ html\[data-theme-mode="auto"\]\[data-theme-auto-source="system"\] \{ color-scheme: dark; background: #000000; \} \}/, "critical CSS should avoid white background for OS-dark auto mode");
 }
 
 async function readStoredTheme(userId) {

@@ -1,3 +1,4 @@
+(function attachUserSettingsPage() {
 // User settings owns per-user preferences and password changes for the signed-in account.
 const THEME_STORAGE_KEY = "lf_theme";
 const THEME_AUTO_SOURCE_STORAGE_KEY = "lf_theme_auto_source";
@@ -666,3 +667,4 @@ function handleApiError(error, fallbackMessage) {
 
   setUserSettingsStatus(error?.message || fallbackMessage, true);
 }
+})();
